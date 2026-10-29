@@ -1,50 +1,171 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import { Table } from "@vrooli/react-component-library/Table/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { getEpisodeCohort, getEpisodes, getLedger, type Availability, type Episode, type EpisodeSignal, type Ledger } from "../api/episodes";
+import { DataState } from "../components/feedback/DataState";
+import { ErrorNotice } from "../components/feedback/ErrorNotice";
 import { Dialog, DialogContent, DialogHeader } from "../components/ui/dialog";
-import { getApiBaseUrl } from "../lib/utils";
+import { useApiQuery } from "../hooks/useApiQuery";
+import { apiRequest } from "../hooks/useApiTransport";
+import { formatStandardRelativeTime } from "../lib/dateTime";
+import { formatCode, formatCount, formatDuration, formatTokens, pluralize, shortenIds } from "../lib/format";
+import { statusTone } from "../lib/display";
 import type { TypedInvestigation } from "../types";
+
+/** Short columns keep their words whole; the table scrolls sideways before it breaks "Applicability" mid-word. */
+const NO_BREAK = "whitespace-nowrap break-normal";
 
 function coverageSummary(item: TypedInvestigation): string {
   const coverage = item.result?.coverage ?? [];
-  if (coverage.length === 0) return "not yet available";
-  return coverage.map((plane) => `${plane.plane ?? "plane"}: ${plane.state ?? "unknown"}`).join(" · ");
+  if (coverage.length === 0) return "Not yet available";
+  return coverage.map((plane) => `${formatCode(plane.plane)}: ${formatCode(plane.state)}`).join(" · ");
 }
 
-function AvailabilityBadge({ value }: { value: Availability }) {
-  return <span className="rounded bg-muted px-2 py-1 text-xs" data-testid={`availability-${value.state}`}>{value.state}{value.reason ? `: ${value.reason}` : ""}</span>;
+function diagnosisSummary(item: TypedInvestigation): string {
+  const diagnosis = item.result?.diagnosis;
+  return diagnosis ? `${formatCode(diagnosis.condition)} · ${formatCode(diagnosis.disposition ?? "inconclusive")}` : "Pending";
+}
+
+function AvailabilityNote({ value }: { value: Availability }) {
+  if (value.state === "available") return null;
+  return <p className="text-sm text-muted-foreground" data-testid={`availability-${value.state}`}>{formatCode(value.state)}{value.reason ? `: ${value.reason}` : ""}</p>;
+}
+
+function InvestigationRows({ items }: { items: TypedInvestigation[] }) {
+  return (
+    <Table>
+      <table className="min-w-[56rem]">
+        <caption className="sr-only">Durable investigations</caption>
+        <thead><tr><th className={NO_BREAK}>Status</th><th className="min-w-[10rem] break-normal">Subject</th><th className="min-w-[10rem] break-normal">Diagnosis</th><th className="min-w-[12rem] break-normal">Coverage</th><th className={NO_BREAK}>Applicability</th><th className={NO_BREAK}>Updated</th></tr></thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.investigationId} data-testid={`typed-investigation-${item.investigationId}`}>
+              <td className={NO_BREAK}><StatusBadge tone={statusTone(item.operationStatus)}>{formatCode(item.operationStatus)}</StatusBadge></td>
+              <td className="min-w-[10rem] break-normal">
+                {formatCode(item.request?.subject?.kind ?? "subject")}: {shortenIds(item.request?.subject?.ref ?? item.investigationId)}
+                <div className="text-xs text-muted-foreground">{pluralize(item.request?.subject?.runIds?.length ?? 0, "run")}</div>
+              </td>
+              <td className="min-w-[10rem] break-normal">{diagnosisSummary(item)}</td>
+              <td className="min-w-[12rem] break-normal">{coverageSummary(item)}</td>
+              <td className={NO_BREAK}>{item.result?.applicability?.state ? formatCode(item.result.applicability.state) : "Not yet available"}</td>
+              <td className={NO_BREAK}>{formatStandardRelativeTime(item.updatedAt)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Table>
+  );
+}
+
+function EpisodeDetail({ runId, episodes, ledger }: { runId: string; episodes: Episode[]; ledger: Ledger }) {
+  return (
+    <div className="space-y-3 overflow-auto p-4">
+      {episodes.map((episode) => (
+        <article key={episode.episodeId} className="rounded border p-3">
+          <p>{formatCode(episode.pattern)} · {formatCode(episode.causeScope)} · {formatCode(episode.ownerConfidence)} confidence</p>
+          <p>{formatCount(episode.turns)} requests, {formatTokens(episode.tokens)} tokens, {formatDuration(episode.wallClockMs)}</p>
+          <p>{shortenIds(`${episode.suspectedOwnerScenario ?? ""} ${episode.suspectedOwnerCommand ?? ""}`)}</p>
+          <p className="flex flex-wrap gap-x-3">{episode.evidenceEventIds.map((id, index) => <Link key={id} className="inline-flex min-h-11 items-center text-primary underline sm:min-h-6" title={id} to={`/runs/${runId}?event=${encodeURIComponent(id)}`}>{`Evidence ${index + 1}`}</Link>)}</p>
+        </article>
+      ))}
+      <AvailabilityNote value={ledger.ledgerAvailability} />
+      <AvailabilityNote value={ledger.projectionAvailability} />
+      <Table>
+        <table className="min-w-[28rem]"><caption className="sr-only">Calls by target</caption><tbody>
+          {ledger.ledgerTargetRollups.map((rollup) => (
+            <tr key={rollup.targetScenario}>
+              <td>{rollup.targetScenario}</td><td>{formatCount(rollup.calls)} calls</td><td>{formatCount(rollup.failures)} failures</td><td>{formatDuration(rollup.medianDurationMs)} median</td>
+            </tr>
+          ))}
+        </tbody></table>
+      </Table>
+    </div>
+  );
 }
 
 export function InvestigationsPage() {
-  const [signals, setSignals] = useState<EpisodeSignal[]>([]);
-  const [availability, setAvailability] = useState<Availability>({ state: "unavailable", reason: "loading" });
+  const cohort = useApiQuery(["episode-cohort"], () => getEpisodeCohort());
+  const lifecycle = useApiQuery<TypedInvestigation[]>(
+    ["investigations"],
+    async (signal) => (await apiRequest<{ investigations?: TypedInvestigation[] }>("/investigations?limit=50", { signal })).investigations ?? [],
+    { fallback: [] },
+  );
   const [selected, setSelected] = useState<{ runId: string; episodes: Episode[]; ledger: Ledger } | null>(null);
-  const [typedInvestigations, setTypedInvestigations] = useState<TypedInvestigation[]>([]);
-  const [typedError, setTypedError] = useState<string | null>(null);
-  useEffect(() => { void getEpisodeCohort().then((data) => { setSignals(data.signals); setAvailability(data.availability); }).catch((error: unknown) => setAvailability({ state: "unavailable", reason: error instanceof Error ? error.message : "request failed" })); }, []);
-  useEffect(() => {
-    let active = true;
-    void fetch(`${getApiBaseUrl()}/investigations?limit=50`, { headers: { "Content-Type": "application/json" } })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`lifecycle request failed: ${response.status}`);
-        return response.json() as Promise<{ investigations?: TypedInvestigation[] }>;
-      })
-      .then((data) => { if (active) setTypedInvestigations(data.investigations ?? []); })
-      .catch((error: unknown) => { if (active) setTypedError(error instanceof Error ? error.message : "lifecycle request failed"); });
-    return () => { active = false; };
-  }, []);
-  const openSignal = async (signal: EpisodeSignal) => { const runId = signal.representativeRunIds[0]; if (!runId) return; const [episodeData, ledger] = await Promise.all([getEpisodes(runId), getLedger(runId)]); setSelected({ runId, episodes: episodeData.episodes, ledger }); };
+  const [detailError, setDetailError] = useState<string | null>(null);
+
+  const openSignal = async (signal: EpisodeSignal) => {
+    const runId = signal.representativeRunIds[0];
+    if (!runId) return;
+    setDetailError(null);
+    try {
+      const [episodeData, ledger] = await Promise.all([getEpisodes(runId), getLedger(runId)]);
+      setSelected({ runId, episodes: episodeData.episodes, ledger });
+    } catch (error) {
+      setDetailError(error instanceof Error ? error.message : "The episode detail request failed.");
+    }
+  };
+
+  const items = lifecycle.data ?? [];
+  const signals = cohort.data?.signals ?? [];
   return (
-    <section className="p-6 space-y-3" data-testid="investigations-page">
-      <h1 className="text-2xl font-semibold">Investigations</h1>
-      <section className="rounded border p-4 space-y-2" aria-label="Durable investigation lifecycle">
-        <div><h2 className="text-lg font-medium">Durable lifecycle</h2><p className="text-sm text-muted-foreground">A completed subject run is not the same as a completed investigation. Review state, evidence coverage, and current applicability here.</p></div>
-        {typedError ? <AvailabilityBadge value={{ state: "unavailable", reason: typedError }} /> : null}
-        {!typedError && typedInvestigations.length === 0 ? <p className="text-sm text-muted-foreground">No caller-neutral investigations have been admitted.</p> : null}
-        {typedInvestigations.length > 0 ? <div className="overflow-auto"><table className="w-full text-sm"><thead><tr><th className="text-left">Status</th><th className="text-left">Subject</th><th className="text-left">Diagnosis</th><th className="text-left">Coverage</th><th className="text-left">Applicability</th><th className="text-left">Updated</th></tr></thead><tbody>{typedInvestigations.map((item) => <tr key={item.investigationId} data-testid={`typed-investigation-${item.investigationId}`}><td><span className="rounded bg-muted px-2 py-1 text-xs">{item.operationStatus}</span></td><td>{item.request?.subject?.kind ?? "subject"}: {item.request?.subject?.ref ?? item.investigationId}<div className="text-xs text-muted-foreground">{item.request?.subject?.runIds?.length ?? 0} explicit run IDs</div></td><td>{item.result?.diagnosis ? `${item.result.diagnosis.condition ?? "unknown"} · ${item.result.diagnosis.disposition ?? "inconclusive"}` : "pending"}</td><td>{coverageSummary(item)}</td><td>{item.result?.applicability?.state ?? "not yet available"}</td><td>{item.updatedAt ? new Date(item.updatedAt).toLocaleString() : "—"}</td></tr>)}</tbody></table></div> : null}
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 sm:p-6" data-testid="investigations-page">
+      <PageHeader
+        title="Investigations"
+        description="A completed subject run is not the same as a completed investigation. Review state, evidence coverage and current applicability here."
+        actions={<Link to="/observability" className="inline-flex min-h-11 items-center text-sm font-medium text-primary hover:underline sm:min-h-8">Health →</Link>}
+      />
+      <section aria-label="Durable investigation lifecycle" className="space-y-2">
+        <DataState
+          subject="Investigations"
+          loading={lifecycle.loading}
+          error={lifecycle.error}
+          isEmpty={items.length === 0}
+          onRetry={lifecycle.refetch}
+          empty={<EmptyState density="compact" title="No investigations yet" description="Start one from a run's Investigate action." />}
+        >
+          <InvestigationRows items={items} />
+        </DataState>
       </section>
-      <AvailabilityBadge value={availability} />
-      <table className="w-full text-sm"><thead><tr><th>Fingerprint</th><th>Cost</th><th>Runs</th><th>Confidence</th></tr></thead><tbody>{signals.map((signal) => <tr key={signal.fingerprint}><td><button className="text-primary underline" onClick={() => void openSignal(signal)}>{signal.fingerprint}</button></td><td>{signal.summedCostMs} ms</td><td>{signal.distinctRuns}</td><td>{signal.confidence}</td></tr>)}</tbody></table>
-      <Dialog open={selected !== null} onOpenChange={() => setSelected(null)} contentClassName="fixed inset-y-0 right-0 m-0 w-full max-w-3xl"><DialogContent className="h-full max-h-none max-w-none rounded-none"><DialogHeader onClose={() => setSelected(null)}><h2>Episode detail</h2></DialogHeader><div className="space-y-3 overflow-auto p-4">{selected?.episodes.map((episode) => <article key={episode.episodeId} className="rounded border p-3"><p>{episode.pattern} · {episode.causeScope} · {episode.ownerConfidence}</p><p>{episode.turns} turns, {episode.tokens} tokens, {episode.wallClockMs} ms</p><p>{episode.suspectedOwnerScenario} {episode.suspectedOwnerCommand}</p><p>{episode.evidenceEventIds.map((id) => <a key={id} className="mr-2 text-primary underline" href={`/runs/${selected.runId}?event=${encodeURIComponent(id)}`}>{id}</a>)}</p></article>)}{selected && <><AvailabilityBadge value={selected.ledger.ledgerAvailability} /><AvailabilityBadge value={selected.ledger.projectionAvailability} /><table className="w-full text-sm"><tbody>{selected.ledger.ledgerTargetRollups.map((rollup) => <tr key={rollup.targetScenario}><td>{rollup.targetScenario}</td><td>{rollup.calls} calls</td><td>{rollup.failures} failures</td><td>{rollup.medianDurationMs} ms median</td></tr>)}</tbody></table></>}</div></DialogContent></Dialog>
+      <section aria-label="Recurring friction" className="space-y-2">
+        <h2 className="text-lg font-medium">Recurring friction</h2>
+        {cohort.data ? <AvailabilityNote value={cohort.data.availability} /> : null}
+        <DataState
+          subject="Recurring friction"
+          loading={cohort.loading}
+          error={cohort.error}
+          isEmpty={signals.length === 0}
+          onRetry={cohort.refetch}
+          empty={<EmptyState density="compact" title="No recurring friction this week" description="Patterns that repeat across runs appear here." />}
+        >
+          <Table>
+            <table className="min-w-[28rem]">
+              <caption className="sr-only">Recurring friction patterns</caption>
+              <thead><tr><th>Pattern</th><th>Time lost</th><th>Runs</th><th>Confidence</th></tr></thead>
+              <tbody>
+                {signals.map((signal) => (
+                  <tr key={signal.fingerprint}>
+                    <td><Button variant="ghost" size="sm" className="min-h-11 px-0 text-primary underline sm:min-h-8" title={signal.fingerprint} onClick={() => void openSignal(signal)}>{shortenIds(signal.fingerprint)}</Button></td>
+                    <td className={NO_BREAK}>{formatDuration(signal.summedCostMs)}</td>
+                    <td>{formatCount(signal.distinctRuns)}</td>
+                    <td className={NO_BREAK}>{formatCode(signal.confidence)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Table>
+        </DataState>
+        {detailError ? <ErrorNotice compact error={detailError} subject="Episode detail" /> : null}
+      </section>
+      <Dialog open={selected !== null} onOpenChange={() => setSelected(null)} contentClassName="fixed inset-y-0 right-0 m-0 w-full max-w-3xl">
+        <DialogContent className="h-full max-h-none max-w-none rounded-none">
+          <DialogHeader onClose={() => setSelected(null)}><h2>Episode detail</h2></DialogHeader>
+          {selected ? <EpisodeDetail {...selected} /> : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

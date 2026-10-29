@@ -35,7 +35,6 @@ test("useResizablePanel restores persisted size, clamps a drag, and persists onl
   const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => 700 });
   renderWithProviders(createElement(PanelHarness));
-  const panel = screen.getByTestId("panel");
   assert.equal(screen.getByTestId("size").textContent, "300");
   fireEvent.mouseDown(screen.getByRole("button", { name: "Resize" }), { clientX: 100 });
   assert.equal(document.body.style.cursor, "col-resize");

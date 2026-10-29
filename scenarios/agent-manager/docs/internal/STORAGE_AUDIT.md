@@ -146,11 +146,10 @@ The api-core DSN sets `journal_mode(WAL)` on open, which writes the header, so
     pass, and requires catalog and index row counts to match each other and
     the pre-compaction count.
   - **`run_events` positions.** Some consumers hold positions over
-    `run_events.rowid`: `stats_checkpoint.last_rowid`,
-    `cohort_watches.cursor_rowid`, and the stats engine's in-memory
-    watermark. Compaction does the following:
-    - It holds each one: supervision watch processing is paused and the
-      stats engine lock is held.
+    `run_events.rowid`: `cohort_watches.cursor_rowid` (and the retired
+    `stats_checkpoint.last_rowid` while that table lingers). Compaction does
+    the following:
+    - It holds each one: supervision watch processing is paused.
     - It anchors each position to up to 16 stable event ids before VACUUM.
     - After VACUUM it rewrites each position from its newest surviving
       anchor, which is exact because VACUUM keeps rowid order.
@@ -179,7 +178,7 @@ Rehearsal on a 10.5 GB `VACUUM INTO` copy of the live file (2026-09-14):
 | `VACUUM INTO` of the 293 GB live file (made the copy) | 199 s |
 | Compaction: `VACUUM` into incremental mode | 197 s |
 | Compaction: `quick_check` | 271 s, `ok` |
-| Compaction: total, background writers paused | 468 s; peak RSS 40 MB (temp copy in `/var/tmp`) |
+| Compaction: total, background writers paused | 468 s; peak RSS 40 MB (temp copy in `literal:/var/tmp`) |
 | After compaction | `auto_vacuum=incremental`, freelist 0, WAL 0 |
 | Delete 2,096,129 generation staging rows | 6.3 s, freed 4.05 GB |
 | Online return of those pages (one explicit reclaim, fixed 2048-page batches) | 4.03 GB in 635 s (about 6.4 MB/s at low I/O priority); file 10.37 GB → 6.32 GB, freelist 0, WAL 0 after checkpoint |

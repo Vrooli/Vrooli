@@ -1,6 +1,6 @@
 ---
 name: "agent-manager-improve"
-description: "Regulate Agent Manager against its setpoint: episode ownership attribution, recurring-friction publish cadence, findings with measured effectiveness, investigation completion, skill and program identity on invocation facts, and the durable friction measures. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
+description: "Regulate Agent Manager against its setpoint: episode ownership attribution, investigation completion, skill and program identity on invocation facts, and the durable friction measures. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-09-04T00:00:00Z"
   requires:
     scenarios: ["agent-manager", "program-runtime", "prompt-manager", "vrooli-memory"]
-    commands: ["agent-manager run publish-recurring-friction", "agent-manager findings list", "agent-manager run list", "agent-manager run episodes", "agent-manager measures episode-cohort", "agent-manager usage run", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures external-tool-share", "agent-manager measures retry-rate", "agent-manager measures tool-failure-rate", "agent-manager measures repeated-work-rate", "agent-manager measures run-success-rate", "agent-manager measures finding-recurrence-rate", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["agent-manager usage friction", "agent-manager findings list", "agent-manager run list", "agent-manager run episodes", "agent-manager measures episode-cohort", "agent-manager usage run", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures external-tool-share", "agent-manager measures retry-rate", "agent-manager measures tool-failure-rate", "agent-manager measures repeated-work-rate", "agent-manager measures run-success-rate", "agent-manager measures finding-recurrence-rate", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -30,7 +30,7 @@ Required reading:
 
 ### 1. Focus and scope
 
-**In scope:** the setpoint rows below; publishing recurring friction; filing ladder rungs against Agent Manager; filing `report-bug` against the scenarios whose commands the episodes name.
+**In scope:** the setpoint rows below; reporting recurring friction (`usage friction-report`); filing ladder rungs against Agent Manager; filing `report-bug` against the scenarios whose commands the episodes name.
 
 **Out of scope:** editing another scenario's manifest, skills, or programs (file instead); the meta-optimization inbox's own triage (that owner drains it); the usage skill's content; changing a detector threshold without a recorded derivation.
 
@@ -41,8 +41,6 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 | Row | Sensor | Band | Today (2026-09-02) |
 |---|---|---|---|
 | ownership-attribution-share | `run agent-manager.friction-digest` (or `setpoint-read`) → episodes with `ownerConfidence == manifest-derived` ÷ all episodes over the 25 most recent runs | ≥ 0.90 | 0.706 over the 25 most recent runs (`setpoint-read` live run 2026-09-02) |
-| recurring-friction-publish-cadence | `agent-manager run publish-recurring-friction --json` → fingerprints published this run; `findings list --severity recurring` | every fingerprint at ≥ 3 distinct runs is published within 7 days of reaching 3 | unavailable, reason `no_governed_binding`: the publisher has no program binding. Read it from the CLI; no scheduler calls it and `findings list` is empty |
-| findings-with-resolved-effectiveness | `agent-manager findings list --json` → share of findings older than 14 days whose `effectiveness` is not `not_yet_measurable` | ≥ 0.50 | unavailable, reason `no_governed_binding`: no findings exist because `publish-recurring-friction` has never run. The effectiveness writer has callers (`api/internal/orchestration/investigation_findings.go:137` and `:175`, the latter writing the after value from `metrics.RecurrenceRate`), so the row reads once findings exist |
 | investigation-completion-rate | `agent-manager run list --tag-prefix agent-manager-investigation --json` → `RUN_STATUS_COMPLETE` ÷ terminal | ≥ 0.80 | unavailable, reason `unreliable:no_terminal_runs_with_tag_prefix` |
 | skill-and-program-identity-on-facts | `agent-manager usage run <id> --facts` → facts carrying a `skill_id` or `program_id` | every fact whose executable is `program-runtime` or `prompt-manager skill read` carries the id | unavailable, reason `pending_telemetry`: the fact schema has neither field |
 | friction-measure-validity | `agent-manager measures retry-rate --window last_7d` → `validity.state` (same field on `tool-failure-rate`, `repeated-work-rate`, `external-tool-share`) | `available` on all four | 0 of four measures `available` (last_7d): classified share 83.4 percent against a 90.0 percent minimum |
@@ -118,14 +116,12 @@ artifact immutability. These are correctness gates, not an operator-benefit floo
 
 One route per row per cycle. When two rows' predicates hold for the same reading, take the first matching row from the top; re-read next cycle before taking the next.
 
-`Actuator` rows are moves the agent running this skill performs in-cycle without a diff (the publisher, an investigation request). `Filing` rows hand off: a work-ladder rung against agent-manager, or `report-bug` against the scenario an episode names. `None` rows are honest readings with no move.
+`Actuator` rows are moves the agent running this skill performs in-cycle without a diff (an investigation request, `usage friction-report`). `Filing` rows hand off: a work-ladder rung against agent-manager, or `report-bug` against the scenario an episode names. `None` rows are honest readings with no move.
 
 | Kind | Row out of band | Route | Sensor that should move |
 |---|---|---|---|
 | Filing | ownership-attribution-share below band, `unknown` episodes name a command with no manifest entry | W3 against agent-manager: extend the manifest-derived owner resolver (`runsignal/capability_detectors.go`) to read the command's `cli/manifest.json` when the scenario directory exists; until then `report-bug` against each named scenario whose manifest lacks the command | ownership-attribution-share |
 | None | ownership-attribution-share below band, `unknown` episodes name a shell builtin or non-Vrooli tool (`grep`) | No route: these are honest unknowns. Record the share of unknowns that are non-Vrooli in the journal so the band can be re-derived | ownership-attribution-share |
-| Actuator, then Filing | recurring-friction-publish-cadence pending | Curation, in-cycle: `agent-manager run publish-recurring-friction --cap 20`; journal the fingerprints published. W3 against agent-manager: a scheduler (heartbeat member or `maintenance`) that calls the publisher daily and exposes the last published time | recurring-friction-publish-cadence |
-| Filing | findings-with-resolved-effectiveness below band or pending | W2 against agent-manager: prove the effectiveness writer fires on a completed investigation. First take the cadence route so findings exist; then, on one completed investigation with an `applied` decision, confirm `investigation_findings.go:175` wrote the after value; if it did not fire, W3 with the run id | findings-with-resolved-effectiveness |
 | Filing | investigation-completion-rate below band | Read the failed investigation runs with `run report <id>`; a preflight or resource-role failure is W3 here; a prompt-contract failure is `skill-validation` on `agent-manager-process-investigation` | investigation-completion-rate |
 | Filing | skill-and-program-identity-on-facts pending | W3 against agent-manager: carry `skill_id` when the executable is `prompt-manager skill read` and `program_id` when it is `program-runtime`; subscribe to program-runtime and ai-gateway typed events so a submit and a route carry the run id | skill-and-program-identity-on-facts |
 | Filing | friction-measure-validity `unreliable`, `unclassifiedShare` above 0.10 | W3 against agent-manager: sample 10 unclassified facts with `usage run <id> --facts`; each is a missing detector case; add it to the labelled corpus with a reason before adding detector logic | friction-measure-validity |
@@ -155,7 +151,7 @@ One `vrooli-memory journal note --kind work-record` per cycle:
 --trigger  "<goal> cycle <n>: <row> <reading> vs <band>"
 --approach "<route row text>"
 --evidence "<before> -> <after> on <sensor command>"
---outcome  "<in band | filed <ref> | published <n> fingerprints | unavailable: <reason>>"
+--outcome  "<in band | filed <ref> | reported <n> friction problems | unavailable: <reason>>"
 ```
 
 A sensor unavailable for three cycles is a `docs/internal/PROBLEMS.md` entry with the three dated readings. Filings against other owners use `report-bug` with the fingerprint, `representativeRunIds`, and `ownerConfidence` as the observation.
@@ -177,8 +173,6 @@ A sensor unavailable for three cycles is a `docs/internal/PROBLEMS.md` entry wit
 |---|---|---|---|
 | `setpoint-read` reports every row unavailable | program-runtime restarted and the CLI resolved a stale port | `vrooli scenario status program-runtime`; `PROGRAM_RUNTIME_API_PORT` | Use control-plane discovery and readiness; preserve unavailable evidence until the owner resolves the stale route |
 | `setpoint-read` measures rows fail with `proto: syntax error ... unexpected token` | The window was passed as a string | the program's `window=` argument | Pass `{"token": "TIME_WINDOW_TOKEN_LAST_7D"}` |
-| `publish-recurring-friction` returns `friction intake is unavailable` | The meta-optimization inbox owner is not reachable | `vrooli scenario status meta-optimization-manager` | The row is unavailable; journal; do not write to the inbox by hand |
-| `findings list` is empty while investigations completed | Investigations write findings only through the projection store, and no `publish` ran | `run list --tag-prefix agent-manager-investigation` | Run the publisher; if still empty, W2 against agent-manager |
 | `run/report` binding is unavailable | The typed RPC or agent-manager service is not reachable | `program-runtime bindings describe agent-manager/run/report` and `agent-manager run report <run-id> --json` | Confirm the service is healthy, then inspect the typed not-found or transport error |
 | `group_by("suspectedOwnerScenario")` raises `key is missing` in a program | `unknown` episodes omit the field | the episode row keys | Filter with `r.get(...)` before grouping |
 

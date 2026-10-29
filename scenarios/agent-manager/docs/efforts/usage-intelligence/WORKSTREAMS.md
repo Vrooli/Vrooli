@@ -36,7 +36,50 @@ Recommendation #1 applied from 2026-10-29: cap sub-agent fan-out (short worker b
 - Next measures.proto pass: rename `UsageBurner.turns` → `requests`; cohort-definition RPCs to retire the REST cohort routes.
 - Decide: Investigations page default window (all-time vs this_week).
 
-## Allocation
+## Pass 2 (SPEC §10; operator F-7/F-8)
+
+- Current: @ 2026-10-29 18:25Z. **Pass 2 accepted** (P2-A1–P2-A10 below); restart 14 (18:19Z) healthy. Only operator-owned items remain: run `p2-delete-fixture-dirs.sh --delete` and `p2-delete-fixture-runs.sh --delete` (P2-A2 data part), confirm Agent Manager notifications on the phone (P2-A3 pairing), A11 on 2026-11-05.
+
+### Pass 2 acceptance (live, after restart 14)
+
+| ID | Status | Proof |
+|---|---|---|
+| P2-A1 | met | read-only live: 7-day windowed tokens 30,893,007,112 = `SUM(transcript_usage)`; `run stats` p50/p90 with non-zero samples; scope agent_manager/operator_sessions/all; duplicate run events repaired (23,719 + 102 events; 0 duplicate tool calls left) and prevented by deterministic event IDs |
+| P2-A2 | code met; data pending operator | web-console tests isolated (`useIsolatedSessionState`); indexer skips test rollouts (`TestIndexerSkipsWebConsoleTestRollouts`); deletion scripts dry-run 4,700 dirs / 4,700 runs, 0 skipped; `run delete` needs operator context |
+| P2-A3 | met (phone pairing = operator) | categories `usage-will-exhaust/back-on-track/at-risk/digest` declared, `appDelivery: true`, Settings › Notifications (RCL AppNotificationSettings); hysteresis, recoverable-before-reset action text, digest in operator zone; idle state; past-reset readings rejected at ingest (tests in usageforecast, pricing) |
+| P2-A4 | met | live `usage recommendations`: groups with combined overlap-free saving (76d970de −54.7 vs levers −57.8), recoverable points, folded small items, cross-cut friction plans |
+| P2-A5 | met | `/findings` → `/usage?tab=friction`; friction classifier v13 (no self-pairs; stall 5 min–2 h inside a turn); Report bug via `PublishScenarioQABug` for scenario/command owners, Suggest a fix for agent behaviour; generator + review fields + 888 generic rows deleted |
+| P2-A6 | met | headless Chrome 1440×900 / 390×844 captures (scratchpad p2/final, p2/w5a, p2/w5b, p2/rev4): no horizontal overflow; phone targets ≥ 44 px; final review UI findings fixed |
+| P2-A7 | met | DEBT "Pass 2 after-measures": non-test LOC −5,043 (API −247, CLI −449, UI −4,347); eslint 0; go vet clean (api, cli); type-check clean; UI 548 tests, branch coverage 85.95% |
+| P2-A8 | met | `p2-transport-inventory.md`: 30 REST routes deleted, 22 stub RPCs deleted, 0 `Unimplemented` RPCs (104 → 82), endpoints.json 166 → 135; kept twins listed with outside callers |
+| P2-A9 | met except pre-existing fleet advisories | Test Genie 20261029-182010-86295329: structure, contracts, api, docs, business, unit, quality, ui-health, measures pass; security fails only on transitive `nanoid` and `source-map-js` advisories in `ui/pnpm-lock.yaml` (fleet-wide; the dependency gateway has no transitive override). Comprehensive run 20261029-174040-fce7f99d: remaining failures pre-existing (tidiness vs 2025-11-08 baseline, proto shared-type placement, monetization declarations, programs, portability with no findings) |
+| P2-A10 | met | four fresh hostile reviews: 1 (3 major → fixed), 2 (1 blocker: duplicated run events → fixed at source + repaired), 3 (2 major: leftover/legacy duplicates → fixed), 4 (no blocker; UI polish → fixed). Final checks after fixes: UI gate, go vet/test, Test Genie above |
+
+### Pass 2 follow-ups (operator-owned or out of scope)
+
+- Run the two fixture deletion scripts (operator context required).
+- Phone check: Settings › Notifications → "Show notifications in this app", then a test alert should show "Agent Manager" and open /usage on the window.
+- Fleet: transitive `nanoid` < 3.3.18 and `source-map-js` advisories need a governed override path in scenario-dependency-analyzer.
+- Agent Manager pre-existing quality debt from the comprehensive run: duplication vs a year-old tidiness baseline, proto shared types in `domain`, monetization account surface/journey probe, program-runtime dependency declaration.
+- Bugs filed: knw-1793296384973920481 (requirements sync promotes ref-less/missing-ref requirements; three restored by hand), knw-1793296386141588699 (proto verify leaves temp dirs).
+- A notification category "delivery-reliability" is observed under source agent-manager but not emitted by Agent Manager code; another producer uses the agent-manager source.
+
+
+| WS | Outcome | Closes | Depends on | Owns | Status |
+|---|---|---|---|---|---|
+| P2-W1 | Measures truth: windowed totals from `transcript_usage`, AM-executed scope, Denom fix, duplicate/zero-token imported runs; then the `internal/stats` engine folded into Measures (fallback insights → Health item) | P2-1, P2-2; P2-A1 | — | `api/internal/measures`, `invocationreadmodel`, `adapters/database/repository_invocation_read_model.go`, `internal/stats`, `handlers/operational_stats.go`, `handlers/run_classes.go`, CLI ops services; measures.proto request/scope fields (generation via orchestrator) | wave 1 |
+| P2-W2 | Fixture clean-up: web-console test temp dir, indexer test-output skip, fixture inventory for the deletion grant, deletion | P2-6; P2-A2 | operator grant for deletion | `scenarios/web-console/api/*codex_tailer*_test.go`, `api/internal/transcriptindex` skip rule | wave 1 |
+| P2-W3 | Alerts + forecast states: idle state, stale-reset rejection, back-on-track, may-run-out, digest, actionable body, label owner (Go), app delivery + Settings › Notifications | P2-5 (Go), P2-A3 | P2-W4 group API for the #1 action (integrate when ready) | `api/internal/usageforecast`, quota ingest reader, `.vrooli/notifications.json`, CLI `domains/usage` labels, UI `SettingsDialog` Notifications tab + `main.tsx` init | wave 1 |
+| P2-W4 | Recommendations + Friction API: grouped recommendations with combined saving and typed facts; Friction measure (list, report bug, dismiss); delete finding generator + review fields; proto `turns`→`requests`; CLI `usage recommendations` grouped, `usage friction` | P2-3 (API), P2-4; P2-A4, P2-A5 (API) | — | `api/internal/usageattribution`, `api/internal/findings` + recurring publisher, usage messages in measures.proto (generation via orchestrator), CLI `domains/usage` recommendation/friction commands | wave 1 |
+| P2-W5b | UI foundation + shell pages: `lib/format.ts`, query client with deadlines, Dashboard, Runs filters + sub-agent folding, Investigations/Health placement, RunDetail split, ModelPricingTab, dead UI code, eslint 0 | P2-14, P2-16, P2-17/18 (part), P2-15 (part); P2-A6 (part) | — | `ui/src/lib`, `hooks`, `pages` except Findings, `components/RunDetail*`, `SettingsDialog/ModelPricingTab`, `App.tsx` nav | wave 1 |
+| P2-W5a | UI Usage feature: Overview focus + grouped actions + Where it went, Friction tab (Findings redirect), Details trimmed and corrected, run Usage tab single source | P2-3 (UI), P2-15/17/19; P2-A6 (part) | P2-W1, P2-W4 protos; P2-W5b `lib/format.ts` | `ui/src/features/usage/**`, `features/stats/**`, `pages/FindingsPage*` | wave 2 |
+| P2-W6 | API debt: dead routes, start-up migrations, D-15, pricing owner, classifiers, dead funcs, run test builder, god-function splits, live-DB checks | P2-7..P2-12, P2-18 (API), D-15 | — | `orchestration` (except usage/transcript/stats files), `adapters/database/connection.go`, `pricing`, `codecs`, `domain` | wave 2 |
+| P2-W7 | Transport consolidation after a fleet consumer search | P2-13; P2-A8 | P2-W1, P2-W6 handler changes | `handlers.go`, `handlers/*`, CLI services, UI clients | wave 3; API+CLI part done 2026-10-29 (18 routes deleted, inventory in p2-transport-inventory.md); UI part and stub RPCs open |
+| P2-W8 | Acceptance: restarts, browser captures vs mockups, phone notification check request, scoped Test Genie, DEBT after-measures, two hostile reviews | P2-A6..P2-A10 | all | orchestrator + review agents | wave 3 |
+
+Serialized shared resources as pass 1: API restart (orchestrator only), proto generation (`flock /tmp/claude-1000/am-proto.lock`), Test Genie runs. Quota note: Claude weekly is projected to run out before its Nov 4 reset; mechanical workers run on Sonnet with self-contained briefs.
+
+## Allocation (pass 1)
 
 | WS | Outcome | Closes | Depends on | Owner (run/agent id) | Status |
 |---|---|---|---|---|---|

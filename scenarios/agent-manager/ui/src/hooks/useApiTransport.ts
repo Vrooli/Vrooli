@@ -1,9 +1,9 @@
 // Responsibility: provide shared HTTP, protobuf and form conversion helpers.
-import { useState } from "react";
-
 import { fromJson, toJson, type DescMessage, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
 
 import { durationFromMs } from "@bufbuild/protobuf/wkt";
+
+import { fetchWithDeadline } from "../lib/api";
 
 import { getApiBaseUrl, jsonObjectToPlain } from "../lib/utils";
 
@@ -38,28 +38,6 @@ export function networkAccessToProto(na: "none" | "localhost" | "full"): Network
     default:
       return NetworkAccess.LOCALHOST;
   }
-}
-
-interface ApiState<T> {
-  data: T | null;
-  loading: boolean;
-  error: string | null;
-}
-
-/**
- * `initialLoading` is true for hooks that fetch on mount, so the first render
- * reads as loading rather than as an empty result.
- */
-export function useApiState<T>(initialData: T | null = null, initialLoading = false): ApiState<T> & {
-  setData: (data: T | null) => void;
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-} {
-  const [data, setData] = useState<T | null>(initialData);
-  const [loading, setLoading] = useState(initialLoading);
-  const [error, setError] = useState<string | null>(null);
-
-  return { data, loading, error, setData, setLoading, setError };
 }
 
 export const protoReadOptions = { ignoreUnknownFields: true, protoFieldName: true };
@@ -205,7 +183,7 @@ export function healthReason(raw: unknown): string {
  * failed request or an answer without a health document is an error.
  */
 export async function healthRequest(signal?: AbortSignal): Promise<unknown> {
-  const response = await fetch(getApiBaseUrl() + "/health", { signal, cache: "no-store", headers: { "Content-Type": "application/json" } });
+  const response = await fetchWithDeadline(getApiBaseUrl() + "/health", { signal, cache: "no-store", headers: { "Content-Type": "application/json" } });
   const body: unknown = await response.json().catch(() => undefined);
   const isHealthDocument = !!body && typeof body === "object" && typeof (body as { status?: unknown }).status === "string" && "service" in body;
   if (!response.ok && !isHealthDocument) {
@@ -221,7 +199,7 @@ export async function apiRequest<T>(
   const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith("http") ? endpoint : baseUrl + endpoint;
 
-  const response = await fetch(url, {
+  const response = await fetchWithDeadline(url, {
     ...options,
     headers: {
       "Content-Type": "application/json",

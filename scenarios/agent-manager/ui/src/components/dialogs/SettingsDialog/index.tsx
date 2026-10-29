@@ -1,6 +1,7 @@
-// Settings dialog with Model Registry, Model Pricing, Maintenance, and Investigation tabs
+// Settings dialog with Role Policy, Permissions, Model Pricing, Investigation, Orchestration, Notifications, and Maintenance tabs
 
 import { useCallback, useRef, useState } from "react";
+import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
@@ -30,6 +31,7 @@ const TAB_DESCRIPTIONS: Record<string, string> = {
   pricing: "View and manage model pricing with overrides",
   investigation: "Configure investigation and apply-fix agent behavior",
   orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
+  notifications: "Choose which alerts reach this phone or browser, and how urgent they must be",
   maintenance: "Purge data and manage service controls",
 };
 
@@ -120,12 +122,13 @@ export function SettingsDialog({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
             {/* Tab bar — sticky, scrollable on mobile */}
             <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
-              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-6">
+              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-7">
                 <TabsTrigger value="roles" className="shrink-0">Role Policy</TabsTrigger>
                 <TabsTrigger value="permissions" className="shrink-0">Permissions</TabsTrigger>
                 <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
                 <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
                 <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
+                <TabsTrigger value="notifications" className="shrink-0">Notifications</TabsTrigger>
                 <TabsTrigger value="maintenance" className="shrink-0">Maintenance</TabsTrigger>
               </TabsList>
             </div>
@@ -162,6 +165,9 @@ export function SettingsDialog({
                   onReset={orchestrationSettings.resetSettings}
                   onDirtyChange={setOrchestrationDirty}
                 />
+              </TabsContent>
+              <TabsContent value="notifications" className="mt-0">
+                <AppNotificationSettings />
               </TabsContent>
               <TabsContent value="maintenance" className="mt-0">
                 <MaintenanceTab
@@ -210,7 +216,7 @@ export function SettingsDialog({
                 </Button>
               </>
             )}
-            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+            <Button variant="secondary" className="min-h-11 sm:min-h-10" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>

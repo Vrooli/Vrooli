@@ -44,6 +44,8 @@ type RunListFilter struct {
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
 	ParentRunID               *uuid.UUID // Filter to direct child runs of one parent run
+	TopLevelOnly              bool       // Exclude runs that are a sub-agent of another run
+	Origin                    string     // agent_manager | operator_sessions | workflows; empty matches every origin
 }
 
 // -----------------------------------------------------------------------------

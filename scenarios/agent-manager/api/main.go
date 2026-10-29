@@ -33,7 +33,6 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
-	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageforecast"
@@ -99,7 +98,6 @@ type Server struct {
 	awaitRegistry            *orchestration.AwaitRegistry
 	workflowNudger           *orchestration.WorkflowNudger
 	transcriptImporter       *orchestration.TranscriptIndex
-	frictionPublisher        *orchestration.FrictionPublishScheduler
 	claudeQuotaFeed          *pricing.ClaudeStatuslineReader
 	usageAlerts              *usageforecast.Alerter
 	modelHealthProbe         *healthstore.Probe
@@ -108,7 +106,6 @@ type Server struct {
 	permissionPolicyState    *permissionpolicy.State
 	permissionPolicy         *permissionpolicy.Service
 	storage                  storage.Service
-	statsEngine              *stats.Engine
 	healthStore              *healthstore.Store
 	eventRepo                eventlog.Repository
 	supervisionService       *supervision.Service
@@ -227,6 +224,7 @@ func NewServer() (*Server, error) {
 	semanticCancel()
 	if semanticConfigErr != nil {
 		logger.Printf("conversation search semantic configuration invalid; lexical API remains available: %v", semanticConfigErr)
+		semanticRuntime = &conversationsearch.SemanticRuntime{}
 	} else if semanticRuntime.InitializationError != nil {
 		logger.Printf("conversation search semantic resources degraded; lexical API remains available: %v", semanticRuntime.InitializationError)
 	}
@@ -240,7 +238,7 @@ func NewServer() (*Server, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("initialize conversation search: %w", err)
 	}
-	conversationIndexer, err := conversationsearch.NewIndexer(conversationsearch.IndexerOptions{Source: conversationSource, Repository: conversationRepository, Semantic: &semanticRuntime})
+	conversationIndexer, err := conversationsearch.NewIndexer(conversationsearch.IndexerOptions{Source: conversationSource, Repository: conversationRepository, Semantic: semanticRuntime})
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("initialize conversation indexer: %w", err)
@@ -273,12 +271,12 @@ func NewServer() (*Server, error) {
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
-		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, frictionPublisher: deps.FrictionPublisher, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
-		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage, statsEngine: deps.StatsEngine,
+		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
 		conversationSearch:       conversationSearch,
-		conversationSemantic:     &semanticRuntime,
+		conversationSemantic:     semanticRuntime,
 		conversationIndexer:      conversationIndexer,
 		conversationSearchFile:   conversationSearchFile,
 		conversationSearchPolicy: searchVisibilityPolicy,
@@ -443,9 +441,6 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 			return err
 		})
 	}
-	if s.statsEngine != nil {
-		add("stats_rebuild", s.statsEngine.Rebuild)
-	}
 	// Start schedulers after the initial recovery attempts so existing owners can
 	// retry incomplete work. Failures remain visible in health. Their context
 	// lives until Cleanup; it must not inherit a historical scan's deadline.
@@ -469,12 +464,16 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		if s.transcriptImporter != nil {
 			s.transcriptImporter.Start(ctx)
 		}
-		if s.frictionPublisher != nil {
-			s.frictionPublisher.Start(ctx)
-		}
 		s.claudeQuotaFeed.Start(ctx)
 		s.usageAlerts.Start(ctx)
 		startQuotaCompaction(ctx, s.pricingRepository)
+		// Scans every run's events, so it runs here, never in schema init. An
+		// interrupted pass leaves no marker and repeats on the next start.
+		go func() {
+			if err := s.db.RepairDuplicateTranscriptEvents(ctx); err != nil && ctx.Err() == nil {
+				obs.Logger().Error("duplicate transcript event repair failed; it retries on the next start", "error", err.Error())
+			}
+		}()
 		if s.orchestrator != nil {
 			wiring.ScheduleDeclarationReconcile(s.orchestrator, repoRoot, s.recovery.ReconcileDeclarationStep)
 		}
@@ -492,7 +491,7 @@ func (s *Server) setupRoutes() {
 		CapabilityRegistry: s.capabilityRegistry, DB: s.db, Orchestrator: s.orchestrator, StatsRepository: s.statsRepo,
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
-		StatsEngine: s.statsEngine, HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,
+		HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,
 		ModelPolicyDrift: s.modelPolicyDrift, TranscriptImporter: s.transcriptImporter,
 		WorkspaceSandbox:         s.workspaceSandbox,
 		ConversationSearch:       s.conversationSearch,
@@ -534,7 +533,7 @@ func (s *Server) Cleanup() error {
 	if s.conversationIndexer != nil {
 		s.conversationIndexer.Stop()
 	}
-	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.frictionPublisher, s.modelPolicyDrift)
+	wiring.Shutdown(s.db, s.reconciler, s.awaitRegistry, s.workflowNudger, s.transcriptImporter, s.modelPolicyDrift)
 	return nil
 }
 

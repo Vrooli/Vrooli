@@ -18,8 +18,9 @@ vi.mock("../../../hooks/useOrchestrationSettings.js", () => ({ useOrchestrationS
 vi.mock("./RolePolicyTab.js", () => ({ RolePolicyTab: () => "role policy" }));
 vi.mock("./PermissionPolicyTab.js", () => ({ PermissionPolicyTab: () => "permission policy" }));
 vi.mock("./ModelPricingTab.js", () => ({ ModelPricingTab: () => "pricing" }));
-vi.mock("./MaintenanceTab.js", () => ({ MaintenanceTab: ({ onPurgePreview }: any) => createElement("button", { onClick: () => onPurgePreview([1, 3], "Delete selected test data") }, "Preview purge") }));
-vi.mock("../PurgeConfirmDialog.js", () => ({ PurgeConfirmDialog: ({ open, actionLabel, preview, onConfirm }: any) => open ? createElement("div", null, actionLabel, createElement("span", null, `runs=${preview?.runs}`), createElement("button", { onClick: onConfirm }, "Confirm purge")) : null }));
+vi.mock("@vrooli/react-component-library/AppNotificationSettings/1", () => ({ AppNotificationSettings: () => "app notification settings" }));
+vi.mock("./MaintenanceTab.js", () => ({ MaintenanceTab: ({ onPurgePreview }: { onPurgePreview: (targets: number[], label: string) => void }) => createElement("button", { onClick: () => onPurgePreview([1, 3], "Delete selected test data") }, "Preview purge") }));
+vi.mock("../PurgeConfirmDialog.js", () => ({ PurgeConfirmDialog: ({ open, actionLabel, preview, onConfirm }: { open: boolean; actionLabel: string; preview?: { runs?: number }; onConfirm: () => void }) => open ? createElement("div", null, actionLabel, createElement("span", null, `runs=${preview?.runs}`), createElement("button", { onClick: onConfirm }, "Confirm purge")) : null }));
 
 test("SettingsDialog exposes every settings category with an accurate operator description and close control", async () => {
   const user = userEvent.setup();
@@ -31,10 +32,12 @@ test("SettingsDialog exposes every settings category with an accurate operator d
     ["Model Pricing", "View and manage model pricing with overrides"],
     ["Investigation", "Configure investigation and apply-fix agent behavior"],
     ["Orchestration", "Configure run lifecycle, safety, health detection, and termination behavior"],
+    ["Notifications", "Choose which alerts reach this phone or browser, and how urgent they must be"],
     ["Maintenance", "Purge data and manage service controls"],
   ]) {
     await user.click(screen.getByRole("tab", { name: tab }));
     assert.ok(screen.getByText(description));
+    if (tab === "Notifications") assert.ok(screen.getByText("app notification settings"));
   }
   await user.click(screen.getAllByRole("button", { name: "Close" })[1]!);
   assert.deepEqual(onOpenChange.mock.calls, [[false]]);

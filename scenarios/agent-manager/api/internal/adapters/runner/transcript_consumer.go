@@ -3,6 +3,7 @@ package runner
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -47,6 +48,41 @@ type ConsumeArgs struct {
 	// at the provider turn boundary.
 	StopAfterTranscriptResult func(TranscriptParseResult) bool
 	PollInterval              time.Duration
+}
+
+// TranscriptEventID is the stable identity of the index-th event parsed from
+// line, found at the absolute file offset in the transcript at source. The
+// file path separates invocations that start a new transcript, the absolute
+// offset separates appended continuations of one file, and the line hash keeps
+// a rewritten file's different content from reusing a stored identity.
+func TranscriptEventID(runID uuid.UUID, source string, offset int64, index int, line string) uuid.UUID {
+	sum := sha256.Sum256([]byte(line))
+	return uuid.NewSHA1(runID, []byte(fmt.Sprintf("transcript:%s:offset:%d:event:%d:%x", source, offset, index, sum[:8])))
+}
+
+// AssignTranscriptEventIDs gives the events one line produced their stable
+// identities and repoints evidence events, created before the ids changed, at
+// the final id of the event they vouch for.
+func AssignTranscriptEventIDs(runID uuid.UUID, source string, offset int64, line string, events []*domain.RunEvent) {
+	renamed := map[string]string{}
+	for index, event := range events {
+		if event == nil {
+			continue
+		}
+		previous := event.ID.String()
+		event.ID = TranscriptEventID(runID, source, offset, index, line)
+		renamed[previous] = event.ID.String()
+	}
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if message, ok := event.Data.(*domain.MessageEventData); ok && message.EvidenceForEventID != "" {
+			if id, ok := renamed[message.EvidenceForEventID]; ok {
+				message.EvidenceForEventID = id
+			}
+		}
+	}
 }
 
 // TranscriptCursorAdvanceError identifies a failure to persist replay
@@ -128,19 +164,15 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		if args.StopBeforeTranscriptResult != nil && args.StopBeforeTranscriptResult(result) {
 			return occurrenceOffset, terminal, nil
 		}
-		if result.ReplaySafeEvents {
-			// Occurrence identity includes the real source location; identical
-			// records at distinct offsets must remain distinct evidence.
-			source, err := filepath.Abs(args.Transcript)
-			if err != nil {
-				return cursor, terminal, err
-			}
-			for index, event := range result.Events {
-				if event != nil {
-					event.ID = uuid.NewSHA1(args.RunID, []byte(fmt.Sprintf("transcript:%s:offset:%d:event:%d", source, occurrenceOffset, index)))
-				}
-			}
+		// Occurrence identity includes the real source location, so re-reading
+		// a range (a restart that lost its cursor, a replaced file) replays the
+		// same rows instead of appending a second copy, while identical records
+		// at distinct offsets stay distinct evidence.
+		source, err := filepath.Abs(args.Transcript)
+		if err != nil {
+			return cursor, terminal, err
 		}
+		AssignTranscriptEventIDs(args.RunID, source, occurrenceOffset, line, result.Events)
 		if result.Err != nil {
 			return cursor, terminal, result.Err
 		}

@@ -66,15 +66,15 @@ test("the run usage panel reads the run's own row and the recommendations that n
   assert.deepEqual(measures.usageRecommendations.mock.calls[0]?.[0], { runId: BURNER_RUN_ID });
   assert.ok(usage.getByText("≈ 2.2 pts"));
   assert.ok(usage.getByText("of Codex · weekly"));
-  assert.ok(usage.getByText("1.14 B"));
-  assert.ok(usage.getByText("3335 requests"));
+  assert.ok(usage.getAllByText("1.1 B").length > 0);
+  assert.ok(usage.getByText("3,335 requests"));
   assert.ok(await screen.findByText("Recommendations for this run"));
   assert.equal(screen.getByRole("link", { name: "All recommendations →" }).getAttribute("href"), "/usage");
 });
 
 test("a run with neither quota nor cost data shows one empty message, only after both have loaded", async () => {
   measures.usageBurners.mockResolvedValue(makeUsageBurners("run"));
-  measures.usageRecommendations.mockResolvedValue({ recommendations: [], rules: [] });
+  measures.usageRecommendations.mockResolvedValue({ groups: [], rules: [] });
   const { rerender } = renderWithProviders(createElement(RunUsagePanel, { runId: "other-run", hasCost: false, costLoading: true }));
   await waitFor(() => assert.ok(measures.usageBurners.mock.calls.length > 0));
   assert.ok(screen.getByTestId("data-state-skeleton"), "cost still loading: a skeleton, not an empty claim");
@@ -87,7 +87,7 @@ test("a run with neither quota nor cost data shows one empty message, only after
 
 test("cost events without attributed quota show the cost, never an empty message beside it", async () => {
   measures.usageBurners.mockResolvedValue(makeUsageBurners("run"));
-  measures.usageRecommendations.mockResolvedValue({ recommendations: [], rules: [] });
+  measures.usageRecommendations.mockResolvedValue({ groups: [], rules: [] });
   renderWithProviders(createElement(RunUsagePanel, { runId: "other-run", hasCost: true, costLoading: false }, createElement("div", { "data-testid": "run-cost" }, "$0.12")));
   assert.ok(await screen.findByTestId("run-cost"));
   await waitFor(() => assert.ok(measures.usageBurners.mock.calls.length > 0));

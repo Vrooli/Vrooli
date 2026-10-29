@@ -481,208 +481,254 @@ func (s *EffortService) ReconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 }
 
 func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDiscovery, error) {
-	now := s.now().UTC()
+	scan := &discoveryScan{
+		s:                          s,
+		now:                        s.now().UTC(),
+		paths:                      map[string]bool{},
+		invalidPaths:               map[string]bool{},
+		checkpointUnavailablePaths: map[string]bool{},
+		found:                      map[string]*discoveredEffort{},
+		conflicts:                  map[string]bool{},
+	}
+	if err := scan.begin(ctx); err != nil {
+		return nil, err
+	}
+	if err := scan.scanWorkspaces(ctx); err != nil {
+		return nil, err
+	}
+	scan.retireAbsentWorkspaceFindings()
+	if err := scan.saveFound(ctx); err != nil {
+		return nil, err
+	}
+	if err := scan.markMissing(ctx); err != nil {
+		return nil, err
+	}
+	return scan.finish(ctx)
+}
+
+// discoveryScan is the state of one reconcileDiscovery pass.
+type discoveryScan struct {
+	s        *EffortService
+	now      time.Time
+	previous *pb.EffortDiscovery
+	existing []*pb.EffortEnrollment
+	// byWorkspace maps a workspace name to the retained enrollments that
+	// claim it.
+	byWorkspace map[string][]*pb.EffortEnrollment
+	d           *pb.EffortDiscovery
+
+	paths                      map[string]bool
+	invalidPaths               map[string]bool
+	checkpointUnavailablePaths map[string]bool
+	completeIndex              bool
+	found                      map[string]*discoveredEffort
+	conflicts                  map[string]bool
+}
+
+func (c *discoveryScan) finding(source, code string, err error) {
+	c.d.Partial = true
+	c.d.Findings = append(c.d.Findings, &pb.EffortDiscoveryFinding{Source: source, Code: code, Reason: err.Error()})
+}
+
+// begin loads the previous discovery and retained enrollments and starts the
+// new discovery record, retaining failures from pages not revisited.
+func (c *discoveryScan) begin(ctx context.Context) error {
+	s := c.s
 	previous, err := s.repo.GetEffortDiscovery(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	c.previous = previous
 	// Reuse a retained canonical identity when only its manifest disappeared.
 	// This is a bounded owner read, not identity inferred from a directory name.
-	existing, err := s.repo.ListEfforts(ctx, "", 1001)
+	c.existing, err = s.repo.ListEfforts(ctx, "", 1001)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	byWorkspace := map[string][]*pb.EffortEnrollment{}
-	for _, e := range existing {
+	c.byWorkspace = map[string][]*pb.EffortEnrollment{}
+	for _, e := range c.existing {
 		if e.Workspace != "" {
-			byWorkspace[e.Workspace] = append(byWorkspace[e.Workspace], e)
+			c.byWorkspace[e.Workspace] = append(c.byWorkspace[e.Workspace], e)
 		}
 	}
-	d := &pb.EffortDiscovery{Generation: previous.Generation, LastScanAt: timestamppb.New(now), LastSuccessfulScanAt: previous.LastSuccessfulScanAt, ScanLimit: uint32(s.config.ScanLimit), ByteLimit: uint64(s.config.FileBytes), Root: s.config.Root}
+	d := &pb.EffortDiscovery{Generation: previous.Generation, LastScanAt: timestamppb.New(c.now), LastSuccessfulScanAt: previous.LastSuccessfulScanAt, ScanLimit: uint32(s.config.ScanLimit), ByteLimit: uint64(s.config.FileBytes), Root: s.config.Root}
 	d.DirectoryLimit = 1000
 	d.StandingAllowanceRef = s.config.StandingAllowanceRef
 	d.StandingUsage = &pb.EffortUsage{Partial: true, Source: "standing effort discovery", Limitations: []string{"standing discovery and shared idle cost are unmeasured; no allowance is inferred"}}
 	d.ScanCursor = previous.GetScanCursor()
-	paths := map[string]bool{}
-	invalidPaths := map[string]bool{}
-	checkpointUnavailablePaths := map[string]bool{}
-	completeIndex := false
+	c.d = d
 	// Retain failures from pages not revisited in this scan.
 	for _, f := range previous.Findings {
 		if f.Code != "not_scanned" && f.Source != "workspace-root" && f.Source != "enrollments" && f.Source != "agent-manager:runs" {
 			d.Findings = append(d.Findings, f)
 		}
 	}
-	finding := func(source, code string, err error) {
-		d.Partial = true
-		d.Findings = append(d.Findings, &pb.EffortDiscoveryFinding{Source: source, Code: code, Reason: err.Error()})
-	}
+	return nil
+}
+
+// scanWorkspaces reads the workspace root index and scans one rotating page
+// of its entries.
+func (c *discoveryScan) scanWorkspaces(ctx context.Context) error {
+	s, d := c.s, c.d
 	root, err := openSafeRoot(s.config.Root)
-	found := map[string]*discoveredEffort{}
-	conflicts := map[string]bool{}
 	if err != nil {
-		finding("workspace-root", "unavailable", err)
-	} else {
-		defer root.Close()
-		dir, err := root.Open(".")
-		if err != nil {
-			finding("workspace-root", "unavailable", err)
-		} else {
-			entries, readErr := dir.ReadDir(int(d.DirectoryLimit) + 1)
-			dir.Close()
-			if readErr != nil && !errors.Is(readErr, io.EOF) {
-				finding("workspace-root", "read_failed", readErr)
-			}
-			if len(entries) > int(d.DirectoryLimit) {
-				finding("workspace-root", "directory_limit", errors.New("root exceeds 1000-entry index limit; scan refused without inferring removal"))
-				entries = nil
-			} else if readErr == nil || errors.Is(readErr, io.EOF) {
-				completeIndex = true
-			}
-			sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
-			for _, entry := range entries {
-				paths[entry.Name()] = true
-			}
-			start := sort.Search(len(entries), func(i int) bool { return entries[i].Name() > previous.GetScanCursor() })
-			if start == len(entries) {
-				start = 0
-			}
-			if len(entries) > s.config.ScanLimit {
-				rotated := append(append([]os.DirEntry{}, entries[start:]...), entries[:start]...)
-				entries = rotated[:s.config.ScanLimit]
-				d.Partial = true
-			}
-			for _, entry := range entries {
-				if err = ctx.Err(); err != nil {
-					return nil, err
-				}
-				d.ScannedCount++
-				d.ScanCursor = entry.Name()
-				retained := d.Findings[:0]
-				for _, f := range d.Findings {
-					if f.Source != entry.Name() {
-						retained = append(retained, f)
-					}
-				}
-				d.Findings = retained
-				if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
-					continue
-				}
-				item, readErr := readWorkspace(root, entry.Name(), s.config.FileBytes, now)
-				if readErr != nil {
-					if errors.Is(readErr, errUnregisteredWorkspace) {
-						prior := byWorkspace[entry.Name()]
-						if len(prior) == 0 && len(existing) <= 1000 {
-							continue
-						}
-						invalidPaths[entry.Name()] = true
-						if len(prior) > 0 {
-							checkpointUnavailablePaths[entry.Name()] = true
-							finding(entry.Name(), "checkpoint_unavailable", errors.New("previously enrolled workspace has no manifest or legacy checkpoint; source is unavailable"))
-							if len(prior) > 1 {
-								finding(entry.Name(), "identity_conflict", errors.New("multiple retained enrollments map to a workspace with no current identity source"))
-							}
-						} else {
-							finding(entry.Name(), "enrollment_lookup_incomplete", errors.New("retained enrollment index is capped; workspace cannot be classified as unregistered"))
-						}
-						continue
-					}
-					invalidPaths[entry.Name()] = true
-					finding(entry.Name(), "invalid_manifest", readErr)
-					continue
-				}
-				if item.manifestless {
-					prior := byWorkspace[entry.Name()]
-					if len(prior) > 1 {
-						invalidPaths[entry.Name()] = true
-						finding(entry.Name(), "identity_conflict", errors.New("manifestless workspace has multiple retained identities"))
-						continue
-					}
-					if len(prior) == 1 {
-						item.enrollment.EffortRef = prior[0].EffortRef
-					}
-				}
-				if item.observation.Freshness == pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE {
-					finding(entry.Name(), "checkpoint_unavailable", errors.New("checkpoint or resolution evidence unavailable; source observation retained with uncertainty"))
-				}
-				ref := item.enrollment.EffortRef
-				if _, ok := found[ref]; ok {
-					conflicts[ref] = true
-					finding(entry.Name(), "identity_conflict", fmt.Errorf("duplicate effort identity %q", ref))
-				}
-				found[ref] = item
-			}
+		c.finding("workspace-root", "unavailable", err)
+		return nil
+	}
+	defer root.Close()
+	dir, err := root.Open(".")
+	if err != nil {
+		c.finding("workspace-root", "unavailable", err)
+		return nil
+	}
+	entries, readErr := dir.ReadDir(int(d.DirectoryLimit) + 1)
+	dir.Close()
+	if readErr != nil && !errors.Is(readErr, io.EOF) {
+		c.finding("workspace-root", "read_failed", readErr)
+	}
+	if len(entries) > int(d.DirectoryLimit) {
+		c.finding("workspace-root", "directory_limit", errors.New("root exceeds 1000-entry index limit; scan refused without inferring removal"))
+		entries = nil
+	} else if readErr == nil || errors.Is(readErr, io.EOF) {
+		c.completeIndex = true
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	for _, entry := range entries {
+		c.paths[entry.Name()] = true
+	}
+	start := sort.Search(len(entries), func(i int) bool { return entries[i].Name() > c.previous.GetScanCursor() })
+	if start == len(entries) {
+		start = 0
+	}
+	if len(entries) > s.config.ScanLimit {
+		rotated := append(append([]os.DirEntry{}, entries[start:]...), entries[:start]...)
+		entries = rotated[:s.config.ScanLimit]
+		d.Partial = true
+	}
+	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		c.scanEntry(root, entry)
+	}
+	return nil
+}
+
+// scanEntry reads one workspace directory and records its effort identity or
+// the finding that explains why it has none.
+func (c *discoveryScan) scanEntry(root *os.Root, entry os.DirEntry) {
+	s, d, name := c.s, c.d, entry.Name()
+	d.ScannedCount++
+	d.ScanCursor = name
+	retained := d.Findings[:0]
+	for _, f := range d.Findings {
+		if f.Source != name {
+			retained = append(retained, f)
 		}
 	}
-	// A complete root index is authoritative for workspace presence. Findings
-	// retained from a prior rotating scan must not keep a removed workspace in
-	// the current readiness cut forever. Control-plane findings remain durable;
-	// only findings whose source is a no-longer-present workspace are retired.
-	if completeIndex {
-		retained := d.Findings[:0]
-		for _, f := range d.Findings {
-			switch f.GetSource() {
-			case "workspace-root", "enrollments", "agent-manager:runs":
+	d.Findings = retained
+	if !entry.IsDir() && entry.Type()&os.ModeSymlink == 0 {
+		return
+	}
+	item, readErr := readWorkspace(root, name, s.config.FileBytes, c.now)
+	if readErr != nil {
+		if errors.Is(readErr, errUnregisteredWorkspace) {
+			prior := c.byWorkspace[name]
+			if len(prior) == 0 && len(c.existing) <= 1000 {
+				return
+			}
+			c.invalidPaths[name] = true
+			if len(prior) > 0 {
+				c.checkpointUnavailablePaths[name] = true
+				c.finding(name, "checkpoint_unavailable", errors.New("previously enrolled workspace has no manifest or legacy checkpoint; source is unavailable"))
+				if len(prior) > 1 {
+					c.finding(name, "identity_conflict", errors.New("multiple retained enrollments map to a workspace with no current identity source"))
+				}
+			} else {
+				c.finding(name, "enrollment_lookup_incomplete", errors.New("retained enrollment index is capped; workspace cannot be classified as unregistered"))
+			}
+			return
+		}
+		c.invalidPaths[name] = true
+		c.finding(name, "invalid_manifest", readErr)
+		return
+	}
+	if item.manifestless {
+		prior := c.byWorkspace[name]
+		if len(prior) > 1 {
+			c.invalidPaths[name] = true
+			c.finding(name, "identity_conflict", errors.New("manifestless workspace has multiple retained identities"))
+			return
+		}
+		if len(prior) == 1 {
+			item.enrollment.EffortRef = prior[0].EffortRef
+		}
+	}
+	if item.observation.Freshness == pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE {
+		c.finding(name, "checkpoint_unavailable", errors.New("checkpoint or resolution evidence unavailable; source observation retained with uncertainty"))
+	}
+	ref := item.enrollment.EffortRef
+	if _, ok := c.found[ref]; ok {
+		c.conflicts[ref] = true
+		c.finding(name, "identity_conflict", fmt.Errorf("duplicate effort identity %q", ref))
+	}
+	c.found[ref] = item
+}
+
+// retireAbsentWorkspaceFindings drops findings for workspaces a complete root
+// index shows are gone. A complete root index is authoritative for workspace
+// presence: findings retained from a prior rotating scan must not keep a
+// removed workspace in the current readiness cut forever. Control-plane
+// findings remain durable; only findings whose source is a no-longer-present
+// workspace are retired.
+func (c *discoveryScan) retireAbsentWorkspaceFindings() {
+	if !c.completeIndex {
+		return
+	}
+	retained := c.d.Findings[:0]
+	for _, f := range c.d.Findings {
+		switch f.GetSource() {
+		case "workspace-root", "enrollments", "agent-manager:runs":
+			retained = append(retained, f)
+		default:
+			if c.paths[f.GetSource()] {
 				retained = append(retained, f)
-			default:
-				if paths[f.GetSource()] {
-					retained = append(retained, f)
-				}
 			}
 		}
-		d.Findings = retained
 	}
-	refs := make([]string, 0, len(found))
-	for ref := range found {
+	c.d.Findings = retained
+}
+
+// saveFound persists each discovered effort whose evidence cut changed and
+// refreshes the observation time of those that did not.
+func (c *discoveryScan) saveFound(ctx context.Context) error {
+	s, now := c.s, c.now
+	refs := make([]string, 0, len(c.found))
+	for ref := range c.found {
 		refs = append(refs, ref)
 	}
 	sort.Strings(refs)
-	identities := []string{}
 	for _, ref := range refs {
-		item := found[ref]
-		if conflicts[ref] {
+		item := c.found[ref]
+		if c.conflicts[ref] {
 			continue
 		}
 		e, o := item.enrollment, item.observation
 		old, oldO, getErr := s.repo.GetEffort(ctx, ref)
 		if getErr != nil && !errors.Is(getErr, ErrNotFound) {
-			return nil, getErr
+			return getErr
 		}
-		if old != nil && old.Workspace != "" && old.Workspace != e.Workspace && paths[old.Workspace] {
-			conflicts[ref] = true
-			finding(e.Workspace, "identity_conflict", fmt.Errorf("identity %q also belongs to present workspace %q", ref, old.Workspace))
+		if old != nil && old.Workspace != "" && old.Workspace != e.Workspace && c.paths[old.Workspace] {
+			c.conflicts[ref] = true
+			c.finding(e.Workspace, "identity_conflict", fmt.Errorf("identity %q also belongs to present workspace %q", ref, old.Workspace))
 			continue
 		}
-		// Loss of a previously observed fallback is unavailable evidence, even if
-		// the manifest itself still reads successfully. Do not label that cut fresh.
-		if oldO != nil {
-			prefix := "workspace:" + e.Workspace + "/handoffs/state.json@"
-			had, has := false, false
-			for _, ref := range oldO.EvidenceRefs {
-				had = had || strings.HasPrefix(ref, prefix)
-			}
-			for _, ref := range o.EvidenceRefs {
-				has = has || strings.HasPrefix(ref, prefix)
-			}
-			if had && !has && strings.Contains(strings.Join(o.Limitations, " "), "legacy checkpoint unavailable") {
-				o.Freshness = pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE
-				// Retain the last observed source identity so repeated failed scans
-				// cannot forget the dependency and manufacture a fresh manifest-only cut.
-				o.ObservedAt = oldO.ObservedAt
-				for _, ref := range oldO.EvidenceRefs {
-					if strings.HasPrefix(ref, prefix) {
-						o.EvidenceRefs = append(o.EvidenceRefs, ref)
-					}
-				}
-				finding(e.Workspace, "checkpoint_unavailable", errors.New("previously observed legacy checkpoint is unavailable"))
-			}
-		}
+		c.markLostFallback(e, o, oldO)
 		// Observation identity excludes collection time; stable cuts do not increment revisions.
 		cut := proto.Clone(o).(*pb.EffortBoardRow)
 		cut.ObservedAt = nil
 		cut.ChangeIdentity = ""
 		identity := effortDigest(e) + effortDigest(cut)
-		identities = append(identities, ref+":"+identity)
 		expected := uint64(0)
 		if old != nil {
 			expected = old.Revision
@@ -695,8 +741,8 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 			}
 			if oldO.GetChangeIdentity() == identity && old.Workspace == e.Workspace {
 				oldO.ObservedAt = timestamppb.New(now)
-				if err = s.repo.RefreshEffortObservation(ctx, ref, old.Revision, oldO); err != nil {
-					return nil, err
+				if err := s.repo.RefreshEffortObservation(ctx, ref, old.Revision, oldO); err != nil {
+					return err
 				}
 				continue
 			}
@@ -704,29 +750,68 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 		e.Revision = expected + 1
 		e.UpdatedAt = timestamppb.New(now)
 		o.ChangeIdentity = identity
-		if err = s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("discovery:%s:%d", ref, e.Revision), identity); err != nil {
-			return nil, err
+		if err := s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("discovery:%s:%d", ref, e.Revision), identity); err != nil {
+			return err
 		}
 	}
-	// Bound reconciliation independently of discovery; never scan an unbounded registry.
+	return nil
+}
+
+// markLostFallback marks the observation unavailable when a previously
+// observed legacy checkpoint fallback has disappeared. Loss of a previously
+// observed fallback is unavailable evidence, even if the manifest itself still
+// reads successfully. Do not label that cut fresh.
+func (c *discoveryScan) markLostFallback(e *pb.EffortEnrollment, o, oldO *pb.EffortBoardRow) {
+	if oldO == nil {
+		return
+	}
+	prefix := "workspace:" + e.Workspace + "/handoffs/state.json@"
+	had, has := false, false
+	for _, ref := range oldO.EvidenceRefs {
+		had = had || strings.HasPrefix(ref, prefix)
+	}
+	for _, ref := range o.EvidenceRefs {
+		has = has || strings.HasPrefix(ref, prefix)
+	}
+	if !had || has || !strings.Contains(strings.Join(o.Limitations, " "), "legacy checkpoint unavailable") {
+		return
+	}
+	o.Freshness = pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE
+	// Retain the last observed source identity so repeated failed scans
+	// cannot forget the dependency and manufacture a fresh manifest-only cut.
+	o.ObservedAt = oldO.ObservedAt
+	for _, ref := range oldO.EvidenceRefs {
+		if strings.HasPrefix(ref, prefix) {
+			o.EvidenceRefs = append(o.EvidenceRefs, ref)
+		}
+	}
+	c.finding(e.Workspace, "checkpoint_unavailable", errors.New("previously observed legacy checkpoint is unavailable"))
+}
+
+// markMissing marks retained enrollments unavailable when their workspace is
+// gone or their identity conflicted. Reconciliation is bounded independently
+// of discovery; it never scans an unbounded registry.
+func (c *discoveryScan) markMissing(ctx context.Context) error {
+	s, now := c.s, c.now
+	existing := c.existing
 	if len(existing) > 1000 {
-		finding("enrollments", "registry_limit", errors.New("enrollment reconciliation capped at 1000"))
+		c.finding("enrollments", "registry_limit", errors.New("enrollment reconciliation capped at 1000"))
 		existing = existing[:1000]
 	}
 	for _, e := range existing {
 		if e.Workspace == "" {
 			continue
 		}
-		_, seen := found[e.EffortRef]
-		if seen && !conflicts[e.EffortRef] {
+		_, seen := c.found[e.EffortRef]
+		if seen && !c.conflicts[e.EffortRef] {
 			continue
 		}
-		if !conflicts[e.EffortRef] && !invalidPaths[e.Workspace] && (!completeIndex || paths[e.Workspace]) {
+		if !c.conflicts[e.EffortRef] && !c.invalidPaths[e.Workspace] && (!c.completeIndex || c.paths[e.Workspace]) {
 			continue
 		}
 		_, o, getErr := s.repo.GetEffort(ctx, e.EffortRef)
 		if getErr != nil {
-			return nil, getErr
+			return getErr
 		}
 		if o.Freshness == pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE {
 			continue
@@ -736,20 +821,27 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 		e.UpdatedAt = timestamppb.New(now)
 		o.Freshness = pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE
 		limitation := "workspace removed or identity conflicted; outcome remains unverified"
-		if checkpointUnavailablePaths[e.Workspace] {
+		if c.checkpointUnavailablePaths[e.Workspace] {
 			limitation = "previously enrolled workspace has no manifest or legacy checkpoint; source is unavailable and outcome remains unverified"
 		}
 		o.Limitations = append(o.Limitations, limitation)
 		o.ChangeIdentity = "unavailable:" + o.ChangeIdentity
-		if err = s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("discovery:%s:%d", e.EffortRef, e.Revision), o.ChangeIdentity); err != nil {
-			return nil, err
+		if err := s.repo.SaveEffort(ctx, e, o, expected, fmt.Sprintf("discovery:%s:%d", e.EffortRef, e.Revision), o.ChangeIdentity); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// finish reconciles the run registry, hashes the complete retained cut and
+// saves the discovery record.
+func (c *discoveryScan) finish(ctx context.Context) (*pb.EffortDiscovery, error) {
+	s, d := c.s, c.d
 	if registryErr := s.reconcileRunRegistry(ctx, d); registryErr != nil {
-		finding("agent-manager:runs", "registry_unavailable", registryErr)
+		c.finding("agent-manager:runs", "registry_unavailable", registryErr)
 	}
 	// Hash the complete bounded retained cut rather than only this rotating page.
-	identities = nil
+	var identities []string
 	current, err := s.repo.ListEfforts(ctx, "", 1001)
 	if err != nil {
 		return nil, err
@@ -775,11 +867,11 @@ func (s *EffortService) reconcileDiscovery(ctx context.Context) (*pb.EffortDisco
 	digestCut.ScannedCount = 0
 	digestCut.Partial = false // page position is coverage, not a changed evidence cut
 	d.ChangeIdentity = bytesDigest([]byte(strings.Join(identities, "\n") + effortDigest(digestCut)))
-	if d.ChangeIdentity != previous.ChangeIdentity {
+	if d.ChangeIdentity != c.previous.ChangeIdentity {
 		d.Generation++
 	}
-	if completeIndex && len(d.Findings) == 0 {
-		d.LastSuccessfulScanAt = timestamppb.New(now)
+	if c.completeIndex && len(d.Findings) == 0 {
+		d.LastSuccessfulScanAt = timestamppb.New(c.now)
 	}
 	if err = s.repo.SaveEffortDiscovery(ctx, d); err != nil {
 		return nil, err

@@ -23,6 +23,8 @@ import (
 type fakeStore struct {
 	metrics          invocationreadmodel.Metrics
 	runMetrics       invocationreadmodel.RunMetrics
+	usage            invocationreadmodel.UsageTotals
+	fallback         invocationreadmodel.FallbackInsights
 	costDistribution invocationreadmodel.RunCostDistribution
 	durationStats    invocationreadmodel.RunDurationStatistics
 	statusCounts     []invocationreadmodel.RunStatusCount
@@ -37,14 +39,65 @@ type fakeStore struct {
 	latestProjection time.Time
 }
 
-func TestModelBreakdownKeepsImportedAndInteractiveRunsSeparate(t *testing.T) {
-	store := &fakeStore{breakdowns: map[string][]invocationreadmodel.RunBreakdownRow{"model": {}}}
+func (s *fakeStore) WindowedUsage(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.UsageTotals, error) {
+	s.filter = filter
+	return s.usage, nil
+}
+
+func (s *fakeStore) FallbackInsights(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.FallbackInsights, error) {
+	s.filter = filter
+	return s.fallback, nil
+}
+
+// The scope selector reaches the store; leaving it unset lets the store apply
+// its defaults (Agent Manager runs for run statistics, everything for tokens).
+func TestScopeSelectorReachesTheStore(t *testing.T) {
+	for _, tc := range []struct {
+		scope measurepb.RunScope
+		want  invocationreadmodel.RunScope
+	}{
+		{measurepb.RunScope_RUN_SCOPE_UNSPECIFIED, invocationreadmodel.ScopeUnspecified},
+		{measurepb.RunScope_RUN_SCOPE_AGENT_MANAGER, invocationreadmodel.ScopeAgentManager},
+		{measurepb.RunScope_RUN_SCOPE_OPERATOR_SESSIONS, invocationreadmodel.ScopeOperatorSessions},
+		{measurepb.RunScope_RUN_SCOPE_ALL, invocationreadmodel.ScopeAll},
+	} {
+		store := &fakeStore{breakdowns: map[string][]invocationreadmodel.RunBreakdownRow{"model": {}}}
+		handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
+		request := &measurepb.ModelBreakdownRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D), Filter: &measurepb.InvocationFilter{Scope: tc.scope}}
+		if _, err := handler.ModelBreakdown(context.Background(), connect.NewRequest(request)); err != nil {
+			t.Fatal(err)
+		}
+		if store.filter.Scope != tc.want {
+			t.Fatalf("scope %v reached the store as %q, want %q", tc.scope, store.filter.Scope, tc.want)
+		}
+	}
+}
+
+func TestFallbackInsightsReportsCountsAndReasons(t *testing.T) {
+	store := &fakeStore{fallback: invocationreadmodel.FallbackInsights{
+		RunnerAttempts: 3, RunnerExhausted: 1, ModelAttempts: 2,
+		ModelPairs:   []invocationreadmodel.FallbackPair{{From: "a", To: "b", Reason: "rate_limit", Count: 2}},
+		ModelReasons: []invocationreadmodel.CountRow{{Key: "rate_limit", Count: 2}},
+	}}
 	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
-	if _, err := handler.ModelBreakdown(context.Background(), connect.NewRequest(&measurepb.ModelBreakdownRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)})); err != nil {
+	response, err := handler.FallbackInsights(context.Background(), connect.NewRequest(&measurepb.FallbackInsightsRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
+	if err != nil {
 		t.Fatal(err)
 	}
-	if got := store.filter.ExcludedWorkloadKinds; len(got) != 2 || got[0] != "interactive" || got[1] != "imported" {
-		t.Fatalf("excluded workload kinds = %v, want interactive/imported", got)
+	msg := response.Msg
+	if msg.GetRunnerAttempts() != 3 || msg.GetRunnerExhausted() != 1 || msg.GetModelAttempts() != 2 || len(msg.GetModelPairs()) != 1 || msg.GetModelPairs()[0].GetTo() != "b" || msg.GetModelReasons()[0].GetKey() != "rate_limit" {
+		t.Fatalf("fallback response = %+v", msg)
+	}
+	if msg.GetValidity().GetSampleSize() != 6 {
+		t.Fatalf("sample size = %d, want 6 events", msg.GetValidity().GetSampleSize())
+	}
+	registry, err := handler.Registry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	served, err := registry.Execute(context.Background(), measureRequest(FallbackInsights, "last_7d"))
+	if err != nil || served.Fields[0]["runner_attempts"] != "3" {
+		t.Fatalf("registry fallback = %+v err=%v", served, err)
 	}
 }
 
@@ -204,9 +257,10 @@ func TestTypedMeasuresDefaultWindowAndMapFilterDimensions(t *testing.T) {
 
 func TestWorkloadEfficiencyIncludesFailedAttemptsInNumerator(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{
-		TotalTokens: 150, TerminalRuns: 5, SuccessfulRuns: 1, ConsumptionPerSuccessfulCompletion: 150,
-	}}
+	store := &fakeStore{
+		runMetrics: invocationreadmodel.RunMetrics{TerminalRuns: 5, SuccessfulRuns: 1},
+		usage:      invocationreadmodel.UsageTotals{TotalTokens: 150},
+	}
 	handler := NewHandler(store, func() time.Time { return now })
 	registry, err := handler.Registry()
 	if err != nil {
@@ -265,18 +319,21 @@ func TestRateMarksSmallSampleUnreliable(t *testing.T) {
 
 func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, TotalCostUSD: 4.5, TotalTokens: 99, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0}}
+	store := &fakeStore{
+		runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, P50DurationMS: 1000, P90DurationMS: 2000, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0},
+		usage:      invocationreadmodel.UsageTotals{MeteredCostUSD: 4.5, TotalTokens: 99, Runs: 8, Requests: 20},
+	}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.RunSuccessRate(context.Background(), connect.NewRequest(&measurepb.RunSuccessRateRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
 	if err != nil || rpc.Msg.GetRate() != 0.5 || rpc.Msg.GetSuccessfulRuns() != 3 || rpc.Msg.GetTerminalRuns() != 6 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("success rpc=%+v err=%v", rpc.Msg, err)
 	}
 	cycle, err := handler.RunCycleTime(context.Background(), connect.NewRequest(&measurepb.RunCycleTimeRequest{}))
-	if err != nil || cycle.Msg.GetAverageDurationMs() != 1234 || cycle.Msg.GetCompletedDurationRuns() != 5 {
+	if err != nil || cycle.Msg.GetAverageDurationMs() != 1234 || cycle.Msg.GetP50DurationMs() != 1000 || cycle.Msg.GetP90DurationMs() != 2000 || cycle.Msg.GetCompletedDurationRuns() != 5 || cycle.Msg.GetValidity().GetSampleSize() != 5 {
 		t.Fatalf("cycle rpc=%+v err=%v", cycle.Msg, err)
 	}
 	cost, err := handler.RunCost(context.Background(), connect.NewRequest(&measurepb.RunCostRequest{}))
-	if err != nil || cost.Msg.GetTotalCostUsd() != 4.5 || cost.Msg.GetTotalTokens() != 99 || cost.Msg.GetTotalRuns() != 8 {
+	if err != nil || cost.Msg.GetTotalCostUsd() != 4.5 || cost.Msg.GetTotalTokens() != 99 || cost.Msg.GetTotalRuns() != 8 || cost.Msg.GetRequests() != 20 || cost.Msg.GetValidity().GetSampleSize() != 8 {
 		t.Fatalf("cost rpc=%+v err=%v", cost.Msg, err)
 	}
 	registry, err := handler.Registry()
@@ -303,10 +360,10 @@ func TestRunDurationStatisticsUsesDurableStore(t *testing.T) {
 	}
 }
 
-func TestRunCostPopulatesDistributionAndUnobservedRuns(t *testing.T) {
+func TestRunCostPopulatesDistribution(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
 	store := &fakeStore{
-		runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TotalCostUSD: 4.5, AverageCostUSD: 0.5625, TotalTokens: 99},
+		usage: invocationreadmodel.UsageTotals{Runs: 8, MeteredCostUSD: 4.5, TotalTokens: 99},
 		costDistribution: invocationreadmodel.RunCostDistribution{
 			P50Tokens: 1000, P90Tokens: 9000, P95Tokens: 9500, P99Tokens: 9900, MaxTokens: 10000,
 			P50CostUSD: 0.01, P90CostUSD: 0.09, P95CostUSD: 0.095, P99CostUSD: 0.099, MaxCostUSD: 0.10,
@@ -329,9 +386,6 @@ func TestRunCostPopulatesDistributionAndUnobservedRuns(t *testing.T) {
 	}
 	if got := response.Msg.GetDistributionSampleSize(); got != 5 {
 		t.Fatalf("sample size = %d, want 5", got)
-	}
-	if got := response.Msg.GetDistributionUnobservedRuns(); got != 3 {
-		t.Fatalf("unobserved runs = %d, want 3", got)
 	}
 	if len(response.Msg.GetTokenBuckets()) != 1 || response.Msg.GetTokenBuckets()[0].GetRunCount() != 5 {
 		t.Fatalf("token buckets = %+v", response.Msg.GetTokenBuckets())
@@ -412,7 +466,7 @@ func TestRegistryAndTypedRPCShareRunStatusDistribution(t *testing.T) {
 func TestRegistryAndTypedRPCShareTerminalRunTrend(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
 	bucket := now.Add(-time.Hour)
-	store := &fakeStore{runTimeSeries: []invocationreadmodel.RunTimeSeriesBucket{{Bucket: bucket, TerminalRuns: 3, CompletedRuns: 2, FailedRuns: 1, TotalCostUSD: 1.25, AvgDurationMS: 900}}}
+	store := &fakeStore{runTimeSeries: []invocationreadmodel.RunTimeSeriesBucket{{Bucket: bucket, TerminalRuns: 3, CompletedRuns: 2, FailedRuns: 1, AvgDurationMS: 900}}}
 	handler := NewHandler(store, func() time.Time { return now })
 	rpc, err := handler.TerminalRunTrend(context.Background(), connect.NewRequest(&measurepb.TerminalRunTrendRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
 	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetBucket() != bucket.Format(time.RFC3339) || rpc.Msg.GetRows()[0].GetCompletedRuns() != 2 || rpc.Msg.GetRows()[0].GetFailedRuns() != 1 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {

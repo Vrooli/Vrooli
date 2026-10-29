@@ -71,14 +71,14 @@ remain distinct from per-command filesystem enforcement.
 Codex's [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
 separates command network restrictions from web search, apps and MCP servers.
 Network-denied Codex launches now compile an owner policy on each fresh process,
-including continuation. It preserves inherited `/etc/codex/requirements.toml`
+including continuation. It preserves inherited `literal:/etc/codex/requirements.toml`
 restrictions, denies MCP/plugins/web search, and pins remote-tool, hook and native
 child features off. Conflicting administrator feature pins or managed hooks
 refuse launch. Preserve Code Mode and its local execution host: Luna/Sol dispatch
 ordinary shell and patch tools through that runtime. Disabling the dispatcher
 does not qualify isolation; it prevents useful work. Restrict its underlying
 remote tools and sandboxed commands instead. Content-addressed policy files live outside writable runtime
-state. Both their source and `/etc/codex/requirements.toml` paths are mounted
+state. Both their source and `literal:/etc/codex/requirements.toml` paths are mounted
 read-only. A changed persisted file, unsupported provider or host launch refuses
 execution; omission of the mount is not an advisory fallback.
 

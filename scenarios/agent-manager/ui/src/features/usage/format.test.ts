@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { evidenceText, formatDayRange, formatServerText, isDormantWindow, windowLabel, windowTitle } from "./format.js";
+import { evidenceText, formatDayRange, formatServerText, friendlyLabel, isDormantWindow, targetTitle, windowTitle } from "./format.js";
 
 const HOUR = 3600_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -12,7 +12,6 @@ test("quota scopes are named like the CLI: Claude/Codex and 5-hour/weekly, never
   assert.equal(windowTitle({ provider: "openai", pool: "primary", window: "300m" }), "Codex · 5-hour");
   assert.equal(windowTitle({ provider: "anthropic", pool: "five_hour", window: "five_hour" }), "Claude · 5-hour");
   assert.equal(windowTitle({ provider: "anthropic", pool: "seven_day_opus", window: "10080m" }), "Claude · weekly · Opus", "a pool with a name of its own keeps it");
-  assert.equal(windowLabel("1440m"), "daily");
 });
 
 test("windows whose titles collide on one surface append their pool id, like the CLI", () => {
@@ -48,4 +47,13 @@ test("times inside server sentences and one-line ranges are formatted, not raw R
   assert.equal(formatDayRange(start, new Date(2026, 9, 31, 15).toISOString()), "Oct 30–31");
   assert.equal(formatDayRange(start, new Date(2026, 10, 2, 15).toISOString()), "Oct 30 – Nov 2");
   assert.equal(formatDayRange(start), "Oct 30");
+});
+
+test("raw UUIDs never label a row and long prompt titles are trimmed after the short id", () => {
+  assert.equal(friendlyLabel("Workflow 5f518188-6df0-48eb-a0f0-0085643e8634 node draft"), "Workflow 5f51… node draft");
+  const prompt = "1e5904ed I think we may have a skill for experimentation that was set up recently, where the idea is that it instructs us on how to do experiments";
+  const { shortId, title } = targetTitle(prompt);
+  assert.equal(shortId, "1e5904ed");
+  assert.ok(title.length <= 66 && title.endsWith("…") && !title.includes("1e5904ed"));
+  assert.deepEqual(targetTitle("Research orchestrator"), { shortId: "", title: "Research orchestrator" });
 });

@@ -9,10 +9,12 @@ import { renderWithProviders } from "./test-utils/index.js";
 const state = vi.hoisted(() => ({
   api: {
     refetch: vi.fn(), createTask: vi.fn(), createRun: vi.fn(), getRun: vi.fn(), getRunEvents: vi.fn(),
-    health: null as any, profiles: [] as any[], tasks: [] as any[], runs: [] as any[], snapshots: {} as Record<string, unknown>, mobile: false,
+    health: null as unknown, profiles: [] as unknown[], tasks: [] as unknown[], runs: [] as unknown[], snapshots: {} as Record<string, unknown>, mobile: false,
   },
   websocket: vi.fn(), events: vi.fn(),
 }));
+/** The options App hands the websocket hook. */
+interface SocketOptions { onStatusChange: (status: string) => void; onMessage: (message: { type: string; payload: unknown }) => void }
 const emptyActions = { runsSnapshotLoaded: vi.fn(), runSnapshotLoaded: vi.fn(), runStatusReceived: vi.fn(), runEventReceived: vi.fn(), taskStatusReceived: vi.fn(), connected: vi.fn(), disconnected: vi.fn(), eventsGapFilled: vi.fn(), clearReconciliationIntent: vi.fn() };
 
 vi.mock("./hooks/useApi.js", () => ({
@@ -25,19 +27,18 @@ vi.mock("./hooks/useApi.js", () => ({
 }));
 vi.mock("./hooks/useWebSocket.js", () => ({ useWebSocket: (options: unknown) => { state.websocket(options); return { status: "connected", subscribe: vi.fn(), unsubscribe: vi.fn() }; } }));
 vi.mock("./hooks/useRunEventStore.js", () => ({ useRunEventStore: () => { state.events(); return { state: { runsById: state.api.snapshots }, actions: emptyActions, reconciliationIntents: [] }; } }));
-vi.mock("./pages/DashboardPage.js", () => ({ DashboardPage: ({ onRefresh, onNavigateToRun, runs }: any) => createElement("div", null, "Dashboard page", createElement("span", { "data-testid": "dashboard-runs" }, String(runs.length)), createElement("button", { onClick: onRefresh }, "Dashboard refresh"), createElement("button", { onClick: () => onNavigateToRun("run-9", "diff") }, "Dashboard run")) }));
+vi.mock("./pages/DashboardPage.js", () => ({ DashboardPage: ({ onRefresh, onNavigateToRun, runs }: { onRefresh: () => void; onNavigateToRun: (id: string, tab?: string) => void; runs: unknown[] }) => createElement("div", null, "Dashboard page", createElement("span", { "data-testid": "dashboard-runs" }, String(runs.length)), createElement("button", { onClick: onRefresh }, "Dashboard refresh"), createElement("button", { onClick: () => onNavigateToRun("run-9", "diff") }, "Dashboard run")) }));
 vi.mock("./pages/ProfilesPage.js", () => ({ ProfilesPage: () => createElement("div", null, "Profiles page") }));
 vi.mock("./pages/TasksPage.js", () => ({ TasksPage: () => createElement("div", null, "Tasks page") }));
 vi.mock("./pages/RunsPage.js", () => ({ RunsPage: () => createElement("div", null, "Runs page") }));
 vi.mock("./pages/WorkflowsPage.js", () => ({ WorkflowsPage: () => createElement("div", null, "Workflows page") }));
 vi.mock("./pages/WatchesPage.js", () => ({ WatchesPage: () => createElement("div", null, "Watches page") }));
 vi.mock("./pages/EffortsPage.js", () => ({ EffortsPage: () => createElement("div", null, "Efforts page") }));
-vi.mock("./pages/FindingsPage.js", () => ({ FindingsPage: () => createElement("div", null, "Findings page") }));
 vi.mock("./features/usage/index.js", () => ({ UsagePage: () => createElement("div", null, "Usage page") }));
 vi.mock("./features/health/index.js", () => ({ HealthPage: () => createElement("div", null, "Health page") }));
-vi.mock("./components/dialogs/StatusDialog.js", () => ({ StatusDialog: ({ onOpenChange }: any) => createElement("div", null, "Status dialog", createElement("button", { onClick: () => onOpenChange(false) }, "Close status")) }));
-vi.mock("./components/dialogs/SettingsDialog/index.js", () => ({ SettingsDialog: ({ onOpenChange, onPurgeComplete }: any) => createElement("div", null, "Settings dialog", createElement("button", { onClick: onPurgeComplete }, "Purge complete"), createElement("button", { onClick: () => onOpenChange(false) }, "Close settings")) }));
-vi.mock("./components/QuickRunDialog.js", () => ({ QuickRunDialog: ({ onOpenChange, onRunCreated, defaultProjectRoot, profiles }: any) => createElement("div", null, "Quick run dialog", createElement("span", { "data-testid": "quick-root" }, `${defaultProjectRoot ?? "none"}:${profiles.length}`), createElement("button", { onClick: () => onRunCreated({ id: "created-run" }) }, "Created run"), createElement("button", { onClick: () => onOpenChange(false) }, "Close quick run")) }));
+vi.mock("./components/dialogs/StatusDialog.js", () => ({ StatusDialog: ({ onOpenChange }: { onOpenChange: (open: boolean) => void }) => createElement("div", null, "Status dialog", createElement("button", { onClick: () => onOpenChange(false) }, "Close status")) }));
+vi.mock("./components/dialogs/SettingsDialog/index.js", () => ({ SettingsDialog: ({ onOpenChange, onPurgeComplete }: { onOpenChange: (open: boolean) => void; onPurgeComplete: () => void }) => createElement("div", null, "Settings dialog", createElement("button", { onClick: onPurgeComplete }, "Purge complete"), createElement("button", { onClick: () => onOpenChange(false) }, "Close settings")) }));
+vi.mock("./components/QuickRunDialog.js", () => ({ QuickRunDialog: ({ onOpenChange, onRunCreated, defaultProjectRoot, profiles }: { onOpenChange: (open: boolean) => void; onRunCreated: (run: { id: string }) => void; defaultProjectRoot?: string; profiles: unknown[] }) => createElement("div", null, "Quick run dialog", createElement("span", { "data-testid": "quick-root" }, `${defaultProjectRoot ?? "none"}:${profiles.length}`), createElement("button", { onClick: () => onRunCreated({ id: "created-run" }) }, "Created run"), createElement("button", { onClick: () => onOpenChange(false) }, "Close quick run")) }));
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -76,7 +77,7 @@ test("phone bottom navigation holds at most five destinations", async () => {
   const tabs = [...tabBar.querySelectorAll("[data-testid$='-tab']")].map((tab) => tab.getAttribute("data-testid"));
   assert.ok(tabs.length > 0 && tabs.length <= 5, `phone tabs: ${tabs.join(", ")}`);
   // Destinations off the tab bar stay reachable: the desktop list (and the phone header menu built from it) keeps all of them.
-  for (const id of ["workflows", "watches", "efforts", "investigations", "health", "profiles"]) {
+  for (const id of ["workflows", "watches", "efforts", "health", "profiles"]) {
     assert.ok(screen.getByTestId(`agent-manager-nav-${id}`));
     assert.equal(tabs.includes(`agent-manager-nav-${id}-tab`), false);
   }
@@ -119,7 +120,7 @@ test("App folds WebSocket status, run, event, task, and workflow lifecycle messa
   window.addEventListener("agent-manager:workflow-lifecycle", workflowListener);
   state.api.getRun.mockResolvedValue({ id: "run-1" });
   renderWithProviders(createElement(App), { initialEntries: ["/runs"] });
-  const options = state.websocket.mock.calls.at(-1)![0] as any;
+  const options = state.websocket.mock.calls.at(-1)![0] as SocketOptions;
   options.onStatusChange("connected");
   options.onStatusChange("error");
   options.onMessage({ type: "run_status", payload: { id: "run-1", taskId: "task-1" } });
@@ -146,7 +147,7 @@ test("App refreshes dashboard state, merges run snapshots, and handles dashboard
   assert.equal(screen.getByTestId("dashboard-runs").textContent, "1");
   await user.click(screen.getByRole("button", { name: "Dashboard refresh" }));
   assert.ok(state.api.refetch.mock.calls.length >= 3);
-  const options = state.websocket.mock.calls.at(-1)![0] as any;
+  const options = state.websocket.mock.calls.at(-1)![0] as SocketOptions;
   options.onMessage({ type: "run_status", payload: { id: "run-1" } });
   options.onMessage({ type: "run_status", payload: {} });
   options.onMessage({ type: "task_status", payload: { id: "task-1" } });

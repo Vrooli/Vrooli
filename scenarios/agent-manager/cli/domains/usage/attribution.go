@@ -3,6 +3,7 @@ package usage
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -26,9 +27,9 @@ func parseLimit(op cliapp.OperationContext) (int32, error) {
 	if raw == "" {
 		return 0, nil
 	}
-	value, err := strconv.Atoi(raw)
+	value, err := strconv.ParseInt(raw, 10, 32)
 	if err != nil || value < 1 {
-		return 0, fmt.Errorf("--limit must be a positive integer")
+		return 0, fmt.Errorf("--limit must be a positive integer no larger than %d", math.MaxInt32)
 	}
 	return int32(value), nil
 }
@@ -92,7 +93,7 @@ func attributionLines(w *measurepb.UsageWindowAttribution, title string) []strin
 		lines = append(lines, fmt.Sprintf("  ≈%5.1f pts %4.0f%%  %s  [%s]", b.GetPoints(), b.GetShare()*100, truncateLabel(b.GetLabel(), 70), strings.Join(detail, ", ")))
 	}
 	if w.GetOtherBurners() > 0 {
-		lines = append(lines, fmt.Sprintf("  ≈%5.1f pts        %d more", w.GetOtherPoints(), w.GetOtherBurners()))
+		lines = append(lines, fmt.Sprintf("  ≈%5.1f pts        %d smaller items", w.GetOtherPoints(), w.GetOtherBurners()))
 	}
 	lines = append(lines, fmt.Sprintf("  ≈%5.1f pts %4.0f%%  unattributed / off-disk", w.GetUnattributedPoints(), share(w.GetUnattributedPoints(), w.GetObservedIncreasePoints())*100))
 	c := w.GetCalibration()
@@ -123,15 +124,17 @@ func attributionLines(w *measurepb.UsageWindowAttribution, title string) []strin
 }
 
 func recommendationsCommand(newClient clientFor) cliapp.Command {
-	return usageCommand("recommendations", "What should I change? Ranked rule findings with weekly savings [--provider NAME] [--run ID] [--json]",
-		"Evaluates R-model, R-context, R-fanout, R-friction, R-idle and R-image over the current windows and ranks the findings by estimated weekly quota saved. Each row carries its confidence, evidence and action; a rule that did not fire says why.",
-		[]cliapp.Flag{providerFlag, runFlag, limitFlag},
+	return usageCommand("recommendations", "What should I change? Rule findings grouped by target with a combined saving [--provider NAME] [--pool P --window W] [--run ID] [--json]",
+		"Evaluates R-model, R-context, R-fanout, R-friction, R-idle and R-image over the current windows and groups the levers for one target (a session, a workload or a friction problem) into one entry whose combined saving never counts overlapping levers twice (each lever applies to what the larger ones leave). Each entry states the quota used so far, the projection over the window, its share of the window's burn and whether it is still running; groups saving under 0.1 pts are counted, and a rule that did not fire says why. --pool and --window evaluate one window alone.",
+		[]cliapp.Flag{providerFlag, {Name: "pool", Description: "With --provider and --window: evaluate this window alone"}, {Name: "window", Description: "With --provider and --pool: evaluate this window alone"}, runFlag, limitFlag},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			limit, err := parseLimit(op)
 			if err != nil {
 				return nil, err
 			}
-			response, err := newClient(op.Core()).UsageRecommendations(context.Background(), connect.NewRequest(&measurepb.UsageRecommendationsRequest{Provider: strings.TrimSpace(op.Flag("provider")), RunId: strings.TrimSpace(op.Flag("run")), Limit: limit}))
+			response, err := newClient(op.Core()).UsageRecommendations(context.Background(), connect.NewRequest(&measurepb.UsageRecommendationsRequest{
+				Provider: strings.TrimSpace(op.Flag("provider")), RunId: strings.TrimSpace(op.Flag("run")), Limit: limit, Pool: strings.TrimSpace(op.Flag("pool")), Window: strings.TrimSpace(op.Flag("window")),
+			}))
 			if err != nil {
 				return nil, err
 			}
@@ -139,13 +142,16 @@ func recommendationsCommand(newClient clientFor) cliapp.Command {
 		},
 		func(response proto.Message) cliapp.ListReport {
 			r := response.(*measurepb.UsageRecommendationsResponse)
-			report := cliapp.ListReport{ResultsHeading: "Recommendations", Summary: []string{fmt.Sprintf("%d recommendation(s) as of %s; savings are estimates", len(r.GetRecommendations()), stamp(r.GetGeneratedAt()))}}
+			report := cliapp.ListReport{ResultsHeading: "Recommendations", Summary: []string{fmt.Sprintf("%d group(s) as of %s; savings are estimates", len(r.GetGroups()), stamp(r.GetGeneratedAt()))}}
+			if r.GetFoldedGroups() > 0 {
+				report.Summary[0] += fmt.Sprintf(" (%d more saving under 0.1 pts together ≈%.2f)", r.GetFoldedGroups(), r.GetFoldedPoints())
+			}
 			if r.GetDominantConsumer() != "" {
 				report.Summary = append(report.Summary, "Dominant consumer: "+truncateLabel(r.GetDominantConsumerLabel(), 90))
 			}
-			scopes := make([]windowScope, len(r.GetRecommendations()))
-			for i, row := range r.GetRecommendations() {
-				scopes[i] = windowScope{provider: row.GetProvider(), pool: row.GetPool(), window: row.GetWindow()}
+			scopes := make([]windowScope, len(r.GetGroups()))
+			for i, group := range r.GetGroups() {
+				scopes[i] = windowScope{provider: group.GetProvider(), pool: group.GetPool(), window: group.GetWindow()}
 			}
 			distinct, seen := []windowScope{}, map[windowScope]bool{}
 			for _, s := range scopes {
@@ -158,19 +164,51 @@ func recommendationsCommand(newClient clientFor) cliapp.Command {
 			for i, title := range windowTitles(distinct) {
 				named[distinct[i]] = title
 			}
-			for i, row := range r.GetRecommendations() {
-				report.Results = append(report.Results,
-					fmt.Sprintf("%d. %s  −%.1f pts/wk of %s  [%s]", row.GetRank(), row.GetAction(), row.GetEstWeeklyQuotaPointsSaved(), named[scopes[i]], row.GetConfidence()),
-					fmt.Sprintf("   %s · %s %s · uses ≈%.1f pts · %s", row.GetRule(), row.GetTargetKind(), truncateLabel(row.GetTargetId(), 40), row.GetConsumerPoints(), evidenceSummary(row.GetEvidenceRefs())))
+			for i, group := range r.GetGroups() {
+				report.Results = append(report.Results, groupLines(group, named[scopes[i]])...)
 			}
 			for _, rule := range r.GetRules() {
 				if !rule.GetFired() {
 					report.Results = append(report.Results, fmt.Sprintf("   %s did not fire: %s", rule.GetRule(), rule.GetReason()))
 				}
 			}
-			report.RetrievalHints = []string{"agent-manager usage recommendations --json  # evidence ids and metrics", "agent-manager usage burners  # who is using the window"}
+			report.RetrievalHints = []string{"agent-manager usage recommendations --json  # evidence ids and typed facts per lever", "agent-manager usage burners  # who is using the window", "agent-manager usage friction  # recurring problems with owners"}
 			return report
 		})
+}
+
+func groupLines(group *measurepb.UsageRecommendationGroup, window string) []string {
+	var alone float64
+	for _, lever := range group.GetLevers() {
+		alone += lever.GetSavedPoints()
+	}
+	saving := fmt.Sprintf("projected −%.1f pts of %s at this rate", group.GetCombinedSavedPoints(), window)
+	if len(group.GetLevers()) > 1 {
+		saving += fmt.Sprintf(" (levers alone sum −%.1f)", alone)
+	}
+	running := "stopped"
+	if group.GetStillRunning() {
+		running = "still running"
+	}
+	if group.GetStillRunning() {
+		saving += fmt.Sprintf(", −%.1f of it still recoverable in the %.0fh left", group.GetRecoverablePoints(), group.GetRemainingHours())
+	}
+	burn := fmt.Sprintf("%.0f%% of the window's burn", group.GetShareOfWindowBurn()*100)
+	if group.GetCrossCut() {
+		burn = fmt.Sprintf("%.0f%% of the window's burn, already counted in the session plans (do not add)", group.GetShareOfWindowBurn()*100)
+	}
+	lines := []string{
+		fmt.Sprintf("%d. %s  %s", group.GetRank(), truncateLabel(group.GetTargetLabel(), 90), saving),
+		fmt.Sprintf("   uses ≈%.1f pts so far, ≈%.1f at this rate · %s · %s", group.GetUsedSoFarPoints(), group.GetAtThisRatePoints(), burn, running),
+	}
+	for i, lever := range group.GetLevers() {
+		gain := fmt.Sprintf("projected −%.1f", lever.GetSavedPoints())
+		if i > 0 {
+			gain = fmt.Sprintf("projected −%.1f more (−%.1f alone)", lever.GetMarginalPoints(), lever.GetSavedPoints())
+		}
+		lines = append(lines, fmt.Sprintf("   %s pts  %s  [%s, %s] %s", gain, lever.GetAction(), lever.GetRule(), lever.GetConfidence(), evidenceSummary(lever.GetEvidenceRefs())))
+	}
+	return lines
 }
 
 func evidenceSummary(refs []*measurepb.UsageEvidenceRef) string {

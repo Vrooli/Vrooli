@@ -301,25 +301,16 @@
             {
               "name": "watch-id",
               "required": true,
-              "description": "Watch identifier",
-              "bind": {
-                "field": "watch_id"
-              }
+              "description": "Watch identifier"
             },
             {
               "name": "expected-revision",
               "required": true,
-              "description": "Current revision",
-              "bind": {
-                "field": "expected_revision"
-              }
+              "description": "Current revision"
             },
             {
               "name": "reason",
-              "description": "Operator reason",
-              "bind": {
-                "field": "reason"
-              }
+              "description": "Operator reason"
             }
           ],
           "binding": {
@@ -388,18 +379,12 @@
             {
               "name": "idempotency-key",
               "required": true,
-              "description": "Replay-safe action key",
-              "bind": {
-                "field": "idempotency_key"
-              }
+              "description": "Replay-safe action key"
             },
             {
               "name": "kind",
               "required": true,
-              "description": "Typed action kind",
-              "bind": {
-                "field": "kind"
-              }
+              "description": "Typed action kind"
             },
             {
               "name": "target-run",
@@ -411,46 +396,28 @@
             {
               "name": "requested-by",
               "required": true,
-              "description": "Requester identity",
-              "bind": {
-                "field": "requested_by"
-              }
+              "description": "Requester identity"
             },
             {
               "name": "authority",
               "required": true,
-              "description": "Requester authority",
-              "bind": {
-                "field": "authority"
-              }
+              "description": "Requester authority"
             },
             {
               "name": "rationale",
-              "description": "Action rationale",
-              "bind": {
-                "field": "rationale"
-              }
+              "description": "Action rationale"
             },
             {
               "name": "message",
-              "description": "Bounded turn message",
-              "bind": {
-                "field": "message"
-              }
+              "description": "Bounded turn message"
             },
             {
               "name": "cooldown",
-              "description": "Minimum repeat interval",
-              "bind": {
-                "field": "cooldown"
-              }
+              "description": "Minimum repeat interval"
             },
             {
               "name": "maximum-count",
-              "description": "Maximum applied matching actions",
-              "bind": {
-                "field": "maximum_count"
-              }
+              "description": "Maximum applied matching actions"
             }
           ],
           "binding": {
@@ -1488,20 +1455,6 @@
           }
         },
         {
-          "name": "ops",
-          "description": "Operational statistics",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "permission-policy",
           "description": "Permission policy operations",
           "binding": {
@@ -1967,110 +1920,6 @@
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "ops",
-      "description": "Inspect typed-event operational statistics",
-      "commands": [
-        {
-          "name": "summary",
-          "description": "Show every operational category",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "fallback",
-          "description": "Show runner and model fallback insights",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "health",
-          "description": "Show engine-derived health transitions",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "sandbox",
-          "description": "Show sandbox operation outcomes",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "heartbeat",
-          "description": "Show heartbeat-miss counters",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "checkpoint",
-          "description": "Show checkpoint-failure counters",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "retry",
-          "description": "Show retry-attempt counters",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]
@@ -3078,10 +2927,7 @@
             },
             {
               "name": "after-sequence",
-              "description": "Resume after this event sequence",
-              "bind": {
-                "field": "after_sequence"
-              }
+              "description": "Resume after this event sequence"
             },
             {
               "name": "json",
@@ -3139,39 +2985,24 @@
             {
               "name": "harness-kind",
               "required": true,
-              "description": "Stable harness kind, such as claude-code or codex",
-              "bind": {
-                "field": "harness_kind"
-              }
+              "description": "Stable harness kind, such as claude-code or codex"
             },
             {
               "name": "harness-session-id",
               "required": true,
-              "description": "Harness-owned session identifier",
-              "bind": {
-                "field": "harness_session_id"
-              }
+              "description": "Harness-owned session identifier"
             },
             {
               "name": "task-id",
-              "description": "Optional task UUID to associate with the attached session",
-              "bind": {
-                "field": "task_id"
-              }
+              "description": "Optional task UUID to associate with the attached session"
             },
             {
               "name": "process-id",
-              "description": "Optional harness process ID",
-              "bind": {
-                "field": "process_id"
-              }
+              "description": "Optional harness process ID"
             },
             {
               "name": "harness-title",
-              "description": "Optional title from harness transcript metadata",
-              "bind": {
-                "field": "harness_title"
-              }
+              "description": "Optional title from harness transcript metadata"
             }
           ],
           "binding": {
@@ -3192,10 +3023,7 @@
             {
               "name": "run-id",
               "required": true,
-              "description": "Attached run UUID",
-              "bind": {
-                "field": "run_id"
-              }
+              "description": "Attached run UUID"
             }
           ],
           "flags": [
@@ -3288,16 +3116,13 @@
             {
               "name": "run_id",
               "required": true,
-              "description": "Run UUID",
-              "bind": {
-                "field": "runner_type"
-              }
+              "description": "Run UUID"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "EpisodesService",
-            "method": "ImportTranscript"
+            "method": "GetSelfReportSpans"
           },
           "governance": {
             "effect": "read",
@@ -3346,29 +3171,6 @@
           }
         },
         {
-          "name": "publish-recurring-friction",
-          "description": "File recurring deterministic friction to the meta-optimization inbox with an idempotent daily cap",
-          "flags": [
-            {
-              "name": "cap",
-              "description": "Daily filing cap"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
           "name": "ledger",
           "description": "Show per-run cross-scenario receipt calls",
           "positionals": [
@@ -3386,7 +3188,9 @@
             }
           ],
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "GetCrossScenarioLedger"
           },
           "governance": {
             "effect": "read",
@@ -3412,7 +3216,10 @@
           "flags": [
             {
               "name": "runner",
-              "description": "Optional runner type"
+              "description": "Optional runner type",
+              "bind": {
+                "field": "runner_type"
+              }
             },
             {
               "name": "label",
@@ -3420,7 +3227,9 @@
             }
           ],
           "binding": {
-            "kind": "local"
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "ImportTranscript"
           },
           "governance": {
             "effect": "write",
@@ -4098,25 +3907,16 @@
           "flags": [
             {
               "name": "effort-ref",
-              "description": "Optional exact effort reference",
-              "bind": {
-                "field": "effort_ref"
-              }
+              "description": "Optional exact effort reference"
             },
             {
               "name": "page-size",
               "description": "Maximum owner rows (1-100)",
-              "bind": {
-                "field": "page_size"
-              },
               "bind_waiver": "This is request pagination data: cmdEffort validates 1-100 and sends it as GetEffortBoardRequest.page_size; it does not control CLI execution."
             },
             {
               "name": "page-token",
-              "description": "Opaque continuation token from the prior board response",
-              "bind": {
-                "field": "page_token"
-              }
+              "description": "Opaque continuation token from the prior board response"
             }
           ],
           "binding": {
@@ -4253,6 +4053,98 @@
             "permissions": [
               "filesystem:read",
               "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "migrate",
+          "description": "Convert a v1 goal home to the v2 file set, verifying board facts are unchanged; dry run unless --apply",
+          "positionals": [
+            {
+              "name": "goal-home",
+              "required": true,
+              "description": "Goal-home directory"
+            }
+          ],
+          "flags": [
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Write the v2 files and archive the v1 files (default: dry run)"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the result as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "delivery",
+          "description": "Start, pause, resume or stop an effort's delivery commission with revision fencing",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "start | pause | resume | stop"
+            }
+          ],
+          "flags": [
+            {
+              "name": "effort-ref",
+              "required": true,
+              "description": "Exact enrolled effort"
+            },
+            {
+              "name": "commission",
+              "description": "New commission ID (start only)"
+            },
+            {
+              "name": "budget",
+              "description": "Commission duration (start only; default 24h)"
+            },
+            {
+              "name": "workers",
+              "description": "Maximum independent workers (start only; default 2)"
+            },
+            {
+              "name": "reason",
+              "description": "Pause or stop disposition"
+            },
+            {
+              "name": "idempotency-key",
+              "description": "Stable mutation request identity"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Use the existing explicit local operator exchange"
+            },
+            {
+              "name": "json",
+              "bool": true,
+              "description": "Print the result as JSON"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
             ]
           }
         },
@@ -5174,7 +5066,7 @@
         },
         {
           "name": "run-cost",
-          "description": "Total durable terminal run cost.",
+          "description": "Tokens requested in the window, and dollars for per-token billed runs.",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
@@ -5193,9 +5085,9 @@
           },
           "measure": {
             "domain": "run",
-            "intent": "Total terminal run cost in USD with retained token usage.",
+            "intent": "Token totals from transcript requests in the window; dollars only for per-token billed runs.",
             "questions": [
-              "what did agent runs cost this week",
+              "how many tokens did agent runs use this week",
               "show total agent run cost"
             ],
             "params": {
@@ -5208,7 +5100,46 @@
               "kind": "scalar",
               "value_field": "total_cost_usd",
               "unit": "usd",
-              "summary_template": "{total_cost_usd} agent run cost ({window})"
+              "summary_template": "{total_cost_usd} per-token billed cost ({window})"
+            }
+          }
+        },
+        {
+          "name": "fallback-insights",
+          "description": "Runner and model fallbacks and policy-candidate outcomes.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "FallbackInsights"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "measure": {
+            "domain": "health",
+            "intent": "Runner and model fallback attempts, exhausted walks and policy-candidate outcomes.",
+            "questions": [
+              "how often do runs fall back to another runner or model",
+              "why do model fallbacks happen"
+            ],
+            "params": {
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
+            },
+            "result": {
+              "kind": "table",
+              "value_field": "reason",
+              "unit": "events",
+              "summary_template": "fallback insights ({window})"
             }
           }
         },
@@ -5897,7 +5828,11 @@
             },
             {
               "name": "filter-json",
-              "description": "InvocationFilter JSON"
+              "description": "InvocationFilter JSON",
+              "bind": {
+                "field": "filter",
+                "kind": "json_inline"
+              }
             },
             {
               "name": "limit",
@@ -5994,10 +5929,7 @@
           "flags": [
             {
               "name": "provider",
-              "description": "Provider filter (e.g. openai, anthropic)",
-              "bind": {
-                "field": "provider"
-              }
+              "description": "Provider filter (e.g. openai, anthropic)"
             },
             {
               "name": "backtest",
@@ -6028,10 +5960,7 @@
           "flags": [
             {
               "name": "provider",
-              "description": "Provider filter (e.g. openai, anthropic)",
-              "bind": {
-                "field": "provider"
-              }
+              "description": "Provider filter (e.g. openai, anthropic)"
             },
             {
               "name": "by",
@@ -6042,10 +5971,7 @@
             },
             {
               "name": "since",
-              "description": "RFC 3339: attribute only the increase after it",
-              "bind": {
-                "field": "since"
-              }
+              "description": "RFC 3339: attribute only the increase after it"
             },
             {
               "name": "run",
@@ -6056,10 +5982,7 @@
             },
             {
               "name": "limit",
-              "description": "Maximum rows (default 20)",
-              "bind": {
-                "field": "limit"
-              }
+              "description": "Maximum rows (default 20)"
             }
           ],
           "binding": {
@@ -6080,14 +6003,11 @@
         },
         {
           "name": "recommendations",
-          "description": "What should I change? Ranked rule findings with weekly savings",
+          "description": "What should I change? Rule findings grouped by target with a combined saving",
           "flags": [
             {
               "name": "provider",
-              "description": "Provider filter (e.g. openai, anthropic)",
-              "bind": {
-                "field": "provider"
-              }
+              "description": "Provider filter (e.g. openai, anthropic)"
             },
             {
               "name": "run",
@@ -6097,11 +6017,16 @@
               }
             },
             {
+              "name": "pool",
+              "description": "With --provider and --window: evaluate this window alone"
+            },
+            {
+              "name": "window",
+              "description": "With --provider and --pool: evaluate this window alone"
+            },
+            {
               "name": "limit",
-              "description": "Maximum rows (default 20)",
-              "bind": {
-                "field": "limit"
-              }
+              "description": "Maximum rows (default 20)"
             }
           ],
           "binding": {
@@ -6121,15 +6046,97 @@
           }
         },
         {
+          "name": "friction",
+          "description": "What keeps going wrong for agents? Recurring friction problems in plain words",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Provider filter (e.g. openai, anthropic)"
+            },
+            {
+              "name": "status",
+              "description": "open | reported | dismissed (default: all)"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum rows (default 20)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageFriction"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "friction-report",
+          "description": "File a friction problem in the scenario-qa bug inbox",
+          "positionals": [
+            {
+              "name": "fingerprint",
+              "required": true,
+              "description": "Problem fingerprint from `usage friction`"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "ReportFrictionProblem"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "friction-dismiss",
+          "description": "Set a friction problem aside",
+          "positionals": [
+            {
+              "name": "fingerprint",
+              "required": true,
+              "description": "Problem fingerprint from `usage friction`"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EpisodesService",
+            "method": "DismissFrictionProblem"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "coverage",
           "description": "Can I trust this? Transcript capture coverage against the disk",
           "flags": [
             {
               "name": "since",
-              "description": "RFC 3339 (default 7 days ago)",
-              "bind": {
-                "field": "since"
-              }
+              "description": "RFC 3339 (default 7 days ago)"
             }
           ],
           "binding": {
@@ -6292,21 +6299,6 @@
     },
     {
       "service": "AgentManagerService",
-      "method": "ApproveRun",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "CancelTask",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "CreateProfile",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
       "method": "CreateRun",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
@@ -6317,27 +6309,7 @@
     },
     {
       "service": "AgentManagerService",
-      "method": "DeleteProfile",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "DeleteRun",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "DeleteTask",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
       "method": "DoctorPermissionPolicy",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "EnsureProfile",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
     {
@@ -6377,37 +6349,12 @@
     },
     {
       "service": "AgentManagerService",
-      "method": "GetRunByTag",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "GetRunDiff",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "GetRunnerStatus",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "GetTask",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
       "method": "Health",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
     {
       "service": "AgentManagerService",
       "method": "ListProfiles",
-      "reason": "The native CLI lists through the existing REST handler; the Connect receiver is not implemented yet, so this local command is not workflow-run eligible."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "ListTasks",
       "reason": "The native CLI lists through the existing REST handler; the Connect receiver is not implemented yet, so this local command is not workflow-run eligible."
     },
     {
@@ -6427,11 +6374,6 @@
     },
     {
       "service": "AgentManagerService",
-      "method": "QuiesceScenario",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
       "method": "ReconcilePermissionPolicy",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
@@ -6442,47 +6384,12 @@
     },
     {
       "service": "AgentManagerService",
-      "method": "RecoverRun",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "RejectRun",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
       "method": "ReloadPermissionPolicyCatalog",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
     {
       "service": "AgentManagerService",
       "method": "ReloadRolePolicyCatalog",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "StopAllRuns",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "StopRun",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "StopRunByTag",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "UpdateProfile",
-      "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "UpdateTask",
       "reason": "Legacy hand-registered non-workflow CLI surface; outside the first workflow manifest migration."
     },
     {
@@ -6593,16 +6500,6 @@
     {
       "service": "AgentManagerService",
       "method": "AdvanceWorkflowExecution",
-      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "AttachRun",
-      "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "DetachRun",
       "reason": "Compatibility Connect RPC is not implemented on the registered handler; this native CLI command keeps its separate owner path and is not workflow-run eligible."
     },
     {
@@ -6801,6 +6698,14 @@
       {
         "domain": "conversation_search_telemetry",
         "reason": "This content-free retained substrate is aggregated by the declared conversation_search.conversation-search-quality measure; raw row volume is not a separate outcome."
+      },
+      {
+        "domain": "effort",
+        "reason": "Effort enrollments, signals and decisions are operator coordination records read through the bounded owner projection (effort board, signals, decision list); their counts describe how many efforts are being tracked, not run friction or throughput, so a count measure would be inventory rather than an optimization signal."
+      },
+      {
+        "domain": "watch",
+        "reason": "Cohort watches and supervision policies are supervision definitions with their own bounded owner reads (watch list, inspect, policy-outcomes); watch counts by state are configuration inventory, and the friction they act on is already measured through the run, episode and usage measures."
       }
     ]
   }

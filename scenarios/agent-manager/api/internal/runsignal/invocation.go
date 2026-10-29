@@ -110,7 +110,10 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 		}
 		if result, ok := event.Data.(*domain.ToolResultEventData); ok {
 			if result.ToolCallID != "" {
-				results[result.ToolCallID] = event
+				// A duplicated result keeps the first copy.
+				if _, seen := results[result.ToolCallID]; !seen {
+					results[result.ToolCallID] = event
+				}
 			} else {
 				ordinalResults = append(ordinalResults, event)
 			}
@@ -121,6 +124,7 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 	lastFailureByExecutable := map[string]string{}
 	helpAfterFailure := map[string]bool{}
 	ordinalResultIndex := 0
+	seenCalls := map[string]bool{}
 	for _, event := range events {
 		if event == nil {
 			continue
@@ -128,6 +132,14 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 		call, ok := event.Data.(*domain.ToolCallEventData)
 		if !ok {
 			continue
+		}
+		// A tool call is one invocation however many copies of its event were
+		// recorded (an importer once appended the events twice): keep the first.
+		if call.ToolCallID != "" {
+			if seenCalls[call.ToolCallID] {
+				continue
+			}
+			seenCalls[call.ToolCallID] = true
 		}
 		capability := CapabilityForTool(call.ToolName)
 		if resolver != nil {
@@ -186,6 +198,10 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				fact.ProgramID, fact.SkillID = commandIdentifiers(segment)
 				if resolution.Command != "" {
 					fact.Capability = CapabilityForCommand(resolution.Command, fact.Capability)
+					// `| head -30` trims another command's output: it reads no file.
+					if fact.Capability == "file-read" && !readsFileOperand(segment) {
+						fact.Capability = factBase.Capability
+					}
 				}
 				fact.SemanticsKind, fact.SemanticsVerdict = resolution.SemanticsKind, resolution.SemanticsVerdict
 				fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
@@ -440,6 +456,31 @@ func boundedFailureSignature(signature string) (string, bool) {
 // CapabilityForCommand refines the harness capability with evidence from the
 // resolved command path. A shell wrapper therefore cannot mask a search,
 // wait, file-read, or file-edit operation.
+// readsFileOperand reports whether a cat/head/tail/sed segment names a file to
+// read. Without one it reads standard input, a filter on a pipeline. Flags,
+// their numeric values and sed's script are not files.
+func readsFileOperand(segment string) bool {
+	tokens, ok := safeTokens(segment)
+	if !ok || len(tokens) < 2 {
+		return false
+	}
+	name := tokens[0]
+	operands := 0
+	for _, token := range tokens[1:] {
+		if strings.HasPrefix(token, "-") && token != "-" {
+			continue
+		}
+		if _, err := strconv.Atoi(token); err == nil {
+			continue // head -n 20, tail -c 100
+		}
+		operands++
+	}
+	if name == "sed" {
+		return operands >= 2 // the first operand is the script
+	}
+	return operands >= 1
+}
+
 func CapabilityForCommand(command, fallback string) string {
 	name := strings.ToLower(strings.TrimSpace(command))
 	switch {

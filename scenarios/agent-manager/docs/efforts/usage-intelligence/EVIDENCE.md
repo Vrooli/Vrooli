@@ -168,3 +168,130 @@ Dedupe: the later projection (Oct 31 18:57 versus the notified Oct 31 09:19) did
 
 ### Docs manifest hygiene
 `docs/manifest.json`: added `reference/effort-supervision.md`, `reference/token-attribution.md`, `reference/component-library-gaps.md` to the reference section, and a new `efforts` section registering the nine effort documents (README, SPEC, GOAL, WORKSTREAMS, WORKER, EVIDENCE, DEBT, FEEDBACK, R1-non-text-usage), all `completion: optional`. All 66 manifest paths exist on disk. The docs phase itself was not re-run (no scoped phase assigned), so the misplaced_doc finding is unconfirmed cleared. Backup of the prior file: `/tmp/claude-1000/-home-matthalloran8-Vrooli/76d970de-82d0-4c52-b559-ceadb6acbf61/scratchpad/w8b/manifest.before.json`.
+
+## Pass 2 research (2026-10-29, read-only)
+
+Live captures: headless Chrome 1440×900 and 390×844 of /, /usage (Overview, Details, Coverage),
+/findings, /investigations, /observability and run tabs; crops in `mockups/pass2/img/`. Audits by two
+read-only agents; key findings with locations (paths relative to `scenarios/agent-manager/`).
+
+### E-P2-1 Details token inflation (verified on the live DB)
+- Tile `ui/src/features/stats/components/kpi/KPISummary.tsx` → `measuresClient.runCost` →
+  `api/internal/measures/measures.go:537 RunCost` → `RunMetrics`
+  (`api/internal/adapters/database/repository_invocation_read_model.go:534`) sums
+  `invocation_read_model_runs.total_tokens` where `occurred_at` is in the window.
+- `invocationreadmodel/project.go:420-423` sets `occurred_at` = run `ended_at`; `total_tokens` is the
+  lifetime total (`project.go:511`). 7-day read model 337.0 B (285.2 B from 5,681 imported runs) vs
+  `transcript_usage` 31.95 B. 5,198 of the window's runs started > 7 days earlier.
+- 150 groups of imported runs with identical totals: 247 extra rows, 67 B (e.g. 580b2f47…, 8127dba0…
+  both 3.27 B); `transcript_files` has 450 forks (cause unverified).
+- 4,917 imported runs with 0 tokens and no transcript rows; 787 with runner `unknown`; throughput
+  = totalRuns/windowHours (`KPISummary.tsx:33`).
+- `measures.go:303` `runCycleTime` sets Numerator but not Denom; validity reads Denom (`:463`) → "sample
+  size 0". `runCost` sets Denom = TotalTokens (`:306`).
+- Cost "unknown 0.00 + subscription 0.00": `formatCharge` (KPISummary) from `ChargeByBasis` (repo :583)
+  reading `runs.billing_snapshot` (absent on imports); also in `ExportButton.tsx`.
+- Other readers of lifetime counters: `ChargeByBasis :587`, `RunCostDistribution :664`, `RunBreakdown
+  :769-776` (runner/profile/model/workload tables, REST `/api/v1/stats/run-classes`
+  `handlers/run_classes.go:45,63`), `ToolUsage :882`, `CapabilityUsage :979`, `TokenAttribution :1036`,
+  `CohortRows :365`, `repository_usage_attribution.go:372`; CLI `run stats`. Runner "Avg Time 3302.2h"
+  = `RunBreakdown :777` averaging imported sessions' lifetimes.
+
+### E-P2-2 Data pollution
+- 3,633 runs titled "codex session rollout-test123", "Late Reply Session Title", "Tailor Session Output
+  Generation", "Session with old and new messages", "Session Title Needed", "Session Title for Coding
+  Agent Session…" with transcript paths under `~/.vrooli/state/vrooli/web-console/sessions/codex/`
+  (created 2026-10-22…2026-10-29). Cause: web-console `newCodexTailerTestServer`
+  (`scenarios/web-console/api/codex_tailer_test.go:57`) writes real session dirs (bug knw-1793273775988019361).
+- 823 runs have `parent_run_id` (sub-agents) at top level of the Runs list.
+- Claude 5-hour stream recorded a reading at 06:41 with reset 2026-10-22T18:10Z (a past reset).
+
+### E-P2-3 Findings and investigations
+- `run_findings`: 888 rows, 888 distinct fingerprints, 1 distinct `recommendation_text` ("Review the
+  recurring deterministic friction fingerprint and its suspected owner."), `operator_decision` empty
+  ×888, `effectiveness` = not_yet_measurable ×888. Page shows "occurrences: 1" beside "appeared 18
+  times", durations "3m5s"/"6075 ms"/"367711744 ms".
+- `investigations`: 15 rows, newest 2026-09-06.
+
+### E-P2-4 Notifications
+- `api/internal/usageforecast/alert.go`: evaluates every 5 min; only `will_exhaust`; resend when
+  projection moves ≥ 12 h earlier; state in `usage_forecast_alerts`; event
+  `agent_manager.usage.notification.v1`, category `usage-will-exhaust`, urgency high, link /usage.
+- Today: Codex weekly 06:38 (now stale, never withdrawn), Claude 5h 07:03 (false alarm: peaked 71%),
+  Claude weekly 07:03 (holding). All delivered by web_push (Chimesail).
+- App delivery adoption pattern (Git Control Tower): `"appDelivery": true` in `.vrooli/notifications.json`,
+  `<AppNotificationSettings />` from `@vrooli/react-component-library/AppNotificationSettings/1` in
+  Settings, `initAppNotifications()` in `main.tsx`; api-base serves `/vrooli-notify`. AM has a CORE route
+  `https://agent-manager.itsagitime.com` and a web manifest. Contract:
+  `scenarios/notification-hub/docs/concepts/NOTIFICATIONS.md` §"App delivery".
+
+### E-P2-5 API/CLI debt audit (highlights)
+- LOC: API 155,996 non-test / 136,237 test; CLI 16,311 / 8,663. `internal/orchestration` 40.6k (26%);
+  `Orchestrator` 76 fields / 382 methods; `NewOrchestrator` 298 lines; 41 funcs > 150 lines; largest
+  `createRun` 736 (`run_creation.go:83`), `Runner.runDurable` 372, `reconcileDiscovery` 306,
+  `Handler.Registry` 270, `SetupRoutes` 259; `HandlerServices` bundles 21 interfaces
+  (`orchestration/operation_services.go:188`).
+- Second stats engine `internal/stats` (1,096 + schema.sql) → `/api/v1/stats/operational`, `/fallback`
+  (`handlers/operational_stats.go` 149), `cli/services_operational.go` 135, `cli/cmd_ops.go` 184, UI
+  `operationalClient.ts` (used via a BASE constant).
+- 55 of 104 AgentManagerService RPCs have no AM CLI/UI caller (e.g. StopAllRuns, ApproveRun, RejectRun,
+  StopRunByTag, 11 workflow-execution RPCs, permission/role-policy RPCs); CLI uses REST twins
+  (`cli/services_runs.go:220,259`): 103 REST vs 32 Connect call sites; REST in `handlers.go:174
+  RegisterRoutes` (120 routes). Other scenarios' TS clients checked by name only.
+- No-caller routes: `/investigations/{id}/learning-retry` (`handlers.go:313`), `/runs/{id}/audit-transcript`
+  (`handlers.go:266`), `/model-policy/canary/arm|compare` (`handlers/canary.go`); `/runs/investigate`
+  unverified.
+- D-15: `transcriptindex/repair.go` 259 + repo methods `repository_usage_attribution.go:443-450`; marker
+  present; 109 `transcript_usage` rows with empty/unknown model (legacy status unchecked).
+- 16 `migrate*` funcs (502 LOC; 14 in `connection.go`, incl. 192-line `migrateRunTaskIDNullability`);
+  `migrateQuotaEvents`, `migrateAttachedExitStatus` run every start (`connection.go:498,501`).
+- Label helpers: `usageforecast/alert.go:183,193` vs `cli/domains/usage/register.go:210,222`
+  ("5h" vs "5-hour"); `five_hour`/`seven_day` in 4 files.
+- Pricing: `pricing.Service.CalculateCost` (`pricing/service.go:108`, codecs `codecs/pricing.go:67`),
+  `usageattribution.Price.cost` + `fallbackPrice`/`tierPriors` (`usageattribution/model.go:120-170`),
+  PriceBook (`usageattribution/prices.go`).
+- Classifiers: codecs Classify/ClassifyTerminalError/PostClassify (codex, opencode, claude, grok,
+  antigravity); outcome: `phases/result.go:340,350`, `domain/decisions.go:256`.
+- Dead: `NewControlPlaneInventory` (`maintenance/executor_scope.go:54`), `WithGoBaseURL/TTL/HTTPClient`
+  (`pricing/providers/opencode_go.go:37-45`), `CrossScenario` (`runsignal/cross_scenario.go:17`),
+  `AllMeasureDefinitions` (`measures.go:418`), `AppliedActionStats` (`supervision/actions.go:225`),
+  `SearchLexical` (`conversationsearch/semantic.go:239`), `DeleteStagedRun`/`EventDocumentIDs`
+  (`conversationsearch/sqlite.go:435,451`), `_ = workloadInstance` (`project.go:416`).
+- Tests: 412 `&domain.Run{` literals in 123 files; `testutil/fixtures` (322) used by 9 files, 26 builders
+  unused; 28 env-gated skips incl. ~9 live-DB evidence tests.
+- CLI: two registration styles (flat `app.go`, `run` ≈45 subcommands; `domains/*/register.go`); friction
+  commands under `run` (`episodes`, `messages-friction`, `episode-trend`, `publish-recurring-friction`);
+  `--status` compatibility alias (`cmd_investigations.go:93`); `domains/measures/register.go:31` 252 lines.
+
+### E-P2-6 UI debt audit (highlights; paths under `ui/src/`)
+- type-check passes; eslint 21 errors in 8 test files (App.test.ts 10, HealthTables.test.ts 4,
+  SettingsDialog.test.ts 2, ProfileDetail/RunDetailParts.helpers/TaskDetail tests 1 each,
+  useResizablePanel.test.ts:38 unused var, utils.test.ts:30 constant binary expression).
+- `components/RunDetail.tsx` 819 (function 726 from line 93); Usage tab tokens twice: `RunUsagePanel`
+  (transcript, "4.6 M") and cost block RunDetail.tsx:727-750 re-summing events (226-233,
+  `CostBreakdown` RunDetailParts.tsx:746-750, "4,600,000"); "Requests" means turns (RunUsagePanel:30)
+  and tool requests (RunDetail:743).
+- `SettingsDialog/ModelPricingTab.tsx` 818: private `EditPricingDialog` (line 349) duplicating
+  `components/dialogs/EditPricingDialog.tsx`; private `SortableHeader` (line 99) vs
+  `features/stats/components/tables/SortableHeader.tsx`; 7 `h-7 w-7` buttons (175-523).
+- Fetch: TanStack Query in 24 files; hand-rolled `usePricing.ts` (`useApiState`, `apiRequest` lines
+  24/36), `useOrchestrationSettings.ts:30`, `useApiTransport.ts:217`, `useApiRuns`; raw fetch in
+  `api/episodes.ts:11`, `InvestigationsPage.tsx:26`, `ManualImport.tsx` ×3, `operationalClient.ts`,
+  `healthClient.ts`, `eventsClient.ts`, `RunClassBreakdown.tsx:14`; deadlines only in usage/efforts
+  (`timeoutMs: 30_000`); `InvestigationsPage.openSignal` no catch; dashboard counts setInterval
+  (`useApiRuns.ts:512`).
+- Formatters: duration `lib/utils.formatDuration` vs `stats/utils/formatters.formatDuration`; tokens
+  `stats formatTokens` (19 hits) vs `usage formatTokenCount` (11) vs `toLocaleString` (21); provider ×5
+  (`usage/format.ts` providerLabel unused + QUOTA_PROVIDER_LABELS, `lib/utils.runnerTypeLabel`,
+  `runPresentation.harnessLabel`, `DashboardPage.formatRunnerName`); "N/A" vs "—".
+- Dead: `features/stats/utils/calculations.ts` (71, test-only), `formatCompact`, chartConfig
+  `AREA_GRADIENTS`/`getStatusColor`, `lib/currency.formatUsd`, `formatStatsChartTime`,
+  `usePricing.useModelAliases`/`useCreateAlias`, `useIsMobile`, `usage/format.providerLabel`,
+  `pricingDisplay.pricingSourceColor`, `useRunners`, `features/stats/index.ts` barrel (27 re-exports,
+  1 used), stats response types, CSS `.glass`, `.fade-enter*`, `.diff-context` (dynamic use unverified).
+- Cards: local `components/ui/card` (10 files), RCL Card (5), 10 hand-rolled in stats; local
+  tabs/dialog/input/checkbox/textarea/badge; raw `<table>` in 14 files; `TimeWindowSelector` module
+  global (`useTimeWindow.tsx:18`).
+- Dashboard 577: `HealthItem` 174 lines; `runStatusLabel` re-implements `formatStatusLabel`; Refresh 40px.
+- `UsageCoverage.tsx:70` shows today's date when `since` is unknown.
+- Page headers differ (Dashboard h2 text-lg; Findings h1; Investigations h1 + p-6; Usage RCL PageHeader).

@@ -229,6 +229,8 @@ func TestListRunsRemainsMetadataOnly(t *testing.T) {
 		"tag_prefix":       4,
 		"limit":            5,
 		"offset":           6,
+		"top_level":        7,
+		"origin":           8,
 	})
 	for i := 0; i < descriptor.Fields().Len(); i++ {
 		name := string(descriptor.Fields().Get(i).Name())

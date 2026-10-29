@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/eventlog"
+	"agent-manager/internal/findings"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/httpmw"
@@ -34,7 +35,6 @@ import (
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
-	"agent-manager/internal/stats"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/storagehealth"
 	"agent-manager/internal/supervision"
@@ -73,7 +73,6 @@ type RouteDependencies struct {
 	PermissionPolicyState    *permissionpolicy.State
 	PermissionPolicy         *permissionpolicy.Service
 	Storage                  storage.Service
-	StatsEngine              *stats.Engine
 	HealthStore              *healthstore.Store
 	EventRepository          eventlog.Repository
 	SupervisionService       *supervision.Service
@@ -174,6 +173,10 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		}
 		return runreport.Availability{State: runreport.AvailabilityUnobserved}
 	}
+	var frictionBoard handlers.FrictionBoard
+	if service, ok := newFrictionService(deps); ok {
+		frictionBoard = service
+	}
 	handler := handlers.New(
 		orchestration.NewHandlerServices(deps.Orchestrator),
 		handlers.WithStorage(deps.Storage),
@@ -184,6 +187,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithTranscriptImporter(deps.TranscriptImporter),
 		handlers.WithInvestigationLifecycle(investigationRepository(deps.DB)),
 		handlers.WithEffortEnrollments(deps.SupervisionService),
+		handlers.WithFrictionBoard(frictionBoard),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
@@ -295,10 +299,6 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	handler.RegisterRoutes(router)
 
 	routesLog := obs.Component("routes")
-	if deps.StatsEngine != nil {
-		handlers.NewOperationalStatsHandler(deps.StatsEngine).RegisterRoutes(router)
-		routesLog.Info("operational stats endpoints registered", "path", "/api/v1/stats/operational, /api/v1/stats/fallback")
-	}
 	if deps.HealthStore != nil {
 		catalogReader := func(context.Context) []agentcatalog.CatalogFreshness {
 			freshness := make([]agentcatalog.CatalogFreshness, 0, 4)
@@ -311,13 +311,11 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.NewHealthAuditHandler(deps.HealthStore).WithCatalogFreshness(catalogReader).WithModelPolicyDrift(deps.ModelPolicyDrift).RegisterRoutes(router)
 		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
 	}
-	handlers.NewCanaryHandler(deps.InvocationReadModel).RegisterRoutes(router)
 	if deps.EventRepository != nil {
 		handlers.NewEventsHandler(deps.EventRepository).RegisterRoutes(router)
 		routesLog.Info("events endpoint registered", "path", "/api/v1/events")
 	}
 	if deps.InvocationReadModel != nil {
-		handlers.NewRunClassHandler(deps.InvocationReadModel).RegisterRoutes(router)
 		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
 		measureHandler.SetConversationSearchQuality(deps.ConversationSearch, deps.ConversationIndexer)
 		if validityConfig, err := config.LoadMeasureValidityConfig(); err == nil {
@@ -334,7 +332,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			if deps.TranscriptImporter != nil {
 				coverage = deps.TranscriptImporter
 			}
-			measureHandler.SetUsageAttribution(database.NewUsageAttributionRepository(deps.DB), deps.PricingService, coverage)
+			measureHandler.SetUsageActivity(database.NewUsageActivityRepository(deps.DB))
+			measureHandler.SetUsageAttribution(database.NewUsageAttributionRepository(deps.DB), deps.PricingService, coverage, findings.NewFrictionStatusStore(deps.DB))
 		}
 		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
 			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())

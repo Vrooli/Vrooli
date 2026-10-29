@@ -40,9 +40,8 @@ func (s *Server) buildStorageHealth(routed *coredb.RoutedDB, repoRoot string) er
 			standing, err := s.maintenance.Observe(ctx)
 			return storagehealth.FenceState{Closed: standing.Closed, Drained: standing.Drained, Revision: standing.Revision}, err
 		},
-		Pause:      runtime.pauser(s),
-		Watermarks: s.rowidWatermarks(),
-		Logger:     obs.Component("storage-health"),
+		Pause:  runtime.pauser(s),
+		Logger: obs.Component("storage-health"),
 	})
 	if err != nil {
 		return err
@@ -57,15 +56,6 @@ func (s *Server) buildStorageHealth(routed *coredb.RoutedDB, repoRoot string) er
 		s.reconciler.SetStorageMaintainer(service)
 	}
 	return nil
-}
-
-// rowidWatermarks are the in-memory run_events rowid positions a VACUUM must
-// carry. Persisted positions are rewritten by the compaction itself.
-func (s *Server) rowidWatermarks() []storagehealth.NamedWatermark {
-	if s.statsEngine == nil {
-		return nil
-	}
-	return []storagehealth.NamedWatermark{{Name: "stats_engine.watermark", Holder: s.statsEngine}}
 }
 
 func (s *Server) storageHealthHandler() *storagehealth.Handler {
@@ -121,9 +111,6 @@ func (r *storageHealthRuntime) pauser(s *Server) storagehealth.Pauser {
 		if s.transcriptImporter != nil {
 			s.transcriptImporter.Stop()
 		}
-		if s.frictionPublisher != nil {
-			s.frictionPublisher.Stop()
-		}
 		return func() {
 			resumeSupervision()
 			ctx := r.workers()
@@ -137,9 +124,6 @@ func (r *storageHealthRuntime) pauser(s *Server) storagehealth.Pauser {
 			}
 			if s.transcriptImporter != nil {
 				s.transcriptImporter.Start(ctx)
-			}
-			if s.frictionPublisher != nil {
-				s.frictionPublisher.Start(ctx)
 			}
 		}, nil
 	}

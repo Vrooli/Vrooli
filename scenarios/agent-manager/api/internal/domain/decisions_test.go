@@ -318,48 +318,22 @@ func TestClassifyRunOutcome(t *testing.T) {
 	exitOne := 1
 
 	tests := []struct {
-		name         string
-		err          error
-		exitCode     *int
-		wasCancelled bool
-		timedOut     bool
-		want         RunOutcome
+		name     string
+		err      error
+		exitCode *int
+		want     RunOutcome
 	}{
-		{"success", nil, &exitZero, false, false, RunOutcomeSuccess},
-		{"cancelled", nil, nil, true, false, RunOutcomeCancelled},
-		{"timeout", nil, nil, false, true, RunOutcomeTimeout},
-		{"exit error", nil, &exitOne, false, false, RunOutcomeExitError},
-		{"exception", errors.New("boom"), nil, false, false, RunOutcomeException},
-		{"cancelled takes priority", nil, &exitOne, true, true, RunOutcomeCancelled},
-		{"timeout takes priority over exit", nil, &exitOne, false, true, RunOutcomeTimeout},
+		{"success", nil, &exitZero, RunOutcomeSuccess},
+		{"no result is not a failure", nil, nil, RunOutcomeSuccess},
+		{"exit error", nil, &exitOne, RunOutcomeExitError},
+		{"exception", errors.New("boom"), nil, RunOutcomeException},
+		{"exception takes priority over exit", errors.New("boom"), &exitOne, RunOutcomeException},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ClassifyRunOutcome(tt.err, tt.exitCode, tt.wasCancelled, tt.timedOut)
-			if got != tt.want {
+			if got := ClassifyRunOutcome(tt.err, tt.exitCode); got != tt.want {
 				t.Errorf("ClassifyRunOutcome() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRunOutcome_RequiresReview(t *testing.T) {
-	tests := []struct {
-		outcome RunOutcome
-		want    bool
-	}{
-		{RunOutcomeSuccess, true},
-		{RunOutcomeExitError, false},
-		{RunOutcomeException, false},
-		{RunOutcomeCancelled, false},
-		{RunOutcomeTimeout, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(string(tt.outcome), func(t *testing.T) {
-			if got := tt.outcome.RequiresReview(); got != tt.want {
-				t.Errorf("RequiresReview() = %v, want %v", got, tt.want)
 			}
 		})
 	}

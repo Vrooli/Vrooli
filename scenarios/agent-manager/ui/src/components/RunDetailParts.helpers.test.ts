@@ -26,7 +26,7 @@ test("getCostTotals only folds valid cost events and preserves model/tier proven
     { data: { case: "cost", value: undefined } },
     { data: { case: "cost", value: { inputTokens: 10, outputTokens: 2, cacheCreationTokens: 1, cacheReadTokens: 3, totalCostUsd: 0.25, webSearchRequests: 1, serverToolUseRequests: 2, model: "gpt-5", serviceTier: "priority" } } },
     { data: { case: "cost", value: { inputTokens: 5, model: "gpt-5", serviceTier: "priority" } } },
-  ] as any);
+  ] as never);
   assert.deepEqual(totals, { inputTokens: 15, outputTokens: 2, cacheCreationTokens: 1, cacheReadTokens: 3, totalCostUsd: 0.25, webSearchRequests: 1, serverToolUseRequests: 2, models: ["gpt-5"], serviceTiers: ["priority"], events: 2 });
   assert.equal(formatCurrency(1.2), "$1.2000");
 });

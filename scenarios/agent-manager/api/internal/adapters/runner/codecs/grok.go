@@ -77,6 +77,7 @@ func grokBase() baseCodec {
 		installHint:    "Run: vrooli resource install grok",
 		tagEnvKey:      grokTagEnvKey,
 		continuePrefix: "grok",
+		sessionLoss:    grokSessionLoss,
 		labels: Labels{
 			StartMessage:         "Grok execution started",
 			ContinueStartMessage: "Grok continuation started",
@@ -525,44 +526,16 @@ func grokACPContentText(raw json.RawMessage) string {
 // Result classification
 // =============================================================================
 
-// ClassifyTerminalError satisfies [Codec]. Grok's recognised typed-failure
-// shape is a resume against a session that no longer exists: stderr reads
-// "Failed to restore session from remote: … 404 Not Found" (trace-proven). All
-// other failures fall through to ErrCodeRunnerExecution.
-func (c *Grok) ClassifyTerminalError(stderr string, _ int) *domain.RunnerError {
-	if isGrokSessionExpired(stderr) {
-		return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
-	}
-	return nil
-}
-
-// Classify satisfies [Codec]. Order: session-expiry stderr → ReasonSessionExpired
-// (mirrors [ClassifyTerminalError]); everything else → residual TextClassifier
-// (unknown/bad model, auth, quota, network). Returns nil only when stderr is
-// empty and exitCode == 0.
-func (c *Grok) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
-	if stderr == "" && exitCode == 0 {
-		return nil
-	}
-	if isGrokSessionExpired(stderr) {
-		return fallback.New(fallback.ReasonSessionExpired, strings.TrimSpace(stderr), nil)
-	}
-	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
-		RunnerType: string(c.Type()),
-		Stderr:     stderr,
-		ExitCode:   exitCode,
-	})
-}
-
-// isGrokSessionExpired matches grok's "session gone on resume" stderr shape.
-func isGrokSessionExpired(stderr string) bool {
+// grokSessionLoss matches grok's "session gone on resume" stderr shape:
+// "Failed to restore session from remote: … 404 Not Found" (trace-proven).
+func grokSessionLoss(stderr string) fallback.Reason {
 	s := strings.ToLower(stderr)
-	if !strings.Contains(s, "session") {
-		return false
-	}
-	return strings.Contains(s, "not found") ||
+	if strings.Contains(s, "session") && (strings.Contains(s, "not found") ||
 		strings.Contains(s, "restore session") ||
-		strings.Contains(s, "expired")
+		strings.Contains(s, "expired")) {
+		return fallback.ReasonSessionExpired
+	}
+	return ""
 }
 
 // Compile-time interface checks.

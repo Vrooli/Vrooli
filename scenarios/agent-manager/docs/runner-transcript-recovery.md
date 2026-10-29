@@ -29,7 +29,7 @@ The SQLite `runs` row mirrors the critical recovery fields:
 When a run starts, `agent-manager` allocates the state directory before the runner process is started. Runner stdout is redirected to `transcript.ndjson`, and a transcript consumer tails that file and feeds the normal event store / websocket broadcast path. As lines are consumed, the consumer advances the byte cursor and persists the first discovered runner session id immediately.
 
 The state root is a startup prerequisite. It must be an absolute writable path
-outside process-ephemeral locations such as `/tmp`, `/var/tmp`, `/run`, and
+outside process-ephemeral locations such as `/tmp`, `literal:/var/tmp`, `/run`, and
 `/dev/shm`; startup performs a synced write probe before admitting work. The
 root is durable across an Agent Manager process restart. Host reboot or storage
 loss is outside this guarantee and requires provider/session evidence or a

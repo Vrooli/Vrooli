@@ -141,7 +141,7 @@ export function BoundedList<T>({
         <div className="border-b border-border px-4 py-3">
           <button
             type="button"
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="min-h-11 w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             onClick={() =>
               setVisibleCount((current) => Math.min(items.length, current + increment))
             }

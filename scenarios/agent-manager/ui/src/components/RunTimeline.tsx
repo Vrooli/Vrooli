@@ -401,14 +401,22 @@ export function RunTimeline({
             <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
               <Filter className="h-10 w-10 text-muted-foreground/40" />
               <div>
-                <p className="font-medium text-muted-foreground">No timeline entries match the current filters</p>
-                <p className="mt-1 text-sm text-muted-foreground/80">
-                  Reset to the hybrid view to see messages, tool use, reasoning, and errors together.
+                <p className="font-medium text-muted-foreground">
+                  {timelineEntries.length === 0
+                    ? "No timeline entries yet"
+                    : `No timeline entries match the current filters (${timelineEntries.length} hidden by filters)`}
                 </p>
+                {timelineEntries.length > 0 && (
+                  <p className="mt-1 text-sm text-muted-foreground/80">
+                    Reset to the hybrid view to see messages, tool use, reasoning, and errors together.
+                  </p>
+                )}
               </div>
-              <Button type="button" variant="secondary" onClick={resetFilters}>
-                Reset Filters
-              </Button>
+              {timelineEntries.length > 0 && (
+                <Button type="button" variant="secondary" onClick={resetFilters}>
+                  Reset Filters
+                </Button>
+              )}
             </div>
           ) : (
             <div>

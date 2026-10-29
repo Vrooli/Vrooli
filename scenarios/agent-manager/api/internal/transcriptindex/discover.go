@@ -151,7 +151,7 @@ func Walk(root Root) ([]Candidate, error) {
 			}
 			return nil
 		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jsonl") || isTestRollout(root, entry.Name()) {
 			return nil
 		}
 		if candidate, ok := Identify(root, path); ok {
@@ -160,6 +160,14 @@ func Walk(root Root) ([]Candidate, error) {
 		return nil
 	})
 	return out, err
+}
+
+// isTestRollout reports a web-console rollout that Codex never wrote. Codex
+// names every rollout rollout-<timestamp>-<thread uuid>.jsonl; web-console's
+// tailer tests drop fixtures such as rollout-test123.jsonl into the sessions
+// folder, and those are not transcripts.
+func isTestRollout(root Root, name string) bool {
+	return root.Kind == RootWebConsoleCodex && !uuidPattern.MatchString(name)
 }
 
 // Identify stats one file into a Candidate keyed by device and inode.

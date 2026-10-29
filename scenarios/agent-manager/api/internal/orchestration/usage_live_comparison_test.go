@@ -1,3 +1,5 @@
+//go:build livecheck
+
 package orchestration
 
 import (

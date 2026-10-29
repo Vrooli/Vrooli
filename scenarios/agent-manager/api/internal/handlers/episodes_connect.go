@@ -2,12 +2,15 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/runsignal"
+	"agent-manager/internal/usageattribution"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -126,4 +129,36 @@ func episodeProto(episode runsignal.FrictionEpisode) *domainpb.FrictionEpisode {
 		CycleCount:             int64(episode.CycleCount),
 		RepeatedElement:        episode.RepeatedElement,
 	}
+}
+
+// ReportFrictionProblem files a recurring friction problem in the scenario-qa
+// bug inbox with its evidence and marks it reported.
+func (h *Handler) ReportFrictionProblem(ctx context.Context, req *connect.Request[domainpb.ReportFrictionProblemRequest]) (*connect.Response[domainpb.ReportFrictionProblemResponse], error) {
+	if h.frictionBoard == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("friction reporting is unavailable"))
+	}
+	fingerprint := strings.TrimSpace(req.Msg.GetFingerprint())
+	if fingerprint == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("fingerprint is required"))
+	}
+	problem, err := h.frictionBoard.ReportFriction(ctx, fingerprint, time.Now().UTC())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&domainpb.ReportFrictionProblemResponse{Fingerprint: problem.Fingerprint, Description: problem.Description, Status: problem.Status, BugId: problem.BugID}), nil
+}
+
+// DismissFrictionProblem sets a friction problem aside.
+func (h *Handler) DismissFrictionProblem(ctx context.Context, req *connect.Request[domainpb.DismissFrictionProblemRequest]) (*connect.Response[domainpb.DismissFrictionProblemResponse], error) {
+	if h.frictionBoard == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("friction status is unavailable"))
+	}
+	fingerprint := strings.TrimSpace(req.Msg.GetFingerprint())
+	if fingerprint == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("fingerprint is required"))
+	}
+	if err := h.frictionBoard.DismissFriction(ctx, fingerprint, time.Now().UTC()); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&domainpb.DismissFrictionProblemResponse{Fingerprint: fingerprint, Status: usageattribution.StatusDismissed}), nil
 }

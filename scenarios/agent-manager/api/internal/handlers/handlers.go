@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/investigation"
@@ -39,6 +40,7 @@ import (
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/transcriptindex"
+	"agent-manager/internal/usageattribution"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -66,6 +68,7 @@ type Handler struct {
 	receipts              eventbus.Client
 	receiptAvailability   ReceiptAvailabilityReader
 	transcriptImporter    TranscriptImportRunner
+	frictionBoard         FrictionBoard
 	investigations        investigation.Repository
 	effortEnrollments     EffortEnrollmentReader
 }
@@ -140,6 +143,21 @@ func WithTranscriptImporter(runner TranscriptImportRunner) HandlerOption {
 	}
 }
 
+// FrictionBoard acts on recurring friction problems: filing one in the bug
+// inbox and setting one aside. The usage attribution service implements it.
+//
+// seam: handlers.FrictionBoard
+type FrictionBoard interface {
+	ReportFriction(ctx context.Context, fingerprint string, now time.Time) (usageattribution.Problem, error)
+	DismissFriction(ctx context.Context, fingerprint string, now time.Time) error
+}
+
+// WithFrictionBoard installs the friction problem actions; without it they
+// report unavailable.
+func WithFrictionBoard(board FrictionBoard) HandlerOption {
+	return func(h *Handler) { h.frictionBoard = board }
+}
+
 // WithInvestigationLifecycle installs the durable, caller-neutral investigation
 // owner. Dispatch and repair remain separate capabilities; this option only
 // exposes admission and diagnosis lifecycle operations.
@@ -188,35 +206,20 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/profiles/ensure", h.EnsureProfile).Methods("POST")
 	r.HandleFunc("/api/v1/profiles/reconcile-scenario", h.ReconcileScenarioProfiles).Methods("POST")
 
-	// Unified scenario-owned declaration reconcile (profiles + workflows).
-	r.HandleFunc("/api/v1/declarations/reconcile-scenario", h.ReconcileScenarioDeclarations).Methods("POST")
-	r.HandleFunc("/api/v1/declarations/plan", h.PlanScenarioDeclarations).Methods("POST")
 	r.HandleFunc("/api/v1/profiles", h.ListProfiles).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.GetProfile).Methods("GET")
 	r.HandleFunc("/api/v1/profiles/{id}", h.UpdateProfile).Methods("PUT")
 	r.HandleFunc("/api/v1/profiles/{id}", h.DeleteProfile).Methods("DELETE")
 
 	// Scenario-owned immutable workflow catalog.
-	r.HandleFunc("/api/v1/workflows/validate", h.ValidateWorkflow).Methods("POST")
-	r.HandleFunc("/api/v1/workflows/plan", h.PlanScenarioWorkflows).Methods("POST")
-	r.HandleFunc("/api/v1/workflows/reconcile-scenario", h.ReconcileScenarioWorkflows).Methods("POST")
-	r.HandleFunc("/api/v1/workflows/reload", h.ReconcileScenarioWorkflows).Methods("POST")
-	r.HandleFunc("/api/v1/workflows", h.ListWorkflowRevisions).Methods("GET")
-	r.HandleFunc("/api/v1/workflows/revision", h.GetWorkflowRevision).Methods("GET")
-	r.HandleFunc("/api/v1/workflows/explain", h.GetWorkflowRevision).Methods("GET")
-	r.HandleFunc("/api/v1/workflows/simulate", h.SimulateWorkflow).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions", h.StartWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions", h.ListWorkflowExecutions).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}", h.GetWorkflowExecution).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/result", h.GetWorkflowExecutionResult).Methods("GET")
-	r.HandleFunc("/api/v1/workflow-executions/{id}/advance", h.AdvanceWorkflowExecution).Methods("POST")
 	r.Handle("/api/v1/workflow-executions/{id}/wait", WorkflowWaitResponse(http.HandlerFunc(h.WaitWorkflowExecution))).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/trace", h.GetWorkflowExecutionTrace).Methods("GET")
-	r.HandleFunc("/api/v1/workflow-executions/{id}/runs", h.ListWorkflowExecutionRuns).Methods("GET")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/signals", h.SignalWorkflowExecution).Methods("POST")
 	r.HandleFunc("/api/v1/workflow-executions/{id}/cancel", h.CancelWorkflowExecution).Methods("POST")
-	r.HandleFunc("/api/v1/workflow-executions/{id}/retry", h.RetryWorkflowExecution).Methods("POST")
-	r.HandleFunc("/api/v1/workflow-executions/{id}/resume", h.ResumeWorkflowExecution).Methods("POST")
 
 	// Task endpoints
 	r.HandleFunc("/api/v1/tasks", h.CreateTask).Methods("POST")
@@ -229,7 +232,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Run endpoints
 	r.HandleFunc("/api/v1/runs", h.CreateRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/attach", h.AttachRun).Methods("POST")
-	r.HandleFunc("/api/v1/runs/investigate", h.CreateInvestigationRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/investigation-apply", h.CreateInvestigationApplyRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/resume-from-failed", h.ResumeFromFailedRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs", h.ListRuns).Methods("GET")
@@ -244,7 +246,6 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/cohorts/{name}", h.ShowInvocationCohort).Methods("GET")
 	r.HandleFunc("/api/v1/runs/cohorts/{name}", h.DeleteInvocationCohort).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/episode-trend", h.EpisodeTrend).Methods("GET")
-	r.HandleFunc("/api/v1/runs/episodes/publish-recurring", h.PublishRecurringFriction).Methods("POST")
 	r.HandleFunc("/api/v1/runs/import-transcript", h.ImportTranscriptHTTP).Methods("POST")
 	r.HandleFunc("/api/v1/runs/import-session-corpus", h.ImportSessionCorpus).Methods("POST")
 	r.HandleFunc("/api/v1/runs/backfill-labels", h.BackfillImportedRunLabels).Methods("POST")
@@ -259,11 +260,9 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/durability", h.GetDurability).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/invocation-facts", h.GetInvocationFacts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/episodes", h.GetEpisodesHTTP).Methods("GET")
-	r.HandleFunc("/api/v1/runs/{id}/messages-friction", h.GetMessageFriction).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/ledger", h.GetLedger).Methods("GET")
 	r.HandleFunc("/api/v1/findings", h.ListFindings).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
-	r.HandleFunc("/api/v1/runs/{id}/audit-transcript", h.GetAuditTranscript).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/detach", h.DetachRun).Methods("POST")
@@ -283,33 +282,15 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Status endpoints
 	r.HandleFunc("/api/v1/runners", h.GetRunnerStatus).Methods("GET")
 	r.HandleFunc("/api/v1/execution-options", h.ListExecutionOptions).Methods("GET")
-	r.HandleFunc("/api/v1/runners/{runner_type}/probe", h.ProbeRunner).Methods("POST")
-	r.HandleFunc("/api/v1/role-policy/status", h.GetRolePolicyStatus).Methods("GET")
 	r.HandleFunc("/api/v1/role-policy/catalog", h.GetRolePolicyCatalog).Methods("GET")
-	r.HandleFunc("/api/v1/role-policy/validate", h.ValidateRolePolicyCatalog).Methods("POST")
-	r.HandleFunc("/api/v1/role-policy/reload", h.ReloadRolePolicyCatalog).Methods("POST")
-	r.HandleFunc("/api/v1/role-policy/explain", h.ExplainRolePolicy).Methods("POST")
-	r.HandleFunc("/api/v1/permission-policy/status", h.GetPermissionPolicyStatus).Methods("GET")
-	r.HandleFunc("/api/v1/permission-policy/catalog", h.GetPermissionPolicyCatalog).Methods("GET")
-	r.HandleFunc("/api/v1/permission-policy/validate", h.ValidatePermissionPolicyCatalog).Methods("POST")
-	r.HandleFunc("/api/v1/permission-policy/reload", h.ReloadPermissionPolicyCatalog).Methods("POST")
-	r.HandleFunc("/api/v1/permission-policy/plan", h.PlanPermissionPolicy).Methods("POST")
-	r.HandleFunc("/api/v1/permission-policy/reconcile", h.ReconcilePermissionPolicy).Methods("POST")
-	r.HandleFunc("/api/v1/permission-policy/doctor", h.DoctorPermissionPolicy).Methods("POST")
 
 	// Path validation (proxied to workspace-sandbox)
 	r.HandleFunc("/api/v1/validate-path", h.ValidatePath).Methods("GET")
 
-	// Maintenance endpoints
-	r.HandleFunc("/api/v1/maintenance/purge", h.PurgeData).Methods("POST")
-
 	// Investigation Settings endpoints
 	r.HandleFunc("/api/v1/investigations", h.StartInvestigation).Methods("POST")
 	r.HandleFunc("/api/v1/investigations", h.ListInvestigations).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/{id}", h.GetInvestigation).Methods("GET")
-	r.HandleFunc("/api/v1/investigations/{id}/wait", h.WaitInvestigation).Methods("POST")
 	r.HandleFunc("/api/v1/investigations/{id}/result", h.CompleteInvestigation).Methods("POST")
-	r.HandleFunc("/api/v1/investigations/{id}/cancel", h.CancelInvestigation).Methods("POST")
 	r.HandleFunc("/api/v1/investigations/{id}/learning-retry", h.RetryInvestigationLearning).Methods("POST")
 	r.HandleFunc("/api/v1/investigation-settings", h.GetInvestigationSettings).Methods("GET")
 	r.HandleFunc("/api/v1/investigation-settings", h.UpdateInvestigationSettings).Methods("PUT")
@@ -466,27 +447,6 @@ func parseQueryInt64Strict(r *http.Request, keys ...string) (int64, bool, error)
 		return 0, true, err
 	}
 	return value, true, nil
-}
-
-func parseRunnerType(raw string) (domain.RunnerType, bool) {
-	value := strings.TrimSpace(raw)
-	if value == "" {
-		return "", false
-	}
-	if numeric, err := strconv.Atoi(value); err == nil {
-		parsed := protoconv.RunnerTypeFromProto(domainpb.RunnerType(numeric))
-		return parsed, parsed.IsValid()
-	}
-	normalized := strings.TrimPrefix(strings.ToUpper(value), "RUNNER_TYPE_")
-	normalized = strings.ToLower(normalized)
-	if strings.Contains(normalized, "_") {
-		normalized = strings.ReplaceAll(normalized, "_", "-")
-	}
-	runnerType := domain.RunnerType(normalized)
-	if !runnerType.IsValid() {
-		return "", false
-	}
-	return runnerType, true
 }
 
 func parseTaskStatus(raw string) (domain.TaskStatus, bool) {

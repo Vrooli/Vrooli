@@ -23,7 +23,7 @@ function routeResponses(byPath: Record<string, unknown>) {
   fetchMock.mockImplementation(async (input: string | URL | Request) => {
     const url = typeof input === "string" ? input : input.toString();
     for (const [pathPrefix, body] of Object.entries(byPath)) {
-      if (url.startsWith(pathPrefix)) {
+      if (url.includes(pathPrefix)) {
         return jsonResponse(body);
       }
     }
@@ -105,7 +105,7 @@ describe("HealthPage", () => {
 
     renderWithProviders(createElement(HealthPage));
 
-    const auditButton = await screen.findByLabelText("Show audit history for codex / gpt-5.2-codex");
+    const auditButton = await screen.findByLabelText("Show audit history for Codex / gpt-5.2-codex");
     await userEvent.click(auditButton);
 
     await waitFor(() => {

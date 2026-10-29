@@ -12,6 +12,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -973,5 +974,18 @@ func TestOpenCode_Type_Constant(t *testing.T) {
 	c := NewOpenCodeForTest()
 	if c.Type() != domain.RunnerTypeOpenCode {
 		t.Errorf("type=%s", c.Type())
+	}
+}
+
+// Classify and ClassifyTerminalError share one session-loss detector, so the
+// live CLI's capitalised "Session not found" is typed by both.
+func TestOpenCode_ClassifyAgreesWithTerminalErrorOnSessionLoss(t *testing.T) {
+	c := NewOpenCodeForTest()
+	for _, stderr := range []string{"Error: Session not found", "session expired", "random error"} {
+		typed := c.ClassifyTerminalError(stderr, 1) != nil
+		classified := c.Classify(stderr, 1)
+		if expired := classified != nil && classified.Reason == fallback.ReasonSessionExpired; expired != typed {
+			t.Errorf("%q: typed=%v classified=%+v", stderr, typed, classified)
+		}
 	}
 }

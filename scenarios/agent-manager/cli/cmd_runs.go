@@ -33,8 +33,6 @@ func (a *App) cmdRun(args []string) error {
 		return a.runMessageFriction(args[1:])
 	case "episode-trend":
 		return a.runEpisodeTrend(args[1:])
-	case "publish-recurring-friction":
-		return a.runPublishRecurringFriction(args[1:])
 	case "ledger":
 		return a.runLedger(args[1:])
 	case "import-transcript":

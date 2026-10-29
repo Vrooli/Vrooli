@@ -10,7 +10,6 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -206,22 +205,6 @@ func (p *antigravityTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line 
 
 func (c *Antigravity) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
 	updateAssistantMetrics(event, metrics, lastAssistant)
-}
-
-func (c *Antigravity) OnEarlyTerminate(_ State, _ string) bool       { return false }
-func (c *Antigravity) PostClassify(_ State, _ *runner.ExecuteResult) {}
-
-func (c *Antigravity) ClassifyTerminalError(_ string, _ int) *domain.RunnerError { return nil }
-
-func (c *Antigravity) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
-	if strings.TrimSpace(stderr) == "" && exitCode == 0 {
-		return nil
-	}
-	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
-		RunnerType: string(c.Type()),
-		Stderr:     stderr,
-		ExitCode:   exitCode,
-	})
 }
 
 var _ Codec = (*Antigravity)(nil)

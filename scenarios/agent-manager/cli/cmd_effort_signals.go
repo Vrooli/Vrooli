@@ -28,7 +28,7 @@ func (a *App) effortSignals(args []string) error {
 		return fmt.Errorf(usage)
 	}
 	response := &pb.ListEffortSignalsResponse{}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortSignalsProcedure, &pb.ListEffortSignalsRequest{EffortRef: ref, AfterSeq: *after, Limit: int32(*limit)}, response)
+	body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceListEffortSignalsProcedure, &pb.ListEffortSignalsRequest{EffortRef: ref, AfterSeq: *after, Limit: int32(*limit)}, response)
 	if err != nil {
 		return apiError(body, err)
 	}
@@ -69,7 +69,7 @@ func (a *App) effortSignal(args []string) error {
 	}
 	request := &pb.RecordEffortSignalRequest{EffortRef: ref, Kind: *kind, RunId: strings.TrimSpace(*runID), Detail: strings.TrimSpace(*detail), DedupeKey: strings.TrimSpace(*dedupeKey)}
 	response := &pb.EffortSignal{}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceRecordEffortSignalProcedure, request, response)
+	body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceRecordEffortSignalProcedure, request, response)
 	if err != nil {
 		return apiError(body, err)
 	}
@@ -99,7 +99,7 @@ func (a *App) recordStepBack(effortRef, path string, triggers []string, logLines
 		DedupeKey: fmt.Sprintf("step_back:%s:%s:%d", path, strings.Join(triggers, ";"), logLines),
 	}
 	response := &pb.EffortSignal{}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceRecordEffortSignalProcedure, request, response)
+	body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceRecordEffortSignalProcedure, request, response)
 	if err != nil {
 		return nil, apiError(body, err)
 	}

@@ -5,10 +5,10 @@ import {
   useInvestigationSettings,
   usePermissionPolicy,
   useHealth,
-  useRunners,
   useRuns,
   useWorkflowExecutions,
 } from "./useApi.js";
+import { rpcBody, rpcCalls, rpcMethod } from "../test-utils/rpc.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -20,11 +20,9 @@ function json(body: unknown, status = 200) {
 }
 
 test("workflow controls encode versioned operations, refresh projections, and react to lifecycle events", async () => {
-  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.includes("/trace")) return json({ execution: { id: "workflow-1", version: "7" }, attempts: [], journal: [] });
-    if (url.includes("/signals")) return json({ execution: { id: "workflow-1", version: "8" } });
-    if (url.includes("/cancel")) return json({ execution: { id: "workflow-1", version: "8" } });
-    if (init?.method === "POST") return json({});
+  const fetch = vi.fn(async (url: string) => {
+    if (url.endsWith("/GetWorkflowExecutionTrace")) return json({ execution: { id: "workflow-1", version: "7" }, attempts: [], journal: [] });
+    if (url.endsWith("/SignalWorkflowExecution") || url.endsWith("/CancelWorkflowExecution")) return json({ execution: { id: "workflow-1", version: "8" } });
     return json({ executions: [] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -40,21 +38,20 @@ test("workflow controls encode versioned operations, refresh projections, and re
   await act(async () => {
     window.dispatchEvent(new Event("agent-manager:workflow-lifecycle"));
   });
-  await waitFor(() => assert.ok(fetch.mock.calls.filter(([url]) => String(url).endsWith("/workflow-executions?limit=100")).length >= 4));
+  const calls = () => fetch.mock.calls as unknown as unknown[][];
+  await waitFor(() => assert.ok(rpcCalls(calls(), "ListWorkflowExecutions").length >= 4));
 
-  const traceCall = fetch.mock.calls.find(([url]) => String(url).includes("/trace"));
-  const cancelCall = fetch.mock.calls.find(([url]) => String(url).includes("/cancel"));
-  const signalCall = fetch.mock.calls.find(([url]) => String(url).includes("/signals"));
-  assert.match(String(traceCall?.[0]), /workflow%20%2F%201/);
-  assert.match(String(cancelCall?.[1]?.body), /"expected_version":"7"/);
-  assert.match(String(signalCall?.[1]?.body), /"approved"/);
-  assert.match(String(signalCall?.[1]?.body), /"paths"/);
+  assert.equal(rpcBody(rpcCalls(calls(), "GetWorkflowExecutionTrace")[0]!).executionId, "workflow / 1");
+  assert.equal(rpcBody(rpcCalls(calls(), "CancelWorkflowExecution")[0]!).expectedVersion, "7");
+  const signal = JSON.stringify(rpcBody(rpcCalls(calls(), "SignalWorkflowExecution")[0]!));
+  assert.match(signal, /"approved"/);
+  assert.match(signal, /"paths"/);
   workflows.unmount();
 });
 
 test("workflow signals preserve every supported JSON payload shape for agent handoffs", async () => {
   const fetch = vi.fn(async (url: string) => {
-    if (url.includes("/signals")) return json({ execution: { id: "workflow-1", version: "8" } });
+    if (url.endsWith("/SignalWorkflowExecution")) return json({ execution: { id: "workflow-1", version: "8" } });
     return json({ executions: [] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -71,9 +68,7 @@ test("workflow signals preserve every supported JSON payload shape for agent han
       objectValue: { fields: { nested: { list_value: { values: [true, null] } } } },
     });
   });
-  const bodies = fetch.mock.calls
-    .filter(([url]) => String(url).includes("/signals"))
-    .map(([, init]) => String((init as RequestInit).body));
+  const bodies = rpcCalls(fetch.mock.calls as unknown as unknown[][], "SignalWorkflowExecution").map((call) => JSON.stringify(rpcBody(call)));
   assert.ok(bodies.some((body) => body.includes("NULL_VALUE")));
   assert.ok(bodies.some((body) => body.includes("1.25")));
   assert.ok(bodies.some((body) => body.includes('"signal":"integer"')));
@@ -84,7 +79,7 @@ test("workflow signals preserve every supported JSON payload shape for agent han
 
 test("workflow signals normalize sparse wrapped values without leaking invalid JSON-value shapes", async () => {
   const fetch = vi.fn(async (url: string) => {
-    if (url.includes("/signals")) return json({ execution: { id: "workflow-1", version: "8" } });
+    if (url.endsWith("/SignalWorkflowExecution")) return json({ execution: { id: "workflow-1", version: "8" } });
     return json({ executions: [] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -102,9 +97,7 @@ test("workflow signals normalize sparse wrapped values without leaking invalid J
     await workflows.result.current.signal(execution, "array-list", { list_value: ["one", false] } as never);
   });
 
-  const bodies = fetch.mock.calls
-    .filter(([url]) => String(url).includes("/signals"))
-    .map(([, init]) => String((init as RequestInit).body));
+  const bodies = rpcCalls(fetch.mock.calls as unknown as unknown[][], "SignalWorkflowExecution").map((call) => JSON.stringify(rpcBody(call)));
   assert.ok(bodies.some((body) => body.includes('"signal":"plain-object"') && body.includes("phase")));
   assert.ok(bodies.some((body) => body.includes('"signal":"empty-object"') && body.includes("object_value")));
   assert.ok(bodies.some((body) => body.includes('"signal":"empty-list"') && body.includes("list_value")));
@@ -113,11 +106,7 @@ test("workflow signals normalize sparse wrapped values without leaking invalid J
 });
 
 test("permission-policy controls keep reads opt-in, refresh only state-changing commands, and surface read failures", async () => {
-  const fetch = vi.fn(async (url: string) => {
-    if (url.includes("/permission-policy/status")) return json({});
-    if (url.includes("/permission-policy/catalog")) return json({});
-    return json({});
-  });
+  const fetch = vi.fn(async () => json({}));
   vi.stubGlobal("fetch", fetch);
   const policy = renderHook(() => usePermissionPolicy({ enabled: false }));
   await act(async () => {});
@@ -130,19 +119,18 @@ test("permission-policy controls keep reads opt-in, refresh only state-changing 
     await policy.result.current.doctor();
     await policy.result.current.reconcile();
   });
-  const calls = fetch.mock.calls.map(([url, init]) => [String(url), init] as const);
-  const posts = calls.filter(([, init]) => init?.method === "POST");
-  assert.deepEqual(posts.map(([url]) => url.replace("http://localhost:3000/api/v1", "")), [
-    "/permission-policy/validate", "/permission-policy/reload", "/permission-policy/plan",
-    "/permission-policy/doctor", "/permission-policy/reconcile",
+  const calls = fetch.mock.calls as unknown as unknown[][];
+  assert.deepEqual(calls.map(rpcMethod).filter((method) => !/^Get/.test(method)), [
+    "ValidatePermissionPolicyCatalog", "ReloadPermissionPolicyCatalog", "PlanPermissionPolicy",
+    "DoctorPermissionPolicy", "ReconcilePermissionPolicy",
   ]);
-  assert.match(String(posts.at(-1)?.[1]?.body), /"explicitly_authorized":true/);
+  assert.equal(rpcBody(rpcCalls(calls, "ReconcilePermissionPolicy")[0]!).explicitlyAuthorized, true);
   // Validate, reload, and reconcile refresh the two read projections; plan and doctor are read-only diagnostics.
-  assert.equal(calls.filter(([url]) => /permission-policy\/(status|catalog)$/.test(url)).length, 6);
+  assert.equal(calls.filter((call) => /^GetPermissionPolicy(Status|Catalog)$/.test(rpcMethod(call))).length, 6);
 
-  fetch.mockImplementation(async () => json({ message: "policy file is unavailable" }, 503));
+  fetch.mockImplementation(async () => json({ code: "unavailable", message: "policy file is unavailable" }, 503));
   await act(async () => { await policy.result.current.refetch(); });
-  assert.equal(policy.result.current.error, "policy file is unavailable");
+  await waitFor(() => assert.equal(policy.result.current.error, "[unavailable] policy file is unavailable"));
 });
 
 test("investigation settings exposes update and reset failures without discarding the last successful settings", async () => {
@@ -158,13 +146,13 @@ test("investigation settings exposes update and reset failures without discardin
   await act(async () => {
     await assert.rejects(investigation.result.current.updateSettings({ promptTemplate: "changed" }), /settings are locked/);
   });
-  assert.equal(investigation.result.current.error, "settings are locked");
+  await waitFor(() => assert.equal(investigation.result.current.error, "settings are locked"));
   assert.equal(investigation.result.current.data?.promptTemplate, "baseline");
 
   await act(async () => {
     await assert.rejects(investigation.result.current.resetSettings(), /reset is unavailable/);
   });
-  assert.equal(investigation.result.current.error, "reset is unavailable");
+  await waitFor(() => assert.equal(investigation.result.current.error, "reset is unavailable"));
   assert.equal(investigation.result.current.data?.promptTemplate, "baseline");
   assert.equal((fetch.mock.calls[1]?.[1] as RequestInit).method, "PUT");
   assert.equal((fetch.mock.calls[2]?.[1] as RequestInit).method, "POST");
@@ -173,20 +161,14 @@ test("investigation settings exposes update and reset failures without discardin
 test("core runtime projections tolerate sparse payloads while preserving bounded event cursors", async () => {
   const fetch = vi.fn(async (url: string) => {
     if (url.endsWith("/health")) return json("not-an-object");
-    if (url.endsWith("/runners")) return json({ runners: [{ runnerType: "RUNNER_TYPE_CODEX", available: true }] });
     if (url.includes("/events")) return json({});
     return json({});
   });
   vi.stubGlobal("fetch", fetch);
 
   const health = renderHook(() => useHealth());
-  const runners = renderHook(() => useRunners());
   const runs = renderHook(() => useRuns({ enabled: false, limit: 0 }));
 
-  await waitFor(() => {
-    const available = Object.values(runners.result.current.data ?? {}).some((runner) => runner.available);
-    assert.equal(available, true);
-  });
   await waitFor(() => assert.ok(health.result.current.error));
   await act(async () => {
     await runs.result.current.refetch();
@@ -196,11 +178,9 @@ test("core runtime projections tolerate sparse payloads while preserving bounded
     assert.deepEqual(await runs.result.current.getRunEvents("run / one", { afterSequence: 9n }), []);
   });
 
-  assert.equal(fetch.mock.calls.filter(([url]) => url === "http://localhost:3000/api/v1/runs?limit=0").length, 2);
+  assert.equal(fetch.mock.calls.filter(([url]) => url === "http://localhost:3000/api/v1/runs?top_level=true&limit=0").length, 2);
   assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/runs/run / one/events"));
   assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/runs/run / one/events?after_sequence=9"));
-  assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/runners"));
   health.unmount();
-  runners.unmount();
   runs.unmount();
 });

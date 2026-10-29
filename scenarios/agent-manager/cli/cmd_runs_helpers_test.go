@@ -259,14 +259,14 @@ func TestRunAttachAndDetachUseTypedIdentityEndpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	if attachRequest.GetHarnessKind() != "codex" || attachRequest.GetHarnessSessionId() != "session-1" || attachRequest.GetProcessId() != 42 {
-		t.Fatalf("attach request = %+v", attachRequest)
+		t.Fatalf("attach request = %+v", &attachRequest)
 	}
 
 	if err := app.cmdRun([]string{"detach", "attached-run", "--reason", "finished", "--json"}); err != nil {
 		t.Fatal(err)
 	}
 	if detachRequest.GetRunId() != "attached-run" || detachRequest.GetReason() != "finished" {
-		t.Fatalf("detach request = %+v", detachRequest)
+		t.Fatalf("detach request = %+v", &detachRequest)
 	}
 }
 

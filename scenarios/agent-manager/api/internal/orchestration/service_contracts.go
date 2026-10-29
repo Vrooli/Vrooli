@@ -31,6 +31,8 @@ type RunListOptions struct {
 	InvestigatesRunID         *uuid.UUID
 	AppliesInvestigationRunID *uuid.UUID
 	ParentRunID               *uuid.UUID // Direct child runs of one parent run
+	TopLevelOnly              bool       // Only runs that are not a sub-agent of another run
+	Origin                    string     // agent_manager | operator_sessions | workflows; empty lists every origin
 }
 
 // IdentityVerifyResult is the result of verifying an agent identity token.

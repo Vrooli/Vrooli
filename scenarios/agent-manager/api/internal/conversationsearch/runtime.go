@@ -54,31 +54,31 @@ type SemanticRuntime struct {
 // optional resource. Configuration errors are returned to the caller; resource
 // failures are captured as a typed unavailable retriever so lexical service can
 // still boot and report precise degradation on hybrid requests.
-func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (SemanticRuntime, error) {
+func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (*SemanticRuntime, error) {
 	if strings.TrimSpace(options.SearchFilePath) == "" || options.Source == nil || options.Projection == nil {
-		return SemanticRuntime{}, fmt.Errorf("search file, source, and projection are required")
+		return nil, fmt.Errorf("search file, source, and projection are required")
 	}
 	file, err := aisearch.LoadSearchFile(options.SearchFilePath)
 	if err != nil {
-		return SemanticRuntime{}, err
+		return nil, err
 	}
 	provider, ok := file.Provider(ConversationSearchProviderID)
 	if !ok {
-		return SemanticRuntime{}, fmt.Errorf("provider %q is missing from %s", ConversationSearchProviderID, options.SearchFilePath)
+		return nil, fmt.Errorf("provider %q is missing from %s", ConversationSearchProviderID, options.SearchFilePath)
 	}
 	tuning := provider.ResolvedTuning()
 	if tuning.Engine != aisearch.EngineHybrid {
-		return SemanticRuntime{}, fmt.Errorf("provider %q must use hybrid dense+sparse retrieval, got %q", ConversationSearchProviderID, tuning.Engine)
+		return nil, fmt.Errorf("provider %q must use hybrid dense+sparse retrieval, got %q", ConversationSearchProviderID, tuning.Engine)
 	}
 	collection, err := corestorage.Collection(conversationCollectionDomain)
 	if err != nil {
-		return SemanticRuntime{}, fmt.Errorf("resolve variant-aware conversation collection: %w", err)
+		return nil, fmt.Errorf("resolve variant-aware conversation collection: %w", err)
 	}
 	admission := options.Admission
 	if admission == nil {
 		admission = aisearch.NewWeightedAdmission(defaultAdmissionCapacity)
 	}
-	runtime := SemanticRuntime{Admission: admission, Source: NewSemanticSource(options.Source), Collection: collection}
+	runtime := &SemanticRuntime{Admission: admission, Source: NewSemanticSource(options.Source), Collection: collection}
 	if repository, ok := options.Projection.(*SQLiteRepository); ok {
 		runtime.StagedRepository = repository
 	}
@@ -110,7 +110,7 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 	}
 	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection, Namespace: conversationCollectionDomain, Owner: ConversationSearchProviderID, Catalog: options.GenerationCatalog, Spec: engine.Spec})
 	if err != nil {
-		return SemanticRuntime{}, err
+		return nil, err
 	}
 	runtime.GenerationStore = generationStore
 	runtime.StreamingBinding = aisearch.StreamingBinding{
@@ -131,7 +131,7 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 	sharedService := aisearch.NewService(serviceOptions)
 	retriever, err := NewSharedSemanticRetriever(sharedService, options.Projection, admission)
 	if err != nil {
-		return SemanticRuntime{}, err
+		return nil, err
 	}
 	runtime.Retriever = retriever
 	return runtime, nil
@@ -255,7 +255,7 @@ func (r *SemanticRuntime) semanticPointCount(ctx context.Context) (uint64, error
 	if refresh == nil {
 		refresh = make(chan struct{})
 		r.statusRefresh = refresh
-		go r.refreshSemanticPointCount(refresh)
+		go r.refreshSemanticPointCount(context.WithoutCancel(ctx), refresh)
 	}
 	r.statusMu.Unlock()
 
@@ -270,8 +270,8 @@ func (r *SemanticRuntime) semanticPointCount(ctx context.Context) (uint64, error
 	}
 }
 
-func (r *SemanticRuntime) refreshSemanticPointCount(done chan struct{}) {
-	refreshCtx, cancel := context.WithTimeout(context.Background(), semanticStatusRefreshTimeout)
+func (r *SemanticRuntime) refreshSemanticPointCount(parent context.Context, done chan struct{}) {
+	refreshCtx, cancel := context.WithTimeout(parent, semanticStatusRefreshTimeout)
 	defer cancel()
 	count, err := r.Engine.VectorStore.CountPoints(refreshCtx)
 	if count < 0 {

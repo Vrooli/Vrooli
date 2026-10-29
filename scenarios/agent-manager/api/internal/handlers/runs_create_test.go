@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -460,65 +458,6 @@ func TestDeleteRunMessageDeletesFirstMessageThroughHTTPContract(t *testing.T) {
 		if invalid.Code != http.StatusBadRequest {
 			t.Fatalf("%s status=%d body=%s", badPath, invalid.Code, invalid.Body.String())
 		}
-	}
-}
-
-func TestGetAuditTranscriptServesBoundedPersistedEvidence(t *testing.T) {
-	_, router, repos, _ := setupTestHandlerWithRunnerAndRepos(t, runner.NewMockRunner(domain.RunnerTypeClaudeCode))
-	ctx := context.Background()
-	task := &domain.Task{ID: uuid.New(), Title: "audit transcript", ScopePath: ".", Status: domain.TaskStatusQueued}
-	if err := repos.Tasks.Create(ctx, task); err != nil {
-		t.Fatal(err)
-	}
-	transcript := filepath.Join(t.TempDir(), "transcript.log")
-	if err := os.WriteFile(transcript, []byte("abcdef"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, TranscriptPath: transcript}
-	if err := repos.Runs.Create(ctx, run); err != nil {
-		t.Fatal(err)
-	}
-
-	type transcriptResponse struct {
-		RunID       string `json:"runId"`
-		MaxBytes    int    `json:"maxBytes"`
-		Truncated   bool   `json:"truncated"`
-		ContentHash string `json:"contentHash"`
-		Content     string `json:"content"`
-	}
-	bounded := httptest.NewRecorder()
-	router.ServeHTTP(bounded, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+run.ID.String()+"/audit-transcript?maxBytes=4", nil))
-	if bounded.Code != http.StatusOK {
-		t.Fatalf("bounded transcript status=%d body=%s", bounded.Code, bounded.Body.String())
-	}
-	var response transcriptResponse
-	if err := json.Unmarshal(bounded.Body.Bytes(), &response); err != nil {
-		t.Fatal(err)
-	}
-	if response.RunID != run.ID.String() || response.MaxBytes != 4 || !response.Truncated || response.Content != "abcd" || !strings.HasPrefix(response.ContentHash, "sha256:") {
-		t.Fatalf("bounded transcript=%+v", response)
-	}
-
-	for _, path := range []string{
-		"/api/v1/runs/not-a-uuid/audit-transcript",
-		"/api/v1/runs/" + run.ID.String() + "/audit-transcript?maxBytes=0",
-		"/api/v1/runs/" + run.ID.String() + "/audit-transcript?maxBytes=65537",
-	} {
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
-		if rr.Code != http.StatusBadRequest {
-			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
-		}
-	}
-
-	noTranscript := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted}
-	if err := repos.Runs.Create(ctx, noTranscript); err != nil {
-		t.Fatal(err)
-	}
-	missing := httptest.NewRecorder()
-	router.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/api/v1/runs/"+noTranscript.ID.String()+"/audit-transcript", nil))
-	if missing.Code != http.StatusBadRequest {
-		t.Fatalf("missing transcript status=%d body=%s", missing.Code, missing.Body.String())
 	}
 }
 

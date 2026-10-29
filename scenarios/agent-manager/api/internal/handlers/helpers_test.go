@@ -32,12 +32,6 @@ func TestRequestParsingHelpersAcceptCanonicalAndProtoForms(t *testing.T) {
 	if _, present, err := parseQueryInt64Strict(req, "missing"); present || err != nil {
 		t.Fatalf("missing int64 present=%t err=%v", present, err)
 	}
-	if got, ok := parseRunnerType(req.URL.Query().Get("runner")); !ok || got != domain.RunnerTypeClaudeCode {
-		t.Fatalf("runner=%q ok=%t", got, ok)
-	}
-	if _, ok := parseRunnerType("not-a-runner"); ok {
-		t.Fatal("invalid runner accepted")
-	}
 	if got, ok := parseTaskStatus(req.URL.Query().Get("task")); !ok || got != domain.TaskStatusRunning {
 		t.Fatalf("task=%q ok=%t", got, ok)
 	}
@@ -84,9 +78,6 @@ func TestStatusParsingRejectsUnknownAndSupportsNumericForms(t *testing.T) {
 	}
 	if _, ok := parseRunStatus("unknown"); ok {
 		t.Fatal("unknown run status accepted")
-	}
-	if got, ok := parseRunnerType("1"); !ok || got == "" {
-		t.Fatalf("numeric runner=%q ok=%t", got, ok)
 	}
 }
 
@@ -256,7 +247,6 @@ func TestRunControlEndpointsRejectInvalidIdentifiersBeforeOrchestration(t *testi
 		call func(*httptest.ResponseRecorder)
 	}{
 		{"get", withRunID(handler.GetRun)},
-		{"audit", withRunID(handler.GetAuditTranscript)},
 		{"delete", withRunID(handler.DeleteRun)},
 		{"stop", withRunID(handler.StopRun)},
 		{"continue", withRunID(handler.ContinueRun)},

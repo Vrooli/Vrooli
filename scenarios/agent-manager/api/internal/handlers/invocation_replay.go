@@ -75,28 +75,6 @@ func (h *Handler) EpisodeTrend(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"classifierVersion": runsignal.EpisodeClassifierVersion, "bucket": bucket.String(), "rows": trend})
 }
 
-func (h *Handler) PublishRecurringFriction(w http.ResponseWriter, r *http.Request) {
-	filter, err := h.invocationReadModelFilter(r)
-	if err != nil {
-		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
-		return
-	}
-	cap := 25
-	if raw := r.URL.Query().Get("cap"); raw != "" {
-		cap, err = strconv.Atoi(raw)
-		if err != nil || cap < 1 {
-			writeSimpleError(w, r, "cap", "cap must be positive")
-			return
-		}
-	}
-	result, err := h.svc.PublishRecurringFriction(r.Context(), filter, cap)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, result)
-}
-
 func (h *Handler) DefineInvocationCohort(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Name          string          `json:"name"`

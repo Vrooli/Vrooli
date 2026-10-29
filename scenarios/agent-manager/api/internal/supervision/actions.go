@@ -222,19 +222,6 @@ func (r *Repository) ListPendingActions(ctx context.Context, limit int) ([]*doma
 	return result, rows.Err()
 }
 
-func (r *Repository) AppliedActionStats(ctx context.Context, watchID string, kind domainpb.WatchActionKind, targetRunID string) (int, *time.Time, error) {
-	var count int
-	var latest sql.NullString
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*),MAX(acknowledged_at) FROM cohort_watch_actions WHERE watch_id=? AND kind=? AND target_run_id=? AND state=?`, watchID, int32(kind), targetRunID, int32(domainpb.WatchActionState_WATCH_ACTION_STATE_APPLIED)).Scan(&count, &latest); err != nil {
-		return 0, nil, err
-	}
-	if !latest.Valid || latest.String == "" {
-		return count, nil, nil
-	}
-	parsed, err := time.Parse(time.RFC3339Nano, latest.String)
-	return count, &parsed, err
-}
-
 func scanAction(row scanner) (*domainpb.WatchAction, error) {
 	var encoded string
 	if err := row.Scan(&encoded); err != nil {

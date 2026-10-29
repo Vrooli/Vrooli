@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -22,12 +23,12 @@ func TestWorkflowWaitOutlivesOrdinaryHTTPTimeoutWithoutChangingOtherCalls(t *tes
 			var calls atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
-				if r.Method != http.MethodPost || r.URL.Path != "/api/v1/workflow-executions/execution-1/wait" || r.Header.Get("Authorization") != "Bearer saved-token" || r.Header.Get(cliutil.HeaderInvocationCommand) != "workflow execution-wait" {
+				if r.Method != http.MethodPost || r.URL.Path != apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure || r.Header.Get("Authorization") != "Bearer saved-token" || r.Header.Get(cliutil.HeaderInvocationCommand) != "workflow execution-wait" {
 					t.Errorf("lost wait request contract: %s %s %+v", r.Method, r.URL.Path, r.Header)
 				}
 				var request apipb.WaitWorkflowExecutionRequest
 				if err := json.NewDecoder(r.Body).Decode(&request); err != nil || request.ExecutionId != "execution-1" || request.TimeoutSeconds != int32(timeoutSeconds) {
-					t.Errorf("changed server wait bound: %+v %v", request, err)
+					t.Errorf("changed server wait bound: %+v %v", &request, err)
 				}
 				select {
 				case <-time.After(60 * time.Millisecond):
@@ -102,13 +103,13 @@ func TestServicesUseDocumentedWorkflowAndRunHTTPContracts(t *testing.T) {
 	if _, _, err := s.Workflows.Validate(&apipb.ValidateWorkflowRequest{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Workflows.Reconcile("/api/v1/workflows/reconcile", &apipb.ReconcileScenarioWorkflowsRequest{}); err != nil {
+	if _, _, err := s.Workflows.Reconcile(apiconnect.AgentManagerServiceReconcileScenarioWorkflowsProcedure, &apipb.ReconcileScenarioWorkflowsRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := s.Workflows.List("owner", "workflow", 10, 2); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Workflows.Get("/api/v1/workflows/active", "owner", "workflow", "digest"); err != nil {
+	if _, _, err := s.Workflows.Get(apiconnect.AgentManagerServiceGetWorkflowRevisionProcedure, "owner", "workflow", "digest"); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := s.Workflows.StartExecution(workflow); err != nil {
@@ -210,14 +211,14 @@ func TestServicesUseDocumentedWorkflowAndRunHTTPContracts(t *testing.T) {
 	if len(requests) < 35 {
 		t.Fatalf("recorded %d requests, want broad service coverage", len(requests))
 	}
-	if requests[0].Path != "/api/v1/workflows/validate" || requests[10].Method != http.MethodPost {
+	if requests[0].Path != apiconnect.AgentManagerServiceValidateWorkflowProcedure || requests[10].Method != http.MethodPost {
 		t.Fatalf("workflow routes=%+v", requests[:11])
 	}
 }
 
 func TestServicesUseDocumentedConfigurationAndReadSideContracts(t *testing.T) {
 	s, recorder := newContractServices(t)
-	if _, _, err := s.Declarations.Reconcile("/api/v1/declarations/reconcile", &apipb.ReconcileScenarioDeclarationsRequest{}); err != nil {
+	if _, _, err := s.Declarations.Reconcile(apiconnect.AgentManagerServiceReconcileScenarioDeclarationsProcedure, &apipb.ReconcileScenarioDeclarationsRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := s.Profiles.List(10, 1); err != nil {
@@ -311,12 +312,6 @@ func TestServicesUseDocumentedConfigurationAndReadSideContracts(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, _, err := s.Maintenance.Purge(&apipb.PurgeDataRequest{}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.Operational.GetOperational("runner"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.Operational.GetFallback(); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.HealthAudit.GetModels(); err != nil {

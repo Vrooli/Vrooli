@@ -18,7 +18,6 @@ package codecs
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"regexp"
@@ -93,6 +92,7 @@ func codexBase() baseCodec {
 		tagEnvKey:      codexTagEnvKey,
 		continuePrefix: "codex",
 		goalStatus:     codexGoalStatus,
+		sessionLoss:    codexSessionLoss,
 		labels: Labels{
 			StartMessage:         "Codex execution started",
 			ContinueStartMessage: "Codex continuation started",
@@ -366,59 +366,25 @@ func (c *Codex) DecodeStreamLine(state State, runID uuid.UUID, line string) ([]*
 	return c.parseCodexEvents(s, runID, streamEvent), nil
 }
 
-// ClassifyTerminalError satisfies [Codec]. Codex's failure shapes
-// distinguish two distinct "thread not found" cases:
+// codexSessionLoss distinguishes Codex's two "thread not found" cases:
 //
-//   - On resume, the session id no longer maps to a live thread: a
-//     plain "thread … not found" without rollout-writer context means
-//     the session is genuinely gone → ErrCodeRunnerSessionExpired.
-//   - During a live run, codex's rollout-recorder goroutine drops the
-//     thread mid-stream. Codex emits this in two surface forms across
-//     versions — the function-name form `record_rollout_items` and the
-//     human-readable form `failed to record rollout items` (the latter
-//     is what current codex prints; both are treated as the same
-//     condition). The session id is still valid but the rollout state
-//     is unrecoverable → ErrCodeRunnerSessionStateLost.
-//
-// Returning nil from this method (no recognised pattern) lets
-// core.Runner fall back to ErrCodeRunnerExecution as before.
-func (c *Codex) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+//   - On resume, the session id no longer maps to a live thread: a plain
+//     "thread … not found" without rollout-writer context means the session is
+//     genuinely gone → ReasonSessionExpired.
+//   - During a live run, codex's rollout-recorder goroutine drops the thread
+//     mid-stream. Codex emits this in two surface forms across versions — the
+//     function-name form `record_rollout_items` and the human-readable form
+//     `failed to record rollout items` (both are the same condition). The
+//     session id is still valid but the rollout state is unrecoverable →
+//     ReasonSessionStateLost.
+func codexSessionLoss(stderr string) fallback.Reason {
 	if !strings.Contains(stderr, "thread") || !strings.Contains(stderr, "not found") {
-		return nil
+		return ""
 	}
-	cause := strings.TrimSpace(stderr)
 	if strings.Contains(stderr, "record_rollout_items") || strings.Contains(stderr, "record rollout items") {
-		return domain.NewRunnerSessionStateLostError(c.Type(), errors.New(cause))
+		return fallback.ReasonSessionStateLost
 	}
-	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(cause))
-}
-
-// Classify satisfies [Codec]. Codex classification order:
-//
-//  1. Thread-not-found stderr — distinguishes ReasonSessionStateLost
-//     (rollout-recorder dropped the thread mid-stream; mirrors
-//     [ClassifyTerminalError]) from ReasonSessionExpired (session id
-//     no longer maps to a live thread).
-//  2. Residual TextClassifier — covers unknown/deprecated model,
-//     auth, quota, network, etc.
-//
-// Returns nil only when stderr is empty and exitCode == 0.
-func (c *Codex) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
-	if stderr == "" && exitCode == 0 {
-		return nil
-	}
-	if strings.Contains(stderr, "thread") && strings.Contains(stderr, "not found") {
-		cause := strings.TrimSpace(stderr)
-		if strings.Contains(stderr, "record_rollout_items") || strings.Contains(stderr, "record rollout items") {
-			return fallback.New(fallback.ReasonSessionStateLost, cause, nil)
-		}
-		return fallback.New(fallback.ReasonSessionExpired, cause, nil)
-	}
-	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
-		RunnerType: string(c.Type()),
-		Stderr:     stderr,
-		ExitCode:   exitCode,
-	})
+	return fallback.ReasonSessionExpired
 }
 
 // UpdateMetrics satisfies [Codec].
@@ -599,10 +565,9 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 	events := p.codec.parseCodexEvents(p.state, runID, streamEvent)
 
 	result := runner.TranscriptParseResult{
-		Events:           events,
-		ReplaySafeEvents: streamEvent.Item != nil && streamEvent.Item.Type == "tool_result",
-		SessionID:        streamEvent.ThreadID,
-		Timestamp:        transcriptLineTimestamp(line),
+		Events:    events,
+		SessionID: streamEvent.ThreadID,
+		Timestamp: transcriptLineTimestamp(line),
 	}
 
 	switch streamEvent.Type {
@@ -743,7 +708,7 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 	var rl codexRolloutLine
 	if err := json.Unmarshal([]byte(trimmed), &rl); err != nil {
 		warning := domain.NewLogEvent(runID, "warning", "Unsupported Codex rollout payload: "+err.Error())
-		return runner.TranscriptParseResult{Events: []*domain.RunEvent{warning}, Timestamp: transcriptLineTimestamp(line), ReplaySafeEvents: true}, true
+		return runner.TranscriptParseResult{Events: []*domain.RunEvent{warning}, Timestamp: transcriptLineTimestamp(line)}, true
 	}
 
 	result := runner.TranscriptParseResult{Timestamp: transcriptLineTimestamp(line)}
@@ -777,7 +742,6 @@ func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (
 			result.UserTurnStarted = role == "user" || role == "operator"
 		}
 		result.Events = parseCodexRolloutItem(runID, pl, p.state)
-		result.ReplaySafeEvents = pl.Type == "function_call_output" || pl.Type == "custom_tool_call_output"
 		return result, true
 
 	case "event_msg":

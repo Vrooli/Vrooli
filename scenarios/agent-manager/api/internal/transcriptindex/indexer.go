@@ -123,9 +123,6 @@ func (ix *Indexer) Start(ctx context.Context) {
 	ix.cancel, ix.done = cancel, done
 	go func() {
 		defer close(done)
-		if repair, ok := ix.store.(UsageRepairStore); ok {
-			_, _ = RepairUsage(workerCtx, repair)
-		}
 		ticker := time.NewTicker(ix.cfg.Interval)
 		defer ticker.Stop()
 		for {
@@ -271,7 +268,10 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) er
 	defer delete(t.inFlight, candidate.Key)
 	row := t.byKey[candidate.Key]
 	if row == nil {
-		row = ix.newRow(ctx, t, candidate)
+		var err error
+		if row, err = ix.newRow(ctx, t, candidate); err != nil {
+			return err
+		}
 		t.byKey[row.Key] = row
 	}
 	t.byPath[candidate.Path] = row
@@ -323,7 +323,7 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) er
 // newRow registers a file seen for the first time. A file that took the path
 // of a known row whose inode is gone is the same logical transcript replaced
 // on disk (an atomic rewrite): it inherits the run and re-indexes from zero.
-func (ix *Indexer) newRow(ctx context.Context, t *tick, candidate Candidate) *FileRow {
+func (ix *Indexer) newRow(ctx context.Context, t *tick, candidate Candidate) (*FileRow, error) {
 	identity := ReadIdentity(candidate.Path, candidate.Root.Harness)
 	row := &FileRow{
 		Key: candidate.Key, Path: candidate.Path, RootKind: candidate.Root.Kind, RootPath: candidate.Root.Path,
@@ -333,16 +333,26 @@ func (ix *Indexer) newRow(ctx context.Context, t *tick, candidate Candidate) *Fi
 	}
 	if previous := t.byPath[candidate.Path]; previous != nil && previous.Key != candidate.Key {
 		if _, stillThere := t.candidates[previous.Key]; !stillThere && previous.Owner == OwnerIndexer {
-			row.RunID, row.FirstSeenAt = previous.RunID, previous.FirstSeenAt
-			if err := ix.store.ResetTranscriptFile(ctx, previous.Key); err == nil && previous.RunID != "" {
-				_ = ix.host.DropRecall(ctx, previous.RunID)
+			// The old events must be gone before the replacement re-reads from
+			// zero; if they cannot be dropped the old row stays and the pass
+			// fails, so the next tick retries instead of appending a second copy.
+			if err := ix.store.ResetTranscriptFile(ctx, previous.Key); err != nil {
+				return nil, err
 			}
-			_ = ix.store.DeleteTranscriptFile(ctx, previous.Key)
+			if previous.RunID != "" {
+				if err := ix.host.DropRecall(ctx, previous.RunID); err != nil {
+					return nil, fmt.Errorf("drop replaced transcript's events: %w", err)
+				}
+			}
+			if err := ix.store.DeleteTranscriptFile(ctx, previous.Key); err != nil {
+				return nil, fmt.Errorf("forget replaced transcript: %w", err)
+			}
+			row.RunID, row.FirstSeenAt = previous.RunID, previous.FirstSeenAt
 			delete(t.byKey, previous.Key)
 			delete(ix.tails, previous.Key)
 		}
 	}
-	return row
+	return row, nil
 }
 
 func ownerRun(candidate Candidate, owned map[string]string) string {
@@ -765,4 +775,16 @@ func (ix *Indexer) SetAfterEviction(fn func(context.Context) error) {
 	ix.mu.Lock()
 	ix.cfg.AfterEviction = fn
 	ix.mu.Unlock()
+}
+
+// TransientStoreFailure reports whether a store error is SQLite contention
+// (busy or locked) that a later attempt can succeed past, as opposed to a
+// file the indexer cannot read.
+func TransientStoreFailure(message string) bool {
+	for _, marker := range []string{"SQLITE_BUSY", "SQLITE_LOCKED", "database is locked", "database table is locked"} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
 }

@@ -191,19 +191,6 @@ func investigationTerminal(status string) bool {
 	return status == investigation.OperationCompleted || status == investigation.OperationFailed || status == investigation.OperationCancelled
 }
 
-func (h *Handler) GetInvestigation(w http.ResponseWriter, r *http.Request) {
-	if h.investigations == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
-		return
-	}
-	item, err := h.investigations.Get(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
-	if err != nil {
-		writeInvestigationError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, item)
-}
-
 func (h *Handler) ListInvestigations(w http.ResponseWriter, r *http.Request) {
 	if h.investigations == nil {
 		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
@@ -224,28 +211,6 @@ func (h *Handler) ListInvestigations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"investigations": items})
-}
-
-func (h *Handler) WaitInvestigation(w http.ResponseWriter, r *http.Request) {
-	if h.investigations == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
-		return
-	}
-	timeout := 30 * time.Second
-	if raw := strings.TrimSpace(r.URL.Query().Get("timeoutSeconds")); raw != "" {
-		seconds, err := strconv.Atoi(raw)
-		if err != nil || seconds < 1 || seconds > 1800 {
-			writeSimpleError(w, r, "timeoutSeconds", "must be between 1 and 1800")
-			return
-		}
-		timeout = time.Duration(seconds) * time.Second
-	}
-	item, terminal, err := h.investigations.Wait(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]), timeout)
-	if err != nil {
-		writeInvestigationError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"investigation": item, "terminal": terminal})
 }
 
 func (h *Handler) CompleteInvestigation(w http.ResponseWriter, r *http.Request) {
@@ -276,34 +241,6 @@ func (h *Handler) CompleteInvestigation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	item, err := h.investigations.Complete(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]), result)
-	if err != nil {
-		writeInvestigationError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, item)
-}
-
-func (h *Handler) CancelInvestigation(w http.ResponseWriter, r *http.Request) {
-	if h.investigations == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "investigation lifecycle is unavailable")
-		return
-	}
-	if strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) != "" {
-		item, err := h.investigations.Get(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
-		if err != nil {
-			writeInvestigationError(w, r, err)
-			return
-		}
-		if item == nil {
-			writeJSONError(w, http.StatusNotFound, "investigation not found")
-			return
-		}
-		if _, allowed := h.authorizeInvestigationAgent(w, r, item.Request.Subject); !allowed {
-			return
-		}
-	}
-
-	item, err := h.cancelInvestigation(r.Context(), strings.TrimSpace(mux.Vars(r)["id"]))
 	if err != nil {
 		writeInvestigationError(w, r, err)
 		return

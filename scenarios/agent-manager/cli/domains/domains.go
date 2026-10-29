@@ -64,8 +64,6 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"list", "List recorded standing grants globally for verified humans or by owner for verified agents"},
 			[2]string{"diagnose-prompt-manager", "Read the bounded Prompt Manager run-admission decision (agent.investigate authority required)"},
 			[2]string{"revoke", "Revoke a standing grant by id (human-only; use --local-owner)"}),
-		support.SubcommandGroup("ops", "Inspect typed-event operational statistics", deps.Ops,
-			[2]string{"summary", "Show every operational category"}, [2]string{"fallback", "Show runner and model fallback insights"}, [2]string{"health", "Show engine-derived health transitions"}, [2]string{"sandbox", "Show sandbox operation outcomes"}, [2]string{"heartbeat", "Show heartbeat-miss counters"}, [2]string{"checkpoint", "Show checkpoint-failure counters"}, [2]string{"retry", "Show retry-attempt counters"}),
 		support.SubcommandGroup("health", "Inspect persisted health snapshots and audit", deps.Health,
 			[2]string{"models", "Show current model health"}, [2]string{"runners", "Show current runner health"}, [2]string{"audit", "Show paginated health history"}),
 		support.SubcommandGroup("events", "Query the typed operational event log", deps.Events, [2]string{"list", "List typed events with optional filters"}),

@@ -251,20 +251,9 @@ const (
 	RunOutcomeRunnerFail  RunOutcome = "runner_fail"  // Runner not available
 )
 
-// ClassifyRunOutcome determines the outcome category from execution results.
-// This makes result classification logic explicit and testable.
-func ClassifyRunOutcome(
-	executionErr error,
-	exitCode *int,
-	wasCancelled bool,
-	timedOut bool,
-) RunOutcome {
-	if wasCancelled {
-		return RunOutcomeCancelled
-	}
-	if timedOut {
-		return RunOutcomeTimeout
-	}
+// ClassifyRunOutcome determines the outcome category of a finished execution
+// from the execution error and the process exit code (nil when no result).
+func ClassifyRunOutcome(executionErr error, exitCode *int) RunOutcome {
 	if executionErr != nil {
 		return RunOutcomeException
 	}
@@ -272,6 +261,26 @@ func ClassifyRunOutcome(
 		return RunOutcomeExitError
 	}
 	return RunOutcomeSuccess
+}
+
+// ClassifyErrorOutcome maps a setup-phase error to its RunOutcome.
+func ClassifyErrorOutcome(err error) RunOutcome {
+	switch err := err.(type) {
+	case *SandboxError:
+		return RunOutcomeSandboxFail
+	case *ConfigError:
+		if err.Missing && err.Setting == "sandbox" {
+			return RunOutcomeSandboxFail
+		}
+		return RunOutcomeException
+	case *RunnerError:
+		if err.Operation == "timeout" {
+			return RunOutcomeTimeout
+		}
+		return RunOutcomeRunnerFail
+	default:
+		return RunOutcomeException
+	}
 }
 
 // RequiresReview returns whether this outcome should trigger review workflow.

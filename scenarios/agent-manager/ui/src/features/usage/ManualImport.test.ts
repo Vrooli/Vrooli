@@ -34,3 +34,13 @@ test("ManualImport explains runner discovery failure", async () => {
   renderWithProviders(createElement(ManualImport));
   assert.ok(await screen.findByText("Runner sessions could not be loaded. Check the runner resource and try again."));
 });
+
+test("a conversation titled with a bare UUID reads as its runner and short id, and the checkbox sits in a 44 px hit area", async () => {
+  const raw = "019a2c4e-7b1d-7c3e-9d2a-5f6e8b0c1a2b";
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(reply(sources)).mockResolvedValueOnce(reply({ sessions: [{ key: "k1", sessionId: raw, title: raw, updatedAt: "2026-07-30T12:00:00Z" }] })));
+  renderWithProviders(createElement(ManualImport));
+  assert.ok(await screen.findByText("Codex session 019a2c4e"));
+  assert.equal(document.body.textContent?.includes(raw), false, "the full UUID is never row text");
+  const box = screen.getByLabelText("Select Codex session 019a2c4e");
+  assert.match(box.parentElement?.className ?? "", /h-11 w-11/);
+});

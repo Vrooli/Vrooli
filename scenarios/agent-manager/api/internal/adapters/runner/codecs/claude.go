@@ -61,6 +61,7 @@ func claudeBase() baseCodec {
 		tagEnvKey:      claudeTagEnvKey,
 		continuePrefix: "claude",
 		goalStatus:     claudeGoalStatus,
+		sessionLoss:    claudeSessionLoss,
 		labels: Labels{
 			StartMessage:         "Claude Code execution started",
 			ContinueStartMessage: "Claude Code continuation started",

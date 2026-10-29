@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -235,27 +234,3 @@ func (r *TranscriptIndexRepository) RecallBytes(ctx context.Context, runID strin
 	return bytes, nil
 }
 
-// attachedExitReason is the error the reconciler wrote when it marked every
-// normally exited attached run failed (D-7).
-const attachedExitReason = "attached harness process is no longer present"
-
-// migrateAttachedExitStatus corrects attached runs the reconciler marked
-// failed only because their harness process exited: a normal exit is
-// complete. It queues them for re-projection so the read model follows.
-// Idempotent: corrected rows no longer match.
-func (db *DB) migrateAttachedExitStatus(ctx context.Context) error {
-	tx, err := db.BeginTxx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback() }()
-	match := `execution_mode = 'attached' AND status = 'failed' AND error_msg = ?`
-	if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO invocation_read_model_pending (run_id, generation, attempts, next_attempt_unix)
-		SELECT id, 1, 0, 0 FROM runs WHERE `+match, attachedExitReason); err != nil {
-		return fmt.Errorf("queue attached exit re-projection: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE runs SET status = 'complete', phase = 'completed', error_msg = '' WHERE `+match, attachedExitReason); err != nil {
-		return fmt.Errorf("correct attached exit status: %w", err)
-	}
-	return tx.Commit()
-}

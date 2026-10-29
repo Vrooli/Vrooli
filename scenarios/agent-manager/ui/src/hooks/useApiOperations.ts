@@ -1,15 +1,13 @@
 // Responsibility: read health, workflow, watch and policy state and request maintenance.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect } from "react";
 
-import { create, fromJson, type MessageShape, type JsonValue } from "@bufbuild/protobuf";
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
 
 import { ValueSchema } from "@bufbuild/protobuf/wkt";
 
-import { runnerTypeToSlug } from "../lib/utils";
+import type { HealthResponse, InvestigationContextFlags, InvestigationDepth, InvestigationSettings, InvestigationTagRule, ProbeResult, RunnerType } from "../types";
 
-import type { HealthResponse, InvestigationContextFlags, InvestigationDepth, InvestigationSettings, InvestigationTagRule, ProbeResult, RunnerStatus, RunnerType } from "../types";
-
-import { GetPermissionPolicyCatalogResponseSchema, GetPermissionPolicyStatusResponseSchema, GetRolePolicyCatalogResponseSchema, GetRunnerStatusResponseSchema, PurgeDataRequestSchema, PurgeDataResponseSchema, PurgeTarget, ProbeRunnerResponseSchema, DoctorPermissionPolicyResponseSchema, PlanPermissionPolicyResponseSchema, ReconcilePermissionPolicyRequestSchema, ReconcilePermissionPolicyResponseSchema, ReloadPermissionPolicyCatalogResponseSchema, ValidatePermissionPolicyCatalogResponseSchema, GetWorkflowExecutionTraceResponseSchema, ListWorkflowExecutionsResponseSchema, SignalWorkflowExecutionRequestSchema, WorkflowExecutionOperationRequestSchema, WorkflowExecutionOperationResponseSchema } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { GetPermissionPolicyCatalogResponse, GetPermissionPolicyStatusResponse, GetRolePolicyCatalogResponse, PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 import type { WorkflowExecution, WorkflowJournalEntry, WorkflowNodeAttempt } from "@vrooli/proto-types/agent-manager/v1/domain/workflow_pb";
 
@@ -19,7 +17,13 @@ import { InspectCohortWatchResponseSchema, ListCohortWatchesResponseSchema } fro
 
 import { HealthResponseSchema } from "@vrooli/proto-types/common/v1/types_pb";
 
-import { useApiState, apiRequest, parseProto, toProtoJson, normalizeJsonValueInput, protoReadOptions, normalizeHealthResponseJson, healthRequest, healthReason } from "./useApiTransport";
+import { agentManager, CALL_DEADLINE } from "../lib/api";
+
+import { queryClient } from "../providers/QueryProvider";
+import { useApiMutation, useApiQuery } from "./useApiQuery";
+import { apiRequest, parseProto, normalizeJsonValueInput, protoReadOptions, normalizeHealthResponseJson, healthRequest, healthReason } from "./useApiTransport";
+
+const INVESTIGATION_SETTINGS_KEY = ["investigation-settings"] as const;
 
 type PurgeCounts = {
   profiles?: number;
@@ -34,25 +38,11 @@ export interface WorkflowTraceView {
 }
 
 export function useWorkflowExecutions() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<WorkflowExecution[]>([], true);
-
-  const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const raw = await apiRequest<unknown>("/workflow-executions?limit=100");
-      const response = parseProto(ListWorkflowExecutionsResponseSchema, raw);
-      setData(response.executions);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to load workflow executions");
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setError, setLoading]);
-
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
+  const { data, loading, error, refetch } = useApiQuery<WorkflowExecution[]>(
+    ["workflow-executions"],
+    async (signal) => (await agentManager.listWorkflowExecutions({ limit: 100 }, { signal, ...CALL_DEADLINE })).executions,
+    { fallback: [] },
+  );
 
   useEffect(() => {
     const refresh = () => void refetch();
@@ -61,40 +51,29 @@ export function useWorkflowExecutions() {
   }, [refetch]);
 
   const getTrace = useCallback(async (executionId: string): Promise<WorkflowTraceView> => {
-    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(executionId)}/trace?limit=500`);
-    const response = parseProto(GetWorkflowExecutionTraceResponseSchema, raw);
+    const response = await agentManager.getWorkflowExecutionTrace({ executionId, limit: 500 }, CALL_DEADLINE);
     return { execution: response.execution, attempts: response.attempts, journal: response.journal };
   }, []);
 
   const control = useCallback(async (execution: WorkflowExecution, operation: "cancel" | "retry" | "resume") => {
-    const request = create(WorkflowExecutionOperationRequestSchema, {
+    const response = await agentManager[`${operation}WorkflowExecution`]({
       executionId: execution.id,
       idempotencyKey: `ui-${operation}-${execution.id}-${execution.version.toString()}`,
       expectedVersion: execution.version,
       reason: "Operator action from Agent Manager workflow console",
-    });
-    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(execution.id)}/${operation}`, {
-      method: "POST",
-      body: JSON.stringify(toProtoJson(WorkflowExecutionOperationRequestSchema, request)),
-    });
-    const response = parseProto(WorkflowExecutionOperationResponseSchema, raw);
+    }, CALL_DEADLINE);
     await refetch();
     return response.execution;
   }, [refetch]);
 
   const signal = useCallback(async (execution: WorkflowExecution, name: string, payload: unknown) => {
-    const request = create(SignalWorkflowExecutionRequestSchema, {
+    const response = await agentManager.signalWorkflowExecution({
       executionId: execution.id,
       signal: name,
       payload: fromJson(ValueSchema, normalizeJsonValueInput(payload) as JsonValue, protoReadOptions),
       idempotencyKey: `ui-signal-${execution.id}-${execution.version.toString()}-${name}`,
       expectedVersion: execution.version,
-    });
-    const raw = await apiRequest<unknown>(`/workflow-executions/${encodeURIComponent(execution.id)}/signals`, {
-      method: "POST",
-      body: JSON.stringify(toProtoJson(SignalWorkflowExecutionRequestSchema, request)),
-    });
-    const response = parseProto(WorkflowExecutionOperationResponseSchema, raw);
+    }, CALL_DEADLINE);
     await refetch();
     return response.execution;
   }, [refetch]);
@@ -135,25 +114,11 @@ function normalizeCohortWatchActions(raw: unknown): CohortWatchActionView[] {
 }
 
 export function useCohortWatches() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<CohortWatch[]>([]);
-
-  const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const raw = await apiRequest<unknown>("/cohort-watches?page_size=100");
-      const response = parseProto(ListCohortWatchesResponseSchema, raw);
-      setData(response.watches);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Failed to load cohort watches");
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setError, setLoading]);
-
-  useEffect(() => {
-    void refetch();
-  }, [refetch]);
+  const { data, loading, error, refetch } = useApiQuery<CohortWatch[]>(
+    ["cohort-watches"],
+    async (signal) => parseProto(ListCohortWatchesResponseSchema, await apiRequest<unknown>("/cohort-watches?page_size=100", { signal })).watches,
+    { fallback: [] },
+  );
 
   const inspect = useCallback(async (watchId: string): Promise<CohortWatchInspection> => {
     const encodedID = encodeURIComponent(watchId);
@@ -170,185 +135,64 @@ export function useCohortWatches() {
   return { data, loading, error, refetch, inspect };
 }
 
-// Health hook
+// Health hook: polled every 30 s; the reason a degraded answer gives rides along with the document.
+const HEALTH_POLL_MS = 30_000;
+
 export function useHealth() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<HealthResponse>();
-  const [reason, setReason] = useState("");
-  const abortRef = useRef<AbortController | null>(null);
-
-  const fetchHealth = useCallback(async () => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const data = await healthRequest(controller.signal);
-      const message = parseProto(HealthResponseSchema, normalizeHealthResponseJson(data));
-      setData(message as HealthResponse);
-      setReason(healthReason(data));
-    } catch (err) {
-      if ((err as Error).name !== "AbortError") {
-        setError((err as Error).message);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout>;
-    let cancelled = false;
-
-    const poll = async () => {
-      await fetchHealth();
-      if (!cancelled) {
-        timeoutId = setTimeout(() => {
-          void poll();
-        }, 30000);
-      }
-    };
-
-    void poll();
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-      abortRef.current?.abort();
-    };
-  }, [fetchHealth]);
-
-  return { data, reason, loading, error, refetch: fetchHealth };
-}
-
-// Runners hook
-export function useRunners(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<Record<string, RunnerStatus>>({});
-
-  const fetchRunners = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<unknown>("/runners");
-      const message = parseProto(GetRunnerStatusResponseSchema, data);
-      const record: Record<string, RunnerStatus> = {};
-      for (const runner of message.runners ?? []) {
-        record[String(runner.runnerType)] = runner;
-      }
-      setData(record);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    void fetchRunners();
-  }, [enabled, fetchRunners]);
-
-  return { data, loading, error, refetch: fetchRunners };
+  const query = useApiQuery<{ health: HealthResponse; reason: string }>(["health"], async (signal) => {
+    const raw = await healthRequest(signal);
+    return { health: parseProto(HealthResponseSchema, normalizeHealthResponseJson(raw)) as HealthResponse, reason: healthReason(raw) };
+  }, { refetchInterval: HEALTH_POLL_MS });
+  return { data: query.data?.health ?? null, reason: query.data?.reason ?? "", loading: query.loading, error: query.error, refetch: query.refetch };
 }
 
 // Role-policy catalog hook. This is a read-only projection of Git-managed
 // declared state; reload and validation remain explicit operator commands.
 export function useRolePolicyCatalog(options?: { enabled?: boolean }) {
 	const enabled = options?.enabled ?? true;
-	const { data, loading, error, setData, setLoading, setError } = useApiState<MessageShape<typeof GetRolePolicyCatalogResponseSchema> | null>(null);
-
-  const fetchCatalog = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-		const payload = await apiRequest<unknown>("/role-policy/catalog");
-		setData(parseProto(GetRolePolicyCatalogResponseSchema, payload));
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    if (enabled) void fetchCatalog();
-  }, [enabled, fetchCatalog]);
-
-  return { data, loading, error, refetch: fetchCatalog };
+	return useApiQuery<GetRolePolicyCatalogResponse>(["role-policy-catalog"], (signal) =>
+    agentManager.getRolePolicyCatalog({}, { signal, ...CALL_DEADLINE }), { enabled });
 }
 
 type PermissionPolicyData = {
-  status: MessageShape<typeof GetPermissionPolicyStatusResponseSchema>;
-  catalog: MessageShape<typeof GetPermissionPolicyCatalogResponseSchema>;
+  status: GetPermissionPolicyStatusResponse;
+  catalog: GetPermissionPolicyCatalogResponse;
 };
 
 // Permission-policy actions are intentionally whole-document operations. The
 // UI never exposes resource-native patterns or individual rule mutation.
 export function usePermissionPolicy(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<PermissionPolicyData | null>(null);
-
-  const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [statusPayload, catalogPayload] = await Promise.all([
-        apiRequest<unknown>("/permission-policy/status"),
-        apiRequest<unknown>("/permission-policy/catalog"),
-      ]);
-      setData({
-        status: parseProto(GetPermissionPolicyStatusResponseSchema, statusPayload),
-        catalog: parseProto(GetPermissionPolicyCatalogResponseSchema, catalogPayload),
-      });
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    if (enabled) void refetch();
-  }, [enabled, refetch]);
+  const { data, loading, error, refetch } = useApiQuery<PermissionPolicyData>(["permission-policy"], async (signal) => {
+    const [status, catalog] = await Promise.all([
+      agentManager.getPermissionPolicyStatus({}, { signal, ...CALL_DEADLINE }),
+      agentManager.getPermissionPolicyCatalog({}, { signal, ...CALL_DEADLINE }),
+    ]);
+    return { status, catalog };
+  }, { enabled });
 
   const validate = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/permission-policy/validate", { method: "POST" });
-    const response = parseProto(ValidatePermissionPolicyCatalogResponseSchema, payload);
+    const response = await agentManager.validatePermissionPolicyCatalog({}, CALL_DEADLINE);
     await refetch();
     return response;
   }, [refetch]);
 
   const reload = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/permission-policy/reload", { method: "POST" });
-    const response = parseProto(ReloadPermissionPolicyCatalogResponseSchema, payload);
+    const response = await agentManager.reloadPermissionPolicyCatalog({}, CALL_DEADLINE);
     await refetch();
     return response;
   }, [refetch]);
 
   const plan = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/permission-policy/plan", { method: "POST" });
-    return parseProto(PlanPermissionPolicyResponseSchema, payload);
+    return agentManager.planPermissionPolicy({}, CALL_DEADLINE);
   }, []);
 
   const doctor = useCallback(async () => {
-    const payload = await apiRequest<unknown>("/permission-policy/doctor", { method: "POST" });
-    return parseProto(DoctorPermissionPolicyResponseSchema, payload);
+    return agentManager.doctorPermissionPolicy({}, CALL_DEADLINE);
   }, []);
 
   const reconcile = useCallback(async () => {
-    const request = create(ReconcilePermissionPolicyRequestSchema, { explicitlyAuthorized: true });
-    const payload = await apiRequest<unknown>("/permission-policy/reconcile", {
-      method: "POST",
-      body: JSON.stringify(toProtoJson(ReconcilePermissionPolicyRequestSchema, request)),
-    });
-    const response = parseProto(ReconcilePermissionPolicyResponseSchema, payload);
+    const response = await agentManager.reconcilePermissionPolicy({ explicitlyAuthorized: true }, CALL_DEADLINE);
     await refetch();
     return response;
   }, [refetch]);
@@ -358,110 +202,50 @@ export function usePermissionPolicy(options?: { enabled?: boolean }) {
 
 // Probe runner function (standalone for use in components)
 export async function probeRunner(runnerType: RunnerType): Promise<ProbeResult> {
-  const data = await apiRequest<unknown>(`/runners/${runnerTypeToSlug(runnerType)}/probe`, {
-    method: "POST",
-  });
-  const message = parseProto(ProbeRunnerResponseSchema, data);
+  const message = await agentManager.probeRunner({ runnerType }, CALL_DEADLINE);
   return message.result as ProbeResult;
 }
 
 // Investigation Settings hook
+type InvestigationSettingsPatch = Partial<{
+  promptTemplate: string;
+  applyPromptTemplate: string;
+  defaultDepth: InvestigationDepth;
+  defaultContext: InvestigationContextFlags;
+  investigationTagAllowlist: InvestigationTagRule[];
+}>;
+
 export function useInvestigationSettings() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<InvestigationSettings | null>(null);
-
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<InvestigationSettings>("/investigation-settings");
-      setData(data);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  const updateSettings = useCallback(async (settings: Partial<{
-    promptTemplate: string;
-    applyPromptTemplate: string;
-    defaultDepth: InvestigationDepth;
-    defaultContext: InvestigationContextFlags;
-    investigationTagAllowlist: InvestigationTagRule[];
-  }>): Promise<InvestigationSettings> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<InvestigationSettings>("/investigation-settings", {
-        method: "PUT",
-        body: JSON.stringify(settings),
-      });
-      setData(data);
-      return data;
-    } catch (err) {
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  const resetSettings = useCallback(async (): Promise<InvestigationSettings> => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<InvestigationSettings>("/investigation-settings/reset", {
-        method: "POST",
-      });
-      setData(data);
-      return data;
-    } catch (err) {
-      setError((err as Error).message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
-
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
+  const query = useApiQuery<InvestigationSettings>(INVESTIGATION_SETTINGS_KEY, (signal) =>
+    apiRequest<InvestigationSettings>("/investigation-settings", { signal }));
+  // One mutation for both writes, so `error` is always the most recent write's.
+  const write = useApiMutation(async (patch?: InvestigationSettingsPatch) => {
+    const result = patch
+      ? await apiRequest<InvestigationSettings>("/investigation-settings", { method: "PUT", body: JSON.stringify(patch) })
+      : await apiRequest<InvestigationSettings>("/investigation-settings/reset", { method: "POST" });
+    queryClient.setQueryData(INVESTIGATION_SETTINGS_KEY, result);
+    return result;
+  });
 
   return {
-    data, loading, error,
-    refetch: fetchSettings,
-    updateSettings,
-    resetSettings,
+    data: query.data,
+    loading: query.loading || write.loading,
+    error: write.error ?? query.error,
+    refetch: query.refetch,
+    updateSettings: (patch: InvestigationSettingsPatch) => write.run(patch),
+    resetSettings: () => write.run(),
   };
 }
 
 // Maintenance hook
 export function useMaintenance() {
   const previewPurge = useCallback(async (pattern: string, targets: PurgeTarget[]): Promise<PurgeCounts> => {
-    const payload = create(PurgeDataRequestSchema, {
-      pattern,
-      targets,
-      dryRun: true,
-    });
-    const data = await apiRequest<unknown>("/maintenance/purge", {
-      method: "POST",
-      body: JSON.stringify(toProtoJson(PurgeDataRequestSchema, payload)),
-    });
-    const message = parseProto(PurgeDataResponseSchema, data);
+    const message = await agentManager.purgeData({ pattern, targets, dryRun: true }, CALL_DEADLINE);
     return message.matched ?? {};
   }, []);
 
   const executePurge = useCallback(async (pattern: string, targets: PurgeTarget[]): Promise<PurgeCounts> => {
-    const payload = create(PurgeDataRequestSchema, {
-      pattern,
-      targets,
-      dryRun: false,
-    });
-    const data = await apiRequest<unknown>("/maintenance/purge", {
-      method: "POST",
-      body: JSON.stringify(toProtoJson(PurgeDataRequestSchema, payload)),
-    });
-    const message = parseProto(PurgeDataResponseSchema, data);
+    const message = await agentManager.purgeData({ pattern, targets, dryRun: false }, CALL_DEADLINE);
     return message.deleted ?? {};
   }, []);
 

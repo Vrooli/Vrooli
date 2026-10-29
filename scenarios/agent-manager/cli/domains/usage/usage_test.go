@@ -37,7 +37,7 @@ func (f *measuresFixture) UsageForecast(_ context.Context, req *connect.Request[
 		Provider: "anthropic", Pool: "seven_day", Window: "10080m", WindowMinutes: 10080, Status: "on_track", StatusReason: "projected exhaustion is after the reset",
 		HasPercent: true, UsedPercent: 23, LastReadingPercent: 21, ResetsAt: "2026-11-04T15:00:00Z", ObservedAt: "2026-10-29T06:41:20Z", SampleCount: 7,
 		Burn: []*measurepb.UsageBurnRate{{Horizon: "1h"}}, CentralPercentPerHour: 0.2, CalibrationFactor: 1, CalibrationWindows: 0,
-	}}}), nil
+	}, {Provider: "openai", Pool: "secondary", Window: "300m", WindowMinutes: 300, Status: "idle", StatusReason: "no work has used this provider since the last reading, so it lasts at this pace", HasPercent: true, UsedPercent: 34, ObservedAt: "2026-10-29T05:00:00Z"}}}), nil
 }
 
 func (f *measuresFixture) UsageForecastBacktest(_ context.Context, req *connect.Request[measurepb.UsageForecastBacktestRequest]) (*connect.Response[measurepb.UsageForecastBacktestResponse], error) {
@@ -92,6 +92,8 @@ func TestUsageCommandsReadMeasuresProcedures(t *testing.T) {
 		"early reset: this window began Wed Oct 28 06:57 UTC, before the previous window's Mon Nov 2 06:08 UTC reset (it ended at 27%)",
 		"Claude · 5-hour  standing: available",
 		"unknown: the newest reading is older than 6 hours",
+		"Codex · 5-hour",
+		"idle, lasts at this pace: no work has used this provider",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q:\n%s", want, out)
@@ -106,7 +108,7 @@ func TestUsageCommandsReadMeasuresProcedures(t *testing.T) {
 			LastReadingPercent    float64 `json:"last_reading_percent"`
 		} `json:"windows"`
 	}
-	if err := json.Unmarshal([]byte(jsonOut), &decoded); err != nil || len(decoded.Windows) != 3 || decoded.Windows[0].Status != "will_exhaust" || decoded.Windows[0].ProjectedExhaustionAt == "" || decoded.Windows[0].LastReadingPercent != 34 {
+	if err := json.Unmarshal([]byte(jsonOut), &decoded); err != nil || len(decoded.Windows) != 4 || decoded.Windows[0].Status != "will_exhaust" || decoded.Windows[0].ProjectedExhaustionAt == "" || decoded.Windows[0].LastReadingPercent != 34 {
 		t.Fatalf("--json must be the Measures wire shape: %v\n%s", err, jsonOut)
 	}
 }
@@ -148,8 +150,9 @@ func TestRegisterDeclaresTheUsageGroup(t *testing.T) {
 			t.Fatalf("%s: %v", cmd.Name, err)
 		}
 	}
-	// SPEC §4: usage forecast|burners|recommendations|coverage|compare.
-	if group.Name != "usage" || strings.Join(names, ",") != "forecast,burners,recommendations,coverage,compare" {
+	// SPEC §4 and P2-D1: usage forecast|burners|recommendations|friction (with
+	// its report and dismiss actions)|coverage|compare.
+	if group.Name != "usage" || strings.Join(names, ",") != "forecast,burners,recommendations,friction,friction-report,friction-dismiss,coverage,compare" {
 		t.Fatalf("group %q declares %v", group.Name, names)
 	}
 }

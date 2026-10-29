@@ -79,6 +79,7 @@ func opencodeBase() baseCodec {
 		installHint:    "Run: vrooli resource install opencode",
 		tagEnvKey:      opencodeTagEnvKey,
 		continuePrefix: "opencode",
+		sessionLoss:    openCodeSessionLoss,
 		labels: Labels{
 			StartMessage:         "OpenCode execution started",
 			ContinueStartMessage: "OpenCode continuation started",
@@ -632,48 +633,19 @@ func (c *OpenCode) PostClassify(state State, result *runner.ExecuteResult) {
 	}
 }
 
-// ClassifyTerminalError satisfies [Codec]. OpenCode signals session
-// expiry via stderr that mentions "session" and one of "not found" /
-// "expired" / "invalid". The match is case-insensitive because the live
-// CLI prints "Error: Session not found" with a capital S. OpenCode does
-// not currently surface a state-lost shape distinct from expiry, so all
-// matches map to ErrCodeRunnerSessionExpired.
-func (c *OpenCode) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+// openCodeSessionLoss recognises OpenCode's session expiry: stderr that
+// mentions "session" and one of "not found" / "expired" / "invalid". The match
+// is case-insensitive because the live CLI prints "Error: Session not found"
+// with a capital S. OpenCode does not currently surface a state-lost shape
+// distinct from expiry, so all matches are ReasonSessionExpired.
+func openCodeSessionLoss(stderr string) fallback.Reason {
 	lower := strings.ToLower(stderr)
-	if !strings.Contains(lower, "session") {
-		return nil
+	if strings.Contains(lower, "session") && (strings.Contains(lower, "not found") ||
+		strings.Contains(lower, "expired") ||
+		strings.Contains(lower, "invalid")) {
+		return fallback.ReasonSessionExpired
 	}
-	if !strings.Contains(lower, "not found") &&
-		!strings.Contains(lower, "expired") &&
-		!strings.Contains(lower, "invalid") {
-		return nil
-	}
-	return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
-}
-
-// Classify satisfies [Codec]. OpenCode classification order:
-//
-//  1. Session expiry stderr — ReasonSessionExpired (mirrors
-//     [ClassifyTerminalError]; OpenCode does not currently surface a
-//     state-lost shape distinct from expiry).
-//  2. Residual TextClassifier — covers model, auth, network, etc.
-//
-// Returns nil only when stderr is empty and exitCode == 0.
-func (c *OpenCode) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
-	if stderr == "" && exitCode == 0 {
-		return nil
-	}
-	if strings.Contains(stderr, "session") &&
-		(strings.Contains(stderr, "not found") ||
-			strings.Contains(stderr, "expired") ||
-			strings.Contains(stderr, "invalid")) {
-		return fallback.New(fallback.ReasonSessionExpired, strings.TrimSpace(stderr), nil)
-	}
-	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
-		RunnerType: string(c.Type()),
-		Stderr:     stderr,
-		ExitCode:   exitCode,
-	})
+	return ""
 }
 
 // UpdateMetrics satisfies [Codec].

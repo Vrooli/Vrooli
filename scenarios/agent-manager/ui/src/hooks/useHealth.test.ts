@@ -19,8 +19,6 @@ test("useHealth normalizes ordinary JSON dependency and metric values into the c
   assert.ok(health.result.current.data?.metrics.goroutines);
   await act(async () => { await health.result.current.refetch(); });
   assert.equal(fetch.mock.calls.length, 2);
-  const firstSignal = fetch.mock.calls[0]?.[1]?.signal as AbortSignal;
-  assert.equal(firstSignal.aborted, true);
 });
 
 test("useHealth ignores an aborted previous request but exposes a real health error", async () => {

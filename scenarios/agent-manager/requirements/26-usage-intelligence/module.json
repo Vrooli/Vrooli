@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "module": "usage-intelligence",
     "description": "OT-P0-016 — subscription window forecast, quota attribution, capture coverage, recommendations and value comparison. Design: docs/concepts/USAGE-INTELLIGENCE.md.",
+    "last_validated_at": "2026-10-29T13:50:55-04:00",
+    "module": "usage-intelligence",
     "prd_ref": "OT-P0-016",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
-  "title": "Usage Intelligence",
   "requirements": [
     {
       "id": "REQ-P0-029",
@@ -34,7 +34,7 @@
           "type": "manual",
           "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A1 live proof 2026-10-29: api/internal/transcriptindex/live_coverage_test.go (USAGE_COVERAGE_LIVE=1) against the live database and an independent disk scan: files and bytes equal per root, captured bytes within 0.00 points, 99.97% of 22,873 trailing-7-day turns captured. Recorded under Acceptance evidence."
         }
       ]
@@ -42,7 +42,7 @@
     {
       "id": "REQ-P0-030",
       "title": "One token-accounting derivation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "accounting",
       "description": "Agent Manager shall store raw cumulative provider counters per transcript turn (Codex total_token_usage or turn.completed usage; Claude summed per-message usage) and shall derive a session's usage through one function as the last cumulative value minus the cumulative value before the run's first turn. If a transcript is re-tailed, the API restarts, or recovery replays a transcript, then the derived totals shall not change. Per-session totals shall equal the transcript's final counters within 0.5%, including runs 2d230f9d, 1ced66dd and aee95b01. Missing usage shall be reported as unknown, never zero. This requirement absorbs the former REQ-P2-002 Cost Tracking System (SPEC A2, T-2).",
@@ -65,7 +65,7 @@
           "type": "test",
           "ref": "api/internal/tokenaccounting/tokenaccounting_test.go::TestSessionUsageIsInvariantUnderRetailRestartAndReplay",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Retained fixtures for runs 2d230f9d, 1ced66dd and aee95b01; re-tail, restart and replay give identical totals within 0.5% of disk (W1). Planned location; the implementing workstream updates the ref when the test lands."
         }
       ]
@@ -148,7 +148,7 @@
           "type": "manual",
           "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
           "phase": "business",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A4 live proof (W4b, 2026-10-29) on a read-only copy of the live quota_observations via api/internal/adapters/database/quota_live_backtest_test.go::TestLiveQuotaBacktestAndCompaction: last 5 windows per scope 7.3 vs 11.0 pts at 25% (15 windows) and 9.9 vs 13.0 at 50% (16); all windows 4.1 vs 10.0 (750) and 2.3 vs 6.7 (880). `agent-manager usage forecast --backtest --json` returns the same numbers after the next API restart."
         }
       ]
@@ -156,7 +156,7 @@
     {
       "id": "REQ-P0-033",
       "title": "Quota consumption attribution",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "attribution",
       "description": "When an operator or agent requests the consumers of a window, Agent Manager shall split each time slice's observed percent increase across concurrent sessions by model-weighted cached-input share, recalibrate the model weights each window against observed percent, and group the result by session, run, profile, workload, model or runner. The shares plus an explicit off-disk/unattributed remainder shall sum to the observed increase. Agent Manager shall label shares as estimates and shall not present them as exact per-session percentages (SPEC A5, T-5).",
@@ -179,11 +179,11 @@
     },
     {
       "id": "REQ-P0-034",
-      "title": "Ranked usage recommendations",
-      "status": "in_progress",
+      "title": "Grouped usage recommendations and friction problems",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "recommendations",
-      "description": "When an operator or agent requests recommendations, Agent Manager shall evaluate the deterministic rule families R-model, R-context, R-fanout, R-friction and R-idle over durable facts and shall return rows ranked by estimated weekly quota percent saved, each with lever, target, estimate, confidence, evidence references and a concrete action. Where model inference contributes to a row, Agent Manager shall label that row as inferred (SPEC A6, T-6).",
+      "description": "When an operator or agent requests recommendations, Agent Manager shall evaluate the deterministic rule families R-model, R-context, R-fanout, R-friction and R-idle over durable facts and shall return one group per target (a session, a workload or a recurring friction problem), ranked by a combined quota saving that applies each lever to what the larger levers leave, each lever with its estimate, confidence, evidence references, typed facts and a concrete action, and each group with the quota used so far, the projected use and the share of the window's burn. Agent Manager shall list recurring friction problems in plain words with owner, cost and status, and shall file a reported problem in the scenario-qa bug inbox once. Where model inference contributes to a row, Agent Manager shall label that row as inferred (SPEC A6, T-6).",
       "validation": [
         {
           "type": "test",
@@ -194,10 +194,31 @@
         },
         {
           "type": "test",
-          "ref": "cli/domains/usage/attribution_test.go::TestUsageRecommendationsShowsRankedActionsAndSilentRules",
+          "ref": "cli/domains/usage/attribution_test.go::TestUsageRecommendationsShowsGroupsWithCombinedSavingAndSilentRules",
           "phase": "integration",
           "status": "implemented",
-          "notes": "`agent-manager usage recommendations` renders ranked actions with savings, confidence and evidence, the dominant consumer, and the reason a rule did not fire."
+          "notes": "`agent-manager usage recommendations` renders groups with their combined saving, levers, use so far and projection, the dominant consumer, and the reason a rule did not fire."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/usageattribution/rules_test.go::TestPlanCombinesOverlappingLeversWithoutDoubleCounting",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Levers of one target combine to projected x (1 - product(1 - saving/projected)): below their sum, at least the largest, marginals summing to the combined saving."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/measures/usage_attribution_test.go::TestUsageFrictionListsReportsAndDismissesProblems",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Friction problems carry a plain description, owner, counts and cost; reporting files one bug and records its id; dismissing keeps the bug id and stops recommendations."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/usage/attribution_test.go::TestUsageFrictionReportAndDismissWriteThroughTheEpisodesService",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "`usage friction-report` and `usage friction-dismiss` write through EpisodesService."
         }
       ]
     },
@@ -220,7 +241,7 @@
           "type": "manual",
           "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
           "phase": "business",
-          "status": "planned",
+          "status": "failing",
           "notes": "A7 live proof: one notification-hub record for a will_exhaust window (W8); needs the API restart that starts the alerter."
         }
       ]
@@ -228,7 +249,7 @@
     {
       "id": "REQ-P0-036",
       "title": "Usage page, dashboard strip and run usage panel",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "ui",
       "description": "Agent Manager's UI shall provide a Usage page (forecast, consumers, recommendations, coverage, and the former Stats panels under Details) that replaces /stats as the primary analytics entry, a dashboard strip with one line per provider window that opens the Usage page, and a run usage panel with the run's tokens from the one accounting function, estimated quota points and recommendations that target the run. These surfaces shall work at desktop and phone widths inside the existing shell and tokens. While the viewport is phone width, the bottom navigation shall hold at most 5 destinations and shall place the other destinations behind a More menu (SPEC A8, §4, AM-1, AM-2, D8).",
@@ -259,10 +280,10 @@
     {
       "id": "REQ-P0-037",
       "title": "Usage CLI and agent read authority",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "surface",
-      "description": "Agent Manager shall expose `agent-manager usage forecast|burners|recommendations|coverage|compare` with `--json`, each reading the same Measures procedures as the UI. When an authenticated agent identity calls these Measures procedures, Agent Manager shall return the result and shall not return 403 (SPEC §4 CLI, EVIDENCE E-6).",
+      "description": "Agent Manager shall expose `agent-manager usage forecast|burners|recommendations|friction|friction-report|friction-dismiss|coverage|compare` with `--json`, each reading the same Measures procedures as the UI. When an authenticated agent identity calls these Measures procedures, Agent Manager shall return the result and shall not return 403 (SPEC §4 CLI, EVIDENCE E-6).",
       "validation": [
         {
           "type": "test",
@@ -306,7 +327,7 @@
           "type": "manual",
           "ref": "docs/concepts/USAGE-INTELLIGENCE.md",
           "phase": "business",
-          "status": "planned",
+          "status": "failing",
           "notes": "A11 measured case after applying at least one recommendation; scheduled per D6 (W8)."
         }
       ]
@@ -317,14 +338,13 @@
       "status": "planned",
       "prd_ref": "OT-P0-016",
       "category": "observability",
-      "delivery_scope": "roadmap",
       "description": "Where detailed runner telemetry is enabled, Agent Manager may record bounded latency, throughput, failure, and resource measurements with runner and model provenance. Moved from the retired OT-P2-003 Runner Metrics target; not required for the Usage Intelligence acceptance criteria.",
       "validation": [
         {
           "type": "test",
           "ref": "api/internal/measures/measures_test.go::TestRunnerPerformanceMetricsCarryRunnerAndModelProvenance",
           "phase": "unit",
-          "status": "planned",
+          "status": "pending",
           "notes": "Not scheduled. Planned location; the implementing workstream updates the ref when the test lands."
         }
       ]

@@ -2,6 +2,7 @@ package pricing
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -128,5 +129,34 @@ func TestObservationStandingPrefersProviderStatus(t *testing.T) {
 	o, _ := ObservationFromEvent(quotaEvent(uuid.New(), at, domain.RateLimitEventData{LimitType: "10080m", Provider: "openai", Pool: "primary", UsedPercent: &full, WindowMinutes: 10080}), at)
 	if o.Standing != QuotaStandingExhausted {
 		t.Fatalf("100%% standing = %s", o.Standing)
+	}
+}
+
+func TestQuotaReadingWhoseResetHadPassedAtObservationIsRejectedAtEveryIngestPath(t *testing.T) {
+	observedAt := time.Date(2026, 10, 22, 6, 41, 0, 0, time.UTC)
+	percent := 40.0
+	for name, reset := range map[string]time.Time{"hours before": observedAt.Add(-12 * time.Hour), "at the observation": observedAt} {
+		event := &domain.RateLimitEventData{LimitType: "300m", UsedPercent: &percent, ResetTime: &reset}
+		if _, err := FromRateLimitEvent("anthropic", "five_hour", "test", observedAt, event); !errors.Is(err, ErrResetElapsed) {
+			t.Errorf("%s: event path err=%v, want ErrResetElapsed", name, err)
+		}
+		repo := NewMemoryRepository()
+		o := &QuotaObservation{Provider: "anthropic", Pool: "five_hour", Window: "300m", ObservedAt: observedAt, Standing: QuotaStandingAvailable, Provenance: "test", UsedPercent: &percent, ResetAt: &reset}
+		if err := repo.RecordQuotaObservation(context.Background(), o); !errors.Is(err, ErrResetElapsed) {
+			t.Errorf("%s: store path err=%v, want ErrResetElapsed", name, err)
+		}
+	}
+	future := observedAt.Add(time.Hour)
+	if _, err := FromRateLimitEvent("anthropic", "five_hour", "test", observedAt, &domain.RateLimitEventData{LimitType: "300m", UsedPercent: &percent, ResetTime: &future}); err != nil {
+		t.Fatalf("a reset still ahead is valid: %v", err)
+	}
+}
+
+func TestStatuslineSampleWithAPastResetYieldsNoObservation(t *testing.T) {
+	observed := time.Date(2026, 10, 22, 6, 41, 0, 0, time.UTC)
+	used := 71.0
+	sample := claudeStatuslineSample{ObservedAt: observed, FiveHour: &claudeStatuslineWindow{UsedPercentage: &used, ResetsAt: observed.Add(-12 * time.Hour).Unix()}}
+	if got := claudeStatuslineObservations(sample, "/tmp/samples", observed); len(got) != 0 {
+		t.Fatalf("observations=%+v", got)
 	}
 }

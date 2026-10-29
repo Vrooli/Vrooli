@@ -443,7 +443,6 @@ func TestApp_AdditionalCommandGroupsAcceptHelp(t *testing.T) {
 		"declarations":      app.cmdDeclarations,
 		"events":            app.cmdEvents,
 		"health":            app.cmdHealth,
-		"ops":               app.cmdOps,
 		"permission-policy": app.cmdPermissionPolicy,
 	}
 	for name, command := range commands {

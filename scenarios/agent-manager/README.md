@@ -175,17 +175,17 @@ Every run executes in one of two modes, orthogonal to sandboxed/in-place run mod
 | GET | `/api/v1/runs/:id/events` | Stream run events |
 | POST | `/api/v1/runs/:id/approve` | Approve run |
 | POST | `/api/v1/runs/:id/reject` | Reject run |
-| GET | `/api/v1/role-policy/status` | Inspect readiness, path, and active catalog digest |
 | GET | `/api/v1/role-policy/catalog` | Inspect the active portable-role catalog projection |
-| POST | `/api/v1/role-policy/validate` | Validate declared catalog state without activation |
-| POST | `/api/v1/role-policy/reload` | Atomically activate a valid declared catalog |
 | POST | `/api/v1/investigations` | Start or reattach a bounded typed investigation |
 | GET | `/api/v1/investigations` | List typed investigations by operation status |
-| GET | `/api/v1/investigations/{id}` | Read the durable investigation record and result state |
-| POST | `/api/v1/investigations/{id}/wait` | Perform one bounded wait for investigation progress |
 | POST | `/api/v1/investigations/{id}/result` | Persist a validated terminal investigation result |
-| POST | `/api/v1/investigations/{id}/cancel` | Request cancellation of an investigation |
 | POST | `/api/v1/investigations/{id}/learning-retry` | Retry pending learning capture without rerunning diagnosis |
+
+Role-policy status/validate/reload/explain, permission-policy, runner probe, purge, scenario declarations, the
+workflow catalog, workflow execution runs/advance/retry/resume and investigation get/wait/cancel are served only as
+`AgentManagerService` procedures
+(`/agent_manager.v1.AgentManagerService/<Procedure>`). The remaining REST routes and their callers are listed in
+[the transport inventory](docs/efforts/usage-intelligence/p2-transport-inventory.md).
 
 ## CLI Commands
 

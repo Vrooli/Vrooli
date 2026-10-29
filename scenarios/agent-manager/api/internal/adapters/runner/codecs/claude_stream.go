@@ -3,7 +3,6 @@ package codecs
 
 import (
 	"encoding/json"
-	"errors"
 	"strings"
 
 	"agent-manager/internal/adapters/runner"
@@ -266,44 +265,26 @@ func (c *Claude) PostClassify(state State, result *runner.ExecuteResult) {
 	}
 }
 
-// ClassifyTerminalError satisfies [Codec]. Claude has only one
-// recognised typed-failure shape today: stderr mentions "session" +
-// "not found" → ErrCodeRunnerSessionExpired. All other failures fall
-// through to ErrCodeRunnerExecution.
-func (c *Claude) ClassifyTerminalError(stderr string, exitCode int) *domain.RunnerError {
+// claudeSessionLoss is Claude's one recognised typed-failure shape: stderr
+// mentions "session" + "not found" → ReasonSessionExpired. All other failures
+// fall through to ErrCodeRunnerExecution.
+func claudeSessionLoss(stderr string) fallback.Reason {
 	if strings.Contains(stderr, "session") && strings.Contains(stderr, "not found") {
-		return domain.NewRunnerSessionExpiredError(c.Type(), errors.New(strings.TrimSpace(stderr)))
+		return fallback.ReasonSessionExpired
 	}
-	return nil
+	return ""
 }
 
-// Classify satisfies [Codec]. Claude classification order:
-//
-//  1. Captured rate-limit signal — PostClassify rewrites ErrorMessage
-//     when the result event carried `is_error: true` and the body
-//     parsed via detectClaudeRateLimit. Detect the rewritten message
-//     here so we always return ReasonRateLimit on rate-limited runs.
-//  2. Session-not-found stderr — ReasonSessionExpired (matches the
-//     [ClassifyTerminalError] mapping).
-//  3. Residual TextClassifier — covers unknown/deprecated model,
-//     auth, quota, network, context-length, etc.
-//
-// Returns nil only when stderr is empty and exitCode == 0.
+// Classify satisfies [Codec]. A captured rate-limit signal comes first:
+// PostClassify rewrites ErrorMessage when the result event carried
+// `is_error: true` and the body parsed via detectClaudeRateLimit, so detect
+// the rewritten message here to always return ReasonRateLimit on rate-limited
+// runs. Everything else is the shared session-loss / TextClassifier path.
 func (c *Claude) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
-	if stderr == "" && exitCode == 0 {
-		return nil
-	}
 	if rl := detectClaudeRateLimit(stderr); rl.Detected {
 		return fallback.New(fallback.ReasonRateLimit, strings.TrimSpace(stderr), nil)
 	}
-	if strings.Contains(stderr, "session") && strings.Contains(stderr, "not found") {
-		return fallback.New(fallback.ReasonSessionExpired, strings.TrimSpace(stderr), nil)
-	}
-	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
-		RunnerType: string(c.Type()),
-		Stderr:     stderr,
-		ExitCode:   exitCode,
-	})
+	return c.baseCodec.Classify(stderr, exitCode)
 }
 
 // UpdateMetrics satisfies [Codec]. RateLimitEventData is captured into

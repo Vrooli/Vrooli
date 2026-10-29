@@ -21,7 +21,7 @@ test("RunDetailsContent makes run provenance, pause state, live session, failure
   ));
   assert.ok(screen.getByText("runner disconnected")); assert.ok(screen.getByText("Parked — awaiting a result"));
   assert.ok(screen.getByTestId("open-live-session")); assert.ok(screen.getByText("investigator")); assert.ok(screen.getByText("fallback-model"));
-  assert.equal(screen.getAllByText("$0.1250").length, 2); assert.ok(screen.getByText("Web search: 1")); assert.ok(screen.getByText("Service tiers: priority"));
+  assert.equal(screen.getAllByText("$0.1250").length, 2); assert.ok(screen.getByText("Web searches: 1")); assert.ok(screen.getByText("Service tiers: priority"));
 });
 
 test("mobile run actions and status legend dispatch only enabled operational controls", () => {
@@ -66,7 +66,7 @@ test("CostBreakdown omits usage context when cost events do not identify a model
   renderWithProviders(createElement(CostBreakdown, {
     totals: { inputTokens: 1, outputTokens: 2, cacheCreationTokens: 0, cacheReadTokens: 0, totalCostUsd: 0, webSearchRequests: 0, serverToolUseRequests: 0, models: [], serviceTiers: [], events: 1 },
   }));
-  assert.ok(screen.getByText("Total tokens"));
+  assert.ok(screen.getByText("Total cost"));
   assert.equal(screen.queryByText("Usage context"), null);
 });
 

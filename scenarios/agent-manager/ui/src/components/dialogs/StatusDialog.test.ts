@@ -33,7 +33,7 @@ test("StatusDialog renders healthy dependency and metric details and delegates c
   assert.ok(screen.getByText("Healthy"));
   assert.ok(screen.getByText("Live"));
   assert.ok(screen.getByText("postgres"));
-  assert.ok(screen.getByText("4ms"));
+  assert.ok(screen.getByText("4 ms"));
   assert.ok(screen.getByText("active_runs"));
   assert.equal(screen.queryByText(/Agent Manager is (degraded|unreachable)/), null);
   await user.keyboard("{Escape}");
@@ -66,7 +66,7 @@ test("StatusDialog labels connecting and offline websocket states and renders op
   assert.ok(screen.getByText("Connecting"));
   assert.ok(screen.getByText("disk"));
   assert.ok(screen.getByText("Error: locked"));
-  assert.ok(screen.getByText("n/a"));
+  assert.ok(screen.getAllByText("—").length > 0);
 
   rerender(createElement(StatusDialog, { open: true, onOpenChange: vi.fn(), wsStatus: "disconnected", health: undefined, healthError: undefined }));
   assert.ok(screen.getByText("Offline"));

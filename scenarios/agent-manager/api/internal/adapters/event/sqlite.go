@@ -198,6 +198,22 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 		if !errors.Is(existingErr, sql.ErrNoRows) {
 			return dbError("read_event_replay", existingErr)
 		}
+		if evt.ID.Version() == 5 {
+			// A deterministic transcript event re-read over a row stored before
+			// ids were deterministic is the same source line: the run already
+			// holds it. The unary + keeps the planner on the timestamp index (a few rows) instead of scanning the run.
+			var twinSeq int64
+			twinErr := conn.QueryRowContext(ctx, `SELECT sequence FROM run_events WHERE timestamp = ? AND +run_id = ? AND +event_type = ? AND data = ? AND substr(id, 15, 1) <> '5' LIMIT 1`,
+				sqliteTime(evt.Timestamp), runID, string(evt.EventType), data).Scan(&twinSeq)
+			if twinErr == nil {
+				evt.PersistenceReplay = true
+				evt.Sequence = twinSeq
+				continue
+			}
+			if !errors.Is(twinErr, sql.ErrNoRows) {
+				return dbError("read_legacy_twin", twinErr)
+			}
+		}
 		maxSeq++
 		evt.Sequence = maxSeq
 		insertQuery := `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data)

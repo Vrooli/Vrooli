@@ -5,17 +5,9 @@ CREATE TABLE IF NOT EXISTS run_findings (
     category TEXT NOT NULL,
     severity TEXT NOT NULL,
     recommendation_text TEXT NOT NULL,
-    proposed_workaround TEXT NOT NULL DEFAULT '',
-    acceptance_impact TEXT NOT NULL DEFAULT '',
-    owner_hint TEXT NOT NULL DEFAULT '',
     evidence TEXT NOT NULL DEFAULT '',
     target_path TEXT NOT NULL DEFAULT '',
     fingerprint TEXT NOT NULL,
-    operator_decision TEXT NOT NULL DEFAULT '',
-    target_measure TEXT NOT NULL DEFAULT 'finding-recurrence-rate',
-    before_value REAL,
-    after_value REAL,
-    effectiveness TEXT NOT NULL DEFAULT 'not_yet_measurable',
     friction_topic TEXT NOT NULL DEFAULT '',
     cites_resolved_commands INTEGER NOT NULL DEFAULT 0,
     cites_real_outcome INTEGER NOT NULL DEFAULT 0,
@@ -41,3 +33,12 @@ CREATE TABLE IF NOT EXISTS run_finding_subject_edges (
     FOREIGN KEY (finding_id) REFERENCES run_findings(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_run_finding_subject_edges_subject ON run_finding_subject_edges(subject_run_id, created_at DESC);
+
+-- What the operator did with a recurring friction problem (a fingerprint of
+-- episodes). A problem with no row is open.
+CREATE TABLE IF NOT EXISTS friction_problem_status (
+    fingerprint TEXT PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('reported', 'dismissed')),
+    bug_id TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL
+);

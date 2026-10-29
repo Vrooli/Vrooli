@@ -1,6 +1,10 @@
 package runsignal
 
-import "agent-manager/internal/domain"
+import (
+	"time"
+
+	"agent-manager/internal/domain"
+)
 
 // EpisodeDetector is a pure, registered classification rule. Its declaration
 // is intentionally data-bearing so labels, projections, and later metrics can
@@ -86,18 +90,77 @@ func adjacentEpisode(pattern string, matches func(InvocationFact, InvocationFact
 	}
 }
 
+// maxStallGap is the longest idle gap that can be a stall. Of the 48 gaps over
+// five minutes the agent itself owned in the last nine days of live runs
+// (the next call or reply was due from it), 46 were under two hours and the
+// two longer ones (2–4 h, 4.1 h) lie beyond any model call or retry back-off:
+// a suspended machine or a provider outage, not the agent stalling.
+const maxStallGap = 2 * time.Hour
+
+// isTurnEvent is an event of the conversation itself: a call, its result or a
+// message.
+func isTurnEvent(event *domain.RunEvent) bool {
+	switch event.EventType {
+	case domain.EventTypeToolCall, domain.EventTypeToolResult, domain.EventTypeMessage:
+		return true
+	}
+	return false
+}
+
+// isBoundaryEvent ends a turn: a status change (park, wake, stop), a lifecycle
+// transition or a goal change. Nothing before it and after it is one stretch of
+// work.
+func isBoundaryEvent(event *domain.RunEvent) bool {
+	switch event.EventType {
+	case domain.EventTypeStatus, domain.EventTypeLifecycle, domain.EventTypeGoalStatusChanged:
+		return true
+	}
+	return false
+}
+
+func messageRole(event *domain.RunEvent) string {
+	if data, ok := event.Data.(*domain.MessageEventData); ok {
+		return data.Role
+	}
+	return ""
+}
+
+// detectStalls finds an idle gap inside an active turn: between two turn
+// events the agent's next call or reply came more than idleEpisodeThreshold
+// later. A gap is not a stall when the next event is a tool's result (the tool
+// was running) or the operator's message (the operator was), when it crosses a
+// park, wake, stop or other boundary event, or when it exceeds maxStallGap. Usage, quota and log
+// events fall in the gap without ending it.
 func detectStalls(ctx EpisodeDetectorContext) []FrictionEpisode {
 	out := []FrictionEpisode{}
-	for i := 1; i < len(ctx.Events); i++ {
-		if ctx.Events[i-1] == nil || ctx.Events[i] == nil || ctx.Events[i].Timestamp.Sub(ctx.Events[i-1].Timestamp) <= idleEpisodeThreshold {
+	var prev *domain.RunEvent
+	for _, event := range ctx.Events {
+		if event == nil {
 			continue
 		}
-		fact := InvocationFact{CallEventID: ctx.Events[i-1].ID.String(), ResultEventID: ctx.Events[i].ID.String(), Ownership: "unknown"}
-		e := newEpisode("stall", fact, fact, ctx.EventsByID, ctx.Events)
-		e.EndEventID, e.EvidenceEventIDs = ctx.Events[i].ID.String(), []string{e.StartEventID, ctx.Events[i].ID.String()}
-		e.WallClockMS = ctx.Events[i].Timestamp.Sub(ctx.Events[i-1].Timestamp).Milliseconds()
-		e.EpisodeID, e.Fingerprint = fingerprint(e.Pattern, e.StartEventID, e.EndEventID), fingerprint(e.Pattern, e.SuspectedOwnerCommand, e.CauseScope)
-		out = append(out, e)
+		if isBoundaryEvent(event) {
+			prev = nil
+			continue
+		}
+		if !isTurnEvent(event) {
+			continue
+		}
+		if prev != nil {
+			gap := event.Timestamp.Sub(prev.Timestamp)
+			// The agent owns the turn after any turn event; what it was waiting on is
+			// excluded by what comes next: a tool's result (the tool was running) or
+			// the operator's message (the operator was).
+			agentNext := event.EventType == domain.EventTypeToolCall || (event.EventType == domain.EventTypeMessage && messageRole(event) != "user")
+			if gap > idleEpisodeThreshold && gap <= maxStallGap && agentNext {
+				fact := InvocationFact{CallEventID: prev.ID.String(), ResultEventID: event.ID.String(), Ownership: "unknown"}
+				e := newEpisode("stall", fact, fact, ctx.EventsByID, ctx.Events)
+				e.EndEventID, e.EvidenceEventIDs = event.ID.String(), []string{e.StartEventID, event.ID.String()}
+				e.WallClockMS = gap.Milliseconds()
+				e.EpisodeID, e.Fingerprint = fingerprint(e.Pattern, e.StartEventID, e.EndEventID), fingerprint(e.Pattern, e.SuspectedOwnerCommand, e.CauseScope)
+				out = append(out, e)
+			}
+		}
+		prev = event
 	}
 	return out
 }

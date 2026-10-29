@@ -145,8 +145,19 @@ func (o *QuotaObservation) Validate() error {
 	if o.WindowMinutes != nil && *o.WindowMinutes <= 0 {
 		return errors.New("quota window minutes must be positive")
 	}
+	if o.ResetAt != nil && ResetElapsed(*o.ResetAt, o.ObservedAt) {
+		return ErrResetElapsed
+	}
 	return nil
 }
+
+// ErrResetElapsed rejects a reading whose reset time had already passed when
+// it was observed: an idle session replaying cached rate limits says nothing
+// about the current window.
+var ErrResetElapsed = errors.New("quota reading rejected: its reset time had already passed when it was observed")
+
+// ResetElapsed reports whether a window reset at resetAt was over by observedAt.
+func ResetElapsed(resetAt, observedAt time.Time) bool { return !resetAt.After(observedAt) }
 
 // Freshness returns the state of an observation without modifying it. A
 // future timestamp is unknown because local clock skew cannot establish that

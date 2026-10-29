@@ -20,6 +20,8 @@ import {
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { useConfirmAction } from "../components/feedback/useConfirmAction";
 import { runHeading, runOrigin } from "../lib/runPresentation";
+import { useSubAgentRuns, type RunOrigin } from "../hooks/useApi";
+import { formatCount } from "../lib/format";
 import { formatStandardRelativeTime } from "../lib/dateTime";
 import type {
   AgentProfile,
@@ -53,6 +55,9 @@ import type { ConversationSearchHit } from "@vrooli/proto-types/agent-manager/v1
 
 interface RunsPageProps {
   runs: Run[];
+  /** Who started the listed runs; the list is filtered by the API. */
+  origin: RunOrigin;
+  onOriginChange: (origin: RunOrigin) => void;
   tasks: Task[];
   profiles: AgentProfile[];
   loading: boolean;
@@ -96,6 +101,13 @@ const STATUS_FILTER_OPTIONS = [
   { value: String(RunStatus.CANCELLED), label: "Cancelled" },
 ];
 
+const ORIGIN_CHIPS: ReadonlyArray<{ value: RunOrigin; label: string }> = [
+  { value: "", label: "All" },
+  { value: "agent_manager", label: "Agent Manager" },
+  { value: "operator_sessions", label: "Operator sessions" },
+  { value: "workflows", label: "Workflows" },
+];
+
 const SORT_OPTIONS: SortOption[] = [
   { value: "newest", label: "Newest First" },
   { value: "oldest", label: "Oldest First" },
@@ -110,10 +122,54 @@ interface RunListRowProps {
   selectionMode: boolean;
   taskTitle: string;
   profileName?: string;
+  /** The run open in the detail pane, so an expanded sub-agent can show as selected. */
+  selectedRunId?: string;
   onSelect: (run: Run) => void;
   onCheckboxChange: (runId: string, index: number, shiftKey: boolean) => void;
   onStop: (run: Run) => void;
   onResume: (run: Run) => void;
+}
+
+/** "▸ N sub-agents" under a run; opening it lists them in place. Nothing renders for a run without sub-agents. */
+function SubAgents({ parent, selectedRunId, onSelect }: { parent: Run; selectedRunId?: string; onSelect: (run: Run) => void }) {
+  const [expanded, setExpanded] = useState(false);
+  const children = useSubAgentRuns(parent.id, expanded);
+  const count = parent.subAgentCount;
+  if (count === 0) return null;
+  return (
+    <div onClick={(event) => event.stopPropagation()}>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        data-testid="sub-agents-toggle"
+        onClick={() => setExpanded((open) => !open)}
+        className="mt-1 inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-6"
+      >
+        {expanded ? "▾" : "▸"} {formatCount(count)} {count === 1 ? "sub-agent" : "sub-agents"}
+      </button>
+      {expanded && (
+        <ul className="ms-2 border-s border-border ps-3">
+          {children.loading && !children.data?.length ? <li className="py-1 text-xs text-muted-foreground">Loading sub-agents…</li> : null}
+          {children.error ? <li className="py-1 text-xs text-destructive">Could not load sub-agents: {children.error}</li> : null}
+          {(children.data ?? []).map((child) => (
+            <li key={child.id}>
+              <button
+                type="button"
+                data-testid="sub-agent-row"
+                aria-current={selectedRunId === child.id ? "true" : undefined}
+                onClick={() => onSelect(child)}
+                className={`flex min-h-11 w-full items-center gap-2 rounded px-2 text-start text-sm hover:bg-muted/50 sm:min-h-8 ${selectedRunId === child.id ? "bg-muted" : ""}`}
+              >
+                <RunStatusIcon status={child.status} approvalState={child.approvalState} />
+                <span className="min-w-0 flex-1 truncate">{runHeading(child).title}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatStandardRelativeTime(child.createdAt)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 const RunListRow = memo(function RunListRow({
@@ -124,6 +180,7 @@ const RunListRow = memo(function RunListRow({
   selectionMode,
   taskTitle,
   profileName,
+  selectedRunId,
   onSelect,
   onCheckboxChange,
   onStop,
@@ -160,7 +217,7 @@ const RunListRow = memo(function RunListRow({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-11 w-11 sm:h-8 sm:w-8"
               aria-label={`Stop run ${runTitle}`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -174,7 +231,7 @@ const RunListRow = memo(function RunListRow({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-11 w-11 sm:h-8 sm:w-8"
                 aria-label={`Resume run ${runTitle} from failure`}
               title="Resume: continue this task with the prior transcript + diff as context"
               onClick={(e) => {
@@ -203,12 +260,15 @@ const RunListRow = memo(function RunListRow({
         {runOrigin(run, profileName)} · {formatStandardRelativeTime(run.createdAt)}
         <span className="ms-2 font-mono text-[11px] opacity-70">{reference}</span>
       </ListItemSubtitle>
+      <SubAgents parent={run} selectedRunId={selectedRunId} onSelect={onSelect} />
     </ListItem>
   );
 });
 
 export function RunsPage({
   runs,
+  origin,
+  onOriginChange,
   tasks,
   profiles,
   loading,
@@ -557,6 +617,7 @@ export function RunsPage({
         selectionMode={selectionMode}
         taskTitle={getTaskTitle(run.taskId)}
         profileName={getProfileName(run.agentProfileId)}
+        selectedRunId={selectedRun?.id}
         onSelect={handleSelectRun}
         onCheckboxChange={handleRunRowCheckboxChange}
         onStop={handleStopRequest}
@@ -581,9 +642,8 @@ export function RunsPage({
     if (runId) return;
     if (filteredAndSortedRuns.length === 0) return;
 
-    const hasSelection =
-      selectedRunId !== null &&
-      filteredAndSortedRuns.some((run) => run.id === selectedRunId);
+    // A sub-agent open in the detail pane is not in the top-level list; leave it selected.
+    const hasSelection = selectedRunId !== null;
 
     if (!hasSelection) {
       const firstRun = filteredAndSortedRuns[0];
@@ -650,7 +710,7 @@ export function RunsPage({
               size="sm"
               onClick={toggleSelectionMode}
               aria-label={selectionMode ? "Exit selection mode" : "Enter selection mode"}
-              className="w-9 px-0"
+              className="h-11 w-11 px-0 sm:h-9 sm:w-9"
             >
               {selectionMode ? (
                 <X className="h-4 w-4" />
@@ -659,13 +719,27 @@ export function RunsPage({
               )}
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={onRefresh} aria-label="Refresh" className="w-9 px-0">
+          <Button variant="secondary" size="sm" onClick={onRefresh} aria-label="Refresh" className="h-11 w-11 px-0 sm:h-9 sm:w-9">
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       }
       toolbar={
         <div className="space-y-2">
+          <div role="group" aria-label="Who started the run" className="flex flex-wrap gap-1.5">
+            {ORIGIN_CHIPS.map((chip) => (
+              <button
+                key={chip.value}
+                type="button"
+                aria-pressed={origin === chip.value}
+                data-testid={`runs-origin-${chip.value || "all"}`}
+                onClick={() => onOriginChange(chip.value)}
+                className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8 ${origin === chip.value ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
           <SearchToolbar
             searchValue={searchQuery}
             onSearchChange={setSearchQuery}

@@ -21,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	coreidentity "github.com/vrooli/api-core/identity"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -132,11 +133,10 @@ func TestWorkflowRevisionAndReconcileProjectionsPreserveAPIContract(t *testing.T
 	}
 }
 
-func TestWorkflowCatalogHandlersReturnEmptyListAndNotFoundRevision(t *testing.T) {
-	handler, _ := setupTestHandler(t)
+func TestWorkflowCatalogProceduresReturnEmptyListAndNotFoundRevision(t *testing.T) {
+	_, router := setupTestHandler(t)
 
-	list := httptest.NewRecorder()
-	handler.ListWorkflowRevisions(list, httptest.NewRequest(http.MethodGet, "/api/v1/workflows?owner=missing&key=missing/workflow&limit=10", nil))
+	list := callProcedure(t, router, apiconnect.AgentManagerServiceListWorkflowRevisionsProcedure, &apipb.ListWorkflowRevisionsRequest{Owner: "missing", Key: "missing/workflow", Limit: 10})
 	if list.Code != http.StatusOK {
 		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
 	}
@@ -146,10 +146,11 @@ func TestWorkflowCatalogHandlersReturnEmptyListAndNotFoundRevision(t *testing.T)
 		t.Fatalf("revisions=%+v, want empty catalog", listResponse.GetRevisions())
 	}
 
-	get := httptest.NewRecorder()
-	handler.GetWorkflowRevision(get, httptest.NewRequest(http.MethodGet, "/api/v1/workflows/revision?owner=missing&key=missing/workflow", nil))
-	if get.Code != http.StatusNotFound {
-		t.Fatalf("get status=%d body=%s", get.Code, get.Body.String())
+	for _, procedure := range []string{apiconnect.AgentManagerServiceGetWorkflowRevisionProcedure, apiconnect.AgentManagerServiceExplainWorkflowProcedure} {
+		get := callProcedure(t, router, procedure, &apipb.GetWorkflowRevisionRequest{Owner: "missing", Key: "missing/workflow"})
+		if get.Code != http.StatusNotFound {
+			t.Fatalf("%s status=%d body=%s", procedure, get.Code, get.Body.String())
+		}
 	}
 }
 
@@ -257,6 +258,17 @@ func TestScenarioDeclarationHandlersHonorDryRunAndProjectResults(t *testing.T) {
 		check func(*testing.T, []byte)
 	}{
 		{
+			path: apiconnect.AgentManagerServiceReconcileScenarioProfilesProcedure,
+			body: &apipb.ReconcileScenarioProfilesRequest{Scenario: "agent-manager", DryRun: true},
+			check: func(t *testing.T, body []byte) {
+				var response apipb.ReconcileScenarioProfilesResponse
+				decodeProtoJSON(t, body, &response)
+				if response.GetScenario() != "agent-manager" || !response.GetDryRun() {
+					t.Fatalf("profile reconcile procedure response=%+v", &response)
+				}
+			},
+		},
+		{
 			path: "/api/v1/profiles/reconcile-scenario",
 			body: &apipb.ReconcileScenarioProfilesRequest{Scenario: "agent-manager", DryRun: true},
 			check: func(t *testing.T, body []byte) {
@@ -268,7 +280,7 @@ func TestScenarioDeclarationHandlersHonorDryRunAndProjectResults(t *testing.T) {
 			},
 		},
 		{
-			path: "/api/v1/declarations/reconcile-scenario",
+			path: apiconnect.AgentManagerServiceReconcileScenarioDeclarationsProcedure,
 			body: &apipb.ReconcileScenarioDeclarationsRequest{Scenario: "agent-manager", DryRun: true},
 			check: func(t *testing.T, body []byte) {
 				var response apipb.ReconcileScenarioDeclarationsResponse
@@ -279,7 +291,7 @@ func TestScenarioDeclarationHandlersHonorDryRunAndProjectResults(t *testing.T) {
 			},
 		},
 		{
-			path: "/api/v1/declarations/plan",
+			path: apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure,
 			body: &apipb.ReconcileScenarioDeclarationsRequest{Scenario: "agent-manager", DryRun: false, ValidateOnly: true},
 			check: func(t *testing.T, body []byte) {
 				var response apipb.ReconcileScenarioDeclarationsResponse
@@ -292,8 +304,7 @@ func TestScenarioDeclarationHandlersHonorDryRunAndProjectResults(t *testing.T) {
 	}
 	for _, test := range cases {
 		t.Run(test.path, func(t *testing.T) {
-			rr := httptest.NewRecorder()
-			router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, test.path, bytes.NewReader(encodeProtoJSON(t, test.body))))
+			rr := callProcedure(t, router, test.path, test.body)
 			if rr.Code != http.StatusOK {
 				t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 			}
@@ -316,7 +327,8 @@ func TestVerifiedAgentDeclarationsPlanForcesDryRunWithoutStoreEffects(t *testing
 	requestBody := encodeProtoJSON(t, &apipb.ReconcileScenarioDeclarationsRequest{
 		Scenario: "agent-manager", DryRun: false, ValidateOnly: false,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/declarations/plan", bytes.NewReader(requestBody))
+	req := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure, bytes.NewReader(requestBody))
+	req.Header.Set("Content-Type", "application/json")
 	req = req.WithContext(coreidentity.WithPrincipal(req.Context(), coreidentity.Principal{
 		Kind: coreidentity.ActorAgent, Subject: "verified-agent-run", Verified: true,
 		Scopes: []string{"agent-manager:write"},
@@ -430,27 +442,15 @@ func TestWorkflowEndpointsRejectMalformedBodiesAndInvalidExecutionIDs(t *testing
 		name string
 		call func(*httptest.ResponseRecorder)
 	}{
-		{"validate", invalidBody(handler.ValidateWorkflow)},
-		{"reconcile", invalidBody(handler.ReconcileScenarioWorkflows)},
-		{"plan", invalidBody(handler.PlanScenarioWorkflows)},
 		{"start", invalidBody(handler.StartWorkflowExecution)},
 		{"wait", invalidBody(handler.WaitWorkflowExecution)},
 		{"signal", invalidBody(handler.SignalWorkflowExecution)},
 		{"cancel", invalidBody(handler.CancelWorkflowExecution)},
-		{"retry", invalidBody(handler.RetryWorkflowExecution)},
-		{"resume", invalidBody(handler.ResumeWorkflowExecution)},
-		{"simulate", invalidBody(handler.SimulateWorkflow)},
 		{"get", func(rr *httptest.ResponseRecorder) {
 			handler.GetWorkflowExecution(rr, mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "invalid"}))
 		}},
-		{"advance", func(rr *httptest.ResponseRecorder) {
-			handler.AdvanceWorkflowExecution(rr, mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/", nil), map[string]string{"id": "invalid"}))
-		}},
 		{"trace", func(rr *httptest.ResponseRecorder) {
 			handler.GetWorkflowExecutionTrace(rr, mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "invalid"}))
-		}},
-		{"runs", func(rr *httptest.ResponseRecorder) {
-			handler.ListWorkflowExecutionRuns(rr, mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/", nil), map[string]string{"id": "invalid"}))
 		}},
 	}
 	for _, tc := range cases {
@@ -470,9 +470,8 @@ func TestValidateWorkflowReturnsStructuredDiagnosticsForInvalidDefinition(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := encodeProtoJSON(t, &apipb.ValidateWorkflowRequest{Definition: definition})
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/workflows/validate", bytes.NewReader(body)))
+	var rr *httptest.ResponseRecorder
+	rr = callProcedure(t, router, apiconnect.AgentManagerServiceValidateWorkflowProcedure, &apipb.ValidateWorkflowRequest{Definition: definition})
 	if rr.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 	}
@@ -514,8 +513,7 @@ func TestWorkflowHTTPStartSignalAndSimulationUseDurableExecutionState(t *testing
 		t.Fatalf("started=%+v", started.GetExecution())
 	}
 
-	simulation := httptest.NewRecorder()
-	router.ServeHTTP(simulation, httptest.NewRequest(http.MethodPost, "/api/v1/workflows/simulate", bytes.NewReader(encodeProtoJSON(t, &apipb.SimulateWorkflowRequest{Owner: "owner", WorkflowKey: revision.Key, DefinitionDigest: revision.Digest, Input: input}))))
+	simulation := callProcedure(t, router, apiconnect.AgentManagerServiceSimulateWorkflowProcedure, &apipb.SimulateWorkflowRequest{Owner: "owner", WorkflowKey: revision.Key, DefinitionDigest: revision.Digest, Input: input})
 	if simulation.Code != http.StatusOK {
 		t.Fatalf("simulate status=%d body=%s", simulation.Code, simulation.Body.String())
 	}

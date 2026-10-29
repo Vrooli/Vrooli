@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle2, Wifi, WifiOff } from "lucide-react";
 import { Badge } from "../ui/badge";
+import { formatDuration } from "../../lib/format";
 import { Card, CardContent } from "../ui/card";
 import {
   Dialog,
@@ -127,7 +128,7 @@ function DependenciesSection({ entries }: { entries: [string, JsonValue][] }) {
               </div>
               <div className="flex items-center justify-between">
                 <span>Latency</span>
-                <span>{latency !== undefined ? `${latency}ms` : "n/a"}</span>
+                <span>{formatDuration(latency)}</span>
               </div>
               {storage && (
                 <div className="flex items-center justify-between">

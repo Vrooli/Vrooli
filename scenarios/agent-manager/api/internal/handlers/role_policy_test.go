@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 func setupRolePolicyHandler(t *testing.T) (*rolepolicy.State, *mux.Router, string) {
@@ -32,15 +32,15 @@ func setupRolePolicyHandler(t *testing.T) (*rolepolicy.State, *mux.Router, strin
 	handler := New(orchestration.EmptyHandlerServices(), WithRolePolicyState(state))
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
+	connectPath, connectHandler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(handler))
+	router.PathPrefix(connectPath).Handler(connectHandler)
 	return state, router, path
 }
 
 func TestRolePolicyStatusCatalogAndLegacySurfaceRemoval(t *testing.T) {
 	state, router, _ := setupRolePolicyHandler(t)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/status", nil)
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
+	recorder := callProcedure(t, router, apiconnect.AgentManagerServiceGetRolePolicyStatusProcedure, &apipb.GetRolePolicyStatusRequest{})
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status code = %d: %s", recorder.Code, recorder.Body.String())
 	}
@@ -50,9 +50,7 @@ func TestRolePolicyStatusCatalogAndLegacySurfaceRemoval(t *testing.T) {
 		t.Fatalf("status response = %+v", statusResponse.Status)
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/catalog", nil)
-	recorder = httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
+	recorder = callProcedure(t, router, apiconnect.AgentManagerServiceGetRolePolicyCatalogProcedure, &apipb.GetRolePolicyCatalogRequest{})
 	var catalogResponse apipb.GetRolePolicyCatalogResponse
 	decodeProtoJSON(t, recorder.Body.Bytes(), &catalogResponse)
 	if catalogResponse.Catalog == nil || len(catalogResponse.Catalog.Roles) == 0 || catalogResponse.Catalog.DefaultRole == "" {
@@ -66,7 +64,7 @@ func TestRolePolicyStatusCatalogAndLegacySurfaceRemoval(t *testing.T) {
 		}
 	}
 
-	request = httptest.NewRequest(http.MethodGet, "/api/v1/model-policy/catalog", nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/model-policy/catalog", nil)
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusNotFound {
@@ -78,9 +76,7 @@ func TestRolePolicyValidateAndFailedReloadPreserveActiveRevision(t *testing.T) {
 	state, router, path := setupRolePolicyHandler(t)
 	before := state.Status().ActiveDigest
 
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/validate", nil)
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
+	recorder := callProcedure(t, router, apiconnect.AgentManagerServiceValidateRolePolicyCatalogProcedure, &apipb.ValidateRolePolicyCatalogRequest{})
 	var validateResponse apipb.ValidateRolePolicyCatalogResponse
 	decodeProtoJSON(t, recorder.Body.Bytes(), &validateResponse)
 	if !validateResponse.Valid || validateResponse.CandidateDigest != before || validateResponse.ActiveDigest != before {
@@ -90,9 +86,7 @@ func TestRolePolicyValidateAndFailedReloadPreserveActiveRevision(t *testing.T) {
 	if err := os.WriteFile(path, []byte(`{"schemaVersion":99}`), 0o644); err != nil {
 		t.Fatalf("write invalid role policy: %v", err)
 	}
-	request = httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/reload", bytes.NewBufferString(`{}`))
-	recorder = httptest.NewRecorder()
-	router.ServeHTTP(recorder, request)
+	recorder = callProcedure(t, router, apiconnect.AgentManagerServiceReloadRolePolicyCatalogProcedure, &apipb.ReloadRolePolicyCatalogRequest{})
 	var reloadResponse apipb.ReloadRolePolicyCatalogResponse
 	decodeProtoJSON(t, recorder.Body.Bytes(), &reloadResponse)
 	if reloadResponse.Activated || reloadResponse.Diagnostic == nil || reloadResponse.Status == nil || reloadResponse.Status.ActiveDigest != before {

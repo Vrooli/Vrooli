@@ -2,13 +2,10 @@ package handlers
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -297,21 +294,6 @@ func validateCustomEnvironment(env map[string]string) error {
 	return nil
 }
 
-// CreateInvestigationRun is the retired legacy writer for investigation runs.
-// New diagnosis creation uses StartInvestigation and the typed finite lifecycle.
-func (h *Handler) CreateInvestigationRun(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "investigate") {
-		return
-	}
-	var req map[string]json.RawMessage
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeSimpleError(w, r, "body", "invalid JSON")
-		return
-	}
-	writeSimpleError(w, r, "typed", "legacy investigation creation is retired; use POST /api/v1/investigations")
-	return
-}
-
 // optionalTrimmedString returns nil for an omitted override.
 func optionalTrimmedString(raw string) *string {
 	trimmed := strings.TrimSpace(raw)
@@ -427,55 +409,6 @@ func (h *Handler) GetRun(w http.ResponseWriter, r *http.Request) {
 	writeProtoJSON(w, http.StatusOK, &apipb.GetRunResponse{Run: pbRun})
 }
 
-// GetAuditTranscript returns a deliberately bounded excerpt for an audit
-// sample. It never accepts a file path, emits a stable content hash, and caps
-// output at 64KiB so audit evidence cannot become an unbounded transcript API.
-func (h *Handler) GetAuditTranscript(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(mux.Vars(r)["id"])
-	if err != nil {
-		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
-		return
-	}
-	run, err := h.svc.GetRun(r.Context(), id)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	if run.TranscriptPath == "" {
-		writeSimpleError(w, r, "transcript_unavailable", "run has no persisted transcript")
-		return
-	}
-	limit := 16 * 1024
-	if raw := r.URL.Query().Get("maxBytes"); raw != "" {
-		if parsed, parseErr := strconv.Atoi(raw); parseErr == nil && parsed > 0 && parsed <= 64*1024 {
-			limit = parsed
-		} else {
-			writeSimpleError(w, r, "max_bytes", "maxBytes must be between 1 and 65536")
-			return
-		}
-	}
-	f, err := os.Open(run.TranscriptPath)
-	if err != nil {
-		writeSimpleError(w, r, "transcript_unavailable", "persisted transcript cannot be read")
-		return
-	}
-	defer f.Close()
-	buf := make([]byte, limit+1)
-	n, readErr := io.ReadFull(f, buf)
-	if readErr != nil && readErr != io.ErrUnexpectedEOF && readErr != io.EOF {
-		writeSimpleError(w, r, "transcript_read", "unable to read transcript excerpt")
-		return
-	}
-	truncated := n > limit
-	if truncated {
-		n = limit
-	}
-	data := buf[:n]
-	w.Header().Set("Content-Type", "application/json")
-	digest := sha256.Sum256(data)
-	_ = json.NewEncoder(w).Encode(map[string]any{"runId": id.String(), "maxBytes": limit, "truncated": truncated, "contentHash": fmt.Sprintf("sha256:%x", digest[:]), "content": string(data)})
-}
-
 // ListRuns returns all runs, with optional filtering.
 // Query parameters:
 //   - status: Filter by run status (e.g., "running", "pending", "complete")
@@ -484,6 +417,9 @@ func (h *Handler) GetAuditTranscript(w http.ResponseWriter, r *http.Request) {
 //   - tagPrefix: Filter by tag prefix (e.g., "ecosystem-" to get all swarm-manager runs)
 //   - investigates_run_id: Filter investigation runs linked to a source run ID
 //   - applies_investigation_run_id: Filter apply runs linked to an investigation run ID
+//   - parent_run_id: Only direct child (sub-agent) runs of one parent run
+//   - top_level: "true" lists only runs that are not sub-agents of another run
+//   - origin: agent_manager | operator_sessions | workflows
 func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 	req := apipb.ListRunsRequest{}
 
@@ -553,6 +489,14 @@ func (h *Handler) ListRuns(w http.ResponseWriter, r *http.Request) {
 		parentRunID = &parsed
 	}
 
+	if queryFirst(r, "top_level", "topLevel") == "true" {
+		topLevel := true
+		req.TopLevel = &topLevel
+	}
+	if origin := queryFirst(r, "origin"); origin != "" {
+		req.Origin = &origin
+	}
+
 	// A missing limit used to reach SQLite as an unbounded projection. Keep
 	// the public default bounded so CLI and Connect callers have identical,
 	// predictable behavior.
@@ -620,6 +564,8 @@ func (h *Handler) listRunsProto(ctx context.Context, req *apipb.ListRunsRequest,
 	opts.InvestigatesRunID = investigatesRunID
 	opts.AppliesInvestigationRunID = appliesInvestigationRunID
 	opts.ParentRunID = parentRunID
+	opts.TopLevelOnly = req.GetTopLevel()
+	opts.Origin = req.GetOrigin()
 	if req.Limit != nil {
 		opts.Limit = int(req.GetLimit())
 	}

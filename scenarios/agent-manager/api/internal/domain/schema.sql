@@ -461,13 +461,9 @@ CREATE TABLE IF NOT EXISTS transcript_usage (
 CREATE INDEX IF NOT EXISTS idx_transcript_usage_run ON transcript_usage(run_id);
 CREATE INDEX IF NOT EXISTS idx_transcript_usage_observed ON transcript_usage(observed_at);
 
--- One row per completed one-time repair of transcript_usage (for example the
--- 2026-10-29 rewrite of legacy observed_at/model from the transcripts), so a
--- repair never runs twice.
-CREATE TABLE IF NOT EXISTS transcript_usage_repairs (
+-- One row per named one-shot data migration, written in the migration's own
+-- transaction so it never runs twice.
+CREATE TABLE IF NOT EXISTS schema_migrations_done (
     name TEXT PRIMARY KEY,
-    completed_at TEXT NOT NULL,
-    files INTEGER NOT NULL DEFAULT 0,
-    rows_repaired INTEGER NOT NULL DEFAULT 0,
-    failures INTEGER NOT NULL DEFAULT 0
+    completed_at TEXT NOT NULL
 );

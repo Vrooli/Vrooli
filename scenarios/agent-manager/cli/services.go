@@ -23,7 +23,6 @@ type Services struct {
 	PermissionPolicy *PermissionPolicyService
 	Settings         *SettingsService
 	Maintenance      *MaintenanceService
-	Operational      *OperationalService
 	HealthAudit      *HealthAuditService
 	Events           *EventsService
 	Findings         *FindingsService
@@ -46,7 +45,6 @@ func NewServices(api *cliutil.APIClient) *Services {
 		PermissionPolicy: &PermissionPolicyService{api: api},
 		Settings:         &SettingsService{api: api},
 		Maintenance:      &MaintenanceService{api: api},
-		Operational:      &OperationalService{api: api},
 		HealthAudit:      &HealthAuditService{api: api},
 		Events:           &EventsService{api: api},
 		Findings:         &FindingsService{api: api},
@@ -65,20 +63,8 @@ type DeclarationService struct{ api *cliutil.APIClient }
 
 // Reconcile reconciles (or, at the plan path, validates) a scenario's unified
 // declaration block.
-func (s *DeclarationService) Reconcile(path string, req *apipb.ReconcileScenarioDeclarationsRequest) ([]byte, *apipb.ReconcileScenarioDeclarationsResponse, error) {
-	payload, err := marshalProtoRequest(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	body, err := s.api.Request("POST", path, nil, payload)
-	if err != nil {
-		return body, nil, err
-	}
-	var resp apipb.ReconcileScenarioDeclarationsResponse
-	if unmarshalProtoResponse(body, &resp) != nil {
-		return body, nil, nil
-	}
-	return body, &resp, nil
+func (s *DeclarationService) Reconcile(procedure string, req *apipb.ReconcileScenarioDeclarationsRequest) ([]byte, *apipb.ReconcileScenarioDeclarationsResponse, error) {
+	return lenientRPC[apipb.ReconcileScenarioDeclarationsResponse](s.api, procedure, req)
 }
 
 // List retrieves all profiles.

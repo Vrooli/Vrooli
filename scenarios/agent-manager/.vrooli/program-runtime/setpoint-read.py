@@ -179,10 +179,6 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count, head(
     row("ownership-attribution-share", share, f">= {attribution_band}", share is not None and share >= attribution_band,
         reason=None if total else "unreliable:no_episodes_on_recent_runs")
 
-    # Rows with no governed binding: unavailable by construction; permanent, so they never lower the status.
-    row("recurring-friction-publish-cadence", None, "published within 7 days of the 3rd run", None, reason="no_governed_binding")
-    row("findings-with-resolved-effectiveness", None, ">= 0.5 measured at 14 days", None, reason="no_governed_binding")
-
     # investigation-completion-rate: runs by tag prefix, complete over terminal. status may be omitted at its zero value.
     statuses = {k: int(v) for k, v in h["inv"].map(lambda r: {"s": r.get("status") or "RUN_STATUS_UNSPECIFIED"}).group_by("s").items()}
     terminal = sum(v for k, v in statuses.items() if k in TERMINAL)

@@ -137,11 +137,10 @@ Implementation (`api/internal/transcriptindex`, host side in
   `UsageCoverage` (`agent-manager usage coverage`, default 7 days).
 - **Report time and model.** A usage row carries its transcript line's time
   and the turn's model (Codex `turn_context.model`, Claude `message.model`).
-  Rows written before 2026-10-29 carry the indexing time and `unknown`; on
-  start the indexer repairs them once from the transcript by line offset,
-  newest files first, without re-indexing (`transcriptindex.RepairUsage`). It
-  writes 500 rows per transaction, retries a busy database and records its
-  completion in `transcript_usage_repairs`, so it never runs again.
+  A row stays `unknown` only when its transcript names no model: 108 Codex
+  rows and one Claude row on this host. Rows indexed before 2026-10-29 carried
+  the indexing time and `unknown`; a start-up repair rewrote them from the
+  transcripts once and has been removed.
 - **Contention is not unreadability.** A SQLite busy or locked error while a
   file is read leaves the file `pending`, so the next tick resumes it from its
   offset; only a file that cannot be opened or parsed is `unreadable`. Files
@@ -199,7 +198,9 @@ reset time: readings whose `resets_at` differ by at most 2 minutes are one
 window (the provider jitters it by 1–5 s). Only a new reset time starts a new
 window. A lower percent under the same reset time is a lagging reader (F-ORCH-3),
 so the series is the running maximum. A reading whose reset had passed when it
-was observed is dropped. Readings without a reset time start a new window when
+was observed is rejected at ingest (`pricing.ErrResetElapsed`, from
+`QuotaObservation.Validate`, so the statusline feed and every codec quota path
+share it). Readings without a reset time start a new window when
 used percent falls by 2 or more points, or when the window has run its nominal
 length plus 5 minutes. No window outlasts its nominal length: the 2025-10-30 →
 2025-11-23 "5h" window was the reset-less readings grouped as one. Window
@@ -257,7 +258,8 @@ never ends. The burn that lasts to the reset is `remaining / time to reset`.
 | `on_track` | The band starts after the reset |
 | `at_risk` | The band straddles the reset |
 | `will_exhaust` | The whole band ends before the reset, or the provider reports 100% |
-| `unknown` | No samples, the newest sample is older than 6 hours, the reset has passed with no reading of the new window, or there is less than 10 minutes of history |
+| `idle` | The newest sample is older than 6 hours inside its own period, and no Agent Manager run, active session or indexed usage of that provider's runner came after it: the window lasts at this pace. Needs the activity source; without it the window stays `unknown` |
+| `unknown` | No samples, the newest sample is older than 6 hours with work since (or unmetered use cannot be ruled out), the reset has passed with no reading of the new window, or there is less than 10 minutes of history |
 
 A scope whose newest window ended more than one nominal window length ago is
 no longer read (an old account or pool) and is not a current window.
@@ -370,17 +372,40 @@ the points. Points are estimates and are presented as approximate.
 
 Implemented in `api/internal/usageattribution` (`Recommend`) and served by
 `UsageRecommendations` (`agent-manager usage recommendations`). The rules
-read each provider's longest current window. A saving is stated against the
-consumer's projected weekly use: a consumer whose last turn is within an hour
-of the newest attributed turn is still running and keeps its rate over the
-attributed period for the rest of the week (periods under a day count as a
-day); one that stopped is assumed to use nothing more, so its saving is what
-the lever would have saved of its use. No estimate exceeds the consumer's
-projected weekly use. Each row states this basis in its rationale and metrics
-(`projected_weekly_points`, `basis_hours`, `still_running`). Each
-row carries `{rule, lever, target, est_weekly_quota_points_saved,
-confidence, evidence_refs, metrics, action}`, and every rule family reports
-whether it fired and, if not, why from the data.
+read each provider's longest current window, or one window alone when the
+request names it (`provider`, `pool`, `window`; savings are then stated over
+that window's length and R-model, which states weekly outcomes, does not fire
+for a window shorter than a week).
+
+**Levers and plans.** A rule's finding is a *lever* about one target (a
+session, a workload, or a friction problem). Levers for the same target in
+the same window fold into one *plan*, because they reduce the same use: the
+largest lever applies to the target's projected use first and each next lever
+to what remains, so `combined = projected × (1 − Π(1 − saving / projected))`
+and each lever's `marginal_points` (what it adds after the larger ones) sum to
+the combined saving. The combined saving is below the sum of the levers and
+never exceeds the target's projected use. A plan carries `used_so_far_points`,
+`projected_points`, `share_of_window_burn`, `still_running` and `basis_hours`.
+Plans saving under 0.1 pt are counted (`folded_groups`, `folded_points`), not
+listed.
+
+**Projection.** A saving is stated against the target's projected use over the
+window's horizon: a target whose last turn is within an hour of the newest
+attributed turn is still running and keeps its rate over the attributed
+period for the rest of the window (periods under a seventh of the window — a
+day for a week — count as that seventh); one that stopped is assumed to use
+nothing more, so its saving is what the lever would have saved of its use.
+Each lever carries typed facts for its rule (`UsageLeverFacts`: context,
+fanout, idle, image, friction or model), never a free-form metric map. Every
+rule family reports whether it fired and, if not, why from the data.
+A saving is stated over the window's whole horizon at the target's current
+rate (`at_this_rate_points` is a projection, not a forecast); `recoverable_points`
+(on each plan and lever) is the part still to be had before the reset: the
+saving times the share of the horizon left, and 0 for a target that has
+stopped. Friction plans are a cross-cut view (`cross_cut`): their points are
+already inside the session plans that ran them, so clients never sum savings
+or shares across target kinds. `usageattribution.Service.TopPlan` returns the largest plan for one window; it
+is the function an alert asks for "the #1 action".
 
 - **R-model:** over the last 14 days a workload ran on a cheaper model with at
   least 3 runs and a success rate within 10 points of its pricier model. The
@@ -393,12 +418,13 @@ whether it fired and, if not, why from the data.
 - **R-fanout:** at least 3 sub-agents averaging at least 40k prompt tokens.
   Half of what exceeds a 20k brief is assumed avoidable.
 - **R-friction:** a persisted friction fingerprint recurs at least 3 times in
-  runs that consumed the window. Episodes are priced as their turns' share
+  runs that consumed the window (a *friction problem*, below; dismissed ones
+  are listed but not recommended). Episodes are priced as their turns' share
   of the run's turns times the run's points, capped at the run's points;
   half is assumed avoidable. Only episodes of the current episode classifier
   are read; a classifier change re-projects history through the reconcile
   sweep. A `handoff-continuation` episode counts only the calls after a
-  terminal answer and before the next user message (`friction-episode.v10`),
+  terminal answer and before the next user message (`friction-episode.v10`; v11 defines an episode cost per pattern and pairs a re-read only within one working stretch),
   so work the operator asked for is never friction.
 - **R-idle:** at least 20 provider requests whose tool calls are mostly waits
   with under 600 output tokens per report, or requests of a parked run; 70% avoidable.
@@ -406,9 +432,78 @@ whether it fired and, if not, why from the data.
   image is ≈1.3k input tokens (estimated) and is re-read while it stays in
   context; downscaling halves it.
 
-Rows are ranked by weekly saving. The dominant consumer is the session with
+Plans are ranked by combined saving. The dominant consumer is the session with
 the largest share of its own window, since points of different subscriptions
 are not comparable.
+
+### Friction problems
+
+Episode definitions the problems rest on (classifier `friction-episode.v13`): a
+*stall* is an idle gap of 5 minutes to 2 hours between two turn events (call,
+result, message) in which the agent's next call or reply was due: not a tool
+running, not the operator, and not across a park, wake, stop or other boundary
+event. Two hours comes from the live distribution (46 of 48 agent-owned gaps
+over five minutes were shorter; the rest are a suspended machine or an outage).
+Wait loops and a slow first success must stay within one working stretch (no
+silence over 30 minutes, no boundary). A tool call counts once however many
+copies of its event were recorded. Each classifier bump prunes older versions
+once at start-up.
+
+Problems count only runs the current episode classifier has analysed;
+`UsageFriction` returns `runs_analysed` and `runs_total` for the windows so a
+client can say it is still re-analysing while history is re-projected. A
+problem's `time_kind` says what its time measures: `wasted` (a redundant or
+failed call's own duration; `time_lost` is true only for this), `idle` (a
+stall's gap: waiting, not wasted work), `elapsed` (how long a loop or slow
+start ran) or `none` (handoff-continuation: report calls and tokens).
+Reporting or dismissing a fingerprint no current problem has is rejected.
+
+`UsageFriction` (`agent-manager usage friction`) lists the problems R-friction
+prices: every episode with one fingerprint in runs that consumed quota in the
+current window, with three or more episodes. Each carries one plain sentence
+(`usageattribution.Describe`, derived from the pattern, the preferred and used
+commands, and the median duration — never the generic "review the
+fingerprint" text), its owner (the command, the scenario, or "Agent
+behaviour" when the detector has no command), episode and run counts, typical
+and total elapsed time (episodes can overlap, so the total can exceed wall
+time), attributed quota points, and a durable status: `open`, `reported` (with
+the scenario-qa bug id) or `dismissed`, in `friction_problem_status`.
+`usage friction-report <fingerprint>` files the problem through the same
+report-bug writer path as the model-policy drift check
+(`PublishScenarioQABug`, idempotency key `agent-manager-friction/<fingerprint>`,
+honesty flags `speculative-cause` and `repro-not-attempted`) and records the
+bug id; reporting twice files once. `usage friction-dismiss <fingerprint>`
+sets it aside. The two actions are `EpisodesService.ReportFrictionProblem` and
+`DismissFrictionProblem`, which are mutations and not part of the read-only
+measures service. The recurring-friction publisher (generic text findings
+sent to the meta-optimization inbox) and the findings review fields
+(`operator_decision`, `target_measure`, `before_value`, `after_value`,
+`effectiveness`) are removed; `run_findings` keeps only what investigations
+write and read.
+
+## Windowed totals and run scope (Details)
+
+Every token total over a time window (`RunCost`, the runner/model/profile/
+workload breakdowns, the per-run distribution, `WorkloadEfficiency`) sums
+`transcript_usage` rows by `observed_at` (request time). A run that started 30
+days ago and ended today contributes only its last-7-day requests to a 7-day
+total, so Details agrees with the provider's readings and with a plain `SUM`
+over the transcript rows. The lifetime counters on `invocation_read_model_runs`
+serve per-run views (run detail, cohort rows) only.
+
+Two rules keep the sums honest. A harness session copied into several harness
+homes (the same Codex rollout under two web-console homes) is several
+transcript files with identical requests; a request equal to one in an earlier
+file of the same session counts once. And dollars exist only for per-token
+(`metered`) runs: a run's charge is apportioned to the window by the share of
+its tokens requested in it. Subscription work reports quota points, not dollars.
+
+Run statistics (success rate, throughput, run time with median and p90) count
+only runs Agent Manager executed (`codec_pipe`) by default. The filter
+`InvocationFilter.scope` selects `agent_manager`, `operator_sessions` (imported,
+attached and interactive sessions) or `all`; tokens count every request unless a
+scope is chosen. An imported or attached session with no usage, and a session
+copy, are never counted as runs.
 
 ## Surfaces
 
@@ -421,27 +516,38 @@ are not comparable.
 - **Dashboard strip:** one line per provider window with a bar, a status chip
   and the projected exhaustion; it opens the Usage page.
 - **Run usage panel:** the run's tokens from the one accounting function,
-  estimated quota points and recommendations that target the run.
-- **Alert:** one notification-hub notification when a window becomes
-  `will_exhaust`, deduplicated per window and re-sent only if the projection
-  moves earlier by more than 12 hours. `usageforecast.Alerter` evaluates the
-  current windows every 5 minutes. It publishes
-  `agent_manager.usage.notification.v1` (category `usage-will-exhaust` in
-  `.vrooli/notifications.json`) through Vrooli Events, with a `context_url` to
-  the Usage page (`/usage`). It saves the last notified projection per window
-  in `usage_forecast_alerts`, only after a publish succeeds, so a failed
-  publish is retried on the next evaluation. When Vrooli Events is not
-  resolved, no alert is sent.
-- **CLI:** `agent-manager usage forecast|burners|recommendations|coverage|compare|run|reindex`
+  estimated quota points (requests, not turns) and recommendation groups that name the run.
+- **Alerts:** `usageforecast.Alerter` evaluates the current windows every 5
+  minutes and publishes `agent_manager.usage.notification.v1` through Vrooli
+  Events. Categories are declared in `.vrooli/notifications.json`, which also
+  sets `appDelivery` (Settings › Notifications renders the shared
+  `AppNotificationSettings`; `main.tsx` calls `initAppNotifications()`):
+
+  | Category | Default | When |
+  |---|---|---|
+  | `usage-will-exhaust` | on | A window becomes `will_exhaust`; sent again only if the projection moves earlier by more than 12 hours. The body names the window, the projected date, and the window's #1 action with its saving. |
+  | `usage-back-on-track` | on | A window with a standing will-exhaust warning has been `on_track` or `idle` for 30 minutes, or has reset (at once). Sent once per warning (its dedupe key names the warning's time); it says the earlier warning no longer applies. After a withdrawal the window is not warned again in the same period unless the projection moves 12 h earlier than the warned one. |
+  | `usage-at-risk` | off | A window becomes `at_risk`; once per window period. |
+  | `usage-digest` | off | Once per day from 08:00 local (a restart later than 12:00 skips that day; the zone is `AGENT_MANAGER_TIMEZONE`, then `TZ`, then the host's `literal:/etc/localtime`): up to 3 live windows, most urgent status first, each with its top action and what it could still save before the reset. |
+
+  Every window alert's `context_url` is `/usage?window=<provider>/<pool>/<window>`.
+  Dedupe state lives in `usage_forecast_alerts`, saved only after a publish
+  succeeds, so a failed publish is retried: will-exhaust rows are keyed by the
+  window key and deleted when the warning is withdrawn; at-risk and digest rows
+  use the reserved key prefixes `at-risk:` and `digest:`, and the withdrawal hysteresis uses `safe:` and `withdrawn:`; reserved rows older than 30 days are pruned each evaluation. The #1 action comes
+  from the recommendations service through one adapter
+  (`usageattribution.AlertActions`); an alert is still sent without one. When
+  Vrooli Events is not resolved, no alert is sent.
+- **CLI:** `agent-manager usage forecast|burners|recommendations|friction|friction-report|friction-dismiss|coverage|compare|run|reindex`
   with `--json`, reading the same Measures procedures as the UI
   (`UsageForecast`, `UsageForecastBacktest`, `UsageBurners`,
-  `UsageRecommendations`, `UsageCoverage`, `UsageCompare`). Agent identity
+  `UsageRecommendations`, `UsageFriction`, `UsageCoverage`, `UsageCompare`). Agent identity
   can read them. Window titles match the UI: "Claude · 5-hour", "Codex ·
   weekly", "Claude · weekly · Opus" (slot-only pools `primary`, `secondary`,
   `five_hour`, `seven_day` are dropped); titles that collide among the
   windows shown append the pool id ("Codex · weekly · primary" / "Codex ·
   weekly · secondary"). `burners --by <dimension> [--since] [--run]`,
-  `recommendations [--run]`, `coverage [--since]` and `compare
+  `recommendations [--run] [--pool P --window W]`, `friction [--status]`, `coverage [--since]` and `compare
   --left-*/--right-*` (the `measures` cohort selector: cohort, run ids,
   filter, window). `compare` reports attributed points per successful run on
   each side and is `insufficient` below five successful runs per side.

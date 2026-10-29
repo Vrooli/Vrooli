@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -148,72 +147,6 @@ func (r *pricingRepository) repeatsPrecedingReading(ctx context.Context, o *pric
 }
 
 const insertQuotaObservationSQL = `INSERT INTO quota_observations (id,provider,pool,window,observed_at,standing,used,quota_limit,remaining,used_percent,window_minutes,reset_at,source_run_id,freshness,provenance,uncertainty,evidence_ref) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING`
-
-// legacyQuotaEventPredicate matches provider quota frames stored as error
-// events before EventTypeQuota existed: payloads tagged payloadKind=quota and
-// the older untagged shape (a nonempty limitType and no generic error field).
-const legacyQuotaEventPredicate = `event_type = 'error' AND CASE WHEN json_valid(data) THEN
-	json_extract(data,'$.payloadKind') = 'quota' OR (json_type(data,'$.payloadKind') IS NULL
-		AND trim(coalesce(json_extract(data,'$.limitType'),'')) <> ''
-		AND json_type(data,'$.code') IS NULL AND json_type(data,'$.retryable') IS NULL
-		AND json_type(data,'$.recovery') IS NULL AND json_type(data,'$.stackTrace') IS NULL
-		AND json_type(data,'$.details') IS NULL)
-	ELSE 0 END`
-
-// migrateQuotaEvents moves legacy quota frames out of the error type and
-// back-fills quota_observations from them, in one transaction. It is
-// idempotent: migrated rows no longer match, and observation ids are stable.
-// New quota events record their observation through the run-event sink hooks.
-func (db *DB) migrateQuotaEvents(ctx context.Context) error {
-	return db.WithTransaction(ctx, func(tx *Tx) error {
-		rows, err := tx.QueryContext(ctx, `SELECT id, run_id, timestamp, data FROM run_events WHERE `+legacyQuotaEventPredicate)
-		if err != nil {
-			return &domain.DatabaseError{Operation: "quota_event_migration_query", EntityType: "RunEvent", Cause: err}
-		}
-		now := time.Now().UTC()
-		var observations []*pricing.QuotaObservation
-		for rows.Next() {
-			var id, runID, data string
-			var at SQLiteTime
-			if err := rows.Scan(&id, &runID, &at, &data); err != nil {
-				rows.Close()
-				return &domain.DatabaseError{Operation: "quota_event_migration_scan", EntityType: "RunEvent", Cause: err}
-			}
-			eventID, idErr := uuid.Parse(id)
-			runUUID, runErr := uuid.Parse(runID)
-			payload := &domain.RateLimitEventData{}
-			if idErr != nil || runErr != nil || json.Unmarshal([]byte(data), payload) != nil {
-				continue
-			}
-			observation, err := pricing.ObservationFromEvent(&domain.RunEvent{ID: eventID, RunID: runUUID, EventType: domain.EventTypeQuota, Timestamp: at.Time(), Data: payload}, now)
-			if err == nil && observation != nil {
-				observations = append(observations, observation)
-			}
-		}
-		if err := rows.Err(); err != nil {
-			rows.Close()
-			return &domain.DatabaseError{Operation: "quota_event_migration_iterate", EntityType: "RunEvent", Cause: err}
-		}
-		rows.Close()
-		for _, o := range observations {
-			var reset any
-			if o.ResetAt != nil {
-				reset = SQLiteTime(o.ResetAt.UTC())
-			}
-			if _, err := tx.ExecContext(ctx, insertQuotaObservationSQL, o.ID, o.Provider, o.Pool, o.Window, SQLiteTime(o.ObservedAt.UTC()), o.Standing, o.Used, o.Limit, o.Remaining, o.UsedPercent, o.WindowMinutes, reset, o.SourceRunID, o.Freshness, o.Provenance, o.Uncertainty, o.EvidenceRef); err != nil {
-				return &domain.DatabaseError{Operation: "quota_observation_backfill", EntityType: "QuotaObservation", Cause: err}
-			}
-		}
-		result, err := tx.ExecContext(ctx, `UPDATE run_events SET event_type = 'quota' WHERE `+legacyQuotaEventPredicate)
-		if err != nil {
-			return &domain.DatabaseError{Operation: "quota_event_migration_update", EntityType: "RunEvent", Cause: err}
-		}
-		if moved, _ := result.RowsAffected(); moved > 0 && db.log != nil {
-			db.log.WithField("events", moved).WithField("observations", len(observations)).Info("Moved provider quota frames out of error events")
-		}
-		return nil
-	})
-}
 
 func (r *pricingRepository) ListQuotaObservations(ctx context.Context, provider, pool, window string, limit int) ([]pricing.QuotaObservation, error) {
 	if limit <= 0 {

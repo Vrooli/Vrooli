@@ -16,7 +16,6 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/runmodel"
 	"agent-manager/internal/runnerhealth"
-	"agent-manager/internal/stats"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageforecast"
 	"agent-manager/internal/workflowruntime"
@@ -58,7 +57,6 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(pricing.Schema),
 		database.SchemaProviderFunc(modelhealth.Schema),
 		database.SchemaProviderFunc(runnerhealth.Schema),
-		database.SchemaProviderFunc(stats.Schema),
 		database.SchemaProviderFunc(usageforecast.Schema),
 		database.SchemaProviderFunc(supervision.Schema),
 		database.SchemaProviderFunc(maintenance.Schema),

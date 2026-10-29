@@ -99,7 +99,7 @@ func TestDeclarationsPlanIsVerifiedAgentReadWithoutOpeningReconcileWrites(t *tes
 	}{
 		{
 			name: "verified agent may validate declarations",
-			path: "/api/v1/declarations/plan",
+			path: apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure,
 			principal: &identity.Principal{
 				Kind: identity.ActorAgent, Subject: "run-1", Verified: true,
 				Scopes: []string{"agent-manager:write"},
@@ -108,7 +108,7 @@ func TestDeclarationsPlanIsVerifiedAgentReadWithoutOpeningReconcileWrites(t *tes
 		},
 		{
 			name: "unverified agent remains refused",
-			path: "/api/v1/declarations/plan",
+			path: apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure,
 			principal: &identity.Principal{
 				Kind: identity.ActorAgent, Subject: "run-1", Scopes: []string{"agent-manager:write"},
 			},
@@ -116,12 +116,12 @@ func TestDeclarationsPlanIsVerifiedAgentReadWithoutOpeningReconcileWrites(t *tes
 		},
 		{
 			name:       "anonymous plan remains refused",
-			path:       "/api/v1/declarations/plan",
+			path:       apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure,
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name: "verified agent cannot reconcile declarations",
-			path: "/api/v1/declarations/reconcile-scenario",
+			path: apiconnect.AgentManagerServiceReconcileScenarioDeclarationsProcedure,
 			principal: &identity.Principal{
 				Kind: identity.ActorAgent, Subject: "run-1", Verified: true,
 				Scopes: []string{"agent-manager:write"},
@@ -154,20 +154,12 @@ func TestPolicyValidationAndPreviewReadsDoNotOpenMutationRoutes(t *testing.T) {
 		path       string
 		wantStatus int
 	}{
-		{name: "role policy explain REST", path: "/api/v1/role-policy/explain", wantStatus: http.StatusNoContent},
 		{name: "role policy explain Connect", path: apiconnect.AgentManagerServiceExplainRolePolicyProcedure, wantStatus: http.StatusNoContent},
-		{name: "role policy validate REST", path: "/api/v1/role-policy/validate", wantStatus: http.StatusNoContent},
 		{name: "role policy validate Connect", path: apiconnect.AgentManagerServiceValidateRolePolicyCatalogProcedure, wantStatus: http.StatusNoContent},
-		{name: "permission policy validate REST", path: "/api/v1/permission-policy/validate", wantStatus: http.StatusNoContent},
 		{name: "permission policy validate Connect", path: apiconnect.AgentManagerServiceValidatePermissionPolicyCatalogProcedure, wantStatus: http.StatusNoContent},
-		{name: "permission policy plan REST", path: "/api/v1/permission-policy/plan", wantStatus: http.StatusNoContent},
 		{name: "permission policy plan Connect", path: apiconnect.AgentManagerServicePlanPermissionPolicyProcedure, wantStatus: http.StatusNoContent},
-		{name: "permission policy doctor REST", path: "/api/v1/permission-policy/doctor", wantStatus: http.StatusNoContent},
 		{name: "permission policy doctor Connect", path: apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure, wantStatus: http.StatusNoContent},
-		{name: "role policy reload REST stays protected", path: "/api/v1/role-policy/reload", wantStatus: http.StatusForbidden},
 		{name: "role policy reload Connect stays protected", path: apiconnect.AgentManagerServiceReloadRolePolicyCatalogProcedure, wantStatus: http.StatusForbidden},
-		{name: "permission policy reload REST stays protected", path: "/api/v1/permission-policy/reload", wantStatus: http.StatusForbidden},
-		{name: "permission policy reconcile REST stays protected", path: "/api/v1/permission-policy/reconcile", wantStatus: http.StatusForbidden},
 		{name: "permission policy reconcile Connect stays protected", path: apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, wantStatus: http.StatusForbidden},
 		{name: "unknown route stays protected", path: "/api/v1/permission-policy/future", wantStatus: http.StatusForbidden},
 	} {
@@ -462,11 +454,11 @@ func TestEveryMeasuresProcedureIsAgentReadable(t *testing.T) {
 
 	// The read-only rule is scoped to the measures service: a mutating RPC in
 	// the main service keeps the management boundary.
-	req := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceDeleteRunProcedure, nil)
+	req := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServicePurgeDataProcedure, nil)
 	req = req.WithContext(identity.WithPrincipal(req.Context(), agent))
 	rec := httptest.NewRecorder()
 	AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
-		t.Fatalf("DeleteRun status=%d want 403", rec.Code)
+		t.Fatalf("PurgeData status=%d want 403", rec.Code)
 	}
 }

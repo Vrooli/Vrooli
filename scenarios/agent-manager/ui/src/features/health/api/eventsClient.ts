@@ -2,6 +2,8 @@
 //
 // API: scenarios/agent-manager/api/internal/handlers/events.go
 
+import { apiRequest } from "../../../hooks/useApiTransport";
+
 export interface TypedEventRow {
   id: string;
   run_id: string;
@@ -17,18 +19,9 @@ export interface TypedEventsResponse {
   limit: number;
 }
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, cache: "no-store" });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Events API error ${res.status}: ${body}`);
-  }
-  return (await res.json()) as T;
-}
-
 export async function fetchEventsForRun(runId: string, limit = 200): Promise<TypedEventsResponse> {
   const params = new URLSearchParams({ run: runId, limit: String(limit) });
-  return fetchJson<TypedEventsResponse>(`/api/v1/events?${params.toString()}`);
+  return apiRequest<TypedEventsResponse>(`/events?${params.toString()}`, { cache: "no-store" });
 }
 
 export const eventsQueryKeys = {

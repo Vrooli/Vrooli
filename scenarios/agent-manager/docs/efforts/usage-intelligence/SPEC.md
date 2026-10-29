@@ -217,3 +217,63 @@ compatibility layers, dual paths or dead code are findings.
   the token counters, it gets its own line and is never folded silently into text tokens. Where
   it is unknown, it stays unknown.
 
+
+## 10. Pass 2 (operator F-7, approved F-8, 2026-10-29)
+
+Proposal with live captures, mockups and the code audit: https://claude.ai/artifact/TWQD4VtTu5H6RQQokE48Yw
+(copy in `mockups/pass2/usage-pass-2.html`). The mockups bind like D5/AM-1: they define the changed
+components; the existing shell, tokens and RCL components stay. Numbers marked as placeholders in the
+mockups are layout only.
+
+### 10.1 Decisions (all approved as recommended, F-8)
+
+| ID | Decision |
+|---|---|
+| P2-D1 | Findings page is replaced by **Usage › Friction**: one list grouped by problem, in plain words, with owner, count, cost (time and points), "Report bug" (files to scenario-qa with evidence; row becomes Reported) and "Dismiss". `/findings` redirects to it. The generic-text finding generator and the unused review fields (operator decision, effectiveness) are deleted; the fingerprint is detail, not headline |
+| P2-D2 | Investigations leaves the main navigation; reached from a run's Investigate action and from Health. Status, diagnosis and coverage codes are shown as words. The back end stays |
+| P2-D3 | Fix the web-console test that writes fixture sessions into the real sessions folder (F-W2-1), skip test output in the indexer, and delete the imported fixture runs plus the fixture session folders under an operator deletion grant |
+| P2-D4 | Sub-agent runs fold under their parent in the Runs list ("▸ N sub-agents"); an origin filter (All, Agent Manager, Operator sessions, Workflows) can show them flat |
+| P2-D5 | Usage notifications: "runs out early" (on), new "back on track" (on; withdraws a stale warning), "may run out" (off), daily 8 AM digest (off). Every alert names the window, the date, and the #1 action with its saving, and opens /usage with that window selected. Agent Manager adopts app delivery (`appDelivery`, Settings › Notifications with RCL `AppNotificationSettings`, `initAppNotifications`) |
+| P2-D6 | Every token and quota total over a time window reads `transcript_usage` bucketed by request time; per-run lifetime counters remain only for per-run views. Windowed readers of the lifetime counters are deleted |
+| P2-D7 | Subscription work shows quota points; dollars only for per-token billed runs. "unknown 0.00 + subscription 0.00" is removed |
+| P2-D8 | Details defaults to Agent Manager runs. Tokens and quota count everything; success rate, throughput and run time count only runs Agent Manager executed. Filter: Agent Manager runs, Operator sessions, Everything. Orchestrator ruling (P2-W1): "Agent Manager runs" = `codec_pipe` (headless) runs; interactive sessions, including ones Agent Manager launched in a web console, are human-paced and count as operator sessions |
+| P2-D9 | No enforcement in this pass; design budgets/auto-compaction/quota-aware scheduling after A11 |
+| P2-D10 | Details keeps the summary tiles and the model and profile tables; the panels that repeat "Where it went" (runner, tool, capability, cost distribution, run classes) are deleted; fallback insights become a Health item; the time window lives in the URL |
+| P2-D11 | REST/RPC twins are consolidated in this pass after a fleet-wide consumer search: AM's CLI and UI move to RPC, every REST twin without an outside caller is deleted; twins with outside callers are listed and kept |
+| P2-D12 | Naming: subscriptions by plan ("Claude · weekly", "Codex · 5-hour"), runners by tool ("Claude Code", "Codex", "OpenCode"); quota always "pts" (1 pt = 1% of a window); "requests" (not turns) everywhere, including the proto field `UsageBurner.turns` → `requests` |
+| P2-D13 | Runner health checks (probe) live on the Health page only; the dashboard shows a one-line health summary linking there |
+
+### 10.2 Pass-2 behaviour targets
+
+- **Forecast states.** A window with no reading newer than 6 h and no running work that could spend it
+  is **idle** ("idle, lasts at this pace") — never "unknown". "Unknown" stays for windows where
+  unmetered use cannot be ruled out. A reading whose reset time is already in the past at observation
+  time is rejected at ingest.
+- **Grouped recommendations.** Recommendations for one target are returned as one group with its
+  levers; the group's saving is computed by the server without double counting overlapping levers
+  (each lever's saving is applied to what remains after the larger ones). Each group carries used-so-far
+  points, the projected points this week and the share of the window's burn. Recommendations with
+  near-zero saving are folded.
+- **Focus.** `/usage?window=<provider>/<pool>/<window>` selects that window. A will-exhaust window shows
+  the focus band: used, burn now, affordable burn, cut needed, the saving of the shown actions and the
+  honest consequence (new projected date; whether that reaches the reset).
+- **Friction rows** carry a one-line plain description derived from the fingerprint's evidence (command,
+  exit/fallback pattern, typical duration) and an owner.
+- **"Where it went"** folds rows under 0.1 pts and never shows a raw UUID as the label.
+- **Details** shows units (B/M/K), median and p90 run time with a correct sample size, and section-level
+  error/retry states with deadlines.
+
+### 10.3 Pass-2 acceptance
+
+| ID | Criterion | Proof |
+|---|---|---|
+| P2-A1 | Details tokens for 7d equal `SUM(transcript_usage)` for the same window within 1%; run-time sample size is non-zero when runs finished; throughput, success and run time count only AM-executed runs; no windowed measure reads lifetime counters | measures tests + live CLI/Measures output vs a read-only SQL sum |
+| P2-A2 | 0 fixture runs remain; the web-console test writes only to a temp dir; the indexer skips test output | SQL count, test, grant id |
+| P2-A3 | Alerts: four usage categories declared; will-exhaust body names the #1 action; back-on-track sent once when a notified window turns on_track/idle/reset; app delivery on with a Notifications settings tab; stale-reset readings rejected; idle state live | unit tests + live notification record and receipts + browser capture; on-phone pairing is the operator's check |
+| P2-A4 | Grouped recommendations with non-double-counted savings, used-so-far vs projected, folded small items; friction descriptions and owners | unit tests + live `usage recommendations` |
+| P2-A5 | Friction tab replaces Findings; Report bug files to scenario-qa; finding generator and review fields deleted | tests + live capture + bug id |
+| P2-A6 | Pages match the mockups: Usage Overview focus, Friction, Details, Dashboard, Runs (filters, folding), Investigations/Health placement, run detail split, naming rule P2-D12 | headless Chrome 1440×900 and 390×844 captures; no horizontal overflow; phone targets ≥ 44 px |
+| P2-A7 | DEBT pass-2 rows closed or kept with reason; net non-test LOC falls in API, CLI and UI vs the pass-2 baseline; 0 eslint errors in `ui/src`; type-check and touched Go/CLI/UI tests pass | DEBT.md table + command output |
+| P2-A8 | REST/RPC consolidation recorded with the consumer search and the kept list | search output + endpoints.json diff |
+| P2-A9 | Scoped Test Genie phases pass for changed docs/business/unit areas, or failures are shown pre-existing | `vrooli scenario test agent-manager --phases …` |
+| P2-A10 | Two consecutive fresh hostile review passes over the pass-2 changes find nothing material | review outputs |

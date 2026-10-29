@@ -43,24 +43,6 @@ body {
   font-feature-settings: "salt" on, "liga" on;
 }
 
-@supports (backdrop-filter: blur(12px)) {
-  .glass {
-    backdrop-filter: blur(12px);
-    background-color: rgba(15, 23, 42, 0.55);
-  }
-}
-
-.fade-enter {
-  opacity: 0;
-  transform: translateY(4px);
-}
-
-.fade-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -98,10 +80,6 @@ tr.diff-remove td {
 }
 tr.diff-remove td:last-child {
   border-left: 3px solid hsl(var(--destructive));
-}
-
-.diff-context {
-  opacity: 0.6;
 }
 
 /* Dialog animations */

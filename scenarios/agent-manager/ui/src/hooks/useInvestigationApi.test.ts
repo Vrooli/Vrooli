@@ -1,29 +1,14 @@
 import assert from "node:assert/strict";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, test, vi } from "vitest";
-import { useInvestigationSettings, useRecurringFindings, useRunReport, useWorkflowExecutions } from "./useApi.js";
+import { useInvestigationSettings, useRunReport, useWorkflowExecutions } from "./useApi.js";
+import { rpcBody, rpcCalls, rpcMethod } from "../test-utils/rpc.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 }
-
-test("recurring findings load in priority order and retain an API failure", async () => {
-  const fetch = vi.fn()
-    .mockResolvedValueOnce(json({ findings: [
-      { id: "older", occurrences: 2, createdAt: "2026-07-01T00:00:00Z" },
-      { id: "frequent", occurrences: 4, createdAt: "2026-06-01T00:00:00Z" },
-      { id: "newer", occurrences: 2, createdAt: "2026-07-02T00:00:00Z" },
-    ] }))
-    .mockResolvedValueOnce(json({ error: "findings down" }, 503));
-  vi.stubGlobal("fetch", fetch);
-  const findings = renderHook(() => useRecurringFindings());
-  await waitFor(() => assert.deepEqual(findings.result.current.data?.map((finding) => finding.id), ["frequent", "newer", "older"]));
-  assert.equal(fetch.mock.calls[0]?.[0], "http://localhost:3000/api/v1/findings");
-  await act(async () => { await findings.result.current.refetch(); });
-  assert.equal(findings.result.current.error, "Request failed: 503");
-});
 
 test("investigation settings load, update, reset, and surface write errors", async () => {
   const settings = { promptTemplate: "initial", defaultDepth: "standard" };
@@ -42,7 +27,7 @@ test("investigation settings load, update, reset, and surface write errors", asy
     assert.equal(reset.promptTemplate, "default");
     await assert.rejects(hook.result.current.updateSettings({ promptTemplate: "blocked" }), /Request failed: 403/);
   });
-  assert.equal(hook.result.current.error, "Request failed: 403");
+  await waitFor(() => assert.equal(hook.result.current.error, "Request failed: 403"));
   assert.equal(fetch.mock.calls[1]?.[0], "http://localhost:3000/api/v1/investigation-settings");
   assert.equal(fetch.mock.calls[1]?.[1]?.method, "PUT");
   assert.equal(fetch.mock.calls[2]?.[0], "http://localhost:3000/api/v1/investigation-settings/reset");
@@ -55,16 +40,17 @@ test("workflow execution list uses the shared versioned API base exactly once", 
   const workflows = renderHook(() => useWorkflowExecutions());
   await waitFor(() => assert.equal(fetch.mock.calls.length, 1));
   assert.deepEqual(workflows.result.current.data, []);
-  assert.equal(fetch.mock.calls[0]?.[0], "http://localhost:3000/api/v1/workflow-executions?limit=100");
+  assert.equal(fetch.mock.calls[0]?.[0], "http://localhost:3000/agent_manager.v1.AgentManagerService/ListWorkflowExecutions");
+  assert.equal(rpcBody(fetch.mock.calls[0] as unknown as unknown[]).limit, 100);
 });
 
 test("workflow lifecycle events recover a failed projection and stop refreshing after unmount", async () => {
   const fetch = vi.fn()
-    .mockResolvedValueOnce(json({ error: "workflow projection unavailable" }, 503))
+    .mockResolvedValueOnce(json({ code: "unavailable", message: "workflow projection unavailable" }, 503))
     .mockResolvedValueOnce(json({ executions: [] }));
   vi.stubGlobal("fetch", fetch);
   const workflows = renderHook(() => useWorkflowExecutions());
-  await waitFor(() => assert.equal(workflows.result.current.error, "Request failed: 503"));
+  await waitFor(() => assert.equal(workflows.result.current.error, "[unavailable] workflow projection unavailable"));
 
   await act(async () => {
     window.dispatchEvent(new Event("agent-manager:workflow-lifecycle"));
@@ -99,18 +85,18 @@ test("workflow execution inspection, control, and signal paths encode ids and re
     await workflows.result.current.control(execution, "retry");
     await workflows.result.current.signal(execution, "approve", { approved: true });
   });
-  assert.equal(fetch.mock.calls[1]?.[0], "http://localhost:3000/api/v1/workflow-executions/execution%2Fa/trace?limit=500");
-  assert.equal(fetch.mock.calls[2]?.[0], "http://localhost:3000/api/v1/workflow-executions/execution%2Fa/retry");
-  assert.equal(fetch.mock.calls[2]?.[1]?.method, "POST");
-  assert.match(String(fetch.mock.calls[2]?.[1]?.body), /ui-retry-execution\/a-7/);
-  assert.equal(fetch.mock.calls[4]?.[0], "http://localhost:3000/api/v1/workflow-executions/execution%2Fa/signals");
-  assert.match(String(fetch.mock.calls[4]?.[1]?.body), /"signal":"approve"/);
-  assert.match(String(fetch.mock.calls[4]?.[1]?.body), /"bool_value":true/);
+  const calls = fetch.mock.calls as unknown as unknown[][];
+  assert.deepEqual(calls.map(rpcMethod), ["ListWorkflowExecutions", "GetWorkflowExecutionTrace", "RetryWorkflowExecution", "ListWorkflowExecutions", "SignalWorkflowExecution", "ListWorkflowExecutions"]);
+  assert.deepEqual(rpcBody(calls[1]!), { executionId: "execution/a", limit: 500 });
+  assert.equal(rpcBody(calls[2]!).idempotencyKey, "ui-retry-execution/a-7");
+  const signal = JSON.stringify(rpcBody(calls[4]!));
+  assert.match(signal, /"signal":"approve"/);
+  assert.match(signal, /"bool_value":true/);
 });
 
 test("workflow signals preserve nested JSON values and canonicalize pre-encoded protobuf values", async () => {
   const fetch = vi.fn(async (url: string) => {
-    if (url.includes("workflow-executions?")) return json({ executions: [] });
+    if (url.endsWith("/ListWorkflowExecutions")) return json({ executions: [] });
     return json({});
   });
   vi.stubGlobal("fetch", fetch);
@@ -136,11 +122,11 @@ test("workflow signals preserve nested JSON values and canonicalize pre-encoded 
     );
   });
 
-  const body = String(fetch.mock.calls.find(([url]) => String(url).endsWith("/signals"))?.[1]?.body);
+  const body = JSON.stringify(rpcBody(rpcCalls(fetch.mock.calls as unknown as unknown[][], "SignalWorkflowExecution")[0]!));
   for (const expected of [
     '"bool_value":true', '"int_value":4', '"double_value":1.5', '"string_value":"ready"',
     '"null_value":"NULL_VALUE"', '"list_value"', '"object_value"', '"source":{"string_value":"receipt"}',
-    '"answer":{"int_value":42}', '"expected_version":"2"',
+    '"answer":{"int_value":42}', '"expectedVersion":"2"',
     '"preEncodedList":{"list_value":{"values":[{"string_value":"already-encoded"}]}}',
     '"preEncodedNull":{"null_value":"NULL_VALUE"}',
   ]) {
@@ -157,7 +143,7 @@ test("run report hook fetches the unified report by encoded run id and preserves
   await waitFor(() => assert.equal(report.result.current.data?.run_id, "run/a"));
   assert.equal(fetch.mock.calls[0]?.[0], "http://localhost:3000/api/v1/runs/run%2Fa/report");
   await act(async () => { await report.result.current.refetch(); });
-  assert.equal(report.result.current.error, "Request failed: 503");
+  await waitFor(() => assert.equal(report.result.current.error, "Request failed: 503"));
   const empty = renderHook(() => useRunReport(""));
   await act(async () => {});
   assert.equal(empty.result.current.loading, false);

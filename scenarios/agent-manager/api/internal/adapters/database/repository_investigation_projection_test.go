@@ -214,7 +214,7 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 	seed("run-a", "complete", "profile-a", 0, 1.5, 10)
 	seed("run-b", "failed", "profile-b", time.Minute, 0.5, 20)
 	metrics, err := repo.RunMetrics(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))})
-	if err != nil || metrics.TotalRuns != 2 || metrics.TerminalRuns != 2 || metrics.SuccessfulRuns != 1 || metrics.SuccessRate != 0.5 || metrics.AverageDurationMS != 120000 || metrics.TotalCostUSD != 2 || metrics.TotalTokens != 30 || metrics.InputTokens != 15 || metrics.OutputTokens != 7 || metrics.CacheReadTokens != 3 || metrics.CacheCreationTokens != 3 || metrics.InputCostUSD != 1 || metrics.OutputCostUSD != 0.5 || metrics.CacheReadCostUSD != 0.25 || metrics.CacheCreationCostUSD != 0.25 || metrics.ReadCalls != 3 || metrics.FileRereads != 1 || metrics.FileRereadRate != 1.0/3.0 {
+	if err != nil || metrics.TotalRuns != 2 || metrics.TerminalRuns != 2 || metrics.SuccessfulRuns != 1 || metrics.SuccessRate != 0.5 || metrics.AverageDurationMS != 120000 || metrics.ReadCalls != 3 || metrics.FileRereads != 1 || metrics.FileRereadRate != 1.0/3.0 {
 		t.Fatalf("metrics=%+v err=%v", metrics, err)
 	}
 	durationStats, err := repo.RunDurationStatistics(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))})
@@ -226,11 +226,11 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 		t.Fatalf("status rows=%+v err=%v", statusRows, err)
 	}
 	runnerRows, err := repo.RunBreakdown(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))}, "runner", 10)
-	if err != nil || len(runnerRows) != 1 || runnerRows[0].Key != "codex" || runnerRows[0].Value != "codex" || runnerRows[0].RunCount != 2 || runnerRows[0].SuccessCount != 1 || runnerRows[0].FailedCount != 1 || runnerRows[0].TotalCostUSD != 2 || runnerRows[0].TotalTokens != 30 || runnerRows[0].InputTokens != 15 || runnerRows[0].OutputTokens != 7 || runnerRows[0].CacheReadTokens != 3 || runnerRows[0].CacheCreationTokens != 3 {
+	if err != nil || len(runnerRows) != 1 || runnerRows[0].Key != "codex" || runnerRows[0].Value != "codex" || runnerRows[0].RunCount != 2 || runnerRows[0].SuccessCount != 1 || runnerRows[0].FailedCount != 1 {
 		t.Fatalf("runner rows=%+v err=%v", runnerRows, err)
 	}
 	trendRows, err := repo.RunTimeSeries(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))}, time.Hour)
-	if err != nil || len(trendRows) != 1 || !trendRows[0].Bucket.Equal(now) || trendRows[0].TerminalRuns != 2 || trendRows[0].CompletedRuns != 1 || trendRows[0].FailedRuns != 1 || trendRows[0].CancelledRuns != 0 || trendRows[0].TotalCostUSD != 2 || trendRows[0].AvgDurationMS != 120000 {
+	if err != nil || len(trendRows) != 1 || !trendRows[0].Bucket.Equal(now) || trendRows[0].TerminalRuns != 2 || trendRows[0].CompletedRuns != 1 || trendRows[0].FailedRuns != 1 || trendRows[0].CancelledRuns != 0 || trendRows[0].AvgDurationMS != 120000 {
 		t.Fatalf("trend rows=%+v err=%v", trendRows, err)
 	}
 	toolRows, err := repo.ToolUsage(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))}, 10)
@@ -242,15 +242,15 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 		t.Fatalf("error rows=%+v err=%v", errorRows, err)
 	}
 	filtered, err := repo.RunMetrics(ctx, invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour)), Ownership: "external"})
-	if err != nil || filtered.TotalRuns != 1 || filtered.TotalCostUSD != 1.5 || filtered.SuccessfulRuns != 1 {
+	if err != nil || filtered.TotalRuns != 1 || filtered.SuccessfulRuns != 1 {
 		t.Fatalf("ownership-filtered metrics=%+v err=%v", filtered, err)
 	}
 	empty, err := repo.RunMetrics(ctx, invocationreadmodel.Filter{From: ptrTime(now.Add(2 * time.Hour)), To: ptrTime(now.Add(3 * time.Hour))})
-	if err != nil || empty.TotalRuns != 0 || empty.AverageDurationMS != 0 || empty.TotalCostUSD != 0 {
+	if err != nil || empty.TotalRuns != 0 || empty.AverageDurationMS != 0 {
 		t.Fatalf("empty metrics=%+v err=%v", empty, err)
 	}
 	for _, row := range []struct{ runID, fingerprint string }{{"run-a", "repeat"}, {"run-b", "repeat"}, {"run-b", "unique"}} {
-		if _, err := db.ExecContext(ctx, `INSERT INTO run_findings (id,run_id,investigation_run_id,category,severity,recommendation_text,evidence,target_path,fingerprint,operator_decision,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, uuid.New().String(), row.runID, row.runID, "efficiency", "warning", "fixture", "", "", row.fingerprint, "", SQLiteTime(now.Add(5*time.Minute))); err != nil {
+		if _, err := db.ExecContext(ctx, `INSERT INTO run_findings (id,run_id,investigation_run_id,category,severity,recommendation_text,evidence,target_path,fingerprint,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, uuid.New().String(), row.runID, row.runID, "efficiency", "warning", "fixture", "", "", row.fingerprint, SQLiteTime(now.Add(5*time.Minute))); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -264,117 +264,7 @@ func TestInvocationReadModelRunMetricsUseDurableTerminalFactsAndSharedFilters(t 
 	}
 }
 
-func TestInvocationReadModelRunClassAndMissingModelBreakdownsUseDirectProjection(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	repo := &invocationReadModelRepository{db: db}
-	now := time.Date(2026, 7, 29, 20, 0, 0, 0, time.UTC)
-	for _, item := range []struct{ id, class, model string }{{"executed", "", "gpt-test"}, {"imported", "imported", ""}, {"interactive", "interactive", ""}} {
-		if err := repo.ReplaceRun(context.Background(), invocationreadmodel.RunFact{RunID: item.id, OccurredAt: now, CreatedAt: now, Status: "complete", RunnerType: "codex", Model: item.model, WorkloadKind: item.class, TotalTokens: 1, ProjectedAt: now}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	classes, err := repo.RunBreakdown(context.Background(), invocationreadmodel.Filter{}, "workload_kind", 10)
-	if err != nil || len(classes) != 3 {
-		t.Fatalf("classes=%+v err=%v", classes, err)
-	}
-	seen := map[string]int64{}
-	for _, row := range classes {
-		seen[row.Value] = row.RunCount
-	}
-	if seen[""] != 1 || seen["imported"] != 1 || seen["interactive"] != 1 {
-		t.Fatalf("class counts=%v", seen)
-	}
-	executed, err := repo.RunBreakdown(context.Background(), invocationreadmodel.Filter{ExcludedWorkloadKinds: []string{"imported", "interactive"}}, "model", 10)
-	if err != nil || len(executed) != 1 {
-		t.Fatalf("executed model rows=%+v err=%v", executed, err)
-	}
-	var missing int64
-	for _, row := range executed {
-		if row.Value == "" {
-			missing += row.RunCount
-		}
-	}
-	if missing != 0 {
-		t.Fatalf("imported/interactive rows leaked into executed missing-model denominator: %d", missing)
-	}
-}
-
 func ptrTime(value time.Time) *time.Time { return &value }
-
-func TestLegacyInvestigationProjectionMigrationCopiesThenDropsRetiredTables(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-	now := time.Now().UTC()
-	if _, err := db.ExecContext(ctx, `CREATE TABLE investigation_invocation_facts (run_id TEXT NOT NULL, call_event_id TEXT NOT NULL, result_event_id TEXT, tool_call_id TEXT, tool_name TEXT NOT NULL, executable TEXT, command_path TEXT, ownership TEXT NOT NULL, catalog_snapshot TEXT, outcome TEXT NOT NULL, retry_of_call_event_id TEXT, help_recovery INTEGER NOT NULL DEFAULT 0, fingerprint TEXT NOT NULL, availability TEXT NOT NULL, classifier_version TEXT NOT NULL, PRIMARY KEY (run_id,call_event_id))`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `CREATE TABLE investigation_friction_episodes (run_id TEXT NOT NULL, episode_id TEXT NOT NULL, classifier_version TEXT NOT NULL, pattern TEXT NOT NULL, cause_scope TEXT NOT NULL, severity TEXT NOT NULL, honesty_flags TEXT NOT NULL DEFAULT '[]', start_event_id TEXT NOT NULL, end_event_id TEXT NOT NULL, evidence_event_ids TEXT NOT NULL DEFAULT '[]', turns INTEGER NOT NULL, tokens INTEGER NOT NULL, wall_clock_ms INTEGER NOT NULL, suspected_owner_scenario TEXT NOT NULL DEFAULT '', suspected_owner_command TEXT NOT NULL DEFAULT '', owner_confidence TEXT NOT NULL, failed_joined_calls INTEGER NOT NULL DEFAULT 0, fingerprint TEXT NOT NULL, PRIMARY KEY(run_id,episode_id))`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `CREATE TABLE investigation_self_report_spans (run_id TEXT NOT NULL, event_id TEXT NOT NULL, rule_id TEXT NOT NULL, classifier_version TEXT NOT NULL, cause_scope TEXT NOT NULL, start_offset INTEGER NOT NULL, end_offset INTEGER NOT NULL, text TEXT NOT NULL, PRIMARY KEY(run_id,event_id,rule_id,start_offset))`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO tasks (id,title,scope_path) VALUES ('task-1','task','scope')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO runs (id,task_id,status,ended_at,tag,actual_model,resolved_config) VALUES ('run-legacy','task-1','complete',?,'legacy-tag','legacy-model','{"runnerType":"codex"}')`, SQLiteTime(now)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_invocation_facts (run_id,call_event_id,tool_name,ownership,outcome,fingerprint,availability,classifier_version) VALUES ('run-legacy','pruned-call','shell','external','success','fp','available','invocation-fact.legacy')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_friction_episodes (run_id,episode_id,classifier_version,pattern,cause_scope,severity,honesty_flags,start_event_id,end_event_id,evidence_event_ids,turns,tokens,wall_clock_ms,owner_confidence,fingerprint) VALUES ('run-legacy','episode-1','friction-episode.v2','stall','run-execution','medium','[]','pruned-call','pruned-call','["pruned-call"]',1,0,0,'heuristic','episode-fp')`); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_self_report_spans (run_id,event_id,rule_id,classifier_version,cause_scope,start_offset,end_offset,text) VALUES ('run-legacy','pruned-call','blocked','self-report.v1','run-execution',0,7,'blocked')`); err != nil {
-		t.Fatal(err)
-	}
-	retainedAt := now.Add(-time.Minute)
-	if _, err := db.ExecContext(ctx, `INSERT INTO runs (id,task_id,status,ended_at,tag,actual_model,resolved_config) VALUES ('run-retained','task-1','complete',?,'retained-tag','retained-model','{"runnerType":"codex"}')`, SQLiteTime(now)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO run_events (id,run_id,sequence,event_type,timestamp,schema_version,data) VALUES ('retained-call','run-retained',0,'tool_call',?,1,'{}')`, SQLiteTime(retainedAt)); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO investigation_invocation_facts (run_id,call_event_id,tool_name,ownership,outcome,fingerprint,availability,classifier_version) VALUES ('run-retained','retained-call','shell','project','success','retained-fp','available','invocation-fact.retained')`); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.consolidateLegacyInvestigationProjections(ctx); err != nil {
-		t.Fatal(err)
-	}
-	repo := &invocationReadModelRepository{db: db}
-	facts, err := repo.Facts(ctx, "run-legacy")
-	if err != nil || len(facts) != 1 {
-		t.Fatalf("facts=%+v err=%v", facts, err)
-	}
-	if facts[0].Version != "invocation-fact.legacy" || facts[0].TimeBasis != "legacy_run_time" || facts[0].Model != "legacy-model" || facts[0].RunnerType != "codex" {
-		t.Fatalf("migrated fact=%+v", facts[0])
-	}
-	episodes, err := repo.EpisodesForRun(ctx, "run-legacy")
-	if err != nil || len(episodes) != 1 || episodes[0].EpisodeID != "episode-1" {
-		t.Fatalf("migrated episodes=%+v err=%v", episodes, err)
-	}
-	spans, err := repo.SelfReportSpansForRun(ctx, "run-legacy")
-	if err != nil || len(spans) != 1 || spans[0].RuleID != "blocked" {
-		t.Fatalf("migrated spans=%+v err=%v", spans, err)
-	}
-	watermark, err := repo.Watermark(ctx, "run-legacy")
-	if err != nil || watermark == nil || watermark.EpisodeClassifierVersion != "friction-episode.v2" || watermark.SelfReportClassifierVersion != "self-report.v1" {
-		t.Fatalf("migrated watermark=%+v err=%v", watermark, err)
-	}
-	retained, err := repo.Facts(ctx, "run-retained")
-	if err != nil || len(retained) != 1 || retained[0].TimeBasis != "call_event" || !retained[0].OccurredAt.Equal(retainedAt) || retained[0].Version != "invocation-fact.retained" {
-		t.Fatalf("retained migrated fact=%+v err=%v", retained, err)
-	}
-	for _, table := range []string{"investigation_invocation_facts", "investigation_friction_episodes", "investigation_self_report_spans"} {
-		var count int
-		if err := db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?`, table); err != nil || count != 0 {
-			t.Fatalf("retired table %s remains: count=%d err=%v", table, count, err)
-		}
-	}
-}
 
 func TestInvocationReadModelCohortAndMetricsShareFilter(t *testing.T) {
 	db, cleanup := setupTestDB(t)

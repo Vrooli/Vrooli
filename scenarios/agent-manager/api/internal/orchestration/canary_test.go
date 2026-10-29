@@ -20,14 +20,3 @@ func TestSelectCanaryArmIsReproducibleAndHonorsBounds(t *testing.T) {
 		t.Fatalf("one rate = %q", got)
 	}
 }
-
-func TestCompareCanaryRefusesSmallSampleAndPrintsPromotionEdit(t *testing.T) {
-	small := CompareCanary("code.default", "old", "new", CanaryArmMetrics{Count: 2}, CanaryArmMetrics{Count: 2})
-	if small.Confidence != "insufficient_sample" || small.Recommendation != "" {
-		t.Fatalf("small comparison = %+v", small)
-	}
-	large := CompareCanary("code.default", "old", "new", CanaryArmMetrics{Count: 30, SuccessRate: .8, MedianMS: 100, CostPerRun: 2}, CanaryArmMetrics{Count: 30, SuccessRate: .9, MedianMS: 90, CostPerRun: 1})
-	if large.Recommendation != "promote challenger" || large.PromotionEdit == "" {
-		t.Fatalf("large comparison = %+v", large)
-	}
-}

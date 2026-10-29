@@ -194,14 +194,19 @@ func (a *App) runStats(args []string) error {
 	tagPrefix := fs.String("tag-prefix", "", "Run tag prefix")
 	runner := fs.String("runner", "", "Runner type")
 	model := fs.String("model", "", "Model")
+	scope := fs.String("scope", "", "Run origin: agent_manager (default for run statistics), operator_sessions or all")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	runScope, err := parseRunScope(*scope)
+	if err != nil {
 		return err
 	}
 	window, err := runStatsWindow(*since, *until, time.Now().UTC())
 	if err != nil {
 		return err
 	}
-	filter := &measurepb.InvocationFilter{ProfileId: *profile, TagPrefix: *tagPrefix, RunnerType: *runner, Model: *model}
+	filter := &measurepb.InvocationFilter{ProfileId: *profile, TagPrefix: *tagPrefix, RunnerType: *runner, Model: *model, Scope: runScope}
 	report, err := a.services.Runs.Stats(filter, window)
 	if err != nil {
 		return err
@@ -217,6 +222,20 @@ func (a *App) runStats(args []string) error {
 	printRunStats(report, window.GetCustom().GetFrom().AsTime(), window.GetCustom().GetTo().AsTime())
 	support.NextSteps("agent-manager run stats --json", "agent-manager measures cohort-report --cohort <name>", "agent-manager run report <run-id>")
 	return nil
+}
+
+func parseRunScope(value string) (measurepb.RunScope, error) {
+	switch value {
+	case "":
+		return measurepb.RunScope_RUN_SCOPE_UNSPECIFIED, nil
+	case "agent_manager":
+		return measurepb.RunScope_RUN_SCOPE_AGENT_MANAGER, nil
+	case "operator_sessions":
+		return measurepb.RunScope_RUN_SCOPE_OPERATOR_SESSIONS, nil
+	case "all":
+		return measurepb.RunScope_RUN_SCOPE_ALL, nil
+	}
+	return 0, fmt.Errorf("--scope must be agent_manager, operator_sessions or all")
 }
 
 // runStatsWindow resolves the CLI bounds to one explicit [from, to) range.
@@ -254,10 +273,10 @@ func printRunStats(report *RunStatsReport, from, to time.Time) {
 	fmt.Printf("Runs: total=%d %s\n", total, strings.Join(statuses, " "))
 	fmt.Printf("Success: rate=%.3f (%d/%d terminal)\n", report.Success.GetRate(), report.Success.GetSuccessfulRuns(), report.Success.GetTerminalRuns())
 	d := report.Duration
-	fmt.Printf("Duration: n=%d avg=%s p50=%s p95=%s p99=%s min=%s max=%s\n", d.GetCount(), formatMS(d.GetAverageDurationMs()), formatMS(d.GetP50DurationMs()), formatMS(d.GetP95DurationMs()), formatMS(d.GetP99DurationMs()), formatMS(float64(d.GetMinDurationMs())), formatMS(float64(d.GetMaxDurationMs())))
+	fmt.Printf("Duration: n=%d avg=%s p50=%s p90=%s p95=%s p99=%s min=%s max=%s\n", d.GetCount(), formatMS(d.GetAverageDurationMs()), formatMS(d.GetP50DurationMs()), formatMS(d.GetP90DurationMs()), formatMS(d.GetP95DurationMs()), formatMS(d.GetP99DurationMs()), formatMS(float64(d.GetMinDurationMs())), formatMS(float64(d.GetMaxDurationMs())))
 	c := report.Cost
-	fmt.Printf("Cost: total=$%.4f avg=$%.4f runs=%d\n", c.GetTotalCostUsd(), c.GetAverageCostUsd(), c.GetTotalRuns())
-	fmt.Printf("Tokens: total=%d input=%d output=%d cache_read=%d cache_creation=%d unpriced=%d\n", c.GetTotalTokens(), c.GetInputTokens(), c.GetOutputTokens(), c.GetCacheReadTokens(), c.GetCacheCreationTokens(), c.GetUnpricedTokenCount())
+	fmt.Printf("Cost: per-token billed $%.4f; subscription work is quota points, see agent-manager usage\n", c.GetTotalCostUsd())
+	fmt.Printf("Tokens: total=%d input=%d output=%d cache_read=%d cache_creation=%d requests=%d runs=%d\n", c.GetTotalTokens(), c.GetInputTokens(), c.GetOutputTokens(), c.GetCacheReadTokens(), c.GetCacheCreationTokens(), c.GetRequests(), c.GetTotalRuns())
 	printBreakdown("Runners", report.Runners.GetRows())
 	printBreakdown("Profiles", report.Profiles.GetRows())
 	printBreakdown("Models", report.Models.GetRows())

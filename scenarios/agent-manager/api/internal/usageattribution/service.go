@@ -2,7 +2,10 @@ package usageattribution
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -16,6 +19,9 @@ type Service struct {
 	Store    Store
 	Readings pricing.QuotaReadingSource
 	Pricer   *PriceBook
+	// Statuses and Bugs are set where friction problems are acted on.
+	Statuses StatusStore
+	Bugs     BugFiler
 }
 
 // Attribution is the current windows' results and the runs they name.
@@ -79,25 +85,38 @@ func (s Service) attribute(ctx context.Context, windows []Window, since, now tim
 	return out, err
 }
 
-// Recommendations evaluates the rules over the current windows.
-func (s Service) Recommendations(ctx context.Context, provider string, now time.Time) (Report, Attribution, error) {
+// StatusStore keeps what the operator did with friction problems.
+type StatusStore interface {
+	FrictionStatuses(ctx context.Context) (map[string]ProblemStatus, error)
+	SetFrictionStatus(ctx context.Context, status ProblemStatus) error
+}
+
+// BugFiler files a friction problem with its evidence in the scenario-qa bug
+// inbox and returns the bug id.
+type BugFiler interface {
+	FileFrictionBug(ctx context.Context, problem Problem) (string, error)
+}
+
+// inputs gathers what the rules read: the current windows' attribution, the
+// friction episodes since the earliest priced window, and the run outcomes.
+func (s Service) inputs(ctx context.Context, provider string, now time.Time, only WindowKey) (Inputs, Attribution, error) {
 	attribution, err := s.Current(ctx, provider, time.Time{}, now)
 	if err != nil || len(attribution.Results) == 0 {
-		return Report{Rules: emptyRules()}, attribution, err
+		return Inputs{}, attribution, err
 	}
 	from := now
-	for _, result := range primaryResults(attribution.Results) {
+	for _, result := range selectResults(attribution.Results, only) {
 		if result.From.Before(from) {
 			from = result.From
 		}
 	}
 	episodes, err := s.Store.UsageEpisodes(ctx, from, now)
 	if err != nil {
-		return Report{}, attribution, err
+		return Inputs{}, attribution, err
 	}
 	outcomes, err := s.Store.UsageOutcomes(ctx, now.Add(-Lookback), now)
 	if err != nil {
-		return Report{}, attribution, err
+		return Inputs{}, attribution, err
 	}
 	// Runs named only by episodes still need their runner for pricing.
 	missing := map[string]bool{}
@@ -109,14 +128,142 @@ func (s Service) Recommendations(ctx context.Context, provider string, now time.
 	if len(missing) > 0 {
 		extra, err := s.Store.UsageRuns(ctx, keys(missing))
 		if err != nil {
-			return Report{}, attribution, err
+			return Inputs{}, attribution, err
 		}
 		for id, run := range extra {
 			attribution.Runs[id] = run
 		}
 	}
-	report := Recommend(Inputs{Results: attribution.Results, Runs: attribution.Runs, Episodes: episodes, Outcomes: outcomes, Prices: s.Pricer.prices(ctx, nil, outcomes)})
-	return report, attribution, nil
+	in := Inputs{Results: attribution.Results, Runs: attribution.Runs, Episodes: episodes, Outcomes: outcomes, Prices: s.Pricer.prices(ctx, nil, outcomes), Only: only, Now: now}
+	if s.Statuses != nil {
+		statuses, err := s.Statuses.FrictionStatuses(ctx)
+		if err != nil {
+			return Inputs{}, attribution, err
+		}
+		in.Dismissed = map[string]bool{}
+		for fingerprint, status := range statuses {
+			in.Dismissed[fingerprint] = status.Status == StatusDismissed
+		}
+	}
+	return in, attribution, nil
+}
+
+// Recommendations evaluates the rules over the current windows: each
+// provider's longest window, or only the window named by only.
+func (s Service) Recommendations(ctx context.Context, provider string, only WindowKey, now time.Time) (Report, Attribution, error) {
+	in, attribution, err := s.inputs(ctx, provider, now, only)
+	if err != nil || len(attribution.Results) == 0 {
+		return Report{Rules: emptyRules()}, attribution, err
+	}
+	return Recommend(in), attribution, nil
+}
+
+// TopPlan is the largest plan of levers for one window, evaluated for that
+// window alone: the action an alert for the window names.
+func (s Service) TopPlan(ctx context.Context, key WindowKey, now time.Time) (Plan, bool, error) {
+	report, _, err := s.Recommendations(ctx, key.Provider, key, now)
+	if err != nil {
+		return Plan{}, false, err
+	}
+	plan, ok := report.Top(key)
+	return plan, ok, nil
+}
+
+// FrictionReport is the friction problems with how much of the window's runs
+// the current episode classifier has analysed: problems count only analysed
+// runs, so while history is re-projected their totals are partial.
+type FrictionReport struct {
+	Problems []Problem
+	// RunsAnalysed of RunsTotal runs that used quota in the windows have
+	// episodes from the current classifier.
+	RunsAnalysed, RunsTotal int
+	Attribution             Attribution
+}
+
+// Friction lists the recurring friction problems of the current windows with
+// their durable status, largest saving first.
+func (s Service) Friction(ctx context.Context, provider string, now time.Time) (FrictionReport, error) {
+	in, attribution, err := s.inputs(ctx, provider, now, WindowKey{})
+	report := FrictionReport{Attribution: attribution}
+	if err != nil || len(attribution.Results) == 0 {
+		return report, err
+	}
+	primary := primaryResults(in.Results)
+	report.Problems = frictionProblems(in, primary)
+	runs := map[string]bool{}
+	for _, result := range primary {
+		for _, turn := range result.Turns {
+			runs[turn.RunID] = true
+		}
+	}
+	report.RunsTotal = len(runs)
+	if report.RunsAnalysed, err = s.Store.UsageEpisodeCoverage(ctx, keys(runs)); err != nil {
+		return report, err
+	}
+	if s.Statuses == nil {
+		return report, nil
+	}
+	statuses, err := s.Statuses.FrictionStatuses(ctx)
+	if err != nil {
+		return report, err
+	}
+	for i, problem := range report.Problems {
+		if status, ok := statuses[problem.Fingerprint]; ok {
+			report.Problems[i].Status, report.Problems[i].BugID, report.Problems[i].StatusSetAt = status.Status, status.BugID, status.At
+		}
+	}
+	return report, nil
+}
+
+// problem finds a friction problem by fingerprint among the current windows'.
+func (s Service) problem(ctx context.Context, fingerprint string, now time.Time) (Problem, error) {
+	report, err := s.Friction(ctx, "", now)
+	if err != nil {
+		return Problem{}, err
+	}
+	for _, problem := range report.Problems {
+		if problem.Fingerprint == fingerprint {
+			return problem, nil
+		}
+	}
+	return Problem{}, fmt.Errorf("no recurring friction problem has fingerprint %q in the current windows", fingerprint)
+}
+
+// ReportFriction files the problem in the bug inbox and records the bug id on
+// it. Reporting a problem that was already reported returns it unchanged.
+func (s Service) ReportFriction(ctx context.Context, fingerprint string, now time.Time) (Problem, error) {
+	if s.Statuses == nil || s.Bugs == nil {
+		return Problem{}, errors.New("friction reporting is unavailable")
+	}
+	problem, err := s.problem(ctx, fingerprint, now)
+	if err != nil {
+		return Problem{}, err
+	}
+	if problem.Status == StatusReported {
+		return problem, nil
+	}
+	id, err := s.Bugs.FileFrictionBug(ctx, problem)
+	if err != nil {
+		return Problem{}, err
+	}
+	problem.Status, problem.BugID, problem.StatusSetAt = StatusReported, id, now
+	return problem, s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusReported, BugID: id, At: now})
+}
+
+// DismissFriction sets a problem aside: it stays listed as dismissed and is
+// no longer recommended. A reported problem keeps its bug id.
+func (s Service) DismissFriction(ctx context.Context, fingerprint string, now time.Time) error {
+	if s.Statuses == nil {
+		return errors.New("friction status is unavailable")
+	}
+	if strings.TrimSpace(fingerprint) == "" {
+		return errors.New("fingerprint is required")
+	}
+	problem, err := s.problem(ctx, fingerprint, now)
+	if err != nil {
+		return err
+	}
+	return s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusDismissed, BugID: problem.BugID, At: now})
 }
 
 func emptyRules() []RuleStatus {

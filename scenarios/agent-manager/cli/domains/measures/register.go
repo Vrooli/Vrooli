@@ -103,21 +103,39 @@ func Register() cliapp.SubcommandGroup {
 			}
 			return response.Msg, nil
 		}, func(r *measurepb.RunDurationStatisticsResponse) string {
-			return fmt.Sprintf("Run durations: avg %.0f ms, p50 %.0f ms, p95 %.0f ms, p99 %.0f ms, %d-%d ms (%d runs)", r.GetAverageDurationMs(), r.GetP50DurationMs(), r.GetP95DurationMs(), r.GetP99DurationMs(), r.GetMinDurationMs(), r.GetMaxDurationMs(), r.GetCount())
+			return fmt.Sprintf("Run durations: avg %.0f ms, p50 %.0f ms, p90 %.0f ms, p95 %.0f ms, p99 %.0f ms, %d-%d ms (%d runs)", r.GetAverageDurationMs(), r.GetP50DurationMs(), r.GetP90DurationMs(), r.GetP95DurationMs(), r.GetP99DurationMs(), r.GetMinDurationMs(), r.GetMaxDurationMs(), r.GetCount())
 		}),
-		windowMeasure("run-cost", "Show durable terminal run cost", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.RunCostResponse, error) {
+		windowMeasure("run-cost", "Show tokens and per-token dollars requested in the window", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.RunCostResponse, error) {
 			response, err := c.RunCost(ctx, connect.NewRequest(&measurepb.RunCostRequest{Window: window}))
 			if err != nil {
 				return nil, err
 			}
 			return response.Msg, nil
 		}, func(r *measurepb.RunCostResponse) string {
-			base := fmt.Sprintf("Run cost: $%.4f across %d runs (%d tokens)", r.GetTotalCostUsd(), r.GetTotalRuns(), r.GetTotalTokens())
+			base := fmt.Sprintf("Run cost: $%.4f per-token billed; %d tokens in %d requests across %d runs", r.GetTotalCostUsd(), r.GetTotalTokens(), r.GetRequests(), r.GetTotalRuns())
 			if r.GetDistributionSampleSize() == 0 {
 				return base
 			}
 			return base + fmt.Sprintf("\nPer-run tokens: p50 %d, p90 %d, p95 %d, p99 %d, max %d", r.GetP50Tokens(), r.GetP90Tokens(), r.GetP95Tokens(), r.GetP99Tokens(), r.GetMaxTokens()) +
-				fmt.Sprintf("\nPer-run cost: p50 $%.4f, p90 $%.4f, p95 $%.4f, p99 $%.4f, max $%.4f (sample %d, unobserved %d)", r.GetP50CostUsd(), r.GetP90CostUsd(), r.GetP95CostUsd(), r.GetP99CostUsd(), r.GetMaxCostUsd(), r.GetDistributionSampleSize(), r.GetDistributionUnobservedRuns())
+				fmt.Sprintf("\nPer-run cost: p50 $%.4f, p90 $%.4f, p95 $%.4f, p99 $%.4f, max $%.4f (sample %d)", r.GetP50CostUsd(), r.GetP90CostUsd(), r.GetP95CostUsd(), r.GetP99CostUsd(), r.GetMaxCostUsd(), r.GetDistributionSampleSize())
+		}),
+		windowMeasure("fallback-insights", "Show runner and model fallbacks and policy-candidate outcomes", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.FallbackInsightsResponse, error) {
+			response, err := c.FallbackInsights(ctx, connect.NewRequest(&measurepb.FallbackInsightsRequest{Window: window}))
+			if err != nil {
+				return nil, err
+			}
+			return response.Msg, nil
+		}, func(r *measurepb.FallbackInsightsResponse) string {
+			lines := []string{fmt.Sprintf("Fallbacks: runner %d attempts (%d exhausted), model %d attempts (%d exhausted), %d policy-candidate events", r.GetRunnerAttempts(), r.GetRunnerExhausted(), r.GetModelAttempts(), r.GetModelExhausted(), r.GetPolicyCandidateEvents())}
+			for _, group := range []struct {
+				title string
+				rows  []*measurepb.FallbackCountRow
+			}{{"Runner reasons", r.GetRunnerReasons()}, {"Model reasons", r.GetModelReasons()}, {"Policy outcomes", r.GetPolicyOutcomes()}, {"Failure classes", r.GetPolicyFailureClasses()}} {
+				for _, row := range group.rows {
+					lines = append(lines, fmt.Sprintf("  %s: %s=%d", group.title, row.GetKey(), row.GetCount()))
+				}
+			}
+			return strings.Join(lines, "\n")
 		}),
 		windowMeasure("run-volume", "Show durable terminal run volume", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.RunVolumeResponse, error) {
 			response, err := c.RunVolume(ctx, connect.NewRequest(&measurepb.RunVolumeRequest{Window: window}))

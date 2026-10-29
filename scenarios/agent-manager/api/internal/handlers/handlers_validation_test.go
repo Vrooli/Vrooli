@@ -167,67 +167,19 @@ func TestCreateRun_MalformedJSON(t *testing.T) {
 	}
 }
 
-// TestLegacyInvestigationCreationIsRetired verifies that new diagnosis cannot
-// bypass the typed finite investigation lifecycle. The separate apply route
-// continues to validate its retained repair payload.
-func TestLegacyInvestigationCreationIsRetired(t *testing.T) {
+// TestInvestigationApplyValidatesEnvironment verifies the retained repair
+// route rejects environment keys outside the VROOLI_ prefix.
+func TestInvestigationApplyValidatesEnvironment(t *testing.T) {
 	_, router := setupTestHandler(t)
-
-	cases := []struct {
-		name string
-		path string
-		body string
-	}{
-		{
-			name: "investigate",
-			path: "/api/v1/runs/investigate",
-			body: `{"runIds":["` + uuid.New().String() + `"],"environment":{"NOT_VROOLI":"x"}}`,
-		},
-		{
-			name: "investigation-apply",
-			path: "/api/v1/runs/investigation-apply",
-			body: `{"investigationRunId":"` + uuid.New().String() + `","environment":{"NOT_VROOLI":"x"}}`,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader([]byte(tc.body)))
-			req.Header.Set("Content-Type", "application/json")
-			rr := httptest.NewRecorder()
-
-			router.ServeHTTP(rr, req)
-
-			if rr.Code != http.StatusBadRequest {
-				t.Fatalf("expected status %d for non-VROOLI_ env, got %d: %s",
-					http.StatusBadRequest, rr.Code, rr.Body.String())
-			}
-			if tc.name == "investigate" && !strings.Contains(rr.Body.String(), "retired") {
-				t.Errorf("expected retired-writer error, got: %s", rr.Body.String())
-			}
-			if tc.name == "investigation-apply" && !strings.Contains(rr.Body.String(), "VROOLI_") {
-				t.Errorf("expected apply environment error to mention VROOLI_ prefix, got: %s", rr.Body.String())
-			}
-		})
-	}
-}
-
-func TestLegacyInvestigationCreationRejectsCohortWriter(t *testing.T) {
-	_, router := setupTestHandler(t)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/investigate", bytes.NewReader([]byte(`{
-		"runIds":["`+uuid.New().String()+`"],
-		"selector":{"filter":{"ownership":"external"}}
-	}`)))
+	body := `{"investigationRunId":"` + uuid.New().String() + `","environment":{"NOT_VROOLI":"x"}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/runs/investigation-apply", bytes.NewReader([]byte(body)))
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusBadRequest {
-		t.Fatalf("expected ambiguous selector to return 400, got %d: %s", rr.Code, rr.Body.String())
-	}
-	if !strings.Contains(rr.Body.String(), "retired") {
-		t.Fatalf("expected retired-writer error, got %s", rr.Body.String())
+	if rr.Code != http.StatusBadRequest || !strings.Contains(rr.Body.String(), "VROOLI_") {
+		t.Fatalf("expected 400 mentioning VROOLI_ prefix, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
 

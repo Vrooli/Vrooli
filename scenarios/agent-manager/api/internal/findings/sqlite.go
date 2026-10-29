@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"agent-manager/internal/sqlcompat"
+	"agent-manager/internal/usageattribution"
 
 	"github.com/google/uuid"
 )
@@ -33,21 +34,15 @@ func (r *SQLiteRepository) Create(ctx context.Context, finding *Finding) error {
 	if finding.Fingerprint == "" {
 		finding.Fingerprint = Fingerprint(finding.Recommendation, finding.TargetPath)
 	}
-	if finding.TargetMeasure == "" {
-		finding.TargetMeasure = "finding-recurrence-rate"
-	}
-	if finding.Effectiveness == "" {
-		finding.Effectiveness = "not_yet_measurable"
-	}
 	if finding.QualitySignal == "" {
 		finding.QualitySignal = qualitySignal(finding)
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_findings (id, run_id, investigation_run_id, category, severity, recommendation_text, proposed_workaround, acceptance_impact, owner_hint, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, cites_resolved_commands, cites_real_outcome, cites_attributed_owner, quality_signal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, finding.ID.String(), finding.RunID.String(), finding.InvestigationRunID.String(), finding.Category, finding.Severity, finding.Recommendation, finding.ProposedWorkaround, finding.AcceptanceImpact, finding.OwnerHint, finding.Evidence, finding.TargetPath, finding.Fingerprint, finding.Decision, finding.TargetMeasure, finding.BeforeValue, finding.AfterValue, finding.Effectiveness, finding.FrictionTopic, finding.CitesResolvedCommands, finding.CitesRealOutcome, finding.CitesAttributedOwner, finding.QualitySignal, finding.CreatedAt.UTC().Format(time.RFC3339Nano))
+	_, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_findings (id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, friction_topic, cites_resolved_commands, cites_real_outcome, cites_attributed_owner, quality_signal, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, finding.ID.String(), finding.RunID.String(), finding.InvestigationRunID.String(), finding.Category, finding.Severity, finding.Recommendation, finding.Evidence, finding.TargetPath, finding.Fingerprint, finding.FrictionTopic, finding.CitesResolvedCommands, finding.CitesRealOutcome, finding.CitesAttributedOwner, finding.QualitySignal, finding.CreatedAt.UTC().Format(time.RFC3339Nano))
 	return err
 }
 
 func (r *SQLiteRepository) List(ctx context.Context, filter Filter) ([]Finding, error) {
-	query, args := `SELECT id, run_id, investigation_run_id, category, severity, recommendation_text, proposed_workaround, acceptance_impact, owner_hint, evidence, target_path, fingerprint, operator_decision, target_measure, before_value, after_value, effectiveness, friction_topic, cites_resolved_commands, cites_real_outcome, cites_attributed_owner, quality_signal, created_at, COUNT(*) OVER (PARTITION BY fingerprint) AS occurrences FROM run_findings`, []any{}
+	query, args := `SELECT id, run_id, investigation_run_id, category, severity, recommendation_text, evidence, target_path, fingerprint, friction_topic, cites_resolved_commands, cites_real_outcome, cites_attributed_owner, quality_signal, created_at, COUNT(*) OVER (PARTITION BY fingerprint) AS occurrences FROM run_findings`, []any{}
 	var where []string
 	if filter.RunID != nil {
 		where, args = append(where, "run_id = ?"), append(args, filter.RunID.String())
@@ -60,9 +55,6 @@ func (r *SQLiteRepository) List(ctx context.Context, filter Filter) ([]Finding, 
 	}
 	if filter.Severity != "" {
 		where, args = append(where, "severity = ?"), append(args, filter.Severity)
-	}
-	if filter.Decision != "" {
-		where, args = append(where, "operator_decision = ?"), append(args, filter.Decision)
 	}
 	if len(where) > 0 {
 		query += " WHERE " + strings.Join(where, " AND ")
@@ -109,18 +101,43 @@ func qualitySignal(finding *Finding) string {
 	return "unavailable"
 }
 
-func (r *SQLiteRepository) SetDecision(ctx context.Context, investigationRunID uuid.UUID, decision string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE run_findings SET operator_decision = ? WHERE investigation_run_id = ?`, strings.TrimSpace(decision), investigationRunID.String())
+func (r *SQLiteRepository) SetTopic(ctx context.Context, id uuid.UUID, topic string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE run_findings SET friction_topic=? WHERE id=?`, strings.TrimSpace(topic), id.String())
 	return err
 }
 
-func (r *SQLiteRepository) RecurrenceCount(ctx context.Context, fingerprint string) (int, error) {
-	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_findings WHERE fingerprint = ?`, fingerprint).Scan(&count)
-	return count, err
+// FrictionStatusStore keeps friction_problem_status.
+type FrictionStatusStore struct{ db sqlcompat.DB }
+
+func NewFrictionStatusStore(db sqlcompat.DB) *FrictionStatusStore {
+	return &FrictionStatusStore{db: db}
 }
 
-func (r *SQLiteRepository) SetEffectiveness(ctx context.Context, id uuid.UUID, before, after *float64, effectiveness, topic string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE run_findings SET before_value=?, after_value=?, effectiveness=?, friction_topic=? WHERE id=?`, before, after, strings.TrimSpace(effectiveness), strings.TrimSpace(topic), id.String())
+type statusRow struct {
+	Fingerprint string `db:"fingerprint"`
+	Status      string `db:"status"`
+	BugID       string `db:"bug_id"`
+	UpdatedAt   string `db:"updated_at"`
+}
+
+// FrictionStatuses returns every recorded status by fingerprint.
+func (s *FrictionStatusStore) FrictionStatuses(ctx context.Context) (map[string]usageattribution.ProblemStatus, error) {
+	var rows []statusRow
+	if err := s.db.SelectContext(ctx, &rows, `SELECT fingerprint, status, bug_id, updated_at FROM friction_problem_status`); err != nil {
+		return nil, err
+	}
+	out := make(map[string]usageattribution.ProblemStatus, len(rows))
+	for _, row := range rows {
+		at, _ := time.Parse(time.RFC3339Nano, row.UpdatedAt)
+		out[row.Fingerprint] = usageattribution.ProblemStatus{Fingerprint: row.Fingerprint, Status: row.Status, BugID: row.BugID, At: at}
+	}
+	return out, nil
+}
+
+// SetFrictionStatus records what the operator did with a problem.
+func (s *FrictionStatusStore) SetFrictionStatus(ctx context.Context, status usageattribution.ProblemStatus) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO friction_problem_status (fingerprint, status, bug_id, updated_at) VALUES (?, ?, ?, ?)
+		ON CONFLICT(fingerprint) DO UPDATE SET status = excluded.status, bug_id = excluded.bug_id, updated_at = excluded.updated_at`,
+		status.Fingerprint, status.Status, status.BugID, status.At.UTC().Format(time.RFC3339Nano))
 	return err
 }

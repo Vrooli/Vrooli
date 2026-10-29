@@ -56,7 +56,7 @@ func HandleResult(ctx context.Context, in HandleResultInput) HandleResultOutput 
 	if in.Result != nil && in.Result.Result != nil && in.Run != nil && in.Run.ResolvedConfig != nil && in.Deps.StructuredResults != nil {
 		in.Result.Result.Structured = in.Deps.StructuredResults.Resolve(ctx, in.Run.ResolvedConfig.ResultSpec, in.Result.Result)
 	}
-	outcome := classifyOutcome(in.ExecErr, in.Result)
+	outcome := domain.ClassifyRunOutcome(in.ExecErr, resultExitCode(in.Result))
 	out := HandleResultOutput{Outcome: outcome}
 
 	// Phase 3 durable lifecycle: reconcile a delayed process exit against
@@ -286,7 +286,7 @@ func HandleFailure(ctx context.Context, in HandleResultInput) {
 		if in.Result != nil {
 			cost = in.Result.Metrics.CostEstimateUSD
 		}
-		outcome := classifyOutcome(in.ExecErr, in.Result).ToContract()
+		outcome := domain.ClassifyRunOutcome(in.ExecErr, resultExitCode(in.Result)).ToContract()
 		ApplyAtRunEnd(ctx, ApplyAtRunEndInput{
 			Deps:      in.Deps,
 			Run:       in.Run,
@@ -333,35 +333,10 @@ func RevokeIdentityToken(run *domain.Run) {
 	run.IdentityTokenRevokedAt = &now
 }
 
-// classifyOutcome returns the domain.RunOutcome for the given execErr+result
-// pair. The wasCancelled / timedOut signals are surfaced separately when the
-// caller already detected those conditions; this helper handles the
-// common "post-runner" case.
-func classifyOutcome(execErr error, result *runner.ExecuteResult) domain.RunOutcome {
-	var exitCode *int
-	if result != nil {
-		exitCode = &result.ExitCode
+// resultExitCode is the result's process exit code, nil without a result.
+func resultExitCode(result *runner.ExecuteResult) *int {
+	if result == nil {
+		return nil
 	}
-	return domain.ClassifyRunOutcome(execErr, exitCode, false, false)
-}
-
-// ClassifyErrorOutcome maps setup-phase errors to RunOutcome for the
-// failWithError path.
-func ClassifyErrorOutcome(err error) domain.RunOutcome {
-	switch err := err.(type) {
-	case *domain.SandboxError:
-		return domain.RunOutcomeSandboxFail
-	case *domain.ConfigError:
-		if err.Missing && err.Setting == "sandbox" {
-			return domain.RunOutcomeSandboxFail
-		}
-		return domain.RunOutcomeException
-	case *domain.RunnerError:
-		if err.Operation == "timeout" {
-			return domain.RunOutcomeTimeout
-		}
-		return domain.RunOutcomeRunnerFail
-	default:
-		return domain.RunOutcomeException
-	}
+	return &result.ExitCode
 }

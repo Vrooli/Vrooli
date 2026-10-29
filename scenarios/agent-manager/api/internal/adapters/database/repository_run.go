@@ -522,6 +522,7 @@ const listRunColumns = `id, lifecycle_version, owner_identity, owner_epoch, task
 
 // listRunLiteRow is the database row representation for the pruned list query.
 type listRunLiteRow struct {
+	SubAgentCount                  int            `db:"sub_agent_count"`
 	LifecycleVersion               int64          `db:"lifecycle_version"`
 	OwnerIdentity                  string         `db:"owner_identity"`
 	OwnerEpoch                     int64          `db:"owner_epoch"`
@@ -595,6 +596,7 @@ type listRunLiteRow struct {
 func (row *listRunLiteRow) toDomain() *domain.Run {
 	sourceRunIDs := parseUUIDSliceJSON(row.SourceRunIDs)
 	run := &domain.Run{
+		SubAgentCount:                  row.SubAgentCount,
 		LifecycleVersion:               row.LifecycleVersion,
 		OwnerIdentity:                  row.OwnerIdentity,
 		OwnerEpoch:                     row.OwnerEpoch,

@@ -2,7 +2,9 @@ package usageattribution
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -49,16 +51,18 @@ type Burner struct {
 	Weighted   float64
 	Sessions   int
 	Runs       int
-	Turns      int
-	RunIDs     []string
-	Runner     string
-	Model      string
-	ProfileID  string
-	Workload   string
-	FirstAt    time.Time
-	LastAt     time.Time
-	Facts      transcriptindex.TurnFacts
-	Source     string
+	// Requests counts provider requests (one per model call), not
+	// conversational turns.
+	Requests  int
+	RunIDs    []string
+	Runner    string
+	Model     string
+	ProfileID string
+	Workload  string
+	FirstAt   time.Time
+	LastAt    time.Time
+	Facts     transcriptindex.TurnFacts
+	Source    string
 }
 
 type burnerAccumulator struct {
@@ -115,10 +119,13 @@ func keysFor(by string, turn Turn, run Run) []groupKey {
 		if label == "" {
 			label = key
 		}
-		return []groupKey{{key: key, label: label, fraction: 1}}
+		return []groupKey{{key: key, label: shortenUUIDs(label), fraction: 1}}
 	}
 	switch by {
 	case ByRun:
+		if run.Label == "" {
+			return one(turn.RunID, workloadLabel(run.Workload, "Run")+" · "+uuidStub(turn.RunID))
+		}
 		return one(turn.RunID, run.Label)
 	case ByProfile:
 		if run.ProfileID == "" {
@@ -129,7 +136,7 @@ func keysFor(by string, turn Turn, run Run) []groupKey {
 		if run.Workload == "" {
 			return one(operatorWorkload, "Operator sessions (no workload)")
 		}
-		return one(run.Workload, "")
+		return one(run.Workload, workloadLabel(run.Workload, run.Workload))
 	case ByModel:
 		model := turn.Model
 		if model == "" {
@@ -188,7 +195,7 @@ func (g *burnerAccumulator) add(turn Turn, run Run, points, weighted, fraction f
 	g.Points += points
 	g.Weighted += weighted
 	g.Tokens = addCounters(g.Tokens, scaleCounters(turn.Tokens, fraction))
-	g.Turns += turn.Reports
+	g.Requests += turn.Reports
 	g.runs[turn.RunID] = true
 	g.runPoints[turn.RunID] += points
 	session := run.Session
@@ -280,6 +287,40 @@ func addFacts(a, b transcriptindex.TurnFacts) transcriptindex.TurnFacts {
 		a.CreditsBalance = b.CreditsBalance
 	}
 	return a
+}
+
+var uuidPattern = regexp.MustCompile(`[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`)
+
+// uuidStub abbreviates an id for a label: its first four characters and an
+// ellipsis.
+func uuidStub(id string) string {
+	if len(id) > 4 {
+		return id[:4] + "…"
+	}
+	return id
+}
+
+// shortenUUIDs keeps a raw UUID out of a label.
+func shortenUUIDs(label string) string {
+	return uuidPattern.ReplaceAllStringFunc(label, uuidStub)
+}
+
+// workloadLabel names a kind:key workload in words ("Workflow draft"); other
+// is the label when the workload is empty.
+func workloadLabel(workload, other string) string {
+	kind, key, found := strings.Cut(workload, ":")
+	if !found {
+		return other
+	}
+	switch kind {
+	case "workflow_node":
+		return "Workflow " + key
+	case "interactive":
+		return "Interactive " + key
+	case "adhoc":
+		return "Ad hoc " + key
+	}
+	return kind + " " + key
 }
 
 // ShortID abbreviates a UUID-like key for labels.

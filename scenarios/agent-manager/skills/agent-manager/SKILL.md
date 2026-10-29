@@ -225,8 +225,8 @@ Investigate
 │     with a stable request key and bounded subject/evidence inputs
 ├─ Historical legacy result with an explicit operator decision → run apply-investigation   [S1]
 │     retained only for old approval/apply records; it is never part of typed admission
-└─ The same fingerprint keeps returning → findings list --fingerprint <f>;
-      publish-recurring-friction is the improve skill's move, not this one                [S0]
+└─ The same fingerprint keeps returning → usage friction (plain description, owner, cost);
+      usage friction-report <fingerprint> files it with scenario-qa              [S0]
 ```
 
 New diagnosis requests use the typed investigation contract and the bounded

@@ -800,3 +800,42 @@ func TestTailerAcceptsPinnedCodexGetGoalRead(t *testing.T) {
 		t.Fatalf("pinned native get_goal result was not accepted: terminal=%+v err=%v", terminal, err)
 	}
 }
+
+// A restarted interactive tail re-reads from the cursor it persisted; when that
+// cursor is lost it re-reads the whole file. Every event takes its identity
+// from its source line, so the re-read replays the same rows in the event
+// store instead of appending a second copy.
+func TestTailerReReadReplaysTheSameEventIdentities(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "restart.jsonl")
+	content := strings.Join(readCodecFixture(t, "claude_ondisk_trace.jsonl"), "\n") + "\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runID := uuid.New()
+	tailOnce := func() []uuid.UUID {
+		sink := &collectSink{}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if _, err := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond)).Tail(ctx, TailParams{
+			RunID: runID, RunnerType: domain.RunnerTypeClaudeCode, TranscriptPath: path, Sink: sink,
+		}); err != nil {
+			t.Fatalf("Tail: %v", err)
+		}
+		ids := make([]uuid.UUID, 0, len(sink.events))
+		for _, e := range sink.events {
+			ids = append(ids, e.ID)
+		}
+		return ids
+	}
+	first, second := tailOnce(), tailOnce()
+	if len(first) == 0 || len(first) != len(second) {
+		t.Fatalf("event counts first=%d second=%d", len(first), len(second))
+	}
+	seen := map[uuid.UUID]bool{}
+	for index, id := range first {
+		if id == uuid.Nil || seen[id] || second[index] != id {
+			t.Fatalf("event %d identity %s is not stable and unique (second read %s)", index, id, second[index])
+		}
+		seen[id] = true
+	}
+}

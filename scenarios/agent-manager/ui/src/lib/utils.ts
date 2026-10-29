@@ -13,28 +13,6 @@ export function getApiBaseUrl(): string {
   return resolveAgentManagerApiBase(true);
 }
 
-export function formatDuration(ms: number): string {
-  if (ms < 1000) return ms + "ms";
-  if (ms < 60000) return (ms / 1000).toFixed(1) + "s";
-  if (ms < 3600000) return Math.floor(ms / 60000) + "m " + Math.floor((ms % 60000) / 1000) + "s";
-  return Math.floor(ms / 3600000) + "h " + Math.floor((ms % 3600000) / 60000) + "m";
-}
-
-export function runnerTypeToSlug(type?: RunnerType): string {
-  switch (type) {
-    case RunnerType.CLAUDE_CODE:
-      return "claude-code";
-    case RunnerType.CODEX:
-      return "codex";
-    case RunnerType.OPENCODE:
-      return "opencode";
-    case RunnerType.GROK:
-      return "grok";
-    default:
-      return "claude-code";
-  }
-}
-
 export function runnerTypeFromSlug(value?: string): RunnerType | undefined {
   switch (value) {
     case "claude-code":
@@ -50,21 +28,6 @@ export function runnerTypeFromSlug(value?: string): RunnerType | undefined {
   }
 }
 
-
-export function runnerTypeLabel(type?: RunnerType): string {
-  switch (type) {
-    case RunnerType.CLAUDE_CODE:
-      return "Claude Code";
-    case RunnerType.CODEX:
-      return "Codex";
-    case RunnerType.OPENCODE:
-      return "OpenCode";
-    case RunnerType.GROK:
-      return "Grok";
-    default:
-      return "Unknown";
-  }
-}
 
 export function networkAccessLabel(na?: NetworkAccess): string {
   switch (na) {

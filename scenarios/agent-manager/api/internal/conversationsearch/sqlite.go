@@ -432,11 +432,6 @@ func yieldGenerationWriter(ctx context.Context) error {
 	}
 }
 
-func (r *SQLiteRepository) DeleteStagedRun(ctx context.Context, generationID, runID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_generation_documents WHERE generation_id=? AND source_run_id=?`, generationID, runID)
-	return err
-}
-
 func (r *SQLiteRepository) DeleteStagedEvent(ctx context.Context, generationID, runID, eventID string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM conversation_search_generation_documents WHERE generation_id=? AND source_run_id=? AND source_event_id=?`, generationID, runID, eventID)
 	return err
@@ -445,12 +440,6 @@ func (r *SQLiteRepository) DeleteStagedEvent(ctx context.Context, generationID, 
 func (r *SQLiteRepository) RunDocumentIDs(ctx context.Context, runID string) ([]string, error) {
 	var ids []string
 	err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_catalog WHERE source_run_id=? ORDER BY document_id`, runID)
-	return ids, err
-}
-
-func (r *SQLiteRepository) EventDocumentIDs(ctx context.Context, runID, eventID string) ([]string, error) {
-	var ids []string
-	err := r.db.SelectContext(ctx, &ids, `SELECT document_id FROM conversation_search_catalog WHERE source_run_id=? AND source_event_id=? ORDER BY document_id`, runID, eventID)
 	return ids, err
 }
 

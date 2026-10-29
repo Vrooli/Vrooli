@@ -1146,3 +1146,52 @@ func TestSQLiteStoreImmutableReplaySuppressesNotificationsAndConflicts(t *testin
 		t.Fatalf("distinct evidence=%+v err=%v", another, err)
 	}
 }
+
+// A deterministic event re-read over a row stored with a random id is the same
+// source line and replays it; deterministic twins from distinct lines stay.
+func TestSQLiteStoreDeterministicEventReplaysItsLegacyTwin(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := t.Context()
+	run := uuid.New()
+	at := time.Date(2026, 10, 29, 14, 19, 37, 247000000, time.UTC)
+	legacy := domain.NewLogEvent(run, "info", "line")
+	legacy.Timestamp = at
+	if err := store.Append(ctx, run, legacy); err != nil {
+		t.Fatal(err)
+	}
+	deterministic := func(name string) *domain.RunEvent {
+		e := domain.NewLogEvent(run, "info", "line")
+		e.Timestamp = at
+		e.ID = uuid.NewSHA1(run, []byte(name))
+		return e
+	}
+	reread := deterministic("offset-0")
+	if err := store.Append(ctx, run, reread); err != nil || !reread.PersistenceReplay || reread.Sequence != legacy.Sequence {
+		t.Fatalf("re-read over legacy row = %+v err=%v", reread, err)
+	}
+	other := domain.NewLogEvent(run, "info", "other line")
+	other.Timestamp = at
+	other.ID = uuid.NewSHA1(run, []byte("offset-9"))
+	first, second := deterministic("offset-20"), deterministic("offset-40")
+	for _, e := range []*domain.RunEvent{other, first, second} {
+		if err := store.Append(ctx, run, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// "line" at offset-20 also matches the legacy row, so only the first row exists for it.
+	if count, _ := store.Count(ctx, run); count != 2 {
+		t.Fatalf("events = %d, want the legacy row and the different line", count)
+	}
+	fresh1, fresh2 := domain.NewLogEvent(run, "info", "fresh"), domain.NewLogEvent(run, "info", "fresh")
+	for i, e := range []*domain.RunEvent{fresh1, fresh2} {
+		e.Timestamp, e.ID = at, uuid.NewSHA1(run, []byte(fmt.Sprintf("fresh-%d", i)))
+		if err := store.Append(ctx, run, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if count, _ := store.Count(ctx, run); count != 4 {
+		t.Fatalf("events = %d, want deterministic twins of one line both kept", count)
+	}
+}

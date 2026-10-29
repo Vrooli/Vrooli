@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -182,59 +183,35 @@ func TestNewConnectionInitializesSchemaAndHealthCheck(t *testing.T) {
 	}
 }
 
-func TestMigrateQuotaEventsMovesLegacyFramesAndBackfillsObservationsOnce(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	t.Cleanup(cleanup)
-	ctx := t.Context()
-	repos := NewRepositories(db, logrus.New())
-	task := &domain.Task{ID: uuid.New(), Title: "quota migration", ScopePath: "/test", Status: domain.TaskStatusQueued}
-	if err := repos.Tasks.Create(ctx, task); err != nil {
+func TestInitSchemaCreatesRunIndexesAndUpgradesLegacyColumnsIdempotently(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	db, err := NewConnection(logrus.New())
+	if err != nil {
 		t.Fatal(err)
 	}
-	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ApprovalState: domain.ApprovalStateNone}
-	if err := repos.Runs.Create(ctx, run); err != nil {
+	t.Cleanup(func() { _ = db.Close() })
+	ctx := context.Background()
+
+	// An install that predates a column keeps its rows and gains the column.
+	if _, err := db.ExecContext(ctx, "ALTER TABLE agent_profiles DROP COLUMN max_weighted_tokens"); err != nil {
 		t.Fatal(err)
-	}
-	rows := []struct {
-		data      string
-		wantQuota bool
-	}{
-		{`{"payloadKind":"quota","limitType":"10080m","provider":"openai","pool":"primary","usedPercent":33,"windowMinutes":10080,"resetTime":"2026-11-04T06:57:00Z","provenance":"codex:event_msg.token_count.rate_limits"}`, true},
-		{`{"limitType":"10080m","provider":"openai","pool":"primary","usedPercent":34,"windowMinutes":10080,"provenance":"codex:event_msg.token_count.rate_limits"}`, true},
-		{`{"limitType":"5_hour","message":"usage limit reached"}`, true},
-		{`{"code":"RATE_LIMIT","message":"failed","limitType":"weekly"}`, false},
-		{`{"code":"execution_error","message":"boom","retryable":false}`, false},
-		{`{"limitType":"","message":"unknown"}`, false},
-		{`not json`, false},
-	}
-	at := time.Date(2026, 9, 1, 4, 30, 0, 0, time.UTC)
-	for i, row := range rows {
-		if _, err := db.ExecContext(ctx, `INSERT INTO run_events(id,run_id,sequence,event_type,timestamp,data) VALUES(?,?,?,?,?,?)`, uuid.NewString(), run.ID.String(), i, "error", SQLiteTime(at.Add(time.Duration(i)*time.Minute)), row.data); err != nil {
-			t.Fatal(err)
-		}
 	}
 	for pass := 0; pass < 2; pass++ {
-		if err := db.migrateQuotaEvents(ctx); err != nil {
+		if err := db.InitializeSchema(); err != nil {
 			t.Fatalf("pass %d: %v", pass, err)
 		}
 	}
-	var quotaEvents, errorEvents, observations int
-	if err := db.GetContext(ctx, &quotaEvents, `SELECT COUNT(*) FROM run_events WHERE event_type='quota'`); err != nil {
+	columns, err := db.tableColumns(ctx, "agent_profiles")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.GetContext(ctx, &errorEvents, `SELECT COUNT(*) FROM run_events WHERE event_type='error'`); err != nil {
-		t.Fatal(err)
+	if _, ok := columns["max_weighted_tokens"]; !ok {
+		t.Fatal("max_weighted_tokens was not restored")
 	}
-	if err := db.GetContext(ctx, &observations, `SELECT COUNT(*) FROM quota_observations`); err != nil {
-		t.Fatal(err)
-	}
-	// Two attributable Codex frames become observations; the unattributed
-	// legacy rate-limit row moves type but names no provider.
-	if quotaEvents != 3 || errorEvents != 4 || observations != 2 {
-		t.Fatalf("quota events=%d error events=%d observations=%d, want 3/4/2", quotaEvents, errorEvents, observations)
-	}
-	got, err := NewPricingRepository(db, logrus.New()).(pricing.QuotaObservationRepository).ListQuotaObservations(ctx, "openai", "primary", "10080m", 10)
-	if err != nil || len(got) != 2 || *got[0].UsedPercent != 34 || got[1].ResetAt == nil || got[0].SourceRunID != run.ID.String() || got[0].Freshness != pricing.ObservationStale {
-		t.Fatalf("backfilled observations = %+v err=%v", got, err)
+	for _, index := range []string{"idx_runs_import_provenance", "idx_runs_status_created_at_id", "idx_runs_web_console_session", "idx_runs_identity_renewal_anchor"} {
+		var count int
+		if err := db.GetContext(ctx, &count, "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?", index); err != nil || count != 1 {
+			t.Fatalf("index %s count=%d err=%v", index, count, err)
+		}
 	}
 }

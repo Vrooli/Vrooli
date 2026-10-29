@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "325709fd711a21f842b9d6dffdea05a652986bd39df9c96b0044f2db44ee88d9",
+  "manifest_hash": "5bf83cfce039f429f03778f65e99174d25b2d9a0602517d7559f7b064fffe325",
   "commands": [
     {
       "path": "conversation context",
@@ -56,7 +56,8 @@
     {
       "path": "effort delivery",
       "group": "effort",
-      "command": "delivery"
+      "command": "delivery",
+      "binding": "."
     },
     {
       "path": "effort discover",
@@ -121,7 +122,8 @@
     {
       "path": "effort migrate",
       "group": "effort",
-      "command": "migrate"
+      "command": "migrate",
+      "binding": "."
     },
     {
       "path": "effort park",
@@ -305,6 +307,13 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "measures fallback-insights",
+      "group": "measures",
+      "command": "fallback-insights",
+      "binding": "MeasuresService.FallbackInsights",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "measures file-reread-rate",
       "group": "measures",
       "command": "file-reread-rate",
@@ -447,48 +456,6 @@
       "path": "measures workload-efficiency",
       "group": "measures",
       "command": "workload-efficiency",
-      "binding": "."
-    },
-    {
-      "path": "ops checkpoint",
-      "group": "ops",
-      "command": "checkpoint",
-      "binding": "."
-    },
-    {
-      "path": "ops fallback",
-      "group": "ops",
-      "command": "fallback",
-      "binding": "."
-    },
-    {
-      "path": "ops health",
-      "group": "ops",
-      "command": "health",
-      "binding": "."
-    },
-    {
-      "path": "ops heartbeat",
-      "group": "ops",
-      "command": "heartbeat",
-      "binding": "."
-    },
-    {
-      "path": "ops retry",
-      "group": "ops",
-      "command": "retry",
-      "binding": "."
-    },
-    {
-      "path": "ops sandbox",
-      "group": "ops",
-      "command": "sandbox",
-      "binding": "."
-    },
-    {
-      "path": "ops summary",
-      "group": "ops",
-      "command": "summary",
       "binding": "."
     },
     {
@@ -736,7 +703,7 @@
       "path": "run import-transcript",
       "group": "run",
       "command": "import-transcript",
-      "binding": "."
+      "binding": "EpisodesService.ImportTranscript"
     },
     {
       "path": "run investigate",
@@ -748,7 +715,7 @@
       "path": "run ledger",
       "group": "run",
       "command": "ledger",
-      "binding": "."
+      "binding": "EpisodesService.GetCrossScenarioLedger"
     },
     {
       "path": "run list",
@@ -766,7 +733,7 @@
       "path": "run messages-friction",
       "group": "run",
       "command": "messages-friction",
-      "binding": "EpisodesService.ImportTranscript"
+      "binding": "EpisodesService.GetSelfReportSpans"
     },
     {
       "path": "run mine-self-report-vocabulary",
@@ -778,12 +745,6 @@
       "path": "run park",
       "group": "run",
       "command": "park",
-      "binding": "."
-    },
-    {
-      "path": "run publish-recurring-friction",
-      "group": "run",
-      "command": "publish-recurring-friction",
       "binding": "."
     },
     {
@@ -1041,6 +1002,27 @@
       "command": "forecast",
       "binding": "MeasuresService.UsageForecast",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage friction",
+      "group": "usage",
+      "command": "friction",
+      "binding": "MeasuresService.UsageFriction",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage friction-dismiss",
+      "group": "usage",
+      "command": "friction-dismiss",
+      "binding": "EpisodesService.DismissFrictionProblem",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "usage friction-report",
+      "group": "usage",
+      "command": "friction-report",
+      "binding": "EpisodesService.ReportFrictionProblem",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "usage recommendations",

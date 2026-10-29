@@ -29,7 +29,6 @@ func NewUsageAttributionRepository(db *DB) *UsageAttributionRepository {
 
 var (
 	_ usageattribution.Store           = (*UsageAttributionRepository)(nil)
-	_ transcriptindex.UsageRepairStore = (*TranscriptIndexRepository)(nil)
 )
 
 // usageBucket folds one session's Codex reports into a short bucket: usage
@@ -326,7 +325,10 @@ type usageEpisodeRow struct {
 	Pattern    string `db:"pattern"`
 	Finger     string `db:"fingerprint"`
 	Element    string `db:"repeated_element"`
-	Owner      string `db:"owner"`
+	Scenario   string `db:"suspected_owner_scenario"`
+	Command    string `db:"suspected_owner_command"`
+	Cycles     int    `db:"cycle_count"`
+	WallClock  int64  `db:"wall_clock_ms"`
 	Turns      int    `db:"turns"`
 	Tokens     int64  `db:"tokens"`
 }
@@ -336,7 +338,7 @@ type usageEpisodeRow struct {
 func (r *UsageAttributionRepository) UsageEpisodes(ctx context.Context, from, to time.Time) ([]usageattribution.Episode, error) {
 	var rows []usageEpisodeRow
 	if err := r.db.SelectContext(ctx, &rows, `SELECT run_id, episode_id, occurred_at, pattern, fingerprint, repeated_element,
-		TRIM(suspected_owner_scenario || ' ' || suspected_owner_command) AS owner, turns, tokens
+		suspected_owner_scenario, suspected_owner_command, cycle_count, wall_clock_ms, turns, tokens
 		FROM invocation_read_model_episodes WHERE occurred_at >= ? AND occurred_at <= ? AND turns > 0 AND classifier_version = ?`,
 		from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano), runsignal.EpisodeClassifierVersion); err != nil {
 		return nil, wrapDBError("usage_episodes", "Episode", "", err)
@@ -344,7 +346,7 @@ func (r *UsageAttributionRepository) UsageEpisodes(ctx context.Context, from, to
 	out := make([]usageattribution.Episode, 0, len(rows))
 	for _, row := range rows {
 		at, _ := parseEventTime(row.OccurredAt)
-		out = append(out, usageattribution.Episode{RunID: row.RunID, EpisodeID: row.EpisodeID, At: at, Pattern: row.Pattern, Fingerprint: row.Finger, RepeatedElement: row.Element, Owner: row.Owner, Turns: row.Turns, Tokens: row.Tokens})
+		out = append(out, usageattribution.Episode{RunID: row.RunID, EpisodeID: row.EpisodeID, At: at, Pattern: row.Pattern, Fingerprint: row.Finger, RepeatedElement: row.Element, OwnerScenario: row.Scenario, OwnerCommand: row.Command, CycleCount: row.Cycles, WallClockMS: row.WallClock, Turns: row.Turns, Tokens: row.Tokens})
 	}
 	return out, nil
 }
@@ -384,72 +386,22 @@ func (r *UsageAttributionRepository) UsageOutcomes(ctx context.Context, from, to
 	return out, nil
 }
 
-// UsageFilesToRepair lists the indexer's files that still hold usage rows
-// with an unknown model, most recently modified first, so the current
-// windows are repaired first.
-func (r *TranscriptIndexRepository) UsageFilesToRepair(ctx context.Context) ([]transcriptindex.FileRow, error) {
-	var rows []struct {
-		Key  string `db:"file_key"`
-		Path string `db:"path"`
-	}
-	if err := r.db.SelectContext(ctx, &rows, `SELECT f.file_key, f.path FROM transcript_files f
-		WHERE f.owner = 'indexer' AND EXISTS (SELECT 1 FROM transcript_usage u WHERE u.file_key = f.file_key AND u.model IN ('', 'unknown'))
-		ORDER BY f.mtime_unix_nano DESC`); err != nil {
-		return nil, wrapDBError("usage_files_to_repair", "TranscriptUsage", "", err)
-	}
-	out := make([]transcriptindex.FileRow, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, transcriptindex.FileRow{Key: row.Key, Path: row.Path})
-	}
-	return out, nil
-}
 
-func (r *TranscriptIndexRepository) UsageRowOffsets(ctx context.Context, fileKey string) ([]int64, error) {
-	var offsets []int64
-	if err := r.db.SelectContext(ctx, &offsets, `SELECT DISTINCT line_offset FROM transcript_usage WHERE file_key = ? ORDER BY line_offset`, fileKey); err != nil {
-		return nil, wrapDBError("usage_row_offsets", "TranscriptUsage", fileKey, err)
-	}
-	return offsets, nil
-}
-
-func (r *TranscriptIndexRepository) RepairUsageRows(ctx context.Context, fileKey string, fixes []transcriptindex.UsageFix) error {
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return wrapDBError("repair_usage_rows", "TranscriptUsage", fileKey, err)
-	}
-	defer func() { _ = tx.Rollback() }()
-	stmt, err := tx.PrepareContext(ctx, `UPDATE transcript_usage SET
-		observed_at = CASE WHEN ? = '' THEN observed_at ELSE ? END,
-		model = CASE WHEN ? = '' THEN model ELSE ? END
-		WHERE file_key = ? AND line_offset = ?`)
-	if err != nil {
-		return wrapDBError("repair_usage_rows", "TranscriptUsage", fileKey, err)
-	}
-	defer stmt.Close()
-	for _, fix := range fixes {
-		at := ""
-		if !fix.ObservedAt.IsZero() {
-			at = fix.ObservedAt.UTC().Format(time.RFC3339Nano)
+// UsageEpisodeCoverage counts the runs among runIDs whose episodes the current
+// classifier has projected (their watermark carries its version).
+func (r *UsageAttributionRepository) UsageEpisodeCoverage(ctx context.Context, runIDs []string) (int, error) {
+	total := 0
+	for start := 0; start < len(runIDs); start += 500 {
+		chunk := runIDs[start:min(len(runIDs), start+500)]
+		args := []any{runsignal.EpisodeClassifierVersion}
+		for _, id := range chunk {
+			args = append(args, id)
 		}
-		if _, err := stmt.ExecContext(ctx, at, at, fix.Model, fix.Model, fileKey, fix.LineOffset); err != nil {
-			return wrapDBError("repair_usage_rows", "TranscriptUsage", fileKey, err)
+		var count int
+		if err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM invocation_read_model_watermarks WHERE episode_classifier_version = ? AND run_id IN (?`+strings.Repeat(",?", len(chunk)-1)+`)`, args...); err != nil {
+			return 0, wrapDBError("usage_episode_coverage", "Watermark", "", err)
 		}
+		total += count
 	}
-	return tx.Commit()
-}
-
-func (r *TranscriptIndexRepository) UsageRepairDone(ctx context.Context, name string) (bool, error) {
-	var count int
-	if err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM transcript_usage_repairs WHERE name = ?`, name); err != nil {
-		return false, wrapDBError("usage_repair_done", "TranscriptUsageRepair", name, err)
-	}
-	return count > 0, nil
-}
-
-func (r *TranscriptIndexRepository) MarkUsageRepairDone(ctx context.Context, name string, report transcriptindex.RepairReport) error {
-	if _, err := r.db.ExecContext(ctx, `INSERT OR IGNORE INTO transcript_usage_repairs (name, completed_at, files, rows_repaired, failures) VALUES (?, ?, ?, ?, ?)`,
-		name, time.Now().UTC().Format(time.RFC3339Nano), report.Files, report.Rows, len(report.Failures)); err != nil {
-		return wrapDBError("mark_usage_repair_done", "TranscriptUsageRepair", name, err)
-	}
-	return nil
+	return total, nil
 }

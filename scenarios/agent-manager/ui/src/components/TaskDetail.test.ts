@@ -14,7 +14,7 @@ vi.mock("./ContextAttachmentModal.js", () => ({ ContextAttachmentModal: ({ attac
 test("TaskDetail renders evidence and dispatches queued task actions", async () => {
   const user = userEvent.setup();
   const callbacks = { onEdit: vi.fn(), onRun: vi.fn(), onCancel: vi.fn(), onDelete: vi.fn() };
-  const task = makeTask({ status: TaskStatus.QUEUED, contextAttachments: [{ type: "note", key: "facts", label: "Facts", content: "Use reports", tags: ["investigation"] }] as any });
+  const task = makeTask({ status: TaskStatus.QUEUED, contextAttachments: [{ type: "note", key: "facts", label: "Facts", content: "Use reports", tags: ["investigation"] }] as never });
   renderWithProviders(createElement(TaskDetail, { task, ...callbacks }));
   assert.ok(screen.getByText("Tighten the dashboard test coverage"));
   assert.ok(screen.getByText("Facts"));

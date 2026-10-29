@@ -1,10 +1,14 @@
 {
   "displayName": "Agent Manager",
   "icon": "agent-manager",
+  "appDelivery": true,
   "categories": [
     { "key": "run-failed", "displayName": "Run failed", "description": "A coding-agent run ended in error.", "defaultEnabled": true, "defaultMinUrgency": "high" },
     { "key": "run-completed", "displayName": "Run completed", "description": "A coding-agent run finished successfully.", "defaultEnabled": false, "defaultMinUrgency": "low" },
     { "key": "usage-will-exhaust", "displayName": "Quota runs out early", "description": "A provider subscription window is projected to run out before it resets.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "usage-back-on-track", "displayName": "Quota back on track", "description": "An earlier runs-out warning no longer applies: the window is on track, idle, or has reset.", "defaultEnabled": true, "defaultMinUrgency": "low" },
+    { "key": "usage-at-risk", "displayName": "Quota may run out", "description": "Early heads-up when a window's projection straddles its reset.", "defaultEnabled": false, "defaultMinUrgency": "low" },
+    { "key": "usage-digest", "displayName": "Daily usage digest", "description": "Each morning at 8:00 local: up to 3 live windows, most urgent first, each with its top action.", "defaultEnabled": false, "defaultMinUrgency": "low" },
     { "key": "authorization-requested", "displayName": "Authorization requested", "description": "An agent session is waiting for human consent in Agent Manager.", "defaultEnabled": true, "defaultMinUrgency": "normal" }
   ]
 }

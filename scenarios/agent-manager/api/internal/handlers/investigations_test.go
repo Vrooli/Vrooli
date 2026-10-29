@@ -21,6 +21,7 @@ import (
 	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 type investigationRepositoryStub struct {
@@ -237,8 +238,9 @@ func TestInvestigationRoutesAdmitAndReuseStableRequest(t *testing.T) {
 	if second.Code != http.StatusOK || !repository.reused {
 		t.Fatalf("second admission status=%d body=%s reused=%v", second.Code, second.Body.String(), repository.reused)
 	}
-	get := httptest.NewRecorder()
-	router.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/api/v1/investigations/inv-api-1", nil))
+	connectPath, connectHandler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(handler))
+	router.PathPrefix(connectPath).Handler(connectHandler)
+	get := callProcedure(t, router, apiconnect.AgentManagerServiceGetInvestigationProcedure, &api.GetInvestigationRequest{InvestigationId: "inv-api-1"})
 	if get.Code != http.StatusOK || !bytes.Contains(get.Body.Bytes(), []byte("inv-api-1")) {
 		t.Fatalf("get status=%d body=%s", get.Code, get.Body.String())
 	}

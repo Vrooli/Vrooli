@@ -131,9 +131,14 @@ func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, column := range []string{"proposed_workaround", "acceptance_impact", "owner_hint", "target_measure", "before_value", "after_value", "effectiveness", "friction_topic"} {
+	for _, column := range []string{"friction_topic", "cites_resolved_commands", "cites_real_outcome", "cites_attributed_owner", "quality_signal"} {
 		if _, ok := columns[column]; !ok {
 			t.Fatalf("migration did not add %s; columns=%v", column, columns)
+		}
+	}
+	for _, column := range retiredRunFindingColumns {
+		if _, ok := columns[column]; ok {
+			t.Fatalf("migration kept the retired column %s; columns=%v", column, columns)
 		}
 	}
 	var quality string
@@ -143,37 +148,6 @@ func TestInitSchemaMigratesExistingFindingColumnsBeforeValidation(t *testing.T) 
 	}
 	if quality != "unavailable" || resolved || outcome || owner {
 		t.Fatalf("legacy keyword-shaped finding was upgraded during migration: quality=%q resolved=%v outcome=%v owner=%v", quality, resolved, outcome, owner)
-	}
-}
-
-func TestInitSchemaMigratesLegacyWatchActionStatusBeforeIndexCreation(t *testing.T) {
-	tmpDir := t.TempDir()
-	sqlDB, err := sqlx.Connect("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)", filepath.Join(tmpDir, "legacy-watch-actions.db")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer sqlDB.Close()
-	if _, err := sqlDB.Exec(`CREATE TABLE cohort_watch_actions (
-		action_id TEXT PRIMARY KEY, watch_id TEXT NOT NULL, decision_id TEXT,
-		idempotency_key TEXT NOT NULL UNIQUE, kind INTEGER NOT NULL,
-		target_run_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,
-		action_json TEXT NOT NULL, cooldown_until TEXT, created_at TEXT NOT NULL,
-		acknowledged_at TEXT
-	); INSERT INTO cohort_watch_actions
-		(action_id,watch_id,idempotency_key,kind,status,action_json,created_at)
-		VALUES ('action-1','watch-1','key-1',1,'requested','{}','2026-09-04T20:00:00Z')`); err != nil {
-		t.Fatal(err)
-	}
-	wrapper := NewDB(sqlDB, logrus.New())
-	if err := wrapper.InitializeSchema(); err != nil {
-		t.Fatalf("InitializeSchema: %v", err)
-	}
-	var state int
-	if err := sqlDB.Get(&state, `SELECT state FROM cohort_watch_actions WHERE action_id='action-1'`); err != nil {
-		t.Fatal(err)
-	}
-	if state != 1 {
-		t.Fatalf("migrated state=%d, want requested(1)", state)
 	}
 }
 

@@ -131,7 +131,7 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 		// request body. Permit a verified agent to use this exact read/validation
 		// route without opening the mutating reconciliation endpoint or global
 		// management. Other principals retain their existing admission path.
-		if r.Method == http.MethodPost && r.URL.Path == "/api/v1/declarations/plan" && ok && p.Kind == identity.ActorAgent && p.IsVerified() {
+		if r.Method == http.MethodPost && r.URL.Path == apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure && ok && p.Kind == identity.ActorAgent && p.IsVerified() {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -152,7 +152,7 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			// an inert precursor with no authority of its own), evaluated through
 			// the same seam — no grant logic here. The run admission still enforces
 			// the grant's limits and attributes the owner.
-			if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/runs" || r.URL.Path == "/api/v1/tasks") {
+			if r.Method == http.MethodPost && isRunCreationPath(r.URL.Path) {
 				switch _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); {
 				case err == nil:
 					next.ServeHTTP(w, r)
@@ -207,7 +207,7 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 				// task+run is one unit. Every OTHER anonymous operation is still
 				// refused below. Attributed callers (human/agent/service-standing) are
 				// handled in their own branches above and never reach this.
-				if r.Method == http.MethodPost && (r.URL.Path == "/api/v1/runs" || r.URL.Path == "/api/v1/tasks") && !owneridentity.CreateRunCallerEnforced() {
+				if r.Method == http.MethodPost && isRunCreationPath(r.URL.Path) && !owneridentity.CreateRunCallerEnforced() {
 					next.ServeHTTP(w, r)
 					return
 				}
@@ -243,6 +243,16 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// isRunCreationPath names the two legs of run creation (the task, then the
+// run) on both transports; every admission rule for one applies to the other.
+func isRunCreationPath(path string) bool {
+	switch path {
+	case "/api/v1/runs", "/api/v1/tasks", apiconnect.AgentManagerServiceCreateRunProcedure, apiconnect.AgentManagerServiceCreateTaskProcedure:
+		return true
+	}
+	return false
+}
+
 func agentOperationRoute(r *http.Request, interactive bool) bool {
 	if r.Method == http.MethodPut {
 		// The task handler admits only the verified creator orchestrator's exact
@@ -255,7 +265,8 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations":
+	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations",
+		apiconnect.AgentManagerServiceCreateRunProcedure:
 		return true
 	case "/api/v1/runs/quiesce":
 		// The default drain only observes active runs and waits; it does not
@@ -278,7 +289,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// The handler applies the single-run wake lineage rule to every
 		// parked run on the key (a worker waking its orchestrator).
 		return true
-	case "/api/v1/tasks":
+	case "/api/v1/tasks", apiconnect.AgentManagerServiceCreateTaskProcedure:
 		// Task creation is the inert first leg of the run.create unit. The
 		// handler decides whether the caller is a live profile orchestrator or
 		// has the exact canonical run.create authority. Do not classify a
@@ -324,7 +335,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return true
 	case "/api/v1/runs/{id}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
 		"/api/v1/tasks/{id}/cancel",
-		"/api/v1/investigations/{id}/wait", "/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/cancel", "/api/v1/investigations/{id}/learning-retry":
+		"/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/learning-retry":
 		return true
 	}
 	return false
@@ -355,11 +366,6 @@ var localLoopbackOnlyRoute = map[string]bool{
 // services are admitted whole from their generated descriptor (see
 // readOnlyServiceRoutes) instead of being listed here.
 var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
-	"/api/v1/permission-policy/doctor":                                       true,
-	"/api/v1/permission-policy/plan":                                         true,
-	"/api/v1/permission-policy/validate":                                     true,
-	"/api/v1/role-policy/explain":                                            true,
-	"/api/v1/role-policy/validate":                                           true,
 	apiconnect.AgentManagerServiceExplainRolePolicyProcedure:                 true,
 	apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure:            true,
 	apiconnect.AgentManagerServicePlanPermissionPolicyProcedure:              true,
@@ -375,13 +381,9 @@ var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
 	"/agent_manager.v1.AgentManagerService/GetRolePolicyStatus":              true,
 	"/agent_manager.v1.AgentManagerService/GetRun":                           true,
 	"/agent_manager.v1.AgentManagerService/GetRunAccounting":                 true,
-	"/agent_manager.v1.AgentManagerService/GetRunByTag":                      true,
-	"/agent_manager.v1.AgentManagerService/GetRunDiff":                       true,
 	"/agent_manager.v1.AgentManagerService/GetRunEvents":                     true,
 	"/agent_manager.v1.AgentManagerService/GetRunReport":                     true,
-	"/agent_manager.v1.AgentManagerService/GetRunnerStatus":                  true,
 	"/agent_manager.v1.AgentManagerService/GetSupervisionPolicy":             true,
-	"/agent_manager.v1.AgentManagerService/GetTask":                          true,
 	"/agent_manager.v1.AgentManagerService/GetWorkflowExecution":             true,
 	"/agent_manager.v1.AgentManagerService/GetWorkflowExecutionResult":       true,
 	"/agent_manager.v1.AgentManagerService/GetWorkflowExecutionTrace":        true,
@@ -398,7 +400,6 @@ var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
 	"/agent_manager.v1.AgentManagerService/ListProfiles":                     true,
 	"/agent_manager.v1.AgentManagerService/ListRuns":                         true,
 	"/agent_manager.v1.AgentManagerService/ListSupervisionOutcomes":          true,
-	"/agent_manager.v1.AgentManagerService/ListTasks":                        true,
 	"/agent_manager.v1.AgentManagerService/ListWorkflowExecutionRuns":        true,
 	"/agent_manager.v1.AgentManagerService/ListWorkflowExecutions":           true,
 	"/agent_manager.v1.AgentManagerService/ListWorkflowRevisions":            true,

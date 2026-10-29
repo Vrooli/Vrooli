@@ -74,3 +74,34 @@ test("useSelectedRunController gap-fills selected run events through the run eve
   unmount();
   assert.equal(wsUnsubscribe.mock.calls[0]?.[0], "run-1");
 });
+
+test("a run whose task is gone, or that never had one, still syncs without reporting a failed sync", async () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+  const orphan = makeRun({ id: "run-orphan", taskId: "task-deleted", status: RunStatus.COMPLETE });
+  const sessionRun = makeRun({ id: "run-session", taskId: "", status: RunStatus.COMPLETE });
+  const onGetRun = vi.fn(async (id: string) => (id === orphan.id ? orphan : sessionRun));
+  const onGetTask = vi.fn(async () => { throw new Error("Request failed: 404"); });
+  const runs = [orphan, sessionRun];
+  const tasks: never[] = [];
+  // Stable callbacks: the controller re-subscribes whenever one changes identity.
+  const onGetEvents = vi.fn(async () => []);
+  const onGetDiff = vi.fn(async () => ({ files: [] }) as unknown as RunDiff);
+  const wsSubscribe = vi.fn();
+  const wsUnsubscribe = vi.fn();
+
+  const { result } = renderHook(() => {
+    const isDeselectingRef = useRef(false);
+    const runEventStore = useRunEventStore();
+    return useSelectedRunController({
+      runs, tasks, isDeselectingRef, onGetRun,
+      onGetEvents, onGetDiff, onGetTask, runEventStore, wsSubscribe, wsUnsubscribe,
+    });
+  });
+
+  await act(async () => { await result.current.loadRunDetails(orphan); });
+  await act(async () => { await result.current.loadRunDetails(sessionRun); });
+  await waitFor(() => assert.equal(result.current.selectedRun?.id, "run-session"));
+  assert.equal(onGetTask.mock.calls.length, 1, "only the run that names a task looks it up");
+  assert.deepEqual(error.mock.calls.filter(([message]) => String(message).includes("Failed to sync run details")), []);
+  error.mockRestore();
+});

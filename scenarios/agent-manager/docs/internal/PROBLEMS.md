@@ -314,7 +314,7 @@ dependent on retained source events.
 **Description**: Runner billing declarations and subscription periods are
 available, but a subscription fee is not silently allocated across workloads
 or runs. Allocation requests without an explicit basis are rejected.
-**Mitigation**: Inspect `charge_by_basis`, configure non-overlapping operator
+**Mitigation**: Inspect the run cost measure (dollars exist only for per-token billed runs), configure non-overlapping operator
 subscription periods, and use an explicit allocation basis once a pricing
 allocator is available. Unknown and unpriced consumption remain visible.
 **Status**: Deliberate safety boundary; do not infer accounting treatment from

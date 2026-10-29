@@ -210,7 +210,7 @@ func (a *App) decisionRaise(args []string) error {
 		}
 	}
 	response := &pb.RaiseEffortDecisionResponse{}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceRaiseEffortDecisionProcedure, &pb.RaiseEffortDecisionRequest{Decision: record}, response)
+	body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceRaiseEffortDecisionProcedure, &pb.RaiseEffortDecisionRequest{Decision: record}, response)
 	if err != nil {
 		return apiError(body, err)
 	}
@@ -274,7 +274,7 @@ func printDecisionRaise(result any, jsonOut bool, text func()) error {
 // absent or unreadable.
 func (a *App) storedDecision(home, id string) *pb.EffortDecision {
 	response := &pb.ListEffortDecisionsResponse{}
-	if _, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, &pb.ListEffortDecisionsRequest{GoalHome: home, Limit: 200}, response); err != nil {
+	if _, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceListEffortDecisionsProcedure, &pb.ListEffortDecisionsRequest{GoalHome: home, Limit: 200}, response); err != nil {
 		return nil
 	}
 	for _, d := range response.GetDecisions() {
@@ -317,7 +317,7 @@ func (a *App) decisionAnswer(args []string) error {
 		service = &WatchService{api: service.api.WithToken(login.Tokens.AccessToken)}
 	}
 	response := &pb.EffortDecision{}
-	body, err := service.call(apiconnect.AgentManagerServiceAnswerEffortDecisionProcedure, &pb.AnswerEffortDecisionRequest{GoalHome: ref, DecisionId: fs.Arg(0), Answer: fs.Arg(1), Note: *note}, response)
+	body, err := callRPC(service.api, apiconnect.AgentManagerServiceAnswerEffortDecisionProcedure, &pb.AnswerEffortDecisionRequest{GoalHome: ref, DecisionId: fs.Arg(0), Answer: fs.Arg(1), Note: *note}, response)
 	if err != nil {
 		return apiError(body, err)
 	}
@@ -354,7 +354,7 @@ func (a *App) decisionList(args []string) error {
 	seen := map[string]bool{}
 	for {
 		page := &pb.ListEffortDecisionsResponse{}
-		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, request, page)
+		body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceListEffortDecisionsProcedure, request, page)
 		if err != nil {
 			return apiError(body, err)
 		}
@@ -436,7 +436,7 @@ func (a *App) decisionSync(args []string) error {
 	seenTokens, seenIDs := map[string]bool{}, map[string]bool{}
 	for {
 		response := &pb.ListEffortDecisionsResponse{}
-		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceListEffortDecisionsProcedure, list, response)
+		body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceListEffortDecisionsProcedure, list, response)
 		if err != nil {
 			return apiError(body, err)
 		}
@@ -516,7 +516,7 @@ func (a *App) decisionSync(args []string) error {
 			continue
 		}
 		marked := &pb.EffortDecision{}
-		body, err := a.services.Watches.call(apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure, &pb.MarkEffortDecisionRecordedRequest{GoalHome: d.GetGoalHome(), DecisionId: item.ID, AnsweredAt: d.GetAnsweredAt()}, marked)
+		body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceMarkEffortDecisionRecordedProcedure, &pb.MarkEffortDecisionRecordedRequest{GoalHome: d.GetGoalHome(), DecisionId: item.ID, AnsweredAt: d.GetAnsweredAt()}, marked)
 		if err != nil {
 			// A newer answer arrived after the read; the next sync records it.
 			item.Detail = "not marked recorded: " + apiError(body, err).Error()

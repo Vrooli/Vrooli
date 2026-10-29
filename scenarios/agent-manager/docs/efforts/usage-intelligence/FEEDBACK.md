@@ -111,3 +111,33 @@ Closed 2026-10-29: all waves completed unattended; Claude Code 2.1.312 intact (v
 Disposition: SPEC AM-3. Research item R-1 runs before W5. The indexer (W2) and attribution (W5) carry the
 modality dimension.
 Closed 2026-10-29: R1-non-text-usage.md; indexer records images in/out, web search/fetch, audio, tool_kind per turn (base64 stripped); `usage burners --by modality|tool_kind`; metered-outside-tokens lines (Codex credits, web search, scenario calls); R-image recommendation rule.
+
+## F-7 — 2026-10-29 — Pass 2: review findings, mockups and decisions first (closed by F-8)
+
+> Thanks these are great findings and recommendations. What we did last time was, you did
+> further investigations upfront to solidify the plan more and brought to me any important
+> decisions so that I could answer those upfront and you also showed me mock ups for any UX
+> that was being added or changed, I would like that as well, but also I would like you to
+> capture any relevant existing UX besides the notification settings [...] like any like
+> statistics and friction and [...] whatever is planned to open when you press one of the
+> notifications [...] present like mock ups and stuff for how we could look nice and also for
+> like the relevant pages analyze what's there and you know give constructive criticism and
+> improved markups to make things look you know more professional, and cleaned up and you
+> know, drive down existing UX debt in terms of like what's actually visible to the user, but
+> also the code itself. And if you could you do more research on the remaining code debt and
+> complexity overall [...] it's still really important that we're actively driving down debt
+> and messiness so that the code ends up you know better than we found it [...] present me
+> with any like mock ups and decisions before we get started
+
+Disposition: pass-2 research done before any change. Live captures of Usage (Overview,
+Details, Coverage), Dashboard, Findings, Investigations, Health and run tabs at 1440 and 390;
+read-only API/CLI and UI debt audits; review report and pass-2 proposal artifacts with
+mockups and decisions P2-D1..P2-D13 (https://claude.ai/artifact/TWQD4VtTu5H6RQQokE48Yw; copy in mockups/pass2/).
+No implementation until the operator answers.
+
+## F-8 — 2026-10-29 — Pass 2 approved (closed)
+
+> Awesome thanks this all looks great. I agree with everything. Please fully implement and validate all of this
+
+Disposition: P2-D1..P2-D13 approved as recommended; SPEC §10 written; WORKSTREAMS "Pass 2" allocated; DEBT P2 rows opened. F-7 closed by this approval.
+Closed 2026-10-29 18:25Z: P2-A1–P2-A10 met (WORKSTREAMS "Pass 2 acceptance"); operator-owned items remain (fixture deletion scripts, phone pairing, A11).

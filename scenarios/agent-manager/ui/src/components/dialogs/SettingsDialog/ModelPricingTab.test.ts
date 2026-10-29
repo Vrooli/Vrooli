@@ -78,6 +78,8 @@ test("ModelPricingTab orders incomplete model data and handles dialog keyboard e
   renderWithProviders(createElement(ModelPricingTab));
 
   await user.click(screen.getByRole("button", { name: "Input" }));
+  assert.equal(screen.getAllByRole("button", { name: "Edit pricing overrides" })[0]?.closest("tr")?.textContent?.includes("zulu"), true);
+  await user.click(screen.getByRole("button", { name: "Input" }));
   assert.equal(screen.getAllByRole("button", { name: "Edit pricing overrides" })[0]?.closest("tr")?.textContent?.includes("alpha"), true);
   await user.click(screen.getAllByRole("button", { name: "Edit pricing overrides" })[0]!);
   assert.ok(screen.getByText("Cache Creation"));
@@ -176,4 +178,12 @@ test("ModelPricingTab exposes fresh cache metadata, recalculates an individual m
 
   await user.click(screen.getByTitle("Edit pricing overrides"));
   assert.ok(screen.getByText("Loading..."));
+});
+
+test("the pricing table scrolls inside its own box instead of being clipped on a narrow screen", () => {
+  setup();
+  renderWithProviders(createElement(ModelPricingTab));
+  const box = screen.getByTestId("pricing-table-scroll");
+  assert.ok(box.className.includes("overflow-auto"));
+  assert.ok(box.querySelector("table")?.className.includes("min-w-"), "the table keeps a width wider than a phone, so the box scrolls");
 });

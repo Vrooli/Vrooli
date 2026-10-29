@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { rpcBody, rpcMethod } from "../test-utils/rpc.js";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, test, vi } from "vitest";
-import { useHealth, useMaintenance, useProfiles, useRunners, useRuns, useTasks } from "./useApi.js";
+import { useHealth, useMaintenance, useProfiles, useRuns, useTasks } from "./useApi.js";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -33,7 +34,7 @@ test("profile, task, and run lists honor disabled mode and use canonical bounded
   assert.deepEqual(runs.result.current.data, []);
   assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/profiles"));
   assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/tasks"));
-  assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/runs?limit=25"));
+  assert.ok(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/runs?top_level=true&limit=25"));
 });
 
 test("core list hooks retain typed API failures instead of replacing visible data", async () => {
@@ -55,62 +56,36 @@ test("core list hooks retain typed API failures instead of replacing visible dat
   assert.deepEqual(runs.result.current.data, []);
 });
 
-test("health and runner projections normalize their independent endpoints", async () => {
-  const fetch = vi.fn(async (url: string) => {
-    if (url.endsWith("/health")) return json({ status: "HEALTH_STATUS_READY", dependencies: { api: "ready" }, metrics: { queued: 2 } });
-    return json({ runners: [{ runnerType: "RUNNER_TYPE_CODEX", available: true }] });
-  });
+test("health reads its own endpoint and normalizes the document", async () => {
+  const fetch = vi.fn(async () => json({ status: "HEALTH_STATUS_READY", dependencies: { api: "ready" }, metrics: { queued: 2 } }));
   vi.stubGlobal("fetch", fetch);
   const health = renderHook(() => useHealth());
-  const runners = renderHook(() => useRunners());
-  await waitFor(() => assert.equal(Object.keys(runners.result.current.data ?? {}).length, 1));
   await waitFor(() => assert.ok(health.result.current.data));
   assert.equal(fetch.mock.calls.some(([url]) => url === "http://localhost:3000/api/v1/health"), true);
-  health.unmount(); runners.unmount();
-});
-
-test("runner projection retains errors, supports disabled mode, and tolerates empty API payloads", async () => {
-  const fetch = vi.fn()
-    .mockResolvedValueOnce(json({ runners: [] }))
-    .mockResolvedValueOnce(json({ error: "runners unavailable" }, 502));
-  vi.stubGlobal("fetch", fetch);
-
-  renderHook(() => useRunners({ enabled: false }));
-  await act(async () => {});
-  assert.equal(fetch.mock.calls.length, 0);
-
-  const runners = renderHook(() => useRunners());
-  await waitFor(() => assert.deepEqual(runners.result.current.data, {}));
-  await act(async () => {
-    await runners.result.current.refetch();
-  });
-  assert.equal(runners.result.current.error, "Request failed: 502");
+  health.unmount();
 });
 
 test("list projections accept incomplete successful envelopes and an unbounded run refresh", async () => {
   const fetch = vi.fn(async (url: string) => {
     if (url.endsWith("/profiles")) return json({});
     if (url.endsWith("/tasks")) return json({});
-    if (url.endsWith("/runners")) return json({});
     return json({});
   });
   vi.stubGlobal("fetch", fetch);
 
   const profiles = renderHook(() => useProfiles());
   const tasks = renderHook(() => useTasks());
-  const runners = renderHook(() => useRunners());
   const runs = renderHook(() => useRuns());
   await waitFor(() => {
     assert.deepEqual(profiles.result.current.data, []);
     assert.deepEqual(tasks.result.current.data, []);
-    assert.deepEqual(runners.result.current.data, {});
     assert.deepEqual(runs.result.current.data, []);
   });
 
   await act(async () => { await runs.result.current.refetch(); });
-  const runCalls = fetch.mock.calls.filter(([url]) => String(url).endsWith("/runs"));
+  const runCalls = fetch.mock.calls.filter(([url]) => String(url).includes("/runs?top_level=true"));
   assert.equal(runCalls.length, 2);
-  assert.equal(runs.result.current.loading, false);
+  await waitFor(() => assert.equal(runs.result.current.loading, false));
   assert.equal(runs.result.current.error, null);
 });
 
@@ -126,9 +101,11 @@ test("maintenance distinguishes dry-run preview from explicitly destructive purg
     assert.equal(preview.profiles, 2); assert.equal(preview.runs, 4);
     assert.equal(executed.profiles, 2); assert.equal(executed.runs, 4);
   });
-  assert.match(String(fetch.mock.calls[0]?.[1]?.body), /"dry_run":true/);
+  const calls = fetch.mock.calls as unknown as unknown[][];
+  assert.deepEqual(calls.map(rpcMethod), ["PurgeData", "PurgeData"]);
+  assert.equal(rpcBody(calls[0]!).dryRun, true);
   // Proto JSON elides the false default; the server interprets its absence as execute mode.
-  assert.doesNotMatch(String(fetch.mock.calls[1]?.[1]?.body), /"dry_run"/);
+  assert.equal("dryRun" in rpcBody(calls[1]!), false);
 });
 
 test("maintenance treats successful purge responses with omitted count maps as empty results", async () => {
@@ -147,7 +124,7 @@ test("maintenance treats successful purge responses with omitted count maps as e
 
 test("run controls preserve investigation context, review attribution, continuation attachments, and refresh state", async () => {
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/runs") && (!init?.method || init.method === "GET")) return json({ runs: [] });
+    if (url.includes("/runs?top_level=true")) return json({ runs: [] });
     if (url.includes("/continue")) return json({ success: true, run: { id: "continued" } });
     if (url.includes("/events")) return json({ events: [] });
     if (url.endsWith("/diff")) return json({ diff: {} });
@@ -202,8 +179,8 @@ test("run retry and continuation failure paths preserve the server error and omi
 });
 
 test("run read and review controls keep optional request fields absent when operators leave them blank", async () => {
-  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.endsWith("/runs") && (!init?.method || init.method === "GET")) return json({ runs: [] });
+  const fetch = vi.fn(async (url: string) => {
+    if (url.includes("/runs?top_level=true")) return json({ runs: [] });
     if (url.includes("/events")) return json({});
     if (url.includes("/approve")) return json({ result: {} });
     if (url.includes("/reject")) return new Response(null, { status: 204 });

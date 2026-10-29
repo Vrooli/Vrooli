@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"context"
+	"errors"
 	"io"
 	"net/http"
 	"slices"
@@ -14,6 +16,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -23,22 +26,61 @@ import (
 // TASK HANDLERS
 // =============================================================================
 
+// errTaskCreateForbidden marks a verified agent that is neither a live
+// orchestrator nor covered by run.create authority.
+var errTaskCreateForbidden = errors.New("task creation requires a live orchestrator or run.create authority")
+
+// authorizeTaskCreate admits an agent caller to the task leg of run creation
+// and returns the trusted creator run, when the caller is one. Other principals
+// are admitted by the middleware before the handler runs.
+func (h *Handler) authorizeTaskCreate(ctx context.Context, identityToken string) (*domain.Run, error) {
+	p, ok := requestidentity.PrincipalFromContext(ctx)
+	if !ok || p.Kind != requestidentity.ActorAgent {
+		return nil, nil
+	}
+	// The task is an inert precursor to the child run, so a covering run.create
+	// grant admits both parts of the same operation. A live profile
+	// orchestrator keeps its existing intrinsic task-creation path even when
+	// it also carries an unrelated operation grant.
+	trustedCreator, intrinsic := h.taskCreateCaller(ctx, identityToken)
+	if !intrinsic {
+		if _, err := authn.RequireOperation(ctx, "agent-manager:write", "run.create", RunCreationTarget); err != nil {
+			return nil, errTaskCreateForbidden
+		}
+	}
+	return trustedCreator, nil
+}
+
+// createTask validates and stores one task for either transport.
+func (h *Handler) createTask(ctx context.Context, trustedCreator *domain.Run, req *apipb.CreateTaskRequest) (*apipb.CreateTaskResponse, error) {
+	if req.Task == nil {
+		return nil, domain.NewValidationError("task", "task is required")
+	}
+	task := protoconv.TaskFromProto(req.Task)
+	if p, ok := requestidentity.PrincipalFromContext(ctx); ok && p.Kind == requestidentity.ActorAgent {
+		// Creator identity is authorization-adjacent for later exact-owner task
+		// edits. Never let an agent-supplied label or UUID claim that ownership.
+		task.CreatedBy = ""
+		if trustedCreator != nil {
+			task.CreatedBy = trustedCreator.ID.String()
+		}
+	}
+	if err := task.Validate(); err != nil {
+		return nil, err
+	}
+	result, err := h.svc.CreateTask(ctx, task)
+	if err != nil {
+		return nil, err
+	}
+	return &apipb.CreateTaskResponse{Task: protoconv.TaskToProto(result)}, nil
+}
+
 // CreateTask creates a new task.
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
-	var trustedCreator *domain.Run
-	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent {
-		// The task is an inert precursor to the child run, so a covering run.create
-		// grant admits both parts of the same operation. A live profile
-		// orchestrator keeps its existing intrinsic task-creation path even when
-		// it also carries an unrelated operation grant.
-		var intrinsic bool
-		trustedCreator, intrinsic = h.taskCreateCaller(r)
-		if !intrinsic {
-			if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err != nil {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "task creation requires a live orchestrator or run.create authority"})
-				return
-			}
-		}
+	trustedCreator, err := h.authorizeTaskCreate(r.Context(), r.Header.Get(cliutil.HeaderAgentIdentityToken))
+	if err != nil {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "task creation requires a live orchestrator or run.create authority"})
+		return
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -54,36 +96,12 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	if !h.validateProto(w, r, &req) {
 		return
 	}
-	if req.Task == nil {
-		writeSimpleError(w, r, "task", "task is required")
-		return
-	}
-
-	task := protoconv.TaskFromProto(req.Task)
-	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent {
-		// Creator identity is authorization-adjacent for later exact-owner task
-		// edits. Never let an agent-supplied label or UUID claim that ownership.
-		task.CreatedBy = ""
-		if trustedCreator != nil {
-			task.CreatedBy = trustedCreator.ID.String()
-		}
-	}
-
-	// Validate before sending to service
-	if err := task.Validate(); err != nil {
-		writeError(w, r, err)
-		return
-	}
-
-	result, err := h.svc.CreateTask(r.Context(), task)
+	response, err := h.createTask(r.Context(), trustedCreator, &req)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
-
-	writeProtoJSON(w, http.StatusCreated, &apipb.CreateTaskResponse{
-		Task: protoconv.TaskToProto(result),
-	})
+	writeProtoJSON(w, http.StatusCreated, response)
 }
 
 // GetTask retrieves a task by ID.
@@ -227,7 +245,10 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if principal, ok := requestidentity.PrincipalFromContext(r.Context()); ok && principal.Kind == requestidentity.ActorAgent {
-		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:task/"+id.String()); err != nil {
+		// Without agent.manage authority an agent may only amend the brief of
+		// a queued task its own orchestrator created.
+		_, authorityErr := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:task/"+id.String())
+		if briefOnly := authorityErr != nil; briefOnly {
 			ownedQueuedTask, allowed := h.orchestratorTaskUpdateTarget(r, id)
 			if !allowed || !taskUpdateOnlyChangesBrief(req.Task, ownedQueuedTask) {
 				writeJSON(w, http.StatusForbidden, map[string]string{"error": "task brief updates require the verified creator orchestrator and an exact queued, undispatched task"})

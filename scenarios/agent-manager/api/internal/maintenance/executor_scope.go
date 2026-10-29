@@ -51,11 +51,6 @@ type ControlPlaneObserver struct {
 	read        func(context.Context, []byte) ([]byte, error)
 }
 
-func NewControlPlaneInventory(db InventoryDatabase, lookup func(context.Context, uuid.UUID) (*domain.Run, error)) *InventoryReader {
-	owner := &ControlPlaneObserver{lookup: lookup, read: readExecutorScope}
-	return NewBatchedInventory(db, owner.Observe)
-}
-
 // NewControlPlaneInventoryBatch avoids one full run/action hydration per
 // historical PID. SQL ownership supplies the existing timestamp decoder.
 func NewControlPlaneInventoryBatch(db InventoryDatabase, lookup func(context.Context, []ExecutorRef) ([]*domain.Run, error)) *InventoryReader {

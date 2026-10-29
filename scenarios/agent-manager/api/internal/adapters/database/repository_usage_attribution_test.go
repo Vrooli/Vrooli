@@ -99,58 +99,6 @@ func TestUsageTurnsCountEachReportOnceFromTranscriptUsage(t *testing.T) {
 	}
 }
 
-func TestRepairUsageRowsRewritesTimeAndModelByOffset(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-	indexedAt := time.Date(2026, 10, 29, 7, 0, 0, 0, time.UTC)
-	row := codexReport("2:2", uuid.NewString(), 40, indexedAt, domain.UsageCounters{InputTokens: 1}, domain.UsageCounters{InputTokens: 1})
-	row.Usage.Model = "unknown"
-	seedUsageFile(t, db, transcriptindex.FileRow{Key: "2:2", Path: "/g", Harness: transcriptindex.HarnessCodex, Owner: transcriptindex.OwnerIndexer, Status: transcriptindex.StatusIndexed, FirstSeenAt: indexedAt}, []transcriptindex.UsageRow{row})
-	repo := NewTranscriptIndexRepository(db)
-	files, err := repo.UsageFilesToRepair(ctx)
-	if err != nil || len(files) != 1 || files[0].Path != "/g" {
-		t.Fatalf("files to repair = %+v, %v", files, err)
-	}
-	lineTime := time.Date(2026, 10, 28, 9, 0, 2, 0, time.UTC)
-	if err := repo.RepairUsageRows(ctx, "2:2", []transcriptindex.UsageFix{{LineOffset: 40, ObservedAt: lineTime, Model: "gpt-6-luna"}}); err != nil {
-		t.Fatal(err)
-	}
-	var observed, model string
-	if err := db.QueryRowContext(ctx, `SELECT observed_at, model FROM transcript_usage WHERE file_key = '2:2'`).Scan(&observed, &model); err != nil {
-		t.Fatal(err)
-	}
-	if observed != lineTime.Format(time.RFC3339Nano) || model != "gpt-6-luna" {
-		t.Fatalf("repaired row = %s %s", observed, model)
-	}
-	if files, _ := repo.UsageFilesToRepair(ctx); len(files) != 0 {
-		t.Fatalf("a repaired file is listed again: %+v", files)
-	}
-}
-
-func TestUsageRepairCompletionMarkerIsDurable(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-	repo := NewTranscriptIndexRepository(db)
-	if done, err := repo.UsageRepairDone(ctx, "r1"); err != nil || done {
-		t.Fatalf("fresh database: done=%v err=%v", done, err)
-	}
-	if err := repo.MarkUsageRepairDone(ctx, "r1", transcriptindex.RepairReport{Files: 2, Rows: 9}); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.MarkUsageRepairDone(ctx, "r1", transcriptindex.RepairReport{}); err != nil {
-		t.Fatalf("marking twice must be idempotent: %v", err)
-	}
-	var rows int
-	if err := db.GetContext(ctx, &rows, `SELECT rows_repaired FROM transcript_usage_repairs WHERE name = 'r1'`); err != nil || rows != 9 {
-		t.Fatalf("marker rows = %d, %v", rows, err)
-	}
-	if done, _ := repo.UsageRepairDone(ctx, "r1"); !done {
-		t.Fatal("marker not read back")
-	}
-}
-
 // F-W5-4: recommendations read only episodes of the current classifier, so an
 // episode written by an older detector (a handoff continuation that counted
 // every call of the run) is never priced beside current ones.

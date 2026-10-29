@@ -53,6 +53,7 @@ func RunToProto(r *domain.Run) *pb.Run {
 		ImportSourceSessionId: validUTF8(r.ImportSourceSessionID),
 		GoalId:                validUTF8(r.GoalID),
 		WorkReferences:        r.WorkReferences,
+		SubAgentCount:         int32(r.SubAgentCount),
 	}
 
 	if r.ParentRunID != nil {

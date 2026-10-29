@@ -65,28 +65,28 @@ func TestHandleResultFinalizesInPlaceSuccessAndFailureWithoutSandboxSideEffects(
 }
 
 func TestResultErrorClassificationPreservesTypedRecoveryIntent(t *testing.T) {
-	if got := ClassifyErrorOutcome(&domain.SandboxError{}); got != domain.RunOutcomeSandboxFail {
+	if got := domain.ClassifyErrorOutcome(&domain.SandboxError{}); got != domain.RunOutcomeSandboxFail {
 		t.Fatalf("sandbox error outcome=%s", got)
 	}
-	if got := ClassifyErrorOutcome(&domain.ConfigError{Missing: true, Setting: "sandbox"}); got != domain.RunOutcomeSandboxFail {
+	if got := domain.ClassifyErrorOutcome(&domain.ConfigError{Missing: true, Setting: "sandbox"}); got != domain.RunOutcomeSandboxFail {
 		t.Fatalf("missing sandbox outcome=%s", got)
 	}
-	if got := ClassifyErrorOutcome(&domain.ConfigError{Missing: true, Setting: "runner"}); got != domain.RunOutcomeException {
+	if got := domain.ClassifyErrorOutcome(&domain.ConfigError{Missing: true, Setting: "runner"}); got != domain.RunOutcomeException {
 		t.Fatalf("other config outcome=%s", got)
 	}
-	if got := ClassifyErrorOutcome(&domain.RunnerError{Operation: "timeout"}); got != domain.RunOutcomeTimeout {
+	if got := domain.ClassifyErrorOutcome(&domain.RunnerError{Operation: "timeout"}); got != domain.RunOutcomeTimeout {
 		t.Fatalf("timeout runner outcome=%s", got)
 	}
-	if got := ClassifyErrorOutcome(&domain.RunnerError{Operation: "acquire"}); got != domain.RunOutcomeRunnerFail {
+	if got := domain.ClassifyErrorOutcome(&domain.RunnerError{Operation: "acquire"}); got != domain.RunOutcomeRunnerFail {
 		t.Fatalf("runner outcome=%s", got)
 	}
-	if got := ClassifyErrorOutcome(errors.New("unexpected")); got != domain.RunOutcomeException {
+	if got := domain.ClassifyErrorOutcome(errors.New("unexpected")); got != domain.RunOutcomeException {
 		t.Fatalf("generic outcome=%s", got)
 	}
-	if got := classifyOutcome(nil, &runner.ExecuteResult{ExitCode: 0}); got != domain.RunOutcomeSuccess {
+	if got := domain.ClassifyRunOutcome(nil, resultExitCode(&runner.ExecuteResult{ExitCode: 0})); got != domain.RunOutcomeSuccess {
 		t.Fatalf("success classification=%s", got)
 	}
-	if got := classifyOutcome(errors.New("execute"), nil); got != domain.RunOutcomeException {
+	if got := domain.ClassifyRunOutcome(errors.New("execute"), resultExitCode(nil)); got != domain.RunOutcomeException {
 		t.Fatalf("exception classification=%s", got)
 	}
 }

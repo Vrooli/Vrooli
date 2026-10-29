@@ -97,7 +97,7 @@ func TestRequesterApplyNeverClaimsResolution(t *testing.T) {
 func TestDeliverWakesRunParkedOnThisDecision(t *testing.T) {
 	run := parkedOn(orchestration.ProducerOperatorDecision, "d-1")
 	f := newFakeWaker(run)
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
 	if msg, ok := f.woke[run.ID]; !ok || !strings.Contains(msg, "operator decision resolved") {
 		t.Fatalf("parked-on-decision run must be woken with the answer, got ok=%v msg=%q", ok, msg)
 	}
@@ -109,7 +109,7 @@ func TestDeliverWakesRunParkedOnThisDecision(t *testing.T) {
 func TestDeliverDoesNotDisturbRunParkedOnOtherWork(t *testing.T) {
 	run := parkedOn(orchestration.ProducerChildren, "something")
 	f := newFakeWaker(run)
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
 	if len(f.woke) != 0 || len(f.continued) != 0 {
 		t.Fatalf("a run parked on unrelated work must be left alone, woke=%v continued=%v", f.woke, f.continued)
 	}
@@ -118,7 +118,7 @@ func TestDeliverDoesNotDisturbRunParkedOnOtherWork(t *testing.T) {
 func TestDeliverContinuesRunningInteractiveRun(t *testing.T) {
 	run := runIn(domain.RunStatusRunning)
 	f := newFakeWaker(run)
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
 	if msg, ok := f.continued[run.ID]; !ok || !strings.Contains(msg, "operator decision resolved") {
 		t.Fatalf("a running run must be delivered via ContinueRun, got ok=%v msg=%q", ok, msg)
 	}
@@ -130,7 +130,7 @@ func TestDeliverContinuesRunningInteractiveRun(t *testing.T) {
 func TestDeliverContinuesTerminalRun(t *testing.T) {
 	run := runIn(domain.RunStatusComplete)
 	f := newFakeWaker(run)
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
 	if _, ok := f.continued[run.ID]; !ok {
 		t.Fatal("a terminal run must be delivered via ContinueRun (continuation)")
 	}
@@ -142,7 +142,7 @@ func TestDeliverSkipsRunAlreadyWokenForThisDecision(t *testing.T) {
 	run := runIn(domain.RunStatusRunning)
 	run.LastAwaitKey = orchestration.ProducerOperatorDecision + ":d-1"
 	f := newFakeWaker(run)
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
 	if len(f.continued) != 0 {
 		t.Fatalf("already-woken run must not be re-delivered, continued=%v", f.continued)
 	}
@@ -150,7 +150,7 @@ func TestDeliverSkipsRunAlreadyWokenForThisDecision(t *testing.T) {
 
 func TestDeliverUnknownRunIsBenign(t *testing.T) {
 	f := newFakeWaker()
-	requesterWakeEffect{waker: f}.deliverToRequester(uuid.New().String(), "", "d-1", resolution(uuid.New().String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), uuid.New().String(), "", "d-1", resolution(uuid.New().String(), "d-1"))
 	if len(f.woke) != 0 || len(f.continued) != 0 {
 		t.Fatal("an unknown run must be a benign no-op")
 	}
@@ -167,7 +167,7 @@ func TestDeliverUsesSessionLaneWhenNoRunID(t *testing.T) {
 	// A web-console-hosted session whose token expired carries only the stable
 	// session id — deliver straight to it via SendInteractivePrompt.
 	f := newFakeWaker()
-	requesterWakeEffect{waker: f}.deliverToRequester("", "wc-858b", "", sessionResolution("wc-858b"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), "", "wc-858b", "", sessionResolution("wc-858b"))
 	if msg, ok := f.prompted["wc-858b"]; !ok || !strings.Contains(msg, "operator decision resolved") {
 		t.Fatalf("expected direct session delivery, got ok=%v msg=%q", ok, msg)
 	}
@@ -178,7 +178,7 @@ func TestDeliverFallsBackToSessionLaneWhenRunUnknown(t *testing.T) {
 	// session id if one is present.
 	f := newFakeWaker()
 	gone := uuid.New().String()
-	requesterWakeEffect{waker: f}.deliverToRequester(gone, "wc-858b", "d-1",
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), gone, "wc-858b", "d-1",
 		operatordecision.DecisionResolution{State: "answered", Answer: "approve", Correlation: map[string]string{
 			operatordecision.CorrelationRaisedByRunID:       gone,
 			operatordecision.CorrelationWebConsoleSessionID: "wc-858b",
@@ -194,7 +194,7 @@ func TestDeliverPrefersRunLaneOverSessionLane(t *testing.T) {
 	// session); do NOT also send a direct prompt (would double-deliver).
 	run := runIn(domain.RunStatusRunning)
 	f := newFakeWaker(run)
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "wc-858b", "d-1",
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "wc-858b", "d-1",
 		operatordecision.DecisionResolution{State: "answered", Answer: "approve", Correlation: map[string]string{
 			operatordecision.CorrelationRaisedByRunID:       run.ID.String(),
 			operatordecision.CorrelationWebConsoleSessionID: "wc-858b",
@@ -224,7 +224,7 @@ func TestDeliverToleratesContinueRefusal(t *testing.T) {
 	run := runIn(domain.RunStatusRunning)
 	f := newFakeWaker(run)
 	f.continErr = context.DeadlineExceeded
-	requesterWakeEffect{waker: f}.deliverToRequester(run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
+	requesterWakeEffect{waker: f}.deliverToRequester(context.Background(), run.ID.String(), "", "d-1", resolution(run.ID.String(), "d-1"))
 }
 
 func TestFormatDecisionWakeMessage(t *testing.T) {

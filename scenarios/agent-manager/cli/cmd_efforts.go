@@ -129,7 +129,7 @@ func (a *App) cmdEffort(args []string) error {
 	if err != nil {
 		return err
 	}
-	body, err := service.call(path, request, response)
+	body, err := callRPC(service.api, path, request, response)
 	if err != nil {
 		return apiError(body, err)
 	}
@@ -223,7 +223,7 @@ func (a *App) effortDelivery(args []string) error {
 		return err
 	}
 	board := &pb.EffortBoard{}
-	if _, err := service.call(apiconnect.AgentManagerServiceGetEffortBoardProcedure, &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: 1}, board); err != nil {
+	if _, err := callRPC(service.api, apiconnect.AgentManagerServiceGetEffortBoardProcedure, &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: 1}, board); err != nil {
 		return err
 	}
 	if len(board.Rows) != 1 || board.Rows[0].GetEnrollment().GetEffortRef() != *ref {
@@ -252,7 +252,7 @@ func (a *App) effortDelivery(args []string) error {
 	}
 	request := &pb.EnrollEffortRequest{Enrollment: e, ExpectedRevision: e.Revision, IdempotencyKey: *key}
 	response := &pb.EffortEnrollment{}
-	body, err := service.call(apiconnect.AgentManagerServiceEnrollEffortProcedure, request, response)
+	body, err := callRPC(service.api, apiconnect.AgentManagerServiceEnrollEffortProcedure, request, response)
 	if err != nil {
 		return apiError(body, err)
 	}

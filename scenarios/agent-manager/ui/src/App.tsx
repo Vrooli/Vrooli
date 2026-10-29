@@ -1,8 +1,8 @@
 import { lazy, Profiler, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation, useSearchParams, Navigate } from "react-router-dom";
 import { Play, Settings2 } from "lucide-react";
 import { AppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
-import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useDashboardRunCounts } from "./hooks/useApi";
+import { useHealth, useRolePolicyCatalog, useProfiles, useRuns, useTasks, useDashboardRunCounts, type RunOrigin } from "./hooks/useApi";
 import { useWebSocket, type WebSocketMessage } from "./hooks/useWebSocket";
 import { useRunEventStore } from "./hooks/useRunEventStore";
 import type { Run, RunEvent } from "./types";
@@ -24,7 +24,6 @@ const WatchesPage = lazy(async () => ({ default: (await import("./pages/WatchesP
 const EffortsPage = lazy(async () => ({ default: (await import("./pages/EffortsPage")).EffortsPage }));
 const UsagePage = lazy(async () => ({ default: (await import("./features/usage")).UsagePage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
-const FindingsPage = lazy(async () => ({ default: (await import("./pages/FindingsPage")).FindingsPage }));
 const InvestigationsPage = lazy(async () => ({ default: (await import("./pages/InvestigationsPage")).InvestigationsPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
 const SettingsDialog = lazy(async () => ({ default: (await import("./components/dialogs/SettingsDialog")).SettingsDialog }));
@@ -60,7 +59,17 @@ export function App() {
   const healthState = healthView(health.data, health.error, health.reason);
   const profiles = useProfiles({ enabled: needsProfileData });
   const tasks = useTasks({ enabled: needsTaskData });
-  const runs = useRuns({ limit: runsLimit });
+  // The runs list is filtered by who started the run, server-side. The origin is held here, not in the URL, because
+  // selecting a run navigates to /runs/<id> and would drop the query; a link such as /runs?origin=agent_manager sets it.
+  const [searchParams] = useSearchParams();
+  const linkedOrigin = searchParams.get("origin") as RunOrigin | null;
+  const [runsOrigin, setRunsOrigin] = useState<RunOrigin>(linkedOrigin ?? "");
+  useEffect(() => {
+    if (linkedOrigin !== null) setRunsOrigin(linkedOrigin);
+  }, [linkedOrigin]);
+  // The dashboard shows what was started through Agent Manager.
+  const listOrigin: RunOrigin = isDashboardRoute ? "agent_manager" : path.startsWith("/runs") ? runsOrigin : "";
+  const runs = useRuns({ limit: runsLimit, origin: listOrigin });
   const dashboardCounts = useDashboardRunCounts({ enabled: isDashboardRoute });
 	const modelPolicy = useRolePolicyCatalog({ enabled: needsRunnerData });
   const runEventStore = useRunEventStore();
@@ -208,7 +217,7 @@ export function App() {
               <span className="truncate text-sm font-semibold md:hidden">Mizar</span>
               <Badge
                 variant={healthState.kind === "unreachable" || ws.status === "error" || ws.status === "disconnected" ? "destructive" : healthState.kind === "degraded" ? "warning" : healthState.kind === "checking" || ws.status === "connecting" ? "secondary" : "success"}
-                className="min-h-8 cursor-pointer gap-1 whitespace-nowrap text-xs"
+                className="min-h-11 cursor-pointer gap-1 sm:min-h-8 whitespace-nowrap text-xs"
                 onClick={() => setStatusOpen(true)}
                 role="button"
                 tabIndex={0}
@@ -223,14 +232,14 @@ export function App() {
                 {healthState.label} · {ws.status === "connected" ? "Live" : ws.status === "connecting" ? "Connecting" : ws.status === "error" ? "Error" : "Offline"}
               </Badge>
             </div>
-            <Button type="button" size="sm" className="min-h-10 shrink-0" aria-label="Quick Run" onClick={() => setQuickRunOpen(true)}>
+            <Button type="button" size="sm" className="min-h-11 min-w-11 shrink-0" aria-label="Quick Run" onClick={() => setQuickRunOpen(true)}>
               <Play aria-hidden="true" className="h-4 w-4" />
               <span className="hidden sm:inline">Quick Run</span>
             </Button>
           </div>
         }
         utility={
-          <Button type="button" variant="ghost" size="sm" className="min-h-10 shrink-0 md:w-full md:justify-start" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
+          <Button type="button" variant="ghost" size="sm" className="min-h-11 min-w-11 shrink-0 md:w-full md:justify-start" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
             <Settings2 aria-hidden="true" className="h-4 w-4" />
             <span className="hidden md:inline">Settings</span>
           </Button>
@@ -374,6 +383,8 @@ export function App() {
                     <ProfiledPage id="RunsPage">
                       <RunsPage
                         runs={mergedRuns}
+                        origin={runsOrigin}
+                        onOriginChange={setRunsOrigin}
                         tasks={tasks.data || []}
                         profiles={profiles.data || []}
                         loading={runs.loading}
@@ -458,7 +469,7 @@ export function App() {
                 </Suspense>
               }
             />
-            <Route path="/findings" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Findings"><ProfiledPage id="FindingsPage"><FindingsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
+            <Route path="/findings" element={<Navigate to="/usage?tab=friction" replace />} />
             <Route path="/investigations" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Investigations"><ProfiledPage id="InvestigationsPage"><InvestigationsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />

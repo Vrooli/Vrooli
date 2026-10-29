@@ -10,28 +10,20 @@ import type {
 	RunnerHealthListResponse,
 	ModelPolicyDriftSnapshot,
 } from "./types";
+import { apiRequest } from "../../../hooks/useApiTransport";
 
-const BASE = "/api/v1/health";
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, cache: "no-store" });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Health API error ${res.status}: ${body}`);
-  }
-  return (await res.json()) as T;
-}
+const fetchJson = <T>(path: string) => apiRequest<T>(path, { cache: "no-store" });
 
 export async function fetchModelHealth(): Promise<ModelHealthListResponse> {
-  return fetchJson<ModelHealthListResponse>(`${BASE}/models`);
+  return fetchJson<ModelHealthListResponse>(`/health/models`);
 }
 
 export async function fetchRunnerHealth(): Promise<RunnerHealthListResponse> {
-  return fetchJson<RunnerHealthListResponse>(`${BASE}/runners`);
+  return fetchJson<RunnerHealthListResponse>(`/health/runners`);
 }
 
 export async function fetchModelPolicyDrift(): Promise<ModelPolicyDriftSnapshot> {
-	return fetchJson<ModelPolicyDriftSnapshot>(`${BASE}/model-policy-drift`);
+	return fetchJson<ModelPolicyDriftSnapshot>(`/health/model-policy-drift`);
 }
 
 export async function fetchHealthAudit(filters: HealthAuditFilters): Promise<HealthAuditResponse> {
@@ -43,7 +35,7 @@ export async function fetchHealthAudit(filters: HealthAuditFilters): Promise<Hea
   if (filters.since) params.set("since", filters.since);
   if (filters.until) params.set("until", filters.until);
   if (filters.limit) params.set("limit", String(filters.limit));
-  return fetchJson<HealthAuditResponse>(`${BASE}/audit?${params.toString()}`);
+  return fetchJson<HealthAuditResponse>(`/health/audit?${params.toString()}`);
 }
 
 export const healthQueryKeys = {

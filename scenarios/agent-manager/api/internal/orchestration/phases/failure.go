@@ -87,7 +87,7 @@ func FailWithError(ctx context.Context, in FailWithErrorInput) FailWithErrorOutp
 		EmitGenericFailureEvent(ctx, in.Deps, in.Run.ID, in.Err)
 	}
 
-	outcome := ClassifyErrorOutcome(in.Err)
+	outcome := domain.ClassifyErrorOutcome(in.Err)
 
 	if in.Deps.Runs != nil {
 		if updateErr := persistTerminalRun(in.Deps, in.Run); updateErr != nil {

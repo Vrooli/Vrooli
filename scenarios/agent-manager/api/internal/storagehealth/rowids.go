@@ -20,8 +20,7 @@ import (
 //     entries at the wrong document (2026-09-14). Compaction refuses while that
 //     table exists; its replacement is keyed by an explicit id.
 //   - run_events is keyed by a TEXT id, yet consumers persist positions over its
-//     rowid (stats_checkpoint, cohort_watches) or hold one in memory (the stats
-//     engine). Compaction holds every consumer, anchors each position to stable
+//     rowid (cohort_watches) or hold one in memory. Compaction holds every consumer, anchors each position to stable
 //     event ids before VACUUM, and rewrites it from those ids afterwards.
 //
 // Positions that need nothing: the invocation read model keys its watermark by
@@ -88,7 +87,6 @@ func tableExists(ctx context.Context, db queryer, name string) (bool, error) {
 
 // persistedRowidWatermarks are the durable positions over run_events.rowid.
 var persistedRowidWatermarks = []struct{ table, key, column string }{
-	{"stats_checkpoint", "name", "last_rowid"},
 	{"cohort_watches", "watch_id", "cursor_rowid"},
 }
 

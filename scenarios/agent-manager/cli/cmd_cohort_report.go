@@ -41,22 +41,3 @@ func (a *App) runEpisodeTrend(args []string) error {
 	fmt.Println(string(body))
 	return nil
 }
-
-func (a *App) runPublishRecurringFriction(args []string) error {
-	fs := flag.NewFlagSet("run publish-recurring-friction", flag.ContinueOnError)
-	cap := fs.Int("cap", 25, "daily filing cap")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	body, err := a.services.Runs.PublishRecurringFriction(url.Values{"cap": []string{strconv.Itoa(*cap)}})
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-	fmt.Println(string(body))
-	return nil
-}

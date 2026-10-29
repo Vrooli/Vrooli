@@ -8,6 +8,7 @@ import (
 
 func detectWaitMisuse(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
+	work := newWorkSpans(ctx.Events)
 	for start := 0; start < len(ctx.Facts); {
 		startKey := waitIdentity(ctx.Facts[start])
 		if startKey == "" {
@@ -21,6 +22,11 @@ func detectWaitMisuse(ctx EpisodeDetectorContext) []FrictionEpisode {
 			fact := ctx.Facts[end]
 			if fact.Capability == "wait" {
 				if waitIdentity(fact) != startKey {
+					break
+				}
+				// Polling that straddles a park, a resume or a long silence is
+				// two pieces of work, not one wait loop.
+				if !work.sameStretch(ctx.Facts[start].CallEventID, fact.CallEventID) {
 					break
 				}
 				waitCount++

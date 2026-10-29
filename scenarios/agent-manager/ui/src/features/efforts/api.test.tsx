@@ -4,7 +4,8 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { EffortBoardSchema } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
-import { effortBoardClient, useEffortBoard } from "./api";
+import { agentManager } from "../../lib/api";
+import { useEffortBoard } from "./api";
 
 afterEach(() => vi.restoreAllMocks());
 function wrapper() {
@@ -13,11 +14,11 @@ function wrapper() {
 }
 
 test("owner cursor selects distinct evidence pages without discovery or mutation", async () => {
-  const read = vi.spyOn(effortBoardClient, "getEffortBoard")
+  const read = vi.spyOn(agentManager, "getEffortBoard")
     .mockResolvedValueOnce(create(EffortBoardSchema, { nextPageToken: "opaque", rows: [{ enrollment: { effortRef: "one" } }] }))
     .mockResolvedValueOnce(create(EffortBoardSchema, { rows: [{ enrollment: { effortRef: "two" } }] }));
-  const discover = vi.spyOn(effortBoardClient, "reconcileEffortDiscovery");
-  const enroll = vi.spyOn(effortBoardClient, "enrollEffort");
+  const discover = vi.spyOn(agentManager, "reconcileEffortDiscovery");
+  const enroll = vi.spyOn(agentManager, "enrollEffort");
   const { result, rerender } = renderHook(({ cursor }) => useEffortBoard(cursor), { initialProps: { cursor: "" }, wrapper: wrapper() });
   await waitFor(() => expect(result.current.data?.nextPageToken).toBe("opaque"));
   expect(result.current.data?.rows[0].enrollment?.effortRef).toBe("one");
@@ -29,7 +30,7 @@ test("owner cursor selects distinct evidence pages without discovery or mutation
 });
 
 test("an exact effort link asks the owner for that identity outside the current page", async () => {
-  const read = vi.spyOn(effortBoardClient, "getEffortBoard")
+  const read = vi.spyOn(agentManager, "getEffortBoard")
     .mockResolvedValue(create(EffortBoardSchema, { rows: [{ enrollment: { effortRef: "effort:alpha/beta?x=1" } }] }));
   const { result } = renderHook(() => useEffortBoard("", "effort:alpha/beta?x=1"), { wrapper: wrapper() });
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -38,7 +39,7 @@ test("an exact effort link asks the owner for that identity outside the current 
 
 test("obsolete observations are cancelled and owner failure remains an error", async () => {
   const signals: AbortSignal[] = [];
-  const read = vi.spyOn(effortBoardClient, "getEffortBoard").mockImplementationOnce((_request, options) => {
+  const read = vi.spyOn(agentManager, "getEffortBoard").mockImplementationOnce((_request, options) => {
     signals.push(options!.signal!); return new Promise(() => undefined);
   }).mockRejectedValueOnce(new Error("owner unavailable"));
   const { result, rerender } = renderHook(({ cursor }) => useEffortBoard(cursor), { initialProps: { cursor: "" }, wrapper: wrapper() });

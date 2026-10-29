@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
 )
@@ -23,17 +24,17 @@ func (a *App) cmdWorkflow(args []string) error {
 	case "validate":
 		return a.workflowValidate(args[1:])
 	case "plan":
-		return a.workflowReconcile(args[1:], "/api/v1/workflows/plan", true)
+		return a.workflowReconcile(args[1:], apiconnect.AgentManagerServicePlanScenarioWorkflowsProcedure, true)
 	case "reconcile-scenario":
-		return a.workflowReconcile(args[1:], "/api/v1/workflows/reconcile-scenario", false)
+		return a.workflowReconcile(args[1:], apiconnect.AgentManagerServiceReconcileScenarioWorkflowsProcedure, false)
 	case "reload":
-		return a.workflowReconcile(args[1:], "/api/v1/workflows/reload", false)
+		return a.workflowReconcile(args[1:], apiconnect.AgentManagerServiceReloadScenarioWorkflowsProcedure, false)
 	case "list":
 		return a.workflowList(args[1:])
 	case "get":
-		return a.workflowGet(args[1:], "/api/v1/workflows/revision")
+		return a.workflowGet(args[1:], apiconnect.AgentManagerServiceGetWorkflowRevisionProcedure)
 	case "explain":
-		return a.workflowGet(args[1:], "/api/v1/workflows/explain")
+		return a.workflowGet(args[1:], apiconnect.AgentManagerServiceExplainWorkflowProcedure)
 	case "start":
 		return a.workflowStart(args[1:])
 	case "execution-get":
@@ -390,7 +391,7 @@ func (a *App) workflowValidate(args []string) error {
 	return nil
 }
 
-func (a *App) workflowReconcile(args []string, path string, forceDry bool) error {
+func (a *App) workflowReconcile(args []string, procedure string, forceDry bool) error {
 	fs := flag.NewFlagSet("workflow reconcile", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	scenario := fs.String("scenario", "", "Owning scenario slug")
@@ -402,7 +403,7 @@ func (a *App) workflowReconcile(args []string, path string, forceDry bool) error
 	if strings.TrimSpace(*scenario) == "" {
 		return fmt.Errorf("--scenario is required")
 	}
-	body, resp, err := a.services.Workflows.Reconcile(path, &apipb.ReconcileScenarioWorkflowsRequest{Scenario: strings.TrimSpace(*scenario), DryRun: *dry || forceDry, ValidateOnly: *validateOnly})
+	body, resp, err := a.services.Workflows.Reconcile(procedure, &apipb.ReconcileScenarioWorkflowsRequest{Scenario: strings.TrimSpace(*scenario), DryRun: *dry || forceDry, ValidateOnly: *validateOnly})
 	if err != nil {
 		return apiError(body, err)
 	}
@@ -447,7 +448,7 @@ func (a *App) workflowList(args []string) error {
 	return nil
 }
 
-func (a *App) workflowGet(args []string, path string) error {
+func (a *App) workflowGet(args []string, procedure string) error {
 	fs := flag.NewFlagSet("workflow get", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	owner := fs.String("owner", "", "Owning scenario")
@@ -459,7 +460,7 @@ func (a *App) workflowGet(args []string, path string) error {
 	if *owner == "" || (*key == "" && *digest == "") {
 		return fmt.Errorf("--owner and either --key or --digest are required")
 	}
-	body, resp, err := a.services.Workflows.Get(path, *owner, *key, *digest)
+	body, resp, err := a.services.Workflows.Get(procedure, *owner, *key, *digest)
 	if err != nil {
 		return apiError(body, err)
 	}

@@ -148,29 +148,15 @@ func TestReadCommandsRenderRichProfileTaskAndRunResponses(t *testing.T) {
 	}
 }
 
-func TestRenderFallbackHandlesHonestyThresholdSortingAndTruncation(t *testing.T) {
-	body := []byte(`{"history":{"has_history":true,"history_days":2.5,"min_sample_meaningful":2},"event_count":4,"runner_attempts":1,"runner_exhausted":1,"model_attempts":2,"model_exhausted":0,"runner_by_reason":{"timeout":2},"model_by_reason":{"capacity":2},"model_by_preset":{"fast":2},"model_by_pair":[{"from":"a very long model name that must truncate","to":"target","reason":"capacity exhaustion","count":2}]}`)
-	if err := renderFallback(body); err != nil {
-		t.Fatal(err)
-	}
-	if err := renderFallback([]byte(`not-json`)); err == nil {
-		t.Fatal("invalid JSON should fail")
-	}
-	if got := trim("abcdef", 3); got != "abc" {
-		t.Fatalf("trim = %q", got)
-	}
-	if got := trim("abcdef", 5); got != "ab..." {
-		t.Fatalf("trim = %q", got)
-	}
-	printSortedCounts("stable", map[string]int{"z": 1, "a": 1})
-}
-
-func TestPrettyPrintJSONPreservesInvalidPayloads(t *testing.T) {
-	if got := string(prettyPrintJSON([]byte(`{"b":1,"a":2}`))); got == `{"b":1,"a":2}` {
-		t.Fatalf("expected formatted JSON, got %q", got)
-	}
-	if got := string(prettyPrintJSON([]byte(`invalid`))); got != "invalid" {
-		t.Fatalf("invalid payload = %q", got)
+func TestTrimTruncatesWithAnEllipsis(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		n    int
+		want string
+	}{{"abcdef", 3, "abc"}, {"abcdef", 5, "ab..."}, {"abc", 5, "abc"}} {
+		if got := trim(tc.in, tc.n); got != tc.want {
+			t.Fatalf("trim(%q, %d) = %q, want %q", tc.in, tc.n, got, tc.want)
+		}
 	}
 }
 
@@ -179,7 +165,7 @@ func TestCommandHelpSurfacesRemainAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, group := range []string{"workflow", "settings", "health", "ops", "permission-policy", "role-policy", "runner", "profile", "task", "run", "maintenance", "declarations", "events"} {
+	for _, group := range []string{"workflow", "settings", "health", "permission-policy", "role-policy", "runner", "profile", "task", "run", "maintenance", "declarations", "events"} {
 		if err := app.Run([]string{group, "help"}); err != nil {
 			t.Fatalf("%s help: %v", group, err)
 		}
@@ -293,13 +279,6 @@ func TestReadOnlyOperationalCommandsUseServiceContracts(t *testing.T) {
 	services, _ := newContractServices(t)
 	app := &App{services: services}
 	for _, args := range [][]string{
-		{"summary"}, {"health", "--json"}, {"fallback"}, {"checkpoint"},
-	} {
-		if err := app.cmdOps(args); err != nil {
-			t.Fatalf("ops %v: %v", args, err)
-		}
-	}
-	for _, args := range [][]string{
 		{"models"}, {"runners", "--json"}, {"audit", "--scope=runner", "--runner=codex", "--limit=3"},
 	} {
 		if err := app.cmdHealth(args); err != nil {
@@ -309,7 +288,7 @@ func TestReadOnlyOperationalCommandsUseServiceContracts(t *testing.T) {
 	if err := app.cmdEvents([]string{"list", "--run=run-1", "--type=tool.call", "--limit=2"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, call := range []func([]string) error{app.cmdOps, app.cmdHealth, app.cmdEvents} {
+	for _, call := range []func([]string) error{app.cmdHealth, app.cmdEvents} {
 		if err := call([]string{"unknown"}); err == nil {
 			t.Fatal("unknown subcommand should fail")
 		}

@@ -29,9 +29,9 @@ test("orchestration settings hook loads, updates, resets, and keeps the returned
   await waitFor(() => assert.equal(hook.result.current.data?.runExecution.maxTurns, 8));
   const changed = { ...settings, runExecution: { ...settings.runExecution, maxTurns: 12 } };
   await act(async () => { await hook.result.current.updateSettings(changed); });
-  assert.equal(hook.result.current.data?.runExecution.maxTurns, 12);
+  await waitFor(() => assert.equal(hook.result.current.data?.runExecution.maxTurns, 12));
   await act(async () => { await hook.result.current.resetSettings(); });
-  assert.equal(hook.result.current.data?.runExecution.maxTurns, 10);
+  await waitFor(() => assert.equal(hook.result.current.data?.runExecution.maxTurns, 10));
 
   assert.equal(fetch.mock.calls[0]?.[0], "http://localhost:3000/api/v1/orchestration-settings");
   assert.equal(fetch.mock.calls[1]?.[1]?.method, "PUT");

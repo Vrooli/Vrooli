@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, Loader2, RefreshCw } from "lucide-react";
+import { fetchWithDeadline } from "../../lib/api";
 import { getApiBaseUrl } from "../../lib/utils";
 import { readableTitle } from "../../lib/runPresentation";
+import { runnerLabel } from "../../lib/format";
 
 type Source = { runnerType: string; label: string; state: "ready" | "unavailable"; sessionCount: number };
+const BARE_ID = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{8})$/i;
+
+/** A conversation's title; a bare UUID or no title reads "<Runner> session <short id>". */
+export function sessionTitle(session: { title: string; sessionId: string }, runner: string): string {
+  const title = readableTitle(session.title);
+  return title && !BARE_ID.test(session.title.trim()) && !BARE_ID.test(title) ? title : `${runnerLabel(runner)} session ${session.sessionId.slice(0, 8)}`;
+}
+
 type Session = { key: string; sessionId: string; title: string; preview?: string; updatedAt: string; importedRunId?: string };
 const api = getApiBaseUrl();
 
@@ -24,7 +34,7 @@ export function ManualImport() {
   const loadSources = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${api}/import/sources`);
+      const response = await fetchWithDeadline(`${api}/import/sources`);
       if (!response.ok) throw new Error();
       const data = (await response.json()) as { sources: Source[] };
       setSources(data.sources);
@@ -41,7 +51,7 @@ export function ManualImport() {
     setLoading(true);
     setSelected(new Set());
     try {
-      const response = await fetch(`${api}/import/sessions?runnerType=${encodeURIComponent(runner)}`);
+      const response = await fetchWithDeadline(`${api}/import/sessions?runnerType=${encodeURIComponent(runner)}`);
       if (!response.ok) throw new Error();
       const data = (await response.json()) as { sessions: Session[] };
       setSessions(data.sessions);
@@ -68,7 +78,7 @@ export function ManualImport() {
     setImporting(true);
     try {
       const result = await Promise.all([...selected].map(async (sessionKey) => {
-        const response = await fetch(`${api}/import/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runnerType, sessionKey }) });
+        const response = await fetchWithDeadline(`${api}/import/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runnerType, sessionKey }) });
         return response.ok;
       }));
       const count = result.filter(Boolean).length;
@@ -112,14 +122,16 @@ export function ManualImport() {
         ) : (
           <ul className="divide-y divide-border">
             {sessions.map((session) => (
-              <li key={session.key} className={`flex gap-3 p-4 ${session.importedRunId ? "bg-muted/30" : "hover:bg-muted/20"}`}>
-                <input aria-label={`Select ${session.title}`} className="mt-1 h-5 w-5" type="checkbox" checked={selected.has(session.key)} disabled={Boolean(session.importedRunId)} onChange={() => toggle(session.key)} />
+              <li key={session.key} className={`flex gap-3 px-4 py-3 ${session.importedRunId ? "bg-muted/30" : "hover:bg-muted/20"}`}>
+                <label className="-m-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
+                  <input aria-label={`Select ${sessionTitle(session, runnerType)}`} className="h-5 w-5" type="checkbox" checked={selected.has(session.key)} disabled={Boolean(session.importedRunId)} onChange={() => toggle(session.key)} />
+                </label>
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <span className="min-w-0 truncate font-medium" title={session.title}>{readableTitle(session.title) || "Untitled conversation"}</span>
+                    <span className="min-w-0 truncate font-medium" title={session.title}>{sessionTitle(session, runnerType)}</span>
                     {session.importedRunId && <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs text-secondary-foreground"><CheckCircle2 className="h-3 w-3" aria-hidden="true" />Already imported</span>}
                   </div>
-                  <p className="mt-1 break-all text-xs text-muted-foreground">{new Date(session.updatedAt).toLocaleString()} · {session.sessionId}</p>
+                  <p className="mt-1 break-all text-xs text-muted-foreground">{new Date(session.updatedAt).toLocaleString()} · {session.sessionId.slice(0, 8)}</p>
                 </div>
               </li>
             ))}

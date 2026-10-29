@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
 )
@@ -73,15 +74,8 @@ func (s *RunService) ListChildren(parentID string, limit int) ([]byte, []*domain
 
 // Accounting reads one run's metered usage, including non-cache tokens.
 func (s *RunService) Accounting(id string) (*apipb.RunAccounting, error) {
-	body, err := s.api.Get("/api/v1/runs/"+id+"/accounting", nil)
-	if err != nil {
-		return nil, err
-	}
-	var accounting apipb.RunAccounting
-	if err := unmarshalProtoResponse(body, &accounting); err != nil {
-		return nil, err
-	}
-	return &accounting, nil
+	_, accounting, err := typedRPC[apipb.RunAccounting](s.api, apiconnect.AgentManagerServiceGetRunAccountingProcedure, &apipb.GetRunAccountingRequest{RunId: id})
+	return accounting, err
 }
 
 func (s *RunService) Get(id string) ([]byte, *domainpb.Run, error) {
@@ -458,32 +452,8 @@ func (s *RunService) InvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
 }
 
-func (s *RunService) Episodes(id string) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/"+id+"/episodes", nil, nil)
-}
-
-func (s *RunService) MessageFriction(id string) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/"+id+"/messages-friction", nil, nil)
-}
-
-func (s *RunService) Ledger(id string, withProjections bool) ([]byte, error) {
-	values := url.Values{}
-	if withProjections {
-		values.Set("with_projections", "true")
-	}
-	return s.api.Request("GET", "/api/v1/runs/"+id+"/ledger", values, nil)
-}
-
 func (s *RunService) EpisodeTrend(values url.Values) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/episode-trend", values, nil)
-}
-
-func (s *RunService) PublishRecurringFriction(values url.Values) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/episodes/publish-recurring", values, nil)
-}
-
-func (s *RunService) ImportTranscript(payload []byte) ([]byte, error) {
-	return s.api.Request("POST", "/api/v1/runs/import-transcript", nil, payload)
 }
 
 func (s *RunService) ImportSessionCorpus(payload []byte) ([]byte, error) {

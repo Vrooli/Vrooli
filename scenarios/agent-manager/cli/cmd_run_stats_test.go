@@ -27,8 +27,8 @@ func runStatsMeasures() map[string]proto.Message {
 	return map[string]proto.Message{
 		measures_v1connect.MeasuresServiceRunStatusDistributionProcedure: &measurepb.RunStatusDistributionResponse{Rows: []*measurepb.RunStatusCount{{Status: "complete", Count: 2}, {Status: "failed", Count: 1}, {Status: "running", Count: 4}}},
 		measures_v1connect.MeasuresServiceRunSuccessRateProcedure:        &measurepb.RunSuccessRateResponse{Rate: 0.667, SuccessfulRuns: 2, TerminalRuns: 3},
-		measures_v1connect.MeasuresServiceRunDurationStatisticsProcedure: &measurepb.RunDurationStatisticsResponse{Count: 3, AverageDurationMs: 1500, P50DurationMs: 1200, P95DurationMs: 2400, P99DurationMs: 2400, MinDurationMs: 900, MaxDurationMs: 2400},
-		measures_v1connect.MeasuresServiceRunCostProcedure:               &measurepb.RunCostResponse{TotalCostUsd: 1.25, AverageCostUsd: 0.4167, TotalRuns: 3, TotalTokens: 900, InputTokens: 500, OutputTokens: 300, CacheReadTokens: 100},
+		measures_v1connect.MeasuresServiceRunDurationStatisticsProcedure: &measurepb.RunDurationStatisticsResponse{Count: 3, AverageDurationMs: 1500, P50DurationMs: 1200, P90DurationMs: 2000, P95DurationMs: 2400, P99DurationMs: 2400, MinDurationMs: 900, MaxDurationMs: 2400},
+		measures_v1connect.MeasuresServiceRunCostProcedure:               &measurepb.RunCostResponse{TotalCostUsd: 1.25, AverageCostUsd: 0.4167, TotalRuns: 3, Requests: 12, TotalTokens: 900, InputTokens: 500, OutputTokens: 300, CacheReadTokens: 100},
 		measures_v1connect.MeasuresServiceRunnerBreakdownProcedure:       &measurepb.RunnerBreakdownResponse{Rows: breakdown("codex")},
 		measures_v1connect.MeasuresServiceProfileBreakdownProcedure:      &measurepb.ProfileBreakdownResponse{Rows: breakdown("Builder")},
 		measures_v1connect.MeasuresServiceModelBreakdownProcedure:        &measurepb.ModelBreakdownResponse{Rows: breakdown("gpt-test")},
@@ -71,15 +71,15 @@ func TestRunStatsSummarizesMeasures(t *testing.T) {
 	fixture := &runStatsServer{}
 	app := fixture.start(t)
 	output := captureStdout(t, func() error {
-		return app.runStats([]string{"--since", "2026-10-01T00:00:00Z", "--until", "2026-10-02T00:00:00Z", "--profile", "p-1", "--tag-prefix", "eco-", "--runner", "codex", "--model", "gpt-test"})
+		return app.runStats([]string{"--since", "2026-10-01T00:00:00Z", "--until", "2026-10-02T00:00:00Z", "--profile", "p-1", "--tag-prefix", "eco-", "--runner", "codex", "--model", "gpt-test", "--scope", "operator_sessions"})
 	})
 	for _, want := range []string{
 		"Run stats 2026-10-01T00:00:00Z .. 2026-10-02T00:00:00Z",
 		"Runs: total=7 complete=2 failed=1 running=4",
 		"Success: rate=0.667 (2/3 terminal)",
-		"Duration: n=3 avg=1.5s p50=1.2s p95=2.4s p99=2.4s min=900ms max=2.4s",
-		"Cost: total=$1.2500",
-		"Tokens: total=900 input=500 output=300 cache_read=100",
+		"Duration: n=3 avg=1.5s p50=1.2s p90=2s p95=2.4s p99=2.4s min=900ms max=2.4s",
+		"Cost: per-token billed $1.2500",
+		"Tokens: total=900 input=500 output=300 cache_read=100 cache_creation=0 requests=12 runs=3",
 		"Runners:", "codex", "Profiles:", "Builder", "Models:", "gpt-test",
 		"Tools:", "read_file", "calls=7",
 	} {
@@ -90,7 +90,7 @@ func TestRunStatsSummarizesMeasures(t *testing.T) {
 	if len(fixture.requests) != len(runStatsMeasures()) {
 		t.Fatalf("read %d measures, want %d: %v", len(fixture.requests), len(runStatsMeasures()), fixture.requests)
 	}
-	wantFilter := &measurepb.InvocationFilter{ProfileId: "p-1", TagPrefix: "eco-", RunnerType: "codex", Model: "gpt-test"}
+	wantFilter := &measurepb.InvocationFilter{ProfileId: "p-1", TagPrefix: "eco-", RunnerType: "codex", Model: "gpt-test", Scope: measurepb.RunScope_RUN_SCOPE_OPERATOR_SESSIONS}
 	for procedure, body := range fixture.requests {
 		// Every summary measure shares the {window, filter} request shape.
 		var request measurepb.RunVolumeRequest

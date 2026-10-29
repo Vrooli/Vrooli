@@ -26,9 +26,6 @@ type RunOpt func(*domain.Run)
 // SandboxConfigOpt mutates a SandboxConfig during construction.
 type SandboxConfigOpt func(*domain.SandboxConfig)
 
-// RunEventOpt mutates a RunEvent during construction.
-type RunEventOpt func(*domain.RunEvent)
-
 // NewAgentProfile returns a Claude Code profile with deterministic-enough
 // defaults for repository-backed tests.
 func NewAgentProfile(t *testing.T, opts ...AgentProfileOpt) *domain.AgentProfile {
@@ -53,23 +50,11 @@ func NewAgentProfile(t *testing.T, opts ...AgentProfileOpt) *domain.AgentProfile
 	return profile
 }
 
-func WithAgentProfileID(id uuid.UUID) AgentProfileOpt {
-	return func(p *domain.AgentProfile) { p.ID = id }
-}
-
 func WithAgentProfileName(name string) AgentProfileOpt {
 	return func(p *domain.AgentProfile) {
 		p.Name = name
 		p.ProfileKey = name
 	}
-}
-
-func WithAgentProfileRole(roleRef string) AgentProfileOpt {
-	return func(p *domain.AgentProfile) { p.RoleRef = roleRef }
-}
-
-func WithAgentProfileSandboxConfig(cfg *domain.SandboxConfig) AgentProfileOpt {
-	return func(p *domain.AgentProfile) { p.SandboxConfig = cfg }
 }
 
 // NewTask returns a queued task scoped to a test project.
@@ -94,23 +79,12 @@ func NewTask(t *testing.T, opts ...TaskOpt) *domain.Task {
 	return task
 }
 
-func WithTaskID(id uuid.UUID) TaskOpt {
-	return func(t *domain.Task) { t.ID = id }
-}
-
 func WithTaskTitle(title string) TaskOpt {
 	return func(t *domain.Task) { t.Title = title }
 }
 
 func WithTaskDescription(description string) TaskOpt {
 	return func(t *domain.Task) { t.Description = description }
-}
-
-func WithTaskScope(scopePath, projectRoot string) TaskOpt {
-	return func(t *domain.Task) {
-		t.ScopePath = scopePath
-		t.ProjectRoot = projectRoot
-	}
 }
 
 func WithTaskStatus(status domain.TaskStatus) TaskOpt {
@@ -146,32 +120,8 @@ func NewRun(t *testing.T, taskID uuid.UUID, profileID uuid.UUID, opts ...RunOpt)
 	return run
 }
 
-func WithRunID(id uuid.UUID) RunOpt {
-	return func(r *domain.Run) { r.ID = id }
-}
-
 func WithRunStatus(status domain.RunStatus) RunOpt {
 	return func(r *domain.Run) { r.Status = status }
-}
-
-func WithRunPhase(phase domain.RunPhase) RunOpt {
-	return func(r *domain.Run) { r.Phase = phase }
-}
-
-func WithRunMode(mode domain.RunMode) RunOpt {
-	return func(r *domain.Run) { r.RunMode = mode }
-}
-
-func WithRunSandboxConfig(cfg *domain.SandboxConfig) RunOpt {
-	return func(r *domain.Run) { r.SandboxConfig = cfg }
-}
-
-func WithRunSandboxID(id uuid.UUID) RunOpt {
-	return func(r *domain.Run) { r.SandboxID = &id }
-}
-
-func WithRunConversationID(id string) RunOpt {
-	return func(r *domain.Run) { r.ConversationID = id }
 }
 
 // NewSandboxConfig returns a copy of the domain default sandbox contract.
@@ -186,10 +136,6 @@ func NewSandboxConfig(t *testing.T, opts ...SandboxConfigOpt) *domain.SandboxCon
 	return cfg
 }
 
-func WithSandboxMode(mode domain.SandboxMode) SandboxConfigOpt {
-	return func(c *domain.SandboxConfig) { c.Mode = mode }
-}
-
 func WithSandboxManualReview(manualReview bool) SandboxConfigOpt {
 	return func(c *domain.SandboxConfig) { c.ManualReview = manualReview }
 }
@@ -198,50 +144,16 @@ func WithSandboxAutoApply(autoApply bool) SandboxConfigOpt {
 	return func(c *domain.SandboxConfig) { c.AutoApply = &autoApply }
 }
 
-func WithSandboxApplyOnFailure(applyOnFailure bool) SandboxConfigOpt {
-	return func(c *domain.SandboxConfig) { c.ApplyOnFailure = &applyOnFailure }
-}
-
 func WithSandboxDeleteOn(events ...domain.SandboxLifecycleEvent) SandboxConfigOpt {
 	return func(c *domain.SandboxConfig) {
 		c.Lifecycle.DeleteOn = append([]domain.SandboxLifecycleEvent(nil), events...)
 	}
 }
 
-func WithSandboxStopOn(events ...domain.SandboxLifecycleEvent) SandboxConfigOpt {
-	return func(c *domain.SandboxConfig) {
-		c.Lifecycle.StopOn = append([]domain.SandboxLifecycleEvent(nil), events...)
-	}
-}
-
-// NewRunEvent returns a log event for the given run, with override hooks for
-// tests that need a different event type or deterministic metadata.
-func NewRunEvent(t *testing.T, runID uuid.UUID, opts ...RunEventOpt) *domain.RunEvent {
+// NewRunEvent returns an info log event for the given run.
+func NewRunEvent(t *testing.T, runID uuid.UUID) *domain.RunEvent {
 	if t != nil {
 		t.Helper()
 	}
-	evt := domain.NewLogEvent(runID, "info", "test event")
-	for _, opt := range opts {
-		opt(evt)
-	}
-	return evt
-}
-
-func WithRunEventID(id uuid.UUID) RunEventOpt {
-	return func(e *domain.RunEvent) { e.ID = id }
-}
-
-func WithRunEventSequence(sequence int64) RunEventOpt {
-	return func(e *domain.RunEvent) { e.Sequence = sequence }
-}
-
-func WithRunEventTimestamp(ts time.Time) RunEventOpt {
-	return func(e *domain.RunEvent) { e.Timestamp = ts }
-}
-
-func WithRunEventPayload(eventType domain.RunEventType, payload domain.EventPayload) RunEventOpt {
-	return func(e *domain.RunEvent) {
-		e.EventType = eventType
-		e.Data = payload
-	}
+	return domain.NewLogEvent(runID, "info", "test event")
 }

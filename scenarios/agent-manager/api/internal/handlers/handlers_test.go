@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	commonpb "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
@@ -46,6 +46,26 @@ func decodeProtoJSON(t *testing.T, body []byte, msg proto.Message) {
 	if err := protoconv.UnmarshalJSON(body, msg); err != nil {
 		t.Fatalf("failed to decode proto JSON: %v\nBody: %s", err, string(body))
 	}
+}
+
+// callProcedure invokes one AgentManagerService procedure the way the CLI does:
+// a JSON Connect unary POST routed through the full handler chain.
+func callProcedure(t *testing.T, router http.Handler, procedure string, msg proto.Message) *httptest.ResponseRecorder {
+	t.Helper()
+	return callProcedureWith(t, router, procedure, msg, nil)
+}
+
+// callProcedureWith is callProcedure with extra request headers (credentials).
+func callProcedureWith(t *testing.T, router http.Handler, procedure string, msg proto.Message, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, procedure, bytes.NewReader(encodeProtoJSON(t, msg)))
+	req.Header.Set("Content-Type", "application/json")
+	for name, value := range headers {
+		req.Header.Set(name, value)
+	}
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	return rr
 }
 
 func encodeProtoJSON(t *testing.T, msg proto.Message) []byte {
@@ -160,6 +180,8 @@ func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (
 	// Create router and register routes
 	r := mux.NewRouter()
 	handler.RegisterRoutes(r)
+	connectPath, connectHandler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(handler))
+	r.PathPrefix(connectPath).Handler(connectHandler)
 	r.HandleFunc("/health", handler.Health).Methods("GET")
 	r.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
 
@@ -286,8 +308,7 @@ func TestEnsureProfileCreatesReturnsExistingAndUpdates(t *testing.T) {
 
 func TestProbeRunnerReturnsTypedHealthResultAndRejectsUnknownRunner(t *testing.T) {
 	_, router := setupTestHandler(t)
-	valid := httptest.NewRecorder()
-	router.ServeHTTP(valid, httptest.NewRequest(http.MethodPost, "/api/v1/runners/claude-code/probe", nil))
+	valid := callProcedure(t, router, apiconnect.AgentManagerServiceProbeRunnerProcedure, &apipb.ProbeRunnerRequest{RunnerType: pb.RunnerType_RUNNER_TYPE_CLAUDE_CODE})
 	if valid.Code != http.StatusOK {
 		t.Fatalf("probe status=%d body=%s", valid.Code, valid.Body.String())
 	}
@@ -296,18 +317,112 @@ func TestProbeRunnerReturnsTypedHealthResultAndRejectsUnknownRunner(t *testing.T
 	if response.GetResult() == nil || !response.GetResult().GetSuccess() {
 		t.Fatalf("probe response=%+v", &response)
 	}
-	invalid := httptest.NewRecorder()
-	router.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, "/api/v1/runners/not-a-runner/probe", nil))
+	invalid := callProcedure(t, router, apiconnect.AgentManagerServiceProbeRunnerProcedure, &apipb.ProbeRunnerRequest{RunnerType: pb.RunnerType_RUNNER_TYPE_UNSPECIFIED})
 	if invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid probe status=%d body=%s", invalid.Code, invalid.Body.String())
+	}
+}
+
+// content-desk and git-control-tower read runs through the typed client, so the
+// procedure must answer the same run the REST route does.
+func TestGetRunProcedureReturnsTheRunTheRESTRouteReturns(t *testing.T) {
+	_, router := setupTestHandler(t)
+	run := createRunnableTestRun(t, router)
+	found := callProcedure(t, router, apiconnect.AgentManagerServiceGetRunProcedure, &apipb.GetRunRequest{RunId: run.GetId()})
+	if found.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", found.Code, found.Body.String())
+	}
+	var response apipb.GetRunResponse
+	decodeProtoJSON(t, found.Body.Bytes(), &response)
+	if response.GetRun().GetId() != run.GetId() {
+		t.Fatalf("run=%+v want id %s", response.GetRun(), run.GetId())
+	}
+	missing := callProcedure(t, router, apiconnect.AgentManagerServiceGetRunProcedure, &apipb.GetRunRequest{RunId: "00000000-0000-4000-8000-000000000000"})
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing run status=%d body=%s", missing.Code, missing.Body.String())
+	}
+}
+
+// asset-studio, content-desk and the vrooli-events fixtures address these
+// procedures directly, so each must answer what its REST twin answers.
+func TestProfileTaskAndRunProceduresMatchTheirRESTTwins(t *testing.T) {
+	_, router := setupTestHandler(t)
+	key := "procedure-" + uuid.NewString()
+	rest := httptest.NewRecorder()
+	router.ServeHTTP(rest, httptest.NewRequest(http.MethodPost, "/api/v1/profiles", bytes.NewReader(encodeProtoJSON(t, &apipb.CreateProfileRequest{Profile: &pb.AgentProfile{Name: key, ProfileKey: key, RoleRef: "code.default"}}))))
+	var created apipb.CreateProfileResponse
+	decodeProtoJSON(t, rest.Body.Bytes(), &created)
+	profileID := created.Profile.GetId()
+
+	got := callProcedure(t, router, apiconnect.AgentManagerServiceGetProfileProcedure, &apipb.GetProfileRequest{ProfileId: profileID})
+	var profile apipb.GetProfileResponse
+	decodeProtoJSON(t, got.Body.Bytes(), &profile)
+	if got.Code != http.StatusOK || profile.Profile.GetProfileKey() != key {
+		t.Fatalf("GetProfile status=%d body=%s", got.Code, got.Body.String())
+	}
+	if missing := callProcedure(t, router, apiconnect.AgentManagerServiceGetProfileProcedure, &apipb.GetProfileRequest{ProfileId: uuid.NewString()}); missing.Code != http.StatusNotFound {
+		t.Fatalf("missing profile status=%d", missing.Code)
+	}
+	limit := int32(5)
+	listed := callProcedure(t, router, apiconnect.AgentManagerServiceListProfilesProcedure, &apipb.ListProfilesRequest{Limit: &limit})
+	var list apipb.ListProfilesResponse
+	decodeProtoJSON(t, listed.Body.Bytes(), &list)
+	if listed.Code != http.StatusOK || len(list.Profiles) == 0 || list.Total != int32(len(list.Profiles)) {
+		t.Fatalf("ListProfiles status=%d body=%s", listed.Code, listed.Body.String())
+	}
+
+	taskCall := callProcedure(t, router, apiconnect.AgentManagerServiceCreateTaskProcedure, &apipb.CreateTaskRequest{Task: &pb.Task{Title: key, Description: "Complete the procedure test run.", ScopePath: "src/procedure"}})
+	var task apipb.CreateTaskResponse
+	decodeProtoJSON(t, taskCall.Body.Bytes(), &task)
+	if taskCall.Code != http.StatusOK || task.Task.GetId() == "" {
+		t.Fatalf("CreateTask status=%d body=%s", taskCall.Code, taskCall.Body.String())
+	}
+	if rejected := callProcedure(t, router, apiconnect.AgentManagerServiceCreateTaskProcedure, &apipb.CreateTaskRequest{}); rejected.Code != http.StatusBadRequest {
+		t.Fatalf("task-less CreateTask status=%d body=%s", rejected.Code, rejected.Body.String())
+	}
+
+	credential := map[string]string{"Authorization": "Bearer " + testOwnerCredential}
+	runCall := callProcedureWith(t, router, apiconnect.AgentManagerServiceCreateRunProcedure, &apipb.CreateRunRequest{TaskId: task.Task.GetId(), AgentProfileId: &profileID}, credential)
+	var run apipb.CreateRunResponse
+	decodeProtoJSON(t, runCall.Body.Bytes(), &run)
+	if runCall.Code != http.StatusOK || run.Run.GetId() == "" || run.Run.GetTaskId() != task.Task.GetId() {
+		t.Fatalf("CreateRun status=%d body=%s", runCall.Code, runCall.Body.String())
+	}
+	if noTask := callProcedureWith(t, router, apiconnect.AgentManagerServiceCreateRunProcedure, &apipb.CreateRunRequest{}, credential); noTask.Code != http.StatusBadRequest {
+		t.Fatalf("task-less CreateRun status=%d body=%s", noTask.Code, noTask.Body.String())
+	}
+}
+
+// Admission is path-keyed, so the procedures must be admitted exactly as the
+// REST routes they twin: verified agents and anonymous callers alike.
+func TestRunCreationProceduresShareTheRouteAdmission(t *testing.T) {
+	guarded := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	agent := coreidentity.Principal{Kind: coreidentity.ActorAgent, Subject: "run-1", Verified: true}
+	status := func(path string, principal *coreidentity.Principal) int {
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		if principal != nil {
+			req = req.WithContext(coreidentity.WithPrincipal(req.Context(), *principal))
+		}
+		rr := httptest.NewRecorder()
+		guarded.ServeHTTP(rr, req)
+		return rr.Code
+	}
+	for route, procedure := range map[string]string{
+		"/api/v1/runs":  apiconnect.AgentManagerServiceCreateRunProcedure,
+		"/api/v1/tasks": apiconnect.AgentManagerServiceCreateTaskProcedure,
+	} {
+		for name, principal := range map[string]*coreidentity.Principal{"verified agent": &agent, "anonymous": nil} {
+			if want, got := status(route, principal), status(procedure, principal); got != want {
+				t.Errorf("%s %s: procedure status=%d, route status=%d", procedure, name, got, want)
+			}
+		}
 	}
 }
 
 func TestRolePolicyOperatorEndpointsExposeAndValidateActiveCatalog(t *testing.T) {
 	_, router := setupTestHandler(t)
 
-	status := httptest.NewRecorder()
-	router.ServeHTTP(status, httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/status", nil))
+	status := callProcedure(t, router, apiconnect.AgentManagerServiceGetRolePolicyStatusProcedure, &apipb.GetRolePolicyStatusRequest{})
 	if status.Code != http.StatusOK {
 		t.Fatalf("status endpoint=%d body=%s", status.Code, status.Body.String())
 	}
@@ -317,33 +432,32 @@ func TestRolePolicyOperatorEndpointsExposeAndValidateActiveCatalog(t *testing.T)
 		t.Fatalf("status response=%+v", statusResponse.GetStatus())
 	}
 
-	catalog := httptest.NewRecorder()
-	router.ServeHTTP(catalog, httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/catalog", nil))
-	if catalog.Code != http.StatusOK {
-		t.Fatalf("catalog endpoint=%d body=%s", catalog.Code, catalog.Body.String())
-	}
-	var catalogResponse apipb.GetRolePolicyCatalogResponse
-	decodeProtoJSON(t, catalog.Body.Bytes(), &catalogResponse)
-	if catalogResponse.GetCatalog() == nil || len(catalogResponse.GetCatalog().GetRoles()) == 0 {
-		t.Fatalf("catalog response=%+v", catalogResponse.GetCatalog())
-	}
-
-	for _, path := range []string{"/api/v1/role-policy/validate", "/api/v1/role-policy/reload"} {
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, path, nil))
-		if rr.Code != http.StatusOK {
-			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+	// The catalog read is served by both transports (the UI and Test Genie
+	// read it over REST); both must project the same active catalog.
+	rest := httptest.NewRecorder()
+	router.ServeHTTP(rest, httptest.NewRequest(http.MethodGet, "/api/v1/role-policy/catalog", nil))
+	rpc := callProcedure(t, router, apiconnect.AgentManagerServiceGetRolePolicyCatalogProcedure, &apipb.GetRolePolicyCatalogRequest{})
+	for name, catalog := range map[string]*httptest.ResponseRecorder{"REST": rest, "Connect": rpc} {
+		if catalog.Code != http.StatusOK {
+			t.Fatalf("%s catalog endpoint=%d body=%s", name, catalog.Code, catalog.Body.String())
+		}
+		var catalogResponse apipb.GetRolePolicyCatalogResponse
+		decodeProtoJSON(t, catalog.Body.Bytes(), &catalogResponse)
+		if catalogResponse.GetCatalog() == nil || len(catalogResponse.GetCatalog().GetRoles()) == 0 {
+			t.Fatalf("%s catalog response=%+v", name, catalogResponse.GetCatalog())
 		}
 	}
-	validate := httptest.NewRecorder()
-	router.ServeHTTP(validate, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/validate", nil))
+
+	validate := callProcedure(t, router, apiconnect.AgentManagerServiceValidateRolePolicyCatalogProcedure, &apipb.ValidateRolePolicyCatalogRequest{})
+	if validate.Code != http.StatusOK {
+		t.Fatalf("validate status=%d body=%s", validate.Code, validate.Body.String())
+	}
 	var validateResponse apipb.ValidateRolePolicyCatalogResponse
 	decodeProtoJSON(t, validate.Body.Bytes(), &validateResponse)
 	if !validateResponse.GetValid() || validateResponse.GetCandidateDigest() == "" {
 		t.Fatalf("validate response=%+v", &validateResponse)
 	}
-	reload := httptest.NewRecorder()
-	router.ServeHTTP(reload, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/reload", nil))
+	reload := callProcedure(t, router, apiconnect.AgentManagerServiceReloadRolePolicyCatalogProcedure, &apipb.ReloadRolePolicyCatalogRequest{})
 	var reloadResponse apipb.ReloadRolePolicyCatalogResponse
 	decodeProtoJSON(t, reload.Body.Bytes(), &reloadResponse)
 	if !reloadResponse.GetActivated() || !reloadResponse.GetStatus().GetReady() {
@@ -357,11 +471,9 @@ func TestExplainRolePolicyReturnsResolvedProfileSnapshot(t *testing.T) {
 	if run.GetAgentProfileId() == "" {
 		t.Fatalf("run is missing agent profile: %+v", run)
 	}
-	body := encodeProtoJSON(t, &apipb.ExplainRolePolicyRequest{
+	rr := callProcedure(t, router, apiconnect.AgentManagerServiceExplainRolePolicyProcedure, &apipb.ExplainRolePolicyRequest{
 		Target: &apipb.ExplainRolePolicyRequest_ProfileId{ProfileId: run.GetAgentProfileId()},
 	})
-	rr := httptest.NewRecorder()
-	router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/explain", bytes.NewReader(body)))
 	if rr.Code != http.StatusOK {
 		t.Fatalf("explain status=%d body=%s", rr.Code, rr.Body.String())
 	}
@@ -371,12 +483,11 @@ func TestExplainRolePolicyReturnsResolvedProfileSnapshot(t *testing.T) {
 		t.Fatalf("explain response=%+v", &response)
 	}
 
-	for _, request := range [][]byte{
-		[]byte(`{}`),
-		encodeProtoJSON(t, &apipb.ExplainRolePolicyRequest{Target: &apipb.ExplainRolePolicyRequest_ProfileId{ProfileId: "not-a-uuid"}}),
+	for _, request := range []*apipb.ExplainRolePolicyRequest{
+		{},
+		{Target: &apipb.ExplainRolePolicyRequest_ProfileId{ProfileId: "not-a-uuid"}},
 	} {
-		invalid := httptest.NewRecorder()
-		router.ServeHTTP(invalid, httptest.NewRequest(http.MethodPost, "/api/v1/role-policy/explain", bytes.NewReader(request)))
+		invalid := callProcedure(t, router, apiconnect.AgentManagerServiceExplainRolePolicyProcedure, request)
 		if invalid.Code != http.StatusBadRequest {
 			t.Fatalf("invalid explain status=%d body=%s", invalid.Code, invalid.Body.String())
 		}
@@ -386,8 +497,7 @@ func TestExplainRolePolicyReturnsResolvedProfileSnapshot(t *testing.T) {
 func TestPermissionPolicyReadOnlyOperatorEndpointsExposeActiveCatalog(t *testing.T) {
 	_, router := setupTestHandler(t)
 
-	status := httptest.NewRecorder()
-	router.ServeHTTP(status, httptest.NewRequest(http.MethodGet, "/api/v1/permission-policy/status", nil))
+	status := callProcedure(t, router, apiconnect.AgentManagerServiceGetPermissionPolicyStatusProcedure, &apipb.GetPermissionPolicyStatusRequest{})
 	if status.Code != http.StatusOK {
 		t.Fatalf("status endpoint=%d body=%s", status.Code, status.Body.String())
 	}
@@ -397,8 +507,7 @@ func TestPermissionPolicyReadOnlyOperatorEndpointsExposeActiveCatalog(t *testing
 		t.Fatalf("status response=%+v", statusResponse.GetStatus())
 	}
 
-	catalog := httptest.NewRecorder()
-	router.ServeHTTP(catalog, httptest.NewRequest(http.MethodGet, "/api/v1/permission-policy/catalog", nil))
+	catalog := callProcedure(t, router, apiconnect.AgentManagerServiceGetPermissionPolicyCatalogProcedure, &apipb.GetPermissionPolicyCatalogRequest{})
 	if catalog.Code != http.StatusOK {
 		t.Fatalf("catalog endpoint=%d body=%s", catalog.Code, catalog.Body.String())
 	}
@@ -408,8 +517,7 @@ func TestPermissionPolicyReadOnlyOperatorEndpointsExposeActiveCatalog(t *testing
 		t.Fatalf("catalog response=%+v", catalogResponse.GetCatalog())
 	}
 
-	validate := httptest.NewRecorder()
-	router.ServeHTTP(validate, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/validate", nil))
+	validate := callProcedure(t, router, apiconnect.AgentManagerServiceValidatePermissionPolicyCatalogProcedure, &apipb.ValidatePermissionPolicyCatalogRequest{})
 	if validate.Code != http.StatusOK {
 		t.Fatalf("validate endpoint=%d body=%s", validate.Code, validate.Body.String())
 	}
@@ -419,8 +527,7 @@ func TestPermissionPolicyReadOnlyOperatorEndpointsExposeActiveCatalog(t *testing
 		t.Fatalf("validate response=%+v", &validateResponse)
 	}
 
-	reload := httptest.NewRecorder()
-	router.ServeHTTP(reload, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reload", nil))
+	reload := callProcedure(t, router, apiconnect.AgentManagerServiceReloadPermissionPolicyCatalogProcedure, &apipb.ReloadPermissionPolicyCatalogRequest{})
 	if reload.Code != http.StatusOK {
 		t.Fatalf("reload endpoint=%d body=%s", reload.Code, reload.Body.String())
 	}
@@ -434,22 +541,20 @@ func TestPermissionPolicyReadOnlyOperatorEndpointsExposeActiveCatalog(t *testing
 func TestPermissionPolicyPlanDoctorAndAuthorizedReconcileUseDeclaredState(t *testing.T) {
 	_, router := setupTestHandler(t)
 
-	for _, path := range []string{"/api/v1/permission-policy/plan", "/api/v1/permission-policy/doctor"} {
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, path, nil))
-		if rr.Code != http.StatusOK {
-			t.Fatalf("%s status=%d body=%s", path, rr.Code, rr.Body.String())
+	for name, call := range map[string]*httptest.ResponseRecorder{
+		"plan":   callProcedure(t, router, apiconnect.AgentManagerServicePlanPermissionPolicyProcedure, &apipb.PlanPermissionPolicyRequest{}),
+		"doctor": callProcedure(t, router, apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure, &apipb.DoctorPermissionPolicyRequest{}),
+	} {
+		if call.Code != http.StatusOK {
+			t.Fatalf("%s status=%d body=%s", name, call.Code, call.Body.String())
 		}
 	}
 
-	unauthorized := httptest.NewRecorder()
-	router.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reconcile", strings.NewReader(`{}`)))
+	unauthorized := callProcedure(t, router, apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, &apipb.ReconcilePermissionPolicyRequest{})
 	if unauthorized.Code != http.StatusBadRequest {
 		t.Fatalf("unauthorized reconcile status=%d body=%s", unauthorized.Code, unauthorized.Body.String())
 	}
-	body := encodeProtoJSON(t, &apipb.ReconcilePermissionPolicyRequest{ExplicitlyAuthorized: true})
-	authorized := httptest.NewRecorder()
-	router.ServeHTTP(authorized, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reconcile", bytes.NewReader(body)))
+	authorized := callProcedure(t, router, apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, &apipb.ReconcilePermissionPolicyRequest{ExplicitlyAuthorized: true})
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("authorized reconcile status=%d body=%s", authorized.Code, authorized.Body.String())
 	}

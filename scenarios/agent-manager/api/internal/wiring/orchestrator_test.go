@@ -72,13 +72,13 @@ func TestNewOrchestratorBuildsCompleteGraphWithoutStartingWorkers(t *testing.T) 
 	if deps.StatsRepository == nil || deps.PricingService == nil || deps.ModelHealthProbe == nil || deps.HealthStore == nil || deps.EventRepository == nil {
 		t.Fatalf("runtime graph missing operational dependencies: %+v", deps)
 	}
-	if deps.RolePolicyState == nil || deps.PermissionPolicyState == nil || deps.PermissionPolicy == nil || deps.StatsEngine == nil {
+	if deps.RolePolicyState == nil || deps.PermissionPolicyState == nil || deps.PermissionPolicy == nil {
 		t.Fatalf("runtime graph missing policy or stats dependencies: %+v", deps)
 	}
 
 	// Construction must not start workers: cleanup is safe before Server.Start
 	// has established lifecycle ownership.
-	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter, deps.FrictionPublisher)
+	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter)
 }
 
 func TestNewOrchestratorHonorsExplicitLevers(t *testing.T) {
@@ -93,5 +93,5 @@ func TestNewOrchestratorHonorsExplicitLevers(t *testing.T) {
 	if deps.Orchestrator == nil {
 		t.Fatal("orchestrator is nil")
 	}
-	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter, deps.FrictionPublisher)
+	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter)
 }

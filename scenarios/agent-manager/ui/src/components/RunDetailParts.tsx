@@ -26,7 +26,8 @@ import {
 import { Badge } from "./ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { formatUsdFixed } from "../lib/currency";
-import { cn, formatDuration, runnerTypeLabel } from "../lib/utils";
+import { formatCode, formatCount, formatDuration, runnerLabel } from "../lib/format";
+import { cn } from "../lib/utils";
 import type {
   ContextAttachmentData,
   Run,
@@ -409,15 +410,15 @@ export function RunDetailsContent({ run, diff, taskTitle, profileName, durationM
         <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div>
             <span className="text-muted-foreground">Mode: </span>
-            {runModeLabel(run.runMode)}
+            {formatCode(runModeLabel(run.runMode))}
           </div>
           <div>
             <span className="text-muted-foreground">Execution: </span>
-            {executionModeLabel(run.executionMode)}
+            {formatCode(executionModeLabel(run.executionMode))}
           </div>
           <div>
             <span className="text-muted-foreground">Phase: </span>
-            {runPhaseLabel(run.phase).replace("_", " ")}
+            {formatCode(runPhaseLabel(run.phase))}
           </div>
           <div>
             <span className="text-muted-foreground">Progress: </span>
@@ -426,7 +427,7 @@ export function RunDetailsContent({ run, diff, taskTitle, profileName, durationM
           {run.resolvedConfig?.runnerType ? (
             <div>
               <span className="text-muted-foreground">Runner: </span>
-              {runnerTypeLabel(run.resolvedConfig.runnerType)}
+              {runnerLabel(run.resolvedConfig.runnerType)}
             </div>
           ) : null}
           {run.resolvedConfig?.roleRef ? (
@@ -487,7 +488,7 @@ export function RunDetailsContent({ run, diff, taskTitle, profileName, durationM
           )}
           {durationMs !== null && (
             <div>
-              <span className="text-muted-foreground">Duration: </span>
+              <span className="text-muted-foreground">{run.endedAt ? "Duration: " : "Running: "}</span>
               {formatDuration(durationMs)}
             </div>
           )}
@@ -530,8 +531,8 @@ export function RunDetailsContent({ run, diff, taskTitle, profileName, durationM
       {/* Highlights */}
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div className="rounded border border-border px-3 py-2">
-          <div className="text-xs text-muted-foreground">Duration</div>
-          <div className="font-semibold">{durationMs !== null ? formatDuration(durationMs) : "—"}</div>
+          <div className="text-xs text-muted-foreground">{run.endedAt ? "Duration" : "Running for"}</div>
+          <div className="font-semibold">{formatDuration(durationMs)}</div>
         </div>
         <div className="rounded border border-border px-3 py-2">
           <div className="text-xs text-muted-foreground">Cost</div>
@@ -582,7 +583,7 @@ export function StatusDotWithLegend({ dotColor, statusLabel, legendOpen, setLege
     <div className="relative shrink-0" ref={ref}>
       <button
         type="button"
-        className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-muted/50 transition-colors"
+        className="flex h-11 w-11 items-center justify-center rounded-full sm:h-6 sm:w-6 hover:bg-muted/50 transition-colors"
         onClick={() => setLegendOpen(!legendOpen)}
         title={statusLabel.replace("_", " ")}
       >
@@ -649,7 +650,7 @@ export function MobileHeaderActions({
       <Button
         variant="ghost"
         size="sm"
-        className="h-7 w-7 p-0"
+        className="h-11 w-11 p-0 sm:h-7 sm:w-7"
         onClick={onInfoOpen}
         title="Run details"
       >
@@ -660,7 +661,7 @@ export function MobileHeaderActions({
           variant="ghost"
           size="sm"
           onClick={onStop}
-          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+          className="h-11 w-11 p-0 sm:h-7 sm:w-7 text-destructive hover:text-destructive"
           title="Stop run"
         >
           <Square className="h-3.5 w-3.5" />
@@ -671,7 +672,7 @@ export function MobileHeaderActions({
           variant="ghost"
           size="sm"
           onClick={() => setActionsMenuOpen((prev) => !prev)}
-          className="h-7 w-7 p-0"
+          className="h-11 w-11 p-0 sm:h-7 sm:w-7"
           aria-label="Run actions"
         >
           <MoreVertical className="h-4 w-4" />
@@ -742,13 +743,8 @@ export function MobileHeaderActions({
   );
 }
 
+/** Dollars, cost events and server-side tool use. Token totals live in the run usage measure, not here. */
 export function CostBreakdown({ totals }: { totals: CostTotals }) {
-  const totalTokens =
-    totals.inputTokens +
-    totals.outputTokens +
-    totals.cacheCreationTokens +
-    totals.cacheReadTokens;
-
   return (
     <div className="space-y-3 text-xs">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -756,24 +752,11 @@ export function CostBreakdown({ totals }: { totals: CostTotals }) {
           <div className="text-muted-foreground">Total cost</div>
           <div className="text-lg font-semibold">{formatCurrency(totals.totalCostUsd)}</div>
         </div>
-        <div className="rounded border border-border p-3">
-          <div className="text-muted-foreground">Total tokens</div>
-          <div className="text-lg font-semibold">{totalTokens.toLocaleString()}</div>
-        </div>
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
         <div className="rounded border border-border p-3 space-y-1">
-          <div className="text-muted-foreground">Token breakdown</div>
-          <div>Input: {totals.inputTokens.toLocaleString()}</div>
-          <div>Output: {totals.outputTokens.toLocaleString()}</div>
-          <div>Cache creation: {totals.cacheCreationTokens.toLocaleString()}</div>
-          <div>Cache read: {totals.cacheReadTokens.toLocaleString()}</div>
-        </div>
-        <div className="rounded border border-border p-3 space-y-1">
-          <div className="text-muted-foreground">Request breakdown</div>
-          <div>Web search: {totals.webSearchRequests.toLocaleString()}</div>
-          <div>Server tool use: {totals.serverToolUseRequests.toLocaleString()}</div>
-          <div>Cost events: {totals.events.toLocaleString()}</div>
+          <div className="text-muted-foreground">Billed events</div>
+          <div>Cost events: {formatCount(totals.events)}</div>
+          <div>Web searches: {formatCount(totals.webSearchRequests)}</div>
+          <div>Server tool calls: {formatCount(totals.serverToolUseRequests)}</div>
         </div>
       </div>
       {(totals.models.length > 0 || totals.serviceTiers.length > 0) && (

@@ -1,9 +1,11 @@
 import "@testing-library/jest-dom";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
+import { queryClient } from "../providers/QueryProvider";
 
 afterEach(() => {
   cleanup();
+  queryClient.clear();
   vi.clearAllMocks();
   localStorage.clear();
   sessionStorage.clear();

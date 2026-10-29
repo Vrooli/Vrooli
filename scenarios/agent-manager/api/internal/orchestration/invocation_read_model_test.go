@@ -60,6 +60,14 @@ func (s *recordingInvocationReadModel) RunMetrics(context.Context, invocationrea
 	return invocationreadmodel.RunMetrics{}, nil
 }
 
+func (s *recordingInvocationReadModel) WindowedUsage(context.Context, invocationreadmodel.Filter) (invocationreadmodel.UsageTotals, error) {
+	return invocationreadmodel.UsageTotals{}, nil
+}
+
+func (s *recordingInvocationReadModel) FallbackInsights(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FallbackInsights, error) {
+	return invocationreadmodel.FallbackInsights{}, nil
+}
+
 func (s *recordingInvocationReadModel) RunDurationStatistics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {
 	return invocationreadmodel.RunDurationStatistics{}, nil
 }
@@ -86,20 +94,6 @@ func (s *recordingInvocationReadModel) ErrorPatterns(context.Context, invocation
 
 func (s *recordingInvocationReadModel) FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error) {
 	return s.findingMetrics, s.findingErr
-}
-
-func TestFindingRecurrenceRateUsesDurableMeasureAndPreservesUnavailable(t *testing.T) {
-	store := &recordingInvocationReadModel{findingMetrics: invocationreadmodel.FindingMetrics{TotalFindings: 4, RecurrenceRate: 0.5}}
-	o := New(nil, nil, nil, WithInvocationReadModel(store))
-	value, err := o.findingRecurrenceRate(context.Background())
-	if err != nil || value == nil || *value != 0.5 {
-		t.Fatalf("value=%v err=%v", value, err)
-	}
-	empty := New(nil, nil, nil, WithInvocationReadModel(&recordingInvocationReadModel{}))
-	value, err = empty.findingRecurrenceRate(context.Background())
-	if err != nil || value != nil {
-		t.Fatalf("empty value=%v err=%v", value, err)
-	}
 }
 
 // A terminal writer leaves a durable mark; the reconcile sweep projects it

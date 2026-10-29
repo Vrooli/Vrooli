@@ -2,6 +2,7 @@ package transcriptindex_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -387,6 +388,213 @@ func TestIndexerLinksWebConsoleHomesToTheirSession(t *testing.T) {
 	}
 	if len(r.files()) != 1 {
 		t.Fatalf("session_index.jsonl outside sessions/ was indexed: %d rows", len(r.files()))
+	}
+}
+
+// web-console's tailer tests drop rollout-test123.jsonl-style fixtures into the
+// sessions folder. Codex always names a rollout with its thread id, so a
+// web-console rollout without one is test output and is never adopted.
+func TestIndexerSkipsWebConsoleTestRollouts(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	dir := filepath.Join(transcriptindex.WebConsoleCodexBase(r.home), "1e5904ed-8378-458a-86d7-8dbb039cff19", "sessions", "2026", "10", "28")
+	real := filepath.Join(dir, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, real, sessionMeta(parentID), tokenCount(10, 0, 1, 10, 0, 1, 1))
+	for _, name := range []string{"rollout-test123.jsonl", "rollout-e2e.jsonl", "rollout-mid-session-test.jsonl"} {
+		write(t, filepath.Join(dir, name), `{"type":"response_item","payload":{"role":"assistant","content":[{"type":"output_text","text":"fixture"}]}}`)
+	}
+	r.tick()
+	if files := r.files(); len(files) != 1 || files[real].Path != real {
+		t.Fatalf("indexed files = %+v, want only the real rollout", files)
+	}
+}
+
+// Re-reading a range the run already holds (a restart that lost the stored
+// cursor, a reset whose recall drop failed) must not append a second copy of
+// its events: 934 tool calls were recorded twice in one run before events took
+// their identity from the source line.
+func TestIndexerReReadingAFileDoesNotDuplicateEvents(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, path, sessionMeta(parentID), turnContext(), tokenCount(1000, 600, 100, 1000, 600, 100, 1), imageToolOutput())
+	r.tick()
+	row := r.row(path)
+	runID := uuid.MustParse(row.RunID)
+	before, _ := r.events.Count(context.Background(), runID)
+	if before == 0 {
+		t.Fatal("first read recorded no events")
+	}
+
+	// Lose the stored cursor twice; each time the file changes so the tick re-reads it.
+	for pass := 1; pass <= 2; pass++ {
+		row = r.row(path)
+		row.Offset, row.HeadHash = 0, ""
+		if err := r.repos.TranscriptIndex.SaveTranscriptFile(context.Background(), row, nil); err != nil {
+			t.Fatal(err)
+		}
+		r.restart()
+		touched := time.Now().Add(time.Duration(pass) * time.Minute)
+		if err := os.Chtimes(path, touched, touched); err != nil {
+			t.Fatal(err)
+		}
+		r.tick()
+		if after, _ := r.events.Count(context.Background(), runID); after != before {
+			t.Fatalf("events after full re-read %d = %d, want %d (each source event once)", pass, after, before)
+		}
+	}
+}
+
+// dropFailingHost adopts every file into one run and fails to drop its events
+// while failDrop is set; it reads nothing, so only adoption bookkeeping runs.
+type dropFailingHost struct {
+	failDrop bool
+	drops    int
+}
+
+func (h *dropFailingHost) OwnedTranscripts(context.Context) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+
+func (h *dropFailingHost) Adopt(context.Context, transcriptindex.FileRow, string) (transcriptindex.Adoption, error) {
+	return transcriptindex.Adoption{RunID: "0b5f6a0e-6a2f-4d6e-9a53-3a1f4f1d7c11"}, nil
+}
+
+func (h *dropFailingHost) Parser(context.Context, transcriptindex.FileRow) (runner.TranscriptParser, error) {
+	return nil, errors.New("no parser")
+}
+
+func (h *dropFailingHost) Record(context.Context, string, []*domain.RunEvent, bool) error {
+	return nil
+}
+
+func (h *dropFailingHost) UpdateRun(context.Context, string, transcriptindex.RunUpdate) error {
+	return nil
+}
+
+func (h *dropFailingHost) DropRecall(context.Context, string) error {
+	if h.failDrop {
+		return errors.New("database is locked")
+	}
+	h.drops++
+	return nil
+}
+
+// deleteFailingStore fails to forget a transcript row while failDelete is set.
+type deleteFailingStore struct {
+	transcriptindex.Store
+	failDelete bool
+}
+
+func (s *deleteFailingStore) DeleteTranscriptFile(ctx context.Context, key string) error {
+	if s.failDelete {
+		return errors.New("database is locked")
+	}
+	return s.Store.DeleteTranscriptFile(ctx, key)
+}
+
+// A file replaced by a new inode re-reads from zero under the old run, so the
+// old events must be dropped first. A failed drop fails the pass and keeps the
+// old row; the next pass retries instead of appending a second copy.
+func TestReplacedFileKeepsItsRowUntilItsEventsAreDropped(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	host := &dropFailingHost{}
+	store := &deleteFailingStore{Store: r.repos.TranscriptIndex}
+	index := transcriptindex.New(store, host, transcriptindex.Config{
+		Roots: transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot}, RecallMaxBytes: r.recall,
+		Now: func() time.Time { return r.now },
+	})
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, path, sessionMeta(parentID), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
+	index.RunOnce(context.Background())
+	first := r.row(path)
+	if first.RunID == "" {
+		t.Fatalf("first row has no run: %+v", first)
+	}
+
+	replacement := path + ".tmp"
+	write(t, replacement, sessionMeta(parentID), tokenCount(900, 0, 90, 900, 0, 90, 1))
+	if err := os.Rename(replacement, path); err != nil {
+		t.Fatal(err)
+	}
+	host.failDrop = true
+	if summary, _ := index.RunOnce(context.Background()); len(summary.Failures) == 0 {
+		t.Fatal("a failed event drop did not fail the pass")
+	}
+	if kept := r.row(path); kept.Key != first.Key {
+		t.Fatalf("old row replaced although its events were not dropped: %+v", kept)
+	}
+
+	host.failDrop, store.failDelete = false, true
+	if summary, _ := index.RunOnce(context.Background()); len(summary.Failures) == 0 {
+		t.Fatal("a failed row delete did not fail the pass")
+	}
+	if kept := r.row(path); kept.Key != first.Key {
+		t.Fatalf("old row replaced although it could not be forgotten: %+v", kept)
+	}
+
+	store.failDelete = false
+	index.RunOnce(context.Background())
+	if replaced := r.row(path); replaced.Key == first.Key || replaced.RunID != first.RunID || host.drops == 0 {
+		t.Fatalf("retry did not replace the row under the same run after dropping: %+v drops=%d", replaced, host.drops)
+	}
+}
+
+type storeSink struct {
+	ctx    context.Context
+	events event.Store
+	runID  uuid.UUID
+}
+
+func (s storeSink) Emit(e *domain.RunEvent) error { return s.events.Append(s.ctx, s.runID, e) }
+func (s storeSink) Close() error                  { return nil }
+
+// Several invocations of one run (a continuation, a re-dispatch after
+// recovery, a rotated rollout) each read a stream whose offsets start at zero.
+// Event identity separates them by transcript path, absolute file offset and
+// line content, so none is dropped as a replay of another and a re-read of the
+// same bytes still is.
+func TestInvocationsOfOneRunKeepTheirOwnEventsWhileRereadsReplay(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	ctx := context.Background()
+	runID := uuid.New()
+	parse := func(id uuid.UUID, line string) runner.TranscriptParseResult {
+		return runner.TranscriptParseResult{Events: []*domain.RunEvent{domain.NewLogEvent(id, "info", strings.TrimSpace(line))}}
+	}
+	consume := func(path string, startAt int64) {
+		t.Helper()
+		if _, _, err := runner.Consume(ctx, runner.ConsumeArgs{RunID: runID, Transcript: path, StartAt: startAt, ParseFn: parse, EventSink: storeSink{ctx, r.events, runID}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := func() int64 {
+		n, _ := r.events.Count(ctx, runID)
+		return n
+	}
+	dir := t.TempDir()
+	first, second := filepath.Join(dir, "first.ndjson"), filepath.Join(dir, "second.ndjson")
+	write(t, first, "a", "b")
+	write(t, second, "a", "b") // identical bytes at the same offsets, another invocation's stream
+	consume(first, 0)
+	consume(second, 0)
+	if got := count(); got != 4 {
+		t.Fatalf("two invocations stored %d events, want 4", got)
+	}
+
+	consume(first, 0) // a re-tail with a lost cursor
+	consume(second, 0)
+	if got := count(); got != 4 {
+		t.Fatalf("re-reading both streams stored %d events, want 4", got)
+	}
+
+	write(t, first, "x", "y") // the same path rewritten with other content
+	consume(first, 0)
+	if got := count(); got != 6 {
+		t.Fatalf("a rewritten transcript stored %d events, want 6", got)
+	}
+
+	appendLines(t, second, "c") // a continuation appended to one file keeps absolute offsets
+	consume(second, 0)
+	if got := count(); got != 7 {
+		t.Fatalf("an appended continuation stored %d events, want 7", got)
 	}
 }
 

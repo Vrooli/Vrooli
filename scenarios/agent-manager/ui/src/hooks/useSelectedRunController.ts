@@ -75,9 +75,14 @@ export function useSelectedRunController({
         runEventStore.actions.runSnapshotLoaded(latest);
         setSelectedRun((prev) => (prev && prev.id === runId ? ({ ...prev, ...latest } as Run) : prev));
 
-        if (!getTaskById(latest.taskId)) {
-          const task = await onGetTask(latest.taskId);
-          setExtraTasks((prev) => ({ ...prev, [task.id]: task }));
+        // Imported and attached sessions have no task (or one that was deleted); the title falls back to the run's own.
+        if (latest.taskId && !getTaskById(latest.taskId)) {
+          try {
+            const task = await onGetTask(latest.taskId);
+            setExtraTasks((prev) => ({ ...prev, [task.id]: task }));
+          } catch {
+            // A missing task is not a failed run sync.
+          }
         }
       } catch (err) {
         console.error("Failed to sync run details:", err);

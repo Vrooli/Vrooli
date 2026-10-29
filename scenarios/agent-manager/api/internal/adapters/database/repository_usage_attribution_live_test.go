@@ -1,3 +1,5 @@
+//go:build livecheck
+
 package database
 
 import (
@@ -83,12 +85,6 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 		t.Logf("copied %s: %d rows", c.table, copied)
 	}
 
-	started := time.Now()
-	report, err := transcriptindex.RepairUsage(ctx, NewTranscriptIndexRepository(temp))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("repair: %d files, %d rows in %s; failures %d", report.Files, report.Rows, time.Since(started).Round(time.Second), len(report.Failures))
 	var unknown, rows int
 	_ = temp.GetContext(ctx, &rows, `SELECT COUNT(*) FROM transcript_usage`)
 	_ = temp.GetContext(ctx, &unknown, `SELECT COUNT(*) FROM transcript_usage WHERE model IN ('', 'unknown')`)
@@ -102,7 +98,7 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 	}
 	// D-16: index the run-owned files (Agent Manager run homes) with the
 	// production indexer, summaries only, so their usage joins the one source.
-	started = time.Now()
+	started := time.Now()
 	indexed, err := indexRunOwnedFiles(ctx, temp, now)
 	if err != nil {
 		t.Fatal(err)
@@ -164,7 +160,7 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 			t.Logf("   metered %s ×%d %s %s", line.Kind, line.Count, line.State, line.Note)
 		}
 	}
-	recs, _, err := service.Recommendations(ctx, "", now)
+	recs, _, err := service.Recommendations(ctx, "", usageattribution.WindowKey{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,16 +168,32 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 	for _, rule := range recs.Rules {
 		t.Logf("rule %-10s fired=%v rows=%d candidates=%d %s", rule.Rule, rule.Fired, rule.Rows, rule.Candidates, rule.Reason)
 	}
-	for i, r := range recs.Recommendations {
-		if i >= 15 {
+	t.Logf("%d plans, %d folded (<0.1 pts)", len(recs.Plans), len(recs.Folded))
+	for i, plan := range recs.Plans {
+		if i >= 5 {
 			break
 		}
-		t.Logf("#%d %-10s −%.2f pts/wk (%s %s) %s [%s] consumer ≈%.2f", r.Rank, r.Rule, r.WeeklySaved, r.Provider, r.Window, trimLabel(r.Action), r.Confidence, r.ConsumerPoints)
-		if i < 3 {
-			if at := strings.Index(r.Rationale, "Basis: "); at >= 0 {
-				t.Logf("   %s", r.Rationale[at:])
-			}
+		var sum float64
+		for _, l := range plan.Levers {
+			sum += l.Saved
 		}
+		t.Logf("#%d %s %s on %s (%s %s): combined −%.2f pts (levers alone sum −%.2f) | used %.2f so far, %.2f at this rate, %.0f%% of the window's burn, running=%v, recoverable %.2f in the %.0fh left, cross-cut=%v",
+			plan.Rank, plan.TargetKind, trimLabel(plan.TargetLabel), plan.TargetID, plan.Provider, plan.Window, plan.Saved, sum, plan.Use.ConsumerPoints, plan.Use.AtThisRate, plan.Use.Share*100, plan.Use.StillRunning, plan.Recoverable, plan.Use.RemainingHours, plan.CrossCut)
+		for _, l := range plan.Levers {
+			t.Logf("     %-10s alone −%.2f, after larger levers −%.2f [%s] %s", l.Rule, l.Saved, l.Marginal, l.Confidence, trimLabel(l.Action))
+		}
+	}
+	friction, err := service.Friction(ctx, "", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	problems := friction.Problems
+	t.Logf("%d recurring friction problems; runs analysed %d of %d", len(problems), friction.RunsAnalysed, friction.RunsTotal)
+	for i, p := range problems {
+		if i >= 8 {
+			break
+		}
+		t.Logf("friction %s %s | owner %s (%s) | %d episodes in %d runs | typical %s total %s | ≈%.2f pts | %s", p.Fingerprint[:8], p.Description, p.Owner, p.OwnerKind, p.Episodes, p.Runs, usageattribution.FormatDuration(p.TypicalMS), usageattribution.FormatDuration(p.WallClockMS), p.Points, p.Status)
 	}
 }
 

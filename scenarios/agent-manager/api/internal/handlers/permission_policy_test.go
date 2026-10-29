@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +18,7 @@ import (
 
 	"github.com/gorilla/mux"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 type permissionProjectorFake struct {
@@ -62,13 +62,14 @@ func setupPermissionPolicyHandler(t *testing.T) (*permissionProjectorFake, *mux.
 	handler := New(orchestration.EmptyHandlerServices(), WithPermissionPolicy(state, permissionpolicy.NewService(state, projector, nil)))
 	router := mux.NewRouter()
 	handler.RegisterRoutes(router)
+	connectPath, connectHandler := apiconnect.NewAgentManagerServiceHandler(NewAgentManagerConnectHandler(handler))
+	router.PathPrefix(connectPath).Handler(connectHandler)
 	return projector, router
 }
 
 func TestPermissionPolicyStatusAndAuthorizationGate(t *testing.T) {
 	projector, router := setupPermissionPolicyHandler(t)
-	status := httptest.NewRecorder()
-	router.ServeHTTP(status, httptest.NewRequest(http.MethodGet, "/api/v1/permission-policy/status", nil))
+	status := callProcedure(t, router, apiconnect.AgentManagerServiceGetPermissionPolicyStatusProcedure, &apipb.GetPermissionPolicyStatusRequest{})
 	if status.Code != http.StatusOK {
 		t.Fatalf("status code = %d: %s", status.Code, status.Body.String())
 	}
@@ -77,8 +78,7 @@ func TestPermissionPolicyStatusAndAuthorizationGate(t *testing.T) {
 		t.Fatalf("status ready = %t, err = %v", response.GetStatus().GetReady(), err)
 	}
 
-	reconcile := httptest.NewRecorder()
-	router.ServeHTTP(reconcile, httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reconcile", nil))
+	reconcile := callProcedure(t, router, apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, &apipb.ReconcilePermissionPolicyRequest{})
 	if reconcile.Code != http.StatusBadRequest || projector.calls != 0 {
 		t.Fatalf("unauthorized reconcile = %d %s, calls=%d", reconcile.Code, reconcile.Body.String(), projector.calls)
 	}
@@ -86,9 +86,7 @@ func TestPermissionPolicyStatusAndAuthorizationGate(t *testing.T) {
 
 func TestPermissionPolicyReconcileReturnsPartialEvidence(t *testing.T) {
 	projector, router := setupPermissionPolicyHandler(t)
-	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/permission-policy/reconcile", strings.NewReader(`{"explicitly_authorized":true}`))
-	router.ServeHTTP(recorder, req)
+	recorder := callProcedure(t, router, apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure, &apipb.ReconcilePermissionPolicyRequest{ExplicitlyAuthorized: true})
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status code = %d: %s", recorder.Code, recorder.Body.String())
 	}

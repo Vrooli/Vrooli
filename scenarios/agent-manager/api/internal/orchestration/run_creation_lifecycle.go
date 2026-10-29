@@ -66,6 +66,8 @@ func (opts RunListOptions) repositoryFilter() repository.RunListFilter {
 		InvestigatesRunID:         opts.InvestigatesRunID,
 		AppliesInvestigationRunID: opts.AppliesInvestigationRunID,
 		ParentRunID:               opts.ParentRunID,
+		TopLevelOnly:              opts.TopLevelOnly,
+		Origin:                    opts.Origin,
 	}
 }
 

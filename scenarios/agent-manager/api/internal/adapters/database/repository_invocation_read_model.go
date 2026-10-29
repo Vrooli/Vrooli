@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -538,26 +537,21 @@ func (r *invocationReadModelRepository) RunMetrics(ctx context.Context, filter i
 		SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN 1 ELSE 0 END),
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0),
-		COALESCE(SUM(total_cost_usd), 0),
-		COALESCE(AVG(total_cost_usd), 0),
-		COALESCE(SUM(total_tokens), 0),
-		COALESCE(SUM(input_tokens), 0), COALESCE(SUM(output_tokens), 0), COALESCE(SUM(cache_read_tokens), 0), COALESCE(SUM(cache_creation_tokens), 0),
-		COALESCE(SUM(input_cost_usd), 0), COALESCE(SUM(output_cost_usd), 0), COALESCE(SUM(cache_read_cost_usd), 0), COALESCE(SUM(cache_creation_cost_usd), 0),
-		COALESCE(SUM(total_charge_micro_usd), 0), COALESCE(SUM(metered_charge_micro_usd), 0), COALESCE(SUM(unpriced_token_count), 0),
 		COALESCE(SUM(signals.read_calls), 0),
 		COALESCE(SUM(signals.files_read_more_than_once), 0)
 		FROM invocation_read_model_runs LEFT JOIN invocation_read_model_run_signals signals ON signals.run_id = invocation_read_model_runs.run_id` + where
-	var total, terminal, successful, durationCount, tokens, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, totalCharge, meteredCharge, unpricedTokens, readCalls, rereads sql.NullInt64
-	var avgDuration, totalCost, avgCost, inputCost, outputCost, cacheReadCost, cacheCreationCost sql.NullFloat64
-	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&total, &terminal, &successful, &durationCount, &avgDuration, &totalCost, &avgCost, &tokens, &inputTokens, &outputTokens, &cacheReadTokens, &cacheCreationTokens, &inputCost, &outputCost, &cacheReadCost, &cacheCreationCost, &totalCharge, &meteredCharge, &unpricedTokens, &readCalls, &rereads); err != nil {
+	var total, terminal, successful, durationCount, readCalls, rereads sql.NullInt64
+	var avgDuration sql.NullFloat64
+	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&total, &terminal, &successful, &durationCount, &avgDuration, &readCalls, &rereads); err != nil {
 		return invocationreadmodel.RunMetrics{}, err
 	}
-	m := invocationreadmodel.RunMetrics{TotalRuns: total.Int64, TerminalRuns: terminal.Int64, SuccessfulRuns: successful.Int64, CompletedDurationRuns: durationCount.Int64, AverageDurationMS: avgDuration.Float64, TotalCostUSD: totalCost.Float64, AverageCostUSD: avgCost.Float64, TotalTokens: tokens.Int64, InputTokens: inputTokens.Int64, OutputTokens: outputTokens.Int64, CacheReadTokens: cacheReadTokens.Int64, CacheCreationTokens: cacheCreationTokens.Int64, InputCostUSD: inputCost.Float64, OutputCostUSD: outputCost.Float64, CacheReadCostUSD: cacheReadCost.Float64, CacheCreationCostUSD: cacheCreationCost.Float64, TotalChargeMicroUSD: totalCharge.Int64, MeteredChargeMicroUSD: meteredCharge.Int64, UnpricedTokenCount: unpricedTokens.Int64, ReadCalls: readCalls.Int64, FileRereads: rereads.Int64}
+	durations, err := r.RunDurationStatistics(ctx, filter)
+	if err != nil {
+		return invocationreadmodel.RunMetrics{}, err
+	}
+	m := invocationreadmodel.RunMetrics{TotalRuns: total.Int64, TerminalRuns: terminal.Int64, SuccessfulRuns: successful.Int64, CompletedDurationRuns: durationCount.Int64, AverageDurationMS: avgDuration.Float64, P50DurationMS: durations.P50DurationMS, P90DurationMS: durations.P90DurationMS, ReadCalls: readCalls.Int64, FileRereads: rereads.Int64}
 	if m.TerminalRuns > 0 {
 		m.SuccessRate = float64(m.SuccessfulRuns) / float64(m.TerminalRuns)
-	}
-	if m.SuccessfulRuns > 0 {
-		m.ConsumptionPerSuccessfulCompletion = float64(m.TotalTokens) / float64(m.SuccessfulRuns)
 	}
 	if m.ReadCalls > 0 {
 		m.FileRereadRate = float64(m.FileRereads) / float64(m.ReadCalls)
@@ -580,30 +574,6 @@ func (r *invocationReadModelRepository) HistoryCoverage(ctx context.Context) (ti
 	return floor.Time(), outside, nil
 }
 
-func (r *invocationReadModelRepository) ChargeByBasis(ctx context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.ChargeByBasis, error) {
-	where, args := invocationReadModelRunWhere(filter)
-	query := `WITH filtered AS (SELECT invocation_read_model_runs.* FROM invocation_read_model_runs` + where + `)
-		SELECT COALESCE(NULLIF(json_extract(r.billing_snapshot, '$.basis'), ''), 'unknown'),
-		COUNT(*), COALESCE(SUM(filtered.total_charge_micro_usd), 0), COALESCE(SUM(filtered.total_tokens), 0),
-		COALESCE(NULLIF(json_extract(r.billing_snapshot, '$.reason'), ''), '')
-		FROM filtered LEFT JOIN runs r ON r.id = filtered.run_id
-		GROUP BY 1, 5 ORDER BY 2 DESC, 1 ASC`
-	rows, err := r.db.QueryxContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	result := []invocationreadmodel.ChargeByBasis{}
-	for rows.Next() {
-		var row invocationreadmodel.ChargeByBasis
-		if err := rows.Scan(&row.Basis, &row.RunCount, &row.ChargeMicroUSD, &row.TokenCount, &row.ChargeReason); err != nil {
-			return nil, err
-		}
-		result = append(result, row)
-	}
-	return result, rows.Err()
-}
-
 func (r *invocationReadModelRepository) RunDurationStatistics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error) {
 	where, args := invocationReadModelRunWhere(filter)
 	query := `SELECT duration_ms
@@ -624,101 +594,13 @@ func (r *invocationReadModelRepository) RunDurationStatistics(ctx context.Contex
 	return invocationreadmodel.RunDurationStatistics{
 		AverageDurationMS: float64(total) / float64(len(durations)),
 		P50DurationMS:     float64(nearestRank(durations, 0.50)),
+		P90DurationMS:     float64(nearestRank(durations, 0.90)),
 		P95DurationMS:     float64(nearestRank(durations, 0.95)),
 		P99DurationMS:     float64(nearestRank(durations, 0.99)),
 		MinDurationMS:     durations[0],
 		MaxDurationMS:     durations[len(durations)-1],
 		Count:             int64(len(durations)),
 	}, nil
-}
-
-// runTokenBucketBounds defines the fixed per-run token histogram. Ranges are
-// inclusive on min and exclusive on max; a zero max is unbounded. They are
-// product judgment, not per-query tuning, so the same buckets answer the same
-// question across time windows.
-var runTokenBucketBounds = []struct {
-	label string
-	min   int64
-	max   int64
-}{
-	{"<100K", 0, 100000},
-	{"100K-500K", 100000, 500000},
-	{"500K-1M", 500000, 1000000},
-	{"1M-5M", 1000000, 5000000},
-	{"5M-25M", 5000000, 25000000},
-	{"25M+", 25000000, 0},
-}
-
-// RunCostDistribution computes per-run token and cost percentiles plus a fixed
-// token histogram over runs with observed token usage. It uses nearest-rank on
-// the durable projection, so every percentile is a real observed run rather
-// than an interpolated estimate. Runs without token usage are excluded and
-// reported through SampleSize/UnobservedRuns by the owning measure.
-func (r *invocationReadModelRepository) RunCostDistribution(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error) {
-	where, args := invocationReadModelRunWhere(filter)
-	if where == "" {
-		where = " WHERE total_tokens > 0"
-	} else {
-		where += " AND total_tokens > 0"
-	}
-	rows, err := r.db.QueryxContext(ctx, `SELECT total_tokens, CAST(ROUND(total_cost_usd * 1000000) AS INTEGER) FROM invocation_read_model_runs`+where, args...)
-	if err != nil {
-		return invocationreadmodel.RunCostDistribution{}, err
-	}
-	defer rows.Close()
-	tokens := []int64{}
-	costs := []int64{}
-	for rows.Next() {
-		var tok, costMicro int64
-		if err := rows.Scan(&tok, &costMicro); err != nil {
-			return invocationreadmodel.RunCostDistribution{}, err
-		}
-		tokens = append(tokens, tok)
-		costs = append(costs, costMicro)
-	}
-	if err := rows.Err(); err != nil {
-		return invocationreadmodel.RunCostDistribution{}, err
-	}
-	dist := invocationreadmodel.RunCostDistribution{SampleSize: int64(len(tokens))}
-	if len(tokens) == 0 {
-		dist.TokenBuckets = emptyRunTokenBuckets()
-		return dist, nil
-	}
-	sort.Slice(tokens, func(i, j int) bool { return tokens[i] < tokens[j] })
-	sort.Slice(costs, func(i, j int) bool { return costs[i] < costs[j] })
-	dist.P50Tokens = nearestRank(tokens, 0.50)
-	dist.P90Tokens = nearestRank(tokens, 0.90)
-	dist.P95Tokens = nearestRank(tokens, 0.95)
-	dist.P99Tokens = nearestRank(tokens, 0.99)
-	dist.MaxTokens = tokens[len(tokens)-1]
-	dist.P50CostUSD = float64(nearestRank(costs, 0.50)) / 1e6
-	dist.P90CostUSD = float64(nearestRank(costs, 0.90)) / 1e6
-	dist.P95CostUSD = float64(nearestRank(costs, 0.95)) / 1e6
-	dist.P99CostUSD = float64(nearestRank(costs, 0.99)) / 1e6
-	dist.MaxCostUSD = float64(costs[len(costs)-1]) / 1e6
-	dist.TokenBuckets = tokenBuckets(tokens)
-	return dist, nil
-}
-
-func emptyRunTokenBuckets() []invocationreadmodel.RunTokenBucket {
-	buckets := make([]invocationreadmodel.RunTokenBucket, len(runTokenBucketBounds))
-	for i, bound := range runTokenBucketBounds {
-		buckets[i] = invocationreadmodel.RunTokenBucket{Label: bound.label, MinTokens: bound.min, MaxTokens: bound.max}
-	}
-	return buckets
-}
-
-func tokenBuckets(tokens []int64) []invocationreadmodel.RunTokenBucket {
-	buckets := emptyRunTokenBuckets()
-	for _, token := range tokens {
-		for i := range buckets {
-			if token >= buckets[i].MinTokens && (buckets[i].MaxTokens == 0 || token < buckets[i].MaxTokens) {
-				buckets[i].RunCount++
-				break
-			}
-		}
-	}
-	return buckets
 }
 
 func (r *invocationReadModelRepository) RunStatusCounts(ctx context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.RunStatusCount, error) {
@@ -735,92 +617,6 @@ func (r *invocationReadModelRepository) RunStatusCounts(ctx context.Context, fil
 			return nil, err
 		}
 		out = append(out, row)
-	}
-	return out, rows.Err()
-}
-
-func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter invocationreadmodel.Filter, dimension string, limit int) ([]invocationreadmodel.RunBreakdownRow, error) {
-	columns := map[string]string{"runner": "runner_type", "model": "model", "profile": "profile_id", "workload": "workload_key", "workload_kind": "workload_kind"}
-	column, ok := columns[dimension]
-	if !ok {
-		return nil, fmt.Errorf("unsupported durable run breakdown dimension %q", dimension)
-	}
-	if limit <= 0 {
-		limit = 20
-	}
-	where, args := invocationReadModelRunWhere(filter)
-	args = append(args, limit)
-	value := column
-	from := "invocation_read_model_runs"
-	if dimension == "workload" {
-		value = "COALESCE(workload_key, '')"
-		column = value
-	}
-	if dimension == "profile" {
-		// Profile display names are a retained product label, resolved from the
-		// profile catalogue after selecting the durable run population. This is
-		// deliberately not a reopened event-log interpretation.
-		value = "COALESCE((SELECT name FROM agent_profiles WHERE id = invocation_read_model_runs.profile_id), invocation_read_model_runs.profile_id)"
-	}
-	query := fmt.Sprintf(`SELECT %s AS value, %s AS key, COUNT(*) AS run_count,
-		SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) AS success_count,
-		SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
-		COALESCE(SUM(total_cost_usd), 0) AS total_cost_usd,
-		COALESCE(SUM(total_tokens), 0) AS total_tokens,
-		COALESCE(SUM(input_tokens), 0) AS input_tokens,
-		COALESCE(SUM(output_tokens), 0) AS output_tokens,
-		COALESCE(SUM(cache_read_tokens), 0) AS cache_read_tokens,
-		COALESCE(SUM(cache_creation_tokens), 0) AS cache_creation_tokens,
-		COALESCE(SUM(total_charge_micro_usd), 0) AS total_charge_micro_usd,
-		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0) AS avg_duration_ms,
-		COALESCE(SUM(total_tokens) / NULLIF(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END), 0), 0) AS consumption_per_successful_completion,
-		COALESCE(SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(*), 0), 0) AS completion_rate
-		FROM %s%s GROUP BY %s ORDER BY run_count DESC, value ASC LIMIT ?`, value, column, from, where, value)
-	rows, err := r.db.QueryxContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []invocationreadmodel.RunBreakdownRow{}
-	for rows.Next() {
-		var row invocationreadmodel.RunBreakdownRow
-		if err := rows.Scan(&row.Value, &row.Key, &row.RunCount, &row.SuccessCount, &row.FailedCount, &row.TotalCostUSD, &row.TotalTokens, &row.InputTokens, &row.OutputTokens, &row.CacheReadTokens, &row.CacheCreationTokens, &row.TotalChargeMicroUSD, &row.AvgDurationMS, &row.ConsumptionPerSuccessfulCompletion, &row.CompletionRate); err != nil {
-			return nil, err
-		}
-		out = append(out, row)
-	}
-	return out, rows.Err()
-}
-
-func (r *invocationReadModelRepository) CanaryRuns(ctx context.Context, filter invocationreadmodel.Filter) ([]invocationreadmodel.CanaryRun, error) {
-	clauses := []string{"irm.workload_kind NOT IN (?, ?)", "r.canary_arm IN (?, ?)"}
-	args := []any{"imported", "interactive", "incumbent", "challenger"}
-	if filter.From != nil {
-		clauses = append(clauses, "irm.created_at >= ?")
-		args = append(args, SQLiteTime(*filter.From))
-	}
-	if filter.To != nil {
-		clauses = append(clauses, "irm.created_at < ?")
-		args = append(args, SQLiteTime(*filter.To))
-	}
-	if filter.RunnerType != "" {
-		clauses = append(clauses, "irm.runner_type = ?")
-		args = append(args, filter.RunnerType)
-	}
-	query := `SELECT COALESCE(json_extract(r.resolved_config, '$.policySnapshot.roleRef'), ''), r.canary_arm, irm.status, COALESCE(irm.duration_ms, 0), COALESCE(irm.total_cost_usd, 0)
-		FROM invocation_read_model_runs irm JOIN runs r ON r.id = irm.run_id WHERE ` + strings.Join(clauses, " AND ") + ` ORDER BY irm.created_at`
-	rows, err := r.db.QueryxContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := []invocationreadmodel.CanaryRun{}
-	for rows.Next() {
-		var item invocationreadmodel.CanaryRun
-		if err := rows.Scan(&item.Role, &item.Arm, &item.Status, &item.DurationMS, &item.CostUSD); err != nil {
-			return nil, err
-		}
-		out = append(out, item)
 	}
 	return out, rows.Err()
 }
@@ -849,7 +645,6 @@ func (r *invocationReadModelRepository) RunTimeSeries(ctx context.Context, filte
 		SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) AS completed_runs,
 		SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_runs,
 		SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelled_runs,
-		COALESCE(SUM(total_cost_usd), 0) AS total_cost_usd,
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0) AS avg_duration_ms
 		FROM invocation_read_model_runs%s GROUP BY %s ORDER BY bucket ASC`, bucket, where, bucket)
 	rows, err := r.db.QueryxContext(ctx, query, args...)
@@ -861,7 +656,7 @@ func (r *invocationReadModelRepository) RunTimeSeries(ctx context.Context, filte
 	for rows.Next() {
 		var row invocationreadmodel.RunTimeSeriesBucket
 		var value SQLiteTime
-		if err := rows.Scan(&value, &row.TerminalRuns, &row.CompletedRuns, &row.FailedRuns, &row.CancelledRuns, &row.TotalCostUSD, &row.AvgDurationMS); err != nil {
+		if err := rows.Scan(&value, &row.TerminalRuns, &row.CompletedRuns, &row.FailedRuns, &row.CancelledRuns, &row.AvgDurationMS); err != nil {
 			return nil, err
 		}
 		row.Bucket = value.Time()
@@ -1074,7 +869,11 @@ func (r *invocationReadModelRepository) TokenAttribution(ctx context.Context, fi
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	residualWhere, residualArgs := invocationReadModelRunWhere(filter)
+	// The part of a run's unattributed tokens that falls in the window is its
+	// lifetime figure scaled by the share of the run's tokens requested in it.
+	cte, residualArgs := windowedUsageCTE(filter)
+	residualWhere, whereArgs := runWhereClauses(filter, false, true)
+	residualArgs = append(residualArgs, whereArgs...)
 	residualClauses := []string{}
 	if filter.TargetScenario != "" {
 		residualClauses = append(residualClauses, "EXISTS (SELECT 1 FROM investigation_cross_scenario_calls c WHERE c.run_id = invocation_read_model_runs.run_id AND c.target_scenario = ?)")
@@ -1092,7 +891,8 @@ func (r *invocationReadModelRepository) TokenAttribution(ctx context.Context, fi
 		}
 	}
 	var residualRuns, residualTokens int64
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*), COALESCE(SUM(unattributed_tokens), 0) FROM invocation_read_model_runs`+residualWhere, residualArgs...).Scan(&residualRuns, &residualTokens); err != nil {
+	if err := r.db.QueryRowContext(ctx, "WITH "+cte+` SELECT COUNT(DISTINCT uw_run_id), CAST(COALESCE(SUM(invocation_read_model_runs.unattributed_tokens * `+windowShare+`), 0) AS INTEGER)
+		FROM uw JOIN invocation_read_model_runs ON invocation_read_model_runs.run_id = uw.uw_run_id`+residualWhere, residualArgs...).Scan(&residualRuns, &residualTokens); err != nil {
 		return nil, err
 	}
 	if residualRuns > 0 {
@@ -1231,35 +1031,41 @@ func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any)
 }
 
 // invocationReadModelRunWhere applies the shared corpus filter to terminal
-// summaries. Run dimensions and window bind directly to the run summary;
-// invocation-only predicates select runs that have at least one matching
-// durable invocation fact, preserving the cohort meaning without raw events.
+// run summaries in the filter's window: runs that ended in it. Run dimensions
+// bind directly to the run summary; invocation-only predicates select runs
+// that have at least one matching durable invocation fact, preserving the
+// cohort meaning without raw events.
 func invocationReadModelRunWhere(filter invocationreadmodel.Filter) (string, []any) {
+	return runWhereClauses(filter, true, false)
+}
+
+// runWhereClauses is the run-summary predicate. windowed adds the ended-in-
+// window bound (run statistics); token queries bound by request time instead
+// and pass tokens so an unspecified scope counts every run.
+func runWhereClauses(filter invocationreadmodel.Filter, windowed, tokens bool) (string, []any) {
+	const table = "invocation_read_model_runs."
 	clauses, args := []string{}, []any{}
-	if filter.From != nil {
-		clauses, args = append(clauses, "occurred_at >= ?"), append(args, SQLiteTime(*filter.From))
+	if windowed && filter.From != nil {
+		clauses, args = append(clauses, table+"occurred_at >= ?"), append(args, SQLiteTime(*filter.From))
 	}
-	if filter.To != nil {
-		clauses, args = append(clauses, "occurred_at < ?"), append(args, SQLiteTime(*filter.To))
+	if windowed && filter.To != nil {
+		clauses, args = append(clauses, table+"occurred_at < ?"), append(args, SQLiteTime(*filter.To))
 	}
 	add := func(column, value string) {
 		if value != "" {
-			clauses, args = append(clauses, column+" = ?"), append(args, value)
+			clauses, args = append(clauses, table+column+" = ?"), append(args, value)
 		}
 	}
 	add("run_id", filter.RunID)
 	add("profile_id", filter.ProfileID)
 	add("runner_type", filter.RunnerType)
 	add("model", filter.Model)
-	for _, excluded := range filter.ExcludedWorkloadKinds {
-		if strings.TrimSpace(excluded) != "" {
-			clauses = append(clauses, "workload_kind <> ?")
-			args = append(args, excluded)
-		}
-	}
 	add("status", filter.RunStatus)
+	if scope := runScopeClause(filter.Scope, tokens); scope != "" {
+		clauses = append(clauses, scope)
+	}
 	if filter.TagPrefix != "" {
-		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
+		clauses, args = append(clauses, table+"tag LIKE ?"), append(args, filter.TagPrefix+"%")
 	}
 	if filter.ErrorCode != "" {
 		clauses = append(clauses, "EXISTS (SELECT 1 FROM invocation_read_model_errors e WHERE e.run_id = invocation_read_model_runs.run_id AND e.error_code = ?)")
@@ -1437,4 +1243,14 @@ func (r *invocationReadModelRepository) Watermark(ctx context.Context, runID str
 		return nil, err
 	}
 	return &invocationreadmodel.Watermark{RunID: row.RunID, LastEventID: row.LastEventID, LastEventAt: row.LastEventAt.Time(), ClassifierVersion: row.ClassifierVersion, EpisodeClassifierVersion: row.EpisodeClassifierVersion, SelfReportClassifierVersion: row.SelfReportClassifierVersion, ProjectedAt: row.ProjectedAt.Time()}, nil
+}
+
+// pruneStaleEpisodes deletes the episodes of every classifier but the current.
+// It lives here because this file is the only runtime writer of the projection
+// tables; the run-once step in migrations_once.go calls it once per version bump.
+func pruneStaleEpisodes(ctx context.Context, tx *Tx) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM invocation_read_model_episodes WHERE classifier_version <> ?`, runsignal.EpisodeClassifierVersion); err != nil {
+		return fmt.Errorf("prune stale friction episodes: %w", err)
+	}
+	return nil
 }

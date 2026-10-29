@@ -168,7 +168,6 @@ type InvocationFactService interface {
 	Episodes(context.Context, uuid.UUID) ([]runsignal.FrictionEpisode, error)
 	SelfReportSpans(context.Context, uuid.UUID) ([]runsignal.SelfReportSpan, error)
 	EpisodeTrend(context.Context, invocationreadmodel.Filter, time.Duration, int) ([]runreport.EpisodeTrendBucket, error)
-	PublishRecurringFriction(context.Context, invocationreadmodel.Filter, int) (RecurringFrictionSummary, error)
 	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
 	ReplayInvocationCorpus(context.Context, ReplayFilter, bool) (*ReplaySummary, error)
 	DefineCohort(context.Context, string, string, string) (invocationreadmodel.CohortDefinition, error)

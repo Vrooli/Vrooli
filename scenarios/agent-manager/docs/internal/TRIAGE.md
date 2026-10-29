@@ -8,7 +8,7 @@ overwrite the ordering and timing facts needed to identify the original cause.
 
 1. Read the run summary and ordered run event log: `GET /api/v1/runs/{id}` and
    `GET /api/v1/runs/{id}/events`.
-2. Read the persisted transcript audit: `GET /api/v1/runs/{id}/audit-transcript`.
+2. Read the persisted transcript: `agent-manager run messages <id> --range start:end`.
 3. For workflow work, read the execution trace: `GET /api/v1/workflow-executions/{id}/trace`.
    The trace is the workflow journal: wait registrations, signals, attempts,
    structured-result validation, and child-workflow outcomes are ordered there.

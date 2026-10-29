@@ -3,6 +3,7 @@ package measures
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -52,9 +53,9 @@ func limitFlag(op cliapp.OperationContext) (int32, error) {
 	if raw == "" {
 		return 0, nil
 	}
-	value, err := strconv.Atoi(raw)
+	value, err := strconv.ParseInt(raw, 10, 32)
 	if err != nil || value < 1 {
-		return 0, fmt.Errorf("--limit must be a positive integer")
+		return 0, fmt.Errorf("--limit must be a positive integer no larger than %d", math.MaxInt32)
 	}
 	return int32(value), nil
 }

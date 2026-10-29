@@ -8,6 +8,7 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 )
 
 func (a *App) cmdDeclarations(args []string) error {
@@ -16,9 +17,9 @@ func (a *App) cmdDeclarations(args []string) error {
 	}
 	switch args[0] {
 	case "reconcile-scenario":
-		return a.declarationsReconcile(args[1:], "/api/v1/declarations/reconcile-scenario", false)
+		return a.declarationsReconcile(args[1:], apiconnect.AgentManagerServiceReconcileScenarioDeclarationsProcedure, false)
 	case "plan":
-		return a.declarationsReconcile(args[1:], "/api/v1/declarations/plan", true)
+		return a.declarationsReconcile(args[1:], apiconnect.AgentManagerServicePlanScenarioDeclarationsProcedure, true)
 	case "help", "-h", "--help":
 		return nil
 	default:
@@ -26,7 +27,7 @@ func (a *App) cmdDeclarations(args []string) error {
 	}
 }
 
-func (a *App) declarationsReconcile(args []string, path string, forceDry bool) error {
+func (a *App) declarationsReconcile(args []string, procedure string, forceDry bool) error {
 	fs := flag.NewFlagSet("declarations reconcile", flag.ContinueOnError)
 	jsonOut := cliutil.JSONFlag(fs)
 	scenario := fs.String("scenario", "", "Owning scenario slug")
@@ -38,7 +39,7 @@ func (a *App) declarationsReconcile(args []string, path string, forceDry bool) e
 	if strings.TrimSpace(*scenario) == "" {
 		return fmt.Errorf("--scenario is required")
 	}
-	body, resp, err := a.services.Declarations.Reconcile(path, &apipb.ReconcileScenarioDeclarationsRequest{
+	body, resp, err := a.services.Declarations.Reconcile(procedure, &apipb.ReconcileScenarioDeclarationsRequest{
 		Scenario:     strings.TrimSpace(*scenario),
 		DryRun:       *dry || forceDry,
 		ValidateOnly: *validateOnly,

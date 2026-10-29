@@ -20,12 +20,11 @@ func (r *findingRepositorySpy) Create(context.Context, *findings.Finding) error 
 func (r *findingRepositorySpy) List(context.Context, findings.Filter) ([]findings.Finding, error) {
 	return append([]findings.Finding(nil), r.items...), nil
 }
-func (r *findingRepositorySpy) SetDecision(context.Context, uuid.UUID, string) error { return nil }
-func (r *findingRepositorySpy) RecurrenceCount(context.Context, string) (int, error) { return 0, nil }
-func (r *findingRepositorySpy) SetEffectiveness(_ context.Context, id uuid.UUID, before, after *float64, effectiveness, topic string) error {
+
+func (r *findingRepositorySpy) SetTopic(_ context.Context, id uuid.UUID, topic string) error {
 	for i := range r.items {
 		if r.items[i].ID == id {
-			r.items[i].BeforeValue, r.items[i].AfterValue, r.items[i].Effectiveness, r.items[i].FrictionTopic = before, after, effectiveness, topic
+			r.items[i].FrictionTopic = topic
 		}
 	}
 	return nil

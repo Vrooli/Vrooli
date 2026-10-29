@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/usagelabel"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"google.golang.org/protobuf/proto"
@@ -27,7 +29,7 @@ func connectClient(core *cliapp.ScenarioApp) measureconnect.MeasuresServiceClien
 // Register declares the `usage` group; run adds the per-run commands the
 // CLI's run services implement (`usage run`, `usage reindex`).
 func Register(run ...cliapp.Command) cliapp.SubcommandGroup {
-	commands := []cliapp.Command{forecastCommand(connectClient), burnersCommand(connectClient), recommendationsCommand(connectClient), coverageCommand(connectClient), compareCommand(connectClient)}
+	commands := []cliapp.Command{forecastCommand(connectClient), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(episodesConnectClient), frictionDismissCommand(episodesConnectClient), coverageCommand(connectClient), compareCommand(connectClient)}
 	return cliapp.SubcommandGroup{Name: "usage", Description: "Provider subscription usage from the provider's own quota readings", NeedsAPI: true, Subcommands: append(commands, run...)}
 }
 
@@ -36,7 +38,7 @@ func forecastCommand(newClient clientFor) cliapp.Command {
 		Name: "forecast", NeedsAPI: true,
 		Description: "Will each subscription window run out before its reset? [--backtest] [--provider NAME] [--json]",
 		Usage:       "agent-manager usage forecast [--backtest] [--provider NAME] [--json]",
-		HelpText:    "Projects each provider window from its used-percent readings: burn over the last 1h/6h/24h (stale when no reading lies inside the horizon), projected run-out with a band from the burn since the window began shaped by the operator's hour-of-week profile and calibrated on completed windows, the burn that lasts to the reset, the last reading, and on_track | at_risk | will_exhaust | unknown. --backtest replays the forecast in time order over completed windows against a naive linear baseline: the last 5 windows per scope (SPEC A4), then all windows.",
+		HelpText:    "Projects each provider window from its used-percent readings: burn over the last 1h/6h/24h (stale when no reading lies inside the horizon), projected run-out with a band from the burn since the window began shaped by the operator's hour-of-week profile and calibrated on completed windows, the burn that lasts to the reset, the last reading, and on_track | at_risk | will_exhaust | idle (stale reading, no work since: lasts at this pace) | unknown. --backtest replays the forecast in time order over completed windows against a naive linear baseline: the last 5 windows per scope (SPEC A4), then all windows.",
 		Args: cliapp.ArgSchema{Flags: []cliapp.Flag{
 			{Name: "provider", Description: "Provider filter (e.g. openai, anthropic)"},
 			{Name: "backtest", Bool: true, LocalOnly: true, Description: "Score the forecast on completed windows"},
@@ -164,6 +166,8 @@ func statusLine(w *measurepb.UsageWindowForecast) string {
 			return "on track: projected run-out " + stamp(w.GetProjectedExhaustionAt()) + " is after the reset"
 		}
 		return "on track: " + w.GetStatusReason()
+	case "idle":
+		return "idle, lasts at this pace: " + w.GetStatusReason()
 	}
 	return "unknown: " + w.GetStatusReason()
 }
@@ -207,38 +211,6 @@ func backtestReport(r *measurepb.UsageForecastBacktestResponse) cliapp.ListRepor
 	return report
 }
 
-func providerLabel(provider string) string {
-	switch provider {
-	case "openai":
-		return "Codex"
-	case "anthropic":
-		return "Claude"
-	}
-	return provider
-}
-
-// windowLabel is "weekly", "daily" or "5-hour"; an unrecognised window is
-// returned as-is.
-func windowLabel(minutes int64, window string) string {
-	if minutes == 0 && strings.HasSuffix(window, "m") {
-		fmt.Sscanf(window, "%dm", &minutes)
-	}
-	if minutes == 0 {
-		minutes = namedWindowMinutes[window]
-	}
-	switch {
-	case minutes == 10080:
-		return "weekly"
-	case minutes == 1440:
-		return "daily"
-	case minutes > 0 && minutes%60 == 0:
-		return fmt.Sprintf("%d-hour", minutes/60)
-	}
-	return window
-}
-
-var namedWindowMinutes = map[string]int64{"five_hour": 300, "seven_day": 10080}
-
 // unnamedPools only restate the window or the provider's slot order.
 var unnamedPools = map[string]bool{"primary": true, "secondary": true, "five_hour": true, "seven_day": true}
 
@@ -251,9 +223,9 @@ type windowScope struct {
 // windowTitle): "Claude · weekly", "Codex · 5-hour", and "Claude · weekly ·
 // Opus" when the pool has a name of its own.
 func windowTitle(s windowScope) string {
-	parts := []string{providerLabel(s.provider), windowLabel(s.minutes, s.window)}
+	parts := []string{usagelabel.Provider(s.provider), usagelabel.Window(s.minutes, s.window)}
 	if pool := s.pool; pool != "" && !unnamedPools[pool] {
-		for prefix := range namedWindowMinutes {
+		for prefix := range usagelabel.NamedWindowMinutes {
 			pool = strings.TrimPrefix(pool, prefix+"_")
 		}
 		words := strings.FieldsFunc(pool, func(r rune) bool { return r == '_' || r == '-' })

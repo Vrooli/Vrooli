@@ -7,9 +7,8 @@ log. Every metric on this page is derived from `run_events` rows whose
 the live SQL run tables, so the same query answers "what just happened"
 and "what happened last week" the same way.
 
-The HTTP endpoints, CLI commands, and the UI's Usage › Details
-(`/usage?tab=details`) and Health (`/observability`) pages all sit on top of the same `internal/stats` engine and
-`internal/health` audit store.
+The HTTP endpoints, CLI commands, and the UI's Health (`/observability`) page sit on
+the `internal/health` audit store and the Measures service.
 
 ## HTTP endpoints
 
@@ -31,30 +30,17 @@ output bounded; it does not call an inference model or change team policy.
 
 All endpoints live under the existing API base. JSON in, JSON out.
 
-### `GET /api/v1/stats/operational?category=<cat>`
+### Fallback insights (Measures)
 
-Returns the per-category aggregate. `category` is required and **typed**:
-unknown values return HTTP 400 with the list of accepted values.
-
-| Category | Response type (Go) | Notes |
-|---|---|---|
-| `summary` | `stats.Summary` | Bundles all categories below; preferred for dashboards. |
-| `fallback` | `stats.FallbackInsights` | Runner+model fallback frequency, chain depth, by reason. |
-| `health` | `stats.HealthSummary` | Per-(runner, model) and per-runner snapshots, plus `failing_last_hour`. |
-| `sandbox` | `stats.SandboxSummary` | sandbox.operation success/failure + duration. |
-| `heartbeat` | `stats.HeartbeatSummary` | heartbeat.miss totals, by target. |
-| `checkpoint` | `stats.CheckpointSummary` | checkpoint.failure by phase / step. |
-| `retry` | `stats.RetrySummary` | retry.attempt by operation / reason. |
-
-Every response carries a `history` field of type `stats.HistoryWindow`
-(see `api/internal/stats/types.go`); the UI renders an "InsufficientData"
-card when `history.history_days < 30` or sample size <
-`history.min_sample_meaningful` (5).
-
-### `GET /api/v1/stats/fallback`
-
-Convenience alias for `/operational?category=fallback`. Returns
-`stats.FallbackInsights` directly.
+Runner and model fallbacks and policy-candidate outcomes are the Health
+measure `health.fallback_insights` (`MeasuresService.FallbackInsights`, CLI
+`agent-manager measures fallback-insights [--window TOKEN]`). It counts the
+`runner.fallback.*`, `model.fallback.*` and `policy.candidate.attempt` events
+still retained in the window: attempts, exhausted walks, the most frequent
+from/to/reason pairs, reasons, and policy outcomes and failure classes. The
+former `/api/v1/stats/operational` and `/api/v1/stats/fallback` routes, the
+`internal/stats` engine and `agent-manager ops` were deleted (P2-2); sandbox,
+heartbeat, checkpoint and retry counters have no consumer and no replacement.
 
 ### `GET /api/v1/health/models`
 
@@ -102,7 +88,7 @@ add `--json` for scripting.
 ```
 agent-manager events ...    # query the typed event log
 agent-manager health ...    # current snapshots and audit history
-agent-manager ops ...       # operational stats (fallback/health/sandbox/...)
+agent-manager measures fallback-insights   # fallbacks and policy-candidate outcomes
 ```
 
 Run `agent-manager <group> --help` for the full subcommand list. The
@@ -113,7 +99,7 @@ canonical workflow:
 | Are any models currently failing? | `agent-manager health models` |
 | Which models does Codex currently offer? | `resource-codex models list --json` (the runner catalog; use the resource policy command for role selection) |
 | Show last 7 days of failures for a model | `agent-manager health audit --runner=codex --model=<observed-model> --since=7d` (substitute a model returned by `health models`) |
-| How often does CHEAP fall through? | `agent-manager ops fallback` |
+| How often does CHEAP fall through? | `agent-manager measures fallback-insights` |
 | Show every fallback event for a run | `agent-manager events list --run=<id>` |
 | Tail the typed event log for a specific type | `agent-manager events list --type=runner.fallback.attempted --since=1h` |
 
@@ -297,9 +283,10 @@ these bounded surfaces:
 - `run messages-friction` and `run episodes`: bounded struggle vocabulary,
   operator corrections, guidance repair, wait misuse, abandonment, and
   handoff continuation.
-- `run publish-recurring-friction`: idempotent three-distinct-run routing to
-  `friction-inbox/<scope>/`, with `recurring`, `auto-generated`, recurrence
-  evidence, and a reported daily cap/withheld count.
+- `usage friction`, `usage friction-report` and `usage friction-dismiss`:
+  recurring friction problems (three or more episodes of one fingerprint) in
+  plain words with owner, counts, cost and status; reporting files one
+  scenario-qa bug per problem. They replace `run publish-recurring-friction`.
 - `run import-session-corpus` and `usage reindex`: named sampling strategy,
   candidate/omitted counts, checkpoint, per-item failure, transcript time
   basis, cost basis, and pinned classifier replay (`usage reindex [<run-id>]`

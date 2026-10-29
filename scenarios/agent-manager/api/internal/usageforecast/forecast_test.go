@@ -1,6 +1,7 @@
 package usageforecast
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -415,4 +416,41 @@ func keys(m map[string]Forecast) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestStaleWindowIsIdleOnlyWhenNoWorkSinceTheLastReading(t *testing.T) {
+	reset := at("2026-11-04T06:57:00Z")
+	start := reset.Add(-7 * 24 * time.Hour)
+	last := start.Add(24 * time.Hour)
+	readings := spans(codexWindow(reset, last, ramp(start.Add(time.Hour), last, 1, 40)))
+	now := last.Add(7 * time.Hour)
+	cases := []struct {
+		name   string
+		source ActivitySource
+		want   string
+	}{
+		{"no source cannot rule out unmetered use", nil, StatusUnknown},
+		{"source failed", stubActivity{err: context.DeadlineExceeded}, StatusUnknown},
+		{"work since the reading", stubActivity{last: last.Add(time.Hour)}, StatusUnknown},
+		{"no work since the reading", stubActivity{last: last.Add(-time.Hour)}, StatusIdle},
+		{"never any work", stubActivity{}, StatusIdle},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := CurrentWithActivity(context.Background(), readings, now, c.source)
+			if len(got) != 1 || got[0].Status != c.want {
+				t.Fatalf("status=%v, want %s", got, c.want)
+			}
+			if c.want == StatusIdle && (got[0].Lasting == nil || !strings.Contains(got[0].Reason, "lasts at this pace")) {
+				t.Fatalf("idle must say it lasts at this pace: %+v", got[0])
+			}
+		})
+	}
+	// A fresh reading is never idle, and a reset window stays unknown.
+	if got := CurrentWithActivity(context.Background(), readings, last.Add(time.Hour), stubActivity{}); got[0].Status == StatusIdle {
+		t.Fatalf("fresh reading: %s", got[0].Status)
+	}
+	if got := CurrentWithActivity(context.Background(), readings, reset.Add(time.Minute), stubActivity{}); got[0].Status != StatusUnknown {
+		t.Fatalf("reset passed: %s", got[0].Status)
+	}
 }

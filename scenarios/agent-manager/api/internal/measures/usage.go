@@ -22,6 +22,10 @@ const (
 // reads. Without it the usage procedures report unavailable.
 func (h *Handler) SetUsageForecast(source pricing.QuotaReadingSource) { h.quotaReadings = source }
 
+// SetUsageActivity connects the provider activity that lets a stale window be
+// idle; without it such a window is unknown.
+func (h *Handler) SetUsageActivity(source usageforecast.ActivitySource) { h.usageActivity = source }
+
 func (h *Handler) usageSpans(ctx context.Context, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
 	if h.quotaReadings == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("provider quota readings are unavailable"))
@@ -52,7 +56,7 @@ func (h *Handler) UsageForecast(ctx context.Context, req *connect.Request[measur
 		return nil, err
 	}
 	response := &measurepb.UsageForecastResponse{GeneratedAt: now.Format(time.RFC3339), Provenance: usageProvenance(spans, since, now, req.Msg.GetProvider()), DefinitionId: definitionID(UsageForecast)}
-	for _, forecast := range usageforecast.Current(spans, now) {
+	for _, forecast := range usageforecast.CurrentWithActivity(ctx, spans, now, h.usageActivity) {
 		response.Windows = append(response.Windows, protoWindowForecast(forecast))
 	}
 	return connect.NewResponse(response), nil

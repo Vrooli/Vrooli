@@ -28,7 +28,7 @@ func TestDeriveEpisodesEmitsBoundedPatterns(t *testing.T) {
 	run := uuid.New()
 	now := time.Now().UTC()
 	call := func(n int, id string) *domain.RunEvent {
-		return &domain.RunEvent{ID: uuid.New(), RunID: run, Timestamp: now.Add(time.Duration(n) * time.Minute), Data: &domain.ToolCallEventData{ToolName: "shell", ToolCallID: id, Input: map[string]interface{}{"command": "agent-manager run report"}}}
+		return &domain.RunEvent{ID: uuid.New(), RunID: run, EventType: domain.EventTypeToolCall, Timestamp: now.Add(time.Duration(n) * time.Minute), Data: &domain.ToolCallEventData{ToolName: "shell", ToolCallID: id, Input: map[string]interface{}{"command": "agent-manager run report"}}}
 	}
 	a, b, c := call(0, "a"), call(1, "b"), call(8, "c")
 	facts := []runsignal.InvocationFact{{CallEventID: a.ID.String(), ToolCallID: "a", Executable: "agent-manager", CommandPath: "agent-manager run report", Ownership: "resolved", Outcome: "failure", Fingerprint: "same"}, {CallEventID: b.ID.String(), ToolCallID: "b", Executable: "agent-manager", CommandPath: "agent-manager run report", Ownership: "resolved", Outcome: "failure", HelpRecovery: true, Fingerprint: "same"}}

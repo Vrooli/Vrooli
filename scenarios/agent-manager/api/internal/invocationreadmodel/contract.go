@@ -18,6 +18,7 @@ type Store interface {
 	Cohort(context.Context, Filter, int) (Cohort, error)
 	Metrics(context.Context, Filter) (Metrics, error)
 	RunMetrics(context.Context, Filter) (RunMetrics, error)
+	WindowedUsage(context.Context, Filter) (UsageTotals, error)
 	RunDurationStatistics(context.Context, Filter) (RunDurationStatistics, error)
 	RunStatusCounts(context.Context, Filter) ([]RunStatusCount, error)
 	RunBreakdown(context.Context, Filter, string, int) ([]RunBreakdownRow, error)
@@ -25,6 +26,7 @@ type Store interface {
 	ToolUsage(context.Context, Filter, int) ([]ToolUsageRow, error)
 	ErrorPatterns(context.Context, Filter, int) ([]ErrorPattern, error)
 	FindingMetrics(context.Context, Filter) (FindingMetrics, error)
+	FallbackInsights(context.Context, Filter) (FallbackInsights, error)
 }
 
 // FreshnessStore is an optional extension implemented by durable projections
@@ -32,19 +34,6 @@ type Store interface {
 // adapters and focused test doubles remain compatible with Store.
 type FreshnessStore interface {
 	LatestProjection(context.Context) (time.Time, error)
-}
-
-type CanaryRun struct {
-	Role       string
-	Arm        string
-	Status     string
-	DurationMS float64
-	CostUSD    float64
-}
-
-type CanaryStore interface {
-	// CanaryRuns returns terminal executed runs with their immutable arm and role snapshot.
-	CanaryRuns(context.Context, Filter) ([]CanaryRun, error)
 }
 
 // CohortDefinitionStore persists named, classifier-bound filters. Members are
@@ -127,23 +116,38 @@ type Filter struct {
 	RunnerType   string     `json:"runnerType,omitempty"`
 	Model        string     `json:"model,omitempty"`
 	WorkloadKind string     `json:"workloadKind,omitempty"`
-	// ExcludedWorkloadKinds is an internal cohort boundary used by measures
-	// that must not mix imported/interactive evidence with normal runs.
-	ExcludedWorkloadKinds []string `json:"-"`
-	WorkloadKey           string   `json:"workloadKey,omitempty"`
-	ErrorCode             string   `json:"errorCode,omitempty"`
-	TagPrefix             string   `json:"tagPrefix,omitempty"`
-	RunStatus             string   `json:"runStatus,omitempty"`
-	ToolName              string   `json:"toolName,omitempty"`
-	ClassifierVersion     string   `json:"classifierVersion,omitempty"`
-	EpisodePattern        string   `json:"episodePattern,omitempty"`
-	EpisodeCauseScope     string   `json:"episodeCauseScope,omitempty"`
-	EpisodeFingerprint    string   `json:"episodeFingerprint,omitempty"`
-	SelfReportRuleID      string   `json:"selfReportRuleId,omitempty"`
-	SelfReportCauseScope  string   `json:"selfReportCauseScope,omitempty"`
-	TargetScenario        string   `json:"targetScenario,omitempty"`
-	Operation             string   `json:"operation,omitempty"`
+	// Scope selects which runs a statistic counts; see RunScope. Empty counts
+	// only Agent Manager executed runs for run statistics and everything for
+	// token totals.
+	Scope                RunScope `json:"scope,omitempty"`
+	WorkloadKey          string   `json:"workloadKey,omitempty"`
+	ErrorCode            string   `json:"errorCode,omitempty"`
+	TagPrefix            string   `json:"tagPrefix,omitempty"`
+	RunStatus            string   `json:"runStatus,omitempty"`
+	ToolName             string   `json:"toolName,omitempty"`
+	ClassifierVersion    string   `json:"classifierVersion,omitempty"`
+	EpisodePattern       string   `json:"episodePattern,omitempty"`
+	EpisodeCauseScope    string   `json:"episodeCauseScope,omitempty"`
+	EpisodeFingerprint   string   `json:"episodeFingerprint,omitempty"`
+	SelfReportRuleID     string   `json:"selfReportRuleId,omitempty"`
+	SelfReportCauseScope string   `json:"selfReportCauseScope,omitempty"`
+	TargetScenario       string   `json:"targetScenario,omitempty"`
+	Operation            string   `json:"operation,omitempty"`
 }
+
+// RunScope is the origin filter of a statistic (P2-D8). Agent Manager runs
+// are those Agent Manager executed itself (codec-pipe); operator sessions are
+// imported, attached and interactive sessions. A session copied into several
+// harness homes, and an imported or attached session with no usage, never
+// counts as a run of its own.
+type RunScope string
+
+const (
+	ScopeUnspecified      RunScope = ""
+	ScopeAgentManager     RunScope = "agent_manager"
+	ScopeOperatorSessions RunScope = "operator_sessions"
+	ScopeAll              RunScope = "all"
+)
 
 // CapabilityUsageRow is the receipt-backed efficacy population. A receipt is
 // the only evidence that a project-owned capability returned an outcome.
@@ -224,38 +228,37 @@ type Metrics struct {
 // cycle-time populations, so a partial lifecycle is never presented as a
 // precise rate or duration.
 type RunMetrics struct {
-	TotalRuns                          int64   `json:"totalRuns"`
-	TerminalRuns                       int64   `json:"terminalRuns"`
-	SuccessfulRuns                     int64   `json:"successfulRuns"`
-	SuccessRate                        float64 `json:"successRate"`
-	CompletedDurationRuns              int64   `json:"completedDurationRuns"`
-	AverageDurationMS                  float64 `json:"averageDurationMs"`
-	TotalCostUSD                       float64 `json:"totalCostUsd"`
-	AverageCostUSD                     float64 `json:"averageCostUsd"`
-	TotalTokens                        int64   `json:"totalTokens"`
-	InputTokens                        int64   `json:"inputTokens"`
-	OutputTokens                       int64   `json:"outputTokens"`
-	CacheReadTokens                    int64   `json:"cacheReadTokens"`
-	CacheCreationTokens                int64   `json:"cacheCreationTokens"`
-	InputCostUSD                       float64 `json:"inputCostUsd"`
-	OutputCostUSD                      float64 `json:"outputCostUsd"`
-	CacheReadCostUSD                   float64 `json:"cacheReadCostUsd"`
-	CacheCreationCostUSD               float64 `json:"cacheCreationCostUsd"`
-	TotalChargeMicroUSD                int64   `json:"totalChargeMicroUsd"`
-	MeteredChargeMicroUSD              int64   `json:"meteredChargeMicroUsd"`
-	UnpricedTokenCount                 int64   `json:"unpricedTokenCount"`
-	ConsumptionPerSuccessfulCompletion float64 `json:"consumptionPerSuccessfulCompletion"`
-	ReadCalls                          int64   `json:"readCalls"`
-	FileRereads                        int64   `json:"fileRereads"`
-	FileRereadRate                     float64 `json:"fileRereadRate"`
+	TotalRuns             int64   `json:"totalRuns"`
+	TerminalRuns          int64   `json:"terminalRuns"`
+	SuccessfulRuns        int64   `json:"successfulRuns"`
+	SuccessRate           float64 `json:"successRate"`
+	CompletedDurationRuns int64   `json:"completedDurationRuns"`
+	AverageDurationMS     float64 `json:"averageDurationMs"`
+	P50DurationMS         float64 `json:"p50DurationMs"`
+	P90DurationMS         float64 `json:"p90DurationMs"`
+	ReadCalls             int64   `json:"readCalls"`
+	FileRereads           int64   `json:"fileRereads"`
+	FileRereadRate        float64 `json:"fileRereadRate"`
 }
 
-type ChargeByBasis struct {
-	Basis          string
-	RunCount       int64
-	ChargeMicroUSD int64
-	TokenCount     int64
-	ChargeReason   string
+// UsageTotals is the token and charge spend of the transcript requests
+// observed in a window, whatever run they belong to. Dollars exist only for
+// per-token (metered) runs: a run's charge is apportioned to the window by the
+// share of the run's lifetime tokens requested in it.
+type UsageTotals struct {
+	Requests              int64
+	Runs                  int64
+	TotalTokens           int64
+	InputTokens           int64
+	OutputTokens          int64
+	CacheReadTokens       int64
+	CacheCreationTokens   int64
+	MeteredCostUSD        float64
+	InputCostUSD          float64
+	OutputCostUSD         float64
+	CacheReadCostUSD      float64
+	CacheCreationCostUSD  float64
+	MeteredChargeMicroUSD int64
 }
 
 // RunDurationStatistics retains the complete duration summary used by the
@@ -264,6 +267,7 @@ type ChargeByBasis struct {
 type RunDurationStatistics struct {
 	AverageDurationMS float64
 	P50DurationMS     float64
+	P90DurationMS     float64
 	P95DurationMS     float64
 	P99DurationMS     float64
 	MinDurationMS     int64
@@ -334,17 +338,12 @@ type RunBreakdownRow struct {
 // failed, and cancelled runs without pretending that a terminal projection
 // can authoritatively count in-progress starts.
 type RunTimeSeriesBucket struct {
-	Bucket               time.Time
-	TerminalRuns         int64
-	CompletedRuns        int64
-	FailedRuns           int64
-	CancelledRuns        int64
-	TotalCostUSD         float64
-	InputCostUSD         float64
-	OutputCostUSD        float64
-	CacheReadCostUSD     float64
-	CacheCreationCostUSD float64
-	AvgDurationMS        float64
+	Bucket        time.Time
+	TerminalRuns  int64
+	CompletedRuns int64
+	FailedRuns    int64
+	CancelledRuns int64
+	AvgDurationMS float64
 }
 
 // ToolUsageRow retains one tool's invocation population and classified
@@ -547,4 +546,26 @@ type Watermark struct {
 	EpisodeClassifierVersion    string
 	SelfReportClassifierVersion string
 	ProjectedAt                 time.Time
+}
+
+// FallbackInsights counts runner and model fallbacks and policy-candidate
+// outcomes among the retained run events of a window.
+type FallbackInsights struct {
+	RunnerAttempts, RunnerExhausted int64
+	ModelAttempts, ModelExhausted   int64
+	RunnerPairs, ModelPairs         []FallbackPair
+	RunnerReasons, ModelReasons     []CountRow
+	PolicyCandidateEvents           int64
+	PolicyOutcomes                  []CountRow
+	PolicyFailureClasses            []CountRow
+}
+
+type FallbackPair struct {
+	From, To, Reason string
+	Count            int64
+}
+
+type CountRow struct {
+	Key   string
+	Count int64
 }

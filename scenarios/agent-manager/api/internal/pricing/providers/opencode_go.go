@@ -32,21 +32,7 @@ type OpenCodeGoProvider struct {
 	fetchedAt time.Time
 }
 
-type OpenCodeGoOption func(*OpenCodeGoProvider)
-
-func WithGoBaseURL(url string) OpenCodeGoOption {
-	return func(p *OpenCodeGoProvider) { p.baseURL = url }
-}
-
-func WithGoTTL(ttl time.Duration) OpenCodeGoOption {
-	return func(p *OpenCodeGoProvider) { p.ttl = ttl }
-}
-
-func WithGoHTTPClient(client *http.Client) OpenCodeGoOption {
-	return func(p *OpenCodeGoProvider) { p.client = client }
-}
-
-func NewOpenCodeGoProvider(opts ...OpenCodeGoOption) *OpenCodeGoProvider {
+func NewOpenCodeGoProvider() *OpenCodeGoProvider {
 	ttl := defaultGoTTL
 	raw, _ := os.LookupEnv("AGENT_MANAGER_PRICING_GOTTL")
 	if raw = strings.TrimSpace(raw); raw != "" {
@@ -59,16 +45,12 @@ func NewOpenCodeGoProvider(opts ...OpenCodeGoOption) *OpenCodeGoProvider {
 	if baseURL == "" {
 		baseURL = defaultGoBaseURL
 	}
-	p := &OpenCodeGoProvider{
+	return &OpenCodeGoProvider{
 		baseURL: baseURL,
 		client:  &http.Client{Timeout: 15 * time.Second},
 		ttl:     ttl,
 		cache:   make(map[string]*pricing.ModelPricing),
 	}
-	for _, opt := range opts {
-		opt(p)
-	}
-	return p
 }
 
 var _ pricing.Provider = (*OpenCodeGoProvider)(nil)

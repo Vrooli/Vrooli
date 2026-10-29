@@ -103,7 +103,7 @@ func (a *App) effortFeedback(args []string) error {
 		DedupeKey: "feedback:" + *id,
 	}
 	response := &domain.EffortSignal{}
-	body, err = a.services.Watches.call(apiconnect.AgentManagerServiceRecordEffortSignalProcedure, request, response)
+	body, err = callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceRecordEffortSignalProcedure, request, response)
 	if err != nil {
 		result.SignalStatus = "unknown"
 		result.Detail = "FEEDBACK entry is present; signal request failed and may have committed. Retry the same ID and content. " + apiError(body, err).Error()
@@ -154,7 +154,7 @@ func canonicalFeedbackGoalHome(dir string) (string, error) {
 func (a *App) validateFeedbackGoalHome(effortRef, homeRef string) error {
 	response := &domain.EffortBoard{}
 	request := &domain.GetEffortBoardRequest{EffortRef: effortRef, PageSize: 2}
-	body, err := a.services.Watches.call(apiconnect.AgentManagerServiceGetEffortBoardProcedure, request, response)
+	body, err := callRPC(a.services.Watches.api, apiconnect.AgentManagerServiceGetEffortBoardProcedure, request, response)
 	if err != nil {
 		return fmt.Errorf("cannot confirm the enrolled goal home; FEEDBACK.md was not changed: %w", apiError(body, err))
 	}

@@ -1,21 +1,14 @@
 // Model Pricing Tab - displays and manages model pricing data with per-component sources
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil, RefreshCw, X } from "lucide-react";
+import { Pencil, RefreshCw } from "lucide-react";
 import { Badge } from "../../ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogBody,
-} from "../../ui/dialog";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
-import { ScrollArea } from "@vrooli/react-component-library/ScrollArea/1";
+import { EditPricingDialog } from "../EditPricingDialog";
+import { SortHeaderCell, compareSortValues, useTableSort } from "../../../features/stats/components/tables/SortableHeader";
 import {
   useModelPricing,
   usePricingSettings,
@@ -23,9 +16,6 @@ import {
   usePricingCacheStatus,
   useRefreshAllPricing,
   useRecalculateModelPricing,
-  useModelOverrides,
-  useSetOverride,
-  useDeleteOverride,
 } from "../../../hooks/usePricing";
 import {
   formatPricingDisplay,
@@ -33,13 +23,10 @@ import {
   pricingSourceBadgeClass,
   pricingSourceLabel,
 } from "../pricingDisplay";
-import { cn } from "../../../lib/utils";
 import type {
   ModelPricingListItem,
-  PricingComponent,
   PricingSource,
   PricingSettings,
-  PriceOverride,
 } from "../../../types";
 
 // =============================================================================
@@ -47,23 +34,6 @@ import type {
 // =============================================================================
 
 type SortField = "model" | "input" | "output" | "cacheRead" | "fetched";
-type SortDirection = "asc" | "desc";
-
-const HEADER_ALIGN_CLASS: Record<"left" | "center" | "right", string> = {
-  left: "text-left",
-  center: "text-center",
-  right: "text-right",
-};
-
-const HEADER_JUSTIFY_CLASS: Record<"left" | "center" | "right", string> = {
-  left: "justify-start",
-  center: "justify-center",
-  right: "justify-end",
-};
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 // =============================================================================
 // Sub-Components
@@ -87,39 +57,6 @@ function SourceBadge({ source, onClick, isActive }: SourceBadgeProps) {
   );
 }
 
-interface SortableHeaderProps {
-  label: string;
-  field: SortField;
-  currentSort: SortField;
-  direction: SortDirection;
-  onSort: (field: SortField) => void;
-  align?: "left" | "center" | "right";
-}
-
-function SortableHeader({ label, field, currentSort, direction, onSort, align = "left" }: SortableHeaderProps) {
-  const isActive = currentSort === field;
-
-  return (
-    <th className={cn("px-3 py-2 font-medium", HEADER_ALIGN_CLASS[align])}>
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className={cn(
-          "flex w-full items-center gap-1 transition-colors hover:text-foreground",
-          HEADER_JUSTIFY_CLASS[align]
-        )}
-      >
-        <span>{label}</span>
-        {isActive ? (
-          direction === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-        ) : (
-          <ArrowUpDown className="h-3 w-3 opacity-50" />
-        )}
-      </button>
-    </th>
-  );
-}
-
 interface ModelPricingRowProps {
   model: ModelPricingListItem;
   onRecalculate: (model: string) => void;
@@ -136,7 +73,7 @@ function ModelPricingRow({ model, onRecalculate, onSelectModel, recalculatingMod
         <button
           type="button"
           onClick={() => onSelectModel(model.canonicalName || model.model)}
-          className="text-left hover:text-primary transition-colors"
+          className="flex min-h-11 flex-col justify-center text-left transition-colors hover:text-primary sm:min-h-0"
         >
           <div className="font-medium text-sm">{model.model}</div>
           {model.canonicalName && model.canonicalName !== model.model && (
@@ -172,7 +109,7 @@ function ModelPricingRow({ model, onRecalculate, onSelectModel, recalculatingMod
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-11 w-11 sm:h-7 sm:w-7"
             onClick={() => onSelectModel(model.canonicalName || model.model)}
             title="Edit pricing overrides"
           >
@@ -181,7 +118,7 @@ function ModelPricingRow({ model, onRecalculate, onSelectModel, recalculatingMod
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-11 w-11 sm:h-7 sm:w-7"
             onClick={() => onRecalculate(model.canonicalName || model.model)}
             disabled={isRecalculating}
             title="Refresh pricing"
@@ -238,10 +175,10 @@ function SettingsCard({ settings, loading, onUpdate }: SettingsCardProps) {
             max={86400}
             value={ttlSeconds}
             onChange={(e) => setTtlSeconds(e.target.value)}
-            className="h-8"
+            className="h-11 sm:h-8"
           />
         </div>
-        <Button size="sm" onClick={handleSave} disabled={loading || saving}>
+        <Button size="sm" className="min-h-11 sm:min-h-9" onClick={handleSave} disabled={loading || saving}>
           {saving ? "Saving..." : "Save Settings"}
         </Button>
       </CardContent>
@@ -299,252 +236,11 @@ function CacheStatusCard({ status, loading, onRefreshAll }: CacheStatusCardProps
             ))}
           </>
         )}
-        <Button size="sm" variant="secondary" onClick={handleRefresh} disabled={loading || refreshing}>
+        <Button size="sm" variant="secondary" className="min-h-11 sm:min-h-9" onClick={handleRefresh} disabled={loading || refreshing}>
           {refreshing ? "Refreshing..." : "Refresh All Pricing"}
         </Button>
       </CardContent>
     </Card>
-  );
-}
-
-// All pricing components we support
-const ALL_COMPONENTS: { key: PricingComponent; label: string }[] = [
-  { key: "input_tokens", label: "Input Tokens" },
-  { key: "output_tokens", label: "Output Tokens" },
-  { key: "cache_read", label: "Cache Read" },
-  { key: "cache_creation", label: "Cache Creation" },
-  { key: "web_search", label: "Web Search" },
-  { key: "server_tool_use", label: "Server Tool Use" },
-];
-
-// Helper to get effective price and source from model pricing for a component
-function getComponentPricing(
-  modelPricing: ModelPricingListItem | undefined,
-  component: PricingComponent
-): { price: number | undefined; source: PricingSource } {
-  if (!modelPricing) {
-    return { price: undefined, source: "unknown" };
-  }
-  switch (component) {
-    case "input_tokens":
-      return { price: modelPricing.inputPricePer1M, source: modelPricing.inputSource };
-    case "output_tokens":
-      return { price: modelPricing.outputPricePer1M, source: modelPricing.outputSource };
-    case "cache_read":
-      return { price: modelPricing.cacheReadPricePer1M, source: modelPricing.cacheReadSource || "unknown" };
-    case "cache_creation":
-      return { price: modelPricing.cacheCreatePricePer1M, source: modelPricing.cacheCreateSource || "unknown" };
-    default:
-      return { price: undefined, source: "unknown" };
-  }
-}
-
-interface EditPricingDialogProps {
-  model: string | null;
-  modelPricing: ModelPricingListItem | undefined;
-  onClose: () => void;
-  onPricingUpdated: () => void;
-}
-
-function EditPricingDialog({ model, modelPricing, onClose, onPricingUpdated }: EditPricingDialogProps) {
-  const { data: overrides, loading, refetch } = useModelOverrides(model);
-  const { setOverride, loading: settingOverride } = useSetOverride();
-  const { deleteOverride, loading: deletingOverride } = useDeleteOverride();
-
-  // Track which component is being edited and its pending value
-  const [editingComponent, setEditingComponent] = useState<PricingComponent | null>(null);
-  const [pendingPrice, setPendingPrice] = useState("");
-
-  // Build a map of overrides for quick lookup
-  const overrideMap = useMemo(() => {
-    const map = new Map<PricingComponent, PriceOverride>();
-    if (overrides) {
-      for (const o of overrides) {
-        map.set(o.component, o);
-      }
-    }
-    return map;
-  }, [overrides]);
-
-  const handleStartEdit = (component: PricingComponent) => {
-    const existing = overrideMap.get(component);
-    // Convert per-token price to per-1M for display
-    setPendingPrice(existing ? (existing.priceUsd * 1_000_000).toString() : "");
-    setEditingComponent(component);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingComponent(null);
-    setPendingPrice("");
-  };
-
-  const handleSaveOverride = async (component: PricingComponent) => {
-    if (!model || !pendingPrice) return;
-    try {
-      // Convert per-1M price back to per-token
-      const pricePerToken = parseFloat(pendingPrice) / 1_000_000;
-      await setOverride(model, {
-        component,
-        priceUsd: pricePerToken,
-      });
-      setEditingComponent(null);
-      setPendingPrice("");
-      refetch();
-      onPricingUpdated();
-    } catch {
-      // Error handled by hook
-    }
-  };
-
-  const handleDeleteOverride = async (component: PricingComponent) => {
-    if (!model) return;
-    try {
-      await deleteOverride(model, component);
-      refetch();
-      onPricingUpdated();
-    } catch {
-      // Error handled by hook
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, component: PricingComponent) => {
-    if (e.key === "Enter") {
-      handleSaveOverride(component);
-    } else if (e.key === "Escape") {
-      handleCancelEdit();
-    }
-  };
-
-  return (
-    <Dialog open={!!model} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader onClose={onClose}>
-          <DialogTitle>Edit Pricing: {model}</DialogTitle>
-          <DialogDescription>
-            View current prices and set manual overrides. Prices shown per 1M tokens.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          {loading ? (
-            <div className="text-sm text-muted-foreground py-4">Loading...</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-muted-foreground">
-                  <th className="text-left py-2 font-medium">Component</th>
-                  <th className="text-right py-2 font-medium">Effective Price</th>
-                  <th className="text-center py-2 font-medium">Source</th>
-                  <th className="text-right py-2 font-medium">Manual Override</th>
-                  <th className="text-right py-2 font-medium w-20">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ALL_COMPONENTS.map(({ key, label }) => {
-                  const { price, source } = getComponentPricing(modelPricing, key);
-                  const override = overrideMap.get(key);
-                  const isEditing = editingComponent === key;
-                  const hasOverride = !!override;
-
-                  return (
-                    <tr key={key} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="py-2 font-medium">{label}</td>
-                      <td className="py-2 text-right font-mono">
-                        {price !== undefined && price > 0 ? formatPricingDisplay(price) : "-"}
-                      </td>
-                      <td className="py-2 text-center">
-                        {price !== undefined && price > 0 ? (
-                          <SourceBadge source={source} />
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="py-2 text-right">
-                        {isEditing ? (
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-muted-foreground text-xs">$</span>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              value={pendingPrice}
-                              onChange={(e) => setPendingPrice(e.target.value)}
-                              onKeyDown={(e) => handleKeyDown(e, key)}
-                              className="h-7 w-24 text-right font-mono"
-                              autoFocus
-                            />
-                          </div>
-                        ) : hasOverride ? (
-                          <span className="font-mono text-purple-300">
-                            {formatPricingDisplay(override.priceUsd * 1_000_000)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </td>
-                      <td className="py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {isEditing ? (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleSaveOverride(key)}
-                                disabled={settingOverride || !pendingPrice}
-                                title="Save override"
-                              >
-                                <span className="text-green-400 text-xs font-bold">✓</span>
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={handleCancelEdit}
-                                title="Cancel"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7"
-                                onClick={() => handleStartEdit(key)}
-                                title={hasOverride ? "Edit override" : "Set override"}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </Button>
-                              {hasOverride && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-red-400 hover:text-red-300"
-                                  onClick={() => handleDeleteOverride(key)}
-                                  disabled={deletingOverride}
-                                  title="Clear override"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          <div className="mt-4 text-xs text-muted-foreground">
-            <p><strong>Manual Override</strong> takes priority over provider pricing.</p>
-            <p className="mt-1">Click the pencil icon to set an override, or X to clear it.</p>
-          </div>
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -564,8 +260,7 @@ export function ModelPricingTab() {
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState<Set<PricingSource>>(new Set());
-  const [sortField, setSortField] = useState<SortField>("model");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const sort = useTableSort<SortField>("model", { direction: "asc", textFields: ["model"] });
 
   const handleRecalculate = useCallback(async (model: string) => {
     setRecalculatingModel(model);
@@ -600,17 +295,6 @@ export function ModelPricingTab() {
     });
   }, []);
 
-  const handleSort = useCallback((field: SortField) => {
-    setSortField((prevField) => {
-      if (prevField === field) {
-        setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-        return field;
-      }
-      setSortDirection("asc");
-      return field;
-    });
-  }, []);
-
   const filteredAndSortedModels = useMemo(() => {
     let result = models ?? [];
 
@@ -633,31 +317,19 @@ export function ModelPricingTab() {
       );
     }
 
-    // Apply sorting
-    result = [...result].sort((a, b) => {
-      let cmp = 0;
-      switch (sortField) {
-        case "model":
-          cmp = (a.model || "").localeCompare(b.model || "");
-          break;
-        case "input":
-          cmp = (a.inputPricePer1M ?? 0) - (b.inputPricePer1M ?? 0);
-          break;
-        case "output":
-          cmp = (a.outputPricePer1M ?? 0) - (b.outputPricePer1M ?? 0);
-          break;
-        case "cacheRead":
-          cmp = (a.cacheReadPricePer1M ?? 0) - (b.cacheReadPricePer1M ?? 0);
-          break;
-        case "fetched":
-          cmp = (a.fetchedAt || "").localeCompare(b.fetchedAt || "");
-          break;
+    const sortValue = (m: ModelPricingListItem): number | string => {
+      switch (sort.field) {
+        case "model": return m.model || "";
+        case "input": return m.inputPricePer1M ?? 0;
+        case "output": return m.outputPricePer1M ?? 0;
+        case "cacheRead": return m.cacheReadPricePer1M ?? 0;
+        case "fetched": return m.fetchedAt || "";
       }
-      return sortDirection === "asc" ? cmp : -cmp;
-    });
+    };
+    result = [...result].sort((a, b) => compareSortValues(sortValue(a), sortValue(b), sort.direction));
 
     return result;
-  }, [models, searchFilter, sourceFilter, sortField, sortDirection]);
+  }, [models, searchFilter, sourceFilter, sort.field, sort.direction]);
 
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading pricing data...</div>;
@@ -683,7 +355,7 @@ export function ModelPricingTab() {
             placeholder="Search models..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            className="h-8 max-w-sm"
+            className="h-11 max-w-sm sm:h-8"
           />
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -702,7 +374,7 @@ export function ModelPricingTab() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-5 px-1 text-xs"
+              className="min-h-11 px-2 text-xs sm:min-h-0 sm:h-5 sm:px-1"
               onClick={() => setSourceFilter(new Set())}
             >
               Clear
@@ -712,7 +384,7 @@ export function ModelPricingTab() {
       </div>
 
       {/* Main content grid */}
-      <div className="grid grid-cols-[1fr_280px] gap-4">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
         {/* Model pricing table */}
         <Card>
           <CardHeader className="pb-2">
@@ -722,49 +394,16 @@ export function ModelPricingTab() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[400px]">
-              <table className="w-full text-left">
+            {/* Scrolls both ways inside its own box: a narrow screen pans the table instead of clipping it. */}
+            <div className="h-[400px] overflow-auto" data-testid="pricing-table-scroll" tabIndex={0} aria-label="Model pricing table">
+              <table className="w-full min-w-[40rem] text-left">
                 <thead className="sticky top-0 bg-card border-b">
                   <tr className="text-xs text-muted-foreground">
-                    <SortableHeader
-                      label="Model"
-                      field="model"
-                      currentSort={sortField}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortableHeader
-                      label="Input"
-                      field="input"
-                      currentSort={sortField}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                      align="right"
-                    />
-                    <SortableHeader
-                      label="Output"
-                      field="output"
-                      currentSort={sortField}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                      align="right"
-                    />
-                    <SortableHeader
-                      label="Cache Read"
-                      field="cacheRead"
-                      currentSort={sortField}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                      align="right"
-                    />
-                    <SortableHeader
-                      label="Fetched"
-                      field="fetched"
-                      currentSort={sortField}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                      align="center"
-                    />
+                    <SortHeaderCell field="model" label="Model" sort={sort} className="px-3 py-2" />
+                    <SortHeaderCell field="input" label="Input" sort={sort} align="end" className="px-3 py-2" />
+                    <SortHeaderCell field="output" label="Output" sort={sort} align="end" className="px-3 py-2" />
+                    <SortHeaderCell field="cacheRead" label="Cache Read" sort={sort} align="end" className="px-3 py-2" />
+                    <SortHeaderCell field="fetched" label="Fetched" sort={sort} align="center" className="px-3 py-2" />
                     <th className="px-3 py-2 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
@@ -787,7 +426,7 @@ export function ModelPricingTab() {
                   )}
                 </tbody>
               </table>
-            </ScrollArea>
+            </div>
           </CardContent>
         </Card>
 
@@ -809,7 +448,6 @@ export function ModelPricingTab() {
       {/* Edit pricing dialog */}
       <EditPricingDialog
         model={selectedModel}
-        modelPricing={models?.find((m) => (m.canonicalName || m.model) === selectedModel)}
         onClose={() => setSelectedModel(null)}
         onPricingUpdated={refetch}
       />

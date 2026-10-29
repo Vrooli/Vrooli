@@ -82,12 +82,38 @@ func runListWhere(filter repository.RunListFilter) (string, []interface{}, error
 		conditions = append(conditions, "runs.parent_run_id = ?")
 		args = append(args, *filter.ParentRunID)
 	}
+	if clause := runOriginClause(filter.Origin); clause != "" {
+		conditions = append(conditions, clause)
+	}
+	if filter.TopLevelOnly {
+		conditions = append(conditions, "runs.parent_run_id IS NULL")
+	}
 
 	whereClause := ""
 	if len(conditions) > 0 {
 		whereClause = " WHERE " + strings.Join(conditions, " AND ")
 	}
 	return whereClause, args, nil
+}
+
+// workflowStepKind identifies a workflow step run by the workload the run carries, not by its label
+// (a label is free text an operator can set).
+const workflowStepKind = "runs.workload_kind = 'workflow_node'"
+
+// runOriginClause restricts runs to who started them. Operator sessions are the
+// imported, attached and interactive modes (the same set the Measures RunScope
+// uses); workflow steps are Agent Manager executions labelled as such.
+func runOriginClause(origin string) string {
+	const mode = "COALESCE(runs.execution_mode, 'codec_pipe')"
+	switch origin {
+	case "operator_sessions":
+		return mode + " IN " + operatorSessionModes
+	case "workflows":
+		return mode + " NOT IN " + operatorSessionModes + " AND " + workflowStepKind
+	case "agent_manager":
+		return mode + " NOT IN " + operatorSessionModes + " AND NOT (" + workflowStepKind + ")"
+	}
+	return ""
 }
 
 func (r *runRepository) List(ctx context.Context, filter repository.RunListFilter) ([]*domain.Run, error) {
@@ -109,7 +135,7 @@ func (r *runRepository) List(ctx context.Context, filter repository.RunListFilte
 	}
 
 	base := fmt.Sprintf(
-		"SELECT %s, SUBSTR(t.description, 1, 120) AS prompt_preview FROM runs LEFT JOIN tasks t ON runs.task_id = t.id%s ORDER BY runs.created_at DESC, runs.id DESC",
+		"SELECT %s, SUBSTR(t.description, 1, 120) AS prompt_preview, (SELECT COUNT(*) FROM runs sub WHERE sub.parent_run_id = runs.id) AS sub_agent_count FROM runs LEFT JOIN tasks t ON runs.task_id = t.id%s ORDER BY runs.created_at DESC, runs.id DESC",
 		strings.Join(prefixed, ", "),
 		whereClause,
 	)

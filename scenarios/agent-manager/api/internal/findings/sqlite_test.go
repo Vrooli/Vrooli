@@ -4,6 +4,9 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+	"time"
+
+	"agent-manager/internal/usageattribution"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -13,19 +16,6 @@ import (
 func TestFingerprintNormalizesRecommendationAndTargetPath(t *testing.T) {
 	if got, want := Fingerprint("  Add   a regression test ", "API/Run.go"), Fingerprint("add a regression test", "api/run.go"); got != want {
 		t.Fatalf("fingerprint drift: %s != %s", got, want)
-	}
-}
-
-func TestEffectiveness(t *testing.T) {
-	before, lower, same := 3.0, 2.0, 3.0
-	if got := Effectiveness(&before, &lower); got != "effective" {
-		t.Fatalf("lower=%s", got)
-	}
-	if got := Effectiveness(&before, &same); got != "ineffective" {
-		t.Fatalf("same=%s", got)
-	}
-	if got := Effectiveness(&before, nil); got != "not_yet_measurable" {
-		t.Fatalf("missing=%s", got)
 	}
 }
 
@@ -52,10 +42,6 @@ func TestSQLiteRepositoryGroupsRecurringFindings(t *testing.T) {
 	if len(items) != 2 || items[0].Occurrences != 2 || items[0].Fingerprint != items[1].Fingerprint {
 		t.Fatalf("recurrence=%#v", items)
 	}
-	count, err := repo.RecurrenceCount(ctx, items[0].Fingerprint)
-	if err != nil || count != 2 {
-		t.Fatalf("count=%d err=%v", count, err)
-	}
 }
 
 func TestSQLiteRepositoryPersistsEvidenceQualitySignals(t *testing.T) {
@@ -81,18 +67,34 @@ func TestSQLiteRepositoryPersistsEvidenceQualitySignals(t *testing.T) {
 	}
 }
 
-func TestSQLiteRepositoryPersistsCandidateWorkaroundMetadata(t *testing.T) {
-	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "workaround.db"))
-	if err != nil { t.Fatal(err) }
+func TestFrictionStatusStoreKeepsTheLatestStatusPerFingerprint(t *testing.T) {
+	db, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "status.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() { _ = db.Close() })
-	if _, err := db.Exec(Schema()); err != nil { t.Fatal(err) }
-	repo := NewSQLiteRepository(db)
-	finding := &Finding{RunID: uuid.New(), InvestigationRunID: uuid.New(), Category: "run-execution", Severity: "recurring", Recommendation: "Review the repeated owner failure", ProposedWorkaround: "Continue technical work with focused evidence", AcceptanceImpact: "Release acceptance remains unverified", OwnerHint: "git-control-tower"}
-	if err := repo.Create(context.Background(), finding); err != nil { t.Fatal(err) }
-	items, err := repo.List(context.Background(), Filter{})
-	if err != nil || len(items) != 1 { t.Fatalf("items=%+v err=%v", items, err) }
-	got := items[0]
-	if got.ProposedWorkaround != finding.ProposedWorkaround || got.AcceptanceImpact != finding.AcceptanceImpact || got.OwnerHint != finding.OwnerHint { t.Fatalf("candidate metadata was not retained: %+v", got) }
+	if _, err := db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	store := NewFrictionStatusStore(db)
+	ctx := context.Background()
+	at := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
+	for _, status := range []usageattribution.ProblemStatus{
+		{Fingerprint: "a", Status: usageattribution.StatusReported, BugID: "knw-1", At: at},
+		{Fingerprint: "b", Status: usageattribution.StatusDismissed, At: at},
+		{Fingerprint: "a", Status: usageattribution.StatusDismissed, BugID: "knw-1", At: at.Add(time.Hour)},
+	} {
+		if err := store.SetFrictionStatus(ctx, status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := store.FrictionStatuses(ctx)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("statuses=%+v err=%v", got, err)
+	}
+	if a := got["a"]; a.Status != usageattribution.StatusDismissed || a.BugID != "knw-1" || !a.At.Equal(at.Add(time.Hour)) {
+		t.Fatalf("a = %+v, want dismissed keeping its bug id at the later time", a)
+	}
 }
 
 func TestSQLiteRepositoryStoresSubjectEdgesIdempotently(t *testing.T) {

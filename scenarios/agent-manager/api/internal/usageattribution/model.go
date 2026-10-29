@@ -8,10 +8,10 @@ package usageattribution
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/pricing"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageforecast"
 )
@@ -76,7 +76,11 @@ type Episode struct {
 	Pattern         string
 	Fingerprint     string
 	RepeatedElement string
-	Owner           string
+	// OwnerScenario and OwnerCommand are the suspected owner, when known.
+	OwnerScenario string
+	OwnerCommand  string
+	CycleCount    int
+	WallClockMS   int64
 	// Turns is the provider turns the episode spans; its cost is their share
 	// of the run's turns.
 	Turns  int
@@ -105,6 +109,9 @@ type Store interface {
 	UsageRuns(ctx context.Context, runIDs []string) (map[string]Run, error)
 	UsageEpisodes(ctx context.Context, from, to time.Time) ([]Episode, error)
 	UsageOutcomes(ctx context.Context, from, to time.Time) ([]Outcome, error)
+	// UsageEpisodeCoverage counts the runs among runIDs whose episodes the
+	// current episode classifier has projected.
+	UsageEpisodeCoverage(ctx context.Context, runIDs []string) (int, error)
 }
 
 // Price is a model's API price per token. Under a subscription it is only a
@@ -118,47 +125,30 @@ type Price struct {
 // Prices looks up a model's price; it returns Known=false when unpriced.
 type Prices func(runner, model string) Price
 
-// fallbackPrice prices unpriced models: API ratios cached:input:creation:output
-// of 1:20:25:100 at a mid-tier (terra-like) level.
-var fallbackPrice = Price{CacheRead: 5e-8, Input: 1e-6, CacheCreation: 1.25e-6, Output: 5e-6}
+// fallbackPrice prices unpriced models (the pricing package's fallback source).
+var fallbackPrice = priceFrom(pricing.FallbackTokenPrices(), true)
 
-// tierPriors scale fallbackPrice by model tier when the price book has no
-// price for a subscription model (the runner resources resolve them to
-// unpriced subscription names). Codex tiers are the E-2 per-model fit on
-// this host (cached tokens per 1%: sol ≈50M, terra ≈100M, luna ≈520M); Claude
-// tiers follow Anthropic's list-price ratios. Only the ratios matter: the
-// scale is calibrated per window.
-var tierPriors = []struct {
-	marker   string
-	relative float64
-}{{"sol", 2}, {"terra", 1}, {"luna", 0.2}, {"opus", 1}, {"sonnet", 0.5}, {"haiku", 0.05}}
+func priceFrom(p pricing.TokenPrices, known bool) Price {
+	return Price{Input: p.Input, Output: p.Output, CacheRead: p.CacheRead, CacheCreation: p.CacheCreation, Known: known}
+}
 
 // TierPrice is the prior price of an unpriced model.
 func TierPrice(model string) Price {
-	model = strings.ToLower(model)
-	for _, tier := range tierPriors {
-		if strings.Contains(model, tier.marker) {
-			p := fallbackPrice
-			p.CacheRead, p.Input, p.CacheCreation, p.Output = p.CacheRead*tier.relative, p.Input*tier.relative, p.CacheCreation*tier.relative, p.Output*tier.relative
-			p.Known = true
-			return p
-		}
+	tier, ok := pricing.TierTokenPrices(model)
+	if !ok {
+		return Price{}
 	}
-	return Price{}
+	return priceFrom(tier, true)
 }
 
-// normalized fills what a price book often omits: cached reads at a tenth
-// of input and cache writes at 1.25× input, the providers' common ratios.
+// normalized fills what a price book often omits with the pricing package's
+// cache ratios.
 func (p Price) normalized() Price {
 	if !p.Known || p.Input <= 0 {
 		return fallbackPrice
 	}
-	if p.CacheRead <= 0 {
-		p.CacheRead = p.Input / 10
-	}
-	if p.CacheCreation <= 0 {
-		p.CacheCreation = p.Input * 1.25
-	}
+	filled := pricing.TokenPrices{Input: p.Input, Output: p.Output, CacheRead: p.CacheRead, CacheCreation: p.CacheCreation}.WithDefaultCacheRatios()
+	p.CacheRead, p.CacheCreation = filled.CacheRead, filled.CacheCreation
 	return p
 }
 

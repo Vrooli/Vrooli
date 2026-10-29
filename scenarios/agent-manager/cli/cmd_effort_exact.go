@@ -51,7 +51,7 @@ func (a *App) exactReconcile(req *pb.ReconcileEffortMetadataRequest, grant strin
 		return err
 	}
 	return protectedExact(a.services.Watches.api, "keyring.exact-action.v1", "/api/v1/keyring/exact-challenge", grant, payload, input, output, resolve, func(api *cliutil.APIClient) ([]byte, error) {
-		return (&WatchService{api: api}).call(apiconnect.AgentManagerServiceReconcileEffortMetadataProcedure, req, &pb.EffortEnrollment{})
+		return callRPC(api, apiconnect.AgentManagerServiceReconcileEffortMetadataProcedure, req, &pb.EffortEnrollment{})
 	})
 }
 

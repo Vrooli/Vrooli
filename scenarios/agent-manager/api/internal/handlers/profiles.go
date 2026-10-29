@@ -167,43 +167,6 @@ func profileReconcileStatusToProto(status orchestration.ProfileReconcileStatus) 
 	}
 }
 
-// ReconcileScenarioDeclarations reconciles a scenario's unified declaration
-// block (profiles and workflows) in one call.
-func (h *Handler) ReconcileScenarioDeclarations(w http.ResponseWriter, r *http.Request) {
-	h.reconcileScenarioDeclarations(w, r, false)
-}
-
-// PlanScenarioDeclarations validates every declaration source without writes.
-func (h *Handler) PlanScenarioDeclarations(w http.ResponseWriter, r *http.Request) {
-	h.reconcileScenarioDeclarations(w, r, true)
-}
-
-func (h *Handler) reconcileScenarioDeclarations(w http.ResponseWriter, r *http.Request, forceDryRun bool) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		writeSimpleError(w, r, "body", "failed to read request body")
-		return
-	}
-	var req apipb.ReconcileScenarioDeclarationsRequest
-	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
-		writeSimpleError(w, r, "body", "invalid JSON request body")
-		return
-	}
-	if !h.validateProto(w, r, &req) {
-		return
-	}
-	result, err := h.profiles.ReconcileScenarioDeclarations(r.Context(), orchestration.ReconcileScenarioDeclarationsRequest{
-		Scenario:     req.Scenario,
-		DryRun:       req.DryRun || forceDryRun,
-		ValidateOnly: req.ValidateOnly,
-	})
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeProtoJSON(w, http.StatusOK, reconcileScenarioDeclarationsToProto(result))
-}
-
 func reconcileScenarioDeclarationsToProto(result *orchestration.ReconcileScenarioDeclarationsResult) *apipb.ReconcileScenarioDeclarationsResponse {
 	if result == nil {
 		return &apipb.ReconcileScenarioDeclarationsResponse{}

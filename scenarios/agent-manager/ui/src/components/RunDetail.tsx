@@ -1,53 +1,30 @@
 import type React from "react";
 import { statusTone } from "../lib/display";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { timestampMs } from "@bufbuild/protobuf/wkt";
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  Eye,
-  FileCode,
-  MoreVertical,
-  PlayCircle,
-  RotateCcw,
-  Search,
-  Square,
-  Trash2,
-  Wrench,
-  ExternalLink,
-  X,
-} from "lucide-react";
-import { Button } from "@vrooli/react-component-library/Button/2";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { cn, runnerTypeLabel } from "../lib/utils";
+import { buildTimelineEntries } from "../lib/runTimeline";
+import { Check, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { runnerLabel } from "../lib/format";
+import { cn } from "../lib/utils";
 import { useCollapsiblePanel } from "../hooks/useCollapsiblePanel";
 import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
 import { useDocumentEscape } from "../hooks/useDocumentEscape";
-import { useRunReport } from "../hooks/useApi";
 import { useResizablePanel } from "../hooks/useResizablePanel";
 import { useViewportSize } from "../hooks/useViewportSize";
-import type {
-  Run,
-  RunDiff,
-  RunEvent,
-  Task,
-} from "../types";
+import type { Run, RunDiff, RunEvent, Task } from "../types";
 
-import { ModelCostComparison } from "./ModelCostComparison";
-import { RunTimeline } from "./RunTimeline";
-import { FallbackTimeline } from "./runs/FallbackTimeline";
-import { DiffViewer } from "./DiffViewer";
 import { ReviewModal } from "./ReviewModal";
-import { RunUsagePanel } from "../features/usage/RunUsagePanel";
 import { RUN_TABS, type RunTabId } from "./runTabs";
+import { DiffTab } from "./runDetail/DiffTab";
+import { MobileInfoDialog } from "./runDetail/MobileInfoDialog";
+import { ReportTab } from "./runDetail/ReportTab";
+import { RunActionsBar } from "./runDetail/RunActionsBar";
+import { TimelineTab } from "./runDetail/TimelineTab";
+import { UsageTab } from "./runDetail/UsageTab";
+import { useSandboxReview } from "./runDetail/useSandboxReview";
 
 import {
-  CostBreakdown,
-  formatCurrency,
   getCostTotals,
   MobileHeaderActions,
   RunDetailsContent,
@@ -115,7 +92,6 @@ export function RunDetail({
   onMobileHeaderLeft,
   onMobileHeaderRight,
 }: RunDetailProps) {
-	const report = useRunReport(run.id);
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? "timeline");
 
   // Reset tab when switching runs or when initialTab changes
@@ -130,64 +106,7 @@ export function RunDetail({
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const { isDesktop } = useViewportSize();
 
-  // Resolve workspace-sandbox URL via embedded proxy (standard cross-scenario pattern)
-  const [sandboxUrl, setSandboxUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/embedded/${encodeURIComponent("workspace-sandbox")}/external-url`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { url?: string } | null) => {
-        if (!cancelled && data?.url) setSandboxUrl(data.url);
-      })
-      .catch(() => { /* workspace-sandbox not available */ });
-    return () => { cancelled = true; };
-  }, []);
-
-  const openSandboxReview = useCallback(() => {
-    if (!run.sandboxId || !sandboxUrl) return;
-    const url = `${sandboxUrl}?sandbox=${run.sandboxId}&review=true`;
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, [run.sandboxId, sandboxUrl]);
-
-  // Partial-approve state (the preserved agent-manager-native action). Plain
-  // full-run approve/reject is intentionally NOT here — it is handled in the
-  // Web Console approvals inbox.
-  const [partialActive, setPartialActive] = useState(false);
-  const [partialForm, setPartialForm] = useState({ actor: "", commitMsg: "" });
-  const [partialSubmitting, setPartialSubmitting] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-
-  // Reset partial-approve state when the run changes.
-  useEffect(() => {
-    setPartialActive(false);
-    setPartialForm({ actor: "", commitMsg: "" });
-    setPartialSubmitting(false);
-    setSelectedFiles(new Set());
-  }, [run.id]);
-
-  const handlePartialConfirm = useCallback(async () => {
-    if (!onPartialApprove) return;
-    setPartialSubmitting(true);
-    try {
-      const files = diff?.files ?? [];
-      const fileIds = files
-        .filter((f) => selectedFiles.has(f.path) && f.id)
-        .map((f) => f.id);
-      if (fileIds.length > 0) {
-        await onPartialApprove(
-          fileIds,
-          partialForm.actor.trim() || undefined,
-          partialForm.commitMsg || undefined,
-        );
-        setSelectedFiles(new Set());
-        setPartialActive(false);
-      }
-    } catch (err) {
-      console.error("Failed to partially approve run:", err);
-    } finally {
-      setPartialSubmitting(false);
-    }
-  }, [onPartialApprove, diff, selectedFiles, partialForm]);
+  const { sandboxUrl, openSandboxReview } = useSandboxReview(run.sandboxId);
 
   const { isCollapsed: isDetailsCollapsed, toggle: toggleDetailsCollapsed } = useCollapsiblePanel({
     storageKey: "run.details",
@@ -224,14 +143,10 @@ export function RunDetail({
   }, [actionsMenuOpen]);
 
   const costTotals = getCostTotals(events);
-  const durationMs =
-    run.endedAt && run.startedAt ? timestampMs(run.endedAt) - timestampMs(run.startedAt) : null;
-  const totalTokens =
-    costTotals.inputTokens +
-    costTotals.outputTokens +
-    costTotals.cacheCreationTokens +
-    costTotals.cacheReadTokens;
-
+  // The tab counts what the timeline lists (grouped entries), not the raw events behind them.
+  const timelineEntryCount = useMemo(() => buildTimelineEntries(events).length, [events]);
+  // A finished run reports its duration; one still running reports the time elapsed so far.
+  const durationMs = run.startedAt ? (run.endedAt ? timestampMs(run.endedAt) : Date.now()) - timestampMs(run.startedAt) : null;
   const actions = run.actions;
   const canDeleteRun = actions?.canDelete ?? false;
   const canApplyFixes = actions?.canApplyInvestigation ?? false;
@@ -316,7 +231,7 @@ export function RunDetail({
               actual={run.actualModel ?? ""}
               fallbackChain={(run.resolvedConfig?.policySnapshot?.candidates ?? [])
                 .slice(1)
-                .map((candidate) => candidate.model || `${runnerTypeLabel(candidate.runnerType)} default`)}
+                .map((candidate) => candidate.model || `${runnerLabel(candidate.runnerType)} default`)}
             />
             <button
               type="button"
@@ -331,170 +246,21 @@ export function RunDetail({
               {runIdCopyStatus === "copied" ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
-          {/* Action buttons — stop is always primary, rest are inline on desktop / ellipsis on mobile */}
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            {actions?.canStop && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onStop(run)}
-                className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
-                title="Stop run"
-              >
-                <Square className="h-3 w-3" />
-                <span className="hidden sm:inline">Stop</span>
-              </Button>
-            )}
-            {isDesktop ? (
-              <>
-                {actions?.canInvestigate && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onInvestigate(run.id)}
-                    className="gap-1 h-7 px-2"
-                    title="Investigate"
-                  >
-                    <Search className="h-3 w-3" />
-                    <span className="hidden lg:inline">Investigate</span>
-                  </Button>
-                )}
-                {canApplyFixes && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onApplyInvestigation(run.id)}
-                    className="gap-1 h-7 px-2"
-                    title="Apply Fixes"
-                  >
-                    <Wrench className="h-3 w-3" />
-                    <span className="hidden lg:inline">Apply Fixes</span>
-                  </Button>
-                )}
-                {actions?.canRetry && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRetry(run)}
-                    className="gap-1 h-7 px-2"
-                    title="Re-run from scratch (fresh attempt, no prior context)"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    <span className="hidden lg:inline">Re-run</span>
-                  </Button>
-                )}
-                {actions?.canResumeFromFailure && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onResumeFromFailure(run)}
-                    className="gap-1 h-7 px-2"
-                    title="Resume: continue this task with the prior transcript + diff as context"
-                  >
-                    <PlayCircle className="h-3 w-3" />
-                    <span className="hidden lg:inline">Resume</span>
-                  </Button>
-                )}
-                {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowReviewModal(true)}
-                    className="gap-1 h-7 px-2"
-                    title="Review changes"
-                  >
-                    <Eye className="h-3 w-3" />
-                    <span className="hidden lg:inline">Review</span>
-                  </Button>
-                )}
-                {canDeleteRun && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => { onDelete(run); }}
-                    className="gap-1 h-7 px-2 text-destructive hover:text-destructive"
-                    disabled={deleteLoading}
-                    title="Delete run"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </>
-            ) : (
-              <div className="relative" ref={actionsMenuRef}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActionsMenuOpen((prev) => !prev)}
-                  className="h-7 w-7 p-0"
-                  aria-label="Run actions"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-                {actionsMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-1 min-w-[160px] rounded-md border border-border bg-card p-1 shadow-lg">
-                    {actions?.canInvestigate && (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                        onClick={() => { onInvestigate(run.id); setActionsMenuOpen(false); }}
-                      >
-                        <Search className="h-3.5 w-3.5" /> Investigate
-                      </button>
-                    )}
-                    {canApplyFixes && (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                        onClick={() => { onApplyInvestigation(run.id); setActionsMenuOpen(false); }}
-                      >
-                        <Wrench className="h-3.5 w-3.5" /> Apply Fixes
-                      </button>
-                    )}
-                    {actions?.canRetry && (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                        title="Fresh attempt, no prior context"
-                        onClick={() => { onRetry(run); setActionsMenuOpen(false); }}
-                      >
-                        <RotateCcw className="h-3.5 w-3.5" /> Re-run
-                      </button>
-                    )}
-                    {actions?.canResumeFromFailure && (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                        title="Continue this task with the prior transcript + diff as context"
-                        onClick={() => { onResumeFromFailure(run); setActionsMenuOpen(false); }}
-                      >
-                        <PlayCircle className="h-3.5 w-3.5" /> Resume
-                      </button>
-                    )}
-                    {(actions?.canReview || actions?.canApprove || actions?.canReject) && (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                        onClick={() => { setShowReviewModal(true); setActionsMenuOpen(false); }}
-                      >
-                        <Eye className="h-3.5 w-3.5" /> Review
-                      </button>
-                    )}
-                    {canDeleteRun && (
-                      <button
-                        type="button"
-                        className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-destructive hover:bg-muted/50 transition-colors"
-                        disabled={deleteLoading}
-                        onClick={() => { onDelete(run); setActionsMenuOpen(false); }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" /> Delete
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+            <RunActionsBar
+              run={run}
+              isDesktop={isDesktop}
+              deleteLoading={deleteLoading}
+              actionsMenuOpen={actionsMenuOpen}
+              setActionsMenuOpen={setActionsMenuOpen}
+              actionsMenuRef={actionsMenuRef}
+              onStop={onStop}
+              onRetry={onRetry}
+              onResumeFromFailure={onResumeFromFailure}
+              onInvestigate={onInvestigate}
+              onApplyInvestigation={onApplyInvestigation}
+              onDelete={onDelete}
+              onReview={() => setShowReviewModal(true)}
+            />
         </div>
 
         {/* Content - hidden when collapsed */}
@@ -538,7 +304,7 @@ export function RunDetail({
                 onClick={() => setActiveTab(id)}
               >
                 <span className="hidden sm:inline mr-2"><Icon className="h-4 w-4 inline" /></span>
-                {id === "timeline" ? `${label} (${events.length})` : label}
+                {id === "timeline" ? `${label} (${timelineEntryCount})` : label}
               </button>
             ))}
           </div>
@@ -551,254 +317,53 @@ export function RunDetail({
             )}
           >
             {activeTab === "task" ? (
-            task ? (
-              <TaskSummary task={task} />
-            ) : (
-              <div className="py-8 text-center text-muted-foreground">
-                Task details unavailable for {run.taskId}
-              </div>
-            )
-          ) : activeTab === "timeline" ? (
-            <div data-testid="run-detail-timeline-layout" className="flex h-full min-h-0 flex-col gap-3">
-              <div className="shrink-0">
-                <FallbackTimeline runId={run.id} />
-              </div>
-              <div className="min-h-0 flex-1">
-                <RunTimeline
-                  run={run}
-                  events={events}
-                  eventsLoading={eventsLoading}
-                  focusEventId={focusEventId}
-                  focusSequence={focusSequence}
-                  onContinue={onContinue}
-                  onDeleteMessage={onDeleteMessage}
-                />
-              </div>
-            </div>
-          ) : activeTab === "report" ? (
-            report.loading ? <div className="py-8 text-center text-muted-foreground">Loading run report…</div> : report.error ? <div className="py-8 text-center text-destructive">Report unavailable: {report.error}</div> : report.data ? (
-              <div className="space-y-3 text-sm" data-testid="run-report">
-                <div><strong>Status:</strong> {report.data.status}{report.data.exit_code !== undefined ? ` (exit ${report.data.exit_code})` : ""}{report.data.error ? ` — ${report.data.error}` : ""}</div>
-                <div><strong>Timing:</strong> duration={report.data.duration_ms ?? "unavailable"}ms; heartbeat gap={report.data.heartbeat_gap_ms ?? "unavailable"}ms; turns={report.data.turns}; tokens={report.data.tokens}; cost=${report.data.cost_usd}</div>
-                <div><strong>Final output:</strong> {report.data.result.selection_status} ({report.data.result.selection_rule || "unavailable"}), candidates={report.data.result.candidate_count}</div>
-                <div><strong>Structured:</strong> {report.data.result.structured_status || "unavailable"} {report.data.result.diagnostic_codes?.join(", ")}</div>
-                <div><strong>Tools:</strong> project-owned={report.data.project_owned_tool_calls} external={report.data.external_tool_calls}; repeated={report.data.repeated_tool_calls}; files reread={report.data.files_read_more_than_once}</div>
-                <div><strong>Model:</strong> requested={report.data.requested_model || "unavailable"} actual={report.data.actual_model || "unavailable"} fallbacks={report.data.fallback_count}</div>
-                <div><strong>Diff:</strong> {report.data.diff.files} files, {report.data.diff.bytes} bytes ({report.data.diff.available.state})</div>
-                <div><strong>Events:</strong> {report.data.events_availability.state}</div>
-                <ul className="list-disc pl-5">{Object.entries(report.data.event_counts).sort(([left], [right]) => left.localeCompare(right)).map(([type, count]) => <li key={type}>{type}: {count}</li>)}</ul>
-                <div><strong>Receipts:</strong> {report.data.receipts_availability.state} ({report.data.receipt_count})</div>
-                <ul className="list-disc pl-5">{report.data.tools.map((tool) => <li key={tool.name}>{tool.name}: {tool.calls} calls, {tool.returned ?? 0} returned, {tool.failures} failed, {tool.unknown_outcome ?? 0} outcome unknown, {tool.unresolved ?? 0} unresolved</li>)}</ul>
-              </div>
-            ) : <div className="py-8 text-center text-muted-foreground">Report unavailable</div>
-          ) : activeTab === "diff" ? (
-            diffLoading ? (
-              <div className="py-8 text-center text-muted-foreground">
-                <div className="h-8 w-8 mx-auto animate-spin rounded-full border-4 border-primary border-t-transparent" />
-                <p className="mt-3 text-sm">Loading diff...</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {!diff ? (
-                  <div className="py-8 flex flex-col items-center gap-4 text-center">
-                    <FileCode className="h-10 w-10 text-muted-foreground/50" />
-                    <div>
-                      <p className="font-medium text-muted-foreground">No diff available</p>
-                      <p className="text-sm text-muted-foreground/70 mt-1">
-                        {run.sandboxId
-                          ? "No complete diff evidence is available. The file count and changes are unverified."
-                          : "This run didn't use a sandbox, so no diff was collected."}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {run.sandboxId && sandboxUrl && (
-                        <Button variant="secondary" size="sm" className="gap-2" onClick={openSandboxReview}>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Open in Workspace Sandbox
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ) : diff.runId !== run.id || !diff.fileCountVerified ? (
-                  <div className="py-8 text-center text-muted-foreground" role="status">
-                    Diff evidence is incomplete; changes and file count are unverified.
-                  </div>
-                ) : (
-                  <DiffViewer
-                    diff={diff}
-                    selectable={partialActive}
-                    selectedFiles={selectedFiles}
-                    onFileSelectionChange={(path, selected) => {
-                      setSelectedFiles((prev) => {
-                        const next = new Set(prev);
-                        if (selected) next.add(path);
-                        else next.delete(path);
-                        return next;
-                      });
-                    }}
-                  />
-                )}
-
-                {/* Review pointer — approving/rejecting a run is a human action
-                    handled only in the Web Console approvals inbox (the single
-                    operator surface), never from this read-only page. */}
-                {(actions?.canApprove || actions?.canReject) && (
-                  <div className="border-t border-border pt-4 space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {run.sandboxId && sandboxUrl && (
-                        <Button variant="secondary" size="sm" className="gap-1.5" onClick={openSandboxReview}>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          Open in Sandbox
-                        </Button>
-                      )}
-                      <div className="flex-1" />
-                      {/* Partial approve is the one review action the inbox cannot do
-                          (file-selective). It is preserved here; full approve/reject
-                          are handled only in the inbox. */}
-                      {actions?.canApprove && onPartialApprove && diff && (diff.files?.length ?? 0) > 1 && (
-                        <Button
-                          variant={partialActive ? "secondary" : "secondary"}
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => {
-                            if (partialActive) {
-                              setPartialActive(false);
-                              setSelectedFiles(new Set());
-                            } else {
-                              setPartialActive(true);
-                            }
-                          }}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                          Partial Approve
-                        </Button>
-                      )}
-                    </div>
-
-                    {partialActive && (
-                      <div className="space-y-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
-                        <p className="text-sm text-muted-foreground">
-                          Select files above, then approve the selected subset.
-                        </p>
-                        <div className="space-y-2">
-                          <Label htmlFor="partial-approve-actor">Your Name (optional)</Label>
-                          <Input
-                            id="partial-approve-actor"
-                            value={partialForm.actor}
-                            onChange={(e) => setPartialForm({ ...partialForm, actor: e.target.value })}
-                            placeholder="Leave blank to approve anonymously"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="partial-approve-msg">Commit Message (optional)</Label>
-                          <Input
-                            id="partial-approve-msg"
-                            value={partialForm.commitMsg}
-                            onChange={(e) => setPartialForm({ ...partialForm, commitMsg: e.target.value })}
-                            placeholder="Custom commit message"
-                          />
-                        </div>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={handlePartialConfirm}
-                          disabled={partialSubmitting || selectedFiles.size === 0}
-                          className="gap-2"
-                        >
-                          <Check className="h-4 w-4" />
-                          {partialSubmitting
-                            ? "Approving..."
-                            : `Approve Selected (${selectedFiles.size} file${selectedFiles.size !== 1 ? "s" : ""})`}
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-                      Approve or reject the full run from the{" "}
-                      <span className="font-medium text-foreground">Web Console approvals inbox</span> — the single
-                      place operator decisions are answered.
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          ) : (
-            <RunUsagePanel runId={run.id} costLoading={eventsLoading} hasCost={costTotals.events > 0}>
-            {costTotals.events > 0 ? (
-            <div className="space-y-3 sm:space-y-4">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-sm">
-                <div className="rounded border border-border px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Total Cost</div>
-                  <div className="font-semibold">{formatCurrency(costTotals.totalCostUsd)}</div>
+              task ? (
+                <TaskSummary task={task} />
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">
+                  Task details unavailable for {run.taskId}
                 </div>
-                <div className="rounded border border-border px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Total Tokens</div>
-                  <div className="font-semibold">{totalTokens.toLocaleString()}</div>
-                </div>
-                <div className="rounded border border-border px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Output Tokens</div>
-                  <div className="font-semibold">{costTotals.outputTokens.toLocaleString()}</div>
-                </div>
-                <div className="rounded border border-border px-3 py-2">
-                  <div className="text-xs text-muted-foreground">Requests</div>
-                  <div className="font-semibold">{(costTotals.webSearchRequests + costTotals.serverToolUseRequests).toLocaleString()}</div>
-                </div>
-              </div>
-              <CostBreakdown totals={costTotals} />
-              <ModelCostComparison
-                costTotals={costTotals}
-                actualModel={costTotals.models[0] || run.resolvedConfig?.model || ""}
+              )
+            ) : activeTab === "timeline" ? (
+              <TimelineTab
+                run={run}
+                events={events}
+                eventsLoading={eventsLoading}
+                focusEventId={focusEventId}
+                focusSequence={focusSequence}
+                onContinue={onContinue}
+                onDeleteMessage={onDeleteMessage}
               />
-            </div>
-          ) : null}
-            </RunUsagePanel>
-          )}
-        </div>
+            ) : activeTab === "report" ? (
+              <ReportTab runId={run.id} />
+            ) : activeTab === "diff" ? (
+              <DiffTab
+                run={run}
+                diff={diff}
+                diffLoading={diffLoading}
+                sandboxUrl={sandboxUrl}
+                openSandboxReview={openSandboxReview}
+                onPartialApprove={onPartialApprove}
+              />
+            ) : (
+              <UsageTab run={run} costTotals={costTotals} eventsLoading={eventsLoading} />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Mobile info dialog — shows run details behind info icon */}
       {infoOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center lg:hidden">
-          <div className="fixed inset-0 bg-black/40" onClick={() => setInfoOpen(false)} aria-hidden="true" />
-          <div className="relative z-10 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto rounded-lg border border-border bg-card shadow-xl">
-            <div className="flex items-center justify-between border-b border-border p-4">
-              <h3 className="font-semibold">Run Details</h3>
-              <button
-                onClick={() => setInfoOpen(false)}
-                className="rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              {/* Run ID with copy */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Run ID:</span>
-                <button
-                  type="button"
-                  className="flex min-h-11 items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground transition-colors sm:min-h-8"
-                  onClick={() => {
-                    void copyRunId(run.id);
-                  }}
-                  title={`Copy run ID: ${run.id}`}
-                >
-                  <code className="font-mono">{run.id.slice(0, 8)}</code>
-                  {runIdCopyStatus === "copied" ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                </button>
-              </div>
-              <RunDetailsContent
-                run={run}
-                diff={diffLoading ? null : diff}
-                taskTitle={taskTitle}
-                profileName={profileName}
-                durationMs={durationMs}
-                costTotals={costTotals}
-              />
-            </div>
-          </div>
-        </div>
+        <MobileInfoDialog
+          run={run}
+          diff={diffLoading ? null : diff}
+          taskTitle={taskTitle}
+          profileName={profileName}
+          durationMs={durationMs}
+          costTotals={costTotals}
+          runIdCopyStatus={runIdCopyStatus}
+          onCopyRunId={() => void copyRunId(run.id)}
+          onClose={() => setInfoOpen(false)}
+        />
       )}
 
       <ReviewModal

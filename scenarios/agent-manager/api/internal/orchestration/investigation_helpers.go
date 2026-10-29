@@ -19,15 +19,11 @@ func recurrenceAttachment(runID uuid.UUID, prior []findings.Finding) domain.Cont
 	var content strings.Builder
 	content.WriteString("### Prior findings and recurrence\n\n")
 	for _, finding := range prior {
-		applied := "no recorded decision"
-		if finding.Decision != "" {
-			applied = "decision=" + finding.Decision
-		}
 		fingerprint := finding.Fingerprint
 		if len(fingerprint) > 12 {
 			fingerprint = fingerprint[:12]
 		}
-		fmt.Fprintf(&content, "- fingerprint=%s occurrences=%d %s: %s\n", fingerprint, finding.Occurrences, applied, finding.Recommendation)
+		fmt.Fprintf(&content, "- fingerprint=%s occurrences=%d: %s\n", fingerprint, finding.Occurrences, finding.Recommendation)
 	}
 	return domain.ContextAttachment{Type: "note", Key: "prior-findings-" + shortID(runID), Label: "Prior Findings " + shortID(runID), Content: content.String(), Format: "markdown", Priority: "medium", Summary: fmt.Sprintf("%d prior finding(s), ordered by recurrence", len(prior)), Tags: []string{"findings", "recurrence", "investigation"}}
 }

@@ -225,6 +225,10 @@ type Run struct {
 	// targets); a run can have any combination of those plus ParentRunID.
 	ParentRunID *uuid.UUID `json:"parentRunId,omitempty" db:"parent_run_id"`
 
+	// SubAgentCount is how many runs list this one as their parent. Run
+	// listings fill it in one query; everywhere else it is zero.
+	SubAgentCount int `json:"subAgentCount,omitempty" db:"-"`
+
 	// ConversationID groups runs that belong to the same agent thread for
 	// auditability. One ID per agent-thread; child runs inherit from
 	// ParentRunID's run when set, otherwise the run-creation path generates

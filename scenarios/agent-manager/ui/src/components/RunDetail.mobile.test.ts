@@ -130,7 +130,7 @@ test("RunDetail mobile details lets an operator copy the full identifier and dis
   await waitFor(() => assert.ok(screen.getByRole("heading", { name: "Run Details" })));
   fireEvent.click(screen.getAllByTitle("Copy run ID: mobile-full-run-id")[1]!);
   await waitFor(() => assert.deepEqual(clipboard.writeText.mock.calls, [["mobile-full-run-id"]]));
-  fireEvent.click(document.querySelector(".fixed.inset-0.bg-black\\/40")!);
+  fireEvent.click(document.querySelector(".fixed.inset-0.bg-black\\/60")!);
   await waitFor(() => assert.equal(screen.queryByRole("heading", { name: "Run Details" }), null));
 });
 

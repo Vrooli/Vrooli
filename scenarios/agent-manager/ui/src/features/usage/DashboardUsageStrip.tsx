@@ -54,7 +54,7 @@ export function DashboardUsageStrip() {
   const windows = forecast.data?.windows ?? [];
   if (windows.length === 0) return null;
   const dormant = windows.filter((window) => isDormantWindow(window));
-  const perProvider = (provider: string) => (recommendations.data?.recommendations ?? []).filter((row) => row.provider === provider).length;
+  const perProvider = (provider: string) => (recommendations.data?.groups ?? []).filter((group) => group.provider === provider).length;
   return (
     <section aria-label="Subscription usage" data-testid="dashboard-usage-strip" className="flex min-w-0 flex-col gap-2">
       {windows.filter((window) => !dormant.includes(window)).map((window) => <StripLine key={windowKey(window)} forecast={window} recommendations={perProvider(window.provider)} siblings={windows} />)}

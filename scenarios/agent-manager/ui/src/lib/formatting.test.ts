@@ -62,7 +62,7 @@ test("formatRelativeTimeShort falls back after configured day threshold", () => 
 
 test("formatChartAxisByPreset returns a label for each preset family", () => {
   const value = "2026-02-07T20:00:00.000Z";
-  assert.notEqual(formatChartAxisByPreset(value, "30d"), "N/A");
-  assert.notEqual(formatChartAxisByPreset(value, "7d"), "N/A");
-  assert.notEqual(formatChartAxisByPreset(value, "24h"), "N/A");
+  assert.notEqual(formatChartAxisByPreset(value, "30d"), "—");
+  assert.notEqual(formatChartAxisByPreset(value, "7d"), "—");
+  assert.notEqual(formatChartAxisByPreset(value, "24h"), "—");
 });

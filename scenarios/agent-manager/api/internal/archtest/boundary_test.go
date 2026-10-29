@@ -381,7 +381,6 @@ func TestHealthDoesNotImportSiblingDomains(t *testing.T) {
 func TestHandlersDirectPersistenceImportsAreReadSideExceptions(t *testing.T) {
 	allowed := map[string]bool{
 		"events.go":            true,
-		"operational_stats.go": true,
 		"pricing.go":           true,
 	}
 	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/handlers")) {
@@ -390,7 +389,7 @@ func TestHandlersDirectPersistenceImportsAreReadSideExceptions(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, imported := range imports {
-			if imported != "agent-manager/internal/eventlog" && imported != "agent-manager/internal/stats" {
+			if imported != "agent-manager/internal/eventlog" {
 				continue
 			}
 			if !allowed[filepath.Base(path)] {

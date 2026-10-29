@@ -368,7 +368,7 @@ func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient
 	}
 
 	var requests atomic.Int32
-	receivedEvents := make(chan eventdomain.EventEnvelope, 1)
+	receivedEvents := make(chan *eventdomain.EventEnvelope, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/events" {
@@ -380,8 +380,8 @@ func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		var received eventdomain.EventEnvelope
-		if err := protojson.Unmarshal(body, &received); err != nil {
+		received := &eventdomain.EventEnvelope{}
+		if err := protojson.Unmarshal(body, received); err != nil {
 			t.Errorf("decode event envelope: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -404,7 +404,7 @@ func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient
 	if got := requests.Load(); got != 1 {
 		t.Fatalf("first notification should publish one event request, got %d", got)
 	}
-	var received eventdomain.EventEnvelope
+	var received *eventdomain.EventEnvelope
 	select {
 	case received = <-receivedEvents:
 	default:
@@ -461,7 +461,7 @@ func TestReconcilerAutomaticallyRetriesAuthorizationNoticeWithSameEvent(t *testi
 	repo := database.NewAuthorizationRepository(db)
 	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
 	var attempts atomic.Int32
-	events := make(chan eventdomain.EventEnvelope, 2)
+	events := make(chan *eventdomain.EventEnvelope, 2)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/events" {
 			t.Errorf("event request = %s %s, want POST /api/v1/events", r.Method, r.URL.Path)
@@ -474,8 +474,8 @@ func TestReconcilerAutomaticallyRetriesAuthorizationNoticeWithSameEvent(t *testi
 			http.Error(w, "bad body", http.StatusBadRequest)
 			return
 		}
-		var event eventdomain.EventEnvelope
-		if err := protojson.Unmarshal(body, &event); err != nil {
+		event := &eventdomain.EventEnvelope{}
+		if err := protojson.Unmarshal(body, event); err != nil {
 			t.Errorf("decode event envelope: %v", err)
 			http.Error(w, "bad envelope", http.StatusBadRequest)
 			return
@@ -509,7 +509,7 @@ func TestReconcilerAutomaticallyRetriesAuthorizationNoticeWithSameEvent(t *testi
 	}
 	firstID := failed.NotificationSnapshot.EventID
 	firstLink := failed.NotificationSnapshot.Payload["context_url"]
-	var firstEnvelope eventdomain.EventEnvelope
+	var firstEnvelope *eventdomain.EventEnvelope
 	select {
 	case firstEnvelope = <-events:
 	case <-time.After(2 * time.Second):
@@ -527,7 +527,7 @@ func TestReconcilerAutomaticallyRetriesAuthorizationNoticeWithSameEvent(t *testi
 	if len(stats.Errors) != 0 {
 		t.Fatalf("reconciler retry errors = %v", stats.Errors)
 	}
-	var secondEnvelope eventdomain.EventEnvelope
+	var secondEnvelope *eventdomain.EventEnvelope
 	select {
 	case secondEnvelope = <-events:
 	case <-time.After(2 * time.Second):

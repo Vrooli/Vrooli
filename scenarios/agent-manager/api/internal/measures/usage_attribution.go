@@ -18,26 +18,28 @@ import (
 const (
 	UsageBurners         = "usage.burners"
 	UsageRecommendations = "usage.recommendations"
+	UsageFriction        = "usage.friction"
 	UsageCoverage        = "usage.coverage"
 	UsageCompare         = "usage.compare"
 
 	defaultUsageRows    = 20
+	minBurnerPoints     = 0.1
 	coverageLookback    = 7 * 24 * time.Hour
 	coverageComparisonM = "Independent scan (internal/transcriptindex/live_coverage_test.go, USAGE_COVERAGE_LIVE=1): walk the same roots, take every *.jsonl modified since `since`, sum sizes and count provider turns on disk (Codex turn_context lines; Claude assistant lines with usage). Files owned by an Agent Manager run count as captured. The disk bytes must equal bytes, captured_bytes/bytes must agree within 1 point, and captured turns (Codex turns, Claude usage_reports, owned files' disk turns) over disk turns is the A1 share."
 )
 
 // SetUsageAttribution connects the usage facts, the price book and the
 // indexer's coverage. Without them the procedures report unavailable.
-func (h *Handler) SetUsageAttribution(store usageattribution.Store, pricer usageattribution.ModelPricer, coverage transcriptindex.CoverageReader) {
+func (h *Handler) SetUsageAttribution(store usageattribution.Store, pricer usageattribution.ModelPricer, coverage transcriptindex.CoverageReader, statuses usageattribution.StatusStore) {
 	// One price book per handler: prices are reused across requests.
-	h.usageStore, h.usagePricer, h.coverage = store, usageattribution.NewPriceBook(pricer), coverage
+	h.usageStore, h.usagePricer, h.coverage, h.frictionStatuses = store, usageattribution.NewPriceBook(pricer), coverage, statuses
 }
 
 func (h *Handler) usageService() (usageattribution.Service, error) {
 	if h.usageStore == nil || h.quotaReadings == nil {
 		return usageattribution.Service{}, connect.NewError(connect.CodeUnavailable, fmt.Errorf("usage attribution is unavailable"))
 	}
-	return usageattribution.Service{Store: h.usageStore, Readings: h.quotaReadings, Pricer: h.usagePricer}, nil
+	return usageattribution.Service{Store: h.usageStore, Readings: h.quotaReadings, Pricer: h.usagePricer, Statuses: h.frictionStatuses}, nil
 }
 
 func parseOptionalTime(field, value string) (time.Time, error) {
@@ -118,7 +120,7 @@ func protoWindowAttribution(result usageattribution.Result, by string, runs map[
 	}
 	burners := usageattribution.Group(result, by, runs, runID)
 	for i, burner := range burners {
-		if i >= limit {
+		if i >= limit || burner.Points < minBurnerPoints {
 			out.OtherBurners++
 			out.OtherPoints += burner.Points
 			continue
@@ -155,7 +157,7 @@ func protoCalibration(c usageattribution.Calibration) *measurepb.UsageCalibratio
 func protoBurner(b usageattribution.Burner) *measurepb.UsageBurner {
 	out := &measurepb.UsageBurner{
 		Key: b.Key, Label: b.Label, Points: b.Points, Share: b.Share, Tokens: protoTokens(b.Tokens), WeightedTokens: b.Weighted,
-		Sessions: int64(b.Sessions), Runs: int64(b.Runs), Turns: int64(b.Turns), RunIds: b.RunIDs, Runner: b.Runner, Model: b.Model,
+		Sessions: int64(b.Sessions), Runs: int64(b.Runs), Requests: int64(b.Requests), RunIds: b.RunIDs, Runner: b.Runner, Model: b.Model,
 		ProfileId: b.ProfileID, Workload: b.Workload, FirstAt: rfc3339(b.FirstAt), LastAt: rfc3339(b.LastAt), Source: b.Source,
 		Modality: &measurepb.UsageModality{
 			ImagesIn: int64(b.Facts.ImagesIn), ImagesInUser: int64(b.Facts.ImagesInUser), ImagesInHighDetail: int64(b.Facts.ImagesInHighDetail),
@@ -188,22 +190,35 @@ func (h *Handler) UsageRecommendations(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
+	only := usageattribution.WindowKey{Provider: req.Msg.GetProvider(), Pool: strings.TrimSpace(req.Msg.GetPool()), Window: strings.TrimSpace(req.Msg.GetWindow())}
+	if (only.Pool == "") != (only.Window == "") || (only.Pool != "" && only.Provider == "") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("provider, pool and window name one window together"))
+	}
+	if only.Pool == "" {
+		only = usageattribution.WindowKey{}
+	}
 	now := h.now().UTC()
-	report, attribution, err := service.Recommendations(ctx, req.Msg.GetProvider(), now)
+	report, attribution, err := service.Recommendations(ctx, req.Msg.GetProvider(), only, now)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	runID := strings.TrimSpace(req.Msg.GetRunId())
-	response := &measurepb.UsageRecommendationsResponse{GeneratedAt: now.Format(time.RFC3339), DominantConsumer: report.Dominant, DominantConsumerLabel: report.DominantLabel, DefinitionId: definitionID(UsageRecommendations)}
+	response := &measurepb.UsageRecommendationsResponse{
+		GeneratedAt: now.Format(time.RFC3339), DominantConsumer: report.Dominant, DominantConsumerLabel: report.DominantLabel, DefinitionId: definitionID(UsageRecommendations),
+		FoldedGroups: int64(len(report.Folded)),
+	}
+	for _, plan := range report.Folded {
+		response.FoldedPoints += plan.Saved
+	}
 	limit := usageRows(req.Msg.GetLimit())
-	for _, row := range report.Recommendations {
-		if runID != "" && !namesRun(row, runID) {
+	for _, plan := range report.Plans {
+		if runID != "" && !namesRun(plan, runID) {
 			continue
 		}
-		if len(response.Recommendations) >= limit {
+		if len(response.Groups) >= limit {
 			break
 		}
-		response.Recommendations = append(response.Recommendations, protoRecommendation(row))
+		response.Groups = append(response.Groups, protoPlan(plan))
 	}
 	for _, rule := range report.Rules {
 		response.Rules = append(response.Rules, &measurepb.UsageRuleStatus{Rule: rule.Rule, Fired: rule.Fired, Rows: int64(rule.Rows), Candidates: int64(rule.Candidates), Reason: rule.Reason})
@@ -217,34 +232,132 @@ func (h *Handler) UsageRecommendations(ctx context.Context, req *connect.Request
 		}
 	}
 	response.Validity = h.validityForSample(turns)
-	response.Provenance = usageAttributionProvenance(definitionFor(UsageRecommendations).SourceTable, int64(len(report.Recommendations)), from, now,
-		&measurepb.MeasureFilter{Field: "provider", Value: req.Msg.GetProvider()}, &measurepb.MeasureFilter{Field: "run_id", Value: runID})
+	response.Provenance = usageAttributionProvenance(definitionFor(UsageRecommendations).SourceTable, int64(len(report.Plans)), from, now,
+		&measurepb.MeasureFilter{Field: "provider", Value: req.Msg.GetProvider()}, &measurepb.MeasureFilter{Field: "run_id", Value: runID},
+		&measurepb.MeasureFilter{Field: "window", Value: only.Window})
 	return connect.NewResponse(response), nil
 }
 
-func namesRun(row usageattribution.Recommendation, runID string) bool {
-	if row.TargetID == runID {
+func namesRun(plan usageattribution.Plan, runID string) bool {
+	if plan.TargetID == runID {
 		return true
 	}
-	for _, ref := range row.Evidence {
-		if ref.ID == runID || ref.Label == "run "+runID {
-			return true
+	for _, lever := range plan.Levers {
+		for _, ref := range lever.Evidence {
+			if ref.ID == runID || ref.Label == "run "+runID {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func protoRecommendation(row usageattribution.Recommendation) *measurepb.UsageRecommendation {
-	out := &measurepb.UsageRecommendation{
-		Rank: int32(row.Rank), Rule: row.Rule, Lever: row.Lever, TargetKind: row.TargetKind, TargetId: row.TargetID, TargetLabel: row.TargetLabel,
-		Provider: row.Provider, Pool: row.Pool, Window: row.Window, EstWeeklyQuotaPointsSaved: row.WeeklySaved, Confidence: row.Confidence,
-		Action: row.Action, Rationale: row.Rationale, ConsumerPoints: row.ConsumerPoints,
+func protoPlan(plan usageattribution.Plan) *measurepb.UsageRecommendationGroup {
+	out := &measurepb.UsageRecommendationGroup{
+		Rank: int32(plan.Rank), TargetKind: plan.TargetKind, TargetId: plan.TargetID, TargetLabel: plan.TargetLabel,
+		Provider: plan.Provider, Pool: plan.Pool, Window: plan.Window, CombinedSavedPoints: plan.Saved,
+		UsedSoFarPoints: plan.Use.ConsumerPoints, AtThisRatePoints: plan.Use.AtThisRate, ShareOfWindowBurn: plan.Use.Share,
+		StillRunning: plan.Use.StillRunning, BasisHours: plan.Use.BasisHours,
+		RecoverablePoints: plan.Recoverable, RemainingHours: plan.Use.RemainingHours, CrossCut: plan.CrossCut,
+	}
+	for _, lever := range plan.Levers {
+		out.Levers = append(out.Levers, protoLever(lever))
+	}
+	return out
+}
+
+func protoLever(row usageattribution.Recommendation) *measurepb.UsageLever {
+	out := &measurepb.UsageLever{
+		Rule: row.Rule, Lever: row.Lever, Action: row.Action, Rationale: row.Rationale, Confidence: row.Confidence,
+		SavedPoints: row.Saved, MarginalPoints: row.Marginal, RecoverablePoints: row.Recoverable, Facts: protoFacts(row.Facts),
 	}
 	for _, ref := range row.Evidence {
 		out.EvidenceRefs = append(out.EvidenceRefs, &measurepb.UsageEvidenceRef{Kind: ref.Kind, Id: ref.ID, Label: ref.Label})
 	}
-	for _, metric := range row.Metrics {
-		out.Metrics = append(out.Metrics, &measurepb.UsageEvidenceMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit})
+	return out
+}
+
+func protoFacts(f usageattribution.LeverFacts) *measurepb.UsageLeverFacts {
+	out := &measurepb.UsageLeverFacts{}
+	switch {
+	case f.Context != nil:
+		out.Facts = &measurepb.UsageLeverFacts_Context{Context: &measurepb.UsageContextFacts{AveragePromptTokens: f.Context.AveragePromptTokens, Requests: int64(f.Context.Requests), CachedShare: f.Context.CachedShare}}
+	case f.Fanout != nil:
+		out.Facts = &measurepb.UsageLeverFacts_Fanout{Fanout: &measurepb.UsageFanoutFacts{SubAgents: int64(f.Fanout.SubAgents), SubAgentPoints: f.Fanout.SubAgentPoints, AveragePromptTokens: f.Fanout.AveragePromptTokens}}
+	case f.Idle != nil:
+		out.Facts = &measurepb.UsageLeverFacts_Idle{Idle: &measurepb.UsageIdleFacts{IdleRequests: int64(f.Idle.IdleRequests), IdlePoints: f.Idle.IdlePoints}}
+	case f.Image != nil:
+		out.Facts = &measurepb.UsageLeverFacts_Image{Image: &measurepb.UsageImageFacts{Images: int64(f.Image.Images), HighDetailImages: int64(f.Image.HighDetailImages), EstimatedTokens: f.Image.EstimatedTokens}}
+	case f.Friction != nil:
+		out.Facts = &measurepb.UsageLeverFacts_Friction{Friction: &measurepb.UsageFrictionFacts{Episodes: int64(f.Friction.Episodes), Runs: int64(f.Friction.Runs), EpisodeTurns: int64(f.Friction.EpisodeTurns), EpisodePoints: f.Friction.EpisodePoints}}
+	case f.Model != nil:
+		m := f.Model
+		out.Facts = &measurepb.UsageLeverFacts_Model{Model: &measurepb.UsageModelFacts{
+			ExpensiveModel: m.ExpensiveModel, CheaperModel: m.CheaperModel, ExpensiveRuns: int64(m.ExpensiveRuns), CheaperRuns: int64(m.CheaperRuns),
+			ExpensiveSuccessRate: m.ExpensiveSuccessRate, CheaperSuccessRate: m.CheaperSuccessRate, PriceRatio: m.PriceRatio, ExpensiveWeeklyPoints: m.ExpensiveWeeklyPoints,
+		}}
+	}
+	return out
+}
+
+func (h *Handler) UsageFriction(ctx context.Context, req *connect.Request[measurepb.UsageFrictionRequest]) (*connect.Response[measurepb.UsageFrictionResponse], error) {
+	service, err := h.usageService()
+	if err != nil {
+		return nil, err
+	}
+	status := strings.TrimSpace(req.Msg.GetStatus())
+	if status != "" && status != usageattribution.StatusOpen && status != usageattribution.StatusReported && status != usageattribution.StatusDismissed {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid status %q; accepted values: open, reported, dismissed", status))
+	}
+	now := h.now().UTC()
+	friction, err := service.Friction(ctx, req.Msg.GetProvider(), now)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	problems, attribution := friction.Problems, friction.Attribution
+	response := &measurepb.UsageFrictionResponse{GeneratedAt: now.Format(time.RFC3339), DefinitionId: definitionID(UsageFriction), RunsAnalysed: int64(friction.RunsAnalysed), RunsTotal: int64(friction.RunsTotal)}
+	limit := usageRows(req.Msg.GetLimit())
+	for _, problem := range problems {
+		switch problem.Status {
+		case usageattribution.StatusOpen:
+			response.Open++
+		case usageattribution.StatusReported:
+			response.Reported++
+		case usageattribution.StatusDismissed:
+			response.Dismissed++
+		}
+		if (status != "" && problem.Status != status) || len(response.Problems) >= limit {
+			continue
+		}
+		response.Problems = append(response.Problems, protoProblem(problem))
+	}
+	var turns int64
+	from := now
+	for _, result := range attribution.Results {
+		turns += int64(len(result.Turns))
+		if result.From.Before(from) {
+			from = result.From
+		}
+	}
+	response.Validity = h.validityForSample(turns)
+	response.Provenance = usageAttributionProvenance(definitionFor(UsageFriction).SourceTable, int64(len(problems)), from, now,
+		&measurepb.MeasureFilter{Field: "provider", Value: req.Msg.GetProvider()}, &measurepb.MeasureFilter{Field: "status", Value: status})
+	return connect.NewResponse(response), nil
+}
+
+func protoProblem(p usageattribution.Problem) *measurepb.UsageFrictionProblem {
+	out := &measurepb.UsageFrictionProblem{
+		Fingerprint: p.Fingerprint, Pattern: p.Pattern, Description: p.Description, Owner: p.Owner, OwnerKind: p.OwnerKind,
+		OwnerScenario: p.OwnerScenario, OwnerCommand: p.OwnerCommand, Episodes: int64(p.Episodes), Runs: int64(p.Runs),
+		WallClockMs: p.WallClockMS, TypicalWallClockMs: p.TypicalMS, Points: p.Points, EstSavedPoints: p.EstSaved,
+		Provider: p.Provider, Pool: p.Pool, Window: p.Window, FirstAt: rfc3339(p.FirstAt), LastAt: rfc3339(p.LastAt),
+		Status: p.Status, BugId: p.BugID, RunIds: p.RunIDs, EpisodeTurns: int64(p.EpisodeTurns), Tokens: p.Tokens, TimeLost: p.TimeLost, TimeKind: p.TimeKind, EstRecoverablePoints: p.EstRecoverable,
+	}
+	if !p.StatusSetAt.IsZero() {
+		out.StatusAt = rfc3339(p.StatusSetAt)
+	}
+	for _, ref := range p.Evidence {
+		out.EvidenceRefs = append(out.EvidenceRefs, &measurepb.UsageEvidenceRef{Kind: ref.Kind, Id: ref.ID, Label: ref.Label})
 	}
 	return out
 }

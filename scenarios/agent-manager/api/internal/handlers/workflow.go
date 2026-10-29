@@ -24,77 +24,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (h *Handler) ValidateWorkflow(w http.ResponseWriter, r *http.Request) {
-	var req apipb.ValidateWorkflowRequest
-	if !h.readWorkflowProto(w, r, &req) || req.Definition == nil {
-		return
-	}
-	data, err := json.Marshal(req.Definition.AsMap())
-	if err != nil {
-		writeSimpleError(w, r, "definition", "invalid workflow definition")
-		return
-	}
-	result, err := h.svc.ValidateWorkflow(r.Context(), data)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	response := &apipb.ValidateWorkflowResponse{Valid: result.Valid, Digest: result.Digest, Diagnostics: workflowDiagnosticsToProto(result.Diagnostics)}
-	if result.Definition != nil {
-		response.Definition = workflowDefinitionToProto(*result.Definition)
-	}
-	writeProtoJSON(w, http.StatusOK, response)
-}
-
-func (h *Handler) ReconcileScenarioWorkflows(w http.ResponseWriter, r *http.Request) {
-	h.reconcileScenarioWorkflows(w, r, false)
-}
-
-func (h *Handler) PlanScenarioWorkflows(w http.ResponseWriter, r *http.Request) {
-	h.reconcileScenarioWorkflows(w, r, true)
-}
-
-func (h *Handler) reconcileScenarioWorkflows(w http.ResponseWriter, r *http.Request, forceDryRun bool) {
-	var req apipb.ReconcileScenarioWorkflowsRequest
-	if !h.readWorkflowProto(w, r, &req) {
-		return
-	}
-	result, err := h.svc.ReconcileScenarioWorkflows(r.Context(), orchestration.ReconcileScenarioWorkflowsRequest{Scenario: req.Scenario, DryRun: req.DryRun || forceDryRun, ValidateOnly: req.ValidateOnly})
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeProtoJSON(w, http.StatusOK, workflowReconcileToProto(result))
-}
-
-func (h *Handler) ListWorkflowRevisions(w http.ResponseWriter, r *http.Request) {
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-	revisions, err := h.svc.ListWorkflowRevisions(r.Context(), r.URL.Query().Get("owner"), r.URL.Query().Get("key"), orchestration.ListOptions{Limit: limit, Offset: offset})
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	items := make([]*domainpb.WorkflowRevision, 0, len(revisions))
-	for _, revision := range revisions {
-		items = append(items, workflowRevisionToProto(revision))
-	}
-	writeProtoJSON(w, http.StatusOK, &apipb.ListWorkflowRevisionsResponse{Revisions: items})
-}
-
-func (h *Handler) GetWorkflowRevision(w http.ResponseWriter, r *http.Request) {
-	revision, err := h.svc.GetWorkflowRevision(r.Context(), r.URL.Query().Get("owner"), r.URL.Query().Get("key"), r.URL.Query().Get("digest"))
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	if revision == nil {
-		writeError(w, r, domain.NewNotFoundErrorWithID("WorkflowRevision", r.URL.RawQuery))
-		return
-	}
-	writeProtoJSON(w, http.StatusOK, &apipb.GetWorkflowRevisionResponse{Revision: workflowRevisionToProto(revision)})
-}
-
 func (h *Handler) StartWorkflowExecution(w http.ResponseWriter, r *http.Request) {
 	var req apipb.StartWorkflowExecutionRequest
 	if !h.readWorkflowProto(w, r, &req) {
@@ -164,7 +93,17 @@ func (h *Handler) ListWorkflowExecutions(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) GetWorkflowExecution(w http.ResponseWriter, r *http.Request) {
-	h.workflowExecutionByID(w, r, false)
+	id, err := uuid.Parse(mux.Vars(r)["id"])
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid workflow execution id")
+		return
+	}
+	execution, err := h.svc.GetWorkflowExecution(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, &apipb.WorkflowExecutionResponse{Execution: workflowExecutionToProto(execution, false)})
 }
 
 func (h *Handler) GetWorkflowExecutionResult(w http.ResponseWriter, r *http.Request) {
@@ -193,10 +132,6 @@ func (h *Handler) GetWorkflowExecutionResult(w http.ResponseWriter, r *http.Requ
 		pbExecution.Observations = h.workflowObservedReceipts(r.Context(), runIDs)
 	}
 	writeProtoJSON(w, http.StatusOK, &apipb.WorkflowExecutionResponse{Execution: pbExecution})
-}
-
-func (h *Handler) AdvanceWorkflowExecution(w http.ResponseWriter, r *http.Request) {
-	h.workflowExecutionByID(w, r, true)
 }
 
 // WorkflowWaitResponse lets the wait operation's timeout and request context
@@ -262,24 +197,6 @@ func (h *Handler) GetWorkflowExecutionTrace(w http.ResponseWriter, r *http.Reque
 	writeProtoJSON(w, http.StatusOK, response)
 }
 
-func (h *Handler) ListWorkflowExecutionRuns(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(mux.Vars(r)["id"])
-	if err != nil {
-		writeError(w, r, domain.NewValidationError("id", "must be a UUID"))
-		return
-	}
-	attempts, err := h.svc.ListWorkflowExecutionRuns(r.Context(), id)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	response := &apipb.ListWorkflowExecutionRunsResponse{Attempts: make([]*domainpb.WorkflowNodeAttempt, 0, len(attempts))}
-	for _, attempt := range attempts {
-		response.Attempts = append(response.Attempts, workflowAttemptToProto(attempt))
-	}
-	writeProtoJSON(w, http.StatusOK, response)
-}
-
 func (h *Handler) SignalWorkflowExecution(w http.ResponseWriter, r *http.Request) {
 	var req apipb.SignalWorkflowExecutionRequest
 	if !h.readWorkflowProto(w, r, &req) {
@@ -304,18 +221,6 @@ func (h *Handler) SignalWorkflowExecution(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) CancelWorkflowExecution(w http.ResponseWriter, r *http.Request) {
-	h.workflowOperation(w, r, "cancel")
-}
-
-func (h *Handler) RetryWorkflowExecution(w http.ResponseWriter, r *http.Request) {
-	h.workflowOperation(w, r, "retry")
-}
-
-func (h *Handler) ResumeWorkflowExecution(w http.ResponseWriter, r *http.Request) {
-	h.workflowOperation(w, r, "resume")
-}
-
-func (h *Handler) workflowOperation(w http.ResponseWriter, r *http.Request, operation string) {
 	var req apipb.WorkflowExecutionOperationRequest
 	if !h.readWorkflowProto(w, r, &req) {
 		return
@@ -325,16 +230,7 @@ func (h *Handler) workflowOperation(w http.ResponseWriter, r *http.Request, oper
 		writeSimpleError(w, r, "executionId", "path and request execution ids must match")
 		return
 	}
-	domainReq := orchestration.WorkflowExecutionOperationRequest{ExecutionID: id, IdempotencyKey: req.IdempotencyKey, ExpectedVersion: req.ExpectedVersion, Reason: req.Reason}
-	var result *orchestration.WorkflowExecutionOperationResult
-	switch operation {
-	case "cancel":
-		result, err = h.svc.CancelWorkflowExecution(r.Context(), domainReq)
-	case "retry":
-		result, err = h.svc.RetryWorkflowExecution(r.Context(), domainReq)
-	case "resume":
-		result, err = h.svc.ResumeWorkflowExecution(r.Context(), domainReq)
-	}
+	result, err := h.svc.CancelWorkflowExecution(r.Context(), orchestration.WorkflowExecutionOperationRequest{ExecutionID: id, IdempotencyKey: req.IdempotencyKey, ExpectedVersion: req.ExpectedVersion, Reason: req.Reason})
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -347,47 +243,6 @@ func workflowOperationToProto(result *orchestration.WorkflowExecutionOperationRe
 		return &apipb.WorkflowExecutionOperationResponse{}
 	}
 	return &apipb.WorkflowExecutionOperationResponse{Execution: workflowExecutionToProto(result.Execution, false), Idempotent: result.Idempotent}
-}
-
-func (h *Handler) workflowExecutionByID(w http.ResponseWriter, r *http.Request, advance bool) {
-	id, err := uuid.Parse(mux.Vars(r)["id"])
-	if err != nil {
-		writeSimpleError(w, r, "id", "invalid workflow execution id")
-		return
-	}
-	var execution *domain.WorkflowExecution
-	if advance {
-		execution, err = h.svc.AdvanceWorkflowExecution(r.Context(), id)
-	} else {
-		execution, err = h.svc.GetWorkflowExecution(r.Context(), id)
-	}
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeProtoJSON(w, http.StatusOK, &apipb.WorkflowExecutionResponse{Execution: workflowExecutionToProto(execution, false)})
-}
-
-func (h *Handler) SimulateWorkflow(w http.ResponseWriter, r *http.Request) {
-	var req apipb.SimulateWorkflowRequest
-	if !h.readWorkflowProto(w, r, &req) {
-		return
-	}
-	input, err := json.Marshal(req.Input.AsInterface())
-	if err != nil {
-		writeSimpleError(w, r, "input", "invalid workflow input")
-		return
-	}
-	result, err := h.svc.SimulateWorkflow(r.Context(), orchestration.SimulateWorkflowRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input})
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	nodes := make([]*apipb.WorkflowNodePlan, 0, len(result.Nodes))
-	for _, node := range result.Nodes {
-		nodes = append(nodes, &apipb.WorkflowNodePlan{NodeId: node.NodeID, Kind: string(node.Kind), ExecutionStrategy: node.ExecutionStrategy, ProfileKey: node.ProfileKey, RoleRef: node.RoleRef, ContinuationSource: node.ContinuationSource, ChildWorkflowKey: node.ChildWorkflowKey, ChildWorkflowVersion: node.ChildWorkflowVersion, WaitSignal: node.WaitSignal, WaitTimeoutSeconds: int32(node.WaitTimeoutSeconds), JoinStrategy: node.JoinStrategy, JoinQuorum: int32(node.JoinQuorum), Parallel: node.Parallel})
-	}
-	writeProtoJSON(w, http.StatusOK, &apipb.SimulateWorkflowResponse{Valid: result.Valid, DefinitionDigest: result.DefinitionDigest, Nodes: nodes, PossibleTerminalNodes: result.PossibleTerminalNodes, Diagnostics: workflowDiagnosticsToProto(result.Diagnostics)})
 }
 
 func (h *Handler) readWorkflowProto(w http.ResponseWriter, r *http.Request, req proto.Message) bool {

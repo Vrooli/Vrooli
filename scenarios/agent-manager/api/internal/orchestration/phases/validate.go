@@ -46,7 +46,7 @@ type ValidateOutcomeOutput struct {
 // ValidateRunOutcome inspects the post-Execute state and rewrites the result
 // + execErr when the run shape indicates a silent launch failure. On entry,
 // in.Result/in.ExecErr are the runner's verdict; on return, out carries the
-// possibly-demoted versions ready for classifyOutcome.
+// possibly-demoted versions ready for domain.ClassifyRunOutcome.
 //
 // No-ops in three cases:
 //   - Result is nil / Success=false (failures already route to handleFailure)

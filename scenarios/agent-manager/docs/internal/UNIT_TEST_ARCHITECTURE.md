@@ -91,3 +91,31 @@ Production code must not import `agent-manager/internal/testutil` or any child p
 - Do not hide relevant behavior behind broad assertion helpers; assertions should name domain expectations.
 - Do not move private one-off fakes into shared utilities unless at least two call sites need the same seam.
 - Do not add UI test dependencies without explicit approval.
+
+## Live-data checks (manual, build tag `livecheck`)
+
+Six Go tests compare the code with this host's real data: they open the live
+database read-only, or index the real transcript roots into a temporary copy.
+They are manual checks, not regression tests. Each file carries
+`//go:build livecheck`, so `go test ./...` and Test Genie never compile or skip
+them, and each also needs its own opt-in variable so a stray tag cannot touch
+live data. They never write to the live database.
+
+Run one with the tag, its variable and its package, for example:
+
+```
+cd scenarios/agent-manager/api
+USAGE_COVERAGE_LIVE=1 go test -tags livecheck -run TestLiveCoverageAgreesWithAnIndependentDiskScan -v ./internal/transcriptindex
+```
+
+| Test | Package | Opt-in variables | What it checks |
+|---|---|---|---|
+| `TestLiveCoverageAgreesWithAnIndependentDiskScan` | `internal/transcriptindex` | `USAGE_COVERAGE_LIVE=1` | usage coverage against an independent disk scan |
+| `TestLiveDiscoveryCoverageDryRun` | `internal/transcriptindex` | `TRANSCRIPT_INDEX_LIVE_DRYRUN=1`, `TRANSCRIPT_INDEX_LIVE_DAYS` | indexes the real roots into a temp database and prints the coverage table |
+| `TestLiveUsageComparison` | `internal/orchestration` | `AM_USAGE_COMPARE_DB`, `AM_USAGE_COMPARE_RUNS`, `AM_USAGE_COMPARE_IDS` | live runs' usage against the single accounting function |
+| `TestLiveWindowedUsageMatchesTranscriptSum` | `internal/adapters/database` | `WINDOWED_USAGE_LIVE=1`, `WINDOWED_USAGE_LIVE_DB` | windowed usage against the transcript sum |
+| `TestLiveQuotaBacktestAndCompaction` | `internal/adapters/database` | `AM_QUOTA_LIVE_BACKTEST=1`, `AM_LIVE_DB` | quota forecast backtest and start-up compaction on a copy |
+| `TestLiveUsageAttributionDryRun` | `internal/adapters/database` | `USAGE_ATTRIBUTION_LIVE=1`, `USAGE_ATTRIBUTION_LIVE_DB`, `USAGE_ATTRIBUTION_LIVE_KEEP` | quota attribution over the live usage in a temp copy |
+
+`internal/storagehealth/rehearsal_test.go` is the same kind of check under its
+own tag, `rehearsal`.

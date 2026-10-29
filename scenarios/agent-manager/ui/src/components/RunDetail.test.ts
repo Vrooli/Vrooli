@@ -50,7 +50,7 @@ test("RunDetail renders int64 ProtoJSON tokens and the shared report projection"
   await waitFor(() => assert.ok(screen.getByTestId("run-report")));
   const report = screen.getByTestId("run-report");
   assert.match(report.textContent ?? "", /tool_result: 1/); assert.match(report.textContent ?? "", /3 calls, 2 returned, 1 failed, 1 outcome unknown, 1 unresolved/); assert.match(report.textContent ?? "", /model\.fallback\.attempted: 1/);
-  assert.match(report.textContent ?? "", /turns=2; tokens=2147495992/);
+  assert.match(report.textContent ?? "", /requests=2; tokens=2.1 B/);
   assert.match(report.textContent ?? "", /schema_invalid/); assert.match(report.textContent ?? "", /project-owned=1/);
   vi.unstubAllGlobals();
 });
@@ -232,10 +232,10 @@ test("RunDetail lets desktop operators traverse every evidence tab and preserves
   fireEvent.click(screen.getByRole("tab", { name: "Report" }));
   await waitFor(() => assert.match(screen.getByTestId("run-report").textContent ?? "", /Status: complete/));
   const report = screen.getByTestId("run-report").textContent ?? "";
-  assert.match(report, /heartbeat gap=unavailablems/);
-  assert.match(report, /Final output: none \(unavailable\)/);
-  assert.match(report, /Structured: unavailable/);
-  assert.match(report, /requested=unavailable actual=unavailable/);
+  assert.match(report, /heartbeat gap=—;/);
+  assert.match(report, /Final output: none \(—\)/);
+  assert.match(report, /Structured: —/);
+  assert.match(report, /requested=— actual=—/);
   vi.unstubAllGlobals();
 });
 
@@ -313,5 +313,5 @@ test("RunDetail distinguishes loading diff and cost evidence from completed evid
   }));
   assert.equal(screen.getByTestId("run-usage-panel").getAttribute("data-has-cost"), "true");
   assert.ok(screen.getAllByText("$0.1250").length >= 1);
-  assert.ok(screen.getAllByText("15").length >= 1);
+  assert.equal(screen.queryByText("15"), null, "token totals are not re-summed from cost events");
 });

@@ -56,12 +56,21 @@ func (h *Handler) usageMeasures() []usageMeasure {
 			},
 		},
 		{
-			UsageRecommendations, "UsageRecommendations", "Ranked changes with estimated weekly quota savings, confidence and evidence.",
+			UsageRecommendations, "UsageRecommendations", "Changes grouped by target with a combined quota saving, confidence and evidence.",
 			[]string{"how do I use less agent quota", "agent usage recommendations"},
-			[]string{"provider", "run_id"},
-			"recommendations", "action", "points",
+			[]string{"provider", "run_id", "pool", "window"},
+			"groups", "target_label", "combined_saved_points",
 			func(ctx context.Context, p map[string]string) (proto.Message, error) {
-				return msg(h.UsageRecommendations(ctx, connect.NewRequest(&measurepb.UsageRecommendationsRequest{Provider: p["provider"], RunId: p["run_id"]})))
+				return msg(h.UsageRecommendations(ctx, connect.NewRequest(&measurepb.UsageRecommendationsRequest{Provider: p["provider"], RunId: p["run_id"], Pool: p["pool"], Window: p["window"]})))
+			},
+		},
+		{
+			UsageFriction, "UsageFriction", "Recurring friction problems in plain words with owner, count, cost and status.",
+			[]string{"what keeps going wrong for agents", "recurring agent friction"},
+			[]string{"provider", "status"},
+			"problems", "description", "points",
+			func(ctx context.Context, p map[string]string) (proto.Message, error) {
+				return msg(h.UsageFriction(ctx, connect.NewRequest(&measurepb.UsageFrictionRequest{Provider: p["provider"], Status: p["status"]})))
 			},
 		},
 		{

@@ -247,7 +247,7 @@ Transcript-tail and resume-after-restart cadence. Drives `Reconciler.startTailer
 Run state is stored below the routed durable state root in `runs/<run-id>`.
 Agent Manager validates this root before admitting work: it must resolve to an
 absolute writable directory outside process-ephemeral filesystems (`/tmp`,
-`/var/tmp`, `/run`, and `/dev/shm`). A restart reopens existing metadata and
+`literal:/var/tmp`, `/run`, and `/dev/shm`). A restart reopens existing metadata and
 cursors; it does not recreate them. Host power loss remains dependent on the
 durable storage provider and runner/session evidence.
 

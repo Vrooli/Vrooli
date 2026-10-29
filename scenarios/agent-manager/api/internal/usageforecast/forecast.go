@@ -5,6 +5,7 @@
 package usageforecast
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -18,7 +19,10 @@ const (
 	StatusOnTrack     = "on_track"
 	StatusAtRisk      = "at_risk"
 	StatusWillExhaust = "will_exhaust"
-	StatusUnknown     = "unknown"
+	// StatusIdle is a window whose newest reading is stale while the
+	// provider has had no work since: it "lasts at this pace" (SPEC §10.2).
+	StatusIdle    = "idle"
+	StatusUnknown = "unknown"
 )
 
 const (
@@ -432,6 +436,9 @@ type Forecast struct {
 	Lasting    *float64
 	EarlyReset bool
 	Previous   *Previous
+	// stale marks a percent window whose newest reading is older than
+	// StaleAfter inside its own period; only then can it be idle.
+	stale bool
 }
 
 // Project forecasts one window as of now. previous holds the earlier windows
@@ -549,6 +556,7 @@ func (f Forecast) withStaleness(now time.Time) Forecast {
 		f.Status, f.Reason, f.Lasting = StatusUnknown, "the window reset at "+w.ResetAt.UTC().Format(time.RFC3339)+"; no reading of the new window yet", nil
 	case now.Sub(w.LastAt) > StaleAfter:
 		f.Status, f.Reason = StatusUnknown, "the newest reading is older than 6 hours"
+		f.stale = w.HasPercent && f.Used < 100
 	}
 	return f
 }
@@ -700,6 +708,33 @@ func Current(spans []pricing.QuotaReadingSpan, now time.Time) []Forecast {
 		out = append(out, f)
 	}
 	return out
+}
+
+// ActivitySource reports when a provider last had work that could spend its
+// quota: a running Agent Manager run, an active session, or the newest
+// indexed usage.
+type ActivitySource interface {
+	LastProviderActivity(ctx context.Context, provider string) (time.Time, error)
+}
+
+// CurrentWithActivity is Current, except that a stale window with no activity
+// for its provider since the last reading is idle, not unknown. Where the
+// source is absent or fails, unmetered use cannot be ruled out and the window
+// stays unknown.
+func CurrentWithActivity(ctx context.Context, spans []pricing.QuotaReadingSpan, now time.Time, source ActivitySource) []Forecast {
+	forecasts := Current(spans, now)
+	if source == nil {
+		return forecasts
+	}
+	for i, f := range forecasts {
+		if !f.stale {
+			continue
+		}
+		if last, err := source.LastProviderActivity(ctx, f.Window.Provider); err == nil && !last.After(f.Window.LastAt) {
+			forecasts[i].Status, forecasts[i].Reason = StatusIdle, "no work has used this provider since the last reading, so it lasts at this pace"
+		}
+	}
+	return forecasts
 }
 
 func median(values []float64) float64 {

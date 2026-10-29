@@ -2,7 +2,8 @@
 // detail header). Titles are for people; machine identifiers stay available as
 // a short secondary reference rather than as the title itself.
 import type { Run } from "../types";
-import { runnerTypeFromSlug, runnerTypeLabel } from "./utils";
+import { runnerLabel } from "./format";
+
 
 export interface RunHeading {
   title: string;
@@ -14,17 +15,6 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 const WORKFLOW_LABEL = /^Workflow ([0-9a-f-]{36}) node (\S+)$/i;
 const SESSION_LABEL = /^([a-z][\w-]*) session (\S+)$/i;
 const TITLE_LIMIT = 90;
-
-/** "codex" → "Codex", "claude-code" → "Claude Code"; unknown kinds are title-cased. */
-export function harnessLabel(kind: string): string {
-  const runnerType = runnerTypeFromSlug(kind);
-  if (runnerType !== undefined) return runnerTypeLabel(runnerType);
-  return kind
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
 
 /**
  * Turns free text (a prompt's opening, a derived label) into a one-line title:
@@ -61,7 +51,7 @@ export function runHeading(run: Run, taskTitle?: string): RunHeading {
   const kind = run.harnessKind || run.importSourceHarness || session?.[1] || "";
   if (session && run.labelSource === "harness") {
     const sessionId = run.harnessSessionId || session[2] || "";
-    return { title: `${harnessLabel(kind)} session`, reference: shortSession(sessionId, kind) || reference };
+    return { title: `${runnerLabel(kind)} session`, reference: shortSession(sessionId, kind) || reference };
   }
   const text = label || taskTitle?.trim() || run.promptPreview.trim();
   const title = text ? readableTitle(text) : "";
@@ -76,10 +66,10 @@ export function runHeading(run: Run, taskTitle?: string): RunHeading {
 export function runOrigin(run: Run, profileName?: string): string {
   if (profileName) return profileName;
   if (run.importedAt) {
-    return run.importSourceHarness ? `Imported · ${harnessLabel(run.importSourceHarness)}` : "Imported";
+    return run.importSourceHarness ? `Imported · ${runnerLabel(run.importSourceHarness)}` : "Imported";
   }
-  if (run.harnessKind) return `${harnessLabel(run.harnessKind)} · attached`;
+  if (run.harnessKind) return `${runnerLabel(run.harnessKind)} · attached`;
   const runnerType = run.resolvedConfig?.runnerType;
-  if (runnerType) return runnerTypeLabel(runnerType);
+  if (runnerType) return runnerLabel(runnerType);
   return run.agentProfileId ? "Profile unavailable" : "No profile";
 }

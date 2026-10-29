@@ -16,7 +16,7 @@ test("ProfileDetail renders operational configuration and dispatches edit/delete
     maxTurns: 12, effort: "high", sandboxConfig: { mode: SandboxMode.PROTECTED, manualReview: true },
     networkAccess: 2, features: { enableBrowser: true }, extraFlags: { codex: { flags: ["--fast"] } },
     createdAt: undefined, updatedAt: undefined,
-  } as any;
+  } as never;
   renderWithProviders(createElement(ProfileDetail, { profile, onEdit, onDelete }));
   assert.ok(screen.getByText("No description provided"));
   assert.ok(screen.getByText("Manual Review"));

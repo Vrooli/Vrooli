@@ -80,38 +80,139 @@ type runRecoveryContext struct {
 	config      *domain.RunConfig
 }
 
+// createRunFlow carries one run-creation attempt through its admission,
+// persistence and dispatch phases. Each phase is a named method; createRun
+// runs them in order and stops at the first refusal.
+type createRunFlow struct {
+	o        *Orchestrator
+	req      CreateRunRequest
+	recovery *runRecoveryContext
+	runID    uuid.UUID
+	// cleanups run in reverse order when createRun returns, like defers.
+	cleanups []func()
+
+	task                 *domain.Task
+	expectedTaskSnapshot domain.Task
+	profile              *domain.AgentProfile
+	resolvedConfig       *domain.RunConfig
+	sandboxConfig        *domain.SandboxConfig
+	policyDecision       *policy.Decision
+	runMode              domain.RunMode
+	spawnSkips           []SpawnPreferenceSkip
+
+	existingSandboxWorkDir string
+	sandboxToStart         *uuid.UUID
+	qualifiedParent        *domain.Run
+
+	workload     domain.WorkloadRef
+	tag          string
+	billing      domain.BillingSnapshot
+	systemPrompt string
+	userMessage  string
+
+	run                *domain.Run
+	admission          *spawn.Admission
+	admissionHandedOff bool
+}
+
+func (f *createRunFlow) cleanup(fn func()) { f.cleanups = append(f.cleanups, fn) }
+
+func (f *createRunFlow) release() {
+	for i := len(f.cleanups) - 1; i >= 0; i-- {
+		f.cleanups[i]()
+	}
+}
+
+// failReservation frees the idempotency key a failed attempt reserved so the
+// caller can retry. Only the phases after the key is reserved call it.
+func (f *createRunFlow) failReservation(ctx context.Context) {
+	f.o.markIdempotencyFailed(ctx, f.req.IdempotencyKey)
+}
+
 func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, recovery *runRecoveryContext) (*domain.Run, error) {
+	f := &createRunFlow{o: o, req: req, recovery: recovery, runID: uuid.New()}
+	defer f.release()
+	if err := f.prepareRequest(ctx); err != nil {
+		return nil, err
+	}
+	if replay, err := f.replayAccepted(ctx); replay != nil || err != nil {
+		return replay, err
+	}
+	if err := f.admitCapacity(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.loadTask(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.resolveConfiguration(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.evaluatePolicy(ctx); err != nil {
+		return nil, err
+	}
+	f.deriveRunMode()
+	if err := f.applySpawnPolicy(); err != nil {
+		return nil, err
+	}
+	if err := f.validateAdmission(); err != nil {
+		return nil, err
+	}
+	if err := f.resolveExistingSandbox(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.freezeRunContract(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.authorizeDelegation(ctx); err != nil {
+		return nil, err
+	}
+	if err := f.reserveIdempotency(ctx); err != nil {
+		return nil, err
+	}
+	f.buildRun(ctx)
+	if err := f.persistAttempt(ctx); err != nil {
+		return nil, err
+	}
+	imageAttachments, err := f.launchAdmittedRun(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return f.dispatch(ctx, imageAttachments)
+}
+
+// prepareRequest freezes the caller's request digest, bounds the declared work
+// references and resolves the request's identity.
+func (f *createRunFlow) prepareRequest(ctx context.Context) error {
+	req := &f.req
 	if req.requestDigest == "" {
-		digest, err := createRunRequestDigest(req)
+		digest, err := createRunRequestDigest(*req)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		req.requestDigest = digest
 	}
 	if len(req.WorkReferences) > maxWorkReferenceDeclarations {
-		return nil, domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed", "supply a bounded selected workload")
+		return domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed", "supply a bounded selected workload")
 	}
 	req.WorkReferences = append([]*eventpb.WorkReference(nil), req.WorkReferences...)
 	for i, ref := range req.WorkReferences {
 		if ref == nil || ref.GetKind() == "" || ref.GetId() == "" || proto.Size(ref) > 4096 {
-			return nil, domain.NewValidationErrorWithHint("work_references", "references need bounded kind and identity", "supply canonical workload references")
+			return domain.NewValidationErrorWithHint("work_references", "references need bounded kind and identity", "supply canonical workload references")
 		}
 		req.WorkReferences[i] = proto.Clone(ref).(*eventpb.WorkReference)
 	}
 	if req.caller == nil {
 		// Private lifecycle creation retains its separately admitted contract.
-		if err := o.resolveCreateRunIdentity(ctx, &req); err != nil {
-			return nil, err
-		}
+		return f.o.resolveCreateRunIdentity(ctx, req)
 	}
-	reserved := false
-	failCreation := func() {
-		if reserved {
-			o.markIdempotencyFailed(ctx, req.IdempotencyKey)
-		}
-	}
-	// Accepted identity outlives the one-hour cache and the deletable run row.
-	// Only a proven absence of durable acceptance may enter new admission.
+	return nil
+}
+
+// replayAccepted returns the already-accepted run for this idempotency key.
+// Accepted identity outlives the one-hour cache and the deletable run row, so
+// only a proven absence of durable acceptance may enter new admission.
+func (f *createRunFlow) replayAccepted(ctx context.Context) (*domain.Run, error) {
+	o, req := f.o, f.req
 	if req.IdempotencyKey != "" && o.runs != nil {
 		original, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
 		if err != nil {
@@ -126,86 +227,90 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 	}
 
-	// IDEMPOTENCY: Check if this request has already been processed
-	if req.IdempotencyKey != "" && o.idempotency != nil {
-		existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
-		if err != nil {
-			return nil, err
-		}
-		if existing != nil {
-			// Request already processed - return cached result
-			if existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
-				return o.getIdentityBoundRunReplay(ctx, *existing.EntityID, req)
-			}
-			if existing.Status == domain.IdempotencyStatusPending {
-				// A prior accepted dispatch may have persisted its run before
-				// the caller lost the response. Reconcile from durable owner
-				// state by the run's idempotency key before refusing the
-				// replay, so a lost response is not mistaken for an in-flight
-				// duplicate. Only when no durable run exists yet is another
-				// creation genuinely in progress with this key.
-				if o.runs != nil {
-					reconciled, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
-					if err != nil {
-						return nil, err
-					}
-					if reconciled != nil {
-						if err := validateRunIdentityReplay(reconciled, req); err != nil {
-							return nil, err
-						}
-						o.markIdempotencyComplete(ctx, req.IdempotencyKey, reconciled.ID, "Run")
-						return o.GetRun(ctx, reconciled.ID)
-					}
-				}
-				return nil, domain.NewStateError("Run", "creating", "create",
-					"a run creation with this idempotency key is already in progress")
-			}
-			// Failed status - allow retry by falling through
-		}
-
+	if req.IdempotencyKey == "" || o.idempotency == nil {
+		return nil, nil
 	}
+	existing, err := o.idempotency.Check(ctx, req.IdempotencyKey)
+	if err != nil {
+		return nil, err
+	}
+	if existing == nil {
+		return nil, nil
+	}
+	// Request already processed - return cached result
+	if existing.Status == domain.IdempotencyStatusComplete && existing.EntityID != nil {
+		return o.getIdentityBoundRunReplay(ctx, *existing.EntityID, req)
+	}
+	if existing.Status == domain.IdempotencyStatusPending {
+		// A prior accepted dispatch may have persisted its run before
+		// the caller lost the response. Reconcile from durable owner
+		// state by the run's idempotency key before refusing the
+		// replay, so a lost response is not mistaken for an in-flight
+		// duplicate. Only when no durable run exists yet is another
+		// creation genuinely in progress with this key.
+		if o.runs != nil {
+			reconciled, err := o.runs.GetByIdempotencyKey(ctx, req.IdempotencyKey)
+			if err != nil {
+				return nil, err
+			}
+			if reconciled != nil {
+				if err := validateRunIdentityReplay(reconciled, req); err != nil {
+					return nil, err
+				}
+				o.markIdempotencyComplete(ctx, req.IdempotencyKey, reconciled.ID, "Run")
+				return o.GetRun(ctx, reconciled.ID)
+			}
+		}
+		return nil, domain.NewStateError("Run", "creating", "create",
+			"a run creation with this idempotency key is already in progress")
+	}
+	// Failed status - allow retry by falling through
+	return nil, nil
+}
+
+// admitCapacity takes the maintenance admission and enforces the concurrent
+// run limit unless Force is set.
+func (f *createRunFlow) admitCapacity(ctx context.Context) error {
+	o := f.o
 	releaseAdmission, err := o.admitMaintenance(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	defer releaseAdmission()
+	f.cleanup(releaseAdmission)
 
-	// SLOT ENFORCEMENT: Check capacity unless Force is set
-	if !req.Force && o.config.MaxConcurrentRuns > 0 && o.runs != nil {
-		// Count active dispatched runs (Running and Starting); attached
-		// interactive sessions never hold a dispatch slot.
-		runningCount, err := o.runs.CountCapacityByStatus(ctx, domain.RunStatusRunning)
-		if err != nil {
-			failCreation()
-			return nil, err
-		}
-		startingCount, err := o.runs.CountCapacityByStatus(ctx, domain.RunStatusStarting)
-		if err != nil {
-			failCreation()
-			return nil, err
-		}
-
-		activeCount := runningCount + startingCount
-		if activeCount >= o.config.MaxConcurrentRuns {
-			failCreation()
-			return nil, &domain.CapacityExceededError{
-				Resource: "concurrent_runs",
-				Current:  activeCount,
-				Maximum:  o.config.MaxConcurrentRuns,
-			}
-		}
+	if f.req.Force || o.config.MaxConcurrentRuns <= 0 || o.runs == nil {
+		return nil
 	}
-
-	// Get task
-	task, err := o.GetTask(ctx, req.TaskID)
+	// Count active dispatched runs (Running and Starting); attached
+	// interactive sessions never hold a dispatch slot.
+	runningCount, err := o.runs.CountCapacityByStatus(ctx, domain.RunStatusRunning)
 	if err != nil {
-		failCreation()
-		return nil, err
+		return err
 	}
+	startingCount, err := o.runs.CountCapacityByStatus(ctx, domain.RunStatusStarting)
+	if err != nil {
+		return err
+	}
+	if activeCount := runningCount + startingCount; activeCount >= o.config.MaxConcurrentRuns {
+		return &domain.CapacityExceededError{
+			Resource: "concurrent_runs",
+			Current:  activeCount,
+			Maximum:  o.config.MaxConcurrentRuns,
+		}
+	}
+	return nil
+}
 
-	// Normalize a copy; rejected admission must not update task storage.
+// loadTask loads the task and normalizes a copy of it; rejected admission must
+// not update task storage.
+func (f *createRunFlow) loadTask(ctx context.Context) error {
+	o := f.o
+	task, err := o.GetTask(ctx, f.req.TaskID)
+	if err != nil {
+		return err
+	}
 	taskCopy := *task
-	expectedTaskSnapshot := taskCopy
+	f.expectedTaskSnapshot = taskCopy
 	task = &taskCopy
 	// Resolve relative project root to absolute (workspace-sandbox requires absolute paths).
 	// Fall back to DefaultProjectRoot when the task has no project root set.
@@ -223,35 +328,37 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			task.ProjectRoot = resolved
 		}
 	}
-
-	if req.AgentProfileID != nil && req.ProfileRef != nil {
-		failCreation()
-		return nil, domain.NewValidationErrorWithHint("agentProfileId/profileRef", "only one profile reference is allowed",
-			"provide either agentProfileId or profileRef")
-	}
-
-	// Resolve configuration: profile (if provided) + inline overrides
-	if recovery != nil {
+	if f.recovery != nil {
 		copy := *task
-		copy.ContextAttachments = recovery.attachments
+		copy.ContextAttachments = f.recovery.attachments
 		task = &copy
+	}
+	f.task = task
+	return nil
+}
+
+// resolveConfiguration resolves the run configuration (profile plus inline
+// overrides), pins a recovered run's retained contract, and resolves the
+// sandbox configuration.
+func (f *createRunFlow) resolveConfiguration(ctx context.Context) error {
+	o, req, recovery := f.o, &f.req, f.recovery
+	if req.AgentProfileID != nil && req.ProfileRef != nil {
+		return domain.NewValidationErrorWithHint("agentProfileId/profileRef", "only one profile reference is allowed",
+			"provide either agentProfileId or profileRef")
 	}
 	if req.caller != nil && req.ProfileRef != nil {
 		var err error
 		req.profileAdmission, err = o.planProfileAdmission(ctx, req.ProfileRef)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
-	runID := uuid.New()
-	resolvedConfig, profile, err := o.resolveRunConfig(ctx, req)
+	resolvedConfig, profile, err := o.resolveRunConfig(ctx, *req)
 	if err != nil {
-		failCreation()
-		return nil, err
+		return err
 	}
 	if resolvedConfig == nil {
-		failCreation()
-		return nil, domain.NewInternalError("run configuration resolver returned nil configuration", nil)
+		return domain.NewInternalError("run configuration resolver returned nil configuration", nil)
 	}
 	if recovery != nil && recovery.config != nil {
 		// Recovery is not a new profile selection. Copy the complete immutable
@@ -260,218 +367,219 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		// admission/policy gates below may refuse it, never silently broaden it.
 		data, err := json.Marshal(recovery.config)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		pinned := new(domain.RunConfig)
 		if err := json.Unmarshal(data, pinned); err != nil {
-			return nil, err
+			return err
 		}
 		if pinned.PolicySnapshot == nil {
 			pinned.PolicySnapshot = resolvedConfig.PolicySnapshot
 		}
 		if err := validateExecutionModel(pinned); err != nil {
-			return nil, domain.RefuseBeforeEffects(err)
+			return domain.RefuseBeforeEffects(err)
 		}
 		pinned.Admission = nil // The replacement earns its own admission receipt.
 		resolvedConfig = pinned
 		if err := o.validateToolRestriction(resolvedConfig); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	if err := o.validateRecordedModelFallback(ctx, req, resolvedConfig); err != nil {
-		failCreation()
-		return nil, err
+	if err := o.validateRecordedModelFallback(ctx, *req, resolvedConfig); err != nil {
+		return err
 	}
 	// `until` acceptance is unconditional: native delivery is gated by the
 	// resolved spawn capability (NativeObjective) at execution time, not by a
 	// coarse runner capability flag. A runner without native support still
 	// receives the completion contract as a prompt suffix.
 	if recovery == nil {
-		applyCanary(resolvedConfig.PolicySnapshot, runID.String(), resolvedConfig.Model)
+		applyCanary(resolvedConfig.PolicySnapshot, f.runID.String(), resolvedConfig.Model)
 	}
 
-	sandboxConfig, err := o.resolveSandboxConfig(req, profile)
+	sandboxConfig, err := o.resolveSandboxConfig(*req, profile)
 	if err != nil {
-		failCreation()
-		return nil, err
+		return err
 	}
 	if recovery != nil && resolvedConfig.SandboxConfig != nil {
 		sandboxConfig = resolvedConfig.SandboxConfig
 	}
+	f.resolvedConfig, f.profile, f.sandboxConfig = resolvedConfig, profile, sandboxConfig
+	return nil
+}
 
-	// Evaluate policies
-	var policyDecision *policy.Decision
-	if o.policy != nil {
-		policyDecision, err = o.policy.EvaluateRunRequest(ctx, policy.EvaluateRequest{
-			Task:          task,
-			Profile:       profile,
-			RequestedMode: valueOrDefault(req.RunMode, domain.RunModeSandboxed),
-			ForceInPlace:  req.ForceInPlace,
-		})
-		if err != nil {
-			failCreation()
-			return nil, domain.NewInternalError("policy evaluation failed", err)
-		}
-		if !policyDecision.Allowed {
-			failCreation()
-			return nil, &domain.PolicyViolationError{
-				PolicyID:   policyDecision.DenialPolicy.ID,
-				PolicyName: policyDecision.DenialPolicy.Name,
-				Rule:       "run_request",
-				Message:    policyDecision.DenialReason,
-			}
+// evaluatePolicy refuses a request the run-request policies deny.
+func (f *createRunFlow) evaluatePolicy(ctx context.Context) error {
+	o := f.o
+	if o.policy == nil {
+		return nil
+	}
+	decision, err := o.policy.EvaluateRunRequest(ctx, policy.EvaluateRequest{
+		Task:          f.task,
+		Profile:       f.profile,
+		RequestedMode: valueOrDefault(f.req.RunMode, domain.RunModeSandboxed),
+		ForceInPlace:  f.req.ForceInPlace,
+	})
+	if err != nil {
+		return domain.NewInternalError("policy evaluation failed", err)
+	}
+	if !decision.Allowed {
+		return &domain.PolicyViolationError{
+			PolicyID:   decision.DenialPolicy.ID,
+			PolicyName: decision.DenialPolicy.Name,
+			Rule:       "run_request",
+			Message:    decision.DenialReason,
 		}
 	}
+	f.policyDecision = decision
+	return nil
+}
 
-	// Determine run mode.
-	//
-	// SandboxConfig.Mode is the single source of truth; DeriveRunMode
-	// translates the resolved Mode to a RunMode without consulting any
-	// other input. See docs/internal/SEAMS.md (RunMode decision boundary)
-	// and docs/internal/INVARIANTS.md.
-	//
-	// Decision priority (highest first):
-	//   1. Explicit caller override via req.RunMode
-	//   2. ForceInPlace (policy must permit; orchestrator validates that
-	//      the resolved sandbox mode is at or above policy's required
-	//      minimum below)
-	//   3. Derived from sandboxConfig.Mode
-	runMode := domain.DeriveRunMode(sandboxConfig)
-	if req.RunMode != nil {
-		runMode = *req.RunMode
-	} else if req.ForceInPlace {
-		runMode = domain.RunModeInPlace
+// deriveRunMode picks the run mode.
+//
+// SandboxConfig.Mode is the single source of truth; DeriveRunMode
+// translates the resolved Mode to a RunMode without consulting any
+// other input. See docs/internal/SEAMS.md (RunMode decision boundary)
+// and docs/internal/INVARIANTS.md.
+//
+// Decision priority (highest first):
+//  1. Explicit caller override via req.RunMode
+//  2. ForceInPlace (policy must permit; orchestrator validates that
+//     the resolved sandbox mode is at or above policy's required
+//     minimum in validateAdmission)
+//  3. Derived from sandboxConfig.Mode
+func (f *createRunFlow) deriveRunMode() {
+	f.runMode = domain.DeriveRunMode(f.sandboxConfig)
+	if f.req.RunMode != nil {
+		f.runMode = *f.req.RunMode
+	} else if f.req.ForceInPlace {
+		f.runMode = domain.RunModeInPlace
 	}
+}
 
-	// Resolve declaration-only spawn preferences against the selected runner's
-	// published capabilities before the run becomes immutable.
-	var spawnSkips []SpawnPreferenceSkip
-	if recovery == nil && profile != nil && profile.SpawnPolicy != nil {
-		selected, err := o.runners.Get(resolvedConfig.RunnerType)
-		if err != nil {
-			failCreation()
-			return nil, domain.NewValidationError("spawnPolicy", "selected runner is unavailable: "+err.Error())
-		}
-		constraints := spawnPolicyConstraintsForRequest(req)
-		resolution, err := ResolveSpawnPolicyWithConstraints(profile.SpawnPolicy, selected.Capabilities(), constraints)
-		if err != nil {
-			failCreation()
-			return nil, domain.NewValidationError("spawnPolicy", err.Error())
-		}
-		req.ExecutionMode = domain.ExecutionMode(resolution.ExecutionMode)
-		sandboxConfig.Mode = domain.SandboxMode(resolution.SandboxMode)
-		runMode = domain.DeriveRunMode(sandboxConfig)
-		spawnSkips = resolution.Skipped
-		if resolution.Fallback != "" {
-			// A declared capability was used because no preferred combination was
-			// feasible. Surface it on the run's policy snapshot so run get and the
-			// execution record show why a non-preferred substrate was used.
-			if resolvedConfig.PolicySnapshot != nil {
-				reason := "spawn_fallback:" + resolution.Fallback
-				if resolvedConfig.PolicySnapshot.SelectionReason == "" {
-					resolvedConfig.PolicySnapshot.SelectionReason = reason
-				} else {
-					resolvedConfig.PolicySnapshot.SelectionReason += ";" + reason
-				}
-			}
+// applySpawnPolicy resolves declaration-only spawn preferences against the
+// selected runner's published capabilities before the run becomes immutable.
+func (f *createRunFlow) applySpawnPolicy() error {
+	profile := f.profile
+	if f.recovery != nil || profile == nil || profile.SpawnPolicy == nil {
+		return nil
+	}
+	selected, err := f.o.runners.Get(f.resolvedConfig.RunnerType)
+	if err != nil {
+		return domain.NewValidationError("spawnPolicy", "selected runner is unavailable: "+err.Error())
+	}
+	constraints := spawnPolicyConstraintsForRequest(f.req)
+	resolution, err := ResolveSpawnPolicyWithConstraints(profile.SpawnPolicy, selected.Capabilities(), constraints)
+	if err != nil {
+		return domain.NewValidationError("spawnPolicy", err.Error())
+	}
+	f.req.ExecutionMode = domain.ExecutionMode(resolution.ExecutionMode)
+	f.sandboxConfig.Mode = domain.SandboxMode(resolution.SandboxMode)
+	f.runMode = domain.DeriveRunMode(f.sandboxConfig)
+	f.spawnSkips = resolution.Skipped
+	if resolution.Fallback != "" && f.resolvedConfig.PolicySnapshot != nil {
+		// A declared capability was used because no preferred combination was
+		// feasible. Surface it on the run's policy snapshot so run get and the
+		// execution record show why a non-preferred substrate was used.
+		reason := "spawn_fallback:" + resolution.Fallback
+		snapshot := f.resolvedConfig.PolicySnapshot
+		if snapshot.SelectionReason == "" {
+			snapshot.SelectionReason = reason
+		} else {
+			snapshot.SelectionReason += ";" + reason
 		}
 	}
+	return nil
+}
 
+// validateAdmission checks the resolved sandbox, containment, input and scope
+// path against the policy-required minimum.
+func (f *createRunFlow) validateAdmission() error {
 	// Revalidate after spawn preferences: selecting another mode must not
 	// discard a runtime write policy inherited from the owner profile.
-	if err := validateSandboxConfig(sandboxConfig); err != nil {
-		failCreation()
-		return nil, err
+	if err := validateSandboxConfig(f.sandboxConfig); err != nil {
+		return err
 	}
-	if err := validateExecutionContainment(req.ExecutionMode, sandboxConfig.Mode, resolvedConfig); err != nil {
-		failCreation()
-		return nil, err
+	if err := validateExecutionContainment(f.req.ExecutionMode, f.sandboxConfig.Mode, f.resolvedConfig); err != nil {
+		return err
 	}
-	if err := validateEffectiveRunInput(task, req.Prompt); err != nil {
-		failCreation()
-		return nil, err
+	if err := validateEffectiveRunInput(f.task, f.req.Prompt); err != nil {
+		return err
 	}
 
 	// Enforce the policy-declared minimum sandbox mode. The policy layer
 	// expresses sandbox requirements as a minimum SandboxMode rather
 	// than a bool so a higher-strictness policy can require Protected
 	// while still allowing Tracking-mode runs through other paths.
-	if policyDecision != nil && policyDecision.RequiredSandboxMode != domain.SandboxModeUnspecified {
+	if decision := f.policyDecision; decision != nil && decision.RequiredSandboxMode != domain.SandboxModeUnspecified {
 		resolvedMode := domain.SandboxModeOff
-		if sandboxConfig != nil {
-			resolvedMode = sandboxConfig.Mode.Effective()
+		if f.sandboxConfig != nil {
+			resolvedMode = f.sandboxConfig.Mode.Effective()
 		}
-		if !resolvedMode.AtLeast(policyDecision.RequiredSandboxMode) {
-			failCreation()
-			return nil, domain.NewValidationErrorWithHint(
+		if !resolvedMode.AtLeast(decision.RequiredSandboxMode) {
+			return domain.NewValidationErrorWithHint(
 				"sandboxConfig.mode",
 				"resolved sandbox mode is below the policy-required minimum",
 				fmt.Sprintf("policy requires Mode >= %q; resolved Mode is %q",
-					policyDecision.RequiredSandboxMode, resolvedMode),
+					decision.RequiredSandboxMode, resolvedMode),
 			)
 		}
 	}
 
-	if err := o.validateScopePath(task, runMode, req.ExistingSandboxID, false); err != nil {
-		failCreation()
-		return nil, err
+	return f.o.validateScopePath(f.task, f.runMode, f.req.ExistingSandboxID, false)
+}
+
+// resolveExistingSandbox validates a reused sandbox against the task and finds
+// its work directory, noting whether it must be started first.
+func (f *createRunFlow) resolveExistingSandbox(ctx context.Context) error {
+	o, req, task := f.o, f.req, f.task
+	if req.ExistingSandboxID == nil {
+		return nil
+	}
+	if f.runMode != domain.RunModeSandboxed {
+		return domain.NewValidationErrorWithHint("existingSandboxId", "existing sandbox requires sandboxed run mode",
+			"set runMode to sandboxed or set sandboxConfig.mode to a sandbox-enabled value (tracking/protected)")
+	}
+	if o.sandbox == nil {
+		return domain.NewConfigMissingError("sandbox", "provider not configured", nil)
 	}
 
-	existingSandboxWorkDir := ""
-	var sandboxToStart *uuid.UUID
-	if req.ExistingSandboxID != nil {
-		if runMode != domain.RunModeSandboxed {
-			failCreation()
-			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "existing sandbox requires sandboxed run mode",
-				"set runMode to sandboxed or set sandboxConfig.mode to a sandbox-enabled value (tracking/protected)")
-		}
-		if o.sandbox == nil {
-			failCreation()
-			return nil, domain.NewConfigMissingError("sandbox", "provider not configured", nil)
-		}
-
-		sbx, err := o.sandbox.Get(ctx, *req.ExistingSandboxID)
-		if err != nil {
-			failCreation()
-			return nil, err
-		}
-		switch sbx.Status {
-		case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
-			failCreation()
-			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox is not reusable",
-				fmt.Sprintf("sandbox status is %s", sbx.Status))
-		case sandbox.SandboxStatusStopped:
-			sandboxToStart = &sbx.ID
-		}
-
-		if trimmed := strings.TrimSpace(task.ProjectRoot); trimmed != "" && strings.TrimSpace(sbx.ProjectRoot) != "" && trimmed != sbx.ProjectRoot {
-			failCreation()
-			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox project root does not match task",
-				fmt.Sprintf("task projectRoot=%q, sandbox projectRoot=%q", trimmed, sbx.ProjectRoot))
-		}
-		if trimmed := strings.TrimSpace(task.ScopePath); trimmed != "" && strings.TrimSpace(sbx.ScopePath) != "" && trimmed != sbx.ScopePath {
-			failCreation()
-			return nil, domain.NewValidationErrorWithHint("existingSandboxId", "sandbox scope path does not match task",
-				fmt.Sprintf("task scopePath=%q, sandbox scopePath=%q", trimmed, sbx.ScopePath))
-		}
-
-		if sbx.WorkDir != "" {
-			existingSandboxWorkDir = sbx.WorkDir
-		} else {
-			workDir, err := o.sandbox.GetWorkspacePath(ctx, sbx.ID)
-			if err != nil {
-				failCreation()
-				return nil, err
-			}
-			existingSandboxWorkDir = workDir
-		}
+	sbx, err := o.sandbox.Get(ctx, *req.ExistingSandboxID)
+	if err != nil {
+		return err
+	}
+	switch sbx.Status {
+	case sandbox.SandboxStatusDeleted, sandbox.SandboxStatusRejected, sandbox.SandboxStatusApproved, sandbox.SandboxStatusError:
+		return domain.NewValidationErrorWithHint("existingSandboxId", "sandbox is not reusable",
+			fmt.Sprintf("sandbox status is %s", sbx.Status))
+	case sandbox.SandboxStatusStopped:
+		f.sandboxToStart = &sbx.ID
 	}
 
-	// Create the run with progress tracking initialized
-	profileID := req.AgentProfileID
-	if profile != nil {
-		profileID = &profile.ID
+	if trimmed := strings.TrimSpace(task.ProjectRoot); trimmed != "" && strings.TrimSpace(sbx.ProjectRoot) != "" && trimmed != sbx.ProjectRoot {
+		return domain.NewValidationErrorWithHint("existingSandboxId", "sandbox project root does not match task",
+			fmt.Sprintf("task projectRoot=%q, sandbox projectRoot=%q", trimmed, sbx.ProjectRoot))
 	}
+	if trimmed := strings.TrimSpace(task.ScopePath); trimmed != "" && strings.TrimSpace(sbx.ScopePath) != "" && trimmed != sbx.ScopePath {
+		return domain.NewValidationErrorWithHint("existingSandboxId", "sandbox scope path does not match task",
+			fmt.Sprintf("task scopePath=%q, sandbox scopePath=%q", trimmed, sbx.ScopePath))
+	}
+
+	if sbx.WorkDir != "" {
+		f.existingSandboxWorkDir = sbx.WorkDir
+		return nil
+	}
+	workDir, err := o.sandbox.GetWorkspacePath(ctx, sbx.ID)
+	if err != nil {
+		return err
+	}
+	f.existingSandboxWorkDir = workDir
+	return nil
+}
+
+// freezeRunContract fixes the workload, tag, billing snapshot, prompt split
+// and admission receipt that the run persists immutably.
+func (f *createRunFlow) freezeRunContract(ctx context.Context) error {
+	o, req, task, resolvedConfig := f.o, f.req, f.task, f.resolvedConfig
 	workload := domain.WorkloadRef{Kind: req.WorkloadKind, Key: strings.TrimSpace(req.WorkloadKey), Instance: strings.TrimSpace(req.WorkloadInstance)}
 	if workload.Kind == "" {
 		workload.Kind = domain.WorkloadKindAdhoc
@@ -482,8 +590,9 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		}
 	}
 	if !workload.Kind.IsValid() {
-		return nil, fmt.Errorf("invalid workload kind %q", workload.Kind)
+		return fmt.Errorf("invalid workload kind %q", workload.Kind)
 	}
+	f.workload = workload
 	tag := strings.TrimSpace(req.Tag)
 	if tag == "" && workload.Key != "" {
 		tag = workload.Key
@@ -491,6 +600,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			tag += "#" + workload.Instance
 		}
 	}
+	f.tag = tag
 	billing := domain.BillingSnapshot{Mode: domain.BillingModeUnknown}
 	if resolvedConfig.PolicySnapshot != nil {
 		billing = resolvedConfig.PolicySnapshot.SelectedCandidate.Billing
@@ -504,12 +614,13 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	if billing.ObservedAt.IsZero() {
 		billing.ObservedAt = time.Now().UTC()
 	}
+	f.billing = billing
 	resolvedConfig.Billing = billing
 	// Split the prompt before persisting the immutable resolved config so the
 	// known injected instruction estimate survives event pruning and replay.
-	systemPrompt, userMessage := domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
-	if strings.TrimSpace(systemPrompt) != "" {
-		estimate := tokenaccounting.EstimateText(systemPrompt)
+	f.systemPrompt, f.userMessage = domain.BuildSplitPrompt(task.Description, task.ContextAttachments, req.Prompt)
+	if strings.TrimSpace(f.systemPrompt) != "" {
+		estimate := tokenaccounting.EstimateText(f.systemPrompt)
 		resolvedConfig.PreambleInjectedTokens = estimate.Tokens
 		resolvedConfig.PreambleTokenBasis = estimate.Basis
 	}
@@ -518,78 +629,99 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	// effective without consulting mutable policy or a transcript.
 	// Native controls depend on the final sandbox policy, including retained
 	// recovery grants. Attach it before recording admission, not afterward.
-	resolvedConfig.SandboxConfig = sandboxConfig
+	resolvedConfig.SandboxConfig = f.sandboxConfig
 	resolvedConfig.Admission = buildRunAdmission(req, resolvedConfig)
 	identityOwnerScopes := req.OwnerScopes
 	if identityOwnerScopes == nil {
 		identityOwnerScopes = []string{}
 	}
-	identityScopes := identity.IntersectScopes(identityOwnerScopes, profile.IdentityScopeCeiling(), req.RequestedScopes)
+	identityScopes := identity.IntersectScopes(identityOwnerScopes, f.profile.IdentityScopeCeiling(), req.RequestedScopes)
 	resolvedConfig.Admission.FrozenIdentityScopes = &identityScopes
 	// Record the runner-native control arguments the selected codec emits for
 	// the resolved configuration, so the "passed" layer is durable alongside
 	// the requested and effective layers.
 	o.recordPassedInvocation(ctx, resolvedConfig.Admission, resolvedConfig)
-	// Dependent-delegation prerequisite gate: a run created as a child of an
-	// admitted parent is delegated work. It may proceed only when the parent
-	// carries a live qualification receipt whose effective identity matches this
-	// run's resolved identity exactly, and retains its execution restrictions.
-	// The qualification probe has no parent and is not subject to this gate.
-	qualifiedParent, err := o.dependentDelegationParent(ctx, req, resolvedConfig)
+	return nil
+}
+
+// authorizeDelegation applies the dependent-delegation prerequisite gate: a
+// run created as a child of an admitted parent is delegated work. It may
+// proceed only when the parent carries a live qualification receipt whose
+// effective identity matches this run's resolved identity exactly, and retains
+// its execution restrictions. The qualification probe has no parent and is not
+// subject to this gate. It then revalidates the caller and acquires delivery
+// admission.
+func (f *createRunFlow) authorizeDelegation(ctx context.Context) error {
+	o, req := f.o, &f.req
+	qualifiedParent, err := o.dependentDelegationParent(ctx, *req, f.resolvedConfig)
 	if err != nil {
-		failCreation()
-		return nil, err
+		return err
 	}
+	f.qualifiedParent = qualifiedParent
 	if qualifiedParent != nil {
 		req.WorkReferences, err = inheritParentEffortReferences(qualifiedParent, req.WorkReferences)
 		if err != nil {
-			failCreation()
-			return nil, err
+			return err
 		}
 		if len(req.WorkReferences) > maxWorkReferenceDeclarations {
-			failCreation()
-			return nil, domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed after parent effort attribution", "reduce explicit declarations to leave room for inherited effort references")
+			return domain.NewValidationErrorWithHint("work_references", "at most 100 declarations are allowed after parent effort attribution", "reduce explicit declarations to leave room for inherited effort references")
 		}
 	}
-	if err := o.revalidateCreateRunCaller(ctx, req); err != nil {
-		return nil, err
+	if err := o.revalidateCreateRunCaller(ctx, *req); err != nil {
+		return err
 	}
 	if o.deliveryEfforts != nil {
 		bindings, _, release, err := o.deliveryEfforts.AcquireDeliveryAdmission(ctx, req.WorkReferences, qualifiedParent)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		defer release()
-		resolvedConfig.DeliveryCommissions = bindings
+		f.cleanup(release)
+		f.resolvedConfig.DeliveryCommissions = bindings
 	}
-	// Caller, owner narrowing, profile policy and dependent qualification have
-	// all passed. Only now may admission reserve or mutate durable state.
-	if req.IdempotencyKey != "" && o.idempotency != nil {
-		// Reserve only after owner admission; accepted replays above remain reads.
-		if _, err := o.idempotency.Reserve(ctx, req.IdempotencyKey, 1*time.Hour); err != nil {
-			// If reservation fails, another request beat us to it
-			return nil, domain.NewStateError("Run", "creating", "create",
-				"a run creation with this idempotency key is already in progress")
-		}
+	return nil
+}
+
+// reserveIdempotency reserves the request's idempotency key. Caller, owner
+// narrowing, profile policy and dependent qualification have all passed; only
+// now may admission reserve or mutate durable state.
+func (f *createRunFlow) reserveIdempotency(ctx context.Context) error {
+	o, key := f.o, f.req.IdempotencyKey
+	if key == "" || o.idempotency == nil {
+		return nil
 	}
-	reserved = true
+	// Reserve only after owner admission; accepted replays above remain reads.
+	if _, err := o.idempotency.Reserve(ctx, key, 1*time.Hour); err != nil {
+		// If reservation fails, another request beat us to it
+		return domain.NewStateError("Run", "creating", "create",
+			"a run creation with this idempotency key is already in progress")
+	}
+	return nil
+}
+
+// buildRun assembles the pending run record from the admitted contract.
+func (f *createRunFlow) buildRun(ctx context.Context) {
+	o, req, task, resolvedConfig := f.o, f.req, f.task, f.resolvedConfig
+	profileID := req.AgentProfileID
+	if f.profile != nil {
+		profileID = &f.profile.ID
+	}
 	run := &domain.Run{
-		ID:                       runID,
+		ID:                       f.runID,
 		TaskID:                   task.ID,
 		AgentProfileID:           profileID, // May be nil if inline config used
-		Tag:                      tag,       // Custom tag for identification
+		Tag:                      f.tag,     // Custom tag for identification
 		Label:                    strings.TrimSpace(task.Title),
 		LabelSource:              domain.RunLabelSourceDerived,
 		OwnerSubject:             req.OwnerSubject,
 		OwnerScopes:              slices.Clone(req.OwnerScopes),
 		RequestedScopes:          slices.Clone(req.RequestedScopes),
 		OwnerExpiresAt:           req.OwnerExpiresAt,
-		Workload:                 workload,
-		Billing:                  billing,
+		Workload:                 f.workload,
+		Billing:                  f.billing,
 		SourceRunIDs:             req.SourceRunIDs,
 		WorkReferences:           req.WorkReferences,
 		SourceInvestigationRunID: req.SourceInvestigationRunID,
-		RunMode:                  runMode,
+		RunMode:                  f.runMode,
 		ExecutionMode:            req.ExecutionMode,
 		Status:                   domain.RunStatusPending,
 		Phase:                    domain.RunPhaseQueued,
@@ -597,7 +729,7 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 		IdempotencyKey:           req.IdempotencyKey,
 		ApprovalState:            domain.ApprovalStateNone,
 		ResolvedConfig:           resolvedConfig,
-		SandboxConfig:            sandboxConfig,
+		SandboxConfig:            f.sandboxConfig,
 		ConversationID:           req.ConversationID,
 		ParentRunID:              req.ParentRunID,
 		// Persist caller-supplied custom env so the continue/wake path can
@@ -635,101 +767,70 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 	if req.ExistingSandboxID != nil {
 		run.SandboxID = req.ExistingSandboxID
 	}
+	f.run = run
+}
+
+// persistAttempt reserves the dispatcher-owned cancellation fence, then
+// atomically persists the current attempt and its Run receipt before any
+// sandbox start or runner dispatch. The idempotency key is reserved, so a
+// failure here frees it for retry.
+func (f *createRunFlow) persistAttempt(ctx context.Context) error {
+	o, run := f.o, f.run
 	// Reserve the dispatcher-owned cancellation fence before the durable Task
 	// claim. Cancellation can close this local gate while the atomic owner
 	// transaction decides whether this attempt was admitted.
 	admission, err := o.dispatcher.ReserveAdmission(run.ID)
 	if err != nil {
-		failCreation()
-		return nil, err
+		f.failReservation(ctx)
+		return err
 	}
-	admissionHandedOff := false
-	defer func() {
-		if !admissionHandedOff {
+	f.admission = admission
+	f.cleanup(func() {
+		if !f.admissionHandedOff {
 			o.dispatcher.ReleaseAdmission(run.ID, admission)
 		}
-	}()
+	})
 
-	// Atomically persist the current attempt and its Run receipt before any
-	// sandbox start or runner dispatch. The repository CAS accepts only a
-	// queued unowned task or a terminal exact current attempt; ambiguous legacy
-	// histories remain refused rather than selecting a latest Run.
+	// The repository CAS accepts only a queued unowned task or a terminal
+	// exact current attempt; ambiguous legacy histories remain refused rather
+	// than selecting a latest Run.
 	if o.runs == nil {
-		failCreation()
-		return nil, domain.NewConfigMissingError("runs", "repository not configured", nil)
+		f.failReservation(ctx)
+		return domain.NewConfigMissingError("runs", "repository not configured", nil)
 	}
-	if err := o.runs.CreateTaskAttempt(ctx, task, &expectedTaskSnapshot, run, task.CurrentRunID); err != nil {
-		failCreation()
+	if err := o.runs.CreateTaskAttempt(ctx, f.task, &f.expectedTaskSnapshot, run, f.task.CurrentRunID); err != nil {
+		f.failReservation(ctx)
+		return err
+	}
+	o.markIdempotencyComplete(ctx, f.req.IdempotencyKey, run.ID, "Run")
+	return nil
+}
+
+// failAdmittedRun persists the admitted run as failed with cause.
+func (f *createRunFlow) failAdmittedRun(ctx context.Context, cause error) error {
+	run := f.run
+	run.Status = domain.RunStatusFailed
+	run.ErrorMsg = cause.Error()
+	endedAt := f.o.now()
+	run.EndedAt = &endedAt
+	if persistErr := f.o.runs.Update(context.WithoutCancel(ctx), run); persistErr != nil {
+		return fmt.Errorf("%v; persist admitted run failure: %w", cause, persistErr)
+	}
+	return cause
+}
+
+// launchAdmittedRun starts a stopped reused sandbox, records the launch events
+// and metrics, resolves image attachments and emits the initial user message.
+// It returns the image attachments the runner receives.
+func (f *createRunFlow) launchAdmittedRun(ctx context.Context) ([]runner.Attachment, error) {
+	o, task := f.o, f.task
+	if err := o.preflightScopePath(task, f.runMode, f.req.ExistingSandboxID); err != nil {
+		return nil, f.failAdmittedRun(ctx, err)
+	}
+	if err := f.startReusedSandbox(ctx); err != nil {
 		return nil, err
 	}
-	reserved = false
-	o.markIdempotencyComplete(ctx, req.IdempotencyKey, run.ID, "Run")
-	failAdmittedRun := func(cause error) error {
-		run.Status = domain.RunStatusFailed
-		run.ErrorMsg = cause.Error()
-		endedAt := o.now()
-		run.EndedAt = &endedAt
-		if persistErr := o.runs.Update(context.WithoutCancel(ctx), run); persistErr != nil {
-			return fmt.Errorf("%v; persist admitted run failure: %w", cause, persistErr)
-		}
-		return cause
-	}
-	if err := o.preflightScopePath(task, runMode, req.ExistingSandboxID); err != nil {
-		return nil, failAdmittedRun(err)
-	}
-	if sandboxToStart != nil {
-		if !admission.BeginExternalStart() {
-			return nil, failAdmittedRun(domain.NewStateError("Task", string(task.Status), "start run", "task attempt was cancelled before sandbox startup"))
-		}
-		err := o.sandbox.Start(admission.Context(), *sandboxToStart)
-		admission.EndExternalStart()
-		if err != nil {
-			if admission.Cancelled() {
-				stopErr := o.StopRun(context.WithoutCancel(ctx), run.ID)
-				return nil, domain.NewStateError("Run", "start_uncertain", "create", fmt.Sprintf("sandbox start returned after task cancellation; provider effect may have occurred (start=%v stop=%v)", err, stopErr))
-			}
-			return nil, failAdmittedRun(err)
-		}
-		if admission.Cancelled() {
-			if stopErr := o.StopRun(context.WithoutCancel(ctx), run.ID); stopErr != nil {
-				return nil, domain.NewStateError("Run", "start_uncertain", "create", fmt.Sprintf("sandbox started while task cancellation won; exact run stop failed: %v", stopErr))
-			}
-			return nil, domain.NewStateError("Run", "start_uncertain", "create", "task was cancelled during sandbox startup; the exact Run was stopped but the provider sandbox may remain active")
-		}
-	}
-
-	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
-		declared := "allowedTools"
-		if len(resolvedConfig.AllowedTools) == 0 {
-			declared = "deniedTools"
-		}
-		if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
-			fmt.Sprintf("runner %q cannot enforce %s; advisory policy accepted the launch", resolvedConfig.RunnerType, declared))); err != nil {
-			obs.Component("orchestrator").Warn("failed to append advisory tool-restriction event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
-		}
-	}
-	if o.events != nil {
-		for _, skipped := range spawnSkips {
-			message := fmt.Sprintf("spawn preference skipped: executionMode=%s sandboxMode=%s reason=%s", skipped.ExecutionMode, skipped.SandboxMode, skipped.Reason)
-			if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "info", message)); err != nil {
-				obs.Component("orchestrator").Warn("failed to append spawn-preference event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
-			}
-		}
-	}
-
-	// Sandbox-default rollout adoption metrics (Phase D of
-	// agent-sandbox-audit-foundation). Three labels capture the rollout
-	// state per run: run_mode, sandbox_mode, manual_review.
-	sandboxModeLabel := "n/a"
-	manualReviewLabel := "false"
-	if run.SandboxConfig != nil {
-		sandboxModeLabel = string(run.SandboxConfig.Mode.Effective())
-		if run.SandboxConfig.ManualReview {
-			manualReviewLabel = "true"
-		}
-	}
-	metrics.Get().RecordRunCreated(string(resolvedConfig.RunnerType), string(run.RunMode))
-	metrics.Get().RecordSandboxAdoption(string(run.RunMode), sandboxModeLabel, manualReviewLabel)
+	f.recordLaunchEvents(ctx)
 
 	// Split instructions (system prompt) from context data (user message).
 	// Task description contains methodology/instructions → system prompt.
@@ -753,46 +854,122 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 			}
 		}
 	}
-
-	// Emit the initial user prompt as the first message event.
-	// We emit the user message (context + task), not the system prompt,
-	// since the system prompt is runner-internal instructions.
-	if o.events != nil && strings.TrimSpace(userMessage) != "" {
-		// Build attachment metadata for the event so the UI can render image thumbnails
-		var attInfo []domain.MessageAttachmentInfo
-		for _, att := range imageAttachments {
-			meta, err := o.storage.Get(ctx, att.ID)
-			if err == nil {
-				attInfo = append(attInfo, domain.MessageAttachmentInfo{
-					ID:          meta.ID,
-					FileName:    meta.FileName,
-					ContentType: meta.ContentType,
-					URL:         o.storage.GetServingURL(meta.StoragePath),
-				})
-			}
-		}
-		var userEvent *domain.RunEvent
-		if len(attInfo) > 0 {
-			userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", userMessage, attInfo)
-		} else {
-			userEvent = domain.NewMessageEvent(run.ID, "user", userMessage)
-		}
-		if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
-			obs.Component("orchestrator").Warn("failed to append initial user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
-		}
-	}
-	if admission.Cancelled() {
+	f.emitInitialPrompt(ctx, imageAttachments)
+	if f.admission.Cancelled() {
 		return nil, domain.NewStateError("Task", string(domain.TaskStatusCancelled), "create run", "task was cancelled before the dispatcher claim; the admitted Run will not start")
 	}
+	return imageAttachments, nil
+}
 
-	// Hand the executor body to the spawn dispatcher. Enqueue is the
-	// only path through which a run begins — direct goroutine spawning
-	// would skip startup serialization (codex SQLite WAL contention)
-	// and queue-depth surfacing.
+// startReusedSandbox starts a stopped reused sandbox under the task-attempt
+// cancellation fence.
+func (f *createRunFlow) startReusedSandbox(ctx context.Context) error {
+	if f.sandboxToStart == nil {
+		return nil
+	}
+	o, run, admission := f.o, f.run, f.admission
+	if !admission.BeginExternalStart() {
+		return f.failAdmittedRun(ctx, domain.NewStateError("Task", string(f.task.Status), "start run", "task attempt was cancelled before sandbox startup"))
+	}
+	err := o.sandbox.Start(admission.Context(), *f.sandboxToStart)
+	admission.EndExternalStart()
+	if err != nil {
+		if admission.Cancelled() {
+			stopErr := o.StopRun(context.WithoutCancel(ctx), run.ID)
+			return domain.NewStateError("Run", "start_uncertain", "create", fmt.Sprintf("sandbox start returned after task cancellation; provider effect may have occurred (start=%v stop=%v)", err, stopErr))
+		}
+		return f.failAdmittedRun(ctx, err)
+	}
+	if admission.Cancelled() {
+		if stopErr := o.StopRun(context.WithoutCancel(ctx), run.ID); stopErr != nil {
+			return domain.NewStateError("Run", "start_uncertain", "create", fmt.Sprintf("sandbox started while task cancellation won; exact run stop failed: %v", stopErr))
+		}
+		return domain.NewStateError("Run", "start_uncertain", "create", "task was cancelled during sandbox startup; the exact Run was stopped but the provider sandbox may remain active")
+	}
+	return nil
+}
+
+// recordLaunchEvents appends the advisory tool-restriction and skipped
+// spawn-preference events and records the run-creation metrics.
+func (f *createRunFlow) recordLaunchEvents(ctx context.Context) {
+	o, run, resolvedConfig := f.o, f.run, f.resolvedConfig
+	if o.toolRestrictionIsAdvisory(resolvedConfig) && o.events != nil {
+		declared := "allowedTools"
+		if len(resolvedConfig.AllowedTools) == 0 {
+			declared = "deniedTools"
+		}
+		if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "warn",
+			fmt.Sprintf("runner %q cannot enforce %s; advisory policy accepted the launch", resolvedConfig.RunnerType, declared))); err != nil {
+			obs.Component("orchestrator").Warn("failed to append advisory tool-restriction event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+		}
+	}
+	if o.events != nil {
+		for _, skipped := range f.spawnSkips {
+			message := fmt.Sprintf("spawn preference skipped: executionMode=%s sandboxMode=%s reason=%s", skipped.ExecutionMode, skipped.SandboxMode, skipped.Reason)
+			if err := o.events.Append(ctx, run.ID, domain.NewLogEvent(run.ID, "info", message)); err != nil {
+				obs.Component("orchestrator").Warn("failed to append spawn-preference event", obs.KeyRunID, run.ID.String(), "eventType", "log", obs.KeyError, err.Error())
+			}
+		}
+	}
+
+	// Sandbox-default rollout adoption metrics (Phase D of
+	// agent-sandbox-audit-foundation). Three labels capture the rollout
+	// state per run: run_mode, sandbox_mode, manual_review.
+	sandboxModeLabel := "n/a"
+	manualReviewLabel := "false"
+	if run.SandboxConfig != nil {
+		sandboxModeLabel = string(run.SandboxConfig.Mode.Effective())
+		if run.SandboxConfig.ManualReview {
+			manualReviewLabel = "true"
+		}
+	}
+	metrics.Get().RecordRunCreated(string(resolvedConfig.RunnerType), string(run.RunMode))
+	metrics.Get().RecordSandboxAdoption(string(run.RunMode), sandboxModeLabel, manualReviewLabel)
+}
+
+// emitInitialPrompt emits the initial user prompt as the first message event.
+// It emits the user message (context + task), not the system prompt, since the
+// system prompt is runner-internal instructions.
+func (f *createRunFlow) emitInitialPrompt(ctx context.Context, imageAttachments []runner.Attachment) {
+	o, run := f.o, f.run
+	if o.events == nil || strings.TrimSpace(f.userMessage) == "" {
+		return
+	}
+	// Build attachment metadata for the event so the UI can render image thumbnails
+	var attInfo []domain.MessageAttachmentInfo
+	for _, att := range imageAttachments {
+		meta, err := o.storage.Get(ctx, att.ID)
+		if err == nil {
+			attInfo = append(attInfo, domain.MessageAttachmentInfo{
+				ID:          meta.ID,
+				FileName:    meta.FileName,
+				ContentType: meta.ContentType,
+				URL:         o.storage.GetServingURL(meta.StoragePath),
+			})
+		}
+	}
+	var userEvent *domain.RunEvent
+	if len(attInfo) > 0 {
+		userEvent = domain.NewMessageEventWithAttachments(run.ID, "user", f.userMessage, attInfo)
+	} else {
+		userEvent = domain.NewMessageEvent(run.ID, "user", f.userMessage)
+	}
+	if err := o.appendAndBroadcastEvents(ctx, run.ID, userEvent); err != nil {
+		obs.Component("orchestrator").Warn("failed to append initial user message", obs.KeyRunID, run.ID.String(), "eventType", "message", obs.KeyError, err.Error())
+	}
+}
+
+// dispatch hands the executor body to the spawn dispatcher. Enqueue is the
+// only path through which a run begins — direct goroutine spawning would skip
+// startup serialization (codex SQLite WAL contention) and queue-depth
+// surfacing.
+func (f *createRunFlow) dispatch(ctx context.Context, imageAttachments []runner.Attachment) (*domain.Run, error) {
+	o, run, admission := f.o, f.run, f.admission
 	// Snapshot before enqueue: attachRunActions projects the caller's record
 	// immediately after enqueue, while the dispatcher may start execution at
 	// once. The asynchronous executor must not copy that record concurrently.
 	executionRun := *run
+	task, profile, req := f.task, f.profile, f.req
 	if err := o.dispatcher.EnqueueAdmitted(&spawn.Job{
 		RunID:      run.ID,
 		RunMode:    run.RunMode,
@@ -804,15 +981,15 @@ func (o *Orchestrator) createRun(ctx context.Context, req CreateRunRequest, reco
 				o.recoverPanickedRun(run, failure)
 			})
 			executionRunCopy := executionRun
-			o.executeRun(admission.Context(), &executionRunCopy, task, profile, userMessage, systemPrompt, existingSandboxWorkDir, imageAttachments, req.Environment, started)
+			o.executeRun(admission.Context(), &executionRunCopy, task, profile, f.userMessage, f.systemPrompt, f.existingSandboxWorkDir, imageAttachments, req.Environment, started)
 		},
 		OnPanic: func(failure obs.PanicFailure) {
 			o.recoverPanickedRun(run, failure)
 		},
 	}, admission); err != nil {
-		return nil, failAdmittedRun(err)
+		return nil, f.failAdmittedRun(ctx, err)
 	}
-	admissionHandedOff = true
+	f.admissionHandedOff = true
 
 	return o.attachRunActions(ctx, run), nil
 }

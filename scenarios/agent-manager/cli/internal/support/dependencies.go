@@ -24,7 +24,6 @@ type Dependencies struct {
 	Maintenance      CommandFunc
 	Storage          CommandFunc
 	StandingGrants   CommandFunc
-	Ops              CommandFunc
 	Health           CommandFunc
 	Events           CommandFunc
 	Findings         CommandFunc

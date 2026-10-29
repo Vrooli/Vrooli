@@ -16,6 +16,7 @@ package codecs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,6 +27,7 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
 )
@@ -53,6 +55,11 @@ type baseCodec struct {
 	// referencing the embedding type.
 	newParser  func() runner.TranscriptParser
 	goalStatus func(string) (runner.GoalMarker, bool)
+	// sessionLoss recognises the codec's "session gone" stderr shape and names
+	// it (fallback.ReasonSessionExpired / ReasonSessionStateLost), or returns
+	// "". It is the one place a codec decides this; ClassifyTerminalError and
+	// Classify both derive from it.
+	sessionLoss func(stderr string) fallback.Reason
 }
 
 // Type satisfies [Codec].
@@ -213,6 +220,43 @@ func (b *baseCodec) OnEarlyTerminate(_ State, _ string) bool { return false }
 // rewrite the result after seeing the full stream (Claude rate-limit flip,
 // OpenCode no-op detection) override this.
 func (b *baseCodec) PostClassify(_ State, _ *runner.ExecuteResult) {}
+
+// ClassifyTerminalError satisfies [Codec]: a recognised session loss becomes
+// its typed RunnerError; everything else is nil, so core.Runner falls back to
+// ErrCodeRunnerExecution.
+func (b *baseCodec) ClassifyTerminalError(stderr string, _ int) *domain.RunnerError {
+	if b.sessionLoss == nil {
+		return nil
+	}
+	cause := errors.New(strings.TrimSpace(stderr))
+	switch b.sessionLoss(stderr) {
+	case fallback.ReasonSessionExpired:
+		return domain.NewRunnerSessionExpiredError(b.runnerType, cause)
+	case fallback.ReasonSessionStateLost:
+		return domain.NewRunnerSessionStateLostError(b.runnerType, cause)
+	}
+	return nil
+}
+
+// Classify satisfies [Codec]: a recognised session loss first, then the
+// residual TextClassifier. Returns nil only when stderr is empty and
+// exitCode == 0. Codecs with more structured signals (Claude's rate limit)
+// check them first and delegate here.
+func (b *baseCodec) Classify(stderr string, exitCode int) *fallback.ClassifiedError {
+	if strings.TrimSpace(stderr) == "" && exitCode == 0 {
+		return nil
+	}
+	if b.sessionLoss != nil {
+		if reason := b.sessionLoss(stderr); reason != "" {
+			return fallback.New(reason, strings.TrimSpace(stderr), nil)
+		}
+	}
+	return fallback.NewTextClassifier().Classify(fallback.ClassifyInput{
+		RunnerType: string(b.runnerType),
+		Stderr:     stderr,
+		ExitCode:   exitCode,
+	})
+}
 
 // ParseTranscriptLine satisfies [Codec] for single-line transcript parsing by
 // delegating to a fresh parser. Multi-line replay must use

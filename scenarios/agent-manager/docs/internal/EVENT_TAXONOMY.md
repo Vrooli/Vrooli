@@ -190,8 +190,7 @@ Historical payload retained for old event rows.
 ### `model.health.transition`
 
 Records that a `(runner, model)` pair has flipped status. Phase 2
-emitter writes; Phase 1 reserves the shape so the stats engine can
-register a handler.
+emitter writes.
 
 ```json
 {
@@ -324,25 +323,20 @@ the right answer is to add a typed event.
 
 ## DOC references
 
-- `docs/internal/SEAMS.md` — eventlog seam entry; Phase 3 stats engine
-  seam entry.
+- `docs/internal/SEAMS.md` — eventlog seam entry; fallback insights seam entry.
 - `docs/internal/ERROR_SEMANTICS.md` — Phase 2 extends with the
   `fallback.Reason` enum referenced by event payloads.
 - `internal/eventlog/dispatch.go` — authoritative registry.
 - `internal/eventlog/types.go` — payload struct definitions.
-- `internal/stats/registry.go` — every (event_type, schema_version)
-  must have a stats processor; CI enforces this.
+- `internal/adapters/database/repository_fallback_insights.go` — the fallback
+  and policy-candidate events the `FallbackInsights` measure counts.
 
 ## Phase 3 read surfaces (added 2026-05-07)
 
 Three HTTP/CLI surfaces consume the typed event log:
 
-- `GET /api/v1/stats/operational?category=…` and `GET /api/v1/stats/fallback`
-  — incrementally aggregated metrics (fallback frequency, health
-  transitions, sandbox op success, heartbeat misses, checkpoint
-  failures, retries). Backed by `internal/stats.Engine` which
-  watermarks against `stats_checkpoint.last_rowid` for resumable
-  replay.
+- `MeasuresService.FallbackInsights` — fallback frequency and policy-candidate
+  outcomes counted from the retained events of a window.
 - `GET /api/v1/health/{models,runners,audit}` — current snapshot and
   paginated audit history out of `model_health_audit` and
   `runner_health_audit` (Phase 2 tables).
@@ -351,7 +345,7 @@ Three HTTP/CLI surfaces consume the typed event log:
 
 CLI parity:
 
-- `agent-manager ops {summary|fallback|health|sandbox|heartbeat|checkpoint|retry}`
+- `agent-manager measures fallback-insights`
 - `agent-manager health {models|runners|audit}`
 - `agent-manager events list [--run --type --since --limit]`
 

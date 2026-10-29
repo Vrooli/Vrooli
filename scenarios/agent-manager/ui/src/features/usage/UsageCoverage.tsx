@@ -7,7 +7,8 @@ import type { StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 import type { UsageCoverageRoot } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { DataState } from "../../components/feedback/DataState";
 import { useUsageCoverage } from "./api";
-import { coverageRootLabel, formatShare } from "./format";
+import { formatCount } from "../../lib/format";
+import { coverageRootLabel, formatAt, formatShare } from "./format";
 
 /** SPEC A1 asks for at least 95% of transcript turns captured. */
 function coverageTone(share: number): StatusTone {
@@ -34,7 +35,7 @@ function RootTile({ root }: { root: UsageCoverageRoot }) {
     <div className="rounded-md border border-border p-3" data-testid="usage-coverage-root">
       <div className="text-xs text-muted-foreground">{coverageRootLabel(root.kind)}</div>
       <div className="text-lg font-bold tabular-nums">{formatShare(root.capturedShare)}</div>
-      <div className="text-xs text-muted-foreground">{captured.toString()} of {root.files.toString()} files{root.pending > 0n ? ` · ${root.pending} pending` : ""}</div>
+      <div className="text-xs text-muted-foreground">{formatCount(captured)} of {formatCount(root.files)} files{root.pending > 0n ? ` · ${root.pending} pending` : ""}</div>
     </div>
   );
 }
@@ -43,12 +44,8 @@ function issueSummary(unreadable: bigint): string {
   return `${unreadable} ${unreadable === 1n ? "file" : "files"} could not be read`;
 }
 
-/**
- * Capture coverage against the on-disk truth. The overview shows the per-root
- * shares and a link here; the Coverage tab adds every named issue and the
- * method for checking it against an independent disk scan.
- */
-export function UsageCoverage({ detailed = false }: { detailed?: boolean }) {
+/** Capture coverage against the on-disk truth: per-root shares, every named issue, and how it was measured. */
+export function UsageCoverage() {
   const coverage = useUsageCoverage();
   const roots = coverage.data?.roots ?? [];
   const totals = coverage.data?.totals;
@@ -67,31 +64,30 @@ export function UsageCoverage({ detailed = false }: { detailed?: boolean }) {
       >
         {totals ? (
           <p className="text-sm">
-            Captured <strong>{formatShare(totals.capturedShare)}</strong> of transcript bytes since {new Date(coverage.data?.since || Date.now()).toLocaleDateString()} · {totals.turns.toString()} turns · {totals.usageReports.toString()} usage reports
+            Captured <strong>{formatShare(totals.capturedShare)}</strong> of transcript bytes{coverage.data?.since ? ` since ${formatAt(coverage.data.since)}` : ""} · {formatCount(totals.turns)} requests · {formatCount(totals.usageReports)} usage reports
           </p>
         ) : null}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {roots.map((root) => <RootTile key={`${root.kind}/${root.harness}`} root={root} />)}
         </div>
         {unreadable > 0n ? (
-          detailed ? (
-            <details className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-sm" data-testid="usage-coverage-issues">
-              <summary className="flex min-h-8 cursor-pointer items-center font-medium">{issueSummary(unreadable)} · details</summary>
-              <ul className="mt-2 space-y-1">
-                {issues.map((issue) => (
-                  <li key={issue.path} className="break-all font-mono text-xs">
-                    {issue.path} <span className="font-sans text-muted-foreground">— {issue.reason} ({coverageRootLabel(issue.root)})</span>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : (
-            <Link to="/usage?tab=coverage" className="flex min-h-11 items-center justify-between rounded-md border border-warning/40 bg-warning/5 px-3 text-sm sm:min-h-8">
-              <span>{issueSummary(unreadable)}</span><span aria-hidden="true">details →</span>
-            </Link>
-          )
+          <details className="rounded-md border border-warning/40 bg-warning/5 px-3 py-2 text-sm" data-testid="usage-coverage-issues">
+            <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-8">{issueSummary(unreadable)} · details</summary>
+            <ul className="mt-2 space-y-1">
+              {issues.map((issue) => (
+                <li key={issue.path} className="break-all font-mono text-xs">
+                  {issue.path} <span className="font-sans text-muted-foreground">— {issue.reason} ({coverageRootLabel(issue.root)})</span>
+                </li>
+              ))}
+            </ul>
+          </details>
         ) : null}
-        {detailed && coverage.data?.method ? <p className="text-xs text-muted-foreground">{coverage.data.method}</p> : null}
+        {coverage.data?.method ? (
+          <details className="rounded-md border border-border px-3 py-2 text-sm">
+            <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-8">How this is measured</summary>
+            <p className="mt-2 text-muted-foreground">{coverage.data.method}</p>
+          </details>
+        ) : null}
       </DataState>
     </Card>
   );

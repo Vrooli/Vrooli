@@ -173,9 +173,10 @@ func claudeStatuslineObservations(sample claudeStatuslineSample, path string, no
 		}
 		// An idle session renders its cached rate_limits until its next API
 		// response; a window whose reset had passed when the sample was taken
-		// says nothing about the current window. The resource feed no longer
-		// writes these, but samples written before that fix remain on disk.
-		if w.window.ResetsAt > 0 && w.window.ResetsAt <= sample.ObservedAt.Unix() {
+		// says nothing about the current window (the store rejects it too, with
+		// ErrResetElapsed). The resource feed no longer writes these, but
+		// samples written before that fix remain on disk.
+		if w.window.ResetsAt > 0 && ResetElapsed(time.Unix(w.window.ResetsAt, 0), sample.ObservedAt) {
 			continue
 		}
 		percent, minutes := *w.window.UsedPercentage, claudeWindows[w.pool]

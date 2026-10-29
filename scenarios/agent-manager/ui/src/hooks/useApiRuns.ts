@@ -15,8 +15,12 @@ import { CreateRunRequestSchema, CreateRunResponseSchema, GetRunDiffResponseSche
 
 import { ExtraFlagListSchema, FeatureFlagsSchema, SandboxConfigSchema } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
-import { fetchDurableRunStatusDistribution, runStatusCountsFromRows } from "../features/stats/api/statsClient";
-import { useApiState, apiRequest, parseProto, toProtoJson, durationFromMinutes, sandboxModeFromForm, networkAccessToProto } from "./useApiTransport";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
+import { RunScope } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
+import type { TimeWindow } from "@vrooli/proto-types/measures/v1/measures_pb";
+import { measuresClient } from "../features/stats/api/measuresClient";
+import { useApiQuery } from "./useApiQuery";
+import { apiRequest, parseProto, toProtoJson, durationFromMinutes, sandboxModeFromForm, networkAccessToProto } from "./useApiTransport";
 
 export interface RunReportView {
   run_id: string;
@@ -46,55 +50,11 @@ export interface RunReportView {
   receipt_count: number;
 }
 
-export interface RecurringFindingView {
-  id: string;
-  runId: string;
-  investigationRunId: string;
-  category: string;
-  severity: string;
-  recommendation: string;
-  evidence?: string;
-  targetPath?: string;
-  fingerprint: string;
-  decision?: string;
-  createdAt: string;
-  occurrences: number;
-}
-
-export function useRecurringFindings() {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<RecurringFindingView[]>(null, true);
-  const refetch = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await apiRequest<{ findings: RecurringFindingView[] }>("/findings");
-      setData(response.findings.sort((a, b) => b.occurrences - a.occurrences || b.createdAt.localeCompare(a.createdAt)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load investigation findings");
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setError, setLoading]);
-  useEffect(() => { void refetch(); }, [refetch]);
-  return { data, loading, error, refetch };
-}
-
 export function useRunReport(runId: string) {
-  const { data, loading, error, setData, setLoading, setError } = useApiState<RunReportView>(null);
-  const refetch = useCallback(async () => {
-    if (!runId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await apiRequest<RunReportView>(`/runs/${encodeURIComponent(runId)}/report`));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load run report");
-    } finally {
-      setLoading(false);
-    }
-  }, [runId, setData, setError, setLoading]);
-  useEffect(() => { void refetch(); }, [refetch]);
-  return { data, loading, error, refetch };
+  const report = useApiQuery<RunReportView>(["run-report", runId], (signal) =>
+    apiRequest<RunReportView>(`/runs/${encodeURIComponent(runId)}/report`, { signal }), { enabled: !!runId });
+  // With no run selected there is nothing to read, even on an explicit refresh.
+  return { ...report, refetch: async () => { if (runId) await report.refetch(); } };
 }
 
 function buildRunConfigOverrides(run: RunFormData) {
@@ -189,31 +149,23 @@ function hasInlineConfig(run: RunFormData): boolean {
 }
 
 // Runs hook
-export function useRuns(options?: { enabled?: boolean; limit?: number }) {
+/** Who started a run, as the runs list API filters it; empty lists every origin. */
+export type RunOrigin = "" | "agent_manager" | "operator_sessions" | "workflows";
+
+export function useRuns(options?: { enabled?: boolean; limit?: number; origin?: RunOrigin }) {
   const enabled = options?.enabled ?? true;
   const limit = options?.limit;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<Run[]>([], enabled);
-
-  const hasFetchedRef = useRef(false);
-
-  const fetchRuns = useCallback(async () => {
-    // Only show loading spinner on initial fetch, not on refetches
-    if (!hasFetchedRef.current) {
-      setLoading(true);
-    }
-    setError(null);
-    try {
-      const query = limit !== undefined ? `?limit=${encodeURIComponent(String(limit))}` : "";
-      const resp = await apiRequest<unknown>("/runs" + query);
-      const message = parseProto(ListRunsResponseSchema, resp);
-      setData(message.runs ?? []);
-      hasFetchedRef.current = true;
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [limit, setData, setLoading, setError]);
+  const origin = options?.origin ?? "";
+  const { data, loading, error, refetch: fetchRuns } = useApiQuery<Run[]>(
+    ["runs", limit ?? null, origin],
+    async (signal) => {
+      // Sub-agent runs fold under their parent (see useSubAgentRuns), so the list holds top-level runs only.
+      const query = `?top_level=true${origin ? `&origin=${origin}` : ""}${limit !== undefined ? `&limit=${encodeURIComponent(String(limit))}` : ""}`;
+      return parseProto(ListRunsResponseSchema, await apiRequest<unknown>("/runs" + query, { signal })).runs ?? [];
+    },
+    // The list refreshes quietly in the background; only the first load shows a spinner.
+    { enabled, fallback: [], firstLoadOnly: true },
+  );
 
   const createRun = useCallback(
     async (run: RunFormData): Promise<Run> => {
@@ -420,13 +372,6 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
     [fetchRuns]
   );
 
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    void fetchRuns();
-  }, [enabled, fetchRuns]);
-
   return {
     data, loading, error,
     refetch: fetchRuns,
@@ -446,14 +391,25 @@ export function useRuns(options?: { enabled?: boolean; limit?: number }) {
   };
 }
 
+/** The runs listed under a run as its sub-agents, read once the list is opened. */
+export function useSubAgentRuns(parentId: string, expanded: boolean) {
+  return useApiQuery<Run[]>(
+    ["sub-agents", parentId],
+    async (signal) => parseProto(ListRunsResponseSchema, await apiRequest<unknown>(`/runs?parent_run_id=${encodeURIComponent(parentId)}&limit=200`, { signal })).runs ?? [],
+    { enabled: expanded, fallback: [], staleTime: 30_000 },
+  );
+}
+
 /** Live run counters plus the durable windowed total the dashboard header shows. */
 export interface DashboardRunCounts {
   /** Runs currently running or starting, counted by the API (not the loaded page). */
   active: number;
   /** Runs awaiting review, counted by the API. */
   review: number;
-  /** Runs settled in the durable Measures window ({@link DASHBOARD_WINDOW_PRESET}). */
+  /** Runs Agent Manager executed in the durable Measures window ({@link DASHBOARD_WINDOW_PRESET}). */
   windowTotal: number;
+  /** Operator sessions (imported, attached, interactive) observed in the same window. */
+  operatorSessions: number;
 }
 
 export const DASHBOARD_WINDOW_PRESET = "7d" as const;
@@ -465,14 +421,25 @@ async function countRunsWithStatus(status: "running" | "starting" | "needs_revie
   return parseProto(ListRunsResponseSchema, resp).total;
 }
 
+const DASHBOARD_WINDOW_MS = 7 * 24 * 3600_000;
+
+/** Runs in the trailing dashboard window for one scope, summed over every status. */
+async function windowTotal(scope: RunScope): Promise<number> {
+  const now = new Date();
+  const range = { from: timestampFromDate(new Date(now.getTime() - DASHBOARD_WINDOW_MS)), to: timestampFromDate(now) };
+  const response = await measuresClient.runStatusDistribution({ window: { window: { case: "custom", value: range } } as TimeWindow, filter: { scope } });
+  return response.rows.reduce((total, row) => total + Number(row.count), 0);
+}
+
 async function fetchDashboardRunCounts(): Promise<DashboardRunCounts> {
-  const [running, starting, review, distribution] = await Promise.all([
+  const [running, starting, review, executed, operatorSessions] = await Promise.all([
     countRunsWithStatus("running"),
     countRunsWithStatus("starting"),
     countRunsWithStatus("needs_review"),
-    fetchDurableRunStatusDistribution({ preset: DASHBOARD_WINDOW_PRESET }),
+    windowTotal(RunScope.AGENT_MANAGER),
+    windowTotal(RunScope.OPERATOR_SESSIONS),
   ]);
-  return { active: running + starting, review, windowTotal: runStatusCountsFromRows(distribution.rows).total };
+  return { active: running + starting, review, windowTotal: executed, operatorSessions };
 }
 
 /**
@@ -481,20 +448,12 @@ async function fetchDashboardRunCounts(): Promise<DashboardRunCounts> {
  */
 export function useDashboardRunCounts(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<DashboardRunCounts>();
+  const counts = useApiQuery<DashboardRunCounts>(["dashboard-counts"], () => fetchDashboardRunCounts(), {
+    enabled,
+    refetchInterval: DASHBOARD_COUNTS_POLL_MS,
+  });
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const fetchCounts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await fetchDashboardRunCounts());
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
+  const { refetch: fetchCounts } = counts;
 
   const refetch = useCallback(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -504,20 +463,12 @@ export function useDashboardRunCounts(options?: { enabled?: boolean }) {
     }, DASHBOARD_COUNTS_DEBOUNCE_MS);
   }, [fetchCounts]);
 
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    void fetchCounts();
-    const poll = setInterval(() => void fetchCounts(), DASHBOARD_COUNTS_POLL_MS);
-    return () => {
-      clearInterval(poll);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    };
-  }, [enabled, fetchCounts]);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = null;
+  }, []);
 
-  return { data, loading, error, refetch };
+  return { data: counts.data, loading: counts.loading, error: counts.error, refetch };
 }
 
 // Reads the categorized recommendations out of an investigation run's

@@ -124,7 +124,7 @@ func TestEpochSpendIsAdvisoryAndUnavailableUsageStaysUnknown(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				if strings.HasSuffix(r.URL.Path, "/accounting") {
+				if r.URL.Path == apiconnect.AgentManagerServiceGetRunAccountingProcedure {
 					w.WriteHeader(tc.status)
 					_, _ = w.Write([]byte(tc.body))
 					return

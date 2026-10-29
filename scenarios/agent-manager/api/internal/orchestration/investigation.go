@@ -13,7 +13,6 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/findings"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runreport"
 
 	"github.com/google/uuid"
@@ -264,30 +263,6 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if decision == "" {
 		decision = "completed"
 	}
-	if o.findings != nil {
-		if err := o.findings.SetDecision(ctx, investigationRunID, decision); err != nil {
-			return nil, err
-		}
-		if decision == "completed" {
-			items, listErr := o.findings.List(ctx, findings.Filter{RunID: nil, Limit: 1000})
-			if listErr != nil {
-				return nil, listErr
-			}
-			for _, item := range items {
-				if item.InvestigationRunID != investigationRunID {
-					continue
-				}
-				before, measureErr := o.findingRecurrenceRate(ctx)
-				if measureErr != nil {
-					return nil, measureErr
-				}
-				if err := o.findings.SetEffectiveness(ctx, item.ID, before, nil, "not_yet_measurable", item.FrictionTopic); err != nil {
-					return nil, err
-				}
-			}
-		}
-	}
-
 	selected := req.Selected
 	if selected == nil {
 		selected = []string{}
@@ -306,7 +281,7 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 
-	operation, err := o.SignalWorkflowExecution(ctx, WorkflowExecutionSignalRequest{
+	_, err = o.SignalWorkflowExecution(ctx, WorkflowExecutionSignalRequest{
 		ExecutionID:    executionID,
 		Signal:         investigationApprovalSignal,
 		Payload:        payload,
@@ -315,11 +290,6 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 	if err != nil {
 		return nil, err
 	}
-	// An idempotent retry may observe an apply node that already settled before
-	// the asynchronous terminal nudge ran. Measure from the returned durable
-	// execution as well, so recovery is deterministic rather than timing-based.
-	o.measureAppliedFindings(ctx, operation.Execution, investigationRunID)
-
 	// Only the "completed" decision launches an apply run; rejection/abstention
 	// terminate the workflow, so we hand the investigation run back unchanged.
 	if decision != "completed" {
@@ -331,24 +301,6 @@ func (o *Orchestrator) CreateInvestigationApplyRun(
 		return nil, err
 	}
 	return o.attachRunActions(ctx, applyRun), nil
-}
-
-// findingRecurrenceRate reads the exact durable measure named on each
-// investigation finding. An empty or unavailable projection remains honestly
-// not-yet-measurable rather than substituting a finding-count proxy.
-func (o *Orchestrator) findingRecurrenceRate(ctx context.Context) (*float64, error) {
-	if o.invocationReadModel == nil {
-		return nil, nil
-	}
-	metrics, err := o.invocationReadModel.FindingMetrics(ctx, invocationreadmodel.Filter{})
-	if err != nil {
-		return nil, err
-	}
-	if metrics.TotalFindings == 0 {
-		return nil, nil
-	}
-	value := metrics.RecurrenceRate
-	return &value, nil
 }
 
 // workflowNodeRun resolves the run dispatched for the newest attempt of the

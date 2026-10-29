@@ -180,7 +180,7 @@ test("RunTimeline gives clear loading, empty-filter, generating, and unavailable
   loading.unmount();
   window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({ mode: "events", categories: { messages: false, reasoning: false, tools: false, errors: false, status: false, logs: false, artifacts: false, metrics: false, compaction: false, redactions: false } }));
   const empty = renderWithProviders(createElement(RunTimeline, { run: makeRun({ actions: { ...makeRun().actions, canContinueReason: "Run is archived" } }), events: [makeMessageEvent("msg", 1n, "hidden")], eventsLoading: false, ...props }));
-  assert.ok(screen.getByText("No timeline entries match the current filters")); assert.ok(screen.getByText("Run is archived"));
+  assert.ok(screen.getByText("No timeline entries match the current filters (1 hidden by filters)")); assert.ok(screen.getByText("Run is archived"));
   empty.unmount();
   window.localStorage.removeItem(FILTER_STORAGE_KEY);
   renderWithProviders(createElement(RunTimeline, { run: makeRun({ status: RunStatus.RUNNING }), events: [makeMessageEvent("live", 1n, "working")], eventsLoading: false, ...props }));
@@ -702,4 +702,10 @@ test("RunTimeline renders ordered native blocks and an unknown result without fa
   assert.ok(screen.getByText((_, node) => node?.tagName === "CODE" && node.textContent === '{"type":"image","future":true}'));
   assert.ok(screen.getByLabelText("Outcome unknown"));
   assert.equal(screen.queryByText("Error"), null);
+});
+
+test("RunTimeline with no events says there is nothing yet, not that filters hide anything", () => {
+  renderWithProviders(createElement(RunTimeline, { run: makeRun(), events: [], eventsLoading: false, onContinue: vi.fn(async () => undefined), onDeleteMessage: vi.fn(async () => undefined) }));
+  assert.ok(screen.getByText("No timeline entries yet"));
+  assert.equal(screen.queryByRole("button", { name: "Reset Filters" }), null);
 });

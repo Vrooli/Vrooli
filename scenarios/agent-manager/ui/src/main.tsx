@@ -1,6 +1,7 @@
 import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { BrowserRouter } from "react-router-dom";
 import { getProxyInfo, installChunkReloadGuard } from "@vrooli/api-base";
@@ -52,6 +53,10 @@ if (
   initIframeBridgeChild({ parentOrigin, appId: "agent-manager" });
   window.__agentManagerBridgeInitialized = true;
 }
+
+// Re-confirm this installed app with Notification Hub and open the screen a
+// notification tap asked for (no-op until app notifications are turned on).
+initAppNotifications();
 
 const spatialNav = initSpatialNav();
 if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());

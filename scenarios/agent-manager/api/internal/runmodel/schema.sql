@@ -138,9 +138,17 @@ CREATE INDEX IF NOT EXISTS idx_runs_status ON runs(status);
 CREATE INDEX IF NOT EXISTS idx_runs_tag ON runs(tag);
 CREATE INDEX IF NOT EXISTS idx_runs_source_investigation_run_id ON runs(source_investigation_run_id);
 CREATE INDEX IF NOT EXISTS idx_runs_created_at ON runs(created_at);
+CREATE INDEX IF NOT EXISTS idx_runs_parent_run_id ON runs(parent_run_id) WHERE parent_run_id IS NOT NULL;
 
 -- Stats query indexes
 CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_import_provenance ON runs(import_source_harness, import_source_session_id) WHERE import_source_harness <> '' AND import_source_session_id <> '';
+-- Authorization peer binding scans only nonterminal runs; keep that owner
+-- lookup from traversing the retained terminal history.
+CREATE INDEX IF NOT EXISTS idx_runs_status_created_at_id ON runs(status, created_at DESC, id DESC);
+-- The reconciler resolves web-console sessions back to their runs.
+CREATE INDEX IF NOT EXISTS idx_runs_web_console_session ON runs(web_console_session_id) WHERE web_console_session_id <> '';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_identity_renewal_anchor ON runs(identity_renewal_anchor_hash) WHERE identity_renewal_anchor_hash <> '';
 -- ============================================================================
 -- Run Checkpoints - For resumption after interruption
 -- ============================================================================

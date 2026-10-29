@@ -42,8 +42,7 @@ failures rather than conventions:
   this rule because cross-package integration tests import them directly.
 - Handler persistence is limited to documented CQRS read-side exceptions:
   `PricingHandler` reads pricing/statistics projections, `EventsHandler` reads
-  the typed event log, and `OperationalStatsHandler` reads the operational
-  statistics projection. Mutation handlers go through their service boundary.
+  the typed event log. Mutation handlers go through their service boundary.
 
 ## Task Path Decision
 
@@ -683,7 +682,7 @@ type Repository interface {
   from consumer code: adding a field is non-breaking; renaming bumps the
   version and registers a new entry; old rows decode through the old
   entry forever.
-- Stats engine (Phase 3) and health audit (Phase 2) read through
+- The health audit (Phase 2) reads through
   `eventlog.Repository`, never through the legacy `event.Store.Get`
   default branch — the Repository's contract is "typed events, decoded".
 
@@ -692,7 +691,7 @@ type Repository interface {
 - Phase 1: `SQLiteRepository` over the existing `run_events` table
   (extended with a `schema_version` column).
 - Phase 2 added the persisted health audit consumer.
-- Phase 3 added the stats engine consumer (next seam below).
+- Fallback insights read it at request time (next seam below).
 
 **Authoritative references:**
 
@@ -703,79 +702,17 @@ type Repository interface {
 
 ---
 
-### 3b. Operational Stats Engine (`internal/stats`)
+### 3b. Fallback insights (Measures)
 
-**Purpose:** Incrementally aggregate typed-operational events into the
-metrics surfaced by `/api/v1/stats/operational`, `/api/v1/stats/fallback`,
-and the `agent-manager ops` CLI. Watermark + checkpoint pattern so the
-engine resumes after a process restart instead of replaying the entire
-event log from zero.
+The operational stats engine (`internal/stats`) was folded into Measures (P2-2).
+Fallback and policy-candidate counts are the `FallbackInsights` measure,
+computed at request time from the retained `run_events` rows of the window by
+the invocation read-model repository (`repository_fallback_insights.go`). There
+is no incremental engine, checkpoint table or watermark to hold during storage
+compaction. `policy.candidate.attempt` counts remain diagnostics only: they
+never mutate catalog policy, health state or persisted run snapshots.
 
-**Interfaces:**
-
-```go
-// stats package
-type Engine struct { /* opaque; see engine.go */ }
-func NewEngine(repo eventlog.Repository, checkpoint CheckpointStore, name string) *Engine
-
-func (e *Engine) Rebuild(ctx context.Context) error  // resume from saved checkpoint
-func (e *Engine) Refresh(ctx context.Context) error  // advance watermark only
-func (e *Engine) GetSummary() Summary                 // bundled view
-func (e *Engine) GetFallback() FallbackInsights       // standalone fallback view
-// + GetHealth, GetSandbox, GetHeartbeat, GetCheckpoint, GetRetry
-
-type CheckpointStore interface {
-    Load(ctx context.Context, name string) (int64, error)
-    Save(ctx context.Context, name string, rowid int64) error
-}
-
-type Processor func(state *aggregateState, rec eventlog.Record)
-func RegisterProcessor(eventType domain.RunEventType, schemaVersion int, p Processor)
-```
-
-**Why it's a seam:**
-
-- **Schema-version dispatch table** (not switch). Processors are keyed
-  by `(event_type, schema_version)`. Adding a new event without wiring
-  a processor is caught by `TestAllEmittedEventsAreProcessed`; bumping
-  a schema version requires registering the new pair, the old pair keeps
-  decoding through its registered processor.
-- **Resumable replay.** Rebuild resumes from `stats_checkpoint.last_rowid`,
-  not zero. `TestRebuildResumesFromCheckpoint` pins this contract: a
-  fresh engine sharing the same checkpoint store processes only the
-  events appended since the saved watermark.
-- **Typed Category enum at the HTTP edge.** `OperationalStatsHandler`
-  parses `?category=…` against a closed set; unknown values return HTTP
-  400 with the known-categories list, never an empty-but-200 response.
-  `TestOperationalHandler_BadCategory400` pins this.
-- **Honesty contract.** Every response carries `history.{has_history,
-  history_days, min_sample_meaningful}` so consumers can refuse to
-  draw conclusions from thin samples.
-- **Policy execution remains an overlay.** `policy.candidate.attempt` processors
-  count outcomes and failure classes for diagnostics. These counters never
-  mutate catalog policy, health state, or persisted run snapshots.
-
-**Implementations:**
-
-- `Engine` plus `SQLiteCheckpointStore` over `stats_checkpoint`.
-- Processors live in `internal/stats/processors.go`, one per typed
-  event. Adding a new event is: register the payload in `eventlog`,
-  register a processor here.
-
-**Authoritative references:**
-
-- `internal/stats/engine.go` — engine, watermark, checkpoint plumbing.
-- `internal/stats/registry.go` — processor map, RegisteredProcessorKeys.
-- `internal/stats/processors.go` — per-event aggregation logic.
-- `internal/handlers/operational_stats.go` — Category enum + 400 path.
-- `internal/database/schema.sql` — `stats_checkpoint` table.
-
-**Tests pinning the contract:**
-
-- `internal/stats/engine_test.go::TestAllEmittedEventsAreProcessed`
-- `internal/stats/engine_test.go::TestRebuildResumesFromCheckpoint`
-- `internal/stats/engine_test.go::TestEngine_AggregatesFallbackInsights`
-- `internal/handlers/operational_stats_test.go::TestOperationalHandler_BadCategory400`
+Tests: `measures_test.go::TestFallbackInsightsReportsCountsAndReasons`.
 
 ---
 
@@ -2009,8 +1946,14 @@ inspect the underlying durable runs. Tool-command grouping is an optional
 read-model capability: unavailable command telemetry is reported as
 unavailable rather than inferred from tool names.
 
-Run cost keeps metered, subscription, unknown, and unpriced charge bases
-separate. Subscription periods are operator-owned records with micro-USD
+Token and quota totals over a window come from `transcript_usage`, one row per
+request, bucketed by request time (P2-D6); per-run lifetime counters serve only
+per-run views. Dollars exist only for per-token (metered) runs, apportioned to
+the window by the share of the run's tokens requested in it; subscription work
+reports quota points. Run statistics (success rate, throughput, run time) count
+runs Agent Manager executed unless a scope selects operator sessions or all; an
+imported or attached session with no usage, and a session copied into several
+harness homes, never count as runs. Subscription periods are operator-owned records with micro-USD
 amounts, quota metadata, and overlap rejection. Runner policies declare
 billing mode/provider/plan metadata; the default is explicitly `unknown`.
 Allocation requests require an explicit allocation basis and remain

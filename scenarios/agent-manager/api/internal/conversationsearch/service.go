@@ -246,7 +246,7 @@ func (s *Service) searchCoverage(ctx context.Context) (uint64, uint64, uint64, e
 		if s.coverageRefresh.CompareAndSwap(false, true) {
 			go func() {
 				defer s.coverageRefresh.Store(false)
-				refreshCtx, refreshCancel := context.WithTimeout(context.Background(), 10*time.Second)
+				refreshCtx, refreshCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 				defer refreshCancel()
 				_, _, _, _ = s.status.CountCoverage(refreshCtx)
 			}()

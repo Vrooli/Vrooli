@@ -6,7 +6,7 @@ test("the phone tab bar carries at most five destinations and every destination 
   const phoneTabs = NAV_DESTINATIONS.filter((item) => item.phoneTab);
   assert.ok(phoneTabs.length <= MAX_PHONE_TABS, `phone tabs: ${phoneTabs.map((item) => item.id).join(", ")}`);
   assert.equal(MAX_PHONE_TABS, 5);
-  assert.deepEqual(phoneTabs.map((item) => item.id), ["dashboard", "tasks", "runs", "usage", "findings"]);
+  assert.deepEqual(phoneTabs.map((item) => item.id), ["dashboard", "tasks", "runs", "usage"]);
   assert.equal(new Set(NAV_DESTINATIONS.map((item) => item.id)).size, NAV_DESTINATIONS.length);
 });
 
@@ -35,4 +35,10 @@ test("sectionForPath maps nested routes to their destination and unknown paths t
   assert.equal(sectionForPath("/observability"), "health");
   assert.equal(sectionForPath("/runsx"), "dashboard");
   assert.equal(sectionForPath("/nowhere"), "dashboard");
+});
+
+test("Investigations is routable but not a destination; it belongs to Health", () => {
+  assert.equal(NAV_DESTINATIONS.some((item) => (item.id as string) === "investigations"), false);
+  assert.equal(sectionForPath("/investigations"), "health");
+  assert.equal(sectionForPath("/investigations/abc"), "health");
 });

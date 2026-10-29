@@ -84,6 +84,7 @@ func detectAbandonedCommandFamily(ctx EpisodeDetectorContext) []FrictionEpisode 
 
 func detectReadThenReread(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
+	stretch := workingStretches(ctx.Events)
 	for i, first := range ctx.Facts {
 		if first.Capability != "file-read" || first.Fingerprint == "" {
 			continue
@@ -94,6 +95,10 @@ func detectReadThenReread(ctx EpisodeDetectorContext) []FrictionEpisode {
 			second := ctx.Facts[j]
 			if second.Capability != "file-read" || second.Fingerprint != first.Fingerprint {
 				continue
+			}
+			// A read after a long idle gap starts a new piece of work, not a re-read.
+			if a, ok := stretch[first.CallEventID]; ok && stretch[second.CallEventID] != a {
+				break
 			}
 			// A changed file turns the second read into deliberate verification,
 			// not avoidable repetition. The edit evidence is structural and is
@@ -107,6 +112,56 @@ func detectReadThenReread(ctx EpisodeDetectorContext) []FrictionEpisode {
 			out = append(out, e)
 			break
 		}
+	}
+	return out
+}
+
+// workSpans answers whether two events lie in one working stretch: no gap over
+// workingStretchGap between consecutive events and no boundary event (park,
+// wake, stop) between them. Events it does not know count as one stretch.
+type workSpans struct {
+	stretch map[string]int
+}
+
+func newWorkSpans(events []*domain.RunEvent) workSpans {
+	out := make(map[string]int, len(events))
+	stretch := 0
+	var prev *domain.RunEvent
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		if prev != nil && (event.Timestamp.Sub(prev.Timestamp) > workingStretchGap || isBoundaryEvent(event) || isBoundaryEvent(prev)) {
+			stretch++
+		}
+		out[event.ID.String()] = stretch
+		prev = event
+	}
+	return workSpans{stretch: out}
+}
+
+func (w workSpans) sameStretch(a, b string) bool {
+	sa, okA := w.stretch[a]
+	sb, okB := w.stretch[b]
+	return !okA || !okB || sa == sb
+}
+
+// workingStretchGap is the idle time that ends a working stretch.
+const workingStretchGap = 30 * time.Minute
+
+// workingStretches numbers the working stretches of ordered events by event
+// ID: a gap over workingStretchGap between consecutive events starts the next.
+func workingStretches(events []*domain.RunEvent) map[string]int {
+	out := make(map[string]int, len(events))
+	stretch := 0
+	for i, event := range events {
+		if event == nil {
+			continue
+		}
+		if i > 0 && events[i-1] != nil && event.Timestamp.Sub(events[i-1].Timestamp) > workingStretchGap {
+			stretch++
+		}
+		out[event.ID.String()] = stretch
 	}
 	return out
 }
@@ -165,6 +220,11 @@ func detectTimeToFirstSuccess(ctx EpisodeDetectorContext) []FrictionEpisode {
 		successEvent = ctx.EventsByID[success.CallEventID]
 	}
 	if successEvent == nil || successEvent.Timestamp.Sub(firstEvent.Timestamp) < 30*time.Second {
+		return nil
+	}
+	// A start that waited out a park, a wake or a long silence (queued, resumed
+	// weeks later) did not take that long to get going.
+	if !newWorkSpans(ctx.Events).sameStretch(firstEvent.ID.String(), successEvent.ID.String()) {
 		return nil
 	}
 	first := InvocationFact{CallEventID: firstEvent.ID.String()}

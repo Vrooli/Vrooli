@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -206,7 +207,7 @@ func (h *Handler) lineageLifecycleAllowed(r *http.Request, target uuid.UUID, all
 // whose identity is carried by the request. Task writes use this as their
 // existing same-run owner proof; it does not grant global task management.
 func (h *Handler) orchestratorTaskCaller(r *http.Request) *domain.Run {
-	caller, allowed := h.taskCreateCaller(r)
+	caller, allowed := h.taskCreateCaller(r.Context(), r.Header.Get(cliutil.HeaderAgentIdentityToken))
 	if !allowed {
 		return nil
 	}
@@ -217,23 +218,23 @@ func (h *Handler) orchestratorTaskCaller(r *http.Request) *domain.Run {
 // along with whether its profile has intrinsic orchestration authority. The
 // caller run is safe attribution for an agent-created task even when creation
 // itself is admitted by an explicit run.create grant.
-func (h *Handler) taskCreateCaller(r *http.Request) (*domain.Run, bool) {
-	token := strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken))
+func (h *Handler) taskCreateCaller(ctx context.Context, identityToken string) (*domain.Run, bool) {
+	token := strings.TrimSpace(identityToken)
 	if token == "" || h.svc.IdentityService == nil || h.svc.RunService == nil {
 		return nil, false
 	}
-	verified, err := h.svc.VerifyIdentityToken(r.Context(), token)
+	verified, err := h.svc.VerifyIdentityToken(ctx, token)
 	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
 		return nil, false
 	}
-	caller, err := h.svc.GetRun(r.Context(), verified.Claims.RunID)
+	caller, err := h.svc.GetRun(ctx, verified.Claims.RunID)
 	if err != nil || caller == nil || caller.Status != domain.RunStatusRunning {
 		return nil, false
 	}
 	if caller.AgentProfileID == nil || h.svc.ProfileService == nil {
 		return caller, false
 	}
-	profile, err := h.svc.GetProfile(r.Context(), *caller.AgentProfileID)
+	profile, err := h.svc.GetProfile(ctx, *caller.AgentProfileID)
 	if err != nil || profile == nil || !slices.Contains(profile.DeclaredScopes, OrchestrateScope) {
 		return caller, false
 	}

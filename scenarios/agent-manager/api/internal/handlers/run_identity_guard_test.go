@@ -363,7 +363,7 @@ func TestQuiesceReadAdmissionAndForcedDrainBoundary(t *testing.T) {
 	}{
 		{name: "implemented POST", method: http.MethodPost, path: "/api/v1/runs/quiesce", want: http.StatusNoContent},
 		{name: "wrong method", method: http.MethodGet, path: "/api/v1/runs/quiesce", want: http.StatusMethodNotAllowed},
-		{name: "unimplemented Connect procedure", method: http.MethodPost, path: apiconnect.AgentManagerServiceQuiesceScenarioProcedure, want: http.StatusForbidden},
+		{name: "mutating Connect procedure outside the agent allowlist", method: http.MethodPost, path: apiconnect.AgentManagerServicePurgeDataProcedure, want: http.StatusForbidden},
 		{name: "unknown adjacent REST path", method: http.MethodPost, path: "/api/v1/runs/quiesce/all", want: http.StatusForbidden},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

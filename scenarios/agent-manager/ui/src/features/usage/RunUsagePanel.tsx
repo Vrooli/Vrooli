@@ -6,8 +6,9 @@ import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
 import type { UsageBurner, UsageWindowAttribution } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { DataState } from "../../components/feedback/DataState";
 import { useUsageBurners, useUsageRecommendations } from "./api";
-import { formatPoints, formatTokenCount, windowKey, windowTitle } from "./format";
-import { RecommendationList } from "./UsageRecommendations";
+import { formatCount, formatPoints, formatTokens } from "../../lib/format";
+import { windowKey, windowTitle } from "./format";
+import { ActionGroups } from "./UsageActions";
 
 function Tile({ label, value, caption }: { label: string; value: string; caption: string }) {
   return (
@@ -24,13 +25,13 @@ function RunWindowUsage({ attribution, burner }: { attribution: UsageWindowAttri
   return (
     <div className="space-y-2" data-testid="run-usage-window">
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-        <Tile label="Quota used" value={formatPoints(burner.points)} caption={`of ${windowTitle(attribution)}`} />
-        <Tile label="Cached input" value={formatTokenCount(tokens?.cachedInput ?? 0n)} caption="re-read context" />
-        <Tile label="New input" value={formatTokenCount((tokens?.input ?? 0n) + (tokens?.cacheCreation ?? 0n))} caption="not cached" />
-        <Tile label="Output" value={formatTokenCount(tokens?.output ?? 0n)} caption={`${burner.turns} requests`} />
+        <Tile label="Quota used" value={`≈ ${formatPoints(burner.points)}`} caption={`of ${windowTitle(attribution)}`} />
+        <Tile label="Cached input" value={formatTokens(tokens?.cachedInput ?? 0n)} caption="re-read context" />
+        <Tile label="New input" value={formatTokens((tokens?.input ?? 0n) + (tokens?.cacheCreation ?? 0n))} caption="not cached" />
+        <Tile label="Output" value={formatTokens(tokens?.output ?? 0n)} caption={`${formatCount(burner.requests)} requests`} />
       </div>
       <p className="text-xs text-muted-foreground">
-        {formatTokenCount(tokens?.total ?? 0n)} tokens from the run's transcript counters{burner.model ? ` · model ${burner.model}` : ""}. Quota points are an estimate calibrated to provider readings.
+        {formatTokens(tokens?.total ?? 0n)} tokens in {burner.requests.toString()} requests, from the run's transcript{burner.model ? ` · model ${burner.model}` : ""}. Quota points are an estimate calibrated to provider readings.
       </p>
     </div>
   );
@@ -61,7 +62,7 @@ export function RunUsagePanel({ runId, children, hasCost, costLoading }: RunUsag
   const burners = useUsageBurners("run", runId);
   const recommendations = useUsageRecommendations(runId);
   const rows = (burners.data?.windows ?? []).flatMap((attribution) => attribution.burners.filter((burner) => burner.key === runId).map((burner) => ({ attribution, burner })));
-  const runRecommendations = recommendations.data?.recommendations ?? [];
+  const runGroups = recommendations.data?.groups ?? [];
   return (
     <section aria-labelledby="run-usage-heading" className="space-y-4" data-testid="run-usage-panel">
       <h3 id="run-usage-heading" className="sr-only">Quota usage</h3>
@@ -78,13 +79,13 @@ export function RunUsagePanel({ runId, children, hasCost, costLoading }: RunUsag
         {rows.map(({ attribution, burner }) => <RunWindowUsage key={windowKey(attribution)} attribution={attribution} burner={burner} />)}
         {children}
       </DataState>
-      {runRecommendations.length > 0 ? (
+      {runGroups.length > 0 ? (
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-sm font-semibold">Recommendations for this run</h4>
             <Link to="/usage" className="inline-flex min-h-11 items-center text-sm text-primary sm:min-h-8">All recommendations →</Link>
           </div>
-          <RecommendationList recommendations={runRecommendations} />
+          <ActionGroups groups={runGroups} />
         </div>
       ) : null}
     </section>

@@ -102,7 +102,7 @@ type requesterWakeEffect struct{ waker requesterWaker }
 
 func (requesterWakeEffect) Handles(string) bool { return true }
 
-func (e requesterWakeEffect) Apply(_ context.Context, res operatordecision.DecisionResolution) (bool, error) {
+func (e requesterWakeEffect) Apply(ctx context.Context, res operatordecision.DecisionResolution) (bool, error) {
 	runIDStr := strings.TrimSpace(res.Correlation[operatordecision.CorrelationRaisedByRunID])
 	wcSession := strings.TrimSpace(res.Correlation[operatordecision.CorrelationWebConsoleSessionID])
 	if e.waker == nil || (runIDStr == "" && wcSession == "") {
@@ -110,7 +110,9 @@ func (e requesterWakeEffect) Apply(_ context.Context, res operatordecision.Decis
 		// the real appliers decide ownership.
 		return false, nil
 	}
-	go e.deliverToRequester(runIDStr, wcSession,
+	// Delivery outlives the resolution call but keeps its values and is bounded
+	// by its own deadline.
+	go e.deliverToRequester(context.WithoutCancel(ctx), runIDStr, wcSession,
 		strings.TrimSpace(res.Correlation[operatordecision.CorrelationAgentAwaitKey]),
 		res)
 	return false, nil
@@ -121,10 +123,10 @@ func (e requesterWakeEffect) Apply(_ context.Context, res operatordecision.Decis
 // falls back to the stable web-console-session-id lane when there is no usable
 // run (e.g. a long interactive session whose identity token expired, so no run
 // id was captured). Runs detached from the webhook request.
-func (e requesterWakeEffect) deliverToRequester(runIDStr, wcSession, awaitKey string, res operatordecision.DecisionResolution) {
+func (e requesterWakeEffect) deliverToRequester(parent context.Context, runIDStr, wcSession, awaitKey string, res operatordecision.DecisionResolution) {
 	defer obs.RecoverToFailure("operator-decision requester delivery", nil)
 	log := obs.Component("operator-decision-wake")
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 90*time.Second)
 	defer cancel()
 	message := "[operator decision resolved] " + formatDecisionWakeMessage(res)
 

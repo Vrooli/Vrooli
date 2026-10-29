@@ -1,5 +1,5 @@
 // Responsibility: manage profile and task records through the existing typed API.
-import { useCallback, useEffect } from "react";
+import { useCallback } from "react";
 
 import { create } from "@bufbuild/protobuf";
 
@@ -13,7 +13,8 @@ import { CreateProfileRequestSchema, CreateProfileResponseSchema, CreateTaskRequ
 
 import { ExtraFlagListSchema, FeatureFlagsSchema, SandboxConfigSchema } from "@vrooli/proto-types/agent-manager/v1/domain/types_pb";
 
-import { useApiState, apiRequest, parseProto, toProtoJson, durationFromMinutes, sandboxModeFromForm, networkAccessToProto } from "./useApiTransport";
+import { useApiQuery } from "./useApiQuery";
+import { apiRequest, parseProto, toProtoJson, durationFromMinutes, sandboxModeFromForm, networkAccessToProto } from "./useApiTransport";
 
 function generateProfileKey(name: string): string {
   const base = name
@@ -82,21 +83,11 @@ function buildTask(task: TaskFormData): Task {
 // Profiles hook
 export function useProfiles(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<AgentProfile[]>([], enabled);
-
-  const fetchProfiles = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<unknown>("/profiles");
-      const message = parseProto(ListProfilesResponseSchema, data);
-      setData(message.profiles ?? []);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
+  const { data, loading, error, refetch: fetchProfiles } = useApiQuery<AgentProfile[]>(
+    ["profiles"],
+    async (signal) => parseProto(ListProfilesResponseSchema, await apiRequest<unknown>("/profiles", { signal })).profiles ?? [],
+    { enabled, fallback: [] },
+  );
 
   const createProfile = useCallback(
     async (profile: ProfileFormData): Promise<AgentProfile> => {
@@ -139,13 +130,6 @@ export function useProfiles(options?: { enabled?: boolean }) {
     [fetchProfiles]
   );
 
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    void fetchProfiles();
-  }, [enabled, fetchProfiles]);
-
   return {
     data, loading, error,
     refetch: fetchProfiles,
@@ -158,21 +142,11 @@ export function useProfiles(options?: { enabled?: boolean }) {
 // Tasks hook
 export function useTasks(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true;
-  const { data, loading, error, setData, setLoading, setError } = useApiState<Task[]>([], enabled);
-
-  const fetchTasks = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await apiRequest<unknown>("/tasks");
-      const message = parseProto(ListTasksResponseSchema, data);
-      setData(message.tasks ?? []);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }, [setData, setLoading, setError]);
+  const { data, loading, error, refetch: fetchTasks } = useApiQuery<Task[]>(
+    ["tasks"],
+    async (signal) => parseProto(ListTasksResponseSchema, await apiRequest<unknown>("/tasks", { signal })).tasks ?? [],
+    { enabled, fallback: [] },
+  );
 
   const createTask = useCallback(
     async (task: TaskFormData): Promise<Task> => {
@@ -228,13 +202,6 @@ export function useTasks(options?: { enabled?: boolean }) {
     },
     [fetchTasks]
   );
-
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
-    void fetchTasks();
-  }, [enabled, fetchTasks]);
 
   return {
     data, loading, error,

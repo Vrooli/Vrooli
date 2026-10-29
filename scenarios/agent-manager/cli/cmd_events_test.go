@@ -7,6 +7,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -77,15 +78,15 @@ func TestPermissionPolicyFormattingAndInputValidation(t *testing.T) {
 func TestPermissionPolicyCommandsRenderHealthyOperationalResponses(t *testing.T) {
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 		switch request.Path {
-		case "/api/v1/permission-policy/catalog":
+		case apiconnect.AgentManagerServiceGetPermissionPolicyCatalogProcedure:
 			return `{"status":{"ready":true,"path":"policy.json","activeDigest":"active"},"catalog":{"metadata":{"catalogId":"permissions"},"schemaVersion":1}}`
-		case "/api/v1/permission-policy/validate":
+		case apiconnect.AgentManagerServiceValidatePermissionPolicyCatalogProcedure:
 			return `{"valid":true,"candidateDigest":"candidate","activeDigest":"active"}`
-		case "/api/v1/permission-policy/reload":
+		case apiconnect.AgentManagerServiceReloadPermissionPolicyCatalogProcedure:
 			return `{"activated":true,"status":{"ready":true,"path":"policy.json","activeDigest":"active"}}`
-		case "/api/v1/permission-policy/reconcile":
+		case apiconnect.AgentManagerServiceReconcilePermissionPolicyProcedure:
 			return `{"result":{"success":true}}`
-		case "/api/v1/permission-policy/doctor":
+		case apiconnect.AgentManagerServiceDoctorPermissionPolicyProcedure:
 			return `{"healthy":true,"summary":"all enforced","status":{"ready":true,"path":"policy.json","activeDigest":"active"},"plan":{"catalogDigest":"active","hardEnforcementSatisfied":true}}`
 		default:
 			return `{}`
@@ -105,13 +106,13 @@ func TestPermissionPolicyCommandsRenderHealthyOperationalResponses(t *testing.T)
 func TestRolePolicyCommandsRenderHealthyOperationalResponses(t *testing.T) {
 	server := clitest.NewRecordingServerForRequests(t, func(request clitest.Request) string {
 		switch request.Path {
-		case "/api/v1/role-policy/validate":
+		case apiconnect.AgentManagerServiceValidateRolePolicyCatalogProcedure:
 			return `{"valid":true,"candidateDigest":"candidate","activeDigest":"active"}`
-		case "/api/v1/role-policy/reload":
+		case apiconnect.AgentManagerServiceReloadRolePolicyCatalogProcedure:
 			return `{"activated":true,"status":{"ready":true,"path":"roles.json","activeDigest":"active"}}`
-		case "/api/v1/role-policy/explain":
+		case apiconnect.AgentManagerServiceExplainRolePolicyProcedure:
 			return `{"targetType":"profile","targetId":"profile-1","summary":"resolved","snapshot":{"catalogDigest":"active","roleRef":"code.default","selectedIndex":0,"candidates":[{"runnerType":"RUNNER_TYPE_CODEX","selectionType":"MODEL_SELECTION_TYPE_EXPLICIT","model":"gpt-test"}]}}`
-		case "/api/v1/role-policy/catalog":
+		case apiconnect.AgentManagerServiceGetRolePolicyCatalogProcedure:
 			return `{"status":{"ready":true,"path":"roles.json","activeDigest":"active"},"catalog":{"metadata":{"catalogId":"roles"},"schemaVersion":1,"defaultRole":"code.default","roles":[{"roleRef":"code.default","intent":"implement","description":"make safe code changes","candidates":[{"runnerType":"RUNNER_TYPE_CODEX","resourceRole":"coding"}]}]}}`
 		default:
 			return `{}`

@@ -106,7 +106,7 @@ func TestValidateRunOutcome_DemotesSilentLaunchFailure(t *testing.T) {
 		t.Error("Success should be flipped to false on silent launch failure")
 	}
 	if out.ExecErr == nil {
-		t.Fatal("execErr should be set so classifyOutcome routes to FAILED")
+		t.Fatal("execErr should be set so ClassifyRunOutcome routes to FAILED")
 	}
 	sbxErr, ok := out.ExecErr.(*domain.SandboxError)
 	if !ok {

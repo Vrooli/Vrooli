@@ -23,7 +23,6 @@ func createEventTables(t *testing.T, db *sql.DB) {
 	t.Helper()
 	for _, statement := range []string{
 		`CREATE TABLE run_events (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, data BLOB NOT NULL)`,
-		`CREATE TABLE stats_checkpoint (name TEXT PRIMARY KEY, last_rowid INTEGER NOT NULL, updated_at TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE cohort_watches (watch_id TEXT PRIMARY KEY, cursor_rowid INTEGER NOT NULL, revision INTEGER NOT NULL DEFAULT 1)`,
 		`CREATE TABLE event_retention_state (singleton INTEGER PRIMARY KEY, generation INTEGER NOT NULL, floor_rowid INTEGER NOT NULL, updated_at TEXT NOT NULL)`,
 		`INSERT INTO event_retention_state VALUES (1, 1, 0, '')`,
@@ -76,13 +75,12 @@ func TestCompactCarriesRowidWatermarksAcrossVacuum(t *testing.T) {
 		oldRowid[id] = rowid
 	}
 	rows.Close()
-	const statsW, watchW, memoryW = 1801, 2400, 2999 // 2400 was deleted
-	mustExec(t, db, `INSERT INTO stats_checkpoint (name, last_rowid) VALUES ('operational', ?)`, statsW)
+	const watchW, memoryW = 2400, 2999 // 2400 was deleted
 	mustExec(t, db, `INSERT INTO cohort_watches (watch_id, cursor_rowid) VALUES ('watch-1', ?)`, watchW)
-	expected := map[string][]string{"stats": eventIDsAfter(t, db, statsW), "watch": eventIDsAfter(t, db, watchW), "memory": eventIDsAfter(t, db, memoryW)}
+	expected := map[string][]string{"watch": eventIDsAfter(t, db, watchW), "memory": eventIDsAfter(t, db, memoryW)}
 	memory := &fakeWatermark{w: memoryW}
 	svc := newService(t, db, path, &drainedFence{state: FenceState{Closed: true, Drained: true}}, nil)
-	svc.opts.Watermarks = []NamedWatermark{{Name: "stats_engine.watermark", Holder: memory}}
+	svc.opts.Watermarks = []NamedWatermark{{Name: "memory.watermark", Holder: memory}}
 
 	receipt, err := svc.Compact(t.Context(), "owner", "rowid regression")
 	if err != nil {
@@ -107,14 +105,11 @@ func TestCompactCarriesRowidWatermarksAcrossVacuum(t *testing.T) {
 	rows.Close()
 	t.Logf("VACUUM renumbered %d of %d run_events rowids; remapped %+v", renumbered, len(oldRowid), receipt.RemappedWatermarks)
 
-	var statsNew, watchNew, floor, minRowid int64
-	if err := db.QueryRow(`SELECT last_rowid FROM stats_checkpoint`).Scan(&statsNew); err != nil {
-		t.Fatal(err)
-	}
+	var watchNew, floor, minRowid int64
 	if err := db.QueryRow(`SELECT cursor_rowid FROM cohort_watches`).Scan(&watchNew); err != nil {
 		t.Fatal(err)
 	}
-	for name, position := range map[string]int64{"stats": statsNew, "watch": watchNew, "memory": memory.w} {
+	for name, position := range map[string]int64{"watch": watchNew, "memory": memory.w} {
 		if got := eventIDsAfter(t, db, position); !slices.Equal(got, expected[name]) {
 			t.Fatalf("%s position %d selects %d events, want the %d it had not processed", name, position, len(got), len(expected[name]))
 		}
@@ -125,8 +120,8 @@ func TestCompactCarriesRowidWatermarksAcrossVacuum(t *testing.T) {
 	if err := db.QueryRow(`SELECT floor_rowid, (SELECT MIN(rowid) FROM run_events) FROM event_retention_state`).Scan(&floor, &minRowid); err != nil || floor != minRowid {
 		t.Fatalf("retention floor=%d min=%d err=%v", floor, minRowid, err)
 	}
-	if len(receipt.RemappedWatermarks) != 4 {
-		t.Fatalf("remapped=%+v, want stats, watch, memory, floor", receipt.RemappedWatermarks)
+	if len(receipt.RemappedWatermarks) != 3 {
+		t.Fatalf("remapped=%+v, want watch, memory, floor", receipt.RemappedWatermarks)
 	}
 }
 
@@ -140,13 +135,12 @@ func TestCompactRemapsPositionsWhenVacuumRenumbers(t *testing.T) {
 		mustExec(t, db, `INSERT INTO run_events (id, run_id, data) VALUES (?, 'run', 'x')`, fmt.Sprintf("evt-%05d", i))
 	}
 	mustExec(t, db, `DELETE FROM run_events WHERE rowid <= 700 OR rowid % 4 = 0`)
-	const statsW, watchW, memoryW = 1203, 1600, 1999 // 1600 was deleted
-	mustExec(t, db, `INSERT INTO stats_checkpoint (name, last_rowid) VALUES ('operational', ?)`, statsW)
+	const watchW, memoryW = 1600, 1999 // 1600 was deleted
 	mustExec(t, db, `INSERT INTO cohort_watches (watch_id, cursor_rowid) VALUES ('watch-1', ?)`, watchW)
-	expected := map[string][]string{"stats": eventIDsAfter(t, db, statsW), "watch": eventIDsAfter(t, db, watchW), "memory": eventIDsAfter(t, db, memoryW)}
+	expected := map[string][]string{"watch": eventIDsAfter(t, db, watchW), "memory": eventIDsAfter(t, db, memoryW)}
 	memory := &fakeWatermark{w: memoryW}
 	svc := newService(t, db, path, &drainedFence{state: FenceState{Closed: true, Drained: true}}, nil)
-	svc.opts.Watermarks = []NamedWatermark{{Name: "stats_engine.watermark", Holder: memory}}
+	svc.opts.Watermarks = []NamedWatermark{{Name: "memory.watermark", Holder: memory}}
 	svc.afterVacuum = func(ctx context.Context, conn *sql.Conn) error {
 		for _, statement := range []string{
 			`CREATE TEMP TABLE renumber AS SELECT id, run_id, data FROM run_events ORDER BY rowid`,
@@ -170,21 +164,18 @@ func TestCompactRemapsPositionsWhenVacuumRenumbers(t *testing.T) {
 	if err := db.QueryRow(`SELECT MAX(rowid), COUNT(*) FROM run_events`).Scan(&maxRowid, &count); err != nil || maxRowid != count {
 		t.Fatalf("fixture did not renumber densely: max=%d count=%d err=%v", maxRowid, count, err)
 	}
-	var statsNew, watchNew int64
-	if err := db.QueryRow(`SELECT last_rowid FROM stats_checkpoint`).Scan(&statsNew); err != nil {
-		t.Fatal(err)
-	}
+	var watchNew int64
 	if err := db.QueryRow(`SELECT cursor_rowid FROM cohort_watches`).Scan(&watchNew); err != nil {
 		t.Fatal(err)
 	}
-	for name, position := range map[string]int64{"stats": statsNew, "watch": watchNew, "memory": memory.w} {
+	for name, position := range map[string]int64{"watch": watchNew, "memory": memory.w} {
 		if got := eventIDsAfter(t, db, position); !slices.Equal(got, expected[name]) {
 			t.Fatalf("%s position %d selects %d events after renumbering, want %d", name, position, len(got), len(expected[name]))
 		}
 	}
 	// Without the remap the old positions would skip unprocessed events.
-	if stale := eventIDsAfter(t, db, statsW); len(stale) >= len(expected["stats"]) {
-		t.Fatalf("fixture too weak: the stale stats position still selects %d of %d", len(stale), len(expected["stats"]))
+	if stale := eventIDsAfter(t, db, watchW); len(stale) >= len(expected["watch"]) {
+		t.Fatalf("fixture too weak: the stale watch position still selects %d of %d", len(stale), len(expected["watch"]))
 	}
 	t.Logf("remapped %+v", receipt.RemappedWatermarks)
 }

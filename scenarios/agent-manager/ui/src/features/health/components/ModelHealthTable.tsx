@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { runnerLabel } from "../../../lib/format";
 import { formatStandardRelativeTime } from "../../../lib/dateTime";
 import type { ModelHealthRow } from "../api/types";
 import { HealthStatusBadge } from "./HealthStatusBadge";
@@ -45,7 +46,7 @@ export function ModelHealthTable({ rows, onShowAudit }: ModelHealthTableProps) {
               data-testid={`model-health-row-${row.runner}-${row.model}`}
             >
               <td className="px-3 py-2"><HealthStatusBadge status={row.status} /></td>
-              <td className="px-3 py-2 font-mono text-xs">{row.runner}</td>
+              <td className="px-3 py-2 text-sm">{runnerLabel(row.runner)}</td>
               <td className="px-3 py-2 font-mono text-xs">{row.model}</td>
               <td className="px-3 py-2 text-muted-foreground">{row.reason ?? "—"}</td>
               <td className="px-3 py-2 text-muted-foreground">
@@ -55,8 +56,9 @@ export function ModelHealthTable({ rows, onShowAudit }: ModelHealthTableProps) {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
                   onClick={() => onShowAudit(row.runner, row.model)}
-                  aria-label={`Show audit history for ${row.runner} / ${row.model}`}
+                  aria-label={`Show audit history for ${runnerLabel(row.runner)} / ${row.model}`}
                 >
                   <Search className="h-3.5 w-3.5" />
                 </Button>

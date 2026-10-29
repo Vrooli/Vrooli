@@ -10,6 +10,7 @@ import {
 } from "@vrooli/proto-types/agent-manager/v1/domain/effort_pb";
 import { useEffortBoard } from "../features/efforts/api";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { formatCount, formatTokens } from "../lib/format";
 
 const freshnessNames: Record<number, string> = {
   [EffortFreshness.FRESH]: "fresh",
@@ -31,9 +32,9 @@ function References({ values }: { values: string[] }) {
 function Usage({ usage }: { usage?: EffortUsage }) {
   return <div className="space-y-2 text-sm">
     <dl className="grid gap-3 sm:grid-cols-3">
-      <div><dt className="text-muted-foreground">Reported tokens</dt><dd>{usage?.tokens?.toLocaleString() ?? "unknown"}</dd></div>
+      <div><dt className="text-muted-foreground">Reported tokens</dt><dd>{formatTokens(usage?.tokens)}</dd></div>
       <div><dt className="text-muted-foreground">Reported cost (USD)</dt><dd>{usage?.reportedCostUsd === undefined ? "unknown" : usage.reportedCostUsd.toFixed(4)}</dd></div>
-      <div><dt className="text-muted-foreground">Summed agent seconds</dt><dd>{usage?.agentSeconds?.toLocaleString() ?? "unknown"}</dd></div>
+      <div><dt className="text-muted-foreground">Summed agent seconds</dt><dd>{formatCount(usage?.agentSeconds)}</dd></div>
     </dl>
     <p className="text-xs text-muted-foreground">{usage ? `${usage.observedRuns} observed / ${usage.declaredRuns} declared runs · ${usage.partial ? "partial coverage" : "reported coverage"}` : "Usage coverage unavailable"}. Shared runs must not be summed across efforts.</p>
     {usage?.source ? <p className="break-all text-xs">Source: {usage.source}</p> : null}

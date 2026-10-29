@@ -45,3 +45,9 @@ CREATE TABLE IF NOT EXISTS event_retention_state (
 );
 INSERT OR IGNORE INTO event_retention_state (singleton, generation, floor_rowid, updated_at)
 VALUES (1, 1, 0, datetime('now'));
+-- Fallback insights count these five types over a time window. The partial
+-- index keeps that read from walking every event of the window; the query's
+-- WHERE repeats this predicate exactly.
+CREATE INDEX IF NOT EXISTS idx_run_events_fallback
+    ON run_events(timestamp)
+    WHERE event_type IN ('runner.fallback.attempted','runner.fallback.exhausted','model.fallback.attempted','model.fallback.exhausted','policy.candidate.attempt');

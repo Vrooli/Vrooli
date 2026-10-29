@@ -3,7 +3,7 @@ import { test } from "vitest";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { makeRun } from "../test-utils/fixtures/runs";
 import { RunnerType, type Run } from "../types";
-import { harnessLabel, readableTitle, runHeading, runOrigin } from "./runPresentation";
+import { readableTitle, runHeading, runOrigin } from "./runPresentation";
 
 test("runHeading gives people a title and keeps machine ids as a short reference", () => {
   const workflow = makeRun({ id: "c030e0ce-3593-4d77-a49f-0ef6735e3929", label: "Workflow e6b4c7c2-da57-416c-b2c2-8c0b5e942874 node draft", labelSource: "derived" });
@@ -38,5 +38,4 @@ test("runOrigin names the profile, or where an unprofiled run came from", () => 
   assert.equal(runOrigin(makeRun({ resolvedConfig: { runnerType: RunnerType.OPENCODE } as Run["resolvedConfig"] })), "OpenCode");
   assert.equal(runOrigin(makeRun({ agentProfileId: "gone" })), "Profile unavailable");
   assert.equal(runOrigin(makeRun({})), "No profile");
-  assert.equal(harnessLabel("command-session"), "Command Session");
-});
+  });

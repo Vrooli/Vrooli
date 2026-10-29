@@ -1,4 +1,5 @@
 import { Search } from "lucide-react";
+import { runnerLabel } from "../../../lib/format";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { formatStandardRelativeTime } from "../../../lib/dateTime";
 import type { RunnerHealthRow } from "../api/types";
@@ -44,7 +45,7 @@ export function RunnerHealthTable({ rows, onShowAudit }: RunnerHealthTableProps)
               data-testid={`runner-health-row-${row.runner}`}
             >
               <td className="px-3 py-2"><HealthStatusBadge status={row.status} /></td>
-              <td className="px-3 py-2 font-mono text-xs">{row.runner}</td>
+              <td className="px-3 py-2 text-sm">{runnerLabel(row.runner)}</td>
               <td className="px-3 py-2 text-muted-foreground">{row.reason ?? "—"}</td>
               <td className="px-3 py-2 text-xs text-muted-foreground">
                 {row.catalog ? `${row.catalog.status} (${row.catalog.age_days}d / ${row.catalog.budget_days}d)` : "—"}
@@ -56,8 +57,9 @@ export function RunnerHealthTable({ rows, onShowAudit }: RunnerHealthTableProps)
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="min-h-11 min-w-11 sm:min-h-8 sm:min-w-8"
                   onClick={() => onShowAudit(row.runner)}
-                  aria-label={`Show audit history for runner ${row.runner}`}
+                  aria-label={`Show audit history for runner ${runnerLabel(row.runner)}`}
                 >
                   <Search className="h-3.5 w-3.5" />
                 </Button>

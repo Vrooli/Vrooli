@@ -9,7 +9,6 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/findings"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/promptmanager"
 
 	"github.com/google/uuid"
@@ -99,7 +98,6 @@ func (o *Orchestrator) persistInvestigationFindings(ctx context.Context, executi
 			}
 		}
 		o.routeInvestigationFindings(ctx, investigationRun.ID)
-		o.measureAppliedFindings(ctx, execution, investigationRun.ID)
 		return
 	}
 }
@@ -200,46 +198,6 @@ func (o *Orchestrator) routeInvestigationFindings(ctx context.Context, investiga
 		if err != nil {
 			continue
 		}
-		_ = o.findings.SetEffectiveness(ctx, item.ID, item.BeforeValue, item.AfterValue, item.Effectiveness, topic)
-	}
-}
-
-// measureAppliedFindings records the after value only once the declared apply
-// node completes. Failed, rejected, and merely launched applies keep their
-// durable finding explicitly not-yet-measurable.
-func (o *Orchestrator) measureAppliedFindings(ctx context.Context, execution *domain.WorkflowExecution, investigationRunID uuid.UUID) {
-	if o.findings == nil || o.invocationReadModel == nil || execution == nil {
-		return
-	}
-	attempts, err := o.workflowExecutions.ListAttempts(ctx, execution.ID)
-	if err != nil {
-		return
-	}
-	applyComplete := false
-	for _, attempt := range attempts {
-		if attempt.NodeID == investigationApplyNodeID && attempt.Status == domain.WorkflowAttemptCompleted && attempt.RunID != nil {
-			applyComplete = true
-			break
-		}
-	}
-	if !applyComplete {
-		return
-	}
-	metrics, err := o.invocationReadModel.FindingMetrics(ctx, invocationreadmodel.Filter{})
-	if err != nil || metrics.TotalFindings == 0 {
-		return
-	}
-	after := metrics.RecurrenceRate
-	items, err := o.findings.List(ctx, findings.Filter{Limit: 1000, Decision: "completed"})
-	if err != nil {
-		return
-	}
-	for _, item := range items {
-		if item.InvestigationRunID != investigationRunID || item.BeforeValue == nil || item.AfterValue != nil {
-			continue
-		}
-		if err := o.findings.SetEffectiveness(ctx, item.ID, item.BeforeValue, &after, findings.Effectiveness(item.BeforeValue, &after), item.FrictionTopic); err != nil {
-			continue
-		}
+		_ = o.findings.SetTopic(ctx, item.ID, topic)
 	}
 }

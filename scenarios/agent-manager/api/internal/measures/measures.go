@@ -16,6 +16,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
+	"agent-manager/internal/usageforecast"
 
 	"connectrpc.com/connect"
 	measurelib "github.com/vrooli/measures-go"
@@ -47,6 +48,7 @@ const (
 	FileRereadRate            = "friction.file_reread_rate"
 	FindingRecurrenceRate     = "friction.finding_recurrence_rate"
 	ConversationSearchQuality = "conversation_search.quality"
+	FallbackInsights          = "health.fallback_insights"
 )
 
 // Store is the narrow durable analytical substrate. The database read-model
@@ -54,6 +56,7 @@ const (
 type Store interface {
 	Metrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error)
 	RunMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error)
+	WindowedUsage(context.Context, invocationreadmodel.Filter) (invocationreadmodel.UsageTotals, error)
 	RunDurationStatistics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error)
 	RunStatusCounts(context.Context, invocationreadmodel.Filter) ([]invocationreadmodel.RunStatusCount, error)
 	RunBreakdown(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.RunBreakdownRow, error)
@@ -61,6 +64,7 @@ type Store interface {
 	ToolUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ToolUsageRow, error)
 	ErrorPatterns(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ErrorPattern, error)
 	FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error)
+	FallbackInsights(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FallbackInsights, error)
 }
 
 type tokenAttributionStore interface {
@@ -110,6 +114,7 @@ const (
 
 type metricResult struct {
 	Rate       float64
+	P50, P90   float64
 	Numerator  int64
 	Denom      int64
 	Population int64
@@ -139,24 +144,25 @@ func definitionFor(name string) Definition {
 		HelpRecoveryRate:                     {ID: HelpRecoveryRate, Counts: "durable tool invocations", Numerator: "help-recovery calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
 		RepeatedWorkRate:                     {ID: RepeatedWorkRate, Counts: "durable tool invocations", Numerator: "repeated-work calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts", Limitation: "fingerprint concentration can make this measure unreliable"},
 		ToolFailureRate:                      {ID: ToolFailureRate, Counts: "durable tool invocations", Numerator: "failed calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
-		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "successful executed terminal runs", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed executed terminal runs", Numerator: "duration milliseconds", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed executed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		RunCost:                              {ID: RunCost, Counts: "executed terminal runs", Numerator: "charge and token totals", Denominator: "executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "unpriced, imported, and interactive runs are excluded from metered consumption"},
-		RunVolume:                            {ID: RunVolume, Counts: "executed terminal run summaries", Numerator: "executed terminal runs", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		RunStatusDistribution:                {ID: RunStatusDistribution, Counts: "executed terminal runs", Numerator: "runs in each status", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		RunnerBreakdown:                      {ID: RunnerBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by runner", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		ModelBreakdown:                       {ID: ModelBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by model", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded; model assignment is observational, not randomized"},
-		ProfileBreakdown:                     {ID: ProfileBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by profile", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
-		WorkloadBreakdown:                    {ID: WorkloadBreakdown, Counts: "executed terminal runs", Numerator: "workload totals and completion outcomes", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded; model assignment is observational, not randomized"},
-		WorkloadEfficiency:                   {ID: WorkloadEfficiency, Counts: "executed terminal runs for a workload", Numerator: "total tokens", Denominator: "successful completions", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded; model assignment is observational, not randomized"},
-		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "executed terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "imported and interactive runs are reported separately and excluded"},
+		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "successful executed terminal runs", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed executed terminal runs", Numerator: "duration milliseconds", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed executed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		RunCost:                              {ID: RunCost, Counts: "transcript requests observed in the window", Numerator: "token totals; dollars for per-token billed runs only", Denominator: "runs with requests in the window", SourceTable: "transcript_usage", Limitation: "subscription work has no dollar cost; its spend is quota points. A request copied into several harness homes counts once"},
+		RunVolume:                            {ID: RunVolume, Counts: "executed terminal run summaries", Numerator: "executed terminal runs", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		RunStatusDistribution:                {ID: RunStatusDistribution, Counts: "executed terminal runs", Numerator: "runs in each status", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		RunnerBreakdown:                      {ID: RunnerBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by runner", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		ModelBreakdown:                       {ID: ModelBreakdown, Counts: "executed terminal runs and transcript requests", Numerator: "runs and tokens grouped by model", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs, transcript_usage", Limitation: "run counts cover the selected scope; tokens count every request in the window unless a scope is chosen; model assignment is observational, not randomized"},
+		ProfileBreakdown:                     {ID: ProfileBreakdown, Counts: "executed terminal runs", Numerator: "runs grouped by profile", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		WorkloadBreakdown:                    {ID: WorkloadBreakdown, Counts: "executed terminal runs", Numerator: "workload totals and completion outcomes", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions; model assignment is observational, not randomized"},
+		WorkloadEfficiency:                   {ID: WorkloadEfficiency, Counts: "executed terminal runs for a workload", Numerator: "total tokens", Denominator: "successful completions", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions; model assignment is observational, not randomized"},
+		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "executed terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
 		ToolUsage:                            {ID: ToolUsage, Counts: "tool invocation facts", Numerator: "calls grouped by tool", Denominator: "none", SourceTable: "invocation_read_model_facts"},
 		"friction.tool_command_breakdown":    {ID: "friction.tool_command_breakdown", Counts: "tool invocation facts", Numerator: "calls grouped by executable and command path", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "command detail is unavailable when the source fact did not record it"},
 		TokenAttribution:                     {ID: TokenAttribution, Counts: "durable invocation token factors", Numerator: "tokens grouped by the selected dimension and view", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "estimated share identifies rankings that rely on payload estimates; target scenario and operation require a verified receipt join"},
 		ErrorPatterns:                        {ID: ErrorPatterns, Counts: "durable error facts", Numerator: "errors grouped by code", Denominator: "none", SourceTable: "invocation_read_model_errors"},
 		FileRereadRate:                       {ID: FileRereadRate, Counts: "file-read calls", Numerator: "files read more than once", Denominator: "file-read calls", SourceTable: "invocation_read_model_runs"},
 		FindingRecurrenceRate:                {ID: FindingRecurrenceRate, Counts: "persisted investigation findings", Numerator: "recurring findings", Denominator: "all findings", SourceTable: "run_findings"},
+		FallbackInsights:                     {ID: FallbackInsights, Counts: "runner and model fallback events and policy-candidate outcomes", Numerator: "attempts, exhausted walks and outcomes", Denominator: "none", SourceTable: "run_events", Limitation: "only events still retained in the window are counted"},
 		ConversationSearchQuality:            {ID: ConversationSearchQuality, Counts: "privacy-safe conversation search request telemetry", Numerator: "no-result, weak-only, reformulated, selected, contributing-leg, degraded, error, and latency observations", Denominator: "search requests in the selected window", SourceTable: "conversation_search_telemetry", Limitation: "query and result content are never stored; at most the most recent 10000 requests in a window are aggregated"},
 		"friction.capability_usage":          {ID: "friction.capability_usage", Counts: "verified capability receipts", Numerator: "calls grouped by capability", Denominator: "none", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
 		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: "successful, fallback, and abandoned calls", Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
@@ -166,7 +172,8 @@ func definitionFor(name string) Definition {
 		"episode_comparison":                 {ID: "episode_comparison", Counts: "persisted friction episodes in two selected cohorts", Numerator: "episode occurrences and cost per fingerprint", Denominator: "runs in each cohort", SourceTable: "invocation_read_model_episodes", Limitation: "unreliable unless both cohorts hold at least five runs"},
 		UsageForecast:                        {ID: UsageForecast, Counts: "provider quota readings in the current windows", Numerator: "used percent, trailing burn and projected exhaustion per window", Denominator: "none", SourceTable: "quota_observations", Limitation: "readings come only from captured sessions; a window with no reading for 6 hours is unknown"},
 		UsageBurners:                         {ID: UsageBurners, Counts: "transcript usage reports (operator sessions and Agent Manager runs) in each current window", Numerator: "each consumer's share of the window's observed used-percent increase", Denominator: "the window's observed increase", SourceTable: "transcript_usage, quota_observations", Limitation: "points are estimates from a per-window calibration of API-price-weighted tokens; off-disk use is the unattributed remainder"},
-		UsageRecommendations:                 {ID: UsageRecommendations, Counts: "attributed usage, friction episodes and finished runs", Numerator: "estimated weekly quota points saved per finding", Denominator: "none", SourceTable: "transcript_usage, invocation_read_model_episodes, invocation_read_model_runs", Limitation: "deterministic rules; a consumer still running is projected at its rate to a week, a stopped one is not, and no estimate exceeds the consumer's projected weekly use"},
+		UsageRecommendations:                 {ID: UsageRecommendations, Counts: "attributed usage, friction episodes and finished runs", Numerator: "estimated quota points saved per target, levers combined without double counting", Denominator: "none", SourceTable: "transcript_usage, invocation_read_model_episodes, invocation_read_model_runs", Limitation: "deterministic rules; a consumer still running is projected at its rate over the window's length, a stopped one is not, and no estimate exceeds the consumer's projected use"},
+		UsageFriction:                        {ID: UsageFriction, Counts: "friction episodes by fingerprint in runs that consumed quota", Numerator: "episodes, elapsed time and attributed quota points per recurring problem", Denominator: "none", SourceTable: "invocation_read_model_episodes, transcript_usage, friction_problem_status", Limitation: "problems recurred at least three times; cost is each episode's turns share of its run's attributed points; elapsed time sums episodes that may overlap"},
 		UsageCoverage:                        {ID: UsageCoverage, Counts: "transcript files on disk modified in the period", Numerator: "captured bytes and files", Denominator: "bytes and files on disk", SourceTable: "transcript_files", Limitation: "walks the configured roots at request time; a file still being written counts as partially indexed"},
 		UsageCompare:                         {ID: UsageCompare, Counts: "runs of two selected cohorts", Numerator: "attributed quota points", Denominator: "successful runs", SourceTable: "transcript_usage, quota_observations, runs", Limitation: "unreliable below five successful runs per side; cohorts are observational, not randomized"},
 		UsageForecastBacktest:                {ID: UsageForecastBacktest, Counts: "completed windows with an observed outcome", Numerator: "absolute error of the projected final percent at 25% and 50% of each window", Denominator: "scored windows", SourceTable: "quota_observations", Limitation: "windows whose newest reading is more than 6 hours before their end are not scored"},
@@ -177,7 +184,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort", "cohort_report", "episode_comparison", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageCoverage, UsageCompare} {
+	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, FallbackInsights, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort", "cohort_report", "episode_comparison", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -248,8 +255,8 @@ func declarations() []struct {
 		{RepeatedWorkRate, "RepeatedWorkRate", "Share of tool invocations in repeated-work fingerprints.", "share", "{value} repeated-work rate ({window})", []string{"what is the repeated work rate", "how much tool work is repeated", "show agent reread and repeated invocation rate"}, repeatedWorkRate},
 		{ToolFailureRate, "ToolFailureRate", "Share of durable tool invocations whose classified outcome failed.", "share", "{value} tool failure rate ({window})", []string{"what is the tool failure rate", "how often do agent tool calls fail", "show failed tool invocation share"}, toolFailureRate},
 		{RunSuccessRate, "RunSuccessRate", "Share of executed terminal runs that completed successfully; imported and interactive runs are separate.", "share", "{value} run success rate ({window})", []string{"what is the agent run success rate this week", "how often do agent runs complete successfully"}, runSuccessRate},
-		{RunCycleTime, "RunCycleTime", "Average executed completed run cycle time in milliseconds.", "milliseconds", "{value} average run cycle time ({window})", []string{"what is the average agent run cycle time", "how long do completed agent runs take"}, runCycleTime},
-		{RunCost, "RunCost", "Total executed terminal run cost in USD with retained token usage.", "usd", "{value} agent run cost ({window})", []string{"what did agent runs cost this week", "show total agent run cost"}, runCost},
+		{RunCycleTime, "RunCycleTime", "Average cycle time in milliseconds of completed runs Agent Manager executed.", "milliseconds", "{value} average run cycle time ({window})", []string{"what is the average agent run cycle time", "how long do completed agent runs take"}, runCycleTime},
+		{RunCost, "RunCost", "Per-token billed cost in USD of the requests made in the window; subscription work is quota points, not dollars.", "usd", "{value} per-token billed cost ({window})", []string{"what did per-token billed runs cost this week", "show total agent run cost"}, runCost},
 		{RunVolume, "RunVolume", "Number of executed terminal run summaries in the window.", "runs", "{value} agent run volume ({window})", []string{"how many agent runs completed this week", "show agent run volume"}, runVolume},
 		{FileRereadRate, "FileRereadRate", "Share of file-read calls that revisit a path already read in the same run.", "share", "{value} file reread rate ({window})", []string{"what is the agent file reread rate", "how often do agents reread files"}, fileRereadRate},
 		{FindingRecurrenceRate, "FindingRecurrenceRate", "Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.", "share", "{value} finding recurrence rate ({window})", []string{"what is the recurring finding rate", "which agent findings recur"}, findingRecurrenceRate},
@@ -291,7 +298,14 @@ func execute(ctx context.Context, store Store, kind metricKind, filter invocatio
 		}
 		return metricResult{Rate: findings.RecurrenceRate, Numerator: findings.RecurringFindings, Denom: findings.TotalFindings, Secondary: findings.RecurringFingerprints, Query: fmt.Sprintf("SELECT recurrence aggregate FROM run_findings WHERE created_at >= %q AND created_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))}, nil
 	}
-	if kind == runSuccessRate || kind == runCycleTime || kind == runCost || kind == runVolume || kind == fileRereadRate {
+	if kind == runCost {
+		usage, err := store.WindowedUsage(ctx, filter)
+		if err != nil {
+			return metricResult{}, err
+		}
+		return metricResult{Rate: usage.MeteredCostUSD, Numerator: usage.Requests, Denom: usage.Runs, Query: usageQuery(filter)}, nil
+	}
+	if kind == runSuccessRate || kind == runCycleTime || kind == runVolume || kind == fileRereadRate {
 		runs, err := store.RunMetrics(ctx, filter)
 		if err != nil {
 			return metricResult{}, err
@@ -301,9 +315,8 @@ func execute(ctx context.Context, store Store, kind metricKind, filter invocatio
 		case runSuccessRate:
 			result.Rate, result.Numerator, result.Denom = runs.SuccessRate, runs.SuccessfulRuns, runs.TerminalRuns
 		case runCycleTime:
-			result.Rate, result.Numerator = runs.AverageDurationMS, runs.CompletedDurationRuns
-		case runCost:
-			result.Rate, result.Numerator, result.Denom = runs.TotalCostUSD, runs.TotalRuns, int64(runs.TotalTokens)
+			result.Rate, result.P50, result.P90 = runs.AverageDurationMS, runs.P50DurationMS, runs.P90DurationMS
+			result.Numerator, result.Denom = runs.CompletedDurationRuns, runs.CompletedDurationRuns
 		case runVolume:
 			result.Rate, result.Numerator, result.Denom = float64(runs.TotalRuns), runs.TotalRuns, runs.TerminalRuns
 		case fileRereadRate:
@@ -358,7 +371,7 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 		input = &measurepb.InvocationFilter{}
 	}
 	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), WorkloadKey: input.GetWorkloadKey(), ErrorCode: input.GetErrorCode(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
-	filter.ExcludedWorkloadKinds = []string{"interactive", "imported"}
+	filter.Scope = scopeFromProto(input.GetScope())
 	window := input.GetWindow()
 	if window == nil {
 		window = &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_THIS_WEEK}}
@@ -369,6 +382,23 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 	}
 	filter.From, filter.To = &rangeValue.From, &rangeValue.To
 	return filter, nil
+}
+
+func scopeFromProto(scope measurepb.RunScope) invocationreadmodel.RunScope {
+	switch scope {
+	case measurepb.RunScope_RUN_SCOPE_AGENT_MANAGER:
+		return invocationreadmodel.ScopeAgentManager
+	case measurepb.RunScope_RUN_SCOPE_OPERATOR_SESSIONS:
+		return invocationreadmodel.ScopeOperatorSessions
+	case measurepb.RunScope_RUN_SCOPE_ALL:
+		return invocationreadmodel.ScopeAll
+	}
+	return invocationreadmodel.ScopeUnspecified
+}
+
+// usageQuery is the provenance text of a windowed token total.
+func usageQuery(filter invocationreadmodel.Filter) string {
+	return fmt.Sprintf("SELECT SUM(input_tokens + output_tokens + cache_read_tokens + cache_creation_tokens) FROM transcript_usage WHERE observed_at >= %q AND observed_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
 }
 
 func filterWithWindow(input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow, now time.Time) (invocationreadmodel.Filter, error) {
@@ -394,7 +424,9 @@ type Handler struct {
 	conversationSearch  *conversationsearch.Service
 	conversationIndexer *conversationsearch.Indexer
 	quotaReadings       pricing.QuotaReadingSource
+	usageActivity       usageforecast.ActivitySource
 	usageStore          usageattribution.Store
+	frictionStatuses    usageattribution.StatusStore
 	usagePricer         *usageattribution.PriceBook
 	coverage            transcriptindex.CoverageReader
 }
@@ -531,7 +563,7 @@ func (h *Handler) RunCycleTime(ctx context.Context, req *connect.Request[measure
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, CompletedDurationRuns: r.Numerator, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RunCycleTime, r), DefinitionId: definitionID(RunCycleTime)}), nil
+	return connect.NewResponse(&measurepb.RunCycleTimeResponse{AverageDurationMs: r.Rate, P50DurationMs: r.P50, P90DurationMs: r.P90, CompletedDurationRuns: r.Numerator, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RunCycleTime, r), DefinitionId: definitionID(RunCycleTime)}), nil
 }
 
 func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.RunCostRequest]) (*connect.Response[measurepb.RunCostResponse], error) {
@@ -542,23 +574,13 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 	if err != nil {
 		return nil, err
 	}
-	runs, err := h.store.RunMetrics(ctx, filter)
+	usage, err := h.store.WindowedUsage(ctx, filter)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	query := fmt.Sprintf("SELECT durable cost aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	validity := h.validityForSample(runs.TotalRuns)
-	response := &measurepb.RunCostResponse{TotalCostUsd: runs.TotalCostUSD, AverageCostUsd: runs.AverageCostUSD, TotalRuns: runs.TotalRuns, TotalTokens: runs.TotalTokens, InputTokens: runs.InputTokens, OutputTokens: runs.OutputTokens, CacheReadTokens: runs.CacheReadTokens, CacheCreationTokens: runs.CacheCreationTokens, InputCostUsd: runs.InputCostUSD, OutputCostUsd: runs.OutputCostUSD, CacheReadCostUsd: runs.CacheReadCostUSD, CacheCreationCostUsd: runs.CacheCreationCostUSD, TotalChargeMicroUsd: runs.TotalChargeMicroUSD, UnpricedTokenCount: runs.UnpricedTokenCount, Validity: validity, Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(RunCost).SourceTable, runs.TotalRuns, query), DefinitionId: definitionID(RunCost)}
-	if chargeStore, ok := h.store.(interface {
-		ChargeByBasis(context.Context, invocationreadmodel.Filter) ([]invocationreadmodel.ChargeByBasis, error)
-	}); ok {
-		charges, chargeErr := chargeStore.ChargeByBasis(ctx, filter)
-		if chargeErr != nil {
-			return nil, connect.NewError(connect.CodeInternal, chargeErr)
-		}
-		for _, charge := range charges {
-			response.ChargeByBasis = append(response.ChargeByBasis, &measurepb.ChargeByBasis{Basis: charge.Basis, RunCount: charge.RunCount, ChargeMicroUsd: charge.ChargeMicroUSD, TokenCount: charge.TokenCount, ChargeReason: charge.ChargeReason})
-		}
+	response := &measurepb.RunCostResponse{TotalCostUsd: usage.MeteredCostUSD, TotalRuns: usage.Runs, Requests: usage.Requests, TotalTokens: usage.TotalTokens, InputTokens: usage.InputTokens, OutputTokens: usage.OutputTokens, CacheReadTokens: usage.CacheReadTokens, CacheCreationTokens: usage.CacheCreationTokens, InputCostUsd: usage.InputCostUSD, OutputCostUsd: usage.OutputCostUSD, CacheReadCostUsd: usage.CacheReadCostUSD, CacheCreationCostUsd: usage.CacheCreationCostUSD, TotalChargeMicroUsd: usage.MeteredChargeMicroUSD, Validity: h.validityForSample(usage.Runs), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor(RunCost).SourceTable, usage.Runs, usageQuery(filter)), DefinitionId: definitionID(RunCost)}
+	if usage.Runs > 0 {
+		response.AverageCostUsd = usage.MeteredCostUSD / float64(usage.Runs)
 	}
 	if distStore, ok := h.store.(interface {
 		RunCostDistribution(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error)
@@ -578,11 +600,6 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 		response.P99CostUsd = dist.P99CostUSD
 		response.MaxCostUsd = dist.MaxCostUSD
 		response.DistributionSampleSize = dist.SampleSize
-		unobserved := runs.TotalRuns - dist.SampleSize
-		if unobserved < 0 {
-			unobserved = 0
-		}
-		response.DistributionUnobservedRuns = unobserved
 		for _, bucket := range dist.TokenBuckets {
 			response.TokenBuckets = append(response.TokenBuckets, &measurepb.RunTokenBucket{Label: bucket.Label, MinTokens: bucket.MinTokens, MaxTokens: bucket.MaxTokens, RunCount: bucket.RunCount})
 		}
@@ -723,20 +740,13 @@ func (h *Handler) RunDurationStatistics(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	query := fmt.Sprintf("SELECT durable duration summary FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, Validity: h.validityForSample(stats.Count), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("throughput.run_duration_statistics").SourceTable, stats.Count, query), DefinitionId: definitionID("throughput.run_duration_statistics")}), nil
+	return connect.NewResponse(&measurepb.RunDurationStatisticsResponse{AverageDurationMs: stats.AverageDurationMS, P50DurationMs: stats.P50DurationMS, P90DurationMs: stats.P90DurationMS, P95DurationMs: stats.P95DurationMS, P99DurationMs: stats.P99DurationMS, MinDurationMs: stats.MinDurationMS, MaxDurationMs: stats.MaxDurationMS, Count: stats.Count, Validity: h.validityForSample(stats.Count), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("throughput.run_duration_statistics").SourceTable, stats.Count, query), DefinitionId: definitionID("throughput.run_duration_statistics")}), nil
 }
 
 func (h *Handler) runBreakdownRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow, dimension string) ([]invocationreadmodel.RunBreakdownRow, string, invocationreadmodel.Filter, error) {
 	filter, err := filterWithWindow(input, window, h.now())
 	if err != nil {
 		return nil, "", invocationreadmodel.Filter{}, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if dimension == "model" && filter.WorkloadKind == "" {
-		// Interactive and imported runs are valid analytical populations, but
-		// their model assignment has different provenance. Keep the default
-		// model measure reproducible by excluding them; callers can request
-		// either class explicitly through workload_kind.
-		filter.ExcludedWorkloadKinds = []string{"interactive", "imported"}
 	}
 	rows, err := h.store.RunBreakdown(ctx, filter, dimension, 20)
 	if err != nil {
@@ -808,12 +818,16 @@ func (h *Handler) WorkloadEfficiency(ctx context.Context, req *connect.Request[m
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	usage, err := h.store.WindowedUsage(ctx, filter)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	validity := assessValidity(runs.TerminalRuns, 0, h.validityConfig)
 	query := fmt.Sprintf("SELECT workload efficiency from invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
 	response := &measurepb.WorkloadEfficiencyResponse{
-		ConsumptionPerSuccessfulCompletion: runs.ConsumptionPerSuccessfulCompletion,
+		ConsumptionPerSuccessfulCompletion: perSuccess(usage.TotalTokens, runs.SuccessfulRuns),
 		CompletionRate:                     runs.SuccessRate,
-		TotalTokens:                        runs.TotalTokens,
+		TotalTokens:                        usage.TotalTokens,
 		TerminalRuns:                       runs.TerminalRuns,
 		SuccessfulRuns:                     runs.SuccessfulRuns,
 		ObservationalLimitation:            "model assignment was observational, not randomized",
@@ -822,6 +836,13 @@ func (h *Handler) WorkloadEfficiency(ctx context.Context, req *connect.Request[m
 		DefinitionId:                       definitionID(WorkloadEfficiency),
 	}
 	return connect.NewResponse(response), nil
+}
+
+func perSuccess(tokens, successes int64) float64 {
+	if successes == 0 {
+		return 0
+	}
+	return float64(tokens) / float64(successes)
 }
 
 func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[measurepb.TerminalRunTrendRequest]) (*connect.Response[measurepb.TerminalRunTrendResponse], error) {
@@ -836,7 +857,7 @@ func (h *Handler) TerminalRunTrend(ctx context.Context, req *connect.Request[mea
 	query := fmt.Sprintf("SELECT terminal outcome aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY hourly terminal bucket", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
 	response := &measurepb.TerminalRunTrendResponse{Rows: make([]*measurepb.TerminalRunTrendRow, 0, len(rows))}
 	for _, row := range rows {
-		response.Rows = append(response.Rows, &measurepb.TerminalRunTrendRow{Bucket: row.Bucket.UTC().Format(time.RFC3339), TerminalRuns: row.TerminalRuns, CompletedRuns: row.CompletedRuns, FailedRuns: row.FailedRuns, CancelledRuns: row.CancelledRuns, TotalCostUsd: row.TotalCostUSD, AverageDurationMs: row.AvgDurationMS})
+		response.Rows = append(response.Rows, &measurepb.TerminalRunTrendRow{Bucket: row.Bucket.UTC().Format(time.RFC3339), TerminalRuns: row.TerminalRuns, CompletedRuns: row.CompletedRuns, FailedRuns: row.FailedRuns, CancelledRuns: row.CancelledRuns, AverageDurationMs: row.AvgDurationMS})
 	}
 	var sample int64
 	for _, row := range rows {
@@ -1188,13 +1209,17 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}
+		usage, err := h.store.WindowedUsage(ctx, filter)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
 		validity := "reliable"
 		if runs.TerminalRuns < 5 {
 			validity = "unreliable"
 		}
-		query := fmt.Sprintf("SELECT SUM(total_tokens) / successful completions FROM invocation_read_model_runs WHERE workload_key = %q AND occurred_at >= %q AND occurred_at < %q", filter.WorkloadKey, rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
+		query := fmt.Sprintf("SELECT SUM(tokens requested in the window) / successful completions FROM transcript_usage JOIN invocation_read_model_runs WHERE workload_key = %q AND observed_at >= %q AND observed_at < %q", filter.WorkloadKey, rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
 		return measurelib.MeasureResult{
-			Value:      strconv.FormatFloat(runs.ConsumptionPerSuccessfulCompletion, 'f', -1, 64),
+			Value:      strconv.FormatFloat(perSuccess(usage.TotalTokens, runs.SuccessfulRuns), 'f', -1, 64),
 			Fields:     []map[string]string{{"validity": validity, "terminal_runs": strconv.FormatInt(runs.TerminalRuns, 10), "successful_runs": strconv.FormatInt(runs.SuccessfulRuns, 10), "observational_limitation": "model assignment was not randomised"}},
 			Provenance: measurelib.Provenance{ExecutedQuery: query},
 		}, nil
@@ -1212,7 +1237,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		}
 		fields := make([]map[string]string, 0, len(rows))
 		for _, row := range rows {
-			fields = append(fields, map[string]string{"bucket": row.Bucket.UTC().Format(time.RFC3339), "terminal_runs": strconv.FormatInt(row.TerminalRuns, 10), "completed_runs": strconv.FormatInt(row.CompletedRuns, 10), "failed_runs": strconv.FormatInt(row.FailedRuns, 10), "cancelled_runs": strconv.FormatInt(row.CancelledRuns, 10), "total_cost_usd": strconv.FormatFloat(row.TotalCostUSD, 'f', -1, 64), "average_duration_ms": strconv.FormatFloat(row.AvgDurationMS, 'f', -1, 64)})
+			fields = append(fields, map[string]string{"bucket": row.Bucket.UTC().Format(time.RFC3339), "terminal_runs": strconv.FormatInt(row.TerminalRuns, 10), "completed_runs": strconv.FormatInt(row.CompletedRuns, 10), "failed_runs": strconv.FormatInt(row.FailedRuns, 10), "cancelled_runs": strconv.FormatInt(row.CancelledRuns, 10), "average_duration_ms": strconv.FormatFloat(row.AvgDurationMS, 'f', -1, 64)})
 		}
 		query := fmt.Sprintf("SELECT terminal outcome aggregates FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q GROUP BY hourly terminal bucket", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
 		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
@@ -1300,6 +1325,9 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		query := fmt.Sprintf("SELECT error_code aggregate FROM invocation_read_model_errors WHERE occurred_at >= %q AND occurred_at < %q GROUP BY error_code LIMIT 20", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
 		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
 	}); err != nil {
+		return nil, err
+	}
+	if err := h.registerFallbackInsights(registry); err != nil {
 		return nil, err
 	}
 	if err := h.registerUsageMeasures(registry); err != nil {

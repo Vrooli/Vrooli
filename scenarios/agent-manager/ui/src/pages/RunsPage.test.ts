@@ -3,10 +3,11 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createElement } from "react";
-import { afterEach, test, vi } from "vitest";
+import { afterEach, beforeEach, test, vi } from "vitest";
 import { RunsPage } from "./RunsPage.js";
 import { renderWithProviders } from "../test-utils/index.js";
 import { ApprovalState, ExecutionMode, RunStatus } from "../types.js";
+import type { RunOrigin } from "../hooks/useApi.js";
 import { makeRun } from "../test-utils/fixtures/runs.js";
 import { answerConfirmDialog, getErrorNotice, waitForConfirmDialogClosed } from "../test-utils/feedback.js";
 
@@ -60,14 +61,16 @@ function setupControllerState() {
   });
 }
 
-afterEach(() => vi.resetAllMocks());
+// Rows read their sub-agent count from the API; unless a test says otherwise there are none.
+beforeEach(() => vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ runs: [], total: 0 }), { status: 200, headers: { "Content-Type": "application/json" } }))));
+afterEach(() => { vi.resetAllMocks(); vi.unstubAllGlobals(); });
 
 test("RunsPage exposes its empty, API-error, refresh, and no-selection states", () => {
   setupControllerState();
   const refresh = vi.fn();
   const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
   renderWithProviders(createElement(RunsPage, {
-    runs: [], tasks: [], profiles: [], loading: false, error: "Request failed: 503", onRefresh: refresh,
+    origin: "", onOriginChange: noop, runs: [], tasks: [], profiles: [], loading: false, error: "Request failed: 503", onRefresh: refresh,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -86,7 +89,7 @@ test("RunsPage shows its empty history only after a successful load", () => {
   setupControllerState();
   const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
   renderWithProviders(createElement(RunsPage, {
-    runs: [], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -107,7 +110,7 @@ test("RunsPage wires a selected review run into its detail surface", () => {
   });
   const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
   renderWithProviders(createElement(RunsPage, {
-    runs: [selected], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [selected], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -145,7 +148,7 @@ test("RunsPage performs list lifecycle actions and preserves the deliberate dele
   });
   const runEventStore = { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } };
   renderWithProviders(createElement(RunsPage, {
-    runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
+    origin: "", onOriginChange: noop, runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stopped, onDeleteRun: deleted, onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -178,7 +181,7 @@ test("RunsPage launches a batch investigation from explicit selected source runs
   state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [source], getTaskById: () => undefined, getTaskTitle: () => "Source task", loadRunDetails: noop });
   const investigate = vi.fn(async () => created);
   renderWithProviders(createElement(RunsPage, {
-    runs: [source], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [source], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(),
     onStartInvestigation: investigate, onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
@@ -206,7 +209,7 @@ test("RunsPage keeps an investigation modal open and explains a create failure",
   state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [source], getTaskById: () => undefined, getTaskTitle: () => "Source task", loadRunDetails: noop });
   const investigate = vi.fn(async () => { throw new Error("investigation runner unavailable"); });
   renderWithProviders(createElement(RunsPage, {
-    runs: [source], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [source], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(),
     onStartInvestigation: investigate, onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
@@ -224,7 +227,7 @@ test("RunsPage resumes a failed run with explicit operator guidance and updates 
   state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [failed], getTaskById: () => undefined, getTaskTitle: () => "Failed task", loadRunDetails: noop });
   const resume = vi.fn(async () => resumed);
   renderWithProviders(createElement(RunsPage, {
-    runs: [failed], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
+    origin: "", onOriginChange: noop, runs: [failed], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: resume, onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
@@ -244,7 +247,7 @@ test("RunsPage opens detail-originated apply investigation and hands off the cre
   state.useSelectedRunController.mockReturnValue({ selectedRun: investigation, setSelectedRun: noop, selectedRunId: investigation.id, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [investigation], getTaskById: () => undefined, getTaskTitle: () => "Investigation", loadRunDetails: noop });
   const apply = vi.fn(async () => created);
   renderWithProviders(createElement(RunsPage, {
-    runs: [investigation], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [investigation], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: apply,
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: snapshot, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
@@ -282,7 +285,7 @@ test("RunsPage retains the delete dialog and reports an API failure", async () =
   const run = makeRun({ id: "undeletable", taskId: "task-1", actions: { ...makeRun().actions, canDelete: true } });
   state.useSelectedRunController.mockReturnValue({ selectedRun: run, setSelectedRun: noop, selectedRunId: run.id, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Undeletable task", loadRunDetails: noop });
   renderWithProviders(createElement(RunsPage, {
-    runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(async () => { throw new Error("run history is retained"); }), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
     runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
   }), { initialEntries: ["/runs/undeletable"] });
@@ -314,7 +317,7 @@ test("RunsPage propagates detail actions and refreshes its event snapshot after 
     resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Detail task", loadRunDetails,
   });
   renderWithProviders(createElement(RunsPage, {
-    runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
+    origin: "", onOriginChange: noop, runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stop, onDeleteRun: vi.fn(), onRetryRun: retry, onGetRun: vi.fn(), onGetEvents: getEvents, onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: partialApprove, onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: continueRun, onDeleteRunMessage: deleteMessage,
@@ -379,7 +382,7 @@ test("RunsPage filters status and forwards row selection using the visible run o
     loadRunDetails,
   });
   renderWithProviders(createElement(RunsPage, {
-    runs: [newest, excluded, oldest], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [newest, excluded, oldest], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -408,7 +411,7 @@ test("RunsPage keeps the destructive confirmation open and reports a delete fail
   });
   const remove = vi.fn(async () => { throw new Error("retention policy prevented deletion"); });
   renderWithProviders(createElement(RunsPage, {
-    runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: remove, onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -436,7 +439,7 @@ test("RunsPage retains apply and resume workflows when their creation requests f
   const apply = vi.fn(async () => { throw new Error("apply runner unavailable"); });
   const resume = vi.fn(async () => { throw new Error("resume runner unavailable"); });
   renderWithProviders(createElement(RunsPage, {
-    runs: [investigation, failed], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [investigation, failed], tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: apply,
     onResumeFromFailedRun: resume, onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -477,7 +480,7 @@ test("RunsPage forwards detail review, retry, and transcript actions into the du
     resolvedRuns: [run], getTaskById: () => undefined, getTaskTitle: () => "Reviewable task", loadRunDetails,
   });
   renderWithProviders(createElement(RunsPage, {
-    runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
+    origin: "", onOriginChange: noop, runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: retry, onGetRun: vi.fn(), onGetEvents: vi.fn().mockResolvedValue(events), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: partial, onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: continueRun, onDeleteRunMessage: deleteMessage,
@@ -512,7 +515,7 @@ test("RunsPage makes stop cancellation and stop failures non-destructive", async
   const stop = vi.fn(async () => { throw new Error("runner no longer accepts stop requests"); });
   const refresh = vi.fn();
   renderWithProviders(createElement(RunsPage, {
-    runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
+    origin: "", onOriginChange: noop, runs: [run], tasks: [], profiles: [], loading: false, error: null, onRefresh: refresh,
     onStopRun: stop, onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -547,7 +550,7 @@ test("RunsPage keeps typed investigation context bounded and clears transient mo
     resolvedRuns: [source], getTaskById: () => undefined, getTaskTitle: () => "Source defaults", loadRunDetails: noop,
   });
   renderWithProviders(createElement(RunsPage, {
-    runs: [source], tasks: [{ id: source.taskId, projectRoot: "/workspace/agent-manager", scopePath: "api:ui:docs" }] as never[], profiles: [], loading: false, error: null, onRefresh: noop,
+    origin: "", onOriginChange: noop, runs: [source], tasks: [{ id: source.taskId, projectRoot: "/workspace/agent-manager", scopePath: "api:ui:docs" }] as never[], profiles: [], loading: false, error: null, onRefresh: noop,
     onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(),
     onPartialApproveRun: vi.fn(), onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(),
     onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
@@ -616,4 +619,44 @@ test.each([
   assert.ok(screen.getByText("Matching history"));
   assert.equal(screen.queryByText("Excluded history"), null);
   if (!query.startsWith("to=")) assert.equal(screen.queryByText("Missing metadata"), null);
+});
+
+function renderRunsList(runs: ReturnType<typeof makeRun>[], origin: RunOrigin, onOriginChange: (origin: RunOrigin) => void = noop) {
+  setupControllerState();
+  state.useSelectedRunController.mockReturnValue({ selectedRun: null, setSelectedRun: noop, selectedRunId: null, diff: null, events: [], eventsLoading: false, diffLoading: false, resolvedRuns: runs, getTaskById: () => undefined, getTaskTitle: () => "", loadRunDetails: noop });
+  return renderWithProviders(createElement(RunsPage, {
+    runs, origin, onOriginChange, tasks: [], profiles: [], loading: false, error: null, onRefresh: noop,
+    onStopRun: vi.fn(), onDeleteRun: vi.fn(), onRetryRun: vi.fn(), onGetRun: vi.fn(), onGetEvents: vi.fn(), onGetDiff: vi.fn(), onGetTask: vi.fn(), onPartialApproveRun: vi.fn(),
+    onStartInvestigation: vi.fn(), onApplyInvestigation: vi.fn(), onResumeFromFailedRun: vi.fn(), onContinueRun: vi.fn(), onDeleteRunMessage: vi.fn(),
+    runEventStore: { state: { runsById: {}, lastSequenceByRunId: {} }, actions: { subscribeRun: noop, unsubscribeRun: noop, runSnapshotLoaded: noop, eventsGapFilled: noop } } as never, wsSubscribe: noop, wsUnsubscribe: noop,
+  }), { initialEntries: ["/runs"] });
+}
+
+test("RunsPage origin chips mark the active origin and ask the app to change it", () => {
+  const onChange = vi.fn();
+  renderRunsList([makeRun({ id: "session", label: "Operator session" })], "operator_sessions", onChange);
+  assert.equal(screen.getByTestId("runs-origin-operator_sessions").getAttribute("aria-pressed"), "true");
+  assert.equal(screen.getByTestId("runs-origin-all").getAttribute("aria-pressed"), "false");
+  fireEvent.click(screen.getByTestId("runs-origin-agent_manager"));
+  assert.deepEqual(onChange.mock.calls.at(-1), ["agent_manager"]);
+  fireEvent.click(screen.getByTestId("runs-origin-all"));
+  assert.deepEqual(onChange.mock.calls.at(-1), [""]);
+  for (const label of ["All", "Agent Manager", "Operator sessions", "Workflows"]) assert.ok(screen.getByRole("button", { name: label }));
+});
+
+test("RunsPage offers sub-agents from the run's own count and lists them in place on request", async () => {
+  const parent = makeRun({ id: "parent-run", label: "Coordinate the audit", labelSource: "user", subAgentCount: 2 });
+  const other = makeRun({ id: "solo-run", label: "Stand-alone run", labelSource: "user" });
+  const child = (id: string, label: string) => ({ id, label, labelSource: "user", status: RunStatus.COMPLETE, parentRunId: "parent-run" });
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify({ runs: [child("child-one", "Audit slice one"), child("child-two", "Audit slice two")], total: 2 }), { status: 200, headers: { "Content-Type": "application/json" } }));
+  vi.stubGlobal("fetch", fetchMock);
+  renderRunsList([parent, other], "");
+  const toggle = screen.getByTestId("sub-agents-toggle");
+  assert.match(toggle.textContent ?? "", /2 sub-agents/);
+  assert.equal(screen.getAllByTestId("sub-agents-toggle").length, 1, "a run without sub-agents offers no toggle");
+  assert.equal(fetchMock.mock.calls.some(([url]) => String(url).includes("parent_run_id")), false, "counts come with the list; sub-agents are read only when the list is opened");
+  fireEvent.click(toggle);
+  assert.ok(await screen.findByText("Audit slice one"));
+  assert.ok(screen.getByText("Audit slice two"));
+  assert.ok(fetchMock.mock.calls.some(([url]) => /parent_run_id=parent-run/.test(String(url))));
 });

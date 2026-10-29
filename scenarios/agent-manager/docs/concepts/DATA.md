@@ -78,10 +78,15 @@ retain the conservation buckets `preamble_injected`, `preamble_fixed`,
 The buckets sum to the run total; any unexplained difference remains visible
 in `unattributed_tokens` with a reason.
 
-`run_findings` is already durable investigation evidence. Finding-recurrence
+`run_findings` is durable investigation evidence: the recommendations an
+investigation produced, the subject runs they implicate, and the intake topic
+each was routed to. It carries no review state (the operator-decision and
+effectiveness-measurement columns are removed). Finding-recurrence
 measures window it by `created_at` (not run terminal time), group fingerprints
 within that filtered corpus, and then apply run dimensions through the durable
-terminal summary.
+terminal summary. `friction_problem_status` holds what the operator did with a
+recurring friction problem (`reported` with its scenario-qa bug id, or
+`dismissed`); a problem with no row is open.
 
 `investigation_invocation_facts` is a legacy investigation cache retained for
 safe forward migration and compatibility. Startup migration copies recoverable
@@ -134,18 +139,16 @@ is the canonical analytics contract. The current consumers are:
 
 - `ui/src/features/stats/` reads the Measures procedures through
   `measuresClient` for every analytics panel. It does not read the REST
-  `/api/v1/stats/summary` or drill-down routes. It still reads
-  `/api/v1/stats/operational` and `/api/v1/stats/fallback` for the
-  typed-event operational panels, and `/api/v1/pricing/compare` for model
-  cost comparison.
+  `/api/v1/stats/summary` or drill-down routes. It reads
+  `/api/v1/pricing/compare` for model cost comparison.
 - `agent-manager run stats` composes its summary from the Measures
   procedures `RunStatusDistribution`, `RunSuccessRate`,
   `RunDurationStatistics`, `RunCost`, `RunnerBreakdown`, `ProfileBreakdown`,
   `ModelBreakdown` and `ToolUsage` over one explicit `[from,to)` window.
   `run efficiency` still reads `/api/v1/stats/efficiency` (D-11 folds it).
-- `agent-manager ops` reads the typed-event operational projection
-  (`/api/v1/stats/operational`, `/api/v1/stats/fallback`). The operational
-  projection is not part of the durable read model.
+- `agent-manager measures fallback-insights` reads the retained fallback and
+  policy-candidate events through `FallbackInsights`; it is not part of the
+  durable read model.
 - The pricing model picker ranks recent and popular models from
   `invocation_read_model_runs` through the narrowed `StatsRepository`.
 

@@ -12,7 +12,7 @@ import (
 // ListFindings returns recurrence-aware investigation findings. It is a
 // bounded read surface; recommendation payloads remain intentionally concise.
 func (h *Handler) ListFindings(w http.ResponseWriter, r *http.Request) {
-	filter := findings.Filter{Fingerprint: strings.TrimSpace(r.URL.Query().Get("fingerprint")), Severity: strings.TrimSpace(r.URL.Query().Get("severity")), Decision: strings.TrimSpace(r.URL.Query().Get("decision")), Limit: 100}
+	filter := findings.Filter{Fingerprint: strings.TrimSpace(r.URL.Query().Get("fingerprint")), Severity: strings.TrimSpace(r.URL.Query().Get("severity")), Limit: 100}
 	if raw := r.URL.Query().Get("since"); raw != "" {
 		parsed, err := time.Parse(time.RFC3339, raw)
 		if err != nil {

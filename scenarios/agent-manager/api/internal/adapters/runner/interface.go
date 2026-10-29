@@ -522,10 +522,8 @@ type SequencedEventSink interface {
 // TranscriptParseResult is the normalized output from a runner-specific
 // transcript parser when consuming durable stdout from transcript.ndjson.
 type TranscriptParseResult struct {
-	// ReplaySafeEvents marks codec evidence whose identity belongs to its source occurrence.
-	ReplaySafeEvents bool
-	Events           []*domain.RunEvent
-	SessionID        string
+	Events    []*domain.RunEvent
+	SessionID string
 	// UserTurnStarted is native turn-boundary metadata, independent of user
 	// content retention. Consumers must discard cached terminal evidence from
 	// an earlier turn even when the parser emits no user-message event.

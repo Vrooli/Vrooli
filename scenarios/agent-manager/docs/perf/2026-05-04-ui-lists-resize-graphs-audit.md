@@ -99,7 +99,7 @@ The long-task observer recorded zero browser long tasks for this scripted run. T
 
 - **What:** stats graphs are not the main bottleneck in this capture, but chart sections still commit frequently on time-window changes.
   **Evidence:** `StatsPage` consumed 165.2 ms total; the heaviest stats children were `Stats:RunStatusTrends` at 53.5 ms and `Stats:ToolUsageAnalytics` at 40.5 ms. No long tasks were recorded during stats interactions.
-  **Hypothesis:** Recharts rendering is acceptable for the current data volume, but chart data arrays are rebuilt on each render in [RunStatusTrends.tsx](../../ui/src/features/stats/components/trends/RunStatusTrends.tsx) around line 41 and [ToolUsageAnalytics.tsx](../../ui/src/features/stats/components/breakdown/ToolUsageAnalytics.tsx) around line 36.
+  **Hypothesis:** Recharts rendering is acceptable for the current data volume, but chart data arrays are rebuilt on each render in `RunStatusTrends.tsx` (deleted 2026-10-29 with the Details trim, P2-D10) around line 41 and `ToolUsageAnalytics.tsx` (deleted 2026-10-29, P2-D10) around line 36.
   **Suggested next step:** keep stats as lower priority. If the stats endpoint grows, memoize chart data transforms by API response identity and cap bar/table detail lists before considering chart-library changes.
 
 ## Recommendations + Outcome
