@@ -31,6 +31,13 @@ Do not turn `cli/main.go` into the implementation surface. If the resource needs
 - If `start` fails on a port conflict, another host process owns `:11434`; the
   driver's preflight prints the remediation. Stop that process, then retry.
 
+For bounded one-shot work, `resource-ollama gateway generate --one-shot
+--require-loopback --timeout 90s --json` first refuses an already-loaded target,
+sends Ollama `keep_alive: 0`, and verifies the target is absent from `/api/ps`
+before it returns a result. The JSON receipt includes
+`worker_cleanup_verified: true`. A timeout or generation error still runs the
+bounded cleanup path; the result is rejected if cleanup cannot be verified.
+
 Local-only `ensure` operations accept literal loopback addresses and the exact
 hostname `localhost`. For `localhost`, the client resolves once, requires every
 resolved address to be loopback, and pins the selected loopback IP into the

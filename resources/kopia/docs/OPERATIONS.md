@@ -54,7 +54,15 @@ resource-kopia snapshot list    --repo offsite --path /data/pg --json
 resource-kopia snapshot restore --repo offsite --snapshot <id> --target /restore/pg
 resource-kopia snapshot verify  --repo offsite --snapshot <id> --verify-files-percent 100
 resource-kopia snapshot delete  --repo offsite --snapshot <id>          # passes kopia --delete
+resource-kopia snapshot expire  --repo offsite --path me@host:/data/pg   # dry run: what policy would drop
+resource-kopia snapshot expire  --repo offsite --path me@host:/data/pg --delete
 ```
+
+Kopia expires a source only while creating its next snapshot; `snapshot expire`
+applies a tightened policy now. `--path` (and `policy set --path`) take the
+exact source a snapshot was recorded under (`user@host:/path`, as shown by
+`snapshot list --json`); a snapshot taken with `--override-source` is not
+governed by a policy on its captured path.
 
 ## Policies (`policy`) — GFS retention + compression per source path
 
@@ -77,7 +85,13 @@ Any `--keep-*` flag you omit is left untouched on the repository's policy.
 resource-kopia maintenance run --repo offsite           # quick maintenance
 resource-kopia maintenance run --repo offsite --full    # full (prunes per retention)
 resource-kopia maintenance set --repo offsite --enable-full true --full-interval 24h
+resource-kopia maintenance info --repo offsite          # owner, schedule, recent runs
 ```
+
+Kopia runs due maintenance automatically after snapshot writes, but only when
+the writing `user@host` is the repository's maintenance owner (the identity
+that created it). Expired snapshots free blob space only after two full cycles
+because kopia holds a safety delay before deleting unreferenced blobs.
 
 ## Where state lives
 

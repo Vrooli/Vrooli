@@ -22,6 +22,22 @@ The explicit native command surface is:
 - `resource-openrouter policy resolve|roles|models|constraints` — the model-role policy authority
 - `resource-openrouter ensure --config-base64 <json>` — validate a scenario's declared `model_roles`
 
+## Spend-authorized generation
+
+`generate` calls that carry operation identity fields require an exact provider
+allowlist. A policy-resolved model uses its publisher as the provider pin unless
+`--provider-only` supplies one or more explicit provider names. Requests are
+sent with provider fallbacks disabled, ZDR required, and `data_collection`
+denied. For `--max-cost-micros 0`, the resource reads current endpoint pricing
+and refuses dispatch unless every supported price class is present and exactly
+zero; all four `max_price` fields are then sent as zero to constrain a price
+change between metadata lookup and inference. The endpoint must also match the
+explicit provider allowlist and token bounds.
+
+This contract is fail-closed and does not guarantee a provider will accept the
+privacy filters or return a response. Callers must still verify the returned
+model, provider, and reported cost before treating a result as admitted evidence.
+
 ## Model Role Policy
 
 `model-policy.json` is the single source of truth for concrete OpenRouter model

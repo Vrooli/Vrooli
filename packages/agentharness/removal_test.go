@@ -394,3 +394,58 @@ func hasEvidence(decision Decision, code string) bool {
 	}
 	return false
 }
+
+func TestRemovalRefusalNamesTheProviderApprovalRoute(t *testing.T) {
+	f := newRemovalFixture(t)
+	keep := filepath.Join(f.home, ".vrooli", "data")
+	command := "storage-manager deletion-grant request"
+	ctx := f.context(f.repo, PathRule{Root: keep, Action: ActionDeny, Reason: "durable data", Source: "runtime_home/data", Provider: "storage-manager"})
+	ctx.ApprovalCommand = command
+	decide := func(shell string) Decision {
+		return ctx.EvaluateRemoval(parseRemovals(shell, dialectPOSIX, removalEnv{WorkingDirectory: f.repo, Home: ctx.Home, Lookup: ctx.Lookup}))
+	}
+
+	orphan := filepath.Join(keep, "app@old dir")
+	got := decide("rm -rf '" + orphan + "' " + filepath.Join(f.temp, "ok"))
+	want := "run: " + command + " --path '" + orphan + "' --reason"
+	if got.Action != ActionDeny || !strings.Contains(got.Reason, want) {
+		t.Fatalf("withheld deletion reason = %q, want it to contain %q", got.Reason, want)
+	}
+	if strings.Contains(got.Reason, filepath.Join(f.temp, "ok")) {
+		t.Fatalf("reason %q asks approval for an allowed path", got.Reason)
+	}
+
+	for _, shell := range []string{"rm -rf ~", "rm -rf " + f.repo, "rm .git/index.lock", "rm -rf " + filepath.Join(keep, "*")} {
+		if got := decide(shell); strings.Contains(got.Reason, command) {
+			t.Errorf("%q reason %q offers an approval route a grant cannot open", shell, got.Reason)
+		}
+	}
+	if got := decide("rm -rf " + filepath.Join(f.temp, "ok")); got.Action != ActionAllow || strings.Contains(got.Reason, command) {
+		t.Errorf("allowed deletion = %+v, want allow without an approval route", got)
+	}
+
+	ctx.ApprovalCommand = ""
+	if got := decide("rm -rf " + orphan); strings.Contains(got.Reason, "approval") {
+		t.Errorf("reason %q names an approval route no provider published", got.Reason)
+	}
+}
+
+func TestRuntimeCarriesTheSnapshotApprovalCommand(t *testing.T) {
+	f := newRemovalFixture(t)
+	now := time.Now().UTC()
+	keep := filepath.Join(f.home, ".vrooli", "data")
+	store := NewBundleStore(t.TempDir())
+	snapshot := pathSnapshot(now, PathRule{Root: keep, Action: ActionDeny, Reason: "durable data"})
+	snapshot.RemovalApproval = "storage-manager deletion-grant request"
+	if err := store.PublishProvider(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	rt := Runtime{Profile: ProfileAdvisory, Store: store, Now: func() time.Time { return now }, Removal: func(cwd string) RemovalContext { return f.context(cwd) }}
+	got, err := rt.Evaluate(ToolEvent{Runner: "claude-code", Tool: "Bash", Shell: "rm -rf " + filepath.Join(keep, "orphan"), WorkingDirectory: f.repo})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Action != ActionDeny || !strings.Contains(got.Reason, "storage-manager deletion-grant request --path "+filepath.Join(keep, "orphan")) {
+		t.Fatalf("decision = %+v, want a deny naming the published approval command", got)
+	}
+}

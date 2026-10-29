@@ -1,7 +1,7 @@
 {
   "schema_version": "v1",
   "runner": "grok",
-  "provenance": {"source": "grok models (grok 0.2.72): authenticated inventory reports grok-build as the only available model; refreshed 2026-08-30", "observed_at": "2026-08-30"},
+  "provenance": {"source": "Live grok models observation 2026-10-27 offers grok-build, matching every declared role model. The authoritative listing is partial, not an exhaustive inventory; inference, billing and a newer harness release remain unqualified.", "observed_at": "2026-10-27"},
   "billing": {"mode": "unknown", "source": "operator-not-declared"},
   "model_aliases": {
     "grok-build": {"canonical_model": "grok-build", "provider": "xai"}

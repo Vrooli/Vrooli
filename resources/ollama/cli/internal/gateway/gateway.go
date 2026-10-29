@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -75,6 +76,24 @@ type Client interface {
 	Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
 }
 
+// workerAttestationClient is implemented by the production Ollama client. It
+// lets an inference caller bind the returned text to the active worker Ollama
+// reports, without making every gateway operation depend on inventory APIs.
+type workerAttestationClient interface {
+	ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error)
+	ListRunning(ctx context.Context) ([]ensure.RunningModel, error)
+}
+
+// WorkerAttestation is the resource-owned identity and processor snapshot for
+// the model that served one completed generation request.
+type WorkerAttestation struct {
+	Model         string `json:"model"`
+	Digest        string `json:"digest"`
+	Processor     string `json:"processor"`
+	SizeVRAMBytes int64  `json:"size_vram_bytes"`
+	ObservedAt    string `json:"observed_at"`
+}
+
 // Handlers owns the runtime dependencies for the gateway subcommand group.
 type Handlers struct {
 	NewClient         func() Client
@@ -119,7 +138,7 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--require-worker-digest <sha256>] [--one-shot --timeout 90s] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
 				Run:         h.Generate,
 			},
 			{
@@ -188,12 +207,15 @@ func (h *Handlers) Generate(args []string) error {
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
 	inputJSONStdin := fs.Bool("input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
 	requireLoopback := fs.Bool("require-loopback", false, "Refuse unless the effective Ollama endpoint is a direct literal loopback URL")
+	requireWorkerDigest := fs.String("require-worker-digest", "", "Require the installed and active GPU worker to match this SHA-256 digest; include worker attestation in JSON output")
 	cpuOnly := fs.Bool("cpu-only", false, "Force Ollama to run this request without GPU layers")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
 	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
 	numCtx := fs.Int("num-ctx", 0, "Per-request context size; bounded by the selected model policy")
 	numThread := fs.Int("num-thread", 0, "Per-request CPU thread limit (1-128)")
 	numBatch := fs.Int("num-batch", 0, "Per-request prompt batch size (1-4096)")
+	oneShot := fs.Bool("one-shot", false, "Require target model absent before generation, unload after, and verify it left /api/ps")
+	requestTimeout := fs.Duration("timeout", 0, "Generation timeout (e.g. 90s); requires --one-shot")
 	format := fs.String("format", "", "Ollama JSON format (json or a JSON Schema object)")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"eval_count\":0} on stdout")
 	if err := fs.Parse(args); err != nil {
@@ -216,6 +238,9 @@ func (h *Handlers) Generate(args []string) error {
 	if err != nil {
 		return err
 	}
+	if strings.TrimSpace(*requireWorkerDigest) != "" && !*asJSON {
+		return fmt.Errorf("--require-worker-digest requires --json")
+	}
 	var text string
 	var images []string
 	if *inputJSONStdin {
@@ -237,6 +262,15 @@ func (h *Handlers) Generate(args []string) error {
 	if err := validateContextWindow(text, budget, selected, controls.NumCtx); err != nil {
 		return err
 	}
+	if *requestTimeout < 0 {
+		return fmt.Errorf("--timeout cannot be negative")
+	}
+	if *requestTimeout > 0 && !*oneShot {
+		return fmt.Errorf("--timeout requires --one-shot so cleanup is verified")
+	}
+	if *oneShot && !*requireLoopback {
+		return fmt.Errorf("--one-shot requires --require-loopback")
+	}
 	var formatJSON json.RawMessage
 	if strings.TrimSpace(*format) != "" {
 		if strings.TrimSpace(*format) == "json" {
@@ -253,6 +287,30 @@ func (h *Handlers) Generate(args []string) error {
 		return err
 	}
 	defer release()
+	if *oneShot {
+		attestor, ok := client.(workerAttestationClient)
+		if !ok {
+			return fmt.Errorf("one-shot worker inventory is unavailable")
+		}
+		running, listErr := attestor.ListRunning(ctx)
+		if listErr != nil {
+			return fmt.Errorf("check one-shot target before generation: %w", listErr)
+		}
+		if containsRunningModel(running, selected.Ref) {
+			return fmt.Errorf("one-shot target %s is already loaded; refusing to change another owner's worker lifetime", selected.Ref)
+		}
+	}
+	var attestor workerAttestationClient
+	if expected := strings.TrimSpace(*requireWorkerDigest); expected != "" {
+		var ok bool
+		attestor, ok = client.(workerAttestationClient)
+		if !ok {
+			return fmt.Errorf("active worker attestation is unavailable")
+		}
+		if err := verifyInstalledDigest(ctx, attestor, selected.Ref, expected); err != nil {
+			return err
+		}
+	}
 
 	// Gateway generation is the structured, visible-output path.  Disable
 	// model thinking explicitly so thinking-capable models do not spend the
@@ -272,23 +330,169 @@ func (h *Handlers) Generate(args []string) error {
 	req.NumCtx = controls.NumCtx
 	req.NumThread = controls.NumThread
 	req.NumBatch = controls.NumBatch
-	out, err := client.Generate(ctx, req)
-	if err != nil {
-		return err
+	if *oneShot {
+		keepAlive := 0
+		req.KeepAlive = &keepAlive
+	}
+	requestCtx := ctx
+	cancel := func() {}
+	if *requestTimeout > 0 {
+		requestParent := ctx
+		if *oneShot {
+			requestParent = context.WithoutCancel(ctx)
+		}
+		requestCtx, cancel = context.WithTimeout(requestParent, *requestTimeout)
+	}
+	out, generationErr := client.Generate(requestCtx, req)
+	var worker *WorkerAttestation
+	var attestationErr error
+	if generationErr == nil {
+		if expected := strings.TrimSpace(*requireWorkerDigest); expected != "" {
+			worker, attestationErr = attestRunningWorker(requestCtx, attestor, selected.Ref, expected)
+		}
+	}
+	cancel()
+	cleanupVerified := false
+	var cleanupErr error
+	if *oneShot {
+		cleanupVerified, cleanupErr = ensureOneShotWorkerGone(selected.Ref, client)
+	}
+	if generationErr != nil || attestationErr != nil || cleanupErr != nil {
+		return errors.Join(generationErr, attestationErr, cleanupErr)
 	}
 	if *asJSON {
 		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
-			Response           string `json:"response"`
-			EvalCount          int    `json:"eval_count"`
-			TotalDuration      int64  `json:"total_duration_ns,omitempty"`
-			LoadDuration       int64  `json:"load_duration_ns,omitempty"`
-			PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
-			PromptEvalDuration int64  `json:"prompt_eval_duration_ns,omitempty"`
-			EvalDuration       int64  `json:"eval_duration_ns,omitempty"`
-		}{Response: out.Response, EvalCount: out.EvalCount, TotalDuration: out.TotalDuration, LoadDuration: out.LoadDuration, PromptEvalCount: out.PromptEvalCount, PromptEvalDuration: out.PromptEvalDuration, EvalDuration: out.EvalDuration})
+			Response              string             `json:"response"`
+			EvalCount             int                `json:"eval_count"`
+			TotalDuration         int64              `json:"total_duration_ns,omitempty"`
+			LoadDuration          int64              `json:"load_duration_ns,omitempty"`
+			PromptEvalCount       int                `json:"prompt_eval_count,omitempty"`
+			PromptEvalDuration    int64              `json:"prompt_eval_duration_ns,omitempty"`
+			EvalDuration          int64              `json:"eval_duration_ns,omitempty"`
+			Done                  *bool              `json:"done,omitempty"`
+			DoneReason            *string            `json:"done_reason,omitempty"`
+			Model                 *string            `json:"model,omitempty"`
+			Worker                *WorkerAttestation `json:"worker,omitempty"`
+			WorkerCleanupVerified bool               `json:"worker_cleanup_verified,omitempty"`
+		}{Response: out.Response, EvalCount: out.EvalCount, TotalDuration: out.TotalDuration, LoadDuration: out.LoadDuration, PromptEvalCount: out.PromptEvalCount, PromptEvalDuration: out.PromptEvalDuration, EvalDuration: out.EvalDuration, Done: out.Done, DoneReason: out.DoneReason, Model: out.Model, Worker: worker, WorkerCleanupVerified: cleanupVerified})
 	}
 	_, err = fmt.Fprint(h.Stdout, out.Response)
 	return err
+}
+
+func containsRunningModel(running []ensure.RunningModel, model string) bool {
+	for _, item := range running {
+		ref := item.Name
+		if ref == "" {
+			ref = item.Model
+		}
+		if normalizeModelRef(ref) == normalizeModelRef(model) {
+			return true
+		}
+	}
+	return false
+}
+
+type unloadClient interface {
+	Unload(context.Context, string) error
+	ListRunning(context.Context) ([]ensure.RunningModel, error)
+}
+
+func ensureOneShotWorkerGone(model string, client Client) (bool, error) {
+	unloader, ok := client.(unloadClient)
+	if !ok {
+		return false, fmt.Errorf("one-shot cleanup interface is unavailable")
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	running, err := unloader.ListRunning(cleanupCtx)
+	if err != nil {
+		return false, fmt.Errorf("verify one-shot worker release: %w", err)
+	}
+	if !containsRunningModel(running, model) {
+		return true, nil
+	}
+	if err := unloader.Unload(cleanupCtx, model); err != nil {
+		return false, fmt.Errorf("unload one-shot worker %s: %w", model, err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		running, err = unloader.ListRunning(cleanupCtx)
+		if err != nil {
+			return false, fmt.Errorf("verify one-shot worker release: %w", err)
+		}
+		if !containsRunningModel(running, model) {
+			return true, nil
+		}
+		if time.Now().After(deadline) {
+			return false, fmt.Errorf("one-shot worker %s remains loaded after unload", model)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func verifyInstalledDigest(ctx context.Context, client workerAttestationClient, model, expected string) error {
+	installed, err := client.ListModelInventory(ctx)
+	if err != nil {
+		return fmt.Errorf("attest installed model before generation: %w", err)
+	}
+	for _, item := range installed {
+		if normalizeModelRef(item.Name) != normalizeModelRef(model) {
+			continue
+		}
+		if normalizeDigest(item.Digest) != normalizeDigest(expected) {
+			return fmt.Errorf("installed model digest mismatch for %s", model)
+		}
+		return nil
+	}
+	return fmt.Errorf("attest installed model before generation: model %s is not installed", model)
+}
+
+func attestRunningWorker(ctx context.Context, client workerAttestationClient, model, expected string) (*WorkerAttestation, error) {
+	running, err := client.ListRunning(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("attest active Ollama worker after generation: %w", err)
+	}
+	for _, item := range running {
+		ref := item.Name
+		if ref == "" {
+			ref = item.Model
+		}
+		if normalizeModelRef(ref) != normalizeModelRef(model) {
+			continue
+		}
+		if normalizeDigest(item.Digest) != normalizeDigest(expected) {
+			return nil, fmt.Errorf("active worker digest mismatch for %s", model)
+		}
+		processor := strings.ToLower(strings.TrimSpace(item.Processor))
+		if strings.Contains(processor, "cpu") || item.SizeVRAM <= 0 {
+			return nil, fmt.Errorf("active worker for %s is not verified GPU-resident", model)
+		}
+		if processor == "" {
+			processor = "gpu (inferred from nonzero size_vram)"
+		}
+		return &WorkerAttestation{
+			Model:         ref,
+			Digest:        item.Digest,
+			Processor:     processor,
+			SizeVRAMBytes: item.SizeVRAM,
+			ObservedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+		}, nil
+	}
+	return nil, fmt.Errorf("active worker for %s was not found after generation", model)
+}
+
+func normalizeModelRef(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if !strings.Contains(value, ":") && value != "" {
+		value += ":latest"
+	}
+	return value
+}
+
+func normalizeDigest(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	return strings.TrimPrefix(value, "sha256:")
 }
 
 // --- chat ---------------------------------------------------------------------

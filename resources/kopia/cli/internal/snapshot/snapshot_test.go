@@ -91,6 +91,20 @@ func TestSnapshotArgvTranslation(t *testing.T) {
 			want: []string{"--config-file", cfg, "snapshot", "verify"},
 		},
 		{
+			name: "expire dry run targets the exact source",
+			run: func(s snapshot.Service) error {
+				return s.Expire(context.Background(), []string{"--repo", "nightly", "--path", "me@host:/srv/dbm:/acme/db"})
+			},
+			want: []string{"--config-file", cfg, "snapshot", "expire", "me@host:/srv/dbm:/acme/db"},
+		},
+		{
+			name: "expire with delete",
+			run: func(s snapshot.Service) error {
+				return s.Expire(context.Background(), []string{"--repo", "nightly", "--path", "me@host:/srv/dbm:/acme/db", "--delete"})
+			},
+			want: []string{"--config-file", cfg, "snapshot", "expire", "me@host:/srv/dbm:/acme/db", "--delete"},
+		},
+		{
 			name: "delete forces confirmation",
 			run: func(s snapshot.Service) error {
 				return s.Delete(context.Background(), []string{"--repo", "nightly", "--snapshot", "abc123"})
@@ -219,6 +233,9 @@ func TestSnapshotRequiresFlags(t *testing.T) {
 	}
 	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--snapshot", "x", "--path", "../escape", "--json"}); err == nil {
 		t.Fatal("browse with escaping path should fail")
+	}
+	if err := s.Expire(context.Background(), []string{"--repo", "nightly", "--delete"}); err == nil {
+		t.Fatal("expire without --path must fail rather than expire every source")
 	}
 }
 

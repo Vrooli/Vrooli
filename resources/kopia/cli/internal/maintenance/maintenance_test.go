@@ -74,3 +74,14 @@ func TestMaintenanceSetArgv(t *testing.T) {
 		t.Fatalf("set argv =\n  %v\nwant\n  %v", call.Args, want)
 	}
 }
+
+func TestMaintenanceInfoArgv(t *testing.T) {
+	s, run := newSvc(t)
+	if err := s.Info(context.Background(), []string{"--repo", "offsite", "--json"}); err != nil {
+		t.Fatalf("Info error = %v", err)
+	}
+	call, _ := run.LastCall()
+	if !eq(call.Args, []string{"--config-file", cfg, "maintenance", "info", "--json"}) {
+		t.Fatalf("info argv = %v", call.Args)
+	}
+}

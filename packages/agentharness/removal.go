@@ -33,6 +33,10 @@ type RemovalContext struct {
 	Lookup           func(string) (string, bool)
 	CaseInsensitive  bool
 	Rules            []PathRule
+	// ApprovalCommand is the provider's command for requesting the operator's
+	// approval to delete a withheld path; the refusal names it with each
+	// withheld path appended as --path. Empty leaves the refusal as is.
+	ApprovalCommand string
 	// Stat reports whether an existing target is a directory; nil skips the
 	// check, treating every recursive flag as reaching a tree.
 	Stat func(string) (fs.FileInfo, error)
@@ -147,6 +151,9 @@ func (ctx RemovalContext) EvaluateRemoval(targets []RemovalTarget) Decision {
 		}
 	}
 	decision.Action, decision.Reason = worst.action, worst.reason
+	if worst.action != ActionAllow {
+		decision.Reason += approvalClause(ctx.ApprovalCommand, verdicts)
+	}
 	if worst.provider != "" {
 		decision.ProviderID, decision.UsedSnapshot = worst.provider, true
 	}
@@ -323,6 +330,45 @@ func (z *removalZones) stricterNested(verdict *removalVerdict, path, subject str
 }
 
 // ruleClause explains a declaration in the words the agent will read.
+// hardFloorZones are the locations no grant can open, so a refusal there
+// offers no approval route.
+var hardFloorZones = map[string]bool{"filesystem-root": true, "system-directory": true, "home-root": true, "repository-root": true, "repository-history": true}
+
+// approvalClause tells the agent how to ask the operator to approve the
+// withheld deletions, instead of leaving it to hand the work back.
+func approvalClause(command string, verdicts []removalVerdict) string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return ""
+	}
+	var args strings.Builder
+	seen := map[string]bool{}
+	for _, verdict := range verdicts {
+		if verdict.action == ActionAllow || verdict.path == "" || hardFloorZones[verdict.zone] || seen[verdict.path] {
+			continue
+		}
+		if verdict.target.Glob {
+			// A pattern is not one location an operator can approve.
+			return ""
+		}
+		seen[verdict.path] = true
+		args.WriteString(" --path " + shellQuote(verdict.path))
+	}
+	if args.Len() == 0 {
+		return ""
+	}
+	return "; to request the operator's approval, run: " + command + args.String() + ` --reason "<why>"`
+}
+
+func shellQuote(s string) string {
+	if s != "" && strings.IndexFunc(s, func(r rune) bool {
+		return !(r == '/' || r == '.' || r == '-' || r == '_' || r == '@' || r == '+' || r == ':' || r == ',' || r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z')
+	}) < 0 {
+		return s
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'"
+}
+
 func ruleClause(rule resolvedRule, relation string) string {
 	what := map[DecisionAction]string{
 		ActionAllow: "declares safe to delete",

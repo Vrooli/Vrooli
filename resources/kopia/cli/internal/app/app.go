@@ -150,6 +150,7 @@ func subcommandGroups(app *cliapp.ResourceApp, repoSvc repo.Service, snapSvc sna
 				{Name: "browse", Description: "Browse a snapshot directory as JSON", Run: wrap(app, snapSvc.Browse)},
 				{Name: "restore", Description: "Restore a snapshot to a target dir", Run: wrap(app, snapSvc.Restore)},
 				{Name: "verify", Description: "Verify snapshot/content integrity", Run: wrap(app, snapSvc.Verify)},
+				{Name: "expire", Description: "Apply a source's retention policy now", Run: wrap(app, snapSvc.Expire)},
 				{Name: "delete", Description: "Delete a snapshot", Run: wrap(app, snapSvc.Delete)},
 			},
 		},
@@ -168,6 +169,7 @@ func subcommandGroups(app *cliapp.ResourceApp, repoSvc repo.Service, snapSvc sna
 			Subcommands: []cliapp.Command{
 				{Name: "run", Description: "Run a maintenance cycle", Run: wrap(app, maintSvc.Run)},
 				{Name: "set", Description: "Configure automatic maintenance", Run: wrap(app, maintSvc.Set)},
+				{Name: "info", Description: "Show maintenance owner, schedule, and last runs", Run: wrap(app, maintSvc.Info)},
 			},
 		},
 	}

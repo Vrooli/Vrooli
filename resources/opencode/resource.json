@@ -47,10 +47,23 @@
     "hook_surface": "native-permissions"
   },
   "agent_hooks": {
-    "document_scopes": ["user", "project"],
+    "document_scopes": [
+      "user",
+      "project"
+    ],
     "events": [
-      {"name": "PreToolUse", "supported": true, "can_inject_context": false, "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."},
-      {"name": "UserPromptSubmit", "supported": false, "can_inject_context": false, "reason": "OpenCode's native hook surface has no verified prompt-time event."}
+      {
+        "name": "PreToolUse",
+        "supported": true,
+        "can_inject_context": false,
+        "reason": "Only the brokered tool hook is observed; no prompt-time injection canary exists."
+      },
+      {
+        "name": "UserPromptSubmit",
+        "supported": false,
+        "can_inject_context": false,
+        "reason": "OpenCode's native hook surface has no verified prompt-time event."
+      }
     ]
   },
   "cli": {
@@ -167,10 +180,43 @@
   "acquisition": {
     "kind": "npm",
     "targets": [
-      {"when": {"os": "linux", "arch": "amd64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"},
-      {"when": {"os": "linux", "arch": "arm64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"},
-      {"when": {"os": "darwin", "arch": "amd64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"},
-      {"when": {"os": "darwin", "arch": "arm64"}, "package": "opencode-ai", "version": "1.18.30", "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"}
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "package": "opencode-ai",
+        "version": "1.18.30",
+        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90",
+        "bin_path": "node_modules/opencode-linux-x64-baseline/bin/opencode"
+      },
+      {
+        "when": {
+          "os": "linux",
+          "arch": "arm64"
+        },
+        "package": "opencode-ai",
+        "version": "1.18.30",
+        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"
+      },
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "amd64"
+        },
+        "package": "opencode-ai",
+        "version": "1.18.30",
+        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"
+      },
+      {
+        "when": {
+          "os": "darwin",
+          "arch": "arm64"
+        },
+        "package": "opencode-ai",
+        "version": "1.18.30",
+        "sha256": "3a97a99230d07fcbe6fd1ea2a001556297225d57f55d7880d3c9e6e29960ae90"
+      }
     ]
   },
   "deployment": {

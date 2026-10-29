@@ -384,6 +384,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 		inputJSONStdin                                                bool
 		maxCostMicros                                                 int64
 		operationID, inputFingerprint, fundingRoute, referenceDigests string
+		providerOnly                                                  string
 	)
 	fs.StringVar(&role, "role", "", "OpenRouter policy role to resolve (e.g. chat.default)")
 	fs.StringVar(&model, "model", "", "Concrete OpenRouter model slug (advanced override; prefer --role)")
@@ -403,6 +404,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	fs.StringVar(&inputFingerprint, "input-fingerprint", "", "Immutable request fingerprint bound to the spend authorization")
 	fs.StringVar(&fundingRoute, "funding-route", "", "Explicit funding route for the spend authorization")
 	fs.StringVar(&referenceDigests, "reference-sha256", "", "Comma-separated selected image SHA-256 values bound to the authorization")
+	fs.StringVar(&providerOnly, "provider-only", "", "Comma-separated exact OpenRouter provider names allowed by the spend authorization")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			printGenerateUsage(stdout)
@@ -462,7 +464,7 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 	// declared per-role temperature real on the generate path.
 	effectiveTemperature, effectiveMaxTokens := resolvedPolicy.RequestDefaults.ResolveGenerate(temperature, maxTokens)
 	var body []byte
-	if maxCostMicros != 0 || operationID != "" || inputFingerprint != "" || fundingRoute != "" || referenceDigests != "" {
+	if maxCostMicros != 0 || operationID != "" || inputFingerprint != "" || fundingRoute != "" || referenceDigests != "" || providerOnly != "" {
 		refs := []string{}
 		if strings.TrimSpace(referenceDigests) != "" {
 			refs = strings.Split(referenceDigests, ",")
@@ -482,7 +484,19 @@ func runGenerate(app *cliapp.ResourceApp, args []string, stdout io.Writer, stdin
 			}
 		}
 		var authorization health.SpendAuthorization
-		body, authorization, err = health.GenerateWithSpendCap(context.Background(), http.DefaultClient, runtime, creds, model, prompt, effectiveTemperature, effectiveMaxTokens, responseFormatJSON, images, binding, resolvedPolicy.Endpoints)
+		providers := []string{}
+		for _, name := range strings.Split(providerOnly, ",") {
+			if name = strings.TrimSpace(name); name != "" {
+				providers = append(providers, name)
+			}
+		}
+		if len(providers) == 0 && strings.TrimSpace(resolvedPolicy.Provider) != "" {
+			providers = append(providers, resolvedPolicy.Provider)
+		}
+		if len(providers) == 0 {
+			return fmt.Errorf("spend-authorized generation requires a policy-pinned provider or --provider-only")
+		}
+		body, authorization, err = health.GenerateWithSpendCap(context.Background(), http.DefaultClient, runtime, creds, model, prompt, effectiveTemperature, effectiveMaxTokens, responseFormatJSON, images, binding, providers)
 		if err == nil {
 			var response map[string]json.RawMessage
 			if decodeErr := json.Unmarshal(body, &response); decodeErr != nil {
@@ -715,6 +729,8 @@ func printGenerateUsage(stdout io.Writer) {
 	fmt.Fprintln(stdout, "Usage:")
 	fmt.Fprintln(stdout, "  resource-openrouter generate [--role <role>] [--temperature <value>] [--max-tokens <n>] [--response-format <json>] [--json] [--prompt <text>]")
 	fmt.Fprintln(stdout, "  resource-openrouter generate --model <slug> ...   (advanced override; prefer --role)")
+	fmt.Fprintln(stdout, "  Spend-authorized calls require --provider-only plus operation identity flags; --max-cost-micros 0 admits only currently all-zero-priced endpoints.")
+	fmt.Fprintln(stdout, "  Spend-authorized calls pin ZDR and data_collection=deny, and disable provider fallbacks.")
 	fmt.Fprintln(stdout, "  resource-openrouter generate <prompt text>")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, "Model selection: --role is resolved through `resource-openrouter policy`; absent both --role and")

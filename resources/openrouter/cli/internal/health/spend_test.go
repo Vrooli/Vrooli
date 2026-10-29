@@ -25,7 +25,7 @@ func TestGenerateWithSpendCapSendsAllOwnerCapsBeforeDispatch(t *testing.T) {
 			if r.Header.Get("Authorization") != "Bearer owner-key" {
 				t.Errorf("endpoint metadata request omitted owner credential")
 			}
-			_, _ = io.WriteString(w, `{"data":[{"provider_name":"OpenAI","context_length":10000,"max_completion_tokens":5000,"pricing":{"prompt":"0.00001","completion":"0.00002","request":"0","image":"0.0001"}}]}`)
+			_, _ = io.WriteString(w, `{"data":{"endpoints":[{"provider_name":"OpenAI","context_length":10000,"max_completion_tokens":5000,"pricing":{"prompt":"0.00001","completion":"0.00002","request":"0","image":"0.0001"}}]}}`)
 			return
 		}
 		if err := json.NewDecoder(r.Body).Decode(&chat); err != nil {
@@ -50,11 +50,13 @@ func TestGenerateWithSpendCapSendsAllOwnerCapsBeforeDispatch(t *testing.T) {
 		RequireParameters bool                   `json:"require_parameters"`
 		Only              []string               `json:"only"`
 		MaxPrice          map[string]json.Number `json:"max_price"`
+		ZDR               bool                   `json:"zdr"`
+		DataCollection    string                 `json:"data_collection"`
 	}
 	if err := json.Unmarshal(chat["provider"], &provider); err != nil {
 		t.Fatal(err)
 	}
-	if provider.AllowFallbacks || !provider.RequireParameters || len(provider.Only) != 1 || provider.Only[0] != "OpenAI" {
+	if provider.AllowFallbacks || !provider.RequireParameters || len(provider.Only) != 1 || provider.Only[0] != "OpenAI" || !provider.ZDR || provider.DataCollection != "deny" {
 		t.Fatalf("provider routing controls were not pinned: %+v", provider)
 	}
 	for _, key := range []string{"prompt", "completion", "request", "image"} {
@@ -68,6 +70,92 @@ func TestGenerateWithSpendCapSendsAllOwnerCapsBeforeDispatch(t *testing.T) {
 	}
 }
 
+func TestGenerateWithZeroCostRequiresCurrentAllZeroPricesAndPrivacyControls(t *testing.T) {
+	var chat map[string]json.RawMessage
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_, _ = io.WriteString(w, `{"data":{"endpoints":[{"provider_name":"Phala","context_length":10000,"max_completion_tokens":5000,"pricing":{"prompt":"0","completion":"0","discount":0}}]}}`)
+			return
+		}
+		if err := json.NewDecoder(r.Body).Decode(&chat); err != nil {
+			t.Errorf("decode chat body: %v", err)
+		}
+		_, _ = io.WriteString(w, `{"model":"xingchen-agi/xing4.0-29b-a4b:free","provider_name":"Phala","usage":{"cost":0},"choices":[{"message":{"content":"response"}}]}`)
+	}))
+	defer server.Close()
+	binding := SpendBinding{MaxCostMicros: 0, OperationID: "12345678-1234-4234-9234-123456789abc", InputFingerprint: strings.Repeat("d", 64), FundingRoute: "byok", AccountIdentity: "vrooli/openrouter"}
+	_, authorization, err := GenerateWithSpendCap(context.Background(), http.DefaultClient, resourceenv.Runtime{APIBaseURL: server.URL + "/api/v1"}, auth.Credentials{APIKey: "owner-key"}, "xingchen-agi/xing4.0-29b-a4b:free", "fictional prompt", nil, 180, nil, nil, binding, []string{"Phala"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var provider struct {
+		AllowFallbacks bool                   `json:"allow_fallbacks"`
+		Only           []string               `json:"only"`
+		ZDR            bool                   `json:"zdr"`
+		DataCollection string                 `json:"data_collection"`
+		MaxPrice       map[string]json.Number `json:"max_price"`
+	}
+	if err := json.Unmarshal(chat["provider"], &provider); err != nil {
+		t.Fatal(err)
+	}
+	if provider.AllowFallbacks || len(provider.Only) != 1 || provider.Only[0] != "Phala" || !provider.ZDR || provider.DataCollection != "deny" {
+		t.Fatalf("zero-cost privacy/routing controls were not pinned: %+v", provider)
+	}
+	for _, key := range []string{"prompt", "completion", "request", "image"} {
+		if provider.MaxPrice[key] != "0" {
+			t.Fatalf("max_price.%s must be zero, got %q", key, provider.MaxPrice[key])
+		}
+	}
+	if authorization.MaxCostMicros != 0 || authorization.Model != "xingchen-agi/xing4.0-29b-a4b:free" {
+		t.Fatalf("authorization did not preserve zero cap and exact model: %+v", authorization)
+	}
+}
+
+func TestZeroCostRejectsResponseOutsideAuthorizedModelProviderAndCost(t *testing.T) {
+	tests := []struct {
+		name     string
+		response string
+	}{
+		{name: "wrong model", response: `{"model":"other/model","provider_name":"Phala","usage":{"cost":0},"choices":[]}`},
+		{name: "wrong provider", response: `{"model":"xingchen-agi/xing4.0-29b-a4b:free","provider_name":"Other","usage":{"cost":0},"choices":[]}`},
+		{name: "nonzero cost", response: `{"model":"xingchen-agi/xing4.0-29b-a4b:free","provider_name":"Phala","usage":{"cost":"0.000001"},"choices":[]}`},
+		{name: "missing cost", response: `{"model":"xingchen-agi/xing4.0-29b-a4b:free","provider_name":"Phala","usage":{},"choices":[]}`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodGet {
+					_, _ = io.WriteString(w, `{"data":{"endpoints":[{"provider_name":"Phala","context_length":10000,"max_completion_tokens":5000,"pricing":{"prompt":"0","completion":"0","request":"0","image":"0"}}]}}`)
+					return
+				}
+				_, _ = io.WriteString(w, tc.response)
+			}))
+			defer server.Close()
+			binding := SpendBinding{MaxCostMicros: 0, OperationID: "12345678-1234-4234-9234-123456789abc", InputFingerprint: strings.Repeat("f", 64), FundingRoute: "byok", AccountIdentity: "vrooli/openrouter"}
+			if _, _, err := GenerateWithSpendCap(context.Background(), http.DefaultClient, resourceenv.Runtime{APIBaseURL: server.URL + "/api/v1"}, auth.Credentials{APIKey: "key"}, "xingchen-agi/xing4.0-29b-a4b:free", "prompt", nil, 180, nil, nil, binding, []string{"Phala"}); err == nil {
+				t.Fatalf("unverified zero-cost response was accepted: %s", tc.response)
+			}
+		})
+	}
+}
+
+func TestZeroCostRefusesAnyNonzeroCurrentPriceBeforeChat(t *testing.T) {
+	chatCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			chatCalls++
+			return
+		}
+		_, _ = io.WriteString(w, `{"data":{"endpoints":[{"provider_name":"Phala","context_length":10000,"pricing":{"prompt":"0","completion":"0.0000001","request":"0","image":"0"}}]}}`)
+	}))
+	defer server.Close()
+	binding := SpendBinding{MaxCostMicros: 0, OperationID: "12345678-1234-4234-9234-123456789abc", InputFingerprint: strings.Repeat("e", 64), FundingRoute: "byok", AccountIdentity: "vrooli/openrouter"}
+	_, _, err := GenerateWithSpendCap(context.Background(), http.DefaultClient, resourceenv.Runtime{APIBaseURL: server.URL + "/api/v1"}, auth.Credentials{APIKey: "key"}, "xingchen-agi/xing4.0-29b-a4b:free", "prompt", nil, 180, nil, nil, binding, []string{"Phala"})
+	if err == nil || chatCalls != 0 {
+		t.Fatalf("nonzero current price with zero ceiling dispatched: err=%v chat calls=%d", err, chatCalls)
+	}
+}
+
 func TestGenerateWithSpendCapRefusesMissingCurrentPriceClassBeforeChat(t *testing.T) {
 	chatCalls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -75,7 +163,7 @@ func TestGenerateWithSpendCapRefusesMissingCurrentPriceClassBeforeChat(t *testin
 			chatCalls++
 			return
 		}
-		_, _ = io.WriteString(w, `{"data":[{"provider_name":"OpenAI","context_length":10000,"pricing":{"prompt":"0.00001","completion":"0.00002","request":"0"}}]}`)
+		_, _ = io.WriteString(w, `{"data":{"endpoints":[{"provider_name":"OpenAI","context_length":10000,"pricing":{"prompt":"0.00001","completion":"0.00002","request":"0"}}]}}`)
 	}))
 	defer server.Close()
 	_, _, err := GenerateWithSpendCap(context.Background(), http.DefaultClient, resourceenv.Runtime{APIBaseURL: server.URL + "/api/v1"}, auth.Credentials{APIKey: "key"}, "openai/gpt-4o", "prompt", nil, 500, nil, []ImageInput{{MediaType: "image/png", DataB64: "YQ=="}}, SpendBinding{MaxCostMicros: 1000000, OperationID: "12345678-1234-4234-9234-123456789abc", InputFingerprint: strings.Repeat("b", 64), ReferenceSHA256: []string{strings.Repeat("c", 64)}, FundingRoute: "byok", AccountIdentity: "vrooli/openrouter"}, []string{"OpenAI"})

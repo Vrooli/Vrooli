@@ -1,5 +1,5 @@
 // Package snapshot implements the snapshot lifecycle commands of resource-kopia:
-// create, list, restore, verify, delete. Each resolves a repository by --repo
+// create, list, restore, verify, expire, delete. Each resolves a repository by --repo
 // (sourcing its passphrase + S3 creds from the credential authority) and routes through the single
 // kexec seam. Secrets never appear in argv.
 package snapshot
@@ -190,6 +190,34 @@ func (s Service) Verify(ctx context.Context, args []string) error {
 	}
 	if strings.TrimSpace(*snap) != "" {
 		argv = append(argv, *snap)
+	}
+	return s.run(ctx, target, argv)
+}
+
+// Expire applies a source's retention policy now, deleting the snapshots it no
+// longer keeps. kopia otherwise expires only as a side effect of the next
+// `snapshot create` for that source, so a freshly tightened policy would leave
+// the backlog in place until another run. --path takes the exact kopia source
+// (user@host:/path, or a local path); without --delete kopia only reports what
+// would be removed. Blob space is reclaimed later by maintenance.
+func (s Service) Expire(ctx context.Context, args []string) error {
+	fs := cmdutil.NewFlagSet("snapshot expire")
+	repo := fs.String("repo", "", "Repository name (required)")
+	path := fs.String("path", "", "Source to expire (user@host:/path or local path; required)")
+	del := fs.Bool("delete", false, "Actually delete expired snapshots (default: dry run)")
+	if err := cmdutil.Parse(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*path) == "" {
+		return fmt.Errorf("--path is required")
+	}
+	target, err := s.resolve(ctx, *repo)
+	if err != nil {
+		return err
+	}
+	argv := append(target.GlobalArgs(), "snapshot", "expire", *path)
+	if *del {
+		argv = append(argv, "--delete")
 	}
 	return s.run(ctx, target, argv)
 }

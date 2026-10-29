@@ -331,7 +331,6 @@
       "codex",
       "--version"
     ],
-    "version_pinned": "0.161.0",
     "upstream_release_source": "https://registry.npmjs.org/@openai/codex/latest",
     "docs_source": "https://developers.openai.com/codex/permissions",
     "docs_pinned_at": "2026-05-28",

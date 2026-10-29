@@ -191,7 +191,11 @@ type ProviderSnapshot struct {
 	ExpiresAt    time.Time            `json:"expires_at"`
 	Rules        []PolicyRule         `json:"rules,omitempty"`
 	PathRules    []PathRule           `json:"path_rules,omitempty"`
-	Provenance   map[string]string    `json:"provenance,omitempty"`
+	// RemovalApproval is the command an agent runs to ask the operator to
+	// approve deleting a location these path rules withhold. The runtime
+	// appends one --path argument per withheld path to the refusal it shows.
+	RemovalApproval string            `json:"removal_approval,omitempty"`
+	Provenance      map[string]string `json:"provenance,omitempty"`
 }
 
 type SnapshotBundle struct {

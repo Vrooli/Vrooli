@@ -2,42 +2,37 @@ package configcli
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 )
 
-func TestEnsureDefaultsToCurrentDeliveryModel(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	h := &Handlers{
-		GetEnv: func(string) string { return "" },
-		Stdout: &stdout,
-		Stderr: &stderr,
-	}
-
-	if err := h.Ensure([]string{"--format", "json"}); err != nil {
-		t.Fatalf("Ensure() error = %v", err)
-	}
-	if got, want := stdout.String(), `{"active_source":"","role":"code.default","model":"gpt-6-luna","effort":"medium"}`; got != want {
-		t.Fatalf("Ensure() output = %s, want %s", got, want)
+func TestEnsureResolvesResourceRoleWithoutPrivateDefaults(t *testing.T) {
+	for role, model := range map[string]string{"code.default": "gpt-6.1-terra", "code.research": "gpt-6-luna", "code.fallback": "gpt-6.1-sol"} {
+		var stdout, stderr bytes.Buffer
+		h := &Handlers{CatalogPath: "../../../model-policy.json", GetEnv: func(string) string { return "" }, Stdout: &stdout, Stderr: &stderr}
+		if err := h.Ensure([]string{"--format", "json", "--role", role}); err != nil {
+			t.Fatal(err)
+		}
+		var result map[string]string
+		if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result["model"] != model || result["role"] != role || result["effort"] == "" {
+			t.Fatalf("role policy was ignored: %v", result)
+		}
 	}
 }
-
-func TestEnsureHonorsExplicitModel(t *testing.T) {
-	var stdout, stderr bytes.Buffer
-	h := &Handlers{
-		GetEnv: func(key string) string {
+func TestEnsureRefusesModelOverrideOutsideRole(t *testing.T) {
+	for _, model := range []string{"gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-terra"} {
+		var stdout, stderr bytes.Buffer
+		h := &Handlers{CatalogPath: "../../../model-policy.json", GetEnv: func(key string) string {
 			if key == "CODEX_MODEL" {
-				return "gpt-6-sol"
+				return model
 			}
 			return ""
-		},
-		Stdout: &stdout,
-		Stderr: &stderr,
-	}
-
-	if err := h.Ensure([]string{"--format", "json", "--role", "judgment.supervision"}); err != nil {
-		t.Fatalf("Ensure() error = %v", err)
-	}
-	if got, want := stdout.String(), `{"active_source":"","role":"judgment.supervision","model":"gpt-6-sol","effort":"medium"}`; got != want {
-		t.Fatalf("Ensure() output = %s, want %s", got, want)
+		}, Stdout: &stdout, Stderr: &stderr}
+		if err := h.Ensure([]string{"--format", "json"}); err == nil {
+			t.Fatalf("ordinary role accepted override %s", model)
+		}
 	}
 }

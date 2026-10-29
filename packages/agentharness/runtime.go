@@ -70,8 +70,8 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 		resolve = HostRemovalContext
 	}
 	ctx := resolve(event.WorkingDirectory)
-	rules, degraded := r.pathRules(event, now)
-	ctx.Rules = rules
+	rules, approval, degraded := r.pathRules(event, now)
+	ctx.Rules, ctx.ApprovalCommand = rules, approval
 	decision := ctx.EvaluateRemoval(removalTargetsFor(event, removalEnv{WorkingDirectory: ctx.WorkingDirectory, Home: ctx.Home, Lookup: ctx.Lookup}))
 	decision.EventID = event.EventID
 	if len(degraded) > 0 {
@@ -83,23 +83,25 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 
 // pathRules collects rules from fresh, ready, healthy, clean snapshots. The
 // returned evidence explains any missing or unusable declarations; the floor
-// then decides alone, which only ever makes decisions stricter.
-func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, []Evidence) {
+// then decides alone, which only ever makes decisions stricter. The approval
+// command is the first usable snapshot's removal_approval, if any.
+func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, string, []Evidence) {
 	unavailable := func(message string) []Evidence {
 		return []Evidence{{Code: "PATH_RULES_UNAVAILABLE", Message: message, Source: "policy-runtime", Severity: "warning"}}
 	}
 	if r.Store == nil {
-		return nil, unavailable("no snapshot store is configured; only the built-in floor applies")
+		return nil, "", unavailable("no snapshot store is configured; only the built-in floor applies")
 	}
 	bundle, err := r.Store.Load()
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, unavailable("no provider has published path rules; only the built-in floor applies")
+		return nil, "", unavailable("no provider has published path rules; only the built-in floor applies")
 	}
 	if err != nil {
-		return nil, unavailable("snapshot bundle unavailable (" + err.Error() + "); only the built-in floor applies")
+		return nil, "", unavailable("snapshot bundle unavailable (" + err.Error() + "); only the built-in floor applies")
 	}
 	var rules []PathRule
 	var evidence []Evidence
+	approval := ""
 	declared := false
 	for _, id := range snapshotIDs(bundle) {
 		snapshot := bundle.Snapshots[id]
@@ -110,6 +112,9 @@ func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, []Eviden
 		if problem := unusableSnapshot(snapshot, now); problem != "" {
 			evidence = append(evidence, Evidence{Code: "PATH_RULES_UNUSABLE", Message: problem + "; its path rules were ignored", Source: id, Severity: "warning"})
 			continue
+		}
+		if approval == "" {
+			approval = strings.TrimSpace(snapshot.RemovalApproval)
 		}
 		for _, rule := range snapshot.PathRules {
 			rule.Provider = id
@@ -122,7 +127,7 @@ func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, []Eviden
 	if !declared {
 		evidence = append(evidence, unavailable("no provider has published path rules; only the built-in floor applies")...)
 	}
-	return rules, evidence
+	return rules, approval, evidence
 }
 
 func unusableSnapshot(snapshot ProviderSnapshot, now time.Time) string {

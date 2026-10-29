@@ -83,7 +83,7 @@ Claude Code provides an enterprise-grade AI coding agent with tool-using capabil
   - [x] Automatic retry on failures with exponential backoff
   - [x] Session persistence across restarts
   - [x] Graceful degradation with Ollama fallback
-  - [x] Rate limit prediction and preemptive switching
+  - [x] Provider quota feed: `statusline run` records Claude Code's own five-hour/seven-day `used_percentage` readings for Agent Manager forecasting (no local estimates)
   - [ ] Health monitoring and alerting integration
   
 - **Scalability**
@@ -154,7 +154,7 @@ fallback_provider:
   # Fallback control
   resource-claude-code for ollama connect            # Force Ollama fallback
   resource-claude-code for ollama disconnect         # Return to Claude
-  resource-claude-code usage                         # Check rate limit status
+  resource-claude-code statusline status             # Show the statusline quota feed
   
   # Content management
   resource-claude-code content add <template>        # Add templates
@@ -180,13 +180,12 @@ environment_variables:
   CLAUDE_CODE_MAX_RETRIES: 3
   CLAUDE_CODE_TIMEOUT: 600
   
-  # Usage tracking
-  CLAUDE_USAGE_FILE: ~/.claude/usage_tracking.json
-  CLAUDE_CODE_TRACK_COSTS: true
+  # Provider quota feed (statusline)
+  VROOLI_CLAUDE_QUOTA_SAMPLES: ~/.vrooli/state/vrooli/claude-code/quota-samples.ndjson
 
 config_files:
   - ~/.claude/config.json           # Global configuration
-  - ~/.claude/usage_tracking.json   # Usage and rate limit tracking
+  - ~/.claude/settings.json         # statusLine reconciled to the quota feed
   - .claude/project.json            # Project-specific settings
 ```
 
@@ -321,7 +320,7 @@ fallback_behavior:
 - [Configuration Guide](docs/CONFIGURATION.md)
 - [Fallback Guide](docs/FALLBACK.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Rate Limit Management](docs/RATE_LIMITS.md)
+- [Provider quota feed](README.md#provider-quota-feed-statusline)
 - [Automation Guide](docs/AUTOMATION.md)
 - [Usage Guidance](README.md)
 

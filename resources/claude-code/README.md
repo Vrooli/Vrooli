@@ -113,6 +113,38 @@ unmanaged Claude settings. This is the Go replacement for the retired
 
 Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resource.json` → `upstream_cli`).
 
+## Provider quota feed (statusline)
+
+Claude Code passes its status line command a JSON object that, for Pro/Max
+subscriptions, carries the provider's own quota readings:
+`rate_limits.five_hour` and `rate_limits.seven_day`, each with
+`used_percentage` (0–100) and `resets_at` (Unix seconds)
+([statusline docs](https://code.claude.com/docs/en/statusline)). This resource
+owns the feed that records them:
+
+- `resource-claude-code statusline run` is the `statusLine` command. It appends
+  one NDJSON sample (`observed_at`, `session_id`, `model`, `five_hour`,
+  `seven_day`) to `~/.vrooli/state/vrooli/claude-code/quota-samples.ndjson`
+  (override: `VROOLI_CLAUDE_QUOTA_SAMPLES`) when a reading changes, or every
+  5 minutes while unchanged. At 4 MiB the file rotates to `.1`. Then it prints
+  the status line. If a `statusLine` command existed before install, the feed
+  runs that command with the same stdin and prints its output, so your status
+  line keeps rendering. Otherwise it prints `Opus · 5h 24% ↻… · 7d 41% ↻…`.
+- `install-direct` (what `vrooli resource install claude-code` runs) and
+  `statusline install` reconcile `~/.claude/settings.json` `statusLine` to the
+  feed, idempotently and under the shared settings lock. The displaced
+  command is kept in `~/.claude/.vrooli-hooks/statusline.json` for chaining.
+- `statusline uninstall` restores the displaced `statusLine` verbatim (or
+  removes the key) and deletes the state file. It leaves a `statusLine` you
+  changed since install alone. `statusline status` shows the current state.
+
+Agent Manager ingests the samples as `quota_observations` (provider
+`anthropic`, pools `five_hour`/`seven_day`, provenance
+`claude-code:statusline`). Readings appear only after the session's first
+API response and only for subscription logins. API-key sessions record
+nothing. The retired estimate-based `usage_tracking.json` design is gone;
+quota figures come only from the provider.
+
 ## Model catalog operations
 
 `resource-claude-code models list --json` reports the quota-free `--model` alias surface and pinned evidence. `resource-claude-code models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-claude-code policy validate --against-live --json` after a retarget. Keep moving aliases as primaries and use pinned fallbacks for reproducible history; refresh provenance within the 14-day staleness budget. Policy edits remain explicitly reviewed.

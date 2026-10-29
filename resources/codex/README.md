@@ -59,6 +59,32 @@ model, fallbacks, policy provenance, and the intentionally `intent_only`
 permission posture; Agent Manager consumes that response at run creation but
 does not duplicate the inventory or write Codex configuration.
 
+The operator policy selects GPT-6.1 Terra for capable work and the latest
+verified Luna (currently GPT-6 Luna) for `code.research`. Sol is restricted to
+`code.fallback`; Agent Manager requires an explicit
+`VROOLI_MODEL_FALLBACK_REASON`, retains it as declared evidence in the immutable
+policy snapshot, and validates supplied source-run IDs against owned run state.
+`parentRunId` remains thread lineage. Astra and old Terra are globally excluded;
+ordinary roles cannot override to Sol. No automatic model/provider fallback.
+
+Discovery, upstream checks and managed launches use the same PATH-respecting
+resolver behind the Vrooli shim, including user-local installations.
+`resource-codex update` uses the existing installer and verifies the selected
+executable/version after installation. `resource.json` acquisition is the sole
+provisioning pin; `resource-codex install-direct` restores that pinned release,
+with its checksum validation. Retain the previous manifest and executable when
+updating an unpinned installation so its exact rollback remains available.
+
+The existing Agent Manager model-policy scheduler checks daily (override with
+`AGENT_MANAGER_MODEL_POLICY_DRIFT_INTERVAL`), retains reporting/persistence
+errors, and files one catalog-review finding per policy/catalog revision rather
+than flooding one report per new model. Accepted reports are delivery receipts,
+not proof that a disabled team handled them. Resolved findings clear suppression
+so a regression is reported again. `vrooli host cron audit` observes remaining declaration drift.
+The obsolete upstream cron was retired: the same persisted AM loop checks
+upstream versions through each resource’s existing `upstream-check` command.
+Updates remain operator-owned.
+
 ## Permissions
 
 Linux namespace setup is owned by the control-plane `bubblewrap_userns`
@@ -190,49 +216,25 @@ Upstream docs: <https://learn.chatgpt.com/docs/permissions> and
 
 ## Model catalog operations
 
-The operator's amendment permits Sol for infrequent, explicitly admitted
-supervision through `judgment.supervision`. Ordinary roles still deny Sol; Astra
-remains globally excluded. The owner-validated Codex catalog exposes
-`gpt-6-luna` and `gpt-6-sol`, so `code.delivery` selects Luna medium and
-`judgment.supervision` selects Sol medium from the subscription catalog. The
-host can contain multiple Codex installations, so record the executable path
-and `--version` with every catalog observation. On the current host,
-`/usr/bin/codex` 0.156.1 lists GPT-6 Luna/Sol and the 5.6 models. The Vrooli
-PATH may resolve an attribution shim and a different user-local installation.
-Agent Manager's managed codec intentionally bypasses that shim and selects the
-installed system runner (`/usr/bin/codex` or `/bin/codex` on Linux); a direct
-shell `codex --version` is not managed-launch evidence. `~/.codex/models_cache.json`
-is used only as a compatibility fallback. Older caches can omit valid model slugs and are
-marked non-authoritative. The model-policy drift safeguard refuses to make
-availability claims from that fallback, so an unavailable live probe is
-reported as unmeasured rather than as a false missing-model finding. A measured
-runner listing is also not assumed exhaustive: it proves a model is offered when
-listed, but omission produces a non-blocking `unconfirmed_*` finding unless the
-runner explicitly marks the catalog `exhaustive`. Those warnings must never be
-reported as “GPT-6 is unavailable” or used to replace an owner-validated GPT-6
-role with GPT-5.6. Catalog validation is not execution qualification. Keep the delivery team
-disabled until its pilot succeeds and record the actual selected model.
-Operational Codex roles now resolve the owner-validated GPT-6 Luna family;
-`judgment.supervision` is the only ordinary role permitted to select GPT-6 Sol.
-Reserved legacy aliases remain only for historical compatibility and are not
-launch permissions. Keep legacy `model`/`fallbacks` and structured `models`
-candidates consistent. Validate the resource policy and reload Agent
-Manager's role policy after edits; inspect profile resolution to verify adoption
-without buying inference. Existing run snapshots and manually selected native
-sessions retain their original models. Stop an affected managed run through its
-owner before any replacement. Hard deny rules are declared in the catalog's root
-`excluded_models` list.
+The coding-role policy above is the current model and launcher contract.
+Validate it and reload Agent Manager's portable role policy after edits;
+inspect profile resolution to verify adoption without buying inference.
+Read-only role resolution and execution options describe candidates; managed
+CreateRun admission enforces the fallback declaration. Existing run snapshots
+and manually selected native sessions retain their original models. Stop an
+affected managed run through its owner before replacement. Catalog validation
+does not prove inference, native permissions or account access.
+
+The catalog's root `excluded_models` list declares hard denials.
 `restricted_models` maps a model to the only resource roles that may select it.
 The resource resolves both rules into the existing `excluded_models` response,
 including aliases; global denial always wins. New ordinary roles remain denied
 without copying per-role lists. This controls model selection, not authority to
-assume a role: the execution owner must bind workers and supervisors to their
-admitted roles and enforce review cadence. Existing heartbeats do not become
-Sol runs just because the new role is available.
+assume a role. The execution owner must bind workers to their admitted roles.
 Provider prices and subscription quota are separate measurements: do not invent
 token prices or treat an estimated zero-dollar charge as unused weekly allowance.
 
-`resource-codex models list --json` queries `codex debug models` without invoking a model and falls back to the Codex model cache only when the runner probe is unavailable. A live result is authoritative evidence that listed models are offered, not an exhaustive inventory; only `exhaustive: true` permits an absent-model conclusion. Record the measured binary path/version and verify managed launch behavior through the codec's shim-bypass test and bounded runner probe; a direct PATH lookup is not sufficient evidence. Never downgrade owner-validated GPT-6 roles from a stale cache or partial surface. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget; aliases should remain runner-facing while pinned fallbacks must be refreshed from the same live evidence. Policy edits are reviewed explicitly and are never made by the drift safeguard.
+`resource-codex models list --json` queries `codex debug models` without invoking a model and falls back to the non-authoritative Codex model cache only when the runner probe is unavailable. A live result proves listed models are offered; only `exhaustive: true` permits an absent-model conclusion. A missing live probe remains unmeasured, and a partial listing's omissions remain unconfirmed. Record the measured binary path/version and verify managed launch behavior through the codec's shim-bypass test and bounded runner probe. Never downgrade owner-validated roles from a stale cache or partial surface. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget. Policy edits require explicit review; the drift safeguard never changes them.
 
 If this command reports an unexpectedly old partial catalog, rebuild the installed resource CLI from the current resource source before diagnosing model availability; a stale installed CLI can preserve obsolete discovery behavior.
 

@@ -57,9 +57,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	installSpec := agentinstall.Spec{ResourceName: appName, Binary: "opencode", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".local", "share", "opencode")}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{
-			agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "opencode", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".local", "share", "opencode")}),
+			agentinstall.DirectInstallCommand(installSpec), agentinstall.UpdateCommand(installSpec),
 			ensurecli.Commands(ensurecli.Default()),
 		}}),
 		[]cliapp.SubcommandGroup{

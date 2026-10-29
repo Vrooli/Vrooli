@@ -22,9 +22,14 @@ import (
 )
 
 type fakeClient struct {
-	embed    func(ctx context.Context, model, input string) ([]float64, error)
-	generate func(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
-	chat     func(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
+	embed        func(ctx context.Context, model, input string) ([]float64, error)
+	generate     func(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
+	chat         func(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
+	inventory    []ensure.ModelInfo
+	running      []ensure.RunningModel
+	inventoryErr error
+	runningErr   error
+	unload       func(context.Context, string) error
 }
 
 func (f *fakeClient) Embed(ctx context.Context, model, input string) ([]float64, error) {
@@ -39,6 +44,21 @@ func (f *fakeClient) Chat(ctx context.Context, in ensure.ChatRequest) (ensure.Ch
 	return f.chat(ctx, in)
 }
 
+func (f *fakeClient) ListModelInventory(context.Context) ([]ensure.ModelInfo, error) {
+	return f.inventory, f.inventoryErr
+}
+
+func (f *fakeClient) ListRunning(context.Context) ([]ensure.RunningModel, error) {
+	return f.running, f.runningErr
+}
+
+func (f *fakeClient) Unload(ctx context.Context, model string) error {
+	if f.unload == nil {
+		return errors.New("fake unload unavailable")
+	}
+	return f.unload(ctx, model)
+}
+
 func newHandlers(t *testing.T, client *fakeClient, env map[string]string) (*Handlers, *bytes.Buffer, *bytes.Buffer) {
 	t.Helper()
 	stdout := &bytes.Buffer{}
@@ -48,12 +68,13 @@ func newHandlers(t *testing.T, client *fakeClient, env map[string]string) (*Hand
 		t.Fatalf("hostsem.New: %v", err)
 	}
 	h := &Handlers{
-		NewClient: func() Client { return client },
-		Sem:       sem,
-		GetEnv:    func(k string) string { return env[k] },
-		Stdin:     strings.NewReader(""),
-		Stdout:    stdout,
-		Stderr:    stderr,
+		NewClient:         func() Client { return client },
+		NewLoopbackClient: func() (Client, error) { return client, nil },
+		Sem:               sem,
+		GetEnv:            func(k string) string { return env[k] },
+		Stdin:             strings.NewReader(""),
+		Stdout:            stdout,
+		Stderr:            stderr,
 	}
 	return h, stdout, stderr
 }
@@ -188,6 +209,90 @@ func TestGenerateJSONOutput(t *testing.T) {
 	}
 }
 
+func TestGenerateAttestsExpectedActiveGPUWorker(t *testing.T) {
+	digest := "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+	client := &fakeClient{
+		inventory: []ensure.ModelInfo{{Name: "qwen3.5:4b", Digest: digest}},
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			if in.Model != "qwen3.5:4b" {
+				t.Fatalf("model = %q", in.Model)
+			}
+			return ensure.GenerateResponse{Response: "hello"}, nil
+		},
+		running: []ensure.RunningModel{{Name: "qwen3.5:4b", Digest: "sha256:" + digest, Processor: "GPU", SizeVRAM: 5_000_000_000}},
+	}
+	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Generate([]string{"--role", "chat.small", "--prompt", "hi", "--json", "--require-worker-digest", digest}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	var got struct {
+		Response string `json:"response"`
+		Worker   struct {
+			Model         string `json:"model"`
+			Digest        string `json:"digest"`
+			Processor     string `json:"processor"`
+			SizeVRAMBytes int64  `json:"size_vram_bytes"`
+			ObservedAt    string `json:"observed_at"`
+		} `json:"worker"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode response: %v (%s)", err, stdout.String())
+	}
+	if got.Response != "hello" || got.Worker.Model != "qwen3.5:4b" || got.Worker.Digest != "sha256:"+digest || got.Worker.Processor != "gpu" || got.Worker.SizeVRAMBytes != 5_000_000_000 || got.Worker.ObservedAt == "" {
+		t.Fatalf("response/worker attestation = %+v", got)
+	}
+}
+
+func TestGenerateRefusesInstalledDigestMismatchBeforeInference(t *testing.T) {
+	called := false
+	client := &fakeClient{
+		inventory: []ensure.ModelInfo{{Name: "qwen3.5:4b", Digest: "other"}},
+		generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			called = true
+			return ensure.GenerateResponse{Response: "must not run"}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	err := h.Generate([]string{"--role", "chat.small", "--prompt", "hi", "--json", "--require-worker-digest", "expected"})
+	if err == nil || !strings.Contains(err.Error(), "installed model digest mismatch") {
+		t.Fatalf("Generate error = %v, want installed digest mismatch", err)
+	}
+	if called {
+		t.Fatal("inference ran before installed model identity was verified")
+	}
+}
+
+func TestGenerateRefusesActiveWorkerDigestOrProcessorMismatch(t *testing.T) {
+	digest := "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+	for _, tc := range []struct {
+		name     string
+		running  ensure.RunningModel
+		wantText string
+	}{
+		{name: "digest", running: ensure.RunningModel{Name: "qwen3.5:4b", Digest: "other", SizeVRAM: 5_000_000_000}, wantText: "active worker digest mismatch"},
+		{name: "cpu", running: ensure.RunningModel{Name: "qwen3.5:4b", Digest: digest, Processor: "CPU", SizeVRAM: 0}, wantText: "not verified GPU-resident"},
+		{name: "missing worker", wantText: "was not found after generation"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &fakeClient{
+				inventory: []ensure.ModelInfo{{Name: "qwen3.5:4b", Digest: digest}},
+				running:   []ensure.RunningModel{tc.running},
+				generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+					return ensure.GenerateResponse{Response: "not accepted"}, nil
+				},
+			}
+			h, stdout, _ := newHandlers(t, client, policyEnv(t))
+			err := h.Generate([]string{"--role", "chat.small", "--prompt", "hi", "--json", "--require-worker-digest", digest})
+			if err == nil || !strings.Contains(err.Error(), tc.wantText) {
+				t.Fatalf("Generate error = %v, want %q", err, tc.wantText)
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("unattested output escaped: %s", stdout.String())
+			}
+		})
+	}
+}
+
 func TestGenerateRequireLoopbackUsesVerifiedClient(t *testing.T) {
 	var generated bool
 	client := &fakeClient{generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
@@ -251,6 +356,59 @@ func TestGenerateRejectsExplicitContextWindowOverflow(t *testing.T) {
 	}
 	if called {
 		t.Fatal("Generate called upstream after context window rejection")
+	}
+}
+
+func TestGenerateOneShotPinsKeepAliveZeroAndVerifiesCleanup(t *testing.T) {
+	var generated bool
+	client := &fakeClient{}
+	client.generate = func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+		generated = true
+		if in.KeepAlive == nil || *in.KeepAlive != 0 {
+			t.Fatalf("keep_alive = %v, want explicit zero", in.KeepAlive)
+		}
+		client.running = []ensure.RunningModel{{Name: "qwen3.5:9b"}}
+		return ensure.GenerateResponse{Response: "bounded", EvalCount: 1}, nil
+	}
+	client.unload = func(_ context.Context, model string) error {
+		if model != "qwen3.5:9b" {
+			t.Fatalf("unload model = %q", model)
+		}
+		client.running = nil
+		return nil
+	}
+	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--json", "--require-loopback", "--one-shot", "--timeout", "90s"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if !generated {
+		t.Fatal("generation was not called")
+	}
+	var got struct {
+		Response              string `json:"response"`
+		WorkerCleanupVerified bool   `json:"worker_cleanup_verified"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if got.Response != "bounded" || !got.WorkerCleanupVerified {
+		t.Fatalf("one-shot result = %+v", got)
+	}
+}
+
+func TestGenerateOneShotRefusesAlreadyLoadedTarget(t *testing.T) {
+	called := false
+	client := &fakeClient{
+		running: []ensure.RunningModel{{Name: "qwen3.5:9b"}},
+		generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			called = true
+			return ensure.GenerateResponse{}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--json", "--require-loopback", "--one-shot"})
+	if err == nil || !strings.Contains(err.Error(), "already loaded") || called {
+		t.Fatalf("Generate error=%v called=%v, want preflight refusal", err, called)
 	}
 }
 
@@ -630,5 +788,69 @@ func TestChatAppliesRoleMaxTokensWhenFlagAbsent(t *testing.T) {
 	}
 	if seen.NumPredict == nil || *seen.NumPredict != 4321 {
 		t.Fatalf("num_predict = %v, want 4321", seen.NumPredict)
+	}
+}
+
+// Generate JSON must preserve optional provider completion metadata rather than
+// replacing missing values with a success-shaped default or an inferred model.
+func TestGenerateJSONPreservesOptionalCompletionMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		metadata string
+		want     map[string]string
+		wantErr  bool
+	}{
+		{name: "stop", metadata: `,"done":true,"done_reason":"stop","model":"provider:echo"`, want: map[string]string{"done": "true", "done_reason": `"stop"`, "model": `"provider:echo"`}},
+		{name: "length", metadata: `,"done":true,"done_reason":"length","model":"provider:echo"`, want: map[string]string{"done": "true", "done_reason": `"length"`, "model": `"provider:echo"`}},
+		{name: "reported_false", metadata: `,"done":false,"done_reason":"provider_pause","model":" raw echo "`, want: map[string]string{"done": "false", "done_reason": `"provider_pause"`, "model": `" raw echo "`}},
+		{name: "missing", want: map[string]string{}},
+		{name: "null_unknown", metadata: `,"done":null,"done_reason":null,"model":null`, want: map[string]string{}},
+		{name: "reported_empty", metadata: `,"done":false,"done_reason":"","model":""`, want: map[string]string{"done": "false", "done_reason": `""`, "model": `""`}},
+		{name: "malformed_done", metadata: `,"done":"yes"`, wantErr: true},
+		{name: "malformed_reason", metadata: `,"done_reason":123`, wantErr: true},
+		{name: "malformed_model", metadata: `,"model":{"name":"untrusted"}`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{"response":"visible unchanged","thinking":"synthetic private field must not be exported","eval_count":7,"total_duration":100,"load_duration":20,"prompt_eval_count":3,"prompt_eval_duration":30,"eval_duration":40` + tc.metadata + `}`
+			client := &fakeClient{generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+				if in.NumPredict == nil || *in.NumPredict != 500 || in.Think == nil || *in.Think {
+					t.Errorf("changed requested cap/visible-output controls: %+v", in)
+				}
+				var response ensure.GenerateResponse
+				err := json.Unmarshal([]byte(body), &response)
+				return response, err
+			}}
+			h, stdout, _ := newHandlers(t, client, nil)
+			err := h.Generate([]string{"--model", "requested:model", "--prompt", "literal input", "--max-tokens", "500", "--json"})
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("malformed reported metadata must not produce successful CLI JSON")
+				}
+				if stdout.Len() != 0 {
+					t.Fatalf("failed request published output: %q", stdout.String())
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Generate: %v", err)
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(stdout.Bytes(), &fields); err != nil {
+				t.Fatal(err)
+			}
+			if string(fields["response"]) != `"visible unchanged"` || string(fields["eval_count"]) != "7" || string(fields["total_duration_ns"]) != "100" || string(fields["load_duration_ns"]) != "20" || string(fields["prompt_eval_count"]) != "3" || string(fields["prompt_eval_duration_ns"]) != "30" || string(fields["eval_duration_ns"]) != "40" {
+				t.Fatalf("visible text/counts/durations changed: %s", stdout.Bytes())
+			}
+			if _, exists := fields["thinking"]; exists {
+				t.Fatal("private thinking field was exported")
+			}
+			for _, key := range []string{"done", "done_reason", "model"} {
+				want, present := tc.want[key]
+				value, exists := fields[key]
+				if exists != present || (present && string(value) != want) {
+					t.Errorf("%s = %s (present=%t), want %s (present=%t)", key, value, exists, want, present)
+				}
+			}
+		})
 	}
 }

@@ -255,6 +255,10 @@ fields so a benchmark can distinguish model-load cost from token-generation
 cost. The gateway remains serialized by the host-wide semaphore before any
 request reaches Ollama.
 
+For an isolated local inference, add `--one-shot --require-loopback --timeout
+90s`. The command refuses a model already resident, sends `keep_alive: 0`, and
+returns JSON only after confirming the model left `/api/ps`.
+
 Vision callers use the same gateway boundary with a JSON envelope on standard
 input; image bytes never travel in argv or logs:
 

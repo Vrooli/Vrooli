@@ -1552,6 +1552,52 @@
           "sample_count": 0
         }
       }
+    },
+    "xingchen-agi/xing4.0-29b-a4b:free": {
+      "provider": "xingchen-agi",
+      "family": "xing4",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 262144,
+      "default_eligible": false,
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 0.0,
+        "output_per_mtok": 0.0
+      },
+      "use_case_notes": "Explicitly resolved, non-default candidate for the bounded fictional artist-world text comparison. Hosted prompts leave the local machine and are processed by OpenRouter and the pinned serving provider.",
+      "caveats": [
+        "Catalog price and endpoint availability are time-sensitive; runtime use requires spend-authorized generation with a hard zero micro-dollar ceiling, all current price classes present and zero, and all max_price classes set to zero.",
+        "The candidate's exact serving endpoint must be pinned to Phala; requests must require ZDR, deny data collection, and disable fallbacks.",
+        "The first hosted A request returned HTTP 429 rate_limited; the frozen attempt is terminal and must not be retried.",
+        "The upstream Hugging Face model card declares Apache-2.0 for model weights; this does not change OpenRouter or provider service terms."
+      ],
+      "provenance": {
+        "catalog": {
+          "source_kind": "openrouter_models",
+          "confidence": "medium",
+          "source": "OpenRouter live models API and model page checked 2026-10-28; free pricing, text modality, context length, and serving provider Phala observed. Runtime cost/privacy controls remain enforced by the spend-authorized owner path.",
+          "observed_at": "2026-10-28",
+          "sample_count": 0
+        }
+      }
     }
   },
   "constraints": {

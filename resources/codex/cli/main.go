@@ -18,10 +18,6 @@ import (
 const (
 	appName    = "codex"
 	appVersion = "0.1.0"
-	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
-	// `permissions doctor` warns when the installed codex CLI version
-	// diverges from this string.
-	upstreamPinnedVersion = "0.161.0"
 )
 
 var (
@@ -65,18 +61,22 @@ func newApp() (*cliapp.ResourceApp, error) {
 		UpstreamSourceKind: "npm",
 		UpstreamSourceID:   "@openai/codex",
 	}
+	pinnedVersion, err := installSpec.PinnedVersion()
+	if err != nil {
+		return nil, fmt.Errorf("read Codex acquisition pin: %w", err)
+	}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(installSpec), agentinstall.UpdateCommand(installSpec)}}),
 		[]cliapp.SubcommandGroup{
 			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Codex's native permission settings remain intent-only; Vrooli projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."}}}),
 			configcli.Commands(configcli.Default()),
-			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
-			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
+			permissionscli.HookCommands(permissionscli.Default(appVersion, pinnedVersion)),
+			permissionscli.Commands(permissionscli.Default(appVersion, pinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
 				DisplayName:   appName,
 				InstalledCmd:  []string{"codex", "--version"},
-				PinnedVersion: upstreamPinnedVersion,
+				PinnedVersion: pinnedVersion,
 				SourceKind:    upstreamcheck.SourceNPM,
 				SourceID:      "@openai/codex",
 			})),

@@ -1,5 +1,5 @@
 // Package maintenance implements the maintenance commands of resource-kopia:
-// run and set. Maintenance prunes unreferenced content and applies retention,
+// run, set, and info. Maintenance prunes unreferenced content and applies retention,
 // enforcing the policies set via the policy command group.
 package maintenance
 
@@ -71,6 +71,28 @@ func (s Service) Set(ctx context.Context, args []string) error {
 	}
 	if strings.TrimSpace(*fullInterval) != "" {
 		argv = append(argv, "--full-interval", *fullInterval)
+	}
+	return s.run(ctx, target, argv)
+}
+
+// Info prints the repository's maintenance parameters: the owner (user@host
+// allowed to run it), whether quick/full cycles are enabled, and when they last
+// ran. Only the owner may run maintenance without --force, so a repo whose
+// owner is another identity is never maintained automatically from here.
+func (s Service) Info(ctx context.Context, args []string) error {
+	fs := cmdutil.NewFlagSet("maintenance info")
+	repo := fs.String("repo", "", "Repository name (required)")
+	jsonOut := fs.Bool("json", false, "Emit kopia's native JSON")
+	if err := cmdutil.Parse(fs, args); err != nil {
+		return err
+	}
+	target, err := s.resolve(ctx, *repo)
+	if err != nil {
+		return err
+	}
+	argv := append(target.GlobalArgs(), "maintenance", "info")
+	if *jsonOut {
+		argv = append(argv, "--json")
 	}
 	return s.run(ctx, target, argv)
 }

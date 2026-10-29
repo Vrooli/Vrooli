@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/configcli"
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissions"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissionscli"
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/statusline"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
@@ -76,8 +78,14 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	installSpec := agentinstall.Spec{ResourceName: appName, Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude")}
+	settings := &permissions.Adapter{}
+	if adapter, adapterErr := permissions.DefaultAdapter(); adapterErr == nil {
+		settings = adapter
+	}
+	statusLine := statusline.DefaultHandlers(settings.SettingsPath, settings.HookStateDir)
 	commands := append(app.StandardLifecycleCommands(),
-		cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude")})}},
+		cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{installWithStatusLine(agentinstall.DirectInstallCommand(installSpec), statusLine), agentinstall.UpdateCommand(installSpec)}},
 		cliapp.CommandGroup{Title: "Execution", Commands: []cliapp.Command{{
 			Name:        "run",
 			Description: "Run the resource-owned Claude Code executable",
@@ -91,6 +99,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}}}),
 			configcli.Commands(configcli.Default()),
+			statusline.Commands(statusLine),
 			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
 			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
@@ -103,4 +112,19 @@ func newApp() (*cliapp.ResourceApp, error) {
 		},
 	)
 	return app, nil
+}
+
+// installWithStatusLine makes the resource install (`vrooli resource install
+// claude-code` runs install-direct) also reconcile the statusline quota feed,
+// so every host that installs the resource gets the feed reproducibly.
+func installWithStatusLine(install cliapp.Command, feed *statusline.Handlers) cliapp.Command {
+	direct := install.Run
+	install.Description += "; reconcile the statusline quota feed"
+	install.Run = func(args []string) error {
+		if err := direct(args); err != nil {
+			return err
+		}
+		return feed.Install()
+	}
+	return install
 }

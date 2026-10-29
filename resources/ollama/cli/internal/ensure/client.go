@@ -522,18 +522,24 @@ type GenerateRequest struct {
 	NumCtx      *int            `json:"num_ctx,omitempty"`
 	NumThread   *int            `json:"num_thread,omitempty"`
 	NumBatch    *int            `json:"num_batch,omitempty"`
+	KeepAlive   *int            `json:"keep_alive,omitempty"`
 }
 
 // GenerateResponse captures the buffered (stream=false) shape.
 type GenerateResponse struct {
-	Response           string `json:"response"`
-	Done               bool   `json:"done"`
-	TotalDuration      int64  `json:"total_duration,omitempty"`
-	LoadDuration       int64  `json:"load_duration,omitempty"`
-	PromptEvalCount    int    `json:"prompt_eval_count,omitempty"`
-	PromptEvalDuration int64  `json:"prompt_eval_duration,omitempty"`
-	EvalCount          int    `json:"eval_count,omitempty"`
-	EvalDuration       int64  `json:"eval_duration,omitempty"`
+	Response string `json:"response"`
+	// Optional pointers preserve reported false/empty values without turning
+	// missing completion metadata into a known result. Model is a provider name
+	// echo, not an attestation of the loaded weights or digest.
+	Done               *bool   `json:"done,omitempty"`
+	DoneReason         *string `json:"done_reason,omitempty"`
+	Model              *string `json:"model,omitempty"`
+	TotalDuration      int64   `json:"total_duration,omitempty"`
+	LoadDuration       int64   `json:"load_duration,omitempty"`
+	PromptEvalCount    int     `json:"prompt_eval_count,omitempty"`
+	PromptEvalDuration int64   `json:"prompt_eval_duration,omitempty"`
+	EvalCount          int     `json:"eval_count,omitempty"`
+	EvalDuration       int64   `json:"eval_duration,omitempty"`
 }
 
 // Generate calls /api/generate with stream=false and returns the full response.

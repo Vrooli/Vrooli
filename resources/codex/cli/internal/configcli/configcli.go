@@ -1,19 +1,23 @@
 package configcli
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
+	"github.com/vrooli/agentharness"
+	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
 type Handlers struct {
-	GetEnv func(string) string
-	Stdout io.Writer
-	Stderr io.Writer
+	CatalogPath string
+	GetEnv      func(string) string
+	Stdout      io.Writer
+	Stderr      io.Writer
 }
 
 func Default() *Handlers {
@@ -38,27 +42,6 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	}
 }
 
-type credentialSource struct {
-	ID          string
-	Label       string
-	EnvVar      string
-	BillingMode string
-}
-
-var sources = []credentialSource{
-	{ID: "codex-subscription", Label: "Codex Subscription", EnvVar: "CODEX_API_KEY", BillingMode: "subscription"},
-	{ID: "opencode-go", Label: "OpenCode Go", EnvVar: "OPENCODE_GO_KEY", BillingMode: "subscription"},
-	{ID: "openrouter", Label: "OpenRouter API", EnvVar: "OPENROUTER_API_KEY", BillingMode: "metered"},
-}
-
-func keyUsable(key string) bool {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return false
-	}
-	return len(key) >= 20
-}
-
 func (h *Handlers) Ensure(args []string) error {
 	fs := flag.NewFlagSet("config ensure", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
@@ -73,41 +56,50 @@ func (h *Handlers) Ensure(args []string) error {
 		getenv = os.Getenv
 	}
 
-	activeSource := ""
-	for _, s := range sources {
-		if key := strings.TrimSpace(getenv(s.EnvVar)); keyUsable(key) {
-			activeSource = s.ID
-			break
-		}
+	path := h.CatalogPath
+	if path == "" {
+		path = agentharness.ResourceCatalogPath("codex")
 	}
-
-	model := strings.TrimSpace(getenv("CODEX_MODEL"))
-	if model == "" {
-		model = "gpt-6-luna"
+	catalog, err := agentcatalog.ReadCodingRoleCatalog("codex", path)
+	if err != nil {
+		return err
+	}
+	selected, ok := catalog.Roles[*role]
+	if !ok {
+		return fmt.Errorf("unknown resource role %q", *role)
+	}
+	model := selected.Model
+	if override := strings.TrimSpace(getenv("CODEX_MODEL")); override != "" && override != model && override != selected.CanonicalModel {
+		return fmt.Errorf("CODEX_MODEL %q differs from role %s model %s; select the matching resource role", override, *role, model)
 	}
 	effort := strings.TrimSpace(getenv("CODEX_EFFORT"))
 	if effort == "" {
-		effort = "medium"
+		for _, entry := range selected.Models {
+			if entry.Model == model && entry.Effort != nil {
+				effort = *entry.Effort
+				break
+			}
+		}
+	}
+	activeSource := ""
+	if catalog.Billing != nil {
+		for _, source := range catalog.Billing.Sources {
+			if key := strings.TrimSpace(getenv(source.CredentialKey)); len(key) >= 20 {
+				activeSource = source.ID
+				break
+			}
+		}
 	}
 
 	switch *format {
 	case "json":
-		fmt.Fprintf(h.Stdout, `{"active_source":"%s","role":"%s","model":"%s","effort":"%s"}`, activeSource, *role, model, effort)
+		return json.NewEncoder(h.Stdout).Encode(map[string]string{"active_source": activeSource, "role": *role, "model": model, "effort": effort})
 	default:
 		if activeSource == "" {
-			fmt.Fprintf(h.Stdout, "No usable credential source found. Set CODEX_API_KEY, OPENCODE_GO_KEY, or OPENROUTER_API_KEY.\n")
+			fmt.Fprintf(h.Stdout, "No credential source exported; native Codex authentication may be available.\n")
 		} else {
-			fmt.Fprintf(h.Stdout, "Active source: %s (%s)\nModel: %s\nEffort: %s\nRole: %s\n", activeSource, sourceLabel(activeSource), model, effort, *role)
+			fmt.Fprintf(h.Stdout, "Active source: %s\nModel: %s\nEffort: %s\nRole: %s\n", activeSource, model, effort, *role)
 		}
 	}
 	return nil
-}
-
-func sourceLabel(id string) string {
-	for _, s := range sources {
-		if s.ID == id {
-			return s.Label
-		}
-	}
-	return id
 }

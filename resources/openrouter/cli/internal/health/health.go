@@ -107,6 +107,11 @@ func GenerateWithSpendCap(ctx context.Context, client HTTPClient, runtime resour
 	if err != nil {
 		return nil, SpendAuthorization{}, err
 	}
+	if binding.MaxCostMicros == 0 {
+		if err := verifyZeroCostResponse(body, model, policy.Only); err != nil {
+			return nil, SpendAuthorization{}, err
+		}
+	}
 	return body, authorization, nil
 }
 

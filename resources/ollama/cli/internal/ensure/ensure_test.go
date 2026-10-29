@@ -357,7 +357,8 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		_ = json.NewEncoder(w).Encode(GenerateResponse{Response: "ok", Done: true, EvalCount: 42, TotalDuration: 100, LoadDuration: 20, PromptEvalCount: 3, PromptEvalDuration: 30, EvalDuration: 40})
+		done := true
+		_ = json.NewEncoder(w).Encode(GenerateResponse{Response: "ok", Done: &done, EvalCount: 42, TotalDuration: 100, LoadDuration: 20, PromptEvalCount: 3, PromptEvalDuration: 30, EvalDuration: 40})
 	}))
 	defer srv.Close()
 
@@ -529,5 +530,69 @@ func TestRun_AdmissionGatePassesWhenValidatorOK(t *testing.T) {
 	err := Run(context.Background(), cfg, client, &bytes.Buffer{}, func(context.Context, []string) error { return nil })
 	if err != nil {
 		t.Fatalf("passing validator must not block ensure: %v", err)
+	}
+}
+
+// Metadata must survive the real HTTP decoder without manufacturing completion
+// when the provider omits it. Model is only the provider's raw name echo.
+func TestGeneratePreservesOptionalCompletionMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		metadata string
+		want     map[string]string
+		wantErr  bool
+	}{
+		{name: "stop", metadata: `,"done":true,"done_reason":"stop","model":"provider:echo"`, want: map[string]string{"done": "true", "done_reason": `"stop"`, "model": `"provider:echo"`}},
+		{name: "length", metadata: `,"done":true,"done_reason":"length","model":"provider:echo"`, want: map[string]string{"done": "true", "done_reason": `"length"`, "model": `"provider:echo"`}},
+		{name: "reported_false", metadata: `,"done":false,"done_reason":"provider_pause","model":" raw echo "`, want: map[string]string{"done": "false", "done_reason": `"provider_pause"`, "model": `" raw echo "`}},
+		{name: "missing", want: map[string]string{}},
+		{name: "null_unknown", metadata: `,"done":null,"done_reason":null,"model":null`, want: map[string]string{}},
+		{name: "reported_empty", metadata: `,"done":false,"done_reason":"","model":""`, want: map[string]string{"done": "false", "done_reason": `""`, "model": `""`}},
+		{name: "malformed_done", metadata: `,"done":"yes"`, wantErr: true},
+		{name: "malformed_reason", metadata: `,"done_reason":123`, wantErr: true},
+		{name: "malformed_model", metadata: `,"model":{"name":"untrusted"}`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := `{"response":"visible unchanged","thinking":"synthetic private field must not be exported","eval_count":7,"total_duration":100,"load_duration":20,"prompt_eval_count":3,"prompt_eval_duration":30,"eval_duration":40` + tc.metadata + `}`
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodPost || r.URL.Path != "/api/generate" {
+					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				}
+				_, _ = w.Write([]byte(body))
+			}))
+			t.Cleanup(srv.Close)
+			client := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
+			got, err := client.Generate(context.Background(), GenerateRequest{Model: "requested:model", Prompt: "literal input"})
+			if tc.wantErr {
+				if err == nil {
+					t.Fatal("malformed reported metadata must fail decoding")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Generate: %v", err)
+			}
+			if got.Response != "visible unchanged" || got.EvalCount != 7 || got.TotalDuration != 100 || got.LoadDuration != 20 || got.PromptEvalCount != 3 || got.PromptEvalDuration != 30 || got.EvalDuration != 40 {
+				t.Fatalf("visible text/counts/durations changed: %+v", got)
+			}
+			raw, err := json.Marshal(got)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &fields); err != nil {
+				t.Fatal(err)
+			}
+			if _, exists := fields["thinking"]; exists {
+				t.Fatal("private thinking field was exported")
+			}
+			for _, key := range []string{"done", "done_reason", "model"} {
+				want, present := tc.want[key]
+				value, exists := fields[key]
+				if exists != present || (present && string(value) != want) {
+					t.Errorf("%s = %s (present=%t), want %s (present=%t)", key, value, exists, want, present)
+				}
+			}
+		})
 	}
 }
