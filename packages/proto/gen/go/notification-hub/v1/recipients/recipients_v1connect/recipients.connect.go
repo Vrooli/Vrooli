@@ -54,6 +54,15 @@ const (
 	// RecipientsServiceUpsertChannelAddressProcedure is the fully-qualified name of the
 	// RecipientsService's UpsertChannelAddress RPC.
 	RecipientsServiceUpsertChannelAddressProcedure = "/vrooli.notification_hub.v1.recipients.RecipientsService/UpsertChannelAddress"
+	// RecipientsServiceListChannelAddressesProcedure is the fully-qualified name of the
+	// RecipientsService's ListChannelAddresses RPC.
+	RecipientsServiceListChannelAddressesProcedure = "/vrooli.notification_hub.v1.recipients.RecipientsService/ListChannelAddresses"
+	// RecipientsServiceCreateChannelAddressProcedure is the fully-qualified name of the
+	// RecipientsService's CreateChannelAddress RPC.
+	RecipientsServiceCreateChannelAddressProcedure = "/vrooli.notification_hub.v1.recipients.RecipientsService/CreateChannelAddress"
+	// RecipientsServiceUpdateChannelAddressProcedure is the fully-qualified name of the
+	// RecipientsService's UpdateChannelAddress RPC.
+	RecipientsServiceUpdateChannelAddressProcedure = "/vrooli.notification_hub.v1.recipients.RecipientsService/UpdateChannelAddress"
 	// RecipientsServiceRemoveChannelAddressProcedure is the fully-qualified name of the
 	// RecipientsService's RemoveChannelAddress RPC.
 	RecipientsServiceRemoveChannelAddressProcedure = "/vrooli.notification_hub.v1.recipients.RecipientsService/RemoveChannelAddress"
@@ -84,6 +93,9 @@ type RecipientsServiceClient interface {
 	UpsertDevice(context.Context, *connect.Request[recipients.UpsertDeviceRequest]) (*connect.Response[recipients.Device], error)
 	RemoveDevice(context.Context, *connect.Request[recipients.RemoveDeviceRequest]) (*connect.Response[recipients.RemoveDeviceResponse], error)
 	UpsertChannelAddress(context.Context, *connect.Request[recipients.UpsertChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error)
+	ListChannelAddresses(context.Context, *connect.Request[recipients.ListChannelAddressesRequest]) (*connect.Response[recipients.ListChannelAddressesResponse], error)
+	CreateChannelAddress(context.Context, *connect.Request[recipients.CreateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error)
+	UpdateChannelAddress(context.Context, *connect.Request[recipients.UpdateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error)
 	RemoveChannelAddress(context.Context, *connect.Request[recipients.RemoveChannelAddressRequest]) (*connect.Response[recipients.RemoveChannelAddressResponse], error)
 	SetQuietWindow(context.Context, *connect.Request[recipients.SetQuietWindowRequest]) (*connect.Response[recipients.QuietWindow], error)
 	ListQuietWindows(context.Context, *connect.Request[recipients.ListQuietWindowsRequest]) (*connect.Response[recipients.ListQuietWindowsResponse], error)
@@ -146,6 +158,24 @@ func NewRecipientsServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(recipientsServiceMethods.ByName("UpsertChannelAddress")),
 			connect.WithClientOptions(opts...),
 		),
+		listChannelAddresses: connect.NewClient[recipients.ListChannelAddressesRequest, recipients.ListChannelAddressesResponse](
+			httpClient,
+			baseURL+RecipientsServiceListChannelAddressesProcedure,
+			connect.WithSchema(recipientsServiceMethods.ByName("ListChannelAddresses")),
+			connect.WithClientOptions(opts...),
+		),
+		createChannelAddress: connect.NewClient[recipients.CreateChannelAddressRequest, recipients.ChannelAddress](
+			httpClient,
+			baseURL+RecipientsServiceCreateChannelAddressProcedure,
+			connect.WithSchema(recipientsServiceMethods.ByName("CreateChannelAddress")),
+			connect.WithClientOptions(opts...),
+		),
+		updateChannelAddress: connect.NewClient[recipients.UpdateChannelAddressRequest, recipients.ChannelAddress](
+			httpClient,
+			baseURL+RecipientsServiceUpdateChannelAddressProcedure,
+			connect.WithSchema(recipientsServiceMethods.ByName("UpdateChannelAddress")),
+			connect.WithClientOptions(opts...),
+		),
 		removeChannelAddress: connect.NewClient[recipients.RemoveChannelAddressRequest, recipients.RemoveChannelAddressResponse](
 			httpClient,
 			baseURL+RecipientsServiceRemoveChannelAddressProcedure,
@@ -194,6 +224,9 @@ type recipientsServiceClient struct {
 	upsertDevice             *connect.Client[recipients.UpsertDeviceRequest, recipients.Device]
 	removeDevice             *connect.Client[recipients.RemoveDeviceRequest, recipients.RemoveDeviceResponse]
 	upsertChannelAddress     *connect.Client[recipients.UpsertChannelAddressRequest, recipients.ChannelAddress]
+	listChannelAddresses     *connect.Client[recipients.ListChannelAddressesRequest, recipients.ListChannelAddressesResponse]
+	createChannelAddress     *connect.Client[recipients.CreateChannelAddressRequest, recipients.ChannelAddress]
+	updateChannelAddress     *connect.Client[recipients.UpdateChannelAddressRequest, recipients.ChannelAddress]
 	removeChannelAddress     *connect.Client[recipients.RemoveChannelAddressRequest, recipients.RemoveChannelAddressResponse]
 	setQuietWindow           *connect.Client[recipients.SetQuietWindowRequest, recipients.QuietWindow]
 	listQuietWindows         *connect.Client[recipients.ListQuietWindowsRequest, recipients.ListQuietWindowsResponse]
@@ -240,6 +273,24 @@ func (c *recipientsServiceClient) UpsertChannelAddress(ctx context.Context, req 
 	return c.upsertChannelAddress.CallUnary(ctx, req)
 }
 
+// ListChannelAddresses calls
+// vrooli.notification_hub.v1.recipients.RecipientsService.ListChannelAddresses.
+func (c *recipientsServiceClient) ListChannelAddresses(ctx context.Context, req *connect.Request[recipients.ListChannelAddressesRequest]) (*connect.Response[recipients.ListChannelAddressesResponse], error) {
+	return c.listChannelAddresses.CallUnary(ctx, req)
+}
+
+// CreateChannelAddress calls
+// vrooli.notification_hub.v1.recipients.RecipientsService.CreateChannelAddress.
+func (c *recipientsServiceClient) CreateChannelAddress(ctx context.Context, req *connect.Request[recipients.CreateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error) {
+	return c.createChannelAddress.CallUnary(ctx, req)
+}
+
+// UpdateChannelAddress calls
+// vrooli.notification_hub.v1.recipients.RecipientsService.UpdateChannelAddress.
+func (c *recipientsServiceClient) UpdateChannelAddress(ctx context.Context, req *connect.Request[recipients.UpdateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error) {
+	return c.updateChannelAddress.CallUnary(ctx, req)
+}
+
 // RemoveChannelAddress calls
 // vrooli.notification_hub.v1.recipients.RecipientsService.RemoveChannelAddress.
 func (c *recipientsServiceClient) RemoveChannelAddress(ctx context.Context, req *connect.Request[recipients.RemoveChannelAddressRequest]) (*connect.Response[recipients.RemoveChannelAddressResponse], error) {
@@ -284,6 +335,9 @@ type RecipientsServiceHandler interface {
 	UpsertDevice(context.Context, *connect.Request[recipients.UpsertDeviceRequest]) (*connect.Response[recipients.Device], error)
 	RemoveDevice(context.Context, *connect.Request[recipients.RemoveDeviceRequest]) (*connect.Response[recipients.RemoveDeviceResponse], error)
 	UpsertChannelAddress(context.Context, *connect.Request[recipients.UpsertChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error)
+	ListChannelAddresses(context.Context, *connect.Request[recipients.ListChannelAddressesRequest]) (*connect.Response[recipients.ListChannelAddressesResponse], error)
+	CreateChannelAddress(context.Context, *connect.Request[recipients.CreateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error)
+	UpdateChannelAddress(context.Context, *connect.Request[recipients.UpdateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error)
 	RemoveChannelAddress(context.Context, *connect.Request[recipients.RemoveChannelAddressRequest]) (*connect.Response[recipients.RemoveChannelAddressResponse], error)
 	SetQuietWindow(context.Context, *connect.Request[recipients.SetQuietWindowRequest]) (*connect.Response[recipients.QuietWindow], error)
 	ListQuietWindows(context.Context, *connect.Request[recipients.ListQuietWindowsRequest]) (*connect.Response[recipients.ListQuietWindowsResponse], error)
@@ -341,6 +395,24 @@ func NewRecipientsServiceHandler(svc RecipientsServiceHandler, opts ...connect.H
 		connect.WithSchema(recipientsServiceMethods.ByName("UpsertChannelAddress")),
 		connect.WithHandlerOptions(opts...),
 	)
+	recipientsServiceListChannelAddressesHandler := connect.NewUnaryHandler(
+		RecipientsServiceListChannelAddressesProcedure,
+		svc.ListChannelAddresses,
+		connect.WithSchema(recipientsServiceMethods.ByName("ListChannelAddresses")),
+		connect.WithHandlerOptions(opts...),
+	)
+	recipientsServiceCreateChannelAddressHandler := connect.NewUnaryHandler(
+		RecipientsServiceCreateChannelAddressProcedure,
+		svc.CreateChannelAddress,
+		connect.WithSchema(recipientsServiceMethods.ByName("CreateChannelAddress")),
+		connect.WithHandlerOptions(opts...),
+	)
+	recipientsServiceUpdateChannelAddressHandler := connect.NewUnaryHandler(
+		RecipientsServiceUpdateChannelAddressProcedure,
+		svc.UpdateChannelAddress,
+		connect.WithSchema(recipientsServiceMethods.ByName("UpdateChannelAddress")),
+		connect.WithHandlerOptions(opts...),
+	)
 	recipientsServiceRemoveChannelAddressHandler := connect.NewUnaryHandler(
 		RecipientsServiceRemoveChannelAddressProcedure,
 		svc.RemoveChannelAddress,
@@ -393,6 +465,12 @@ func NewRecipientsServiceHandler(svc RecipientsServiceHandler, opts ...connect.H
 			recipientsServiceRemoveDeviceHandler.ServeHTTP(w, r)
 		case RecipientsServiceUpsertChannelAddressProcedure:
 			recipientsServiceUpsertChannelAddressHandler.ServeHTTP(w, r)
+		case RecipientsServiceListChannelAddressesProcedure:
+			recipientsServiceListChannelAddressesHandler.ServeHTTP(w, r)
+		case RecipientsServiceCreateChannelAddressProcedure:
+			recipientsServiceCreateChannelAddressHandler.ServeHTTP(w, r)
+		case RecipientsServiceUpdateChannelAddressProcedure:
+			recipientsServiceUpdateChannelAddressHandler.ServeHTTP(w, r)
 		case RecipientsServiceRemoveChannelAddressProcedure:
 			recipientsServiceRemoveChannelAddressHandler.ServeHTTP(w, r)
 		case RecipientsServiceSetQuietWindowProcedure:
@@ -440,6 +518,18 @@ func (UnimplementedRecipientsServiceHandler) RemoveDevice(context.Context, *conn
 
 func (UnimplementedRecipientsServiceHandler) UpsertChannelAddress(context.Context, *connect.Request[recipients.UpsertChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.recipients.RecipientsService.UpsertChannelAddress is not implemented"))
+}
+
+func (UnimplementedRecipientsServiceHandler) ListChannelAddresses(context.Context, *connect.Request[recipients.ListChannelAddressesRequest]) (*connect.Response[recipients.ListChannelAddressesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.recipients.RecipientsService.ListChannelAddresses is not implemented"))
+}
+
+func (UnimplementedRecipientsServiceHandler) CreateChannelAddress(context.Context, *connect.Request[recipients.CreateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.recipients.RecipientsService.CreateChannelAddress is not implemented"))
+}
+
+func (UnimplementedRecipientsServiceHandler) UpdateChannelAddress(context.Context, *connect.Request[recipients.UpdateChannelAddressRequest]) (*connect.Response[recipients.ChannelAddress], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.recipients.RecipientsService.UpdateChannelAddress is not implemented"))
 }
 
 func (UnimplementedRecipientsServiceHandler) RemoveChannelAddress(context.Context, *connect.Request[recipients.RemoveChannelAddressRequest]) (*connect.Response[recipients.RemoveChannelAddressResponse], error) {

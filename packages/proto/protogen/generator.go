@@ -511,6 +511,7 @@ func (g *Generator) publishArtifact(ctx context.Context, stageGen, sourceDigest 
 	if err != nil {
 		return err
 	}
+	store.Logger = g.cfg.Logger
 	_, err = store.Publish(ctx, Candidate{
 		Metadata:   metadata,
 		SourceRoot: stageGen,

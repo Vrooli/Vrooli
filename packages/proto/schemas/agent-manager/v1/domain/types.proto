@@ -521,7 +521,7 @@ enum RunEventType {
   // Artifact creation event (diff, log, screenshot).
   RUN_EVENT_TYPE_ARTIFACT = 7;
 
-  // Error event.
+  // Execution error event. Provider quota observations are QUOTA, not ERROR.
   RUN_EVENT_TYPE_ERROR = 8;
 
   // Message deletion/redaction event.
@@ -537,6 +537,10 @@ enum RunEventType {
 
   // Runner-owned objective status observation.
   RUN_EVENT_TYPE_GOAL_STATUS_CHANGED = 12;
+
+  // Provider quota observation (percent used, window, reset, or a standing
+  // such as exhausted). Payload is RateLimitEventData.
+  RUN_EVENT_TYPE_QUOTA = 13;
 }
 
 // =============================================================================

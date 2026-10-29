@@ -49,6 +49,21 @@ const (
 	// AgentSpendReportOutcomeProcedure is the fully-qualified name of the AgentSpend's ReportOutcome
 	// RPC.
 	AgentSpendReportOutcomeProcedure = "/vrooli.treasury.v1.authorization.AgentSpend/ReportOutcome"
+	// TreasuryAdminCreateResearchWalletProcedure is the fully-qualified name of the TreasuryAdmin's
+	// CreateResearchWallet RPC.
+	TreasuryAdminCreateResearchWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateResearchWallet"
+	// TreasuryAdminGetResearchWalletProcedure is the fully-qualified name of the TreasuryAdmin's
+	// GetResearchWallet RPC.
+	TreasuryAdminGetResearchWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetResearchWallet"
+	// TreasuryAdminProveResearchWalletProcedure is the fully-qualified name of the TreasuryAdmin's
+	// ProveResearchWallet RPC.
+	TreasuryAdminProveResearchWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ProveResearchWallet"
+	// TreasuryAdminQualifyResearchWalletRecoveryProcedure is the fully-qualified name of the
+	// TreasuryAdmin's QualifyResearchWalletRecovery RPC.
+	TreasuryAdminQualifyResearchWalletRecoveryProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/QualifyResearchWalletRecovery"
+	// TreasuryAdminRecoverResearchWalletProcedure is the fully-qualified name of the TreasuryAdmin's
+	// RecoverResearchWallet RPC.
+	TreasuryAdminRecoverResearchWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/RecoverResearchWallet"
 	// TreasuryAdminCreateBookProcedure is the fully-qualified name of the TreasuryAdmin's CreateBook
 	// RPC.
 	TreasuryAdminCreateBookProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateBook"
@@ -282,6 +297,11 @@ func (UnimplementedAgentSpendHandler) ReportOutcome(context.Context, *connect.Re
 
 // TreasuryAdminClient is a client for the vrooli.treasury.v1.authorization.TreasuryAdmin service.
 type TreasuryAdminClient interface {
+	CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
+	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
+	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
+	QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
+	RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	CreateBook(context.Context, *connect.Request[authorization.CreateBookRequest]) (*connect.Response[authorization.CreateBookResponse], error)
 	GetBook(context.Context, *connect.Request[authorization.GetBookRequest]) (*connect.Response[authorization.GetBookResponse], error)
 	CreateMandate(context.Context, *connect.Request[authorization.CreateMandateRequest]) (*connect.Response[authorization.CreateMandateResponse], error)
@@ -314,6 +334,36 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	treasuryAdminMethods := authorization.File_treasury_v1_authorization_authorization_proto.Services().ByName("TreasuryAdmin").Methods()
 	return &treasuryAdminClient{
+		createResearchWallet: connect.NewClient[authorization.CreateResearchWalletRequest, authorization.ResearchWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminCreateResearchWalletProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("CreateResearchWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		getResearchWallet: connect.NewClient[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminGetResearchWalletProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("GetResearchWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		proveResearchWallet: connect.NewClient[authorization.ProveResearchWalletRequest, authorization.ProveResearchWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminProveResearchWalletProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ProveResearchWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		qualifyResearchWalletRecovery: connect.NewClient[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminQualifyResearchWalletRecoveryProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("QualifyResearchWalletRecovery")),
+			connect.WithClientOptions(opts...),
+		),
+		recoverResearchWallet: connect.NewClient[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminRecoverResearchWalletProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("RecoverResearchWallet")),
+			connect.WithClientOptions(opts...),
+		),
 		createBook: connect.NewClient[authorization.CreateBookRequest, authorization.CreateBookResponse](
 			httpClient,
 			baseURL+TreasuryAdminCreateBookProcedure,
@@ -433,25 +483,56 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // treasuryAdminClient implements TreasuryAdminClient.
 type treasuryAdminClient struct {
-	createBook            *connect.Client[authorization.CreateBookRequest, authorization.CreateBookResponse]
-	getBook               *connect.Client[authorization.GetBookRequest, authorization.GetBookResponse]
-	createMandate         *connect.Client[authorization.CreateMandateRequest, authorization.CreateMandateResponse]
-	revokeMandate         *connect.Client[authorization.RevokeMandateRequest, authorization.RevokeMandateResponse]
-	cancelStandingMandate *connect.Client[authorization.CancelStandingMandateRequest, authorization.CancelStandingMandateResponse]
-	listMandates          *connect.Client[authorization.ListMandatesRequest, authorization.ListMandatesResponse]
-	setBudgetCaps         *connect.Client[authorization.SetBudgetCapsRequest, authorization.SetBudgetCapsResponse]
-	setGating             *connect.Client[authorization.SetGatingRequest, authorization.SetGatingResponse]
-	listApprovals         *connect.Client[authorization.ListApprovalsRequest, authorization.ListApprovalsResponse]
-	resolveApproval       *connect.Client[authorization.ResolveApprovalRequest, authorization.ResolveApprovalResponse]
-	freezeBudget          *connect.Client[authorization.FreezeBudgetRequest, authorization.FreezeBudgetResponse]
-	unfreezeBudget        *connect.Client[authorization.UnfreezeBudgetRequest, authorization.UnfreezeBudgetResponse]
-	freezeBook            *connect.Client[authorization.FreezeBookRequest, authorization.FreezeBookResponse]
-	unfreezeBook          *connect.Client[authorization.UnfreezeBookRequest, authorization.UnfreezeBookResponse]
-	freezeAll             *connect.Client[authorization.FreezeAllRequest, authorization.FreezeAllResponse]
-	getFreezeStatus       *connect.Client[authorization.GetFreezeStatusRequest, authorization.GetFreezeStatusResponse]
-	unfreezeAll           *connect.Client[authorization.UnfreezeAllRequest, authorization.UnfreezeAllResponse]
-	registerInstrument    *connect.Client[authorization.RegisterInstrumentRequest, authorization.RegisterInstrumentResponse]
-	reportManualOutcome   *connect.Client[authorization.ReportManualOutcomeRequest, authorization.ReportManualOutcomeResponse]
+	createResearchWallet          *connect.Client[authorization.CreateResearchWalletRequest, authorization.ResearchWalletResponse]
+	getResearchWallet             *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
+	proveResearchWallet           *connect.Client[authorization.ProveResearchWalletRequest, authorization.ProveResearchWalletResponse]
+	qualifyResearchWalletRecovery *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
+	recoverResearchWallet         *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
+	createBook                    *connect.Client[authorization.CreateBookRequest, authorization.CreateBookResponse]
+	getBook                       *connect.Client[authorization.GetBookRequest, authorization.GetBookResponse]
+	createMandate                 *connect.Client[authorization.CreateMandateRequest, authorization.CreateMandateResponse]
+	revokeMandate                 *connect.Client[authorization.RevokeMandateRequest, authorization.RevokeMandateResponse]
+	cancelStandingMandate         *connect.Client[authorization.CancelStandingMandateRequest, authorization.CancelStandingMandateResponse]
+	listMandates                  *connect.Client[authorization.ListMandatesRequest, authorization.ListMandatesResponse]
+	setBudgetCaps                 *connect.Client[authorization.SetBudgetCapsRequest, authorization.SetBudgetCapsResponse]
+	setGating                     *connect.Client[authorization.SetGatingRequest, authorization.SetGatingResponse]
+	listApprovals                 *connect.Client[authorization.ListApprovalsRequest, authorization.ListApprovalsResponse]
+	resolveApproval               *connect.Client[authorization.ResolveApprovalRequest, authorization.ResolveApprovalResponse]
+	freezeBudget                  *connect.Client[authorization.FreezeBudgetRequest, authorization.FreezeBudgetResponse]
+	unfreezeBudget                *connect.Client[authorization.UnfreezeBudgetRequest, authorization.UnfreezeBudgetResponse]
+	freezeBook                    *connect.Client[authorization.FreezeBookRequest, authorization.FreezeBookResponse]
+	unfreezeBook                  *connect.Client[authorization.UnfreezeBookRequest, authorization.UnfreezeBookResponse]
+	freezeAll                     *connect.Client[authorization.FreezeAllRequest, authorization.FreezeAllResponse]
+	getFreezeStatus               *connect.Client[authorization.GetFreezeStatusRequest, authorization.GetFreezeStatusResponse]
+	unfreezeAll                   *connect.Client[authorization.UnfreezeAllRequest, authorization.UnfreezeAllResponse]
+	registerInstrument            *connect.Client[authorization.RegisterInstrumentRequest, authorization.RegisterInstrumentResponse]
+	reportManualOutcome           *connect.Client[authorization.ReportManualOutcomeRequest, authorization.ReportManualOutcomeResponse]
+}
+
+// CreateResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet.
+func (c *treasuryAdminClient) CreateResearchWallet(ctx context.Context, req *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return c.createResearchWallet.CallUnary(ctx, req)
+}
+
+// GetResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet.
+func (c *treasuryAdminClient) GetResearchWallet(ctx context.Context, req *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return c.getResearchWallet.CallUnary(ctx, req)
+}
+
+// ProveResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet.
+func (c *treasuryAdminClient) ProveResearchWallet(ctx context.Context, req *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error) {
+	return c.proveResearchWallet.CallUnary(ctx, req)
+}
+
+// QualifyResearchWalletRecovery calls
+// vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery.
+func (c *treasuryAdminClient) QualifyResearchWalletRecovery(ctx context.Context, req *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return c.qualifyResearchWalletRecovery.CallUnary(ctx, req)
+}
+
+// RecoverResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet.
+func (c *treasuryAdminClient) RecoverResearchWallet(ctx context.Context, req *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return c.recoverResearchWallet.CallUnary(ctx, req)
 }
 
 // CreateBook calls vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook.
@@ -552,6 +633,11 @@ func (c *treasuryAdminClient) ReportManualOutcome(ctx context.Context, req *conn
 // TreasuryAdminHandler is an implementation of the vrooli.treasury.v1.authorization.TreasuryAdmin
 // service.
 type TreasuryAdminHandler interface {
+	CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
+	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
+	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
+	QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
+	RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	CreateBook(context.Context, *connect.Request[authorization.CreateBookRequest]) (*connect.Response[authorization.CreateBookResponse], error)
 	GetBook(context.Context, *connect.Request[authorization.GetBookRequest]) (*connect.Response[authorization.GetBookResponse], error)
 	CreateMandate(context.Context, *connect.Request[authorization.CreateMandateRequest]) (*connect.Response[authorization.CreateMandateResponse], error)
@@ -580,6 +666,36 @@ type TreasuryAdminHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	treasuryAdminMethods := authorization.File_treasury_v1_authorization_authorization_proto.Services().ByName("TreasuryAdmin").Methods()
+	treasuryAdminCreateResearchWalletHandler := connect.NewUnaryHandler(
+		TreasuryAdminCreateResearchWalletProcedure,
+		svc.CreateResearchWallet,
+		connect.WithSchema(treasuryAdminMethods.ByName("CreateResearchWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminGetResearchWalletHandler := connect.NewUnaryHandler(
+		TreasuryAdminGetResearchWalletProcedure,
+		svc.GetResearchWallet,
+		connect.WithSchema(treasuryAdminMethods.ByName("GetResearchWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminProveResearchWalletHandler := connect.NewUnaryHandler(
+		TreasuryAdminProveResearchWalletProcedure,
+		svc.ProveResearchWallet,
+		connect.WithSchema(treasuryAdminMethods.ByName("ProveResearchWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminQualifyResearchWalletRecoveryHandler := connect.NewUnaryHandler(
+		TreasuryAdminQualifyResearchWalletRecoveryProcedure,
+		svc.QualifyResearchWalletRecovery,
+		connect.WithSchema(treasuryAdminMethods.ByName("QualifyResearchWalletRecovery")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminRecoverResearchWalletHandler := connect.NewUnaryHandler(
+		TreasuryAdminRecoverResearchWalletProcedure,
+		svc.RecoverResearchWallet,
+		connect.WithSchema(treasuryAdminMethods.ByName("RecoverResearchWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	treasuryAdminCreateBookHandler := connect.NewUnaryHandler(
 		TreasuryAdminCreateBookProcedure,
 		svc.CreateBook,
@@ -696,6 +812,16 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 	)
 	return "/vrooli.treasury.v1.authorization.TreasuryAdmin/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case TreasuryAdminCreateResearchWalletProcedure:
+			treasuryAdminCreateResearchWalletHandler.ServeHTTP(w, r)
+		case TreasuryAdminGetResearchWalletProcedure:
+			treasuryAdminGetResearchWalletHandler.ServeHTTP(w, r)
+		case TreasuryAdminProveResearchWalletProcedure:
+			treasuryAdminProveResearchWalletHandler.ServeHTTP(w, r)
+		case TreasuryAdminQualifyResearchWalletRecoveryProcedure:
+			treasuryAdminQualifyResearchWalletRecoveryHandler.ServeHTTP(w, r)
+		case TreasuryAdminRecoverResearchWalletProcedure:
+			treasuryAdminRecoverResearchWalletHandler.ServeHTTP(w, r)
 		case TreasuryAdminCreateBookProcedure:
 			treasuryAdminCreateBookHandler.ServeHTTP(w, r)
 		case TreasuryAdminGetBookProcedure:
@@ -742,6 +868,26 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 
 // UnimplementedTreasuryAdminHandler returns CodeUnimplemented from all methods.
 type UnimplementedTreasuryAdminHandler struct{}
+
+func (UnimplementedTreasuryAdminHandler) CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.GetResearchWallet is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.QualifyResearchWalletRecovery is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.RecoverResearchWallet is not implemented"))
+}
 
 func (UnimplementedTreasuryAdminHandler) CreateBook(context.Context, *connect.Request[authorization.CreateBookRequest]) (*connect.Response[authorization.CreateBookResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.CreateBook is not implemented"))

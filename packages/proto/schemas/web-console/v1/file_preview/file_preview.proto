@@ -166,6 +166,27 @@ message ResolveResponse {
   bool listing_available = 19;
   // Virtual members cannot be resolved as host paths or executed.
   bool archive_member = 20;
+  // candidates lists every filesystem location the input matched. The top-level
+  // fields describe candidates[0] (the default selection). When more than one
+  // base matched a relative path, the client offers a disambiguation picker.
+  repeated ResolveCandidate candidates = 21;
+  // unresolved is true when a relative path matched no base directory. Resolve
+  // does not error in this case; search_bases carries directories to browse.
+  bool unresolved = 22;
+  // search_bases are existing directories (session cwd, project root) offered
+  // as starting points for a manual browse when unresolved is true.
+  repeated ResolveCandidate search_bases = 23;
+}
+
+// ResolveCandidate is one filesystem location a relative path matched, or one
+// base directory offered for browsing when it matched nowhere. For a directory
+// base, preview_kind is PREVIEW_KIND_DIRECTORY and resolved_path is the dir.
+message ResolveCandidate {
+  string resolved_path = 1;
+  string resolution_basis = 2; // "absolute" | "session_cwd" | "project_root"
+  PreviewKind preview_kind = 3;
+  bool can_preview = 4;
+  string basename = 5;
 }
 
 message GetTextContentRequest {

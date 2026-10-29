@@ -11,7 +11,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class MetricsResponse(_message.Message):
-    __slots__ = ("cycle_id", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "timestamp", "cpu", "memory", "connections", "gpu", "disk", "swap_traffic", "major_faults", "fragmentation_index")
+    __slots__ = ("cycle_id", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "timestamp", "cpu", "memory", "connections", "gpu", "disk", "swap_traffic", "major_faults", "fragmentation_index", "kernel_memory")
     CYCLE_ID_FIELD_NUMBER: _ClassVar[int]
     CPU_USAGE_FIELD_NUMBER: _ClassVar[int]
     MEMORY_USAGE_FIELD_NUMBER: _ClassVar[int]
@@ -26,6 +26,7 @@ class MetricsResponse(_message.Message):
     SWAP_TRAFFIC_FIELD_NUMBER: _ClassVar[int]
     MAJOR_FAULTS_FIELD_NUMBER: _ClassVar[int]
     FRAGMENTATION_INDEX_FIELD_NUMBER: _ClassVar[int]
+    KERNEL_MEMORY_FIELD_NUMBER: _ClassVar[int]
     cycle_id: str
     cpu_usage: float
     memory_usage: float
@@ -40,7 +41,8 @@ class MetricsResponse(_message.Message):
     swap_traffic: MetricValue
     major_faults: MetricValue
     fragmentation_index: MetricValue
-    def __init__(self, cycle_id: _Optional[str] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., disk: _Optional[_Union[MetricValue, _Mapping]] = ..., swap_traffic: _Optional[_Union[MetricValue, _Mapping]] = ..., major_faults: _Optional[_Union[MetricValue, _Mapping]] = ..., fragmentation_index: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+    kernel_memory: KernelMemoryMetrics
+    def __init__(self, cycle_id: _Optional[str] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., disk: _Optional[_Union[MetricValue, _Mapping]] = ..., swap_traffic: _Optional[_Union[MetricValue, _Mapping]] = ..., major_faults: _Optional[_Union[MetricValue, _Mapping]] = ..., fragmentation_index: _Optional[_Union[MetricValue, _Mapping]] = ..., kernel_memory: _Optional[_Union[KernelMemoryMetrics, _Mapping]] = ...) -> None: ...
 
 class MetricValue(_message.Message):
     __slots__ = ("measured", "unsupported_reason", "failed_error", "stale_reason", "not_yet_sampled_reason", "provenance", "observed_at", "cycle_id", "freshness_seconds", "units")
@@ -67,7 +69,7 @@ class MetricValue(_message.Message):
     def __init__(self, measured: _Optional[float] = ..., unsupported_reason: _Optional[str] = ..., failed_error: _Optional[str] = ..., stale_reason: _Optional[str] = ..., not_yet_sampled_reason: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cycle_id: _Optional[str] = ..., freshness_seconds: _Optional[float] = ..., units: _Optional[str] = ...) -> None: ...
 
 class MetricTimelineSample(_message.Message):
-    __slots__ = ("cycle_id", "timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "swap_usage", "cpu", "memory", "connections", "gpu", "swap", "swap_traffic", "major_faults", "fragmentation_index", "cpu_context_switches_per_second", "cpu_interrupts_per_second", "cpu_normalized_load_1", "cpu_normalized_load_5", "cpu_run_queue_depth", "cpu_stall_some_avg10", "cpu_stall_full_avg10", "cpu_core_imbalance_index", "cpu_mode_iowait", "cpu_mode_steal", "network_established_rate", "network_time_wait_rate", "network_close_wait_rate")
+    __slots__ = ("cycle_id", "timestamp", "cpu_usage", "memory_usage", "tcp_connections", "gpu_usage", "swap_usage", "cpu", "memory", "connections", "gpu", "swap", "swap_traffic", "major_faults", "fragmentation_index", "cpu_context_switches_per_second", "cpu_interrupts_per_second", "cpu_normalized_load_1", "cpu_normalized_load_5", "cpu_run_queue_depth", "cpu_stall_some_avg10", "cpu_stall_full_avg10", "cpu_core_imbalance_index", "cpu_mode_iowait", "cpu_mode_steal", "network_established_rate", "network_time_wait_rate", "network_close_wait_rate", "kernel_memory")
     CYCLE_ID_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     CPU_USAGE_FIELD_NUMBER: _ClassVar[int]
@@ -96,6 +98,7 @@ class MetricTimelineSample(_message.Message):
     NETWORK_ESTABLISHED_RATE_FIELD_NUMBER: _ClassVar[int]
     NETWORK_TIME_WAIT_RATE_FIELD_NUMBER: _ClassVar[int]
     NETWORK_CLOSE_WAIT_RATE_FIELD_NUMBER: _ClassVar[int]
+    KERNEL_MEMORY_FIELD_NUMBER: _ClassVar[int]
     cycle_id: str
     timestamp: _timestamp_pb2.Timestamp
     cpu_usage: float
@@ -124,17 +127,22 @@ class MetricTimelineSample(_message.Message):
     network_established_rate: MetricValue
     network_time_wait_rate: MetricValue
     network_close_wait_rate: MetricValue
-    def __init__(self, cycle_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., swap_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., swap: _Optional[_Union[MetricValue, _Mapping]] = ..., swap_traffic: _Optional[_Union[MetricValue, _Mapping]] = ..., major_faults: _Optional[_Union[MetricValue, _Mapping]] = ..., fragmentation_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_context_switches_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_interrupts_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_1: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_5: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_run_queue_depth: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_some_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_full_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_core_imbalance_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_iowait: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_steal: _Optional[_Union[MetricValue, _Mapping]] = ..., network_established_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., network_time_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., network_close_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+    kernel_memory: KernelMemoryMetrics
+    def __init__(self, cycle_id: _Optional[str] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cpu_usage: _Optional[float] = ..., memory_usage: _Optional[float] = ..., tcp_connections: _Optional[int] = ..., gpu_usage: _Optional[float] = ..., swap_usage: _Optional[float] = ..., cpu: _Optional[_Union[MetricValue, _Mapping]] = ..., memory: _Optional[_Union[MetricValue, _Mapping]] = ..., connections: _Optional[_Union[MetricValue, _Mapping]] = ..., gpu: _Optional[_Union[MetricValue, _Mapping]] = ..., swap: _Optional[_Union[MetricValue, _Mapping]] = ..., swap_traffic: _Optional[_Union[MetricValue, _Mapping]] = ..., major_faults: _Optional[_Union[MetricValue, _Mapping]] = ..., fragmentation_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_context_switches_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_interrupts_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_1: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_normalized_load_5: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_run_queue_depth: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_some_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_stall_full_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_core_imbalance_index: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_iowait: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_mode_steal: _Optional[_Union[MetricValue, _Mapping]] = ..., network_established_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., network_time_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., network_close_wait_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., kernel_memory: _Optional[_Union[KernelMemoryMetrics, _Mapping]] = ...) -> None: ...
 
 class MetricsTimelineResponse(_message.Message):
-    __slots__ = ("window_seconds", "sample_interval_seconds", "samples")
+    __slots__ = ("window_seconds", "sample_interval_seconds", "samples", "window_start", "window_end")
     WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
     SAMPLE_INTERVAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_END_FIELD_NUMBER: _ClassVar[int]
     window_seconds: int
     sample_interval_seconds: int
     samples: _containers.RepeatedCompositeFieldContainer[MetricTimelineSample]
-    def __init__(self, window_seconds: _Optional[int] = ..., sample_interval_seconds: _Optional[int] = ..., samples: _Optional[_Iterable[_Union[MetricTimelineSample, _Mapping]]] = ...) -> None: ...
+    window_start: _timestamp_pb2.Timestamp
+    window_end: _timestamp_pb2.Timestamp
+    def __init__(self, window_seconds: _Optional[int] = ..., sample_interval_seconds: _Optional[int] = ..., samples: _Optional[_Iterable[_Union[MetricTimelineSample, _Mapping]]] = ..., window_start: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., window_end: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class DetailedMetrics(_message.Message):
     __slots__ = ("cpu_details", "memory_details", "network_details", "gpu_details", "system_details", "timestamp")
@@ -215,7 +223,7 @@ class CPUMetrics(_message.Message):
     def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., load_average: _Optional[_Iterable[float]] = ..., usage_state: _Optional[_Union[MetricValue, _Mapping]] = ..., context_switches_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., interrupts_per_second: _Optional[_Union[MetricValue, _Mapping]] = ..., load_average_state: _Optional[_Union[MetricValue, _Mapping]] = ..., normalized_load_1: _Optional[_Union[MetricValue, _Mapping]] = ..., normalized_load_5: _Optional[_Union[MetricValue, _Mapping]] = ..., run_queue_depth: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_psi_some_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., cpu_psi_full_avg10: _Optional[_Union[MetricValue, _Mapping]] = ..., mode_breakdown: _Optional[_Mapping[str, MetricValue]] = ..., per_core_utilization: _Optional[_Mapping[str, MetricValue]] = ..., core_imbalance_index: _Optional[_Union[MetricValue, _Mapping]] = ..., quota_throttling: _Optional[_Union[MetricValue, _Mapping]] = ..., frequency_derate_ratio: _Optional[_Union[MetricValue, _Mapping]] = ..., thermal_throttle_evidence: _Optional[_Union[MetricValue, _Mapping]] = ..., fork_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., thermal_trip_point_celsius: _Optional[_Union[MetricValue, _Mapping]] = ..., top_cpu_seconds_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., historical_cpu_attribution: _Optional[_Union[ProcessTimelineResponse, _Mapping]] = ...) -> None: ...
 
 class MemoryMetrics(_message.Message):
-    __slots__ = ("usage", "top_processes", "swap_usage", "disk_usage", "paging", "fragmentation", "top_paging_processes", "memory_pressure")
+    __slots__ = ("usage", "top_processes", "swap_usage", "disk_usage", "paging", "fragmentation", "top_paging_processes", "memory_pressure", "kernel_memory")
     USAGE_FIELD_NUMBER: _ClassVar[int]
     TOP_PROCESSES_FIELD_NUMBER: _ClassVar[int]
     SWAP_USAGE_FIELD_NUMBER: _ClassVar[int]
@@ -224,6 +232,7 @@ class MemoryMetrics(_message.Message):
     FRAGMENTATION_FIELD_NUMBER: _ClassVar[int]
     TOP_PAGING_PROCESSES_FIELD_NUMBER: _ClassVar[int]
     MEMORY_PRESSURE_FIELD_NUMBER: _ClassVar[int]
+    KERNEL_MEMORY_FIELD_NUMBER: _ClassVar[int]
     usage: float
     top_processes: _containers.RepeatedCompositeFieldContainer[ProcessInfo]
     swap_usage: SwapInfo
@@ -232,7 +241,20 @@ class MemoryMetrics(_message.Message):
     fragmentation: FragmentationMetrics
     top_paging_processes: _containers.RepeatedCompositeFieldContainer[ProcessInfo]
     memory_pressure: MemoryPressureReading
-    def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., swap_usage: _Optional[_Union[SwapInfo, _Mapping]] = ..., disk_usage: _Optional[_Union[DiskInfo, _Mapping]] = ..., paging: _Optional[_Union[PagingMetrics, _Mapping]] = ..., fragmentation: _Optional[_Union[FragmentationMetrics, _Mapping]] = ..., top_paging_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., memory_pressure: _Optional[_Union[MemoryPressureReading, _Mapping]] = ...) -> None: ...
+    kernel_memory: KernelMemoryMetrics
+    def __init__(self, usage: _Optional[float] = ..., top_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., swap_usage: _Optional[_Union[SwapInfo, _Mapping]] = ..., disk_usage: _Optional[_Union[DiskInfo, _Mapping]] = ..., paging: _Optional[_Union[PagingMetrics, _Mapping]] = ..., fragmentation: _Optional[_Union[FragmentationMetrics, _Mapping]] = ..., top_paging_processes: _Optional[_Iterable[_Union[ProcessInfo, _Mapping]]] = ..., memory_pressure: _Optional[_Union[MemoryPressureReading, _Mapping]] = ..., kernel_memory: _Optional[_Union[KernelMemoryMetrics, _Mapping]] = ...) -> None: ...
+
+class KernelMemoryMetrics(_message.Message):
+    __slots__ = ("slab_bytes", "reclaimable_bytes", "unreclaimable_bytes", "host_total_bytes")
+    SLAB_BYTES_FIELD_NUMBER: _ClassVar[int]
+    RECLAIMABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    UNRECLAIMABLE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    HOST_TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    slab_bytes: MetricValue
+    reclaimable_bytes: MetricValue
+    unreclaimable_bytes: MetricValue
+    host_total_bytes: MetricValue
+    def __init__(self, slab_bytes: _Optional[_Union[MetricValue, _Mapping]] = ..., reclaimable_bytes: _Optional[_Union[MetricValue, _Mapping]] = ..., unreclaimable_bytes: _Optional[_Union[MetricValue, _Mapping]] = ..., host_total_bytes: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
 
 class MemoryPressureReading(_message.Message):
     __slots__ = ("level", "level_source", "level_reason", "signals", "contributors", "contributors_status", "contributors_reason", "observed_at", "platform")
@@ -876,16 +898,20 @@ class BackgroundJobsInfo(_message.Message):
     def __init__(self, pending: _Optional[int] = ..., active: _Optional[int] = ..., failed: _Optional[int] = ...) -> None: ...
 
 class StorageIOInfo(_message.Message):
-    __slots__ = ("disk_queue_depth", "io_wait_percent", "read_mb_per_sec", "write_mb_per_sec")
+    __slots__ = ("disk_queue_depth", "io_wait_percent", "read_mb_per_sec", "write_mb_per_sec", "read_rate", "write_rate")
     DISK_QUEUE_DEPTH_FIELD_NUMBER: _ClassVar[int]
     IO_WAIT_PERCENT_FIELD_NUMBER: _ClassVar[int]
     READ_MB_PER_SEC_FIELD_NUMBER: _ClassVar[int]
     WRITE_MB_PER_SEC_FIELD_NUMBER: _ClassVar[int]
+    READ_RATE_FIELD_NUMBER: _ClassVar[int]
+    WRITE_RATE_FIELD_NUMBER: _ClassVar[int]
     disk_queue_depth: float
     io_wait_percent: float
     read_mb_per_sec: float
     write_mb_per_sec: float
-    def __init__(self, disk_queue_depth: _Optional[float] = ..., io_wait_percent: _Optional[float] = ..., read_mb_per_sec: _Optional[float] = ..., write_mb_per_sec: _Optional[float] = ...) -> None: ...
+    read_rate: MetricValue
+    write_rate: MetricValue
+    def __init__(self, disk_queue_depth: _Optional[float] = ..., io_wait_percent: _Optional[float] = ..., read_mb_per_sec: _Optional[float] = ..., write_mb_per_sec: _Optional[float] = ..., read_rate: _Optional[_Union[MetricValue, _Mapping]] = ..., write_rate: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
 
 class GetCurrentMetricsRequest(_message.Message):
     __slots__ = ("fresh",)

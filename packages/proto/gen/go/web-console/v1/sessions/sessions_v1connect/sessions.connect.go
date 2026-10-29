@@ -42,6 +42,12 @@ const (
 	SessionsServiceListArchivedProcedure = "/vrooli.web_console.v1.sessions.SessionsService/ListArchived"
 	// SessionsServiceGetProcedure is the fully-qualified name of the SessionsService's Get RPC.
 	SessionsServiceGetProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Get"
+	// SessionsServiceReadNativeUsageProcedure is the fully-qualified name of the SessionsService's
+	// ReadNativeUsage RPC.
+	SessionsServiceReadNativeUsageProcedure = "/vrooli.web_console.v1.sessions.SessionsService/ReadNativeUsage"
+	// SessionsServiceReadNativeThreadStateProcedure is the fully-qualified name of the
+	// SessionsService's ReadNativeThreadState RPC.
+	SessionsServiceReadNativeThreadStateProcedure = "/vrooli.web_console.v1.sessions.SessionsService/ReadNativeThreadState"
 	// SessionsServiceArchiveProcedure is the fully-qualified name of the SessionsService's Archive RPC.
 	SessionsServiceArchiveProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Archive"
 	// SessionsServiceUnarchiveProcedure is the fully-qualified name of the SessionsService's Unarchive
@@ -79,6 +85,9 @@ type SessionsServiceClient interface {
 	List(context.Context, *connect.Request[sessions.ListRequest]) (*connect.Response[sessions.ListResponse], error)
 	ListArchived(context.Context, *connect.Request[sessions.ListArchivedRequest]) (*connect.Response[sessions.ListArchivedResponse], error)
 	Get(context.Context, *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error)
+	ReadNativeUsage(context.Context, *connect.Request[sessions.ReadNativeUsageRequest]) (*connect.Response[sessions.ReadNativeUsageResponse], error)
+	// Read-only, bounded observation of native thread and goal state.
+	ReadNativeThreadState(context.Context, *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error)
 	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
 	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
@@ -128,6 +137,18 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+SessionsServiceGetProcedure,
 			connect.WithSchema(sessionsServiceMethods.ByName("Get")),
+			connect.WithClientOptions(opts...),
+		),
+		readNativeUsage: connect.NewClient[sessions.ReadNativeUsageRequest, sessions.ReadNativeUsageResponse](
+			httpClient,
+			baseURL+SessionsServiceReadNativeUsageProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("ReadNativeUsage")),
+			connect.WithClientOptions(opts...),
+		),
+		readNativeThreadState: connect.NewClient[sessions.ReadNativeThreadStateRequest, sessions.ReadNativeThreadStateResponse](
+			httpClient,
+			baseURL+SessionsServiceReadNativeThreadStateProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("ReadNativeThreadState")),
 			connect.WithClientOptions(opts...),
 		),
 		archive: connect.NewClient[sessions.ArchiveRequest, sessions.ArchiveResponse](
@@ -201,21 +222,23 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // sessionsServiceClient implements SessionsServiceClient.
 type sessionsServiceClient struct {
-	create              *connect.Client[sessions.CreateRequest, sessions.CreateResponse]
-	list                *connect.Client[sessions.ListRequest, sessions.ListResponse]
-	listArchived        *connect.Client[sessions.ListArchivedRequest, sessions.ListArchivedResponse]
-	get                 *connect.Client[sessions.GetRequest, sessions.GetResponse]
-	archive             *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
-	unarchive           *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
-	delete              *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
-	listRecoverable     *connect.Client[sessions.ListRecoverableRequest, sessions.ListRecoverableResponse]
-	dismissRecoverable  *connect.Client[sessions.DismissRecoverableRequest, sessions.DismissRecoverableResponse]
-	recover             *connect.Client[sessions.RecoverRequest, sessions.RecoverResponse]
-	reopen              *connect.Client[sessions.ReopenRequest, sessions.ReopenResponse]
-	getArchiveRetention *connect.Client[sessions.GetArchiveRetentionRequest, sessions.GetArchiveRetentionResponse]
-	pruneArchive        *connect.Client[sessions.PruneArchiveRequest, sessions.PruneArchiveResponse]
-	getPolicy           *connect.Client[sessions.GetPolicyRequest, sessions.GetPolicyResponse]
-	updatePolicy        *connect.Client[sessions.UpdatePolicyRequest, sessions.UpdatePolicyResponse]
+	create                *connect.Client[sessions.CreateRequest, sessions.CreateResponse]
+	list                  *connect.Client[sessions.ListRequest, sessions.ListResponse]
+	listArchived          *connect.Client[sessions.ListArchivedRequest, sessions.ListArchivedResponse]
+	get                   *connect.Client[sessions.GetRequest, sessions.GetResponse]
+	readNativeUsage       *connect.Client[sessions.ReadNativeUsageRequest, sessions.ReadNativeUsageResponse]
+	readNativeThreadState *connect.Client[sessions.ReadNativeThreadStateRequest, sessions.ReadNativeThreadStateResponse]
+	archive               *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
+	unarchive             *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
+	delete                *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
+	listRecoverable       *connect.Client[sessions.ListRecoverableRequest, sessions.ListRecoverableResponse]
+	dismissRecoverable    *connect.Client[sessions.DismissRecoverableRequest, sessions.DismissRecoverableResponse]
+	recover               *connect.Client[sessions.RecoverRequest, sessions.RecoverResponse]
+	reopen                *connect.Client[sessions.ReopenRequest, sessions.ReopenResponse]
+	getArchiveRetention   *connect.Client[sessions.GetArchiveRetentionRequest, sessions.GetArchiveRetentionResponse]
+	pruneArchive          *connect.Client[sessions.PruneArchiveRequest, sessions.PruneArchiveResponse]
+	getPolicy             *connect.Client[sessions.GetPolicyRequest, sessions.GetPolicyResponse]
+	updatePolicy          *connect.Client[sessions.UpdatePolicyRequest, sessions.UpdatePolicyResponse]
 }
 
 // Create calls vrooli.web_console.v1.sessions.SessionsService.Create.
@@ -236,6 +259,16 @@ func (c *sessionsServiceClient) ListArchived(ctx context.Context, req *connect.R
 // Get calls vrooli.web_console.v1.sessions.SessionsService.Get.
 func (c *sessionsServiceClient) Get(ctx context.Context, req *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error) {
 	return c.get.CallUnary(ctx, req)
+}
+
+// ReadNativeUsage calls vrooli.web_console.v1.sessions.SessionsService.ReadNativeUsage.
+func (c *sessionsServiceClient) ReadNativeUsage(ctx context.Context, req *connect.Request[sessions.ReadNativeUsageRequest]) (*connect.Response[sessions.ReadNativeUsageResponse], error) {
+	return c.readNativeUsage.CallUnary(ctx, req)
+}
+
+// ReadNativeThreadState calls vrooli.web_console.v1.sessions.SessionsService.ReadNativeThreadState.
+func (c *sessionsServiceClient) ReadNativeThreadState(ctx context.Context, req *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error) {
+	return c.readNativeThreadState.CallUnary(ctx, req)
 }
 
 // Archive calls vrooli.web_console.v1.sessions.SessionsService.Archive.
@@ -300,6 +333,9 @@ type SessionsServiceHandler interface {
 	List(context.Context, *connect.Request[sessions.ListRequest]) (*connect.Response[sessions.ListResponse], error)
 	ListArchived(context.Context, *connect.Request[sessions.ListArchivedRequest]) (*connect.Response[sessions.ListArchivedResponse], error)
 	Get(context.Context, *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error)
+	ReadNativeUsage(context.Context, *connect.Request[sessions.ReadNativeUsageRequest]) (*connect.Response[sessions.ReadNativeUsageResponse], error)
+	// Read-only, bounded observation of native thread and goal state.
+	ReadNativeThreadState(context.Context, *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error)
 	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
 	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
@@ -344,6 +380,18 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 		SessionsServiceGetProcedure,
 		svc.Get,
 		connect.WithSchema(sessionsServiceMethods.ByName("Get")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceReadNativeUsageHandler := connect.NewUnaryHandler(
+		SessionsServiceReadNativeUsageProcedure,
+		svc.ReadNativeUsage,
+		connect.WithSchema(sessionsServiceMethods.ByName("ReadNativeUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceReadNativeThreadStateHandler := connect.NewUnaryHandler(
+		SessionsServiceReadNativeThreadStateProcedure,
+		svc.ReadNativeThreadState,
+		connect.WithSchema(sessionsServiceMethods.ByName("ReadNativeThreadState")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sessionsServiceArchiveHandler := connect.NewUnaryHandler(
@@ -422,6 +470,10 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 			sessionsServiceListArchivedHandler.ServeHTTP(w, r)
 		case SessionsServiceGetProcedure:
 			sessionsServiceGetHandler.ServeHTTP(w, r)
+		case SessionsServiceReadNativeUsageProcedure:
+			sessionsServiceReadNativeUsageHandler.ServeHTTP(w, r)
+		case SessionsServiceReadNativeThreadStateProcedure:
+			sessionsServiceReadNativeThreadStateHandler.ServeHTTP(w, r)
 		case SessionsServiceArchiveProcedure:
 			sessionsServiceArchiveHandler.ServeHTTP(w, r)
 		case SessionsServiceUnarchiveProcedure:
@@ -467,6 +519,14 @@ func (UnimplementedSessionsServiceHandler) ListArchived(context.Context, *connec
 
 func (UnimplementedSessionsServiceHandler) Get(context.Context, *connect.Request[sessions.GetRequest]) (*connect.Response[sessions.GetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.Get is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) ReadNativeUsage(context.Context, *connect.Request[sessions.ReadNativeUsageRequest]) (*connect.Response[sessions.ReadNativeUsageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.ReadNativeUsage is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) ReadNativeThreadState(context.Context, *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.ReadNativeThreadState is not implemented"))
 }
 
 func (UnimplementedSessionsServiceHandler) Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error) {

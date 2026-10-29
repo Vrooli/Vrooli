@@ -334,8 +334,10 @@ type Program struct {
 	UsageAccountingComplete bool   `protobuf:"varint,28,opt,name=usage_accounting_complete,json=usageAccountingComplete,proto3" json:"usage_accounting_complete,omitempty"`
 	UsageChargeMeasured     bool   `protobuf:"varint,29,opt,name=usage_charge_measured,json=usageChargeMeasured,proto3" json:"usage_charge_measured,omitempty"`
 	UsageBasis              string `protobuf:"bytes,30,opt,name=usage_basis,json=usageBasis,proto3" json:"usage_basis,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// True only when caller_run_id/profile came from verified Agent Manager context.
+	CallerIdentityVerified bool `protobuf:"varint,31,opt,name=caller_identity_verified,json=callerIdentityVerified,proto3" json:"caller_identity_verified,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Program) Reset() {
@@ -576,6 +578,13 @@ func (x *Program) GetUsageBasis() string {
 		return x.UsageBasis
 	}
 	return ""
+}
+
+func (x *Program) GetCallerIdentityVerified() bool {
+	if x != nil {
+		return x.CallerIdentityVerified
+	}
+	return false
 }
 
 type Diagnostic struct {
@@ -3118,7 +3127,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12#\n" +
 	"\ragent_profile\x18\x02 \x01(\tR\fagentProfile\x12\x19\n" +
 	"\bskill_id\x18\x03 \x01(\tR\askillId\x12\x18\n" +
-	"\aharness\x18\x04 \x01(\tR\aharness\"\xf6\t\n" +
+	"\aharness\x18\x04 \x01(\tR\aharness\"\xb0\n" +
+	"\n" +
 	"\aProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -3156,7 +3166,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x19usage_accounting_complete\x18\x1c \x01(\bR\x17usageAccountingComplete\x122\n" +
 	"\x15usage_charge_measured\x18\x1d \x01(\bR\x13usageChargeMeasured\x12\x1f\n" +
 	"\vusage_basis\x18\x1e \x01(\tR\n" +
-	"usageBasis\"\x8f\x01\n" +
+	"usageBasis\x128\n" +
+	"\x18caller_identity_verified\x18\x1f \x01(\bR\x16callerIdentityVerified\"\x8f\x01\n" +
 	"\n" +
 	"Diagnostic\x12\x1a\n" +
 	"\bseverity\x18\x01 \x01(\tR\bseverity\x12\x12\n" +

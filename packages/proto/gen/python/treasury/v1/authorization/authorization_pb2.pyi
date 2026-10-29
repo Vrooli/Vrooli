@@ -7,6 +7,7 @@ from treasury.v1.budget import budget_pb2 as _budget_pb2
 from treasury.v1.instrument import instrument_pb2 as _instrument_pb2
 from treasury.v1.mandate import mandate_pb2 as _mandate_pb2
 from treasury.v1.settlement import settlement_pb2 as _settlement_pb2
+from treasury.v1.wallet import wallet_pb2 as _wallet_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -384,3 +385,43 @@ class RegisterInstrumentResponse(_message.Message):
     INSTRUMENT_FIELD_NUMBER: _ClassVar[int]
     instrument: _instrument_pb2.Instrument
     def __init__(self, instrument: _Optional[_Union[_instrument_pb2.Instrument, _Mapping]] = ...) -> None: ...
+
+class CreateResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "book_id", "network")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    book_id: str
+    network: str
+    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., network: _Optional[str] = ...) -> None: ...
+
+class ResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "network")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ...) -> None: ...
+
+class ResearchWalletResponse(_message.Message):
+    __slots__ = ("wallet",)
+    WALLET_FIELD_NUMBER: _ClassVar[int]
+    wallet: _wallet_pb2.Wallet
+    def __init__(self, wallet: _Optional[_Union[_wallet_pb2.Wallet, _Mapping]] = ...) -> None: ...
+
+class ProveResearchWalletRequest(_message.Message):
+    __slots__ = ("id", "network", "nonce")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    NONCE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    network: str
+    nonce: str
+    def __init__(self, id: _Optional[str] = ..., network: _Optional[str] = ..., nonce: _Optional[str] = ...) -> None: ...
+
+class ProveResearchWalletResponse(_message.Message):
+    __slots__ = ("proof",)
+    PROOF_FIELD_NUMBER: _ClassVar[int]
+    proof: _wallet_pb2.ControlProof
+    def __init__(self, proof: _Optional[_Union[_wallet_pb2.ControlProof, _Mapping]] = ...) -> None: ...

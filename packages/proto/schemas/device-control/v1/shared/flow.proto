@@ -21,6 +21,7 @@ message Flow {
   int32 retry_budget = 9;
   string application_id = 10;
   string application_revision = 11;
+  bool redact_sensitive_content = 12;
 }
 
 message Step {

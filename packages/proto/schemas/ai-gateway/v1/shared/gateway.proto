@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.ai_gateway.v1.shared;
 
+import "buf/validate/validate.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared;shared_v1";
 
 // RequestKind identifies the provider-neutral AI operation a caller needs.
@@ -170,6 +172,10 @@ message GatewayRequest {
   // sampling is the caller's explicit sampling request. Absent means the
   // resolved role's declared sampling applies.
   SamplingControls sampling = 13;
+  // Caller-declared local execution footprint. A positive value requests
+  // no-reclaim capacity admission; absent means capacity is not evaluated.
+  // The Gateway does not infer this estimate from a concrete model name.
+  optional int64 required_vram_bytes = 14 [(buf.validate.field).int64.gt = 0];
 }
 
 message ValidationIssue {

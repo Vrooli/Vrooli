@@ -9,6 +9,7 @@ import "treasury/v1/budget/budget.proto";
 import "treasury/v1/instrument/instrument.proto";
 import "treasury/v1/mandate/mandate.proto";
 import "treasury/v1/settlement/settlement.proto";
+import "treasury/v1/wallet/wallet.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization;authorization_v1";
 
@@ -243,6 +244,12 @@ message RegisterInstrumentResponse {
   vrooli.treasury.v1.instrument.Instrument instrument = 1;
 }
 
+message CreateResearchWalletRequest { string id = 1; string book_id = 2; string network = 3; }
+message ResearchWalletRequest { string id = 1; string network = 2; }
+message ResearchWalletResponse { vrooli.treasury.v1.wallet.Wallet wallet = 1; }
+message ProveResearchWalletRequest { string id = 1; string network = 2; string nonce = 3; }
+message ProveResearchWalletResponse { vrooli.treasury.v1.wallet.ControlProof proof = 1; }
+
 // AgentSpend intentionally contains no policy-mutating RPC. Decision D-004
 // relies on the structural absence of those methods, not a runtime permission.
 service AgentSpend {
@@ -256,6 +263,11 @@ service AgentSpend {
 // TreasuryAdmin is the operator-realm surface. Its methods are introduced with
 // their domain implementations so the descriptor never gets ahead of behavior.
 service TreasuryAdmin {
+  rpc CreateResearchWallet(CreateResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc GetResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc ProveResearchWallet(ProveResearchWalletRequest) returns (ProveResearchWalletResponse);
+  rpc QualifyResearchWalletRecovery(ResearchWalletRequest) returns (ResearchWalletResponse);
+  rpc RecoverResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);
   rpc CreateBook(CreateBookRequest) returns (CreateBookResponse);
   rpc GetBook(GetBookRequest) returns (GetBookResponse);
   rpc CreateMandate(CreateMandateRequest) returns (CreateMandateResponse);

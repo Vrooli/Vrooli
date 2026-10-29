@@ -43,9 +43,42 @@ message EffortEnrollment {
   // Set only by authenticated owner enrollment; discovery cannot set it.
   string authorized_by = 15;
   string withdrawal_reason = 19;
+  // Operator-owned commission; metadata reconciliation cannot alter its policy or clock.
+  EffortDelivery delivery = 26;
   // Retired steering grant, directive allowance and supervisor dispatch fields.
   reserved 9, 16, 17, 18, 20, 21, 22, 23, 24, 25;
   reserved "permitted_actions", "authority_expires_at", "maximum_directives", "cooldown_seconds", "supervisor_owner_subject", "supervisor_scope", "dispatch_authorization", "autonomous_supervision", "supervision_priority";
+}
+
+// Persisted by the effort owner. Timestamps are assigned by Agent Manager, not callers.
+message EffortDelivery {
+  string commission_id = 1;
+  int64 budget_seconds = 2;
+  uint32 max_workers = 3;
+  // running, paused or stopped. A new commission requires terminal prior owners.
+  string state = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp paused_at = 6;
+  int64 paused_seconds = 7;
+  string reason = 8;
+  google.protobuf.Timestamp stopped_at = 9;
+  google.protobuf.Timestamp finalized_at = 10;
+  // Frozen handback facts. These observations never imply independent acceptance.
+  EffortGoalHome outcome = 11;
+  string decision_id = 12;
+}
+
+message EffortDeliveryPressure {
+  string commission_id = 1;
+  string phase = 2;
+  int64 elapsed_seconds = 3;
+  int64 budget_seconds = 4;
+  int64 paused_seconds = 5;
+  google.protobuf.Timestamp hard_stop_at = 6;
+  google.protobuf.Timestamp checkpoint_deadline = 7;
+  string instruction = 8;
+  // stopped does not mean accepted; this snapshot retains remaining/unknown product state.
+  string disposition = 9;
 }
 
 // Freshness of evidence, independently of runtime or outcome state.
@@ -165,6 +198,7 @@ message EffortBoardRow {
   // Goal-home facts read on the scan cycle when the enrollment's
   // destination_ref is "path:<goal home>/GOAL.md" (DL-9). Absent otherwise.
   EffortGoalHome goal_home = 19;
+  EffortDeliveryPressure delivery_pressure = 20;
   // Retired directive and assessment projections.
   reserved 12, 16;
   reserved "directives", "last_assessment";
@@ -231,8 +265,25 @@ message EffortCapUsage {
   string mode = 5;
 }
 
+// One per-surface progress cell of the STATUS.md gradient scoreboard. state is
+// queued|rough|close|accepted; owner_run is the active run UUID driving the
+// surface, empty when none. Empty scoreboard means the home declares no surfaces.
+message SurfaceProgress {
+  string surface = 1;
+  string target = 2;
+  string state = 3;
+  string owner_run = 4;
+}
+
+message EffortActiveUnit {
+  string unit_id = 1;
+  string status = 2;
+  repeated string workers = 3;
+}
+
 // Facts read from a registered goal home (large-effort-orchestration §3).
-// Every optional or empty field is unknown, never zero.
+// Every optional or empty field is unknown, never zero. "unit" is the Phase-2
+// name for a delivered+accepted work unit; it replaced the fused "epoch".
 message EffortGoalHome {
   // Repository-relative goal-home directory.
   string path = 1;
@@ -244,11 +295,12 @@ message EffortGoalHome {
   optional double destination_target = 6;
   optional double current_value = 7;
   google.protobuf.Timestamp current_as_of = 8;
-  // Highest-numbered epoch without an ACCEPTED line, e.g. "E27".
-  string active_epoch = 9;
+  // The active work unit (STATUS ## Active; in v1 the highest-numbered
+  // un-ACCEPTED epoch, e.g. "E27").
+  string active_unit = 9;
   string active_status = 10;
   repeated string active_workers = 11;
-  string last_accepted_epoch = 12;
+  string last_accepted_unit = 12;
   google.protobuf.Timestamp last_accepted_at = 13;
   // "+3 journeys"; empty when the acceptance line records no yield.
   string last_yield = 14;
@@ -258,15 +310,24 @@ message EffortGoalHome {
   repeated string open_feedback_ids = 17;
   // Operator decisions not yet recorded in FEEDBACK.md.
   repeated EffortDecision open_decisions = 18;
-  // Mean weighted tokens of the measured accepted epochs' Workers runs.
-  optional double weighted_tokens_per_accepted_epoch = 19;
-  uint32 accepted_epochs_measured = 20;
+  // Mean weighted tokens of the measured accepted units' Workers runs.
+  optional double weighted_tokens_per_accepted_unit = 19;
+  uint32 accepted_units_measured = 20;
   repeated EffortCapUsage cap_usage = 21;
   // "unknown" until the delivery canary reports (DL-6).
   string canary_status = 22;
   // Blocking lint finding codes, e.g. "handoff-count".
   repeated string lint_findings = 23;
   google.protobuf.Timestamp read_at = 24;
+  // CHARTER.md "- Budget:" as whole seconds; 0 when the home sets no budget.
+  // Phase-3 pressure-clock input, never a hard runtime cap.
+  int64 budget_seconds = 25;
+  // STATUS.md per-surface gradient scoreboard; empty when the home declares none.
+  repeated SurfaceProgress surface_scoreboard = 26;
+  repeated EffortActiveUnit active_units = 27;
+  // Bounded text of the single STATUS.md handoff, attributed workspace report.
+  // Frozen with terminal outcomes so operator decisions explain remaining work.
+  string handoff = 28;
 }
 
 // One durable effort signal (DL-2). seq increases monotonically per effort;
@@ -379,10 +440,13 @@ message ListEffortDecisionsRequest {
   // Only decisions not yet recorded in FEEDBACK.md.
   bool unrecorded_only = 3;
   int32 limit = 4 [(buf.validate.field).int32 = {gte: 0, lte: 200}];
+  // Opaque continuation for the same goal-home/effort filters.
+  string page_token = 5 [(buf.validate.field).string.max_len = 4096];
 }
 
 message ListEffortDecisionsResponse {
   repeated EffortDecision decisions = 1;
+  string next_page_token = 2;
 }
 
 // A desktop answer. Requires operator authority.

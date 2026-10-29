@@ -56,6 +56,42 @@ ARCHIVE_RESTORE_STATE_REOPENABLE: ArchiveRestoreState
 ARCHIVE_RESTORE_STATE_READ_ONLY: ArchiveRestoreState
 ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE: ArchiveRestoreState
 
+class ReadNativeThreadStateRequest(_message.Message):
+    __slots__ = ("session_id", "thread_ids")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    THREAD_IDS_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    thread_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, session_id: _Optional[str] = ..., thread_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class NativeThreadState(_message.Message):
+    __slots__ = ("thread_id", "status", "active_flags", "goal_available", "has_goal", "goal_status", "tokens_used", "time_used_seconds", "token_budget")
+    THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_FLAGS_FIELD_NUMBER: _ClassVar[int]
+    GOAL_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    HAS_GOAL_FIELD_NUMBER: _ClassVar[int]
+    GOAL_STATUS_FIELD_NUMBER: _ClassVar[int]
+    TOKENS_USED_FIELD_NUMBER: _ClassVar[int]
+    TIME_USED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    thread_id: str
+    status: str
+    active_flags: _containers.RepeatedScalarFieldContainer[str]
+    goal_available: bool
+    has_goal: bool
+    goal_status: str
+    tokens_used: int
+    time_used_seconds: int
+    token_budget: int
+    def __init__(self, thread_id: _Optional[str] = ..., status: _Optional[str] = ..., active_flags: _Optional[_Iterable[str]] = ..., goal_available: _Optional[bool] = ..., has_goal: _Optional[bool] = ..., goal_status: _Optional[str] = ..., tokens_used: _Optional[int] = ..., time_used_seconds: _Optional[int] = ..., token_budget: _Optional[int] = ...) -> None: ...
+
+class ReadNativeThreadStateResponse(_message.Message):
+    __slots__ = ("threads",)
+    THREADS_FIELD_NUMBER: _ClassVar[int]
+    threads: _containers.RepeatedCompositeFieldContainer[NativeThreadState]
+    def __init__(self, threads: _Optional[_Iterable[_Union[NativeThreadState, _Mapping]]] = ...) -> None: ...
+
 class ExpirationPolicy(_message.Message):
     __slots__ = ("mode", "duration")
     MODE_FIELD_NUMBER: _ClassVar[int]
@@ -563,3 +599,81 @@ class UpdatePolicyResponse(_message.Message):
     POLICY_FIELD_NUMBER: _ClassVar[int]
     policy: PolicyView
     def __init__(self, policy: _Optional[_Union[PolicyView, _Mapping]] = ...) -> None: ...
+
+class ReadNativeUsageRequest(_message.Message):
+    __slots__ = ("session_id", "thread_ids", "start", "end")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    THREAD_IDS_FIELD_NUMBER: _ClassVar[int]
+    START_FIELD_NUMBER: _ClassVar[int]
+    END_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    thread_ids: _containers.RepeatedScalarFieldContainer[str]
+    start: str
+    end: str
+    def __init__(self, session_id: _Optional[str] = ..., thread_ids: _Optional[_Iterable[str]] = ..., start: _Optional[str] = ..., end: _Optional[str] = ...) -> None: ...
+
+class NativeUsageTotals(_message.Message):
+    __slots__ = ("input_tokens", "cached_input_tokens", "uncached_input_tokens", "output_tokens")
+    INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    CACHED_INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    UNCACHED_INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    input_tokens: int
+    cached_input_tokens: int
+    uncached_input_tokens: int
+    output_tokens: int
+    def __init__(self, input_tokens: _Optional[int] = ..., cached_input_tokens: _Optional[int] = ..., uncached_input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ...) -> None: ...
+
+class NativeUsageReport(_message.Message):
+    __slots__ = ("responses", "duplicates", "incomplete", "usage")
+    RESPONSES_FIELD_NUMBER: _ClassVar[int]
+    DUPLICATES_FIELD_NUMBER: _ClassVar[int]
+    INCOMPLETE_FIELD_NUMBER: _ClassVar[int]
+    USAGE_FIELD_NUMBER: _ClassVar[int]
+    responses: int
+    duplicates: int
+    incomplete: int
+    usage: NativeUsageTotals
+    def __init__(self, responses: _Optional[int] = ..., duplicates: _Optional[int] = ..., incomplete: _Optional[int] = ..., usage: _Optional[_Union[NativeUsageTotals, _Mapping]] = ...) -> None: ...
+
+class NativeModelContext(_message.Message):
+    __slots__ = ("model", "effort", "count")
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    model: str
+    effort: str
+    count: int
+    def __init__(self, model: _Optional[str] = ..., effort: _Optional[str] = ..., count: _Optional[int] = ...) -> None: ...
+
+class NativeThreadUsage(_message.Message):
+    __slots__ = ("thread_id", "status", "report", "observed_model", "observed_provider", "observed_effort", "model_contexts")
+    THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REPORT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_MODEL_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    MODEL_CONTEXTS_FIELD_NUMBER: _ClassVar[int]
+    thread_id: str
+    status: str
+    report: NativeUsageReport
+    observed_model: str
+    observed_provider: str
+    observed_effort: str
+    model_contexts: _containers.RepeatedCompositeFieldContainer[NativeModelContext]
+    def __init__(self, thread_id: _Optional[str] = ..., status: _Optional[str] = ..., report: _Optional[_Union[NativeUsageReport, _Mapping]] = ..., observed_model: _Optional[str] = ..., observed_provider: _Optional[str] = ..., observed_effort: _Optional[str] = ..., model_contexts: _Optional[_Iterable[_Union[NativeModelContext, _Mapping]]] = ...) -> None: ...
+
+class ReadNativeUsageResponse(_message.Message):
+    __slots__ = ("origin", "pricing", "status", "threads", "total")
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    PRICING_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    THREADS_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FIELD_NUMBER: _ClassVar[int]
+    origin: str
+    pricing: str
+    status: str
+    threads: _containers.RepeatedCompositeFieldContainer[NativeThreadUsage]
+    total: NativeUsageReport
+    def __init__(self, origin: _Optional[str] = ..., pricing: _Optional[str] = ..., status: _Optional[str] = ..., threads: _Optional[_Iterable[_Union[NativeThreadUsage, _Mapping]]] = ..., total: _Optional[_Union[NativeUsageReport, _Mapping]] = ...) -> None: ...

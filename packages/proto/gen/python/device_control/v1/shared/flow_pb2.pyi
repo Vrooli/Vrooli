@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Flow(_message.Message):
-    __slots__ = ("id", "name", "steps", "allow_unredacted_capture", "transport", "require_unlocked", "auth_profile_id", "max_duration_ms", "retry_budget", "application_id", "application_revision")
+    __slots__ = ("id", "name", "steps", "allow_unredacted_capture", "transport", "require_unlocked", "auth_profile_id", "max_duration_ms", "retry_budget", "application_id", "application_revision", "redact_sensitive_content")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     STEPS_FIELD_NUMBER: _ClassVar[int]
@@ -20,6 +20,7 @@ class Flow(_message.Message):
     RETRY_BUDGET_FIELD_NUMBER: _ClassVar[int]
     APPLICATION_ID_FIELD_NUMBER: _ClassVar[int]
     APPLICATION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    REDACT_SENSITIVE_CONTENT_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     steps: _containers.RepeatedCompositeFieldContainer[Step]
@@ -31,7 +32,8 @@ class Flow(_message.Message):
     retry_budget: int
     application_id: str
     application_revision: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[Step, _Mapping]]] = ..., allow_unredacted_capture: _Optional[bool] = ..., transport: _Optional[str] = ..., require_unlocked: _Optional[bool] = ..., auth_profile_id: _Optional[str] = ..., max_duration_ms: _Optional[int] = ..., retry_budget: _Optional[int] = ..., application_id: _Optional[str] = ..., application_revision: _Optional[str] = ...) -> None: ...
+    redact_sensitive_content: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., steps: _Optional[_Iterable[_Union[Step, _Mapping]]] = ..., allow_unredacted_capture: _Optional[bool] = ..., transport: _Optional[str] = ..., require_unlocked: _Optional[bool] = ..., auth_profile_id: _Optional[str] = ..., max_duration_ms: _Optional[int] = ..., retry_budget: _Optional[int] = ..., application_id: _Optional[str] = ..., application_revision: _Optional[str] = ..., redact_sensitive_content: _Optional[bool] = ...) -> None: ...
 
 class Step(_message.Message):
     __slots__ = ("id", "kind", "required_capabilities", "target", "timeout_ms", "arguments", "preconditions", "postconditions", "observation_required", "retry_budget", "idempotency_key")

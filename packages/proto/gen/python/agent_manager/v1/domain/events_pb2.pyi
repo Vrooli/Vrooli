@@ -410,7 +410,7 @@ class CostEventData(_message.Message):
     def __init__(self, input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., cache_creation_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., total_cost_usd: _Optional[float] = ..., service_tier: _Optional[str] = ..., model: _Optional[str] = ..., web_search_requests: _Optional[int] = ..., server_tool_use_requests: _Optional[int] = ...) -> None: ...
 
 class RateLimitEventData(_message.Message):
-    __slots__ = ("limit_type", "reset_time", "retry_after", "current_used", "limit", "message", "provider", "pool", "used_percent", "window_minutes", "provenance")
+    __slots__ = ("limit_type", "reset_time", "retry_after", "current_used", "limit", "message", "provider", "pool", "used_percent", "window_minutes", "provenance", "status", "overage_status")
     LIMIT_TYPE_FIELD_NUMBER: _ClassVar[int]
     RESET_TIME_FIELD_NUMBER: _ClassVar[int]
     RETRY_AFTER_FIELD_NUMBER: _ClassVar[int]
@@ -422,6 +422,8 @@ class RateLimitEventData(_message.Message):
     USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
     WINDOW_MINUTES_FIELD_NUMBER: _ClassVar[int]
     PROVENANCE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OVERAGE_STATUS_FIELD_NUMBER: _ClassVar[int]
     limit_type: str
     reset_time: _timestamp_pb2.Timestamp
     retry_after: int
@@ -433,7 +435,9 @@ class RateLimitEventData(_message.Message):
     used_percent: float
     window_minutes: int
     provenance: str
-    def __init__(self, limit_type: _Optional[str] = ..., reset_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retry_after: _Optional[int] = ..., current_used: _Optional[int] = ..., limit: _Optional[int] = ..., message: _Optional[str] = ..., provider: _Optional[str] = ..., pool: _Optional[str] = ..., used_percent: _Optional[float] = ..., window_minutes: _Optional[int] = ..., provenance: _Optional[str] = ...) -> None: ...
+    status: str
+    overage_status: str
+    def __init__(self, limit_type: _Optional[str] = ..., reset_time: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., retry_after: _Optional[int] = ..., current_used: _Optional[int] = ..., limit: _Optional[int] = ..., message: _Optional[str] = ..., provider: _Optional[str] = ..., pool: _Optional[str] = ..., used_percent: _Optional[float] = ..., window_minutes: _Optional[int] = ..., provenance: _Optional[str] = ..., status: _Optional[str] = ..., overage_status: _Optional[str] = ...) -> None: ...
 
 class CompactionEventData(_message.Message):
     __slots__ = ("summary", "trigger", "focus", "messages_compacted", "tokens_before", "tokens_after", "original_command")

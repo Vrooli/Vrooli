@@ -572,8 +572,11 @@ type Ask struct {
 	UpdatedAt         string `protobuf:"bytes,28,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	BigPicture        string `protobuf:"bytes,29,opt,name=big_picture,json=bigPicture,proto3" json:"big_picture,omitempty"`
 	TechnicalDetails  string `protobuf:"bytes,30,opt,name=technical_details,json=technicalDetails,proto3" json:"technical_details,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Existing notification title for concise list summaries. The full question
+	// remains authoritative and available on the detail page.
+	Title         string `protobuf:"bytes,31,opt,name=title,proto3" json:"title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Ask) Reset() {
@@ -816,6 +819,13 @@ func (x *Ask) GetTechnicalDetails() string {
 	return ""
 }
 
+func (x *Ask) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
 type GetAskRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AskId         string                 `protobuf:"bytes,1,opt,name=ask_id,json=askId,proto3" json:"ask_id,omitempty"`
@@ -905,9 +915,19 @@ func (x *GetAskResponse) GetAsk() *Ask {
 }
 
 type ListAsksRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OpenOnly      bool                   `protobuf:"varint,1,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
-	Limit         int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Compatibility shortcut for state_filter=awaiting. Conflicting filters fail.
+	OpenOnly bool `protobuf:"varint,1,opt,name=open_only,json=openOnly,proto3" json:"open_only,omitempty"`
+	// Page size, default 50, maximum 200. This is not a total-result limit.
+	Limit int32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque continuation for the same recipient, query and state filter.
+	Cursor string `protobuf:"bytes,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// Literal substring of question, source, answer/options, note or requester ref.
+	// Applied on the server before pagination.
+	Query string `protobuf:"bytes,4,opt,name=query,proto3" json:"query,omitempty"`
+	// all (default), awaiting (pending/escalated), answered, defaulted, expired,
+	// withdrawn, pending or escalated.
+	StateFilter   string `protobuf:"bytes,5,opt,name=state_filter,json=stateFilter,proto3" json:"state_filter,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -956,9 +976,32 @@ func (x *ListAsksRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *ListAsksRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListAsksRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListAsksRequest) GetStateFilter() string {
+	if x != nil {
+		return x.StateFilter
+	}
+	return ""
+}
+
 type ListAsksResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Asks          []*Ask                 `protobuf:"bytes,1,rep,name=asks,proto3" json:"asks,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Asks  []*Ask                 `protobuf:"bytes,1,rep,name=asks,proto3" json:"asks,omitempty"`
+	// Empty at the end. Live keyset order is created_at DESC, id DESC.
+	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -998,6 +1041,13 @@ func (x *ListAsksResponse) GetAsks() []*Ask {
 		return x.Asks
 	}
 	return nil
+}
+
+func (x *ListAsksResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
 }
 
 var File_notification_hub_v1_conversations_conversations_proto protoreflect.FileDescriptor
@@ -1049,7 +1099,7 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\x06ask_id\x18\x01 \x01(\tR\x05askId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x16\n" +
 	"\x06answer\x18\x03 \x01(\tR\x06answer\x12\x16\n" +
-	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x93\b\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\xa9\b\n" +
 	"\x03Ask\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
 	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x1a\n" +
@@ -1090,16 +1140,22 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"updated_at\x18\x1c \x01(\tR\tupdatedAt\x12\x1f\n" +
 	"\vbig_picture\x18\x1d \x01(\tR\n" +
 	"bigPicture\x12+\n" +
-	"\x11technical_details\x18\x1e \x01(\tR\x10technicalDetails\"&\n" +
+	"\x11technical_details\x18\x1e \x01(\tR\x10technicalDetails\x12\x14\n" +
+	"\x05title\x18\x1f \x01(\tR\x05title\"&\n" +
 	"\rGetAskRequest\x12\x15\n" +
 	"\x06ask_id\x18\x01 \x01(\tR\x05askId\"Q\n" +
 	"\x0eGetAskResponse\x12?\n" +
-	"\x03ask\x18\x01 \x01(\v2-.vrooli.notification_hub.v1.conversations.AskR\x03ask\"D\n" +
+	"\x03ask\x18\x01 \x01(\v2-.vrooli.notification_hub.v1.conversations.AskR\x03ask\"\x95\x01\n" +
 	"\x0fListAsksRequest\x12\x1b\n" +
 	"\topen_only\x18\x01 \x01(\bR\bopenOnly\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\x05R\x05limit\"U\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x03 \x01(\tR\x06cursor\x12\x14\n" +
+	"\x05query\x18\x04 \x01(\tR\x05query\x12!\n" +
+	"\fstate_filter\x18\x05 \x01(\tR\vstateFilter\"v\n" +
 	"\x10ListAsksResponse\x12A\n" +
-	"\x04asks\x18\x01 \x03(\v2-.vrooli.notification_hub.v1.conversations.AskR\x04asks2\xff\x04\n" +
+	"\x04asks\x18\x01 \x03(\v2-.vrooli.notification_hub.v1.conversations.AskR\x04asks\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor2\xff\x04\n" +
 	"\x14ConversationsService\x12r\n" +
 	"\x03Ask\x124.vrooli.notification_hub.v1.conversations.AskRequest\x1a5.vrooli.notification_hub.v1.conversations.AskResponse\x12{\n" +
 	"\x06Answer\x127.vrooli.notification_hub.v1.conversations.AnswerRequest\x1a8.vrooli.notification_hub.v1.conversations.AnswerResponse\x12u\n" +

@@ -30,6 +30,10 @@ const (
 	artifactLeaseSchemaVersion     = 1
 	defaultReaderLeaseTTL          = 2 * time.Minute
 	defaultSnapshotRetention       = 24 * time.Hour
+	// Each snapshot is a full copy of the generated tree (~100 MB). The
+	// retention window alone grows with publication frequency, so collection
+	// also caps how many unprotected snapshots survive inside that window.
+	defaultSnapshotKeep = 8
 	// Keep consumer freshness cheap: hash this tiny selection stamp instead of
 	// walking the roughly 100 MB generated compatibility tree.
 	compatibilityStampName = ".vrooli-proto-artifact.json"
@@ -239,8 +243,13 @@ type Store struct {
 	Root      string
 	LeaseTTL  time.Duration
 	Retention time.Duration
-	Hooks     PublicationHooks
-	Now       func() time.Time
+	// MaxSnapshots caps unprotected snapshots kept inside the retention window.
+	// Active, last-known-good, and leased snapshots never count against it.
+	MaxSnapshots int
+	Hooks        PublicationHooks
+	Now          func() time.Time
+	// Logger receives non-fatal warnings, such as a failed automatic collection.
+	Logger io.Writer
 
 	mu sync.Mutex
 }
@@ -499,6 +508,11 @@ func (s *Store) Publish(ctx context.Context, candidate Candidate) (ArtifactMetad
 	}
 	if err := s.publishSelection(s.lastGoodPath(), lastGood, s.Hooks.BeforeLastGoodRename); err != nil {
 		return ArtifactMetadata{}, err
+	}
+	// Collection is best effort: the new selection is already durable, so a
+	// garbage-collection failure must never fail the publication.
+	if _, err := s.collectLocked(now); err != nil && s.Logger != nil {
+		_, _ = fmt.Fprintf(s.Logger, "protogen: warning: artifact collection after publish failed: %v\n", err)
 	}
 	return metadata, nil
 }
@@ -771,12 +785,19 @@ func (l *ReaderLease) Close() error {
 	return err
 }
 
+// Collect removes unprotected snapshots that are older than the retention
+// window or beyond the newest MaxSnapshots, and deletes expired lease records.
+// Active, last-known-good, and live-leased snapshots are never removed.
 func (s *Store) Collect(ctx context.Context, now time.Time) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.collectLocked(now)
+}
+
+func (s *Store) collectLocked(now time.Time) (int, error) {
 	active, activeErr := s.readSelection(s.activePath())
 	lastGood, lastGoodErr := s.readSelection(s.lastGoodPath())
 	if activeErr != nil && !errors.Is(activeErr, fs.ErrNotExist) {
@@ -802,9 +823,18 @@ func (s *Store) Collect(ctx context.Context, now time.Time) (int, error) {
 		if !strings.HasSuffix(entry.Name(), ".json") {
 			continue
 		}
-		record, readErr := readLease(filepath.Join(leaseRoot, entry.Name()))
-		if readErr == nil && record.ExpiresAt.After(now) {
+		path := filepath.Join(leaseRoot, entry.Name())
+		record, readErr := readLease(path)
+		if readErr != nil {
+			// Possibly a lease still being written; leave it alone.
+			continue
+		}
+		if record.ExpiresAt.After(now) {
 			leases[record.ArtifactID] = true
+			continue
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return 0, fmt.Errorf("remove expired reader lease: %w", err)
 		}
 	}
 	entries, err = os.ReadDir(s.snapshotsRoot())
@@ -814,16 +844,29 @@ func (s *Store) Collect(ctx context.Context, now time.Time) (int, error) {
 		}
 		return 0, err
 	}
-	removed := 0
+	type candidate struct {
+		name    string
+		modTime time.Time
+	}
+	var candidates []candidate
 	for _, entry := range entries {
 		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") || protected[entry.Name()] || leases[entry.Name()] {
 			continue
 		}
 		info, infoErr := entry.Info()
-		if infoErr != nil || now.Sub(info.ModTime()) < s.retention() {
+		if infoErr != nil {
 			continue
 		}
-		if err := os.RemoveAll(filepath.Join(s.snapshotsRoot(), entry.Name())); err != nil {
+		candidates = append(candidates, candidate{name: entry.Name(), modTime: info.ModTime()})
+	}
+	// Newest first: the first MaxSnapshots inside the retention window survive.
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].modTime.After(candidates[j].modTime) })
+	removed := 0
+	for index, entry := range candidates {
+		if index < s.maxSnapshots() && now.Sub(entry.modTime) < s.retention() {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(s.snapshotsRoot(), entry.name)); err != nil {
 			return removed, err
 		}
 		removed++
@@ -845,6 +888,13 @@ func (s *Store) leaseTTL() time.Duration {
 		return s.LeaseTTL
 	}
 	return defaultReaderLeaseTTL
+}
+
+func (s *Store) maxSnapshots() int {
+	if s.MaxSnapshots > 0 {
+		return s.MaxSnapshots
+	}
+	return defaultSnapshotKeep
 }
 
 func (s *Store) retention() time.Duration {

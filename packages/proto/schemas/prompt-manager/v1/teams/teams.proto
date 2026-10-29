@@ -76,6 +76,7 @@ message Team {
   bool archived = 17;
   repeated string managed_team_ids = 18;
   repeated string managed_by_team_ids = 19;
+  string home_path = 20;
 }
 message Role { string id = 1; string name = 2; string description = 3; }
 message Member { string agent_id = 1; string display_name = 2; repeated string roles = 3; string status = 4; }
@@ -101,6 +102,10 @@ message TeamDetails {
   bool archived = 19;
   repeated string managed_team_ids = 20;
   repeated string managed_by_team_ids = 21;
+  string home_path = 22;
+  // Owner-computed authority for the current verified caller; never an input.
+  bool management_authorized = 23;
+  int64 revision = 24;
 }
 message TeamInput {
   string id = 1;
@@ -115,6 +120,7 @@ message TeamInput {
   string lifetime = 10;
   repeated string effort_refs = 11;
   bool archived = 12;
+  string home_path = 13;
 }
 message ListTeamsRequest {}
 message ListTeamsResponse { repeated Team teams = 1; }

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "prompt-manager",
-  "input_digest": "sha256:dfee4ee59919b7fb13e4ba695f3af4d673ba40e40524083f48772e78914b7886",
+  "input_digest": "sha256:185c384a943e725ee7167790be12ceba63e34c5da270d2c2f8fa14b7192a2aa0",
   "input_files": [
     "schemas/prompt-manager/v1/actions/actions.proto",
     "schemas/prompt-manager/v1/agents/agents.proto",
@@ -25,7 +25,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
+    "generator_digest": "sha256:00641b8b46018a15d67bebb28f7d4ae7caa5bfc402255ccd952815314415b921",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -60,7 +60,7 @@
     "gen/go/prompt-manager/v1/skills/skills_v1connect/skills.connect.go": "sha256:8476ee019fd6ac8bd455b43502768d2c8add33a9b023dc5e38f3afaece809410",
     "gen/go/prompt-manager/v1/tags/tags.pb.go": "sha256:1df669bf0a4e5d77f583b3b3c35e90328d0821ae5d8e81b366123ba779fb0a00",
     "gen/go/prompt-manager/v1/tags/tags_v1connect/tags.connect.go": "sha256:3fbb7df19d925ea0ac9d711c19330c6dad023a46902ca00c2776b95e44f56df9",
-    "gen/go/prompt-manager/v1/teams/teams.pb.go": "sha256:0831b7dc1b99ffee24adbcf48ff69c983ce6150a377577940a60d110c5f9fe24",
+    "gen/go/prompt-manager/v1/teams/teams.pb.go": "sha256:e8d2c15b0214db73870fbfdc321045cc8dd9f1744bd1dd2017194bbf85bf57e8",
     "gen/go/prompt-manager/v1/teams/teams_v1connect/teams.connect.go": "sha256:ff17e8a869672a0c7ee39e1c53b4e8be2f385020a77610c449ed0c7b0850884e",
     "gen/go/prompt-manager/v1/templates/templates.pb.go": "sha256:21f6e19d0a082ec8c36f2d700ec1749b083a7aac829af938ea5577ab42098862",
     "gen/go/prompt-manager/v1/templates/templates_v1connect/templates.connect.go": "sha256:03333275ab6acb15d816d37b95e996693572a7d2cb674fff96aa1d198e7d2fdb",
@@ -112,8 +112,8 @@
     "gen/python/prompt_manager/v1/tags/tags_pb2.py": "sha256:13d200bfe890822035e5dd76a4bc128e6f440cf5cbcb0a3f64de666bf602f8b4",
     "gen/python/prompt_manager/v1/tags/tags_pb2.pyi": "sha256:c5ecf57949c5ec53252b32234d5805d58d95b11a19fd0931ec84172d96c15858",
     "gen/python/prompt_manager/v1/teams/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/prompt_manager/v1/teams/teams_pb2.py": "sha256:d605532f0d3ee389309e180e059414934eee736ba2ec433827cec7c01997e36a",
-    "gen/python/prompt_manager/v1/teams/teams_pb2.pyi": "sha256:2f0b9e7c6a9effaa13132ca58312abfbc4791897f0ce1abda190fa421514d62b",
+    "gen/python/prompt_manager/v1/teams/teams_pb2.py": "sha256:07d2780297f068416e7adda1bb0269f1ae9b2412528ad26f27f90481d828cce5",
+    "gen/python/prompt_manager/v1/teams/teams_pb2.pyi": "sha256:2a4e68511ad468298ac75e61a5189a4c076e22359e417579a6816d58be6f3ddb",
     "gen/python/prompt_manager/v1/templates/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/prompt_manager/v1/templates/templates_pb2.py": "sha256:8e804fb72b353415b6952072b59cdcbf2314b8f1d9a2376ff2493caf18f63c68",
     "gen/python/prompt_manager/v1/templates/templates_pb2.pyi": "sha256:8ab104a8602c2197e9673b955939d82fdaf96d4ec2080c5eb86301daea83549d",
@@ -140,7 +140,7 @@
     "gen/typescript/prompt-manager/v1/search/search_pb.ts": "sha256:c3bdb1940e20186bdf67310f997e0feca3059c9f6b8be952ce81309e04b0411e",
     "gen/typescript/prompt-manager/v1/skills/skills_pb.ts": "sha256:c0b3ba331032b6e0f73e1e9f3e93e75ef7cb1a6ae40cf8189795928a331c6ec9",
     "gen/typescript/prompt-manager/v1/tags/tags_pb.ts": "sha256:79dcc7cafaeb5ab0c90a97316ed55a76f1f4579f715ebf20c4944bd2176844da",
-    "gen/typescript/prompt-manager/v1/teams/teams_pb.ts": "sha256:76709ca048815c73de90efc5f7c490078bc048e988977bc39cff3720f5cf0d9a",
+    "gen/typescript/prompt-manager/v1/teams/teams_pb.ts": "sha256:0a207db9b08143fb4c53fcebaab834c0486fb5bd2f1af2bfed88d60fd52949fc",
     "gen/typescript/prompt-manager/v1/templates/templates_pb.ts": "sha256:629b16abb95a20fc0276ec1e7a1b97a41b063b8d449cb87265d66e5cb172be2d",
     "gen/typescript/prompt-manager/v1/testing/testing_pb.ts": "sha256:6715d5d9f57aae942c25f8d457dc7747a1c34d3168000ac29ca36400bb2b2d3e",
     "gen/typescript/prompt-manager/v1/topics/topics_pb.ts": "sha256:a61611b10d42df047499c3257e8ae9b2e9dee86044a9a9ea40456b159a04a30e",

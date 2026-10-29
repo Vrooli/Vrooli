@@ -7,6 +7,7 @@
 package shared_v1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -686,9 +687,13 @@ type GatewayRequest struct {
 	Attachments     []*Attachment          `protobuf:"bytes,12,rep,name=attachments,proto3" json:"attachments,omitempty"`
 	// sampling is the caller's explicit sampling request. Absent means the
 	// resolved role's declared sampling applies.
-	Sampling      *SamplingControls `protobuf:"bytes,13,opt,name=sampling,proto3" json:"sampling,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Sampling *SamplingControls `protobuf:"bytes,13,opt,name=sampling,proto3" json:"sampling,omitempty"`
+	// Caller-declared local execution footprint. A positive value requests
+	// no-reclaim capacity admission; absent means capacity is not evaluated.
+	// The Gateway does not infer this estimate from a concrete model name.
+	RequiredVramBytes *int64 `protobuf:"varint,14,opt,name=required_vram_bytes,json=requiredVramBytes,proto3,oneof" json:"required_vram_bytes,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GatewayRequest) Reset() {
@@ -812,6 +817,13 @@ func (x *GatewayRequest) GetSampling() *SamplingControls {
 	return nil
 }
 
+func (x *GatewayRequest) GetRequiredVramBytes() int64 {
+	if x != nil && x.RequiredVramBytes != nil {
+		return *x.RequiredVramBytes
+	}
+	return 0
+}
+
 type ValidationIssue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Field         string                 `protobuf:"bytes,1,opt,name=field,proto3" json:"field,omitempty"`
@@ -876,7 +888,7 @@ var File_ai_gateway_v1_shared_gateway_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\n" +
-	"\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\"I\n" +
+	"\"ai-gateway/v1/shared/gateway.proto\x12\x1bvrooli.ai_gateway.v1.shared\x1a\x1bbuf/validate/validate.proto\"I\n" +
 	"\x10SamplingControls\x12%\n" +
 	"\vtemperature\x18\x01 \x01(\x01H\x00R\vtemperature\x88\x01\x01B\x0e\n" +
 	"\f_temperature\"\xdb\x02\n" +
@@ -896,7 +908,7 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x05bytes\x18\x05 \x01(\x04R\x05bytes\x12#\n" +
 	"\finline_bytes\x18\x06 \x01(\fH\x00R\vinlineBytes\x12\x1e\n" +
 	"\treference\x18\a \x01(\tH\x00R\treferenceB\t\n" +
-	"\apayload\"\xe2\x05\n" +
+	"\apayload\"\xb8\x06\n" +
 	"\x0eGatewayRequest\x12<\n" +
 	"\x04kind\x18\x01 \x01(\x0e2(.vrooli.ai_gateway.v1.shared.RequestKindR\x04kind\x12\x12\n" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12>\n" +
@@ -914,10 +926,12 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	" \x01(\tR\trequestId\x12U\n" +
 	"\bmetadata\x18\v \x03(\v29.vrooli.ai_gateway.v1.shared.GatewayRequest.MetadataEntryR\bmetadata\x12I\n" +
 	"\vattachments\x18\f \x03(\v2'.vrooli.ai_gateway.v1.shared.AttachmentR\vattachments\x12I\n" +
-	"\bsampling\x18\r \x01(\v2-.vrooli.ai_gateway.v1.shared.SamplingControlsR\bsampling\x1a;\n" +
+	"\bsampling\x18\r \x01(\v2-.vrooli.ai_gateway.v1.shared.SamplingControlsR\bsampling\x12<\n" +
+	"\x13required_vram_bytes\x18\x0e \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x11requiredVramBytes\x88\x01\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"U\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\x16\n" +
+	"\x14_required_vram_bytes\"U\n" +
 	"\x0fValidationIssue\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
@@ -1019,6 +1033,7 @@ func file_ai_gateway_v1_shared_gateway_proto_init() {
 		(*Attachment_InlineBytes)(nil),
 		(*Attachment_Reference)(nil),
 	}
+	file_ai_gateway_v1_shared_gateway_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -454,7 +454,7 @@ type RunEvent_Cost struct {
 }
 
 type RunEvent_RateLimit struct {
-	// Rate limit event data (event_type = ERROR, subtype rate_limit).
+	// Provider quota observation (event_type = QUOTA).
 	RateLimit *RateLimitEventData `protobuf:"bytes,20,opt,name=rate_limit,json=rateLimit,proto3,oneof"`
 }
 
@@ -2121,7 +2121,7 @@ func (x *ArtifactEventData) GetMimeType() string {
 // ErrorEventData contains data for error events.
 //
 // Emitted when an error occurs during execution.
-// For rate limit errors, use RateLimitEventData.
+// Provider quota observations use RateLimitEventData (event_type = QUOTA).
 //
 // @usage RunEvent.error
 type ErrorEventData struct {
@@ -2451,10 +2451,11 @@ func (x *CostEventData) GetServerToolUseRequests() int32 {
 	return 0
 }
 
-// RateLimitEventData contains data for rate limit events.
+// RateLimitEventData is a provider quota observation (event_type = QUOTA).
 //
-// Emitted when a rate limit is encountered.
-// Includes reset time and retry guidance.
+// Emitted for every provider quota reading: a percentage-of-window sample
+// (Codex token_count rate_limits) or a standing without a percentage (Claude
+// quotaLimits, rate-limit errors). Includes reset time and retry guidance.
 //
 // @usage RunEvent.rate_limit
 type RateLimitEventData struct {
@@ -2481,7 +2482,13 @@ type RateLimitEventData struct {
 	// Provider-reported rolling window length in minutes.
 	WindowMinutes int64 `protobuf:"varint,10,opt,name=window_minutes,json=windowMinutes,proto3" json:"window_minutes,omitempty"`
 	// Provenance of the native provider observation.
-	Provenance    string `protobuf:"bytes,11,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	Provenance string `protobuf:"bytes,11,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	// Provider-reported standing, verbatim (for example Claude quotaLimits
+	// status "allowed", "allowed_warning" or "rejected"). Empty when the
+	// provider reported only a percentage.
+	Status string `protobuf:"bytes,12,opt,name=status,proto3" json:"status,omitempty"`
+	// Provider-reported overage standing, verbatim (Claude overageStatus).
+	OverageStatus string `protobuf:"bytes,13,opt,name=overage_status,json=overageStatus,proto3" json:"overage_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2589,6 +2596,20 @@ func (x *RateLimitEventData) GetWindowMinutes() int64 {
 func (x *RateLimitEventData) GetProvenance() string {
 	if x != nil {
 		return x.Provenance
+	}
+	return ""
+}
+
+func (x *RateLimitEventData) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RateLimitEventData) GetOverageStatus() string {
+	if x != nil {
+		return x.OverageStatus
 	}
 	return ""
 }
@@ -2890,7 +2911,7 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\fservice_tier\x18\x06 \x01(\tR\vserviceTier\x12\x14\n" +
 	"\x05model\x18\a \x01(\tR\x05model\x12.\n" +
 	"\x13web_search_requests\x18\b \x01(\x05R\x11webSearchRequests\x127\n" +
-	"\x18server_tool_use_requests\x18\t \x01(\x05R\x15serverToolUseRequests\"\xa6\x03\n" +
+	"\x18server_tool_use_requests\x18\t \x01(\x05R\x15serverToolUseRequests\"\xe5\x03\n" +
 	"\x12RateLimitEventData\x12\x1d\n" +
 	"\n" +
 	"limit_type\x18\x01 \x01(\tR\tlimitType\x12>\n" +
@@ -2908,7 +2929,9 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	" \x01(\x03R\rwindowMinutes\x12\x1e\n" +
 	"\n" +
 	"provenance\x18\v \x01(\tR\n" +
-	"provenanceB\r\n" +
+	"provenance\x12\x16\n" +
+	"\x06status\x18\f \x01(\tR\x06status\x12%\n" +
+	"\x0eoverage_status\x18\r \x01(\tR\roverageStatusB\r\n" +
 	"\v_reset_timeB\x0f\n" +
 	"\r_used_percent\"\x81\x02\n" +
 	"\x13CompactionEventData\x12\x18\n" +

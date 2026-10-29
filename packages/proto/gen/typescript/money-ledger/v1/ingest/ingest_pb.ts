@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file money-ledger/v1/ingest/ingest.proto.
  */
 export const file_money_ledger_v1_ingest_ingest: GenFile = /*@__PURE__*/
-  fileDesc("CiNtb25leS1sZWRnZXIvdjEvaW5nZXN0L2luZ2VzdC5wcm90bxIddnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3Qi7gEKB0FkYXB0ZXISEwoCaWQYASABKAlCB7pIBHICEAESFQoEbmFtZRgCIAEoCUIHukgEcgIQARJECgRraW5kGAMgASgOMioudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlcktpbmRCCrpIB4IBBBABIAASDwoHZW5hYmxlZBgEIAEoCBIzCg9sYXN0X3N1Y2Nlc3NfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2F2YWlsYWJpbGl0eV9yZWFzb24YBiABKAkSDgoGY3Vyc29yGAcgASgJIoUCCgdSZWNlaXB0EgoKAmlkGAEgASgJEhIKCmFkYXB0ZXJfaWQYAiABKAkSKAoEZnJvbRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHJlYWQYBSABKAUSDwoHd3JpdHRlbhgGIAEoBRIaChJza2lwcGVkX2R1cGxpY2F0ZXMYByABKAUSDgoGc3RhdHVzGAggASgJEg0KBWVycm9yGAkgASgJEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInkKDEF2YWlsYWJpbGl0eRIbCgphZGFwdGVyX2lkGAEgASgJQge6SARyAhABEhcKBnJlYXNvbhgCIAEoCUIHukgEcgIQARIzCg9sYXN0X3N1Y2Nlc3NfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlkKFlJlZ2lzdGVyQWRhcHRlclJlcXVlc3QSPwoHYWRhcHRlchgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkFkYXB0ZXJCBrpIA8gBASJSChdSZWdpc3RlckFkYXB0ZXJSZXNwb25zZRI3CgdhZGFwdGVyGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlciIVChNMaXN0QWRhcHRlcnNSZXF1ZXN0IlAKFExpc3RBZGFwdGVyc1Jlc3BvbnNlEjgKCGFkYXB0ZXJzGAEgAygLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlciJWChJJbmdlc3RFdmVudFJlcXVlc3QSQAoFZXZlbnQYASABKAsyKS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLnNoYXJlZC5Nb25leUV2ZW50Qga6SAPIAQEimgEKE0luZ2VzdEV2ZW50UmVzcG9uc2USNwoHcG9zdGluZxgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuc2hhcmVkLlBvc3RpbmcSEQoJZHVwbGljYXRlGAIgASgIEjcKB3JlY2VpcHQYAyABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWNlaXB0IoIBChFSdW5BZGFwdGVyUmVxdWVzdBIbCgphZGFwdGVyX2lkGAEgASgJQge6SARyAhABEigKBGZyb20YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiYKAnRvGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKQAQoSUnVuQWRhcHRlclJlc3BvbnNlEjcKB3JlY2VpcHQYASABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWNlaXB0EkEKDGF2YWlsYWJpbGl0eRgCIAMoCzIrLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkF2YWlsYWJpbGl0eSKYAQoRSW1wb3J0RmlsZVJlcXVlc3QSGwoKYWRhcHRlcl9pZBgBIAEoCUIHukgEcgIQARIUCgNjc3YYAiABKAxCB7pIBHoCEAESKAoEZnJvbRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIk0KEkltcG9ydEZpbGVSZXNwb25zZRI3CgdyZWNlaXB0GAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuUmVjZWlwdCK1AQoST3BlcmF0b3JJbnB1dEZpZWxkEgwKBHBhdGgYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3dyaXR0ZW4YAyABKAgSDAoEdW5pdBgEIAEoCRITCgt3aW5kb3dfZGF5cxgFIAEoBRIvCgtvYnNlcnZlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEa2luZBgHIAEoCRIOCgZyZWFzb24YCCABKAkiyQEKFU9wZXJhdG9ySW1wb3J0UmVxdWVzdBITCgtzb3VyY2VfcGF0aBgBIAEoCRI+Cgtzb3VyY2VfbW9kZRgCIAEoDjIpLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlNvdXJjZU1vZGUSDQoFYXBwbHkYAyABKAgSEgoKYWRhcHRlcl9pZBgEIAEoCRIPCgdib29rX2lkGAUgASgJEhIKCmFjY291bnRfaWQYBiABKAkSEwoLc291cmNlX2pzb24YByABKAwinQEKFk9wZXJhdG9ySW1wb3J0UmVzcG9uc2USQQoGZmllbGRzGAEgAygLMjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbnB1dEZpZWxkEgwKBHJlYWQYAiABKAUSDwoHd3JpdHRlbhgDIAEoBRIQCghmaW5kaW5ncxgEIAEoBRIPCgdhcHBsaWVkGAUgASgIIi0KGk9wZXJhdG9ySW5wdXRTdGF0dXNSZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkiYAobT3BlcmF0b3JJbnB1dFN0YXR1c1Jlc3BvbnNlEkEKBmZpZWxkcxgBIAMoCzIxLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lk9wZXJhdG9ySW5wdXRGaWVsZCqTAQoLQWRhcHRlcktpbmQSHAoYQURBUFRFUl9LSU5EX1VOU1BFQ0lGSUVEEAASFwoTQURBUFRFUl9LSU5EX01BTlVBTBABEhUKEUFEQVBURVJfS0lORF9GSUxFEAISGwoXQURBUFRFUl9LSU5EX0FHR1JFR0FUT1IQAxIZChVBREFQVEVSX0tJTkRfQ09NTUVSQ0UQBCplCgpTb3VyY2VNb2RlEhsKF1NPVVJDRV9NT0RFX1VOU1BFQ0lGSUVEEAASFwoTU09VUkNFX01PREVfRklYVFVSRRABEiEKHVNPVVJDRV9NT0RFX09QRVJBVE9SX1NVUFBMSUVEEAIy/AYKDUluZ2VzdFNlcnZpY2USgAEKD1JlZ2lzdGVyQWRhcHRlchI1LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJlZ2lzdGVyQWRhcHRlclJlcXVlc3QaNi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWdpc3RlckFkYXB0ZXJSZXNwb25zZRJ3CgxMaXN0QWRhcHRlcnMSMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5MaXN0QWRhcHRlcnNSZXF1ZXN0GjMudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuTGlzdEFkYXB0ZXJzUmVzcG9uc2USdAoLSW5nZXN0RXZlbnQSMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5Jbmdlc3RFdmVudFJlcXVlc3QaMi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5Jbmdlc3RFdmVudFJlc3BvbnNlEnEKClJ1bkFkYXB0ZXISMC52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SdW5BZGFwdGVyUmVxdWVzdBoxLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlJ1bkFkYXB0ZXJSZXNwb25zZRJxCgpJbXBvcnRGaWxlEjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuSW1wb3J0RmlsZVJlcXVlc3QaMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5JbXBvcnRGaWxlUmVzcG9uc2USgwEKFEltcG9ydE9wZXJhdG9ySW5wdXRzEjQudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbXBvcnRSZXF1ZXN0GjUudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbXBvcnRSZXNwb25zZRKMAQoTT3BlcmF0b3JJbnB1dFN0YXR1cxI5LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lk9wZXJhdG9ySW5wdXRTdGF0dXNSZXF1ZXN0GjoudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbnB1dFN0YXR1c1Jlc3BvbnNlQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbW9uZXktbGVkZ2VyL3YxL2luZ2VzdDtpbmdlc3RfdjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp, file_money_ledger_v1_shared_ledger_types]);
+  fileDesc("CiNtb25leS1sZWRnZXIvdjEvaW5nZXN0L2luZ2VzdC5wcm90bxIddnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3Qi7gEKB0FkYXB0ZXISEwoCaWQYASABKAlCB7pIBHICEAESFQoEbmFtZRgCIAEoCUIHukgEcgIQARJECgRraW5kGAMgASgOMioudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlcktpbmRCCrpIB4IBBBABIAASDwoHZW5hYmxlZBgEIAEoCBIzCg9sYXN0X3N1Y2Nlc3NfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhsKE2F2YWlsYWJpbGl0eV9yZWFzb24YBiABKAkSDgoGY3Vyc29yGAcgASgJIoUCCgdSZWNlaXB0EgoKAmlkGAEgASgJEhIKCmFkYXB0ZXJfaWQYAiABKAkSKAoEZnJvbRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHJlYWQYBSABKAUSDwoHd3JpdHRlbhgGIAEoBRIaChJza2lwcGVkX2R1cGxpY2F0ZXMYByABKAUSDgoGc3RhdHVzGAggASgJEg0KBWVycm9yGAkgASgJEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInkKDEF2YWlsYWJpbGl0eRIbCgphZGFwdGVyX2lkGAEgASgJQge6SARyAhABEhcKBnJlYXNvbhgCIAEoCUIHukgEcgIQARIzCg9sYXN0X3N1Y2Nlc3NfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlkKFlJlZ2lzdGVyQWRhcHRlclJlcXVlc3QSPwoHYWRhcHRlchgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkFkYXB0ZXJCBrpIA8gBASJSChdSZWdpc3RlckFkYXB0ZXJSZXNwb25zZRI3CgdhZGFwdGVyGAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlciIVChNMaXN0QWRhcHRlcnNSZXF1ZXN0IlAKFExpc3RBZGFwdGVyc1Jlc3BvbnNlEjgKCGFkYXB0ZXJzGAEgAygLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQWRhcHRlciJWChJJbmdlc3RFdmVudFJlcXVlc3QSQAoFZXZlbnQYASABKAsyKS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLnNoYXJlZC5Nb25leUV2ZW50Qga6SAPIAQEimgEKE0luZ2VzdEV2ZW50UmVzcG9uc2USNwoHcG9zdGluZxgBIAEoCzImLnZyb29saS5tb25leV9sZWRnZXIudjEuc2hhcmVkLlBvc3RpbmcSEQoJZHVwbGljYXRlGAIgASgIEjcKB3JlY2VpcHQYAyABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWNlaXB0IoIBChFSdW5BZGFwdGVyUmVxdWVzdBIbCgphZGFwdGVyX2lkGAEgASgJQge6SARyAhABEigKBGZyb20YAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiYKAnRvGAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKQAQoSUnVuQWRhcHRlclJlc3BvbnNlEjcKB3JlY2VpcHQYASABKAsyJi52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWNlaXB0EkEKDGF2YWlsYWJpbGl0eRgCIAMoCzIrLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkF2YWlsYWJpbGl0eSKYAQoRSW1wb3J0RmlsZVJlcXVlc3QSGwoKYWRhcHRlcl9pZBgBIAEoCUIHukgEcgIQARIUCgNjc3YYAiABKAxCB7pIBHoCEAESKAoEZnJvbRgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASJgoCdG8YBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIk0KEkltcG9ydEZpbGVSZXNwb25zZRI3CgdyZWNlaXB0GAEgASgLMiYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuUmVjZWlwdCK1AQoST3BlcmF0b3JJbnB1dEZpZWxkEgwKBHBhdGgYASABKAkSDgoGc3RhdHVzGAIgASgJEg8KB3dyaXR0ZW4YAyABKAgSDAoEdW5pdBgEIAEoCRITCgt3aW5kb3dfZGF5cxgFIAEoBRIvCgtvYnNlcnZlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEa2luZBgHIAEoCRIOCgZyZWFzb24YCCABKAkiyQEKFU9wZXJhdG9ySW1wb3J0UmVxdWVzdBITCgtzb3VyY2VfcGF0aBgBIAEoCRI+Cgtzb3VyY2VfbW9kZRgCIAEoDjIpLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlNvdXJjZU1vZGUSDQoFYXBwbHkYAyABKAgSEgoKYWRhcHRlcl9pZBgEIAEoCRIPCgdib29rX2lkGAUgASgJEhIKCmFjY291bnRfaWQYBiABKAkSEwoLc291cmNlX2pzb24YByABKAwinQEKFk9wZXJhdG9ySW1wb3J0UmVzcG9uc2USQQoGZmllbGRzGAEgAygLMjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuT3BlcmF0b3JJbnB1dEZpZWxkEgwKBHJlYWQYAiABKAUSDwoHd3JpdHRlbhgDIAEoBRIQCghmaW5kaW5ncxgEIAEoBRIPCgdhcHBsaWVkGAUgASgIIi0KGk9wZXJhdG9ySW5wdXRTdGF0dXNSZXF1ZXN0Eg8KB2Jvb2tfaWQYASABKAkiYAobT3BlcmF0b3JJbnB1dFN0YXR1c1Jlc3BvbnNlEkEKBmZpZWxkcxgBIAMoCzIxLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lk9wZXJhdG9ySW5wdXRGaWVsZCKEAwofUHJldmlld0NyeXB0b09ic2VydmF0aW9uUmVxdWVzdBIPCgduZXR3b3JrGAEgASgJEhAKCGFzc2V0X2lkGAIgASgJEhUKDWF0b21pY19hbW91bnQYAyABKAkSEAoIZGVjaW1hbHMYBCABKA0SRAoFc3RhdGUYBSABKA4yNS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5DcnlwdG9PYnNlcnZhdGlvblN0YXRlEj4KCGxlZ19raW5kGAYgASgOMiwudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQ3J5cHRvTGVnS2luZBIYChBzb3VyY2VfcmVmZXJlbmNlGAcgASgJEhgKEHRyYW5zYWN0aW9uX2hhc2gYCCABKAkSEgoKYmxvY2tfaGFzaBgJIAEoCRIRCglsZWdfaW5kZXgYCiABKA0SDwoHYm9va19pZBgLIAEoCRISCgphY2NvdW50X2lkGAwgASgJEg8KB2FkZHJlc3MYDSABKAkihAQKIFByZXZpZXdDcnlwdG9PYnNlcnZhdGlvblJlc3BvbnNlEg8KB25ldHdvcmsYASABKAkSEAoIYXNzZXRfaWQYAiABKAkSFQoNYXRvbWljX2Ftb3VudBgDIAEoCRIQCghkZWNpbWFscxgEIAEoDRJUChVzb3VyY2VfcmVwb3J0ZWRfc3RhdGUYBSABKA4yNS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5DcnlwdG9PYnNlcnZhdGlvblN0YXRlEj4KCGxlZ19raW5kGAYgASgOMiwudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuQ3J5cHRvTGVnS2luZBIYChBzb3VyY2VfcmVmZXJlbmNlGAcgASgJEhYKDm9jY3VycmVuY2Vfa2V5GAggASgJEhMKC2Rpc3Bvc2l0aW9uGAkgASgJEhUKDXBvc3Rpbmdfc3RhdGUYCiABKAkSFAoMYnVkZ2V0X3N0YXRlGAsgASgJEg0KBWhvbGRzGAwgAygJEhsKE2Jvb2tfYWNjb3VudF9zdGF0dXMYDSABKAkSHwoXY2FuZGlkYXRlX2VmZmVjdF9hdG9taWMYDiABKAkSLAokY29ycmVjdGlvbl9yZXF1aXJlc19vcmlnaW5hbF9yZWNlaXB0GA8gASgIEg8KB2FkZHJlc3MYECABKAkqkwEKC0FkYXB0ZXJLaW5kEhwKGEFEQVBURVJfS0lORF9VTlNQRUNJRklFRBAAEhcKE0FEQVBURVJfS0lORF9NQU5VQUwQARIVChFBREFQVEVSX0tJTkRfRklMRRACEhsKF0FEQVBURVJfS0lORF9BR0dSRUdBVE9SEAMSGQoVQURBUFRFUl9LSU5EX0NPTU1FUkNFEAQqZQoKU291cmNlTW9kZRIbChdTT1VSQ0VfTU9ERV9VTlNQRUNJRklFRBAAEhcKE1NPVVJDRV9NT0RFX0ZJWFRVUkUQARIhCh1TT1VSQ0VfTU9ERV9PUEVSQVRPUl9TVVBQTElFRBACKoQCChZDcnlwdG9PYnNlcnZhdGlvblN0YXRlEigKJENSWVBUT19PQlNFUlZBVElPTl9TVEFURV9VTlNQRUNJRklFRBAAEiQKIENSWVBUT19PQlNFUlZBVElPTl9TVEFURV9QRU5ESU5HEAESJQohQ1JZUFRPX09CU0VSVkFUSU9OX1NUQVRFX0lOQ0xVREVEEAISJgoiQ1JZUFRPX09CU0VSVkFUSU9OX1NUQVRFX0ZJTkFMSVpFRBADEiQKIENSWVBUT19PQlNFUlZBVElPTl9TVEFURV9SRU1PVkVEEAQSJQohQ1JZUFRPX09CU0VSVkFUSU9OX1NUQVRFX1JFVkVSVEVEEAUqoQEKDUNyeXB0b0xlZ0tpbmQSHwobQ1JZUFRPX0xFR19LSU5EX1VOU1BFQ0lGSUVEEAASGwoXQ1JZUFRPX0xFR19LSU5EX0JBTEFOQ0UQARIbChdDUllQVE9fTEVHX0tJTkRfREVQT1NJVBACEhcKE0NSWVBUT19MRUdfS0lORF9GRUUQAxIcChhDUllQVE9fTEVHX0tJTkRfQVBQUk9WQUwQBDKaCAoNSW5nZXN0U2VydmljZRKbAQoYUHJldmlld0NyeXB0b09ic2VydmF0aW9uEj4udnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuUHJldmlld0NyeXB0b09ic2VydmF0aW9uUmVxdWVzdBo/LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LlByZXZpZXdDcnlwdG9PYnNlcnZhdGlvblJlc3BvbnNlEoABCg9SZWdpc3RlckFkYXB0ZXISNS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SZWdpc3RlckFkYXB0ZXJSZXF1ZXN0GjYudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuUmVnaXN0ZXJBZGFwdGVyUmVzcG9uc2USdwoMTGlzdEFkYXB0ZXJzEjIudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuTGlzdEFkYXB0ZXJzUmVxdWVzdBozLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lkxpc3RBZGFwdGVyc1Jlc3BvbnNlEnQKC0luZ2VzdEV2ZW50EjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuSW5nZXN0RXZlbnRSZXF1ZXN0GjIudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuSW5nZXN0RXZlbnRSZXNwb25zZRJxCgpSdW5BZGFwdGVyEjAudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuUnVuQWRhcHRlclJlcXVlc3QaMS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5SdW5BZGFwdGVyUmVzcG9uc2UScQoKSW1wb3J0RmlsZRIwLnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0LkltcG9ydEZpbGVSZXF1ZXN0GjEudnJvb2xpLm1vbmV5X2xlZGdlci52MS5pbmdlc3QuSW1wb3J0RmlsZVJlc3BvbnNlEoMBChRJbXBvcnRPcGVyYXRvcklucHV0cxI0LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lk9wZXJhdG9ySW1wb3J0UmVxdWVzdBo1LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lk9wZXJhdG9ySW1wb3J0UmVzcG9uc2USjAEKE09wZXJhdG9ySW5wdXRTdGF0dXMSOS52cm9vbGkubW9uZXlfbGVkZ2VyLnYxLmluZ2VzdC5PcGVyYXRvcklucHV0U3RhdHVzUmVxdWVzdBo6LnZyb29saS5tb25leV9sZWRnZXIudjEuaW5nZXN0Lk9wZXJhdG9ySW5wdXRTdGF0dXNSZXNwb25zZUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL21vbmV5LWxlZGdlci92MS9pbmdlc3Q7aW5nZXN0X3YxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_money_ledger_v1_shared_ledger_types]);
 
 /**
  * @generated from message vrooli.money_ledger.v1.ingest.Adapter
@@ -537,6 +537,177 @@ export const OperatorInputStatusResponseSchema: GenMessage<OperatorInputStatusRe
   messageDesc(file_money_ledger_v1_ingest_ingest, 17);
 
 /**
+ * @generated from message vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
+ */
+export type PreviewCryptoObservationRequest = Message<"vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest"> & {
+  /**
+   * @generated from field: string network = 1;
+   */
+  network: string;
+
+  /**
+   * @generated from field: string asset_id = 2;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: string atomic_amount = 3;
+   */
+  atomicAmount: string;
+
+  /**
+   * @generated from field: uint32 decimals = 4;
+   */
+  decimals: number;
+
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ingest.CryptoObservationState state = 5;
+   */
+  state: CryptoObservationState;
+
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ingest.CryptoLegKind leg_kind = 6;
+   */
+  legKind: CryptoLegKind;
+
+  /**
+   * @generated from field: string source_reference = 7;
+   */
+  sourceReference: string;
+
+  /**
+   * @generated from field: string transaction_hash = 8;
+   */
+  transactionHash: string;
+
+  /**
+   * @generated from field: string block_hash = 9;
+   */
+  blockHash: string;
+
+  /**
+   * @generated from field: uint32 leg_index = 10;
+   */
+  legIndex: number;
+
+  /**
+   * @generated from field: string book_id = 11;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: string account_id = 12;
+   */
+  accountId: string;
+
+  /**
+   * @generated from field: string address = 13;
+   */
+  address: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest.
+ * Use `create(PreviewCryptoObservationRequestSchema)` to create a new message.
+ */
+export const PreviewCryptoObservationRequestSchema: GenMessage<PreviewCryptoObservationRequest> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ingest_ingest, 18);
+
+/**
+ * @generated from message vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse
+ */
+export type PreviewCryptoObservationResponse = Message<"vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse"> & {
+  /**
+   * @generated from field: string network = 1;
+   */
+  network: string;
+
+  /**
+   * @generated from field: string asset_id = 2;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: string atomic_amount = 3;
+   */
+  atomicAmount: string;
+
+  /**
+   * @generated from field: uint32 decimals = 4;
+   */
+  decimals: number;
+
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ingest.CryptoObservationState source_reported_state = 5;
+   */
+  sourceReportedState: CryptoObservationState;
+
+  /**
+   * @generated from field: vrooli.money_ledger.v1.ingest.CryptoLegKind leg_kind = 6;
+   */
+  legKind: CryptoLegKind;
+
+  /**
+   * @generated from field: string source_reference = 7;
+   */
+  sourceReference: string;
+
+  /**
+   * @generated from field: string occurrence_key = 8;
+   */
+  occurrenceKey: string;
+
+  /**
+   * @generated from field: string disposition = 9;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: string posting_state = 10;
+   */
+  postingState: string;
+
+  /**
+   * @generated from field: string budget_state = 11;
+   */
+  budgetState: string;
+
+  /**
+   * @generated from field: repeated string holds = 12;
+   */
+  holds: string[];
+
+  /**
+   * @generated from field: string book_account_status = 13;
+   */
+  bookAccountStatus: string;
+
+  /**
+   * A candidate leg interpretation, not accepted inventory or valuation.
+   *
+   * @generated from field: string candidate_effect_atomic = 14;
+   */
+  candidateEffectAtomic: string;
+
+  /**
+   * @generated from field: bool correction_requires_original_receipt = 15;
+   */
+  correctionRequiresOriginalReceipt: boolean;
+
+  /**
+   * @generated from field: string address = 16;
+   */
+  address: string;
+};
+
+/**
+ * Describes the message vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse.
+ * Use `create(PreviewCryptoObservationResponseSchema)` to create a new message.
+ */
+export const PreviewCryptoObservationResponseSchema: GenMessage<PreviewCryptoObservationResponse> = /*@__PURE__*/
+  messageDesc(file_money_ledger_v1_ingest_ingest, 19);
+
+/**
  * @generated from enum vrooli.money_ledger.v1.ingest.AdapterKind
  */
 export enum AdapterKind {
@@ -599,9 +770,96 @@ export const SourceModeSchema: GenEnum<SourceMode> = /*@__PURE__*/
   enumDesc(file_money_ledger_v1_ingest_ingest, 1);
 
 /**
+ * Untrusted observations are previewed only. This contract never admits a posting.
+ *
+ * @generated from enum vrooli.money_ledger.v1.ingest.CryptoObservationState
+ */
+export enum CryptoObservationState {
+  /**
+   * @generated from enum value: CRYPTO_OBSERVATION_STATE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CRYPTO_OBSERVATION_STATE_PENDING = 1;
+   */
+  PENDING = 1,
+
+  /**
+   * @generated from enum value: CRYPTO_OBSERVATION_STATE_INCLUDED = 2;
+   */
+  INCLUDED = 2,
+
+  /**
+   * @generated from enum value: CRYPTO_OBSERVATION_STATE_FINALIZED = 3;
+   */
+  FINALIZED = 3,
+
+  /**
+   * @generated from enum value: CRYPTO_OBSERVATION_STATE_REMOVED = 4;
+   */
+  REMOVED = 4,
+
+  /**
+   * @generated from enum value: CRYPTO_OBSERVATION_STATE_REVERTED = 5;
+   */
+  REVERTED = 5,
+}
+
+/**
+ * Describes the enum vrooli.money_ledger.v1.ingest.CryptoObservationState.
+ */
+export const CryptoObservationStateSchema: GenEnum<CryptoObservationState> = /*@__PURE__*/
+  enumDesc(file_money_ledger_v1_ingest_ingest, 2);
+
+/**
+ * @generated from enum vrooli.money_ledger.v1.ingest.CryptoLegKind
+ */
+export enum CryptoLegKind {
+  /**
+   * @generated from enum value: CRYPTO_LEG_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: CRYPTO_LEG_KIND_BALANCE = 1;
+   */
+  BALANCE = 1,
+
+  /**
+   * @generated from enum value: CRYPTO_LEG_KIND_DEPOSIT = 2;
+   */
+  DEPOSIT = 2,
+
+  /**
+   * @generated from enum value: CRYPTO_LEG_KIND_FEE = 3;
+   */
+  FEE = 3,
+
+  /**
+   * @generated from enum value: CRYPTO_LEG_KIND_APPROVAL = 4;
+   */
+  APPROVAL = 4,
+}
+
+/**
+ * Describes the enum vrooli.money_ledger.v1.ingest.CryptoLegKind.
+ */
+export const CryptoLegKindSchema: GenEnum<CryptoLegKind> = /*@__PURE__*/
+  enumDesc(file_money_ledger_v1_ingest_ingest, 3);
+
+/**
  * @generated from service vrooli.money_ledger.v1.ingest.IngestService
  */
 export const IngestService: GenService<{
+  /**
+   * @generated from rpc vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation
+   */
+  previewCryptoObservation: {
+    methodKind: "unary";
+    input: typeof PreviewCryptoObservationRequestSchema;
+    output: typeof PreviewCryptoObservationResponseSchema;
+  },
   /**
    * @generated from rpc vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter
    */

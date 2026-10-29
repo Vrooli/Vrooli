@@ -124,6 +124,40 @@ class UpsertChannelAddressRequest(_message.Message):
     approved_labels: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, id: _Optional[str] = ..., device_id: _Optional[str] = ..., channel: _Optional[str] = ..., address: _Optional[str] = ..., approved_labels: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class ListChannelAddressesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListChannelAddressesResponse(_message.Message):
+    __slots__ = ("addresses",)
+    ADDRESSES_FIELD_NUMBER: _ClassVar[int]
+    addresses: _containers.RepeatedCompositeFieldContainer[ChannelAddress]
+    def __init__(self, addresses: _Optional[_Iterable[_Union[ChannelAddress, _Mapping]]] = ...) -> None: ...
+
+class CreateChannelAddressRequest(_message.Message):
+    __slots__ = ("id", "device_id", "channel", "address", "approved_labels")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    APPROVED_LABELS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    device_id: str
+    channel: str
+    address: str
+    approved_labels: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., device_id: _Optional[str] = ..., channel: _Optional[str] = ..., address: _Optional[str] = ..., approved_labels: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class UpdateChannelAddressRequest(_message.Message):
+    __slots__ = ("id", "address", "approved_labels")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    APPROVED_LABELS_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    address: str
+    approved_labels: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., address: _Optional[str] = ..., approved_labels: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class RemoveChannelAddressRequest(_message.Message):
     __slots__ = ("id",)
     ID_FIELD_NUMBER: _ClassVar[int]

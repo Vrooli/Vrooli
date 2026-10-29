@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file notification-hub/v1/recipients/recipients.proto.
  */
 export const file_notification_hub_v1_recipients_recipients: GenFile = /*@__PURE__*/
-  fileDesc("Ci9ub3RpZmljYXRpb24taHViL3YxL3JlY2lwaWVudHMvcmVjaXBpZW50cy5wcm90bxIldnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cyIVChNHZXRSZWNpcGllbnRSZXF1ZXN0ImcKCVJlY2lwaWVudBIKCgJpZBgBIAEoCRIPCgdzdWJqZWN0GAIgASgJEhUKDXRydXN0X3Bvc3R1cmUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgp1cGRhdGVkX2F0GAUgASgJImEKH1JlZ2lzdGVyUHVzaFN1YnNjcmlwdGlvblJlcXVlc3QSEAoIZW5kcG9pbnQYASABKAkSDgoGcDI1NmRoGAIgASgJEgwKBGF1dGgYAyABKAkSDgoGb3JpZ2luGAQgASgJIjsKIFJlZ2lzdGVyUHVzaFN1YnNjcmlwdGlvblJlc3BvbnNlEhcKD3N1YnNjcmlwdGlvbl9pZBgBIAEoCSIxCh1SZW1vdmVQdXNoU3Vic2NyaXB0aW9uUmVxdWVzdBIQCghlbmRwb2ludBgBIAEoCSIgCh5SZW1vdmVQdXNoU3Vic2NyaXB0aW9uUmVzcG9uc2UiFAoSTGlzdERldmljZXNSZXF1ZXN0IkgKBkRldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm1hY2hpbmVfaWQYAyABKAkSEAoIY2hhbm5lbHMYBCADKAkibwoTTGlzdERldmljZXNSZXNwb25zZRI+CgdkZXZpY2VzGAEgAygLMi0udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5EZXZpY2USGAoQdmFwaWRfcHVibGljX2tleRgCIAEoCSJDChNVcHNlcnREZXZpY2VSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEgoKbWFjaGluZV9pZBgDIAEoCSIhChNSZW1vdmVEZXZpY2VSZXF1ZXN0EgoKAmlkGAEgASgJIhYKFFJlbW92ZURldmljZVJlc3BvbnNlImoKDkNoYW5uZWxBZGRyZXNzEgoKAmlkGAEgASgJEhEKCWRldmljZV9pZBgCIAEoCRIPCgdjaGFubmVsGAMgASgJEg8KB2FkZHJlc3MYBCABKAkSFwoPYXBwcm92ZWRfbGFiZWxzGAUgAygJIncKG1Vwc2VydENoYW5uZWxBZGRyZXNzUmVxdWVzdBIKCgJpZBgBIAEoCRIRCglkZXZpY2VfaWQYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhcKD2FwcHJvdmVkX2xhYmVscxgFIAMoCSIpChtSZW1vdmVDaGFubmVsQWRkcmVzc1JlcXVlc3QSCgoCaWQYASABKAkiHgocUmVtb3ZlQ2hhbm5lbEFkZHJlc3NSZXNwb25zZSJxChVTZXRRdWlldFdpbmRvd1JlcXVlc3QSDwoHd2Vla2RheRgBIAEoBRINCgVzdGFydBgCIAEoCRILCgNlbmQYAyABKAkSEAoIdGltZXpvbmUYBCABKAkSGQoRY3JpdGljYWxfb3ZlcnJpZGUYBSABKAgicwoLUXVpZXRXaW5kb3cSCgoCaWQYASABKAkSDwoHd2Vla2RheRgCIAEoBRINCgVzdGFydBgDIAEoCRILCgNlbmQYBCABKAkSEAoIdGltZXpvbmUYBSABKAkSGQoRY3JpdGljYWxfb3ZlcnJpZGUYBiABKAgiGQoXTGlzdFF1aWV0V2luZG93c1JlcXVlc3QiXwoYTGlzdFF1aWV0V2luZG93c1Jlc3BvbnNlEkMKB3dpbmRvd3MYASADKAsyMi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlF1aWV0V2luZG93IiYKGERlbGV0ZVF1aWV0V2luZG93UmVxdWVzdBIKCgJpZBgBIAEoCSIbChlEZWxldGVRdWlldFdpbmRvd1Jlc3BvbnNlIjIKDkVzY2FsYXRpb25TdGVwEg8KB29yZGluYWwYASABKAUSDwoHY2hhbm5lbBgCIAEoCSJtCg9Fc2NhbGF0aW9uQ2hhaW4SFAoMcmVjaXBpZW50X2lkGAEgASgJEkQKBXN0ZXBzGAIgAygLMjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5Fc2NhbGF0aW9uU3RlcCItChlTZXRFc2NhbGF0aW9uQ2hhaW5SZXF1ZXN0EhAKCGNoYW5uZWxzGAEgAygJIhsKGUdldEVzY2FsYXRpb25DaGFpblJlcXVlc3Qy/w4KEVJlY2lwaWVudHNTZXJ2aWNlEnwKDEdldFJlY2lwaWVudBI6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuR2V0UmVjaXBpZW50UmVxdWVzdBowLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUmVjaXBpZW50EqsBChhSZWdpc3RlclB1c2hTdWJzY3JpcHRpb24SRi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlZ2lzdGVyUHVzaFN1YnNjcmlwdGlvblJlcXVlc3QaRy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlZ2lzdGVyUHVzaFN1YnNjcmlwdGlvblJlc3BvbnNlEqUBChZSZW1vdmVQdXNoU3Vic2NyaXB0aW9uEkQudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5SZW1vdmVQdXNoU3Vic2NyaXB0aW9uUmVxdWVzdBpFLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUmVtb3ZlUHVzaFN1YnNjcmlwdGlvblJlc3BvbnNlEoQBCgtMaXN0RGV2aWNlcxI5LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuTGlzdERldmljZXNSZXF1ZXN0GjoudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5MaXN0RGV2aWNlc1Jlc3BvbnNlEnkKDFVwc2VydERldmljZRI6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuVXBzZXJ0RGV2aWNlUmVxdWVzdBotLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuRGV2aWNlEocBCgxSZW1vdmVEZXZpY2USOi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlbW92ZURldmljZVJlcXVlc3QaOy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlbW92ZURldmljZVJlc3BvbnNlEpEBChRVcHNlcnRDaGFubmVsQWRkcmVzcxJCLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuVXBzZXJ0Q2hhbm5lbEFkZHJlc3NSZXF1ZXN0GjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5DaGFubmVsQWRkcmVzcxKfAQoUUmVtb3ZlQ2hhbm5lbEFkZHJlc3MSQi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlbW92ZUNoYW5uZWxBZGRyZXNzUmVxdWVzdBpDLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUmVtb3ZlQ2hhbm5lbEFkZHJlc3NSZXNwb25zZRKCAQoOU2V0UXVpZXRXaW5kb3cSPC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlNldFF1aWV0V2luZG93UmVxdWVzdBoyLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUXVpZXRXaW5kb3cSkwEKEExpc3RRdWlldFdpbmRvd3MSPi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkxpc3RRdWlldFdpbmRvd3NSZXF1ZXN0Gj8udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5MaXN0UXVpZXRXaW5kb3dzUmVzcG9uc2USlgEKEURlbGV0ZVF1aWV0V2luZG93Ej8udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5EZWxldGVRdWlldFdpbmRvd1JlcXVlc3QaQC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkRlbGV0ZVF1aWV0V2luZG93UmVzcG9uc2USjgEKElNldEVzY2FsYXRpb25DaGFpbhJALnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuU2V0RXNjYWxhdGlvbkNoYWluUmVxdWVzdBo2LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuRXNjYWxhdGlvbkNoYWluEo4BChJHZXRFc2NhbGF0aW9uQ2hhaW4SQC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkdldEVzY2FsYXRpb25DaGFpblJlcXVlc3QaNi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkVzY2FsYXRpb25DaGFpbkJdWltnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25vdGlmaWNhdGlvbi1odWIvdjEvcmVjaXBpZW50cztyZWNpcGllbnRzX3YxYgZwcm90bzM");
+  fileDesc("Ci9ub3RpZmljYXRpb24taHViL3YxL3JlY2lwaWVudHMvcmVjaXBpZW50cy5wcm90bxIldnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cyIVChNHZXRSZWNpcGllbnRSZXF1ZXN0ImcKCVJlY2lwaWVudBIKCgJpZBgBIAEoCRIPCgdzdWJqZWN0GAIgASgJEhUKDXRydXN0X3Bvc3R1cmUYAyABKAkSEgoKY3JlYXRlZF9hdBgEIAEoCRISCgp1cGRhdGVkX2F0GAUgASgJImEKH1JlZ2lzdGVyUHVzaFN1YnNjcmlwdGlvblJlcXVlc3QSEAoIZW5kcG9pbnQYASABKAkSDgoGcDI1NmRoGAIgASgJEgwKBGF1dGgYAyABKAkSDgoGb3JpZ2luGAQgASgJIjsKIFJlZ2lzdGVyUHVzaFN1YnNjcmlwdGlvblJlc3BvbnNlEhcKD3N1YnNjcmlwdGlvbl9pZBgBIAEoCSIxCh1SZW1vdmVQdXNoU3Vic2NyaXB0aW9uUmVxdWVzdBIQCghlbmRwb2ludBgBIAEoCSIgCh5SZW1vdmVQdXNoU3Vic2NyaXB0aW9uUmVzcG9uc2UiFAoSTGlzdERldmljZXNSZXF1ZXN0IkgKBkRldmljZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm1hY2hpbmVfaWQYAyABKAkSEAoIY2hhbm5lbHMYBCADKAkibwoTTGlzdERldmljZXNSZXNwb25zZRI+CgdkZXZpY2VzGAEgAygLMi0udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5EZXZpY2USGAoQdmFwaWRfcHVibGljX2tleRgCIAEoCSJDChNVcHNlcnREZXZpY2VSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEgoKbWFjaGluZV9pZBgDIAEoCSIhChNSZW1vdmVEZXZpY2VSZXF1ZXN0EgoKAmlkGAEgASgJIhYKFFJlbW92ZURldmljZVJlc3BvbnNlImoKDkNoYW5uZWxBZGRyZXNzEgoKAmlkGAEgASgJEhEKCWRldmljZV9pZBgCIAEoCRIPCgdjaGFubmVsGAMgASgJEg8KB2FkZHJlc3MYBCABKAkSFwoPYXBwcm92ZWRfbGFiZWxzGAUgAygJIncKG1Vwc2VydENoYW5uZWxBZGRyZXNzUmVxdWVzdBIKCgJpZBgBIAEoCRIRCglkZXZpY2VfaWQYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhcKD2FwcHJvdmVkX2xhYmVscxgFIAMoCSIdChtMaXN0Q2hhbm5lbEFkZHJlc3Nlc1JlcXVlc3QiaAocTGlzdENoYW5uZWxBZGRyZXNzZXNSZXNwb25zZRJICglhZGRyZXNzZXMYASADKAsyNS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkNoYW5uZWxBZGRyZXNzIncKG0NyZWF0ZUNoYW5uZWxBZGRyZXNzUmVxdWVzdBIKCgJpZBgBIAEoCRIRCglkZXZpY2VfaWQYAiABKAkSDwoHY2hhbm5lbBgDIAEoCRIPCgdhZGRyZXNzGAQgASgJEhcKD2FwcHJvdmVkX2xhYmVscxgFIAMoCSJTChtVcGRhdGVDaGFubmVsQWRkcmVzc1JlcXVlc3QSCgoCaWQYASABKAkSDwoHYWRkcmVzcxgCIAEoCRIXCg9hcHByb3ZlZF9sYWJlbHMYAyADKAkiKQobUmVtb3ZlQ2hhbm5lbEFkZHJlc3NSZXF1ZXN0EgoKAmlkGAEgASgJIh4KHFJlbW92ZUNoYW5uZWxBZGRyZXNzUmVzcG9uc2UicQoVU2V0UXVpZXRXaW5kb3dSZXF1ZXN0Eg8KB3dlZWtkYXkYASABKAUSDQoFc3RhcnQYAiABKAkSCwoDZW5kGAMgASgJEhAKCHRpbWV6b25lGAQgASgJEhkKEWNyaXRpY2FsX292ZXJyaWRlGAUgASgIInMKC1F1aWV0V2luZG93EgoKAmlkGAEgASgJEg8KB3dlZWtkYXkYAiABKAUSDQoFc3RhcnQYAyABKAkSCwoDZW5kGAQgASgJEhAKCHRpbWV6b25lGAUgASgJEhkKEWNyaXRpY2FsX292ZXJyaWRlGAYgASgIIhkKF0xpc3RRdWlldFdpbmRvd3NSZXF1ZXN0Il8KGExpc3RRdWlldFdpbmRvd3NSZXNwb25zZRJDCgd3aW5kb3dzGAEgAygLMjIudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5RdWlldFdpbmRvdyImChhEZWxldGVRdWlldFdpbmRvd1JlcXVlc3QSCgoCaWQYASABKAkiGwoZRGVsZXRlUXVpZXRXaW5kb3dSZXNwb25zZSIyCg5Fc2NhbGF0aW9uU3RlcBIPCgdvcmRpbmFsGAEgASgFEg8KB2NoYW5uZWwYAiABKAkibQoPRXNjYWxhdGlvbkNoYWluEhQKDHJlY2lwaWVudF9pZBgBIAEoCRJECgVzdGVwcxgCIAMoCzI1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuRXNjYWxhdGlvblN0ZXAiLQoZU2V0RXNjYWxhdGlvbkNoYWluUmVxdWVzdBIQCghjaGFubmVscxgBIAMoCSIbChlHZXRFc2NhbGF0aW9uQ2hhaW5SZXF1ZXN0MskSChFSZWNpcGllbnRzU2VydmljZRJ8CgxHZXRSZWNpcGllbnQSOi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkdldFJlY2lwaWVudFJlcXVlc3QaMC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlY2lwaWVudBKrAQoYUmVnaXN0ZXJQdXNoU3Vic2NyaXB0aW9uEkYudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5SZWdpc3RlclB1c2hTdWJzY3JpcHRpb25SZXF1ZXN0GkcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5SZWdpc3RlclB1c2hTdWJzY3JpcHRpb25SZXNwb25zZRKlAQoWUmVtb3ZlUHVzaFN1YnNjcmlwdGlvbhJELnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUmVtb3ZlUHVzaFN1YnNjcmlwdGlvblJlcXVlc3QaRS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlbW92ZVB1c2hTdWJzY3JpcHRpb25SZXNwb25zZRKEAQoLTGlzdERldmljZXMSOS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkxpc3REZXZpY2VzUmVxdWVzdBo6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuTGlzdERldmljZXNSZXNwb25zZRJ5CgxVcHNlcnREZXZpY2USOi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlVwc2VydERldmljZVJlcXVlc3QaLS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkRldmljZRKHAQoMUmVtb3ZlRGV2aWNlEjoudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5SZW1vdmVEZXZpY2VSZXF1ZXN0GjsudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5SZW1vdmVEZXZpY2VSZXNwb25zZRKRAQoUVXBzZXJ0Q2hhbm5lbEFkZHJlc3MSQi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlVwc2VydENoYW5uZWxBZGRyZXNzUmVxdWVzdBo1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuQ2hhbm5lbEFkZHJlc3MSnwEKFExpc3RDaGFubmVsQWRkcmVzc2VzEkIudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5MaXN0Q2hhbm5lbEFkZHJlc3Nlc1JlcXVlc3QaQy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkxpc3RDaGFubmVsQWRkcmVzc2VzUmVzcG9uc2USkQEKFENyZWF0ZUNoYW5uZWxBZGRyZXNzEkIudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5DcmVhdGVDaGFubmVsQWRkcmVzc1JlcXVlc3QaNS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkNoYW5uZWxBZGRyZXNzEpEBChRVcGRhdGVDaGFubmVsQWRkcmVzcxJCLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuVXBkYXRlQ2hhbm5lbEFkZHJlc3NSZXF1ZXN0GjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5DaGFubmVsQWRkcmVzcxKfAQoUUmVtb3ZlQ2hhbm5lbEFkZHJlc3MSQi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlJlbW92ZUNoYW5uZWxBZGRyZXNzUmVxdWVzdBpDLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUmVtb3ZlQ2hhbm5lbEFkZHJlc3NSZXNwb25zZRKCAQoOU2V0UXVpZXRXaW5kb3cSPC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLlNldFF1aWV0V2luZG93UmVxdWVzdBoyLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuUXVpZXRXaW5kb3cSkwEKEExpc3RRdWlldFdpbmRvd3MSPi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkxpc3RRdWlldFdpbmRvd3NSZXF1ZXN0Gj8udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5MaXN0UXVpZXRXaW5kb3dzUmVzcG9uc2USlgEKEURlbGV0ZVF1aWV0V2luZG93Ej8udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEucmVjaXBpZW50cy5EZWxldGVRdWlldFdpbmRvd1JlcXVlc3QaQC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkRlbGV0ZVF1aWV0V2luZG93UmVzcG9uc2USjgEKElNldEVzY2FsYXRpb25DaGFpbhJALnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuU2V0RXNjYWxhdGlvbkNoYWluUmVxdWVzdBo2LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnJlY2lwaWVudHMuRXNjYWxhdGlvbkNoYWluEo4BChJHZXRFc2NhbGF0aW9uQ2hhaW4SQC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkdldEVzY2FsYXRpb25DaGFpblJlcXVlc3QaNi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5yZWNpcGllbnRzLkVzY2FsYXRpb25DaGFpbkJdWltnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25vdGlmaWNhdGlvbi1odWIvdjEvcmVjaXBpZW50cztyZWNpcGllbnRzX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.GetRecipientRequest
@@ -343,6 +343,104 @@ export const UpsertChannelAddressRequestSchema: GenMessage<UpsertChannelAddressR
   messageDesc(file_notification_hub_v1_recipients_recipients, 13);
 
 /**
+ * @generated from message vrooli.notification_hub.v1.recipients.ListChannelAddressesRequest
+ */
+export type ListChannelAddressesRequest = Message<"vrooli.notification_hub.v1.recipients.ListChannelAddressesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.recipients.ListChannelAddressesRequest.
+ * Use `create(ListChannelAddressesRequestSchema)` to create a new message.
+ */
+export const ListChannelAddressesRequestSchema: GenMessage<ListChannelAddressesRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_recipients_recipients, 14);
+
+/**
+ * @generated from message vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse
+ */
+export type ListChannelAddressesResponse = Message<"vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.notification_hub.v1.recipients.ChannelAddress addresses = 1;
+   */
+  addresses: ChannelAddress[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse.
+ * Use `create(ListChannelAddressesResponseSchema)` to create a new message.
+ */
+export const ListChannelAddressesResponseSchema: GenMessage<ListChannelAddressesResponse> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_recipients_recipients, 15);
+
+/**
+ * The caller supplies a stable ID so an uncertain create can be retried safely.
+ *
+ * @generated from message vrooli.notification_hub.v1.recipients.CreateChannelAddressRequest
+ */
+export type CreateChannelAddressRequest = Message<"vrooli.notification_hub.v1.recipients.CreateChannelAddressRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string device_id = 2;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string channel = 3;
+   */
+  channel: string;
+
+  /**
+   * @generated from field: string address = 4;
+   */
+  address: string;
+
+  /**
+   * @generated from field: repeated string approved_labels = 5;
+   */
+  approvedLabels: string[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.recipients.CreateChannelAddressRequest.
+ * Use `create(CreateChannelAddressRequestSchema)` to create a new message.
+ */
+export const CreateChannelAddressRequestSchema: GenMessage<CreateChannelAddressRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_recipients_recipients, 16);
+
+/**
+ * Updates only the address and approved labels on this owner-scoped row.
+ *
+ * @generated from message vrooli.notification_hub.v1.recipients.UpdateChannelAddressRequest
+ */
+export type UpdateChannelAddressRequest = Message<"vrooli.notification_hub.v1.recipients.UpdateChannelAddressRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string address = 2;
+   */
+  address: string;
+
+  /**
+   * @generated from field: repeated string approved_labels = 3;
+   */
+  approvedLabels: string[];
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.recipients.UpdateChannelAddressRequest.
+ * Use `create(UpdateChannelAddressRequestSchema)` to create a new message.
+ */
+export const UpdateChannelAddressRequestSchema: GenMessage<UpdateChannelAddressRequest> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_recipients_recipients, 17);
+
+/**
  * @generated from message vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest
  */
 export type RemoveChannelAddressRequest = Message<"vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest"> & {
@@ -357,7 +455,7 @@ export type RemoveChannelAddressRequest = Message<"vrooli.notification_hub.v1.re
  * Use `create(RemoveChannelAddressRequestSchema)` to create a new message.
  */
 export const RemoveChannelAddressRequestSchema: GenMessage<RemoveChannelAddressRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 14);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 18);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.RemoveChannelAddressResponse
@@ -370,7 +468,7 @@ export type RemoveChannelAddressResponse = Message<"vrooli.notification_hub.v1.r
  * Use `create(RemoveChannelAddressResponseSchema)` to create a new message.
  */
 export const RemoveChannelAddressResponseSchema: GenMessage<RemoveChannelAddressResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 15);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 19);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.SetQuietWindowRequest
@@ -407,7 +505,7 @@ export type SetQuietWindowRequest = Message<"vrooli.notification_hub.v1.recipien
  * Use `create(SetQuietWindowRequestSchema)` to create a new message.
  */
 export const SetQuietWindowRequestSchema: GenMessage<SetQuietWindowRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 16);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 20);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.QuietWindow
@@ -449,7 +547,7 @@ export type QuietWindow = Message<"vrooli.notification_hub.v1.recipients.QuietWi
  * Use `create(QuietWindowSchema)` to create a new message.
  */
 export const QuietWindowSchema: GenMessage<QuietWindow> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 17);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 21);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.ListQuietWindowsRequest
@@ -462,7 +560,7 @@ export type ListQuietWindowsRequest = Message<"vrooli.notification_hub.v1.recipi
  * Use `create(ListQuietWindowsRequestSchema)` to create a new message.
  */
 export const ListQuietWindowsRequestSchema: GenMessage<ListQuietWindowsRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 18);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 22);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse
@@ -479,7 +577,7 @@ export type ListQuietWindowsResponse = Message<"vrooli.notification_hub.v1.recip
  * Use `create(ListQuietWindowsResponseSchema)` to create a new message.
  */
 export const ListQuietWindowsResponseSchema: GenMessage<ListQuietWindowsResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 19);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 23);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.DeleteQuietWindowRequest
@@ -496,7 +594,7 @@ export type DeleteQuietWindowRequest = Message<"vrooli.notification_hub.v1.recip
  * Use `create(DeleteQuietWindowRequestSchema)` to create a new message.
  */
 export const DeleteQuietWindowRequestSchema: GenMessage<DeleteQuietWindowRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 20);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 24);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.DeleteQuietWindowResponse
@@ -509,7 +607,7 @@ export type DeleteQuietWindowResponse = Message<"vrooli.notification_hub.v1.reci
  * Use `create(DeleteQuietWindowResponseSchema)` to create a new message.
  */
 export const DeleteQuietWindowResponseSchema: GenMessage<DeleteQuietWindowResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 21);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 25);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.EscalationStep
@@ -531,7 +629,7 @@ export type EscalationStep = Message<"vrooli.notification_hub.v1.recipients.Esca
  * Use `create(EscalationStepSchema)` to create a new message.
  */
 export const EscalationStepSchema: GenMessage<EscalationStep> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 22);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 26);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.EscalationChain
@@ -553,7 +651,7 @@ export type EscalationChain = Message<"vrooli.notification_hub.v1.recipients.Esc
  * Use `create(EscalationChainSchema)` to create a new message.
  */
 export const EscalationChainSchema: GenMessage<EscalationChain> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 23);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 27);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.SetEscalationChainRequest
@@ -570,7 +668,7 @@ export type SetEscalationChainRequest = Message<"vrooli.notification_hub.v1.reci
  * Use `create(SetEscalationChainRequestSchema)` to create a new message.
  */
 export const SetEscalationChainRequestSchema: GenMessage<SetEscalationChainRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 24);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 28);
 
 /**
  * @generated from message vrooli.notification_hub.v1.recipients.GetEscalationChainRequest
@@ -583,7 +681,7 @@ export type GetEscalationChainRequest = Message<"vrooli.notification_hub.v1.reci
  * Use `create(GetEscalationChainRequestSchema)` to create a new message.
  */
 export const GetEscalationChainRequestSchema: GenMessage<GetEscalationChainRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_recipients_recipients, 25);
+  messageDesc(file_notification_hub_v1_recipients_recipients, 29);
 
 /**
  * @generated from service vrooli.notification_hub.v1.recipients.RecipientsService
@@ -643,6 +741,30 @@ export const RecipientsService: GenService<{
   upsertChannelAddress: {
     methodKind: "unary";
     input: typeof UpsertChannelAddressRequestSchema;
+    output: typeof ChannelAddressSchema;
+  },
+  /**
+   * @generated from rpc vrooli.notification_hub.v1.recipients.RecipientsService.ListChannelAddresses
+   */
+  listChannelAddresses: {
+    methodKind: "unary";
+    input: typeof ListChannelAddressesRequestSchema;
+    output: typeof ListChannelAddressesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.notification_hub.v1.recipients.RecipientsService.CreateChannelAddress
+   */
+  createChannelAddress: {
+    methodKind: "unary";
+    input: typeof CreateChannelAddressRequestSchema;
+    output: typeof ChannelAddressSchema;
+  },
+  /**
+   * @generated from rpc vrooli.notification_hub.v1.recipients.RecipientsService.UpdateChannelAddress
+   */
+  updateChannelAddress: {
+    methodKind: "unary";
+    input: typeof UpdateChannelAddressRequestSchema;
     output: typeof ChannelAddressSchema;
   },
   /**

@@ -896,7 +896,7 @@ class RunAccounting(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., terminal: _Optional[bool] = ..., tokens: _Optional[int] = ..., turns: _Optional[int] = ..., tokens_known: _Optional[bool] = ..., charge_micro_usd: _Optional[int] = ..., charge_measured: _Optional[bool] = ..., wall_seconds: _Optional[int] = ..., non_cache_tokens: _Optional[int] = ..., cache_read_tokens: _Optional[int] = ..., model: _Optional[str] = ...) -> None: ...
 
 class RunReport(_message.Message):
-    __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once", "time_accounting", "goal_outcome", "work_references", "error_breakdown")
+    __slots__ = ("run_id", "status", "exit_code", "error", "duration_ms", "heartbeat_gap_ms", "turns", "tokens", "cost_usd", "result", "event_counts", "tools", "project_owned_tool_calls", "external_tool_calls", "requested_model", "actual_model", "fallback_count", "diff", "events_availability", "receipts_availability", "receipt_count", "repeated_tool_calls", "longest_event_gap_ms", "files_read_more_than_once", "time_accounting", "goal_outcome", "work_references")
     class EventCountsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -931,7 +931,6 @@ class RunReport(_message.Message):
     TIME_ACCOUNTING_FIELD_NUMBER: _ClassVar[int]
     GOAL_OUTCOME_FIELD_NUMBER: _ClassVar[int]
     WORK_REFERENCES_FIELD_NUMBER: _ClassVar[int]
-    ERROR_BREAKDOWN_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     exit_code: int
@@ -959,18 +958,7 @@ class RunReport(_message.Message):
     time_accounting: RunTimeAccounting
     goal_outcome: RunGoalOutcome
     work_references: _containers.RepeatedCompositeFieldContainer[_envelope_pb2.WorkReference]
-    error_breakdown: RunReportErrorBreakdown
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., duration_ms: _Optional[int] = ..., heartbeat_gap_ms: _Optional[int] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., result: _Optional[_Union[RunReportResult, _Mapping]] = ..., event_counts: _Optional[_Mapping[str, int]] = ..., tools: _Optional[_Iterable[_Union[RunReportTool, _Mapping]]] = ..., project_owned_tool_calls: _Optional[int] = ..., external_tool_calls: _Optional[int] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., fallback_count: _Optional[int] = ..., diff: _Optional[_Union[RunReportDiff, _Mapping]] = ..., events_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipts_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipt_count: _Optional[int] = ..., repeated_tool_calls: _Optional[int] = ..., longest_event_gap_ms: _Optional[int] = ..., files_read_more_than_once: _Optional[int] = ..., time_accounting: _Optional[_Union[RunTimeAccounting, _Mapping]] = ..., goal_outcome: _Optional[_Union[RunGoalOutcome, _Mapping]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ..., error_breakdown: _Optional[_Union[RunReportErrorBreakdown, _Mapping]] = ...) -> None: ...
-
-class RunReportErrorBreakdown(_message.Message):
-    __slots__ = ("execution_errors", "rate_limit_observations", "unclassified")
-    EXECUTION_ERRORS_FIELD_NUMBER: _ClassVar[int]
-    RATE_LIMIT_OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
-    UNCLASSIFIED_FIELD_NUMBER: _ClassVar[int]
-    execution_errors: int
-    rate_limit_observations: int
-    unclassified: int
-    def __init__(self, execution_errors: _Optional[int] = ..., rate_limit_observations: _Optional[int] = ..., unclassified: _Optional[int] = ...) -> None: ...
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., error: _Optional[str] = ..., duration_ms: _Optional[int] = ..., heartbeat_gap_ms: _Optional[int] = ..., turns: _Optional[int] = ..., tokens: _Optional[int] = ..., cost_usd: _Optional[float] = ..., result: _Optional[_Union[RunReportResult, _Mapping]] = ..., event_counts: _Optional[_Mapping[str, int]] = ..., tools: _Optional[_Iterable[_Union[RunReportTool, _Mapping]]] = ..., project_owned_tool_calls: _Optional[int] = ..., external_tool_calls: _Optional[int] = ..., requested_model: _Optional[str] = ..., actual_model: _Optional[str] = ..., fallback_count: _Optional[int] = ..., diff: _Optional[_Union[RunReportDiff, _Mapping]] = ..., events_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipts_availability: _Optional[_Union[RunReportAvailability, _Mapping]] = ..., receipt_count: _Optional[int] = ..., repeated_tool_calls: _Optional[int] = ..., longest_event_gap_ms: _Optional[int] = ..., files_read_more_than_once: _Optional[int] = ..., time_accounting: _Optional[_Union[RunTimeAccounting, _Mapping]] = ..., goal_outcome: _Optional[_Union[RunGoalOutcome, _Mapping]] = ..., work_references: _Optional[_Iterable[_Union[_envelope_pb2.WorkReference, _Mapping]]] = ...) -> None: ...
 
 class RunGoalOutcome(_message.Message):
     __slots__ = ("goal_id", "status", "token_budget", "tokens_used", "time_used_seconds")

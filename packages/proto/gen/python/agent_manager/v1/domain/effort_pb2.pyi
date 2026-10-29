@@ -40,7 +40,7 @@ class EffortSubject(_message.Message):
     def __init__(self, owner: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ..., run_id: _Optional[str] = ..., role: _Optional[str] = ..., assignment: _Optional[str] = ...) -> None: ...
 
 class EffortEnrollment(_message.Message):
-    __slots__ = ("effort_ref", "display_name", "destination_ref", "target_revision", "source_revision", "authority_ref", "supervisor_run_id", "subjects", "revision", "withdrawn", "workspace", "work_shape", "updated_at", "authorized_by", "withdrawal_reason")
+    __slots__ = ("effort_ref", "display_name", "destination_ref", "target_revision", "source_revision", "authority_ref", "supervisor_run_id", "subjects", "revision", "withdrawn", "workspace", "work_shape", "updated_at", "authorized_by", "withdrawal_reason", "delivery")
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_REF_FIELD_NUMBER: _ClassVar[int]
@@ -56,6 +56,7 @@ class EffortEnrollment(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     AUTHORIZED_BY_FIELD_NUMBER: _ClassVar[int]
     WITHDRAWAL_REASON_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_FIELD_NUMBER: _ClassVar[int]
     effort_ref: str
     display_name: str
     destination_ref: str
@@ -71,7 +72,58 @@ class EffortEnrollment(_message.Message):
     updated_at: _timestamp_pb2.Timestamp
     authorized_by: str
     withdrawal_reason: str
-    def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., withdrawal_reason: _Optional[str] = ...) -> None: ...
+    delivery: EffortDelivery
+    def __init__(self, effort_ref: _Optional[str] = ..., display_name: _Optional[str] = ..., destination_ref: _Optional[str] = ..., target_revision: _Optional[str] = ..., source_revision: _Optional[str] = ..., authority_ref: _Optional[str] = ..., supervisor_run_id: _Optional[str] = ..., subjects: _Optional[_Iterable[_Union[EffortSubject, _Mapping]]] = ..., revision: _Optional[int] = ..., withdrawn: _Optional[bool] = ..., workspace: _Optional[str] = ..., work_shape: _Optional[str] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., authorized_by: _Optional[str] = ..., withdrawal_reason: _Optional[str] = ..., delivery: _Optional[_Union[EffortDelivery, _Mapping]] = ...) -> None: ...
+
+class EffortDelivery(_message.Message):
+    __slots__ = ("commission_id", "budget_seconds", "max_workers", "state", "started_at", "paused_at", "paused_seconds", "reason", "stopped_at", "finalized_at", "outcome", "decision_id")
+    COMMISSION_ID_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MAX_WORKERS_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    PAUSED_AT_FIELD_NUMBER: _ClassVar[int]
+    PAUSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    STOPPED_AT_FIELD_NUMBER: _ClassVar[int]
+    FINALIZED_AT_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    DECISION_ID_FIELD_NUMBER: _ClassVar[int]
+    commission_id: str
+    budget_seconds: int
+    max_workers: int
+    state: str
+    started_at: _timestamp_pb2.Timestamp
+    paused_at: _timestamp_pb2.Timestamp
+    paused_seconds: int
+    reason: str
+    stopped_at: _timestamp_pb2.Timestamp
+    finalized_at: _timestamp_pb2.Timestamp
+    outcome: EffortGoalHome
+    decision_id: str
+    def __init__(self, commission_id: _Optional[str] = ..., budget_seconds: _Optional[int] = ..., max_workers: _Optional[int] = ..., state: _Optional[str] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., paused_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., paused_seconds: _Optional[int] = ..., reason: _Optional[str] = ..., stopped_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finalized_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., outcome: _Optional[_Union[EffortGoalHome, _Mapping]] = ..., decision_id: _Optional[str] = ...) -> None: ...
+
+class EffortDeliveryPressure(_message.Message):
+    __slots__ = ("commission_id", "phase", "elapsed_seconds", "budget_seconds", "paused_seconds", "hard_stop_at", "checkpoint_deadline", "instruction", "disposition")
+    COMMISSION_ID_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PAUSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    HARD_STOP_AT_FIELD_NUMBER: _ClassVar[int]
+    CHECKPOINT_DEADLINE_FIELD_NUMBER: _ClassVar[int]
+    INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    commission_id: str
+    phase: str
+    elapsed_seconds: int
+    budget_seconds: int
+    paused_seconds: int
+    hard_stop_at: _timestamp_pb2.Timestamp
+    checkpoint_deadline: _timestamp_pb2.Timestamp
+    instruction: str
+    disposition: str
+    def __init__(self, commission_id: _Optional[str] = ..., phase: _Optional[str] = ..., elapsed_seconds: _Optional[int] = ..., budget_seconds: _Optional[int] = ..., paused_seconds: _Optional[int] = ..., hard_stop_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., checkpoint_deadline: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., instruction: _Optional[str] = ..., disposition: _Optional[str] = ...) -> None: ...
 
 class EffortDiscoveryFinding(_message.Message):
     __slots__ = ("source", "code", "reason")
@@ -210,7 +262,7 @@ class EffortOutcomeStanding(_message.Message):
     def __init__(self, state: _Optional[str] = ..., attribution: _Optional[str] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., met_count: _Optional[int] = ..., required_count: _Optional[int] = ..., limitations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class EffortBoardRow(_message.Message):
-    __slots__ = ("enrollment", "observed_at", "freshness", "runtime_state", "outcome_standing", "assignments", "pending_operations", "blockers", "next_action", "rationale", "usage", "limitations", "evidence_refs", "change_identity", "visibility_change_identity", "quota_observations", "goal_home")
+    __slots__ = ("enrollment", "observed_at", "freshness", "runtime_state", "outcome_standing", "assignments", "pending_operations", "blockers", "next_action", "rationale", "usage", "limitations", "evidence_refs", "change_identity", "visibility_change_identity", "quota_observations", "goal_home", "delivery_pressure")
     ENROLLMENT_FIELD_NUMBER: _ClassVar[int]
     OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     FRESHNESS_FIELD_NUMBER: _ClassVar[int]
@@ -228,6 +280,7 @@ class EffortBoardRow(_message.Message):
     VISIBILITY_CHANGE_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     QUOTA_OBSERVATIONS_FIELD_NUMBER: _ClassVar[int]
     GOAL_HOME_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_PRESSURE_FIELD_NUMBER: _ClassVar[int]
     enrollment: EffortEnrollment
     observed_at: _timestamp_pb2.Timestamp
     freshness: EffortFreshness
@@ -245,7 +298,8 @@ class EffortBoardRow(_message.Message):
     visibility_change_identity: str
     quota_observations: _containers.RepeatedCompositeFieldContainer[EffortQuotaObservation]
     goal_home: EffortGoalHome
-    def __init__(self, enrollment: _Optional[_Union[EffortEnrollment, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness: _Optional[_Union[EffortFreshness, str]] = ..., runtime_state: _Optional[str] = ..., outcome_standing: _Optional[_Union[EffortOutcomeStanding, _Mapping]] = ..., assignments: _Optional[_Iterable[_Union[EffortAssignment, _Mapping]]] = ..., pending_operations: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ..., next_action: _Optional[str] = ..., rationale: _Optional[str] = ..., usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., limitations: _Optional[_Iterable[str]] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., change_identity: _Optional[str] = ..., visibility_change_identity: _Optional[str] = ..., quota_observations: _Optional[_Iterable[_Union[EffortQuotaObservation, _Mapping]]] = ..., goal_home: _Optional[_Union[EffortGoalHome, _Mapping]] = ...) -> None: ...
+    delivery_pressure: EffortDeliveryPressure
+    def __init__(self, enrollment: _Optional[_Union[EffortEnrollment, _Mapping]] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., freshness: _Optional[_Union[EffortFreshness, str]] = ..., runtime_state: _Optional[str] = ..., outcome_standing: _Optional[_Union[EffortOutcomeStanding, _Mapping]] = ..., assignments: _Optional[_Iterable[_Union[EffortAssignment, _Mapping]]] = ..., pending_operations: _Optional[_Iterable[str]] = ..., blockers: _Optional[_Iterable[str]] = ..., next_action: _Optional[str] = ..., rationale: _Optional[str] = ..., usage: _Optional[_Union[EffortUsage, _Mapping]] = ..., limitations: _Optional[_Iterable[str]] = ..., evidence_refs: _Optional[_Iterable[str]] = ..., change_identity: _Optional[str] = ..., visibility_change_identity: _Optional[str] = ..., quota_observations: _Optional[_Iterable[_Union[EffortQuotaObservation, _Mapping]]] = ..., goal_home: _Optional[_Union[EffortGoalHome, _Mapping]] = ..., delivery_pressure: _Optional[_Union[EffortDeliveryPressure, _Mapping]] = ...) -> None: ...
 
 class EffortBoard(_message.Message):
     __slots__ = ("rows", "discovery", "observed_at", "active_count", "partial", "limitations", "next_page_token", "change_identity", "quota_observations")
@@ -349,8 +403,30 @@ class EffortCapUsage(_message.Message):
     mode: str
     def __init__(self, run_id: _Optional[str] = ..., role: _Optional[str] = ..., weighted_tokens: _Optional[float] = ..., cap: _Optional[int] = ..., mode: _Optional[str] = ...) -> None: ...
 
+class SurfaceProgress(_message.Message):
+    __slots__ = ("surface", "target", "state", "owner_run")
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    OWNER_RUN_FIELD_NUMBER: _ClassVar[int]
+    surface: str
+    target: str
+    state: str
+    owner_run: str
+    def __init__(self, surface: _Optional[str] = ..., target: _Optional[str] = ..., state: _Optional[str] = ..., owner_run: _Optional[str] = ...) -> None: ...
+
+class EffortActiveUnit(_message.Message):
+    __slots__ = ("unit_id", "status", "workers")
+    UNIT_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    WORKERS_FIELD_NUMBER: _ClassVar[int]
+    unit_id: str
+    status: str
+    workers: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, unit_id: _Optional[str] = ..., status: _Optional[str] = ..., workers: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class EffortGoalHome(_message.Message):
-    __slots__ = ("path", "state", "limitations", "destination_metric", "destination_op", "destination_target", "current_value", "current_as_of", "active_epoch", "active_status", "active_workers", "last_accepted_epoch", "last_accepted_at", "last_yield", "needs_operator", "open_workarounds", "open_feedback_ids", "open_decisions", "weighted_tokens_per_accepted_epoch", "accepted_epochs_measured", "cap_usage", "canary_status", "lint_findings", "read_at")
+    __slots__ = ("path", "state", "limitations", "destination_metric", "destination_op", "destination_target", "current_value", "current_as_of", "active_unit", "active_status", "active_workers", "last_accepted_unit", "last_accepted_at", "last_yield", "needs_operator", "open_workarounds", "open_feedback_ids", "open_decisions", "weighted_tokens_per_accepted_unit", "accepted_units_measured", "cap_usage", "canary_status", "lint_findings", "read_at", "budget_seconds", "surface_scoreboard", "active_units", "handoff")
     PATH_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     LIMITATIONS_FIELD_NUMBER: _ClassVar[int]
@@ -359,22 +435,26 @@ class EffortGoalHome(_message.Message):
     DESTINATION_TARGET_FIELD_NUMBER: _ClassVar[int]
     CURRENT_VALUE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_AS_OF_FIELD_NUMBER: _ClassVar[int]
-    ACTIVE_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_UNIT_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_WORKERS_FIELD_NUMBER: _ClassVar[int]
-    LAST_ACCEPTED_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    LAST_ACCEPTED_UNIT_FIELD_NUMBER: _ClassVar[int]
     LAST_ACCEPTED_AT_FIELD_NUMBER: _ClassVar[int]
     LAST_YIELD_FIELD_NUMBER: _ClassVar[int]
     NEEDS_OPERATOR_FIELD_NUMBER: _ClassVar[int]
     OPEN_WORKAROUNDS_FIELD_NUMBER: _ClassVar[int]
     OPEN_FEEDBACK_IDS_FIELD_NUMBER: _ClassVar[int]
     OPEN_DECISIONS_FIELD_NUMBER: _ClassVar[int]
-    WEIGHTED_TOKENS_PER_ACCEPTED_EPOCH_FIELD_NUMBER: _ClassVar[int]
-    ACCEPTED_EPOCHS_MEASURED_FIELD_NUMBER: _ClassVar[int]
+    WEIGHTED_TOKENS_PER_ACCEPTED_UNIT_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_UNITS_MEASURED_FIELD_NUMBER: _ClassVar[int]
     CAP_USAGE_FIELD_NUMBER: _ClassVar[int]
     CANARY_STATUS_FIELD_NUMBER: _ClassVar[int]
     LINT_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     READ_AT_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_SCOREBOARD_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_UNITS_FIELD_NUMBER: _ClassVar[int]
+    HANDOFF_FIELD_NUMBER: _ClassVar[int]
     path: str
     state: str
     limitations: _containers.RepeatedScalarFieldContainer[str]
@@ -383,23 +463,27 @@ class EffortGoalHome(_message.Message):
     destination_target: float
     current_value: float
     current_as_of: _timestamp_pb2.Timestamp
-    active_epoch: str
+    active_unit: str
     active_status: str
     active_workers: _containers.RepeatedScalarFieldContainer[str]
-    last_accepted_epoch: str
+    last_accepted_unit: str
     last_accepted_at: _timestamp_pb2.Timestamp
     last_yield: str
     needs_operator: _containers.RepeatedScalarFieldContainer[str]
     open_workarounds: int
     open_feedback_ids: _containers.RepeatedScalarFieldContainer[str]
     open_decisions: _containers.RepeatedCompositeFieldContainer[EffortDecision]
-    weighted_tokens_per_accepted_epoch: float
-    accepted_epochs_measured: int
+    weighted_tokens_per_accepted_unit: float
+    accepted_units_measured: int
     cap_usage: _containers.RepeatedCompositeFieldContainer[EffortCapUsage]
     canary_status: str
     lint_findings: _containers.RepeatedScalarFieldContainer[str]
     read_at: _timestamp_pb2.Timestamp
-    def __init__(self, path: _Optional[str] = ..., state: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., destination_metric: _Optional[str] = ..., destination_op: _Optional[str] = ..., destination_target: _Optional[float] = ..., current_value: _Optional[float] = ..., current_as_of: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., active_epoch: _Optional[str] = ..., active_status: _Optional[str] = ..., active_workers: _Optional[_Iterable[str]] = ..., last_accepted_epoch: _Optional[str] = ..., last_accepted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_yield: _Optional[str] = ..., needs_operator: _Optional[_Iterable[str]] = ..., open_workarounds: _Optional[int] = ..., open_feedback_ids: _Optional[_Iterable[str]] = ..., open_decisions: _Optional[_Iterable[_Union[EffortDecision, _Mapping]]] = ..., weighted_tokens_per_accepted_epoch: _Optional[float] = ..., accepted_epochs_measured: _Optional[int] = ..., cap_usage: _Optional[_Iterable[_Union[EffortCapUsage, _Mapping]]] = ..., canary_status: _Optional[str] = ..., lint_findings: _Optional[_Iterable[str]] = ..., read_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    budget_seconds: int
+    surface_scoreboard: _containers.RepeatedCompositeFieldContainer[SurfaceProgress]
+    active_units: _containers.RepeatedCompositeFieldContainer[EffortActiveUnit]
+    handoff: str
+    def __init__(self, path: _Optional[str] = ..., state: _Optional[str] = ..., limitations: _Optional[_Iterable[str]] = ..., destination_metric: _Optional[str] = ..., destination_op: _Optional[str] = ..., destination_target: _Optional[float] = ..., current_value: _Optional[float] = ..., current_as_of: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., active_unit: _Optional[str] = ..., active_status: _Optional[str] = ..., active_workers: _Optional[_Iterable[str]] = ..., last_accepted_unit: _Optional[str] = ..., last_accepted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_yield: _Optional[str] = ..., needs_operator: _Optional[_Iterable[str]] = ..., open_workarounds: _Optional[int] = ..., open_feedback_ids: _Optional[_Iterable[str]] = ..., open_decisions: _Optional[_Iterable[_Union[EffortDecision, _Mapping]]] = ..., weighted_tokens_per_accepted_unit: _Optional[float] = ..., accepted_units_measured: _Optional[int] = ..., cap_usage: _Optional[_Iterable[_Union[EffortCapUsage, _Mapping]]] = ..., canary_status: _Optional[str] = ..., lint_findings: _Optional[_Iterable[str]] = ..., read_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., budget_seconds: _Optional[int] = ..., surface_scoreboard: _Optional[_Iterable[_Union[SurfaceProgress, _Mapping]]] = ..., active_units: _Optional[_Iterable[_Union[EffortActiveUnit, _Mapping]]] = ..., handoff: _Optional[str] = ...) -> None: ...
 
 class EffortSignal(_message.Message):
     __slots__ = ("seq", "effort_ref", "kind", "run_id", "detail", "created_at", "newly_recorded")
@@ -540,22 +624,26 @@ class RaiseEffortDecisionResponse(_message.Message):
     def __init__(self, decision: _Optional[_Union[EffortDecision, _Mapping]] = ..., created: _Optional[bool] = ..., published: _Optional[bool] = ...) -> None: ...
 
 class ListEffortDecisionsRequest(_message.Message):
-    __slots__ = ("goal_home", "effort_ref", "unrecorded_only", "limit")
+    __slots__ = ("goal_home", "effort_ref", "unrecorded_only", "limit", "page_token")
     GOAL_HOME_FIELD_NUMBER: _ClassVar[int]
     EFFORT_REF_FIELD_NUMBER: _ClassVar[int]
     UNRECORDED_ONLY_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     goal_home: str
     effort_ref: str
     unrecorded_only: bool
     limit: int
-    def __init__(self, goal_home: _Optional[str] = ..., effort_ref: _Optional[str] = ..., unrecorded_only: _Optional[bool] = ..., limit: _Optional[int] = ...) -> None: ...
+    page_token: str
+    def __init__(self, goal_home: _Optional[str] = ..., effort_ref: _Optional[str] = ..., unrecorded_only: _Optional[bool] = ..., limit: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
 
 class ListEffortDecisionsResponse(_message.Message):
-    __slots__ = ("decisions",)
+    __slots__ = ("decisions", "next_page_token")
     DECISIONS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     decisions: _containers.RepeatedCompositeFieldContainer[EffortDecision]
-    def __init__(self, decisions: _Optional[_Iterable[_Union[EffortDecision, _Mapping]]] = ...) -> None: ...
+    next_page_token: str
+    def __init__(self, decisions: _Optional[_Iterable[_Union[EffortDecision, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
 
 class AnswerEffortDecisionRequest(_message.Message):
     __slots__ = ("goal_home", "decision_id", "answer", "note")

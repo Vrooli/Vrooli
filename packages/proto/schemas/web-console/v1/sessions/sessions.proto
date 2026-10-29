@@ -44,6 +44,9 @@ service SessionsService {
   rpc List(ListRequest) returns (ListResponse);
   rpc ListArchived(ListArchivedRequest) returns (ListArchivedResponse);
   rpc Get(GetRequest) returns (GetResponse);
+  rpc ReadNativeUsage(ReadNativeUsageRequest) returns (ReadNativeUsageResponse);
+  // Read-only, bounded observation of native thread and goal state.
+  rpc ReadNativeThreadState(ReadNativeThreadStateRequest) returns (ReadNativeThreadStateResponse);
   rpc Archive(ArchiveRequest) returns (ArchiveResponse);
   rpc Unarchive(UnarchiveRequest) returns (UnarchiveResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
@@ -57,6 +60,29 @@ service SessionsService {
   rpc PruneArchive(PruneArchiveRequest) returns (PruneArchiveResponse);
   rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
   rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+}
+
+message ReadNativeThreadStateRequest {
+  string session_id = 1;
+  repeated string thread_ids = 2;
+}
+
+message NativeThreadState {
+  string thread_id = 1;
+  // "unavailable" means the owner could not establish the thread state.
+  string status = 2;
+  repeated string active_flags = 3;
+  // A failed goal read is distinct from a successful read with no goal.
+  bool goal_available = 4;
+  bool has_goal = 5;
+  string goal_status = 6;
+  int64 tokens_used = 7;
+  int64 time_used_seconds = 8;
+  optional int64 token_budget = 9;
+}
+
+message ReadNativeThreadStateResponse {
+  repeated NativeThreadState threads = 1;
 }
 
 // -----------------------------------------------------------------------------
@@ -463,4 +489,47 @@ message UpdatePolicyRequest {
 
 message UpdatePolicyResponse {
   PolicyView policy = 1;
+}
+
+// Bounded native usage for selected threads in an existing session.
+message ReadNativeUsageRequest {
+  string session_id = 1;
+  repeated string thread_ids = 2;
+  string start = 3; // RFC3339 inclusive
+  string end = 4; // RFC3339 exclusive
+}
+message NativeUsageTotals {
+  int64 input_tokens = 1;
+  int64 cached_input_tokens = 2;
+  int64 uncached_input_tokens = 3;
+  int64 output_tokens = 4;
+}
+message NativeUsageReport {
+  int32 responses = 1;
+  int32 duplicates = 2;
+  int32 incomplete = 3;
+  NativeUsageTotals usage = 4; // absent means unknown, not zero
+}
+message NativeModelContext {
+  string model = 1;
+  string effort = 2; // empty means not present in that context
+  int32 count = 3; // model-bearing context records, not responses
+}
+message NativeThreadUsage {
+  string thread_id = 1;
+  string status = 2;
+  NativeUsageReport report = 3;
+  // Latest persisted thread settings, not per-response billing attribution.
+  // Empty means unavailable; historical turns can use different settings.
+  string observed_model = 4;
+  string observed_provider = 5;
+  string observed_effort = 6;
+  repeated NativeModelContext model_contexts = 7;
+}
+message ReadNativeUsageResponse {
+  string origin = 1;
+  string pricing = 2;
+  string status = 3;
+  repeated NativeThreadUsage threads = 4;
+  NativeUsageReport total = 5;
 }

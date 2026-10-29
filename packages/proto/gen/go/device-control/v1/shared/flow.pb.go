@@ -32,15 +32,16 @@ type Flow struct {
 	Steps                  []*Step                `protobuf:"bytes,3,rep,name=steps,proto3" json:"steps,omitempty"`
 	AllowUnredactedCapture bool                   `protobuf:"varint,4,opt,name=allow_unredacted_capture,json=allowUnredactedCapture,proto3" json:"allow_unredacted_capture,omitempty"`
 	// usb is the default; wireless must be explicitly requested after promotion.
-	Transport           string `protobuf:"bytes,5,opt,name=transport,proto3" json:"transport,omitempty"`
-	RequireUnlocked     bool   `protobuf:"varint,6,opt,name=require_unlocked,json=requireUnlocked,proto3" json:"require_unlocked,omitempty"`
-	AuthProfileId       string `protobuf:"bytes,7,opt,name=auth_profile_id,json=authProfileId,proto3" json:"auth_profile_id,omitempty"`
-	MaxDurationMs       int64  `protobuf:"varint,8,opt,name=max_duration_ms,json=maxDurationMs,proto3" json:"max_duration_ms,omitempty"`
-	RetryBudget         int32  `protobuf:"varint,9,opt,name=retry_budget,json=retryBudget,proto3" json:"retry_budget,omitempty"`
-	ApplicationId       string `protobuf:"bytes,10,opt,name=application_id,json=applicationId,proto3" json:"application_id,omitempty"`
-	ApplicationRevision string `protobuf:"bytes,11,opt,name=application_revision,json=applicationRevision,proto3" json:"application_revision,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	Transport              string `protobuf:"bytes,5,opt,name=transport,proto3" json:"transport,omitempty"`
+	RequireUnlocked        bool   `protobuf:"varint,6,opt,name=require_unlocked,json=requireUnlocked,proto3" json:"require_unlocked,omitempty"`
+	AuthProfileId          string `protobuf:"bytes,7,opt,name=auth_profile_id,json=authProfileId,proto3" json:"auth_profile_id,omitempty"`
+	MaxDurationMs          int64  `protobuf:"varint,8,opt,name=max_duration_ms,json=maxDurationMs,proto3" json:"max_duration_ms,omitempty"`
+	RetryBudget            int32  `protobuf:"varint,9,opt,name=retry_budget,json=retryBudget,proto3" json:"retry_budget,omitempty"`
+	ApplicationId          string `protobuf:"bytes,10,opt,name=application_id,json=applicationId,proto3" json:"application_id,omitempty"`
+	ApplicationRevision    string `protobuf:"bytes,11,opt,name=application_revision,json=applicationRevision,proto3" json:"application_revision,omitempty"`
+	RedactSensitiveContent bool   `protobuf:"varint,12,opt,name=redact_sensitive_content,json=redactSensitiveContent,proto3" json:"redact_sensitive_content,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Flow) Reset() {
@@ -148,6 +149,13 @@ func (x *Flow) GetApplicationRevision() string {
 		return x.ApplicationRevision
 	}
 	return ""
+}
+
+func (x *Flow) GetRedactSensitiveContent() bool {
+	if x != nil {
+		return x.RedactSensitiveContent
+	}
+	return false
 }
 
 type Step struct {
@@ -338,7 +346,7 @@ var File_device_control_v1_shared_flow_proto protoreflect.FileDescriptor
 
 const file_device_control_v1_shared_flow_proto_rawDesc = "" +
 	"\n" +
-	"#device-control/v1/shared/flow.proto\x12\x1fvrooli.device_control.v1.shared\x1a\x1cgoogle/protobuf/struct.proto\"\xb7\x03\n" +
+	"#device-control/v1/shared/flow.proto\x12\x1fvrooli.device_control.v1.shared\x1a\x1cgoogle/protobuf/struct.proto\"\xf1\x03\n" +
 	"\x04Flow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12;\n" +
@@ -351,7 +359,8 @@ const file_device_control_v1_shared_flow_proto_rawDesc = "" +
 	"\fretry_budget\x18\t \x01(\x05R\vretryBudget\x12%\n" +
 	"\x0eapplication_id\x18\n" +
 	" \x01(\tR\rapplicationId\x121\n" +
-	"\x14application_revision\x18\v \x01(\tR\x13applicationRevision\"\xf2\x03\n" +
+	"\x14application_revision\x18\v \x01(\tR\x13applicationRevision\x128\n" +
+	"\x18redact_sensitive_content\x18\f \x01(\bR\x16redactSensitiveContent\"\xf2\x03\n" +
 	"\x04Step\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x123\n" +

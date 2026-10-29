@@ -79,7 +79,59 @@ message OperatorImportResponse { repeated OperatorInputField fields = 1; int32 r
 message OperatorInputStatusRequest { string book_id = 1; }
 message OperatorInputStatusResponse { repeated OperatorInputField fields = 1; }
 
+// Untrusted observations are previewed only. This contract never admits a posting.
+enum CryptoObservationState {
+ CRYPTO_OBSERVATION_STATE_UNSPECIFIED = 0;
+ CRYPTO_OBSERVATION_STATE_PENDING = 1;
+ CRYPTO_OBSERVATION_STATE_INCLUDED = 2;
+ CRYPTO_OBSERVATION_STATE_FINALIZED = 3;
+ CRYPTO_OBSERVATION_STATE_REMOVED = 4;
+ CRYPTO_OBSERVATION_STATE_REVERTED = 5;
+}
+enum CryptoLegKind {
+ CRYPTO_LEG_KIND_UNSPECIFIED = 0;
+ CRYPTO_LEG_KIND_BALANCE = 1;
+ CRYPTO_LEG_KIND_DEPOSIT = 2;
+ CRYPTO_LEG_KIND_FEE = 3;
+ CRYPTO_LEG_KIND_APPROVAL = 4;
+}
+message PreviewCryptoObservationRequest {
+ string network = 1;
+ string asset_id = 2;
+ string atomic_amount = 3;
+ uint32 decimals = 4;
+ CryptoObservationState state = 5;
+ CryptoLegKind leg_kind = 6;
+ string source_reference = 7;
+ string transaction_hash = 8;
+ string block_hash = 9;
+ uint32 leg_index = 10;
+ string book_id = 11;
+ string account_id = 12;
+ string address = 13;
+}
+message PreviewCryptoObservationResponse {
+ string network = 1;
+ string asset_id = 2;
+ string atomic_amount = 3;
+ uint32 decimals = 4;
+ CryptoObservationState source_reported_state = 5;
+ CryptoLegKind leg_kind = 6;
+ string source_reference = 7;
+ string occurrence_key = 8;
+ string disposition = 9;
+ string posting_state = 10;
+ string budget_state = 11;
+ repeated string holds = 12;
+ string book_account_status = 13;
+ // A candidate leg interpretation, not accepted inventory or valuation.
+ string candidate_effect_atomic = 14;
+ bool correction_requires_original_receipt = 15;
+ string address = 16;
+}
+
 service IngestService {
+ rpc PreviewCryptoObservation(PreviewCryptoObservationRequest) returns (PreviewCryptoObservationResponse);
   rpc RegisterAdapter(RegisterAdapterRequest) returns (RegisterAdapterResponse);
   rpc ListAdapters(ListAdaptersRequest) returns (ListAdaptersResponse);
   rpc IngestEvent(IngestEventRequest) returns (IngestEventResponse);

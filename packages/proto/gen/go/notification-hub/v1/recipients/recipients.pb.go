@@ -775,6 +775,224 @@ func (x *UpsertChannelAddressRequest) GetApprovedLabels() []string {
 	return nil
 }
 
+type ListChannelAddressesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChannelAddressesRequest) Reset() {
+	*x = ListChannelAddressesRequest{}
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChannelAddressesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChannelAddressesRequest) ProtoMessage() {}
+
+func (x *ListChannelAddressesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChannelAddressesRequest.ProtoReflect.Descriptor instead.
+func (*ListChannelAddressesRequest) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{14}
+}
+
+type ListChannelAddressesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Addresses     []*ChannelAddress      `protobuf:"bytes,1,rep,name=addresses,proto3" json:"addresses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListChannelAddressesResponse) Reset() {
+	*x = ListChannelAddressesResponse{}
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListChannelAddressesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListChannelAddressesResponse) ProtoMessage() {}
+
+func (x *ListChannelAddressesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListChannelAddressesResponse.ProtoReflect.Descriptor instead.
+func (*ListChannelAddressesResponse) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ListChannelAddressesResponse) GetAddresses() []*ChannelAddress {
+	if x != nil {
+		return x.Addresses
+	}
+	return nil
+}
+
+// The caller supplies a stable ID so an uncertain create can be retried safely.
+type CreateChannelAddressRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	DeviceId       string                 `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	Channel        string                 `protobuf:"bytes,3,opt,name=channel,proto3" json:"channel,omitempty"`
+	Address        string                 `protobuf:"bytes,4,opt,name=address,proto3" json:"address,omitempty"`
+	ApprovedLabels []string               `protobuf:"bytes,5,rep,name=approved_labels,json=approvedLabels,proto3" json:"approved_labels,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateChannelAddressRequest) Reset() {
+	*x = CreateChannelAddressRequest{}
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateChannelAddressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateChannelAddressRequest) ProtoMessage() {}
+
+func (x *CreateChannelAddressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateChannelAddressRequest.ProtoReflect.Descriptor instead.
+func (*CreateChannelAddressRequest) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CreateChannelAddressRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CreateChannelAddressRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *CreateChannelAddressRequest) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+func (x *CreateChannelAddressRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *CreateChannelAddressRequest) GetApprovedLabels() []string {
+	if x != nil {
+		return x.ApprovedLabels
+	}
+	return nil
+}
+
+// Updates only the address and approved labels on this owner-scoped row.
+type UpdateChannelAddressRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Address        string                 `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
+	ApprovedLabels []string               `protobuf:"bytes,3,rep,name=approved_labels,json=approvedLabels,proto3" json:"approved_labels,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *UpdateChannelAddressRequest) Reset() {
+	*x = UpdateChannelAddressRequest{}
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateChannelAddressRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateChannelAddressRequest) ProtoMessage() {}
+
+func (x *UpdateChannelAddressRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateChannelAddressRequest.ProtoReflect.Descriptor instead.
+func (*UpdateChannelAddressRequest) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *UpdateChannelAddressRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateChannelAddressRequest) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
+func (x *UpdateChannelAddressRequest) GetApprovedLabels() []string {
+	if x != nil {
+		return x.ApprovedLabels
+	}
+	return nil
+}
+
 type RemoveChannelAddressRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -784,7 +1002,7 @@ type RemoveChannelAddressRequest struct {
 
 func (x *RemoveChannelAddressRequest) Reset() {
 	*x = RemoveChannelAddressRequest{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[14]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +1014,7 @@ func (x *RemoveChannelAddressRequest) String() string {
 func (*RemoveChannelAddressRequest) ProtoMessage() {}
 
 func (x *RemoveChannelAddressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[14]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +1027,7 @@ func (x *RemoveChannelAddressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveChannelAddressRequest.ProtoReflect.Descriptor instead.
 func (*RemoveChannelAddressRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{14}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RemoveChannelAddressRequest) GetId() string {
@@ -827,7 +1045,7 @@ type RemoveChannelAddressResponse struct {
 
 func (x *RemoveChannelAddressResponse) Reset() {
 	*x = RemoveChannelAddressResponse{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[15]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +1057,7 @@ func (x *RemoveChannelAddressResponse) String() string {
 func (*RemoveChannelAddressResponse) ProtoMessage() {}
 
 func (x *RemoveChannelAddressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[15]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +1070,7 @@ func (x *RemoveChannelAddressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveChannelAddressResponse.ProtoReflect.Descriptor instead.
 func (*RemoveChannelAddressResponse) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{15}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{19}
 }
 
 type SetQuietWindowRequest struct {
@@ -868,7 +1086,7 @@ type SetQuietWindowRequest struct {
 
 func (x *SetQuietWindowRequest) Reset() {
 	*x = SetQuietWindowRequest{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[16]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +1098,7 @@ func (x *SetQuietWindowRequest) String() string {
 func (*SetQuietWindowRequest) ProtoMessage() {}
 
 func (x *SetQuietWindowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[16]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -893,7 +1111,7 @@ func (x *SetQuietWindowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetQuietWindowRequest.ProtoReflect.Descriptor instead.
 func (*SetQuietWindowRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{16}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SetQuietWindowRequest) GetWeekday() int32 {
@@ -945,7 +1163,7 @@ type QuietWindow struct {
 
 func (x *QuietWindow) Reset() {
 	*x = QuietWindow{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[17]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +1175,7 @@ func (x *QuietWindow) String() string {
 func (*QuietWindow) ProtoMessage() {}
 
 func (x *QuietWindow) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[17]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +1188,7 @@ func (x *QuietWindow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuietWindow.ProtoReflect.Descriptor instead.
 func (*QuietWindow) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{17}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *QuietWindow) GetId() string {
@@ -1023,7 +1241,7 @@ type ListQuietWindowsRequest struct {
 
 func (x *ListQuietWindowsRequest) Reset() {
 	*x = ListQuietWindowsRequest{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[18]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1035,7 +1253,7 @@ func (x *ListQuietWindowsRequest) String() string {
 func (*ListQuietWindowsRequest) ProtoMessage() {}
 
 func (x *ListQuietWindowsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[18]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1048,7 +1266,7 @@ func (x *ListQuietWindowsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListQuietWindowsRequest.ProtoReflect.Descriptor instead.
 func (*ListQuietWindowsRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{18}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{22}
 }
 
 type ListQuietWindowsResponse struct {
@@ -1060,7 +1278,7 @@ type ListQuietWindowsResponse struct {
 
 func (x *ListQuietWindowsResponse) Reset() {
 	*x = ListQuietWindowsResponse{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[19]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1072,7 +1290,7 @@ func (x *ListQuietWindowsResponse) String() string {
 func (*ListQuietWindowsResponse) ProtoMessage() {}
 
 func (x *ListQuietWindowsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[19]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1085,7 +1303,7 @@ func (x *ListQuietWindowsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListQuietWindowsResponse.ProtoReflect.Descriptor instead.
 func (*ListQuietWindowsResponse) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{19}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListQuietWindowsResponse) GetWindows() []*QuietWindow {
@@ -1104,7 +1322,7 @@ type DeleteQuietWindowRequest struct {
 
 func (x *DeleteQuietWindowRequest) Reset() {
 	*x = DeleteQuietWindowRequest{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[20]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1116,7 +1334,7 @@ func (x *DeleteQuietWindowRequest) String() string {
 func (*DeleteQuietWindowRequest) ProtoMessage() {}
 
 func (x *DeleteQuietWindowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[20]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1129,7 +1347,7 @@ func (x *DeleteQuietWindowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteQuietWindowRequest.ProtoReflect.Descriptor instead.
 func (*DeleteQuietWindowRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{20}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DeleteQuietWindowRequest) GetId() string {
@@ -1147,7 +1365,7 @@ type DeleteQuietWindowResponse struct {
 
 func (x *DeleteQuietWindowResponse) Reset() {
 	*x = DeleteQuietWindowResponse{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[21]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1159,7 +1377,7 @@ func (x *DeleteQuietWindowResponse) String() string {
 func (*DeleteQuietWindowResponse) ProtoMessage() {}
 
 func (x *DeleteQuietWindowResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[21]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1172,7 +1390,7 @@ func (x *DeleteQuietWindowResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteQuietWindowResponse.ProtoReflect.Descriptor instead.
 func (*DeleteQuietWindowResponse) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{21}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{25}
 }
 
 type EscalationStep struct {
@@ -1185,7 +1403,7 @@ type EscalationStep struct {
 
 func (x *EscalationStep) Reset() {
 	*x = EscalationStep{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[22]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1197,7 +1415,7 @@ func (x *EscalationStep) String() string {
 func (*EscalationStep) ProtoMessage() {}
 
 func (x *EscalationStep) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[22]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1210,7 +1428,7 @@ func (x *EscalationStep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EscalationStep.ProtoReflect.Descriptor instead.
 func (*EscalationStep) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{22}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *EscalationStep) GetOrdinal() int32 {
@@ -1237,7 +1455,7 @@ type EscalationChain struct {
 
 func (x *EscalationChain) Reset() {
 	*x = EscalationChain{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[23]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1249,7 +1467,7 @@ func (x *EscalationChain) String() string {
 func (*EscalationChain) ProtoMessage() {}
 
 func (x *EscalationChain) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[23]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1262,7 +1480,7 @@ func (x *EscalationChain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EscalationChain.ProtoReflect.Descriptor instead.
 func (*EscalationChain) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{23}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *EscalationChain) GetRecipientId() string {
@@ -1288,7 +1506,7 @@ type SetEscalationChainRequest struct {
 
 func (x *SetEscalationChainRequest) Reset() {
 	*x = SetEscalationChainRequest{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[24]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1300,7 +1518,7 @@ func (x *SetEscalationChainRequest) String() string {
 func (*SetEscalationChainRequest) ProtoMessage() {}
 
 func (x *SetEscalationChainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[24]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1313,7 +1531,7 @@ func (x *SetEscalationChainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetEscalationChainRequest.ProtoReflect.Descriptor instead.
 func (*SetEscalationChainRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{24}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SetEscalationChainRequest) GetChannels() []string {
@@ -1331,7 +1549,7 @@ type GetEscalationChainRequest struct {
 
 func (x *GetEscalationChainRequest) Reset() {
 	*x = GetEscalationChainRequest{}
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[25]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1343,7 +1561,7 @@ func (x *GetEscalationChainRequest) String() string {
 func (*GetEscalationChainRequest) ProtoMessage() {}
 
 func (x *GetEscalationChainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[25]
+	mi := &file_notification_hub_v1_recipients_recipients_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1356,7 +1574,7 @@ func (x *GetEscalationChainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEscalationChainRequest.ProtoReflect.Descriptor instead.
 func (*GetEscalationChainRequest) Descriptor() ([]byte, []int) {
-	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{25}
+	return file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP(), []int{29}
 }
 
 var File_notification_hub_v1_recipients_recipients_proto protoreflect.FileDescriptor
@@ -1412,7 +1630,20 @@ const file_notification_hub_v1_recipients_recipients_proto_rawDesc = "" +
 	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x18\n" +
 	"\achannel\x18\x03 \x01(\tR\achannel\x12\x18\n" +
 	"\aaddress\x18\x04 \x01(\tR\aaddress\x12'\n" +
-	"\x0fapproved_labels\x18\x05 \x03(\tR\x0eapprovedLabels\"-\n" +
+	"\x0fapproved_labels\x18\x05 \x03(\tR\x0eapprovedLabels\"\x1d\n" +
+	"\x1bListChannelAddressesRequest\"s\n" +
+	"\x1cListChannelAddressesResponse\x12S\n" +
+	"\taddresses\x18\x01 \x03(\v25.vrooli.notification_hub.v1.recipients.ChannelAddressR\taddresses\"\xa7\x01\n" +
+	"\x1bCreateChannelAddressRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x18\n" +
+	"\achannel\x18\x03 \x01(\tR\achannel\x12\x18\n" +
+	"\aaddress\x18\x04 \x01(\tR\aaddress\x12'\n" +
+	"\x0fapproved_labels\x18\x05 \x03(\tR\x0eapprovedLabels\"p\n" +
+	"\x1bUpdateChannelAddressRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\x12'\n" +
+	"\x0fapproved_labels\x18\x03 \x03(\tR\x0eapprovedLabels\"-\n" +
 	"\x1bRemoveChannelAddressRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x1e\n" +
 	"\x1cRemoveChannelAddressResponse\"\xa2\x01\n" +
@@ -1443,7 +1674,7 @@ const file_notification_hub_v1_recipients_recipients_proto_rawDesc = "" +
 	"\x05steps\x18\x02 \x03(\v25.vrooli.notification_hub.v1.recipients.EscalationStepR\x05steps\"7\n" +
 	"\x19SetEscalationChainRequest\x12\x1a\n" +
 	"\bchannels\x18\x01 \x03(\tR\bchannels\"\x1b\n" +
-	"\x19GetEscalationChainRequest2\xff\x0e\n" +
+	"\x19GetEscalationChainRequest2\xc9\x12\n" +
 	"\x11RecipientsService\x12|\n" +
 	"\fGetRecipient\x12:.vrooli.notification_hub.v1.recipients.GetRecipientRequest\x1a0.vrooli.notification_hub.v1.recipients.Recipient\x12\xab\x01\n" +
 	"\x18RegisterPushSubscription\x12F.vrooli.notification_hub.v1.recipients.RegisterPushSubscriptionRequest\x1aG.vrooli.notification_hub.v1.recipients.RegisterPushSubscriptionResponse\x12\xa5\x01\n" +
@@ -1452,6 +1683,9 @@ const file_notification_hub_v1_recipients_recipients_proto_rawDesc = "" +
 	"\fUpsertDevice\x12:.vrooli.notification_hub.v1.recipients.UpsertDeviceRequest\x1a-.vrooli.notification_hub.v1.recipients.Device\x12\x87\x01\n" +
 	"\fRemoveDevice\x12:.vrooli.notification_hub.v1.recipients.RemoveDeviceRequest\x1a;.vrooli.notification_hub.v1.recipients.RemoveDeviceResponse\x12\x91\x01\n" +
 	"\x14UpsertChannelAddress\x12B.vrooli.notification_hub.v1.recipients.UpsertChannelAddressRequest\x1a5.vrooli.notification_hub.v1.recipients.ChannelAddress\x12\x9f\x01\n" +
+	"\x14ListChannelAddresses\x12B.vrooli.notification_hub.v1.recipients.ListChannelAddressesRequest\x1aC.vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse\x12\x91\x01\n" +
+	"\x14CreateChannelAddress\x12B.vrooli.notification_hub.v1.recipients.CreateChannelAddressRequest\x1a5.vrooli.notification_hub.v1.recipients.ChannelAddress\x12\x91\x01\n" +
+	"\x14UpdateChannelAddress\x12B.vrooli.notification_hub.v1.recipients.UpdateChannelAddressRequest\x1a5.vrooli.notification_hub.v1.recipients.ChannelAddress\x12\x9f\x01\n" +
 	"\x14RemoveChannelAddress\x12B.vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest\x1aC.vrooli.notification_hub.v1.recipients.RemoveChannelAddressResponse\x12\x82\x01\n" +
 	"\x0eSetQuietWindow\x12<.vrooli.notification_hub.v1.recipients.SetQuietWindowRequest\x1a2.vrooli.notification_hub.v1.recipients.QuietWindow\x12\x93\x01\n" +
 	"\x10ListQuietWindows\x12>.vrooli.notification_hub.v1.recipients.ListQuietWindowsRequest\x1a?.vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse\x12\x96\x01\n" +
@@ -1471,7 +1705,7 @@ func file_notification_hub_v1_recipients_recipients_proto_rawDescGZIP() []byte {
 	return file_notification_hub_v1_recipients_recipients_proto_rawDescData
 }
 
-var file_notification_hub_v1_recipients_recipients_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_notification_hub_v1_recipients_recipients_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_notification_hub_v1_recipients_recipients_proto_goTypes = []any{
 	(*GetRecipientRequest)(nil),              // 0: vrooli.notification_hub.v1.recipients.GetRecipientRequest
 	(*Recipient)(nil),                        // 1: vrooli.notification_hub.v1.recipients.Recipient
@@ -1487,54 +1721,65 @@ var file_notification_hub_v1_recipients_recipients_proto_goTypes = []any{
 	(*RemoveDeviceResponse)(nil),             // 11: vrooli.notification_hub.v1.recipients.RemoveDeviceResponse
 	(*ChannelAddress)(nil),                   // 12: vrooli.notification_hub.v1.recipients.ChannelAddress
 	(*UpsertChannelAddressRequest)(nil),      // 13: vrooli.notification_hub.v1.recipients.UpsertChannelAddressRequest
-	(*RemoveChannelAddressRequest)(nil),      // 14: vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest
-	(*RemoveChannelAddressResponse)(nil),     // 15: vrooli.notification_hub.v1.recipients.RemoveChannelAddressResponse
-	(*SetQuietWindowRequest)(nil),            // 16: vrooli.notification_hub.v1.recipients.SetQuietWindowRequest
-	(*QuietWindow)(nil),                      // 17: vrooli.notification_hub.v1.recipients.QuietWindow
-	(*ListQuietWindowsRequest)(nil),          // 18: vrooli.notification_hub.v1.recipients.ListQuietWindowsRequest
-	(*ListQuietWindowsResponse)(nil),         // 19: vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse
-	(*DeleteQuietWindowRequest)(nil),         // 20: vrooli.notification_hub.v1.recipients.DeleteQuietWindowRequest
-	(*DeleteQuietWindowResponse)(nil),        // 21: vrooli.notification_hub.v1.recipients.DeleteQuietWindowResponse
-	(*EscalationStep)(nil),                   // 22: vrooli.notification_hub.v1.recipients.EscalationStep
-	(*EscalationChain)(nil),                  // 23: vrooli.notification_hub.v1.recipients.EscalationChain
-	(*SetEscalationChainRequest)(nil),        // 24: vrooli.notification_hub.v1.recipients.SetEscalationChainRequest
-	(*GetEscalationChainRequest)(nil),        // 25: vrooli.notification_hub.v1.recipients.GetEscalationChainRequest
+	(*ListChannelAddressesRequest)(nil),      // 14: vrooli.notification_hub.v1.recipients.ListChannelAddressesRequest
+	(*ListChannelAddressesResponse)(nil),     // 15: vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse
+	(*CreateChannelAddressRequest)(nil),      // 16: vrooli.notification_hub.v1.recipients.CreateChannelAddressRequest
+	(*UpdateChannelAddressRequest)(nil),      // 17: vrooli.notification_hub.v1.recipients.UpdateChannelAddressRequest
+	(*RemoveChannelAddressRequest)(nil),      // 18: vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest
+	(*RemoveChannelAddressResponse)(nil),     // 19: vrooli.notification_hub.v1.recipients.RemoveChannelAddressResponse
+	(*SetQuietWindowRequest)(nil),            // 20: vrooli.notification_hub.v1.recipients.SetQuietWindowRequest
+	(*QuietWindow)(nil),                      // 21: vrooli.notification_hub.v1.recipients.QuietWindow
+	(*ListQuietWindowsRequest)(nil),          // 22: vrooli.notification_hub.v1.recipients.ListQuietWindowsRequest
+	(*ListQuietWindowsResponse)(nil),         // 23: vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse
+	(*DeleteQuietWindowRequest)(nil),         // 24: vrooli.notification_hub.v1.recipients.DeleteQuietWindowRequest
+	(*DeleteQuietWindowResponse)(nil),        // 25: vrooli.notification_hub.v1.recipients.DeleteQuietWindowResponse
+	(*EscalationStep)(nil),                   // 26: vrooli.notification_hub.v1.recipients.EscalationStep
+	(*EscalationChain)(nil),                  // 27: vrooli.notification_hub.v1.recipients.EscalationChain
+	(*SetEscalationChainRequest)(nil),        // 28: vrooli.notification_hub.v1.recipients.SetEscalationChainRequest
+	(*GetEscalationChainRequest)(nil),        // 29: vrooli.notification_hub.v1.recipients.GetEscalationChainRequest
 }
 var file_notification_hub_v1_recipients_recipients_proto_depIdxs = []int32{
 	7,  // 0: vrooli.notification_hub.v1.recipients.ListDevicesResponse.devices:type_name -> vrooli.notification_hub.v1.recipients.Device
-	17, // 1: vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse.windows:type_name -> vrooli.notification_hub.v1.recipients.QuietWindow
-	22, // 2: vrooli.notification_hub.v1.recipients.EscalationChain.steps:type_name -> vrooli.notification_hub.v1.recipients.EscalationStep
-	0,  // 3: vrooli.notification_hub.v1.recipients.RecipientsService.GetRecipient:input_type -> vrooli.notification_hub.v1.recipients.GetRecipientRequest
-	2,  // 4: vrooli.notification_hub.v1.recipients.RecipientsService.RegisterPushSubscription:input_type -> vrooli.notification_hub.v1.recipients.RegisterPushSubscriptionRequest
-	4,  // 5: vrooli.notification_hub.v1.recipients.RecipientsService.RemovePushSubscription:input_type -> vrooli.notification_hub.v1.recipients.RemovePushSubscriptionRequest
-	6,  // 6: vrooli.notification_hub.v1.recipients.RecipientsService.ListDevices:input_type -> vrooli.notification_hub.v1.recipients.ListDevicesRequest
-	9,  // 7: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertDevice:input_type -> vrooli.notification_hub.v1.recipients.UpsertDeviceRequest
-	10, // 8: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveDevice:input_type -> vrooli.notification_hub.v1.recipients.RemoveDeviceRequest
-	13, // 9: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertChannelAddress:input_type -> vrooli.notification_hub.v1.recipients.UpsertChannelAddressRequest
-	14, // 10: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveChannelAddress:input_type -> vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest
-	16, // 11: vrooli.notification_hub.v1.recipients.RecipientsService.SetQuietWindow:input_type -> vrooli.notification_hub.v1.recipients.SetQuietWindowRequest
-	18, // 12: vrooli.notification_hub.v1.recipients.RecipientsService.ListQuietWindows:input_type -> vrooli.notification_hub.v1.recipients.ListQuietWindowsRequest
-	20, // 13: vrooli.notification_hub.v1.recipients.RecipientsService.DeleteQuietWindow:input_type -> vrooli.notification_hub.v1.recipients.DeleteQuietWindowRequest
-	24, // 14: vrooli.notification_hub.v1.recipients.RecipientsService.SetEscalationChain:input_type -> vrooli.notification_hub.v1.recipients.SetEscalationChainRequest
-	25, // 15: vrooli.notification_hub.v1.recipients.RecipientsService.GetEscalationChain:input_type -> vrooli.notification_hub.v1.recipients.GetEscalationChainRequest
-	1,  // 16: vrooli.notification_hub.v1.recipients.RecipientsService.GetRecipient:output_type -> vrooli.notification_hub.v1.recipients.Recipient
-	3,  // 17: vrooli.notification_hub.v1.recipients.RecipientsService.RegisterPushSubscription:output_type -> vrooli.notification_hub.v1.recipients.RegisterPushSubscriptionResponse
-	5,  // 18: vrooli.notification_hub.v1.recipients.RecipientsService.RemovePushSubscription:output_type -> vrooli.notification_hub.v1.recipients.RemovePushSubscriptionResponse
-	8,  // 19: vrooli.notification_hub.v1.recipients.RecipientsService.ListDevices:output_type -> vrooli.notification_hub.v1.recipients.ListDevicesResponse
-	7,  // 20: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertDevice:output_type -> vrooli.notification_hub.v1.recipients.Device
-	11, // 21: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveDevice:output_type -> vrooli.notification_hub.v1.recipients.RemoveDeviceResponse
-	12, // 22: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertChannelAddress:output_type -> vrooli.notification_hub.v1.recipients.ChannelAddress
-	15, // 23: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveChannelAddress:output_type -> vrooli.notification_hub.v1.recipients.RemoveChannelAddressResponse
-	17, // 24: vrooli.notification_hub.v1.recipients.RecipientsService.SetQuietWindow:output_type -> vrooli.notification_hub.v1.recipients.QuietWindow
-	19, // 25: vrooli.notification_hub.v1.recipients.RecipientsService.ListQuietWindows:output_type -> vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse
-	21, // 26: vrooli.notification_hub.v1.recipients.RecipientsService.DeleteQuietWindow:output_type -> vrooli.notification_hub.v1.recipients.DeleteQuietWindowResponse
-	23, // 27: vrooli.notification_hub.v1.recipients.RecipientsService.SetEscalationChain:output_type -> vrooli.notification_hub.v1.recipients.EscalationChain
-	23, // 28: vrooli.notification_hub.v1.recipients.RecipientsService.GetEscalationChain:output_type -> vrooli.notification_hub.v1.recipients.EscalationChain
-	16, // [16:29] is the sub-list for method output_type
-	3,  // [3:16] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	12, // 1: vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse.addresses:type_name -> vrooli.notification_hub.v1.recipients.ChannelAddress
+	21, // 2: vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse.windows:type_name -> vrooli.notification_hub.v1.recipients.QuietWindow
+	26, // 3: vrooli.notification_hub.v1.recipients.EscalationChain.steps:type_name -> vrooli.notification_hub.v1.recipients.EscalationStep
+	0,  // 4: vrooli.notification_hub.v1.recipients.RecipientsService.GetRecipient:input_type -> vrooli.notification_hub.v1.recipients.GetRecipientRequest
+	2,  // 5: vrooli.notification_hub.v1.recipients.RecipientsService.RegisterPushSubscription:input_type -> vrooli.notification_hub.v1.recipients.RegisterPushSubscriptionRequest
+	4,  // 6: vrooli.notification_hub.v1.recipients.RecipientsService.RemovePushSubscription:input_type -> vrooli.notification_hub.v1.recipients.RemovePushSubscriptionRequest
+	6,  // 7: vrooli.notification_hub.v1.recipients.RecipientsService.ListDevices:input_type -> vrooli.notification_hub.v1.recipients.ListDevicesRequest
+	9,  // 8: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertDevice:input_type -> vrooli.notification_hub.v1.recipients.UpsertDeviceRequest
+	10, // 9: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveDevice:input_type -> vrooli.notification_hub.v1.recipients.RemoveDeviceRequest
+	13, // 10: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertChannelAddress:input_type -> vrooli.notification_hub.v1.recipients.UpsertChannelAddressRequest
+	14, // 11: vrooli.notification_hub.v1.recipients.RecipientsService.ListChannelAddresses:input_type -> vrooli.notification_hub.v1.recipients.ListChannelAddressesRequest
+	16, // 12: vrooli.notification_hub.v1.recipients.RecipientsService.CreateChannelAddress:input_type -> vrooli.notification_hub.v1.recipients.CreateChannelAddressRequest
+	17, // 13: vrooli.notification_hub.v1.recipients.RecipientsService.UpdateChannelAddress:input_type -> vrooli.notification_hub.v1.recipients.UpdateChannelAddressRequest
+	18, // 14: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveChannelAddress:input_type -> vrooli.notification_hub.v1.recipients.RemoveChannelAddressRequest
+	20, // 15: vrooli.notification_hub.v1.recipients.RecipientsService.SetQuietWindow:input_type -> vrooli.notification_hub.v1.recipients.SetQuietWindowRequest
+	22, // 16: vrooli.notification_hub.v1.recipients.RecipientsService.ListQuietWindows:input_type -> vrooli.notification_hub.v1.recipients.ListQuietWindowsRequest
+	24, // 17: vrooli.notification_hub.v1.recipients.RecipientsService.DeleteQuietWindow:input_type -> vrooli.notification_hub.v1.recipients.DeleteQuietWindowRequest
+	28, // 18: vrooli.notification_hub.v1.recipients.RecipientsService.SetEscalationChain:input_type -> vrooli.notification_hub.v1.recipients.SetEscalationChainRequest
+	29, // 19: vrooli.notification_hub.v1.recipients.RecipientsService.GetEscalationChain:input_type -> vrooli.notification_hub.v1.recipients.GetEscalationChainRequest
+	1,  // 20: vrooli.notification_hub.v1.recipients.RecipientsService.GetRecipient:output_type -> vrooli.notification_hub.v1.recipients.Recipient
+	3,  // 21: vrooli.notification_hub.v1.recipients.RecipientsService.RegisterPushSubscription:output_type -> vrooli.notification_hub.v1.recipients.RegisterPushSubscriptionResponse
+	5,  // 22: vrooli.notification_hub.v1.recipients.RecipientsService.RemovePushSubscription:output_type -> vrooli.notification_hub.v1.recipients.RemovePushSubscriptionResponse
+	8,  // 23: vrooli.notification_hub.v1.recipients.RecipientsService.ListDevices:output_type -> vrooli.notification_hub.v1.recipients.ListDevicesResponse
+	7,  // 24: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertDevice:output_type -> vrooli.notification_hub.v1.recipients.Device
+	11, // 25: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveDevice:output_type -> vrooli.notification_hub.v1.recipients.RemoveDeviceResponse
+	12, // 26: vrooli.notification_hub.v1.recipients.RecipientsService.UpsertChannelAddress:output_type -> vrooli.notification_hub.v1.recipients.ChannelAddress
+	15, // 27: vrooli.notification_hub.v1.recipients.RecipientsService.ListChannelAddresses:output_type -> vrooli.notification_hub.v1.recipients.ListChannelAddressesResponse
+	12, // 28: vrooli.notification_hub.v1.recipients.RecipientsService.CreateChannelAddress:output_type -> vrooli.notification_hub.v1.recipients.ChannelAddress
+	12, // 29: vrooli.notification_hub.v1.recipients.RecipientsService.UpdateChannelAddress:output_type -> vrooli.notification_hub.v1.recipients.ChannelAddress
+	19, // 30: vrooli.notification_hub.v1.recipients.RecipientsService.RemoveChannelAddress:output_type -> vrooli.notification_hub.v1.recipients.RemoveChannelAddressResponse
+	21, // 31: vrooli.notification_hub.v1.recipients.RecipientsService.SetQuietWindow:output_type -> vrooli.notification_hub.v1.recipients.QuietWindow
+	23, // 32: vrooli.notification_hub.v1.recipients.RecipientsService.ListQuietWindows:output_type -> vrooli.notification_hub.v1.recipients.ListQuietWindowsResponse
+	25, // 33: vrooli.notification_hub.v1.recipients.RecipientsService.DeleteQuietWindow:output_type -> vrooli.notification_hub.v1.recipients.DeleteQuietWindowResponse
+	27, // 34: vrooli.notification_hub.v1.recipients.RecipientsService.SetEscalationChain:output_type -> vrooli.notification_hub.v1.recipients.EscalationChain
+	27, // 35: vrooli.notification_hub.v1.recipients.RecipientsService.GetEscalationChain:output_type -> vrooli.notification_hub.v1.recipients.EscalationChain
+	20, // [20:36] is the sub-list for method output_type
+	4,  // [4:20] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_notification_hub_v1_recipients_recipients_proto_init() }
@@ -1548,7 +1793,7 @@ func file_notification_hub_v1_recipients_recipients_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notification_hub_v1_recipients_recipients_proto_rawDesc), len(file_notification_hub_v1_recipients_recipients_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

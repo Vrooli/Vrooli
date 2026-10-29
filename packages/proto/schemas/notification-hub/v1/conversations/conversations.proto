@@ -103,8 +103,28 @@ message Ask {
   string updated_at = 28;
   string big_picture = 29;
   string technical_details = 30;
+  // Existing notification title for concise list summaries. The full question
+  // remains authoritative and available on the detail page.
+  string title = 31;
 }
 message GetAskRequest { string ask_id = 1; }
 message GetAskResponse { Ask ask = 1; }
-message ListAsksRequest { bool open_only = 1; int32 limit = 2; }
-message ListAsksResponse { repeated Ask asks = 1; }
+message ListAsksRequest {
+  // Compatibility shortcut for state_filter=awaiting. Conflicting filters fail.
+  bool open_only = 1;
+  // Page size, default 50, maximum 200. This is not a total-result limit.
+  int32 limit = 2;
+  // Opaque continuation for the same recipient, query and state filter.
+  string cursor = 3;
+  // Literal substring of question, source, answer/options, note or requester ref.
+  // Applied on the server before pagination.
+  string query = 4;
+  // all (default), awaiting (pending/escalated), answered, defaulted, expired,
+  // withdrawn, pending or escalated.
+  string state_filter = 5;
+}
+message ListAsksResponse {
+  repeated Ask asks = 1;
+  // Empty at the end. Live keyset order is created_at DESC, id DESC.
+  string next_cursor = 2;
+}

@@ -100,7 +100,7 @@ class ResolveRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., path: _Optional[str] = ..., source_context: _Optional[_Union[SourceContext, str]] = ...) -> None: ...
 
 class ResolveResponse(_message.Message):
-    __slots__ = ("preview_id", "input_path", "resolved_path", "basename", "line", "has_line", "resolution_basis", "preview_kind", "mime_type", "size_bytes", "mtime_unix_nano", "can_preview", "can_download", "supports_range", "text_content_available", "blob_url", "expires_unix_nano", "warnings", "listing_available", "archive_member")
+    __slots__ = ("preview_id", "input_path", "resolved_path", "basename", "line", "has_line", "resolution_basis", "preview_kind", "mime_type", "size_bytes", "mtime_unix_nano", "can_preview", "can_download", "supports_range", "text_content_available", "blob_url", "expires_unix_nano", "warnings", "listing_available", "archive_member", "candidates", "unresolved", "search_bases")
     PREVIEW_ID_FIELD_NUMBER: _ClassVar[int]
     INPUT_PATH_FIELD_NUMBER: _ClassVar[int]
     RESOLVED_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -121,6 +121,9 @@ class ResolveResponse(_message.Message):
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     LISTING_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     ARCHIVE_MEMBER_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    UNRESOLVED_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_BASES_FIELD_NUMBER: _ClassVar[int]
     preview_id: str
     input_path: str
     resolved_path: str
@@ -141,7 +144,24 @@ class ResolveResponse(_message.Message):
     warnings: _containers.RepeatedScalarFieldContainer[str]
     listing_available: bool
     archive_member: bool
-    def __init__(self, preview_id: _Optional[str] = ..., input_path: _Optional[str] = ..., resolved_path: _Optional[str] = ..., basename: _Optional[str] = ..., line: _Optional[int] = ..., has_line: _Optional[bool] = ..., resolution_basis: _Optional[str] = ..., preview_kind: _Optional[_Union[PreviewKind, str]] = ..., mime_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., mtime_unix_nano: _Optional[int] = ..., can_preview: _Optional[bool] = ..., can_download: _Optional[bool] = ..., supports_range: _Optional[bool] = ..., text_content_available: _Optional[bool] = ..., blob_url: _Optional[str] = ..., expires_unix_nano: _Optional[int] = ..., warnings: _Optional[_Iterable[str]] = ..., listing_available: _Optional[bool] = ..., archive_member: _Optional[bool] = ...) -> None: ...
+    candidates: _containers.RepeatedCompositeFieldContainer[ResolveCandidate]
+    unresolved: bool
+    search_bases: _containers.RepeatedCompositeFieldContainer[ResolveCandidate]
+    def __init__(self, preview_id: _Optional[str] = ..., input_path: _Optional[str] = ..., resolved_path: _Optional[str] = ..., basename: _Optional[str] = ..., line: _Optional[int] = ..., has_line: _Optional[bool] = ..., resolution_basis: _Optional[str] = ..., preview_kind: _Optional[_Union[PreviewKind, str]] = ..., mime_type: _Optional[str] = ..., size_bytes: _Optional[int] = ..., mtime_unix_nano: _Optional[int] = ..., can_preview: _Optional[bool] = ..., can_download: _Optional[bool] = ..., supports_range: _Optional[bool] = ..., text_content_available: _Optional[bool] = ..., blob_url: _Optional[str] = ..., expires_unix_nano: _Optional[int] = ..., warnings: _Optional[_Iterable[str]] = ..., listing_available: _Optional[bool] = ..., archive_member: _Optional[bool] = ..., candidates: _Optional[_Iterable[_Union[ResolveCandidate, _Mapping]]] = ..., unresolved: _Optional[bool] = ..., search_bases: _Optional[_Iterable[_Union[ResolveCandidate, _Mapping]]] = ...) -> None: ...
+
+class ResolveCandidate(_message.Message):
+    __slots__ = ("resolved_path", "resolution_basis", "preview_kind", "can_preview", "basename")
+    RESOLVED_PATH_FIELD_NUMBER: _ClassVar[int]
+    RESOLUTION_BASIS_FIELD_NUMBER: _ClassVar[int]
+    PREVIEW_KIND_FIELD_NUMBER: _ClassVar[int]
+    CAN_PREVIEW_FIELD_NUMBER: _ClassVar[int]
+    BASENAME_FIELD_NUMBER: _ClassVar[int]
+    resolved_path: str
+    resolution_basis: str
+    preview_kind: PreviewKind
+    can_preview: bool
+    basename: str
+    def __init__(self, resolved_path: _Optional[str] = ..., resolution_basis: _Optional[str] = ..., preview_kind: _Optional[_Union[PreviewKind, str]] = ..., can_preview: _Optional[bool] = ..., basename: _Optional[str] = ...) -> None: ...
 
 class GetTextContentRequest(_message.Message):
     __slots__ = ("session_id", "preview_id")

@@ -121,6 +121,7 @@ type Team struct {
 	Archived           bool                    `protobuf:"varint,17,opt,name=archived,proto3" json:"archived,omitempty"`
 	ManagedTeamIds     []string                `protobuf:"bytes,18,rep,name=managed_team_ids,json=managedTeamIds,proto3" json:"managed_team_ids,omitempty"`
 	ManagedByTeamIds   []string                `protobuf:"bytes,19,rep,name=managed_by_team_ids,json=managedByTeamIds,proto3" json:"managed_by_team_ids,omitempty"`
+	HomePath           string                  `protobuf:"bytes,20,opt,name=home_path,json=homePath,proto3" json:"home_path,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -288,6 +289,13 @@ func (x *Team) GetManagedByTeamIds() []string {
 	return nil
 }
 
+func (x *Team) GetHomePath() string {
+	if x != nil {
+		return x.HomePath
+	}
+	return ""
+}
+
 type Role struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -439,8 +447,12 @@ type TeamDetails struct {
 	Archived           bool                    `protobuf:"varint,19,opt,name=archived,proto3" json:"archived,omitempty"`
 	ManagedTeamIds     []string                `protobuf:"bytes,20,rep,name=managed_team_ids,json=managedTeamIds,proto3" json:"managed_team_ids,omitempty"`
 	ManagedByTeamIds   []string                `protobuf:"bytes,21,rep,name=managed_by_team_ids,json=managedByTeamIds,proto3" json:"managed_by_team_ids,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	HomePath           string                  `protobuf:"bytes,22,opt,name=home_path,json=homePath,proto3" json:"home_path,omitempty"`
+	// Owner-computed authority for the current verified caller; never an input.
+	ManagementAuthorized bool  `protobuf:"varint,23,opt,name=management_authorized,json=managementAuthorized,proto3" json:"management_authorized,omitempty"`
+	Revision             int64 `protobuf:"varint,24,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *TeamDetails) Reset() {
@@ -620,6 +632,27 @@ func (x *TeamDetails) GetManagedByTeamIds() []string {
 	return nil
 }
 
+func (x *TeamDetails) GetHomePath() string {
+	if x != nil {
+		return x.HomePath
+	}
+	return ""
+}
+
+func (x *TeamDetails) GetManagementAuthorized() bool {
+	if x != nil {
+		return x.ManagementAuthorized
+	}
+	return false
+}
+
+func (x *TeamDetails) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 type TeamInput struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -634,6 +667,7 @@ type TeamInput struct {
 	Lifetime          string                 `protobuf:"bytes,10,opt,name=lifetime,proto3" json:"lifetime,omitempty"`
 	EffortRefs        []string               `protobuf:"bytes,11,rep,name=effort_refs,json=effortRefs,proto3" json:"effort_refs,omitempty"`
 	Archived          bool                   `protobuf:"varint,12,opt,name=archived,proto3" json:"archived,omitempty"`
+	HomePath          string                 `protobuf:"bytes,13,opt,name=home_path,json=homePath,proto3" json:"home_path,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -750,6 +784,13 @@ func (x *TeamInput) GetArchived() bool {
 		return x.Archived
 	}
 	return false
+}
+
+func (x *TeamInput) GetHomePath() string {
+	if x != nil {
+		return x.HomePath
+	}
+	return ""
 }
 
 type ListTeamsRequest struct {
@@ -4385,7 +4426,7 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\x04role\x18\x02 \x01(\tR\x04role\x12\x1a\n" +
 	"\bcoverage\x18\x03 \x01(\tR\bcoverage\x12\x12\n" +
 	"\x04note\x18\x04 \x01(\tR\x04note\x123\n" +
-	"\x15acknowledged_revision\x18\x05 \x01(\tR\x14acknowledgedRevision\"\xb6\x06\n" +
+	"\x15acknowledged_revision\x18\x05 \x01(\tR\x14acknowledgedRevision\"\xd3\x06\n" +
 	"\x04Team\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x18\n" +
@@ -4409,7 +4450,8 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\x11objectives_served\x18\x10 \x03(\v24.vrooli.prompt_manager.v1.teams.ObjectiveDeclarationR\x10objectivesServed\x12\x1a\n" +
 	"\barchived\x18\x11 \x01(\bR\barchived\x12(\n" +
 	"\x10managed_team_ids\x18\x12 \x03(\tR\x0emanagedTeamIds\x12-\n" +
-	"\x13managed_by_team_ids\x18\x13 \x03(\tR\x10managedByTeamIds\"L\n" +
+	"\x13managed_by_team_ids\x18\x13 \x03(\tR\x10managedByTeamIds\x12\x1b\n" +
+	"\thome_path\x18\x14 \x01(\tR\bhomePath\"L\n" +
 	"\x04Role\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -4418,7 +4460,7 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x14\n" +
 	"\x05roles\x18\x03 \x03(\tR\x05roles\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status\"\xbb\a\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\"\xa9\b\n" +
 	"\vTeamDetails\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x18\n" +
@@ -4444,7 +4486,10 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	"\x11objectives_served\x18\x12 \x03(\v24.vrooli.prompt_manager.v1.teams.ObjectiveDeclarationR\x10objectivesServed\x12\x1a\n" +
 	"\barchived\x18\x13 \x01(\bR\barchived\x12(\n" +
 	"\x10managed_team_ids\x18\x14 \x03(\tR\x0emanagedTeamIds\x12-\n" +
-	"\x13managed_by_team_ids\x18\x15 \x03(\tR\x10managedByTeamIds\"\xd4\x03\n" +
+	"\x13managed_by_team_ids\x18\x15 \x03(\tR\x10managedByTeamIds\x12\x1b\n" +
+	"\thome_path\x18\x16 \x01(\tR\bhomePath\x123\n" +
+	"\x15management_authorized\x18\x17 \x01(\bR\x14managementAuthorized\x12\x1a\n" +
+	"\brevision\x18\x18 \x01(\x03R\brevision\"\xf1\x03\n" +
 	"\tTeamInput\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x18\n" +
@@ -4459,7 +4504,8 @@ const file_prompt_manager_v1_teams_teams_proto_rawDesc = "" +
 	" \x01(\tR\blifetime\x12\x1f\n" +
 	"\veffort_refs\x18\v \x03(\tR\n" +
 	"effortRefs\x12\x1a\n" +
-	"\barchived\x18\f \x01(\bR\barchived\"\x12\n" +
+	"\barchived\x18\f \x01(\bR\barchived\x12\x1b\n" +
+	"\thome_path\x18\r \x01(\tR\bhomePath\"\x12\n" +
 	"\x10ListTeamsRequest\"O\n" +
 	"\x11ListTeamsResponse\x12:\n" +
 	"\x05teams\x18\x01 \x03(\v2$.vrooli.prompt_manager.v1.teams.TeamR\x05teams\" \n" +

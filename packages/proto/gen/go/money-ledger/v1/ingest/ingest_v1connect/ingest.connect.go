@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// IngestServicePreviewCryptoObservationProcedure is the fully-qualified name of the IngestService's
+	// PreviewCryptoObservation RPC.
+	IngestServicePreviewCryptoObservationProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/PreviewCryptoObservation"
 	// IngestServiceRegisterAdapterProcedure is the fully-qualified name of the IngestService's
 	// RegisterAdapter RPC.
 	IngestServiceRegisterAdapterProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter"
@@ -58,6 +61,7 @@ const (
 
 // IngestServiceClient is a client for the vrooli.money_ledger.v1.ingest.IngestService service.
 type IngestServiceClient interface {
+	PreviewCryptoObservation(context.Context, *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error)
 	RegisterAdapter(context.Context, *connect.Request[ingest.RegisterAdapterRequest]) (*connect.Response[ingest.RegisterAdapterResponse], error)
 	ListAdapters(context.Context, *connect.Request[ingest.ListAdaptersRequest]) (*connect.Response[ingest.ListAdaptersResponse], error)
 	IngestEvent(context.Context, *connect.Request[ingest.IngestEventRequest]) (*connect.Response[ingest.IngestEventResponse], error)
@@ -78,6 +82,12 @@ func NewIngestServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	ingestServiceMethods := ingest.File_money_ledger_v1_ingest_ingest_proto.Services().ByName("IngestService").Methods()
 	return &ingestServiceClient{
+		previewCryptoObservation: connect.NewClient[ingest.PreviewCryptoObservationRequest, ingest.PreviewCryptoObservationResponse](
+			httpClient,
+			baseURL+IngestServicePreviewCryptoObservationProcedure,
+			connect.WithSchema(ingestServiceMethods.ByName("PreviewCryptoObservation")),
+			connect.WithClientOptions(opts...),
+		),
 		registerAdapter: connect.NewClient[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse](
 			httpClient,
 			baseURL+IngestServiceRegisterAdapterProcedure,
@@ -125,13 +135,20 @@ func NewIngestServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // ingestServiceClient implements IngestServiceClient.
 type ingestServiceClient struct {
-	registerAdapter      *connect.Client[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse]
-	listAdapters         *connect.Client[ingest.ListAdaptersRequest, ingest.ListAdaptersResponse]
-	ingestEvent          *connect.Client[ingest.IngestEventRequest, ingest.IngestEventResponse]
-	runAdapter           *connect.Client[ingest.RunAdapterRequest, ingest.RunAdapterResponse]
-	importFile           *connect.Client[ingest.ImportFileRequest, ingest.ImportFileResponse]
-	importOperatorInputs *connect.Client[ingest.OperatorImportRequest, ingest.OperatorImportResponse]
-	operatorInputStatus  *connect.Client[ingest.OperatorInputStatusRequest, ingest.OperatorInputStatusResponse]
+	previewCryptoObservation *connect.Client[ingest.PreviewCryptoObservationRequest, ingest.PreviewCryptoObservationResponse]
+	registerAdapter          *connect.Client[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse]
+	listAdapters             *connect.Client[ingest.ListAdaptersRequest, ingest.ListAdaptersResponse]
+	ingestEvent              *connect.Client[ingest.IngestEventRequest, ingest.IngestEventResponse]
+	runAdapter               *connect.Client[ingest.RunAdapterRequest, ingest.RunAdapterResponse]
+	importFile               *connect.Client[ingest.ImportFileRequest, ingest.ImportFileResponse]
+	importOperatorInputs     *connect.Client[ingest.OperatorImportRequest, ingest.OperatorImportResponse]
+	operatorInputStatus      *connect.Client[ingest.OperatorInputStatusRequest, ingest.OperatorInputStatusResponse]
+}
+
+// PreviewCryptoObservation calls
+// vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation.
+func (c *ingestServiceClient) PreviewCryptoObservation(ctx context.Context, req *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error) {
+	return c.previewCryptoObservation.CallUnary(ctx, req)
 }
 
 // RegisterAdapter calls vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter.
@@ -172,6 +189,7 @@ func (c *ingestServiceClient) OperatorInputStatus(ctx context.Context, req *conn
 // IngestServiceHandler is an implementation of the vrooli.money_ledger.v1.ingest.IngestService
 // service.
 type IngestServiceHandler interface {
+	PreviewCryptoObservation(context.Context, *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error)
 	RegisterAdapter(context.Context, *connect.Request[ingest.RegisterAdapterRequest]) (*connect.Response[ingest.RegisterAdapterResponse], error)
 	ListAdapters(context.Context, *connect.Request[ingest.ListAdaptersRequest]) (*connect.Response[ingest.ListAdaptersResponse], error)
 	IngestEvent(context.Context, *connect.Request[ingest.IngestEventRequest]) (*connect.Response[ingest.IngestEventResponse], error)
@@ -188,6 +206,12 @@ type IngestServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	ingestServiceMethods := ingest.File_money_ledger_v1_ingest_ingest_proto.Services().ByName("IngestService").Methods()
+	ingestServicePreviewCryptoObservationHandler := connect.NewUnaryHandler(
+		IngestServicePreviewCryptoObservationProcedure,
+		svc.PreviewCryptoObservation,
+		connect.WithSchema(ingestServiceMethods.ByName("PreviewCryptoObservation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	ingestServiceRegisterAdapterHandler := connect.NewUnaryHandler(
 		IngestServiceRegisterAdapterProcedure,
 		svc.RegisterAdapter,
@@ -232,6 +256,8 @@ func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/vrooli.money_ledger.v1.ingest.IngestService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case IngestServicePreviewCryptoObservationProcedure:
+			ingestServicePreviewCryptoObservationHandler.ServeHTTP(w, r)
 		case IngestServiceRegisterAdapterProcedure:
 			ingestServiceRegisterAdapterHandler.ServeHTTP(w, r)
 		case IngestServiceListAdaptersProcedure:
@@ -254,6 +280,10 @@ func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOp
 
 // UnimplementedIngestServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedIngestServiceHandler struct{}
+
+func (UnimplementedIngestServiceHandler) PreviewCryptoObservation(context.Context, *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation is not implemented"))
+}
 
 func (UnimplementedIngestServiceHandler) RegisterAdapter(context.Context, *connect.Request[ingest.RegisterAdapterRequest]) (*connect.Response[ingest.RegisterAdapterResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter is not implemented"))

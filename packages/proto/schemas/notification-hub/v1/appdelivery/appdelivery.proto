@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.appdelivery;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/appdelivery;appdelivery_v1";
+
+// AppDeliveryService lets a scenario's own installed app receive that
+// scenario's notifications on one device instead of Chimesail. The hub still
+// routes every notification; this service only records which app on which
+// device should show it.
+//
+// The scenario-scoped methods (GetAppState, EnableApp, ConfirmApp,
+// DisableApp) name the calling scenario in the `x-vrooli-app-scenario`
+// header. The shared scenario web server (@vrooli/api-base/server
+// `appNotifications`) sets it from its own configuration; a browser never
+// chooses it. The hub then checks that the subscription's origin is that
+// scenario's permanent public address.
+//
+// Contract: scenarios/notification-hub/docs/concepts/NOTIFICATIONS.md
+// §"App delivery".
+service AppDeliveryService {
+  // What the calling scenario's settings panel needs: whether the scenario
+  // can use app delivery, this browser's subscription (if any), and the
+  // devices it could be paired with.
+  rpc GetAppState(GetAppStateRequest) returns (AppState);
+  // Store this app's push subscription and pair it with one device, so that
+  // device gets this scenario's notifications here instead of in Chimesail.
+  rpc EnableApp(EnableAppRequest) returns (AppState);
+  // Called each time the app opens: records that the app is still installed
+  // and whether it may still show notifications.
+  rpc ConfirmApp(ConfirmAppRequest) returns (ConfirmAppResponse);
+  // Stop delivering to this app; the device goes back to Chimesail.
+  rpc DisableApp(DisableAppRequest) returns (DisableAppResponse);
+  // Every device and the apps on it, for Notification Hub's own settings.
+  rpc ListDeviceApps(ListDeviceAppsRequest) returns (ListDeviceAppsResponse);
+  // Remove one scenario app from a device (by subscription id); that device
+  // goes back to Chimesail for the scenario.
+  rpc RemoveDeviceApp(RemoveDeviceAppRequest) returns (RemoveDeviceAppResponse);
+}
+
+message GetAppStateRequest {
+  // This browser's current push endpoint, when it has one.
+  string endpoint = 1;
+  string user_agent = 2;
+}
+
+message AppState {
+  string scenario = 1;
+  string display_name = 2;
+  // The hub's VAPID public key; the app subscribes with it.
+  string vapid_public_key = 3;
+  // False when the scenario has no permanent public address.
+  bool eligible = 4;
+  string ineligible_reason = 5;
+  string public_url = 6;
+  // This browser's app subscription; unset when it has none.
+  AppSubscription subscription = 7;
+  // Devices this app can be paired with: each device that has Chimesail.
+  repeated DeviceChoice devices = 8;
+}
+
+message AppSubscription {
+  string id = 1;
+  string device_group = 2;
+  string device_label = 3;
+  // The browser's Notification.permission: granted, denied or default.
+  string permission = 4;
+  string confirmed_at = 5;
+  // True when the hub currently delivers to this app.
+  bool healthy = 6;
+  // Why the hub uses Chimesail instead, when not healthy.
+  string unhealthy_reason = 7;
+  // True when paired as a device without Chimesail.
+  bool standalone = 8;
+}
+
+message DeviceChoice {
+  string group = 1;
+  string label = 2;
+  string last_used = 3;
+  // The likeliest match for the calling browser; preselected in the UI.
+  bool best_match = 4;
+  // Display names of scenario apps already paired on this device.
+  repeated string apps = 5;
+}
+
+message EnableAppRequest {
+  string endpoint = 1;
+  string p256dh = 2;
+  string auth = 3;
+  // The page origin the subscription was created on.
+  string origin = 4;
+  string user_agent = 5;
+  string permission = 6;
+  // The device group to pair with (a DeviceChoice.group).
+  string pair_with_group = 7;
+  // Pair as a device that has no Chimesail; nothing is replaced.
+  bool standalone = 8;
+}
+
+message ConfirmAppRequest {
+  string endpoint = 1;
+  string permission = 2;
+  string user_agent = 3;
+}
+
+message ConfirmAppResponse {
+  // False when the hub has no app subscription for this endpoint.
+  bool registered = 1;
+  bool healthy = 2;
+}
+
+message DisableAppRequest {
+  string endpoint = 1;
+}
+
+message DisableAppResponse {}
+
+message ListDeviceAppsRequest {}
+
+message ListDeviceAppsResponse {
+  repeated DeviceApps devices = 1;
+}
+
+message DeviceApps {
+  string group = 1;
+  string label = 2;
+  string last_used = 3;
+  repeated DeviceAppEntry apps = 4;
+}
+
+message DeviceAppEntry {
+  string subscription_id = 1;
+  // Empty for Chimesail.
+  string scenario = 2;
+  string display_name = 3;
+  // For a scenario app: true when the hub currently delivers to it.
+  bool healthy = 4;
+  // Plain-language state, such as "Delivering here" or "Not opened for 30 days; using Chimesail".
+  string status = 5;
+  string confirmed_at = 6;
+}
+
+message RemoveDeviceAppRequest {
+  string subscription_id = 1;
+}
+
+message RemoveDeviceAppResponse {}

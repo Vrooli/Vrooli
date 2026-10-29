@@ -397,6 +397,16 @@ type ResolveResponse struct {
 	ListingAvailable bool `protobuf:"varint,19,opt,name=listing_available,json=listingAvailable,proto3" json:"listing_available,omitempty"`
 	// Virtual members cannot be resolved as host paths or executed.
 	ArchiveMember bool `protobuf:"varint,20,opt,name=archive_member,json=archiveMember,proto3" json:"archive_member,omitempty"`
+	// candidates lists every filesystem location the input matched. The top-level
+	// fields describe candidates[0] (the default selection). When more than one
+	// base matched a relative path, the client offers a disambiguation picker.
+	Candidates []*ResolveCandidate `protobuf:"bytes,21,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	// unresolved is true when a relative path matched no base directory. Resolve
+	// does not error in this case; search_bases carries directories to browse.
+	Unresolved bool `protobuf:"varint,22,opt,name=unresolved,proto3" json:"unresolved,omitempty"`
+	// search_bases are existing directories (session cwd, project root) offered
+	// as starting points for a manual browse when unresolved is true.
+	SearchBases   []*ResolveCandidate `protobuf:"bytes,23,rep,name=search_bases,json=searchBases,proto3" json:"search_bases,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -571,6 +581,106 @@ func (x *ResolveResponse) GetArchiveMember() bool {
 	return false
 }
 
+func (x *ResolveResponse) GetCandidates() []*ResolveCandidate {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
+func (x *ResolveResponse) GetUnresolved() bool {
+	if x != nil {
+		return x.Unresolved
+	}
+	return false
+}
+
+func (x *ResolveResponse) GetSearchBases() []*ResolveCandidate {
+	if x != nil {
+		return x.SearchBases
+	}
+	return nil
+}
+
+// ResolveCandidate is one filesystem location a relative path matched, or one
+// base directory offered for browsing when it matched nowhere. For a directory
+// base, preview_kind is PREVIEW_KIND_DIRECTORY and resolved_path is the dir.
+type ResolveCandidate struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ResolvedPath    string                 `protobuf:"bytes,1,opt,name=resolved_path,json=resolvedPath,proto3" json:"resolved_path,omitempty"`
+	ResolutionBasis string                 `protobuf:"bytes,2,opt,name=resolution_basis,json=resolutionBasis,proto3" json:"resolution_basis,omitempty"` // "absolute" | "session_cwd" | "project_root"
+	PreviewKind     PreviewKind            `protobuf:"varint,3,opt,name=preview_kind,json=previewKind,proto3,enum=vrooli.web_console.v1.file_preview.PreviewKind" json:"preview_kind,omitempty"`
+	CanPreview      bool                   `protobuf:"varint,4,opt,name=can_preview,json=canPreview,proto3" json:"can_preview,omitempty"`
+	Basename        string                 `protobuf:"bytes,5,opt,name=basename,proto3" json:"basename,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ResolveCandidate) Reset() {
+	*x = ResolveCandidate{}
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveCandidate) ProtoMessage() {}
+
+func (x *ResolveCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveCandidate.ProtoReflect.Descriptor instead.
+func (*ResolveCandidate) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ResolveCandidate) GetResolvedPath() string {
+	if x != nil {
+		return x.ResolvedPath
+	}
+	return ""
+}
+
+func (x *ResolveCandidate) GetResolutionBasis() string {
+	if x != nil {
+		return x.ResolutionBasis
+	}
+	return ""
+}
+
+func (x *ResolveCandidate) GetPreviewKind() PreviewKind {
+	if x != nil {
+		return x.PreviewKind
+	}
+	return PreviewKind_PREVIEW_KIND_UNSPECIFIED
+}
+
+func (x *ResolveCandidate) GetCanPreview() bool {
+	if x != nil {
+		return x.CanPreview
+	}
+	return false
+}
+
+func (x *ResolveCandidate) GetBasename() string {
+	if x != nil {
+		return x.Basename
+	}
+	return ""
+}
+
 type GetTextContentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -581,7 +691,7 @@ type GetTextContentRequest struct {
 
 func (x *GetTextContentRequest) Reset() {
 	*x = GetTextContentRequest{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[2]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -593,7 +703,7 @@ func (x *GetTextContentRequest) String() string {
 func (*GetTextContentRequest) ProtoMessage() {}
 
 func (x *GetTextContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[2]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -606,7 +716,7 @@ func (x *GetTextContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTextContentRequest.ProtoReflect.Descriptor instead.
 func (*GetTextContentRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{2}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetTextContentRequest) GetSessionId() string {
@@ -638,7 +748,7 @@ type GetTextContentResponse struct {
 
 func (x *GetTextContentResponse) Reset() {
 	*x = GetTextContentResponse{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[3]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +760,7 @@ func (x *GetTextContentResponse) String() string {
 func (*GetTextContentResponse) ProtoMessage() {}
 
 func (x *GetTextContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[3]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +773,7 @@ func (x *GetTextContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTextContentResponse.ProtoReflect.Descriptor instead.
 func (*GetTextContentResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{3}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetTextContentResponse) GetResolvedPath() string {
@@ -735,7 +845,7 @@ type ListDirectoryRequest struct {
 
 func (x *ListDirectoryRequest) Reset() {
 	*x = ListDirectoryRequest{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[4]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +857,7 @@ func (x *ListDirectoryRequest) String() string {
 func (*ListDirectoryRequest) ProtoMessage() {}
 
 func (x *ListDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[4]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +870,7 @@ func (x *ListDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*ListDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{4}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListDirectoryRequest) GetSessionId() string {
@@ -833,7 +943,7 @@ type DirectoryEntry struct {
 
 func (x *DirectoryEntry) Reset() {
 	*x = DirectoryEntry{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[5]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -845,7 +955,7 @@ func (x *DirectoryEntry) String() string {
 func (*DirectoryEntry) ProtoMessage() {}
 
 func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[5]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -858,7 +968,7 @@ func (x *DirectoryEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectoryEntry.ProtoReflect.Descriptor instead.
 func (*DirectoryEntry) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{5}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DirectoryEntry) GetName() string {
@@ -953,7 +1063,7 @@ type ListDirectoryResponse struct {
 
 func (x *ListDirectoryResponse) Reset() {
 	*x = ListDirectoryResponse{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[6]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -965,7 +1075,7 @@ func (x *ListDirectoryResponse) String() string {
 func (*ListDirectoryResponse) ProtoMessage() {}
 
 func (x *ListDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[6]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -978,7 +1088,7 @@ func (x *ListDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*ListDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{6}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListDirectoryResponse) GetResolvedPath() string {
@@ -1047,7 +1157,7 @@ type ListArchiveRequest struct {
 
 func (x *ListArchiveRequest) Reset() {
 	*x = ListArchiveRequest{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[7]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1059,7 +1169,7 @@ func (x *ListArchiveRequest) String() string {
 func (*ListArchiveRequest) ProtoMessage() {}
 
 func (x *ListArchiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[7]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1072,7 +1182,7 @@ func (x *ListArchiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListArchiveRequest.ProtoReflect.Descriptor instead.
 func (*ListArchiveRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{7}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListArchiveRequest) GetSessionId() string {
@@ -1102,7 +1212,7 @@ type ListArchiveResponse struct {
 
 func (x *ListArchiveResponse) Reset() {
 	*x = ListArchiveResponse{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[8]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1114,7 +1224,7 @@ func (x *ListArchiveResponse) String() string {
 func (*ListArchiveResponse) ProtoMessage() {}
 
 func (x *ListArchiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[8]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1127,7 +1237,7 @@ func (x *ListArchiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListArchiveResponse.ProtoReflect.Descriptor instead.
 func (*ListArchiveResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{8}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListArchiveResponse) GetFormat() string {
@@ -1165,7 +1275,7 @@ type ArchiveEntry struct {
 
 func (x *ArchiveEntry) Reset() {
 	*x = ArchiveEntry{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[9]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1177,7 +1287,7 @@ func (x *ArchiveEntry) String() string {
 func (*ArchiveEntry) ProtoMessage() {}
 
 func (x *ArchiveEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[9]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1190,7 +1300,7 @@ func (x *ArchiveEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveEntry.ProtoReflect.Descriptor instead.
 func (*ArchiveEntry) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{9}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ArchiveEntry) GetEntryId() string {
@@ -1232,7 +1342,7 @@ type OpenArchiveEntryRequest struct {
 
 func (x *OpenArchiveEntryRequest) Reset() {
 	*x = OpenArchiveEntryRequest{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[10]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1244,7 +1354,7 @@ func (x *OpenArchiveEntryRequest) String() string {
 func (*OpenArchiveEntryRequest) ProtoMessage() {}
 
 func (x *OpenArchiveEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[10]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1257,7 +1367,7 @@ func (x *OpenArchiveEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenArchiveEntryRequest.ProtoReflect.Descriptor instead.
 func (*OpenArchiveEntryRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{10}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *OpenArchiveEntryRequest) GetSessionId() string {
@@ -1291,7 +1401,7 @@ type OpenArchiveEntryResponse struct {
 
 func (x *OpenArchiveEntryResponse) Reset() {
 	*x = OpenArchiveEntryResponse{}
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[11]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1303,7 +1413,7 @@ func (x *OpenArchiveEntryResponse) String() string {
 func (*OpenArchiveEntryResponse) ProtoMessage() {}
 
 func (x *OpenArchiveEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[11]
+	mi := &file_web_console_v1_file_preview_file_preview_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1316,7 +1426,7 @@ func (x *OpenArchiveEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenArchiveEntryResponse.ProtoReflect.Descriptor instead.
 func (*OpenArchiveEntryResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{11}
+	return file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *OpenArchiveEntryResponse) GetStatus() string {
@@ -1342,7 +1452,7 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12X\n" +
-	"\x0esource_context\x18\x03 \x01(\x0e21.vrooli.web_console.v1.file_preview.SourceContextR\rsourceContext\"\xfa\x05\n" +
+	"\x0esource_context\x18\x03 \x01(\x0e21.vrooli.web_console.v1.file_preview.SourceContextR\rsourceContext\"\xc9\a\n" +
 	"\x0fResolveResponse\x12\x1d\n" +
 	"\n" +
 	"preview_id\x18\x01 \x01(\tR\tpreviewId\x12\x1d\n" +
@@ -1368,7 +1478,21 @@ const file_web_console_v1_file_preview_file_preview_proto_rawDesc = "" +
 	"\x11expires_unix_nano\x18\x11 \x01(\x03R\x0fexpiresUnixNano\x12\x1a\n" +
 	"\bwarnings\x18\x12 \x03(\tR\bwarnings\x12+\n" +
 	"\x11listing_available\x18\x13 \x01(\bR\x10listingAvailable\x12%\n" +
-	"\x0earchive_member\x18\x14 \x01(\bR\rarchiveMember\"U\n" +
+	"\x0earchive_member\x18\x14 \x01(\bR\rarchiveMember\x12T\n" +
+	"\n" +
+	"candidates\x18\x15 \x03(\v24.vrooli.web_console.v1.file_preview.ResolveCandidateR\n" +
+	"candidates\x12\x1e\n" +
+	"\n" +
+	"unresolved\x18\x16 \x01(\bR\n" +
+	"unresolved\x12W\n" +
+	"\fsearch_bases\x18\x17 \x03(\v24.vrooli.web_console.v1.file_preview.ResolveCandidateR\vsearchBases\"\xf3\x01\n" +
+	"\x10ResolveCandidate\x12#\n" +
+	"\rresolved_path\x18\x01 \x01(\tR\fresolvedPath\x12)\n" +
+	"\x10resolution_basis\x18\x02 \x01(\tR\x0fresolutionBasis\x12R\n" +
+	"\fpreview_kind\x18\x03 \x01(\x0e2/.vrooli.web_console.v1.file_preview.PreviewKindR\vpreviewKind\x12\x1f\n" +
+	"\vcan_preview\x18\x04 \x01(\bR\n" +
+	"canPreview\x12\x1a\n" +
+	"\bbasename\x18\x05 \x01(\tR\bbasename\"U\n" +
 	"\x15GetTextContentRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1d\n" +
@@ -1503,7 +1627,7 @@ func file_web_console_v1_file_preview_file_preview_proto_rawDescGZIP() []byte {
 }
 
 var file_web_console_v1_file_preview_file_preview_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_web_console_v1_file_preview_file_preview_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_web_console_v1_file_preview_file_preview_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_web_console_v1_file_preview_file_preview_proto_goTypes = []any{
 	(PreviewKind)(0),                 // 0: vrooli.web_console.v1.file_preview.PreviewKind
 	(DirectorySort)(0),               // 1: vrooli.web_console.v1.file_preview.DirectorySort
@@ -1511,43 +1635,47 @@ var file_web_console_v1_file_preview_file_preview_proto_goTypes = []any{
 	(SourceContext)(0),               // 3: vrooli.web_console.v1.file_preview.SourceContext
 	(*ResolveRequest)(nil),           // 4: vrooli.web_console.v1.file_preview.ResolveRequest
 	(*ResolveResponse)(nil),          // 5: vrooli.web_console.v1.file_preview.ResolveResponse
-	(*GetTextContentRequest)(nil),    // 6: vrooli.web_console.v1.file_preview.GetTextContentRequest
-	(*GetTextContentResponse)(nil),   // 7: vrooli.web_console.v1.file_preview.GetTextContentResponse
-	(*ListDirectoryRequest)(nil),     // 8: vrooli.web_console.v1.file_preview.ListDirectoryRequest
-	(*DirectoryEntry)(nil),           // 9: vrooli.web_console.v1.file_preview.DirectoryEntry
-	(*ListDirectoryResponse)(nil),    // 10: vrooli.web_console.v1.file_preview.ListDirectoryResponse
-	(*ListArchiveRequest)(nil),       // 11: vrooli.web_console.v1.file_preview.ListArchiveRequest
-	(*ListArchiveResponse)(nil),      // 12: vrooli.web_console.v1.file_preview.ListArchiveResponse
-	(*ArchiveEntry)(nil),             // 13: vrooli.web_console.v1.file_preview.ArchiveEntry
-	(*OpenArchiveEntryRequest)(nil),  // 14: vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
-	(*OpenArchiveEntryResponse)(nil), // 15: vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
+	(*ResolveCandidate)(nil),         // 6: vrooli.web_console.v1.file_preview.ResolveCandidate
+	(*GetTextContentRequest)(nil),    // 7: vrooli.web_console.v1.file_preview.GetTextContentRequest
+	(*GetTextContentResponse)(nil),   // 8: vrooli.web_console.v1.file_preview.GetTextContentResponse
+	(*ListDirectoryRequest)(nil),     // 9: vrooli.web_console.v1.file_preview.ListDirectoryRequest
+	(*DirectoryEntry)(nil),           // 10: vrooli.web_console.v1.file_preview.DirectoryEntry
+	(*ListDirectoryResponse)(nil),    // 11: vrooli.web_console.v1.file_preview.ListDirectoryResponse
+	(*ListArchiveRequest)(nil),       // 12: vrooli.web_console.v1.file_preview.ListArchiveRequest
+	(*ListArchiveResponse)(nil),      // 13: vrooli.web_console.v1.file_preview.ListArchiveResponse
+	(*ArchiveEntry)(nil),             // 14: vrooli.web_console.v1.file_preview.ArchiveEntry
+	(*OpenArchiveEntryRequest)(nil),  // 15: vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
+	(*OpenArchiveEntryResponse)(nil), // 16: vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
 }
 var file_web_console_v1_file_preview_file_preview_proto_depIdxs = []int32{
 	3,  // 0: vrooli.web_console.v1.file_preview.ResolveRequest.source_context:type_name -> vrooli.web_console.v1.file_preview.SourceContext
 	0,  // 1: vrooli.web_console.v1.file_preview.ResolveResponse.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
-	0,  // 2: vrooli.web_console.v1.file_preview.GetTextContentResponse.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
-	1,  // 3: vrooli.web_console.v1.file_preview.ListDirectoryRequest.sort:type_name -> vrooli.web_console.v1.file_preview.DirectorySort
-	2,  // 4: vrooli.web_console.v1.file_preview.DirectoryEntry.entry_type:type_name -> vrooli.web_console.v1.file_preview.EntryType
-	0,  // 5: vrooli.web_console.v1.file_preview.DirectoryEntry.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
-	9,  // 6: vrooli.web_console.v1.file_preview.ListDirectoryResponse.entries:type_name -> vrooli.web_console.v1.file_preview.DirectoryEntry
-	1,  // 7: vrooli.web_console.v1.file_preview.ListDirectoryResponse.effective_sort:type_name -> vrooli.web_console.v1.file_preview.DirectorySort
-	13, // 8: vrooli.web_console.v1.file_preview.ListArchiveResponse.entries:type_name -> vrooli.web_console.v1.file_preview.ArchiveEntry
-	5,  // 9: vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse.target:type_name -> vrooli.web_console.v1.file_preview.ResolveResponse
-	4,  // 10: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:input_type -> vrooli.web_console.v1.file_preview.ResolveRequest
-	6,  // 11: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:input_type -> vrooli.web_console.v1.file_preview.GetTextContentRequest
-	8,  // 12: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:input_type -> vrooli.web_console.v1.file_preview.ListDirectoryRequest
-	11, // 13: vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive:input_type -> vrooli.web_console.v1.file_preview.ListArchiveRequest
-	14, // 14: vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry:input_type -> vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
-	5,  // 15: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:output_type -> vrooli.web_console.v1.file_preview.ResolveResponse
-	7,  // 16: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:output_type -> vrooli.web_console.v1.file_preview.GetTextContentResponse
-	10, // 17: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:output_type -> vrooli.web_console.v1.file_preview.ListDirectoryResponse
-	12, // 18: vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive:output_type -> vrooli.web_console.v1.file_preview.ListArchiveResponse
-	15, // 19: vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry:output_type -> vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	6,  // 2: vrooli.web_console.v1.file_preview.ResolveResponse.candidates:type_name -> vrooli.web_console.v1.file_preview.ResolveCandidate
+	6,  // 3: vrooli.web_console.v1.file_preview.ResolveResponse.search_bases:type_name -> vrooli.web_console.v1.file_preview.ResolveCandidate
+	0,  // 4: vrooli.web_console.v1.file_preview.ResolveCandidate.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
+	0,  // 5: vrooli.web_console.v1.file_preview.GetTextContentResponse.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
+	1,  // 6: vrooli.web_console.v1.file_preview.ListDirectoryRequest.sort:type_name -> vrooli.web_console.v1.file_preview.DirectorySort
+	2,  // 7: vrooli.web_console.v1.file_preview.DirectoryEntry.entry_type:type_name -> vrooli.web_console.v1.file_preview.EntryType
+	0,  // 8: vrooli.web_console.v1.file_preview.DirectoryEntry.preview_kind:type_name -> vrooli.web_console.v1.file_preview.PreviewKind
+	10, // 9: vrooli.web_console.v1.file_preview.ListDirectoryResponse.entries:type_name -> vrooli.web_console.v1.file_preview.DirectoryEntry
+	1,  // 10: vrooli.web_console.v1.file_preview.ListDirectoryResponse.effective_sort:type_name -> vrooli.web_console.v1.file_preview.DirectorySort
+	14, // 11: vrooli.web_console.v1.file_preview.ListArchiveResponse.entries:type_name -> vrooli.web_console.v1.file_preview.ArchiveEntry
+	5,  // 12: vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse.target:type_name -> vrooli.web_console.v1.file_preview.ResolveResponse
+	4,  // 13: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:input_type -> vrooli.web_console.v1.file_preview.ResolveRequest
+	7,  // 14: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:input_type -> vrooli.web_console.v1.file_preview.GetTextContentRequest
+	9,  // 15: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:input_type -> vrooli.web_console.v1.file_preview.ListDirectoryRequest
+	12, // 16: vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive:input_type -> vrooli.web_console.v1.file_preview.ListArchiveRequest
+	15, // 17: vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry:input_type -> vrooli.web_console.v1.file_preview.OpenArchiveEntryRequest
+	5,  // 18: vrooli.web_console.v1.file_preview.FilePreviewService.Resolve:output_type -> vrooli.web_console.v1.file_preview.ResolveResponse
+	8,  // 19: vrooli.web_console.v1.file_preview.FilePreviewService.GetTextContent:output_type -> vrooli.web_console.v1.file_preview.GetTextContentResponse
+	11, // 20: vrooli.web_console.v1.file_preview.FilePreviewService.ListDirectory:output_type -> vrooli.web_console.v1.file_preview.ListDirectoryResponse
+	13, // 21: vrooli.web_console.v1.file_preview.FilePreviewService.ListArchive:output_type -> vrooli.web_console.v1.file_preview.ListArchiveResponse
+	16, // 22: vrooli.web_console.v1.file_preview.FilePreviewService.OpenArchiveEntry:output_type -> vrooli.web_console.v1.file_preview.OpenArchiveEntryResponse
+	18, // [18:23] is the sub-list for method output_type
+	13, // [13:18] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_file_preview_file_preview_proto_init() }
@@ -1561,7 +1689,7 @@ func file_web_console_v1_file_preview_file_preview_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_file_preview_file_preview_proto_rawDesc), len(file_web_console_v1_file_preview_file_preview_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

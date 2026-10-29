@@ -179,6 +179,20 @@ message StagedMessageSuggestion {
   StagedMessageScope message_scope = 8;
   string message_scope_explanation = 9;
 }
+// A recent commit the staged change likely continues, derived from Git facts
+// (shared paths, recency), never inferred by the drafting agent. Adoption is
+// the operator's choice.
+message StagedMessageContinuation {
+  // Full predecessor commit hash.
+  string commit = 1;
+  string subject = 2;
+  // Human explanation of why this commit was suggested.
+  string reason = 3;
+  // Trailers to add when adopted: carried work links, then Vrooli-Continues.
+  repeated StagedMessageTrailer trailers = 4;
+  int32 shared_paths = 5;
+  string committed_at = 6;
+}
 message StagedMessageCollection {
   string id = 1;
   StagedMessageSnapshot snapshot = 2;
@@ -187,6 +201,8 @@ message StagedMessageCollection {
   repeated Omission omissions = 5;
   string status = 6;
   string collected_at = 7;
+  // Best candidate first; empty when no recent commit fits.
+  repeated StagedMessageContinuation continuations = 8;
 }
 message StagedMessageJob {
   string id = 1;
@@ -206,6 +222,8 @@ message StagedMessageJob {
   string continuation_of_job_id = 15;
   uint32 evidence_files_read = 16;
   uint32 evidence_files_total = 17;
+  // Projected for succeeded jobs against the current history.
+  repeated StagedMessageContinuation continuations = 18;
 }
 
 message ReadStagedMessageEvidenceRequest {

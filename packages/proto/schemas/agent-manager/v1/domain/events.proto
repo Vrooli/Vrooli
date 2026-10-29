@@ -95,7 +95,7 @@ message RunEvent {
     // Cost event data (event_type = METRIC, subtype cost).
     CostEventData cost = 19;
 
-    // Rate limit event data (event_type = ERROR, subtype rate_limit).
+    // Provider quota observation (event_type = QUOTA).
     RateLimitEventData rate_limit = 20;
 
     // Compaction event data (event_type = COMPACTION).
@@ -484,7 +484,7 @@ message ArtifactEventData {
 // ErrorEventData contains data for error events.
 //
 // Emitted when an error occurs during execution.
-// For rate limit errors, use RateLimitEventData.
+// Provider quota observations use RateLimitEventData (event_type = QUOTA).
 //
 // @usage RunEvent.error
 message ErrorEventData {
@@ -586,10 +586,11 @@ message CostEventData {
 // RATE LIMIT EVENT
 // =============================================================================
 
-// RateLimitEventData contains data for rate limit events.
+// RateLimitEventData is a provider quota observation (event_type = QUOTA).
 //
-// Emitted when a rate limit is encountered.
-// Includes reset time and retry guidance.
+// Emitted for every provider quota reading: a percentage-of-window sample
+// (Codex token_count rate_limits) or a standing without a percentage (Claude
+// quotaLimits, rate-limit errors). Includes reset time and retry guidance.
 //
 // @usage RunEvent.rate_limit
 message RateLimitEventData {
@@ -626,6 +627,14 @@ message RateLimitEventData {
 
   // Provenance of the native provider observation.
   string provenance = 11;
+
+  // Provider-reported standing, verbatim (for example Claude quotaLimits
+  // status "allowed", "allowed_warning" or "rejected"). Empty when the
+  // provider reported only a percentage.
+  string status = 12;
+
+  // Provider-reported overage standing, verbatim (Claude overageStatus).
+  string overage_status = 13;
 }
 
 // =============================================================================

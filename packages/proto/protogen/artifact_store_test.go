@@ -3,8 +3,10 @@ package protogen
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -41,11 +43,11 @@ func testCandidate(t *testing.T, root, sourceDigest, body string) Candidate {
 }
 
 func TestArtifactStorePublishesAndResolvesImmutableSnapshot(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidate := testCandidate(t, t.TempDir(), "a", "first")
+	candidate := testCandidate(t, writableTempDir(t), "a", "first")
 	if _, err := store.Publish(context.Background(), candidate); err != nil {
 		t.Fatal(err)
 	}
@@ -66,15 +68,15 @@ func TestArtifactStorePublishesAndResolvesImmutableSnapshot(t *testing.T) {
 }
 
 func TestArtifactStoreActivePublicationFailurePreservesPreviousSelection(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "old", "old")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "old", "old")); err != nil {
 		t.Fatal(err)
 	}
 	store.Hooks.BeforeActiveRename = func() error { return errors.New("injected interruption") }
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "new", "new")); !errors.Is(err, ErrArtifactPublication) {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "new", "new")); !errors.Is(err, ErrArtifactPublication) {
 		t.Fatalf("publish error = %v, want publication error", err)
 	}
 	store.Hooks.BeforeActiveRename = nil
@@ -92,15 +94,15 @@ func TestArtifactStoreActivePublicationFailurePreservesPreviousSelection(t *test
 }
 
 func TestArtifactStoreSnapshotPublicationFailurePreservesSelection(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "old", "old")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "old", "old")); err != nil {
 		t.Fatal(err)
 	}
 	store.Hooks.BeforeSnapshotRename = func() error { return errors.New("injected snapshot interruption") }
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "new", "new")); !errors.Is(err, ErrArtifactPublication) {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "new", "new")); !errors.Is(err, ErrArtifactPublication) {
 		t.Fatalf("publish error = %v, want publication error", err)
 	}
 	store.Hooks.BeforeSnapshotRename = nil
@@ -115,16 +117,16 @@ func TestArtifactStoreSnapshotPublicationFailurePreservesSelection(t *testing.T)
 }
 
 func TestArtifactStoreFallsBackFromTamperedActiveSnapshot(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "old", "old")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "old", "old")); err != nil {
 		t.Fatal(err)
 	}
 	store.Hooks.BeforeActiveRename = nil
 	store.Hooks.BeforeLastGoodRename = func() error { return errors.New("injected last-good interruption") }
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "new", "new")); !errors.Is(err, ErrArtifactPublication) {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "new", "new")); !errors.Is(err, ErrArtifactPublication) {
 		t.Fatalf("publish error = %v, want publication error", err)
 	}
 	store.Hooks.BeforeLastGoodRename = nil
@@ -146,16 +148,16 @@ func TestArtifactStoreFallsBackFromTamperedActiveSnapshot(t *testing.T) {
 }
 
 func TestArtifactStoreRejectsMalformedAndIncompleteCandidate(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidate := testCandidate(t, t.TempDir(), "bad", "body")
+	candidate := testCandidate(t, writableTempDir(t), "bad", "body")
 	candidate.Metadata.Outputs[0].Digest = "sha256:not-the-file"
 	if _, err := store.Publish(context.Background(), candidate); !errors.Is(err, ErrArtifactDigestMismatch) {
 		t.Fatalf("digest error = %v, want digest mismatch", err)
 	}
-	candidate = testCandidate(t, t.TempDir(), "missing", "body")
+	candidate = testCandidate(t, writableTempDir(t), "missing", "body")
 	candidate.Metadata.Outputs = append(candidate.Metadata.Outputs, ArtifactOutput{Path: "typescript/missing.ts", Digest: "sha256:missing", Size: 1})
 	if _, err := store.Publish(context.Background(), candidate); !errors.Is(err, ErrArtifactIncomplete) {
 		t.Fatalf("missing output error = %v, want incomplete", err)
@@ -163,15 +165,15 @@ func TestArtifactStoreRejectsMalformedAndIncompleteCandidate(t *testing.T) {
 }
 
 func TestArtifactStoreLeaseDefersGarbageCollection(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	store.Retention = time.Hour
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "old", "old")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "old", "old")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "new", "new")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "new", "new")); err != nil {
 		t.Fatal(err)
 	}
 	// Simulate an old unselected snapshot while keeping a live reader lease on it.
@@ -207,11 +209,11 @@ func TestArtifactStoreLeaseDefersGarbageCollection(t *testing.T) {
 }
 
 func TestArtifactStoreRepublishIsIdempotent(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	candidate := testCandidate(t, t.TempDir(), "same", "same")
+	candidate := testCandidate(t, writableTempDir(t), "same", "same")
 	if _, err := store.Publish(context.Background(), candidate); err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +246,7 @@ func TestArtifactStoreRepublishIsIdempotent(t *testing.T) {
 }
 
 func TestArtifactStoreCleanupFailsClosedOnCorruptSelection(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,14 +262,14 @@ func TestArtifactStoreCleanupFailsClosedOnCorruptSelection(t *testing.T) {
 }
 
 func TestArtifactStorePromoteRequiresValidatedSnapshot(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "old", "old")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "old", "old")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Publish(context.Background(), testCandidate(t, t.TempDir(), "new", "new")); err != nil {
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "new", "new")); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Promote(context.Background(), "old"); err != nil {
@@ -287,14 +289,14 @@ func TestArtifactStorePromoteRequiresValidatedSnapshot(t *testing.T) {
 }
 
 func TestArtifactStoreMaterializesCompatibilityViewWithoutMixedTree(t *testing.T) {
-	store, err := NewArtifactStore(filepath.Join(t.TempDir(), "proto"))
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.Publish(context.Background(), Candidate{
-		Metadata: testCandidate(t, t.TempDir(), "selected", "selected").Metadata,
+		Metadata: testCandidate(t, writableTempDir(t), "selected", "selected").Metadata,
 		SourceRoot: func() string {
-			candidate := testCandidate(t, t.TempDir(), "selected", "selected")
+			candidate := testCandidate(t, writableTempDir(t), "selected", "selected")
 			return candidate.SourceRoot
 		}(),
 		ValidationReceipt: &ArtifactValidationReceipt{Status: "passed", Checks: []string{"test"}},
@@ -306,7 +308,7 @@ func TestArtifactStoreMaterializesCompatibilityViewWithoutMixedTree(t *testing.T
 		t.Fatal(err)
 	}
 	defer snapshot.Close()
-	target := filepath.Join(t.TempDir(), "packages", "proto", "gen")
+	target := filepath.Join(writableTempDir(t), "packages", "proto", "gen")
 	if err := os.MkdirAll(filepath.Join(target, "go", "old"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -328,5 +330,164 @@ func TestArtifactStoreMaterializesCompatibilityViewWithoutMixedTree(t *testing.T
 	}
 	if _, err := os.Stat(filepath.Join(store.Root, "snapshots", "selected", "validation-receipt.json")); err != nil {
 		t.Fatalf("validation receipt missing: %v", err)
+	}
+}
+
+// writableTempDir returns a t.TempDir whose tree is made owner-writable again
+// before TempDir's own cleanup runs (cleanups run LIFO), so read-only snapshot
+// content never strands directories in the system temp root.
+func writableTempDir(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	t.Cleanup(func() {
+		_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info, infoErr := entry.Info(); infoErr == nil {
+				_ = os.Chmod(path, info.Mode().Perm()|0o700)
+			}
+			return nil
+		})
+	})
+	return root
+}
+
+func ageSnapshot(t *testing.T, store *Store, artifactID string, age time.Duration) {
+	t.Helper()
+	when := time.Now().Add(-age)
+	if err := os.Chtimes(filepath.Join(store.Root, "snapshots", artifactID), when, when); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func snapshotNames(t *testing.T, store *Store) []string {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(store.Root, "snapshots"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), ".") {
+			names = append(names, entry.Name())
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+func TestArtifactStorePublishCollectsExpiredSnapshots(t *testing.T) {
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"a", "b", "c"} {
+		if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), id, id)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ageSnapshot(t, store, "a", 48*time.Hour)
+	ageSnapshot(t, store, "b", 48*time.Hour)
+	ageSnapshot(t, store, "c", 48*time.Hour)
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "d", "d")); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(snapshotNames(t, store), ","), "d"; got != want {
+		t.Fatalf("snapshots after publish = %s, want %s", got, want)
+	}
+}
+
+func TestArtifactStoreCollectCapsSnapshotCountButKeepsProtected(t *testing.T) {
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{"s1", "s2", "s3", "s4", "s5"}
+	for index, id := range ids {
+		if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), id, id)); err != nil {
+			t.Fatal(err)
+		}
+		// Distinct ages inside the retention window; s1 oldest.
+		ageSnapshot(t, store, id, time.Duration(len(ids)-index)*time.Minute)
+	}
+	store.MaxSnapshots = 2
+	lease, err := store.acquireLeaseLocked("s1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	if _, err := store.Collect(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	// s5 is active/last-good, s1 is leased; of the rest only the newest two remain.
+	if got, want := strings.Join(snapshotNames(t, store), ","), "s1,s3,s4,s5"; got != want {
+		t.Fatalf("snapshots = %s, want %s", got, want)
+	}
+}
+
+func TestArtifactStoreCollectRemovesExpiredLeaseFiles(t *testing.T) {
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "a", "a")); err != nil {
+		t.Fatal(err)
+	}
+	expired, err := store.acquireLeaseLocked("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	live, err := store.acquireLeaseLocked("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer live.Close()
+	expired.record.ExpiresAt = time.Now().Add(-time.Hour)
+	if err := writeJSON(expired.path, expired.record); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Collect(context.Background(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(expired.path); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("expired lease stat err = %v, want removed", err)
+	}
+	if _, err := os.Stat(live.path); err != nil {
+		t.Fatalf("live lease removed: %v", err)
+	}
+}
+
+func TestArtifactStoreCollectionFailureDoesNotFailPublish(t *testing.T) {
+	store, err := NewArtifactStore(filepath.Join(writableTempDir(t), "proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var log strings.Builder
+	store.Logger = &log
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "a", "a")); err != nil {
+		t.Fatal(err)
+	}
+	expired, err := store.acquireLeaseLocked("a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expired.record.ExpiresAt = time.Now().Add(-time.Hour)
+	if err := writeJSON(expired.path, expired.record); err != nil {
+		t.Fatal(err)
+	}
+	leaseRoot := filepath.Join(store.Root, "leases")
+	if err := os.Chmod(leaseRoot, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Publish(context.Background(), testCandidate(t, writableTempDir(t), "b", "b")); err != nil {
+		t.Fatalf("publish failed because of collection: %v", err)
+	}
+	if !strings.Contains(log.String(), "artifact collection after publish failed") {
+		t.Fatalf("log = %q, want collection warning", log.String())
+	}
+	status, err := store.Status(context.Background())
+	if err != nil || status.Active.Artifact != "b" {
+		t.Fatalf("active after publish = %+v (%v), want b", status.Active, err)
 	}
 }

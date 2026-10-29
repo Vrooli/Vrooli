@@ -317,8 +317,24 @@ class StagedMessageSuggestion(_message.Message):
     message_scope_explanation: str
     def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., body: _Optional[str] = ..., trailers: _Optional[_Iterable[_Union[StagedMessageTrailer, _Mapping]]] = ..., coverage: _Optional[_Union[StagedMessageCoverage, _Mapping]] = ..., source_ids: _Optional[_Iterable[str]] = ..., unknowns: _Optional[_Iterable[str]] = ..., message_scope: _Optional[_Union[StagedMessageScope, str]] = ..., message_scope_explanation: _Optional[str] = ...) -> None: ...
 
+class StagedMessageContinuation(_message.Message):
+    __slots__ = ("commit", "subject", "reason", "trailers", "shared_paths", "committed_at")
+    COMMIT_FIELD_NUMBER: _ClassVar[int]
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    TRAILERS_FIELD_NUMBER: _ClassVar[int]
+    SHARED_PATHS_FIELD_NUMBER: _ClassVar[int]
+    COMMITTED_AT_FIELD_NUMBER: _ClassVar[int]
+    commit: str
+    subject: str
+    reason: str
+    trailers: _containers.RepeatedCompositeFieldContainer[StagedMessageTrailer]
+    shared_paths: int
+    committed_at: str
+    def __init__(self, commit: _Optional[str] = ..., subject: _Optional[str] = ..., reason: _Optional[str] = ..., trailers: _Optional[_Iterable[_Union[StagedMessageTrailer, _Mapping]]] = ..., shared_paths: _Optional[int] = ..., committed_at: _Optional[str] = ...) -> None: ...
+
 class StagedMessageCollection(_message.Message):
-    __slots__ = ("id", "snapshot", "suggestions", "contexts", "omissions", "status", "collected_at")
+    __slots__ = ("id", "snapshot", "suggestions", "contexts", "omissions", "status", "collected_at", "continuations")
     ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_FIELD_NUMBER: _ClassVar[int]
     SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
@@ -326,6 +342,7 @@ class StagedMessageCollection(_message.Message):
     OMISSIONS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     COLLECTED_AT_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATIONS_FIELD_NUMBER: _ClassVar[int]
     id: str
     snapshot: StagedMessageSnapshot
     suggestions: _containers.RepeatedCompositeFieldContainer[StagedMessageSuggestion]
@@ -333,10 +350,11 @@ class StagedMessageCollection(_message.Message):
     omissions: _containers.RepeatedCompositeFieldContainer[Omission]
     status: str
     collected_at: str
-    def __init__(self, id: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., suggestions: _Optional[_Iterable[_Union[StagedMessageSuggestion, _Mapping]]] = ..., contexts: _Optional[_Iterable[_Union[StagedMessageContext, _Mapping]]] = ..., omissions: _Optional[_Iterable[_Union[Omission, _Mapping]]] = ..., status: _Optional[str] = ..., collected_at: _Optional[str] = ...) -> None: ...
+    continuations: _containers.RepeatedCompositeFieldContainer[StagedMessageContinuation]
+    def __init__(self, id: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., suggestions: _Optional[_Iterable[_Union[StagedMessageSuggestion, _Mapping]]] = ..., contexts: _Optional[_Iterable[_Union[StagedMessageContext, _Mapping]]] = ..., omissions: _Optional[_Iterable[_Union[Omission, _Mapping]]] = ..., status: _Optional[str] = ..., collected_at: _Optional[str] = ..., continuations: _Optional[_Iterable[_Union[StagedMessageContinuation, _Mapping]]] = ...) -> None: ...
 
 class StagedMessageJob(_message.Message):
-    __slots__ = ("id", "repository_id", "snapshot_digest", "status", "created_at", "updated_at", "execution_id", "cancel_requested", "result", "error", "applicable", "applicability_reason", "snapshot", "phase", "continuation_of_job_id", "evidence_files_read", "evidence_files_total")
+    __slots__ = ("id", "repository_id", "snapshot_digest", "status", "created_at", "updated_at", "execution_id", "cancel_requested", "result", "error", "applicable", "applicability_reason", "snapshot", "phase", "continuation_of_job_id", "evidence_files_read", "evidence_files_total", "continuations")
     ID_FIELD_NUMBER: _ClassVar[int]
     REPOSITORY_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_DIGEST_FIELD_NUMBER: _ClassVar[int]
@@ -354,6 +372,7 @@ class StagedMessageJob(_message.Message):
     CONTINUATION_OF_JOB_ID_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FILES_READ_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FILES_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    CONTINUATIONS_FIELD_NUMBER: _ClassVar[int]
     id: str
     repository_id: str
     snapshot_digest: str
@@ -371,7 +390,8 @@ class StagedMessageJob(_message.Message):
     continuation_of_job_id: str
     evidence_files_read: int
     evidence_files_total: int
-    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., cancel_requested: _Optional[bool] = ..., result: _Optional[_Union[StagedMessageSuggestion, _Mapping]] = ..., error: _Optional[str] = ..., applicable: _Optional[bool] = ..., applicability_reason: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., phase: _Optional[str] = ..., continuation_of_job_id: _Optional[str] = ..., evidence_files_read: _Optional[int] = ..., evidence_files_total: _Optional[int] = ...) -> None: ...
+    continuations: _containers.RepeatedCompositeFieldContainer[StagedMessageContinuation]
+    def __init__(self, id: _Optional[str] = ..., repository_id: _Optional[str] = ..., snapshot_digest: _Optional[str] = ..., status: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., execution_id: _Optional[str] = ..., cancel_requested: _Optional[bool] = ..., result: _Optional[_Union[StagedMessageSuggestion, _Mapping]] = ..., error: _Optional[str] = ..., applicable: _Optional[bool] = ..., applicability_reason: _Optional[str] = ..., snapshot: _Optional[_Union[StagedMessageSnapshot, _Mapping]] = ..., phase: _Optional[str] = ..., continuation_of_job_id: _Optional[str] = ..., evidence_files_read: _Optional[int] = ..., evidence_files_total: _Optional[int] = ..., continuations: _Optional[_Iterable[_Union[StagedMessageContinuation, _Mapping]]] = ...) -> None: ...
 
 class ReadStagedMessageEvidenceRequest(_message.Message):
     __slots__ = ("repository_id", "job_id", "snapshot_digest", "cursor", "max_bytes", "inventory_only", "file_ids")

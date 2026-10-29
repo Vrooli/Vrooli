@@ -83,7 +83,7 @@ class Caller(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., agent_profile: _Optional[str] = ..., skill_id: _Optional[str] = ..., harness: _Optional[str] = ...) -> None: ...
 
 class Program(_message.Message):
-    __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at", "output_limit_bytes", "agent_bytes", "completed_at", "wall_time_millis", "cpu_time_millis", "library_version", "failure_cause", "program_name", "program_digest", "caller_run_id", "caller_agent_profile", "caller_skill_id", "caller_harness", "learning_json", "request_digest", "usage_tokens", "usage_charge_micros", "usage_accounting_complete", "usage_charge_measured", "usage_basis")
+    __slots__ = ("id", "session_id", "source", "provenance", "status", "stdout", "failure_detail", "failure_shape", "context_bytes", "created_at", "output_limit_bytes", "agent_bytes", "completed_at", "wall_time_millis", "cpu_time_millis", "library_version", "failure_cause", "program_name", "program_digest", "caller_run_id", "caller_agent_profile", "caller_skill_id", "caller_harness", "learning_json", "request_digest", "usage_tokens", "usage_charge_micros", "usage_accounting_complete", "usage_charge_measured", "usage_basis", "caller_identity_verified")
     ID_FIELD_NUMBER: _ClassVar[int]
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -114,6 +114,7 @@ class Program(_message.Message):
     USAGE_ACCOUNTING_COMPLETE_FIELD_NUMBER: _ClassVar[int]
     USAGE_CHARGE_MEASURED_FIELD_NUMBER: _ClassVar[int]
     USAGE_BASIS_FIELD_NUMBER: _ClassVar[int]
+    CALLER_IDENTITY_VERIFIED_FIELD_NUMBER: _ClassVar[int]
     id: str
     session_id: str
     source: str
@@ -144,7 +145,8 @@ class Program(_message.Message):
     usage_accounting_complete: bool
     usage_charge_measured: bool
     usage_basis: str
-    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., status: _Optional[_Union[ProgramStatus, str]] = ..., stdout: _Optional[str] = ..., failure_detail: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., output_limit_bytes: _Optional[int] = ..., agent_bytes: _Optional[int] = ..., completed_at: _Optional[str] = ..., wall_time_millis: _Optional[int] = ..., cpu_time_millis: _Optional[int] = ..., library_version: _Optional[str] = ..., failure_cause: _Optional[_Union[FailureCause, str]] = ..., program_name: _Optional[str] = ..., program_digest: _Optional[str] = ..., caller_run_id: _Optional[str] = ..., caller_agent_profile: _Optional[str] = ..., caller_skill_id: _Optional[str] = ..., caller_harness: _Optional[str] = ..., learning_json: _Optional[str] = ..., request_digest: _Optional[str] = ..., usage_tokens: _Optional[int] = ..., usage_charge_micros: _Optional[int] = ..., usage_accounting_complete: _Optional[bool] = ..., usage_charge_measured: _Optional[bool] = ..., usage_basis: _Optional[str] = ...) -> None: ...
+    caller_identity_verified: bool
+    def __init__(self, id: _Optional[str] = ..., session_id: _Optional[str] = ..., source: _Optional[str] = ..., provenance: _Optional[_Union[Provenance, str]] = ..., status: _Optional[_Union[ProgramStatus, str]] = ..., stdout: _Optional[str] = ..., failure_detail: _Optional[str] = ..., failure_shape: _Optional[str] = ..., context_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., output_limit_bytes: _Optional[int] = ..., agent_bytes: _Optional[int] = ..., completed_at: _Optional[str] = ..., wall_time_millis: _Optional[int] = ..., cpu_time_millis: _Optional[int] = ..., library_version: _Optional[str] = ..., failure_cause: _Optional[_Union[FailureCause, str]] = ..., program_name: _Optional[str] = ..., program_digest: _Optional[str] = ..., caller_run_id: _Optional[str] = ..., caller_agent_profile: _Optional[str] = ..., caller_skill_id: _Optional[str] = ..., caller_harness: _Optional[str] = ..., learning_json: _Optional[str] = ..., request_digest: _Optional[str] = ..., usage_tokens: _Optional[int] = ..., usage_charge_micros: _Optional[int] = ..., usage_accounting_complete: _Optional[bool] = ..., usage_charge_measured: _Optional[bool] = ..., usage_basis: _Optional[str] = ..., caller_identity_verified: _Optional[bool] = ...) -> None: ...
 
 class Diagnostic(_message.Message):
     __slots__ = ("severity", "line", "name", "message", "nearest_match")

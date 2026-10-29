@@ -1,3 +1,4 @@
+from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -130,7 +131,7 @@ class Attachment(_message.Message):
     def __init__(self, modality: _Optional[_Union[Modality, str]] = ..., media_type: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., bytes: _Optional[int] = ..., inline_bytes: _Optional[bytes] = ..., reference: _Optional[str] = ...) -> None: ...
 
 class GatewayRequest(_message.Message):
-    __slots__ = ("kind", "role", "profile", "privacy_class", "operation", "scenario", "timeout_ms", "max_cost_usd", "max_output_tokens", "request_id", "metadata", "attachments", "sampling")
+    __slots__ = ("kind", "role", "profile", "privacy_class", "operation", "scenario", "timeout_ms", "max_cost_usd", "max_output_tokens", "request_id", "metadata", "attachments", "sampling", "required_vram_bytes")
     class MetadataEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -151,6 +152,7 @@ class GatewayRequest(_message.Message):
     METADATA_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
     SAMPLING_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_VRAM_BYTES_FIELD_NUMBER: _ClassVar[int]
     kind: RequestKind
     role: str
     profile: Profile
@@ -164,7 +166,8 @@ class GatewayRequest(_message.Message):
     metadata: _containers.ScalarMap[str, str]
     attachments: _containers.RepeatedCompositeFieldContainer[Attachment]
     sampling: SamplingControls
-    def __init__(self, kind: _Optional[_Union[RequestKind, str]] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[Profile, str]] = ..., privacy_class: _Optional[_Union[PrivacyClass, str]] = ..., operation: _Optional[str] = ..., scenario: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., max_cost_usd: _Optional[float] = ..., max_output_tokens: _Optional[int] = ..., request_id: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ..., attachments: _Optional[_Iterable[_Union[Attachment, _Mapping]]] = ..., sampling: _Optional[_Union[SamplingControls, _Mapping]] = ...) -> None: ...
+    required_vram_bytes: int
+    def __init__(self, kind: _Optional[_Union[RequestKind, str]] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[Profile, str]] = ..., privacy_class: _Optional[_Union[PrivacyClass, str]] = ..., operation: _Optional[str] = ..., scenario: _Optional[str] = ..., timeout_ms: _Optional[int] = ..., max_cost_usd: _Optional[float] = ..., max_output_tokens: _Optional[int] = ..., request_id: _Optional[str] = ..., metadata: _Optional[_Mapping[str, str]] = ..., attachments: _Optional[_Iterable[_Union[Attachment, _Mapping]]] = ..., sampling: _Optional[_Union[SamplingControls, _Mapping]] = ..., required_vram_bytes: _Optional[int] = ...) -> None: ...
 
 class ValidationIssue(_message.Message):
     __slots__ = ("field", "code", "message")

@@ -53,6 +53,8 @@ message MetricsResponse {
 	MetricValue swap_traffic = 12;
 	MetricValue major_faults = 13;
 	MetricValue fragmentation_index = 14;
+  KernelMemoryMetrics kernel_memory = 29;
+
 }
 
 // MetricValue carries a measurement or an explicit non-measured state.
@@ -122,6 +124,8 @@ message MetricTimelineSample {
 	MetricValue network_established_rate = 26;
 	MetricValue network_time_wait_rate = 27;
 	MetricValue network_close_wait_rate = 28;
+  KernelMemoryMetrics kernel_memory = 29;
+
 }
 
 // MetricsTimelineResponse contains a windowed series of metric samples.
@@ -134,6 +138,10 @@ message MetricsTimelineResponse {
 
   // Ordered metric samples.
   repeated MetricTimelineSample samples = 3;
+
+  // Exact server-side query interval, independent of sample coverage.
+  google.protobuf.Timestamp window_start = 4;
+  google.protobuf.Timestamp window_end = 5;
 }
 
 // DetailedMetrics contains comprehensive system metrics.
@@ -219,6 +227,20 @@ message MemoryMetrics {
 
   // Platform-neutral memory-pressure verdict with the raw signals behind it.
   MemoryPressureReading memory_pressure = 9;
+
+  // Linux slab allocation, with explicit per-field platform/collection states.
+  KernelMemoryMetrics kernel_memory = 10;
+}
+
+// KernelMemoryMetrics is allocation accounting, not a memory-pressure or leak verdict.
+// Linux reports /proc/meminfo Slab, SReclaimable and SUnreclaim in bytes.
+// Other platforms report unsupported states. Missing historical samples are
+// not-yet-sampled, and acquisition failures never become measured zero.
+message KernelMemoryMetrics {
+  MetricValue slab_bytes = 1;
+  MetricValue reclaimable_bytes = 2;
+  MetricValue unreclaimable_bytes = 3;
+  MetricValue host_total_bytes = 4;
 }
 
 // MemoryPressureReading is the cross-platform memory-pressure verdict.
@@ -856,6 +878,9 @@ message StorageIOInfo {
   double io_wait_percent = 2;
   double read_mb_per_sec = 3;
   double write_mb_per_sec = 4;
+  // Native measured rates; legacy scalars are compatibility projections.
+  MetricValue read_rate = 5;
+  MetricValue write_rate = 6;
 }
 
 // =============================================================================

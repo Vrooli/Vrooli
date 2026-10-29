@@ -90,6 +90,8 @@ message Program {
   bool usage_accounting_complete = 28;
   bool usage_charge_measured = 29;
   string usage_basis = 30;
+  // True only when caller_run_id/profile came from verified Agent Manager context.
+  bool caller_identity_verified = 31;
 }
 
 message Diagnostic {

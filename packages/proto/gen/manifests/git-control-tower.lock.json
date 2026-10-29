@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "git-control-tower",
-  "input_digest": "sha256:b843728d60570983592f747059d08267bfbcac1f4e096dc85235eefe77b53b9e",
+  "input_digest": "sha256:142d9307af7fe2823e79d8f0ab059b1c7f467888e00cda0fef68b6d0331d5ce8",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/operations.proto",
@@ -24,7 +24,7 @@
   "toolchain": {
     "buf": "1.37.0",
     "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
-    "generator_digest": "sha256:d62f642cc85260466ef67f24653340c95d277e2268cdf9983a7144dca50b1d50",
+    "generator_digest": "sha256:00641b8b46018a15d67bebb28f7d4ae7caa5bfc402255ccd952815314415b921",
     "plugins": {
       "protoc": "34.1",
       "protoc-gen-connect-go": "v1.19.2",
@@ -33,7 +33,7 @@
     }
   },
   "outputs": {
-    "gen/go/git-control-tower/v1/advisory/advisory.pb.go": "sha256:37f418a631a51df98f377d4ac18f5e33c42c6b4ab0f6aac10d967bd4128bcab7",
+    "gen/go/git-control-tower/v1/advisory/advisory.pb.go": "sha256:d882e101d1cffc0ec6f78a1f7dc796cd65d7264f0859bfd1559b1f3f3a271bba",
     "gen/go/git-control-tower/v1/advisory/advisory_v1connect/advisory.connect.go": "sha256:65b310357e6f34d96bdccf10f5eae0b98f5f0dfdded56f705534f0d5761fcd4a",
     "gen/go/git-control-tower/v1/auditor/auditor.pb.go": "sha256:9905287cd8e477ccfc624eac225b140d21c9434cf5677289a601b8058faa75e7",
     "gen/go/git-control-tower/v1/auditor/auditor_v1connect/auditor.connect.go": "sha256:d0dbbde44aecdbb18863cc17604b526dbd661377f1956038b86858c5639f771a",
@@ -57,8 +57,8 @@
     "gen/go/git-control-tower/v1/worktree/worktree.pb.go": "sha256:6643bed34badef917c1521a3fe6a9521aa5c731e84923cf35f44a09e64152e3a",
     "gen/go/git-control-tower/v1/worktree/worktree_v1connect/worktree.connect.go": "sha256:a05b6ad80b6e3204c2685d60df4c05d7b783c159622b5ca24b62ab2cf0038a1d",
     "gen/python/git_control_tower/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/git_control_tower/v1/advisory/advisory_pb2.py": "sha256:630c04b0c6ff638bca1594793c027e79725d336984896f65c34785887814a3e0",
-    "gen/python/git_control_tower/v1/advisory/advisory_pb2.pyi": "sha256:e18da777eb15ff31ef174d9c5aff8a22d94ed6682c9981146ed4d2381c06a69e",
+    "gen/python/git_control_tower/v1/advisory/advisory_pb2.py": "sha256:2549638bd7b4bd74b6242cdcb534fc5c77b25e33ff316b9a509a718dd1b01ee3",
+    "gen/python/git_control_tower/v1/advisory/advisory_pb2.pyi": "sha256:c35beb0126ab6305697de106de856bb737b1259c2b00b8caf6089db1df04dd91",
     "gen/python/git_control_tower/v1/advisory/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/git_control_tower/v1/auditor/auditor_pb2.py": "sha256:35f2dfab98006da54cd9fd7410cddd02372134a4e0cd3c6068a7990e864ca399",
     "gen/python/git_control_tower/v1/auditor/auditor_pb2.pyi": "sha256:09aa1f8581d05efcc11d182d0e08430b2f0e0ec97d6294b1c98bb9467b00494c",
@@ -94,7 +94,7 @@
     "gen/python/git_control_tower/v1/worktree/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/git_control_tower/v1/worktree/worktree_pb2.py": "sha256:65eb25ad4c9ee00da7a3f430da6b682b1cf6c5b866c044ad3c32586b8922eaca",
     "gen/python/git_control_tower/v1/worktree/worktree_pb2.pyi": "sha256:ddb3cfd168ee79c6e384eed181a9b6aa9d64fadb5b9df48ca668658a70a163ae",
-    "gen/typescript/git-control-tower/v1/advisory/advisory_pb.ts": "sha256:3d8942080d4c12f60bb69faf0f435b5c2c77cead740c9bc123e87a50080c5aba",
+    "gen/typescript/git-control-tower/v1/advisory/advisory_pb.ts": "sha256:4eee32253a5024ca7e863dadae9898b95f44175c5b73b1c6da0edd7cb77d38c6",
     "gen/typescript/git-control-tower/v1/auditor/auditor_pb.ts": "sha256:bddc7f0ab7ae8d043953136004bfa07ce2466ec673c915e2d3f99c51088081b4",
     "gen/typescript/git-control-tower/v1/auth/auth_pb.ts": "sha256:9319b843ee7bfb02001cefcd6c9d3f3b35dc1826df8bb0dbdb400f78ffdda66d",
     "gen/typescript/git-control-tower/v1/baselines/baselines_pb.ts": "sha256:682bd0643139efdd52792eb341279b552ad83121db9c72dc242e982b41f5bce1",

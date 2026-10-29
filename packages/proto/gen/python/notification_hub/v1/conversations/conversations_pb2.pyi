@@ -98,7 +98,7 @@ class WaitResponse(_message.Message):
     def __init__(self, ask_id: _Optional[str] = ..., state: _Optional[str] = ..., answer: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class Ask(_message.Message):
-    __slots__ = ("id", "notification_id", "question", "options", "recommended", "recommendation_reason", "default_answer", "reversible", "urgency", "context_url", "deadline", "state", "reason", "answer", "answer_label", "note", "answered_by", "answered_at", "late", "default_applied_at", "first_delivered_at", "default_eligible_at", "source", "source_event_type", "requester_ref", "resolved_at", "created_at", "updated_at", "big_picture", "technical_details")
+    __slots__ = ("id", "notification_id", "question", "options", "recommended", "recommendation_reason", "default_answer", "reversible", "urgency", "context_url", "deadline", "state", "reason", "answer", "answer_label", "note", "answered_by", "answered_at", "late", "default_applied_at", "first_delivered_at", "default_eligible_at", "source", "source_event_type", "requester_ref", "resolved_at", "created_at", "updated_at", "big_picture", "technical_details", "title")
     ID_FIELD_NUMBER: _ClassVar[int]
     NOTIFICATION_ID_FIELD_NUMBER: _ClassVar[int]
     QUESTION_FIELD_NUMBER: _ClassVar[int]
@@ -129,6 +129,7 @@ class Ask(_message.Message):
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     BIG_PICTURE_FIELD_NUMBER: _ClassVar[int]
     TECHNICAL_DETAILS_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
     id: str
     notification_id: str
     question: str
@@ -159,7 +160,8 @@ class Ask(_message.Message):
     updated_at: str
     big_picture: str
     technical_details: str
-    def __init__(self, id: _Optional[str] = ..., notification_id: _Optional[str] = ..., question: _Optional[str] = ..., options: _Optional[_Iterable[_Union[AskOption, _Mapping]]] = ..., recommended: _Optional[str] = ..., recommendation_reason: _Optional[str] = ..., default_answer: _Optional[str] = ..., reversible: _Optional[bool] = ..., urgency: _Optional[str] = ..., context_url: _Optional[str] = ..., deadline: _Optional[str] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., answer: _Optional[str] = ..., answer_label: _Optional[str] = ..., note: _Optional[str] = ..., answered_by: _Optional[str] = ..., answered_at: _Optional[str] = ..., late: _Optional[bool] = ..., default_applied_at: _Optional[str] = ..., first_delivered_at: _Optional[str] = ..., default_eligible_at: _Optional[str] = ..., source: _Optional[str] = ..., source_event_type: _Optional[str] = ..., requester_ref: _Optional[str] = ..., resolved_at: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., big_picture: _Optional[str] = ..., technical_details: _Optional[str] = ...) -> None: ...
+    title: str
+    def __init__(self, id: _Optional[str] = ..., notification_id: _Optional[str] = ..., question: _Optional[str] = ..., options: _Optional[_Iterable[_Union[AskOption, _Mapping]]] = ..., recommended: _Optional[str] = ..., recommendation_reason: _Optional[str] = ..., default_answer: _Optional[str] = ..., reversible: _Optional[bool] = ..., urgency: _Optional[str] = ..., context_url: _Optional[str] = ..., deadline: _Optional[str] = ..., state: _Optional[str] = ..., reason: _Optional[str] = ..., answer: _Optional[str] = ..., answer_label: _Optional[str] = ..., note: _Optional[str] = ..., answered_by: _Optional[str] = ..., answered_at: _Optional[str] = ..., late: _Optional[bool] = ..., default_applied_at: _Optional[str] = ..., first_delivered_at: _Optional[str] = ..., default_eligible_at: _Optional[str] = ..., source: _Optional[str] = ..., source_event_type: _Optional[str] = ..., requester_ref: _Optional[str] = ..., resolved_at: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., big_picture: _Optional[str] = ..., technical_details: _Optional[str] = ..., title: _Optional[str] = ...) -> None: ...
 
 class GetAskRequest(_message.Message):
     __slots__ = ("ask_id",)
@@ -174,15 +176,23 @@ class GetAskResponse(_message.Message):
     def __init__(self, ask: _Optional[_Union[Ask, _Mapping]] = ...) -> None: ...
 
 class ListAsksRequest(_message.Message):
-    __slots__ = ("open_only", "limit")
+    __slots__ = ("open_only", "limit", "cursor", "query", "state_filter")
     OPEN_ONLY_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    STATE_FILTER_FIELD_NUMBER: _ClassVar[int]
     open_only: bool
     limit: int
-    def __init__(self, open_only: _Optional[bool] = ..., limit: _Optional[int] = ...) -> None: ...
+    cursor: str
+    query: str
+    state_filter: str
+    def __init__(self, open_only: _Optional[bool] = ..., limit: _Optional[int] = ..., cursor: _Optional[str] = ..., query: _Optional[str] = ..., state_filter: _Optional[str] = ...) -> None: ...
 
 class ListAsksResponse(_message.Message):
-    __slots__ = ("asks",)
+    __slots__ = ("asks", "next_cursor")
     ASKS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
     asks: _containers.RepeatedCompositeFieldContainer[Ask]
-    def __init__(self, asks: _Optional[_Iterable[_Union[Ask, _Mapping]]] = ...) -> None: ...
+    next_cursor: str
+    def __init__(self, asks: _Optional[_Iterable[_Union[Ask, _Mapping]]] = ..., next_cursor: _Optional[str] = ...) -> None: ...

@@ -1491,17 +1491,10 @@ message RunReport {
   // Retired scalar counts were not presence-aware, so older servers could be
   // mistaken for measured zero. Keep their wire numbers reserved.
   reserved 28, 29, 30;
-
-  // Typed subcounts preserve event_counts as raw event-type totals. Message
-  // presence distinguishes an older server from a measured all-zero result.
-  RunReportErrorBreakdown error_breakdown = 31;
-}
-
-// RunReportErrorBreakdown classifies error-typed events by their payload.
-message RunReportErrorBreakdown {
-  int32 execution_errors = 1;
-  int32 rate_limit_observations = 2;
-  int32 unclassified = 3;
+  // The error breakdown existed only because quota observations were stored
+  // as error events. event_counts now carries "error" and "quota" separately.
+  reserved 31;
+  reserved "error_breakdown";
 }
 
 // RunGoalOutcome is copied from Codex's rolling external goal store when a

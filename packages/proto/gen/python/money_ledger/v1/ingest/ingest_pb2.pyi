@@ -25,6 +25,23 @@ class SourceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SOURCE_MODE_UNSPECIFIED: _ClassVar[SourceMode]
     SOURCE_MODE_FIXTURE: _ClassVar[SourceMode]
     SOURCE_MODE_OPERATOR_SUPPLIED: _ClassVar[SourceMode]
+
+class CryptoObservationState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CRYPTO_OBSERVATION_STATE_UNSPECIFIED: _ClassVar[CryptoObservationState]
+    CRYPTO_OBSERVATION_STATE_PENDING: _ClassVar[CryptoObservationState]
+    CRYPTO_OBSERVATION_STATE_INCLUDED: _ClassVar[CryptoObservationState]
+    CRYPTO_OBSERVATION_STATE_FINALIZED: _ClassVar[CryptoObservationState]
+    CRYPTO_OBSERVATION_STATE_REMOVED: _ClassVar[CryptoObservationState]
+    CRYPTO_OBSERVATION_STATE_REVERTED: _ClassVar[CryptoObservationState]
+
+class CryptoLegKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CRYPTO_LEG_KIND_UNSPECIFIED: _ClassVar[CryptoLegKind]
+    CRYPTO_LEG_KIND_BALANCE: _ClassVar[CryptoLegKind]
+    CRYPTO_LEG_KIND_DEPOSIT: _ClassVar[CryptoLegKind]
+    CRYPTO_LEG_KIND_FEE: _ClassVar[CryptoLegKind]
+    CRYPTO_LEG_KIND_APPROVAL: _ClassVar[CryptoLegKind]
 ADAPTER_KIND_UNSPECIFIED: AdapterKind
 ADAPTER_KIND_MANUAL: AdapterKind
 ADAPTER_KIND_FILE: AdapterKind
@@ -33,6 +50,17 @@ ADAPTER_KIND_COMMERCE: AdapterKind
 SOURCE_MODE_UNSPECIFIED: SourceMode
 SOURCE_MODE_FIXTURE: SourceMode
 SOURCE_MODE_OPERATOR_SUPPLIED: SourceMode
+CRYPTO_OBSERVATION_STATE_UNSPECIFIED: CryptoObservationState
+CRYPTO_OBSERVATION_STATE_PENDING: CryptoObservationState
+CRYPTO_OBSERVATION_STATE_INCLUDED: CryptoObservationState
+CRYPTO_OBSERVATION_STATE_FINALIZED: CryptoObservationState
+CRYPTO_OBSERVATION_STATE_REMOVED: CryptoObservationState
+CRYPTO_OBSERVATION_STATE_REVERTED: CryptoObservationState
+CRYPTO_LEG_KIND_UNSPECIFIED: CryptoLegKind
+CRYPTO_LEG_KIND_BALANCE: CryptoLegKind
+CRYPTO_LEG_KIND_DEPOSIT: CryptoLegKind
+CRYPTO_LEG_KIND_FEE: CryptoLegKind
+CRYPTO_LEG_KIND_APPROVAL: CryptoLegKind
 
 class Adapter(_message.Message):
     __slots__ = ("id", "name", "kind", "enabled", "last_success_at", "availability_reason", "cursor")
@@ -220,3 +248,69 @@ class OperatorInputStatusResponse(_message.Message):
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     fields: _containers.RepeatedCompositeFieldContainer[OperatorInputField]
     def __init__(self, fields: _Optional[_Iterable[_Union[OperatorInputField, _Mapping]]] = ...) -> None: ...
+
+class PreviewCryptoObservationRequest(_message.Message):
+    __slots__ = ("network", "asset_id", "atomic_amount", "decimals", "state", "leg_kind", "source_reference", "transaction_hash", "block_hash", "leg_index", "book_id", "account_id", "address")
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    ATOMIC_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    DECIMALS_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    LEG_KIND_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_HASH_FIELD_NUMBER: _ClassVar[int]
+    LEG_INDEX_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    network: str
+    asset_id: str
+    atomic_amount: str
+    decimals: int
+    state: CryptoObservationState
+    leg_kind: CryptoLegKind
+    source_reference: str
+    transaction_hash: str
+    block_hash: str
+    leg_index: int
+    book_id: str
+    account_id: str
+    address: str
+    def __init__(self, network: _Optional[str] = ..., asset_id: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., decimals: _Optional[int] = ..., state: _Optional[_Union[CryptoObservationState, str]] = ..., leg_kind: _Optional[_Union[CryptoLegKind, str]] = ..., source_reference: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., block_hash: _Optional[str] = ..., leg_index: _Optional[int] = ..., book_id: _Optional[str] = ..., account_id: _Optional[str] = ..., address: _Optional[str] = ...) -> None: ...
+
+class PreviewCryptoObservationResponse(_message.Message):
+    __slots__ = ("network", "asset_id", "atomic_amount", "decimals", "source_reported_state", "leg_kind", "source_reference", "occurrence_key", "disposition", "posting_state", "budget_state", "holds", "book_account_status", "candidate_effect_atomic", "correction_requires_original_receipt", "address")
+    NETWORK_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    ATOMIC_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    DECIMALS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REPORTED_STATE_FIELD_NUMBER: _ClassVar[int]
+    LEG_KIND_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    OCCURRENCE_KEY_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    POSTING_STATE_FIELD_NUMBER: _ClassVar[int]
+    BUDGET_STATE_FIELD_NUMBER: _ClassVar[int]
+    HOLDS_FIELD_NUMBER: _ClassVar[int]
+    BOOK_ACCOUNT_STATUS_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_EFFECT_ATOMIC_FIELD_NUMBER: _ClassVar[int]
+    CORRECTION_REQUIRES_ORIGINAL_RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    network: str
+    asset_id: str
+    atomic_amount: str
+    decimals: int
+    source_reported_state: CryptoObservationState
+    leg_kind: CryptoLegKind
+    source_reference: str
+    occurrence_key: str
+    disposition: str
+    posting_state: str
+    budget_state: str
+    holds: _containers.RepeatedScalarFieldContainer[str]
+    book_account_status: str
+    candidate_effect_atomic: str
+    correction_requires_original_receipt: bool
+    address: str
+    def __init__(self, network: _Optional[str] = ..., asset_id: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., decimals: _Optional[int] = ..., source_reported_state: _Optional[_Union[CryptoObservationState, str]] = ..., leg_kind: _Optional[_Union[CryptoLegKind, str]] = ..., source_reference: _Optional[str] = ..., occurrence_key: _Optional[str] = ..., disposition: _Optional[str] = ..., posting_state: _Optional[str] = ..., budget_state: _Optional[str] = ..., holds: _Optional[_Iterable[str]] = ..., book_account_status: _Optional[str] = ..., candidate_effect_atomic: _Optional[str] = ..., correction_requires_original_receipt: _Optional[bool] = ..., address: _Optional[str] = ...) -> None: ...
