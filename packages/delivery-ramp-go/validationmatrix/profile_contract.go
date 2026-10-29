@@ -15,7 +15,7 @@ type ProfileContract struct {
 
 var profileContracts = []ProfileContract{
 	{Profile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, Label: "Normal", Category: "baseline", Executable: true},
-	{Profile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, Label: "Offline", Category: "network", RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK}},
+	{Profile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, Label: "Offline", Category: "network", Executable: true, RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_OFFLINE_NETWORK}},
 	{Profile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_SLOW_NETWORK, Label: "Slow network", Category: "network", RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_NETWORK_CONTROL}},
 	{Profile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_MISSING_CREDENTIAL, Label: "Missing credential", Category: "credential", RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_CREDENTIAL_CONTROL}},
 	{Profile: domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_PROVIDER_FAILURE, Label: "Provider failure", Category: "provider", RequiredCapabilities: []domainv1.ValidationTargetCapability{domainv1.ValidationTargetCapability_VALIDATION_TARGET_CAPABILITY_PROVIDER_CONTROL}},

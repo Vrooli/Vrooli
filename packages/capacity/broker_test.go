@@ -35,6 +35,45 @@ func TestOwnerIdentityHelpersRejectColonComponents(t *testing.T) {
 	}
 }
 
+func TestAcquireGPURequiresExactUUIDAndCreatesBoundActiveLease(t *testing.T) {
+	ctx := context.Background()
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	source := &gpuSnapshotSource{snapshot: hostinventory.Snapshot{
+		GPUs: []hostinventory.GPU{{Index: 2, UUID: "GPU-exact", Name: "test", VRAMBytes: 8 << 30, VRAMUsedBytes: 1 << 30}},
+	}}
+	broker := NewBrokerWithSource(store, source)
+	if _, verdict, err := broker.AcquireGPU(ctx, "device-studio:shot:render", "GPU-other", 1<<30); err != nil || verdict.Kind != "deny" {
+		t.Fatalf("unknown UUID acquire = verdict %+v, err %v", verdict, err)
+	}
+	lease, verdict, err := broker.AcquireGPU(ctx, "device-studio:shot:render", "GPU-exact", 1<<30)
+	if err != nil || lease == nil || verdict.Kind != "grant" {
+		t.Fatalf("exact UUID acquire = lease %v, verdict %+v, err %v", lease != nil, verdict, err)
+	}
+	if got := lease.Identity(); got.Index != 2 || got.UUID != "GPU-exact" || got.Name != "test" {
+		t.Fatalf("lease identity = %+v", got)
+	}
+	claims, err := store.ListClaims(ctx, internalcapacity.ClaimFilter{OwnerID: "device-studio:shot:render", ResourceKind: internalcapacity.ResourceKindVRAM, Statuses: internalcapacity.ActiveClaimStatuses()})
+	if err != nil || len(claims) != 1 || claims[0].GPUIndex == nil || *claims[0].GPUIndex != 2 || claims[0].ActivityState != internalcapacity.ActivityActive {
+		t.Fatalf("GPU claim = %+v, err %v", claims, err)
+	}
+	if err := lease.Heartbeat(ctx); err != nil {
+		t.Fatalf("heartbeat: %v", err)
+	}
+	if err := lease.Release(ctx); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+}
+
+type gpuSnapshotSource struct{ snapshot hostinventory.Snapshot }
+
+func (s *gpuSnapshotSource) Snapshot(context.Context) (hostinventory.Snapshot, error) {
+	return s.snapshot, nil
+}
+
 func TestReleaseRunReleasesOnlyThatRun(t *testing.T) {
 	ctx := context.Background()
 	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db")})
@@ -183,7 +222,7 @@ func TestBrokerUsesFreshMemoryPSIToClassifySwapOccupancy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			broker := newMemoryPressureTestBroker(t, hostinventory.Memory{TotalBytes: 100, AvailableBytes: 90}, hostinventory.Swap{TotalBytes: 100, FreeBytes: tt.swapFree})
 			broker.memoryPressure = func() hostpressure.Reading { return tt.pressure }
-			lease, verdict, err := broker.Acquire(context.Background(), "test:psi", 10, 0)
+			lease, verdict, err := broker.AcquireNoReclaim(context.Background(), "test:psi-no-reclaim", 10, 0)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -199,6 +238,41 @@ func TestBrokerUsesFreshMemoryPSIToClassifySwapOccupancy(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAcquireNoReclaimDoesNotYieldAnIdleRAMClaim(t *testing.T) {
+	ctx := context.Background()
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	if _, err := store.SetPolicyKey(ctx, "idle_grace", "0s"); err != nil {
+		t.Fatal(err)
+	}
+	claim, err := store.CreateClaim(ctx, internalcapacity.CapacityClaim{
+		OwnerKind: internalcapacity.OwnerKindResource, OwnerID: "idle-ram-service",
+		ResourceKind: internalcapacity.ResourceKindRAM, AmountBytes: 90,
+		PreferredBytes: 90, FloorBytes: 90, Priority: internalcapacity.PriorityService,
+		YieldWhenIdle: true, Status: internalcapacity.StatusGranted,
+		ActivityState: internalcapacity.ActivityIdle,
+	}, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broker := NewBrokerWithSource(store, &countingSource{cores: 4, memory: hostinventory.Memory{TotalBytes: 100, AvailableBytes: 100}})
+
+	lease, verdict, err := broker.AcquireNoReclaim(ctx, "test:no-reclaim", 90, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lease != nil || verdict.Kind != internalcapacity.VerdictDeny {
+		t.Fatalf("no-reclaim admission must refuse a claim that only fits by yielding another owner's RAM: lease=%v verdict=%+v", lease != nil, verdict)
+	}
+	updated, err := store.GetClaim(ctx, claim.ClaimID)
+	if err != nil || updated.Status != internalcapacity.StatusGranted {
+		t.Fatalf("other owner's claim changed after no-reclaim refusal: claim=%+v err=%v", updated, err)
 	}
 }
 

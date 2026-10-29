@@ -1,6 +1,9 @@
 package main
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -66,5 +69,27 @@ func TestFloorEngagementResolverUsesCaptureIdentity(t *testing.T) {
 	}
 	if info.Generation == legacy.Generation {
 		t.Fatal("a capture must change the serving generation")
+	}
+}
+
+func TestFloorEngagementResolverLocatesServingGenerationWithoutMaterializing(t *testing.T) {
+	store := baselinefloor.NewStore(t.TempDir())
+	writeFloorEngagement(t, store, "demo", "goal", baselinefloor.ModeShadow)
+	resolver := newFloorEngagementResolverWithStore(store)
+	info, engaged, err := resolver.Engagement("demo")
+	if err != nil || !engaged {
+		t.Fatalf("engagement = %+v, engaged=%v err=%v", info, engaged, err)
+	}
+
+	location, err := resolver.ServingSourceLocation("demo", info, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRoot := filepath.Join(store.ServingBasePath("demo", "goal"), baselinefloor.ServingGenerationKey(info.Generation))
+	if location.RepoRoot != wantRoot || location.ScenarioDir != baselinefloor.ServingScenarioDir(wantRoot, "demo") {
+		t.Fatalf("serving location = %+v, want root %q", location, wantRoot)
+	}
+	if _, err := os.Stat(location.RepoRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("read-only source lookup created serving tree or returned unexpected stat error: %v", err)
 	}
 }

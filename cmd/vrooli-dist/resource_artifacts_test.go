@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/binaryfetch"
+	rendererprofile "github.com/vrooli/vrooli/internal/tools/renderer-profile"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -32,6 +33,119 @@ func TestFinalizeReleaseArtifactStagingReportsStageCauseBeforeChecksumError(t *t
 	}
 	if _, statErr := os.Stat(filepath.Join(out, "SHA256SUMS")); !os.IsNotExist(statErr) {
 		t.Fatalf("failed staging wrote a checksum manifest: %v", statErr)
+	}
+}
+
+func TestManagedRendererTreeStagesVerifiedReleaseV1AndRefusesOverwrite(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	source := filepath.Join(root, "managed")
+	if err := os.MkdirAll(filepath.Join(source, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "bin", "renderer"), []byte("pinned renderer"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := binaryfetch.TreeDigest(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(root, "release")
+	if err := os.Mkdir(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spec := rendererprofile.ManagedTree{Selector: "blender", SourceRoot: source, ArtifactName: "tool_blender-renderer_linux_amd64", TreeSHA256: digest, Role: "renderer-profile:blender", Provenance: "verified-managed-tree; development-local; non-promotable"}
+	if err := stageVerifiedRendererTree(ctx, spec, out); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeReleaseChecksumManifest(out); err != nil {
+		t.Fatal(err)
+	}
+	manifest, _, err := resourcedeployment.VerifyReleaseDirectory(out, resourcedeployment.ArtifactTrustDevelopmentLocal, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, artifact := range manifest.Artifacts {
+		if artifact.Name == spec.ArtifactName {
+			found = true
+			if artifact.Role != spec.Role || artifact.UpstreamProvenance != spec.Provenance || artifact.SHA256 != digest || artifact.OS != "linux" || artifact.Arch != "amd64" {
+				t.Fatalf("release artifact metadata = %+v", artifact)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("verified renderer package missing from release-v1 manifest")
+	}
+	if err := os.WriteFile(filepath.Join(source, "bin", "renderer"), []byte("changed"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := stageVerifiedRendererTree(ctx, spec, out); err == nil {
+		t.Fatal("staging overwrote an existing renderer package")
+	}
+	staged, err := os.ReadFile(filepath.Join(out, spec.ArtifactName, "bin", "renderer"))
+	if err != nil || string(staged) != "pinned renderer" {
+		t.Fatalf("existing staged bytes changed: %q, %v", staged, err)
+	}
+	candidate := filepath.Join(root, "candidate")
+	if err := os.Mkdir(candidate, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(candidate, "new"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := publishRendererDirectory(candidate, filepath.Join(out, spec.ArtifactName)); err == nil {
+		t.Fatal("atomic directory publication replaced existing package")
+	}
+}
+
+func TestManagedRendererSelectorRejectsUnknownBeforeStaging(t *testing.T) {
+	out := t.TempDir()
+	err := stageManagedRendererProfiles(context.Background(), []string{"arbitrary"}, out)
+	if err == nil || !strings.Contains(err.Error(), "unsupported renderer profile") {
+		t.Fatalf("unknown selector error = %v", err)
+	}
+	entries, readErr := os.ReadDir(out)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("unknown selector staged files: %+v", entries)
+	}
+}
+
+func TestManagedRendererStageRejectsExistingDeclarationWithoutChangingIt(t *testing.T) {
+	out := t.TempDir()
+	path := filepath.Join(out, rendererProfilesFile)
+	before := []byte(`[{"tool_id":"future-tool","profile_id":"","os":"","architecture":"","tree_sha256":"bad"}]\n`)
+	if err := os.WriteFile(path, before, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := stageManagedRendererProfiles(context.Background(), []string{"blender"}, out)
+	if err == nil || !strings.Contains(err.Error(), "declaration already exists") {
+		t.Fatalf("existing declaration error = %v", err)
+	}
+	after, readErr := os.ReadFile(path)
+	if readErr != nil || !bytes.Equal(after, before) {
+		t.Fatalf("existing declaration changed: %q, %v", after, readErr)
+	}
+	if _, err := os.Stat(filepath.Join(out, "tool_blender-renderer_linux_amd64")); !os.IsNotExist(err) {
+		t.Fatalf("package was staged before declaration collision: %v", err)
+	}
+}
+
+func TestRendererProfileIndexExclusiveWritePreservesConcurrentFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), rendererProfilesFile)
+	winner := []byte("concurrent publisher\n")
+	if err := os.WriteFile(path, winner, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeFileExclusive(path, []byte("renderer profiles\n"), 0o644); err == nil {
+		t.Fatal("exclusive declaration write replaced a concurrent file")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(after, winner) {
+		t.Fatalf("concurrent declaration changed: %q, %v", after, err)
 	}
 }
 

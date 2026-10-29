@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
@@ -91,21 +92,22 @@ type CatalogSnapshot struct {
 }
 
 type MatrixSelection struct {
-	ScenarioName        string                                  `json:"scenario_name"`
-	Command             string                                  `json:"command,omitempty"`
-	CommandArgs         []string                                `json:"command_args,omitempty"`
-	ArtifactDigest      string                                  `json:"artifact_digest"`
-	ArtifactPath        string                                  `json:"artifact_path,omitempty"`
-	ArtifactPaths       map[string]string                       `json:"artifact_paths,omitempty"`
-	ArtifactDigests     map[string]string                       `json:"artifact_digests,omitempty"`
-	DeploymentMode      string                                  `json:"deployment_mode,omitempty"`
-	ReleaseProfile      string                                  `json:"release_profile,omitempty"`
-	IdempotencyKey      string                                  `json:"idempotency_key,omitempty"`
-	Journeys            []JourneySelection                      `json:"journeys"`
-	Targets             []TargetSelection                       `json:"targets"`
-	EnvironmentProfiles []domainv1.ValidationEnvironmentProfile `json:"environment_profiles"`
-	MaxConcurrency      int                                     `json:"max_concurrency"`
-	Metadata            map[string]string                       `json:"metadata,omitempty"`
+	ScenarioName                   string                                  `json:"scenario_name"`
+	Command                        string                                  `json:"command,omitempty"`
+	CommandArgs                    []string                                `json:"command_args,omitempty"`
+	ArtifactDigest                 string                                  `json:"artifact_digest"`
+	ArtifactPath                   string                                  `json:"artifact_path,omitempty"`
+	ArtifactPaths                  map[string]string                       `json:"artifact_paths,omitempty"`
+	ArtifactDigests                map[string]string                       `json:"artifact_digests,omitempty"`
+	DeploymentMode                 string                                  `json:"deployment_mode,omitempty"`
+	BrowserAutomationStudioVariant string                                  `json:"browser_automation_studio_variant,omitempty"`
+	ReleaseProfile                 string                                  `json:"release_profile,omitempty"`
+	IdempotencyKey                 string                                  `json:"idempotency_key,omitempty"`
+	Journeys                       []JourneySelection                      `json:"journeys"`
+	Targets                        []TargetSelection                       `json:"targets"`
+	EnvironmentProfiles            []domainv1.ValidationEnvironmentProfile `json:"environment_profiles"`
+	MaxConcurrency                 int                                     `json:"max_concurrency"`
+	Metadata                       map[string]string                       `json:"metadata,omitempty"`
 }
 
 func (s MatrixSelection) WithCatalog(ctx context.Context, catalog CatalogResolver) (MatrixSelection, error) {
@@ -117,8 +119,21 @@ func (s MatrixSelection) WithCatalog(ctx context.Context, catalog CatalogResolve
 		return MatrixSelection{}, fmt.Errorf("resolve validation catalog: %w", err)
 	}
 	resolved := cloneSelection(s)
-	if len(resolved.Journeys) == 0 && snapshot.Journeys != nil {
+	if len(resolved.Journeys) == 0 {
 		resolved.Journeys = snapshot.Journeys
+	} else if snapshot.Journeys != nil {
+		catalogJourneys := make(map[string]JourneySelection, len(snapshot.Journeys))
+		for _, journey := range snapshot.Journeys {
+			catalogJourneys[journey.JourneyID] = journey
+		}
+		for i, selected := range resolved.Journeys {
+			catalog, ok := catalogJourneys[selected.JourneyID]
+			if !ok {
+				return MatrixSelection{}, fmt.Errorf("journey %q is not present in the provider catalog", selected.JourneyID)
+			}
+			catalog.Required = catalog.Required || selected.Required
+			resolved.Journeys[i] = catalog
+		}
 	}
 	if len(resolved.Targets) == 0 && snapshot.Targets != nil {
 		resolved.Targets = snapshot.Targets
@@ -182,16 +197,18 @@ type ReleaseReportStatus struct {
 }
 
 type CellRequest struct {
-	RunID          string
-	MatrixID       string
-	Command        string
-	Args           []string
-	ArtifactDigest string
-	ArtifactPath   string
-	Cell           *domainv1.ValidationCell
-	Journey        JourneySelection
-	Target         *domainv1.ValidationTargetDescriptor
-	Metadata       map[string]string
+	RunID                          string
+	MatrixID                       string
+	Command                        string
+	Args                           []string
+	ArtifactDigest                 string
+	ArtifactPath                   string
+	DeploymentMode                 string
+	BrowserAutomationStudioVariant string
+	Cell                           *domainv1.ValidationCell
+	Journey                        JourneySelection
+	Target                         *domainv1.ValidationTargetDescriptor
+	Metadata                       map[string]string
 }
 
 func cloneStringMap(values map[string]string) map[string]string {
@@ -331,6 +348,21 @@ func (s RerunSelector) matches(record *CellRecord) bool {
 func (s MatrixSelection) validate() error {
 	if strings.TrimSpace(s.ScenarioName) == "" || strings.TrimSpace(s.ArtifactDigest) == "" {
 		return fmt.Errorf("scenario name and artifact digest are required")
+	}
+	switch s.DeploymentMode {
+	case "", "bundled", "proxy", "external-server", "cloud-api":
+	default:
+		return fmt.Errorf("unsupported deployment mode %q", s.DeploymentMode)
+	}
+	if variant := strings.TrimSpace(s.BrowserAutomationStudioVariant); variant != "" {
+		_, scenario, parsedVariant, err := cliutil.SplitAddress("browser-automation-studio@" + variant)
+		expected := "browser-automation-studio@" + strings.ToLower(variant)
+		if strings.EqualFold(variant, cliutil.DefaultVariant) {
+			expected = "browser-automation-studio"
+		}
+		if err != nil || scenario != "browser-automation-studio" || parsedVariant == "" || cliutil.InstanceSlug(scenario, parsedVariant) != expected {
+			return fmt.Errorf("invalid browser automation studio instance variant %q", s.BrowserAutomationStudioVariant)
+		}
 	}
 	if len(s.Journeys) == 0 || len(s.Targets) == 0 || len(s.EnvironmentProfiles) == 0 {
 		return fmt.Errorf("at least one journey, target, and environment profile are required")

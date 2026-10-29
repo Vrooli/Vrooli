@@ -28,6 +28,7 @@ type floorEngagementResolver struct {
 var (
 	_ lifecycle.EngagementResolver        = (*floorEngagementResolver)(nil)
 	_ lifecycle.ServingSourceMaterializer = (*floorEngagementResolver)(nil)
+	_ lifecycle.ServingSourceLocator      = (*floorEngagementResolver)(nil)
 )
 
 func newFloorEngagementResolver() (*floorEngagementResolver, error) {
@@ -131,6 +132,17 @@ func (r *floorEngagementResolver) MaterializeServingSource(scenario string, info
 		_, _ = r.store.ReapServingTrees(scenario, info.Slug, keep, inUse)
 	}
 	return dir, nil
+}
+
+// ServingSourceLocation resolves the expected serving generation without
+// materializing it. Deploy reports use this to inspect the recorded serving
+// baseline while remaining read-only.
+func (r *floorEngagementResolver) ServingSourceLocation(scenario string, info lifecycle.EngagementInfo, _ string) (lifecycle.ServingSourceLocation, error) {
+	if strings.TrimSpace(info.Slug) == "" || strings.TrimSpace(info.Generation) == "" {
+		return lifecycle.ServingSourceLocation{}, fmt.Errorf("floor engagement: serving source for %q has no engagement slug or generation", scenario)
+	}
+	root := filepath.Join(r.store.ServingBasePath(scenario, info.Slug), baselinefloor.ServingGenerationKey(info.Generation))
+	return lifecycle.ServingSourceLocation{RepoRoot: root, ScenarioDir: baselinefloor.ServingScenarioDir(root, scenario)}, nil
 }
 
 // registryWorkingDirs lists the working directories of every registered

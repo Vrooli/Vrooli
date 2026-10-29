@@ -84,6 +84,7 @@ var resourceSpecs = map[string]resourceSpec{
 	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", methods: []string{http.MethodPost}, paths: []string{"/v1/profiles", "/v1/verify", "/v1/extract"}},
 	"ollama":               {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings"}},
 	"reranker":             {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},
+	"pii-detector":         {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", methods: []string{http.MethodPost}, paths: []string{"/detect"}},
 }
 
 // Handlers owns the proxy's dependencies. Tests inject the seams so no real

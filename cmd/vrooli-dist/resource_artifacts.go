@@ -20,7 +20,10 @@ import (
 	resourceacquisition "github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tools"
+	rendererprofile "github.com/vrooli/vrooli/internal/tools/renderer-profile"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+	desktopmanifest "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	desktopprofiles "github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/toolprofiles"
 )
 
 const (
@@ -153,6 +156,176 @@ func stageToolArtifacts(ctx context.Context, root, outDir string) error {
 	}
 	sort.Strings(index)
 	return os.WriteFile(filepath.Join(outDir, "tool-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), mndResourceArtifactsNumberOctal644)
+}
+
+const rendererProfilesFile = "renderer_profiles_linux_amd64.json"
+
+func stageManagedRendererProfiles(ctx context.Context, selectors []string, outDir string) error {
+	if len(selectors) == 0 {
+		return errors.New("renderer profile selection is empty")
+	}
+	if err := os.MkdirAll(outDir, mndResourceArtifactsNumberOctal755); err != nil {
+		return fmt.Errorf("create renderer release directory: %w", err)
+	}
+	declarations := make([]desktopmanifest.ToolProfilePackage, 0, len(selectors))
+	declarationBySelector := make(map[string]desktopmanifest.ToolProfilePackage, len(selectors))
+	seen := make(map[string]bool, len(selectors))
+	for _, selector := range selectors {
+		declaration, _, ok := desktopprofiles.PinnedDeclaration(selector)
+		if !ok {
+			return fmt.Errorf("unsupported renderer profile %q", selector)
+		}
+		if seen[selector] {
+			return fmt.Errorf("duplicate renderer profile %q", selector)
+		}
+		seen[selector] = true
+		declarations = append(declarations, declaration)
+		declarationBySelector[selector] = declaration
+	}
+	if _, err := os.Lstat(filepath.Join(outDir, rendererProfilesFile)); err == nil {
+		return fmt.Errorf("renderer profile declaration already exists: %s", rendererProfilesFile)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	for _, selector := range selectors {
+		if _, err := os.Lstat(filepath.Join(outDir, rendererArtifactName(selector))); err == nil {
+			return fmt.Errorf("renderer package already exists for %q", selector)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
+	if err := desktopmanifest.ValidateToolProfiles(declarations); err != nil {
+		return fmt.Errorf("validate renderer release declarations: %w", err)
+	}
+	sort.Slice(declarations, func(i, j int) bool { return declarations[i].ToolID < declarations[j].ToolID })
+	for _, selector := range selectors {
+		declaration := declarationBySelector[selector]
+		err := rendererprofile.WithManagedTree(ctx, selector, func(source rendererprofile.ManagedTree) error {
+			if source.ProfileID != declaration.ProfileID || source.OS != declaration.OS || source.Architecture != declaration.Architecture || source.TreeSHA256 != declaration.TreeSHA256 {
+				return fmt.Errorf("renderer owner identity differs from pinned release declaration for %q", selector)
+			}
+			return stageVerifiedRendererTree(ctx, source, outDir)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	data, err := json.MarshalIndent(declarations, "", "  ")
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(outDir, rendererProfilesFile)
+	if err := writeFileExclusive(path, append(data, '\n'), 0o644); err != nil {
+		return fmt.Errorf("write renderer profile declaration: %w", err)
+	}
+	if err := updateReleaseArtifactMetadata(outDir, rendererProfilesFile, releaseArtifactMetadata{Role: "renderer-profile-index", Provenance: "verified-managed-tree-declarations; development-local; non-promotable"}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeFileExclusive(path string, data []byte, mode os.FileMode) error {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(path)
+		return err
+	}
+	return nil
+}
+
+func rendererArtifactName(selector string) string {
+	_, toolName, _ := desktopprofiles.PinnedDeclaration(selector)
+	return "tool_" + toolName + "_linux_amd64"
+}
+
+func stageVerifiedRendererTree(ctx context.Context, source rendererprofile.ManagedTree, outDir string) error {
+	temp, err := os.MkdirTemp(outDir, ".renderer-profile-stage-")
+	if err != nil {
+		return fmt.Errorf("create renderer staging directory: %w", err)
+	}
+	defer os.RemoveAll(temp)
+	payload := filepath.Join(temp, "payload")
+	if err := copyPinnedTree(ctx, source.SourceRoot, payload); err != nil {
+		return err
+	}
+	digest, err := binaryfetch.TreeDigestContext(ctx, payload)
+	if err != nil {
+		return err
+	}
+	if digest != source.TreeSHA256 {
+		return fmt.Errorf("staged renderer tree %q failed whole-tree verification", source.Selector)
+	}
+	destination := filepath.Join(outDir, source.ArtifactName)
+	if err := publishRendererDirectory(payload, destination); err != nil {
+		return fmt.Errorf("publish renderer package %q without overwrite: %w", source.Selector, err)
+	}
+	return updateReleaseArtifactMetadata(outDir, source.ArtifactName, releaseArtifactMetadata{Role: source.Role, Provenance: source.Provenance})
+}
+
+func copyPinnedTree(ctx context.Context, source, destination string) error {
+	if err := os.Mkdir(destination, 0o755); err != nil {
+		return err
+	}
+	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if path == source {
+			return nil
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(destination, rel)
+		info, err := os.Lstat(path)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		}
+		if info.IsDir() {
+			return os.Mkdir(target, info.Mode().Perm())
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("renderer tree contains unsupported entry %q", rel)
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode().Perm())
+		if err != nil {
+			_ = in.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, in)
+		inErr := in.Close()
+		closeErr := out.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if inErr != nil {
+			return inErr
+		}
+		return closeErr
+	})
 }
 
 func stageAcquisitionTarget(ctx context.Context, declaredKind string, target binaryfetch.AcquisitionTarget, platform resourcedeployment.Platform, name, path, outDir string) error {
@@ -528,7 +701,7 @@ func writeReleaseChecksumManifest(outDir string) error {
 
 func releaseArtifactPlatform(name string) (string, string) {
 	stem := name
-	for _, suffix := range []string{".manifest.json", ".build.json", ".sha256", ".exe"} {
+	for _, suffix := range []string{".manifest.json", ".build.json", ".sha256", ".exe", ".json"} {
 		stem = strings.TrimSuffix(stem, suffix)
 	}
 	parts := strings.Split(stem, "_")

@@ -4,19 +4,16 @@ import { join, relative, resolve } from "node:path";
 import { authoredRoot } from "./catalog-source.mjs";
 
 const roots = ["foundations", "hooks", "services", "primitives", "components"];
-const pointerFields = ["$schema", "assetKind", "catalogId", "deprecatedVersions", "designStyles", "draft", "entry", "evictedVersions", "latest", "libraryId", "supplemental"];
 
 async function projection(path) {
   const current = JSON.parse(await readFile(path, "utf8"));
-  const output = {};
-  for (const field of pointerFields) {
-    if (Object.prototype.hasOwnProperty.call(current, field)) output[field] = current[field];
-  }
+  const output = { ...current };
   // Library-prefixed identities are valid catalog projections for assets that
-  // do not yet have a domain id. Preserve the identity edge when slimming a
+  // do not yet have a domain id. Preserve the identity edge when normalizing a
   // legacy manifest so declaration coverage and indexing can still join it.
   if (!output.supplemental && !output.catalogId && output.libraryId) output.catalogId = output.libraryId;
-  return `${JSON.stringify(output, null, 2)}\n`;
+  const stable = Object.fromEntries(Object.keys(output).sort().map((field) => [field, output[field]]));
+  return `${JSON.stringify(stable, null, 2)}\n`;
 }
 
 export async function generateManifests({ root = authoredRoot, check = false } = {}) {

@@ -42,6 +42,7 @@ func run(args []string) int {
 	resourceSelection := flags.String("resource", "", "comma-separated resource names to stage (defaults to every supported resource)")
 	platformSelection := flags.String("platform", "", "comma-separated resource platforms to stage (for example linux-amd64)")
 	toolArtifacts := flags.Bool("tool-artifacts", false, "stage release-signable vendored tool artifacts")
+	rendererProfiles := flags.String("renderer-profiles", "", "comma-separated managed renderer packages for a development-local desktop release (blender, ffmpeg-video)")
 	verifyReleaseManifest := flags.Bool("verify-release-manifest", false, "verify a staged generic release manifest before it is bundled")
 	trustMode := flags.String("trust-mode", "", "artifact trust mode for manifest verification: development-local or production")
 	releaseArtifactRoot := flags.String("release-artifact-root", "", "staged release artifact directory to verify")
@@ -85,9 +86,9 @@ func run(args []string) int {
 		return 0
 	}
 	stagedReleaseArtifacts := false
-	if *resourceArtifacts || *toolArtifacts {
+	if *resourceArtifacts || *toolArtifacts || strings.TrimSpace(*rendererProfiles) != "" {
 		if strings.TrimSpace(*root) == "" || strings.TrimSpace(*outDir) == "" {
-			fmt.Fprintln(os.Stderr, "--resource-artifacts/--tool-artifacts require --root and --out-dir")
+			fmt.Fprintln(os.Stderr, "artifact staging requires --root and --out-dir")
 			return invalidInvocationExitCode
 		}
 		var stageErrors []error
@@ -108,6 +109,16 @@ func run(args []string) int {
 		}
 		if *toolArtifacts {
 			if err := stageToolArtifacts(context.Background(), *root, *outDir); err != nil {
+				stageErrors = append(stageErrors, err)
+			}
+		}
+		if strings.TrimSpace(*rendererProfiles) != "" {
+			selected, err := splitArtifactSelection(*rendererProfiles)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return invalidInvocationExitCode
+			}
+			if err := stageManagedRendererProfiles(context.Background(), selected, *outDir); err != nil {
 				stageErrors = append(stageErrors, err)
 			}
 		}

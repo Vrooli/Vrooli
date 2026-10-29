@@ -24,6 +24,11 @@ var ErrNoBinaryInArchive = errors.New("binaryfetch: binary not found in archive"
 // model-adjacent binaries while refusing absurd entries.
 const maxArchiveEntryBytes int64 = 2 << 30
 
+// maxTarPaddingBytes bounds decompressed zero padding after the tar end marker
+// while still allowing conventional tar block padding. The decoder must reach
+// its own EOF so compressed-stream checksums and footers are verified.
+const maxTarPaddingBytes int64 = 1 << 20
+
 // ArchiveDecompressor opens a stream for a format that is not available in
 // the standard library. The caller owns the optional dependency and registers
 // it at process startup; binaryfetch itself stays standard-library-only.
@@ -67,15 +72,15 @@ func registeredArchiveDecompressor(format string) (ArchiveDecompressor, bool) {
 // extractBinary pulls the binary identified by binPath out of the archive at
 // archivePath and writes it to destFile. When binPath is empty it selects the
 // archive's sole regular file (erroring if there are zero or many). format is
-// "tar.gz", "tar.bz2", or "zip".
+// "tar.gz", "tar.bz2", registered compressed tar formats, or "zip".
 func extractBinary(archivePath, format, binPath, destFile string) error {
 	switch format {
 	case "tar.gz", "tgz":
 		return extractFromTarGz(archivePath, binPath, destFile)
 	case "tar.bz2", "tbz2", "tbz":
 		return extractFromTarBzip2(archivePath, binPath, destFile)
-	case "tar.zst":
-		return extractFromTarZstd(archivePath, binPath, destFile)
+	case "tar.zst", "tar.xz":
+		return extractFromRegisteredTar(archivePath, format, binPath, destFile)
 	case "zip":
 		return extractFromZip(archivePath, binPath, destFile)
 	default:
@@ -83,28 +88,30 @@ func extractBinary(archivePath, format, binPath, destFile string) error {
 	}
 }
 
-func extractFromTarZstd(archivePath, binPath, destFile string) error {
+func extractFromRegisteredTar(archivePath, format, binPath, destFile string) error {
 	f, err := os.Open(archivePath) //nolint:gosec // archivePath is fetched into a controlled temp dir
 	if err != nil {
 		return err
 	}
-	decompressor, ok := registeredArchiveDecompressor("tar.zst")
+	decompressor, ok := registeredArchiveDecompressor(format)
 	if !ok {
 		f.Close()
-		return fmt.Errorf("binaryfetch: no decompressor registered for tar.zst")
+		return fmt.Errorf("binaryfetch: no decompressor registered for %s", normalizeArchive(format))
 	}
 	stream, err := decompressor(f)
 	if err != nil {
 		f.Close()
-		return fmt.Errorf("binaryfetch: open tar.zst: %w", err)
+		return fmt.Errorf("binaryfetch: open %s: %w", normalizeArchive(format), err)
 	}
 	defer func() { _ = stream.Close(); _ = f.Close() }()
-	return extractFromTarReader(tar.NewReader(stream), binPath, destFile, archivePath, "tar.zst")
+	return extractFromTarReader(tar.NewReader(stream), stream, binPath, destFile, archivePath, format)
 }
 
-func extractFromTarReader(tr *tar.Reader, binPath, destFile, archivePath, format string) error {
+func extractFromTarReader(tr *tar.Reader, stream io.Reader, binPath, destFile, archivePath, format string) error {
 	var candidates []string
 	matchName := filepath.Clean(binPath)
+	selected := false
+	entryBounds := &bounds{opts: ExtractOptions{}}
 	for {
 		hdr, err := tr.Next()
 		if errors.Is(err, io.EOF) {
@@ -116,24 +123,36 @@ func extractFromTarReader(tr *tar.Reader, binPath, destFile, archivePath, format
 		if hdr.Typeflag != tar.TypeReg {
 			continue
 		}
+		if err := entryBounds.admit(hdr.Name, hdr.Size); err != nil {
+			return err
+		}
 		name := filepath.Clean(hdr.Name)
 		if binPath != "" {
-			if name == matchName || filepath.Base(name) == filepath.Base(matchName) {
-				return writeReader(tr, destFile)
+			if !selected && (name == matchName || filepath.Base(name) == filepath.Base(matchName)) {
+				if err := writeReader(tr, destFile); err != nil {
+					return err
+				}
+				selected = true
 			}
 			continue
 		}
 		candidates = append(candidates, name)
 	}
+	if err := finalizeTarStream(stream, ExtractOptions{}); err != nil {
+		return err
+	}
 	if binPath != "" {
+		if selected {
+			return nil
+		}
 		return fmt.Errorf("%w: %q not in archive", ErrNoBinaryInArchive, binPath)
 	}
 	if len(candidates) != 1 {
 		return fmt.Errorf("%w: archive has %d regular files; set binPath to disambiguate", ErrNoBinaryInArchive, len(candidates))
 	}
 	// The stream is exhausted; reopen and select the sole file deterministically.
-	if format == "tar.zst" {
-		return extractFromTarZstd(archivePath, candidates[0], destFile)
+	if _, ok := registeredArchiveDecompressor(format); ok {
+		return extractFromRegisteredTar(archivePath, format, candidates[0], destFile)
 	}
 	return nil
 }
@@ -277,8 +296,8 @@ func extractAll(archivePath, format, destDir string) error {
 		return extractAllTarGz(archivePath, destDir)
 	case "tar.bz2", "tbz2", "tbz":
 		return extractAllTarBzip2(archivePath, destDir)
-	case "tar.zst":
-		return extractAllTarZstd(archivePath, destDir)
+	case "tar.zst", "tar.xz":
+		return extractAllRegisteredTar(archivePath, format, destDir)
 	case "zip":
 		return extractAllZip(archivePath, destDir)
 	default:
@@ -286,23 +305,26 @@ func extractAll(archivePath, format, destDir string) error {
 	}
 }
 
-func extractAllTarZstd(archivePath, destDir string) error {
+func extractAllRegisteredTar(archivePath, format, destDir string) error {
 	f, err := os.Open(archivePath) //nolint:gosec // archivePath is fetched into a controlled temp dir
 	if err != nil {
 		return err
 	}
-	decompressor, ok := registeredArchiveDecompressor("tar.zst")
+	decompressor, ok := registeredArchiveDecompressor(format)
 	if !ok {
 		f.Close()
-		return fmt.Errorf("binaryfetch: no decompressor registered for tar.zst")
+		return fmt.Errorf("binaryfetch: no decompressor registered for %s", normalizeArchive(format))
 	}
 	stream, err := decompressor(f)
 	if err != nil {
 		f.Close()
-		return fmt.Errorf("binaryfetch: open tar.zst: %w", err)
+		return fmt.Errorf("binaryfetch: open %s: %w", normalizeArchive(format), err)
 	}
 	defer func() { _ = stream.Close(); _ = f.Close() }()
-	return extractAllTarReader(tar.NewReader(stream), destDir)
+	if err := extractAllTarReader(tar.NewReader(stream), destDir); err != nil {
+		return err
+	}
+	return finalizeTarStream(stream, ExtractOptions{})
 }
 
 // extractTarLayer extracts an uncompressed OCI tar layer into destDir. OCI
@@ -458,6 +480,8 @@ func normalizeArchive(value string) string {
 		return "tar.gz"
 	case "tar.bz2", "tbz2", "tbz":
 		return "tar.bz2"
+	case "tar.xz", "txz":
+		return "tar.xz"
 	case "zip":
 		return "zip"
 	default:
@@ -525,7 +549,7 @@ type ArchiveSummary struct {
 // path, symlink, entry-type, count, size and time rules as
 // ExtractArchiveBounded, without writing anything. It is the refuse-before-
 // write pass a target performs on a release bundle. Supported formats: tar,
-// tar.gz, tar.bz2, tar.zst (when a decompressor is registered) and zip.
+// tar.gz, tar.bz2, registered tar.zst/tar.xz, and zip.
 func InspectArchiveBounded(archivePath, format string, opts ExtractOptions) (ArchiveSummary, error) {
 	return walkArchive(archivePath, format, inspectRoot, opts, false)
 }
@@ -563,17 +587,24 @@ func walkArchive(archivePath, format, destDir string, opts ExtractOptions, write
 		return walkTar(tar.NewReader(gz), destDir, opts, write)
 	case "tar.bz2":
 		return walkTar(tar.NewReader(bzip2.NewReader(f)), destDir, opts, write)
-	case "tar.zst":
-		decompressor, ok := registeredArchiveDecompressor("tar.zst")
+	case "tar.zst", "tar.xz":
+		decompressor, ok := registeredArchiveDecompressor(format)
 		if !ok {
-			return ArchiveSummary{}, fmt.Errorf("binaryfetch: no decompressor registered for tar.zst")
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: no decompressor registered for %s", format)
 		}
 		stream, err := decompressor(f)
 		if err != nil {
-			return ArchiveSummary{}, fmt.Errorf("binaryfetch: open tar.zst: %w", err)
+			return ArchiveSummary{}, fmt.Errorf("binaryfetch: open %s: %w", format, err)
 		}
 		defer stream.Close()
-		return walkTar(tar.NewReader(stream), destDir, opts, write)
+		summary, err := walkTar(tar.NewReader(stream), destDir, opts, write)
+		if err != nil {
+			return summary, err
+		}
+		if err := finalizeTarStream(stream, opts); err != nil {
+			return summary, err
+		}
+		return summary, nil
 	case "zip":
 		zr, err := zip.OpenReader(archivePath)
 		if err != nil {
@@ -583,6 +614,32 @@ func walkArchive(archivePath, format, destDir string, opts ExtractOptions, write
 		return walkZip(zr.File, destDir, opts, write)
 	default:
 		return ArchiveSummary{}, fmt.Errorf("binaryfetch: unsupported archive format %q", format)
+	}
+}
+
+func finalizeTarStream(stream io.Reader, opts ExtractOptions) error {
+	buf := make([]byte, 32<<10)
+	var padding int64
+	for {
+		if !opts.Deadline.IsZero() && time.Now().After(opts.Deadline) {
+			return &ArchiveError{Violation: ViolationDeadline, Detail: "time budget exhausted while validating compressed tar footer"}
+		}
+		n, err := stream.Read(buf)
+		padding += int64(n)
+		if padding > maxTarPaddingBytes {
+			return &ArchiveError{Violation: ViolationTooLarge, Detail: fmt.Sprintf("tar padding exceeds %d bytes", maxTarPaddingBytes)}
+		}
+		for _, value := range buf[:n] {
+			if value != 0 {
+				return &ArchiveError{Violation: ViolationUnsupportedEntry, Detail: "non-zero data follows tar end marker"}
+			}
+		}
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("binaryfetch: validate compressed tar footer: %w", err)
+		}
 	}
 }
 

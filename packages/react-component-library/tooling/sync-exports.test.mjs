@@ -6,8 +6,19 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { resolveCatalogExports } from "./export-resolution.mjs";
+import { findBrokenVersionImports } from "./version-import-scan.mjs";
 
 const scriptsRoot = dirname(fileURLToPath(import.meta.url));
+
+async function withScannerRepoFixture(writeFixture) {
+  const root = mkdtempSync(join(tmpdir(), "rcl-export-scan-"));
+  try {
+    writeFixture(root);
+    return await findBrokenVersionImports(new Set(), root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
 
 test("sync-exports check rejects no live imports and reports the inverse count", () => {
   const output = execFileSync(process.execPath, [join(scriptsRoot, "sync-exports.mjs"), "--check"], {
@@ -22,6 +33,36 @@ test("sync-exports check rejects no live imports and reports the inverse count",
   assert.equal(Boolean(packageJSON.exports["./Button/2"]), true);
   assert.equal(Boolean(packageJSON.exports["./Button/2.2.4"]), true);
   assert.equal(Boolean(packageJSON.exports["./Button/2/2.2.4"]), false);
+});
+
+test("retained scenario and template documentation is excluded from import scanning", async () => {
+  const broken = await withScannerRepoFixture((root) => {
+    for (const projectRoot of [join(root, "scenarios", "demo"), join(root, "templates", "demo")]) {
+      const snapshot = join(projectRoot, "docs", "internal", "goal", "evidence", "baseline-original", "bytes", "source.tsx");
+      mkdirSync(dirname(snapshot), { recursive: true });
+      writeFileSync(snapshot, 'import { Missing } from "@vrooli/react-component-library/DefinitelyMissingForScannerTest/9.9.9";\n');
+    }
+  });
+
+  assert.deepEqual(broken, []);
+});
+
+test("active source imports remain checked below nested docs directories", async () => {
+  const broken = await withScannerRepoFixture((root) => {
+    for (const projectRoot of [join(root, "scenarios", "demo"), join(root, "templates", "demo")]) {
+      const activeSource = join(projectRoot, "ui", "src", "docs", "BrokenConsumer.tsx");
+      mkdirSync(dirname(activeSource), { recursive: true });
+      writeFileSync(activeSource, 'import { Missing } from "@vrooli/react-component-library/DefinitelyMissingForScannerTest/9.9.9";\n');
+    }
+  });
+
+  assert.equal(broken.length, 2);
+  assert.deepEqual(broken.map((entry) => entry.file).sort(), [
+    join("scenarios", "demo", "ui", "src", "docs", "BrokenConsumer.tsx"),
+    join("templates", "demo", "ui", "src", "docs", "BrokenConsumer.tsx"),
+  ]);
+  assert.ok(broken.every((entry) => entry.specifier === "@vrooli/react-component-library/DefinitelyMissingForScannerTest/9.9.9"));
+  assert.ok(broken.every((entry) => entry.key === "./DefinitelyMissingForScannerTest/9.9.9"));
 });
 
 test("every advertised subpath has a declaration in the built artifact", () => {

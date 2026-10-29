@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 
 const packagePrefix = "@vrooli/react-component-library/";
 const releasePattern = /^\d+\.\d+\.\d+$/;
+const draftPattern = /^\d+\.\d+\.\d+-draft\.\d+$/;
 const majorPattern = /^\d+$/;
 const compareVersions = (left, right) => left.localeCompare(right, undefined, { numeric: true });
 
@@ -30,7 +31,7 @@ async function findAsset(libraryRoot, name) {
   throw new Error(`unknown intra-library asset ${JSON.stringify(name)}`);
 }
 
-export async function resolveLibrarySpecifier(specifier, { libraryRoot } = {}) {
+export async function resolveLibrarySpecifier(specifier, { libraryRoot, draftOverrides = {} } = {}) {
   const root = resolve(libraryRoot);
   assertSourceRoot(root);
   if (!specifier.startsWith(packagePrefix)) return null;
@@ -47,6 +48,35 @@ export async function resolveLibrarySpecifier(specifier, { libraryRoot } = {}) {
 
   const asset = await findAsset(root, name);
   const versionsRoot = join(asset.assetRoot, "versions");
+  const draftOverride = segments.length === 2 && majorPattern.test(segments[1])
+    ? draftOverrides[name]
+    : undefined;
+  if (draftOverride) {
+    if (!draftPattern.test(draftOverride) || asset.manifest.draft !== draftOverride) {
+      throw new Error(`${specifier}: ${draftOverride} is not the active draft for ${name}`);
+    }
+    if (!draftOverride.startsWith(`${segments[1]}.`)) {
+      throw new Error(`${specifier}: active draft ${draftOverride} does not match major ${segments[1]}`);
+    }
+    const draftRoot = join(versionsRoot, draftOverride);
+    if (!existsSync(draftRoot)) throw new Error(`${specifier}: active draft source is missing at ${draftRoot}`);
+    const draftEntries = (await readdir(draftRoot, { withFileTypes: true }))
+      .filter((entry) => entry.isFile() && /\.(?:ts|tsx)$/.test(entry.name));
+    const draftEntry = draftEntries.find((candidate) =>
+      candidate.name.replace(/\.(?:ts|tsx)$/, "") === name,
+    ) ?? (draftEntries.length === 1 ? draftEntries[0] : undefined);
+    if (!draftEntry) throw new Error(`${specifier}: ${draftOverride} has no public entry module`);
+    return {
+      name,
+      kind: asset.kind,
+      version: draftOverride,
+      exactSpecifier: `${packagePrefix}${name}/${draftOverride}`,
+      majorSpecifier: `${packagePrefix}${name}/${draftOverride.split(".")[0]}`,
+      sourcePath: join(draftRoot, draftEntry.name),
+      libraryId: String(asset.manifest.libraryId),
+      draft: true,
+    };
+  }
   const versions = (await readdir(versionsRoot, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory() && releasePattern.test(entry.name))
     .map((entry) => entry.name)
@@ -107,7 +137,7 @@ export function majorSpecifier(name, version) {
   return `${packagePrefix}${name}/${String(version).split(".")[0]}`;
 }
 
-export function sourceLibraryResolver({ libraryRoot }) {
+export function sourceLibraryResolver({ libraryRoot, draftOverrides = {} }) {
   const root = resolve(libraryRoot);
   assertSourceRoot(root);
   return {
@@ -115,7 +145,7 @@ export function sourceLibraryResolver({ libraryRoot }) {
     enforce: "pre",
     async resolveId(id) {
       if (!id.startsWith(packagePrefix)) return null;
-      return (await resolveLibrarySpecifier(id, { libraryRoot: root })).sourcePath;
+      return (await resolveLibrarySpecifier(id, { libraryRoot: root, draftOverrides })).sourcePath;
     },
   };
 }

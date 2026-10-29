@@ -2,6 +2,7 @@ package validationmatrix
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -10,6 +11,16 @@ import (
 
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
+
+func TestMatrixSelectionJSONCarriesBASVariant(t *testing.T) {
+	var selection MatrixSelection
+	if err := json.Unmarshal([]byte(`{"browser_automation_studio_variant":"preview-2"}`), &selection); err != nil {
+		t.Fatal(err)
+	}
+	if selection.BrowserAutomationStudioVariant != "preview-2" {
+		t.Fatalf("decoded BAS variant = %q, want preview-2", selection.BrowserAutomationStudioVariant)
+	}
+}
 
 type localFunc func(context.Context, CellRequest) CellResult
 
@@ -83,21 +94,135 @@ func TestCreatePreservesExplicitOperatorSelectionWhenCatalogIsAvailable(t *testi
 		t.Fatal(err)
 	}
 	selection := baseSelection()
-	selection.Journeys = []JourneySelection{{JourneyID: "selected", DisplayName: "Selected journey", Required: true}}
+	selection.Journeys = []JourneySelection{
+		{JourneyID: "second", DisplayName: "caller label", SourcePath: "caller.json", Required: false},
+		{JourneyID: "selected", Required: false},
+	}
 	service := NewService(store, Executors{}, WithCatalogResolver(catalogFunc(func(_ context.Context, _ string) (CatalogSnapshot, error) {
-		catalog := baseSelection()
-		catalog.Journeys = []JourneySelection{
-			{JourneyID: "selected", DisplayName: "Selected journey", Required: true},
+		return CatalogSnapshot{Journeys: []JourneySelection{
+			{JourneyID: "selected", DisplayName: "Selected journey", SourcePath: "bas/selected.json", ExecutionMode: "observer", Required: true, Category: "existing-bas-case"},
+			{JourneyID: "second", DisplayName: "Second journey", SourcePath: "bas/second.json", ExecutionMode: "observer", Required: false, Safety: JourneySafety{RequiresIsolation: true}},
 			{JourneyID: "omitted", DisplayName: "Omitted provider journey", Required: false},
-		}
-		return CatalogSnapshot{Journeys: catalog.Journeys}, nil
+		}}, nil
 	})))
 	run, err := service.Create(selection)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(run.Selection.Journeys) != 1 || run.Selection.Journeys[0].JourneyID != "selected" {
+	if len(run.Selection.Journeys) != 2 || run.Selection.Journeys[0].JourneyID != "second" || run.Selection.Journeys[1].JourneyID != "selected" {
 		t.Fatalf("explicit selection was replaced by provider catalog: %+v", run.Selection.Journeys)
+	}
+	if got := run.Selection.Journeys[0]; got.SourcePath != "bas/second.json" || got.DisplayName != "Second journey" || !got.Safety.RequiresIsolation {
+		t.Fatalf("caller metadata overrode provider catalog: %+v", got)
+	}
+	if got := run.Selection.Journeys[1]; got.SourcePath != "bas/selected.json" || !got.Required {
+		t.Fatalf("catalog source path or required status was lost: %+v", got)
+	}
+}
+
+func TestCreateRejectsJourneyOutsideProviderCatalog(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := baseSelection()
+	selection.Journeys = []JourneySelection{{JourneyID: "injected", SourcePath: "../../outside.json"}}
+	service := NewService(store, Executors{}, WithCatalogResolver(catalogFunc(func(context.Context, string) (CatalogSnapshot, error) {
+		return CatalogSnapshot{Journeys: []JourneySelection{{JourneyID: "known", SourcePath: "bas/known.json"}}}, nil
+	})))
+	if _, err := service.Create(selection); err == nil {
+		t.Fatal("expected unknown journey to be rejected")
+	}
+	if runs := store.List(); len(runs) != 0 {
+		t.Fatalf("unknown journey created a matrix: %+v", runs)
+	}
+}
+
+func TestExecuteCellCarriesDeploymentModeToTransport(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(chan string, 1)
+	service := NewService(store, Executors{Local: localFunc(func(_ context.Context, request CellRequest) CellResult {
+		seen <- request.DeploymentMode
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "test transport"}
+	})})
+	selection := baseSelection()
+	selection.DeploymentMode = "bundled"
+	run, err := service.Create(selection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Start(run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Wait(context.Background(), run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-seen; got != "bundled" {
+		t.Fatalf("transport deployment mode = %q, want bundled", got)
+	}
+}
+
+func TestExecuteCellCarriesExplicitBASVariantToTransport(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(chan string, 1)
+	service := NewService(store, Executors{Local: localFunc(func(_ context.Context, request CellRequest) CellResult {
+		seen <- request.BrowserAutomationStudioVariant
+		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: "test transport"}
+	})})
+	selection := baseSelection()
+	selection.BrowserAutomationStudioVariant = "preview-2"
+	run, err := service.Create(selection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Start(run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Wait(context.Background(), run.RunID); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case got := <-seen:
+		if got != "preview-2" {
+			t.Fatalf("cell BAS variant = %q, want preview-2", got)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("matrix cell was not executed")
+	}
+}
+
+func TestCreateRejectsMalformedBASVariant(t *testing.T) {
+	for _, variant := range []string{"@shadow", "shadow/other", "shadow@nested"} {
+		t.Run(variant, func(t *testing.T) {
+			store, err := NewFileStore(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			service := NewService(store, Executors{Local: localFunc(func(context.Context, CellRequest) CellResult { return CellResult{} })})
+			selection := baseSelection()
+			selection.BrowserAutomationStudioVariant = variant
+			if _, err := service.Create(selection); err == nil {
+				t.Fatalf("malformed BAS variant %q was accepted", variant)
+			}
+		})
+	}
+}
+
+func TestCreateRejectsUnknownDeploymentMode(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := baseSelection()
+	selection.DeploymentMode = "bundled-ish"
+	if _, err := NewService(store, Executors{}).Create(selection); err == nil || !strings.Contains(err.Error(), "unsupported deployment mode") {
+		t.Fatalf("unknown deployment mode error = %v", err)
 	}
 }
 
@@ -254,7 +379,8 @@ func TestComputeApplicabilityTruthTable(t *testing.T) {
 		{"eligible", target, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED, ""},
 		{"missing capability", &domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true}, []domainv1.ValidationTargetCapability{capability}, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, ""},
 		{"unavailable", &domainv1.ValidationTargetDescriptor{TargetId: "remote", Available: false, Reason: stringPtr("start or auto-login an interactive GUI session")}, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_NORMAL, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, "start or auto-login"},
-		{"offline unsupported until adapter exists", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, ""},
+		{"offline executable with isolation capability", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSPECIFIED, ""},
+		{"offline requires isolation capability", &domainv1.ValidationTargetDescriptor{TargetId: "local", Available: true, Capabilities: []domainv1.ValidationTargetCapability{capability}}, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_OFFLINE, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNSUPPORTED, "OFFLINE_NETWORK"},
 		{"unspecified profile", target, nil, domainv1.ValidationEnvironmentProfile_VALIDATION_ENVIRONMENT_PROFILE_UNSPECIFIED, domainv1.ValidationDisposition_VALIDATION_DISPOSITION_NOT_RUN, ""},
 	}
 	for _, test := range tests {

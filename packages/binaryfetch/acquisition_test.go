@@ -135,6 +135,27 @@ func TestAcquisitionValidateRejectsAmbiguousDeclarations(t *testing.T) {
 	}
 }
 
+func TestAcquisitionSchemaAndValidationAcceptTarXZ(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	acquisition := Acquisition{Kind: "url", Targets: []AcquisitionTarget{{
+		URL: "https://example.test/tool.tar.xz", SHA256: digest, Archive: "tar.xz", Layout: "dir", BinPath: "bin/tool",
+	}}}
+	if err := acquisition.Validate(); err != nil {
+		t.Fatalf("tar.xz acquisition rejected: %v", err)
+	}
+	step := ComposeStep{Role: "bundle", Kind: "url", Dest: "bundle", URL: "https://example.test/bundle.tar.xz", SHA256: digest, Archive: "tar.xz", BinPath: "bin/tool"}
+	if err := step.Validate(); err != nil {
+		t.Fatalf("tar.xz composed step rejected: %v", err)
+	}
+	data, err := RenderAcquisitionSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"tar.xz"`) {
+		t.Fatal("generated acquisition schema omits tar.xz")
+	}
+}
+
 func TestAcquisitionExplainNamesRejectedCandidates(t *testing.T) {
 	explanation := (Acquisition{Targets: []AcquisitionTarget{
 		{When: map[string]string{"os": "linux", "arch": "arm64"}, URL: "arm"},

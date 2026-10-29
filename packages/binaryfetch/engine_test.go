@@ -57,6 +57,145 @@ func TestFetchDirSupportsRegisteredTarZstdDecompressor(t *testing.T) {
 	}
 }
 
+func TestFetchAndFetchDirSupportRegisteredTarXZDecompressor(t *testing.T) {
+	archive := tarBytes(t, map[string][]byte{"bin/tool": bigBinary(), "lib/runtime": []byte("runtime")})
+	var compressed bytes.Buffer
+	gz := gzip.NewWriter(&compressed)
+	if _, err := gz.Write(archive); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	remove := RegisterArchiveDecompressor("txz", func(r io.Reader) (io.ReadCloser, error) {
+		return gzip.NewReader(r)
+	})
+	defer remove()
+	server := serve(t, compressed.Bytes())
+	digest := sha256hex(compressed.Bytes())
+
+	filePath, err := Fetch(context.Background(), Target{
+		Name: "tool", URL: server.URL, SHA256: digest, Archive: "tar.xz", BinPath: "bin/tool",
+	}, filepath.Join(t.TempDir(), "bin"), nil)
+	if err != nil {
+		t.Fatalf("Fetch(tar.xz): %v", err)
+	}
+	if data, err := os.ReadFile(filePath); err != nil || !bytes.Equal(data, bigBinary()) {
+		t.Fatalf("single-file extraction = %d bytes, err %v", len(data), err)
+	}
+
+	optDir := filepath.Join(t.TempDir(), "opt")
+	entry, err := FetchDir(context.Background(), Target{
+		Name: "tool", URL: server.URL, SHA256: digest, Archive: "tar.xz", Layout: "dir", BinPath: "bin/tool",
+	}, optDir, nil)
+	if err != nil {
+		t.Fatalf("FetchDir(tar.xz): %v", err)
+	}
+	if entry != filepath.Join(optDir, "bin", "tool") {
+		t.Fatalf("entry = %q", entry)
+	}
+	if data, err := os.ReadFile(filepath.Join(optDir, "lib", "runtime")); err != nil || string(data) != "runtime" {
+		t.Fatalf("directory extraction runtime = %q, err %v", data, err)
+	}
+}
+
+func TestFetchDirRejectsCorruptRegisteredTarFooter(t *testing.T) {
+	archive := tarBytes(t, map[string][]byte{"bin/tool": bigBinary(), "lib/runtime": []byte("runtime")})
+	var compressed bytes.Buffer
+	gz := gzip.NewWriter(&compressed)
+	if _, err := gz.Write(archive); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	data := append([]byte(nil), compressed.Bytes()...)
+	data[len(data)-1] ^= 0x01
+	remove := RegisterArchiveDecompressor("tar.xz", func(r io.Reader) (io.ReadCloser, error) {
+		return gzip.NewReader(r)
+	})
+	defer remove()
+	server := serve(t, data)
+	_, err := FetchDir(context.Background(), Target{
+		Name: "tool", URL: server.URL, SHA256: sha256hex(data), Archive: "tar.xz", Layout: "dir", BinPath: "bin/tool",
+	}, filepath.Join(t.TempDir(), "opt"), nil)
+	if err == nil {
+		t.Fatal("FetchDir accepted a corrupt registered-tar footer")
+	}
+}
+
+func TestRegisteredTarXZUsesBoundedWalkerAndRequiresCodec(t *testing.T) {
+	plain := writeTarGz(t, []tarEntry{
+		{hdr: tar.Header{Name: "bin/tool"}, body: "safe"},
+		{hdr: tar.Header{Name: "../escape"}, body: "blocked"},
+	})
+	compressed, err := os.ReadFile(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "fixture.tar.xz")
+	if err := os.WriteFile(path, compressed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InspectArchiveBounded(path, "tar.xz", ExtractOptions{}); err == nil || !strings.Contains(err.Error(), "no decompressor registered for tar.xz") {
+		t.Fatalf("unregistered codec error = %v", err)
+	}
+	remove := RegisterArchiveDecompressor("tar.xz", func(r io.Reader) (io.ReadCloser, error) {
+		return gzip.NewReader(r)
+	})
+	defer remove()
+	if _, err := InspectArchiveBounded(path, "tar.xz", ExtractOptions{}); violationOf(t, err) != ViolationTraversal {
+		t.Fatalf("InspectArchiveBounded violation = %v; want traversal", err)
+	}
+	if _, err := ExtractArchiveBounded(path, "tar.xz", filepath.Join(t.TempDir(), "stage"), ExtractOptions{}); violationOf(t, err) != ViolationTraversal {
+		t.Fatalf("ExtractArchiveBounded violation = %v; want traversal", err)
+	}
+}
+
+func TestRegisteredTarXZHonorsExpandedSizeBounds(t *testing.T) {
+	plain := writeTarGz(t, []tarEntry{{hdr: tar.Header{Name: "data"}, body: "123456789"}})
+	compressed, err := os.ReadFile(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "fixture.tar.xz")
+	if err := os.WriteFile(path, compressed, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	remove := RegisterArchiveDecompressor("tar.xz", func(r io.Reader) (io.ReadCloser, error) {
+		return gzip.NewReader(r)
+	})
+	defer remove()
+	if _, err := InspectArchiveBounded(path, "tar.xz", ExtractOptions{MaxExpandedBytes: 8}); violationOf(t, err) != ViolationTooLarge {
+		t.Fatalf("InspectArchiveBounded violation = %v; want too_large", err)
+	}
+	if _, err := ExtractArchiveBounded(path, "tar.xz", filepath.Join(t.TempDir(), "stage"), ExtractOptions{MaxExpandedBytes: 8}); violationOf(t, err) != ViolationTooLarge {
+		t.Fatalf("ExtractArchiveBounded violation = %v; want too_large", err)
+	}
+}
+
+func TestRegisteredSingleBinaryExtractionValidatesCompressedFooter(t *testing.T) {
+	archive := writeTarGz(t, []tarEntry{{hdr: tar.Header{Name: "bin/tool", Mode: 0o755}, body: "safe"}})
+	data, err := os.ReadFile(archive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data[len(data)-1] ^= 0x01 // Corrupt the gzip trailer checksum.
+	archive = filepath.Join(t.TempDir(), "fixture.tar.xz")
+	if err := os.WriteFile(archive, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	remove := RegisterArchiveDecompressor("tar.xz", func(r io.Reader) (io.ReadCloser, error) {
+		return gzip.NewReader(r)
+	})
+	defer remove()
+	dest := filepath.Join(t.TempDir(), "tool")
+	if err := extractBinary(archive, "tar.xz", "bin/tool", dest); err == nil {
+		t.Fatal("single-binary extraction accepted a corrupt compressed footer")
+	}
+}
+
 func TestTreeDigestChangesWhenOneFileChanges(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "lib"), 0o755); err != nil {

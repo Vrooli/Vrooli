@@ -402,16 +402,18 @@ func (s *Service) executeCell(ctx context.Context, runID string, record *CellRec
 		return
 	}
 	request := CellRequest{
-		RunID:          run.RunID,
-		MatrixID:       run.Matrix.GetMatrixId(),
-		Command:        run.Selection.Command,
-		Args:           append([]string(nil), run.Selection.CommandArgs...),
-		ArtifactDigest: record.Cell.GetArtifactDigest(),
-		ArtifactPath:   artifactPathForTarget(run.Selection, record.Cell.GetTargetId()),
-		Cell:           record.Cell,
-		Journey:        journeySelection(run.Selection.Journeys, record.Cell.GetJourneyId()),
-		Target:         targetSelection(run.Selection.Targets, record.Cell.GetTargetId()),
-		Metadata:       cloneStringMap(run.Selection.Metadata),
+		RunID:                          run.RunID,
+		MatrixID:                       run.Matrix.GetMatrixId(),
+		Command:                        run.Selection.Command,
+		Args:                           append([]string(nil), run.Selection.CommandArgs...),
+		ArtifactDigest:                 record.Cell.GetArtifactDigest(),
+		ArtifactPath:                   artifactPathForTarget(run.Selection, record.Cell.GetTargetId()),
+		DeploymentMode:                 run.Selection.DeploymentMode,
+		BrowserAutomationStudioVariant: run.Selection.BrowserAutomationStudioVariant,
+		Cell:                           record.Cell,
+		Journey:                        journeySelection(run.Selection.Journeys, record.Cell.GetJourneyId()),
+		Target:                         targetSelection(run.Selection.Targets, record.Cell.GetTargetId()),
+		Metadata:                       cloneStringMap(run.Selection.Metadata),
 	}
 	for {
 		record.Attempts++

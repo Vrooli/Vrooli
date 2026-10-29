@@ -12,7 +12,7 @@ import (
 func TestHostInventoryDecodesQuotedByteCounts(t *testing.T) {
 	runner := &stubRunner{
 		responses: []stubResponse{
-			{output: []byte(`{"memory":{"total_bytes":"65435598848","available_bytes":"43553144832"},"swap":{"total_bytes":"74088177664"},"cpu":{"cores":32}}`)},
+			{output: []byte(`{"memory":{"total_bytes":"65435598848","available_bytes":"43553144832"},"swap":{"total_bytes":"74088177664"},"cpu":{"cores":32},"gpus":[{"index":2,"uuid":"GPU-physical","vram_bytes":"17179869184"}]}`)},
 		},
 	}
 	client := New(WithRunner(runner))
@@ -29,6 +29,9 @@ func TestHostInventoryDecodesQuotedByteCounts(t *testing.T) {
 	}
 	if got := resp.GetSwap().GetTotalBytes(); got != 74088177664 {
 		t.Fatalf("swap.total_bytes = %d, want 74088177664", got)
+	}
+	if len(resp.Gpus) != 1 || resp.Gpus[0].GetIndex() != 2 || resp.Gpus[0].GetUuid() != "GPU-physical" {
+		t.Fatalf("physical GPU identity was lost at the CLI client: %+v", resp.Gpus)
 	}
 	if want := []string{"host", "inventory", "--json"}; !equalArgs(runner.calls[0].args, want) {
 		t.Fatalf("call args = %v, want %v", runner.calls[0].args, want)

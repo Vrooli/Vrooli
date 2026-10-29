@@ -8,10 +8,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -20,7 +18,6 @@ import (
 	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostpressure"
-	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
 const capacityHeartbeatTTL = 15 * time.Minute
@@ -61,6 +58,21 @@ type Lease interface {
 type RenewableLease interface {
 	Lease
 	Heartbeat(context.Context) error
+}
+
+// GPUIdentity identifies the exact accelerator admitted for an operation.
+// Callers should bind child processes to UUID (or the corresponding vendor
+// selector) from this value rather than rediscovering a device by index.
+type GPUIdentity struct {
+	Index int
+	UUID  string
+	Name  string
+}
+
+// GPULease is a renewable operation lease bound to one observed GPU identity.
+type GPULease interface {
+	RenewableLease
+	Identity() GPUIdentity
 }
 
 // snapshotTTL bounds how long one host-capacity reading is reused across
@@ -176,41 +188,8 @@ func NewBroker(ctx context.Context, dbPath string) (*Broker, error) {
 		return nil, err
 	}
 	broker := NewBrokerWithSource(store, internalcapacity.HostInventorySource{})
-	broker.memoryPressure = readHostMemoryPressure
+	broker.memoryPressure = internalcapacity.ReadHostMemoryPressure
 	return broker, nil
-}
-
-func readHostMemoryPressure() hostpressure.Reading {
-	if runtime.GOOS != "linux" {
-		return hostpressure.NewUnread("host-psi", "memory PSI is unavailable on this host")
-	}
-	const path = "/proc/pressure/memory"
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return hostpressure.NewUnread("linux:"+path, err.Error())
-	}
-	value, ok := hostpressure.ParsePSISomeAvg10(string(raw))
-	if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || value > 100 {
-		return hostpressure.NewUnread("linux:"+path, "memory PSI some.avg10 is missing or invalid")
-	}
-	return hostpressure.NewRead(value, "linux:"+path)
-}
-
-func memoryPSIThreshold() (float64, error) {
-	cwd, _ := os.Getwd()
-	bars, err := setpoint.Resolve(os.Environ(), cwd)
-	if err != nil {
-		return 0, fmt.Errorf("resolve memory pressure setpoint: %w", err)
-	}
-	bar, ok := bars.Bar(setpoint.CellMemoryPSI)
-	if !ok || bar.Max == nil {
-		return 0, fmt.Errorf("memory pressure setpoint %s has no maximum threshold", setpoint.CellMemoryPSI)
-	}
-	threshold := *bar.Max
-	if math.IsNaN(threshold) || math.IsInf(threshold, 0) || threshold < 0 || threshold > 100 {
-		return 0, fmt.Errorf("memory pressure setpoint %s has invalid maximum %v", setpoint.CellMemoryPSI, threshold)
-	}
-	return threshold, nil
 }
 
 func capacityAdmissionLockKey(dbPath string) string {
@@ -262,6 +241,18 @@ func (b *Broker) Close() error {
 // intentionally rejected by callers as unknown; this method only handles
 // measured estimates.
 func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli int64) (Lease, Verdict, error) {
+	return b.acquire(ctx, ownerID, ramBytes, cpuMilli, false)
+}
+
+// AcquireNoReclaim admits an operation only from capacity that is already
+// available. It applies the same fresh host sensing, pressure gates, and
+// ledger-fit checks as Acquire, but will never schedule another owner's idle
+// claim for reclamation.
+func (b *Broker) AcquireNoReclaim(ctx context.Context, ownerID string, ramBytes, cpuMilli int64) (Lease, Verdict, error) {
+	return b.acquire(ctx, ownerID, ramBytes, cpuMilli, true)
+}
+
+func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli int64, noReclaim bool) (Lease, Verdict, error) {
 	if b == nil || b.store == nil {
 		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity broker is unavailable"}, nil
 	}
@@ -301,25 +292,14 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 	if err != nil {
 		return nil, Verdict{}, err
 	}
-	if ramBytes > 0 && b.memoryPressure != nil {
-		threshold, thresholdErr := memoryPSIThreshold()
-		if thresholdErr != nil {
-			return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "memory pressure threshold unavailable: " + thresholdErr.Error()}, nil
-		}
-		reading := b.memoryPressure()
-		if reading.State == hostpressure.Read && !math.IsNaN(reading.Value) && !math.IsInf(reading.Value, 0) && reading.Value >= 0 && reading.Value <= 100 {
-			if reading.Value >= threshold {
-				return nil, Verdict{
-					Kind:   internalcapacity.VerdictDeny,
-					Reason: fmt.Sprintf("host memory PSI some.avg10 %.2f%% is at or above setpoint %s maximum %.2f%%", reading.Value, setpoint.CellMemoryPSI, threshold),
-				}, nil
-			}
-			// Swap occupancy is a lagging signal. A fresh PSI reading below its
-			// canonical threshold classifies the host as not currently stalled;
-			// RAM and ledger fit checks below still gate admission.
-			policy.SwapPressureThresholdPct = 0
+	if ramBytes > 0 {
+		var pressureErr error
+		policy, pressureErr = internalcapacity.MemoryPressurePolicy(policy, b.memoryPressure)
+		if pressureErr != nil {
+			return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: pressureErr.Error()}, nil
 		}
 	}
+
 	now := time.Now().UTC()
 	var claims []leaseClaim
 	rollback := func(cause error) error {
@@ -360,6 +340,7 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 			PreferredBytes: spec.want,
 			FloorBytes:     spec.want,
 			Priority:       internalcapacity.PriorityBatch,
+			NoReclaim:      noReclaim,
 			TTL:            capacityHeartbeatTTL,
 		}
 		verdict := internalcapacity.Decide(req, snapshot, ledger, policy, now)
@@ -385,6 +366,88 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 		}
 	}
 	return &lease{broker: b, claims: claims}, Verdict{Kind: internalcapacity.VerdictGrant}, nil
+}
+
+// AcquireGPU admits one operation against a specific physical GPU. The UUID
+// must match a device in the host snapshot; claims are charged to its current
+// index and admission never reclaims another owner's resident model.
+func (b *Broker) AcquireGPU(ctx context.Context, ownerID, expectedUUID string, vramBytes int64) (GPULease, Verdict, error) {
+	deny := func(reason string) (GPULease, Verdict, error) {
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: reason}, nil
+	}
+	if b == nil || b.store == nil {
+		return deny("capacity broker is unavailable")
+	}
+	ownerID, expectedUUID = strings.TrimSpace(ownerID), strings.TrimSpace(expectedUUID)
+	if ownerID == "" || expectedUUID == "" || vramBytes <= 0 {
+		return deny("GPU capacity request requires owner, exact UUID, and measured VRAM")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.admissionLockKey != "" {
+		unlock, err := artifactlock.AcquireContext(ctx, b.admissionLockKey)
+		if err != nil {
+			return deny("capacity admission lock unavailable: " + err.Error())
+		}
+		defer unlock()
+	}
+	snapshot, err := b.snapshot(ctx)
+	if err != nil {
+		return deny("GPU sensing unavailable: " + err.Error())
+	}
+	var identity GPUIdentity
+	for _, gpu := range snapshot.GPUs {
+		if gpu.UUID == expectedUUID {
+			if identity.UUID != "" {
+				return deny("host inventory contains duplicate GPU UUID")
+			}
+			identity = GPUIdentity{Index: gpu.Index, UUID: gpu.UUID, Name: gpu.Name}
+		}
+	}
+	if identity.UUID == "" {
+		return deny("requested GPU UUID is absent from host inventory")
+	}
+	idx := identity.Index
+	ledger, err := b.store.ListClaims(ctx, internalcapacity.ClaimFilter{ResourceKind: internalcapacity.ResourceKindVRAM, GPUIndex: &idx, Statuses: internalcapacity.ActiveClaimStatuses()})
+	if err != nil {
+		return nil, Verdict{}, err
+	}
+	policy, err := b.store.GetPolicy(ctx)
+	if err != nil {
+		return nil, Verdict{}, err
+	}
+	req := internalcapacity.CapacityRequest{
+		OwnerKind: internalcapacity.OwnerKindOp, OwnerID: ownerID,
+		ResourceKind: internalcapacity.ResourceKindVRAM, GPUIndex: &idx,
+		PreferredBytes: vramBytes, FloorBytes: vramBytes,
+		Priority: internalcapacity.PriorityInteractive, NoReclaim: true,
+	}
+	verdict := internalcapacity.Decide(req, snapshot, ledger, policy, time.Now().UTC())
+	if !verdict.Granted() {
+		return nil, Verdict{Kind: verdict.Kind, Reason: verdict.Reason}, nil
+	}
+	claim, err := b.store.CreateClaim(ctx, internalcapacity.CapacityClaim{
+		OwnerKind: req.OwnerKind, OwnerID: req.OwnerID, ResourceKind: req.ResourceKind,
+		GPUIndex: &idx, AmountBytes: verdict.GrantedBytes, PreferredBytes: req.PreferredBytes,
+		FloorBytes: req.FloorBytes, Priority: req.Priority, Status: internalcapacity.StatusGranted,
+		ActivityState: internalcapacity.ActivityActive, Protected: true,
+	}, capacityHeartbeatTTL)
+	if err != nil {
+		return nil, Verdict{}, fmt.Errorf("create GPU capacity claim: %w", err)
+	}
+	return &gpuLease{lease: &lease{broker: b, claims: []leaseClaim{{id: claim.ClaimID, generation: claim.Generation}}}, identity: identity}, Verdict{Kind: internalcapacity.VerdictGrant}, nil
+}
+
+type gpuLease struct {
+	*lease
+	identity GPUIdentity
+}
+
+func (l *gpuLease) Identity() GPUIdentity {
+	if l == nil {
+		return GPUIdentity{}
+	}
+	return l.identity
 }
 
 // ObserveHostState returns the latest host reading without creating a claim.

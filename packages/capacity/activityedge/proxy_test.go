@@ -121,8 +121,10 @@ func TestStableAudio3CanonicalBoundaryMatchesOnlyComposeWork(t *testing.T) {
 		method, path string
 		want         bool
 	}{
-		{http.MethodPost, "/v1/compose", true}, {http.MethodGet, "/v1/compose", false},
-		{http.MethodGet, "/health", false}, {http.MethodGet, "/v1/outputs/abc/audio", false},
+		{http.MethodPost, "/v1/compose", true},
+		{http.MethodGet, "/v1/compose", false},
+		{http.MethodGet, "/health", false},
+		{http.MethodGet, "/v1/outputs/abc/audio", false},
 		{http.MethodPost, "/v1/capacity/degrade", false},
 	} {
 		if got := h.Match(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.want {
@@ -133,11 +135,18 @@ func TestStableAudio3CanonicalBoundaryMatchesOnlyComposeWork(t *testing.T) {
 
 func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 	cases := []struct {
-		resource string
-		method   string
-		path     string
+		resource   string
+		method     string
+		path       string
+		wantNative bool
 	}{
-		{resource: "whisper", method: http.MethodPost, path: "/asr"},
+		// whisper legitimately uses the /asr -> /inference native adapter; it has
+		// dedicated native-contract coverage in TestNativeAdapter* and exercises a
+		// multipart body below. Every other resource is a transparent JSON/binary
+		// proxy and MUST NOT be native — pii-detector in particular speaks JSON
+		// POST /detect with no /inference endpoint, so a stray native:true here
+		// 400s every request (the bug this test now guards).
+		{resource: "whisper", method: http.MethodPost, path: "/asr", wantNative: true},
 		{resource: "kokoro", method: http.MethodPost, path: "/v1/audio/speech"},
 		{resource: "kyutai-stt", method: http.MethodGet, path: "/v1/stream"},
 		{resource: "ace-step", method: http.MethodPost, path: "/v1/compose"},
@@ -145,6 +154,7 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 		{resource: "speaker-verification", method: http.MethodPost, path: "/v1/verify"},
 		{resource: "ollama", method: http.MethodPost, path: "/api/chat"},
 		{resource: "reranker", method: http.MethodPost, path: "/rerank"},
+		{resource: "pii-detector", method: http.MethodPost, path: "/detect"},
 	}
 
 	for _, tc := range cases {
@@ -158,7 +168,12 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			h.Native = false
+			// Assert the resource's real wiring rather than masking it: only
+			// whisper may be native. Previously this test force-set Native=false,
+			// which hid a production-breaking native:true on pii-detector.
+			if h.Native != tc.wantNative {
+				t.Fatalf("%s native=%t, want %t", tc.resource, h.Native, tc.wantNative)
+			}
 			h.Stdout = io.Discard
 			h.Stderr = io.Discard
 			h.Debounce = 5 * time.Millisecond
@@ -186,9 +201,29 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 			}
 			front := httptest.NewServer(srv.Handler)
 			defer front.Close()
-			req, err := http.NewRequest(tc.method, front.URL+tc.path, strings.NewReader("work"))
-			if err != nil {
-				t.Fatal(err)
+			var req *http.Request
+			if tc.wantNative {
+				// The native adapter requires a multipart audio body.
+				var body bytes.Buffer
+				writer := multipart.NewWriter(&body)
+				part, err := writer.CreateFormFile("audio_file", "speech.wav")
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, _ = io.WriteString(part, "wav")
+				if err := writer.Close(); err != nil {
+					t.Fatal(err)
+				}
+				req, err = http.NewRequest(tc.method, front.URL+tc.path, &body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				req.Header.Set("Content-Type", writer.FormDataContentType())
+			} else {
+				req, err = http.NewRequest(tc.method, front.URL+tc.path, strings.NewReader("work"))
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
@@ -199,6 +234,63 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 				t.Fatalf("states = %v, want active then idle", snapshot(&mu, &states))
 			}
 		})
+	}
+}
+
+// TestPIIDetectorDetectJSONReachesUpstreamUnaltered pins the fix for the
+// production-breaking native:true: it drives a real JSON POST /detect through
+// ForResource("pii-detector") WITHOUT overriding Native, and asserts the body
+// and path arrive at the upstream unchanged. With native:true this request is
+// mangled into whisper's multipart /inference contract and 400s.
+func TestPIIDetectorDetectJSONReachesUpstreamUnaltered(t *testing.T) {
+	const detectBody = `{"text":"email bob@example.com"}`
+	var gotPath, gotBody, gotContentType string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotContentType = r.Header.Get("Content-Type")
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"spans":[],"model_available":false}`)
+	}))
+	defer upstream.Close()
+
+	h, err := ForResource("pii-detector")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.Native {
+		t.Fatal("pii-detector must not be native: /detect is JSON, not whisper multipart")
+	}
+	h.Stdout = io.Discard
+	h.Stderr = io.Discard
+	h.Debounce = 5 * time.Millisecond
+	h.Exec = func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil }
+
+	srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), h.Debounce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := httptest.NewServer(srv.Handler)
+	defer front.Close()
+
+	resp, err := http.Post(front.URL+"/detect", "application/json", strings.NewReader(detectBody))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status=%d body=%q, want 200 (native:true would 400)", resp.StatusCode, body)
+	}
+	if gotPath != "/detect" {
+		t.Errorf("upstream path=%q, want /detect (native would rewrite to /inference)", gotPath)
+	}
+	if gotBody != detectBody {
+		t.Errorf("upstream body=%q, want %q unaltered", gotBody, detectBody)
+	}
+	if gotContentType != "application/json" {
+		t.Errorf("upstream content-type=%q, want application/json", gotContentType)
 	}
 }
 

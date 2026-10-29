@@ -260,7 +260,7 @@ func (a Acquisition) validate(candidate bool) error {
 				}
 			}
 		}
-		if target.Archive != "" && target.Archive != "tar.gz" && target.Archive != "tar.bz2" && target.Archive != "tar.zst" && target.Archive != "zip" && target.Archive != "none" {
+		if target.Archive != "" && target.Archive != "tar.gz" && target.Archive != "tar.bz2" && target.Archive != "tar.zst" && target.Archive != "tar.xz" && target.Archive != "zip" && target.Archive != "none" {
 			return fmt.Errorf("acquisition target %d: archive %q is invalid", index, target.Archive)
 		}
 		if target.Layout != "" && target.Layout != "file" && target.Layout != "dir" {
@@ -305,7 +305,7 @@ func (s ComposeStep) Validate() error {
 		if !isDigest(s.SHA256) {
 			return errors.New("url compose step requires sha256")
 		}
-		if s.Archive != "tar.gz" && s.Archive != "tar.bz2" && s.Archive != "tar.zst" && s.Archive != "zip" {
+		if s.Archive != "tar.gz" && s.Archive != "tar.bz2" && s.Archive != "tar.zst" && s.Archive != "tar.xz" && s.Archive != "zip" {
 			return fmt.Errorf("url compose step archive %q is invalid", s.Archive)
 		}
 	case "python-wheels":

@@ -1,12 +1,14 @@
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname, relative as relativePath } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { authoredRoot } from "./catalog-source.mjs";
 import { resolveCatalogExports } from "./export-resolution.mjs";
 import { packageDependencyPaths as derivePackageDependencyPaths } from "./dependency-paths.mjs";
+import { packageBuildEnvironmentDeclarations, packageBuildTypes } from "./build-environment.mjs";
 import { scanModuleSpecifiers } from "./resolve-imports.mjs";
 import { ArtifactStore, defaultArtifactStoreRoot, directoryDigest, fileDigest } from "./runtime-artifact.mjs";
 
@@ -16,13 +18,14 @@ const checkOnly = process.argv.includes("--check-only");
 const strictBuild = process.argv.includes("--strict");
 const runtimeBuild = process.argv.includes("--runtime") || process.env.VROOLI_PACKAGE_RUNTIME === "1";
 const allowVerifiedFallback = runtimeBuild && !strictBuild;
+const draftTypecheck = process.argv.includes("--draft-typecheck");
 const scenarioArgumentIndex = process.argv.indexOf("--scenario");
 const requestingScenario = scenarioArgumentIndex >= 0 ? process.argv[scenarioArgumentIndex + 1] : "";
 const artifactStore = new ArtifactStore(defaultArtifactStoreRoot());
 const candidateRoot = join(packageRoot, `.rcl-candidate-${randomUUID()}`);
 const candidateIdentity = `candidate:${randomUUID()}`;
 const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
-const cssDeclarationPath = join(packageRoot, ".build-css.d.ts");
+const environmentDeclarationPath = join(packageRoot, ".build-environment.d.ts");
 
 function requestedConsumerExports(scenario) {
   if (!scenario || scenario.startsWith("-") || !/^[a-z0-9][a-z0-9-]*$/.test(scenario)) return [];
@@ -44,8 +47,6 @@ async function assertArtifactSupportsScenario(id, scenario) {
   if (required.length === 0) return;
   await artifactStore.requireCompatible(id, required);
 }
-await writeFile(cssDeclarationPath, 'declare module "*.css" { const css: string; export default css; }\n');
-
 const { resolutions: exportResolutions } = await resolveCatalogExports({
   libraryRoot: sourceRoot,
   manifestRoot: authoredRoot,
@@ -101,7 +102,7 @@ const fallbackOrExit = async (code, reason) => {
       }));
       await rm(candidateRoot, { recursive: true, force: true });
       await rm(generatedConfigPath, { force: true });
-      await rm(cssDeclarationPath, { force: true });
+      await rm(environmentDeclarationPath, { force: true });
       process.exit(0);
     } catch (fallbackError) {
       await artifactStore.writeStatus({
@@ -119,7 +120,7 @@ const fallbackOrExit = async (code, reason) => {
   }
   await rm(candidateRoot, { recursive: true, force: true });
   await rm(generatedConfigPath, { force: true });
-  await rm(cssDeclarationPath, { force: true });
+  await rm(environmentDeclarationPath, { force: true });
   await artifactStore.writeStatus({
     status: "failed",
     packageName: "@vrooli/react-component-library",
@@ -137,7 +138,7 @@ const maybeInjectFailure = async (stage) => {
   console.error(`react-component-library failure injection: ${stage}`);
   await fallbackOrExit(1, `injected ${stage} failure`);
 };
-if (workbenchBrokenImports.length > 0) {
+if (workbenchBrokenImports.length > 0 && !draftTypecheck) {
   console.error("react-component-library build failed: workbench consumer imports are not published");
   for (const finding of workbenchBrokenImports) {
     console.error(`  ${finding.file}: ${finding.specifier}`);
@@ -174,8 +175,9 @@ const selfPaths = Object.fromEntries(Object.entries(exportResolutions).map(([sub
 ]));
 baseConfig.compilerOptions.rootDir = sourceRoot;
 baseConfig.compilerOptions.baseUrl = packageRoot;
+baseConfig.compilerOptions.types = [...packageBuildTypes];
 baseConfig.compilerOptions.paths = { ...packageDependencyPaths, ...selfPaths };
-baseConfig.include = [join(sourceRoot, "**/*.ts"), join(sourceRoot, "**/*.tsx"), cssDeclarationPath];
+baseConfig.include = [join(sourceRoot, "**/*.ts"), join(sourceRoot, "**/*.tsx"), environmentDeclarationPath];
 baseConfig.exclude = [
   join(sourceRoot, "**/story.tsx"),
   join(sourceRoot, "**/story.json"),
@@ -199,9 +201,73 @@ baseConfig.exclude = [
   // each component manifest so retention never needs component-name cases.
   ...evictedSourceRoots,
 ];
-await writeFile(generatedConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`);
 
 const tsc = join(packageRoot, "node_modules", ".bin", "tsc");
+
+if (draftTypecheck) {
+  const argument = (name) => {
+    const index = process.argv.indexOf(name);
+    return index < 0 ? "" : process.argv[index + 1] || "";
+  };
+  const manifestArgument = argument("--manifest");
+  const sourceArgument = argument("--source");
+  const component = argument("--component");
+  const version = argument("--version");
+  const draftRoot = process.env.NODE_ENV === "test" && process.env.RCL_DRAFT_TYPECHECK_TEST_ROOT
+    ? process.env.RCL_DRAFT_TYPECHECK_TEST_ROOT
+    : sourceRoot;
+  let temporaryRoot = "";
+  let draftExitCode = 0;
+  try {
+    if (!manifestArgument || !sourceArgument || !/^[A-Za-z0-9][A-Za-z0-9-]*$/.test(component) || !/^[0-9]+\.[0-9]+\.[0-9]+-draft\.[0-9]+$/.test(version)) {
+      throw new Error("draft check requires --component, --version, --manifest, and --source for one active draft");
+    }
+    const manifestPath = await realpath(manifestArgument);
+    const authoredPath = await realpath(draftRoot);
+    const manifestRelative = relativePath(authoredPath, manifestPath);
+    if (!manifestRelative || manifestRelative.startsWith("..") || manifestRelative.split(/[\\/]/).includes("..") || !manifestPath.endsWith(`${component}/component.json`)) {
+      throw new Error("draft manifest must be the selected component manifest inside the authored library root");
+    }
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    if (manifest.libraryId !== `react-component-library:${component}` || manifest.draft !== version) {
+      throw new Error(`${component}@${version} is not the exact active draft recorded by its authored manifest`);
+    }
+    const sourcePath = await realpath(sourceArgument);
+    const versionRoot = await realpath(join(dirname(manifestPath), "versions", version));
+    const sourceRelative = relativePath(versionRoot, sourcePath);
+    if (!sourceRelative || sourceRelative.startsWith("..") || sourceRelative.split(/[\\/]/).includes("..") || !/\.tsx?$/.test(sourcePath)) {
+      throw new Error("draft source must resolve to one TypeScript entry inside the selected active version record");
+    }
+    if (!tsc || !existsSync(tsc)) throw new Error("TypeScript runner unavailable: compiler not found in the package toolchain");
+
+    // Keep every generated input in a temporary directory. The package build's
+    // outputs, export map, manifest, and artifact status are read-only here.
+    temporaryRoot = await mkdtemp(join(tmpdir(), "rcl-draft-typecheck-"));
+    const environmentPath = join(temporaryRoot, "build-environment.d.ts");
+    const configPath = join(temporaryRoot, "tsconfig.json");
+    const config = structuredClone(baseConfig);
+    config.compilerOptions.noEmit = true;
+    config.compilerOptions.rootDir = authoredPath;
+    config.compilerOptions.typeRoots = [join(packageRoot, "node_modules", "@types")];
+    config.include = [sourcePath, environmentPath];
+    config.exclude = config.exclude.filter((pattern) => !pattern.includes("versions/**/*-draft.*"));
+    await writeFile(environmentPath, packageBuildEnvironmentDeclarations);
+    await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`);
+    const result = spawnSync(tsc, ["-p", configPath, "--noEmit"], { cwd: packageRoot, stdio: "inherit" });
+    if (result.error) throw new Error(`TypeScript runner unavailable: ${result.error.message}`);
+    if (result.status !== 0) draftExitCode = result.status ?? 1;
+    else console.log(`Checked active draft ${component}@${version} without emitting files.`);
+  } catch (error) {
+    console.error(`react-component-library draft TypeScript check failed: ${error.message}`);
+    draftExitCode = 1;
+  } finally {
+    if (temporaryRoot) await rm(temporaryRoot, { recursive: true, force: true });
+  }
+  process.exit(draftExitCode);
+}
+
+await writeFile(environmentDeclarationPath, packageBuildEnvironmentDeclarations);
+await writeFile(generatedConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`);
 
 if (checkOnly) {
   if (!tsc || !existsSync(tsc)) {
@@ -210,7 +276,7 @@ if (checkOnly) {
   }
   const result = spawnSync(tsc, ["-p", generatedConfigPath, "--noEmit"], { cwd: packageRoot, stdio: "inherit" });
   await rm(generatedConfigPath, { force: true });
-  await rm(cssDeclarationPath, { force: true });
+  await rm(environmentDeclarationPath, { force: true });
   if (result.status !== 0) process.exit(result.status ?? 1);
   console.log("Checked @vrooli/react-component-library sources.");
   process.exit(0);
@@ -230,7 +296,7 @@ await maybeInjectFailure("candidate");
 const abandonStaging = async (code) => {
   await rm(candidateRoot, { recursive: true, force: true });
   await rm(generatedConfigPath, { force: true });
-  await rm(cssDeclarationPath, { force: true });
+  await rm(environmentDeclarationPath, { force: true });
   process.exit(code ?? 1);
 };
 const sync = spawnSync(process.execPath, [join(packageRoot, "tooling", "sync-exports.mjs"), "--output-package", join(candidateRoot, "package.json")], { cwd: packageRoot, stdio: "inherit" });
@@ -291,7 +357,7 @@ const inlineStyles = async (root, base = root) => {
   }
 };
 await inlineStyles(stagingRoot);
-await rm(cssDeclarationPath, { force: true });
+await rm(environmentDeclarationPath, { force: true });
 
 // TypeScript's bundler resolution intentionally leaves relative imports
 // extensionless. The published package is native ESM, however, so Node's
