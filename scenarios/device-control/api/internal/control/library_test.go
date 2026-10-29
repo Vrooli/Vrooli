@@ -2,8 +2,10 @@ package control
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	devicedomain "device-control/internal/devices"
 	internalflows "device-control/internal/flows"
@@ -79,6 +81,99 @@ func TestDesktopPromotionKeepsScopeAndOutcomeChecks(t *testing.T) { // [REQ:DEVI
 	old, err := reopened.GetSaved(ctx, saved.Scope, saved.ID, 1)
 	require.NoError(t, err)
 	require.Equal(t, "verified", old.Source.RunID)
+}
+
+func TestExplicitRunRetentionSurvivesServiceReplacement(t *testing.T) {
+	s, db := testService(t)
+	ctx := context.Background()
+	expiry := time.Now().UTC().Add(time.Hour)
+	s.runs["run1"] = RunResult{RunID: "run1", Disposition: "failed", Chapters: []Chapter{{ID: "bad", Disposition: "failed", Message: "failed", EvidenceIDs: []string{"evidence1"}}}}
+	s.flowRuns["run1"] = Flow{Steps: []Step{{ID: "bad", Kind: "launch"}, {ID: "next", Kind: "wait"}}}
+	s.runDevices["run1"] = "tv"
+	ids, active := s.LiveRunInventory()
+	require.Equal(t, []string{"run1"}, ids)
+	require.Zero(t, active)
+	require.NoError(t, s.RetainRun(ctx, "run1", expiry))
+	require.NoError(t, s.RetainRun(ctx, "run1", expiry))
+	restarted, err := NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	ids, active = restarted.LiveRunInventory()
+	require.Empty(t, ids)
+	require.Zero(t, active)
+	retained, err := restarted.RetainedRunIDs(ctx)
+	require.NoError(t, err)
+	require.Len(t, retained, 1)
+	require.Equal(t, "run1", retained[0].RunID)
+	require.Equal(t, expiry, *retained[0].ExpiresAt)
+	run, err := restarted.RetainedRun(ctx, "run1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"evidence1"}, run.Result.Chapters[0].EvidenceIDs)
+	export, err := restarted.ExportFlow("run1")
+	require.NoError(t, err)
+	require.Len(t, export.Flow.Steps, 1)
+	require.Equal(t, "next", export.Flow.Steps[0].ID)
+	require.NoError(t, restarted.DeleteRetainedRun(ctx, "run1"))
+	_, err = restarted.RetainedRun(ctx, "run1")
+	require.Error(t, err)
+	_, err = restarted.ExportFlow("run1")
+	require.Error(t, err)
+}
+
+func TestRunRetentionIsExplicitAndRefusesClipboard(t *testing.T) {
+	s, db := testService(t)
+	ctx := context.Background()
+	s.runs["private"] = RunResult{RunID: "private", Disposition: "passed"}
+	s.flowRuns["private"] = Flow{Steps: []Step{{ID: "clipboard", Kind: "clipboard-write", Arguments: map[string]any{"text": "private-secret"}}}}
+	s.runDevices["private"] = "tv"
+	require.Error(t, s.RetainRun(ctx, "private", time.Now().Add(time.Hour)))
+	restarted, err := NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	ids, err := restarted.RetainedRunIDs(ctx)
+	require.NoError(t, err)
+	require.Empty(t, ids)
+	_, err = restarted.ExportFlow("private")
+	require.Error(t, err)
+	require.Error(t, s.RetainRun(ctx, "missing", time.Now().Add(time.Hour)))
+}
+
+func TestRetainedRunPromotionPreservesDeviceAndCompletionChecks(t *testing.T) {
+	s, db := testService(t)
+	ctx := context.Background()
+	s.flowRuns["pass"] = Flow{Steps: []Step{{ID: "verify", Kind: "semantic-assert", Target: "Ready"}}}
+	s.runs["pass"] = RunResult{RunID: "pass", Disposition: "passed", Chapters: []Chapter{{ID: "verify", Disposition: "passed"}}}
+	s.runDevices["pass"] = "tv"
+	require.NoError(t, s.RetainRun(ctx, "pass", time.Now().Add(time.Hour)))
+	restarted, err := NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	_, err = restarted.SaveValidatedFlow(ctx, "pass", "other", "ctx", "", 0)
+	require.Error(t, err)
+	saved, err := restarted.SaveValidatedFlow(ctx, "pass", "tv", "ctx", "", 0)
+	require.NoError(t, err)
+	require.Equal(t, "pass", saved.SourceRunID)
+}
+
+type failingRetainedRuns struct{}
+
+func (failingRetainedRuns) Put(context.Context, internalflows.RetainedRun) error {
+	return errors.New("store failed")
+}
+func (failingRetainedRuns) Get(context.Context, string) (internalflows.RetainedRun, error) {
+	return internalflows.RetainedRun{}, errors.New("store failed")
+}
+func (failingRetainedRuns) List(context.Context) ([]internalflows.RetainedRunSummary, error) {
+	return nil, errors.New("store failed")
+}
+func (failingRetainedRuns) Delete(context.Context, string) error { return errors.New("store failed") }
+
+func TestRetainedRunStoreFailureIsNotReportedAsMissing(t *testing.T) {
+	s, _ := testService(t)
+	s.retainedRuns = failingRetainedRuns{}
+	_, err := s.ExportFlow("run1")
+	require.ErrorContains(t, err, "store failed")
+	_, err = s.SaveValidatedFlow(context.Background(), "run1", "tv", "context", "", 0)
+	require.ErrorContains(t, err, "store failed")
+	_, err = s.RetainedRunIDs(context.Background())
+	require.ErrorContains(t, err, "store failed")
 }
 
 func TestValidatedFlowPersistsAndRepairPreservesChecks(t *testing.T) { // FLOW-08: demonstration promotion still requires assertions and replay

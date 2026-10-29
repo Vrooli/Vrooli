@@ -58,17 +58,11 @@
     },
     "settings": {
       "title": "التكاملات",
-      "description": "يقيس Portal الاعتماديات الاختيارية من استدعاءاته الخاصة ويستخدم تلك القياسات لاختيار سلوك البحث النشط.",
+      "description": "ما يستخدمه Portal، وهل يعمل كل جزء منه. يستمر Portal في العمل عندما يكون جزء اختياري متوقفًا.",
       "overrideLabel": "تجاوز السلوك",
       "overrideAuto": "تلقائي",
       "overrideForceOff": "فرض الإيقاف",
       "overrideForcePassive": "فرض الوضع السلبي",
-      "nameHeader": "التكامل",
-      "stateHeader": "الحالة",
-      "latencyHeader": "زمن P95",
-      "samplesHeader": "العينات",
-      "reasonHeader": "السبب",
-      "empty": "لا توجد قياسات تكامل بعد.",
       "error": "تعذر تحميل حالة التكامل.",
       "profileTitle": "ملف النشر",
       "profileDescription": "اختر طريقة اتصال Portal. يُحفظ عنوان النهاية بلا بيانات اعتماد، ولا تمنع المزوّدات الاختيارية ملف العميل.",
@@ -82,7 +76,76 @@
       "profileSaved": "تم حفظ الملف",
       "profileReady": "جاهز",
       "missingCapabilities": "القدرات المفقودة: {{capabilities}}",
-      "profileInvalidEndpoint": "أدخل عنوان http(s) بلا بيانات اعتماد أو بيانات استعلام."
+      "profileInvalidEndpoint": "أدخل عنوان http(s) بلا بيانات اعتماد أو بيانات استعلام.",
+      "groups": {
+        "models": "نماذج الذكاء الاصطناعي",
+        "apps": "ميزات من تطبيقات أخرى"
+      },
+      "statusLimited": "بطيء أو يفشل",
+      "problemOff": "{{name}} متوقف",
+      "problemLimited": "{{name}} بطيء أو يفشل",
+      "problemLimitedDescription": "بعض الطلبات تفشل أو تتأخر. يواصل Portal الفحص ويتعافى تلقائيًا.",
+      "problemGeneric": "لن يعمل {{name}} حتى يتم تشغيله.",
+      "items": {
+        "openrouter": {
+          "name": "محادثة الذكاء الاصطناعي",
+          "subtitle": "تحدث مع نماذج الذكاء الاصطناعي",
+          "problem": "لن تعمل محادثة الذكاء الاصطناعي حتى يستجيب OpenRouter.",
+          "features": {
+            "chat": "تحدث مع نماذج الذكاء الاصطناعي",
+            "web": "بحث الويب في الردود",
+            "models": "اختر نموذجًا لكل محادثة"
+          }
+        },
+        "agentManager": {
+          "name": "محادثة الوكلاء",
+          "subtitle": "تحدث مع وكلاء البرمجة",
+          "problem": "لن تعمل محادثة الوكلاء حتى يعمل Agent Manager.",
+          "features": {
+            "chat": "تحدث مع وكلاء البرمجة",
+            "activity": "شاهد ما يفعله الوكيل"
+          }
+        },
+        "searchHub": {
+          "name": "البحث",
+          "subtitle": "اقتراحات ونتائج لرسائلك",
+          "problem": "ستُرسل الرسائل دون اقتراحات أو نتائج بحث.",
+          "features": {
+            "suggest": "اقتراحات أثناء الكتابة",
+            "attach": "إضافة نتائج البحث عند الإرسال"
+          }
+        },
+        "promptManager": {
+          "name": "المهارات والسياق",
+          "subtitle": "مهارات وسياق لرسائلك",
+          "problem": "ستُرسل الرسائل دون مهارات أو سياق.",
+          "features": {
+            "skills": "أضف مهارات إلى الرسالة",
+            "brief": "إضافة السياق المناسب تلقائيًا"
+          }
+        },
+        "audioTools": {
+          "name": "الصوت",
+          "subtitle": "الإملاء والقراءة بصوت عالٍ",
+          "problem": "لن يعمل الإملاء والقراءة بصوت عالٍ حتى يعمل Audio Tools.",
+          "features": {
+            "dictate": "إملاء الرسائل",
+            "readAloud": "قراءة الردود بصوت عالٍ"
+          }
+        }
+      },
+      "searchModeLabel": "وضع البحث",
+      "searchModeHint": "الوضع الحالي: {{mode}}. في الوضع التلقائي يختار Portal أفضل وضع متاح الآن.",
+      "facts": {
+        "id": "المعرّف",
+        "health": "الحالة",
+        "latency": "زمن الاستجابة (المئين 95)",
+        "latencyValue": "{{ms}} مللي ثانية",
+        "samples": "عدد الفحوص",
+        "lastOk": "آخر مرة عمل فيها",
+        "command": "شغّله بالأمر"
+      },
+      "profileGroup": "الاتصال"
     },
     "state": {
       "available": "متاح",
@@ -345,5 +408,26 @@
     "x": "س",
     "y": "ص",
     "height": "الارتفاع"
+  },
+  "integrationsOverview": {
+    "summaryAllReady": "كل العناصر ({total}) جاهزة",
+    "summarySomeReady": "{ready} من {total} جاهزة",
+    "summaryChecking": "جارٍ التحقق…",
+    "summaryError": "تعذّر التحقق من الاتصالات",
+    "checkedAt": "تم التحقق {time}",
+    "refresh": "تحقق مجددًا",
+    "refreshing": "جارٍ التحقق…",
+    "back": "رجوع",
+    "providedBy": "مقدَّم من {provider}",
+    "statusReady": "جاهز",
+    "statusLimited": "محدود",
+    "statusOff": "متوقف",
+    "statusMissing": "غير مثبّت",
+    "statusChecking": "جارٍ التحقق",
+    "statusUnknown": "غير معروف",
+    "featuresTitle": "ما يضيفه إلى Portal",
+    "featureUnavailable": "غير متاح",
+    "technicalDetails": "التفاصيل التقنية",
+    "emptyGroup": "لا يوجد شيء هنا بعد."
   }
 }

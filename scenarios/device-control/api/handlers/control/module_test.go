@@ -2,12 +2,18 @@ package control
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	authdomain "device-control/internal/auth"
 	internal "device-control/internal/control"
@@ -21,6 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared"
 	"google.golang.org/protobuf/types/known/structpb"
+	_ "modernc.org/sqlite"
 )
 
 type failingRemoteDiscovery struct{}
@@ -52,7 +59,7 @@ func TestAcquireRequestUsesDistinctSnakeCaseFields(t *testing.T) {
 
 func TestFlowRequestUsesOneSnakeCaseConvention(t *testing.T) {
 	var got flowRequest
-	err := json.Unmarshal([]byte(`{"flow":{"id":"flow-1","name":"wake","steps":[{"id":"wake","kind":"key","required_capabilities":["input"],"target":"KEYCODE_WAKEUP","timeout_ms":5000,"arguments":{"settle_ms":25}}]},"strategy_id":"android-adb","device_id":"phone-1","actor":"operator"}`), &got)
+	err := json.Unmarshal([]byte(`{"flow":{"id":"flow-1","name":"wake","redact_sensitive_content":true,"steps":[{"id":"wake","kind":"key","required_capabilities":["input"],"target":"KEYCODE_WAKEUP","timeout_ms":5000,"arguments":{"settle_ms":25}}]},"strategy_id":"android-adb","device_id":"phone-1","actor":"operator"}`), &got)
 	require.NoError(t, err)
 	require.Equal(t, "flow-1", got.Flow.ID)
 	require.Equal(t, "wake", got.Flow.Name)
@@ -62,11 +69,13 @@ func TestFlowRequestUsesOneSnakeCaseConvention(t *testing.T) {
 	require.Equal(t, "android-adb", got.StrategyID)
 	require.Equal(t, "phone-1", got.DeviceID)
 	require.Equal(t, "operator", got.Actor)
+	require.True(t, got.Flow.RedactSensitiveContent)
 }
 
 func TestFlowProtoCarriesExplicitTransport(t *testing.T) {
-	got := flowFromProto(&sharedv1.Flow{Id: "flow-1", Transport: "wireless"})
+	got := flowFromProto(&sharedv1.Flow{Id: "flow-1", Transport: "wireless", RedactSensitiveContent: true})
 	require.Equal(t, "wireless", got.Transport)
+	require.True(t, got.RedactSensitiveContent)
 }
 
 func TestFlowProtoCarriesReliabilityContract(t *testing.T) {
@@ -120,6 +129,53 @@ func TestUnknownDeviceIsBadRequestAndPreservesMessage(t *testing.T) {
 	require.NoError(t, json.Unmarshal(body.Body.Bytes(), &response))
 	require.Equal(t, "unknown_device", response["code"])
 	require.Contains(t, response["message"], "missing-phone")
+}
+
+func TestRunRetentionRequiresSensitiveDataAcknowledgment(t *testing.T) {
+	service := internal.New(strategyregistry.New())
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+	for _, body := range []string{"{}", `{"acknowledge_sensitive":false}`} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/flows/run1/retained", strings.NewReader(body)))
+		require.Equal(t, http.StatusBadRequest, response.Code)
+		require.Contains(t, response.Body.String(), "retention_acknowledgment_required")
+	}
+	for _, body := range []string{`{"acknowledge_sensitive":true}`, `{"acknowledge_sensitive":true,"expires_at":"2000-01-01T00:00:00Z"}`} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/flows/run1/retained", strings.NewReader(body)))
+		require.Equal(t, http.StatusBadRequest, response.Code)
+		require.Contains(t, response.Body.String(), "retention_expiry_required")
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/flows/runs", nil))
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Contains(t, response.Body.String(), `"quiesced":false`)
+}
+
+func TestRunRetentionDistinguishesMissingRunFromUnavailableStore(t *testing.T) {
+	db, err := sql.Open("sqlite", "file:retention-handler-test?mode=memory&cache=shared")
+	require.NoError(t, err)
+	defer db.Close()
+	service, err := internal.NewWithDB(strategyregistry.New(), db)
+	require.NoError(t, err)
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+	call := func() *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/flows/missing/retained", strings.NewReader(`{"acknowledge_sensitive":true,"expires_at":"2099-01-01T00:00:00Z"}`)))
+		return response
+	}
+	response := call()
+	require.Equal(t, http.StatusNotFound, response.Code)
+	require.Contains(t, response.Body.String(), "live_run_not_found")
+	require.NoError(t, db.Close())
+	// An unavailable store is reported separately for reads; an uncached ID
+	// is refused before attempting a write to the store.
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/flows/missing/retained", nil))
+	require.Equal(t, http.StatusInternalServerError, response.Code)
+	require.Contains(t, response.Body.String(), "retained_run_read_failed")
 }
 
 func TestRetainedArtifactIsReadableWithoutExposingItsPath(t *testing.T) {
@@ -269,4 +325,87 @@ func TestUnlockErrorIsRedactedAtTheTransportBoundary(t *testing.T) {
 	require.NotContains(t, safeUnlockError(err), "runtime-only-fixture")
 	require.Equal(t, "device unlock transaction failed; inspect the typed result and next action", safeUnlockError(err))
 	require.Equal(t, "unlock requires an active device lease", safeUnlockError(errors.New("unlock requires an active device lease")))
+}
+
+type partialRecordingStrategy struct {
+	*fakes.Strategy
+	data  []byte
+	stops atomic.Int32
+}
+
+func (*partialRecordingStrategy) StartRecording(context.Context, strategy.ClaimClass) (strategy.RecordingHandle, error) {
+	return strategy.RecordingHandle{ID: "handle", StartedAt: time.Now()}, nil
+}
+func (s *partialRecordingStrategy) StopRecording(context.Context, strategy.RecordingHandle) (strategy.RecordingArtifact, error) {
+	s.stops.Add(1)
+	return strategy.RecordingArtifact{Bytes: s.data, Method: "native", ClaimClass: strategy.ClaimTransition}, errors.New("restore failed")
+}
+
+func TestStopRecordingReturnsRecoveredReferenceAndUncertainStatus(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg required")
+	}
+	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
+	path := filepath.Join(t.TempDir(), "clip.mp4")
+	require.NoError(t, exec.Command("ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=32x32:r=5:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", path).Run())
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	recorder := &partialRecordingStrategy{Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput), data: data}
+	service := internal.New(strategyregistry.New(recorder))
+	session, err := service.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	_, err = service.StartExternalRecording(context.Background(), "fake", "operator", session.LeaseToken)
+	require.NoError(t, err)
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+	body, err := json.Marshal(map[string]string{"device_id": "fake", "actor": "operator", "lease_token": session.LeaseToken, "handle_id": "handle"})
+	require.NoError(t, err)
+	call := func() *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/api/v1/recordings/stop", strings.NewReader(string(body))))
+		return response
+	}
+	first := call()
+	require.Equal(t, http.StatusConflict, first.Code)
+	var result struct {
+		Code      string                           `json:"code"`
+		Recovered internal.ExternalRecordingResult `json:"recovered_recording"`
+	}
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &result))
+	require.Equal(t, "recording_stop_uncertain", result.Code)
+	require.NotEmpty(t, result.Recovered.Reference.ID)
+	second := call()
+	require.Equal(t, http.StatusConflict, second.Code)
+	require.Contains(t, second.Body.String(), result.Recovered.Reference.ID)
+	require.EqualValues(t, 1, recorder.stops.Load())
+}
+
+func TestRunRetentionHTTPShowsSelectedDeadlineOnCaptureListAndRead(t *testing.T) {
+	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
+	db, err := sql.Open("sqlite", "file:retention-expiry-handler?mode=memory&cache=shared")
+	require.NoError(t, err)
+	defer db.Close()
+	service, err := internal.NewWithDB(strategyregistry.New(fakes.New("fake", strategy.StatusAvailable, strategy.CapInput)), db)
+	require.NoError(t, err)
+	result, err := service.Run(context.Background(), internal.Flow{Steps: []internal.Step{{ID: "key", Kind: "key", Target: "HOME"}}}, "fake", "operator")
+	require.NoError(t, err)
+	router := mux.NewRouter()
+	Module(service).Mount(router)
+	expiry := "2099-01-01T00:00:00Z"
+	call := func(method, path, body string) *httptest.ResponseRecorder {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(method, path, strings.NewReader(body)))
+		return response
+	}
+	path := "/api/v1/flows/" + result.RunID + "/retained"
+	response := call(http.MethodPost, path, `{"acknowledge_sensitive":true,"expires_at":"`+expiry+`"}`)
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Contains(t, response.Body.String(), expiry)
+	response = call(http.MethodGet, "/api/v1/flows/retained", "")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Contains(t, response.Body.String(), expiry)
+	require.Contains(t, response.Body.String(), result.RunID)
+	response = call(http.MethodGet, path, "")
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Contains(t, response.Body.String(), expiry)
 }

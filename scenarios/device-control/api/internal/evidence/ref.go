@@ -40,7 +40,7 @@ func (s EvidenceSink) Put(id string, raw []byte, redaction Result) (Reference, e
 	if err := ValidatePolicy(s.Policy); err != nil {
 		return Reference{}, err
 	}
-	if !redaction.Verified {
+	if redaction.Requested && !redaction.Verified {
 		return Reference{}, fmt.Errorf("capture redaction has not been verified")
 	}
 	if redaction.Policy != s.Policy {
@@ -61,7 +61,7 @@ func NewVideoReference(id string, raw []byte, redaction Result, method string, f
 }
 
 func NewClaimedVideoReference(id string, raw []byte, redaction Result, method string, fps float64, class ClaimClass) (Reference, error) {
-	if !redaction.Verified {
+	if redaction.Requested && !redaction.Verified {
 		return Reference{}, fmt.Errorf("capture redaction has not been verified")
 	}
 	if redaction.Policy != DefaultPolicy {
@@ -92,7 +92,7 @@ func NewLogReference(id string, raw []byte, redaction Result) (Reference, error)
 }
 
 func newReference(id string, raw []byte, redaction Result, kind, method string, fps float64) (Reference, error) {
-	if !redaction.Verified {
+	if redaction.Requested && !redaction.Verified {
 		return Reference{}, fmt.Errorf("capture redaction has not been verified")
 	}
 	sum := sha256.Sum256(raw)

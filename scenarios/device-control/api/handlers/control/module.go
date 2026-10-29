@@ -70,7 +70,11 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/recordings/concat", h.concatRecordings).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/validate", h.validateFlow).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/flows/run", h.runFlow).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/flows/runs", h.liveFlowRuns).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/flows/runs/{id}/cache", h.forgetLiveFlowRun).Methods(http.MethodDelete)
+		r.HandleFunc("/api/v1/flows/retained", h.retainedFlowRuns).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/flows/{id}/export", h.exportFlow).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/flows/{id}/retained", h.retainedFlowRun).Methods(http.MethodGet, http.MethodPost, http.MethodDelete)
 		r.HandleFunc("/api/v1/evidence/audit", h.audit).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/evidence/{id}", h.artifact).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/anchors", h.listAnchors).Methods(http.MethodGet)
@@ -84,10 +88,115 @@ func Module(s *internal.Service) module.Module {
 	}, Endpoints: Endpoints}
 }
 
+func (h *handler) liveFlowRuns(w http.ResponseWriter, r *http.Request) {
+	ids, active := h.service.LiveRunInventory()
+	write(w, http.StatusOK, map[string]any{"run_ids": ids, "active_flow_count": active, "quiesced": false})
+}
+
+func (h *handler) forgetLiveFlowRun(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		AcknowledgeVolatileCacheOnly bool `json:"acknowledge_volatile_cache_only"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil || !request.AcknowledgeVolatileCacheOnly {
+		writeError(w, http.StatusBadRequest, "cache_only_acknowledgment_required", "acknowledge_volatile_cache_only must be true")
+		return
+	}
+	id := mux.Vars(r)["id"]
+	if err := h.service.ForgetLiveRun(id); err != nil {
+		switch {
+		case errors.Is(err, internal.ErrLiveRunNotFound):
+			writeError(w, http.StatusNotFound, "live_run_not_found", "completed process-local run not found")
+		case errors.Is(err, internal.ErrLiveRunInProgress):
+			writeError(w, http.StatusConflict, "live_run_in_progress", "run still has an active lease cleanup")
+		case errors.Is(err, internal.ErrLiveRunNotEvictable):
+			writeError(w, http.StatusConflict, "live_run_not_evictable", "only ordinary completed flow runs can be forgotten")
+		default:
+			writeError(w, http.StatusConflict, "live_run_cache_inconsistent", "run cache indexes are incomplete; no entries were removed")
+		}
+		return
+	}
+	write(w, http.StatusOK, map[string]any{
+		"run_id":                           id,
+		"scope":                            "volatile_run_cache",
+		"cache_deleted":                    true,
+		"evidence_preserved":               true,
+		"audits_unchanged":                 true,
+		"saved_flow_definitions_unchanged": true,
+		"retained_store_unchanged":         true,
+		"note":                             "This forgets only the process-local run cache. Existing retained or saved copies and evidence may still be available.",
+	})
+}
+
+func (h *handler) retainedFlowRuns(w http.ResponseWriter, r *http.Request) {
+	ids, err := h.service.RetainedRunIDs(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_retention_list_failed", err.Error())
+		return
+	}
+	write(w, http.StatusOK, map[string]any{"runs": ids})
+}
+
+// POST is an explicit owner decision to retain the full flow and run result.
+// The result may contain sensitive targets and arguments; GET is not a summary.
+func (h *handler) retainedFlowRun(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	switch r.Method {
+	case http.MethodPost:
+		var request struct {
+			AcknowledgeSensitive bool      `json:"acknowledge_sensitive"`
+			ExpiresAt            time.Time `json:"expires_at"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "expected a valid JSON request with an RFC3339 expires_at")
+			return
+		}
+		if !request.AcknowledgeSensitive {
+			writeError(w, http.StatusBadRequest, "retention_acknowledgment_required", "retention stores full flow and result, including potentially private content; acknowledge_sensitive must be true")
+			return
+		}
+		if request.ExpiresAt.IsZero() || !request.ExpiresAt.After(time.Now()) {
+			writeError(w, http.StatusBadRequest, "retention_expiry_required", "expires_at must be a future RFC3339 timestamp")
+			return
+		}
+		if err := h.service.RetainRun(r.Context(), id, request.ExpiresAt.UTC()); err != nil {
+			if errors.Is(err, internal.ErrLiveRunNotFound) {
+				writeError(w, http.StatusNotFound, "live_run_not_found", "completed device run not found")
+			} else if errors.Is(err, internalflows.ErrInvalidRequest) || errors.Is(err, internalflows.ErrClipboardRetention) {
+				writeError(w, http.StatusBadRequest, "run_retention_refused", err.Error())
+			} else {
+				writeError(w, http.StatusInternalServerError, "run_retention_failed", "run store unavailable or inconsistent")
+			}
+			return
+		}
+		write(w, http.StatusOK, map[string]any{"run_id": id, "retained": true, "expires_at": request.ExpiresAt.UTC()})
+	case http.MethodDelete:
+		if err := h.service.DeleteRetainedRun(r.Context(), id); err != nil {
+			writeError(w, http.StatusInternalServerError, "run_retention_delete_failed", err.Error())
+			return
+		}
+		write(w, http.StatusOK, map[string]any{"run_id": id, "retained": false})
+	case http.MethodGet:
+		run, err := h.service.RetainedRun(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, internalflows.ErrInvalidRequest) {
+				writeError(w, http.StatusNotFound, "retained_run_not_found", "retained run not found")
+			} else {
+				writeError(w, http.StatusInternalServerError, "retained_run_read_failed", "retained run store unavailable")
+			}
+			return
+		}
+		write(w, http.StatusOK, run)
+	}
+}
+
 func (h *handler) exportFlow(w http.ResponseWriter, r *http.Request) {
 	export, err := h.service.ExportFlow(mux.Vars(r)["id"])
 	if err != nil {
-		writeError(w, http.StatusNotFound, "run_not_found", err.Error())
+		if errors.Is(err, internalflows.ErrInvalidRequest) {
+			writeError(w, http.StatusNotFound, "run_not_found", "run not found")
+		} else {
+			writeError(w, http.StatusInternalServerError, "run_export_failed", "run store unavailable")
+		}
 		return
 	}
 	write(w, http.StatusOK, export)
@@ -565,7 +674,11 @@ func (h *handler) stopExternalRecording(w http.ResponseWriter, r *http.Request) 
 	}
 	result, err := h.service.StopExternalRecording(r.Context(), in.DeviceID, in.Actor, in.LeaseToken, in.HandleID)
 	if err != nil {
-		writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		if result.Reference.ID != "" {
+			write(w, http.StatusConflict, map[string]any{"status": "failed", "code": "recording_stop_uncertain", "message": err.Error(), "recovered_recording": result})
+		} else {
+			writeError(w, http.StatusConflict, leaseErrorCode(err), err.Error())
+		}
 		return
 	}
 	write(w, http.StatusOK, result)
@@ -799,6 +912,12 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 }
 
 var Endpoints = []module.EndpointDescriptor{
+	{ID: "flow_runs_live", Path: "/api/v1/flows/runs", Method: "GET", Summary: "List process-local completed run IDs and active flow count", Category: "flows", RESTException: module.ThirdPartyJSONREST("GET")},
+	{ID: "flow_run_cache_forget", Path: "/api/v1/flows/runs/{id}/cache", Method: "DELETE", Summary: "Forget one completed process-local run cache entry", Category: "flows", RESTException: module.ThirdPartyJSONREST("DELETE")},
+	{ID: "flow_runs_retained", Path: "/api/v1/flows/retained", Method: "GET", Summary: "List explicitly retained run IDs", Category: "flows", RESTException: module.ThirdPartyJSONREST("GET")},
+	{ID: "flow_run_retain", Path: "/api/v1/flows/{id}/retained", Method: "POST", Summary: "Explicitly retain a completed run and flow", Category: "flows", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "flow_run_retained_get", Path: "/api/v1/flows/{id}/retained", Method: "GET", Summary: "Read a retained run and flow", Category: "flows", RESTException: module.ThirdPartyJSONREST("GET")},
+	{ID: "flow_run_retained_delete", Path: "/api/v1/flows/{id}/retained", Method: "DELETE", Summary: "Delete a retained run record", Category: "flows", RESTException: module.ThirdPartyJSONREST("DELETE")},
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "devices_discover", Path: "/api/v1/devices/discover", Method: "GET", Summary: "Browse the LAN for DNS-SD device services", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "devices_state", Path: "/api/v1/devices/{id}/state", Method: "GET", Summary: "Read live device state", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},

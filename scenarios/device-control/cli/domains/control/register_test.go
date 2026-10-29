@@ -269,3 +269,47 @@ func TestCheckedPackageSettingCarriesExpectedValueAndConfirmation(t *testing.T) 
 		t.Fatalf("checked request lost its precondition or confirmation: %+v", received)
 	}
 }
+
+func TestFlowRetainSendsExplicitExpiryAndShowsDeadline(t *testing.T) {
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/flows/run1/retained" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		var body struct {
+			Acknowledge bool   `json:"acknowledge_sensitive"`
+			ExpiresAt   string `json:"expires_at"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if !body.Acknowledge || body.ExpiresAt != "2099-01-01T00:00:00Z" {
+			t.Fatalf("unexpected request %+v", body)
+		}
+		_, _ = w.Write([]byte(`{"run_id":"run1","retained":true,"expires_at":"2099-01-01T00:00:00Z"}`))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cmd cliapp.Command
+	for _, candidate := range FlowGroup(core).Subcommands {
+		if candidate.Name == "retain" {
+			cmd = candidate
+			break
+		}
+	}
+	if cmd.RunCtx == nil {
+		t.Fatal("missing retain command")
+	}
+	var out bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(cmd.Args, []string{"run1", "--confirm-sensitive", "--expires-at", "2099-01-01T00:00:00Z", "--json"}, core, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "2099-01-01T00:00:00Z") {
+		t.Fatalf("deadline missing from output: %s", out.String())
+	}
+}

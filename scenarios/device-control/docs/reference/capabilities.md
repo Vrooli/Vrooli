@@ -679,7 +679,7 @@ trace paths are excluded; absent/unrecognized history stays unknown.
 For an app that has exited, `device-logs` with target `crash` and the exact
 package in `arguments.package` selects its Java crash blocks from at most 500
 recent crash-buffer records. PID reuse and prefix package collisions are
-excluded before the normal evidence redaction path. No matching record is not
+excluded before the normal evidence capture path, whose reference records whether redaction was requested. No matching record is not
 proof of no crash: older exits, native crashes and OS process kills remain
 unknown. The ordinary live PID log path is unchanged.
 

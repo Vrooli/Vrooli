@@ -3,10 +3,12 @@ package androidadb
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"image"
 	"image/jpeg"
 	"image/png"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -36,7 +38,147 @@ type processRunner struct {
 	process *scriptedProcess
 }
 
+type frameworkLogRunner struct {
+	*scriptedRunner
+	output []byte
+	call   string
+	limit  int
+	err    error
+}
+
+func (r *frameworkLogRunner) RunBounded(_ context.Context, name string, limit int, args ...string) ([]byte, error) {
+	r.call = strings.Join(append([]string{name}, args...), " ")
+	r.limit = limit
+	return r.output, r.err
+}
+
+func TestFrameworkLogsFiltersAndSummarizesWithoutRawContent(t *testing.T) {
+	component := "com.example/.service.Home"
+	runner := &frameworkLogRunner{scriptedRunner: &scriptedRunner{}, output: []byte(strings.Join([]string{
+		"W ActivityManager: Permission Denial com.example/.service.Home private-secret",
+		"W ActivityManager: Unable to start service com.example/com.example.service.Home",
+		"W ActivityManager: com.example/.service.HomeExtra private-secret",
+		"W ActivityManager: xcom.example/.service.Home private-secret",
+		"W ActivityManager: com.other/.service.Home private-secret",
+	}, "\n"))}
+	var output []byte
+	err := NewWithRunner(runner, "serial").Actuate(context.Background(), strategy.Actuation{Action: "framework-logs", Component: component, LogTag: "ActivityManager", Output: &output})
+	require.NoError(t, err)
+	require.Equal(t, "adb -s serial logcat -d -v epoch -t 250 -s ActivityManager:W", runner.call)
+	require.Equal(t, 256*1024, runner.limit)
+	require.NotContains(t, string(output), "private-secret")
+	var summary struct {
+		Matching int            `json:"matching_line_count"`
+		Priority string         `json:"priority"`
+		Classes  map[string]int `json:"diagnostic_classes"`
+	}
+	require.NoError(t, json.Unmarshal(output, &summary))
+	require.Equal(t, 2, summary.Matching)
+	require.Equal(t, "W", summary.Priority, "omitted priority keeps the warning-level default")
+	require.Equal(t, 1, summary.Classes["permission_denial"])
+	require.Equal(t, 1, summary.Classes["service_start_failure"])
+}
+
+func TestFrameworkLogsInfoMinimumIncludesHigherLevelsAndStaysRedacted(t *testing.T) {
+	component := "com.example/.service.Home"
+	runner := &frameworkLogRunner{scriptedRunner: &scriptedRunner{}, output: []byte(strings.Join([]string{
+		"I ActivityManager: Binding service com.example/.service.Home private-secret",
+		"W ActivityManager: Unable to start service com.example/com.example.service.Home private-secret",
+		"I ActivityManager: Binding service com.example/.service.HomeExtra private-secret",
+	}, "\n"))}
+	var output []byte
+	err := NewWithRunner(runner, "serial").Actuate(context.Background(), strategy.Actuation{
+		Action: "framework-logs", Component: component, LogTag: "ActivityManager", LogPriority: "I", Output: &output,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "adb -s serial logcat -d -v epoch -t 250 -s ActivityManager:I", runner.call)
+	require.Equal(t, 256*1024, runner.limit)
+	require.NotContains(t, string(output), "private-secret", "raw log text must not enter persisted evidence")
+	var summary struct {
+		Component string `json:"component"`
+		Tag       string `json:"tag"`
+		Priority  string `json:"priority"`
+		Matching  int    `json:"matching_line_count"`
+	}
+	require.NoError(t, json.Unmarshal(output, &summary))
+	require.Equal(t, component, summary.Component)
+	require.Equal(t, "ActivityManager", summary.Tag)
+	require.Equal(t, "I", summary.Priority)
+	require.Equal(t, 2, summary.Matching, "the INFO minimum also includes higher-priority warnings")
+}
+
+func TestFrameworkLogsRejectsInvalidFiltersAndReportsNoMatch(t *testing.T) {
+	runner := &frameworkLogRunner{scriptedRunner: &scriptedRunner{}, output: []byte("unrelated line")}
+	adapter := NewWithRunner(runner, "serial")
+	for _, event := range []strategy.Actuation{
+		{Action: "framework-logs", Component: "com.example/.Home;evil", LogTag: "ActivityManager"},
+		{Action: "framework-logs", Component: "com.example/.Home", LogTag: "OtherTag"},
+		{Action: "framework-logs", Component: "com.example/.Home", LogTag: "ActivityManager", LogPriority: "D"},
+		{Action: "framework-logs", Component: "com.example/.Home", LogTag: "ActivityManager", LogPriority: "i"},
+	} {
+		require.Error(t, adapter.Actuate(context.Background(), event))
+		require.Empty(t, runner.call)
+	}
+	var output []byte
+	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "framework-logs", Component: "com.example/.Home", LogTag: "AccessibilityManagerService", Output: &output}))
+	require.Contains(t, string(output), "inconclusive_no_matching_component_lines")
+}
+
+func TestBoundedCommandRejectsOversizedOutputAndCancellation(t *testing.T) {
+	if os.Getenv("DEVICE_CONTROL_BOUNDED_HELPER") == "output" {
+		_, _ = os.Stdout.Write(bytes.Repeat([]byte("x"), 1000))
+		return
+	}
+	if os.Getenv("DEVICE_CONTROL_BOUNDED_HELPER") == "block" {
+		select {}
+	}
+	t.Setenv("DEVICE_CONTROL_BOUNDED_HELPER", "output")
+	_, err := (commandRunner{}).RunBounded(context.Background(), os.Args[0], 100, "-test.run=^TestBoundedCommandRejectsOversizedOutputAndCancellation$")
+	require.ErrorContains(t, err, "exceeded configured limit")
+	t.Setenv("DEVICE_CONTROL_BOUNDED_HELPER", "block")
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	_, err = (commandRunner{}).RunBounded(ctx, os.Args[0], 100, "-test.run=^TestBoundedCommandRejectsOversizedOutputAndCancellation$")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
 func (r *processRunner) Start(string, ...string) (Process, error) { return r.process, nil }
+
+func TestCommandRunnerRunReportsContextCancellation(t *testing.T) {
+	if os.Getenv("DEVICE_CONTROL_COMMAND_RUNNER_BLOCK") == "1" {
+		select {}
+	}
+
+	t.Setenv("DEVICE_CONTROL_COMMAND_RUNNER_BLOCK", "1")
+	tests := []struct {
+		name    string
+		context func() (context.Context, func(), error)
+	}{
+		{
+			name: "deadline",
+			context: func() (context.Context, func(), error) {
+				ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+				return ctx, cancel, context.DeadlineExceeded
+			},
+		},
+		{
+			name: "cancel",
+			context: func() (context.Context, func(), error) {
+				ctx, cancel := context.WithCancel(context.Background())
+				timer := time.AfterFunc(100*time.Millisecond, cancel)
+				return ctx, func() { timer.Stop(); cancel() }, context.Canceled
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel, want := tt.context()
+			defer cancel()
+			_, err := (commandRunner{}).Run(ctx, os.Args[0], "-test.run=^TestCommandRunnerRunReportsContextCancellation$")
+			require.ErrorIs(t, err, want)
+		})
+	}
+}
 
 func (r *scriptedRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
 	r.mu.Lock()
@@ -381,6 +523,7 @@ func TestReadStateParsesRecordedAndroidProbes(t *testing.T) {
 		"adb -s serial-1 shell dumpsys activity activities":                []byte("mResumedActivity: ActivityRecord{u0 com.example.hello/.MainActivity t42}"),
 		"adb -s serial-1 shell dumpsys power":                              []byte("mWakefulness=Awake\nDisplay Power: state=ON"),
 		"adb -s serial-1 shell dumpsys window":                             []byte("mShowingLockscreen=false isStatusBarKeyguard=false"),
+		"adb -s serial-1 shell dumpsys dreams":                             []byte("mCurrentDreamToken=null"),
 		"adb -s serial-1 shell dumpsys input":                              []byte("mCurrentRotation=3"),
 		"adb -s serial-1 shell settings get system user_rotation":          []byte("3"),
 		"adb -s serial-1 shell settings get system accelerometer_rotation": []byte("1"),
@@ -656,4 +799,49 @@ func TestRestartUsesOnlyExactBoundTransportAndReturnsAcceptance(t *testing.T) {
 	runner.errors = map[string]error{"adb -s serial-1 reboot": errors.New("transport refused")}
 	require.ErrorContains(t, adapter.RestartDevice(context.Background()), "transport refused")
 	require.Len(t, runner.calls, 2, "owner must not retry a restart with uncertain effect")
+}
+
+func TestRecordingStopReportsArtifactAndRestoreSeparately(t *testing.T) {
+	for _, tc := range []struct {
+		name, failingCommand string
+		artifactAvailable    bool
+		want                 string
+	}{
+		{name: "artifact read failed", failingCommand: "read", want: "read screenrecord artifact"},
+		{name: "restore failed after artifact", failingCommand: "restore", artifactAvailable: true, want: "restore display keep-awake state"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
+				"adb -s serial-1 shell dumpsys power":                          []byte("mStayOn=false\n"),
+				"adb -s serial-1 shell settings get system screen_off_timeout": []byte("60000\n"),
+				"adb -s serial-1 shell dumpsys deviceidle":                     []byte("mDeepEnabled=true\n"),
+			}, errors: map[string]error{}}, process: &scriptedProcess{}}
+			adapter := NewWithRunner(runner, "serial-1")
+			handle, err := adapter.StartRecording(context.Background(), strategy.ClaimTransition)
+			require.NoError(t, err)
+			read := "adb -s serial-1 exec-out cat /sdcard/" + handle.ID + ".mp4"
+			runner.mu.Lock()
+			runner.responses[read] = []byte("ftyp-video")
+			if tc.failingCommand == "read" {
+				runner.errors[read] = errors.New("injected read failure")
+			} else {
+				runner.errors["adb -s serial-1 shell svc power stayon false"] = errors.New("injected restore failure")
+			}
+			runner.mu.Unlock()
+			artifact, err := adapter.StopRecording(context.Background(), handle)
+			require.ErrorContains(t, err, tc.want)
+			require.True(t, runner.process.signaled, "host wrapper was signaled; this alone does not prove remote encoder termination")
+			if tc.artifactAvailable {
+				require.Equal(t, []byte("ftyp-video"), artifact.Bytes)
+			} else {
+				require.Empty(t, artifact.Bytes)
+			}
+			runner.mu.Lock()
+			calls := strings.Join(runner.calls, "\n")
+			runner.mu.Unlock()
+			require.Contains(t, calls, "shell settings put system screen_off_timeout 60000", "restoration is attempted even after an artifact error")
+			_, err = adapter.StopRecording(context.Background(), handle)
+			require.ErrorContains(t, err, "not active", "native stop is one-shot")
+		})
+	}
 }

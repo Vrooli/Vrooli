@@ -1,68 +1,141 @@
 // DOC: docs/internal/SEAMS.md#capability-registry-seam-api
 // DOC: docs/internal/SEAMS.md#connected-scenarios-registry-seam-api-ui
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle, AlertCircle, Circle, Boxes, Plug, Play, RotateCw } from "lucide-react";
+import { Bell, Boxes, Cloud, Cpu, ExternalLink, Mic, MonitorSmartphone, Plug, TerminalSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useCapabilities } from "../hooks/useCapabilities";
 import { strings } from "../consts/strings";
-import { runCapabilityAction, type CapabilityActionResponse, type CapabilityState, type CapabilityStatus } from "../api/capabilities";
-import { getCommercialContext, getConnections, isCommercialContentVisible, removeOpenRouterKey, safeCommercialDestination, testOpenRouterKey } from "../api/monetization";
+import { runCapabilityAction, type CapabilityActionResponse, type CapabilityState } from "../api/capabilities";
+import { fetchScenarioLink } from "../api/notifications";
+import {
+  getCommercialContext,
+  getConnections,
+  isCommercialContentVisible,
+  removeOpenRouterKey,
+  safeCommercialDestination,
+  testOpenRouterKey,
+  type ManagedConnection,
+} from "../api/monetization";
 import { getWebAccessToken } from "../lib/auth";
-import { StatusBadge, type StatusTone } from "@vrooli/react-component-library/StatusBadge/1.2.2";
-import { IntegrationCard } from "@vrooli/react-component-library/IntegrationCard/0";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import {
+  IntegrationsOverview,
+  type IntegrationGroup,
+  type IntegrationItem,
+  type IntegrationStatus,
+  type IntegrationsOverviewStrings,
+} from "@vrooli/react-component-library/IntegrationsOverview/1";
 
 interface IntegrationsPanelProps {
   open: boolean;
+  /** Shown above the summary on the overview, not on a detail view. */
+  header?: ReactNode;
 }
 
-function statusIcon(status: CapabilityStatus) {
-  switch (status) {
-    case "available":
-      return <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />;
-    case "unavailable":
-      return <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />;
-    default:
-      return <Circle className="h-4 w-4 text-wc-text-faint shrink-0" />;
-  }
+const P = strings.integrationsPanel;
+
+/** Capabilities whose copy Web Console words for people; keys into integrationsPanel.items. */
+const ITEM_COPY: Record<string, keyof typeof P.items> = {
+  "audio-tools": "audioTools",
+  "vrooli-bridge": "vrooliBridge",
+  "notification-hub": "notificationHub",
+  "integration-hub": "integrationHub",
+  ollama: "ollama",
+  openrouter: "openrouter",
+  "session-backend-standard": "sessionStandard",
+  "session-backend-persistent": "sessionPersistent",
+  "terminal-local": "sessionStandard",
+  "terminal-persistent": "sessionPersistent",
+  "terminal-remote": "vrooliBridge",
+};
+
+const ICONS: Record<string, ReactNode> = {
+  "audio-tools": <Mic />,
+  "vrooli-bridge": <MonitorSmartphone />,
+  "terminal-remote": <MonitorSmartphone />,
+  "notification-hub": <Bell />,
+  "integration-hub": <Plug />,
+  ollama: <Cpu />,
+  openrouter: <Cloud />,
+  "session-backend-standard": <TerminalSquare />,
+  "session-backend-persistent": <TerminalSquare />,
+  "terminal-local": <TerminalSquare />,
+  "terminal-persistent": <TerminalSquare />,
+};
+
+const AGENT_INITIALS: Record<string, string> = {
+  claude: "CC",
+  "claude-code": "CC",
+  codex: "CX",
+  opencode: "OC",
+  grok: "GK",
+  agy: "AG",
+  antigravity: "AG",
+};
+
+const MODEL_IDS = new Set(["ollama", "openrouter"]);
+
+type GroupId = "agents" | "models" | "apps" | "sessions" | "other";
+
+function groupOf(cap: CapabilityState): GroupId {
+  if (cap.id in AGENT_INITIALS || (cap.dependencyKind !== "scenario" && cap.actionKind === "operator_command")) return "agents";
+  if (MODEL_IDS.has(cap.id)) return "models";
+  if (cap.id.startsWith("session-backend-") || cap.id === "terminal-local" || cap.id === "terminal-persistent") return "sessions";
+  if (cap.dependencyKind === "scenario") return "apps";
+  return "other";
 }
 
-function borderColor(status: CapabilityStatus): string {
-  switch (status) {
-    case "available":
-      return "border-l-emerald-500";
-    case "unavailable":
-      return "border-l-red-500";
-    default:
-      return "border-l-wc-default";
-  }
+function initialsOf(name: string): string {
+  const words = name.replace(/[^A-Za-z0-9 ]+/g, " ").trim().split(/\s+/);
+  return ((words[0]?.[0] ?? "") + (words[1]?.[0] ?? words[0]?.[1] ?? "")).toUpperCase();
 }
 
-function statusTone(status: CapabilityStatus): StatusTone {
-  if (status === "available") return "success";
-  if (status === "unavailable") return "danger";
-  return "neutral";
+function camel(slug: string): string {
+  return slug.replace(/[-_]+(\w)/g, (_, c: string) => c.toUpperCase());
 }
 
-interface CapabilityCardProps {
-  cap: CapabilityState;
-  actionPending: boolean;
-  actionResult?: CapabilityActionResponse;
-  actionError?: string;
-  onRunAction: (cap: CapabilityState) => void;
+function humanize(slug: string): string {
+  const words = slug.replace(/[-_.]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-function actionIcon(kind?: string) {
-  if (kind === "scenario_restart") {
-    return <RotateCw className="h-3.5 w-3.5" />;
-  }
-  return <Play className="h-3.5 w-3.5" />;
+function versionOf(message?: string): string | undefined {
+  return message?.match(/\d+\.\d+(?:\.\d+)?/)?.[0];
 }
 
-function supportsBackendAction(cap: CapabilityState): boolean {
-  return cap.dependencyKind === "scenario" && (cap.actionKind === "scenario_start" || cap.actionKind === "scenario_restart");
+function runnable(cap: CapabilityState): boolean {
+  if (cap.dependencyKind === "scenario") return cap.actionKind === "scenario_start" || cap.actionKind === "scenario_restart";
+  return cap.actionKind === "operator_command";
 }
+
+function capabilityStatus(cap: CapabilityState, group: GroupId): IntegrationStatus {
+  if (cap.status === "unknown") return "checking";
+  if (cap.status === "unavailable") return group === "agents" ? "missing" : "off";
+  const features = Object.values(cap.featureStatus ?? {});
+  return features.includes("unavailable") ? "limited" : "ready";
+}
+
+function formatTime(value: string | undefined, locale: string): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+const ACCOUNT_STATUS: Record<ManagedConnection["status"], { status: IntegrationStatus; label: keyof typeof P.accountStatus }> = {
+  connected: { status: "ready", label: "connected" },
+  checking: { status: "checking", label: "checking" },
+  needs_attention: { status: "limited", label: "needsAttention" },
+  expired: { status: "limited", label: "expired" },
+  insufficient_scope: { status: "limited", label: "insufficientScope" },
+  offline: { status: "limited", label: "offline" },
+  disconnected: { status: "off", label: "disconnected" },
+  revoked: { status: "off", label: "revoked" },
+  provider_unavailable: { status: "off", label: "providerUnavailable" },
+  unknown: { status: "unknown", label: "unknown" },
+};
 
 function supportsCredentialActions(actions?: string[]): boolean {
   return Boolean(actions?.some((action) => action === "test" || action === "delete"));
@@ -75,195 +148,199 @@ function ConnectionActions({ supportedActions }: { supportedActions: string[] })
   const testMutation = useMutation({
     mutationFn: testOpenRouterKey,
     onSuccess: (result) => {
-      setMessage(result.valid ? t(strings.integrationsPanel.connectionVerified) : t(strings.integrationsPanel.connectionTestFailed));
+      setMessage(result.valid ? t(P.connectionVerified) : t(P.connectionTestFailed));
       void queryClient.invalidateQueries({ queryKey: ["integration-connections"] });
     },
-    onError: () => setMessage(t(strings.integrationsPanel.connectionTestUnavailable)),
+    onError: () => { setMessage(t(P.connectionTestUnavailable)); },
   });
   const removeMutation = useMutation({
     mutationFn: removeOpenRouterKey,
     onSuccess: () => {
-      setMessage(t(strings.integrationsPanel.connectionRemoved)),
+      setMessage(t(P.connectionRemoved));
       void queryClient.invalidateQueries({ queryKey: ["integration-connections"] });
     },
-    onError: () => setMessage(t(strings.integrationsPanel.connectionRemoveFailed)),
+    onError: () => { setMessage(t(P.connectionRemoveFailed)); },
   });
+  const busy = testMutation.isPending || removeMutation.isPending;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {supportedActions.includes("test") && <Button type="button" size="sm" variant="secondary" onClick={() => { setMessage(undefined); testMutation.mutate(); }} disabled={testMutation.isPending || removeMutation.isPending}>
-        {testMutation.isPending ? t(strings.integrationsPanel.testingConnection) : t(strings.integrationsPanel.testConnection)}
-      </Button>}
-      {supportedActions.includes("delete") && <Button type="button" size="sm" variant="ghost" onClick={() => {
-        if (window.confirm(t(strings.integrationsPanel.connectionRemoveConfirm))) {
-          setMessage(undefined);
-          removeMutation.mutate();
-        }
-      }} disabled={testMutation.isPending || removeMutation.isPending}>
-        {removeMutation.isPending ? t(strings.integrationsPanel.removingConnection) : t(strings.integrationsPanel.removeConnection)}
-      </Button>}
-      {message && <span role="status" className="text-[11px] text-wc-text-muted">{message}</span>}
-    </div>
-  );
-}
-
-function CapabilityCard({ cap, actionPending, actionResult, actionError, onRunAction }: CapabilityCardProps) {
-  const { t } = useTranslation();
-  const isUnavailable = cap.status === "unavailable";
-  const isScenario = cap.dependencyKind === "scenario";
-  const canRunAction = supportsBackendAction(cap);
-  // For scenario integrations that are unavailable, the message is a
-  // CLI-install hint rather than a diagnostic. Treat the badge accordingly.
-  const showNotYetBadge = isScenario && cap.status !== "available";
-
-  return (
-    <div
-      data-testid={`cap-card-${cap.id}`}
-      className={`rounded-lg border border-wc-default ${borderColor(cap.status)} border-l-2 bg-wc-surface-input px-3 py-2 space-y-1.5`}
-    >
-      <div className="flex items-center gap-2">
-        {statusIcon(cap.status)}
-        <span className="text-xs font-medium text-wc-text-primary">{cap.name}</span>
-        <StatusBadge tone={statusTone(cap.status)}>{cap.status}</StatusBadge>
-        <span className="text-[11px] px-1.5 py-0.5 rounded bg-wc-surface text-wc-text-faint">
-          {cap.dependencyKind}
-        </span>
-        {showNotYetBadge && (
-          <span
-            data-testid={`cap-not-yet-${cap.id}`}
-            className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30"
-          >
-            {t(strings.integrationsPanel.scenarioNotYetAvailable)}
-          </span>
-        )}
-      </div>
-
-      <p className="text-[11px] text-wc-text-muted">{cap.description}</p>
-
-      {cap.message && (
-        <p data-testid={`cap-message-${cap.id}`} className="text-[11px] text-wc-text-faint font-mono">
-          {cap.message}
-        </p>
+      {supportedActions.includes("test") && (
+        <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => { setMessage(undefined); testMutation.mutate(); }}>
+          {testMutation.isPending ? t(P.testingConnection) : t(P.testConnection)}
+        </Button>
       )}
-
-      {(cap.reasonCode || cap.actionLabel || cap.operatorCommand) && (
-        <div className="rounded border border-wc-default bg-wc-surface px-2 py-1.5 space-y-1">
-          {cap.reasonCode && (
-            <p data-testid={`cap-reason-${cap.id}`} className="text-[11px] text-wc-text-muted">
-              {t(strings.integrationsPanel.reasonLabel)}{" "}
-              <span className="font-mono text-wc-text-primary">{cap.reasonCode}</span>
-            </p>
-          )}
-          {cap.actionLabel && (
-            <p data-testid={`cap-action-${cap.id}`} className="text-[11px] text-wc-text-muted">
-              {t(strings.integrationsPanel.nextActionLabel)}{" "}
-              <span className="text-wc-text-primary">{cap.actionLabel}</span>
-            </p>
-          )}
-          {cap.operatorCommand && (
-            <p data-testid={`cap-command-${cap.id}`} className="text-[11px] text-wc-text-faint font-mono break-all">
-              {cap.operatorCommand}
-            </p>
-          )}
-          {canRunAction && (
-            <button
-              type="button"
-              data-testid={`cap-run-action-${cap.id}`}
-              disabled={actionPending}
-              onClick={() => onRunAction(cap)}
-              className="inline-flex h-7 items-center gap-1.5 rounded border border-wc-default bg-wc-surface-input px-2 text-[11px] text-wc-text-primary hover:bg-wc-surface disabled:cursor-wait disabled:opacity-60"
-            >
-              {actionIcon(cap.actionKind)}
-              <span>{actionPending ? t(strings.integrationsPanel.actionRunning) : cap.actionLabel}</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {actionResult && (
-        <p
-          data-testid={`cap-action-result-${cap.id}`}
-          className={`text-[11px] ${actionResult.success ? "text-emerald-400" : "text-red-400"}`}
+      {supportedActions.includes("delete") && (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm(t(P.connectionRemoveConfirm))) {
+              setMessage(undefined);
+              removeMutation.mutate();
+            }
+          }}
         >
-          {actionResult.message || actionResult.status}
-        </p>
+          {removeMutation.isPending ? t(P.removingConnection) : t(P.removeConnection)}
+        </Button>
       )}
-      {actionError && (
-        <p data-testid={`cap-action-error-${cap.id}`} className="text-[11px] text-red-400">
-          {t(strings.integrationsPanel.actionFailed, { message: actionError })}
-        </p>
-      )}
-
-      {cap.features.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1">
-          {cap.features.map((feature) => (
-            <span
-              key={feature}
-              className={`text-[11px] px-1.5 py-0.5 rounded-full border ${
-                isUnavailable
-                  ? "border-wc-default text-wc-text-faint line-through"
-                  : "border-wc-default text-wc-text-muted"
-              }`}
-            >
-              {feature}
-            </span>
-          ))}
-        </div>
-      )}
+      {message && <span role="status" className="text-sm text-wc-text-muted">{message}</span>}
     </div>
   );
 }
 
-interface GroupProps {
-  testId: string;
-  icon: React.ReactNode;
-  heading: string;
-  description: string;
-  items: CapabilityState[];
-  pendingCapabilityId?: string;
-  lastActionResult?: CapabilityActionResponse;
-  lastActionError?: { capabilityId: string; message: string };
-  onRunAction: (cap: CapabilityState) => void;
-}
-
-function IntegrationsGroup({
-  testId,
-  icon,
-  heading,
-  description,
-  items,
-  pendingCapabilityId,
-  lastActionResult,
-  lastActionError,
-  onRunAction,
-}: GroupProps) {
-  if (items.length === 0) return null;
+/** Resolved only when its detail view is open, so the overview costs no link lookups. */
+function OpenScenarioLink({ slug, name }: { slug: string; name: string }) {
+  const { t } = useTranslation();
+  const link = useQuery({
+    queryKey: ["scenario-link", slug],
+    queryFn: () => fetchScenarioLink(slug),
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  if (!link.data) return null;
   return (
-    <section data-testid={testId} className="space-y-2">
-      <header className="flex items-center gap-2 px-1">
-        <span className="text-wc-text-muted">{icon}</span>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-wc-text-muted">{heading}</h3>
-      </header>
-      <p className="text-[11px] text-wc-text-faint px-1">{description}</p>
-      <div className="flex flex-col gap-2">
-        {items.map((cap) => (
-          <CapabilityCard
-            key={cap.id}
-            cap={cap}
-            actionPending={pendingCapabilityId === cap.id}
-            actionResult={lastActionResult?.capabilityId === cap.id ? lastActionResult : undefined}
-            actionError={lastActionError?.capabilityId === cap.id ? lastActionError.message : undefined}
-            onRunAction={onRunAction}
-          />
-        ))}
-      </div>
-    </section>
+    <a
+      href={link.data}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid={`integration-open-${slug}`}
+      className="inline-flex min-h-11 items-center justify-center gap-1.5 self-center rounded-md px-3 text-sm font-medium text-wc-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wc-accent"
+    >
+      {t(P.openApp, { name })}
+      <ExternalLink className="h-4 w-4" aria-hidden="true" />
+    </a>
   );
 }
 
-export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
-  const { t } = useTranslation();
-  const { data, isLoading, isError, error } = useCapabilities(open);
+interface ActionOutcome {
+  capabilityId: string;
+  success: boolean;
+  text: string;
+}
+
+function capabilityItem(
+  cap: CapabilityState,
+  group: GroupId,
+  t: TFunction,
+  locale: string,
+  pendingId: string | undefined,
+  outcome: ActionOutcome | undefined,
+  run: (cap: CapabilityState) => void,
+): IntegrationItem {
+  const copyKey = ITEM_COPY[cap.id];
+  const copy = copyKey ? P.items[copyKey] : undefined;
+  const name = copy ? t(copy.name) : group === "agents" ? cap.name : humanize(cap.name);
+  const status = capabilityStatus(cap, group);
+  const version = group === "agents" ? versionOf(cap.message) : undefined;
+  const subtitle = copy
+    ? t(copy.subtitle)
+    : version
+      ? t(P.agentVersion, { version })
+      : group === "agents" ? undefined : cap.description || undefined;
+  const provider = copy && "provider" in copy ? t(copy.provider) : undefined;
+
+  let problem: IntegrationItem["problem"];
+  if (status === "off") {
+    problem = copy
+      ? { title: t(copy.problemTitle), description: t(copy.problemDescription) }
+      : { title: t(P.genericProblemTitle, { name }), description: t(P.genericProblemDescription) };
+  }
+
+  const features = cap.features.map((slug) => {
+    const key = camel(slug) as keyof typeof P.features;
+    return {
+      id: slug,
+      label: key in P.features ? t(P.features[key]) : humanize(slug),
+      available: cap.featureStatus?.[slug] !== "unavailable",
+    };
+  });
+  if (status === "limited") {
+    const missing = features.filter((feature) => !feature.available).map((feature) => feature.label);
+    problem = {
+      title: t(P.limitedTitle, { name }),
+      description: t(P.limitedDescription, { features: missing.join(", ") }),
+    };
+  }
+
+  // Starting or installing fixes only something that is off or absent; a
+  // running service with some features down needs its provider, not a start.
+  const canRun = (status === "off" || status === "missing") && runnable(cap);
+  const action = canRun
+    ? {
+        label: group === "agents" ? t(P.agentInstall) : cap.actionLabel || t(P.startAction),
+        pendingLabel: t(P.actionRunning),
+        pending: pendingId === cap.id,
+        onRun: () => { run(cap); },
+      }
+    : undefined;
+
+  const facts = [
+    { label: t(P.facts.id), value: cap.dependencySlug || cap.id, monospace: true },
+    ...(cap.message ? [{ label: t(P.facts.health), value: cap.message }] : []),
+    ...(cap.reasonCode ? [{ label: t(P.facts.reason), value: cap.reasonCode, monospace: true }] : []),
+    ...(formatTime(cap.checkedAt, locale) ? [{ label: t(P.facts.checked), value: formatTime(cap.checkedAt, locale) }] : []),
+    ...(status !== "ready" && cap.operatorCommand ? [{ label: t(P.facts.command), value: cap.operatorCommand, monospace: true }] : []),
+  ];
+
+  return {
+    id: cap.id,
+    name,
+    subtitle: status === "missing" && action ? t(P.overview.statusMissing) : status === "missing" ? undefined : subtitle,
+    provider,
+    icon: ICONS[cap.id] ?? (group === "agents" ? undefined : <Boxes />),
+    initials: group === "agents" ? (AGENT_INITIALS[cap.id] ?? initialsOf(cap.name)) : undefined,
+    status,
+    problem,
+    action,
+    inlineAction: group === "agents",
+    features: features.length > 1 || copy ? features : [],
+    facts,
+    detail: cap.dependencyKind === "scenario" && cap.dependencySlug ? <OpenScenarioLink slug={cap.dependencySlug} name={provider ?? name} /> : undefined,
+    message: outcome ? { text: outcome.text, tone: outcome.success ? "success" : "danger" } : undefined,
+  };
+}
+
+function accountItem(connection: ManagedConnection, t: TFunction, locale: string): IntegrationItem {
+  const mapped = ACCOUNT_STATUS[connection.status];
+  const name = connection.connection_name || humanize(connection.provider);
+  const verified = formatTime(connection.last_verified_at, locale);
+  const subtitle = [connection.account_label, verified ? t(P.accountVerified, { time: verified }) : undefined].filter(Boolean).join(" · ");
+  const hasProblem = mapped.status === "limited" || mapped.status === "off";
+  return {
+    id: `account:${connection.id}`,
+    name,
+    subtitle: subtitle || undefined,
+    provider: humanize(connection.provider),
+    initials: initialsOf(connection.provider),
+    status: mapped.status,
+    statusLabel: t(P.accountStatus[mapped.label]),
+    problem: hasProblem ? { title: t(P.accountProblem, { name }), description: connection.next_action } : undefined,
+    facts: [
+      ...(connection.scopes?.length ? [{ label: t(P.facts.scopes), value: connection.scopes.join(", ") }] : []),
+      ...(connection.bindings?.length ? [{ label: t(P.facts.usedBy), value: connection.bindings.join(", ") }] : []),
+      ...(connection.freshness ? [{ label: t(P.facts.freshness), value: connection.freshness }] : []),
+    ],
+    detail:
+      connection.provider.toLowerCase() === "openrouter" && supportsCredentialActions(connection.supported_actions) ? (
+        <ConnectionActions supportedActions={connection.supported_actions ?? []} />
+      ) : undefined,
+    selectable: true,
+  };
+}
+
+const OVERVIEW_STRING_KEYS = [
+  "summaryAllReady", "summarySomeReady", "summaryChecking", "summaryError", "checkedAt", "refresh", "refreshing",
+  "back", "providedBy", "statusReady", "statusLimited", "statusOff", "statusMissing", "statusChecking",
+  "statusUnknown", "featuresTitle", "featureUnavailable", "technicalDetails", "emptyGroup",
+] as const satisfies readonly (keyof IntegrationsOverviewStrings & keyof typeof P.overview)[];
+
+export default function IntegrationsPanel({ open, header }: IntegrationsPanelProps) {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
+  const capabilities = useCapabilities(open);
   const connections = useQuery({
     queryKey: ["integration-connections"],
     queryFn: getConnections,
@@ -271,7 +348,8 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
     staleTime: 30_000,
     retry: false,
   });
-  const commercialCapabilityId = data?.capabilities.find((cap) => cap.status === "unavailable")?.id ?? "";
+  const caps = useMemo(() => capabilities.data?.capabilities ?? [], [capabilities.data]);
+  const commercialCapabilityId = caps.find((cap) => cap.status === "unavailable")?.id ?? "";
   const commercial = useQuery({
     queryKey: ["commercial-context", "integrations", commercialCapabilityId],
     queryFn: () => getCommercialContext("integrations", commercialCapabilityId),
@@ -280,157 +358,115 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
     retry: false,
   });
   const queryClient = useQueryClient();
-  const [pendingCapabilityId, setPendingCapabilityId] = useState<string>();
-  const [lastActionResult, setLastActionResult] = useState<CapabilityActionResponse>();
-  const [lastActionError, setLastActionError] = useState<{ capabilityId: string; message: string }>();
-  const [dismissedCommercialContent, setDismissedCommercialContent] = useState<Set<string>>(() => new Set());
-  const actionMutation = useMutation({
+  const [pendingId, setPendingId] = useState<string>();
+  const [outcome, setOutcome] = useState<ActionOutcome>();
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+
+  const action = useMutation({
     mutationFn: (cap: CapabilityState) => {
       if (!cap.actionKind) throw new Error("action kind missing");
       return runCapabilityAction(cap.id, cap.actionKind);
     },
     onMutate: (cap) => {
-      setPendingCapabilityId(cap.id);
-      setLastActionResult(undefined);
-      setLastActionError(undefined);
+      setPendingId(cap.id);
+      setOutcome(undefined);
     },
-    onSuccess: (result) => {
-      setLastActionResult(result);
-      queryClient.setQueryData(["capabilities"], {
-        capabilities: result.capabilities,
-        timestamp: result.timestamp,
+    onSuccess: (result: CapabilityActionResponse) => {
+      setOutcome({
+        capabilityId: result.capabilityId,
+        success: result.success,
+        text: result.success ? (result.message || t(P.actionSucceeded)) : t(P.actionFailed, { message: result.message || result.status }),
       });
+      queryClient.setQueryData(["capabilities"], { capabilities: result.capabilities, timestamp: result.timestamp });
     },
     onError: (err, cap) => {
-      setLastActionError({ capabilityId: cap.id, message: err instanceof Error ? err.message : String(err) });
+      setOutcome({ capabilityId: cap.id, success: false, text: t(P.actionFailed, { message: err instanceof Error ? err.message : String(err) }) });
     },
     onSettled: () => {
-      setPendingCapabilityId(undefined);
-      queryClient.invalidateQueries({ queryKey: ["capabilities"] });
+      setPendingId(undefined);
+      void queryClient.invalidateQueries({ queryKey: ["capabilities"] });
     },
   });
 
-  const handleRunAction = (cap: CapabilityState) => {
-    if (supportsBackendAction(cap) && !actionMutation.isPending) {
-      actionMutation.mutate(cap);
-    }
+  const run = (cap: CapabilityState) => {
+    if (!action.isPending) action.mutate(cap);
   };
 
-  const renderConnectedAccounts = () => (
-    <section data-testid="connected-accounts" className="space-y-2">
-      <div className="flex items-center justify-between px-1">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-wc-text-muted">{t(strings.integrationsPanel.connectedAccountsHeading)}</h3>
-        <span className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.managedConnections)}</span>
-      </div>
-      {connections.isLoading ? <p className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.loadingConnectedAccounts)}</p> : connections.isError ? <p data-testid="connected-accounts-error" className="text-[11px] text-amber-200">{t(strings.integrationsPanel.connectionsUnavailableWithRuntime)}</p> : connections.data?.connections.length ? connections.data.connections.map((connection) => (
-        <IntegrationCard
-          key={connection.id}
-          providerName={connection.provider}
-          connectionName={connection.connection_name}
-          accountLabel={connection.account_label}
-          status={connection.status}
-          scopes={connection.scopes}
-          bindings={connection.bindings}
-          lastVerifiedAt={connection.last_verified_at}
-          freshness={connection.freshness}
-          nextAction={connection.next_action}
-          actions={connection.provider.toLowerCase() === "openrouter" && supportsCredentialActions(connection.supported_actions) ? <ConnectionActions supportedActions={connection.supported_actions ?? []} /> : undefined}
-        />
-      )) : <p className="text-[11px] text-wc-text-faint px-1">{t(strings.integrationsPanel.noProviderAccounts)}</p>}
-    </section>
+  const groups: IntegrationGroup[] = useMemo(() => {
+    const byGroup: Record<GroupId, IntegrationItem[]> = { agents: [], models: [], apps: [], sessions: [], other: [] };
+    for (const cap of caps) {
+      const group = groupOf(cap);
+      byGroup[group].push(
+        capabilityItem(cap, group, t, locale, pendingId, outcome?.capabilityId === cap.id ? outcome : undefined, run),
+      );
+    }
+    const accounts = (connections.data?.connections ?? []).map((connection) => accountItem(connection, t, locale));
+    const result: IntegrationGroup[] = [
+      {
+        id: "accounts",
+        label: t(P.groups.accounts),
+        items: accounts,
+        width: "half",
+        emptyText: connections.isError ? t(P.accountsUnavailable) : connections.isLoading ? t(P.accountsLoading) : t(P.accountsEmpty),
+      },
+      { id: "agents", label: t(P.groups.agents), items: byGroup.agents, width: "half" },
+      { id: "apps", label: t(P.groups.apps), items: byGroup.apps },
+      { id: "models", label: t(P.groups.models), items: byGroup.models, width: "half" },
+      { id: "sessions", label: t(P.groups.sessions), items: byGroup.sessions, width: "half" },
+      { id: "other", label: t(P.groups.other), items: byGroup.other },
+    ];
+    return result.filter((group) => group.id === "accounts" || group.items.length > 0);
+    // `run` closes over the mutation, which is stable for this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caps, connections.data, connections.isError, connections.isLoading, t, locale, pendingId, outcome]);
+
+  const overviewStrings = useMemo(
+    () => Object.fromEntries(OVERVIEW_STRING_KEYS.map((key) => [key, t(P.overview[key])])) as Partial<IntegrationsOverviewStrings>,
+    [t],
   );
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {renderConnectedAccounts()}
-        <section data-testid="runtime-dependencies" className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-wc-text-muted">{t(strings.integrationsPanel.runtimeDependenciesHeading)}</h3>
-          <p className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.checking)}</p>
-        </section>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="space-y-4">
-        {renderConnectedAccounts()}
-        <section data-testid="runtime-dependencies" className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-wc-text-muted">{t(strings.integrationsPanel.runtimeDependenciesHeading)}</h3>
-          <p className="text-[11px] text-red-400">{t(strings.integrationsPanel.loadFailed, { message: error.message })}</p>
-        </section>
-      </div>
-    );
-  }
-
-  const capabilities = data?.capabilities ?? [];
-  const activeCount = capabilities.filter((c) => c.status === "available").length;
-  const scenarios = capabilities.filter((c) => c.dependencyKind === "scenario");
-  const resources = capabilities.filter((c) => c.dependencyKind !== "scenario");
-
-  if (capabilities.length === 0) {
-    return (
-      <div className="space-y-3">
-        {renderConnectedAccounts()}
-        <p className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.noneConfigured)}</p>
-      </div>
-    );
-  }
+  const recommendations = (commercial.data?.content ?? []).filter(
+    (item) => isCommercialContentVisible(item, "integrations") && !dismissed.has(item.content_id),
+  );
+  const notices = recommendations.length > 0 ? (
+    <section data-testid="commercial-context" className="grid gap-3 rounded-lg border border-wc-default bg-wc-surface-raised p-4">
+      {recommendations.map((item) => {
+        const destination = safeCommercialDestination(item.cta_destination);
+        return (
+          <div key={item.content_id} className="grid gap-1">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="m-0 text-sm font-semibold text-wc-text-primary">{item.title}</h3>
+              {item.dismissible && (
+                <Button type="button" size="sm" variant="ghost" onClick={() => { setDismissed((current) => new Set(current).add(item.content_id)); }}>
+                  {t(P.dismissRecommendation)}
+                </Button>
+              )}
+            </div>
+            <p className="m-0 text-sm text-wc-text-muted">{item.description}</p>
+            {destination && <a className="text-sm font-medium text-wc-accent hover:underline" href={destination}>{item.cta_label}</a>}
+          </div>
+        );
+      })}
+      {commercial.data?.stale && <p className="m-0 text-xs text-wc-text-faint">{t(P.staleCommercialContext)}</p>}
+    </section>
+  ) : null;
 
   return (
-    <div className="space-y-4">
-      {capabilities.some((cap) => cap.status === "unavailable") && (
-        <section data-testid="needs-attention" className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-          <h3 className="text-xs font-semibold text-amber-200">{t(strings.integrationsPanel.needsAttentionHeading)}</h3>
-          <p className="mt-1 text-[11px] text-amber-100/70">{t(strings.integrationsPanel.needsAttentionDescription)}</p>
-        </section>
-      )}
-      {renderConnectedAccounts()}
-      {commercial.data?.content.some((item) => isCommercialContentVisible(item, "integrations") && !dismissedCommercialContent.has(item.content_id)) && (
-        <section data-testid="commercial-context" className="rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2">
-          {commercial.data.content.filter((item) => isCommercialContentVisible(item, "integrations") && !dismissedCommercialContent.has(item.content_id)).map((item) => (
-            <div key={item.content_id} className="space-y-1">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-xs font-semibold text-wc-text-primary">{item.title}</h3>
-                {item.dismissible && <button type="button" className="text-[10px] text-wc-text-faint underline" aria-label={t(strings.integrationsPanel.dismissRecommendation)} onClick={() => setDismissedCommercialContent((current) => new Set(current).add(item.content_id))}>{t(strings.integrationsPanel.dismissRecommendation)}</button>}
-              </div>
-              <p className="text-[11px] text-wc-text-muted">{item.description}</p>
-              {safeCommercialDestination(item.cta_destination) && <a className="text-[11px] text-wc-text-primary underline" href={safeCommercialDestination(item.cta_destination) ?? undefined}>{item.cta_label}</a>}
-            </div>
-          ))}
-          {commercial.data.stale && <p className="mt-1 text-[10px] text-wc-text-faint">{t(strings.integrationsPanel.staleCommercialContext)}</p>}
-        </section>
-      )}
-      {commercial.isError && <p data-testid="commercial-context-error" className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.accountRecommendationsUnavailable)}</p>}
-      <div className="flex items-center justify-between px-1">
-        <span className="text-[11px] text-wc-text-faint">
-          {t(strings.integrationsPanel.activeCount, { active: activeCount, total: capabilities.length })}
-        </span>
-      </div>
-
-      <IntegrationsGroup
-        testId="integrations-group-scenarios"
-        icon={<Boxes className="h-4 w-4" />}
-        heading={t(strings.integrationsPanel.connectedScenariosHeading)}
-        description={t(strings.integrationsPanel.connectedScenariosDescription)}
-        items={scenarios}
-        pendingCapabilityId={pendingCapabilityId}
-        lastActionResult={lastActionResult}
-        lastActionError={lastActionError}
-        onRunAction={handleRunAction}
-      />
-
-      <IntegrationsGroup
-        testId="integrations-group-resources"
-        icon={<Plug className="h-4 w-4" />}
-        heading={t(strings.integrationsPanel.localResourcesHeading)}
-        description={t(strings.integrationsPanel.localResourcesDescription)}
-        items={resources}
-        pendingCapabilityId={pendingCapabilityId}
-        lastActionResult={lastActionResult}
-        lastActionError={lastActionError}
-        onRunAction={handleRunAction}
+    <div data-testid="integrations-panel">
+      <IntegrationsOverview
+        header={header}
+        groups={groups}
+        notices={notices}
+        checkedAt={capabilities.data?.timestamp}
+        loading={capabilities.isLoading}
+        error={capabilities.isError ? t(P.loadFailed, { message: capabilities.error.message }) : null}
+        refreshing={capabilities.isFetching || connections.isFetching}
+        onRefresh={() => {
+          void queryClient.invalidateQueries({ queryKey: ["capabilities"] });
+          void queryClient.invalidateQueries({ queryKey: ["integration-connections"] });
+        }}
+        strings={overviewStrings}
+        locale={locale}
       />
     </div>
   );

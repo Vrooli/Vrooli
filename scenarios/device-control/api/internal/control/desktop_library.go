@@ -29,7 +29,7 @@ func (p *desktopOwnerRPC) savedScope(s ownerDesktopSession, contextKey string) i
 
 func savedDesktopProto(saved internalflows.SavedDesktopFlow) (*desktopv1.SavedDesktopFlow, error) {
 	f := saved.Flow
-	wire := &sharedv1.Flow{Id: f.ID, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileId: f.AuthProfileID, AllowUnredactedCapture: f.AllowUnredactedCapture}
+	wire := &sharedv1.Flow{Id: f.ID, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileId: f.AuthProfileID, AllowUnredactedCapture: f.AllowUnredactedCapture, RedactSensitiveContent: f.RedactSensitiveContent}
 	for _, step := range f.Steps {
 		args, err := structpb.NewStruct(step.Arguments)
 		if err != nil {

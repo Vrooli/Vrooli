@@ -8,6 +8,7 @@ import ThemePicker from "../appearance/ThemePicker";
 import FontSizeStepper from "../appearance/FontSizeStepper";
 
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { SettingsIntro } from "./primitives";
 
 export default function NewPaneDefaultsSection() {
   const { t } = useTranslation();
@@ -22,7 +23,7 @@ export default function NewPaneDefaultsSection() {
 
   return (
     <SettingsList>
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.newPaneDefaultsSection.eyebrow)}
         title={t(strings.settings.newPaneDefaultsSection.title)}
         description={t(strings.settings.newPaneDefaultsSection.description)}

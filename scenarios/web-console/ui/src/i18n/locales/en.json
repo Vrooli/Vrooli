@@ -549,13 +549,141 @@
     "title": "Handoff suggestions"
   },
   "integrationsPanel": {
-    "connectedAccountsHeading": "Connected accounts",
-    "managedConnections": "Managed connections appear here",
-    "loadingConnectedAccounts": "Loading connected accounts…",
-    "connectionsUnavailable": "Connected accounts are temporarily unavailable.",
-    "connectionsUnavailableWithRuntime": "Connected accounts are temporarily unavailable. Runtime health remains available below.",
-    "noConnectedAccounts": "No connected accounts. Add a provider connection when an integration requires one.",
-    "noProviderAccounts": "No provider accounts are connected yet. Runtime health below remains available independently.",
+    "overview": {
+      "summaryAllReady": "All {total} ready",
+      "summarySomeReady": "{ready} of {total} ready",
+      "summaryChecking": "Checking…",
+      "summaryError": "Couldn't check what's connected",
+      "checkedAt": "Checked {time}",
+      "refresh": "Check again",
+      "refreshing": "Checking…",
+      "back": "Integrations",
+      "providedBy": "Provided by {provider}",
+      "statusReady": "Ready",
+      "statusLimited": "Limited",
+      "statusOff": "Off",
+      "statusMissing": "Not installed",
+      "statusChecking": "Checking",
+      "statusUnknown": "Unknown",
+      "featuresTitle": "What it adds to Aquila",
+      "featureUnavailable": "Unavailable",
+      "technicalDetails": "Technical details",
+      "emptyGroup": "Nothing here yet."
+    },
+    "groups": {
+      "accounts": "Accounts",
+      "agents": "Coding agents",
+      "apps": "Powered by other apps",
+      "models": "AI models",
+      "sessions": "Terminal sessions",
+      "other": "Other"
+    },
+    "items": {
+      "audioTools": {
+        "name": "Voice",
+        "subtitle": "Dictation, read-aloud and wake word",
+        "provider": "Audio Tools",
+        "problemTitle": "Voice is off",
+        "problemDescription": "Dictation and read-aloud won't work until Audio Tools is running."
+      },
+      "vrooliBridge": {
+        "name": "Remote terminals",
+        "subtitle": "Terminals on your other computers",
+        "provider": "Bridge",
+        "problemTitle": "Remote terminals are off",
+        "problemDescription": "Your other computers can't open terminals here until Bridge is running."
+      },
+      "notificationHub": {
+        "name": "Notifications",
+        "subtitle": "Alerts when an agent needs you",
+        "provider": "Notification Hub",
+        "problemTitle": "Notifications are off",
+        "problemDescription": "You won't be alerted when an agent finishes or needs you."
+      },
+      "integrationHub": {
+        "name": "Account connections",
+        "subtitle": "Keeps provider sign-ins in one place",
+        "provider": "Integration Hub",
+        "problemTitle": "Account connections are off",
+        "problemDescription": "Connected accounts can't be shown or checked until Integration Hub is running."
+      },
+      "ollama": {
+        "name": "Ollama",
+        "subtitle": "Runs models on this computer",
+        "problemTitle": "Ollama isn't running",
+        "problemDescription": "Models that run on this computer aren't available."
+      },
+      "openrouter": {
+        "name": "OpenRouter",
+        "subtitle": "Cloud models with your API key",
+        "problemTitle": "OpenRouter isn't set up",
+        "problemDescription": "Cloud models aren't available until an OpenRouter key is added."
+      },
+      "sessionStandard": {
+        "name": "Standard",
+        "subtitle": "Fast; ends when Aquila restarts",
+        "problemTitle": "Standard sessions are unavailable",
+        "problemDescription": "New terminals can't start."
+      },
+      "sessionPersistent": {
+        "name": "Persistent",
+        "subtitle": "Keeps running through restarts",
+        "problemTitle": "Persistent sessions are unavailable",
+        "problemDescription": "New terminals won't survive a restart."
+      }
+    },
+    "features": {
+      "voiceInput": "Dictate into the composer",
+      "voiceStreaming": "Live transcription while you talk",
+      "voiceSpeakerVerification": "Respond only to your voice",
+      "voiceEnrollment": "Learn your voice",
+      "voiceOutput": "Read replies aloud",
+      "ttsSummarization": "Summarise long replies before reading",
+      "ttsCache": "Replay recent audio instantly",
+      "ttsParagraphSplit": "Start speaking sooner on long replies",
+      "audioProviderRouting": "Use the best available speech engine",
+      "remoteTerminal": "Open terminals on your other computers",
+      "terminalRemote": "Open terminals on your other computers"
+    },
+    "facts": {
+      "id": "ID",
+      "health": "Health",
+      "reason": "Reason",
+      "checked": "Last checked",
+      "command": "Fix command",
+      "scopes": "Permissions",
+      "usedBy": "Used by",
+      "freshness": "Freshness"
+    },
+    "accountStatus": {
+      "connected": "Connected",
+      "checking": "Checking",
+      "needsAttention": "Needs attention",
+      "expired": "Expired",
+      "insufficientScope": "Missing permissions",
+      "offline": "Offline",
+      "disconnected": "Disconnected",
+      "revoked": "Revoked",
+      "providerUnavailable": "Provider unavailable",
+      "unknown": "Unknown"
+    },
+    "accountsEmpty": "No accounts connected yet.",
+    "accountsLoading": "Loading accounts…",
+    "accountsUnavailable": "Accounts can't be loaded right now. Everything else here is still checked.",
+    "accountVerified": "verified {{time}}",
+    "accountProblem": "{{name}} needs attention",
+    "agentVersion": "Version {{version}}",
+    "agentInstall": "Install",
+    "startAction": "Start",
+    "genericProblemTitle": "{{name}} isn't working",
+    "genericProblemDescription": "Features that depend on it won't work until it's fixed.",
+    "limitedTitle": "Some {{name}} features are unavailable",
+    "limitedDescription": "Unavailable right now: {{features}}.",
+    "openApp": "Open {{name}}",
+    "actionRunning": "Working…",
+    "actionSucceeded": "Done.",
+    "actionFailed": "That didn't work: {{message}}",
+    "loadFailed": "Failed to load integrations: {{message}}",
     "testConnection": "Test connection",
     "testingConnection": "Testing…",
     "removeConnection": "Remove",
@@ -566,25 +694,8 @@
     "connectionRemoved": "Connection removed.",
     "connectionRemoveFailed": "Connection could not be removed.",
     "connectionRemoveConfirm": "Remove this credential from the local credential authority?",
-    "accountRecommendationsUnavailable": "Account recommendations are temporarily unavailable; core settings remain available.",
     "dismissRecommendation": "Dismiss",
-    "actionFailed": "Action failed: {{message}}",
-    "actionRunning": "Running...",
-    "activeCount": "{{active}}/{{total}} active",
-    "checking": "Checking integrations...",
-    "connectedScenariosDescription": "Other Vrooli scenarios Aquila can adopt. Features below are gated on the scenario being installed and running.",
-    "connectedScenariosHeading": "Connected Scenarios",
-    "runtimeDependenciesHeading": "Runtime dependencies",
-    "needsAttentionHeading": "Needs attention",
-    "needsAttentionDescription": "Some runtime capabilities need repair. Open the relevant dependency below for its supported next action.",
-    "staleCommercialContext": "Showing recently refreshed account guidance.",
-    "loadFailed": "Failed to load integrations: {{message}}",
-    "localResourcesDescription": "Local services the console owns directly. Audio providers such as Whisper and Kokoro are owned by audio-tools.",
-    "localResourcesHeading": "Local Resources",
-    "nextActionLabel": "Next:",
-    "noneConfigured": "No integrations configured.",
-    "reasonLabel": "Reason:",
-    "scenarioNotYetAvailable": "Not yet available"
+    "staleCommercialContext": "Showing recently refreshed account guidance."
   },
   "keyComboPicker": {
     "closeAriaLabel": "Close more",
@@ -1409,7 +1520,7 @@
     "closeAriaLabel": "Close settings",
     "eyebrow": "Settings",
     "integrationsSection": {
-      "description": "Configure external services and inspect provider availability from one place.",
+      "description": "Accounts, coding agents and the other apps Aquila relies on.",
       "eyebrow": "Providers",
       "title": "Integrations"
     },

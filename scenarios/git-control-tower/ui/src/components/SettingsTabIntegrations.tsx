@@ -1,203 +1,247 @@
-import { useState } from "react";
-import { CheckCircle, AlertCircle, Circle } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Bot, Camera, ClipboardCheck, FlaskConical, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  IntegrationsOverview,
+  type IntegrationGroup,
+  type IntegrationItem,
+  type IntegrationStatus,
+} from "@vrooli/react-component-library/IntegrationsOverview/1";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { useCapabilities } from "../lib/hooks";
 import { useCredentials, useDeleteCredential, useTestCredential } from "../lib/hooks-settings";
-import type { CapabilityState, CapabilityStatus, Credential } from "../lib/api";
-import { StatusBadge, type StatusTone } from "@vrooli/react-component-library/StatusBadge/1.2.2";
-import { IntegrationCard } from "@vrooli/react-component-library/IntegrationCard/0";
-import { Button } from "@vrooli/react-component-library/Button/2";
+import { queryKeys } from "../lib/hooks-query-keys";
+import type { CapabilityState, Credential } from "../lib/api";
 
 interface SettingsTabIntegrationsProps {
   isMobile: boolean;
   repoId?: string | null;
 }
 
-function statusIcon(status: CapabilityStatus, size: string) {
-  switch (status) {
-    case "available":
-      return <CheckCircle className={`${size} text-emerald-500 shrink-0`} />;
-    case "unavailable":
-      return <AlertCircle className={`${size} text-red-500 shrink-0`} />;
-    default:
-      return <Circle className={`${size} text-slate-600 shrink-0`} />;
+/** Plain-language copy for the apps Git Control Tower builds on; anything else falls back to its slug. */
+const APP_COPY: Record<string, { name: string; subtitle: string; provider: string; icon: ReactNode }> = {
+  "agent-manager": {
+    name: "Agents",
+    subtitle: "Run agents and approve their changes",
+    provider: "Agent Manager",
+    icon: <Bot aria-hidden="true" />,
+  },
+  "browser-automation-studio": {
+    name: "Visual capture",
+    subtitle: "Screenshots of app screens over time",
+    provider: "Browser Automation Studio",
+    icon: <Camera aria-hidden="true" />,
+  },
+  "scenario-auditor": {
+    name: "Standards checks",
+    subtitle: "Rule findings in reviews",
+    provider: "Scenario Auditor",
+    icon: <ShieldCheck aria-hidden="true" />,
+  },
+  "test-genie": {
+    name: "Tests",
+    subtitle: "Run tests and see their results",
+    provider: "Test Genie",
+    icon: <FlaskConical aria-hidden="true" />,
+  },
+  "tidiness-manager": {
+    name: "Code quality",
+    subtitle: "Lint, type and tidiness scores",
+    provider: "Tidiness Manager",
+    icon: <Sparkles aria-hidden="true" />,
+  },
+  "workspace-sandbox": {
+    name: "Approved changes",
+    subtitle: "Track approved changes and preview commits",
+    provider: "Workspace Sandbox",
+    icon: <ClipboardCheck aria-hidden="true" />,
+  },
+};
+
+function humanize(slug: string): string {
+  const words = slug.replace(/[-_]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function initialsOf(name: string): string {
+  const words = name.split(/[\s.-]+/).filter(Boolean);
+  const [first = "", second = ""] = words;
+  return (second ? first.charAt(0) + second.charAt(0) : name.slice(0, 2)).toUpperCase();
+}
+
+function capabilityStatus(cap: CapabilityState): IntegrationStatus {
+  if (cap.status === "available") return "ready";
+  if (cap.status === "unavailable") return "off";
+  return "checking";
+}
+
+function formatTime(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function capabilityItem(cap: CapabilityState): IntegrationItem {
+  const slug = cap.dependencySlug || cap.id;
+  const copy = APP_COPY[slug];
+  const name = copy?.name ?? humanize(cap.name || slug);
+  const provider = copy?.provider ?? humanize(slug);
+  const status = capabilityStatus(cap);
+  const checked = formatTime(cap.checkedAt);
+  return {
+    id: cap.id,
+    name,
+    subtitle: copy?.subtitle ?? cap.description,
+    provider,
+    icon: copy?.icon,
+    initials: copy ? undefined : initialsOf(name),
+    status,
+    problem: status === "off"
+      ? {
+          title: `${name} is off`,
+          description: cap.features.length
+            ? `${cap.features.join(", ")} won't work until ${provider} is running.`
+            : `This won't work until ${provider} is running.`,
+        }
+      : undefined,
+    features: cap.features.map((feature) => ({ id: feature, label: feature, available: status !== "off" })),
+    facts: [
+      { label: "ID", value: slug, monospace: true },
+      ...(cap.message ? [{ label: "Health", value: cap.message }] : []),
+      ...(checked ? [{ label: "Last checked", value: checked }] : []),
+      ...(status === "off" && cap.dependencyKind === "scenario"
+        ? [{ label: "Start it with", value: `vrooli scenario start ${slug}`, monospace: true }]
+        : []),
+    ],
+  };
+}
+
+function credentialHost(credential: Credential): string {
+  if (credential.type === "ssh") {
+    const match = /@([^:/]+)[:/]/.exec(credential.url);
+    return match?.[1] ?? "SSH";
   }
-}
-
-function borderColor(status: CapabilityStatus): string {
-  switch (status) {
-    case "available":
-      return "border-l-emerald-500";
-    case "unavailable":
-      return "border-l-red-500";
-    default:
-      return "border-l-slate-700";
-  }
-}
-
-function statusTone(status: CapabilityStatus): StatusTone {
-  if (status === "available") return "success";
-  if (status === "unavailable") return "danger";
-  return "neutral";
-}
-
-function credentialProvider(url: string, type: Credential["type"]): string {
-  if (type === "ssh") return "SSH provider";
   try {
-    return new URL(url).hostname || "HTTPS provider";
+    return new URL(credential.url).hostname || "HTTPS";
   } catch {
-    return "HTTPS provider";
+    return "HTTPS";
   }
 }
 
-function CredentialConnectionCard({ credential, repoId }: { credential: Credential; repoId?: string | null }) {
+function CredentialActions({ credential, repoId, onMessage }: {
+  credential: Credential;
+  repoId?: string | null;
+  onMessage: (message: IntegrationItem["message"]) => void;
+}) {
   const testMutation = useTestCredential(repoId);
   const deleteMutation = useDeleteCredential(repoId);
-  const [message, setMessage] = useState<string>();
-  const status = credential.is_configured ? "connected" : "needs_attention";
+  const busy = testMutation.isPending || deleteMutation.isPending;
 
   return (
-    <IntegrationCard
-      providerName={credentialProvider(credential.url, credential.type)}
-      connectionName={`${credential.remote} ${credential.type.toUpperCase()} credential`}
-      accountLabel={credential.username}
-      status={status}
-      bindings={repoId ? ["current repository"] : ["repository remotes"]}
-      freshness={credential.updated_at ? `Updated ${credential.updated_at}` : undefined}
-      nextAction={status === "connected" ? "Test or remove this credential from the actions below." : "Configure this credential in the repository credentials tab."}
-      actions={(
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="secondary" size="sm" disabled={testMutation.isPending || deleteMutation.isPending} onClick={async () => {
-            setMessage(undefined);
-            try {
-              const result = await testMutation.mutateAsync({ remote: credential.remote, use_stored: true });
-              setMessage(result.authorized ? "Connection verified." : result.error || "Connection test failed.");
-            } catch (error) {
-              setMessage(error instanceof Error ? error.message : "Connection test failed.");
-            }
-          }}>{testMutation.isPending ? "Testing…" : "Test connection"}</Button>
-          <Button type="button" variant="secondary" size="sm" disabled={testMutation.isPending || deleteMutation.isPending} onClick={async () => {
-            if (!window.confirm("Remove this repository credential?")) return;
-            setMessage(undefined);
-            try {
-              await deleteMutation.mutateAsync(credential.id);
-              setMessage("Credential removed.");
-            } catch (error) {
-              setMessage(error instanceof Error ? error.message : "Credential could not be removed.");
-            }
-          }}>{deleteMutation.isPending ? "Removing…" : "Remove"}</Button>
-          {message && <span role="status" className="text-[11px] text-slate-400">{message}</span>}
-        </div>
-      )}
-    />
-  );
-}
-
-function CapabilityCard({ cap, isMobile }: { cap: CapabilityState; isMobile: boolean }) {
-  const textSm = isMobile ? "text-sm" : "text-xs";
-  const textXs = isMobile ? "text-xs" : "text-[11px]";
-  const py = isMobile ? "py-3" : "py-2";
-  const px = isMobile ? "px-4" : "px-3";
-  const isUnavailable = cap.status === "unavailable";
-
-  return (
-    <div
-      className={`rounded-lg border border-slate-800 ${borderColor(cap.status)} border-l-2 bg-slate-900/40 ${px} ${py} space-y-1.5`}
-    >
-      <div className="flex items-center gap-2">
-        {statusIcon(cap.status, "h-4 w-4")}
-        <span className={`${textSm} font-medium text-slate-200`}>{cap.name}</span>
-        <StatusBadge tone={statusTone(cap.status)}>{cap.status}</StatusBadge>
-        <span className={`${textXs} px-1.5 py-0.5 rounded bg-slate-800 text-slate-400`}>
-          {cap.dependencyKind}
-        </span>
-      </div>
-
-      <p className={`${textXs} text-slate-400`}>{cap.description}</p>
-
-      {cap.message && (
-        <p className={`${textXs} text-slate-500 font-mono`}>{cap.message}</p>
-      )}
-
-      {cap.features.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1">
-          {cap.features.map((feature) => (
-            <span
-              key={feature}
-              className={`${textXs} px-1.5 py-0.5 rounded-full border ${
-                isUnavailable
-                  ? "border-slate-800 text-slate-600 line-through"
-                  : "border-slate-700 text-slate-300"
-              }`}
-            >
-              {feature}
-            </span>
-          ))}
-        </div>
-      )}
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={async () => {
+        onMessage(undefined);
+        try {
+          const result = await testMutation.mutateAsync({ remote: credential.remote, use_stored: true });
+          onMessage(result.authorized
+            ? { text: "Connection verified.", tone: "success" }
+            : { text: result.error || "Connection test failed.", tone: "danger" });
+        } catch (error) {
+          onMessage({ text: error instanceof Error ? error.message : "Connection test failed.", tone: "danger" });
+        }
+      }}>{testMutation.isPending ? "Testing…" : "Test connection"}</Button>
+      <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={async () => {
+        if (!window.confirm("Remove this repository credential?")) return;
+        onMessage(undefined);
+        try {
+          await deleteMutation.mutateAsync(credential.id);
+          onMessage({ text: "Credential removed.", tone: "success" });
+        } catch (error) {
+          onMessage({ text: error instanceof Error ? error.message : "Credential could not be removed.", tone: "danger" });
+        }
+      }}>{deleteMutation.isPending ? "Removing…" : "Remove"}</Button>
     </div>
   );
 }
 
-export function SettingsTabIntegrations({ isMobile, repoId }: SettingsTabIntegrationsProps) {
-  const { data, isLoading, isError, error } = useCapabilities();
+export function SettingsTabIntegrations({ repoId }: SettingsTabIntegrationsProps) {
+  const queryClient = useQueryClient();
+  const capabilities = useCapabilities();
   const credentialsQuery = useCredentials(repoId);
+  const [messages, setMessages] = useState<Record<string, IntegrationItem["message"]>>({});
+
+  // The API lists origin even when nothing is stored for it; Git then uses the computer's own login.
   const credentials = credentialsQuery.data?.credentials ?? [];
+  const unmanaged = credentials.filter((credential) => !credential.is_configured);
+  const accountItems: IntegrationItem[] = credentials.filter((credential) => credential.is_configured).map((credential) => {
+    const host = credentialHost(credential);
+    const kind = credential.type.toUpperCase();
+    return {
+      id: `credential-${credential.id}`,
+      name: host,
+      subtitle: [credential.remote, kind, credential.username].filter(Boolean).join(" · "),
+      initials: initialsOf(host),
+      status: "ready",
+      statusLabel: "Connected",
+      facts: [
+        { label: "Remote", value: credential.remote, monospace: true },
+        { label: "URL", value: credential.url, monospace: true },
+        { label: "Type", value: kind },
+        ...(formatTime(credential.updated_at) ? [{ label: "Updated", value: formatTime(credential.updated_at) }] : []),
+      ],
+      message: messages[credential.id],
+      detail: (
+        <CredentialActions
+          credential={credential}
+          repoId={repoId}
+          onMessage={(message) => setMessages((current) => ({ ...current, [credential.id]: message }))}
+        />
+      ),
+    };
+  });
+  const unmanagedNote = unmanaged.length
+    ? `${unmanaged.map((credential) => credential.remote).join(", ")} ${unmanaged.length === 1 ? "uses" : "use"} this computer's own Git login. Save a token or SSH key in the Credentials tab to manage it here.`
+    : undefined;
 
-  const textSm = isMobile ? "text-sm" : "text-xs";
-  const textXs = isMobile ? "text-xs" : "text-[11px]";
-  const gap = isMobile ? "gap-3" : "gap-2";
+  const caps = capabilities.data?.capabilities ?? [];
+  const apps = caps.filter((cap) => cap.dependencyKind === "scenario").map(capabilityItem);
+  const services = caps.filter((cap) => cap.dependencyKind !== "scenario").map(capabilityItem);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <section data-testid="connected-accounts" className="space-y-2">
-          <h3 className={`font-semibold text-slate-200 ${textSm}`}>Connected accounts</h3>
-          {credentialsQuery.isLoading ? <p className={`${textXs} text-slate-500`}>Checking repository credentials...</p> : credentialsQuery.isError ? <p className={`${textXs} text-amber-300`}>Repository credentials are temporarily unavailable.</p> : credentials.length > 0 ? credentials.map((credential) => <CredentialConnectionCard key={credential.id} credential={credential} repoId={repoId} />) : <p className={`${textXs} text-slate-500`}>No repository credentials are connected yet.</p>}
-        </section>
-        <h3 className={`font-semibold text-slate-200 ${textSm}`}>Runtime dependencies</h3>
-        <p className={`${textXs} text-slate-500`}>Checking integrations...</p>
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <div className="space-y-4">
-        <section data-testid="connected-accounts" className="space-y-2">
-          <h3 className={`font-semibold text-slate-200 ${textSm}`}>Connected accounts</h3>
-          {credentialsQuery.isLoading ? <p className={`${textXs} text-slate-500`}>Checking repository credentials...</p> : credentialsQuery.isError ? <p className={`${textXs} text-amber-300`}>Repository credentials are temporarily unavailable.</p> : credentials.length > 0 ? credentials.map((credential) => <CredentialConnectionCard key={credential.id} credential={credential} repoId={repoId} />) : <p className={`${textXs} text-slate-500`}>No repository credentials are connected yet.</p>}
-        </section>
-        <h3 className={`font-semibold text-slate-200 ${textSm}`}>Runtime dependencies</h3>
-        <p className={`${textXs} text-red-400`}>Failed to load integrations: {error.message}</p>
-      </div>
-    );
-  }
-
-  const capabilities = data?.capabilities ?? [];
-  const activeCount = capabilities.filter((c) => c.status === "available").length;
+  const groups: IntegrationGroup[] = [
+    {
+      id: "accounts",
+      label: "Repository accounts",
+      items: accountItems,
+      footer: accountItems.length ? unmanagedNote : undefined,
+      emptyText: credentialsQuery.isLoading
+        ? "Checking repository credentials…"
+        : credentialsQuery.isError
+          ? "Repository credentials can't be loaded right now."
+          : unmanagedNote ?? "No repository credentials yet. Add HTTPS tokens and SSH keys in the Credentials tab.",
+    },
+    { id: "apps", label: "Powered by other apps", items: apps },
+    ...(services.length ? [{ id: "services", label: "Local services", items: services }] : []),
+  ];
 
   return (
-    <div className="space-y-4">
-      <section data-testid="connected-accounts" className="space-y-2">
-        <h3 className={`font-semibold text-slate-200 ${textSm}`}>Connected accounts</h3>
-        {credentialsQuery.isLoading ? <p className={`${textXs} text-slate-500`}>Checking repository credentials...</p> : credentialsQuery.isError ? <p className={`${textXs} text-amber-300`}>Repository credentials are temporarily unavailable.</p> : credentials.length > 0 ? credentials.map((credential) => <CredentialConnectionCard key={credential.id} credential={credential} repoId={repoId} />) : <p className={`${textXs} text-slate-500`}>No repository credentials are connected yet. HTTPS credentials and SSH keys remain managed in their dedicated settings.</p>}
-      </section>
-      <div className="flex items-center justify-between">
-        <h3 className={`font-semibold text-slate-200 ${textSm}`}>Runtime dependencies</h3>
-        <span className={`${textXs} text-slate-500`}>
-          {activeCount}/{capabilities.length} active
-        </span>
-      </div>
-
-      {capabilities.length === 0 ? (
-        <p className={`${textXs} text-slate-500`}>No runtime dependencies configured.</p>
-      ) : (
-        <div className={`flex flex-col ${gap}`}>
-          {capabilities.map((cap) => (
-            <CapabilityCard key={cap.id} cap={cap} isMobile={isMobile} />
-          ))}
-        </div>
-      )}
-    </div>
+    <IntegrationsOverview
+      header={
+        <SettingsList.Intro
+          title={<span className="sr-only">Integrations</span>}
+          description="What Git Control Tower uses, and whether each part is working."
+        />
+      }
+      groups={groups}
+      checkedAt={capabilities.data?.timestamp}
+      loading={capabilities.isLoading}
+      error={capabilities.isError ? `Integrations can't be checked right now: ${capabilities.error.message}` : null}
+      refreshing={capabilities.isFetching || credentialsQuery.isFetching}
+      onRefresh={() => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.capabilities });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.credentials(repoId) });
+      }}
+    />
   );
 }

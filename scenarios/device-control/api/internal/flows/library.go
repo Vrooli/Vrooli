@@ -158,7 +158,7 @@ func (r *SQLiteLibrary) FindSource(ctx context.Context, run, device, cohort stri
 
 // PreserveFlowChecks is shared by device and desktop repair promotion.
 func PreserveFlowChecks(before, after execution.Flow) error {
-	if before.RequireUnlocked && !after.RequireUnlocked || before.AuthProfileID != after.AuthProfileID || before.AllowUnredactedCapture != after.AllowUnredactedCapture || before.Transport != after.Transport {
+	if before.RequireUnlocked && !after.RequireUnlocked || before.AuthProfileID != after.AuthProfileID || before.AllowUnredactedCapture != after.AllowUnredactedCapture || before.RedactSensitiveContent != after.RedactSensitiveContent || before.Transport != after.Transport {
 		return fmt.Errorf("repair cannot change authentication, redaction, or transport policy")
 	}
 	for _, check := range before.Steps {

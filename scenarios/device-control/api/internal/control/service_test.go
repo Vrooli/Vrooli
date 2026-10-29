@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -313,6 +314,57 @@ func TestFlowLifecycleUsesTypedAdapterInsteadOfGenericInput(t *testing.T) {
 	require.Len(t, fake.LifecycleCalls(), 1)
 	require.Equal(t, "launch", fake.LifecycleCalls()[0].Operation)
 	require.Empty(t, fake.Calls())
+}
+
+type blockingLifecycleFake struct {
+	*fakes.Strategy
+	deadlines chan time.Time
+}
+
+func (s *blockingLifecycleFake) AppLifecycle(ctx context.Context, request strategy.AppLifecycleRequest) (strategy.AppLifecycleResult, error) {
+	deadline, ok := ctx.Deadline()
+	if ok {
+		s.deadlines <- deadline
+	}
+	<-ctx.Done()
+	err := fmt.Errorf("command failed (signal: killed) after context ended: %w", ctx.Err())
+	return strategy.AppLifecycleResult{Operation: request.Operation, Package: request.Package, Status: strategy.StatusUnavailable, Reason: err.Error()}, err
+}
+
+func TestFlowReportsWhetherStepOrRunDeadlineStoppedLifecycle(t *testing.T) {
+	tests := []struct {
+		name            string
+		flowTimeoutMS   int64
+		stepTimeoutMS   int64
+		wantDisposition string
+		wantMessage     string
+	}{
+		{name: "step deadline first", flowTimeoutMS: 1000, stepTimeoutMS: 200, wantDisposition: "failed", wantMessage: "command failed (signal: killed) after context ended: context deadline exceeded"},
+		{name: "run deadline first", flowTimeoutMS: 200, stepTimeoutMS: 1000, wantDisposition: "cancelled", wantMessage: "flow stopped: context deadline exceeded"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := fakes.New("deadline-lifecycle", strategy.StatusAvailable, strategy.CapAppLifecycle)
+			fake := &blockingLifecycleFake{Strategy: base, deadlines: make(chan time.Time, 1)}
+			svc := New(strategyregistry.New(fake))
+			svc.devices.Upsert(devicedomain.Record{ID: "deadline-lifecycle", StrategyID: fake.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Capabilities: []strategy.Capability{{Name: strategy.CapAppLifecycle, Status: strategy.StatusAvailable}}})
+
+			result, err := svc.Run(context.Background(), Flow{
+				MaxDurationMS: tt.flowTimeoutMS,
+				Steps:         []Step{{ID: "launch", Kind: "launch", Target: "com.example.editor", TimeoutMS: tt.stepTimeoutMS, RequiredCapabilities: []string{strategy.CapAppLifecycle}}},
+			}, "deadline-lifecycle", "operator")
+			require.NoError(t, err)
+			require.Equal(t, tt.wantDisposition, result.Disposition)
+			require.Len(t, result.Chapters, 1)
+			require.Contains(t, result.Chapters[0].Message, tt.wantMessage)
+			select {
+			case deadline := <-fake.deadlines:
+				require.False(t, deadline.IsZero())
+			case <-time.After(time.Second):
+				t.Fatal("lifecycle operation did not receive its effective context deadline")
+			}
+		})
+	}
 }
 
 func TestConcurrentControllersOnlyCurrentLeaseHolderActs(t *testing.T) { // AUTH-03
@@ -1195,6 +1247,37 @@ func TestReadDeviceStateMergesStateBearingTransportProperties(t *testing.T) {
 	require.Equal(t, "mdns", state.Properties["volume"].Transport)
 }
 
+type stateReaderOverride struct {
+	*fakes.PropertyOnly
+	state strategy.DeviceState
+}
+
+func (s stateReaderOverride) ReadState(context.Context) (strategy.DeviceState, error) {
+	return s.state, nil
+}
+
+func TestReadDeviceStateMergesDreamStateFromSecondaryTransport(t *testing.T) {
+	minimum, maximum := 0.0, 100.0
+	first := stateReaderOverride{
+		PropertyOnly: fakes.NewPropertyOnly("state-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", StateClass: strategy.StateBearing, Minimum: &minimum, Maximum: &maximum}, 30.0),
+		state:        strategy.DeviceState{DreamState: "unknown", Unavailable: map[string]string{"dream_state": "adb dumpsys dreams"}},
+	}
+	second := stateReaderOverride{
+		PropertyOnly: fakes.NewPropertyOnly("state-adb", strategy.PropertyDescriptor{Name: "battery", ValueType: "number", StateClass: strategy.StateBearing, Minimum: &minimum, Maximum: &maximum}, 80.0),
+		state:        strategy.DeviceState{DreamState: "active", DreamComponent: "com.dreamx/.Dream"},
+	}
+	svc := New(strategyregistry.New(first, second))
+	claim := identitydomain.IdentityClaim{Kind: identitydomain.CastID, Value: "state-device", Evidence: "observed"}
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "state-device", Kind: "physical", Claims: []identitydomain.IdentityClaim{claim}, IdentityKey: "state-device", StrategyID: first.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "state-device-adb", Kind: "physical", Claims: []identitydomain.IdentityClaim{claim}, IdentityKey: "state-device", StrategyID: second.ID(), Transport: "adb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+
+	state, err := svc.ReadDeviceState(context.Background(), "state-device")
+	require.NoError(t, err)
+	require.Equal(t, "active", state.DreamState)
+	require.Equal(t, "com.dreamx/.Dream", state.DreamComponent)
+	require.NotContains(t, state.Unavailable, "dream_state")
+}
+
 func TestWirelessInventoryUsesRestoredAdapterCapabilities(t *testing.T) {
 	svc, db := testService(t)
 	first := newPersistentWirelessStrategy()
@@ -1504,6 +1587,28 @@ func TestUnredactedCaptureIsAuditedWithActor(t *testing.T) {
 	require.True(t, records[0].RedactionOptedOut)
 }
 
+func TestLocalCaptureDefaultsUnredactedAndExplicitRedactionIsRecorded(t *testing.T) {
+	svc, _ := testService(t)
+	defaultResult, err := svc.Run(context.Background(), Flow{Steps: []Step{{ID: "default-screen", Kind: "observe"}}}, "fake", "owner-1")
+	require.NoError(t, err)
+	require.Len(t, defaultResult.Evidence, 1)
+	defaultRef := defaultResult.Evidence[0]
+	require.False(t, defaultRef.RedactionVerified)
+	require.Contains(t, defaultRef.AppliedRules, "redaction_not_requested")
+	stored, kind, err := svc.Artifact(defaultRef.ID)
+	require.NoError(t, err)
+	require.Equal(t, "image", kind)
+	require.Equal(t, defaultRef.SizeBytes, int64(len(stored)))
+
+	redactedResult, err := svc.Run(context.Background(), Flow{RedactSensitiveContent: true, Steps: []Step{{ID: "redacted-screen", Kind: "observe"}}}, "fake", "owner-1")
+	require.NoError(t, err)
+	require.Len(t, redactedResult.Evidence, 1)
+	redactedRef := redactedResult.Evidence[0]
+	require.True(t, redactedRef.RedactionVerified)
+	require.Contains(t, redactedRef.AppliedRules, "content_classification_not_performed")
+	require.NotContains(t, redactedRef.AppliedRules, "full_frame_private_content")
+}
+
 func TestRunReusesHeldLeaseTokenWithoutConflict(t *testing.T) { // [REQ:DVC-P0-004]
 	svc, _ := testService(t)
 	session, err := svc.Acquire("fake", "operator", time.Minute)
@@ -1797,14 +1902,15 @@ func TestSemanticReadinessRetriesReadOnlyAssertionsButNotInput(t *testing.T) {
 	require.Equal(t, 1, adapter.calls, "input effects must never be replayed by readiness retry")
 }
 
-func TestSemanticFailureRetainsRedactedFrameBeforeRestoration(t *testing.T) {
+func TestSemanticFailureRetainsUnredactedFrameByDefaultBeforeRestoration(t *testing.T) {
 	svc, _ := semanticReadinessService(t, 10)
 	result, err := svc.Run(context.Background(), Flow{Transport: "rest", Steps: []Step{{ID: "ready", Kind: "semantic-assert", Target: "Nooch", Arguments: map[string]any{"expected": "Nooch"}, RetryBudget: 1}}}, "semantic-tv", "operator")
 	require.NoError(t, err)
 	require.Equal(t, "failed", result.Disposition)
 	require.Contains(t, result.Chapters[0].Message, "not ready")
 	require.Len(t, result.Evidence, 1)
-	require.True(t, result.Evidence[0].RedactionVerified)
+	require.False(t, result.Evidence[0].RedactionVerified)
+	require.Contains(t, result.Evidence[0].AppliedRules, "redaction_not_requested")
 	require.False(t, result.Evidence[0].OptedOut)
 	require.Len(t, result.Chapters[0].EvidenceIDs, 1)
 }
@@ -1852,7 +1958,8 @@ func TestForegroundAssertionRequiresActualMatchingObservation(t *testing.T) {
 			require.Zero(t, adapter.calls, "foreground assertion must never launch or actuate the app")
 			if test.disposition == "failed" {
 				require.Len(t, result.Evidence, 1)
-				require.True(t, result.Evidence[0].RedactionVerified)
+				require.False(t, result.Evidence[0].RedactionVerified)
+				require.Contains(t, result.Evidence[0].AppliedRules, "redaction_not_requested")
 			}
 		})
 	}

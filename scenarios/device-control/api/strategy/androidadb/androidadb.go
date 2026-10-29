@@ -75,10 +75,33 @@ type ProcessRunner interface {
 }
 type commandRunner struct{}
 
+type boundedRunner interface {
+	RunBounded(context.Context, string, int, ...string) ([]byte, error)
+}
+
 const wirelessADBPort = "5555"
 
 func (commandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	output, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	if err != nil && ctx.Err() != nil {
+		return output, fmt.Errorf("command failed (%v) after context ended: %w", err, ctx.Err())
+	}
+	return output, err
+}
+
+func (commandRunner) RunBounded(ctx context.Context, name string, maxBytes int, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	var stdout, stderr cappedBuffer
+	stdout.limit, stderr.limit = maxBytes, 8*1024
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	if stdout.exceeded || stderr.exceeded {
+		return nil, fmt.Errorf("command output exceeded configured limit")
+	}
+	if err != nil && ctx.Err() != nil {
+		return stdout.buffer.Bytes(), fmt.Errorf("command failed (%v) after context ended: %w", err, ctx.Err())
+	}
+	return stdout.buffer.Bytes(), err
 }
 
 func (commandRunner) Start(name string, args ...string) (Process, error) {
@@ -1325,6 +1348,13 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	if state.DisplayDensity <= 0 {
 		state.Unavailable["display_density"] = "adb " + strings.Join(a.args("shell", "wm", "density"), " ")
 	}
+	// Keep the bounded, additive dreams probe last so it cannot consume the
+	// caller's remaining budget before any existing state fields are read.
+	dreamStateValue, dreamComponent, unavailableDreamState := probeDreamState(ctx, a.runner, a.args("shell", "dumpsys", "dreams"), dreamStateProbeTimeout)
+	state.DreamState, state.DreamComponent = dreamStateValue, dreamComponent
+	if unavailableDreamState != "" {
+		state.Unavailable["dream_state"] = unavailableDreamState
+	}
 	if len(state.Unavailable) == 0 {
 		state.Unavailable = nil
 	}
@@ -2022,6 +2052,37 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 			} else {
 				args = append(args, "logcat", "-d", "-v", "epoch")
 			}
+		case "framework-logs":
+			if !validExactAndroidComponent(event.Component) {
+				return fmt.Errorf("framework-logs requires an exact package/class component")
+			}
+			if event.LogTag != "ActivityManager" && event.LogTag != "AccessibilityManagerService" {
+				return fmt.Errorf("framework-logs supports only ActivityManager or AccessibilityManagerService tags")
+			}
+			priority := event.LogPriority
+			if priority == "" {
+				priority = "W"
+			}
+			if priority != "W" && priority != "I" {
+				return fmt.Errorf("framework-logs priority must be W or I")
+			}
+			probeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+			defer cancel()
+			bounded, ok := a.runner.(boundedRunner)
+			if !ok {
+				return fmt.Errorf("bounded framework log output is unsupported by this runner")
+			}
+			// Android logcat treats the tag priority as a minimum: I includes
+			// Info and higher. W remains the default and the only non-opt-in mode.
+			out, err := bounded.RunBounded(probeCtx, "adb", 256*1024, a.args("logcat", "-d", "-v", "epoch", "-t", "250", "-s", event.LogTag+":"+priority)...)
+			if err != nil {
+				return fmt.Errorf("bounded framework log read failed: %w", err)
+			}
+			matched := filterExactComponentLogLines(string(out), event.Component)
+			if event.Output != nil {
+				*event.Output = summarizeFrameworkLogMatches(event.Component, event.LogTag, priority, matched)
+			}
+			return nil
 		case "logcat-start":
 			args = append(args, "logcat", "-c")
 		case "logcat-stop":

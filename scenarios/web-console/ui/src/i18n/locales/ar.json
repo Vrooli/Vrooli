@@ -524,13 +524,141 @@
     "title": "Handoff suggestions"
   },
   "integrationsPanel": {
-    "connectedAccountsHeading": "الحسابات المتصلة",
-    "managedConnections": "تظهر الاتصالات المُدارة هنا",
-    "loadingConnectedAccounts": "جارٍ تحميل الحسابات المتصلة…",
-    "connectionsUnavailable": "الحسابات المتصلة غير متاحة مؤقتًا.",
-    "connectionsUnavailableWithRuntime": "الحسابات المتصلة غير متاحة مؤقتًا. تظل صحة وقت التشغيل متاحة أدناه.",
-    "noConnectedAccounts": "لا توجد حسابات متصلة. أضف اتصال مزود عند الحاجة إليه.",
-    "noProviderAccounts": "لم يتم توصيل حسابات مزود بعد. تظل صحة وقت التشغيل أدناه متاحة.",
+    "overview": {
+      "summaryAllReady": "كل العناصر ({total}) جاهزة",
+      "summarySomeReady": "{ready} من {total} جاهزة",
+      "summaryChecking": "جارٍ التحقق…",
+      "summaryError": "تعذّر التحقق من الاتصالات",
+      "checkedAt": "تم التحقق {time}",
+      "refresh": "تحقق مجددًا",
+      "refreshing": "جارٍ التحقق…",
+      "back": "التكاملات",
+      "providedBy": "مقدَّم من {provider}",
+      "statusReady": "جاهز",
+      "statusLimited": "محدود",
+      "statusOff": "متوقف",
+      "statusMissing": "غير مثبّت",
+      "statusChecking": "جارٍ التحقق",
+      "statusUnknown": "غير معروف",
+      "featuresTitle": "ما يضيفه إلى Aquila",
+      "featureUnavailable": "غير متاح",
+      "technicalDetails": "التفاصيل التقنية",
+      "emptyGroup": "لا يوجد شيء هنا بعد."
+    },
+    "groups": {
+      "accounts": "الحسابات",
+      "agents": "وكلاء البرمجة",
+      "apps": "ميزات من تطبيقات أخرى",
+      "models": "نماذج الذكاء الاصطناعي",
+      "sessions": "جلسات الطرفية",
+      "other": "أخرى"
+    },
+    "items": {
+      "audioTools": {
+        "name": "الصوت",
+        "subtitle": "الإملاء والقراءة بصوت عالٍ وكلمة التنبيه",
+        "provider": "Audio Tools",
+        "problemTitle": "الصوت متوقف",
+        "problemDescription": "لن يعمل الإملاء والقراءة الصوتية حتى يعمل Audio Tools."
+      },
+      "vrooliBridge": {
+        "name": "الطرفيات البعيدة",
+        "subtitle": "طرفيات على أجهزتك الأخرى",
+        "provider": "Bridge",
+        "problemTitle": "الطرفيات البعيدة متوقفة",
+        "problemDescription": "لا يمكن لأجهزتك الأخرى فتح طرفيات هنا حتى يعمل Bridge."
+      },
+      "notificationHub": {
+        "name": "الإشعارات",
+        "subtitle": "تنبيهات عندما يحتاجك وكيل",
+        "provider": "Notification Hub",
+        "problemTitle": "الإشعارات متوقفة",
+        "problemDescription": "لن يتم تنبيهك عندما ينتهي وكيل أو يحتاجك."
+      },
+      "integrationHub": {
+        "name": "اتصالات الحسابات",
+        "subtitle": "يحفظ تسجيلات دخول المزوّدين في مكان واحد",
+        "provider": "Integration Hub",
+        "problemTitle": "اتصالات الحسابات متوقفة",
+        "problemDescription": "لا يمكن عرض الحسابات المتصلة أو فحصها حتى يعمل Integration Hub."
+      },
+      "ollama": {
+        "name": "Ollama",
+        "subtitle": "يشغّل النماذج على هذا الكمبيوتر",
+        "problemTitle": "Ollama لا يعمل",
+        "problemDescription": "النماذج التي تعمل على هذا الكمبيوتر غير متاحة."
+      },
+      "openrouter": {
+        "name": "OpenRouter",
+        "subtitle": "نماذج سحابية بمفتاح API الخاص بك",
+        "problemTitle": "لم يتم إعداد OpenRouter",
+        "problemDescription": "النماذج السحابية غير متاحة حتى تتم إضافة مفتاح OpenRouter."
+      },
+      "sessionStandard": {
+        "name": "قياسية",
+        "subtitle": "سريعة؛ تنتهي عند إعادة تشغيل Aquila",
+        "problemTitle": "الجلسات القياسية غير متاحة",
+        "problemDescription": "لا يمكن بدء طرفيات جديدة."
+      },
+      "sessionPersistent": {
+        "name": "دائمة",
+        "subtitle": "تستمر بعد إعادة التشغيل",
+        "problemTitle": "الجلسات الدائمة غير متاحة",
+        "problemDescription": "لن تستمر الطرفيات الجديدة بعد إعادة التشغيل."
+      }
+    },
+    "features": {
+      "voiceInput": "الإملاء في مربع الكتابة",
+      "voiceStreaming": "نسخ مباشر أثناء حديثك",
+      "voiceSpeakerVerification": "الاستجابة لصوتك فقط",
+      "voiceEnrollment": "تعلّم صوتك",
+      "voiceOutput": "قراءة الردود بصوت عالٍ",
+      "ttsSummarization": "تلخيص الردود الطويلة قبل قراءتها",
+      "ttsCache": "إعادة تشغيل الصوت الأخير فورًا",
+      "ttsParagraphSplit": "بدء القراءة أسرع في الردود الطويلة",
+      "audioProviderRouting": "استخدام أفضل محرك كلام متاح",
+      "remoteTerminal": "فتح طرفيات على أجهزتك الأخرى",
+      "terminalRemote": "فتح طرفيات على أجهزتك الأخرى"
+    },
+    "facts": {
+      "id": "المعرّف",
+      "health": "الحالة",
+      "reason": "السبب",
+      "checked": "آخر تحقق",
+      "command": "أمر الإصلاح",
+      "scopes": "الأذونات",
+      "usedBy": "مستخدم بواسطة",
+      "freshness": "الحداثة"
+    },
+    "accountStatus": {
+      "connected": "متصل",
+      "checking": "جارٍ التحقق",
+      "needsAttention": "يحتاج إلى انتباه",
+      "expired": "منتهي الصلاحية",
+      "insufficientScope": "أذونات ناقصة",
+      "offline": "غير متصل بالشبكة",
+      "disconnected": "غير متصل",
+      "revoked": "ملغى",
+      "providerUnavailable": "المزوّد غير متاح",
+      "unknown": "غير معروف"
+    },
+    "accountsEmpty": "لا توجد حسابات متصلة بعد.",
+    "accountsLoading": "جارٍ تحميل الحسابات…",
+    "accountsUnavailable": "تعذّر تحميل الحسابات الآن. بقية العناصر هنا ما زالت قيد الفحص.",
+    "accountVerified": "تم التحقق {{time}}",
+    "accountProblem": "{{name}} يحتاج إلى انتباه",
+    "agentVersion": "الإصدار {{version}}",
+    "agentInstall": "تثبيت",
+    "startAction": "تشغيل",
+    "genericProblemTitle": "{{name}} لا يعمل",
+    "genericProblemDescription": "لن تعمل الميزات التي تعتمد عليه حتى يتم إصلاحه.",
+    "limitedTitle": "بعض ميزات {{name}} غير متاحة",
+    "limitedDescription": "غير متاح حاليًا: {{features}}.",
+    "openApp": "فتح {{name}}",
+    "actionRunning": "جارٍ التنفيذ…",
+    "actionSucceeded": "تم.",
+    "actionFailed": "لم ينجح ذلك: {{message}}",
+    "loadFailed": "تعذّر تحميل التكاملات: {{message}}",
     "testConnection": "اختبار الاتصال",
     "testingConnection": "جارٍ الاختبار…",
     "removeConnection": "إزالة",
@@ -539,27 +667,10 @@
     "connectionTestFailed": "فشل اختبار الاتصال.",
     "connectionTestUnavailable": "اختبار الاتصال غير متاح.",
     "connectionRemoved": "تمت إزالة الاتصال.",
-    "connectionRemoveFailed": "تعذر إزالة الاتصال.",
-    "connectionRemoveConfirm": "هل تريد إزالة بيانات الاعتماد هذه من مرجع بيانات الاعتماد المحلي؟",
-    "accountRecommendationsUnavailable": "توصيات الحساب غير متاحة مؤقتًا؛ تظل الإعدادات الأساسية متاحة.",
-    "dismissRecommendation": "تجاهل",
-    "actionFailed": "فشل الإجراء: {{message}}",
-    "actionRunning": "جارٍ التشغيل...",
-    "activeCount": "{{active}}/{{total}} نشط",
-    "checking": "جارٍ فحص التكاملات...",
-    "connectedScenariosDescription": "سيناريوهات Vrooli الأخرى التي يمكن لـ Aquila استخدامها. تعتمد الميزات أدناه على تثبيت السيناريو وتشغيله.",
-    "connectedScenariosHeading": "السيناريوهات المتصلة",
-    "runtimeDependenciesHeading": "اعتماديات وقت التشغيل",
-    "needsAttentionHeading": "يحتاج إلى انتباه",
-    "needsAttentionDescription": "تحتاج بعض قدرات وقت التشغيل إلى إصلاح. افتح التبعية ذات الصلة للاطلاع على الإجراء التالي المتاح.",
-    "staleCommercialContext": "يتم عرض إرشادات الحساب التي تم تحديثها مؤخرًا.",
-    "loadFailed": "فشل تحميل التكاملات: {{message}}",
-    "localResourcesDescription": "الخدمات المحلية التي تملكها وحدة التحكم مباشرة. يملك audio-tools مزودي الصوت مثل Whisper وKokoro.",
-    "localResourcesHeading": "الموارد المحلية",
-    "nextActionLabel": "التالي:",
-    "noneConfigured": "لم تُعدَّ أي تكاملات.",
-    "reasonLabel": "السبب:",
-    "scenarioNotYetAvailable": "غير متاح بعد"
+    "connectionRemoveFailed": "تعذّرت إزالة الاتصال.",
+    "connectionRemoveConfirm": "هل تريد إزالة بيانات الاعتماد هذه من مخزن بيانات الاعتماد المحلي؟",
+    "dismissRecommendation": "إغلاق",
+    "staleCommercialContext": "يتم عرض إرشادات الحساب المحدّثة مؤخرًا."
   },
   "keyComboPicker": {
     "closeAriaLabel": "إغلاق المزيد",
@@ -1484,7 +1595,7 @@
     "closeAriaLabel": "إغلاق الإعدادات",
     "eyebrow": "الإعدادات",
     "integrationsSection": {
-      "description": "تكوين الخدمات الخارجية وفحص توفر المزود من مكان واحد.",
+      "description": "الحسابات ووكلاء البرمجة والتطبيقات الأخرى التي يعتمد عليها Aquila.",
       "eyebrow": "المزودون",
       "title": "التكاملات"
     },

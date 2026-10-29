@@ -33,6 +33,7 @@ type Flow struct {
 	RequireUnlocked        bool   `json:"require_unlocked,omitempty"`
 	AuthProfileID          string `json:"auth_profile_id,omitempty"`
 	AllowUnredactedCapture bool   `json:"allow_unredacted_capture"`
+	RedactSensitiveContent bool   `json:"redact_sensitive_content,omitempty"`
 	SuppressActuation      bool   `json:"suppress_actuation,omitempty"`
 	MaxDurationMS          int64  `json:"max_duration_ms,omitempty"`
 	RetryBudget            int    `json:"retry_budget,omitempty"`

@@ -23,12 +23,40 @@ type fakeProvider struct {
 	releases        int
 	closes          int
 	releaseSignal   chan struct{}
+	releaseErr      error
 }
 
 type captureProvider struct {
 	fakeProvider
 	captures   chan struct{}
 	captureErr error
+}
+
+type blockingInputProvider struct {
+	fakeProvider
+	entered, release chan struct{}
+}
+
+type blockingCaptureProvider struct {
+	fakeProvider
+	entered, release, finished chan struct{}
+}
+
+func (p *blockingCaptureProvider) CaptureVP8(context.Context, string) ([]byte, time.Duration, error) {
+	close(p.entered)
+	<-p.release // Deliberately ignore cancellation to test the owner boundary.
+	close(p.finished)
+	return nil, 0, errors.New("capture stopped")
+}
+
+func (p *blockingInputProvider) ApplyInput(ctx context.Context, _ *desktopv1.InputRequest) error {
+	close(p.entered)
+	select {
+	case <-p.release:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func TestIceConfigurationPreservesEphemeralTURNMetadata(t *testing.T) {
@@ -76,7 +104,7 @@ func (f *fakeProvider) ReleaseHeld(context.Context) error {
 			close(f.releaseSignal)
 		}
 	}
-	return nil
+	return f.releaseErr
 }
 func (f *fakeProvider) Close(context.Context) error {
 	f.closes++
@@ -246,6 +274,214 @@ func TestManagerReapsExpiredSessionResources(t *testing.T) {
 	}
 	if p.releases != 1 || p.closes != 1 {
 		t.Fatalf("expired cleanup releases=%d closes=%d, want 1/1", p.releases, p.closes)
+	}
+}
+
+func TestManagerFailedReleaseRemainsReconcilable(t *testing.T) {
+	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY, releaseErr: errors.New("release failed")}
+	m := NewManager(p)
+	s, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := &desktopv1.CloseSessionRequest{Session: s.Ref}
+	if _, err := m.Close(context.Background(), req); err == nil {
+		t.Fatal("failed release reported success")
+	}
+	if _, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: s.Ref}); err != ErrRevoked {
+		t.Fatalf("input after failed close: %v", err)
+	}
+	if live, pending := managerInventory(m); live != 0 || pending != 1 {
+		t.Fatalf("inventory live=%d pending=%d", live, pending)
+	}
+	if _, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true}); err != ErrCleanupPending {
+		t.Fatalf("new control while release pending: %v", err)
+	}
+	wrong := proto.Clone(s.Ref).(*commonv1.SessionRef)
+	wrong.Surface.SurfaceId = "other"
+	if _, err := m.Close(context.Background(), &desktopv1.CloseSessionRequest{Session: wrong}); err != ErrInvalidCall {
+		t.Fatalf("wrong cleanup target: %v", err)
+	}
+	p.releaseErr = nil
+	if _, err := m.Close(context.Background(), req); err != nil {
+		t.Fatalf("retry of exact cleanup failed: %v", err)
+	}
+	if live, pending := managerInventory(m); live != 0 || pending != 0 {
+		t.Fatalf("inventory after cleanup live=%d pending=%d", live, pending)
+	}
+}
+
+func TestManagerCloseWaitsForInFlightInputBeforeRelease(t *testing.T) {
+	p := &blockingInputProvider{fakeProvider: fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}, entered: make(chan struct{}), release: make(chan struct{})}
+	m := NewManager(p)
+	s, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := make(chan error, 1)
+	go func() {
+		_, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: s.Ref, LeaseId: s.LeaseId, LeaseEpoch: s.LeaseEpoch, DisplayId: "main", GeometryRevision: "geometry-1", CommandId: "command"})
+		finished <- err
+	}()
+	<-p.entered
+	closeRequest := &desktopv1.CloseSessionRequest{Session: s.Ref}
+	if _, err := m.Close(context.Background(), closeRequest); err != ErrCleanupPending {
+		t.Fatalf("close while input active: %v", err)
+	}
+	if p.releases != 0 {
+		t.Fatal("released held input while an earlier call was active")
+	}
+	if live, pending := managerInventory(m); live != 0 || pending != 1 {
+		t.Fatalf("inventory live=%d pending=%d", live, pending)
+	}
+	close(p.release)
+	if err := <-finished; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Close(context.Background(), closeRequest); err != nil {
+		t.Fatal(err)
+	}
+	if p.releases != 1 {
+		t.Fatalf("release count %d", p.releases)
+	}
+}
+
+func TestManagerCloseRetainsPendingWhileCaptureIgnoresCancellation(t *testing.T) {
+	p := &blockingCaptureProvider{fakeProvider: fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}, entered: make(chan struct{}), release: make(chan struct{}), finished: make(chan struct{})}
+	m := NewManager(p)
+	s, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	peer := &PionPeer{videoQueue: NewBoundedQueue[media.Sample](1), controlQueue: NewBoundedQueue[[]byte](1), dataQueue: NewBoundedQueue[[]byte](1)}
+	m.mu.Lock()
+	m.sessions[s.Ref.SessionId].peer = peer
+	m.mu.Unlock()
+	m.startCapture(s.Ref.SessionId, "main")
+	<-p.entered
+	request := &desktopv1.CloseSessionRequest{Session: s.Ref}
+	if _, err := m.Close(context.Background(), request); err != ErrCleanupPending {
+		t.Fatalf("close while capture active: %v", err)
+	}
+	if live, pending := managerInventory(m); live != 0 || pending != 1 {
+		t.Fatalf("inventory live=%d pending=%d", live, pending)
+	}
+	close(p.release)
+	<-p.finished
+	deadline := time.Now().Add(time.Second)
+	for {
+		m.mu.Lock()
+		count := m.sessions[s.Ref.SessionId].inFlight
+		m.mu.Unlock()
+		if count == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("capture did not settle")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := m.Close(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestManagerExpiryRetainsFailedCleanup(t *testing.T) {
+	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY, releaseErr: errors.New("release failed")}
+	m := NewManager(p)
+	now := time.Now()
+	m.now = func() time.Time { return now }
+	s, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true, TtlSeconds: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(2 * time.Second)
+	if _, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: s.Ref}); err != ErrRevoked {
+		t.Fatalf("expired input: %v", err)
+	}
+	if live, pending := managerInventory(m); live != 0 || pending != 1 {
+		t.Fatalf("inventory live=%d pending=%d", live, pending)
+	}
+	p.releaseErr = nil
+	if _, err := m.Close(context.Background(), &desktopv1.CloseSessionRequest{Session: s.Ref}); err != nil {
+		t.Fatal(err)
+	}
+	if live, pending := managerInventory(m); live != 0 || pending != 0 {
+		t.Fatalf("inventory after cleanup live=%d pending=%d", live, pending)
+	}
+}
+
+func TestManagerObserverCloseDoesNotReleaseControllerInput(t *testing.T) {
+	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
+	m := NewManager(p)
+	_, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Close(context.Background(), &desktopv1.CloseSessionRequest{Session: viewer.Ref}); err != nil {
+		t.Fatal(err)
+	}
+	if p.releases != 0 {
+		t.Fatal("observer close released controller input")
+	}
+}
+
+func TestManagerOneControllerPerSharedNativeProvider(t *testing.T) {
+	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
+	m := NewManager(p)
+	_, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other := proto.Clone(surface()).(*commonv1.SurfaceRef)
+	other.Target.ResourceId = "other-target"
+	if _, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: other, DisplayId: "main", Control: true}); err != ErrNotControl {
+		t.Fatalf("second controller on shared provider: %v", err)
+	}
+	viewer, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: other, DisplayId: "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.TakeControl(context.Background(), &desktopv1.TakeControlRequest{Session: viewer.Ref, Takeover: true}); err != ErrNotControl {
+		t.Fatalf("cross-target takeover: %v", err)
+	}
+	independent := NewManager(&fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY})
+	if _, err := independent.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: other, DisplayId: "main", Control: true}); err != nil {
+		t.Fatalf("independent provider should admit its own controller: %v", err)
+	}
+}
+
+func TestManagerFailedTakeoverRevokesControllerAndRetainsCleanup(t *testing.T) {
+	p := &fakeProvider{ready: desktopv1.ReadinessState_READINESS_STATE_READY}
+	m := NewManager(p)
+	controller, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main", Control: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := m.Open(context.Background(), &desktopv1.OpenSessionRequest{Surface: surface(), DisplayId: "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.releaseErr = errors.New("release failed")
+	if _, err := m.TakeControl(context.Background(), &desktopv1.TakeControlRequest{Session: viewer.Ref, Takeover: true}); err == nil {
+		t.Fatal("failed release allowed takeover")
+	}
+	if _, err := m.Input(context.Background(), &desktopv1.InputRequest{Session: controller.Ref}); err != ErrRevoked {
+		t.Fatalf("old controller after failure: %v", err)
+	}
+	if _, err := m.TakeControl(context.Background(), &desktopv1.TakeControlRequest{Session: viewer.Ref, Takeover: true}); err != ErrCleanupPending {
+		t.Fatalf("takeover while pending: %v", err)
+	}
+	p.releaseErr = nil
+	if _, err := m.Close(context.Background(), &desktopv1.CloseSessionRequest{Session: controller.Ref}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.TakeControl(context.Background(), &desktopv1.TakeControlRequest{Session: viewer.Ref, Takeover: true}); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -515,4 +751,23 @@ func TestManagerRevokesSessionWhenPeerTransportFails(t *testing.T) {
 	if p.releases != 1 {
 		t.Fatalf("release count = %d", p.releases)
 	}
+}
+
+// managerInventory observes the private cleanup state only within regression tests.
+func managerInventory(m *Manager) (live, pending int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, s := range m.sessions {
+		if s == nil {
+			pending++
+			continue
+		}
+		if !s.revoked {
+			live++
+		}
+		if s.cleanupPending {
+			pending++
+		}
+	}
+	return live, pending
 }

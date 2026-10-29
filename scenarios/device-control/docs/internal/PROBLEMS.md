@@ -359,6 +359,20 @@ a migration handoff with a planned retirement path back into
 |---|---|---|---|
 | API/domain ownership | The current architecture audit reports 22 requirement-to-domain ownership errors and 13 unowned-source-path errors. The in-flight implementation consolidates several product surfaces behind `api/handlers/control` and `api/internal/control`, while this document still describes split `devices`, `sessions`, `flows`, and `strategies` source paths. | Targeted API/UI/CLI validation is green, but the architecture phase cannot be treated as clean until the ownership map and the intentional façade boundary agree. | Complete the domain consolidation deliberately: align `DOMAINS.md` and the requirement ownership register with the actual source tree, declare approved cross-domain façade edges or split the handler, then rerun Architecture Cartographer. |
 
+### 2026-10-28 — Android ADB cancellation error hides context expiry
+
+**Symptom:** A timed-out ADB app launch is reported as `signal: killed`, without showing whether the effective Device Control step/run context ended.
+
+**Root cause:** `commandRunner.Run` used `exec.CommandContext` but returned only `CombinedOutput`'s process error, dropping `ctx.Err()`. The TV launch cause remains unknown; retained flow and step budgets overlap as competing explanations.
+
+**Workaround:** Preserve the configured flow and step limits in each receipt; treat a bare `signal: killed` as ambiguous and do not infer that Android killed the app.
+
+**Real fix:** Implemented: when a command fails after its context ends, return an error that wraps the context error and retains the subprocess error. Add focused runner cancellation and step-versus-run deadline regressions.
+
+**Owner:** Device Control maintainers.
+
+**Refs:** `api/strategy/androidadb/androidadb.go`; `api/strategy/androidadb/androidadb_test.go`; `api/internal/control/service_test.go`; TV comparison `tv-portal-launch-success-failure-comparison-2238.json`; Test Genie run `20261028-224224-c92cebd4`.
+
 ## Work ladder
 
 - Rung: W3 attempted; W0-W2 passed.
@@ -582,3 +596,39 @@ endpoint-bound TV records `transport: wireless` instead of an empty value.
 - Evidence: fixed read-only voice configuration facts were absent from InspectDevice. Additive proto/owner inspection now returns configuration and explicit unknowns; focused VoiceInspection/Inspection tests and live CLI/Connect delivery pass. Current hardware microphone feature is false; role-holder probe is unknown, not proof of absence.
 - Remaining: reliable native/WebView readiness and input replacement are unqualified by two failed local trials. Physical audio access and Assistant role selection need separate bounded prototypes. WebView attachment cleanup source finding is tracked by `knw-1792696363648007859`; CDP attachment was not exercised.
 - Measured: 2026-10-22. Unit run `20261022-192128-ae97fc18` retains unrelated desktop fixture and coverage failures; original issues remain unchanged.
+
+### Scoped W3 Android ADB cancellation diagnostic — 2026-10-28
+
+- Rung: W3, localized implementation diagnostic defect; no W0–W2 or full readiness claim.
+- Evidence: Android `commandRunner` now preserves `context.Canceled`/`context.DeadlineExceeded` through its returned error. `TestCommandRunnerRunReportsContextCancellation` and the full `strategy/androidadb` package pass. `TestFlowReportsWhetherStepOrRunDeadlineStoppedLifecycle` passes both shorter-step and shorter-run cases and confirms the owner flow labels them distinctly.
+- Validation limit: Test Genie run `20261028-224224-c92cebd4` reports `programs` passed and `unit` failed on unrelated desktop/AT-SPI/X11 Unix-socket bind/EOF failures under generated long temp paths, plus UI coverage command failure. The focused Android package and flow regressions pass directly. Do not repeat the unchanged broad suite until the Unit Health temp-path blocker changes.
+- Remaining: actual cause of the two physical TV launch failures is unknown. Do not repeat a launch solely to wake DreamX; a later commissioned attempt can now retain context-aware failure evidence.
+- Measured: 2026-10-28.
+
+### Scoped W3 flow retention and lifecycle boundary — 2026-10-28
+
+- Rung: W3; scoped owner retention and diagnostic repair, not full scenario readiness.
+- A running process previously held ordinary run results and replay flows only in memory. Explicit, sensitive-data-acknowledged retention now stores a selected run in the flows domain with an operator-selected deadline; expired rows are deleted on access or list, without background deletion, and legacy rows retain their previous no-deadline status; inventory is point-in-time and does not fence admission. Clipboard-step flows are refused; this is not a general secret detector. Owner deletion removes the retained record, not live maps, evidence files, backups, or SQLite WAL remnants.
+- Validation: focused restart/export, exact-device promotion, clipboard refusal, storage-failure and HTTP acknowledgment/refusal tests pass. Test Genie `20261028-235204-fec0848b` storage passed with 19 advisory findings; unit failed on three test commands. Source changed after admission, so the run is not a final-tree proof. `make endpoints` regenerated the endpoint catalog successfully.
+- Remaining: Device Control does not implement the `common.v1.LifecycleMaintenanceService` provider contract. The control plane treats an absent provider as unguarded. A complete replacement fence must cover existing held-lease flow/actuation paths, observation leases, recordings, agent work and the separate desktop session manager; preserve volatile run/evidence state; retain fence identity through replacement; and resume through the existing control-plane owner. A flow-only admission switch cannot establish complete inventory or protect held leases. Research prototypes for process and helper fencing were removed after review; the owner boundary and test findings remain in the research receipt. The older serving process also cannot use the new inventory or retention APIs, so its unknown in-memory state remains unpreserved; do not infer safe replacement from this change.
+- Evidence: research receipt `device-control-retention-specialist-2354.json` and scoped Test Genie findings in the current TV research run; no serving replacement or device effect was performed.
+
+### Desktop helper cleanup receipt availability — 2026-10-29
+
+- Rung: W3, localized cleanup-recovery defect. A failed native release was durably marked pending, but the next maintenance tick terminated the helper and made the exact cleanup receipt unavailable. The helper now keeps that read-only path available while retrying native release at a bounded two-second cadence. Storage and authority errors still terminate the helper; pending cleanup still blocks input admission.
+- A focused owner/helper integration regression injects release failure, waits through a maintenance tick, observes revoked input and an exact `released=false` receipt, then confirms `released=true` after a successful destination retry. The full `internal/sessions` package passed with short test socket paths. Initial long-socket and pre-fix failures remain in the TV research evidence.
+- This does not implement the lifecycle maintenance fence or qualify the serving process. Cross-actor desktop admission/forwarding inventory, in-flight native and WebRTC work, durable fence state and process-wide admission remain necessary before a complete drain can be claimed.
+- Research exercised helper fencing, cross-actor admission pagination, and a peer-bound operation proof. Those unmounted prototypes were removed from the deliverable: they did not cover the API, recordings, volatile state, all admission surfaces, or control-plane integration. Their results remain in the research evidence; no complete lifecycle provider was mounted.
+
+### Desktop WebRTC release uncertainty — 2026-10-29
+
+- Rung: W3. A failed provider-wide input release revoked a session but made exact cleanup retry fail as already revoked; expiry and capture-failure revocation could also discard release errors. The manager now keeps cleanup pending, refuses a successor controller, and permits exact-session cleanup after in-flight input, clipboard and capture work settles. Observer close does not release another controller's held input. An incomplete capture that ignores cancellation remains a blocker until it actually returns.
+- One manager currently owns one local native provider whose `ReleaseHeld` has no device argument. It therefore permits one controller across that provider, including different target IDs; separate manager/provider instances remain independent. This is a product-visible restriction until a provider exposes genuinely independent release scopes. Same-target takeover remains supported and failed takeover revokes the old controller pending cleanup.
+- Focused pre-fix failure and desktop manager/handler race-test evidence are in the current TV research run. The point-in-time manager inventory is not a lifecycle admission fence, has no complete public recovery inventory, and does not cover historical failures from the currently serving binary. No live WebRTC trial or process replacement was made.
+
+
+### External recording stop uncertainty — 2026-10-29
+
+- A wrong-device stop previously erased another device's owner handle before checking it. A failed stop also erased the handle even though Android's recorder consumes its own handle before it can report encoder, artifact, or restoration failure. The owner now preserves an uncertain process-local marker and never replays a stop automatically. This marker is not durable and is not proof of destination cleanup.
+- When the recorder returns video and an error together, the owner applies its existing evidence processing and returns the recovered reference alongside HTTP 409 `recording_stop_uncertain`; the marker and reference remain retrievable during this process lifetime with a valid device lease. Artifact processing failure leaves uncertainty without a reference. On Android the host wrapper being signaled or exiting does not establish that the remote encoder stopped; restoration commands are attempted but failure remains unresolved. No automatic device reconciliation or restart safety is claimed.
+- Focused fake-based owner, HTTP, and Android recorder tests cover wrong-device refusal, failed stop without replay, recovered artifact with restoration failure, artifact-read failure and independent restoration attempts. No live recording was started.

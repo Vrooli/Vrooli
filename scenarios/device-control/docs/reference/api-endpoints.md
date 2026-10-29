@@ -105,10 +105,6 @@ multipart uploads) mounted at explicit REST paths. Document your
 domain's endpoints here as you build them — one section per RPC, with
 its auth, request/response proto shapes, error codes, and CLI mirror.
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `template-manager detemplate
-<scenario>` removes it once your real domains are green.
-
 ---
 
 ## Adding a new endpoint

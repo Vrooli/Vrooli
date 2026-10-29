@@ -18,6 +18,7 @@ func (readyProvider) Readiness(context.Context, string) (*desktopv1.DesktopReadi
 func (readyProvider) ApplyInput(context.Context, *desktopv1.InputRequest) error { return nil }
 func (readyProvider) ReadClipboard(context.Context) (string, error)             { return "", nil }
 func (readyProvider) WriteClipboard(context.Context, string) error              { return nil }
+func (readyProvider) ReleaseHeld(context.Context) error                         { return nil }
 
 func TestDesktopSessionServiceDelegatesTypedSessionLifecycle(t *testing.T) {
 	h := &handler{manager: desktopwebrtc.NewManager(readyProvider{})}

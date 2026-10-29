@@ -173,6 +173,21 @@ thermal, and display data. Fields that cannot be probed retain the exact adb
 command under `unavailable`. `flow export` returns the replayable flow,
 resolution rung metadata, and explicit exclusions for failed steps.
 
+`device-control flow runs --json` lists cached completed run IDs and a
+point-in-time active-flow count. It does not prevent new work, include every
+uncached failure, or establish a safe restart. To retain a selected completed
+run, use `device-control flow retain <run-id> --confirm-sensitive --expires-at
+<future-RFC3339-timestamp>`; this stores the full flow and result, which may
+contain private targets, URLs and text. Clipboard-step flows are refused; this
+is not a general secret detector. `flow retained`, `flow retained-get <run-id>`,
+and `flow retained-delete <run-id>` list, read and delete retained records.
+Capture, list and get show the exact deadline. An expired row is removed on the
+next read or list, not by a background job, so an idle expired row can remain on
+disk. Existing records without a deadline remain unchanged. Expiry and deletion
+do not remove live cache, evidence files, backups, or SQLite WAL remnants. The
+endpoint requires an explicit `acknowledge_sensitive: true` request; that
+acknowledgment describes the data and does not grant additional authority.
+
 Flows may also declare a bounded `max_duration_ms`, per-step
 `preconditions`/`postconditions`, `observation_required`, and a bounded
 `retry_budget`. Read-only and observational steps may retry within that budget;

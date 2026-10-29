@@ -14,6 +14,7 @@ import { Button } from "../ui/button";
 
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { SettingsIntro } from "./primitives";
 
 // [REQ:P0-014h] Handoff Capture Rules
 
@@ -87,7 +88,7 @@ export default function HandoffRulesPanel() {
 
   return (
     <SettingsList data-testid="handoff-rules-panel">
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.tabHandoffRules)}
         title={t(strings.handoffRules.title)}
         description={t(strings.handoffRules.footer)}

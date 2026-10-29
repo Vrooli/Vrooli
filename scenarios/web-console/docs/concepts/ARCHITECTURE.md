@@ -450,7 +450,7 @@ Scenario status is decoded from typed `vrooli scenario status <slug> --json` fie
 
 `audio-tools` is registered today as a `DependencyScenario` with the 9 feature keys it will unlock when shipped. The probe shells out via the Vrooli CLI (per the [wrap-not-use principle](../../../../docs/concepts/principles/wrap-not-use.md)) and returns "not yet available" until the scenario exists.
 
-The Integrations settings tab renders this registry as two grouped subsections: **Connected Scenarios** (other Vrooli scenarios this one depends on) and **Local Resources** (Ollama/OpenRouter and other directly owned local resources). When audio-tools ships, no registry change is required: the existing checker starts returning `available`, and the dependent feature gates flip on automatically.
+The Integrations settings tab renders this registry, plus managed connections, through the shared RCL asset `IntegrationsOverview/1`: a readiness summary, broken items with one fix each, and groups for Accounts, Coding agents, Powered by other apps, AI models and Terminal sessions, each row opening a detail view (see `docs/internal/SEAMS.md` § Connected Scenarios Registry Seam). When audio-tools ships, no registry change is required: the existing checker starts returning `available`, and the dependent feature gates flip on automatically.
 
 ### Capability Ports — Adoption Seam
 

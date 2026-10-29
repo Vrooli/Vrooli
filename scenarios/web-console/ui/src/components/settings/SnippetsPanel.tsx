@@ -15,6 +15,7 @@ import { SnippetSaveSheet } from "../snippets/SnippetSaveSheet";
 import { Button } from "../ui/button";
 
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { SettingsIntro } from "./primitives";
 
 // [REQ:P0-015g] Personal snippet management
 
@@ -119,7 +120,7 @@ export default function SnippetsPanel() {
 
   return (
     <SettingsList data-testid="snippets-panel">
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.snippets.settings.eyebrow)}
         title={t(strings.snippets.settings.title)}
         description={t(strings.snippets.settings.description)}

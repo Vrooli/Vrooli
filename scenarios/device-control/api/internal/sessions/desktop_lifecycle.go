@@ -3,8 +3,14 @@ package sessions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
+
+// ErrDesktopCleanupPending distinguishes a durable failed native release from
+// inventory, authority, or storage failures. Only this condition is retried
+// while keeping the historical cleanup read endpoint available.
+var ErrDesktopCleanupPending = errors.New("desktop native cleanup pending")
 
 // ActivateHelper is a trusted helper bootstrap operation, never a client RPC.
 // The lifecycle coordinator supplies the previously registered generation and
@@ -119,13 +125,16 @@ func (c *DesktopController) cleanup(ctx context.Context, force bool) error {
 	if err != nil {
 		return err
 	}
-	return releaseErr
+	if releaseErr != nil {
+		return fmt.Errorf("%w: %w", ErrDesktopCleanupPending, releaseErr)
+	}
+	return nil
 }
 
 // MaintainLease runs inside the helper process. It owns one bounded expiry
-// check per tick and a final shutdown attempt. Errors are returned to the
-// lifecycle supervisor so failed cleanup is visible and can be retried; they
-// must never be treated as successful input release.
+// check per tick and a final shutdown attempt. A durably recorded native
+// release failure remains readable and is retried at a bounded cadence; other
+// errors stop the helper. Failed release is never treated as successful.
 func (c *DesktopController) MaintainLease(ctx context.Context) (result error) {
 	defer func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -146,7 +155,17 @@ func (c *DesktopController) MaintainLease(ctx context.Context) (result error) {
 				if ctx.Err() != nil {
 					return nil
 				}
-				return err
+				if !errors.Is(err, ErrDesktopCleanupPending) {
+					return err
+				}
+				// Avoid a tight native retry loop while allowing exact cleanup reads.
+				timer := time.NewTimer(2 * time.Second)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return nil
+				case <-timer.C:
+				}
 			}
 		}
 	}

@@ -5,7 +5,7 @@ import { useWakeLockStatus } from "../../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
-import { SettingsSlider, SettingsToggle } from "./primitives";
+import { SettingsSlider, SettingsToggle, SettingsIntro } from "./primitives";
 import LocaleSwitcher from "../LocaleSwitcher";
 import ToolbarCustomizer from "./ToolbarCustomizer";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
@@ -65,7 +65,7 @@ export default function WorkspaceSection() {
 
   return (
     <SettingsList>
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.workspaceSection.eyebrow)}
         title={t(strings.settings.workspaceSection.title)}
         description={t(strings.settings.workspaceSection.description)}

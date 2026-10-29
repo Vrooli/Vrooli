@@ -7,7 +7,7 @@ export type DeviceTransport = { strategy_id: string; name: string; endpoint?: st
 export type PropertyDescriptor = { name: string; value_type: string; writable: boolean; minimum?: number; maximum?: number; enumeration?: string[]; state_domain?: string };
 export type IdentityClaim = { kind: string; value: string; strategy_id: string; evidence: string };
 export type Device = { id: string; name: string; kind: string; onboarding_kind?: string; identity_key?: string; claims?: IdentityClaim[]; identity_reason?: string; serial?: string; model?: string; endpoint?: string; os_version?: string; host_node_id?: string; transport?: string; strategy_id: string; status: string; health?: string; health_reason?: string; capabilities: Capability[]; properties?: PropertyDescriptor[]; transports?: DeviceTransport[] };
-export type DeviceState = { foreground_package?: string; screen_state?: string; lock_state?: string; orientation?: string; auto_rotate?: boolean; battery_level?: number; charging?: boolean; thermal_status?: string; display_width?: number; display_height?: number; display_density?: number; properties?: Record<string, { value?: unknown; status: string; reason?: string; transport?: string; source_transport?: string; state_domain?: string; observed_at?: string; confidence?: number }>; unavailable?: Record<string, string>; conflicts?: Record<string, string> };
+export type DeviceState = { foreground_package?: string; screen_state?: string; lock_state?: string; dream_state?: "active" | "preview" | "waking" | "inactive" | "unknown"; dream_component?: string; orientation?: string; auto_rotate?: boolean; battery_level?: number; charging?: boolean; thermal_status?: string; display_width?: number; display_height?: number; display_density?: number; properties?: Record<string, { value?: unknown; status: string; reason?: string; transport?: string; source_transport?: string; state_domain?: string; observed_at?: string; confidence?: number }>; unavailable?: Record<string, string>; conflicts?: Record<string, string> };
 export type Strategy = { id: string; description: string; status: string; reason?: string; supported_host_os?: string[]; tiers: string[]; executable_step_kinds: string[]; capabilities: Record<string, Capability>; next_actions?: string[]; promotable: boolean };
 export type Session = { id: string; device_id: string; actor: string; state: string; lease_token?: string; expires_at: string; created_at: string };
 export type OnboardingRung = { id: string; prerequisite?: string; owner?: string; status: string; next_action: string };
@@ -18,9 +18,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
   const response = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), { cache: "no-store", ...init, headers });
   const body: unknown = await response.json().catch(() => ({}));
-  const error = typeof body === "object" && body !== null ? body as { message?: unknown; code?: unknown } : {};
-  if (!response.ok) throw new Error(typeof error.message === "string" ? error.message : typeof error.code === "string" ? error.code : `Request failed (${response.status})`);
+  if (!response.ok) throw deviceControlApiError(response, body);
   return body as T;
+}
+
+export class DeviceControlApiError extends Error {
+  constructor(readonly code: string, message: string, readonly status: number) {
+    super(`${code}: ${message} (HTTP ${status})`);
+    this.name = "DeviceControlApiError";
+  }
+}
+
+function deviceControlApiError(response: Response, body: unknown): DeviceControlApiError {
+  const payload = typeof body === "object" && body !== null
+    ? body as { code?: unknown; message?: unknown; error?: unknown }
+    : {};
+  if (response.headers.get("X-Vrooli-Error-Hop") === "ui-proxy") {
+    return new DeviceControlApiError("api_unreachable_or_timeout", "Could not reach the API server or the request timed out", response.status);
+  }
+
+  const code = typeof payload.code === "string" && /^[a-z0-9][a-z0-9_.-]{0,63}$/i.test(payload.code)
+    ? payload.code
+    : "request_failed";
+  const message = typeof payload.message === "string" && payload.message.trim()
+    ? payload.message.trim().slice(0, 240)
+    : "Device Control request failed";
+  return new DeviceControlApiError(code, message, response.status);
 }
 export const listDevices = (options?: { cached?: boolean }) => request<{ devices: Device[] }>(`/api/v1/devices${options?.cached ? "?cached=true" : ""}`);
 export const listStrategies = () => request<{ strategies: Strategy[] }>("/api/v1/strategies");
@@ -38,7 +61,7 @@ export const pairDevice = (id: string, pin: string) => request<{ paired: boolean
 export const discoverDevices = () => request<{ services: Array<{ strategy_id: string; transport: string; service?: string; id: string; name: string; model?: string; endpoint: string; address?: string; port?: number; txt?: Record<string, string>; identity_key?: string; paired?: boolean; pairing_available?: boolean }>; health?: string; reason?: string }>("/api/v1/devices/discover");
 export const watchDeviceEvents = (id: string, onEvent: (event: { device_id: string; attribute: string; old_value?: unknown; new_value?: unknown; causation_id: string }) => void) => { const source = new EventSource(buildApiUrl(`/api/v1/devices/${encodeURIComponent(id)}/events`, { baseUrl: API_BASE })); source.onmessage = (message) => { try { onEvent(JSON.parse(message.data) as { device_id: string; attribute: string; old_value?: unknown; new_value?: unknown; causation_id: string }); } catch { /* ignore malformed event frames */ } }; return () => source.close(); };
 export const validateFlow = (strategy_id: string, flow: unknown) => request<{ runnable: boolean; gaps: string[]; warnings: string[] }>("/api/v1/flows/validate", { method: "POST", body: JSON.stringify({ strategy_id, flow }) });
-export const runFlow = (device_id: string, actor: string, lease_token: string, flow: unknown) => request<{ run_id: string; disposition: string; chapters?: Array<{ id: string; disposition: string; message: string }>; resolutions?: Array<{ target: string; rung: string; confidence: number }>; evidence?: Array<{ id: string; kind: string; checksum?: string; sha256?: string; size_bytes: number; created_at: string; applied_rules?: string[]; redaction_verified: boolean; recording_method?: string; effective_fps?: number; disposition?: string; disposition_reason?: string }> | null }>("/api/v1/flows/run", { method: "POST", body: JSON.stringify({ device_id, actor, lease_token, flow }) });
+export const runFlow = (device_id: string, actor: string, lease_token: string, flow: unknown) => request<{ run_id: string; disposition: string; chapters?: Array<{ id: string; disposition: string; message: string }>; resolutions?: Array<{ target: string; rung: string; confidence: number }>; evidence?: Array<{ id: string; kind: string; checksum?: string; sha256?: string; size_bytes: number; created_at: string; applied_rules?: string[]; redaction_verified: boolean; opted_out?: boolean; recording_method?: string; effective_fps?: number; disposition?: string; disposition_reason?: string }> | null }>("/api/v1/flows/run", { method: "POST", body: JSON.stringify({ device_id, actor, lease_token, flow }) });
 export const auditRecords = () => request<{ records: Array<{ id: string; actor: string; device_id: string; verb: string; outcome: string; created_at: string }> }>("/api/v1/evidence/audit");
 
 export const evidenceUrl = (id: string) => buildApiUrl(`/api/v1/evidence/${encodeURIComponent(id)}`, { baseUrl: API_BASE });

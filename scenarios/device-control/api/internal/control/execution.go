@@ -348,7 +348,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	recordingHandles := map[string]strategy.RecordingHandle{}
 	recorder, hasRecorder := strat.(strategy.SessionRecorder)
 	storeRecording := func(step Step, artifact strategy.RecordingArtifact) error {
-		redacted, redactErr := evidence.RedactCapture(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+		redacted, redactErr := evidence.CaptureWithPolicy(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
 		if redactErr != nil {
 			return redactErr
 		}
@@ -457,10 +457,10 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		stepctx, cancel := context.WithTimeout(runctx, time.Duration(step.TimeoutMS)*time.Millisecond)
 		stepCausationID = uuid.NewString()
 		var stepErr error
-		redactionVerified := true
+		redactionVerified := false
 		executeAttempt := func() error {
 			stepErr = nil
-			redactionVerified = true
+			redactionVerified = false
 			if requiresVisibleSurface(step.Kind) {
 				if stateReader, stateOK := strat.(strategy.StateReader); stateOK {
 					state, stateErr := stateReader.ReadState(stepctx)
@@ -550,7 +550,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					frame, e := observer.Observe(stepctx)
 					stepErr = e
 					if stepErr == nil {
-						redacted, re := evidence.RedactCaptureWithRegions(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
+						redacted, re := evidence.CaptureWithPolicy(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
 						if re != nil {
 							stepErr = re
 							redactionVerified = false
@@ -811,15 +811,18 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					if stepErr == nil {
 						stepErr = storeRecording(step, artifact)
 					}
-				case "device-logs", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "screenrecord":
+				case "device-logs", "framework-logs", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "screenrecord":
 					var output []byte
 					packageName, _ := step.Arguments["package"].(string)
-					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Output: &output})
+					component, _ := step.Arguments["component"].(string)
+					logTag, _ := step.Arguments["tag"].(string)
+					logPriority, _ := step.Arguments["priority"].(string)
+					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Component: component, LogTag: logTag, LogPriority: logPriority, Output: &output})
 					if stepErr == nil && len(output) == 0 {
 						stepErr = fmt.Errorf("%s produced no output", step.Kind)
 					}
-					if stepErr == nil && (step.Kind == "device-logs" || step.Kind == "logcat-stop" || step.Kind == "clock-sample") {
-						redacted, redactErr := evidence.RedactCapture(output, "text/plain", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+					if stepErr == nil && (step.Kind == "device-logs" || step.Kind == "framework-logs" || step.Kind == "logcat-stop" || step.Kind == "clock-sample") {
+						redacted, redactErr := evidence.CaptureWithPolicy(output, "text/plain", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
 						if redactErr != nil {
 							stepErr = redactErr
 						} else {
@@ -836,7 +839,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						}
 					}
 					if stepErr == nil && step.Kind == "screenshot" {
-						redacted, redactErr := evidence.RedactCapture(output, "image/png", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+						redacted, redactErr := evidence.CaptureWithPolicy(output, "image/png", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
 						if redactErr != nil {
 							stepErr = redactErr
 						} else {
@@ -853,7 +856,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						}
 					}
 					if stepErr == nil && step.Kind == "screenrecord" {
-						redacted, redactErr := evidence.RedactCapture(output, "video/mp4", evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor)
+						redacted, redactErr := evidence.CaptureWithPolicy(output, "video/mp4", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
 						if redactErr != nil {
 							stepErr = redactErr
 						} else {
@@ -1008,11 +1011,19 @@ type FlowExport struct {
 
 func (s *Service) ExportFlow(id string) (FlowExport, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	result, ok := s.runs[id]
 	flow, flowOK := s.flowRuns[id]
+	s.mu.Unlock()
+	if (!ok || !flowOK) && s.retainedRuns != nil {
+		retained, err := s.retainedRuns.Get(context.Background(), id)
+		if err == nil {
+			result, flow, ok, flowOK = retained.Result, retained.Flow, true, true
+		} else if !errors.Is(err, internalflows.ErrInvalidRequest) {
+			return FlowExport{}, fmt.Errorf("read retained run: %w", err)
+		}
+	}
 	if !ok || !flowOK {
-		return FlowExport{}, fmt.Errorf("run %q not found", id)
+		return FlowExport{}, fmt.Errorf("run %q not found: %w", id, internalflows.ErrInvalidRequest)
 	}
 	export := FlowExport{RunID: id, Flow: flow, Rungs: map[string]string{}, Excluded: []string{}}
 	failed := map[string]bool{}

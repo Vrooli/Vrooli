@@ -101,6 +101,37 @@ describe("NotificationsSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("names a category the source never declared instead of leaving the row blank", async () => {
+    const undeclared = {
+      category: "delivery_reliability",
+      display_name: "",
+      description: "",
+      declared: false,
+      default_enabled: true,
+      default_min_urgency: "low",
+    };
+    notificationMocks.fetchNotificationCatalog.mockResolvedValue({
+      ...catalog,
+      sources: catalog.sources.map((source) => ({ ...source, categories: [...source.categories, undeclared] })),
+    });
+    renderWithProviders(<NotificationsSection open />);
+
+    expect(await screen.findByText("Delivery reliability")).toBeInTheDocument();
+  });
+
+  it("hides the urgency choice while a category is switched off", async () => {
+    notificationMocks.fetchNotificationCatalog.mockResolvedValue({
+      ...catalog,
+      preferences: [
+        { source_scenario: "web-console", category: "review", enabled: false, min_urgency: "normal", channel_override: "" },
+      ],
+    });
+    renderWithProviders(<NotificationsSection open />);
+
+    expect(await screen.findByText("Review requests")).toBeInTheDocument();
+    expect(screen.queryByTestId("notification-urgency-web-console-review")).not.toBeInTheDocument();
+  });
+
   it("updates the preference when the enable toggle is flipped", async () => {
     notificationMocks.fetchNotificationCatalog.mockResolvedValue(catalog);
 

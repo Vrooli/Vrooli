@@ -993,6 +993,48 @@
           }
         },
         {
+          "name": "runs",
+          "description": "List completed process-local run IDs and active flow count; not a restart fence",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "forget",
+          "description": "Forget one completed process-local run cache entry; retained copies and evidence may remain",
+          "positionals": [{"name": "run-id", "required": true}],
+          "flags": [{"name": "confirm-cache-only", "bool": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "retained",
+          "description": "List explicitly retained run IDs",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "retain",
+          "description": "Explicitly persist the full potentially private flow and run result",
+          "positionals": [{"name": "run-id", "required": true}],
+          "flags": [{"name": "confirm-sensitive", "bool": true}, {"name": "expires-at", "required": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "retained-get",
+          "description": "Read a retained flow and run result",
+          "positionals": [{"name": "run-id", "required": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "retained-delete",
+          "description": "Delete a retained run record",
+          "positionals": [{"name": "run-id", "required": true}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "list",
           "description": "List reusable flows for an exact device and context",
           "flags": [

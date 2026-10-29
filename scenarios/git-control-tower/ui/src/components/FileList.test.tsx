@@ -316,8 +316,8 @@ describe("FileList", () => {
       const scrollEl = container.querySelector("div.overflow-auto") as HTMLDivElement;
       scrollEl.scrollTo = vi.fn();
 
-      frames.shift()?.(0);
-      frames.shift()?.(0);
+      // Other components may queue frames too; flush until layout settles.
+      for (let i = 0; i < 10 && frames.length; i += 1) frames.shift()?.(0);
 
       expect(scrollEl.scrollTo).toHaveBeenCalledWith({ top: 240, behavior: "auto" });
     } finally {

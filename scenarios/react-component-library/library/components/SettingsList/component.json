@@ -7,25 +7,28 @@
     "0.1.2",
     "0.1.3",
     "0.1.4",
-    "0.1.5"
+    "0.1.5",
+    "1.1.0",
+    "1.1.1",
+    "1.1.2",
+    "1.1.3"
   ],
+  "description": "Reusable settings list component implementation for the React component library.",
   "designStyles": [
     {
-      "styleId": "vrooli-default",
       "affinity": "native",
-      "reason": "token-native operational-console baseline"
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
     }
   ],
+  "displayName": "Settings List",
   "draft": "",
   "evictedVersions": [
-    "0.1.4",
-    "0.1.3",
-    "0.1.2",
-    "0.1.1",
-    "0.1.0",
-    "0.1.5",
+    "1.0.3",
+    "1.0.2",
     "0.1.6"
   ],
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:SettingsList"
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:SettingsList",
+  "tags": []
 }

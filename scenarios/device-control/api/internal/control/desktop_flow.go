@@ -28,7 +28,7 @@ func (p *desktopOwnerRPC) runFlow(ctx context.Context, r *connect.Request[deskto
 		return nil, ownerError(sessions.ErrDesktopAdmission)
 	}
 	source := request.Flow
-	flow := execution.Flow{ID: source.Id, Name: source.Name, Transport: source.Transport, RequireUnlocked: source.RequireUnlocked, AuthProfileID: source.AuthProfileId, AllowUnredactedCapture: source.AllowUnredactedCapture, MaxDurationMS: source.MaxDurationMs, RetryBudget: int(source.RetryBudget), ApplicationID: request.ApplicationId, ApplicationRevision: request.ApplicationRevision}
+	flow := execution.Flow{ID: source.Id, Name: source.Name, Transport: source.Transport, RequireUnlocked: source.RequireUnlocked, AuthProfileID: source.AuthProfileId, AllowUnredactedCapture: source.AllowUnredactedCapture, RedactSensitiveContent: source.RedactSensitiveContent, MaxDurationMS: source.MaxDurationMs, RetryBudget: int(source.RetryBudget), ApplicationID: request.ApplicationId, ApplicationRevision: request.ApplicationRevision}
 	for _, step := range source.Steps {
 		if step == nil {
 			return nil, ownerError(sessions.ErrDesktopAdmission)

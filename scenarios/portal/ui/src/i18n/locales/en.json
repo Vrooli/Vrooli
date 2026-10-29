@@ -58,17 +58,11 @@
     },
     "settings": {
       "title": "Integrations",
-      "description": "Portal measures optional dependencies from its own calls and uses those measurements to choose the active search behavior.",
+      "description": "What Portal uses, and whether each part is working. Portal keeps working when an optional part is off.",
       "overrideLabel": "Behavior override",
       "overrideAuto": "Auto",
       "overrideForceOff": "Force off",
       "overrideForcePassive": "Force passive",
-      "nameHeader": "Integration",
-      "stateHeader": "State",
-      "latencyHeader": "P95 latency",
-      "samplesHeader": "Samples",
-      "reasonHeader": "Reason",
-      "empty": "No integration measurements yet.",
       "error": "Unable to load integration status.",
       "profileTitle": "Deployment profile",
       "profileDescription": "Choose how Portal should connect. The endpoint is stored without credentials and optional providers never block the client profile.",
@@ -82,7 +76,76 @@
       "profileSaved": "Profile saved",
       "profileReady": "Ready",
       "missingCapabilities": "Missing capabilities: {{capabilities}}",
-      "profileInvalidEndpoint": "Enter an http(s) endpoint without credentials or query data."
+      "profileInvalidEndpoint": "Enter an http(s) endpoint without credentials or query data.",
+      "groups": {
+        "models": "AI models",
+        "apps": "Powered by other apps"
+      },
+      "statusLimited": "Slow or failing",
+      "problemOff": "{{name}} is off",
+      "problemLimited": "{{name}} is slow or failing",
+      "problemLimitedDescription": "Some requests are failing or slow. Portal keeps checking and recovers on its own.",
+      "problemGeneric": "{{name}} won't work until it's running.",
+      "items": {
+        "openrouter": {
+          "name": "AI chat",
+          "subtitle": "Chat with AI models",
+          "problem": "AI chat won't work until OpenRouter answers.",
+          "features": {
+            "chat": "Chat with AI models",
+            "web": "Web search in replies",
+            "models": "Choose a model per chat"
+          }
+        },
+        "agentManager": {
+          "name": "Agent chat",
+          "subtitle": "Chat with coding agents",
+          "problem": "Agent chat won't work until Agent Manager is running.",
+          "features": {
+            "chat": "Chat with coding agents",
+            "activity": "See what the agent is doing"
+          }
+        },
+        "searchHub": {
+          "name": "Search",
+          "subtitle": "Suggestions and results for your messages",
+          "problem": "Messages still send, without suggestions or search results.",
+          "features": {
+            "suggest": "Suggestions while you type",
+            "attach": "Search results added when you send"
+          }
+        },
+        "promptManager": {
+          "name": "Skills and context",
+          "subtitle": "Skills and context for your messages",
+          "problem": "Messages still send, without skills or context.",
+          "features": {
+            "skills": "Add skills to a message",
+            "brief": "Relevant context added for you"
+          }
+        },
+        "audioTools": {
+          "name": "Voice",
+          "subtitle": "Dictation and read-aloud",
+          "problem": "Dictation and read-aloud won't work until Audio Tools is running.",
+          "features": {
+            "dictate": "Dictate messages",
+            "readAloud": "Read replies aloud"
+          }
+        }
+      },
+      "searchModeLabel": "Search mode",
+      "searchModeHint": "Currently {{mode}}. Auto picks the best mode Portal can use right now.",
+      "facts": {
+        "id": "ID",
+        "health": "Health",
+        "latency": "Response time (95th percentile)",
+        "latencyValue": "{{ms}} ms",
+        "samples": "Checks measured",
+        "lastOk": "Last worked",
+        "command": "Start it with"
+      },
+      "profileGroup": "Connection"
     },
     "state": {
       "available": "available",
@@ -345,5 +408,26 @@
     "x": "X",
     "y": "Y",
     "height": "Height"
+  },
+  "integrationsOverview": {
+    "summaryAllReady": "All {total} ready",
+    "summarySomeReady": "{ready} of {total} ready",
+    "summaryChecking": "Checking…",
+    "summaryError": "Couldn't check what's connected",
+    "checkedAt": "Checked {time}",
+    "refresh": "Check again",
+    "refreshing": "Checking…",
+    "back": "Back",
+    "providedBy": "Provided by {provider}",
+    "statusReady": "Ready",
+    "statusLimited": "Limited",
+    "statusOff": "Off",
+    "statusMissing": "Not installed",
+    "statusChecking": "Checking",
+    "statusUnknown": "Unknown",
+    "featuresTitle": "What it adds to Portal",
+    "featureUnavailable": "Unavailable",
+    "technicalDetails": "Technical details",
+    "emptyGroup": "Nothing here yet."
   }
 }

@@ -15,7 +15,7 @@ import {
 } from "../../api/notifications";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import { Avatar } from "@vrooli/react-component-library/Avatar/1";
-import { SettingsToggle } from "./primitives";
+import { SettingsToggle, SettingsIntro } from "./primitives";
 import { AppNotificationSettings, type AppNotificationStrings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 
 const URGENCY_LADDER = ["low", "normal", "high", "critical"] as const;
@@ -40,6 +40,13 @@ function categoriesFor(source: NotificationSource, allLabel: string): Notificati
       default_min_urgency: "normal",
     },
   ];
+}
+
+/** A category the source never declared has no display name; show its key as words instead of a blank row. */
+function categoryLabel(category: NotificationCategory, allLabel: string): string {
+  if (category.display_name) return category.display_name;
+  const words = category.category.replace(/[._-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : allLabel;
 }
 
 /** Resolve the effective preference for a (source, category), falling back to declared defaults. */
@@ -203,7 +210,7 @@ export default function NotificationsSection({ open }: { open: boolean }) {
 
   return (
     <SettingsList>
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.notificationsSection.eyebrow)}
         title={t(strings.settings.notificationsSection.title)}
         description={t(strings.settings.notificationsSection.description)}
@@ -285,39 +292,43 @@ export default function NotificationsSection({ open }: { open: boolean }) {
               return (
                 <SettingsList.Row
                   key={`${source.source_scenario}:${category.category}`}
-                  label={category.display_name}
-                  hint={category.description || undefined}
+                  label={categoryLabel(category, allLabel)}
+                  hint={
+                    <div className="grid gap-2">
+                      {category.description ? <span>{category.description}</span> : null}
+                      {pref.enabled ? (
+                        <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
+                          {t(strings.settings.notificationsSection.minUrgencyLabel)}
+                          <select
+                            data-testid={`notification-urgency-${source.source_scenario}-${category.category}`}
+                            className="h-8 rounded-md border border-wc-default bg-wc-surface-input px-2 text-sm text-wc-text-primary"
+                            disabled={mutation.isPending}
+                            value={pref.min_urgency || "normal"}
+                            onChange={(e) => {
+                              mutation.mutate({ ...pref, min_urgency: e.target.value });
+                            }}
+                          >
+                            {URGENCY_LADDER.map((level) => (
+                              <option key={level} value={level}>
+                                {t(strings.settings.notificationsSection.urgency[level])}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
+                    </div>
+                  }
                   control="compact"
                 >
-                  <div className="flex items-end gap-3">
-                    <label className="flex flex-col gap-1 text-[11px] font-medium text-wc-text-secondary">
-                      {t(strings.settings.notificationsSection.minUrgencyLabel)}
-                    <select
-                      data-testid={`notification-urgency-${source.source_scenario}-${category.category}`}
-                      className="h-8 rounded-md border border-wc-default bg-transparent px-2 text-sm text-wc-text-primary"
-                      disabled={!pref.enabled || mutation.isPending}
-                      value={pref.min_urgency || "normal"}
-                      onChange={(e) => {
-                        mutation.mutate({ ...pref, min_urgency: e.target.value });
-                      }}
-                    >
-                      {URGENCY_LADDER.map((level) => (
-                        <option key={level} value={level}>
-                          {t(strings.settings.notificationsSection.urgency[level])}
-                        </option>
-                      ))}
-                    </select>
-                    </label>
-                    <SettingsToggle
-                      testId={`notification-enable-${source.source_scenario}-${category.category}`}
-                      ariaLabel={category.display_name}
-                      checked={pref.enabled}
-                      disabled={mutation.isPending}
-                      onCheckedChange={(enabled) => {
-                        mutation.mutate({ ...pref, enabled });
-                      }}
-                    />
-                  </div>
+                  <SettingsToggle
+                    testId={`notification-enable-${source.source_scenario}-${category.category}`}
+                    ariaLabel={categoryLabel(category, allLabel)}
+                    checked={pref.enabled}
+                    disabled={mutation.isPending}
+                    onCheckedChange={(enabled) => {
+                      mutation.mutate({ ...pref, enabled });
+                    }}
+                  />
                 </SettingsList.Row>
               );
             })}
@@ -325,20 +336,18 @@ export default function NotificationsSection({ open }: { open: boolean }) {
         ))
       )}
       {sources.length > 0 && hubLink.data ? (
-        <SettingsList.Group>
-          <div className="flex justify-center py-2">
-            <a
-              href={hubLink.data}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="notifications-open-hub-link"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-wc-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wc-accent rounded"
-            >
-              {t(strings.settings.notificationsSection.openHub)}
-              <ExternalLink className="h-3 w-3" aria-hidden="true" />
-            </a>
-          </div>
-        </SettingsList.Group>
+        <div className="flex justify-center">
+          <a
+            href={hubLink.data}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="notifications-open-hub-link"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-wc-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wc-accent rounded"
+          >
+            {t(strings.settings.notificationsSection.openHub)}
+            <ExternalLink className="h-3 w-3" aria-hidden="true" />
+          </a>
+        </div>
       ) : null}
     </SettingsList>
   );
@@ -361,9 +370,7 @@ function AppNotificationsGroup() {
   );
   return (
     <SettingsList.Group>
-      <div className="px-3 py-3">
-        <AppNotificationSettings showCategories={false} strings={translated} />
-      </div>
+      <AppNotificationSettings showCategories={false} strings={translated} />
     </SettingsList.Group>
   );
 }

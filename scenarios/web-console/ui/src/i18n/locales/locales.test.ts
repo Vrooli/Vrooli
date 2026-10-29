@@ -139,7 +139,8 @@ describe("locale catalogs", () => {
     expect(copy["app.title"]).toBe("Aquila");
     for (const key of [
       "banners.audioUnavailable.resolverNotConfigured",
-      "integrationsPanel.connectedScenariosDescription",
+      "integrationsPanel.overview.featuresTitle",
+      "settings.integrationsSection.description",
       "messagesPane.fileNotPreviewable",
       "messagesPane.state.unavailableBody",
       "terminalLauncher.codexSignInHint",

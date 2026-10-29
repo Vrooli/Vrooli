@@ -56,6 +56,7 @@ type Service struct {
 	runDevices          map[string]string
 	library             internalflows.Library
 	desktopRuns         internalflows.DesktopRuns
+	retainedRuns        internalflows.RetainedRuns
 	externalRecordings  map[string]externalRecording
 	auth                *authdomain.Store
 	stateEvents         *strategy.EventBus
@@ -71,10 +72,13 @@ type Service struct {
 }
 
 type externalRecording struct {
-	DeviceID string
-	Actor    string
-	Recorder strategy.SessionRecorder
-	Handle   strategy.RecordingHandle
+	DeviceID  string
+	Actor     string
+	Recorder  strategy.SessionRecorder
+	Handle    strategy.RecordingHandle
+	Stopping  bool
+	Uncertain bool
+	Recovered *ExternalRecordingResult
 }
 
 type interactivePairer interface {
@@ -331,6 +335,10 @@ func NewWithDB(registry *strategyregistry.Registry, db routedDB, roots ...*filer
 	if err != nil {
 		return nil, err
 	}
+	s.retainedRuns, err = internalflows.NewSQLiteRetainedRuns(context.Background(), db)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := db.ExecContext(context.Background(), `
 CREATE TABLE IF NOT EXISTS device_control_audits (
  id TEXT PRIMARY KEY, actor TEXT NOT NULL, device_id TEXT NOT NULL, transport TEXT NOT NULL DEFAULT '', causation_id TEXT NOT NULL DEFAULT '', lease_id TEXT NOT NULL,
@@ -532,6 +540,13 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 			combined.DisplayHeight = state.DisplayHeight
 			combined.DisplayDensity = state.DisplayDensity
 		}
+		if state.DreamState != "" && (combined.DreamState == "" || combined.DreamState == "unknown" && state.DreamState != "unknown") {
+			combined.DreamState = state.DreamState
+			combined.DreamComponent = state.DreamComponent
+			if state.DreamState != "unknown" {
+				delete(combined.Unavailable, "dream_state")
+			}
+		}
 		for name, value := range state.Properties {
 			candidateDescriptor := descriptorFor(profile.Properties, name)
 			currentDescriptor, already := propertySources[name]
@@ -561,6 +576,9 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 			}
 		}
 		for name, reason := range state.Unavailable {
+			if name == "dream_state" && combined.DreamState != "" && combined.DreamState != "unknown" {
+				continue
+			}
 			if _, available := combined.Properties[name]; !available {
 				combined.Unavailable[name] = reason
 			}

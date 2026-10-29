@@ -13,7 +13,7 @@ import {
 import type { TTSVoiceInfo } from "../../audio-integration";
 import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
-import { SettingsSlider, SettingsToggle } from "./primitives";
+import { SettingsSlider, SettingsToggle, SettingsIntro } from "./primitives";
 import { useSummarizeSettings } from "./useSummarizeSettings";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
@@ -192,7 +192,7 @@ export default function TtsSettingsSection() {
 
   return (
     <SettingsList>
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.voiceOutputSection.eyebrow)}
         title={t(strings.settings.voiceOutputSection.title)}
         description={t(strings.settings.voiceOutputSection.description)}

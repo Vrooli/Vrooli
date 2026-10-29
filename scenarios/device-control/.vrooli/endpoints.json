@@ -71,6 +71,162 @@
       }
     },
     {
+      "id": "flow_runs_live",
+      "path": "/api/v1/flows/runs",
+      "method": "GET",
+      "summary": "List process-local completed run IDs and active flow count",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "flow_run_cache_forget",
+      "path": "/api/v1/flows/runs/{id}/cache",
+      "method": "DELETE",
+      "summary": "Forget one completed process-local run cache entry",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "flow_runs_retained",
+      "path": "/api/v1/flows/retained",
+      "method": "GET",
+      "summary": "List explicitly retained run IDs",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "flow_run_retain",
+      "path": "/api/v1/flows/{id}/retained",
+      "method": "POST",
+      "summary": "Explicitly retain a completed run and flow",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "flow_run_retained_get",
+      "path": "/api/v1/flows/{id}/retained",
+      "method": "GET",
+      "summary": "Read a retained run and flow",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "flow_run_retained_delete",
+      "path": "/api/v1/flows/{id}/retained",
+      "method": "DELETE",
+      "summary": "Delete a retained run record",
+      "description": "",
+      "category": "flows",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "devices_list",
       "path": "/api/v1/devices",
       "method": "GET",

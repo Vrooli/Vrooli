@@ -55,17 +55,11 @@
     },
     "settings": {
       "title": "連携",
-      "description": "Portal は任意依存関係を自身の呼び出しで測定し、その測定値から有効な検索動作を選択します。",
+      "description": "Portal が使っているものと、それぞれが動いているかを表示します。オプションの部分が止まっていても Portal は動き続けます。",
       "overrideLabel": "動作の上書き",
       "overrideAuto": "自動",
       "overrideForceOff": "オフを強制",
       "overrideForcePassive": "パッシブを強制",
-      "nameHeader": "連携",
-      "stateHeader": "状態",
-      "latencyHeader": "P95 レイテンシ",
-      "samplesHeader": "サンプル",
-      "reasonHeader": "理由",
-      "empty": "連携測定はまだありません。",
       "error": "連携ステータスを読み込めません。",
       "profileTitle": "デプロイプロファイル",
       "profileDescription": "Portal の接続方法を選択します。エンドポイントは認証情報なしで保存され、任意のプロバイダーはクライアントプロファイルを停止しません。",
@@ -79,7 +73,76 @@
       "profileSaved": "プロファイルを保存しました",
       "profileReady": "準備完了",
       "missingCapabilities": "不足している機能: {{capabilities}}",
-      "profileInvalidEndpoint": "認証情報やクエリを含まない http(s) エンドポイントを入力してください。"
+      "profileInvalidEndpoint": "認証情報やクエリを含まない http(s) エンドポイントを入力してください。",
+      "groups": {
+        "models": "AI モデル",
+        "apps": "他のアプリによる機能"
+      },
+      "statusLimited": "遅延または失敗",
+      "problemOff": "{{name}} はオフです",
+      "problemLimited": "{{name}} が遅いか失敗しています",
+      "problemLimitedDescription": "一部のリクエストが失敗しているか遅れています。Portal は確認を続け、自動で回復します。",
+      "problemGeneric": "{{name}} は起動するまで使えません。",
+      "items": {
+        "openrouter": {
+          "name": "AI チャット",
+          "subtitle": "AI モデルとチャット",
+          "problem": "OpenRouter が応答するまで AI チャットは使えません。",
+          "features": {
+            "chat": "AI モデルとチャット",
+            "web": "返信でのウェブ検索",
+            "models": "チャットごとにモデルを選択"
+          }
+        },
+        "agentManager": {
+          "name": "エージェントチャット",
+          "subtitle": "コーディングエージェントとチャット",
+          "problem": "Agent Manager が起動するまでエージェントチャットは使えません。",
+          "features": {
+            "chat": "コーディングエージェントとチャット",
+            "activity": "エージェントの作業内容を表示"
+          }
+        },
+        "searchHub": {
+          "name": "検索",
+          "subtitle": "メッセージの候補と検索結果",
+          "problem": "メッセージは送信できますが、候補と検索結果は付きません。",
+          "features": {
+            "suggest": "入力中の候補",
+            "attach": "送信時に検索結果を追加"
+          }
+        },
+        "promptManager": {
+          "name": "スキルとコンテキスト",
+          "subtitle": "メッセージのスキルとコンテキスト",
+          "problem": "メッセージは送信できますが、スキルとコンテキストは付きません。",
+          "features": {
+            "skills": "メッセージにスキルを追加",
+            "brief": "関連するコンテキストを自動で追加"
+          }
+        },
+        "audioTools": {
+          "name": "音声",
+          "subtitle": "音声入力と読み上げ",
+          "problem": "Audio Tools が起動するまで音声入力と読み上げは使えません。",
+          "features": {
+            "dictate": "音声でメッセージを入力",
+            "readAloud": "返信を読み上げ"
+          }
+        }
+      },
+      "searchModeLabel": "検索モード",
+      "searchModeHint": "現在は{{mode}}です。自動では、今使える最適なモードを Portal が選びます。",
+      "facts": {
+        "id": "ID",
+        "health": "状態",
+        "latency": "応答時間（95パーセンタイル）",
+        "latencyValue": "{{ms}} ms",
+        "samples": "計測回数",
+        "lastOk": "最後に動作した時刻",
+        "command": "起動コマンド"
+      },
+      "profileGroup": "接続"
     },
     "state": {
       "available": "利用可能",
@@ -342,5 +405,26 @@
     "x": "X",
     "y": "Y",
     "height": "高さ"
+  },
+  "integrationsOverview": {
+    "summaryAllReady": "{total} 件すべて利用可能",
+    "summarySomeReady": "{total} 件中 {ready} 件が利用可能",
+    "summaryChecking": "確認中…",
+    "summaryError": "接続状況を確認できませんでした",
+    "checkedAt": "{time} に確認",
+    "refresh": "再確認",
+    "refreshing": "確認中…",
+    "back": "戻る",
+    "providedBy": "提供: {provider}",
+    "statusReady": "利用可能",
+    "statusLimited": "一部のみ",
+    "statusOff": "停止中",
+    "statusMissing": "未インストール",
+    "statusChecking": "確認中",
+    "statusUnknown": "不明",
+    "featuresTitle": "Portal に追加される機能",
+    "featureUnavailable": "利用不可",
+    "technicalDetails": "技術的な詳細",
+    "emptyGroup": "まだ何もありません。"
   }
 }

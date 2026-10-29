@@ -42,6 +42,7 @@ type proxyNative struct {
 	releases           atomic.Int32
 	effects            atomic.Int32
 	failAfterEffect    atomic.Bool
+	failRelease        atomic.Bool
 	failAtEffect       atomic.Int32
 	blockedObservation atomic.Pointer[proxyObservationGate]
 }
@@ -66,7 +67,13 @@ func (n *proxyNative) Apply(_ context.Context, command sessions.DesktopCommand) 
 	}
 	return nil
 }
-func (n *proxyNative) ReleaseHeld(context.Context) error { n.releases.Add(1); return nil }
+func (n *proxyNative) ReleaseHeld(context.Context) error {
+	n.releases.Add(1)
+	if n.failRelease.Load() {
+		return errors.New("release unavailable")
+	}
+	return nil
+}
 func (*proxyNative) VerifyWindowProcess(_ context.Context, window uint64, pid uint32) error {
 	if window != 42 || pid != uint32(os.Getpid()) {
 		return sessions.ErrDesktopAdmission
@@ -516,6 +523,29 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	require.Equal(t, releases+1, native.releases.Load())
 	require.Empty(t, svc.ListLiveSessions())
 	require.EqualValues(t, 5, native.effects.Load(), "discovery must not invoke native input")
+
+	// Failed native release revokes owner input but cannot be reported as
+	// completed cleanup. Exact historical receipts survive owner revocation.
+	refreshEpoch()
+	uncertain, err := client.Open(ctx, connect.NewRequest(&desktopv1.OwnerOpenRequest{Surface: surface.Proto(), Control: true, TtlSeconds: 60}))
+	require.NoError(t, err)
+	native.failRelease.Store(true)
+	t.Cleanup(func() { native.failRelease.Store(false) })
+	_, err = client.Stop(ctx, connect.NewRequest(&desktopv1.OwnerStopRequest{Session: uncertain.Msg.Session}))
+	require.Error(t, err)
+	require.Empty(t, svc.ListLiveSessions())
+	_, err = client.Observe(ctx, connect.NewRequest(&desktopv1.OwnerObserveRequest{Session: uncertain.Msg.Session}))
+	require.Error(t, err)
+	// Cross at least one maintenance tick while release remains failed.
+	time.Sleep(600 * time.Millisecond)
+	pending, err := client.ReadCleanup(ctx, connect.NewRequest(&desktopv1.OwnerStopRequest{Session: uncertain.Msg.Session}))
+	require.NoError(t, err)
+	require.False(t, pending.Msg.Released)
+	native.failRelease.Store(false)
+	require.NoError(t, controller.ReapExpired(ctx))
+	settled, err := client.ReadCleanup(ctx, connect.NewRequest(&desktopv1.OwnerStopRequest{Session: uncertain.Msg.Session}))
+	require.NoError(t, err)
+	require.True(t, settled.Msg.Released)
 }
 
 func (n *proxyNative) Applications(_ context.Context, leaseID string) (sessions.DesktopApplications, error) {

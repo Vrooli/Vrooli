@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -58,27 +59,60 @@ func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, l
 	return handle, nil
 }
 
-func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, leaseToken, handleID string) (ExternalRecordingResult, error) {
+func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, leaseToken, handleID string) (result ExternalRecordingResult, retErr error) {
 	if _, err := s.sessionForLease(ctx, deviceID, leaseToken); err != nil {
 		return ExternalRecordingResult{}, err
 	}
 	s.mu.Lock()
 	recording, ok := s.externalRecordings[handleID]
-	if ok {
-		delete(s.externalRecordings, handleID)
-	}
-	s.mu.Unlock()
 	if !ok || recording.DeviceID != deviceID {
+		s.mu.Unlock()
 		return ExternalRecordingResult{}, fmt.Errorf("recording %q is not active for device %q", handleID, deviceID)
 	}
+	if recording.Stopping || recording.Uncertain {
+		s.mu.Unlock()
+		if recording.Recovered != nil {
+			return *recording.Recovered, fmt.Errorf("recording %q stop outcome uncertain; automatic replay is unavailable", handleID)
+		}
+		return ExternalRecordingResult{}, fmt.Errorf("recording %q stop is in progress or its outcome uncertain; automatic replay is unavailable", handleID)
+	}
+	recording.Stopping = true
+	s.externalRecordings[handleID] = recording
+	s.mu.Unlock()
+	// The recorder can consume its native handle before returning an error.
+	// Keep that unresolved owner state and never replay an ambiguous stop.
+	defer func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if retErr == nil {
+			delete(s.externalRecordings, handleID)
+		} else {
+			recording.Stopping = false
+			recording.Uncertain = true
+			if result.Reference.ID != "" {
+				copy := result
+				recording.Recovered = &copy
+			}
+			s.externalRecordings[handleID] = recording
+		}
+	}()
 	if strings.TrimSpace(actor) == "" {
 		actor = recording.Actor
 	}
-	artifact, err := recording.Recorder.StopRecording(ctx, recording.Handle)
-	if err != nil {
-		return ExternalRecordingResult{}, err
+	artifact, stopErr := recording.Recorder.StopRecording(ctx, recording.Handle)
+	if stopErr != nil {
+		defer func() {
+			if !errors.Is(retErr, stopErr) {
+				retErr = errors.Join(retErr, fmt.Errorf("recording stop outcome uncertain: %w", stopErr))
+			}
+		}()
 	}
-	redacted, err := evidence.RedactCapture(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, false, actor)
+	if stopErr != nil && len(artifact.Bytes) == 0 {
+		return ExternalRecordingResult{}, fmt.Errorf("recording stop outcome uncertain: %w", stopErr)
+	}
+	// A recorder may produce an artifact and separately fail restoration. Use
+	// the normal evidence storage path before reporting both.
+	redacted, err := evidence.CaptureWithPolicy(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, false, false, actor, nil)
 	if err != nil {
 		return ExternalRecordingResult{}, fmt.Errorf("redact external recording: %w", err)
 	}
@@ -112,7 +146,11 @@ func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, le
 	if !filepath.IsAbs(path) {
 		return ExternalRecordingResult{}, fmt.Errorf("external recording path is not absolute")
 	}
-	return ExternalRecordingResult{Reference: ref, Path: path, StartOffset: 0, EndOffset: end}, nil
+	result = ExternalRecordingResult{Reference: ref, Path: path, StartOffset: 0, EndOffset: end}
+	if stopErr != nil {
+		return result, fmt.Errorf("recording stop outcome uncertain: %w", stopErr)
+	}
+	return result, nil
 }
 
 // FinalizeReviewRecording concatenates already-retained chapter recordings.
@@ -166,7 +204,7 @@ func (s *Service) FinalizeReviewRecording(ctx context.Context, deviceID, actor, 
 	if err != nil {
 		return ReviewRecordingResult{}, fmt.Errorf("read review recording: %w", err)
 	}
-	redacted, err := evidence.RedactCapture(combined, "video/mp4", evidence.DefaultPolicy, false, actor)
+	redacted, err := evidence.CaptureWithPolicy(combined, "video/mp4", evidence.DefaultPolicy, false, false, actor, nil)
 	if err != nil {
 		return ReviewRecordingResult{}, fmt.Errorf("redact review recording: %w", err)
 	}

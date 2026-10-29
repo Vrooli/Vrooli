@@ -669,7 +669,7 @@ HTTP hooks, conversation reads, search, ranges and cursor writes retain the requ
 | Component | Production | Test |
 |-----------|------------|------|
 | `useCapabilities` hook | Calls `fetchCapabilities` with 30s refetch | Mock `fetchCapabilities` via `globalThis.fetch` |
-| `IntegrationsPanel` | Renders capability cards with status icons, feature pills, diagnostic messages | `renderWithProviders` + mocked fetch |
+| `IntegrationsPanel` | Maps capabilities and connections onto RCL `IntegrationsOverview` (summary, fixes, grouped rows, detail views) | `renderWithProviders` + mocked fetch |
 
 **Benefits**: Unified view of all dependency health (Whisper, Kokoro, Ollama, OpenRouter) in one panel. No API injection seam needed — react-query's QueryClient injection in test-utils handles test isolation.
 
@@ -1341,7 +1341,7 @@ The API uses a hybrid organization:
 | AI provider failure | API log, `GET /api/v1/ai/health`, UI error in AiInput | Per-provider error count/rate; structured error with recovery hint |
 | Offline buffer overflow | API log (once per session) | `session %s: offline buffer full` — de-duplicated, one-shot |
 | Policy update failure | UI inline error banner in SessionDrawer | Red banner with recovery hint, auto-dismiss 5s |
-| Integrations panel failure | UI inline error in IntegrationsPanel | Red text with error message |
+| Integrations panel failure | Summary card in IntegrationsPanel | "Couldn't check what's connected" with the error and Check again; accounts still shown |
 | TTS backend decision | Settings -> Voice Output (TTS) | Active backend + `backendReason` |
 | Claude hook registration | Settings -> Voice Output (TTS), `GET /api/v1/tts/status` | `hookRegistered`, `hookReason`, settings file path |
 | Last auto-TTS delivery | Settings -> Voice Output (TTS), API logs | `lastDelivery` object + `tts-delivery:` log line |
@@ -1584,15 +1584,24 @@ the future web-console adopter will swap the local implementations for
   Commands are executed as argv, not shell strings. Resource/provider recovery
   remains with the owning scenario/provider lifecycle; audio internals belong
   to audio-tools.
-- **UI behaviour**: `IntegrationsPanel` groups entries by `dependencyKind`.
-  Scenario integrations render in the "Connected Scenarios" subsection with
-  typed reason/action guidance when unavailable. Backend-supported scenario
-  actions show explicit Start/Restart buttons with progress/result/error state
-  and refresh the capabilities query after completion. Operator-only states
-  show the command but no button. Resource capabilities (Ollama, OpenRouter,
-  and future local services) render in a separate "Local Resources" subsection.
-  Whisper, Kokoro, speaker verification, and other audio providers do not
-  appear as web-console-owned resources.
+- **UI behaviour**: `IntegrationsPanel` maps capabilities and managed
+  connections onto the shared RCL asset `IntegrationsOverview/1`, which owns
+  the layout: a "N of M ready" summary, each broken item under it with one
+  fix, grouped rows, and a detail view per row. Groups: Accounts (managed
+  connections), Coding agents (resources with an `operator_command` install
+  action), AI models (Ollama, OpenRouter), Powered by other apps (scenario
+  dependencies), Terminal sessions (session backends), and Other. Names,
+  one-line descriptions, problem text and feature names are Web Console copy
+  (`integrationsPanel.items.*`, `integrationsPanel.features.*`), never the
+  catalogue's developer description; catalogue messages, reason codes and
+  commands appear only under a detail view's "Technical details".
+  A fix is offered only when it can work: Start/Restart for a scenario that is
+  off, Install for a missing coding agent. A running service with some
+  features down is "Limited" and names the missing features, with no action,
+  because starting it again would not bring them back. Owner-guidance states
+  show their command in Technical details but no button. Whisper, Kokoro,
+  speaker verification, and other audio providers do not appear as
+  web-console-owned resources.
 - **Audio-tools entry**: registered today with `slug: "audio-tools"`. Its
   features list is the contract audio-tools fills:
   `voice-input`, `voice-streaming`, `voice-speaker-verification`,

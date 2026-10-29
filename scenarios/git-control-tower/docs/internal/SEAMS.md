@@ -337,14 +337,17 @@ When adding new behavior, verify:
 
 ## Integration presentation seam
 
-`SettingsTabIntegrations` maps repository-scoped HTTPS credentials and SSH
-metadata into the shared `IntegrationCard` while retaining repository and
-remote configuration in their dedicated settings surfaces. Credential actions
-remain repository-scoped and use the existing hooks; unsupported connection
-lifecycle operations are not invented by the UI. Runtime capability health is
-rendered separately, so repository credential state cannot be mistaken for a
-local dependency state. `SettingsModal.test.tsx` and `hooks-settings.test.tsx`
-cover the shared composition and credential mutation paths.
+`SettingsTabIntegrations` maps stored repository credentials and runtime
+capabilities into the shared `IntegrationsOverview`: a ready summary, one
+attention card per app that is off, grouped rows, and a detail view per row.
+Repository and remote configuration stay in their dedicated settings surfaces.
+A remote with nothing stored (the API's `origin` placeholder) uses the host's
+own Git login, so it is a group note, not a problem. Git Control Tower cannot
+start other scenarios, so no fix action is offered; the detail view's technical
+details show the `vrooli scenario start` command instead. Credential test and
+remove stay repository-scoped and use the existing hooks; unsupported connection
+lifecycle operations are not invented by the UI. `SettingsModal.test.tsx` and
+`hooks-settings.test.tsx` cover the composition and credential mutation paths.
 
 ## Outgoing-history safety and isolated recovery
 

@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { selectors } from "../consts/selectors";
 
 type Action = { key?: string; text?: string; media?: string; property?: string; value?: unknown };
-type CapturedFrame = { id: string; created_at: string };
-type PanelProps = { device: Device; state: DeviceState; refresh: () => Promise<void>; act: (action: Action, capability: string) => Promise<void>; capture: () => Promise<CapturedFrame> };
+type CapturedFrame = { id: string; created_at: string; redaction_verified: boolean; applied_rules?: string[]; opted_out?: boolean };
+type PanelProps = { device: Device; state: DeviceState; refresh: () => Promise<void>; act: (action: Action, capability: string) => Promise<void>; capture: (redactSensitive: boolean) => Promise<CapturedFrame> };
 
 function capabilities(device: Device): Capability[] {
   const fromTransports = (device.transports ?? []).flatMap((transport) => Object.values(transport.capabilities ?? {}));
@@ -31,15 +31,27 @@ function LiveViewPanel({ capture }: PanelProps) {
   const [frame, setFrame] = useState<CapturedFrame>();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
+  const [redactSensitive, setRedactSensitive] = useState(false);
   const observe = async () => {
     setBusy(true); setFailure("");
-    try { setFrame(await capture()); } catch (cause) { setFailure(cause instanceof Error ? cause.message : "Capture failed"); }
+    try { setFrame(await capture(redactSensitive)); } catch (cause) { setFailure(cause instanceof Error ? cause.message : "Capture failed"); }
     finally { setBusy(false); }
   };
-  return <Card data-testid={selectors.pages.deviceLiveView}><CardHeader><CardTitle>Device screen</CardTitle></CardHeader><CardContent className="space-y-3"><p>Capture a redacted frame to verify what is visible.</p><Button disabled={busy} onClick={observe}>{busy ? "Capturing…" : "Capture screen"}</Button>{failure && <p role="alert">{failure}</p>}{frame && <figure><img className="w-full rounded-md" src={evidenceUrl(frame.id)} alt="Captured device screen" /><figcaption>Captured {new Date(frame.created_at).toLocaleTimeString()} · still image</figcaption></figure>}</CardContent></Card>;
+  return <Card data-testid={selectors.pages.deviceLiveView}><CardHeader><CardTitle>Device screen</CardTitle></CardHeader><CardContent className="space-y-3"><p>Local screen captures are unredacted by default. Optional redaction applies configured image regions and does not classify all screen content.</p><label className="flex items-center gap-2"><input type="checkbox" aria-label="Apply configured redaction" checked={redactSensitive} onChange={(event) => setRedactSensitive(event.currentTarget.checked)} />Apply configured redaction</label><Button disabled={busy} onClick={() => void observe()}>{busy ? "Capturing…" : "Capture screen"}</Button>{failure && <p role="alert">{failure}</p>}{frame && <figure><img className="w-full rounded-md" src={evidenceUrl(frame.id)} alt="Device screen capture" /><figcaption>{frame.redaction_verified ? `Redacted per configured rules: ${(frame.applied_rules ?? []).join(", ")}` : `Unredacted · ${(frame.applied_rules ?? ["redaction_not_requested", "content_classification_not_performed"]).join(", ")} · ${new Date(frame.created_at).toLocaleTimeString()}`}</figcaption></figure>}</CardContent></Card>;
 }
 function SensorPanel({ state }: PanelProps) { return <Card data-testid={selectors.pages.deviceSensorPanel}><CardHeader><CardTitle>Sensors</CardTitle></CardHeader><CardContent>{Object.entries(state.properties ?? {}).map(([name, value]) => <p key={name}>{name}: {String(value.value)}</p>)}</CardContent></Card>; }
 function LogPanel({ state }: PanelProps) { return <Card data-testid={selectors.pages.deviceLogPanel}><CardHeader><CardTitle>Capability diagnostics</CardTitle></CardHeader><CardContent><pre>{JSON.stringify(state.unavailable ?? {}, null, 2)}</pre></CardContent></Card>; }
+
+function DeviceStatePanel({ state }: { state: DeviceState }) {
+  const rows = [
+    ["Foreground", state.foreground_package || "unknown"],
+    ["Screen", state.screen_state || "unknown"],
+    ["Lock", state.lock_state || "unknown"],
+    ["Android dream service", state.dream_state || "unknown"],
+    ...(state.dream_component ? [["Dream component", state.dream_component]] : []),
+  ];
+  return <Card role="region" aria-label="Current device state"><CardHeader><CardTitle>Current device state</CardTitle></CardHeader><CardContent><dl className="grid grid-cols-2 gap-2">{rows.map(([label, value]) => <div key={label}><dt className="text-sm text-app-muted-foreground">{label}</dt><dd>{value}</dd></div>)}</dl></CardContent></Card>;
+}
 
 function Panels(props: PanelProps) {
   const { device } = props;
@@ -138,14 +150,14 @@ function DeviceDetail({ deviceId }: { deviceId: string }) {
     actionQueue.current = operation;
     return operation;
   };
-  const capture = () => {
+  const capture = (redactSensitive = false) => {
     const operation = actionQueue.current.then(async () => {
       if (!isActive()) throw new Error("Device view closed");
       const lease = await getLease();
       const transport = device && transportFor(device, "screenshot");
       if (!transport) throw new Error("No healthy transport supports capture");
       if (!isActive()) throw new Error("Device view closed");
-      const result = await runFlow(deviceId, "browser-operator", lease.lease_token ?? "", { id: "operator-frame", transport: transport === "default" ? undefined : transport, max_duration_ms: 15000, require_unlocked: true, steps: [{ id: "screen", kind: "observe" }] });
+      const result = await runFlow(deviceId, "browser-operator", lease.lease_token ?? "", { id: "operator-frame", transport: transport === "default" ? undefined : transport, max_duration_ms: 15000, require_unlocked: true, redact_sensitive_content: redactSensitive, steps: [{ id: "screen", kind: "observe" }] });
       if (result.disposition !== "passed" || !result.evidence?.[0]) throw new Error(result.chapters?.find((chapter) => chapter.disposition !== "passed")?.message ?? "No verified frame returned");
       return result.evidence[0];
     });
@@ -166,6 +178,7 @@ function DeviceDetail({ deviceId }: { deviceId: string }) {
     {actionError && <p role="alert">{actionError}</p>}
     {pendingActions > 0 && <p role="status">Sending control…</p>}
     {session?.id === ownedLease.current?.id && session && <Button onClick={endControl}>End control session</Button>}
+    {!unreachable && <DeviceStatePanel state={state} />}
     {!unreachable && <Panels device={device} state={state} refresh={load} act={act} capture={capture} />}
     <Card data-testid={selectors.pages.deviceCapabilityMatrix}><CardHeader><CardTitle>Capabilities</CardTitle></CardHeader><CardContent><table className="w-full text-left"><tbody>{rows.map((capability) => <tr key={`${capability.name}-${capability.status}`}><td>{capability.name}</td><td data-testid={selectors.pages.capabilityDisposition}>{capability.status}</td><td data-testid={selectors.pages.capabilityReason}>{capability.status === "available" ? "Ready" : capability.prerequisite || capability.reason || capability.next_action || "Unavailable"}{capability.status === "unsupported" && <span data-testid={selectors.pages.unsupportedReason} className="sr-only">{capability.reason || "Unsupported"}</span>}</td></tr>)}</tbody></table></CardContent></Card>
     <Card data-testid={selectors.pages.deviceStrategySelection}><CardHeader><CardTitle>{device.strategy_id || "Selected strategy"}</CardTitle></CardHeader><CardContent data-testid={selectors.pages.deviceStrategyRationale}>Capabilities determine the control panels; transport health and prerequisites are shown below.</CardContent></Card>

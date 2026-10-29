@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@vrooli/api-base/testing";
 import IntegrationsPanel from "../components/IntegrationsPanel";
-import { strings } from "../consts/strings";
 import { i18n } from "../i18n";
-import type { CapabilitiesResponse } from "../api/capabilities";
+import type { CapabilitiesResponse, CapabilityState } from "../api/capabilities";
+import type { ManagedConnection } from "../api/monetization";
 
 vi.mock("@vrooli/api-base", () => ({
   resolveApiBase: () => "http://localhost:4200/api/v1",
@@ -13,555 +13,412 @@ vi.mock("@vrooli/api-base", () => ({
   createScenarioConnectTransport: () => ({}),
 }));
 
-const { mockFetchCapabilities, mockRunCapabilityAction, mockGetConnections, mockGetCommercialContext } = vi.hoisted(() => ({
-  mockFetchCapabilities: vi.fn(),
-  mockRunCapabilityAction: vi.fn(),
-  mockGetConnections: vi.fn(),
-  mockGetCommercialContext: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  fetchCapabilities: vi.fn(),
+  runCapabilityAction: vi.fn(),
+  getConnections: vi.fn(),
+  getCommercialContext: vi.fn(),
+  testOpenRouterKey: vi.fn(),
+  removeOpenRouterKey: vi.fn(),
+  fetchScenarioLink: vi.fn(),
+  getWebAccessToken: vi.fn(),
 }));
 
 vi.mock("../api/capabilities", () => ({
-  fetchCapabilities: mockFetchCapabilities,
-  runCapabilityAction: mockRunCapabilityAction,
+  fetchCapabilities: mocks.fetchCapabilities,
+  runCapabilityAction: mocks.runCapabilityAction,
 }));
 
-vi.mock("../api/monetization", () => ({
-  getConnections: mockGetConnections,
-  getCommercialContext: mockGetCommercialContext,
-  testOpenRouterKey: vi.fn(),
-  removeOpenRouterKey: vi.fn(),
-}));
+vi.mock("../api/monetization", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/monetization")>();
+  return {
+    ...actual,
+    getConnections: mocks.getConnections,
+    getCommercialContext: mocks.getCommercialContext,
+    testOpenRouterKey: mocks.testOpenRouterKey,
+    removeOpenRouterKey: mocks.removeOpenRouterKey,
+  };
+});
 
-const mockCapabilities: CapabilitiesResponse = {
+vi.mock("../api/notifications", () => ({ fetchScenarioLink: mocks.fetchScenarioLink }));
+vi.mock("../lib/auth", () => ({ getWebAccessToken: mocks.getWebAccessToken }));
+
+function cap(overrides: Partial<CapabilityState> & Pick<CapabilityState, "id">): CapabilityState {
+  return {
+    name: overrides.id,
+    description: "",
+    dependencyKind: "resource",
+    dependencySlug: overrides.id,
+    features: [],
+    status: "available",
+    ...overrides,
+  };
+}
+
+const audioTools = cap({
+  id: "audio-tools",
+  name: "audio-tools",
+  description: "All audio capabilities flow through audio-tools via audioports.Remote*.",
+  dependencyKind: "scenario",
+  features: ["voice-input", "voice-streaming"],
+  message: "scenario is healthy",
+  // The catalogue always carries the remedy; it must not be offered while healthy.
+  actionKind: "scenario_start",
+  actionLabel: "Start Audio Tools",
+  operatorCommand: "vrooli scenario start audio-tools --json",
+  checkedAt: "2026-03-17T00:00:00Z",
+});
+const bridgeOff = cap({
+  id: "vrooli-bridge",
+  name: "Remote Terminals",
+  dependencyKind: "scenario",
+  status: "unavailable",
+  message: "Bridge URL is not configured",
+  reasonCode: "bridge_url_missing",
+  actionKind: "scenario_start",
+  actionLabel: "Start Bridge",
+  operatorCommand: "vrooli scenario start vrooli-bridge --json",
+});
+const openrouterOff = cap({
+  id: "openrouter",
+  status: "unavailable",
+  message: "OPENROUTER_API_KEY not configured",
+  actionKind: "owner_guidance",
+  actionLabel: "Review dependency health",
+});
+const claude = cap({ id: "claude", name: "Claude Code", message: "2.1.312 (Claude Code)", actionKind: "operator_command", actionLabel: "Install Claude Code" });
+const grokMissing = cap({ id: "grok", name: "Grok", status: "unavailable", message: "grok not found", actionKind: "operator_command", actionLabel: "Install Grok" });
+
+const catalogue: CapabilitiesResponse = {
   capabilities: [
-    {
-      id: "audio-tools",
-      name: "Audio Tools",
-      description: "Shared audio capability scenario",
-      dependencyKind: "scenario",
-      dependencySlug: "audio-tools",
-      features: ["voice-input", "voice-streaming"],
-      status: "available",
-      message: "scenario is healthy",
-      checkedAt: "2026-03-17T00:00:00Z",
-    },
-    {
-      id: "ollama",
-      name: "Ollama",
-      description: "Local LLM inference for AI command generation",
-      dependencyKind: "resource",
-      dependencySlug: "ollama",
-      features: ["ai-command-generation"],
-      status: "available",
-    },
-    {
-      id: "openrouter",
-      name: "OpenRouter",
-      description: "Cloud LLM API for AI command generation",
-      dependencyKind: "resource",
-      dependencySlug: "openrouter",
-      features: ["ai-command-generation"],
-      status: "unavailable",
-      message: "OPENROUTER_API_KEY not configured",
-    },
-    {
-      id: "session-backend-standard",
-      name: "Standard Terminal Sessions",
-      description: "Local PTY terminal sessions",
-      dependencyKind: "resource",
-      dependencySlug: "session-backend-standard",
-      features: [],
-      status: "available",
-    },
-    {
-      id: "session-backend-persistent",
-      name: "Persistent Terminal Sessions",
-      description: "tmux-backed terminal sessions",
-      dependencyKind: "resource",
-      dependencySlug: "session-backend-persistent",
-      features: [],
-      status: "available",
-    },
-    {
-      id: "vrooli-bridge",
-      name: "Remote Terminals",
-      description: "Bridged terminal sessions on registered nodes",
-      dependencyKind: "scenario",
-      dependencySlug: "vrooli-bridge",
-      features: [],
-      status: "unavailable",
-      message: "Bridge URL is not configured",
-      reasonCode: "bridge_url_missing",
-      actionKind: "scenario_start",
-      actionLabel: "Start Bridge",
-      operatorCommand: "vrooli scenario start vrooli-bridge --json",
-    },
+    audioTools,
+    bridgeOff,
+    cap({ id: "ollama", message: "Ollama is running" }),
+    openrouterOff,
+    cap({ id: "session-backend-standard", message: "available" }),
+    cap({ id: "session-backend-persistent", message: "available" }),
+    claude,
+    grokMissing,
   ],
   timestamp: "2026-03-17T00:00:00Z",
 };
 
-beforeEach(() => {
-  mockFetchCapabilities.mockReset();
-  mockRunCapabilityAction.mockReset();
-  mockGetConnections.mockReset();
-  mockGetCommercialContext.mockReset();
-  mockGetConnections.mockResolvedValue({ connections: [] });
+const openrouterAccount: ManagedConnection = {
+  id: "conn-1",
+  provider: "openrouter",
+  connection_name: "OpenRouter",
+  account_label: "API key",
+  status: "connected",
+  scopes: ["models"],
+  supported_actions: ["test", "delete"],
+};
+
+const summary = () => document.querySelector("[data-rcl-integrations-summary-title]")?.textContent;
+
+function groupNamed(label: string): HTMLElement {
+  const heading = screen.getByText(label, { selector: "[data-rcl-settings-group-label]" });
+  const group = heading.closest("[data-rcl-settings-group]");
+  if (!(group instanceof HTMLElement)) throw new Error(`no group ${label}`);
+  return group;
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage("en");
+  for (const mock of Object.values(mocks)) mock.mockReset();
+  mocks.getConnections.mockResolvedValue({ connections: [] });
+  mocks.fetchScenarioLink.mockResolvedValue("");
+  mocks.getWebAccessToken.mockReturnValue(null);
 });
 
 describe("IntegrationsPanel", () => {
-  it("renders configured connections with lifecycle actions separately from runtime health", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    mockGetConnections.mockResolvedValue({
-      connections: [{
-        id: "vrooli/openrouter",
-        provider: "OpenRouter",
-        connection_name: "OpenRouter API credential",
-        account_label: "OpenRouter",
-        status: "connected",
-        scopes: ["models"],
-        last_verified_at: "2026-03-17T00:00:00Z",
-        freshness: "fresh",
-        bindings: ["ai-command-generation"],
-        next_action: "Manage this credential in Account settings.",
-        supported_actions: ["test", "delete"],
-      }],
-    });
+  it("does not fetch while the tab is closed", () => {
+    renderWithProviders(<IntegrationsPanel open={false} />);
+    expect(mocks.fetchCapabilities).not.toHaveBeenCalled();
+    expect(mocks.getConnections).not.toHaveBeenCalled();
+  });
 
+  it("shows the first check as in progress", () => {
+    mocks.fetchCapabilities.mockReturnValue(new Promise(() => undefined));
+    renderWithProviders(<IntegrationsPanel open />);
+    expect(summary()).toBe("Checking…");
+  });
+
+  it("summarises what is ready and groups everything by what it is for", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
 
-    expect(await screen.findByText("OpenRouter API credential")).toBeInTheDocument();
-    expect(screen.getByText("models")).toBeInTheDocument();
-    expect(screen.getByText(strings.integrationsPanel.testConnection)).toBeInTheDocument();
-    expect(screen.getByText(strings.integrationsPanel.removeConnection)).toBeInTheDocument();
-    expect(screen.getByTestId("integrations-group-resources")).toBeInTheDocument();
+    await waitFor(() => { expect(summary()).toBe("5 of 8 ready"); });
+    expect(within(groupNamed("Powered by other apps")).getByText("Voice")).toBeInTheDocument();
+    expect(within(groupNamed("Powered by other apps")).getByText("Remote terminals")).toBeInTheDocument();
+    expect(within(groupNamed("AI models")).getByText("Ollama")).toBeInTheDocument();
+    expect(within(groupNamed("Terminal sessions")).getByText("Persistent")).toBeInTheDocument();
+    expect(within(groupNamed("Coding agents")).getByText("Claude Code")).toBeInTheDocument();
+    expect(within(groupNamed("Accounts")).getByText("No accounts connected yet.")).toBeInTheDocument();
   });
 
-  it("does not render lifecycle controls that the owner does not advertise", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    mockGetConnections.mockResolvedValue({
-      connections: [{
-        id: "vrooli/openrouter",
-        provider: "OpenRouter",
-        connection_name: "Managed connection",
-        status: "connected",
-        supported_actions: ["refresh"],
-      }],
-    });
-
+  it("describes services in plain words instead of their catalogue text", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
 
-    expect(await screen.findByText("Managed connection")).toBeInTheDocument();
-    expect(screen.queryByText(strings.integrationsPanel.testConnection)).not.toBeInTheDocument();
-    expect(screen.queryByText(strings.integrationsPanel.removeConnection)).not.toBeInTheDocument();
+    expect(await screen.findByText("Dictation, read-aloud and wake word")).toBeInTheDocument();
+    expect(screen.queryByText(/audioports\.Remote/)).not.toBeInTheDocument();
+    expect(screen.queryByText("scenario is healthy")).not.toBeInTheDocument();
   });
 
-  it("shows loading state while fetching", () => {
-    mockFetchCapabilities.mockReturnValue(new Promise(() => {}));
-    renderWithProviders(<IntegrationsPanel open={true} />);
-    expect(screen.getByText(strings.integrationsPanel.checking)).toBeTruthy();
+  it("shows an installed agent's version", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    renderWithProviders(<IntegrationsPanel open />);
+    expect(await screen.findByText("Version 2.1.312")).toBeInTheDocument();
   });
 
-  it("shows error state when fetch fails", async () => {
-    await i18n.changeLanguage("en");
-    mockFetchCapabilities.mockRejectedValue(new Error("Server error"));
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Failed to load integrations/)).toBeTruthy();
-    });
-  });
-
-  it("keeps connected accounts visible when runtime health fails", async () => {
-    await i18n.changeLanguage("en");
-    mockFetchCapabilities.mockRejectedValue(new Error("Runtime registry unavailable"));
-    mockGetConnections.mockResolvedValue({
-      connections: [{
-        id: "vrooli/openrouter",
-        provider: "OpenRouter",
-        connection_name: "Managed connection",
-        status: "connected",
-        supported_actions: [],
-      }],
-    });
-
+  it("lists each broken service with its fix, and offers no fix it cannot run", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
 
-    expect(await screen.findByText("Managed connection")).toBeInTheDocument();
-    expect(screen.getByTestId("runtime-dependencies")).toHaveTextContent("Failed to load integrations");
+    expect(await screen.findByText("Remote terminals are off")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start Bridge" })).toBeInTheDocument();
+    expect(screen.getByText("OpenRouter isn't set up")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Review dependency health" })).not.toBeInTheDocument();
   });
 
-  it("renders all capability cards", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      for (const capability of mockCapabilities.capabilities) {
-        expect(screen.getByTestId(`cap-card-${capability.id}`)).toBeTruthy();
-      }
-    });
-  });
-
-  it("keeps connected accounts visibly separate from runtime health", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    expect(await screen.findByTestId("connected-accounts")).toBeInTheDocument();
-    expect(screen.getByTestId("integrations-group-scenarios")).toBeInTheDocument();
-    expect(screen.getByTestId("integrations-group-resources")).toBeInTheDocument();
-    expect(screen.getByTestId("needs-attention")).toBeInTheDocument();
-  });
-
-  it("prioritizes recovery guidance before account and runtime details", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
+  it("does not offer to start a service that is already running", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
     renderWithProviders(<IntegrationsPanel open />);
-
-    const panel = await screen.findByTestId("needs-attention");
-    const accounts = screen.getByTestId("connected-accounts");
-    expect(panel.compareDocumentPosition(accounts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByText("Voice");
+    expect(screen.queryByRole("button", { name: "Start Audio Tools" })).not.toBeInTheDocument();
   });
 
-  it("does not infer a connected account from an available runtime capability", async () => {
-    mockFetchCapabilities.mockResolvedValue({
-      capabilities: [mockCapabilities.capabilities[0]!],
-      timestamp: mockCapabilities.timestamp,
-    });
-
-    renderWithProviders(<IntegrationsPanel open />);
-
-    expect(await screen.findByText(strings.integrationsPanel.noProviderAccounts)).toBeInTheDocument();
-    expect(screen.getByTestId("connected-accounts")).toBeInTheDocument();
-    expect(screen.queryByText("OpenRouter API credential")).not.toBeInTheDocument();
-  });
-
-  it("shows correct active count", async () => {
-    await i18n.changeLanguage("en");
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("4/6 active")).toBeTruthy();
-    });
-  });
-
-  it("shows diagnostic messages", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByText("OPENROUTER_API_KEY not configured")).toBeTruthy();
-      expect(screen.getByText("Bridge URL is not configured")).toBeTruthy();
-    });
-  });
-
-  it("shows typed reason and safe operator command metadata", async () => {
-    mockFetchCapabilities.mockResolvedValue({
-      ...mockCapabilities,
-      capabilities: [
-        {
-          id: "audio-tools",
-          name: "Audio Tools",
-          description: "Shared audio capability scenario",
-          dependencyKind: "scenario",
-          dependencySlug: "audio-tools",
-          features: ["voice-input"],
-          status: "unavailable",
-          message: "scenario is installed but stopped",
-          reasonCode: "scenario_stopped",
-          actionKind: "scenario_start",
-          actionLabel: "Start scenario",
-          operatorCommand: "vrooli scenario start audio-tools --json",
-        },
-      ],
-    });
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("cap-reason-audio-tools").textContent).toContain("scenario_stopped");
-      expect(screen.getByTestId("cap-action-audio-tools").textContent).toContain("Start scenario");
-      expect(screen.getByTestId("cap-command-audio-tools").textContent).toContain(
-        "vrooli scenario start audio-tools --json",
-      );
-    });
-  });
-
-  it("runs a supported scenario action and refreshes capabilities", async () => {
-    await i18n.changeLanguage("en");
-    const stopped: CapabilitiesResponse = {
-      capabilities: [
-        {
-          id: "audio-tools",
-          name: "Audio Tools",
-          description: "Shared audio capability scenario",
-          dependencyKind: "scenario",
-          dependencySlug: "audio-tools",
-          features: ["voice-input"],
-          status: "unavailable",
-          message: "scenario is installed but stopped",
-          reasonCode: "scenario_stopped",
-          actionKind: "scenario_start",
-          actionLabel: "Start scenario",
-          operatorCommand: "vrooli scenario start audio-tools --json",
-        },
-      ],
-      timestamp: "2026-03-17T00:00:00Z",
-    };
-    const stoppedCap = stopped.capabilities[0];
-    if (!stoppedCap) throw new Error("test fixture missing capability");
-    const refreshed: CapabilitiesResponse = {
-      capabilities: [
-        {
-          ...stoppedCap,
-          status: "available",
-          message: "scenario is healthy",
-          reasonCode: undefined,
-          actionKind: undefined,
-          actionLabel: undefined,
-          operatorCommand: undefined,
-        },
-      ],
-      timestamp: "2026-03-17T00:01:00Z",
-    };
-    mockFetchCapabilities.mockResolvedValue(refreshed);
-    mockFetchCapabilities.mockResolvedValueOnce(stopped);
-    mockRunCapabilityAction.mockResolvedValue({
+  it("starts a stopped service and shows the result", async () => {
+    const running = { ...catalogue, capabilities: catalogue.capabilities.map((c) => (c.id === "vrooli-bridge" ? { ...c, status: "available" as const, message: "Bridge is ready" } : c)), timestamp: "2026-03-17T00:01:00Z" };
+    mocks.fetchCapabilities.mockResolvedValueOnce(catalogue).mockResolvedValue(running);
+    mocks.runCapabilityAction.mockResolvedValue({
       success: true,
       status: "healthy",
-      message: "lifecycle action completed",
-      capabilityId: "audio-tools",
+      message: "",
+      capabilityId: "vrooli-bridge",
       actionKind: "scenario_start",
-      capabilities: refreshed.capabilities,
-      timestamp: refreshed.timestamp,
+      capabilities: running.capabilities,
+      timestamp: running.timestamp,
     });
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    const button = await screen.findByTestId("cap-run-action-audio-tools");
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(mockRunCapabilityAction).toHaveBeenCalledWith("audio-tools", "scenario_start");
-      expect(screen.getByTestId("cap-action-result-audio-tools").textContent).toContain(
-        "lifecycle action completed",
-      );
-      expect(screen.getByText("scenario is healthy")).toBeTruthy();
-    });
-  });
-
-  it("shows action failure when the delegated lifecycle call fails", async () => {
-    await i18n.changeLanguage("en");
-    mockFetchCapabilities.mockResolvedValue({
-      capabilities: [
-        {
-          id: "audio-tools",
-          name: "Audio Tools",
-          description: "Shared audio capability scenario",
-          dependencyKind: "scenario",
-          dependencySlug: "audio-tools",
-          features: ["voice-input"],
-          status: "unavailable",
-          message: "scenario start failed",
-          reasonCode: "scenario_start_failed",
-          actionKind: "scenario_restart",
-          actionLabel: "Restart scenario",
-          operatorCommand: "vrooli scenario restart audio-tools --json",
-        },
-      ],
-      timestamp: "2026-03-17T00:00:00Z",
-    });
-    mockRunCapabilityAction.mockRejectedValue(new Error("wait timed out"));
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    const button = await screen.findByTestId("cap-run-action-audio-tools");
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("cap-action-error-audio-tools").textContent).toContain("wait timed out");
-    });
-  });
-
-  it("normalizes a non-Error action rejection for the operator", async () => {
-    await i18n.changeLanguage("en");
-    mockFetchCapabilities.mockResolvedValue({
-      capabilities: [{
-        id: "audio-tools",
-        name: "Audio Tools",
-        description: "Shared audio capability scenario",
-        dependencyKind: "scenario",
-        dependencySlug: "audio-tools",
-        features: [],
-        status: "unavailable",
-        actionKind: "scenario_start",
-        actionLabel: "Start scenario",
-      }],
-      timestamp: "2026-03-17T00:00:00Z",
-    });
-    mockRunCapabilityAction.mockRejectedValue("bridge returned a non-error failure");
     renderWithProviders(<IntegrationsPanel open />);
 
-    fireEvent.click(await screen.findByTestId("cap-run-action-audio-tools"));
-    await waitFor(() => {
-      expect(screen.getByTestId("cap-action-error-audio-tools")).toHaveTextContent("bridge returned a non-error failure");
-    });
+    fireEvent.click(await screen.findByRole("button", { name: "Start Bridge" }));
+
+    await waitFor(() => { expect(mocks.runCapabilityAction).toHaveBeenCalledWith("vrooli-bridge", "scenario_start"); });
+    await waitFor(() => { expect(screen.queryByText("Remote terminals are off")).not.toBeInTheDocument(); });
+    expect(within(groupNamed("Powered by other apps")).getByText("Done.")).toBeInTheDocument();
   });
 
-  it("shows unsuccessful lifecycle results returned by the backend", async () => {
-    await i18n.changeLanguage("en");
-    const stopped: CapabilitiesResponse = {
-      capabilities: [
-        {
-          id: "audio-tools",
-          name: "Audio Tools",
-          description: "Shared audio capability scenario",
-          dependencyKind: "scenario",
-          dependencySlug: "audio-tools",
-          features: ["voice-input"],
-          status: "unavailable",
-          message: "scenario is installed but stopped",
-          reasonCode: "scenario_stopped",
-          actionKind: "scenario_start",
-          actionLabel: "Start scenario",
-          operatorCommand: "vrooli scenario start audio-tools --json",
-        },
-      ],
-      timestamp: "2026-03-17T00:00:00Z",
-    };
-    mockFetchCapabilities.mockResolvedValue(stopped);
-    mockRunCapabilityAction.mockResolvedValue({
+  it("explains a failed start", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.runCapabilityAction.mockRejectedValue(new Error("wait timed out"));
+    renderWithProviders(<IntegrationsPanel open />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Start Bridge" }));
+    expect(await screen.findByText("That didn't work: wait timed out")).toBeInTheDocument();
+  });
+
+  it("explains an unsuccessful result the service reports", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.runCapabilityAction.mockResolvedValue({
       success: false,
       status: "failed",
-      message: "lifecycle wait failed: timeout",
-      capabilityId: "audio-tools",
+      message: "scenario did not become healthy",
+      capabilityId: "vrooli-bridge",
       actionKind: "scenario_start",
-      capabilities: stopped.capabilities,
-      timestamp: "2026-03-17T00:01:00Z",
+      capabilities: catalogue.capabilities,
+      timestamp: catalogue.timestamp,
     });
-    renderWithProviders(<IntegrationsPanel open={true} />);
+    renderWithProviders(<IntegrationsPanel open />);
 
-    const button = await screen.findByTestId("cap-run-action-audio-tools");
-    fireEvent.click(button);
-
-    await waitFor(() => {
-      const result = screen.getByTestId("cap-action-result-audio-tools");
-      expect(result.textContent).toContain("lifecycle wait failed: timeout");
-      expect(result.className).toContain("text-red-400");
-    });
+    fireEvent.click(await screen.findByRole("button", { name: "Start Bridge" }));
+    expect(await screen.findByText("That didn't work: scenario did not become healthy")).toBeInTheDocument();
   });
 
-  it("does not show a backend action button for operator-only guidance", async () => {
-    mockFetchCapabilities.mockResolvedValue({
-      capabilities: [
+  it("installs a coding agent that is missing", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.runCapabilityAction.mockResolvedValue({
+      success: true,
+      status: "installed",
+      message: "",
+      capabilityId: "grok",
+      actionKind: "operator_command",
+      capabilities: catalogue.capabilities,
+      timestamp: catalogue.timestamp,
+    });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    const agents = await waitFor(() => groupNamed("Coding agents"));
+    expect(within(agents).getByText("Not installed")).toBeInTheDocument();
+    fireEvent.click(within(agents).getByRole("button", { name: "Install" }));
+    await waitFor(() => { expect(mocks.runCapabilityAction).toHaveBeenCalledWith("grok", "operator_command"); });
+  });
+
+  it("opens a service's detail view with what it adds and its technical details", async () => {
+    mocks.fetchCapabilities.mockResolvedValue({
+      ...catalogue,
+      capabilities: [{ ...audioTools, featureStatus: { "voice-input": "available", "voice-streaming": "unavailable" } }],
+    });
+    mocks.fetchScenarioLink.mockResolvedValue("https://audio-tools.example.test");
+    renderWithProviders(<IntegrationsPanel open header={<h2>Integrations</h2>} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Voice" }));
+
+    const detail = within(document.querySelector<HTMLElement>("[data-rcl-integrations-view='detail']") ?? document.body);
+    expect(detail.getByRole("heading", { name: "Voice" })).toHaveFocus();
+    expect(detail.getByText("Provided by Audio Tools")).toBeInTheDocument();
+    expect(detail.getByText("Some Voice features are unavailable")).toBeInTheDocument();
+    expect(detail.getByText("Dictate into the composer")).toBeInTheDocument();
+    expect(detail.getByText("Unavailable")).toBeInTheDocument();
+    expect(detail.getByText("Technical details")).toBeInTheDocument();
+    expect(detail.getByText("audio-tools")).toBeInTheDocument();
+    expect(await screen.findByTestId("integration-open-audio-tools")).toHaveAttribute("href", "https://audio-tools.example.test");
+    expect(screen.getByRole("heading", { name: "Integrations", hidden: true })).not.toBeVisible();
+
+    fireEvent.click(detail.getByRole("button", { name: "Integrations" }));
+    expect(screen.getByRole("button", { name: "Voice" })).toHaveFocus();
+  });
+
+  it("counts a service with some features down as limited, not broken", async () => {
+    mocks.fetchCapabilities.mockResolvedValue({
+      ...catalogue,
+      capabilities: [{ ...audioTools, featureStatus: { "voice-input": "available", "voice-streaming": "unavailable" } }],
+    });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    await waitFor(() => { expect(summary()).toBe("0 of 1 ready"); });
+    expect(screen.getByText("Limited")).toBeInTheDocument();
+    // Naming what is missing, rather than pointing at a card that cannot be opened.
+    expect(screen.getAllByText("Unavailable right now: Live transcription while you talk.")[0]).toBeInTheDocument();
+    // Audio Tools is running; starting it again would not bring the features back.
+    expect(screen.queryByRole("button", { name: "Start Audio Tools" })).not.toBeInTheDocument();
+  });
+
+  it("shows a connected account and its controls on its detail view", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.getConnections.mockResolvedValue({ connections: [openrouterAccount] });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    const accounts = await waitFor(() => {
+      const group = groupNamed("Accounts");
+      within(group).getByText("Connected");
+      return group;
+    });
+    fireEvent.click(within(accounts).getByRole("button", { name: "OpenRouter" }));
+    expect(screen.getByRole("button", { name: "Test connection" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getByText("models")).toBeInTheDocument();
+  });
+
+  async function openAccount() {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.getConnections.mockResolvedValue({ connections: [openrouterAccount] });
+    renderWithProviders(<IntegrationsPanel open />);
+    const accounts = await waitFor(() => {
+      const group = groupNamed("Accounts");
+      within(group).getByText("Connected");
+      return group;
+    });
+    fireEvent.click(within(accounts).getByRole("button", { name: "OpenRouter" }));
+  }
+
+  it("tests an account's key and reports the result", async () => {
+    mocks.testOpenRouterKey.mockResolvedValueOnce({ valid: true, source: "vault", checked_at: "now" }).mockResolvedValueOnce({ valid: false, source: "vault", checked_at: "now" }).mockRejectedValueOnce(new Error("down"));
+    await openAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    expect(await screen.findByText("Connection verified.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    expect(await screen.findByText("Connection test failed.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    expect(await screen.findByText("Connection test unavailable.")).toBeInTheDocument();
+  });
+
+  it("removes an account's key only after confirmation", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true).mockReturnValueOnce(true);
+    mocks.removeOpenRouterKey.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("denied"));
+    await openAccount();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(mocks.removeOpenRouterKey).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(await screen.findByText("Connection removed.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(await screen.findByText("Connection could not be removed.")).toBeInTheDocument();
+    confirm.mockRestore();
+  });
+
+  it("flags an account that needs attention with its next step", async () => {
+    mocks.fetchCapabilities.mockResolvedValue({ ...catalogue, capabilities: [] });
+    mocks.getConnections.mockResolvedValue({ connections: [{ ...openrouterAccount, status: "expired", next_action: "Paste a new key." }] });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText("OpenRouter needs attention")).toBeInTheDocument();
+    expect(screen.getByText("Paste a new key.")).toBeInTheDocument();
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+  });
+
+  it("keeps checking services when accounts cannot be loaded", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.getConnections.mockRejectedValue(new Error("integration-hub down"));
+    renderWithProviders(<IntegrationsPanel open />);
+
+    expect(await screen.findByText("Accounts can't be loaded right now. Everything else here is still checked.")).toBeInTheDocument();
+    expect(screen.getByText("Voice")).toBeInTheDocument();
+  });
+
+  it("reports a failed check and keeps accounts visible", async () => {
+    mocks.fetchCapabilities.mockRejectedValue(new Error("boom"));
+    mocks.getConnections.mockResolvedValue({ connections: [openrouterAccount] });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    await waitFor(() => { expect(summary()).toBe("Couldn't check what's connected"); });
+    expect(screen.getByText("Failed to load integrations: boom")).toBeInTheDocument();
+    expect(await screen.findByText("OpenRouter")).toBeInTheDocument();
+  });
+
+  it("checks again on request", async () => {
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    renderWithProviders(<IntegrationsPanel open />);
+    const again = await screen.findByRole("button", { name: "Check again" });
+    const before = mocks.fetchCapabilities.mock.calls.length;
+    fireEvent.click(again);
+    await waitFor(() => { expect(mocks.fetchCapabilities.mock.calls.length).toBeGreaterThan(before); });
+  });
+
+  it("puts a capability it has no place for under Other, and shows it as checking until it is", async () => {
+    mocks.fetchCapabilities.mockResolvedValue({ ...catalogue, capabilities: [cap({ id: "future-capability", name: "future-capability", status: "unknown" })] });
+    renderWithProviders(<IntegrationsPanel open />);
+
+    const other = await waitFor(() => groupNamed("Other"));
+    expect(within(other).getByText("Future capability")).toBeInTheDocument();
+    expect(within(other).getByText("Checking")).toBeInTheDocument();
+  });
+
+  it("shows an account recommendation and lets it be dismissed", async () => {
+    mocks.getWebAccessToken.mockReturnValue("token");
+    mocks.fetchCapabilities.mockResolvedValue(catalogue);
+    mocks.getCommercialContext.mockResolvedValue({
+      stale: false,
+      content: [
         {
-          id: "audio-tools",
-          name: "Audio Tools",
-          description: "Shared audio capability scenario",
-          dependencyKind: "scenario",
-          dependencySlug: "audio-tools",
-          features: ["voice-input"],
-          status: "unavailable",
-          actionKind: "operator_command",
-          actionLabel: "Wait for scenario",
-          operatorCommand: "vrooli scenario wait audio-tools --json",
+          content_id: "rec-1",
+          placement: "integrations",
+          title: "Use hosted models",
+          description: "Add credits to use cloud models without a key.",
+          priority: "normal",
+          eligible: true,
+          cta_label: "See plans",
+          cta_destination: "/account",
+          expires_at: "2999-01-01T00:00:00Z",
+          dismissible: true,
         },
       ],
-      timestamp: "2026-03-17T00:00:00Z",
-    });
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("cap-action-audio-tools").textContent).toContain("Wait for scenario");
-      expect(screen.queryByTestId("cap-run-action-audio-tools")).toBeNull();
-    });
-  });
-
-  it("shows dependency kind badges", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      // Four resources (AI providers and session backends) + two scenarios.
-      expect(screen.getAllByText("resource").length).toBe(4);
-      expect(screen.getAllByText("scenario").length).toBe(2);
-    });
-  });
-
-  it("crosses out features for unavailable capabilities", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      const remoteReason = screen.getByText("Bridge URL is not configured");
-      expect(remoteReason).toBeTruthy();
-    });
-  });
-
-  it("does not cross out features for available capabilities", async () => {
-    mockFetchCapabilities.mockResolvedValue(mockCapabilities);
-    renderWithProviders(<IntegrationsPanel open={true} />);
-
-    await waitFor(() => {
-      const voiceInput = screen.getByText("voice-input");
-      expect(voiceInput.className).not.toContain("line-through");
-    });
-  });
-
-  it("does not fetch when open is false", () => {
-    renderWithProviders(<IntegrationsPanel open={false} />);
-    expect(mockFetchCapabilities).not.toHaveBeenCalled();
-  });
-
-  it("renders an unknown capability with neutral status styling", async () => {
-    mockFetchCapabilities.mockResolvedValue({
-      capabilities: [{
-        id: "future-capability",
-        name: "Future capability",
-        description: "Status not understood by this client yet",
-        dependencyKind: "resource",
-        dependencySlug: "future-capability",
-        features: [],
-        status: "unknown",
-      }],
-      timestamp: "2026-03-17T00:00:00Z",
     });
     renderWithProviders(<IntegrationsPanel open />);
 
-    await waitFor(() => {
-      const card = screen.getByTestId("cap-card-future-capability");
-      expect(card.className).toContain("border-l-wc-default");
-      expect(screen.getByText(strings.integrationsPanel.activeCount)).toBeInTheDocument();
-    });
-  });
-
-  it("reports an empty capability catalogue", async () => {
-    mockFetchCapabilities.mockResolvedValue({ capabilities: [], timestamp: "2026-03-17T00:00:00Z" });
-    renderWithProviders(<IntegrationsPanel open />);
-
-    await waitFor(() => {
-      expect(screen.getByText(strings.integrationsPanel.noneConfigured)).toBeInTheDocument();
-    });
-  });
-
-  it("falls back to the lifecycle status when an action has no message", async () => {
-    const capability = mockCapabilities.capabilities[0];
-    if (!capability) throw new Error("test fixture missing capability");
-    mockFetchCapabilities.mockResolvedValue({ capabilities: [{
-      ...capability,
-      status: "unavailable",
-      reasonCode: "scenario_stopped",
-      actionKind: "scenario_start",
-      actionLabel: "Start scenario",
-    }], timestamp: "2026-03-17T00:00:00Z" });
-    mockRunCapabilityAction.mockResolvedValue({
-      success: true,
-      status: "healthy",
-      capabilityId: capability.id,
-      actionKind: "scenario_start",
-      capabilities: [{ ...capability, status: "available" }],
-      timestamp: "2026-03-17T00:01:00Z",
-    });
-    renderWithProviders(<IntegrationsPanel open />);
-
-    fireEvent.click(await screen.findByTestId("cap-run-action-audio-tools"));
-    await waitFor(() => {
-      expect(screen.getByTestId("cap-action-result-audio-tools")).toHaveTextContent("healthy");
-    });
+    expect(await screen.findByText("Use hosted models")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Use hosted models")).not.toBeInTheDocument();
   });
 });

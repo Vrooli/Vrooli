@@ -61,14 +61,17 @@ type KeyEvent struct {
 }
 
 type Actuation struct {
-	Pointer    *PointerEvent `json:"pointer,omitempty"`
-	Key        *KeyEvent     `json:"key,omitempty"`
-	Text       string        `json:"text,omitempty"`
-	Action     string        `json:"action,omitempty"`
-	Package    string        `json:"package,omitempty"`
-	Permission string        `json:"permission,omitempty"`
-	Value      string        `json:"value,omitempty"`
-	Expected   string        `json:"expected,omitempty"`
+	Pointer     *PointerEvent `json:"pointer,omitempty"`
+	Key         *KeyEvent     `json:"key,omitempty"`
+	Text        string        `json:"text,omitempty"`
+	Action      string        `json:"action,omitempty"`
+	Package     string        `json:"package,omitempty"`
+	Component   string        `json:"component,omitempty"`
+	LogTag      string        `json:"log_tag,omitempty"`
+	LogPriority string        `json:"log_priority,omitempty"`
+	Permission  string        `json:"permission,omitempty"`
+	Value       string        `json:"value,omitempty"`
+	Expected    string        `json:"expected,omitempty"`
 	// CausationID links an operator request, the transport actuation, and any
 	// state transition it produces. It is generated at the control boundary
 	// when a caller does not provide one.
@@ -335,6 +338,8 @@ type DeviceState struct {
 	ForegroundPackage string `json:"foreground_package,omitempty"`
 	ScreenState       string `json:"screen_state,omitempty"`
 	LockState         string `json:"lock_state,omitempty"`
+	DreamState        string `json:"dream_state,omitempty"`
+	DreamComponent    string `json:"dream_component,omitempty"`
 	Orientation       string `json:"orientation,omitempty"`
 	AutoRotate        bool   `json:"auto_rotate"`
 	AutoRotateKnown   bool   `json:"-"`
@@ -763,7 +768,7 @@ func StepKinds(d Declaration) []string {
 		steps = append(steps, "grant-permission", "revoke-permission")
 	}
 	if d.Capabilities[CapDeviceLogs].Status == StatusAvailable {
-		steps = append(steps, "device-logs", "logcat-start", "logcat-stop", "clock-sample")
+		steps = append(steps, "device-logs", "framework-logs", "logcat-start", "logcat-stop", "clock-sample")
 	}
 	if d.Capabilities[CapScreenshot].Status == StatusAvailable {
 		steps = append(steps, "screenshot")

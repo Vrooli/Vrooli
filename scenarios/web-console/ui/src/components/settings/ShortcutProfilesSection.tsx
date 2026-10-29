@@ -35,6 +35,7 @@ import { toErrorInfo } from "../../lib/errors";
 import { assessCapture, governedRewrite } from "../../lib/captureSafety";
 import { moveItem } from "../launcher/agentGrid";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { SettingsIntro } from "./primitives";
 
 interface ShortcutDraft {
   /** Stable identity for React and for reordering. Never the array index. */
@@ -474,7 +475,7 @@ export default function ShortcutProfilesSection() {
 
   return (
     <SettingsList>
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(section.eyebrow)}
         title={t(section.title)}
         description={t(section.description)}

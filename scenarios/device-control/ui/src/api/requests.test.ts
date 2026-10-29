@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  DeviceControlApiError,
   acquireSession,
   auditRecords,
   connectDevice,
@@ -51,7 +52,7 @@ describe("device-control API request adapters", () => {
     expect(String(calls[1]?.[0])).toContain("profile%2F1");
   });
 
-  it("prefers structured server messages, then codes, then status", async () => {
+  it("preserves Device Control error codes and HTTP status", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ message: "denied" }), { status: 403 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ code: "not_ready" }), { status: 409 }))
@@ -61,9 +62,54 @@ describe("device-control API request adapters", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(listAuthProfiles()).rejects.toThrow("denied");
-    await expect(listDevices()).rejects.toThrow("not_ready");
-    await expect(listStrategies()).rejects.toThrow("Request failed (500)");
+    await expect(listDevices()).rejects.toMatchObject({ code: "not_ready", status: 409, message: "not_ready: Device Control request failed (HTTP 409)" });
+    await expect(listStrategies()).rejects.toMatchObject({ code: "request_failed", status: 500, message: "request_failed: Device Control request failed (HTTP 500)" });
     await expect(listAuthProfiles()).rejects.toThrow("Request failed (403)");
-    await expect(listDevices()).rejects.toThrow("Request failed (403)");
+    await expect(listDevices()).rejects.toMatchObject({ code: "request_failed", status: 403, message: "request_failed: Device Control request failed (HTTP 403)" });
+  });
+
+  it("shows a sanitized UI-proxy error for failed flow capture requests", async () => {
+    const fetchMock = vi.fn(() => new Response(JSON.stringify({
+      error: "API server unavailable",
+      details: "connect ECONNREFUSED 127.0.0.1:16465",
+      target: "http://127.0.0.1:16465/api/v1/flows/run?token=private",
+    }), {
+      status: 502,
+      headers: { "X-Vrooli-Error-Hop": "ui-proxy" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error = await runFlow("device/1", "browser-operator", "lease", { steps: [{ kind: "observe" }] })
+      .catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(DeviceControlApiError);
+    expect(error).toMatchObject({
+      code: "api_unreachable_or_timeout",
+      status: 502,
+      message: "api_unreachable_or_timeout: Could not reach the API server or the request timed out (HTTP 502)",
+    });
+    expect((error as Error).message).not.toContain("127.0.0.1");
+    expect((error as Error).message).not.toContain("private");
+  });
+
+  it("keeps structured flow error code, message, and status without exposing metadata", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Response(JSON.stringify({
+      code: "run_failed",
+      message: "Observe step failed",
+      details: "private internal diagnostic",
+      target: "http://private-host/",
+    }), { status: 409 })));
+
+    const error = await runFlow("device/1", "browser-operator", "lease", { steps: [{ kind: "observe" }] })
+      .catch((cause: unknown) => cause);
+
+    expect(error).toBeInstanceOf(DeviceControlApiError);
+    expect(error).toMatchObject({
+      code: "run_failed",
+      status: 409,
+      message: "run_failed: Observe step failed (HTTP 409)",
+    });
+    expect((error as Error).message).not.toContain("private internal diagnostic");
+    expect((error as Error).message).not.toContain("private-host");
   });
 });

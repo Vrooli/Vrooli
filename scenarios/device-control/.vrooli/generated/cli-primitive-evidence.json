@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "7bcc49c10242db3515236a6b3726f44d70250bac3f13d07102ecb11306eda52a",
+  "manifest_hash": "086e6203e5f2f37d33f349da9989b6fd4c6411bfa5ee6ee2c7d2219560858e0b",
   "commands": [
     {
       "path": "agent abort",
@@ -313,6 +313,12 @@
       "binding": "."
     },
     {
+      "path": "flow forget",
+      "group": "flow",
+      "command": "forget",
+      "binding": "."
+    },
+    {
       "path": "flow get",
       "group": "flow",
       "command": "get",
@@ -331,10 +337,40 @@
       "binding": "FlowService.RunSavedFlow"
     },
     {
+      "path": "flow retain",
+      "group": "flow",
+      "command": "retain",
+      "binding": "."
+    },
+    {
+      "path": "flow retained",
+      "group": "flow",
+      "command": "retained",
+      "binding": "."
+    },
+    {
+      "path": "flow retained-delete",
+      "group": "flow",
+      "command": "retained-delete",
+      "binding": "."
+    },
+    {
+      "path": "flow retained-get",
+      "group": "flow",
+      "command": "retained-get",
+      "binding": "."
+    },
+    {
       "path": "flow run",
       "group": "flow",
       "command": "run",
       "binding": "FlowService.RunFlow"
+    },
+    {
+      "path": "flow runs",
+      "group": "flow",
+      "command": "runs",
+      "binding": "."
     },
     {
       "path": "flow save",

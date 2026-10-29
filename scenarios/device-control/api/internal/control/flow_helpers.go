@@ -36,7 +36,7 @@ func (s *Service) captureAssertionFailure(ctx context.Context, strat strategy.St
 	if err != nil {
 		return nil, err
 	}
-	redacted, err := evidence.RedactCaptureWithRegions(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
+	redacted, err := evidence.CaptureWithPolicy(frame.Bytes, frame.MediaType, evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, sensitiveRegions(step))
 	if err != nil {
 		return nil, err
 	}

@@ -272,7 +272,7 @@ func flowFromProto(f *sharedv1.Flow) internal.Flow {
 	if f == nil {
 		return internal.Flow{}
 	}
-	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileID: f.AuthProfileId, AllowUnredactedCapture: f.AllowUnredactedCapture, MaxDurationMS: f.MaxDurationMs, RetryBudget: int(f.RetryBudget), ApplicationID: f.ApplicationId, ApplicationRevision: f.ApplicationRevision}
+	out := internal.Flow{ID: f.Id, Name: f.Name, Transport: f.Transport, RequireUnlocked: f.RequireUnlocked, AuthProfileID: f.AuthProfileId, AllowUnredactedCapture: f.AllowUnredactedCapture, RedactSensitiveContent: f.RedactSensitiveContent, MaxDurationMS: f.MaxDurationMs, RetryBudget: int(f.RetryBudget), ApplicationID: f.ApplicationId, ApplicationRevision: f.ApplicationRevision}
 	for _, s := range f.Steps {
 		args := map[string]any{}
 		if s.Arguments != nil {
@@ -312,7 +312,7 @@ func (c *evidenceConnect) ListAudit(ctx context.Context, _ *connect.Request[evid
 }
 
 func savedProto(f internalflows.SavedFlow) *flowsv1.SavedFlow {
-	flow := &sharedv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture, MaxDurationMs: f.Flow.MaxDurationMS, RetryBudget: int32(f.Flow.RetryBudget), ApplicationId: f.Flow.ApplicationID, ApplicationRevision: f.Flow.ApplicationRevision}
+	flow := &sharedv1.Flow{Id: f.Flow.ID, Name: f.Flow.Name, Transport: f.Flow.Transport, RequireUnlocked: f.Flow.RequireUnlocked, AuthProfileId: f.Flow.AuthProfileID, AllowUnredactedCapture: f.Flow.AllowUnredactedCapture, RedactSensitiveContent: f.Flow.RedactSensitiveContent, MaxDurationMs: f.Flow.MaxDurationMS, RetryBudget: int32(f.Flow.RetryBudget), ApplicationId: f.Flow.ApplicationID, ApplicationRevision: f.Flow.ApplicationRevision}
 	for _, step := range f.Flow.Steps {
 		args, _ := structpb.NewStruct(step.Arguments)
 		encoded := &sharedv1.Step{Id: step.ID, Kind: step.Kind, Target: step.Target, TimeoutMs: step.TimeoutMS, RequiredCapabilities: step.RequiredCapabilities, Arguments: args, ObservationRequired: step.ObservationRequired, RetryBudget: int32(step.RetryBudget), IdempotencyKey: step.IdempotencyKey}

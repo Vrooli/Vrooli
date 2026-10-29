@@ -65,10 +65,6 @@
       "testId": "integrations-override-select",
       "selector": "[data-testid=\"integrations-override-select\"]"
     },
-    "integrations.statusTable": {
-      "testId": "integrations-status-table",
-      "selector": "[data-testid=\"integrations-status-table\"]"
-    },
     "integrations.deploymentProfilePanel": {
       "testId": "integrations-deployment-profile-panel",
       "selector": "[data-testid=\"integrations-deployment-profile-panel\"]"
@@ -286,17 +282,6 @@
         }
       ]
     },
-    "integrations.statusRow": {
-      "description": "Integration readiness table row by integration id",
-      "selectorPattern": "[data-testid=\"integrations-status-row-${id}\"]",
-      "testIdPattern": "integrations-status-row-${id}",
-      "params": [
-        {
-          "name": "id",
-          "type": "string"
-        }
-      ]
-    },
     "integrations.deploymentProfileOption": {
       "description": "Deployment profile option by profile id",
       "selectorPattern": "[data-testid=\"integrations-deployment-profile-option-${id}\"]",
@@ -360,7 +345,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "a86dcb2275ded483acf76c320914cb0f46616c5b67535e607f230168344b5f13",
-    "ui/src/consts/selectors.ts": "9148572041cca0e27b28eceb70d0570e66a21131da9fdb5c7c0841e5cfe94070",
+    "ui/src/consts/selectors.ts": "67398c6c5564d6038dc8f6add9a32cf542bd8e0363805c44a5d0acb2796170fb",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -24,13 +24,14 @@ const MaxClipboardBytes = 64 * 1024
 const MaxDataMessageBytes = 128 * 1024
 
 var (
-	ErrNotReady    = errors.New("desktop is not ready")
-	ErrNoSession   = errors.New("desktop session is not open")
-	ErrNotControl  = errors.New("desktop session is viewer-only")
-	ErrStaleEpoch  = errors.New("desktop lease epoch is stale")
-	ErrRevoked     = errors.New("desktop session is revoked")
-	ErrClipboard   = errors.New("clipboard capability is not granted")
-	ErrInvalidCall = errors.New("invalid desktop session request")
+	ErrNotReady       = errors.New("desktop is not ready")
+	ErrNoSession      = errors.New("desktop session is not open")
+	ErrNotControl     = errors.New("desktop session is viewer-only")
+	ErrStaleEpoch     = errors.New("desktop lease epoch is stale")
+	ErrRevoked        = errors.New("desktop session is revoked")
+	ErrClipboard      = errors.New("clipboard capability is not granted")
+	ErrInvalidCall    = errors.New("invalid desktop session request")
+	ErrCleanupPending = errors.New("desktop input cleanup is pending")
 )
 
 // Provider is implemented by the native companion or a deterministic test
@@ -80,12 +81,14 @@ type Manager struct {
 }
 
 type state struct {
-	session       *desktopv1.DesktopSession
-	clipboard     bool
-	revoked       bool
-	peer          *PionPeer
-	peerCancel    context.CancelFunc
-	captureCancel context.CancelFunc
+	session        *desktopv1.DesktopSession
+	clipboard      bool
+	revoked        bool
+	cleanupPending bool
+	inFlight       int
+	peer           *PionPeer
+	peerCancel     context.CancelFunc
+	captureCancel  context.CancelFunc
 }
 
 // Signal terminates the browser-to-companion negotiation at Device Control.
@@ -283,9 +286,15 @@ func (m *Manager) Open(ctx context.Context, req *desktopv1.OpenSessionRequest) (
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.reapExpiredLocked("")
+	if m.hasPendingCleanupLocked() {
+		return nil, ErrCleanupPending
+	}
 	if req.GetControl() {
+		if _, ok := m.provider.(heldInputReleaser); !ok {
+			return nil, ErrCleanupPending
+		}
 		for _, existing := range m.sessions {
-			if !existing.revoked && existing.session.GetRef().GetSurface().GetTarget().GetResourceId() == req.GetSurface().GetTarget().GetResourceId() && existing.session.GetController() {
+			if !existing.revoked && existing.session.GetController() {
 				return nil, ErrNotControl
 			}
 		}
@@ -311,7 +320,18 @@ func (m *Manager) startCapture(sessionID, displayID string) {
 	m.mu.Unlock()
 	go func() {
 		for {
+			m.mu.Lock()
+			current := m.sessions[sessionID]
+			if current != s || s.revoked {
+				m.mu.Unlock()
+				return
+			}
+			s.inFlight++
+			m.mu.Unlock()
 			payload, duration, err := source.CaptureVP8(ctx, displayID)
+			m.mu.Lock()
+			s.inFlight--
+			m.mu.Unlock()
 			if err != nil {
 				// A native capture failure means the session's media authority is
 				// gone or its permission state changed. Keep the lease from
@@ -363,14 +383,28 @@ func (m *Manager) TakeControl(_ context.Context, req *desktopv1.TakeControlReque
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.hasPendingCleanupLocked() {
+		return nil, ErrCleanupPending
+	}
+	if _, ok := m.provider.(heldInputReleaser); !ok {
+		return nil, ErrCleanupPending
+	}
 	s, err := m.lookupLocked(req.GetSession())
 	if err != nil {
 		return nil, err
+	}
+	if m.hasPendingCleanupLocked() {
+		return nil, ErrCleanupPending
 	}
 	if !req.GetTakeover() && s.session.GetController() {
 		return nil, ErrNotControl
 	}
 	targetID := s.session.GetRef().GetSurface().GetTarget().GetResourceId()
+	for _, existing := range m.sessions {
+		if existing != s && !existing.revoked && existing.session.GetController() && existing.session.GetRef().GetSurface().GetTarget().GetResourceId() != targetID {
+			return nil, ErrNotControl
+		}
+	}
 	if !req.GetTakeover() {
 		for _, existing := range m.sessions {
 			if existing == s || existing.revoked || !existing.session.GetController() {
@@ -388,12 +422,30 @@ func (m *Manager) TakeControl(_ context.Context, req *desktopv1.TakeControlReque
 				continue
 			}
 			if existing.session.GetRef().GetSurface().GetTarget().GetResourceId() == targetID {
+				if existing.inFlight != 0 {
+					return nil, ErrCleanupPending
+				}
 				hasController = true
 			}
 		}
 		if hasController {
 			if releaser, ok := m.provider.(heldInputReleaser); ok {
 				if err := releaser.ReleaseHeld(context.Background()); err != nil {
+					for _, existing := range m.sessions {
+						if existing == s || existing.revoked || !existing.session.GetController() || existing.session.GetRef().GetSurface().GetTarget().GetResourceId() != targetID {
+							continue
+						}
+						existing.revoked, existing.cleanupPending = true, true
+						if existing.captureCancel != nil {
+							existing.captureCancel()
+						}
+						if existing.peerCancel != nil {
+							existing.peerCancel()
+						}
+						if existing.peer != nil {
+							_ = existing.peer.Close()
+						}
+					}
 					return nil, err
 				}
 			}
@@ -434,10 +486,14 @@ func (m *Manager) Input(ctx context.Context, req *desktopv1.InputRequest) (*desk
 	if err == nil && req.GetGeometryRevision() != s.session.GetGeometryRevision() {
 		err = ErrStaleEpoch
 	}
+	if err == nil {
+		s.inFlight++
+	}
 	m.mu.Unlock()
 	if err != nil {
 		return &desktopv1.InputReceipt{CommandId: req.GetCommandId(), Outcome: desktopv1.InputOutcome_INPUT_OUTCOME_REJECTED, ReasonCode: reason(err)}, err
 	}
+	defer func() { m.mu.Lock(); s.inFlight--; m.mu.Unlock() }()
 	if err = m.provider.ApplyInput(ctx, req); err != nil {
 		return &desktopv1.InputReceipt{CommandId: req.GetCommandId(), Outcome: desktopv1.InputOutcome_INPUT_OUTCOME_UNKNOWN, ReasonCode: "provider_unconfirmed"}, err
 	}
@@ -456,10 +512,14 @@ func (m *Manager) Clipboard(ctx context.Context, req *desktopv1.ClipboardRequest
 	if err == nil && req.GetLeaseEpoch() != s.session.GetLeaseEpoch() {
 		err = ErrStaleEpoch
 	}
+	if err == nil {
+		s.inFlight++
+	}
 	m.mu.Unlock()
 	if err != nil {
 		return &desktopv1.ClipboardReceipt{CommandId: req.GetCommandId(), Outcome: desktopv1.InputOutcome_INPUT_OUTCOME_REJECTED, ReasonCode: reason(err)}, err
 	}
+	defer func() { m.mu.Lock(); s.inFlight--; m.mu.Unlock() }()
 	var text string
 	if req.GetDirection() == desktopv1.ClipboardDirection_CLIPBOARD_DIRECTION_TO_DESKTOP {
 		err = m.provider.WriteClipboard(ctx, req.GetText())
@@ -480,9 +540,19 @@ func (m *Manager) Close(ctx context.Context, req *desktopv1.CloseSessionRequest)
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s, err := m.lookupLocked(req.GetSession())
-	if err != nil {
-		return nil, err
+	ref := req.GetSession()
+	if ref == nil || ref.GetSessionId() == "" {
+		return nil, ErrInvalidCall
+	}
+	s, found := m.sessions[ref.GetSessionId()]
+	if !found || s == nil {
+		return nil, ErrNoSession
+	}
+	if !proto.Equal(ref, s.session.GetRef()) {
+		return nil, ErrInvalidCall
+	}
+	if s.revoked && !s.cleanupPending {
+		return nil, ErrRevoked
 	}
 	s.revoked = true
 	if s.captureCancel != nil {
@@ -494,7 +564,15 @@ func (m *Manager) Close(ctx context.Context, req *desktopv1.CloseSessionRequest)
 	if s.peer != nil {
 		_ = s.peer.Close()
 	}
-	if releaser, ok := m.provider.(heldInputReleaser); ok {
+	s.cleanupPending = true
+	if s.inFlight != 0 {
+		return nil, ErrCleanupPending
+	}
+	if s.session.GetController() {
+		releaser, ok := m.provider.(heldInputReleaser)
+		if !ok {
+			return nil, ErrCleanupPending
+		}
 		if err := releaser.ReleaseHeld(ctx); err != nil {
 			return nil, err
 		}
@@ -502,6 +580,7 @@ func (m *Manager) Close(ctx context.Context, req *desktopv1.CloseSessionRequest)
 	if err := m.closeProviderIfIdleLocked(); err != nil {
 		return nil, err
 	}
+	s.cleanupPending = false
 	return &desktopv1.CloseSessionResponse{Closed: true}, nil
 }
 
@@ -513,7 +592,11 @@ func (m *Manager) Revoke(sessionID string) bool {
 	if !ok {
 		return false
 	}
+	if s.revoked {
+		return true
+	}
 	s.revoked = true
+	s.cleanupPending = true
 	if s.captureCancel != nil {
 		s.captureCancel()
 	}
@@ -523,11 +606,32 @@ func (m *Manager) Revoke(sessionID string) bool {
 	if s.peer != nil {
 		_ = s.peer.Close()
 	}
-	if releaser, ok := m.provider.(heldInputReleaser); ok {
-		_ = releaser.ReleaseHeld(context.Background())
+	if s.inFlight != 0 {
+		return true
 	}
-	_ = m.closeProviderIfIdleLocked()
+	if s.session.GetController() {
+		releaser, ok := m.provider.(heldInputReleaser)
+		if !ok {
+			return true
+		}
+		if err := releaser.ReleaseHeld(context.Background()); err != nil {
+			return true
+		}
+	}
+	if err := m.closeProviderIfIdleLocked(); err != nil {
+		return true
+	}
+	s.cleanupPending = false
 	return true
+}
+
+func (m *Manager) hasPendingCleanupLocked() bool {
+	for _, s := range m.sessions {
+		if s != nil && s.cleanupPending {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) closeProviderIfIdleLocked() error {
@@ -562,13 +666,12 @@ func (m *Manager) lookupLocked(ref *commonv1.SessionRef) (*state, error) {
 func (m *Manager) reapExpiredLocked(exceptionID string) bool {
 	now := m.now()
 	expiredException := false
-	expiredAny := false
 	for id, s := range m.sessions {
 		if s == nil || s.revoked || s.session.GetExpiresAt().AsTime().After(now) {
 			continue
 		}
-		expiredAny = true
 		s.revoked = true
+		s.cleanupPending = true
 		if s.captureCancel != nil {
 			s.captureCancel()
 		}
@@ -578,16 +681,38 @@ func (m *Manager) reapExpiredLocked(exceptionID string) bool {
 		if s.peer != nil {
 			_ = s.peer.Close()
 		}
-		if releaser, ok := m.provider.(heldInputReleaser); ok {
-			_ = releaser.ReleaseHeld(context.Background())
+		if s.inFlight != 0 {
+			if id == exceptionID {
+				expiredException = true
+			}
+			continue
 		}
+		if s.session.GetController() {
+			releaser, ok := m.provider.(heldInputReleaser)
+			if !ok {
+				if id == exceptionID {
+					expiredException = true
+				}
+				continue
+			}
+			if err := releaser.ReleaseHeld(context.Background()); err != nil {
+				if id == exceptionID {
+					expiredException = true
+				}
+				continue
+			}
+		}
+		if err := m.closeProviderIfIdleLocked(); err != nil {
+			if id == exceptionID {
+				expiredException = true
+			}
+			continue
+		}
+		s.cleanupPending = false
 		if id == exceptionID {
 			expiredException = true
 		}
 		delete(m.sessions, id)
-	}
-	if expiredAny {
-		_ = m.closeProviderIfIdleLocked()
 	}
 	return expiredException
 }

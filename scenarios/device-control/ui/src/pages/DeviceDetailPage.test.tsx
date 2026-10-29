@@ -51,21 +51,47 @@ describe("DeviceDetailPage capability composition", () => {
 
   it("renders a captured screen and a directional remote together", async () => {
     api.describeDevice.mockResolvedValue({ device: { id: "phone", name: "Phone", kind: "physical", strategy_id: "android-adb", status: "available", capabilities: [{ name: "input", status: "available" }, { name: "screenshot", status: "available" }] } });
-    api.readDeviceState.mockResolvedValue({ screen_state: "on" });
+    api.readDeviceState.mockResolvedValue({ foreground_package: "com.android.tv.dreamx", screen_state: "on", lock_state: "unlocked", dream_state: "unknown" });
     renderPage("phone");
     expect(await screen.findByTestId(selectors.pages.deviceLiveView)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.pages.deviceRemotePanel)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Current device state" })).toHaveTextContent("com.android.tv.dreamx");
+    expect(screen.getByRole("region", { name: "Current device state" })).toHaveTextContent("Android dream serviceunknown");
     expect(screen.getByTestId(selectors.pages.deviceLiveView).compareDocumentPosition(screen.getByTestId(selectors.pages.deviceCapabilityMatrix)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("captures an actual frame through the evidence owner", async () => {
     api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }, { name: "input", status: "available" }] } });
     api.readDeviceState.mockResolvedValue({ screen_state: "on" });
-    api.runFlow.mockResolvedValue({ disposition: "passed", evidence: [{ id: "frame-1", created_at: "2026-10-22T15:00:00Z" }] });
+    api.runFlow.mockResolvedValue({ disposition: "passed", evidence: [{ id: "frame-1", created_at: "2026-10-22T15:00:00Z", redaction_verified: false, applied_rules: ["redaction_not_requested", "content_classification_not_performed"] }] });
     renderPage("tv");
     fireEvent.click((await screen.findByTestId(selectors.pages.deviceLiveView)).querySelector("button") as HTMLButtonElement);
     await waitFor(() => expect(screen.getByTestId(selectors.pages.deviceLiveView).querySelector("img")).toHaveAttribute("src", "/evidence/frame-1"));
-    expect(api.runFlow).toHaveBeenCalledWith("tv", "browser-operator", "token", expect.objectContaining({ require_unlocked: true, steps: [{ id: "screen", kind: "observe" }] }));
+    expect(api.runFlow).toHaveBeenCalledWith("tv", "browser-operator", "token", expect.objectContaining({ require_unlocked: true, redact_sensitive_content: false, steps: [{ id: "screen", kind: "observe" }] }));
+    expect(screen.getByTestId(selectors.pages.deviceLiveView)).toHaveTextContent("Unredacted · redaction_not_requested, content_classification_not_performed");
+  });
+
+  it("shows the sanitized API error code and status when capture fails", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }] } });
+    api.readDeviceState.mockResolvedValue({ screen_state: "on" });
+    api.runFlow.mockRejectedValue(new Error("api_unreachable_or_timeout: Could not reach the API server or the request timed out (HTTP 502)"));
+    renderPage("tv");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Capture screen" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("api_unreachable_or_timeout: Could not reach the API server or the request timed out (HTTP 502)");
+  });
+
+  it("sends explicit redaction opt-in and displays applied rules", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }, { name: "input", status: "available" }] } });
+    api.readDeviceState.mockResolvedValue({ screen_state: "on" });
+    api.runFlow.mockResolvedValue({ disposition: "passed", evidence: [{ id: "redacted-frame", created_at: "2026-10-22T15:00:00Z", redaction_verified: true, applied_rules: ["status_bar_identifiers", "content_classification_not_performed"] }] });
+    renderPage("tv");
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Apply configured redaction" }));
+    fireEvent.click(screen.getByRole("button", { name: "Capture screen" }));
+    await waitFor(() => expect(screen.getByTestId(selectors.pages.deviceLiveView).querySelector("img")).toHaveAttribute("src", "/evidence/redacted-frame"));
+    expect(api.runFlow).toHaveBeenCalledWith("tv", "browser-operator", "token", expect.objectContaining({ redact_sensitive_content: true }));
+    expect(screen.getByTestId(selectors.pages.deviceLiveView)).toHaveTextContent("Redacted per configured rules: status_bar_identifiers, content_classification_not_performed");
   });
 
   it("does not enable controls from stale transports", async () => {

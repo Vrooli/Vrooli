@@ -260,6 +260,56 @@ func FlowGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Flow export")
 		}),
+		command("runs", "List completed process-local run IDs (not an admission fence)", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/flows/runs", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Live flow runs")
+		}),
+		command("forget", "Forget one process-local run cache entry; preserved copies and evidence may remain", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run-id", Required: true}}, Flags: []cliapp.Flag{{Name: "confirm-cache-only", Bool: true, Description: "acknowledge that only the volatile run cache is removed"}}}, func(ctx cliapp.RunContext) error {
+			if !ctx.BoolFlag("confirm-cache-only") {
+				return fmt.Errorf("this removes only the process-local run cache; pass --confirm-cache-only to acknowledge retained/saved copies and evidence may remain")
+			}
+			body := map[string]any{"acknowledge_volatile_cache_only": true}
+			b, err := core.Request(http.MethodDelete, "/flows/runs/"+ctx.Positional("run-id")+"/cache", nil, body)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Run cache forgotten")
+		}),
+		command("retained", "List explicitly retained run IDs", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/flows/retained", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Retained flow runs")
+		}),
+		command("retain", "Retain full flow and result, including potentially private text; deletion excludes cache, artifacts and backups", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run-id", Required: true}}, Flags: []cliapp.Flag{{Name: "confirm-sensitive", Bool: true, Description: "acknowledge private flow/result persistence and deletion limits"}, {Name: "expires-at", Required: true, Description: "future RFC3339 expiry timestamp"}}}, func(ctx cliapp.RunContext) error {
+			if !ctx.BoolFlag("confirm-sensitive") {
+				return fmt.Errorf("retention stores full flow and result; pass --confirm-sensitive to acknowledge private data and deletion limits")
+			}
+			body := map[string]any{"acknowledge_sensitive": true, "expires_at": ctx.Flag("expires-at")}
+			b, err := core.Request(http.MethodPost, "/flows/"+ctx.Positional("run-id")+"/retained", nil, body)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Run retained")
+		}),
+		command("retained-get", "Read a retained run and its flow definition", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run-id", Required: true}}}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodGet, "/flows/"+ctx.Positional("run-id")+"/retained", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Retained run")
+		}),
+		command("retained-delete", "Delete a retained run record", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run-id", Required: true}}}, func(ctx cliapp.RunContext) error {
+			b, err := core.Request(http.MethodDelete, "/flows/"+ctx.Positional("run-id")+"/retained", nil, nil)
+			if err != nil {
+				return err
+			}
+			return emit(ctx, b, "Retained run deleted")
+		}),
 	}...)}
 }
 

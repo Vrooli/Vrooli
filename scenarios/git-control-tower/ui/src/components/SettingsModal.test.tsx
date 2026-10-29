@@ -146,16 +146,64 @@ describe("SettingsModal", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Integrations" }));
 
-    expect(await screen.findByText("1/2 active")).toBeInTheDocument();
-    expect(screen.getByText("Test Genie")).toBeInTheDocument();
-    expect(screen.getByText("Browser Automation Studio")).toBeInTheDocument();
-    expect(screen.getByText("phase diagnostics")).toBeInTheDocument();
-    expect(await screen.findByText("origin HTTPS credential")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Test connection" })).toBeInTheDocument();
+    // Counts the credential and both apps; only the running ones are ready.
+    expect(await screen.findByText("2 of 3 ready")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       "https://git-control-tower.test/api/v1/capabilities",
       expect.objectContaining({ cache: "no-store" }),
     );
+
+    // Apps are named for what they do, and the one that is off is called out with its consequence.
+    expect(screen.getByText("Tests")).toBeInTheDocument();
+    expect(screen.getByText("Visual capture is off")).toBeInTheDocument();
+    expect(screen.getByText("smoke won't work until Browser Automation Studio is running.")).toBeInTheDocument();
+    // Git Control Tower cannot start other apps, so no fix button is offered.
+    expect(screen.queryByRole("button", { name: /^start/i })).not.toBeInTheDocument();
+    expect(await screen.findByText("github.com")).toBeInTheDocument();
+
+    // A credential's detail view carries its controls and technical details.
+    fireEvent.click(screen.getByRole("button", { name: /github\.com/ }));
+    expect(await screen.findByRole("button", { name: "Test connection" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getByText("https://github.com/example/git-control-tower.git")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    // An off app's detail view shows the command that starts it.
+    fireEvent.click(screen.getByRole("button", { name: /^Visual capture/ }));
+    expect(await screen.findByText("vrooli scenario start browser-automation-studio")).toBeInTheDocument();
+  });
+
+  it("reports a failed integrations check without hiding repository accounts", async () => {
+    globalThis.fetch = vi.fn(async () => new Response("boom", { status: 500 })) as unknown as typeof fetch;
+    connectMocks.repoClient.listCredentials.mockResolvedValue({ credentials: [], timestamp: "2026-05-01T00:00:00Z" });
+
+    renderWithQueryClient(<SettingsModal {...settingsProps()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Integrations" }));
+
+    expect(await screen.findByText(/Integrations can't be checked right now/)).toBeInTheDocument();
+    expect(await screen.findByText(/No repository credentials yet/)).toBeInTheDocument();
+  });
+
+  it("treats a remote with nothing stored as using the system login, not as a problem", async () => {
+    globalThis.fetch = vi.fn(async () => jsonResponse({ capabilities: [], timestamp: "2026-05-01T00:00:00Z" })) as unknown as typeof fetch;
+    connectMocks.repoClient.listCredentials.mockResolvedValue({
+      credentials: [{
+        id: "origin",
+        remote: "origin",
+        url: "git@github.com:example/git-control-tower.git",
+        type: "ssh",
+        isConfigured: false,
+        createdAt: "2026-05-01T00:00:00Z",
+        updatedAt: "2026-05-01T00:00:00Z",
+      }],
+      timestamp: "2026-05-01T00:00:00Z",
+    });
+
+    renderWithQueryClient(<SettingsModal {...settingsProps()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Integrations" }));
+
+    expect(await screen.findByText(/origin uses this computer's own Git login/)).toBeInTheDocument();
+    expect(screen.queryByText(/isn't set up/)).not.toBeInTheDocument();
   });
 
   it("renders storage stats and sends a repo-scoped clear request", async () => {

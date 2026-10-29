@@ -194,7 +194,7 @@ export default function SettingsModal({
       testId="settings-modal"
     >
       {isMobile ? (
-        <div className="px-3 py-3">
+        <div className="px-4 py-4">
           <Section
             sessions={sessions}
             onDeleteSession={onDeleteSession}

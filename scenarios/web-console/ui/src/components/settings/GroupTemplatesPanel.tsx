@@ -19,6 +19,7 @@ import { cn } from "../../lib/classnames";
 import { Button } from "../ui/button";
 
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { SettingsIntro } from "./primitives";
 
 // [REQ:P0-014g] Group Templates
 
@@ -121,7 +122,7 @@ export default function GroupTemplatesPanel() {
 
   return (
     <SettingsList data-testid="group-templates-panel">
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.tabTemplates)}
         title={t(strings.groupTemplates.title)}
         description={t(strings.groupTemplates.reorderHint)}

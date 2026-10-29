@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -47,6 +48,14 @@ func (s *Service) SaveValidatedFlow(ctx context.Context, runID, device, cohort, 
 	flow, found := s.flowRuns[runID]
 	actualDevice := s.runDevices[runID]
 	s.mu.Unlock()
+	if (!ok || !found) && s.retainedRuns != nil {
+		retained, err := s.retainedRuns.Get(ctx, runID)
+		if err == nil {
+			result, flow, actualDevice, ok, found = retained.Result, retained.Flow, retained.DeviceID, true, true
+		} else if !errors.Is(err, internalflows.ErrInvalidRequest) {
+			return internalflows.SavedFlow{}, fmt.Errorf("read retained run: %w", err)
+		}
+	}
 	if !ok || !found || actualDevice != device || result.Disposition != "passed" || result.Incomplete {
 		return internalflows.SavedFlow{}, fmt.Errorf("promotion requires a passing complete run on the exact device")
 	}

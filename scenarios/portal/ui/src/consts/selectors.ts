@@ -32,7 +32,6 @@ const literalSelectors = {
     modeValue: "integrations-mode-value",
     settingsPanel: "integrations-settings-panel",
     overrideSelect: "integrations-override-select",
-    statusTable: "integrations-status-table",
     deploymentProfilePanel: "integrations-deployment-profile-panel",
     deploymentProfileSelect: "integrations-deployment-profile-select",
     deploymentEndpointInput: "integrations-deployment-endpoint-input",
@@ -125,11 +124,6 @@ const dynamicSelectorDefinitions = {
     }),
   },
   integrations: {
-    statusRow: defineDynamicSelector({
-      description: "Integration readiness table row by integration id",
-      testIdPattern: "integrations-status-row-${id}",
-      params: { id: { type: "string" } },
-    }),
     deploymentProfileOption: defineDynamicSelector({
       description: "Deployment profile option by profile id",
       testIdPattern: "integrations-deployment-profile-option-${id}",

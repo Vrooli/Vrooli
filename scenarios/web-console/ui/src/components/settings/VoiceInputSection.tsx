@@ -54,7 +54,7 @@ import {
 } from "../../audio-integration";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
-import { SettingsSlider, SettingsToggle } from "./primitives";
+import { SettingsSlider, SettingsToggle, SettingsIntro } from "./primitives";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 /** Lease reasons meaning the page/OS pulled the mic, so an in-flight settings
@@ -787,7 +787,7 @@ export default function VoiceInputSection() {
 
   return (
     <SettingsList>
-      <SettingsList.Intro
+      <SettingsIntro
         eyebrow={t(strings.settings.voiceInputSection.eyebrow)}
         title={t(strings.settings.voiceInputSection.title)}
         description={t(strings.settings.voiceInputSection.description)}
