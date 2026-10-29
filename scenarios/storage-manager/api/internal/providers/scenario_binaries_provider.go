@@ -82,6 +82,14 @@ func NewScenarioBinariesProvider(files cleanup.FileSystem, liveness cleanup.Proc
 
 func (p *ScenarioBinariesProvider) Metadata() cleanup.ProviderMetadata { return p.meta }
 
+// GovernedRoots reports the install root whose entries this reaper owns.
+func (p *ScenarioBinariesProvider) GovernedRoots() []string {
+	if p.root == "" || p.root == "." {
+		return nil
+	}
+	return []string{p.root}
+}
+
 func (p *ScenarioBinariesProvider) Estimate(ctx context.Context, req cleanup.EstimateRequest) (cleanup.Estimate, error) {
 	preview, err := p.Preview(ctx, cleanup.PreviewRequest{Scope: req.Scope, Policy: req.Policy})
 	if err != nil {

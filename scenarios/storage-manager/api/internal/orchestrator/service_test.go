@@ -226,6 +226,89 @@ func TestOperatorApprovalCanApplyOwnerProvider(t *testing.T) {
 	}
 }
 
+func TestApplyExactItemSelectionRejectsUnknownBeforeEffects(t *testing.T) {
+	svc, fsys := newTestService(t, cleanup.ProviderModeEnabled, cleanup.ApprovalModeNone)
+	plan, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Apply(context.Background(), ApplyInput{PlanID: plan.ID, PolicyVersion: plan.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "unknown-selection", ItemIDs: []string{plan.Providers[0].Preview.Items[0].ID, "unknown"}})
+	if err == nil || len(fsys.Removed) != 0 {
+		t.Fatalf("unknown selection reached deletion: err=%v removed=%v", err, fsys.Removed)
+	}
+}
+
+func TestApplyExactItemSelectionStillRequiresProviderApproval(t *testing.T) {
+	svc, fsys := newTestService(t, cleanup.ProviderModeEnabled, cleanup.ApprovalModeOperator)
+	plan, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Apply(context.Background(), ApplyInput{PlanID: plan.ID, PolicyVersion: plan.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "selected-without-approval", ItemIDs: []string{plan.Providers[0].Preview.Items[0].ID}})
+	if err == nil || len(fsys.Removed) != 0 {
+		t.Fatalf("selection bypassed approval: err=%v removed=%v", err, fsys.Removed)
+	}
+}
+
+func TestApplyExactItemSelectionDoesNotReachUnselectedProviders(t *testing.T) {
+	svc, fsys := newTestService(t, cleanup.ProviderModeEnabled, cleanup.ApprovalModeNone)
+	plan, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectedID := plan.Providers[0].Preview.Items[0].ID
+	plan.Providers = append([]ProviderPlan{{ProviderID: "unselected-provider", ProviderVersion: "v1", Policy: cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeOperator}, Preview: cleanup.Preview{Items: []cleanup.PreviewItem{{ID: "unselected-item", Bytes: 100}}}}}, plan.Providers...)
+	if err := svc.store.SavePlan(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Apply(context.Background(), ApplyInput{PlanID: plan.ID, PolicyVersion: plan.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "only-selected-provider", ItemIDs: []string{selectedID}})
+	if err != nil || len(fsys.Removed) != 1 {
+		t.Fatalf("unselected provider interfered: err=%v removed=%v", err, fsys.Removed)
+	}
+}
+
+func TestApplyExactItemSelectionRejectsAmbiguousIDsBeforeEffects(t *testing.T) {
+	svc, fsys := newTestService(t, cleanup.ProviderModeEnabled, cleanup.ApprovalModeNone)
+	plan, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := plan.Providers[0].Preview.Items[0].ID
+	plan.Providers = append(plan.Providers, plan.Providers[0])
+	if err := svc.store.SavePlan(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	_, err = svc.Apply(context.Background(), ApplyInput{PlanID: plan.ID, PolicyVersion: plan.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "ambiguous-selection", ItemIDs: []string{id}})
+	if err == nil || len(fsys.Removed) != 0 {
+		t.Fatalf("ambiguous selection reached deletion: err=%v removed=%v", err, fsys.Removed)
+	}
+}
+
+func TestApplyExactItemSelectionPreservesOthersAndBindsReplay(t *testing.T) {
+	svc, fsys := newTestService(t, cleanup.ProviderModeEnabled, cleanup.ApprovalModeNone)
+	fsys.Files["/fake/tmp/another.log"] = cleanup.FileInfo{Path: "/fake/tmp/another.log", Size: 32, ModTime: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)}
+	plan, err := svc.Plan(context.Background(), cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := ApplyInput{PlanID: plan.ID, PolicyVersion: plan.PolicyVersion, ApprovalMode: cleanup.ApprovalModeNone, IdempotencyKey: "selected", ItemIDs: []string{plan.Providers[0].Preview.Items[0].ID}}
+	report, err := svc.Apply(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fsys.Removed) != 1 || report.ReclaimedBytes != plan.Providers[0].Preview.Items[0].Bytes {
+		t.Fatalf("selection removed other items: report=%#v removed=%v", report, fsys.Removed)
+	}
+	replay, err := svc.Apply(context.Background(), input)
+	if err != nil || !replay.AlreadyApplied || len(fsys.Removed) != 1 {
+		t.Fatalf("selection replay changed effects: report=%#v err=%v", replay, err)
+	}
+	input.ItemIDs = nil
+	if _, err = svc.Apply(context.Background(), input); err == nil {
+		t.Fatal("same idempotency key expanded selection")
+	}
+}
+
 // TestAuditRedactsPathsFromFailureMessages asserts that when individual items
 // cannot be removed, the failure is recorded in the audit log with the path
 // stripped out.

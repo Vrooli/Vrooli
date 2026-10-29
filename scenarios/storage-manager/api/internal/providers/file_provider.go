@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -59,9 +60,12 @@ type FileProviderConfig struct {
 	ProtectedGlobs    []string
 	ProtectActive     bool
 	LeaseCheck        string
-	RepairClass       string
-	OwnershipRepairer cleanup.OwnershipRepairer
-	ActivityObserver  cleanup.TemporaryActivityObserver
+	// OpenHandleSkipsNonDumpable lets an open_handle check pass over
+	// processes this user cannot inspect. Only regenerable roots opt in.
+	OpenHandleSkipsNonDumpable bool
+	RepairClass                string
+	OwnershipRepairer          cleanup.OwnershipRepairer
+	ActivityObserver           cleanup.TemporaryActivityObserver
 }
 
 // defaultMeasureBudget bounds measurement of a single root.
@@ -89,9 +93,15 @@ type FileProvider struct {
 	protectActive     bool
 	protectedGlobs    []string
 	leaseCheck        string
+	skipNonDumpable   bool
 	repairClass       string
 	repairer          cleanup.OwnershipRepairer
 	activityObserver  cleanup.TemporaryActivityObserver
+
+	// foreignRoots are roots governed by another provider or storage owner
+	// that lie strictly beneath this provider's roots. See
+	// ExcludeGovernedRoots.
+	foreignRoots []string
 
 	// memo holds the most recent measurement so a single plan does not walk
 	// the same trees twice. See previewMemo.
@@ -99,6 +109,32 @@ type FileProvider struct {
 	memo          *previewMemo
 	recoveryMu    sync.Mutex
 	recoveryWalks map[string]*recoveryWalkState
+
+	// failed remembers entries whose removal or effect-boundary revalidation
+	// failed, keyed by path and bound to the entry's identity. See
+	// rememberFailedCandidate.
+	failedMu sync.Mutex
+	failed   map[string]failedCandidate
+	// elevation remembers top-level entries holding content this user cannot
+	// read (another user's subtree, a mode-000 directory). See
+	// rememberNeedsElevation.
+	elevation map[string]elevationRecord
+}
+
+// failedCandidateBackoff is how long a candidate whose removal failed is kept
+// out of later previews.
+//
+// Without it the oldest unremovable entry is re-offered first on every pass:
+// one read-only test fixture in /tmp was retried 130 times over eleven days
+// while 57 GB of removable entries behind it were never reached. The failure
+// is remembered in process memory only; a restart retries once, which is the
+// right trade for a condition (ownership, permissions) that rarely heals on
+// its own but costs nothing to re-check occasionally.
+const failedCandidateBackoff = 12 * time.Hour
+
+type failedCandidate struct {
+	identity string
+	until    time.Time
 }
 
 // previewMemo caches one measurement result.
@@ -235,6 +271,7 @@ func newFileProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProv
 		retentionMaxBytes: cfg.RetentionMaxBytes,
 		protectedGlobs:    append([]string(nil), cfg.ProtectedGlobs...),
 		leaseCheck:        strings.TrimSpace(cfg.LeaseCheck),
+		skipNonDumpable:   cfg.OpenHandleSkipsNonDumpable,
 		protectActive:     cfg.ProtectActive,
 		repairClass:       cfg.RepairClass,
 		repairer:          cfg.OwnershipRepairer,
@@ -257,6 +294,7 @@ func (p *FileProvider) Estimate(ctx context.Context, req cleanup.EstimateRequest
 		RequiresApproval: req.Policy.ApprovalMode != cleanup.ApprovalModeNone,
 		BlockedReason:    preview.BlockedReason,
 		ObservedAt:       p.now(req.Scope),
+		Notices:          preview.Notices,
 	}, nil
 }
 
@@ -297,6 +335,7 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 	var repairAttempted bool
 	var repairAttempts, repairs, retryAttempts uint64
 	var appliedItems []string
+	heldAtApply := p.heldAtApply()
 	for _, item := range req.Preview.Items {
 		if err := ctx.Err(); err != nil {
 			return cleanup.ApplyResult{}, err
@@ -313,6 +352,18 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 		if p.isProtectedPath(item.Path) {
 			skipped = append(skipped, item.ID)
 			warnings = append(warnings, fmt.Sprintf("%s: protected path", item.ID))
+			continue
+		}
+		if heldAtApply != nil && heldAtApply(item.Path) {
+			skipped = append(skipped, item.ID)
+			warnings = append(warnings, fmt.Sprintf("%s: held open by a live process", item.ID))
+			continue
+		}
+		// Re-checked at the effect boundary: a persisted preview from before a
+		// nested root was governed must not remove that root or its parent.
+		if p.insideForeignRoot(item.Path) || p.containsForeignRoot(item.Path) {
+			skipped = append(skipped, item.ID)
+			warnings = append(warnings, fmt.Sprintf("%s: overlaps a root governed by another owner", item.ID))
 			continue
 		}
 		info, err := p.files.Stat(ctx, item.Path)
@@ -339,12 +390,14 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			if err := p.validateTemporaryApply(ctx, item, req.Preview.MinAge); err != nil {
 				skipped = append(skipped, item.ID)
 				warnings = append(warnings, fmt.Sprintf("%s: %s", item.ID, cleanup.Redact(err.Error())))
+				p.rememberFailedCandidate(item.Path, info.Identity)
 				continue
 			}
 			current, statErr := p.files.Stat(ctx, item.Path)
 			if statErr != nil || (info.Identity != "" && current.Identity != info.Identity) || !current.ModTime.Equal(info.ModTime) {
 				skipped = append(skipped, item.ID)
 				warnings = append(warnings, fmt.Sprintf("%s: temporary entry changed during revalidation", item.ID))
+				p.rememberFailedCandidate(item.Path, info.Identity)
 				continue
 			}
 		}
@@ -386,6 +439,9 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 			// another user or vanished mid-run is routine, not exceptional.
 			skipped = append(skipped, item.ID)
 			warnings = append(warnings, fmt.Sprintf("%s: %s", item.ID, cleanup.Redact(err.Error())))
+			// The same entry will fail the same way next pass. Remembering it is
+			// what lets the next preview reach the entries behind it.
+			p.rememberFailedCandidate(item.Path, info.Identity)
 			continue
 		}
 		reclaimed += item.Bytes
@@ -406,6 +462,54 @@ func (p *FileProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cle
 
 func (p *FileProvider) Verify(context.Context, cleanup.VerifyRequest) (cleanup.VerifyResult, error) {
 	return cleanup.VerifyResult{Verified: true, Message: "filesystem provider applied through FileSystem seam"}, nil
+}
+
+// rememberFailedCandidate keeps an entry whose removal or revalidation failed
+// out of previews for failedCandidateBackoff. The record is bound to the
+// entry's identity: a new entry that reuses the name is a different candidate
+// and is measured normally. Skipping a candidate never authorizes anything, so
+// this is acceleration only; Apply still revalidates whatever it is handed.
+func (p *FileProvider) rememberFailedCandidate(path, identity string) {
+	p.forgetRecoveryCandidate(path)
+	p.failedMu.Lock()
+	defer p.failedMu.Unlock()
+	now := p.failureNow()
+	if p.failed == nil {
+		p.failed = make(map[string]failedCandidate)
+	}
+	// Bound the memory: expired records are dropped whenever a new one lands.
+	for key, record := range p.failed {
+		if !now.Before(record.until) {
+			delete(p.failed, key)
+		}
+	}
+	p.failed[filepath.Clean(path)] = failedCandidate{identity: identity, until: now.Add(failedCandidateBackoff)}
+}
+
+// recentlyFailed reports whether path is inside its failure back-off. An
+// unknown identity on either side is treated as the same entry, because the
+// conservative direction for a skip is to keep skipping.
+func (p *FileProvider) recentlyFailed(path, identity string) bool {
+	p.failedMu.Lock()
+	defer p.failedMu.Unlock()
+	record, ok := p.failed[filepath.Clean(path)]
+	if !ok {
+		return false
+	}
+	if !p.failureNow().Before(record.until) {
+		delete(p.failed, filepath.Clean(path))
+		return false
+	}
+	return record.identity == "" || identity == "" || record.identity == identity
+}
+
+// failureNow reads the injected clock when there is one. Unlike observedNow it
+// never falls back to a zero instant, which would make a back-off permanent.
+func (p *FileProvider) failureNow() time.Time {
+	if p.clock != nil {
+		return p.clock.Now()
+	}
+	return time.Now()
 }
 
 // preview measures the configured roots, reusing a very recent identical
@@ -496,10 +600,27 @@ func (p *FileProvider) measure(ctx context.Context, scope cleanup.ObservationSco
 			err = p.collectFiles(measureCtx, root, now, policy, &out)
 		}
 		if err != nil {
+			// The provider's own measurement budget expiring is a bounded
+			// observation, not a failed one. Every item already in out is a
+			// complete unit (top-level entries are appended only after a full
+			// subtree walk; per-file selection appends nothing on error), so
+			// returning them with a warning lets pressure recovery act on what
+			// was measured instead of discarding it as "estimate failed".
+			// A caller's own cancellation or deadline is still an error.
+			if ctx.Err() == nil && measureCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
+				out.Warnings = append(out.Warnings, fmt.Sprintf("measurement budget of %s exhausted under %s; entries measured so far are retained", p.budget(), cleanup.Redact(root)))
+				break
+			}
 			return cleanup.Preview{}, err
 		}
 	}
-	sort.Slice(out.Items, func(i, j int) bool { return out.Items[i].Path < out.Items[j].Path })
+	// Plans present items in a stable path order. Recovery keeps the
+	// collectors' least-recently-written-first order, because when only one
+	// indivisible unit fits a batch it must be the stalest one, not the one
+	// whose name sorts first.
+	if !scope.Recovery {
+		sort.Slice(out.Items, func(i, j int) bool { return out.Items[i].Path < out.Items[j].Path })
+	}
 	out.MinAge = policy.MinAge
 	return out, nil
 }
@@ -616,7 +737,7 @@ func (p *FileProvider) collectFiles(ctx context.Context, root string, now time.T
 		MinAge:               policy.MinAge,
 		MaxBytes:             remaining,
 		AllowSingleOvershoot: p.retentionMaxBytes > 0,
-		IsActive:             p.activePredicate(root),
+		IsActive:             p.excludingForeignRoots(p.activePredicate(root)),
 		ProtectedGlobs:       p.protectedGlobs,
 	})
 	if err != nil {
@@ -634,7 +755,9 @@ func (p *FileProvider) collectFiles(ctx context.Context, root string, now time.T
 func (p *FileProvider) rootBytes(ctx context.Context, root string) (int64, error) {
 	var total int64
 	err := p.files.Walk(ctx, root, func(info cleanup.FileInfo) error {
-		if !info.IsDir && info.Size > 0 {
+		// Another owner's nested root is measured against that owner's budget;
+		// counting it here would hold this root permanently over its ceiling.
+		if !info.IsDir && info.Size > 0 && !p.insideForeignRoot(info.Path) {
 			total += info.Size
 		}
 		return nil
@@ -655,8 +778,9 @@ func (w cleanupFileWalker) Walk(ctx context.Context, root string, visit func(cor
 
 // entryAggregate accumulates one top-level entry's subtree.
 type entryAggregate struct {
-	bytes  int64
-	newest time.Time
+	bytes     int64
+	newest    time.Time
+	protected bool
 }
 
 // collectTopLevelEntries adds one candidate per immediate child of root, sized
@@ -692,6 +816,10 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 	if err != nil {
 		return err
 	}
+	entries, err = p.expandGovernedUnits(ctx, entries)
+	if err != nil {
+		return err
+	}
 
 	// Spend the shared budget on the entries most likely to be eligible first.
 	// Alphabetical order starves late names when a root is large; own mtime is a
@@ -704,13 +832,56 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 		return entries[i].ModTime.Before(entries[j].ModTime)
 	})
 
-	var unmeasured int
+	var unmeasured, backedOff int
+	// measuredBytes is a lower bound on the root's usage: every fully measured
+	// entry, eligible or not. It is the only evidence this pass has that the
+	// root exceeds its declared ceiling.
+	var measuredBytes int64
+	type measuredUnit struct {
+		item   cleanup.PreviewItem
+		newest time.Time
+	}
+	var eligible []measuredUnit
+	defer func() {
+		// Least recently written first, and the reclaim cap is applied in that
+		// order. Entry mtime only orders the walk; the newest descendant is
+		// what says which unit nothing has touched longest.
+		sort.SliceStable(eligible, func(i, j int) bool {
+			if eligible[i].newest.Equal(eligible[j].newest) {
+				return eligible[i].item.Path < eligible[j].item.Path
+			}
+			return eligible[i].newest.Before(eligible[j].newest)
+		})
+		for _, unit := range eligible {
+			if policy.MaxBytes > 0 && sumPreviewBytes(out.Items)+unit.item.Bytes > policy.MaxBytes {
+				out.Warnings = append(out.Warnings, "max reclaim limit reached")
+				continue
+			}
+			out.Items = append(out.Items, unit.item)
+		}
+		if p.meta.SafetyTier == cleanup.SafetyTierRegenerable && p.retentionMaxBytes > 0 && measuredBytes > p.retentionMaxBytes {
+			// A regenerable root proven over its declared ceiling may shed one
+			// whole unit even when that unit is larger than the controller's
+			// batch. Its entries are indivisible (a module host, a store
+			// generation), so without this a root whose units are all large can
+			// never move toward its ceiling. Roots at or under the ceiling, and
+			// roots whose usage was not measured, keep the ordinary batch cap.
+			out.AllowSingleOvershoot = true
+		}
+		if backedOff > 0 {
+			out.Warnings = append(out.Warnings, fmt.Sprintf("%d entries under %s skipped after a recent removal failure", backedOff, cleanup.Redact(root)))
+		}
+	}()
 
 	for _, entry := range entries {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if !p.withinConfiguredRoot(entry.Path) || isActive(entry.Path) || p.isProtectedPath(entry.Path) {
+			continue
+		}
+		if p.recentlyFailed(entry.Path, entry.Identity) {
+			backedOff++
 			continue
 		}
 		// The newest mtime in a subtree is at least as new as its top-level
@@ -742,16 +913,18 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 			}
 			return err
 		}
-		if policy.MinAge > 0 && now.Sub(agg.newest) < policy.MinAge {
+		measuredBytes += agg.bytes
+		if agg.protected {
+			// A unit is removed whole, so a declared protected path anywhere
+			// beneath it protects the whole unit.
 			continue
 		}
-		if policy.MaxBytes > 0 && sumPreviewBytes(out.Items)+agg.bytes > policy.MaxBytes {
-			out.Warnings = append(out.Warnings, "max reclaim limit reached")
+		if policy.MinAge > 0 && now.Sub(agg.newest) < policy.MinAge {
 			continue
 		}
 		item := p.previewItem(entry.Path, agg.bytes)
 		item.Identity, item.ModTime = entry.Identity, entry.ModTime
-		out.Items = append(out.Items, item)
+		eligible = append(eligible, measuredUnit{item: item, newest: agg.newest})
 	}
 
 	if unmeasured > 0 {
@@ -801,6 +974,9 @@ func (p *FileProvider) aggregateEntry(ctx context.Context, entry cleanup.FileInf
 		agg.bytes += info.Size
 		if info.ModTime.After(agg.newest) {
 			agg.newest = info.ModTime
+		}
+		if p.isProtectedPath(info.Path) {
+			agg.protected = true
 		}
 		return nil
 	})
@@ -867,13 +1043,49 @@ func (p *FileProvider) isActivePath(path string) bool {
 	return activePath(path) || (p.protectActive && activeLeasePath(path))
 }
 
+// heldAtApply re-reads live handles at the effect boundary for providers that
+// protect open files. A preview can be minutes old under recovery, and a
+// process that opened a file since then must still keep it. Nil means the
+// provider has no open-handle check.
+func (p *FileProvider) heldAtApply() func(string) bool {
+	if p.leaseCheck != "open_handle" {
+		return nil
+	}
+	predicates := map[string]func(string) bool{}
+	return func(path string) bool {
+		for _, root := range p.roots {
+			if !pathContains(root, path) {
+				continue
+			}
+			predicate, ok := predicates[root]
+			if !ok {
+				predicate = p.activePredicate(root)
+				predicates[root] = predicate
+			}
+			return predicate(path)
+		}
+		return true
+	}
+}
+
 // Hidden payloads (.cache, .git, etc.) inside an expired temporary unit are
 // ordinary contents. Explicit live/pin markers remain protection signals.
+//
+// Under lease_check open_handle the process snapshot is the liveness proof, so
+// name-only markers (*.lock, .keep, *.sock names) are advisory: a stale Go test
+// work directory carries its fake home's credentials.toml.lock and .keep files
+// forever, and treating those as live held an 11 GB directory for weeks with no
+// process anywhere near it. Explicit lease declarations still protect.
 func (p *FileProvider) temporaryDescendantActive(path string) bool {
 	name := strings.ToLower(filepath.Base(path))
 	switch name {
-	case ".building", ".lease", ".active", ".running", ".in-progress", ".keep", ".pin":
+	case ".building", ".lease", ".active", ".running", ".in-progress", ".pin":
 		return true
+	case ".keep":
+		return p.leaseCheck != "open_handle"
+	}
+	if p.leaseCheck == "open_handle" {
+		return p.protectActive && activeLeasePath(path)
 	}
 	return strings.HasSuffix(name, ".lock") || strings.HasSuffix(name, ".sock") ||
 		strings.HasPrefix(name, "systemd-private-") || (p.protectActive && activeLeasePath(path))
@@ -900,7 +1112,7 @@ func (p *FileProvider) activePredicate(root string) func(string) bool {
 			}
 			return predicate
 		}
-		handles, verified := openHandlePaths(root)
+		handles, verified := openHandlePaths(root, p.skipNonDumpable)
 		return p.handlePredicate(root, handles, verified)
 	default:
 		return base
@@ -951,8 +1163,108 @@ func (p *FileProvider) isProtectedPath(path string) bool {
 		if matched, _ := filepath.Match(pattern, filepath.ToSlash(cleanPath)); matched {
 			return true
 		}
+		// Contract globs such as "cache/lock" or "*/.building" are written
+		// relative to the declared root. Matching only the base name or the
+		// absolute path left every multi-segment declaration inert.
+		for _, root := range p.roots {
+			if rel, err := filepath.Rel(root, cleanPath); err == nil && pathContains(root, cleanPath) && rel != "." {
+				if matched, _ := filepath.Match(filepath.ToSlash(pattern), filepath.ToSlash(rel)); matched {
+					return true
+				}
+			}
+		}
 	}
 	return false
+}
+
+// GovernedRoots reports the roots this provider governs, so the registry can
+// keep every other provider from treating them as an ordinary descendant.
+func (p *FileProvider) GovernedRoots() []string { return append([]string(nil), p.roots...) }
+
+// ExcludeGovernedRoots records the governed roots nested strictly beneath this
+// provider's own roots. A cleanup unit is removed whole, so a unit that
+// contains another owner's root is never a unit: ~/.vrooli/cache/vrooli held
+// 115 GB including scenario-to-desktop staging and every scenario's cache
+// namespace, and the runtime-home cache provider offered it as one entry.
+// Nested roots are withheld outright; their ancestors are descended into so
+// sibling entries stay reclaimable.
+func (p *FileProvider) ExcludeGovernedRoots(all []string) {
+	var nested []string
+	for _, candidate := range cleanRoots(all) {
+		if p.isConfiguredRoot(candidate) {
+			continue
+		}
+		for _, root := range p.roots {
+			if pathContains(root, candidate) {
+				nested = append(nested, candidate)
+				break
+			}
+		}
+	}
+	sort.Strings(nested)
+	p.foreignRoots = slices.Compact(nested)
+}
+
+// insideForeignRoot reports whether path is a nested governed root or lies
+// beneath one.
+func (p *FileProvider) insideForeignRoot(path string) bool {
+	for _, root := range p.foreignRoots {
+		if pathContains(root, path) {
+			return true
+		}
+	}
+	return false
+}
+
+// containsForeignRoot reports whether path is a strict ancestor of a nested
+// governed root, so removing it whole would remove that root too.
+func (p *FileProvider) containsForeignRoot(path string) bool {
+	clean := filepath.Clean(path)
+	for _, root := range p.foreignRoots {
+		if root != clean && pathContains(clean, root) {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *FileProvider) excludingForeignRoots(active func(string) bool) func(string) bool {
+	if len(p.foreignRoots) == 0 {
+		return active
+	}
+	return func(path string) bool { return active(path) || p.insideForeignRoot(path) }
+}
+
+// expandGovernedUnits replaces every entry that contains a nested governed
+// root with its children, recursively, and drops the nested roots themselves.
+// What remains are units that can be removed whole without touching another
+// owner's root.
+func (p *FileProvider) expandGovernedUnits(ctx context.Context, entries []cleanup.FileInfo) ([]cleanup.FileInfo, error) {
+	if len(p.foreignRoots) == 0 {
+		return entries, nil
+	}
+	out := make([]cleanup.FileInfo, 0, len(entries))
+	queue := append([]cleanup.FileInfo(nil), entries...)
+	for len(queue) > 0 {
+		entry := queue[0]
+		queue = queue[1:]
+		switch {
+		case p.insideForeignRoot(entry.Path):
+			continue
+		case p.containsForeignRoot(entry.Path):
+			if !entry.IsDir {
+				continue
+			}
+			children, err := p.files.ReadDir(ctx, entry.Path)
+			if err != nil {
+				return nil, err
+			}
+			queue = append(queue, children...)
+		default:
+			out = append(out, entry)
+		}
+	}
+	return out, nil
 }
 
 func cleanRoots(roots []string) []string {

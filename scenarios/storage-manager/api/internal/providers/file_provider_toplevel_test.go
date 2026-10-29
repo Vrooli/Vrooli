@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -783,5 +784,222 @@ func TestPreviewMemo_HandsOutIndependentCopies(t *testing.T) {
 	}
 	if second.Items[0].Path != staging {
 		t.Errorf("second preview path = %q, want %q; the first caller's mutation leaked", second.Items[0].Path, staging)
+	}
+}
+
+// treeWalkFS gives the in-memory fake a resumable walk over each entry's own
+// subtree, so temporary recovery can be exercised across several entries.
+type treeWalkFS struct{ *cleanupfakes.FileSystem }
+
+func (f *treeWalkFS) OpenWalk(_ context.Context, path string) (cleanup.FileWalk, error) {
+	var items []cleanup.FileInfo
+	for candidate, info := range f.Files {
+		if candidate == path || strings.HasPrefix(candidate, path+"/") {
+			items = append(items, info)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+	return &sliceWalk{items: items}, nil
+}
+
+type sliceWalk struct {
+	items []cleanup.FileInfo
+	index int
+}
+
+func (w *sliceWalk) Next(ctx context.Context) (cleanup.FileInfo, error) {
+	if err := ctx.Err(); err != nil {
+		return cleanup.FileInfo{}, err
+	}
+	if w.index == len(w.items) {
+		return cleanup.FileInfo{}, io.EOF
+	}
+	w.index++
+	return w.items[w.index-1], nil
+}
+func (*sliceWalk) Close() error { return nil }
+
+func recoveryPreview(t *testing.T, provider *FileProvider, minAge time.Duration) cleanup.Preview {
+	t.Helper()
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: minAge}})
+	if err != nil {
+		t.Fatalf("recovery preview: %v", err)
+	}
+	return preview
+}
+
+// A temporary entry whose removal failed must not be re-offered first on the
+// next pass. On the incident host one read-only fixture was retried 130 times
+// while 57 GB of removable entries behind it were never reached.
+func TestTemporaryRecoveryFailedEntryDoesNotBlockLaterCandidates(t *testing.T) {
+	bad, good := filepath.Join(tmpRoot, "bad-fixture"), filepath.Join(tmpRoot, "good-fixture")
+	clock := &budgetClock{current: now}
+	fsys := &treeWalkFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, AllowRemove: true, Files: map[string]cleanup.FileInfo{
+		bad: {Path: bad, IsDir: true, Size: 4096, ModTime: at(1, 0), Identity: "1:10"}, bad + "/payload": file(bad+"/payload", 100, at(1, 0)),
+		good: {Path: good, IsDir: true, Size: 4096, ModTime: at(2, 0), Identity: "1:20"}, good + "/payload": file(good+"/payload", 100, at(2, 0)),
+	}}}
+	provider := NewTmpProvider(fsys, clock, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+	first := recoveryPreview(t, provider, 7*24*time.Hour)
+	var badItem cleanup.PreviewItem
+	for _, item := range first.Items {
+		if item.Path == bad {
+			badItem = item
+		}
+	}
+	if badItem.Path == "" {
+		t.Fatalf("first preview = %v, want the stale fixture offered", previewPaths(first))
+	}
+	fsys.RemoveErrors = []error{fmt.Errorf("unlinkat %s: permission denied", bad)}
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: provider.Metadata().Version, IdempotencyKey: "fails", Preview: cleanup.Preview{MinAge: 7 * 24 * time.Hour, Items: []cleanup.PreviewItem{badItem}}})
+	if err != nil || result.ReclaimedBytes != 0 || len(result.SkippedItems) != 1 {
+		t.Fatalf("failing apply = %#v, %v", result, err)
+	}
+
+	// Both the retained ready set and a fresh walk must skip the failed entry.
+	for _, fresh := range []bool{false, true} {
+		if fresh {
+			provider.CloseRecoveryWalks()
+		}
+		next := recoveryPreview(t, provider, 7*24*time.Hour)
+		if got := previewPaths(next); len(got) != 1 || got[0] != good {
+			t.Fatalf("fresh=%t preview = %v, want only %s past the failed entry", fresh, got, good)
+		}
+	}
+
+	// A different entry under the same name is a new candidate.
+	replaced := fsys.Files[bad]
+	replaced.Identity = "1:99"
+	fsys.Files[bad] = replaced
+	provider.CloseRecoveryWalks()
+	if got := previewPaths(recoveryPreview(t, provider, 7*24*time.Hour)); len(got) != 2 {
+		t.Fatalf("replaced entry preview = %v, want the new entry measured again", got)
+	}
+
+	// The original entry is retried once its back-off expires.
+	replaced.Identity = "1:10"
+	fsys.Files[bad] = replaced
+	fsys.RemoveErrors = []error{fmt.Errorf("unlinkat %s: permission denied", bad)}
+	badItem.Identity = "1:10"
+	if _, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: provider.Metadata().Version, IdempotencyKey: "fails-again", Preview: cleanup.Preview{MinAge: 7 * 24 * time.Hour, Items: []cleanup.PreviewItem{badItem}}}); err != nil {
+		t.Fatal(err)
+	}
+	provider.CloseRecoveryWalks()
+	if got := previewPaths(recoveryPreview(t, provider, 7*24*time.Hour)); len(got) != 1 {
+		t.Fatalf("preview inside back-off = %v, want failed entry withheld", got)
+	}
+	clock.current = clock.current.Add(failedCandidateBackoff + time.Minute)
+	provider.CloseRecoveryWalks()
+	if got := previewPaths(recoveryPreview(t, provider, 7*24*time.Hour)); len(got) != 2 {
+		t.Fatalf("preview after back-off = %v, want failed entry retried", got)
+	}
+}
+
+// One recovery observation must make byte-meaningful progress: it collects
+// every complete unit its budget reaches and puts the largest first, so a
+// large stale tree is not queued behind thousands of tiny entries.
+func TestTemporaryRecoveryAccumulatesUnitsLargestFirst(t *testing.T) {
+	files := map[string]cleanup.FileInfo{}
+	for i := 0; i < 5; i++ {
+		small := filepath.Join(tmpRoot, fmt.Sprintf("small-%d", i))
+		files[small] = dir(small, at(1, i))
+		files[small+"/f"] = file(small+"/f", 10, at(1, i))
+	}
+	large := filepath.Join(tmpRoot, "large-fixture")
+	files[large] = dir(large, at(10, 0))
+	files[large+"/payload"] = file(large+"/payload", 20<<30, at(10, 0))
+	fsys := &treeWalkFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: files}}
+	provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+	preview := recoveryPreview(t, provider, 7*24*time.Hour)
+	if len(preview.Items) != 6 || preview.Items[0].Path != large || !preview.AllowSingleOvershoot {
+		t.Fatalf("preview = %v, want all six complete units with the large tree first", previewPaths(preview))
+	}
+}
+
+// A regenerable root proven over its declared ceiling may shed one whole
+// indivisible unit larger than the controller batch; a root under its ceiling
+// may not. The stalest unit (by newest descendant, not by name or entry mtime)
+// is offered first.
+func TestRegenerableRecoveryOvershootRequiresProvenCeilingBreach(t *testing.T) {
+	root := filepath.Join(tmpRoot, "store")
+	for _, tc := range []struct {
+		name      string
+		ceiling   int64
+		overshoot bool
+	}{{"over ceiling", 100, true}, {"under ceiling", 200, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			fsys := &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+				root: dir(root, at(1, 0)),
+				// "a-v10" sorts first and has the older entry mtime, but its
+				// contents were written most recently.
+				root + "/a-v10": {Path: root + "/a-v10", IsDir: true, ModTime: at(1, 0)}, root + "/a-v10/f": file(root+"/a-v10/f", 60, at(30, 0)),
+				root + "/b-v3": {Path: root + "/b-v3", IsDir: true, ModTime: at(20, 0)}, root + "/b-v3/f": file(root+"/b-v3/f", 80, at(2, 0)),
+			}}
+			provider := NewCacheProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "store", Roots: []string{root}, Tier: cleanup.SafetyTierRegenerable, RetentionMaxBytes: tc.ceiling})
+			preview := recoveryPreview(t, provider, 0)
+			if preview.AllowSingleOvershoot != tc.overshoot {
+				t.Fatalf("overshoot = %t, want %t", preview.AllowSingleOvershoot, tc.overshoot)
+			}
+			if len(preview.Items) == 0 || preview.Items[0].Path != root+"/b-v3" {
+				t.Fatalf("preview = %v, want least recently written unit first", previewPaths(preview))
+			}
+		})
+	}
+}
+
+// A contract glob such as "cache/lock" is relative to the declared root, and a
+// unit is removed whole, so a protected descendant protects its unit.
+func TestTopLevelEntries_RootRelativeProtectedDescendantProtectsUnit(t *testing.T) {
+	root := filepath.Join(tmpRoot, "mod")
+	fsys := &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		root:                         dir(root, at(1, 0)),
+		root + "/cache":              dir(root+"/cache", at(1, 0)),
+		root + "/cache/lock":         file(root+"/cache/lock", 0, at(1, 0)),
+		root + "/cache/download/zip": file(root+"/cache/download/zip", 50, at(1, 0)),
+		root + "/example.com":        dir(root+"/example.com", at(1, 0)),
+		root + "/example.com/m@v1/a": file(root+"/example.com/m@v1/a", 50, at(1, 0)),
+	}}
+	provider := NewCacheProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "mod", Roots: []string{root}, Tier: cleanup.SafetyTierRegenerable, RetentionMaxBytes: 1 << 20, ProtectedGlobs: []string{"cache/lock"}})
+	if got := previewPaths(recoveryPreview(t, provider, 0)); len(got) != 1 || got[0] != root+"/example.com" {
+		t.Fatalf("preview = %v, want the unit holding cache/lock withheld", got)
+	}
+}
+
+// slowEntryFS blocks the walk of one entry until the caller's context ends,
+// standing in for a subtree too large to measure within the budget.
+type slowEntryFS struct {
+	*cleanupfakes.FileSystem
+	slow string
+}
+
+func (f *slowEntryFS) Walk(ctx context.Context, root string, visit func(cleanup.FileInfo) error) error {
+	if root == f.slow {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	return f.FileSystem.Walk(ctx, root, visit)
+}
+
+// The provider's own measurement budget expiring mid-subtree is a bounded
+// observation: units measured before it are returned with a warning instead
+// of the whole estimate failing with "context deadline exceeded".
+func TestMeasureBudget_ContextExpiryKeepsMeasuredUnits(t *testing.T) {
+	root := filepath.Join(tmpRoot, "cache-root")
+	fast, slow := root+"/fast", root+"/slow"
+	fsys := &slowEntryFS{slow: slow, FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+		root: dir(root, at(1, 0)), fast: dir(fast, at(1, 0)), fast + "/f": file(fast+"/f", 50, at(1, 0)),
+		slow: dir(slow, at(2, 0)), slow + "/f": file(slow+"/f", 50, at(2, 0)),
+	}}}
+	provider := NewCacheProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "cache", Roots: []string{root}, Tier: cleanup.SafetyTierRegenerable, RetentionMaxBytes: 1 << 20, MeasureBudget: 50 * time.Millisecond})
+	preview := recoveryPreview(t, provider, 0)
+	if got := previewPaths(preview); len(got) != 1 || got[0] != fast {
+		t.Fatalf("preview = %v, want the unit measured before the budget expired", got)
+	}
+	if len(preview.Warnings) == 0 || !strings.Contains(strings.Join(preview.Warnings, ";"), "measurement budget") {
+		t.Fatalf("warnings = %v, want the exhausted budget surfaced", preview.Warnings)
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := provider.Preview(cancelled, cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true}}); err == nil {
+		t.Fatal("caller cancellation was reported as a successful partial measurement")
 	}
 }

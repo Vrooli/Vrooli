@@ -14,7 +14,13 @@ import (
 // openHandlePaths returns paths held by a live process on Linux. macOS has no
 // stable procfs equivalent, so it reports unverifiable there and callers fail
 // closed. The scan happens once per provider preview, never once per file.
-func openHandlePaths(root string) (map[string]struct{}, bool) {
+//
+// skipNonDumpable passes over same-user processes the kernel marked
+// non-dumpable (ssh-agent, systemd's sd-pam, file-capability binaries): their
+// /proc entries are root-owned, so this user can never inspect them, and one
+// such process otherwise leaves every scan unverified for good. Only callers
+// whose loss is a regenerable file, never live state, may opt in.
+func openHandlePaths(root string, skipNonDumpable bool) (map[string]struct{}, bool) {
 	if runtime.GOOS != "linux" {
 		return nil, false
 	}
@@ -47,7 +53,7 @@ func openHandlePaths(root string) (map[string]struct{}, bool) {
 		}
 		fds, readErr := os.ReadDir(filepath.Join(procRoot, "fd"))
 		if readErr != nil {
-			if os.IsNotExist(readErr) {
+			if os.IsNotExist(readErr) || (skipNonDumpable && os.IsPermission(readErr) && nonDumpable(procRoot)) {
 				continue
 			}
 			return nil, false
@@ -136,6 +142,17 @@ func openHandlePaths(root string) (map[string]struct{}, bool) {
 		}
 	}
 	return handles, true
+}
+
+// nonDumpable reports a process whose own /proc entries the kernel hands to
+// root although the process runs as this user.
+func nonDumpable(procRoot string) bool {
+	info, err := os.Stat(filepath.Join(procRoot, "fd"))
+	if err != nil {
+		return false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && stat.Uid == 0 && os.Geteuid() != 0
 }
 
 func hasLeaseFile(path, root string) bool {

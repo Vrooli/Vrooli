@@ -138,6 +138,17 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 		}
 		providers = append(providers, provider)
 	}
+	// Tool-pruned roots reclaim through the owning tool's own prune command
+	// rather than a file walk. This is the only reclamation path for a cache
+	// the FileProvider must refuse (the Go build cache), so it is registered
+	// here alongside the declarative file roots it complements.
+	for _, cfg := range deps.ToolPruneSpecs {
+		provider, err := NewToolPruneProvider(deps.FileSystem, deps.ProcessRunner, deps.Clock, cfg)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, provider)
+	}
 	if deps.OrphanedDatabaseProvider != nil {
 		providers = append(providers, deps.OrphanedDatabaseProvider)
 	}
@@ -152,12 +163,40 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 		}))
 	}
 
+	excludeNestedGovernedRoots(providers, deps.GovernedRoots)
+
 	for _, provider := range providers {
 		if err := cleanup.ValidateProvider(provider); err != nil {
 			return nil, err
 		}
 	}
 	return providers, nil
+}
+
+// governedRootReporter is implemented by providers that own filesystem roots.
+type governedRootReporter interface{ GovernedRoots() []string }
+
+// governedRootExcluder is implemented by providers whose cleanup units could
+// otherwise contain another owner's root.
+type governedRootExcluder interface{ ExcludeGovernedRoots([]string) }
+
+// excludeNestedGovernedRoots hands every provider the full registry of governed
+// roots: each provider's own roots plus the declared owner storage locations.
+// The registry, not a list of names, is what says a directory belongs to
+// someone else, so a newly declared root is protected from every ancestor
+// provider the moment it is declared.
+func excludeNestedGovernedRoots(providers []cleanup.Provider, declared []string) {
+	governed := append([]string(nil), declared...)
+	for _, provider := range providers {
+		if reporter, ok := provider.(governedRootReporter); ok {
+			governed = append(governed, reporter.GovernedRoots()...)
+		}
+	}
+	for _, provider := range providers {
+		if excluder, ok := provider.(governedRootExcluder); ok {
+			excluder.ExcludeGovernedRoots(governed)
+		}
+	}
 }
 
 func OwnerScenarioProviders(configs []OwnerProviderConfig, client cleanup.ScenarioProviderClient) []cleanup.Provider {
@@ -169,28 +208,36 @@ func OwnerScenarioProviders(configs []OwnerProviderConfig, client cleanup.Scenar
 }
 
 type BuiltInDeps struct {
-	TemporaryActivity        cleanup.TemporaryActivityObserver
-	FileSystem               cleanup.FileSystem
-	ProcessLiveness          cleanup.ProcessLiveness
-	ProcessRunner            cleanup.ProcessRunner
-	Docker                   cleanup.DockerClient
-	DockerImageLedger        imageUsageLedger
-	OllamaModelProvider      cleanup.Provider
-	Journal                  cleanup.JournalClient
-	Broker                   cleanup.BrokerActionClient
-	OwnerScenarioClient      cleanup.ScenarioProviderClient
-	OwnerProviderConfigs     []OwnerProviderConfig
-	Clock                    cleanup.Clock
-	TrashRoots               []string
-	TmpRoots                 []string
-	ScratchRoots             []string
-	GoBuildCacheRoots        []string
-	PlaywrightCacheRoots     []string
-	ScenarioBinariesRoot     string
-	RuntimeHomeProviders     []FileProviderConfig
-	GovernedRootProviders    []FileProviderConfig
-	GovernedRootSpecs        []RootSpec
+	TemporaryActivity     cleanup.TemporaryActivityObserver
+	FileSystem            cleanup.FileSystem
+	ProcessLiveness       cleanup.ProcessLiveness
+	ProcessRunner         cleanup.ProcessRunner
+	Docker                cleanup.DockerClient
+	DockerImageLedger     imageUsageLedger
+	OllamaModelProvider   cleanup.Provider
+	Journal               cleanup.JournalClient
+	Broker                cleanup.BrokerActionClient
+	OwnerScenarioClient   cleanup.ScenarioProviderClient
+	OwnerProviderConfigs  []OwnerProviderConfig
+	Clock                 cleanup.Clock
+	TrashRoots            []string
+	TmpRoots              []string
+	ScratchRoots          []string
+	GoBuildCacheRoots     []string
+	PlaywrightCacheRoots  []string
+	ScenarioBinariesRoot  string
+	RuntimeHomeProviders  []FileProviderConfig
+	GovernedRootProviders []FileProviderConfig
+	GovernedRootSpecs     []RootSpec
+	// ToolPruneSpecs are declarative roots reclaimed by invoking the owning
+	// tool's prune command through the ProcessRunner seam, for caches that are
+	// unsafe to delete file-by-file (the Go build cache).
+	ToolPruneSpecs           []ToolPruneProviderConfig
 	OrphanedDatabaseProvider cleanup.Provider
+	// GovernedRoots are absolute storage locations declared by owners (scenario,
+	// resource, and control-plane storage entries). No provider may remove one
+	// as part of a larger unit; see excludeNestedGovernedRoots.
+	GovernedRoots []string
 	// InstanceLiveness, InstanceNamespaceRoots, and KnownScenarios together
 	// enable the orphaned non-live instance storage provider.
 	InstanceLiveness          InstanceLiveness

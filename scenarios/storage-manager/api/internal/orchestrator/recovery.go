@@ -118,6 +118,18 @@ const (
 	// independent ceiling prevents a faulty provider or a failed statfs from
 	// turning a small positive receipt into an unbounded hot loop.
 	recoveryMaxBatches = 1024
+	// A batch that reclaims nothing usually means one entry failed (a
+	// read-only fixture, a foreign-owned subtree). The provider is asked again,
+	// with every item that already failed in this run excluded, so one bad
+	// entry cannot hold back the rest of the provider. This bounds how many
+	// consecutive zero-progress batches a provider gets before recovery moves
+	// on; recoveryMaxBatches still bounds the run as a whole.
+	recoveryMaxStalledBatches = 8
+	// A resumable provider can report that its bounded measurement paused
+	// before any complete unit was ready. Under pressure it is asked to resume
+	// a few more times in the same run rather than waiting for the next
+	// trigger; each pass is bounded by the provider's own observation budget.
+	recoveryMaxPendingPasses = 6
 )
 
 // StartRecovery accepts a trigger and returns before provider measurement or
@@ -385,6 +397,8 @@ providerLoop:
 			s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: "provider missing from registry"})
 			continue
 		}
+		stalled, pendingPasses := 0, 0
+		failedItems := make(map[string]struct{})
 		for batchIndex := 0; ; batchIndex++ {
 			if batches >= recoveryMaxBatches {
 				out.Reason = "batch_limit"
@@ -397,6 +411,11 @@ providerLoop:
 			providerCtx, providerCancel := context.WithTimeout(ctx, recoveryProviderBudget)
 			scope := cleanup.ObservationScope{RootPaths: []string{partition}, Now: s.now(), Recovery: true}
 			estimate, estimateErr := provider.Estimate(providerCtx, cleanup.EstimateRequest{Scope: scope, Policy: providerPolicy})
+			for _, notice := range estimate.Notices {
+				// Providers report a notice once per condition, so the audit
+				// trail names each entry needing elevation exactly once.
+				s.audit(ctx, AuditEvent{Type: "recovery.needs_elevation", PlanID: out.PlanID, ProviderID: meta.ID, Message: notice})
+			}
 			if estimateErr != nil {
 				message := "estimate failed: " + cleanup.Redact(estimateErr.Error())
 				if providerCtx.Err() != nil {
@@ -410,6 +429,13 @@ providerLoop:
 				message := estimate.BlockedReason
 				if message == "" {
 					message = "estimate reported no eligible bytes"
+				}
+				if strings.Contains(message, "measurement pending") && pendingPasses < recoveryMaxPendingPasses {
+					// Resume the paused walk; its position is retained, so each
+					// pass measures new entries rather than repeating old ones.
+					pendingPasses++
+					providerCancel()
+					continue
 				}
 				if strings.Contains(message, "measurement pending") {
 					out.Reason = "measurement_pending"
@@ -442,6 +468,14 @@ providerLoop:
 				s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: "preview reported no items"})
 				providerCancel()
 				break
+			}
+			if len(failedItems) > 0 {
+				preview.Items = withoutRecoveryItems(preview.Items, failedItems)
+				if len(preview.Items) == 0 {
+					s.audit(ctx, AuditEvent{Type: "recovery.provider_skipped", PlanID: out.PlanID, ProviderID: meta.ID, Message: "preview offered only items that already failed in this run"})
+					providerCancel()
+					break
+				}
 			}
 			batch := boundedRecoveryPreview(preview, recoveryBatchCap)
 			if len(batch.Items) == 0 {
@@ -498,10 +532,19 @@ providerLoop:
 				out.Reason = "target_met"
 				return out, nil
 			}
-			if result.ReclaimedBytes == 0 {
+			for _, id := range recoveryFailedItems(result, batch) {
+				failedItems[id] = struct{}{}
+			}
+			if result.ReclaimedBytes > 0 {
+				stalled = 0
+				continue
+			}
+			stalled++
+			if stalled >= recoveryMaxStalledBatches {
 				s.audit(ctx, AuditEvent{Type: "recovery.provider_zero_progress", PlanID: plan.ID, ProviderID: meta.ID, Message: "provider applied without reclaim; advancing to next provider"})
 				continue providerLoop
 			}
+			s.audit(ctx, AuditEvent{Type: "recovery.provider_zero_progress", PlanID: plan.ID, ProviderID: meta.ID, Message: "provider applied without reclaim; retrying past failed items"})
 		}
 	}
 	if out.Reason == "" {
@@ -527,6 +570,34 @@ func recoveryFilesRemoved(result cleanup.ApplyResult, batch cleanup.Preview) int
 		return 0
 	}
 	return count
+}
+
+// recoveryFailedItems names the batch items that did not reclaim. Explicit
+// skips are authoritative. A zero-byte result that names nothing is treated
+// as the whole batch failing, so a provider that does not itemize its
+// failures cannot hand the same batch back within the run.
+func recoveryFailedItems(result cleanup.ApplyResult, batch cleanup.Preview) []string {
+	if len(result.SkippedItems) > 0 {
+		return result.SkippedItems
+	}
+	if result.ReclaimedBytes > 0 || len(result.AppliedItems) > 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(batch.Items))
+	for _, item := range batch.Items {
+		ids = append(ids, item.ID)
+	}
+	return ids
+}
+
+func withoutRecoveryItems(items []cleanup.PreviewItem, exclude map[string]struct{}) []cleanup.PreviewItem {
+	kept := make([]cleanup.PreviewItem, 0, len(items))
+	for _, item := range items {
+		if _, failed := exclude[item.ID]; !failed {
+			kept = append(kept, item)
+		}
+	}
+	return kept
 }
 
 // hasCurrentHostStandingApproval prevents a policy copied from another host

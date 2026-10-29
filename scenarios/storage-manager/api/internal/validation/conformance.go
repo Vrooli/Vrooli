@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -331,6 +332,7 @@ func retentionConflicts(ac AnalyzerContext, manifest []byte) []Finding {
 	if _, err := retention.ParseManifest(manifest); err != nil {
 		findings = append(findings, Finding{Code: "STORAGE_RETENTION_CONFLICT", Severity: SeverityWarning, Title: "Retention declarations conflict", Message: err.Error(), Location: ".vrooli/service.json", Remediation: "Make each retention target and storage declaration describe one physical surface.", Analyzer: "storage.entry-conformance"})
 	}
+	findings = append(findings, customTestRunsProviderFindings(ac, manifest)...)
 	conflicts, err := retention.ValidateRetentionAgainstDurableData(manifest)
 	if err != nil {
 		findings = append(findings, Finding{Code: "STORAGE_RETENTION_CONFLICT", Severity: SeverityWarning, Title: "Retention declarations cannot be checked", Message: err.Error(), Location: ".vrooli/service.json", Remediation: "Make the manifest valid JSON before checking retention declarations.", Analyzer: "storage.entry-conformance"})
@@ -338,6 +340,57 @@ func retentionConflicts(ac AnalyzerContext, manifest []byte) []Finding {
 	}
 	for _, conflict := range conflicts {
 		findings = append(findings, Finding{Code: "STORAGE_RETENTION_CONFLICT", Severity: SeverityWarning, Title: "Retention declarations conflict", Message: conflict.String(), Location: ".vrooli/service.json", Remediation: "Make the durable_data and retention declarations agree about kind and format.", Analyzer: "storage.entry-conformance"})
+	}
+	return findings
+}
+
+// customTestRunsProviderFindings ensures a run-root declaration skipped by the
+// generic retention parser is actually linked to the existing owner cleanup
+// provider. Without this link, the generic parser correctly refuses to prune
+// test_runs, but the declaration would otherwise appear bounded without an
+// enforcement owner.
+func customTestRunsProviderFindings(ac AnalyzerContext, data []byte) []Finding {
+	var manifest struct {
+		Storage struct {
+			Entries map[string]struct {
+				Class   string `json:"class"`
+				Reclaim *struct {
+					Pruner string `json:"pruner"`
+				} `json:"reclaim"`
+			} `json:"entries"`
+			CleanupProviders []struct {
+				StorageEntries []string `json:"storage_entries"`
+			} `json:"cleanup_providers"`
+		} `json:"storage"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return nil // ParseManifest already reports malformed JSON.
+	}
+	linked := make(map[string]struct{})
+	for _, provider := range manifest.Storage.CleanupProviders {
+		for _, name := range provider.StorageEntries {
+			linked[name] = struct{}{}
+		}
+	}
+	names := make([]string, 0)
+	for name, entry := range manifest.Storage.Entries {
+		if entry.Class == "test_runs" && entry.Reclaim != nil && entry.Reclaim.Pruner == "custom" {
+			if _, exists := linked[name]; !exists {
+				names = append(names, name)
+			}
+		}
+	}
+	sort.Strings(names)
+	findings := make([]Finding, 0, len(names))
+	for _, name := range names {
+		findings = append(findings, Finding{
+			Code: "STORAGE_CUSTOM_RECLAIM_UNLINKED", Severity: SeverityWarning,
+			Title:       "Owner cleanup provider does not own custom retention",
+			Message:     fmt.Sprintf("custom test_runs entry %q is not linked from any storage.cleanup_providers.storage_entries declaration", name),
+			Location:    ownerManifestLocation(ac),
+			Remediation: "Link the entry from the existing lifecycle-aware owner cleanup provider; generic test_runs pruning is unsupported.",
+			Analyzer:    "storage.entry-conformance",
+		})
 	}
 	return findings
 }

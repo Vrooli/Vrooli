@@ -410,7 +410,7 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 		if errMsg != "" {
 			errMsg += "; "
 		}
-		errMsg += fmt.Sprintf("retention_failed: %d outcome(s) require retention maintenance", warnings)
+		errMsg += fmt.Sprintf("retention_failed: %d outcome(s) left a source above keep_latest; see outcome warnings", warnings)
 	}
 	if len(evidenceErrs) > 0 {
 		if errMsg != "" {
@@ -611,13 +611,38 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 	}
 	out.SnapshotID = snap.ID
 
-	// Retention is best-effort: a policy failure does not undo a good snapshot.
+	// Retention never undoes a good snapshot, but a source left above its bound
+	// is a loud outcome warning (and a partial_failed run), never silent.
 	if plan.KeepLatest > 0 {
-		if retentionErr := s.deps.Engine.PolicySet(ctx, dest.Name, artifact.Path, plan.KeepLatest); retentionErr != nil {
-			out.Warning = "retention_failed: retention policy could not be applied"
-		}
+		out.Warning = s.enforceRetention(ctx, runID, dest.Name, snap.Source, plan.KeepLatest)
 	}
 	return finish(OutcomeSucceeded, "")
+}
+
+// maxRetentionDetail bounds the engine error carried into a persisted warning.
+const maxRetentionDetail = 400
+
+// enforceRetention bounds the snapshot's recorded source to keepLatest and
+// returns "" only when the source provably holds at most keepLatest snapshots.
+// It acts on the source kopia recorded, not the captured path: the override
+// source makes those differ, and a policy on the path governs nothing.
+func (s *service) enforceRetention(ctx context.Context, runID, repo, source string, keepLatest int) string {
+	if strings.TrimSpace(source) == "" {
+		return "retention_failed: kopia did not report the snapshot source, so keep_latest was not applied"
+	}
+	remaining, err := s.deps.Engine.ApplyRetention(ctx, repo, source, keepLatest)
+	if err != nil {
+		s.logf("run %s retention repo=%s source=%s: %v", runID, repo, source, err)
+		detail := err.Error()
+		if len(detail) > maxRetentionDetail {
+			detail = detail[:maxRetentionDetail] + "..."
+		}
+		return fmt.Sprintf("retention_failed: keep_latest=%d could not be applied to %s: %s", keepLatest, source, detail)
+	}
+	if remaining > keepLatest {
+		return fmt.Sprintf("retention_failed: %s still holds %d snapshots after expiry; keep_latest is %d", source, remaining, keepLatest)
+	}
+	return ""
 }
 
 func (s *service) GetRun(ctx context.Context, id string) (Run, error) {

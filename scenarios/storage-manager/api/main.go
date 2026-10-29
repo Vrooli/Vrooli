@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 	"time"
 
 	"storage-manager/internal/census"
+	"storage-manager/internal/dbmaintenance"
+	"storage-manager/internal/deletiongrant"
 	"storage-manager/internal/httpx"
 	"storage-manager/internal/inventorycache"
 	"storage-manager/internal/modules"
@@ -23,6 +26,8 @@ import (
 	"storage-manager/internal/server"
 
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -80,6 +85,12 @@ func main() {
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		logger.Fatalf("schema initialization failed: %v", err)
 	}
+	// The deletion-grant store is shared by the policy bridge (which projects
+	// approved grants as allow rules) and the request/resolution endpoints below.
+	// grantRepublisher lets an approval trigger an immediate snapshot refresh so
+	// the new allow rule takes effect in seconds rather than at the next interval.
+	grantStore := deletiongrant.NewStore(db)
+	grantRepublisher := policybridge.NewRepublisher()
 	repoRoot, repoErr := repocontract.ResolveRepoRoot()
 	if repoErr != nil {
 		logger.Printf("repo root resolution failed; validation will report unresolved targets: %v", repoErr)
@@ -123,8 +134,10 @@ func main() {
 		})
 		storageScheduler.Start(schedulerContext)
 		// Coding agents decide deletions from the agent-policy bundle; publish
-		// where the contract declares deletion safe, owner-confirmed, or durable.
-		policybridge.Start(schedulerContext, logger, repoRoot)
+		// where the contract declares deletion safe, owner-confirmed, or durable,
+		// plus any location an operator has approved a time-boxed deletion grant
+		// for through the decision inbox (projected as an allow rule).
+		policybridge.Start(schedulerContext, logger, repoRoot, policyGrantSource{store: grantStore}, grantRepublisher)
 		// Fail closed: retention deletes, so a pass that cannot write receipts
 		// must not start at all. Skipping the scheduler is the right blast
 		// radius -- the API keeps serving, and the one subsystem that would
@@ -158,6 +171,41 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+
+	// Deletion-grant request + resolution endpoints. An agent posts to the
+	// request path to raise an operator decision (surfaced in the web-console
+	// inbox); on approval, vrooli-events delivers the resolution to the signed
+	// webhook, which records the grant so the policy bridge projects it as an
+	// allow rule. More specific than apiMountPath, so these win on the mux.
+	grantRaiser := operatordecision.Raiser{
+		Source:         deletiongrant.Source,
+		Kind:           deletiongrant.Kind,
+		Store:          grantStore,
+		Publisher:      eventbus.NewDiscoveredClient(context.Background()),
+		MaxOutstanding: 10,
+		Window:         7 * 24 * time.Hour,
+	}
+	// Verify the requesting coding agent's identity (via the shared
+	// agent-provenance layer, which checks the token against agent-manager) so
+	// the request records a trusted run id for the automatic answer tie-back.
+	// The signed resolution webhook carries no agent token and is left unwrapped.
+	grantProvenance := provenance.Middleware(provenance.CLIUtilVerifier{})
+	rootMux.Handle(deletiongrant.RequestPath, grantProvenance(deletiongrant.RequestHandler(grantRaiser, declaredProtection(repoRoot))))
+	if secret, secretErr := deletiongrant.ResolveWebhookSecret(os.Getenv); deletiongrant.ShouldMountWebhook(secret, secretErr) {
+		rootMux.Handle(deletiongrant.WebhookPath, operatordecision.Webhook(secret, deletiongrant.NewResolver(grantStore).WithOnApprove(grantRepublisher.Trigger)))
+		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+			target := "http://127.0.0.1:" + port + deletiongrant.WebhookPath
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				if err := deletiongrant.ReconcileSubscription(ctx, target); err != nil {
+					logger.Printf("deletion-grant answer subscription reconcile failed: %v", err)
+				}
+			}()
+		}
+	} else {
+		logger.Printf("deletion-grant webhook secret unavailable; approvals will not be delivered (set VROOLI_EVENTS_WEBHOOK_SECRET)")
+	}
 
 	apiMountPath := "/"
 	rootMux.Handle(apiMountPath, srv.Handler())
@@ -304,14 +352,19 @@ func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot s
 			},
 		}).Enforce(cycleCtx, inventory)
 		managerRetention.RecordCycle(time.Now().UTC(), results, err)
-		if err == nil {
-			// Ledger rows are derived evidence and have their own retention
-			// policy; do not route them through owner filesystem pruning.
-			err = orchestrator.NewSQLiteStore(db).PruneRecoveryLedger(cycleCtx, time.Now().UTC())
-		}
-		if err == nil {
-			err = census.NewSnapshotStore(db).Prune(cycleCtx, time.Now().UTC())
-		}
+		// Ledger rows are derived evidence and have their own retention
+		// policy; do not route them through owner filesystem pruning. They
+		// are pruned even when owner enforcement failed this cycle, because a
+		// persistently failing owner must not leave the manager's own tables
+		// unbounded.
+		store := orchestrator.NewSQLiteStore(db)
+		snapshots := census.NewSnapshotStore(db)
+		err = errors.Join(err,
+			store.PruneRecoveryLedger(cycleCtx, time.Now().UTC()),
+			store.PruneAuditTrail(cycleCtx, time.Now().UTC()),
+			snapshots.Prune(cycleCtx, time.Now().UTC()),
+		)
+		maintainOwnDatabase(cycleCtx, logger, db, snapshots)
 		return err
 	}).WithObserver(func(cycle sharedscheduler.Cycle) {
 		if cycle.Err != nil {
@@ -321,6 +374,61 @@ func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot s
 			logger.Printf("retention cycle took %s, at or beyond its %s interval; the next walk waits a full interval", cycle.Duration.Round(time.Second), retentionInterval())
 		}
 	}).Start(ctx)
+}
+
+// maintainOwnDatabase returns the pages retention just freed to the
+// filesystem. The one-time incremental auto-vacuum conversion waits until the
+// census report backlog is compacted, so the rewrite copies the pruned
+// database rather than the bloated one and holds the single connection briefly.
+func maintainOwnDatabase(ctx context.Context, logger *log.Logger, db *database.RoutedDB, snapshots *census.SnapshotStore) {
+	pending, err := snapshots.PendingReportCompaction(ctx)
+	if err != nil {
+		logger.Printf("database maintenance skipped: %v", err)
+		return
+	}
+	result, err := dbmaintenance.Maintain(ctx, db, dbmaintenance.Options{AllowConversion: pending == 0})
+	switch {
+	case err != nil:
+		logger.Printf("database maintenance failed (auto_vacuum=%s free=%d bytes): %v", result.Before.AutoVacuum, result.Before.FreeBytes, err)
+	case result.Converted:
+		logger.Printf("database converted to incremental auto-vacuum: %d -> %d pages", result.Before.PageCount, result.After.PageCount)
+	case result.ReturnedPages > 0:
+		logger.Printf("database returned %d free pages to the filesystem", result.ReturnedPages)
+	}
+}
+
+// policyGrantSource adapts the deletion-grant store to the policy bridge's
+// GrantSource, so approved, unexpired grants project into the agent-policy
+// snapshot as allow rules without the bridge depending on the store package.
+// declaredProtection reads the host's declarations at request time, so a
+// deletion-grant ask shows the operator which paths are owner-protected; when
+// they cannot be read the request is refused rather than asked without that.
+func declaredProtection(repoRoot string) deletiongrant.Protection {
+	if repoRoot == "" {
+		return nil
+	}
+	return func(path string) (string, string, bool, error) {
+		rules, _, err := policybridge.Declarations(repoRoot)
+		if err != nil {
+			return "", "", false, err
+		}
+		source, root, isRoot := policybridge.ProtectingDeclaration(rules, path)
+		return source, root, isRoot, nil
+	}
+}
+
+type policyGrantSource struct{ store *deletiongrant.Store }
+
+func (p policyGrantSource) ActiveGrantRoots(ctx context.Context, now time.Time) ([]policybridge.GrantRule, error) {
+	grants, err := p.store.ActiveGrantRoots(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]policybridge.GrantRule, 0, len(grants))
+	for _, grant := range grants {
+		out = append(out, policybridge.GrantRule{Root: grant.Root, GrantID: grant.GrantID, Approver: grant.Approver, ExpiresAt: grant.ExpiresAt})
+	}
+	return out, nil
 }
 
 func storageRecoveryLockPath(repoRoot string) string {

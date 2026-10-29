@@ -160,6 +160,26 @@ func TestEnforceRefusesBudgetOverContractProtectedRuntimeHomeEntry(t *testing.T)
 	}
 }
 
+// A storage provider must not erase the authority needed to find and stop
+// live resource companions. Port availability cannot reconstruct ownership.
+func TestProtectedRuntimeRootsIncludesProcessOwnershipAuthority(t *testing.T) {
+	roots, err := protectedRuntimeRoots(contractFixture(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, ".vrooli", "processes")
+	for _, root := range roots {
+		if root == want {
+			return
+		}
+	}
+	t.Fatalf("process ownership authority %q is not protected: %v", want, roots)
+}
+
 func TestProtectedRuntimeRootsIncludesPlanArtifactsContractEntry(t *testing.T) {
 	repoRoot := contractFixture(t)
 	home, err := os.UserHomeDir()

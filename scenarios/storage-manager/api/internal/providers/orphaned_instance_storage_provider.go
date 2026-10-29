@@ -88,6 +88,17 @@ type OrphanedInstanceStorageProvider struct {
 	retention  time.Duration
 }
 
+// GovernedRoots reports the instance namespace roots. Their children are
+// per-instance namespaces whose lifecycle this provider and the owning
+// scenarios decide, never a generic age or size rule.
+func (p *OrphanedInstanceStorageProvider) GovernedRoots() []string {
+	out := make([]string, 0, len(p.roots))
+	for _, root := range p.roots {
+		out = append(out, root.Path)
+	}
+	return out
+}
+
 func NewOrphanedInstanceStorageProvider(files cleanup.FileSystem, instances InstanceLiveness, clock cleanup.Clock, cfg OrphanedInstanceStorageProviderConfig) *OrphanedInstanceStorageProvider {
 	roots := make([]InstanceNamespaceRoot, 0, len(cfg.NamespaceRoots))
 	proven := make([]string, 0, len(cfg.NamespaceRoots))

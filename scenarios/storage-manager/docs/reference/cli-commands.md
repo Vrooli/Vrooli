@@ -176,6 +176,12 @@ manifest marks this command `effect=destructive`,
 `requires_confirmation=true`, and `run_eligible=false`; agents must not
 auto-run it.
 
+Repeat `--item-id <preview-item-id>` to apply only named items from the
+preview. Omit the flag to retain whole-plan behavior. Unknown item IDs reject
+the complete request before deletion. Reusing an idempotency key with a changed
+plan or item selection is rejected. Each selected item retains its provider's
+approval, ownership, identity, activity and retention checks.
+
 ```text
 storage-manager cleanup apply \
   --plan-id plan-... \

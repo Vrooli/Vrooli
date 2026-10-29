@@ -274,4 +274,74 @@ func TestMarkWritersCooledReconcilesAbsentHotRoots(t *testing.T) {
 	if len(rows) != 1 || rows[0].Root != "/cache" || rows[0].Hot {
 		t.Fatalf("cooled writer rows = %#v", rows)
 	}
+	if rows[0].Bytes != 42 || rows[0].BytesPerHour != 0 || rows[0].DeltaBytes != 0 {
+		t.Fatalf("cooled writer kept a rate nobody observed: %#v", rows[0])
+	}
+}
+
+// cleanup_audit had no retention and reached 2.39M rows, almost all of them
+// per-run recovery observations. Observations are bounded by age and count;
+// deletion evidence is kept far longer.
+func TestPruneAuditTrailBoundsObservationsAndKeepsDeletionEvidence(t *testing.T) {
+	t.Parallel()
+	store, done := newStore(t)
+	defer done()
+	ctx := context.Background()
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	events := []AuditEvent{
+		{ID: "old-observation", Type: "recovery.provider_skipped", Time: now.Add(-15 * 24 * time.Hour)},
+		{ID: "recent-observation", Type: "recovery.provider_considered", Time: now.Add(-13 * 24 * time.Hour)},
+		{ID: "month-old-deletion", Type: "provider.applied", Time: now.Add(-30 * 24 * time.Hour), ReclaimedBytes: 1024},
+		{ID: "expired-deletion", Type: "provider.applied", Time: now.Add(-181 * 24 * time.Hour), ReclaimedBytes: 1024},
+	}
+	for _, event := range events {
+		if err := store.AddAudit(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := store.PruneAuditTrail(ctx, now); err != nil {
+		t.Fatalf("PruneAuditTrail: %v", err)
+	}
+	got, err := store.ListAudit(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, 0, len(got))
+	for _, event := range got {
+		ids = append(ids, event.ID)
+	}
+	if len(ids) != 2 || ids[0] != "month-old-deletion" || ids[1] != "recent-observation" {
+		t.Fatalf("retained = %v, want the recent observation and in-window deletion evidence", ids)
+	}
+}
+
+func TestPruneAuditTrailCapsRecentObservationBursts(t *testing.T) {
+	t.Parallel()
+	store, done := newStore(t)
+	defer done()
+	ctx := context.Background()
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	// A burst inside the age window, one second apart, oldest first.
+	burst := auditObservationMaxRows + 25
+	if _, err := store.db.ExecContext(ctx, `WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < ?)
+		INSERT INTO cleanup_audit (id, occurred_at, type) SELECT 'burst-' || n, strftime('%Y-%m-%dT%H:%M:%SZ', ?, '-' || (? - n) || ' seconds'), 'recovery.provider_skipped' FROM seq`,
+		burst, now.Add(-time.Hour).Format(time.RFC3339), burst); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.AddAudit(ctx, AuditEvent{ID: "deletion", Type: "provider.applied", Time: now.Add(-48 * time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.PruneAuditTrail(ctx, now); err != nil {
+		t.Fatalf("PruneAuditTrail: %v", err)
+	}
+	var observations, evidence int
+	if err := store.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM cleanup_audit WHERE type = 'recovery.provider_skipped'`).Scan(&observations); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM cleanup_audit WHERE type = 'provider.applied'`).Scan(&evidence); err != nil {
+		t.Fatal(err)
+	}
+	if observations != auditObservationMaxRows || evidence != 1 {
+		t.Fatalf("observations=%d evidence=%d, want observations capped at %d and evidence untouched", observations, evidence, auditObservationMaxRows)
+	}
 }

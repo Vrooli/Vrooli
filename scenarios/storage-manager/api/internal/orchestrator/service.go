@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -77,6 +78,7 @@ type ApplyInput struct {
 	ApprovalMode   cleanup.ApprovalMode
 	ApprovalToken  string
 	IdempotencyKey string
+	ItemIDs        []string
 }
 
 type ApplyReport struct {
@@ -85,6 +87,7 @@ type ApplyReport struct {
 	AlreadyApplied bool
 	Results        []cleanup.ApplyResult
 	ReclaimedBytes int64
+	ItemIDs        []string
 }
 
 // WarningGrowthTarget is the actionable growth row consumed by the warning
@@ -657,9 +660,18 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 	if strings.TrimSpace(input.IdempotencyKey) == "" {
 		return ApplyReport{}, fmt.Errorf("idempotency key is required")
 	}
+	input.ItemIDs = slices.Clone(input.ItemIDs)
+	sort.Strings(input.ItemIDs)
+	input.ItemIDs = slices.Compact(input.ItemIDs)
+	if len(input.ItemIDs) > 0 && strings.TrimSpace(input.ItemIDs[0]) == "" {
+		return ApplyReport{}, fmt.Errorf("selected item IDs must not be empty")
+	}
 	if prior, ok, err := s.store.ApplyByKey(ctx, input.IdempotencyKey); err != nil {
 		return ApplyReport{}, err
 	} else if ok {
+		if prior.PlanID != input.PlanID || !slices.Equal(prior.ItemIDs, input.ItemIDs) {
+			return ApplyReport{}, fmt.Errorf("idempotency key belongs to a different plan or item selection")
+		}
 		prior.AlreadyApplied = true
 		_ = s.audit(ctx, AuditEvent{Type: "apply.replayed", PlanID: prior.PlanID, IdempotencyKey: input.IdempotencyKey, Message: "idempotent replay"})
 		return prior, nil
@@ -678,8 +690,40 @@ func (s *Service) Apply(ctx context.Context, input ApplyInput) (ApplyReport, err
 		return ApplyReport{}, fmt.Errorf("approval token is required for %s approval", input.ApprovalMode)
 	}
 
-	report := ApplyReport{PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey}
+	selected := make(map[string]bool, len(input.ItemIDs))
+	for _, id := range input.ItemIDs {
+		selected[id] = false
+	}
 	for _, pp := range plan.Providers {
+		for _, item := range pp.Preview.Items {
+			if found, ok := selected[item.ID]; ok {
+				if found {
+					return ApplyReport{}, fmt.Errorf("selected item %q is ambiguous in the plan", item.ID)
+				}
+				selected[item.ID] = true
+			}
+		}
+	}
+	for id, found := range selected {
+		if !found {
+			return ApplyReport{}, fmt.Errorf("selected item %q is not in the plan", id)
+		}
+	}
+	report := ApplyReport{PlanID: plan.ID, IdempotencyKey: input.IdempotencyKey, ItemIDs: slices.Clone(input.ItemIDs)}
+	for _, pp := range plan.Providers {
+		if len(selected) > 0 {
+			pp.Preview = pp.Preview.Clone()
+			items := pp.Preview.Items[:0]
+			for _, item := range pp.Preview.Items {
+				if selected[item.ID] {
+					items = append(items, item)
+				}
+			}
+			pp.Preview.Items = items
+			if len(items) == 0 {
+				continue
+			}
+		}
 		result, applied, err := s.applyProvider(ctx, plan, pp, input)
 		if err != nil {
 			return ApplyReport{}, err

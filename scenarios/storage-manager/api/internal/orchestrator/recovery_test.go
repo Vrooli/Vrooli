@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -160,5 +161,129 @@ func TestRecoveryTargetForRunServicesRateRootEvenWhenDeviceTargetMet(t *testing.
 	}
 	if got := recoveryTargetForRun("PRESSURE_TRIGGER_BAND", "/", 73, 500, 0); got <= 500 {
 		t.Fatalf("ordinary pressure target = %d, want device target above current free space", got)
+	}
+}
+
+// scriptedRecoveryProvider previews whatever it has not removed yet, in a
+// fixed order, and fails every Apply of an item named in failing. pending
+// estimates report a paused measurement before any item is ready.
+type scriptedRecoveryProvider struct {
+	tierProvider
+	items     []cleanup.PreviewItem
+	failing   map[string]bool
+	pending   int
+	removed   map[string]bool
+	attempted []string
+}
+
+func (p *scriptedRecoveryProvider) remaining() []cleanup.PreviewItem {
+	var out []cleanup.PreviewItem
+	for _, item := range p.items {
+		if !p.removed[item.ID] {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func (p *scriptedRecoveryProvider) Estimate(context.Context, cleanup.EstimateRequest) (cleanup.Estimate, error) {
+	if p.pending > 0 {
+		p.pending--
+		return cleanup.Estimate{ProviderID: p.id, BlockedReason: "temporary measurement pending; traversal position retained"}, nil
+	}
+	var total int64
+	for _, item := range p.remaining() {
+		total += item.Bytes
+	}
+	return cleanup.Estimate{ProviderID: p.id, ProviderVersion: "v1", EstimatedBytes: total, ItemCount: len(p.remaining())}, nil
+}
+
+func (p *scriptedRecoveryProvider) Preview(context.Context, cleanup.PreviewRequest) (cleanup.Preview, error) {
+	return cleanup.Preview{ProviderID: p.id, ProviderVersion: "v1", Items: p.remaining()}, nil
+}
+
+func (p *scriptedRecoveryProvider) Apply(_ context.Context, req cleanup.ApplyRequest) (cleanup.ApplyResult, error) {
+	out := cleanup.ApplyResult{ProviderID: p.id}
+	for _, item := range req.Preview.Items {
+		p.attempted = append(p.attempted, item.ID)
+		if p.failing[item.ID] {
+			out.SkippedItems = append(out.SkippedItems, item.ID)
+			continue
+		}
+		p.removed[item.ID] = true
+		out.AppliedItems = append(out.AppliedItems, item.ID)
+		out.ReclaimedBytes += item.Bytes
+	}
+	out.Applied = out.ReclaimedBytes > 0
+	return out, nil
+}
+
+func scriptedItems(ids ...string) []cleanup.PreviewItem {
+	items := make([]cleanup.PreviewItem, 0, len(ids))
+	for _, id := range ids {
+		// Each item fills most of a batch, so a batch holds exactly one.
+		items = append(items, cleanup.PreviewItem{ID: id, Path: "/tmp/" + id, Bytes: recoveryBatchCap * 3 / 4, Action: "remove", SafetyTier: cleanup.SafetyTierSafe})
+	}
+	return items
+}
+
+func newScriptedRecoveryProvider(failing ...string) *scriptedRecoveryProvider {
+	p := &scriptedRecoveryProvider{tierProvider: tierProvider{id: "tmp", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone}, failing: map[string]bool{}, removed: map[string]bool{}}
+	for _, id := range failing {
+		p.failing[id] = true
+	}
+	return p
+}
+
+// One unremovable entry at the head of a provider must not end the
+// provider's turn: the same run retries without it and reaches the entries
+// behind it.
+func TestRecoveryAdvancesPastFailedItemWithinRun(t *testing.T) {
+	provider := newScriptedRecoveryProvider("read-only-fixture")
+	provider.items = scriptedItems("read-only-fixture", "removable")
+	svc := newPressureService(t, provider)
+	outcome, err := svc.executeRecovery(context.Background(), "run-1", "PRESSURE_TRIGGER_MANUAL", t.TempDir(), 0, 1<<62, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !provider.removed["removable"] || outcome.ReclaimedBytes != recoveryBatchCap*3/4 {
+		t.Fatalf("outcome=%#v attempted=%v, want the item behind the failure reclaimed", outcome, provider.attempted)
+	}
+	if !reflect.DeepEqual(provider.attempted, []string{"read-only-fixture", "removable"}) {
+		t.Fatalf("attempted = %v, want the failed item tried once per run", provider.attempted)
+	}
+}
+
+// Zero-progress retries are bounded, so a provider whose every item fails
+// cannot spin the run.
+func TestRecoveryBoundsConsecutiveZeroProgressBatches(t *testing.T) {
+	ids := make([]string, 0, 3*recoveryMaxStalledBatches)
+	for i := 0; i < 3*recoveryMaxStalledBatches; i++ {
+		ids = append(ids, fmt.Sprintf("failing-%d", i))
+	}
+	provider := newScriptedRecoveryProvider(ids...)
+	provider.items = scriptedItems(ids...)
+	svc := newPressureService(t, provider)
+	if _, err := svc.executeRecovery(context.Background(), "run-1", "PRESSURE_TRIGGER_MANUAL", t.TempDir(), 0, 1<<62, false); err != nil {
+		t.Fatal(err)
+	}
+	if len(provider.attempted) != recoveryMaxStalledBatches {
+		t.Fatalf("attempted %d batches, want %d before advancing", len(provider.attempted), recoveryMaxStalledBatches)
+	}
+}
+
+// A paused resumable measurement is resumed within the run, a bounded number
+// of times, instead of waiting for the next pressure trigger.
+func TestRecoveryResumesPendingMeasurementWithinRun(t *testing.T) {
+	provider := newScriptedRecoveryProvider()
+	provider.items = scriptedItems("expired-tree")
+	provider.pending = 2
+	svc := newPressureService(t, provider)
+	outcome, err := svc.executeRecovery(context.Background(), "run-1", "PRESSURE_TRIGGER_MANUAL", t.TempDir(), 0, 1<<62, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !provider.removed["expired-tree"] || outcome.Action != ActionApplied {
+		t.Fatalf("outcome=%#v, want the tree measured after two pending passes reclaimed", outcome)
 	}
 }

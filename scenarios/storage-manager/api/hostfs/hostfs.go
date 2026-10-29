@@ -243,7 +243,43 @@ func (f *FS) RemoveAll(ctx context.Context, path string) error {
 		return fmt.Errorf("refusing to remove %s: owned by another user", path)
 	}
 
-	return coreRetention.RemovePath(ctx, path)
+	err = reportableRemoveError(path, coreRetention.RemovePath(ctx, path))
+	if err == nil || !info.IsDir() {
+		return err
+	}
+	// A tree the user owns can still refuse removal when some of its own
+	// directories are read-only. Restore owner write on those directories and
+	// retry once; anything still refused (another user's subtree, an
+	// unreadable directory) is reported with the original error. The repair
+	// is attempted for any failure, not only ErrPermission: a read-only
+	// directory holding a symlink surfaces from os.RemoveAll as an internal,
+	// non-permission error.
+	repaired, repairErr := restoreOwnerWritableDirs(ctx, path)
+	if repaired == 0 {
+		if repairErr != nil {
+			return errors.Join(err, repairErr)
+		}
+		return err
+	}
+	return reportableRemoveError(path, coreRetention.RemovePath(ctx, path))
+}
+
+// reportableRemoveError guarantees the error can be rendered. os.RemoveAll can
+// return the runtime's internal errSymlink sentinel (seen with Go 1.26 for a
+// symlink inside a read-only directory), whose Error method panics; the
+// providers render every removal error into audit warnings, so letting it
+// escape would crash the apply instead of reporting one skipped entry.
+func reportableRemoveError(path string, err error) (out error) {
+	if err == nil {
+		return nil
+	}
+	defer func() {
+		if recover() != nil {
+			out = fmt.Errorf("remove %s: %w", path, fs.ErrPermission)
+		}
+	}()
+	_ = err.Error()
+	return err
 }
 
 func (f *FS) MkdirAll(ctx context.Context, path string) error {

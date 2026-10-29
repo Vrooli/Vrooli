@@ -101,6 +101,7 @@ func (h *connectHandler) ApplyPlan(ctx context.Context, req *connect.Request[cle
 		ApprovalMode:   cleanupcore.ApprovalMode(req.Msg.GetApprovalMode()),
 		ApprovalToken:  req.Msg.GetApprovalToken(),
 		IdempotencyKey: req.Msg.GetIdempotencyKey(),
+		ItemIDs:        req.Msg.GetItemIds(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)

@@ -13,6 +13,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -338,6 +339,10 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if err != nil {
 		return nil, err
 	}
+	toolPrune, err := toolPruneSpecs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
 		TemporaryActivity: hostfs.NewTemporaryActivityObserver(),
@@ -361,6 +366,8 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		RemovalLedger:            removalLedger,
 		RuntimeHomeProviders:     runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
 		GovernedRootSpecs:        governedSpecs,
+		ToolPruneSpecs:           toolPrune,
+		GovernedRoots:            declaredGovernedRoots(repoRoot),
 		OrphanedDatabaseProvider: providers.NewOrphanedDatabaseProviderWithVerifier(files, hostfs.NewProcessLiveness(), schedule.System(), filepath.Join(home, ".local", "share", "vrooli", "vrooli-autoheal", "autoheal.sqlite"), autohealLiveDatabasePath(home), 30*24*time.Hour, providers.VerifySQLiteQuickCheck, filepath.Join(home, ".vrooli", "state", "storage-manager", "quarantine")),
 		Saturated:                autohealSaturationProbe(http.DefaultClient),
 		OwnerScenarioClient: &cleanupcore.HTTPScenarioProviderClient{
@@ -461,6 +468,51 @@ func autohealLiveDatabasePath(home string) string {
 	return filepath.Join(home, ".vrooli", "data", "vrooli", "vrooli-autoheal", "autoheal.sqlite")
 }
 
+// declaredGovernedRoots is every storage location some owner has declared:
+// the repository's storage.roots in every tier (an owner-leased root has no
+// file provider of its own, which is exactly why it needs protecting from one
+// above it) and every owner manifest's storage entries. Providers withhold
+// these from any larger cleanup unit. A location that does not resolve on
+// this host is omitted; it cannot be nested inside anything that exists.
+func declaredGovernedRoots(repoRoot string) []string {
+	var out []string
+	if specs, err := providers.LoadRootSpecs(repoRoot); err == nil {
+		if inputs, inputErr := corestorage.HostGovernedRootInputs(repoRoot); inputErr == nil {
+			for _, spec := range specs {
+				if !spec.Applicable() {
+					continue
+				}
+				if root, rootErr := corestorage.ResolveGovernedRootStrict(spec.Root, inputs); rootErr == nil && filepath.IsAbs(root) {
+					out = append(out, filepath.Clean(root))
+				}
+			}
+		}
+	}
+	inventory, err := coreRetentionInventory(repoRoot)
+	if err != nil {
+		return out
+	}
+	platform := corestorage.HostPlatform()
+	for _, owner := range inventory.Owners {
+		for _, entry := range owner.StorageEntries {
+			if !slices.Contains(corestorage.EffectivePlatforms(owner, entry), platform) {
+				continue
+			}
+			locations, locErr := corestorage.ResolveOwnerStorageLocations(repoRoot, owner, entry, platform, corestorage.PlatformSeams{})
+			if locErr != nil {
+				continue
+			}
+			for _, location := range locations {
+				if filepath.IsAbs(location) {
+					out = append(out, filepath.Clean(location))
+				}
+			}
+		}
+	}
+	sort.Strings(out)
+	return slices.Compact(out)
+}
+
 func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
 	specs, err := providers.LoadRootSpecs(repoRoot)
 	if err != nil {
@@ -475,6 +527,61 @@ func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
 			return nil, err
 		}
 		out = append(out, spec)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+// toolPruneSpecs selects the declarative roots that reclaim through a tool's
+// own prune command. It deliberately takes only roots governedRootSpecs leaves
+// behind — those outside the safe/regenerable tiers — so no root is both file
+// pruned and tool pruned. The Go build cache is the motivating member: it is
+// tier conditional precisely because a file walk cannot prove its outputs are
+// no longer in use, so `go clean -cache` is its only safe reclamation.
+func toolPruneSpecs(repoRoot string) ([]providers.ToolPruneProviderConfig, error) {
+	specs, err := providers.LoadRootSpecs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	inputs, inputErr := corestorage.HostGovernedRootInputs(repoRoot)
+	out := make([]providers.ToolPruneProviderConfig, 0, len(specs))
+	for _, spec := range specs {
+		if len(spec.ToolPruneCommand) == 0 || !spec.Applicable() {
+			continue
+		}
+		// Roots in the file-pruned tiers already have a FileProvider via
+		// governedRootSpecs; registering a second provider for the same id
+		// would be rejected as a duplicate and would double the delete authority.
+		if spec.Tier == cleanupcore.SafetyTierSafe || spec.Tier == cleanupcore.SafetyTierRegenerable {
+			continue
+		}
+		if err := providers.ValidateRootSpec(spec); err != nil {
+			return nil, err
+		}
+		root := ""
+		if inputErr == nil {
+			if resolved, rootErr := corestorage.ResolveGovernedRootStrict(spec.Root, inputs); rootErr == nil {
+				root = resolved
+			}
+		}
+		// An unparseable ceiling leaves the gate off rather than failing the
+		// registry: the prune stays operator-gated by tier either way.
+		maxBytes, _ := coreRetention.ParseBytes(spec.MaxBytes)
+		out = append(out, providers.ToolPruneProviderConfig{
+			MaxBytes:  maxBytes,
+			ID:        spec.ID,
+			Name:      "Governed " + spec.ID,
+			Root:      root,
+			Command:   cleanupcore.ProcessCommand{Name: spec.ToolPruneCommand[0], Args: spec.ToolPruneCommand[1:]},
+			Tier:      spec.Tier,
+			Platforms: append([]string(nil), spec.Platforms...),
+			Proof: cleanupcore.RegenerableProof{
+				Derived:       spec.Proof.Derived,
+				ToolRecreates: spec.Proof.ToolRecreates,
+				ExactRoot:     spec.Proof.ExactRoot,
+				NoLease:       spec.Proof.NoLease,
+			},
+		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out, nil
@@ -635,6 +742,13 @@ func runtimeHomeProviderConfigs(repoRoot, home string, repairers ...cleanupcore.
 		// Protected entries are not unowned: scenario-binaries still removes a
 		// proven orphan CLI triple under its own ledger and lease rules. What
 		// is refused is bulk, age-or-size-driven walking of a shared root.
+		if entry.Key == "test_runs" {
+			// Run evidence has a lifecycle owner. A generic whole-scenario
+			// directory prune cannot consult run status, keep-count, or pin
+			// leases, so the test-genie-run-retention provider handles this
+			// shared class one run at a time.
+			continue
+		}
 		if entry.Protected || !entry.Regenerable || entry.Cleanup != "storage_manager" || entry.Retention == nil {
 			continue
 		}
@@ -649,10 +763,26 @@ func runtimeHomeProviderConfigs(repoRoot, home string, repairers ...cleanupcore.
 			Roots: []string{entry.AbsPath}, Description: "Remove contract-eligible runtime-home entries",
 			TopLevelEntries: true, RetentionMaxAge: limits.MaxAge, RetentionMaxBytes: limits.MaxBytes,
 			ProtectActive: entry.Retention.ProtectActive,
-			RepairClass:   entry.Key, OwnershipRepairer: repairer,
+			LeaseCheck:    runtimeHomeLeaseCheck(entry.Retention.ProtectActive),
+			// Runtime-home entries are regenerable; an uninspectable
+			// ssh-agent must not block their retention forever.
+			OpenHandleSkipsNonDumpable: true,
+			RepairClass:                entry.Key, OwnershipRepairer: repairer,
 		})
 	}
 	return configs
+}
+
+// runtimeHomeLeaseCheck turns the contract's protect_active into a live
+// open-handle check. Name markers alone let disk-pressure recovery remove
+// logs/scenarios while every running scenario still wrote to it: the
+// processes kept writing to unlinked files, `vrooli scenario logs` found
+// nothing, and no blocks were freed because the inodes stayed open.
+func runtimeHomeLeaseCheck(protectActive bool) string {
+	if protectActive {
+		return "open_handle"
+	}
+	return ""
 }
 
 type runtimeHomeBrokerRepairer struct {
@@ -816,10 +946,12 @@ func resolveOllamaBaseURL() string {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	{ID: "cleanup_temporary_retention_configure", Path: cleanupconnect.CleanupServiceConfigureTemporaryRetentionProcedure, Method: "POST",
+	{
+		ID: "cleanup_temporary_retention_configure", Path: cleanupconnect.CleanupServiceConfigureTemporaryRetentionProcedure, Method: "POST",
 		Summary: "Configure automatic temporary retention", Description: "Grants or revokes recurring cleanup authority for aged temporary entries only.", Category: "cleanup",
 		Request:  &module.Schema{Type: "object", Properties: map[string]string{"automatic": "boolean", "min_age_seconds": "int64"}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{"policy": "Policy"}}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"policy": "Policy"}},
+	},
 	{
 		ID:          "cleanup_provider_list",
 		Path:        cleanupconnect.CleanupServiceListProvidersProcedure,
@@ -870,6 +1002,7 @@ var Endpoints = []module.EndpointDescriptor{
 			"approval_mode":   "string",
 			"approval_token":  "string",
 			"idempotency_key": "string (required)",
+			"item_ids":        "array<string> (optional exact preview selection)",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{"reclaimed_bytes": "int64", "already_applied": "bool"}},
 	},

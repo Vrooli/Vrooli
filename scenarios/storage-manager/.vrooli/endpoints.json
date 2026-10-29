@@ -140,6 +140,7 @@
           "approval_mode": "string",
           "approval_token": "string",
           "idempotency_key": "string (required)",
+          "item_ids": "array<string> (optional exact preview selection)",
           "plan_id": "string (required)",
           "policy_version": "string (required)"
         }

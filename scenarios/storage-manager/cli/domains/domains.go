@@ -3,6 +3,7 @@ package domains
 import (
 	"storage-manager/cli/domains/advisor"
 	"storage-manager/cli/domains/cleanup"
+	"storage-manager/cli/domains/deletiongrant"
 	"storage-manager/cli/domains/fix"
 	"storage-manager/cli/domains/fleet"
 	"storage-manager/cli/domains/validate"
@@ -73,6 +74,11 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, advisorGroup)
+	grantGroup, err := deletiongrant.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, grantGroup)
 	groups = append(groups, placementGroup(core))
 	groups = append(groups, declareGroup(core))
 	groups = append(groups, storageGroup(core))

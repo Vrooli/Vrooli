@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,12 +44,20 @@ func TestConnectHandlerListsProviderMetadataAndPolicy(t *testing.T) {
 
 func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testing.T) {
 	configs := runtimeHomeProviderConfigs("/home/matthalloran8/Vrooli", t.TempDir())
-	if len(configs) != 6 {
-		t.Fatalf("runtime-home provider count = %d, want six regenerable cleanup entries (bin and artifacts are protected install roots)", len(configs))
+	if len(configs) != 4 {
+		t.Fatalf("runtime-home provider count = %d, want four generic cleanup entries (bin/artifacts/processes are protected; test_runs is owner-managed)", len(configs))
 	}
 	for _, cfg := range configs {
+		if cfg.ID == "runtime-home-processes" {
+			t.Fatal("live process ownership authority registered for generic directory cleanup")
+		}
 		if cfg.ProtectActive != true || cfg.RetentionMaxAge <= 0 {
 			t.Fatalf("runtime-home provider config = %#v, want active protection and age floor", cfg)
+		}
+		// protect_active must be a live open-handle check: name markers alone
+		// let recovery unlink every running scenario's stdout log.
+		if cfg.LeaseCheck != "open_handle" || !cfg.OpenHandleSkipsNonDumpable {
+			t.Fatalf("runtime-home provider %s lease check = %q, want open_handle", cfg.ID, cfg.LeaseCheck)
 		}
 		if cfg.ID == "runtime-home-bin" {
 			t.Fatalf("control-plane install root registered for generic cleanup: %#v", cfg)
@@ -61,6 +70,9 @@ func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testin
 		}
 		if cfg.ID == "runtime-home-plan_artifacts" {
 			t.Fatalf("plan-artifacts registered for generic cleanup: %#v", cfg)
+		}
+		if cfg.ID == "runtime-home-test_runs" {
+			t.Fatalf("shared run root registered for generic cleanup: %#v", cfg)
 		}
 	}
 }
@@ -84,7 +96,12 @@ func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testi
 			t.Fatalf("owner-leased root was admitted to autonomous provider set: %q", cfg.ID)
 		}
 	}
-	if !seen["spec-uv-cache"] || !seen["spec-go-module-cache"] || !seen["spec-go-work-dirs"] {
+	// go-work-dirs is open-handle leased, so the legacy no-lease adapter must
+	// not admit it: that adapter carries no lease check at all.
+	if seen["spec-go-work-dirs"] {
+		t.Fatalf("open-handle leased go-work-dirs admitted by the no-lease adapter: %v", seen)
+	}
+	if !seen["spec-uv-cache"] || !seen["spec-go-module-cache"] {
 		t.Fatalf("expected declarative cache roots, got %v", seen)
 	}
 	// The current startup path must also withhold the owner-required Go root,
@@ -100,6 +117,40 @@ func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testi
 		if spec.ID == "go-build-cache" {
 			t.Fatal("Go build cache admitted to current autonomous provider registry")
 		}
+	}
+}
+
+func TestToolPruneSpecsWireGoBuildCacheToItsOwnCommand(t *testing.T) {
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	specs, err := toolPruneSpecs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, spec := range specs {
+		seen[spec.ID] = true
+		// Roots the file providers already own must not be tool pruned too; that
+		// would register a duplicate id and double the delete authority.
+		if spec.Tier == cleanupcore.SafetyTierSafe || spec.Tier == cleanupcore.SafetyTierRegenerable {
+			t.Fatalf("tool-prune spec %q is in a file-pruned tier %q", spec.ID, spec.Tier)
+		}
+		if spec.ID == "go-build-cache" {
+			cmd := spec.Command.Name + " " + strings.Join(spec.Command.Args, " ")
+			if cmd != "go clean -cache" {
+				t.Errorf("go-build-cache command = %q, want `go clean -cache`", cmd)
+			}
+			if spec.Tier != cleanupcore.SafetyTierConditional {
+				t.Errorf("go-build-cache tier = %q, want conditional", spec.Tier)
+			}
+		}
+	}
+	if !seen["go-build-cache"] {
+		t.Fatalf("go-build-cache has no tool-prune reclamation path; got %v", seen)
+	}
+	// The regenerable caches keep their FileProvider reclamation and must not
+	// also appear here.
+	if seen["uv-cache"] || seen["pnpm-store"] {
+		t.Fatalf("regenerable caches must stay file pruned, not tool pruned; got %v", seen)
 	}
 }
 
@@ -124,6 +175,23 @@ func TestOwnerScenarioProviderConfigsComeFromDeclarations(t *testing.T) {
 	}
 	if configs[1].OwnerBudget {
 		t.Fatalf("unlinked budget incorrectly granted authority: %#v", configs[1])
+	}
+}
+
+func TestTestGenieOwnerProviderReceivesItsBoundedRunArtifactEntry(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeOwnerProviderManifest(t, repoRoot, "test-genie", `{"storage":{"entries":{"run_artifacts":{"class":"test_runs","regenerable":true,"reclaim":{"pruner":"custom"},"budget":{"max_age":"30d","max_bytes":"20GiB"}}},"cleanup_providers":[{"id":"test-genie-run-retention","name":"Test Genie retained runs","safety_tier":"safe_with_owner","default_mode":"disabled","default_approval":"owner","storage_entries":["run_artifacts"]}]}}`)
+
+	configs := ownerScenarioProviderConfigs(repoRoot)
+	if len(configs) != 1 {
+		t.Fatalf("owner configs = %#v, want only Test Genie run retention", configs)
+	}
+	got := configs[0]
+	if got.ID != "test-genie-run-retention" || got.OwnerScenario != "test-genie" || got.SafetyTier != cleanupcore.SafetyTierSafeWithOwner || got.DefaultMode != cleanupcore.ProviderModeDisabled || got.DefaultApproval != cleanupcore.ApprovalModeOwner {
+		t.Fatalf("Test Genie cleanup config = %#v, want disabled owner-approved safe_with_owner provider", got)
+	}
+	if !got.OwnerBudget || len(got.StorageEntries) != 1 || got.StorageEntries[0] != "run_artifacts" {
+		t.Fatalf("Test Genie cleanup authority = %#v, want explicit bounded run_artifacts link", got)
 	}
 }
 
@@ -180,13 +248,16 @@ func TestConnectHandlerPlanApplyAndAuditUseServiceContracts(t *testing.T) {
 	}
 
 	applyResp, err := handler.ApplyPlan(context.Background(), connect.NewRequest(&cleanupv1.ApplyPlanRequest{
-		PlanId: "plan-test", PolicyVersion: "policy-test", IdempotencyKey: "idem-test",
+		PlanId: "plan-test", PolicyVersion: "policy-test", IdempotencyKey: "idem-test", ItemIds: []string{"tmp/old"},
 	}))
 	if err != nil {
 		t.Fatalf("ApplyPlan() error = %v", err)
 	}
 	if applyResp.Msg.GetReclaimedBytes() != 64 || svc.applyInput.IdempotencyKey != "idem-test" {
 		t.Fatalf("apply response/input = %#v / %#v", applyResp.Msg, svc.applyInput)
+	}
+	if len(svc.applyInput.ItemIDs) != 1 || svc.applyInput.ItemIDs[0] != "tmp/old" {
+		t.Fatalf("exact selection lost at transport boundary: %#v", svc.applyInput)
 	}
 
 	auditResp, err := handler.ListAudit(context.Background(), connect.NewRequest(&cleanupv1.ListAuditRequest{}))

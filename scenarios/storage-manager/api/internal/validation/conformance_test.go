@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	corestorage "github.com/vrooli/api-core/storage"
@@ -123,6 +124,44 @@ func main() { _ = os.MkdirAll(filepath.Dir("data/fixture.db"), 0755); _, _ = os.
 	for _, finding := range got {
 		if finding.Code == "STORAGE_ENTRY_NO_WRITER" || finding.Code == "STORAGE_SQLITE_SIDECAR_UNDECLARED" {
 			t.Fatalf("unexpected conformance finding: %#v", finding)
+		}
+	}
+}
+
+func TestCustomTestRunsRequiresLinkedOwnerProviderForGovernedStatus(t *testing.T) {
+	manifest := []byte(`{"storage":{"entries":{"run_artifacts":{"kind":"dir","class":"test_runs","regenerable":true,"reclaim":{"pruner":"custom"},"budget":{"max_age":"30d","max_bytes":"20GiB"}}},"cleanup_providers":[{"id":"test-genie-run-retention","safety_tier":"safe_with_owner","default_mode":"disabled","default_approval":"owner"}]}}`)
+	owner := &corestorage.OwnerManifest{Kind: corestorage.OwnerScenario, ID: "test-genie", StorageEntries: []corestorage.StorageEntry{{
+		Name: "run_artifacts", Kind: "dir", Class: corestorage.ClassTestRuns, Regenerable: true,
+		Reclaim: &corestorage.ReclaimDeclaration{Pruner: "custom"},
+		Budget:  &corestorage.BudgetDeclaration{MaxAge: "30d", MaxBytes: "20GiB"},
+	}}}
+	ctx := AnalyzerContext{Owner: owner, RepoRoot: t.TempDir()}
+
+	findings := retentionConflicts(ctx, manifest)
+	var found bool
+	for _, finding := range findings {
+		if finding.Code == "STORAGE_CUSTOM_RECLAIM_UNLINKED" && strings.Contains(finding.Message, "run_artifacts") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("unlinked custom test_runs findings = %#v, want explicit owner-provider link finding", findings)
+	}
+	accountability := accountabilityFindings(ctx, findings)
+	var blocked bool
+	for _, finding := range accountability {
+		if finding.Code == "STORAGE_ACCOUNTABILITY_UNRECONCILED" {
+			blocked = true
+		}
+	}
+	if !blocked {
+		t.Fatalf("unlinked custom owner was reported governed: accountability findings=%#v", accountability)
+	}
+
+	linked := []byte(strings.Replace(string(manifest), `"default_approval":"owner"`, `"default_approval":"owner","storage_entries":["run_artifacts"]`, 1))
+	for _, finding := range retentionConflicts(ctx, linked) {
+		if finding.Code == "STORAGE_CUSTOM_RECLAIM_UNLINKED" {
+			t.Fatalf("linked owner provider still reported unlinked: %#v", finding)
 		}
 	}
 }

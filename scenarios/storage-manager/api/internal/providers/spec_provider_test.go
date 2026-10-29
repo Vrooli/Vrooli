@@ -31,8 +31,11 @@ func TestGoBuildCacheDeclarationRequiresOwnerProof(t *testing.T) {
 		if spec.Tier != cleanup.SafetyTierConditional || spec.LeaseCheck != "owner" || spec.Proof.NoLease {
 			t.Errorf("Go cache must require owner build-use proof, got %#v", spec)
 		}
-		if len(spec.ToolPruneCommand) != 0 {
-			t.Errorf("Go cache must not advertise an uncoordinated prune command: %v", spec.ToolPruneCommand)
+		// The Go cache cannot be reclaimed by a generic file walk (the file
+		// providers refuse it), so its only safe reclamation is Go's own prune
+		// command. It must declare exactly that, and nothing uncoordinated.
+		if strings.Join(spec.ToolPruneCommand, " ") != "go clean -cache" {
+			t.Errorf("Go cache must declare its tool-owned prune command `go clean -cache`, got %v", spec.ToolPruneCommand)
 		}
 	}
 	if found != 1 {
@@ -110,7 +113,8 @@ func TestGoBuildCacheRefusesPreviouslyApprovedPreview(t *testing.T) {
 				// A persisted v1 plan may select either whole shards (recovery)
 				// or individual outputs (ordinary cleanup). Never trust that plan
 				// or its operator/standing approval as live build-use evidence.
-				req := cleanup.ApplyRequest{ProviderVersion: "v1", IdempotencyKey: "old-plan", ApprovalMode: approval,
+				req := cleanup.ApplyRequest{
+					ProviderVersion: "v1", IdempotencyKey: "old-plan", ApprovalMode: approval,
 					Preview: cleanup.Preview{ProviderID: id, ProviderVersion: "v1", Items: []cleanup.PreviewItem{
 						{ID: "shard", Path: shard, Bytes: 4096}, {ID: "output", Path: path, Bytes: 100},
 					}},
@@ -232,4 +236,120 @@ func TestSpecProviderOpenHandleProtectsHeldFile(t *testing.T) {
 	if len(preview.Items) != 0 {
 		t.Fatalf("preview = %#v, want held file omitted", preview.Items)
 	}
+}
+
+// go-work-dirs held an 11 GB fixture untouched weeks past its 6h horizon:
+// per-file selection put the 20 GiB byte ceiling in front of the age rule, so a
+// root under max_bytes never applied max_age. A tmp-class root is aged and
+// removed per work directory, whatever its total size.
+func TestTmpClassSpecRootAgesWholeWorkDirectoriesUnderItsByteCeiling(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("native resumable walk qualification")
+	}
+	root := t.TempDir()
+	stale, fresh := filepath.Join(root, "TestStale123"), filepath.Join(root, "TestFresh456")
+	old := time.Now().Add(-48 * time.Hour)
+	for _, path := range []string{filepath.Join(stale, "home", ".claude", "settings.json"), filepath.Join(fresh, "payload")} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("test-only fixture"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{filepath.Join(stale, "home", ".claude", "settings.json"), filepath.Join(stale, "home", ".claude"), filepath.Join(stale, "home"), stale} {
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	spec := RootSpec{ID: "go-work-dirs", Root: root, Class: "tmp", Tier: cleanup.SafetyTierSafe, MaxAge: "6h", MaxBytes: "20GiB", LeaseCheck: "none", Platforms: []string{"linux", "macos", "windows"}, Rationale: "test work dirs"}
+	provider, err := NewSpecProvider(hostfs.New(hostfs.Options{}), cleanupfakes.Clock{Time: time.Now()}, spec, FileProviderConfig{})
+	if err != nil {
+		t.Fatalf("NewSpecProvider: %v", err)
+	}
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: time.Now(), Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeNone}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := previewPaths(preview); len(got) != 1 || got[0] != stale {
+		t.Fatalf("preview = %v (warnings %v), want the stale work directory as one unit", got, preview.Warnings)
+	}
+}
+
+// A stale Go test work directory carries its fake home's lock files and .keep
+// markers forever. Under lease_check open_handle the process snapshot decides
+// liveness, so those name markers must not pin an idle directory; a handle
+// held inside the directory, or an explicit lease declaration, still must.
+func TestOpenHandleTmpRootReclaimsIdleWorkDirDespiteNameMarkersButKeepsLiveOne(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("open-handle verification is linux-only; other platforms fail closed")
+	}
+	old := time.Now().Add(-48 * time.Hour)
+	build := func(t *testing.T, extra string) (string, string) {
+		root := t.TempDir()
+		work := filepath.Join(root, "TestRunDevelopRunsSetup3172061915")
+		paths := []string{
+			filepath.Join(work, "002", ".vrooli", "cache", "hostfacts.json.lock"),
+			filepath.Join(work, "002", ".local", "share", "uv", "credentials", "credentials.toml.lock"),
+			filepath.Join(work, "002", ".keep"),
+			filepath.Join(work, "002", "payload.bin"),
+		}
+		if extra != "" {
+			paths = append(paths, filepath.Join(work, extra))
+		}
+		for _, path := range paths {
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("test-only fixture"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := filepath.Walk(work, func(path string, _ os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			return os.Chtimes(path, old, old)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return root, work
+	}
+	preview := func(t *testing.T, root string) cleanup.Preview {
+		spec := RootSpec{ID: "go-work-dirs", Root: root, Class: "tmp", Tier: cleanup.SafetyTierSafe, MaxAge: "6h", MaxBytes: "20GiB", LeaseCheck: "open_handle", Platforms: []string{"linux", "macos", "windows"}, Rationale: "test work dirs"}
+		provider, err := NewSpecProvider(hostfs.New(hostfs.Options{}), cleanupfakes.Clock{Time: time.Now()}, spec, FileProviderConfig{})
+		if err != nil {
+			t.Fatalf("NewSpecProvider: %v", err)
+		}
+		out, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: time.Now(), Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, ApprovalMode: cleanup.ApprovalModeNone}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	t.Run("idle with advisory markers", func(t *testing.T) {
+		root, work := build(t, "")
+		if got := previewPaths(preview(t, root)); len(got) != 1 || got[0] != work {
+			out := preview(t, root)
+			t.Fatalf("idle stale work dir pinned by name markers: %v warnings=%v blocked=%q", got, out.Warnings, out.BlockedReason)
+		}
+	})
+	t.Run("open handle inside", func(t *testing.T) {
+		root, work := build(t, "")
+		held, err := os.Open(filepath.Join(work, "002", "payload.bin"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer held.Close()
+		if got := previewPaths(preview(t, root)); len(got) != 0 {
+			t.Fatalf("work dir with a live handle was offered: %v", got)
+		}
+	})
+	t.Run("explicit lease marker", func(t *testing.T) {
+		root, _ := build(t, filepath.Join("002", ".lease"))
+		if got := previewPaths(preview(t, root)); len(got) != 0 {
+			t.Fatalf("work dir with an explicit lease was offered: %v", got)
+		}
+	})
 }

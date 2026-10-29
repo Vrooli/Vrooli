@@ -181,6 +181,14 @@ require owner approval when enabled. If no owner client is wired,
 planning reports the provider as unavailable instead of falling back to
 filesystem cleanup.
 
+The shared runtime-home `test_runs` root is intentionally absent from generic
+whole-directory cleanup providers. Test Genie owns that lifecycle surface and
+offers run-level candidates only after checking terminal status, retained-run
+count, age/size bounds, and active pin leases. Use the disabled-by-default
+`test-genie-run-retention` provider to preview and apply those candidates with
+owner approval; Storage Manager must not substitute a generic filesystem walk
+when the owner provider is disabled or unavailable.
+
 Per-provider overrides currently support:
 
 | Lever | Valid values | Purpose |

@@ -167,9 +167,9 @@ func (h *handlers) proveIsolation(ctx cliapp.RunContext) error {
 		{"apihttp.TestModeMiddleware", "apihttp.TestModeMiddleware"},
 		{"devrouting.RegisterWithFileRoots", "devrouting.RegisterWithFileRoots"},
 		{"filerouting.New", "filerouting.New"},
-		{"RoutedRoots.Pick", "RoutedRoots.Pick"},
 	}
 	var source strings.Builder
+	var sourceFiles []sourceFile
 	if walkErr := filepath.WalkDir(apiDir, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -181,7 +181,9 @@ func (h *handlers) proveIsolation(ctx cliapp.RunContext) error {
 		if readErr != nil {
 			return readErr
 		}
-		source.Write(data)
+		contents := string(data)
+		sourceFiles = append(sourceFiles, sourceFile{dir: filepath.Dir(path), content: contents})
+		source.WriteString(contents)
 		return nil
 	}); walkErr != nil {
 		return fmt.Errorf("prove isolation: scan %s: %w", scenario, walkErr)
@@ -192,11 +194,14 @@ func (h *handlers) proveIsolation(ctx cliapp.RunContext) error {
 			missing = append(missing, check.name)
 		}
 	}
-	results := []string{fmt.Sprintf("Scenario %s isolation proof: %t", scenario, len(missing) == 0)}
+	if !hasContextualFileRootPick(sourceFiles) {
+		missing = append(missing, "RoutedRoots.Pick(ctx, class) or PickRequired(ctx, class)")
+	}
+	results := []string{fmt.Sprintf("Scenario %s isolation seam check: %t", scenario, len(missing) == 0)}
 	if len(missing) > 0 {
 		results = append(results, "Missing seams: "+strings.Join(missing, ", "))
 	}
-	if err := ctx.RenderList(cliapp.ListReport{Summary: []string{"API-free static isolation proof"}, ResultsHeading: "Isolation", Results: results}); err != nil {
+	if err := ctx.RenderList(cliapp.ListReport{Summary: []string{"API-free static isolation seam check"}, ResultsHeading: "Isolation", Results: results}); err != nil {
 		return err
 	}
 	if len(missing) > 0 {

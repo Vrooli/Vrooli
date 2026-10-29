@@ -250,6 +250,9 @@ type Estimate struct {
 	MinAge           time.Duration
 	KeepCount        int
 	MaxBytes         int64
+	// Notices are one-time operator facts found while measuring, such as
+	// entries that need elevation. They never block or explain a skip.
+	Notices []string
 }
 
 type PreviewRequest struct {
@@ -275,6 +278,8 @@ type Preview struct {
 	Items           []PreviewItem
 	Warnings        []string
 	BlockedReason   string
+	// Notices carry one-time operator facts; see Estimate.Notices.
+	Notices []string
 	// OwnerPolicy preserves the exact policy the owner used to produce the
 	// preview so Apply can revalidate against the same bounds.
 	MinAge    time.Duration
@@ -282,7 +287,9 @@ type Preview struct {
 	MaxBytes  int64
 	// AllowSingleOvershoot permits one indivisible, provider-owned item to
 	// exceed the controller batch cap. It is for atomic operations such as a
-	// same-filesystem quarantine rename; ordinary file batches remain capped.
+	// same-filesystem quarantine rename, a tool's own prune command, a whole
+	// expired temporary tree, or one whole unit of a regenerable root proven
+	// over its declared ceiling; ordinary file batches remain capped.
 	AllowSingleOvershoot bool
 }
 
@@ -360,6 +367,9 @@ func (p Preview) Clone() Preview {
 	}
 	if p.Warnings != nil {
 		out.Warnings = append([]string(nil), p.Warnings...)
+	}
+	if p.Notices != nil {
+		out.Notices = append([]string(nil), p.Notices...)
 	}
 	return out
 }

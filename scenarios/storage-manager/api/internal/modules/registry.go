@@ -30,6 +30,7 @@ import (
 	validationH "storage-manager/handlers/validation"
 	"storage-manager/internal/census"
 	localdb "storage-manager/internal/database"
+	"storage-manager/internal/deletiongrant"
 	"storage-manager/internal/fleet"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/placement"
@@ -98,5 +99,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(census.Schema),
 		apidb.SchemaProviderFunc(placement.Schema),
 		apidb.SchemaProviderFunc(fleet.Schema),
+		apidb.SchemaProviderFunc(deletiongrant.Schema),
 	}
 }

@@ -33,7 +33,7 @@ type FakeKopiaEngine struct {
 	SnapshotRestoreFn func(ctx context.Context, repo, snapshotID, target string) error
 	SnapshotVerifyFn  func(ctx context.Context, repo, snapshotID string, verifyPercent int) error
 	BrowseSnapshotFn  func(ctx context.Context, repo, snapshotID, path string) ([]engine.SnapshotEntry, error)
-	PolicySetFn       func(ctx context.Context, repo, path string, keepLatest int) error
+	ApplyRetentionFn  func(ctx context.Context, repo, source string, keepLatest int) (int, error)
 
 	// Recorded state.
 	Calls         []string
@@ -110,7 +110,7 @@ func (f *FakeKopiaEngine) SnapshotCreate(ctx context.Context, repo, path string,
 		return f.SnapshotCreateFn(ctx, repo, path, meta)
 	}
 	f.snapshotSeq++
-	return engine.Snapshot{ID: fmt.Sprintf("snap-%d", f.snapshotSeq), Path: path}, nil
+	return engine.Snapshot{ID: fmt.Sprintf("snap-%d", f.snapshotSeq), Path: path, Source: FakeSnapshotSource(meta, path)}, nil
 }
 
 func (f *FakeKopiaEngine) SnapshotList(ctx context.Context, repo, path string) ([]engine.Snapshot, error) {
@@ -153,12 +153,23 @@ func (f *FakeKopiaEngine) BrowseSnapshot(ctx context.Context, repo, snapshotID, 
 	return nil, nil
 }
 
-func (f *FakeKopiaEngine) PolicySet(ctx context.Context, repo, path string, keepLatest int) error {
+// ApplyRetention defaults to a source that already honors its bound.
+func (f *FakeKopiaEngine) ApplyRetention(ctx context.Context, repo, source string, keepLatest int) (int, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.record("PolicySet(%s,%s,%d)", repo, path, keepLatest)
-	if f.PolicySetFn != nil {
-		return f.PolicySetFn(ctx, repo, path, keepLatest)
+	f.record("ApplyRetention(%s,%s,%d)", repo, source, keepLatest)
+	if f.ApplyRetentionFn != nil {
+		return f.ApplyRetentionFn(ctx, repo, source, keepLatest)
 	}
-	return nil
+	return keepLatest, nil
+}
+
+// FakeSnapshotSource is the source identity the fake records a snapshot
+// under: like kopia, the override source wins over the captured path, and it
+// is deliberately not equal to either so tests catch code that retains by path.
+func FakeSnapshotSource(meta engine.SnapshotMetadata, path string) string {
+	if meta.OverrideSource != "" {
+		return "fake@host:/recorded/" + meta.OverrideSource
+	}
+	return "fake@host:" + path
 }

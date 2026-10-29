@@ -119,40 +119,24 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	})
 }
 
+// update is a partial update: it reads the current plan and overrides only the
+// fields whose flags were supplied. UpdatePlan itself replaces the whole plan,
+// so sending zero values for omitted flags would silently disable the plan,
+// drop its retention and drill schedule, and reset its protection tier.
 func (h *handlers) update(ctx cliapp.RunContext) error {
-	targetIDs := parseCommaSeparated(ctx.Flag("targets"))
-	destIDs := parseCommaSeparated(ctx.Flag("destinations"))
-
-	var retention *plansv1.RetentionPolicy
-	if s := ctx.Flag("keep-latest"); s != "" {
-		n, err := strconv.ParseInt(s, 10, 32)
-		if err != nil {
-			return fmt.Errorf("--keep-latest: %w", err)
-		}
-		retention = &plansv1.RetentionPolicy{KeepLatest: int32(n)}
+	id := ctx.Flag("id")
+	current, err := h.client.GetPlan(context.Background(), connect.NewRequest(&plansv1.GetPlanRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("get plan %q", id), err, nil)
 	}
-
-	enabled := false
-	if s := ctx.Flag("enabled"); s != "" {
-		var err error
-		enabled, err = strconv.ParseBool(s)
-		if err != nil {
-			return fmt.Errorf("--enabled: %w", err)
-		}
+	if current == nil || current.Msg == nil || current.Msg.Plan == nil {
+		return fmt.Errorf("server returned no plan")
 	}
-
-	resp, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{
-		Id:                      ctx.Flag("id"),
-		Name:                    ctx.Flag("name"),
-		TargetIds:               targetIDs,
-		DestinationIds:          destIDs,
-		Schedule:                ctx.Flag("schedule"),
-		Retention:               retention,
-		Enabled:                 enabled,
-		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
-		ProtectionTier:          protectionTier(ctx.Flag("protection-tier")),
-		RecoveryDrillSchedule:   optionalFlag(ctx, "recovery-drill-schedule"),
-	}))
+	req, err := mergeUpdate(ctx, current.Msg.Plan)
+	if err != nil {
+		return err
+	}
+	resp, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(req))
 	if err != nil {
 		return cliapp.WrapAPIError("update plan", err, nil)
 	}
@@ -179,6 +163,56 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{msg},
 	})
+}
+
+// mergeUpdate builds a full UpdatePlanRequest from the current plan, replacing
+// only the fields whose flags the caller supplied.
+func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanRequest, error) {
+	req := &plansv1.UpdatePlanRequest{
+		Id:                      p.Id,
+		Name:                    p.Name,
+		TargetIds:               p.TargetIds,
+		DestinationIds:          p.DestinationIds,
+		Schedule:                p.Schedule,
+		Retention:               p.Retention,
+		Enabled:                 p.Enabled,
+		AllowIncompleteCoverage: ctx.BoolFlag("allow-incomplete-coverage"),
+		ProtectionTier:          p.ProtectionTier,
+		RecoveryDrillSchedule:   p.RecoveryDrillSchedule,
+	}
+	if ctx.FlagProvided("name") {
+		req.Name = ctx.Flag("name")
+	}
+	if ctx.FlagProvided("targets") {
+		req.TargetIds = parseCommaSeparated(ctx.Flag("targets"))
+	}
+	if ctx.FlagProvided("destinations") {
+		req.DestinationIds = parseCommaSeparated(ctx.Flag("destinations"))
+	}
+	if ctx.FlagProvided("schedule") {
+		req.Schedule = ctx.Flag("schedule")
+	}
+	if ctx.FlagProvided("keep-latest") {
+		n, err := strconv.ParseInt(ctx.Flag("keep-latest"), 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("--keep-latest: %w", err)
+		}
+		req.Retention = &plansv1.RetentionPolicy{KeepLatest: int32(n)}
+	}
+	if ctx.FlagProvided("enabled") {
+		enabled, err := strconv.ParseBool(ctx.Flag("enabled"))
+		if err != nil {
+			return nil, fmt.Errorf("--enabled: %w", err)
+		}
+		req.Enabled = enabled
+	}
+	if ctx.FlagProvided("protection-tier") {
+		req.ProtectionTier = protectionTier(ctx.Flag("protection-tier"))
+	}
+	if ctx.FlagProvided("recovery-drill-schedule") {
+		req.RecoveryDrillSchedule = ctx.Flag("recovery-drill-schedule")
+	}
+	return req, nil
 }
 
 func formatPlan(p *plansv1.Plan) string {

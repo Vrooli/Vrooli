@@ -194,3 +194,28 @@ churn but its external mtime-cap recommendation lacked active-build safety.
 - Tracking: original QA report `knw-1791916274834471865`; QA closure remains the investigator's operation. Current native team continuation consent is pending and separate.
 
 Final adversarial tightening: return-before-reconciliation and pool rebinding regressions also pass; final storage-manager unit run `20261013-232826-4ca9559f` PASS, final deployed detector build `c878fd39…` healthy and live Nooch validation still has zero errors/two warnings. Summary: `docs/internal/delivery-operations/2026-10-12/sources/execution-evidence/2026-10-13/storage-repair-final-summary.json`.
+
+
+## Work ladder — 2026-10-16 — zero-byte temporary recovery starvation
+
+- Rung: W3, localized implementation defect encountered during operator-authorized disk cleanup.
+- Prior art: reused the 2026-10-08 bounded-recovery investigation and temporary observation qualification above.
+- Evidence: the normal census offered 258.52 GiB of temporary candidates, while manual recovery reclaimed 28,618 temporary bytes and then reported no eligible bytes. Three read-only bounded observations repeatedly returned `/tmp/deep-night-sky-types.log` with zero bytes. The setup broker reported complete activity evidence and no held handles beneath a known expired cache; the strict filesystem reader measured that cache successfully. A canonical service refresh did not resolve the discrepancy.
+- Cause: the resumable provider cached the first fully measured empty file as its ready unit. The controller requires positive estimated bytes before apply, so it never consumed that unit or reached the positive-size directories behind it.
+- Repair: advance past complete zero-byte units before publishing a recovery candidate. Keep age, ownership, identity, activity, containment, special-file and lease checks intact.
+- Validation: `TestNativeTemporaryRecoveryAdvancesPastEmptyFiles` failed before the repair and passed afterward. Focused native temporary recovery and provider safety regressions pass. Scoped Test Genie contracts/unit passed as `20261017-030247-90d28b56`. The exact-item selection extension passed contracts/unit as `20261017-030800-d792a6b0`; its CLI transport regression also passes with the production protobuf wire format. Live cleanup receipts are retained in the investigation evidence directory.
+- Evidence directory: `~/.vrooli/plan-artifacts/disk-investigation-20261016/`.
+
+
+### Exact selection for the approved cleanup pass
+
+The operator approved reclaiming temporary artifacts and eligible Trash. The
+whole-plan apply endpoint could not isolate those items from the model and
+history providers included in the same census. Added optional exact item IDs
+to the existing apply contract and CLI. Unknown or ambiguous IDs reject the
+request before any provider runs; selection retains the original preview and
+all provider safety gates. Idempotency keys bind both plan and normalized item
+selection. Empty selection preserves whole-plan behavior. This permits selecting
+large temporary units directly without waiting behind thousands of tiny files
+or granting model/history deletion. No retention profile or standing authority
+was changed.

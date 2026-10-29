@@ -46,3 +46,16 @@ Use this table shape when appending entries.
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
 - [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map
+
+
+2026-10-16 — Repaired zero-byte temporary recovery starvation. An expired
+empty file no longer pins the resumable cursor ahead of large reclaimable
+trees. Added optional exact preview item IDs to cleanup apply, including
+unknown/ambiguous-ID rejection before effects and replay binding to the plan
+and normalized selection. The CLI preserves repeated item IDs over the actual
+protobuf transport. Policy, owner, activity, age and identity checks remain
+active. Generated protobufs, endpoint metadata and CLI primitive evidence were
+updated through their owners. Negative-before-positive regressions pass;
+Test Genie contracts/unit passed as `20261017-030800-d792a6b0`. Canonical
+lifecycle rollout completed; operator-authorized cleanup receipts are in
+`~/.vrooli/plan-artifacts/disk-investigation-20261016/`.

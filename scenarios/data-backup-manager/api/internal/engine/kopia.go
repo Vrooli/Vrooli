@@ -18,11 +18,13 @@ package engine
 
 import (
 	"context"
-	"data-backup-manager/internal/effectguard"
 	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
+	"strings"
+
+	"data-backup-manager/internal/effectguard"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
@@ -88,8 +90,12 @@ type SnapshotMetadata struct {
 
 // Snapshot is a kopia snapshot reference produced/listed by the engine.
 type Snapshot struct {
-	ID        string
-	Path      string
+	ID   string
+	Path string
+	// Source is the kopia source identity (user@host:/path) the snapshot was
+	// recorded under. With an override source it differs from Path, and it is
+	// the only identity that retention policy and expiry act on.
+	Source    string
 	StartTime string
 	SizeBytes int64
 }
@@ -140,9 +146,12 @@ type KopiaEngine interface {
 	SnapshotVerify(ctx context.Context, repo, snapshotID string, verifyPercent int) error
 	// BrowseSnapshot lists entries within a snapshot, optionally under path.
 	BrowseSnapshot(ctx context.Context, repo, snapshotID, path string) ([]SnapshotEntry, error)
-	// PolicySet applies retention to a repository path; keepLatest <= 0 leaves
-	// the keep-latest policy untouched.
-	PolicySet(ctx context.Context, repo, path string, keepLatest int) error
+	// ApplyRetention bounds a snapshot source to its keepLatest most recent
+	// snapshots and enforces that bound now. source must be the exact identity
+	// the snapshots were recorded under (Snapshot.Source). It returns how many
+	// snapshots the source holds afterwards so callers can prove the bound
+	// held. Blob space is reclaimed later by kopia maintenance.
+	ApplyRetention(ctx context.Context, repo, source string, keepLatest int) (remaining int, err error)
 }
 
 // CommandRunner is the exec seam KopiaCLI shells through. Production wires
@@ -320,6 +329,7 @@ func (k *KopiaCLI) SnapshotList(ctx context.Context, repo, path string) ([]Snaps
 	for _, m := range manifests {
 		snaps = append(snaps, Snapshot{
 			ID:        firstString(m, "id", "ID"),
+			Source:    snapshotSource(m),
 			StartTime: firstString(m, "startTime", "StartTime"),
 			SizeBytes: snapshotSize(m),
 		})
@@ -372,15 +382,37 @@ func (k *KopiaCLI) BrowseSnapshot(ctx context.Context, repo, snapshotID, path st
 	return out2, nil
 }
 
-func (k *KopiaCLI) PolicySet(ctx context.Context, repo, path string, keepLatest int) error {
+// gfsBuckets are kopia's time-bucketed retention counts. A plan's keep-latest
+// promise is "at most N", so every bucket is pinned to 0 on a plan-managed
+// source; otherwise the inherited global GFS (48 hourly, 7 daily, ...) keeps
+// snapshots that keep-latest alone would drop.
+var gfsBuckets = []string{"--keep-hourly", "--keep-daily", "--keep-weekly", "--keep-monthly", "--keep-annual"}
+
+func (k *KopiaCLI) ApplyRetention(ctx context.Context, repo, source string, keepLatest int) (int, error) {
+	if strings.TrimSpace(source) == "" {
+		return 0, fmt.Errorf("apply retention repo=%q: snapshot source is unknown", repo)
+	}
 	if keepLatest <= 0 {
-		return nil
+		return 0, fmt.Errorf("apply retention repo=%q source=%q: keep-latest must be positive", repo, source)
 	}
-	if _, err := k.Runner.Run(ctx, "policy", "set", "--repo", repo, "--path", path,
-		"--keep-latest", strconv.Itoa(keepLatest)); err != nil {
-		return fmt.Errorf("policy set repo=%q path=%q: %w", repo, path, err)
+	args := []string{"policy", "set", "--repo", repo, "--path", source, "--keep-latest", strconv.Itoa(keepLatest)}
+	for _, bucket := range gfsBuckets {
+		args = append(args, bucket, "0")
 	}
-	return nil
+	if _, err := k.Runner.Run(ctx, args...); err != nil {
+		return 0, fmt.Errorf("policy set repo=%q source=%q: %w", repo, source, err)
+	}
+	// kopia expires only while creating the next snapshot of a source, so a
+	// policy set after this run's snapshot would not bound anything until the
+	// following run. Expire explicitly so the bound holds now.
+	if _, err := k.Runner.Run(ctx, "snapshot", "expire", "--repo", repo, "--path", source, "--delete"); err != nil {
+		return 0, fmt.Errorf("snapshot expire repo=%q source=%q: %w", repo, source, err)
+	}
+	snaps, err := k.SnapshotList(ctx, repo, source)
+	if err != nil {
+		return 0, err
+	}
+	return len(snaps), nil
 }
 
 // parseSnapshot reads a single kopia snapshot manifest (the `snapshot create
@@ -394,7 +426,27 @@ func parseSnapshot(out []byte) (Snapshot, error) {
 	if id == "" {
 		return Snapshot{}, fmt.Errorf("snapshot json missing id: %s", string(out))
 	}
-	return Snapshot{ID: id, StartTime: firstString(m, "startTime", "StartTime"), SizeBytes: snapshotSize(m)}, nil
+	return Snapshot{ID: id, Source: snapshotSource(m), StartTime: firstString(m, "startTime", "StartTime"), SizeBytes: snapshotSize(m)}, nil
+}
+
+// snapshotSource renders a manifest's source block as kopia's canonical
+// user@host:/path identity, or "" when the manifest omits any part of it.
+func snapshotSource(m map[string]json.RawMessage) string {
+	raw, ok := m["source"]
+	if !ok {
+		return ""
+	}
+	var src map[string]json.RawMessage
+	if json.Unmarshal(raw, &src) != nil {
+		return ""
+	}
+	user := firstString(src, "userName", "UserName")
+	host := firstString(src, "host", "Host")
+	path := firstString(src, "path", "Path")
+	if user == "" || host == "" || path == "" {
+		return ""
+	}
+	return user + "@" + host + ":" + path
 }
 
 // snapshotSize digs the total size out of a manifest's nested stats block,

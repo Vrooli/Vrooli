@@ -245,10 +245,22 @@ data-backup-manager plans create --name nightly \
   --schedule "24h" --keep-latest 7
 data-backup-manager plans list
 data-backup-manager plans get <plan-id>
-data-backup-manager plans update --id <plan-id> --name nightly \
-  --targets <target-id> --destinations <destination-id> --schedule "24h"
+data-backup-manager plans update --id <plan-id> --keep-latest 7
 data-backup-manager plans delete --id <plan-id>
 ```
+
+`plans update` is a partial update: flags you omit keep the plan's current
+values (pass `--recovery-drill-schedule ""` or `--enabled false` to clear or
+disable explicitly).
+
+`--keep-latest N` keeps at most N snapshots per target and destination. Each
+run sets that bound on the exact kopia source the snapshot was recorded under
+(every GFS bucket at 0, so the repository's global hourly/daily/... policy
+cannot keep more), expires older snapshots immediately, and marks the run
+`partial_failed` with a `retention_failed:` outcome warning if the source still
+holds more than N. Kopia's own auto-maintenance (owned by the repository's
+creating `user@host`) then frees the unreferenced blobs; space returns after
+two full maintenance cycles because kopia keeps a safety delay before deleting.
 
 A target may be bound to several plans (e.g. daily-to-local and
 weekly-to-offsite).

@@ -67,7 +67,10 @@ func (e *engineFake) SnapshotVerify(context.Context, string, string, int) error 
 func (e *engineFake) BrowseSnapshot(context.Context, string, string, string) ([]engine.SnapshotEntry, error) {
 	return nil, nil
 }
-func (e *engineFake) PolicySet(context.Context, string, string, int) error { return nil }
+
+func (e *engineFake) ApplyRetention(context.Context, string, string, int) (int, error) {
+	return 0, nil
+}
 
 func TestCheckGroupsOneSharedCredentialFailure(t *testing.T) {
 	eng := &engineFake{statusErr: errors.New("read repository passphrase: credential is not configured")}
@@ -141,10 +144,12 @@ func (f *captureFake) Restore(context.Context, sources.RestoreSpec) error { retu
 // even if the repository itself answers successfully.
 func TestTemporaryDestinationIsBlockedBeforeEngine(t *testing.T) {
 	e := &engineFake{}
-	r := Check(context.Background(), Input{Plan: Plan{TargetIDs: []string{"t"}, DestinationIDs: []string{"d"}},
+	r := Check(context.Background(), Input{
+		Plan:         Plan{TargetIDs: []string{"t"}, DestinationIDs: []string{"d"}},
 		Targets:      targetLookup{targets: map[string]Target{"t": {ID: "t", Kind: sources.KindFilesystem, Locator: "/source"}}},
 		Destinations: destLookup{destinations: map[string]Destination{"d": {ID: "d", Name: "temp", BackendKind: "filesystem", Location: "/tmp/backup"}}}, Engine: e,
-		Sources: sources.NewProductionRegistry(sources.ExecRunner{})})
+		Sources: sources.NewProductionRegistry(sources.ExecRunner{}),
+	})
 	if r.Ready || e.statusCalls != 0 || len(r.Incidents) == 0 || r.Incidents[0].Code != "destination_ephemeral" {
 		t.Fatalf("temporary destination accepted: %+v", r)
 	}

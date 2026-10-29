@@ -3,6 +3,7 @@ package census
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
 	corestorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestScanReportsUnknownUnattributedBytesWhenCoverageIsUnreadable(t *testing.T) {
@@ -333,4 +335,145 @@ func TestSnapshotStoreLatestReturnsAgeAndStalenessWithoutRescanning(t *testing.T
 	if current == nil || current.StalenessVerdict != "current" {
 		t.Fatalf("an hour-old snapshot on the %s default schedule = %+v, want current", DefaultInterval, current)
 	}
+}
+
+func TestSnapshotStoreCompactsOversizedHistoricalReportsButKeepsNewestEvidence(t *testing.T) {
+	database := apidb.NewFromPrimary(db.NewSQLite(t))
+	store := NewSnapshotStore(database)
+	ctx := context.Background()
+	if _, err := database.ExecContext(ctx, censusSchemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	now := time.Now().UTC()
+	findings := make([]Finding, 0, 20000)
+	for i := 0; i < 20000; i++ {
+		findings = append(findings, Finding{Code: "unattributed", Path: fmt.Sprintf("/home/u/some/long/path/%06d", i), Message: "no owner declares this path"})
+	}
+	ids := []string{"r1", "r2", "r3", "r4", "r5"}
+	for i, id := range ids {
+		report := Report{
+			SnapshotID: id, Root: root, MeasuredBytes: int64(1000 + i), Findings: findings,
+			UnattributedRoots: []RootTotal{{Path: "/x", Bytes: 1}}, Entries: []Entry{{Owner: "owner", Kind: "scenario", Name: "data", Bytes: 7}},
+			ScanCoverage: ScanCoverage{DeviceTotalBytes: 1 << 40},
+		}
+		payload, err := json.Marshal(report)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(payload) <= compactReportThreshold {
+			t.Fatalf("fixture report is %d bytes; it must exceed the compaction threshold", len(payload))
+		}
+		at := now.Add(time.Duration(i-len(ids)) * time.Hour).Format(time.RFC3339Nano)
+		if _, err := database.ExecContext(ctx, `INSERT INTO census_snapshots (id, observed_at, root, measured_bytes, report_json) VALUES (?, ?, ?, ?, ?)`, id, at, root, report.MeasuredBytes, string(payload)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if pending, err := store.PendingReportCompaction(ctx); err != nil || pending != 2 {
+		t.Fatalf("pending compaction = %d, %v; want the two reports beyond the newest three", pending, err)
+	}
+	if err := store.Prune(ctx, now); err != nil {
+		t.Fatal(err)
+	}
+	if pending, err := store.PendingReportCompaction(ctx); err != nil || pending != 0 {
+		t.Fatalf("pending compaction after prune = %d, %v", pending, err)
+	}
+	for i, id := range ids {
+		var payload string
+		if err := database.QueryRowContext(ctx, `SELECT report_json FROM census_snapshots WHERE id = ?`, id).Scan(&payload); err != nil {
+			t.Fatalf("report %s was deleted instead of compacted: %v", id, err)
+		}
+		var report Report
+		if err := json.Unmarshal([]byte(payload), &report); err != nil {
+			t.Fatal(err)
+		}
+		historical := i < 2
+		if historical != report.ReportCompacted || historical != (len(report.Findings) == 0) {
+			t.Fatalf("report %s compacted=%t findings=%d; only the oldest two should lose per-path evidence", id, report.ReportCompacted, len(report.Findings))
+		}
+		if report.MeasuredBytes != int64(1000+i) || len(report.Entries) != 1 || report.ScanCoverage.DeviceTotalBytes != 1<<40 {
+			t.Fatalf("report %s lost totals, entries, or coverage: %#v", id, report)
+		}
+		if historical && len(payload) > compactReportThreshold {
+			t.Fatalf("compacted report %s is still %d bytes", id, len(payload))
+		}
+	}
+}
+
+// A lifecycle-launched scenario opens its SQLite database under
+// <scenario>/data, while its class-data entry resolves to the runtime-home
+// class root. The entry must measure both, or live databases sit outside
+// every entry and budget.
+func TestScanInventoryAttributesLifecycleDataDirToClassDataEntry(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("VROOLI_HOME", "")
+	root := t.TempDir()
+	manifest := filepath.Join(root, "scenarios", "demo", ".vrooli", "service.json")
+	live := filepath.Join(root, "scenarios", "demo", "data", "demo.db")
+	for path, content := range map[string]string{manifest: `{"service":{"name":"demo"}}`, live: "123456"} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inventory := corestorage.OwnerInventory{RepoRoot: root, Owners: []corestorage.OwnerManifest{{
+		Kind: corestorage.OwnerScenario, ID: "demo", ManifestPath: manifest,
+		StorageEntries: []corestorage.StorageEntry{{Name: "data", Rung: corestorage.RungOwned, Kind: "dir", Class: corestorage.ClassData}},
+	}}}
+	report, err := ScanInventoryWithPolicy(root, inventory, ScanPolicy{Roots: []PolicyRoot{{Path: root}}, FloorBytes: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range report.Entries {
+		if entry.Owner == "demo" && entry.Name == "data" {
+			if entry.Bytes < 6 || len(entry.Locations) != 1 || entry.Locations[0] != filepath.Dir(live) {
+				t.Fatalf("class-data entry did not measure the lifecycle data dir: %#v", entry)
+			}
+			return
+		}
+	}
+	t.Fatalf("class-data entry missing: %#v", report.Entries)
+}
+
+// The contract names an owner for every runtime-home entry. A leaf entry such
+// as artifacts is attributed to it (attribution only, disposition follows
+// protection); a shared parent that holds owners' roots is left to them.
+func TestRuntimeHomeEntriesAreAttributedToTheirContractOwner(t *testing.T) {
+	home := t.TempDir()
+	artifacts := filepath.Join(home, ".vrooli", "artifacts")
+	data := filepath.Join(home, ".vrooli", "data")
+	scenarioData := filepath.Join(data, "vrooli", "demo")
+	payload := filepath.Join(artifacts, "ace-step", "1.0.0", "resource-ace-step_linux_amd64")
+	if err := os.MkdirAll(filepath.Dir(payload), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(payload, []byte("12345678"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	declared := []resolvedDeclaration{{owner: "demo", kind: "scenario", name: "data", path: scenarioData, class: corestorage.ClassData}}
+	entries := []repocontract.HomeEntry{
+		{Key: "artifacts", AbsPath: artifacts, Owner: "control_plane", Protected: true, Regenerable: true, Cleanup: "never"},
+		{Key: "data", AbsPath: data, Owner: "control_plane", Protected: true, Cleanup: "never"},
+	}
+	extra := runtimeHomeDeclarations(entries, declared, []string{scenarioData})
+	if len(extra) != 1 || extra[0].path != artifacts || extra[0].owner != "control-plane" || extra[0].disposition != DispositionOwnedProtected {
+		t.Fatalf("runtime-home attribution = %#v, want artifacts only, owned and protected", extra)
+	}
+	report, err := scanWithPolicyUsing(scanRequest{displayRoot: home, policy: ScanPolicy{Roots: []PolicyRoot{{Path: home}}, FloorBytes: 1}, declarations: append(declared, extra...)}, hostFileSystem{}, NewDeviceProbe())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, root := range report.UnattributedRoots {
+		if isWithin(root.Path, artifacts) || root.Path == artifacts {
+			t.Fatalf("artifacts still unattributed: %#v", report.UnattributedRoots)
+		}
+	}
+	for _, entry := range report.Entries {
+		if entry.Name == "runtime_home.artifacts" && entry.Owner == "control-plane" && entry.Bytes >= 8 {
+			return
+		}
+	}
+	t.Fatalf("artifacts bytes not attributed to the control plane: %#v", report.Entries)
 }

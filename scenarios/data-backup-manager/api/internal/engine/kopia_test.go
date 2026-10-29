@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -155,5 +156,100 @@ func TestBrowseSnapshotUsesResourceKopiaBrowseAndParsesEntries(t *testing.T) {
 	}
 	if got[1].Path != "root.txt" || got[1].SizeBytes != 6 || got[1].IsDir {
 		t.Fatalf("entry[1] = %+v", got[1])
+	}
+}
+
+// scriptedRunner returns one canned output per call, in order.
+type scriptedRunner struct {
+	args    [][]string
+	outputs []string
+	errAt   int // 1-based call index that fails; 0 = never
+}
+
+func (r *scriptedRunner) Run(_ context.Context, args ...string) ([]byte, error) {
+	r.args = append(r.args, append([]string(nil), args...))
+	n := len(r.args)
+	if n == r.errAt {
+		return nil, errors.New("kopia exploded")
+	}
+	if n <= len(r.outputs) {
+		return []byte(r.outputs[n-1]), nil
+	}
+	return nil, nil
+}
+
+// TestSnapshotCreateReportsTheRecordedSource pins that the engine reports the
+// source kopia actually recorded (an override source is absolutized by kopia),
+// because that is the only identity retention can act on.
+func TestSnapshotCreateReportsTheRecordedSource(t *testing.T) {
+	runner := &recordingRunner{output: []byte(`{
+		"id": "k1",
+		"source": {"host": "box", "userName": "me", "path": "/srv/api/dbm:/acme/db"}
+	}`)}
+	cli := &KopiaCLI{Runner: runner}
+	got, err := cli.SnapshotCreate(context.Background(), "nightly", "/stage/fs", SnapshotMetadata{OverrideSource: "dbm://acme/db"})
+	if err != nil {
+		t.Fatalf("SnapshotCreate: %v", err)
+	}
+	if got.Source != "me@box:/srv/api/dbm:/acme/db" {
+		t.Fatalf("source = %q", got.Source)
+	}
+}
+
+// TestApplyRetentionBoundsToKeepLatestAndExpiresNow proves keep-latest N means
+// at most N: every GFS bucket is zeroed (else the inherited global policy keeps
+// more), the exact source is targeted, expiry runs now, and the remaining count
+// is reported from that source.
+func TestApplyRetentionBoundsToKeepLatestAndExpiresNow(t *testing.T) {
+	const source = "me@box:/srv/api/dbm:/acme/db"
+	runner := &scriptedRunner{outputs: []string{"", "", `[{"id":"a"},{"id":"b"},{"id":"c"}]`}}
+	cli := &KopiaCLI{Runner: runner}
+	remaining, err := cli.ApplyRetention(context.Background(), "nightly", source, 3)
+	if err != nil {
+		t.Fatalf("ApplyRetention: %v", err)
+	}
+	if remaining != 3 {
+		t.Fatalf("remaining = %d, want 3", remaining)
+	}
+	want := [][]string{
+		{
+			"policy", "set", "--repo", "nightly", "--path", source, "--keep-latest", "3",
+			"--keep-hourly", "0", "--keep-daily", "0", "--keep-weekly", "0", "--keep-monthly", "0", "--keep-annual", "0",
+		},
+		{"snapshot", "expire", "--repo", "nightly", "--path", source, "--delete"},
+		{"snapshot", "list", "--repo", "nightly", "--json", "--path", source},
+	}
+	if len(runner.args) != len(want) {
+		t.Fatalf("calls = %v, want %v", runner.args, want)
+	}
+	for i := range want {
+		if !slices.Equal(runner.args[i], want[i]) {
+			t.Fatalf("call %d = %v, want %v", i, runner.args[i], want[i])
+		}
+	}
+}
+
+func TestApplyRetentionRefusesUnknownSourceOrBound(t *testing.T) {
+	runner := &scriptedRunner{}
+	cli := &KopiaCLI{Runner: runner}
+	if _, err := cli.ApplyRetention(context.Background(), "nightly", "", 3); err == nil {
+		t.Fatal("empty source must fail, never fall back to a guessed path")
+	}
+	if _, err := cli.ApplyRetention(context.Background(), "nightly", "me@box:/x", 0); err == nil {
+		t.Fatal("keep-latest 0 must fail, never zero every bucket")
+	}
+	if len(runner.args) != 0 {
+		t.Fatalf("no engine call may run on invalid input: %v", runner.args)
+	}
+}
+
+func TestApplyRetentionStopsWhenPolicySetFails(t *testing.T) {
+	runner := &scriptedRunner{errAt: 1}
+	cli := &KopiaCLI{Runner: runner}
+	if _, err := cli.ApplyRetention(context.Background(), "nightly", "me@box:/x", 3); err == nil {
+		t.Fatal("policy failure must surface")
+	}
+	if len(runner.args) != 1 {
+		t.Fatalf("expiry must not run under an unapplied policy: %v", runner.args)
 	}
 }

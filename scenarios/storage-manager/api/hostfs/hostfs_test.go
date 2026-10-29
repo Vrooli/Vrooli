@@ -66,6 +66,34 @@ func TestNativeTemporaryRecoveryPreservesFreshDescendantAndRemovesExpiredFixture
 	}
 }
 
+func TestNativeTemporaryRecoveryAdvancesPastEmptyFiles(t *testing.T) {
+	root := t.TempDir()
+	empty := filepath.Join(root, "empty")
+	payload := filepath.Join(root, "payload")
+	old := time.Now().Add(-10 * 24 * time.Hour)
+	write(t, empty, "")
+	write(t, filepath.Join(payload, "output"), "reclaimable output")
+	for _, path := range []string{empty, filepath.Join(payload, "output"), payload} {
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	provider := providers.NewTmpProvider(New(Options{}), schedule.System(), providers.FileProviderConfig{
+		ID: "tmp", Roots: []string{root}, TopLevelEntries: true,
+		ProtectActive: true, LeaseCheck: "temporary", ActivityObserver: fixtureActivity{},
+	})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{
+		Scope:  cleanup.ObservationScope{Now: time.Now(), Recovery: true},
+		Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 72 * time.Hour},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Items) != 1 || preview.Items[0].Path != payload || preview.Items[0].Bytes <= 0 {
+		t.Fatalf("empty file prevented recovery of the expired payload: %#v", preview)
+	}
+}
+
 type fixtureActivity struct{}
 
 func (fixtureActivity) ObserveTemporary(context.Context, string) (map[string]struct{}, error) {
@@ -337,5 +365,77 @@ func TestWithinRoot(t *testing.T) {
 		if got := WithinRoot(root, tc.path); got != tc.want {
 			t.Errorf("WithinRoot(%q, %q) = %v, want %v", root, tc.path, got, tc.want)
 		}
+	}
+}
+
+// A tree the user owns outright must still be removable when some of its own
+// directories are read-only: Go's module cache extracts every directory 0555,
+// and tests that chmod a t.TempDir fixture leave the same shape. Removal used
+// to fail with "unlinkat: permission denied" on every pass.
+func TestRemoveAll_RestoresOwnerWriteOnOwnedReadOnlyDirectories(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "unix directory permission semantics")
+	}
+
+	root := t.TempDir()
+	fixture := filepath.Join(root, "TestFixture123")
+	write(t, filepath.Join(fixture, "module@v1.0.0", "pkg", "file.go"), "package pkg")
+	for _, dir := range []string{filepath.Join(fixture, "module@v1.0.0", "pkg"), filepath.Join(fixture, "module@v1.0.0"), fixture} {
+		if err := os.Chmod(dir, 0o555); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		_ = filepath.Walk(fixture, func(path string, _ os.FileInfo, _ error) error { _ = os.Chmod(path, 0o755); return nil })
+	})
+
+	if err := New(Options{}).RemoveAll(context.Background(), fixture); err != nil {
+		t.Fatalf("RemoveAll of an owned read-only tree: %v", err)
+	}
+	if _, err := os.Lstat(fixture); !os.IsNotExist(err) {
+		t.Fatalf("fixture still present after RemoveAll (lstat err = %v)", err)
+	}
+}
+
+// The permission repair is confined to the candidate: a read-only directory
+// reached only through a symlink inside the candidate keeps its mode and
+// contents.
+func TestRemoveAll_PermissionRepairNeverFollowsSymlinksOutOfCandidate(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "unix directory permission semantics")
+	}
+
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside")
+	write(t, filepath.Join(outside, "precious.txt"), "do not touch")
+	if err := os.Chmod(outside, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(outside, 0o755) })
+
+	candidate := filepath.Join(root, "candidate")
+	write(t, filepath.Join(candidate, "locked", "payload"), "data")
+	if err := os.Symlink(outside, filepath.Join(candidate, "locked", "escape")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	if err := os.Chmod(filepath.Join(candidate, "locked"), 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filepath.Join(candidate, "locked"), 0o755) })
+
+	if err := New(Options{}).RemoveAll(context.Background(), candidate); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+	info, err := os.Stat(outside)
+	if err != nil {
+		t.Fatalf("symlink target removed: %v", err)
+	}
+	if info.Mode().Perm() != 0o555 {
+		t.Fatalf("symlink target mode = %o, want untouched 0555", info.Mode().Perm())
+	}
+	if _, err := os.Stat(filepath.Join(outside, "precious.txt")); err != nil {
+		t.Fatalf("symlink target contents removed: %v", err)
 	}
 }

@@ -152,7 +152,6 @@ func (g *pressureGuard) acquireTrigger(partition, trigger string, now time.Time)
 }
 
 func (g *pressureGuard) acquireKey(key string, now time.Time, description string) (bool, string) {
-
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -177,11 +176,32 @@ func (g *pressureGuard) releaseTrigger(partition, trigger string, now time.Time)
 }
 
 func (g *pressureGuard) releaseKey(key string, now time.Time) {
-
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	delete(g.inFlight, key)
 	g.lastRun[key] = now
+}
+
+// mountUsedBytes derives used bytes from df-style inputs. Used percent is
+// used/(used+available), so used = available*p/(1-p). Multiplying available by
+// the percentage reported a figure that fell as the disk filled.
+func mountUsedBytes(usedPercent float64, availableBytes int64) int64 {
+	if usedPercent <= 0 || usedPercent >= 100 || availableBytes <= 0 {
+		return 0
+	}
+	fraction := usedPercent / 100
+	return int64(float64(availableBytes) * fraction / (1 - fraction))
+}
+
+// writerWindowDelta is the growth a hot writer reported over its observation
+// window. The delta column previously stored the hourly rate, so a 60-second
+// window claimed a whole hour's bytes.
+func writerWindowDelta(writer HotWriter) (float64, int64) {
+	if writer.WindowSeconds <= 0 {
+		return 0, 0
+	}
+	hours := float64(writer.WindowSeconds) / 3600
+	return hours, int64(float64(writer.BytesPerHour) * hours)
 }
 
 // ReportPressure handles an inbound pressure signal.
@@ -206,12 +226,12 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 		SaveWriterSnapshot(context.Context, string, string, string, string, int64, int64, float64, int64, bool, bool) error
 	}); ok {
 		sampledAt := s.now().UTC().Format(time.RFC3339Nano)
-		usedBytes := int64((signal.UsedPercent / 100) * float64(signal.AvailableBytes))
-		_ = snapshots.SaveWriterSnapshot(ctx, "mount|"+sampledAt, sampledAt, signal.Partition, signal.Partition, usedBytes, signal.FillRateBytesPerHour, 1, signal.FillRateBytesPerHour, false, false)
+		_ = snapshots.SaveWriterSnapshot(ctx, "mount|"+sampledAt, sampledAt, signal.Partition, signal.Partition, mountUsedBytes(signal.UsedPercent, signal.AvailableBytes), signal.FillRateBytesPerHour, 1, signal.FillRateBytesPerHour, false, false)
 		activeRoots := make(map[string]struct{}, len(signal.HotWriters))
 		for i, writer := range signal.HotWriters {
 			activeRoots[filepath.Clean(strings.TrimSpace(writer.Root))] = struct{}{}
-			_ = snapshots.SaveWriterSnapshot(ctx, fmt.Sprintf("hot|%s|%d|%s", writer.Root, i, sampledAt), sampledAt, signal.Partition, writer.Root, writer.CurrentBytes, writer.BytesPerHour, float64(writer.WindowSeconds)/3600, writer.BytesPerHour, false, true)
+			hours, delta := writerWindowDelta(writer)
+			_ = snapshots.SaveWriterSnapshot(ctx, fmt.Sprintf("hot|%s|%d|%s", writer.Root, i, sampledAt), sampledAt, signal.Partition, writer.Root, writer.CurrentBytes, delta, hours, writer.BytesPerHour, false, true)
 		}
 		if reconciler, ok := s.store.(interface {
 			MarkWritersCooled(context.Context, string, map[string]struct{}) error

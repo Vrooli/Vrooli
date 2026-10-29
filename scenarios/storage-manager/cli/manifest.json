@@ -249,6 +249,46 @@
       ]
     },
     {
+      "name": "deletion-grant",
+      "description": "Request the operator's approval to delete locations the agent policy withholds",
+      "commands": [
+        {
+          "name": "request",
+          "description": "Ask the operator, through the decision inbox, for a time-boxed grant to delete exact paths",
+          "flags": [
+            {
+              "name": "path",
+              "description": "Absolute path to delete; repeat for several",
+              "required": true,
+              "repeatable": true
+            },
+            {
+              "name": "reason",
+              "description": "Why the deletion is needed; the operator decides from it",
+              "required": true
+            },
+            {
+              "name": "expires-in",
+              "description": "Grant validity once approved, as a Go duration (default 168h, max 720h)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        }
+      ]
+    },
+    {
       "name": "placement",
       "description": "Verify storage placement without moving bytes",
       "commands": [
@@ -486,6 +526,11 @@
               "name": "idempotency-key",
               "required": true,
               "description": "Replay-safe idempotency key"
+            },
+            {
+              "name": "item-id",
+              "repeatable": true,
+              "description": "Apply only this exact preview item ID; repeat to select multiple items"
             }
           ],
           "binding": {
@@ -596,6 +641,75 @@
             "effect": "read",
             "run_eligible": true,
             "permissions": []
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "approvals",
+          "description": "List host-local standing approvals that let conditional providers run during autonomous recovery",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "approve",
+          "description": "Grant this host a standing approval for one conditional provider (e.g. go-build-cache) to run during autonomous recovery",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Conditional provider id to approve",
+              "required": true
+            },
+            {
+              "name": "approved-by",
+              "description": "Operator recorded on the approval (defaults to $USER)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
+          "name": "revoke-approval",
+          "description": "Revoke a provider's standing approval on this host",
+          "flags": [
+            {
+              "name": "provider",
+              "description": "Conditional provider id to revoke",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
           },
           "architecture": {
             "primitive": "action"

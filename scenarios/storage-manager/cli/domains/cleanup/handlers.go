@@ -17,7 +17,9 @@ import (
 )
 
 type handlers struct {
-	client cleanupconnect.CleanupServiceClient
+	client     cleanupconnect.CleanupServiceClient
+	httpClient connect.HTTPClient
+	baseURL    string
 }
 
 type rootInfo struct {
@@ -127,7 +129,7 @@ func tiersReport(_ cliapp.OperationContext, tiers []tierInfo) cliapp.MutationRep
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: cleanupconnect.NewCleanupServiceClient(httpClient, baseURL)}
+	return &handlers{client: cleanupconnect.NewCleanupServiceClient(httpClient, baseURL), httpClient: httpClient, baseURL: baseURL}
 }
 
 func (h *handlers) listProvidersCall(cliapp.OperationContext) (*cleanupv1.ListProvidersResponse, error) {
@@ -193,6 +195,7 @@ func (h *handlers) configureTemporaryRetentionCall(ctx cliapp.OperationContext) 
 	}
 	return resp.Msg, nil
 }
+
 func (h *handlers) configureTemporaryRetentionReport(_ cliapp.OperationContext, msg *cleanupv1.ConfigureTemporaryRetentionResponse) cliapp.MutationReport {
 	changes := []string{}
 	for _, p := range msg.GetPolicy().GetProviders() {
@@ -235,6 +238,7 @@ func (h *handlers) applyPlanCall(ctx cliapp.OperationContext) (*cleanupv1.ApplyP
 		ApprovalMode:   ctx.Flag("approval-mode"),
 		ApprovalToken:  ctx.Flag("approval-token"),
 		IdempotencyKey: ctx.Flag("idempotency-key"),
+		ItemIds:        ctx.FlagValues("item-id"),
 	}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("apply cleanup plan", err, nil)

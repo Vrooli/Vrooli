@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	corestorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 //go:embed schema.sql
@@ -32,6 +34,9 @@ type Entry struct {
 	Bytes       int64       `json:"bytes"`
 	Declared    bool        `json:"declared"`
 	Disposition Disposition `json:"disposition"`
+	// Locations lists measurement-only locations beyond Path that also hold
+	// this entry's bytes, such as a live scenario's lifecycle data directory.
+	Locations []string `json:"locations,omitempty"`
 }
 
 type Finding struct {
@@ -86,6 +91,10 @@ type Report struct {
 	ScanPolicy               ScanPolicy            `json:"scan_policy"`
 	SnapshotAgeSeconds       *float64              `json:"snapshot_age_seconds,omitempty"`
 	StalenessVerdict         string                `json:"staleness_verdict,omitempty"`
+	// ReportCompacted marks a retained historical report whose per-path
+	// evidence (findings, unattributed roots, framework roots, unreadable
+	// paths) was dropped by retention. Totals and owner entries remain.
+	ReportCompacted bool `json:"report_compacted,omitempty"`
 }
 
 // RootTotal is one independently actionable part of the unattributed
@@ -243,15 +252,21 @@ func scanInventory(root string, inventory corestorage.OwnerInventory, policy Sca
 		kind := string(owner.Kind)
 		counts[kind]++
 		for _, declaration := range owner.StorageEntries {
-			path, resolveErr := corestorage.ResolveOwnerStoragePath(root, owner, declaration, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
+			// Every location, not only the pruning target: a lifecycle-launched
+			// scenario opens its SQLite database under <scenario>/data while
+			// the class-data entry resolves to ~/.vrooli/data/vrooli/<scenario>.
+			// Measuring only the latter hid 57 GB of live databases
+			// (experience-manager 24.5 GB) from every entry and budget.
+			locations, resolveErr := corestorage.ResolveOwnerStorageLocations(root, owner, declaration, corestorage.Platform(runtime.GOOS), corestorage.PlatformSeams{})
 			if resolveErr != nil {
 				findings = append(findings, Finding{Code: "unresolvable_storage_path", Severity: "error", Owner: owner.ID, Kind: kind, Path: owner.ManifestPath, Message: declaration.Name + ": " + resolveErr.Error()})
 				continue
 			}
-			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: kind, name: declaration.Name, path: path, class: declaration.Class})
+			declarations = append(declarations, resolvedDeclaration{owner: owner.ID, kind: kind, name: declaration.Name, path: locations[0], extra: locations[1:], class: declaration.Class})
 		}
 		ownerRoots = append(ownerRoots, ownerStorageRoots(root, owner)...)
 	}
+	declarations = append(declarations, runtimeHomeDeclarations(hostRuntimeHomeEntries(root), declarations, ownerRoots)...)
 	orphans := orphanScenarioRoots(root, inventory, filesystem)
 	report, err := scanWithPolicyUsing(scanRequest{
 		displayRoot:  root,
@@ -313,7 +328,78 @@ type resolvedDeclaration struct {
 	kind  string
 	name  string
 	path  string
+	// extra are measurement-only locations attributed to the same entry.
+	extra []string
 	class corestorage.Class
+	// disposition overrides the class-derived disposition when set.
+	disposition Disposition
+}
+
+func (d resolvedDeclaration) paths() []string {
+	return append([]string{d.path}, d.extra...)
+}
+
+// hostRuntimeHomeEntries reads the repository contract's runtime-home entries
+// for this user. A contract that cannot be read contributes nothing.
+func hostRuntimeHomeEntries(repoRoot string) []repocontract.HomeEntry {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return nil
+	}
+	entries, err := contract.RuntimeHomeEntries(home)
+	if err != nil {
+		return nil
+	}
+	return entries
+}
+
+// runtimeHomeDeclarations attributes the contract's runtime-home entries to
+// their declared owner. Attribution only: disposition follows the contract
+// (protected entries are owned_protected), and nothing here grants cleanup.
+// ~/.vrooli/artifacts (~100 GB of resource executables) read as unattributed
+// although the contract names the control plane as its owner.
+//
+// An entry that contains an owner's declaration or storage root is a shared
+// parent (~/.vrooli/data holds every scenario's class root), so attributing it
+// would swallow those owners' drift; it is skipped. So is an entry already
+// inside another declaration.
+func runtimeHomeDeclarations(entries []repocontract.HomeEntry, declared []resolvedDeclaration, ownerRoots []string) []resolvedDeclaration {
+	var claimed []string
+	for _, declaration := range declared {
+		claimed = append(claimed, declaration.paths()...)
+	}
+	claimed = append(claimed, ownerRoots...)
+	out := make([]resolvedDeclaration, 0, len(entries))
+	for _, entry := range entries {
+		path := filepath.Clean(entry.AbsPath)
+		if path == "." || !filepath.IsAbs(path) {
+			continue
+		}
+		shared := false
+		for _, other := range claimed {
+			if filepath.Clean(other) == path || isWithin(other, path) || isWithin(path, other) {
+				shared = true
+				break
+			}
+		}
+		if shared {
+			continue
+		}
+		kind, owner := string(corestorage.OwnerControlPlane), string(corestorage.OwnerControlPlane)
+		if strings.TrimSpace(entry.Owner) != "" && entry.Owner != "control_plane" {
+			kind, owner = string(corestorage.OwnerScenario), entry.Owner
+		}
+		disposition := DispositionOwnedManaged
+		if entry.Protected || !entry.Regenerable {
+			disposition = DispositionOwnedProtected
+		}
+		out = append(out, resolvedDeclaration{owner: owner, kind: kind, name: "runtime_home." + entry.Key, path: path, disposition: disposition})
+	}
+	return out
 }
 
 func scan(root string, declarations []resolvedDeclaration, initialFindings []Finding) (Report, error) {
@@ -382,14 +468,16 @@ func scanWithPolicyUsing(request scanRequest, filesystem FileSystem, probe Devic
 	// widening the policy to the device.
 	if deviceScoped {
 		for _, declaration := range declarations {
-			path := filepath.Clean(declaration.path)
-			if underAny(path, scanRoots) || containsRoot(scanRoots, path) || excluded(path, exclusions) {
-				continue
+			for _, path := range declaration.paths() {
+				path = filepath.Clean(path)
+				if underAny(path, scanRoots) || containsRoot(scanRoots, path) || excluded(path, exclusions) {
+					continue
+				}
+				if _, statErr := filesystem.Stat(path); statErr != nil {
+					continue
+				}
+				scanRoots = append(scanRoots, path)
 			}
-			if _, statErr := filesystem.Stat(path); statErr != nil {
-				continue
-			}
-			scanRoots = append(scanRoots, path)
 		}
 		scanRoots = outermostRoots(scanRoots)
 	}
@@ -421,11 +509,17 @@ func scanWithPolicyUsing(request scanRequest, filesystem FileSystem, probe Devic
 	})
 	declarationByPath := make(map[string][]int, len(declarations))
 	for index, declaration := range declarations {
-		declarationByPath[filepath.Clean(declaration.path)] = append(declarationByPath[filepath.Clean(declaration.path)], index)
+		for _, path := range declaration.paths() {
+			declarationByPath[filepath.Clean(path)] = append(declarationByPath[filepath.Clean(path)], index)
+		}
 	}
 	entries := make([]Entry, len(declarations))
 	for i, declaration := range declarations {
-		entries[i] = Entry{Owner: declaration.owner, Kind: declaration.kind, Name: declaration.name, Path: declaration.path, Declared: true, Disposition: dispositionForClass(declaration.class)}
+		disposition := declaration.disposition
+		if disposition == "" {
+			disposition = dispositionForClass(declaration.class)
+		}
+		entries[i] = Entry{Owner: declaration.owner, Kind: declaration.kind, Name: declaration.name, Path: declaration.path, Declared: true, Disposition: disposition, Locations: append([]string(nil), declaration.extra...)}
 	}
 	var scanned, attributed, drift int64
 	walked := make([]string, 0, len(scanRoots))
@@ -971,6 +1065,9 @@ func (s *SnapshotStore) Save(ctx context.Context, report Report) (Report, error)
 	if err := s.pruneSnapshots(ctx, report.ObservedAt); err != nil {
 		return Report{}, err
 	}
+	if _, err := s.compactReports(ctx); err != nil {
+		return Report{}, err
+	}
 	return report, nil
 }
 
@@ -984,7 +1081,101 @@ func (s *SnapshotStore) Prune(ctx context.Context, now time.Time) error {
 	if err := s.pruneEntrySamples(ctx, now.UTC().Add(-30*24*time.Hour)); err != nil {
 		return err
 	}
-	return s.pruneSnapshots(ctx, now.UTC())
+	if err := s.pruneSnapshots(ctx, now.UTC()); err != nil {
+		return err
+	}
+	_, err := s.compactReports(ctx)
+	return err
+}
+
+// Report retention by size. Row-count retention alone kept one report a day
+// for a year, and a whole-host report is ~23 MB, almost all of it per-path
+// findings: 71 rows held 1.5 GB of a 2.7 GB database (2026-10-28) and the
+// policy allowed ~8 GB. Only the newest fullReportsPerRoot reports per root
+// keep their per-path evidence; older retained reports keep totals, coverage
+// and owner entries, which is what history and growth read.
+const (
+	fullReportsPerRoot     = 3
+	compactReportThreshold = 1 << 20
+	compactReportBatch     = 16
+)
+
+// compactableReportsSQL selects oversized reports that are not among their
+// root's newest fullReportsPerRoot. octet_length reads the record header, not
+// the multi-megabyte payload.
+const compactableReportsSQL = `FROM census_snapshots s
+	WHERE octet_length(s.report_json) > ? AND (
+		SELECT COUNT(*) FROM census_snapshots newer
+		WHERE newer.root = s.root
+		  AND (newer.observed_at > s.observed_at OR (newer.observed_at = s.observed_at AND newer.id > s.id))
+	) >= ?`
+
+// PendingReportCompaction counts retained reports still carrying per-path
+// evidence beyond the full-report window.
+func (s *SnapshotStore) PendingReportCompaction(ctx context.Context) (int, error) {
+	if s == nil {
+		return 0, nil
+	}
+	var count int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) `+compactableReportsSQL, compactReportThreshold, fullReportsPerRoot).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count compactable census reports: %w", err)
+	}
+	return count, nil
+}
+
+// compactReports rewrites at most compactReportBatch oversized historical
+// reports without their per-path evidence. The batch bounds how long one pass
+// holds the single database connection; later passes continue the backlog.
+func (s *SnapshotStore) compactReports(ctx context.Context) (int, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT s.id `+compactableReportsSQL+` ORDER BY s.observed_at ASC LIMIT ?`, compactReportThreshold, fullReportsPerRoot, compactReportBatch)
+	if err != nil {
+		return 0, fmt.Errorf("select compactable census reports: %w", err)
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return 0, fmt.Errorf("scan compactable census report: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, fmt.Errorf("read compactable census reports: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close compactable census reports: %w", err)
+	}
+	compacted := 0
+	for _, id := range ids {
+		var payload string
+		if err := s.db.QueryRowContext(ctx, `SELECT report_json FROM census_snapshots WHERE id = ?`, id).Scan(&payload); err != nil {
+			return compacted, fmt.Errorf("load census report %s: %w", id, err)
+		}
+		var report Report
+		if err := json.Unmarshal([]byte(payload), &report); err != nil {
+			return compacted, fmt.Errorf("decode census report %s: %w", id, err)
+		}
+		report.Findings, report.UnattributedRoots, report.FrameworkRoots, report.UnreadablePaths = nil, nil, nil, nil
+		report.ReportCompacted = true
+		smaller, err := json.Marshal(report)
+		if err != nil {
+			return compacted, err
+		}
+		if len(smaller) > compactReportThreshold {
+			// Never leave a row that the selector would offer again forever.
+			report.Entries = nil
+			if smaller, err = json.Marshal(report); err != nil {
+				return compacted, err
+			}
+		}
+		if _, err := s.db.ExecContext(ctx, `UPDATE census_snapshots SET report_json = ? WHERE id = ?`, string(smaller), id); err != nil {
+			return compacted, fmt.Errorf("compact census report %s: %w", id, err)
+		}
+		compacted++
+	}
+	return compacted, nil
 }
 
 // pruneEntrySamples keeps the projected read model bounded independently of

@@ -31,6 +31,10 @@ type RuntimeHomeRetentionConfig struct {
 
 func (p *RuntimeHomeProvider) Metadata() cleanup.ProviderMetadata { return p.inner.Metadata() }
 
+func (p *RuntimeHomeProvider) GovernedRoots() []string { return p.inner.GovernedRoots() }
+
+func (p *RuntimeHomeProvider) ExcludeGovernedRoots(all []string) { p.inner.ExcludeGovernedRoots(all) }
+
 func (p *RuntimeHomeProvider) Estimate(ctx context.Context, req cleanup.EstimateRequest) (cleanup.Estimate, error) {
 	req.Policy = p.boundPolicy(req.Policy)
 	return p.inner.Estimate(ctx, req)

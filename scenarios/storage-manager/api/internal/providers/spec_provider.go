@@ -124,6 +124,22 @@ func NewSpecProvider(files cleanup.FileSystem, clock cleanup.Clock, spec RootSpe
 	cfg.RetentionMaxBytes = parseSpecBytes(spec.MaxBytes)
 	cfg.ProtectedGlobs = append([]string(nil), spec.Protect...)
 	cfg.LeaseCheck = strings.TrimSpace(spec.LeaseCheck)
+	if spec.Class == "tmp" {
+		// A temporary root's children are work directories: each is one unit,
+		// aged by its newest descendant and removed whole. Per-file selection
+		// also put the declared byte ceiling in front of the age rule, so a
+		// root under max_bytes never applied max_age at all — go-work-dirs held
+		// an 11 GB fixture untouched for weeks past its 6h horizon.
+		cfg.TopLevelEntries = true
+		if cfg.LeaseCheck == "open_handle" {
+			// A temporary work directory is disposable once idle, and the
+			// processes that use one (go test binaries, build steps) are
+			// ordinary dumpable processes the scan does inspect. An
+			// uninspectable ssh-agent or sd-pam must not make every scan
+			// unverified, which pinned go-work-dirs for weeks.
+			cfg.OpenHandleSkipsNonDumpable = true
+		}
+	}
 	return NewCacheProvider(files, clock, cfg), nil
 }
 

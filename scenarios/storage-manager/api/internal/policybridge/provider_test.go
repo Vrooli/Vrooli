@@ -160,7 +160,7 @@ func TestMergeKeepsTheMostAuthoritativeDeclaration(t *testing.T) {
 
 func TestSnapshotIsScopedToFilesystemRemoval(t *testing.T) {
 	now := time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC)
-	data, err := BuildSnapshot(now, []PathRule{{Root: "/srv/cache", Action: "allow", Reason: "regenerable cache", Source: "s"}}, nil)
+	data, err := BuildSnapshot(now, []PathRule{{Root: "/srv/cache", Action: "allow", Reason: "regenerable cache", Source: "s"}}, nil, RemovalApprovalCommand)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,9 +175,13 @@ func TestSnapshotIsScopedToFilesystemRemoval(t *testing.T) {
 		CapturedAt time.Time  `json:"captured_at"`
 		ExpiresAt  time.Time  `json:"expires_at"`
 		PathRules  []PathRule `json:"path_rules"`
+		Approval   string     `json:"removal_approval"`
 	}
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		t.Fatal(err)
+	}
+	if snapshot.Approval != RemovalApprovalCommand {
+		t.Fatalf("removal_approval = %q, want the deletion-grant request command", snapshot.Approval)
 	}
 	if snapshot.ProviderID != ProviderID || strings.Join(snapshot.Scope.Risks, ",") != "filesystem_removal" || snapshot.Capabilities[0].Maturity != "enforcing" {
 		t.Fatalf("snapshot identity = %+v", snapshot)

@@ -551,3 +551,117 @@ func TestPreflightStillBlocksEveryUnitWhenTheDestinationIsUnusable(t *testing.T)
 		}
 	}
 }
+
+// TestRetentionTargetsTheRecordedSnapshotSource proves keep_latest acts on the
+// source kopia recorded the snapshot under, not the captured path: with an
+// override source the two differ and a policy on the path governs nothing.
+func TestRetentionTargetsTheRecordedSnapshotSource(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"dst-1"}, KeepLatest: 3}
+	targets := map[string]runs.TargetForRun{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a", Owner: "acme", Name: "db"}}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+
+	pending, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+	if err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	run, err := svc.GetRun(ctx, pending.ID)
+	if err != nil {
+		t.Fatalf("GetRun: %v", err)
+	}
+	if run.Status != runs.RunCompleted || run.Outcomes[0].Warning != "" {
+		t.Fatalf("run = %s warning=%q, want completed without warning", run.Status, run.Outcomes[0].Warning)
+	}
+	wantSource := mocks.FakeSnapshotSource(eng.SnapshotMetas[0], "")
+	want := "ApplyRetention(nightly," + wantSource + ",3)"
+	var retained []string
+	for _, c := range eng.Calls {
+		if strings.HasPrefix(c, "ApplyRetention") {
+			retained = append(retained, c)
+		}
+	}
+	if len(retained) != 1 || retained[0] != want {
+		t.Fatalf("retention calls = %v, want [%s]", retained, want)
+	}
+}
+
+// TestRetentionFailureIsLoudOnTheRunAndOutcome proves a source left above its
+// bound, an engine failure, or an unknown source each surface as a specific
+// outcome warning and a partial_failed run instead of a silent success.
+func TestRetentionFailureIsLoudOnTheRunAndOutcome(t *testing.T) {
+	cases := []struct {
+		name    string
+		apply   func(context.Context, string, string, int) (int, error)
+		create  func(context.Context, string, string, engine.SnapshotMetadata) (engine.Snapshot, error)
+		wantSub string
+	}{
+		{
+			name:    "source above bound after expiry",
+			apply:   func(context.Context, string, string, int) (int, error) { return 12, nil },
+			wantSub: "still holds 12 snapshots after expiry; keep_latest is 3",
+		},
+		{
+			name: "engine error carries its cause",
+			apply: func(context.Context, string, string, int) (int, error) {
+				return 0, errors.New("snapshot expire: repository is read-only")
+			},
+			wantSub: "could not be applied to fake@host:/recorded/dbm://acme/db: snapshot expire: repository is read-only",
+		},
+		{
+			name: "unknown source",
+			create: func(context.Context, string, string, engine.SnapshotMetadata) (engine.Snapshot, error) {
+				return engine.Snapshot{ID: "k1"}, nil
+			},
+			wantSub: "kopia did not report the snapshot source",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"dst-1"}, KeepLatest: 3}
+			targets := map[string]runs.TargetForRun{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a", Owner: "acme", Name: "db"}}
+			svc, eng, _, _ := buildService(t, plan, targets, nil)
+			eng.ApplyRetentionFn = tc.apply
+			eng.SnapshotCreateFn = tc.create
+
+			pending, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual)
+			if err != nil {
+				t.Fatalf("TriggerRun: %v", err)
+			}
+			run, err := svc.GetRun(ctx, pending.ID)
+			if err != nil {
+				t.Fatalf("GetRun: %v", err)
+			}
+			if run.Status != runs.RunPartialFailed {
+				t.Fatalf("run status = %s, want partial_failed", run.Status)
+			}
+			if !strings.Contains(run.Error, "retention_failed") {
+				t.Fatalf("run error = %q, want retention_failed", run.Error)
+			}
+			o := run.Outcomes[0]
+			if o.Status != runs.OutcomeSucceeded || o.SnapshotID == "" {
+				t.Fatalf("outcome = %+v, want the good snapshot kept", o)
+			}
+			if !strings.HasPrefix(o.Warning, "retention_failed: ") || !strings.Contains(o.Warning, tc.wantSub) {
+				t.Fatalf("warning = %q, want it to contain %q", o.Warning, tc.wantSub)
+			}
+		})
+	}
+}
+
+// TestRetentionSkippedWithoutKeepLatest proves a plan with no bound leaves the
+// source's policy alone.
+func TestRetentionSkippedWithoutKeepLatest(t *testing.T) {
+	ctx := context.Background()
+	plan := runs.PlanForRun{ID: "plan-1", TargetIDs: []string{"t1"}, DestinationIDs: []string{"dst-1"}}
+	targets := map[string]runs.TargetForRun{"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"}}
+	svc, eng, _, _ := buildService(t, plan, targets, nil)
+	if _, err := svc.TriggerRun(ctx, "plan-1", runs.TriggerManual); err != nil {
+		t.Fatalf("TriggerRun: %v", err)
+	}
+	for _, c := range eng.Calls {
+		if strings.HasPrefix(c, "ApplyRetention") {
+			t.Fatalf("retention applied without keep_latest: %v", eng.Calls)
+		}
+	}
+}

@@ -7,7 +7,9 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -380,7 +382,10 @@ func (s *SQLiteStore) MarkWritersCooled(ctx context.Context, sampledAt string, a
 		return fmt.Errorf("close hot writer snapshots: %w", err)
 	}
 	for _, snapshot := range hotSnapshots {
-		if err := s.SaveWriterSnapshot(ctx, "cooled|"+snapshot.Root+"|"+sampledAt, sampledAt, snapshot.Mount, snapshot.Root, snapshot.Bytes, snapshot.DeltaBytes, snapshot.DeltaHours, snapshot.BytesPerHour, snapshot.Partial, false); err != nil {
+		// The sender omits a cooled root, so no current rate exists. Copying
+		// the last hot rate kept a cooled root at the top of the writers view
+		// with a growth figure nobody observed; keep only its last known size.
+		if err := s.SaveWriterSnapshot(ctx, "cooled|"+snapshot.Root+"|"+sampledAt, sampledAt, snapshot.Mount, snapshot.Root, snapshot.Bytes, 0, 0, 0, snapshot.Partial, false); err != nil {
 			return err
 		}
 	}
@@ -405,6 +410,101 @@ func (s *SQLiteStore) PruneRecoveryLedger(ctx context.Context, now time.Time) er
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM writer_snapshots WHERE observed_at < ?`, now.Add(-30*24*time.Hour).Format(time.RFC3339Nano)); err != nil {
 		return fmt.Errorf("prune writer snapshots: %w", err)
+	}
+	return nil
+}
+
+// Audit retention. cleanup_audit had none: every pressure-driven recovery run
+// writes a considered/skipped row per registered provider, so the table reached
+// 2.39M rows in eight weeks, almost all of them per-run observations that are
+// only useful while the run is being diagnosed. Deletion evidence (applied,
+// partial, plan and policy events) is what the table exists to keep; it is
+// low-volume and is retained for much longer.
+const (
+	auditObservationMaxAge = 14 * 24 * time.Hour
+	// auditObservationMaxRows bounds observation rows even when a burst of
+	// runs writes faster than the age horizon can contain.
+	auditObservationMaxRows = 250_000
+	auditEvidenceMaxAge     = 180 * 24 * time.Hour
+	// auditPruneBatch and auditPruneMaxBatches bound one cycle's write lock;
+	// a backlog is drained over several cycles rather than in one statement
+	// whose journal could be larger than the rows it removes.
+	auditPruneBatch      = 10_000
+	auditPruneMaxBatches = 50
+)
+
+// auditObservationTypes are the high-volume, per-run observation events.
+var auditObservationTypes = []string{
+	"recovery.provider_order",
+	"recovery.provider_considered",
+	"recovery.provider_skipped",
+	"recovery.provider_zero_progress",
+	"pressure.reported",
+	"pressure.deduplicated",
+	"pressure.warning_action",
+}
+
+// PruneAuditTrail bounds cleanup_audit by age and, for observation rows, by
+// count. It deletes oldest rows first in bounded batches and never touches
+// the filesystem or any provider state.
+func (s *SQLiteStore) PruneAuditTrail(ctx context.Context, now time.Time) error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(auditObservationTypes)), ",")
+	observationArgs := make([]any, 0, len(auditObservationTypes)+1)
+	for _, eventType := range auditObservationTypes {
+		observationArgs = append(observationArgs, eventType)
+	}
+	budget := auditPruneMaxBatches
+	observationCutoff := now.Add(-auditObservationMaxAge).UTC().Format(time.RFC3339Nano)
+	// The count bound is expressed as a cutoff: the occurred_at of the oldest
+	// observation row the cap keeps. Rows older than that are pruned exactly
+	// like expired ones.
+	var capCutoff string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT occurred_at FROM cleanup_audit WHERE type IN (`+placeholders+`) ORDER BY occurred_at DESC LIMIT 1 OFFSET ?`,
+		append(append([]any(nil), observationArgs...), auditObservationMaxRows-1)...).Scan(&capCutoff)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("measure audit observation rows: %w", err)
+	}
+	if capCutoff != "" && capCutoff > observationCutoff {
+		observationCutoff = capCutoff
+	}
+	if err := s.pruneAuditBatches(ctx, &budget,
+		`DELETE FROM cleanup_audit WHERE rowid IN (SELECT rowid FROM cleanup_audit WHERE type IN (`+placeholders+`) AND occurred_at < ? ORDER BY occurred_at LIMIT ?)`,
+		append(append([]any(nil), observationArgs...), observationCutoff)...); err != nil {
+		return fmt.Errorf("prune audit observations: %w", err)
+	}
+	evidenceCutoff := now.Add(-auditEvidenceMaxAge).UTC().Format(time.RFC3339Nano)
+	if err := s.pruneAuditBatches(ctx, &budget,
+		`DELETE FROM cleanup_audit WHERE rowid IN (SELECT rowid FROM cleanup_audit WHERE occurred_at < ? ORDER BY occurred_at LIMIT ?)`,
+		evidenceCutoff); err != nil {
+		return fmt.Errorf("prune audit evidence: %w", err)
+	}
+	return nil
+}
+
+// pruneAuditBatches runs one bounded delete statement repeatedly until it
+// removes less than a full batch or the cycle's batch budget is spent. The
+// batch size is appended as the statement's final argument.
+func (s *SQLiteStore) pruneAuditBatches(ctx context.Context, budget *int, query string, args ...any) error {
+	for *budget > 0 {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		*budget--
+		result, err := s.db.ExecContext(ctx, query, append(append([]any(nil), args...), auditPruneBatch)...)
+		if err != nil {
+			return err
+		}
+		removed, err := result.RowsAffected()
+		if err != nil || removed < auditPruneBatch {
+			return err
+		}
 	}
 	return nil
 }

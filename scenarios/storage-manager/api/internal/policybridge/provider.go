@@ -34,6 +34,9 @@ const (
 	snapshotLifetime = 2 * time.Hour
 	publishTimeout   = 30 * time.Second
 	runnerName       = "vrooli-policy-runner"
+	// RemovalApprovalCommand requests an operator deletion grant; the agent
+	// policy runtime appends --path for each withheld location.
+	RemovalApprovalCommand = "storage-manager deletion-grant request"
 )
 
 // Declaration precedence when two declarations name the same root: the
@@ -270,7 +273,9 @@ func actionRank(action string) int {
 
 // BuildSnapshot renders the provider snapshot. It is scoped to filesystem
 // removal so these declarations never vouch for any other kind of action.
-func BuildSnapshot(now time.Time, rules []PathRule, warnings []string) ([]byte, error) {
+// approval, when set, is the command an agent runs to request a deletion grant;
+// the runtime names it in refusals.
+func BuildSnapshot(now time.Time, rules []PathRule, warnings []string, approval string) ([]byte, error) {
 	if now.IsZero() {
 		return nil, errors.New("snapshot time is required")
 	}
@@ -289,8 +294,9 @@ func BuildSnapshot(now time.Time, rules []PathRule, warnings []string) ([]byte, 
 		"health":         map[string]any{"state": "healthy", "checked_at": now, "expires_at": now.Add(snapshotLifetime), "message": message},
 		"readiness":      map[string]any{"state": "ready", "rollback_plan": "withdraw the storage-manager snapshot; the built-in floor then decides alone"},
 		"evidence_state": "clean", "captured_at": now, "expires_at": now.Add(snapshotLifetime),
-		"path_rules": rules,
-		"provenance": map[string]string{"provider": ProviderID, "declarations": "repo-contract storage.roots and runtime_home; owner storage entries"},
+		"path_rules":       rules,
+		"removal_approval": approval,
+		"provenance":       map[string]string{"provider": ProviderID, "declarations": "repo-contract storage.roots and runtime_home; owner storage entries"},
 	}, "", "  ")
 }
 
@@ -341,7 +347,7 @@ func FindRunner(runtimeHome string) (string, error) {
 
 // PublishOnce resolves the declarations and publishes them. It returns the
 // number of rules and the declarations that were left to the floor.
-func PublishOnce(ctx context.Context, repoRoot string, now time.Time) (int, []string, error) {
+func PublishOnce(ctx context.Context, repoRoot string, now time.Time, grants GrantSource) (int, []string, error) {
 	inputs, err := corestorage.HostGovernedRootInputs(repoRoot)
 	if err != nil {
 		return 0, nil, err
@@ -354,7 +360,20 @@ func PublishOnce(ctx context.Context, repoRoot string, now time.Time) (int, []st
 	if err != nil {
 		return 0, nil, err
 	}
-	data, err := BuildSnapshot(now, rules, warnings)
+	if grants != nil {
+		active, grantErr := grants.ActiveGrantRoots(ctx, now)
+		if grantErr != nil {
+			warnings = append(warnings, "deletion grants unavailable; only declarations apply: "+grantErr.Error())
+		} else {
+			granted, grantWarnings := applyGrants(rules, active)
+			rules, warnings = granted, append(warnings, grantWarnings...)
+		}
+	}
+	approval := ""
+	if grants != nil {
+		approval = RemovalApprovalCommand
+	}
+	data, err := BuildSnapshot(now, rules, warnings, approval)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -364,10 +383,10 @@ func PublishOnce(ctx context.Context, repoRoot string, now time.Time) (int, []st
 // Start publishes now and every PublishInterval until ctx ends. A failed pass
 // is logged; the previous snapshot stays until it expires, and then the floor
 // decides alone, which is stricter, never looser.
-func Start(ctx context.Context, logger *log.Logger, repoRoot string) {
+func Start(ctx context.Context, logger *log.Logger, repoRoot string, grants GrantSource, republish *Republisher) {
 	go func() {
 		publish := func() {
-			count, warnings, err := PublishOnce(ctx, repoRoot, time.Now())
+			count, warnings, err := PublishOnce(ctx, repoRoot, time.Now(), grants)
 			if err != nil {
 				logger.Printf("agent-policy path rules not published: %v", err)
 				return
@@ -385,6 +404,9 @@ func Start(ctx context.Context, logger *log.Logger, repoRoot string) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				publish()
+			case <-republish.signal():
+				// An approved deletion grant asked for an immediate refresh.
 				publish()
 			}
 		}

@@ -47,6 +47,9 @@ func register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (clia
 		"CleanupService.ListAudit":                   cliapp.ProtoList(h.listAuditCall, h.listAuditReport),
 		"tiers":                                      cliapp.Action(h.tiersCall, tiersReport),
 		"roots":                                      cliapp.Action(h.rootsCall, rootsReport),
+		"approvals":                                  cliapp.Action(h.approvalsListCall, approvalsListReport),
+		"approve":                                    cliapp.Action(h.approvalsGrantCall, approvalsChangeReport("granted")),
+		"revoke-approval":                            cliapp.Action(h.approvalsRevokeCall, approvalsChangeReport("revoked")),
 	}
 	if groupName == "recovery" {
 		bindings["chaos"] = cliapp.Action(h.chaosCall, chaosReport)
