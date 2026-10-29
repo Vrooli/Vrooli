@@ -192,6 +192,9 @@ func (h proposalConnectServer) CreateProposal(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, proposalError(err)
 	}
+	if result.Stored {
+		h.server.notifyProposalCreated(repo.DisplayName, result.View)
+	}
 	return connect.NewResponse(&proposalsv1.CreateProposalResponse{
 		Proposal: h.server.proposalProto(ctx, repo, result.View), Issues: issuesProto(result.Issues),
 		Stored: result.Stored,

@@ -81,3 +81,23 @@ export function retireCommittedMessageSession(client: QueryClient, repo: string,
   }
   resetMessageSession(client, repo, current);
 }
+
+export interface StagedSuggestionHold {
+  state: "drafting" | "ready";
+  paths: string[];
+}
+
+/** A live or ready suggestion describes one exact staged selection. Staging
+ * more files silently invalidates it, so callers confirm first. */
+export function stagedSuggestionHold(client: QueryClient, repo: string, staged: readonly string[]): StagedSuggestionHold | undefined {
+  const session = client.getQueryData<DraftSession>(messageSessionKey(repo));
+  if (!session || session.staleReason) return;
+  const handle = session.jobID || session.requestKey;
+  const job = handle ? client.getQueryData<StagedMessageJob>(["commit-message", "job", repo, handle]) : undefined;
+  const paths = (job?.snapshot ?? session.collection?.snapshot)?.files.map(file => file.path) ?? [];
+  // Already outside the suggestion's selection: the dialog owns that recovery.
+  const described = new Set(paths);
+  if (job && !job.applicable || paths.length && staged.some(path => !described.has(path))) return;
+  if (session.phase === "collecting" || handle && !job || job && ["queued", "running", "cancelling"].includes(job.status)) return { state: "drafting", paths };
+  if (job?.status === "succeeded" && job.result || !job && session.phase === "collected" && session.collection?.suggestions.length) return { state: "ready", paths };
+}

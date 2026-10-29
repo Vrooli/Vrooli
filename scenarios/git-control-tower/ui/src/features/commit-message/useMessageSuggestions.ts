@@ -10,6 +10,7 @@ import { initialSession, messageSessionKey, resetMessageSession, storageKey, typ
 type AdmissionRequest = Parameters<typeof startMessage>[0];
 
 const activeStates = new Set(["queued", "running", "cancelling"]);
+const autoReconnectLimit = 8;
 export function isMessageJobActive(status?: string) { return activeStates.has(status ?? ""); }
 function retainOwnerProgress(current: StagedMessageJob | undefined, next: StagedMessageJob) {
   if (!current || current.id !== next.id) return next;
@@ -279,11 +280,49 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     resetMessageSession(client, repo, session);
     setOpen(false);
   };
-  const reconnect = async () => {
+  const refetchJob = job.refetch;
+  // After the operator narrows the index back to the suggestion's files, the
+  // owner re-derives applicability; a retained stale verdict must not stick.
+  const recheckApplicability = useCallback(async () => {
+    update({ staleReason: undefined, error: undefined });
+    if (hasHandle) await refetchJob();
+  }, [update, refetchJob, hasHandle]);
+  const reconnect = useCallback(async () => {
     update({ error: undefined });
-    await job.refetch();
+    await refetchJob();
     setObserverAttempt(value => value + 1);
-  };
+  }, [update, refetchJob]);
+  // Reads are side-effect free, so a lost connection to an existing job is
+  // retried automatically: on a bounded backoff, and immediately when the
+  // operator returns to the page. The manual control remains a fallback.
+  const lostConnection = hasHandle && action === null && !job.isFetching &&
+    (admissionState === "unknown" || admissionState === "not_found" || isMessageJobActive(job.data?.status) && Boolean(session.error || job.data?.error));
+  const connected = !hasHandle || Boolean(job.data && !session.error && !job.data.error);
+  const reconnectAttempt = useRef(0);
+  if (connected) reconnectAttempt.current = 0;
+  useEffect(() => {
+    if (!lostConnection || reconnectAttempt.current >= autoReconnectLimit) return;
+    const timer = setTimeout(() => { reconnectAttempt.current++; void reconnect(); }, Math.min(30_000, 2000 * 2 ** reconnectAttempt.current));
+    return () => clearTimeout(timer);
+  }, [lostConnection, reconnect, observerAttempt]);
+  const following = isMessageJobActive(job.data?.status);
+  useEffect(() => {
+    if (!lostConnection && !following) return;
+    const resume = () => {
+      if (document.visibilityState !== "visible") return;
+      reconnectAttempt.current = 0;
+      // A suspended page can leave its long poll silently stalled. Reattach
+      // the observer even when no error was reported.
+      if (lostConnection) void reconnect();
+      else setObserverAttempt(value => value + 1);
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", resume);
+    return () => {
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", resume);
+    };
+  }, [lostConnection, following, reconnect]);
   const canAdoptVerified = () => isCurrentSession() && mounted.current && !verificationGeneration.current.updatingIndex && !unresolvedAdmission && !isMessageJobActive(job.data?.status) && action !== "start" && action !== "cancel" && verifiedEpoch.current === verificationGeneration.current.epoch;
-  return { session, job: job.data, snapshot, previousSuggestion, previousSnapshot: previousMatches ? previousJob.data?.snapshot : undefined, canInvestigate, investigateRemaining, staleReason, error: session.error || job.data?.error || job.error?.message || standing.error?.message, action, admissionState, canRetryAdmission: admissionState === "not_found" && Boolean(session.admissionRequest), open, setOpen, update, collect, cancelCollection, start, cancelAgent, verify, canAdoptVerified, discard, reconnect, reconnecting: hasHandle && job.isPending };
+  return { session, job: job.data, snapshot, previousSuggestion, previousSnapshot: previousMatches ? previousJob.data?.snapshot : undefined, canInvestigate, investigateRemaining, staleReason, error: session.error || job.data?.error || job.error?.message || standing.error?.message, action, admissionState, canRetryAdmission: admissionState === "not_found" && Boolean(session.admissionRequest), open, setOpen, update, collect, cancelCollection, start, cancelAgent, verify, canAdoptVerified, discard, reconnect, recheckApplicability, reconnecting: hasHandle && job.isPending };
 }

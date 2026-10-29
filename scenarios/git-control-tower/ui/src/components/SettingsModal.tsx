@@ -11,11 +11,12 @@ import { SettingsTabIntegrations } from "./SettingsTabIntegrations";
 import { SettingsTabStorage } from "./SettingsTabStorage";
 import { SettingsTabGrouping } from "./SettingsTabGrouping";
 import { SettingsTabPrecommit } from "./SettingsTabPrecommit";
+import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import type { LayoutPreset, LayoutSection } from "./LayoutSettingsModal";
 import type { ChangeGroupAPI, SyncStatusResponse } from "../lib/api";
 import type { GroupingRule } from "./FileList";
 
-export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "precommit" | "health" | "storage";
+export type SettingsTab = "layout" | "grouping" | "credentials" | "integrations" | "precommit" | "notifications" | "health" | "storage";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -45,6 +46,7 @@ const tabLabels: Record<SettingsTab, string> = {
   credentials: "Credentials",
   integrations: "Integrations",
   precommit: "Precommit",
+  notifications: "Notifications",
   health: "Health",
   storage: "Storage",
 };
@@ -169,6 +171,8 @@ export function SettingsModal({
             <SettingsTabPrecommit isMobile={true} repoId={repoId} />
           )}
 
+          {activeTab === "notifications" && <AppNotificationSettings />}
+
           {activeTab === "health" && (
             <SettingsTabHealth isMobile={true} repoId={repoId} />
           )}
@@ -283,6 +287,8 @@ export function SettingsModal({
               repoId={repoId}
             />
           )}
+
+          {activeTab === "notifications" && <AppNotificationSettings />}
 
           {activeTab === "health" && (
             <SettingsTabHealth

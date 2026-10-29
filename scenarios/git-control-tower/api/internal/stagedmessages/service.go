@@ -36,15 +36,20 @@ var (
 )
 
 type Service struct {
-	store     *reviewjobs.Store
-	snapshots Snapshotter
-	messages  MessageReader
-	provider  Provider
+	store         *reviewjobs.Store
+	snapshots     Snapshotter
+	messages      MessageReader
+	provider      Provider
+	continuations ContinuationFinder
 }
 
 func New(store *reviewjobs.Store, snapshots Snapshotter, messages MessageReader, provider Provider) *Service {
-	return &Service{store, snapshots, messages, provider}
+	return &Service{store: store, snapshots: snapshots, messages: messages, provider: provider}
 }
+
+// SetContinuations enables continuation suggestions for collections and
+// succeeded drafts. Suggestions are advisory; a lookup failure never blocks.
+func (s *Service) SetContinuations(finder ContinuationFinder) { s.continuations = finder }
 
 func id(prefix string) string {
 	var b [16]byte
@@ -133,6 +138,11 @@ func (s *Service) Collect(ctx context.Context, repo, dir string) (*v1.StagedMess
 			}
 		} else {
 			c.Omissions = append(c.Omissions, &v1.Omission{Reason: "Agent Manager context unavailable"})
+		}
+		if s.continuations != nil {
+			// Advisory only: a history read failure (e.g. no HEAD yet) is not a
+			// coverage omission and must not mark the collection partial.
+			c.Continuations, _ = s.continuations.Continuations(ctx, dir, c.Snapshot)
 		}
 		if len(c.Contexts) > 100 {
 			c.Contexts = c.Contexts[:100]
@@ -416,6 +426,10 @@ func (s *Service) read(ctx context.Context, repo, dir string, job reviewjobs.Job
 		if e := protojson.Unmarshal([]byte(job.ResultJSON), result.Result); e != nil {
 			return nil, e
 		}
+	}
+	if job.State == reviewjobs.Succeeded && s.continuations != nil {
+		// Projected against current history, so a commit made meanwhile counts.
+		result.Continuations, _ = s.continuations.Continuations(ctx, dir, input.Snapshot)
 	}
 	standing, e := s.Check(ctx, repo, dir, result.SnapshotDigest)
 	if e != nil {

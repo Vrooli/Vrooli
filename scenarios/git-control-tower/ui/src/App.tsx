@@ -27,6 +27,8 @@ import { mergeContinuationMessage } from "./features/commit-message/message";
 import { DiscardConfirmationModal, type DiscardFile } from "./components/DiscardConfirmationModal";
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
+import { StageDuringSuggestionModal } from "./components/StageDuringSuggestionModal";
+import { stagedSuggestionHold, type StagedSuggestionHold } from "./features/commit-message/messageSession";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
@@ -587,6 +589,26 @@ export default function App() {
     [repoId, stageMutate],
   );
   useEffect(() => () => stageBatcher.dispose(), [stageBatcher]);
+  // Every stage entry point confirms while a commit suggestion describes the
+  // current staged selection, so it is not invalidated by accident.
+  const [pendingSuggestionStage, setPendingSuggestionStage] = useState<{
+    hold: StagedSuggestionHold;
+    paths: string[];
+    onSuccess: (data: StageResponse) => void;
+  } | null>(null);
+  const stagedPaths = statusQuery.data?.files.staged;
+  const requestStage = useCallback(
+    (paths: string[], onSuccess: (data: StageResponse) => void) => {
+      const hold = stagedSuggestionHold(queryClient, repoId ?? "", stagedPaths ?? []);
+      if (hold) setPendingSuggestionStage({ hold, paths, onSuccess });
+      else stageBatcher.enqueue(paths, onSuccess);
+    },
+    [queryClient, repoId, stageBatcher, stagedPaths],
+  );
+  const handleConfirmSuggestionStage = useCallback(() => {
+    if (pendingSuggestionStage) stageBatcher.enqueue(pendingSuggestionStage.paths, pendingSuggestionStage.onSuccess);
+    setPendingSuggestionStage(null);
+  }, [pendingSuggestionStage, stageBatcher]);
   const isStaging = workspaceChanges.count > 0 || queuedStagePaths.length > 0;
   const pendingPaths = useMemo(
     () => new Set([...workspaceChanges.paths, ...queuedStagePaths]),
@@ -954,7 +976,7 @@ export default function App() {
         selectedUnstaged.some((selectedPath) => selectedPath === path);
       const pathsToStage = shouldStageSelection ? selectedUnstaged : [path];
 
-      stageBatcher.enqueue(pathsToStage, (data) => {
+      requestStage(pathsToStage, (data) => {
         // If we were viewing this file's unstaged diff, switch to staged
         if (selectedFile === path && !selectedIsStaged) {
           setSelectedIsStaged(true);
@@ -986,7 +1008,7 @@ export default function App() {
         }
       });
     },
-    [notify, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel, stageBatcher]
+    [notify, queryClient, selectedFile, selectedIsStaged, selectedFiles, repoId, isMobile, setMobileActivePanel, requestStage]
   );
 
   const handleUnstageFile = useCallback(
@@ -1039,7 +1061,7 @@ export default function App() {
     ];
     if (allUnstaged.length === 0) return;
 
-    stageBatcher.enqueue(allUnstaged, (data) => {
+    requestStage(allUnstaged, (data) => {
       if (data.warnings && data.warnings.length > 0) {
         notify({
           tone: "warning",
@@ -1049,12 +1071,12 @@ export default function App() {
         });
       }
     });
-  }, [notify, stageBatcher, statusQuery.data?.files]);
+  }, [notify, requestStage, statusQuery.data?.files]);
 
   const handleStagePaths = useCallback(
     (paths: string[]) => {
       if (paths.length === 0) return;
-      stageBatcher.enqueue(paths, (data) => {
+      requestStage(paths, (data) => {
         if (data.warnings && data.warnings.length > 0) {
           notify({
             tone: "warning",
@@ -1065,7 +1087,7 @@ export default function App() {
         }
       });
     },
-    [notify, stageBatcher]
+    [notify, requestStage]
   );
 
   const handleRequestStageFilesWithSameName = useCallback((path: string) => {
@@ -1086,6 +1108,15 @@ export default function App() {
     handleStagePaths(pendingStageSameNameFiles);
     setPendingStageSameNameFiles(null);
   }, [handleStagePaths, pendingStageSameNameFiles]);
+
+  const unstageMutateAsync = unstageMutation.mutateAsync;
+  const handleUnstagePathsAsync = useCallback(
+    async (paths: string[]) => {
+      if (paths.length === 0) return;
+      await unstageMutateAsync({ paths });
+    },
+    [unstageMutateAsync]
+  );
 
   const handleUnstageAll = useCallback(() => {
     const files = statusQuery.data?.files;
@@ -2492,6 +2523,8 @@ export default function App() {
               onCommit={handleCommit}
               isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
               isUpdatingIndex={isStaging}
+              stagedPaths={stagedPaths}
+              onUnstagePaths={handleUnstagePathsAsync}
               commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
               precommitProgress={precommitProgressProps}
               commitError={commitError}
@@ -2757,6 +2790,8 @@ export default function App() {
               onCommit={handleCommit}
               isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
               isUpdatingIndex={isStaging}
+              stagedPaths={stagedPaths}
+              onUnstagePaths={handleUnstagePathsAsync}
               commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
               precommitProgress={precommitProgressProps}
               commitError={commitError}
@@ -2986,6 +3021,12 @@ export default function App() {
           onConfirm={handleConfirmStageFilesWithSameName}
           onCancel={() => setPendingStageSameNameFiles(null)}
         />
+        <StageDuringSuggestionModal
+          hold={pendingSuggestionStage?.hold ?? null}
+          paths={pendingSuggestionStage?.paths ?? []}
+          onConfirm={handleConfirmSuggestionStage}
+          onCancel={() => setPendingSuggestionStage(null)}
+        />
         <MobileFileSearch
           isOpen={isFileSearchOpen}
           onClose={() => setIsFileSearchOpen(false)}
@@ -3144,6 +3185,12 @@ export default function App() {
         isLoading={isStaging}
         onConfirm={handleConfirmStageFilesWithSameName}
         onCancel={() => setPendingStageSameNameFiles(null)}
+      />
+      <StageDuringSuggestionModal
+        hold={pendingSuggestionStage?.hold ?? null}
+        paths={pendingSuggestionStage?.paths ?? []}
+        onConfirm={handleConfirmSuggestionStage}
+        onCancel={() => setPendingSuggestionStage(null)}
       />
       <FileSearchModal
         isOpen={isFileSearchOpen}

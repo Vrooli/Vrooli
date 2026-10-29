@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
+import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { startBrowserLayoutObservations } from "./lib/browserLayoutObservations";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { onProfilerRender } from "./lib/profiler";
@@ -34,6 +35,10 @@ if (window.top !== window.self) {
 // INTEROP-CRITICAL: Spatial navigation must be initialized at startup for iframe-hosted remote control flows.
 const spatialNav = initSpatialNav();
 if (import.meta.hot) import.meta.hot.dispose(() => spatialNav.dispose());
+
+// Re-confirm this installed app with Notification Hub and open the screen a
+// notification tap asked for (no-op until app notifications are turned on).
+initAppNotifications();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

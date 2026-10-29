@@ -4,6 +4,7 @@ export type {
   StagedMessageJob,
   StagedMessageSuggestion,
   StagedMessageContext,
+  StagedMessageContinuation,
 } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 
 export function collectMessage(repositoryId: string, signal: AbortSignal) {

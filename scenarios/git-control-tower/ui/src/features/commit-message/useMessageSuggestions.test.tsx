@@ -359,4 +359,29 @@ describe("draft admission and recovery", () => {
     expect(screen.getByTestId("cancel-requested")).toHaveTextContent("true");
     expect(startMessage).toHaveBeenCalledTimes(1);
   });
+
+  it("reconnects to a running job automatically after its observer loses the connection", async () => {
+    localStorage.setItem("gct.messageDraft.repo", JSON.stringify({ jobID: "owner-job" }));
+    vi.mocked(getMessageJob).mockResolvedValue(ownerJob("running"));
+    vi.mocked(waitMessageJob).mockRejectedValueOnce(new ConnectError("network lost", Code.Unavailable));
+    renderWithProviders(<Harness />);
+    await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("Could not follow the existing drafting job"));
+    vi.mocked(getMessageJob).mockResolvedValue(ownerJob("succeeded"));
+    await waitFor(() => expect(screen.getByTestId("owner-status")).toHaveTextContent("succeeded"), { timeout: 4000 });
+    expect(screen.getByTestId("error")).toBeEmptyDOMElement();
+    expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it("reconnects immediately when the operator returns to the page", async () => {
+    vi.mocked(startMessage).mockRejectedValue(new ConnectError("transport closed", Code.Unavailable));
+    vi.mocked(getMessageJob).mockRejectedValue(new ConnectError("owner read unavailable", Code.Unavailable));
+    renderWithProviders(<Harness />);
+    await collect();
+    fireEvent.click(screen.getByText("Start"));
+    await waitFor(() => expect(screen.getByTestId("admission")).toHaveTextContent("unknown"));
+    vi.mocked(getMessageJob).mockResolvedValue(ownerJob("running"));
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    await waitFor(() => expect(screen.getByTestId("admission")).toHaveTextContent("confirmed"), { timeout: 1000 });
+    expect(startMessage).toHaveBeenCalledTimes(1);
+  });
 });

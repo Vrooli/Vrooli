@@ -13,9 +13,11 @@ interface Props {
   updatingIndex: boolean;
   disabled: boolean;
   amend: boolean;
+  stagedPaths?: readonly string[];
+  onUnstage?: (paths: string[]) => Promise<void>;
 }
 
-export function CommitMessageComposer({ value, onChange, repoId, stagedCount, statusVersion, updatingIndex, disabled, amend }: Props) {
+export function CommitMessageComposer({ value, onChange, repoId, stagedCount, statusVersion, updatingIndex, disabled, amend, stagedPaths, onUnstage }: Props) {
   const id = useId();
   const [fields, setFields] = useState(() => parseMessage(value));
   const emitted = useRef(value);
@@ -111,7 +113,7 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
           data-testid="commit-message-trailers" />
       </details>
       <p className="text-[11px] leading-relaxed text-slate-500">{stagedCount === 0 ? "Stage files to enable suggestions." : updatingIndex ? "Finishing staging before checking suggestions…" : "Suggest checks existing evidence first. An agent starts only when you choose."}</p>
-      <MessageSuggestionDialog suggestions={suggestions} message={value} disabled={disabled || updatingIndex} onApply={next => change(parseMessage(next))} />
+      <MessageSuggestionDialog suggestions={suggestions} message={value} disabled={disabled || updatingIndex} onApply={next => change(parseMessage(next))} stagedPaths={stagedPaths} onUnstage={onUnstage} />
     </div>
   );
 }

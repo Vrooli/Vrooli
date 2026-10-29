@@ -57,6 +57,9 @@ interface CommitPanelProps {
   ) => void;
   isCommitting: boolean;
   isUpdatingIndex?: boolean;
+  stagedPaths?: readonly string[];
+  /** Narrows the index back to a commit suggestion's staged selection. */
+  onUnstagePaths?: (paths: string[]) => Promise<void>;
   commitProgressLabel?: string;
   commitError?: string;
   // Reuse a passed pre-commit after a post-pass failure (e.g. index lock) — commit
@@ -213,6 +216,8 @@ export function CommitPanel({
   onCommit,
   isCommitting,
   isUpdatingIndex = false,
+  stagedPaths,
+  onUnstagePaths,
   commitProgressLabel,
   commitError,
   defaultAuthorName,
@@ -330,6 +335,8 @@ export function CommitPanel({
             updatingIndex={isUpdatingIndex}
             disabled={isCommitting}
             amend={amendLast}
+            stagedPaths={stagedPaths}
+            onUnstage={onUnstagePaths}
           />
 
           {authorityStatus && !authorityStatus.canMutate && (

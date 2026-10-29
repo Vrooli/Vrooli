@@ -25,6 +25,7 @@ func (s *Server) initStagedMessages() {
 		return
 	}
 	s.stagedMessages = stagedmessages.New(store, stagedmessages.GitSnapshotter{}, stagedRetainedReader{s}, newStagedMessageProvider(s))
+	s.stagedMessages.SetContinuations(stagedmessages.GitContinuations{})
 }
 
 type stagedRetainedReader struct{ server *Server }

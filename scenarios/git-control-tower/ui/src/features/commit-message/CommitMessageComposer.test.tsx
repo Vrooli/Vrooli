@@ -8,6 +8,7 @@ import {
   OmissionSchema,
   StagedMessageFileSchema,
   StagedMessageCollectionSchema,
+  StagedMessageContinuationSchema,
   StagedMessageCoverageSchema,
   StagedMessageScope,
   StagedMessageSnapshotSchema,
@@ -34,9 +35,9 @@ const suggestion = () => create(StagedMessageSuggestionSchema, { id: "suggestion
 const collection = (withMessage = true) => create(StagedMessageCollectionSchema, { id: "collection-1", snapshot, status: withMessage ? "partial" : "no_suggestions", suggestions: withMessage ? [suggestion()] : [], contexts: [{ id: "context-1", title: "Matching saved work", kind: "proposal", detail: "Retained content matches api/source.go", matchedPaths: ["api/source.go"], status: "available" }] });
 const job = (status = "running") => create(StagedMessageJobSchema, { id: "job-1", executionId: "owner-1", repositoryId: "repo-1", snapshotDigest: snapshot.digest, snapshot, status, applicable: true, createdAt: new Date().toISOString(), phase: "Reading staged changes", ...(status === "succeeded" ? { result: suggestion() } : {}) });
 
-function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string }) {
+function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation, staged, onUnstage }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string; staged?: string[]; onUnstage?: (paths: string[]) => Promise<void> }) {
   const [message, setMessage] = useState(initial);
-  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
+  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} stagedPaths={staged} onUnstage={onUnstage} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
 }
 function reviewEvidence() {
   const summary = screen.getByText("Review evidence");
@@ -746,6 +747,34 @@ describe("staged commit message composer", () => {
     expect(startMessage).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["links the suggested continuation by default", undefined, true],
+    ["accepts the suggestion without the continuation trailer", "Don't link a continuation", false],
+  ])("%s", async (_name, choice, linked) => {
+    const full = collection();
+    const first = full.suggestions[0];
+    if (!first?.coverage) throw new Error("fixture lacks coverage");
+    first.coverage.partial = false;
+    first.coverage.matchedEdits = 3;
+    first.coverage.uncoveredPaths = [];
+    full.status = "ready";
+    const predecessor = "0e1f1210438aa0e1f1210438aa0e1f1210438aa";
+    full.continuations = [create(StagedMessageContinuationSchema, { commit: predecessor, subject: "fix: retain staged source p1", reason: "Shares 2 of 2 staged files", sharedPaths: 2,
+      trailers: [{ key: "Vrooli-Effort", value: "effort:gct-polish" }, { key: "Vrooli-Continues", value: predecessor }] })];
+    vi.mocked(collectMessage).mockResolvedValue(full);
+    renderWithProviders(<Harness />);
+    suggest();
+    await screen.findByText("Reusable suggestion", { selector: "span" });
+    const options = within(screen.getByTestId("commit-message-continuation"));
+    expect(options.getByRole("radio", { name: /0e1f121043 · fix: retain staged source p1/ })).toBeChecked();
+    if (choice) fireEvent.click(options.getByRole("radio", { name: choice }));
+    fireEvent.click(screen.getByRole("button", { name: "Use suggestion" }));
+    const trailers = `Vrooli-Effort: effort:gct-polish\nVrooli-Continues: ${predecessor}`;
+    await waitFor(() => expect(screen.getByTestId("commit-message-input")).toHaveValue(first.title));
+    const own = first.trailers.map(trailer => `${trailer.key}: ${trailer.value}`);
+    expect(screen.getByTestId("commit-message-trailers")).toHaveValue([...own, ...(linked ? [trailers] : [])].join("\n"));
+  });
+
   it("binds selected related context and the operator note only on explicit agent start", async () => {
     renderWithProviders(<Harness />);
     await gathered();
@@ -900,6 +929,35 @@ describe("staged commit message composer", () => {
     await screen.findByText("Agent suggestion");
     expect(startMessage).not.toHaveBeenCalled();
     expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep human text");
+  });
+
+  it("unstages files added after a suggestion so it describes the selection again", async () => {
+    const described = snapshot.files.map(file => file.path);
+    const onUnstage = vi.fn().mockResolvedValue(undefined);
+    const view = renderWithProviders(<Harness staged={described} onUnstage={onUnstage} />);
+    await gathered();
+    vi.mocked(checkMessage).mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: false, reason: "Staged selection changed" }));
+    view.rerender(<Harness version={2} staged={[...described, "docs/extra.md"]} onUnstage={onUnstage} />);
+    expect(await screen.findByTestId("commit-message-stale")).toHaveTextContent("Staged selection changed. Your message");
+    expect(screen.getByRole("list", { name: "Files staged after this suggestion" })).toHaveTextContent("docs/extra.md");
+    vi.mocked(checkMessage).mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: true, currentSnapshotDigest: snapshot.digest }));
+    fireEvent.click(screen.getByRole("button", { name: "Unstage 1 extra file" }));
+    await waitFor(() => expect(onUnstage).toHaveBeenCalledWith(["docs/extra.md"]));
+    view.rerender(<Harness version={3} staged={described} onUnstage={onUnstage} />);
+    await waitFor(() => expect(screen.queryByTestId("commit-message-stale")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Use partial suggestion" })).toBeInTheDocument();
+    expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it("refreshes instead of narrowing when a described file left the index", async () => {
+    const onUnstage = vi.fn().mockResolvedValue(undefined);
+    const view = renderWithProviders(<Harness staged={snapshot.files.map(file => file.path)} onUnstage={onUnstage} />);
+    await gathered();
+    vi.mocked(checkMessage).mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: false, reason: "Staged selection changed" }));
+    view.rerender(<Harness version={2} staged={["api/source.go", "docs/extra.md"]} onUnstage={onUnstage} />);
+    await screen.findByTestId("commit-message-stale");
+    expect(screen.queryByRole("button", { name: /Unstage/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Refresh evidence" })).toBeInTheDocument();
   });
 
   it("shows completed agent output as an unapplied suggestion and preserves edits", async () => {

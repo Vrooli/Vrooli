@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
-import { ArrowLeft, Check, ChevronDown, Eye, FileSearch, Info, Loader2, MessageSquarePlus, RefreshCw, Search, Sparkles, Trash2, X, type LucideIcon } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, GitCommitHorizontal, Eye, FileSearch, Info, Loader2, MessageSquarePlus, RefreshCw, Search, Sparkles, Trash2, Undo2, X, type LucideIcon } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { isMessageJobActive, type useMessageSuggestions } from "./useMessageSuggestions";
 import { getDraftScope, isLimitedDraft, mergeSuggestionTrailers, parseMessage, serializeMessage } from "./message";
-import type { StagedMessageSuggestion } from "./api";
+import type { StagedMessageContinuation, StagedMessageSuggestion } from "./api";
 
 type Suggestions = ReturnType<typeof useMessageSuggestions>;
 const actionClass = "inline-flex items-center justify-center gap-2 min-h-11 rounded-lg border border-slate-600 px-4 py-2 text-xs font-medium text-slate-200 hover:bg-slate-800 disabled:opacity-50";
@@ -32,6 +32,32 @@ function useElapsed(createdAt?: string) {
   }, [createdAt]);
   const seconds = createdAt ? Math.max(0, Math.floor((now - Date.parse(createdAt)) / 1000)) : Number.NaN;
   return Number.isFinite(seconds) ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}` : "—";
+}
+
+function ago(iso: string) {
+  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+  if (!Number.isFinite(minutes)) return "";
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 48 * 60) return `${Math.round(minutes / 60)}h ago`;
+  return `${Math.round(minutes / 1440)}d ago`;
+}
+
+/** Git-derived predecessor commits. Linking adds the predecessor's work links
+ * and a Vrooli-Continues trailer; the operator can always decline. */
+function ContinuationChoice({ options, linked, onChange }: { options: StagedMessageContinuation[]; linked?: string; onChange: (commit: string | null) => void }) {
+  if (!options.length) return null;
+  const choice = (commit: string | null, label: ReactNode) => <label className="flex min-h-11 cursor-pointer items-start gap-2 py-1">
+    <input type="radio" name="commit-continuation" className="mt-1" checked={(linked ?? null) === commit} onChange={() => onChange(commit)} />
+    <span className="min-w-0">{label}</span>
+  </label>;
+  return <fieldset className="space-y-1 border-t border-slate-700 pt-3" data-testid="commit-message-continuation">
+    <legend className="flex items-center gap-2 text-xs font-semibold text-slate-200"><GitCommitHorizontal className="h-4 w-4 text-cyan-300" aria-hidden="true" />Continues an earlier commit?</legend>
+    {options.map(option => <div key={option.commit}>{choice(option.commit, <>
+      <span className="block break-words text-slate-100"><span className="font-mono text-cyan-200">{option.commit.slice(0, 10)}</span> · {option.subject}</span>
+      <span className="block text-[11px] text-slate-400">{option.reason}{option.committedAt ? ` · ${ago(option.committedAt)}` : ""} · adds {option.trailers.map(trailer => trailer.key).join(", ")}</span>
+    </>)}</div>)}
+    {choice(null, <span className="text-slate-300">Don&apos;t link a continuation</span>)}
+  </fieldset>;
 }
 
 function SuggestionPreview({ suggestion, agent }: { suggestion: StagedMessageSuggestion; agent: boolean }) {
@@ -89,8 +115,9 @@ function OptionalContext({ s, defaultOpen }: { s: Suggestions; defaultOpen: bool
   return <details open={open} className="text-xs text-slate-400"><summary className="flex min-h-11 cursor-pointer items-center gap-2 py-3 text-slate-300" onClick={event => { event.preventDefault(); setOpen(current => !current); }}><MessageSquarePlus className="h-4 w-4" aria-hidden="true" />Add context <span className="text-slate-400">· optional</span></summary>{open && <label className="block">Why were these changes needed?<textarea value={s.session.note} onChange={event => s.update({ note: event.target.value })} rows={2} maxLength={4000} disabled={Boolean(s.session.requestKey)} className="mt-2 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 gct-commit-input text-slate-100 outline-none focus:border-cyan-400" placeholder="Add a sentence of context for the drafting agent" /></label>}</details>;
 }
 
-export function MessageSuggestionDialog({ suggestions: s, message, disabled, onApply }: {
+export function MessageSuggestionDialog({ suggestions: s, message, disabled, onApply, stagedPaths = [], onUnstage }: {
   suggestions: Suggestions; message: string; disabled: boolean; onApply: (message: string) => void;
+  stagedPaths?: readonly string[]; onUnstage?: (paths: string[]) => Promise<void>;
 }) {
   const currentMessage = useRef(message);
   currentMessage.current = message;
@@ -104,6 +131,8 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   }, []);
   const [selectedID, setSelectedID] = useState("");
   const [comparison, setComparison] = useState<StagedMessageSuggestion>();
+  // undefined follows the best candidate; null is an explicit "don't link".
+  const [continuationChoice, setContinuationChoice] = useState<string | null>();
   const elapsed = useElapsed(s.job?.createdAt);
   const collection = s.session.collection;
   const evidence = useMemo(() => {
@@ -133,6 +162,10 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   const previous = keepPrevious ? s.previousSuggestion : undefined;
   const candidates = agent && s.job?.result ? [s.job.result] : previous ? [previous] : collection?.suggestions ?? [];
   const candidate = candidates.find(item => item.id === selectedID) ?? candidates[0];
+  const continuations = s.job?.continuations.length ? s.job.continuations : collection?.continuations ?? [];
+  const alreadyContinues = /^vrooli-continues[ \t]*:/im.test(parseMessage(message).trailers);
+  const continuation = alreadyContinues || continuationChoice === null ? undefined
+    : continuations.find(option => option.commit === continuationChoice) ?? (continuationChoice === undefined ? continuations[0] : undefined);
   const collecting = s.session.phase === "collecting";
   const terminalFailure = s.job?.status === "failed" || s.job?.status === "cancelled";
   const unknownStatus = Boolean(s.job && !["queued", "running", "cancelling", "succeeded", "failed", "cancelled"].includes(s.job.status));
@@ -148,7 +181,8 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
         return;
       }
       const existing = parseMessage(currentMessage.current);
-      const rendered = serializeMessage({ title: suggestion.title, description: suggestion.body, trailers: mergeSuggestionTrailers(existing.trailers, suggestion.trailers) });
+      const linked = /^vrooli-continues[ \t]*:/im.test(existing.trailers) ? [] : continuation?.trailers ?? [];
+      const rendered = serializeMessage({ title: suggestion.title, description: suggestion.body, trailers: mergeSuggestionTrailers(existing.trailers, [...suggestion.trailers, ...linked]) });
       onApply(rendered);
       s.update({ applied: true, initialMessage: rendered });
       setComparison(undefined);
@@ -157,6 +191,23 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   };
   const close = () => { setComparison(undefined); s.setOpen(false); };
   const refresh = () => { setComparison(undefined); void s.collect(currentMessage.current); };
+  // A suggestion for a subset of the index can be restored by unstaging what
+  // was added after it. Files it describes that left the index cannot.
+  const narrowing = useMemo(() => {
+    const described = new Set(s.snapshot?.files.map(file => file.path) ?? []);
+    const staged = new Set(stagedPaths);
+    return { extra: stagedPaths.filter(path => !described.has(path)), missing: [...described].filter(path => !staged.has(path)).length };
+  }, [s.snapshot, stagedPaths]);
+  const [unstaging, setUnstaging] = useState(false);
+  const unstageExtra = async () => {
+    if (!onUnstage || !narrowing.extra.length) return;
+    setUnstaging(true);
+    try {
+      await onUnstage(narrowing.extra);
+      if (mounted.current) await s.recheckApplicability();
+    } catch { /* The unstage error toast reports the failure; the draft is unchanged. */ }
+    finally { if (mounted.current) setUnstaging(false); }
+  };
 
   const starting = s.admissionState === "starting";
   const recovering = s.admissionState === "recovering" || s.reconnecting;
@@ -181,6 +232,7 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
     : agent ? "This earlier draft is still available. The new draft may leave unresolved themes."
     : "This earlier draft is preserved while this request is unresolved.";
   const busy = Boolean(s.action) || disabled;
+  const canNarrow = Boolean(s.staleReason && onUnstage && s.snapshot?.files.length && narrowing.extra.length && !narrowing.missing && !comparison);
   const unavailable = terminalFailure || unknownStatus || invalidResult || s.session.phase === "cancelled";
   let primary: { label: string; run: () => void; disabled: boolean; icon: LucideIcon } = { label: "Back to message", run: close, disabled: false, icon: ArrowLeft };
   if (collecting) primary = { label: "Cancel", run: s.cancelCollection, disabled: false, icon: X };
@@ -189,6 +241,7 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
   else if (unknownAdmission || activeError) primary = { label: "Reconnect to job", run: () => void s.reconnect(), disabled: busy, icon: RefreshCw };
   else if (missingAdmission) primary = s.canRetryAdmission ? { label: "Retry same request", run: () => void s.start(), disabled: busy, icon: RefreshCw } : { label: "Reconnect to job", run: () => void s.reconnect(), disabled: busy, icon: RefreshCw };
   else if (active) primary = { label: "Hide progress", run: close, disabled: false, icon: Eye };
+  else if (canNarrow) primary = { label: `Unstage ${count(narrowing.extra.length)} extra ${narrowing.extra.length === 1 ? "file" : "files"}`, run: () => void unstageExtra(), disabled: busy || unstaging, icon: unstaging ? Loader2 : Undo2 };
   else if (s.staleReason) primary = { label: "Refresh evidence", run: refresh, disabled: busy, icon: RefreshCw };
   else if (comparison) primary = { label: "Use replacement", run: () => void acceptSuggestion(comparison, true), disabled: busy, icon: Check };
   else if (previous && terminalFailure) primary = { label: "Use previous draft", run: () => void acceptSuggestion(previous), disabled: busy, icon: Check };
@@ -214,12 +267,12 @@ export function MessageSuggestionDialog({ suggestions: s, message, disabled, onA
             : collecting ? <div role="status" className="space-y-3 py-2"><h3 className="flex items-center gap-2 text-base font-semibold"><Loader2 className="h-4 w-4 animate-spin text-cyan-300" aria-hidden="true" />Gathering evidence</h3><p className="text-slate-400">Checking saved messages and related activity for the staged selection.</p></div>
             : unavailable && !comparison ? <div role={s.job?.status === "cancelled" || s.session.phase === "cancelled" ? "status" : "alert"} className="space-y-3"><h3 className="text-base font-semibold text-amber-200">{unknownStatus ? "Execution status unavailable" : failedWithoutHandle ? "Drafting request failed" : s.job?.status === "failed" ? "Drafting failed" : invalidResult ? "No completed suggestion" : "Cancelled"}</h3>{s.job?.status === "failed" ? <><p className="break-words whitespace-pre-wrap text-slate-200">{failureReason}</p>{failedWithoutHandle && <p className="text-slate-400">We could not confirm whether the agent started.</p>}<p className="text-slate-400">Your message is unchanged. {previous ? s.canInvestigate ? "Use the previous draft, or investigate again." : "You can use the previous draft." : "Check the evidence before trying again."}</p></> : <p className="text-slate-400">{unknownStatus ? `An unrecognized status was returned: ${s.job?.status}.` : invalidResult ? "The request completed without a valid commit message." : "Your original title and description are preserved."}</p>}</div>
             : comparison ? <div className="space-y-4"><h3 className="text-base font-semibold">Keep your edits in view</h3><p className="text-xs text-slate-400">You edited the message while this draft was being prepared.</p><div className="border-l-2 border-slate-600 pl-3"><p className="mb-2 text-xs text-slate-400">Your current message</p><pre className="whitespace-pre-wrap break-words font-sans text-sm">{message}</pre></div><SuggestionPreview suggestion={comparison} agent={agent || Boolean(previous)} /><button type="button" className={actionClass} onClick={() => setComparison(undefined)}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Keep mine</button></div>
-            : candidate ? <>{candidates.length > 1 && <label className="block text-xs text-slate-400">Reusable message<select className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-2 gct-commit-input text-slate-100" value={candidate.id} onChange={event => setSelectedID(event.target.value)}>{candidates.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}<SuggestionPreview suggestion={candidate} agent={agent} /></>
+            : candidate ? <>{candidates.length > 1 && <label className="block text-xs text-slate-400">Reusable message<select className="mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-2 gct-commit-input text-slate-100" value={candidate.id} onChange={event => setSelectedID(event.target.value)}>{candidates.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}<SuggestionPreview suggestion={candidate} agent={agent} />{!alreadyContinues && <ContinuationChoice options={continuations} linked={continuation?.commit} onChange={setContinuationChoice} />}</>
             : collection ? <div className="space-y-2 py-2"><h3 className="text-base font-semibold">{collection.status === "empty" ? "Nothing staged" : "No reusable message found"}</h3><p className="text-slate-400">{collection.status === "empty" ? "Stage changes before asking for a message." : "No saved message matched these staged changes. An agent can draft for the whole selection using staged-diff evidence; add context if it would help."}</p></div> : s.error ? <div role="alert"><h3 className="text-base font-semibold text-amber-200">Could not gather suggestions</h3><p className="mt-2 text-slate-400">{humanError}</p></div> : null}
           {detail && <details className="text-xs text-slate-400"><summary className="flex min-h-11 cursor-pointer items-center gap-2 py-3"><Info className="h-4 w-4" aria-hidden="true" />Technical details</summary><p className="break-words whitespace-pre-wrap">{detail}</p></details>}
           {previous && !comparison && (active || unavailable || unknownAdmission || missingAdmission || starting || recovering || agent && candidate && (isLimitedDraft(candidate) || getDraftScope(candidate) === "unknown")) && <section className="space-y-3 border-t border-slate-700 pt-4" data-testid="commit-message-previous-draft"><h3 className="flex items-center gap-2 text-sm font-semibold text-slate-200"><FileSearch className="h-4 w-4" aria-hidden="true" />Previous draft kept</h3><p className="text-xs text-slate-400">{previousContext}</p><SuggestionPreview suggestion={previous} agent />{agent && <button type="button" className={actionClass} disabled={busy} onClick={() => void acceptSuggestion(previous)}><Check className="h-4 w-4" aria-hidden="true" />Use previous draft</button>}</section>}
           {s.error && candidate && !unavailable && !active && !unknownAdmission && !missingAdmission && !starting && !recovering && <p role="alert" className="text-xs text-amber-200">Could not verify this request. Your message is unchanged; try again when the service is available.</p>}
-          {s.staleReason && <div role="status" className="border-l-2 border-amber-500 pl-3 text-xs text-amber-200" data-testid="commit-message-stale"><strong>Review staged selection.</strong> {s.staleReason} Your message and this result are preserved.</div>}
+          {s.staleReason && <div role="status" className="border-l-2 border-amber-500 pl-3 text-xs text-amber-200" data-testid="commit-message-stale"><strong>Review staged selection.</strong> {s.staleReason}{/[.!?]$/.test(s.staleReason) ? "" : "."} Your message and this result are preserved.{canNarrow ? <> {count(narrowing.extra.length)} staged {narrowing.extra.length === 1 ? "file is" : "files are"} not part of this suggestion. Unstage {narrowing.extra.length === 1 ? "it" : "them"} to use the suggestion as is, or refresh to draft for everything staged.<PreviewList items={narrowing.extra} label="Files staged after this suggestion" pageSize={5}>{path => <span className="break-all font-mono text-[11px] text-amber-100">{path}</span>}</PreviewList><button type="button" disabled={busy || unstaging} className="mt-2 inline-flex min-h-11 items-center gap-2 font-medium text-cyan-200 hover:underline disabled:opacity-50" onClick={refresh}><RefreshCw className="h-4 w-4" aria-hidden="true" />Refresh evidence for all staged files</button></> : null}</div>}
           {canPrepare && collection?.snapshot?.files.length ? <OptionalContext key={collection.id} s={s} defaultOpen={!candidate} /> : null}
           {canPrepare && candidate && !s.staleReason && <button type="button" disabled={busy} className="inline-flex min-h-11 items-center gap-2 text-xs font-medium text-cyan-200 hover:underline disabled:opacity-50" onClick={() => void s.start()}><Search className="h-4 w-4" aria-hidden="true" />Ask agent to complete</button>}
           {agent && !comparison && <div className="flex flex-wrap gap-4"><button type="button" className="inline-flex min-h-11 items-center gap-2 text-xs text-slate-400 hover:text-slate-200" onClick={s.discard}><Trash2 className="h-4 w-4" aria-hidden="true" />Discard</button><button type="button" className="inline-flex min-h-11 items-center gap-2 text-xs text-slate-400 hover:text-slate-200" onClick={refresh}><RefreshCw className="h-4 w-4" aria-hidden="true" />Check evidence again</button></div>}

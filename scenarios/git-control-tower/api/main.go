@@ -77,6 +77,7 @@ type Server struct {
 	intentService        *policygate.IntentService
 	proposalService      *proposals.Service
 	stagedMessages       *stagedmessages.Service
+	notifier             *gctNotifier
 }
 
 // NewServer initializes configuration, database, and routes
@@ -278,6 +279,7 @@ func (s *Server) initServices() {
 	s.initStagedMessages()
 	s.startBaselineCollectionReconciler()
 	s.startProposalDigest()
+	s.startNotifications()
 	s.reviewJobStore.StartCleanup(10 * time.Minute)
 	s.scenarioLocator = NewScenarioLocator(30 * time.Second)
 	s.envelopeCache = NewEnvelopeCache(60 * time.Second)
