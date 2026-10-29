@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "372bef464d79745246cdb6e7d79e9afc675780588592bc23e49df82ed48042f9",
+  "manifest_hash": "c90112c4784f94eceb4ca7ecac23eeef84cb82b1e0b0de40521d1f04dad071e2",
   "commands": [
     {
       "path": "conversation context",
@@ -997,6 +997,18 @@
       "path": "storage compact",
       "group": "storage",
       "command": "compact",
+      "binding": "."
+    },
+    {
+      "path": "storage evidence",
+      "group": "storage",
+      "command": "evidence",
+      "binding": "."
+    },
+    {
+      "path": "storage evidence-prune",
+      "group": "storage",
+      "command": "evidence-prune",
       "binding": "."
     },
     {

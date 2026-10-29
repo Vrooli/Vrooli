@@ -15,8 +15,11 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
+	heartbeatconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/heartbeat/heartbeat_v1connect"
 	"prompt-manager/internal/paths"
+	"prompt-manager/internal/requestpolicy"
 	"prompt-manager/internal/store"
 )
 
@@ -460,118 +463,160 @@ func TestLegacyDispatchWithoutTriggerOriginIsNeverPOSTReplayed(t *testing.T) {
 }
 
 func TestManualCapacityRetryBypassesWindowOnlyForSameFrozenCallerIntent(t *testing.T) {
-	teamStore, agentStore, relations := setupAdmissionDeferredFailureEnvironment(t)
-	ctx := context.Background()
-	var taskID string
-	var taskBodies []string
-	var runPosts int
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/tasks/"):
-			w.WriteHeader(http.StatusNotFound)
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/tasks":
-			body, err := io.ReadAll(r.Body)
-			if err != nil {
-				t.Errorf("read task body: %v", err)
-				http.Error(w, "bad request", http.StatusBadRequest)
-				return
-			}
-			taskBodies = append(taskBodies, string(body))
-			var requested CreateTaskRequest
-			if err := json.Unmarshal(body, &requested); err != nil || requested.Task == nil {
-				t.Errorf("decode frozen task request: task=%+v err=%v", requested.Task, err)
-				http.Error(w, "bad request", http.StatusBadRequest)
-				return
-			}
-			taskID = requested.Task.ID
-			if len(taskBodies) == 1 {
-				w.WriteHeader(http.StatusForbidden)
-				_, _ = w.Write([]byte(`{"message":"capacity full","admission_reason":"grant_limit_reached"}`))
-				return
-			}
-			created := *requested.Task
-			created.Status = "queued"
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			if err := json.NewEncoder(w).Encode(CreateTaskResponse{Task: &created}); err != nil {
-				t.Errorf("encode queued task response: %v", err)
-			}
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/runs":
-			runPosts++
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			if err := json.NewEncoder(w).Encode(CreateRunResponse{Run: &Run{ID: "run-manual-retry", TaskID: taskID, Status: "RUN_STATUS_RUNNING"}}); err != nil {
-				t.Errorf("encode run response: %v", err)
-			}
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/runs/run-manual-retry":
-			w.Header().Set("Content-Type", "application/json")
-			if err := json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "run-manual-retry", TaskID: taskID, Status: "RUN_STATUS_COMPLETE"}}); err != nil {
-				t.Errorf("encode terminal run response: %v", err)
-			}
-		default:
-			http.NotFound(w, r)
+	for _, serviceBacked := range []bool{false, true} {
+		name := "caller"
+		if serviceBacked {
+			name = "service"
 		}
-	}))
-	defer server.Close()
-	client := &AgentManagerClient{
-		createCallerVerifier: admissionDeferredCallerVerifier{},
-		httpClient:           server.Client(),
-		testBaseURL:          server.URL,
-	}
-	dir := t.TempDir()
-	executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
-	teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
-	executor.SetTeamExecStore(teamExecStore)
-	executor.OnRunComplete = teamExecStore.OnRunComplete
-	handlers := NewHandlers(HandlersDeps{
-		TeamStore: teamStore, AgentStore: agentStore, RelationStore: relations,
-		Executor: executor, AgentClient: client, TeamExecStore: teamExecStore,
-		RunCallerValidator: admissionDeferredCallerVerifier{},
-	})
-	first := invokeAdmissionDeferredManualTrigger(handlers, "Bearer fixture-owner")
-	if first.Code != http.StatusAccepted {
-		t.Fatalf("initial manual request: status=%d body=%s", first.Code, first.Body.String())
-	}
-	teamExecStore.Shutdown()
-	if len(taskBodies) != 1 || runPosts != 0 || len(teamExecStore.Status("team-1").AdmissionDeferredAgentIDs) != 1 {
-		t.Fatalf("initial refusal did not retain one manual intent: tasks=%d runs=%d status=%+v", len(taskBodies), runPosts, teamExecStore.Status("team-1"))
-	}
-	executor.Shutdown()
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(owneridentity.CreateRunCallerEnforceEnv, "")
+			teamStore, agentStore, relations := setupAdmissionDeferredFailureEnvironment(t)
+			ctx := context.Background()
+			var taskID string
+			var taskBodies []string
+			var taskAuthorizations []string
+			var runPosts int
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/api/v1/tasks/"):
+					w.WriteHeader(http.StatusNotFound)
+				case r.Method == http.MethodPost && r.URL.Path == "/api/v1/tasks":
+					body, err := io.ReadAll(r.Body)
+					if err != nil {
+						t.Errorf("read task body: %v", err)
+						http.Error(w, "bad request", http.StatusBadRequest)
+						return
+					}
+					taskBodies = append(taskBodies, string(body))
+					taskAuthorizations = append(taskAuthorizations, r.Header.Get("Authorization"))
+					var requested CreateTaskRequest
+					if err := json.Unmarshal(body, &requested); err != nil || requested.Task == nil {
+						t.Errorf("decode frozen task request: task=%+v err=%v", requested.Task, err)
+						http.Error(w, "bad request", http.StatusBadRequest)
+						return
+					}
+					taskID = requested.Task.ID
+					if len(taskBodies) == 1 {
+						w.WriteHeader(http.StatusForbidden)
+						_, _ = w.Write([]byte(`{"message":"capacity full","admission_reason":"grant_limit_reached"}`))
+						return
+					}
+					created := *requested.Task
+					created.Status = "queued"
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusCreated)
+					if err := json.NewEncoder(w).Encode(CreateTaskResponse{Task: &created}); err != nil {
+						t.Errorf("encode queued task response: %v", err)
+					}
+				case r.Method == http.MethodPost && r.URL.Path == "/api/v1/runs":
+					runPosts++
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusCreated)
+					if err := json.NewEncoder(w).Encode(CreateRunResponse{Run: &Run{ID: "run-manual-retry", TaskID: taskID, Status: "RUN_STATUS_RUNNING"}}); err != nil {
+						t.Errorf("encode run response: %v", err)
+					}
+				case r.Method == http.MethodGet && r.URL.Path == "/api/v1/runs/run-manual-retry":
+					w.Header().Set("Content-Type", "application/json")
+					if err := json.NewEncoder(w).Encode(GetRunResponse{Run: &Run{ID: "run-manual-retry", TaskID: taskID, Status: "RUN_STATUS_COMPLETE"}}); err != nil {
+						t.Errorf("encode terminal run response: %v", err)
+					}
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			client := &AgentManagerClient{
+				createCallerVerifier: admissionDeferredCallerVerifier{},
+				httpClient:           server.Client(),
+				testBaseURL:          server.URL,
+			}
+			if serviceBacked {
+				client.serviceToken = &rotatingCreateRunServiceToken{}
+			}
+			token := "Bearer fixture-owner"
+			if serviceBacked {
+				token = ""
+			}
+			invoke := func(h *Handlers, token string, allow bool) *httptest.ResponseRecorder {
+				if !serviceBacked {
+					return invokeAdmissionDeferredManualTrigger(h, token)
+				}
+				grant := &identity.OperationGrant{ID: "fixture-dispatch", Policy: "run-creation", Approver: "owner", Operations: []string{"run.create"}, Targets: []string{"agent-manager:*"}, ExpiresAt: time.Now().Add(time.Hour)}
+				if !allow {
+					grant.Targets = []string{"agent-manager:run/other"}
+				}
+				req := httptest.NewRequest(http.MethodPost, heartbeatconnect.HeartbeatServiceTriggerHeartbeatProcedure, nil)
+				req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+				req = req.WithContext(identity.WithPrincipal(req.Context(), identity.Principal{Kind: identity.ActorAgent, Subject: "fixture-dispatcher", Owner: "owner", Verified: true, Scopes: []string{"agent-manager:write"}, Grant: grant}))
+				rec := httptest.NewRecorder()
+				requestpolicy.PreparationBoundary(http.HandlerFunc(h.TriggerHeartbeat)).ServeHTTP(rec, req)
+				return rec
+			}
+			dir := t.TempDir()
+			executor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
+			teamExecStore := NewTeamExecutionStore(teamStore, executor, dir, client)
+			executor.SetTeamExecStore(teamExecStore)
+			executor.OnRunComplete = teamExecStore.OnRunComplete
+			handlers := NewHandlers(HandlersDeps{
+				TeamStore: teamStore, AgentStore: agentStore, RelationStore: relations,
+				Executor: executor, AgentClient: client, TeamExecStore: teamExecStore,
+				RunCallerValidator: admissionDeferredCallerVerifier{},
+			})
+			first := invoke(handlers, token, true)
+			if first.Code != http.StatusAccepted {
+				t.Fatalf("initial manual request: status=%d body=%s", first.Code, first.Body.String())
+			}
+			teamExecStore.Shutdown()
+			if len(taskBodies) != 1 || runPosts != 0 || len(teamExecStore.Status("team-1").AdmissionDeferredAgentIDs) != 1 {
+				t.Fatalf("initial refusal did not retain one manual intent: tasks=%d runs=%d status=%+v", len(taskBodies), runPosts, teamExecStore.Status("team-1"))
+			}
+			executor.Shutdown()
 
-	// Restart reloads the exact manual origin and caller binding without a
-	// credential. A newly qualified request from the same caller can retry it.
-	restartedExecutor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
-	restartedStore := NewTeamExecutionStore(teamStore, restartedExecutor, dir, client)
-	restartedExecutor.SetTeamExecStore(restartedStore)
-	restartedExecutor.OnRunComplete = restartedStore.OnRunComplete
-	restartedStore.Recover(ctx)
-	if len(taskBodies) != 1 || runPosts != 0 || len(restartedStore.Status("team-1").AdmissionDeferredAgentIDs) != 1 {
-		t.Fatalf("restart must retain the manual intent without posting: tasks=%d runs=%d status=%+v", len(taskBodies), runPosts, restartedStore.Status("team-1"))
+			// Restart reloads the exact manual origin and caller binding without a
+			// credential. A newly qualified request from the same caller can retry it.
+			restartedExecutor := newTestExecutor(t, teamStore, agentStore, client, dir, nil, nil)
+			restartedStore := NewTeamExecutionStore(teamStore, restartedExecutor, dir, client)
+			restartedExecutor.SetTeamExecStore(restartedStore)
+			restartedExecutor.OnRunComplete = restartedStore.OnRunComplete
+			restartedStore.Recover(ctx)
+			if len(taskBodies) != 1 || runPosts != 0 || len(restartedStore.Status("team-1").AdmissionDeferredAgentIDs) != 1 {
+				t.Fatalf("restart must retain the manual intent without posting: tasks=%d runs=%d status=%+v", len(taskBodies), runPosts, restartedStore.Status("team-1"))
+			}
+			admissionDeferredEntry(t, restartedStore, "team-1", "agent-1")
+			handlers = NewHandlers(HandlersDeps{
+				TeamStore: teamStore, AgentStore: agentStore, RelationStore: relations,
+				Executor: restartedExecutor, AgentClient: client, TeamExecStore: restartedStore,
+				RunCallerValidator: admissionDeferredCallerVerifier{},
+			})
+			other := invoke(handlers, "Bearer other-owner", false)
+			wantDenied := http.StatusConflict
+			if serviceBacked {
+				wantDenied = http.StatusForbidden
+			}
+			if other.Code != wantDenied {
+				t.Fatalf("different caller must not retry the retained manual request: status=%d body=%s", other.Code, other.Body.String())
+			}
+			if len(taskBodies) != 1 || runPosts != 0 {
+				t.Fatalf("different caller caused an owner write: tasks=%d runs=%d", len(taskBodies), runPosts)
+			}
+			// The completed-trigger window is active, but an explicit repeat retries
+			// this exact manual intent before that dedupe check.
+			second := invoke(handlers, token, true)
+			if second.Code != http.StatusAccepted {
+				t.Fatalf("same-caller manual retry: status=%d body=%s", second.Code, second.Body.String())
+			}
+			restartedStore.Shutdown()
+			if len(taskBodies) != 2 || taskBodies[1] != taskBodies[0] || runPosts != 1 {
+				t.Fatalf("manual retry changed task terms or did not create the single run: taskBodies=%v runPosts=%d", taskBodies, runPosts)
+			}
+			if serviceBacked {
+				if len(taskAuthorizations) != 2 || !strings.HasPrefix(taskAuthorizations[0], "Bearer service-token-") || !strings.HasPrefix(taskAuthorizations[1], "Bearer service-token-") || taskAuthorizations[0] == taskAuthorizations[1] {
+					t.Fatalf("retry did not preserve fresh service authority: %v", taskAuthorizations)
+				}
+			}
+			restartedExecutor.Shutdown()
+		})
 	}
-	admissionDeferredEntry(t, restartedStore, "team-1", "agent-1")
-	handlers = NewHandlers(HandlersDeps{
-		TeamStore: teamStore, AgentStore: agentStore, RelationStore: relations,
-		Executor: restartedExecutor, AgentClient: client, TeamExecStore: restartedStore,
-		RunCallerValidator: admissionDeferredCallerVerifier{},
-	})
-	other := invokeAdmissionDeferredManualTrigger(handlers, "Bearer other-owner")
-	if other.Code != http.StatusConflict {
-		t.Fatalf("different caller must not retry the retained manual request: status=%d body=%s", other.Code, other.Body.String())
-	}
-	if len(taskBodies) != 1 || runPosts != 0 {
-		t.Fatalf("different caller caused an owner write: tasks=%d runs=%d", len(taskBodies), runPosts)
-	}
-	// The completed-trigger window is active, but an explicit repeat retries
-	// this exact manual intent before that dedupe check.
-	second := invokeAdmissionDeferredManualTrigger(handlers, "Bearer fixture-owner")
-	if second.Code != http.StatusAccepted {
-		t.Fatalf("same-caller manual retry: status=%d body=%s", second.Code, second.Body.String())
-	}
-	restartedStore.Shutdown()
-	if len(taskBodies) != 2 || taskBodies[1] != taskBodies[0] || runPosts != 1 {
-		t.Fatalf("manual retry changed task terms or did not create the single run: taskBodies=%v runPosts=%d", taskBodies, runPosts)
-	}
-	restartedExecutor.Shutdown()
 }
 
 func TestAdmissionDeferredPreservesPendingApprovalContract(t *testing.T) {

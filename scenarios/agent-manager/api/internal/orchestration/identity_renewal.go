@@ -27,6 +27,12 @@ const sessionBindingProofVersion = cliutil.AgentSessionBindingProofVersion
 const sessionBindingProofTimeout = 3 * time.Second
 const sessionBindingProofMaxBytes = 4096
 
+var (
+	errBindingProofTimeout     = errors.New("session binding proof timed out")
+	errBindingProofUnavailable = errors.New("session binding proof unavailable")
+	errBindingProofMismatch    = errors.New("session binding proof mismatch")
+)
+
 // SessionBindingProof shares its wire contract with the control-plane owner.
 type SessionBindingProof = cliutil.AgentSessionBindingProof
 
@@ -79,7 +85,10 @@ func readCLISessionBindingProof(parent context.Context, request SessionBindingRe
 	cmd.Stdout = &stdout
 	cmd.Stderr = io.Discard
 	if err := cmd.Run(); err != nil {
-		return SessionBindingProof{}, errors.New("session binding proof unavailable")
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return SessionBindingProof{}, errBindingProofTimeout
+		}
+		return SessionBindingProof{}, errBindingProofUnavailable
 	}
 	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	dec.DisallowUnknownFields()
@@ -135,8 +144,11 @@ func (o *Orchestrator) resolveAttachedBaselineRenewal(ctx context.Context, peerP
 		return "", false, nil
 	}
 	proof, err := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: run.ID, HarnessSessionID: run.HarnessSessionID, WebConsoleSessionID: run.WebConsoleSessionID, HarnessKind: run.HarnessKind, ProcessID: run.RunnerPID})
-	if err != nil || !validSessionBindingProof(proof, run, peerPID) {
+	if err != nil {
 		return "", false, identityRefreshUnavailable(err)
+	}
+	if !validSessionBindingProof(proof, run, peerPID) {
+		return "", false, identityRefreshUnavailable(errBindingProofMismatch)
 	}
 	now := o.now().UTC()
 
@@ -194,7 +206,22 @@ func identityRefreshUnavailable(cause error) error {
 	if cause == nil {
 		return refusal
 	}
-	return fmt.Errorf("%w: %v", refusal, cause)
+	return fmt.Errorf("%w: %w", refusal, cause)
+}
+
+// Log only bounded categories: proof errors and database failures can contain
+// caller data, and the broker's external refusal must not reveal it.
+func identityRefreshDiagnostic(err error) string {
+	switch {
+	case errors.Is(err, errBindingProofTimeout):
+		return "owner_proof_timeout"
+	case errors.Is(err, errBindingProofUnavailable):
+		return "owner_proof_unavailable"
+	case errors.Is(err, errBindingProofMismatch):
+		return "owner_proof_mismatch"
+	default:
+		return "other"
+	}
 }
 
 func renewableAttachedRoot(run *domain.Run, anchorHash string, claims *identity.Claims) bool {

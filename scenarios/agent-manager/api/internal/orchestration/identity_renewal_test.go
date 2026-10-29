@@ -2,7 +2,10 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"os"
+	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -16,6 +19,45 @@ import (
 	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+func TestIdentityRefreshDiagnosticPreservesRefusalWithoutExposingCause(t *testing.T) {
+	for _, tc := range []struct {
+		cause error
+		want  string
+	}{
+		{errBindingProofTimeout, "owner_proof_timeout"},
+		{errBindingProofUnavailable, "owner_proof_unavailable"},
+		{errBindingProofMismatch, "owner_proof_mismatch"},
+		{errors.New("sensitive caller data"), "other"},
+	} {
+		err := identityRefreshUnavailable(tc.cause)
+		var refusal *domain.AuthorizationError
+		if !errors.As(err, &refusal) || refusal.Code != "identity_refresh_unavailable" {
+			t.Fatalf("lost external refusal: %v", err)
+		}
+		if got := identityRefreshDiagnostic(err); got != tc.want {
+			t.Fatalf("diagnostic = %q, want %q", got, tc.want)
+		}
+	}
+}
+
+func TestCLISessionBindingProofDistinguishesTimeout(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires a POSIX executable")
+	}
+	dir := t.TempDir()
+	command := filepath.Join(dir, "vrooli")
+	if err := os.WriteFile(command, []byte("#!/bin/sh\nexec /bin/sleep 5\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	_, err := readCLISessionBindingProof(ctx, SessionBindingRequest{})
+	if !errors.Is(err, errBindingProofTimeout) {
+		t.Fatalf("proof error = %v, want timeout classification", err)
+	}
+}
 
 func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing.T) {
 	for _, legacy := range []bool{false, true} {

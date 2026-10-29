@@ -148,6 +148,9 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				if errors.As(err, &refused) {
 					code = refused.Code
 				}
+				if code == "identity_refresh_unavailable" {
+					fmt.Fprintln(os.Stderr, "agent identity renewal unavailable:", identityRefreshDiagnostic(err))
+				}
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				json.NewEncoder(w).Encode(map[string]string{"code": code, "recovery": "vrooli agent authorization <session-or-run>"})

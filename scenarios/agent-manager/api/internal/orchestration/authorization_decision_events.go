@@ -456,8 +456,8 @@ func (o *Orchestrator) authorizationNotificationSnapshot(ctx context.Context, g 
 		return nil, fmt.Errorf("native authorization link unavailable: %w", err)
 	}
 	payload := map[string]any{
-		"title":       "Authorization requested: " + g.Policy,
-		"body":        fmt.Sprintf("%s requests %s for %s. The %s permission lifetime starts only after you approve on the authenticated Agent Manager page; this notification grants no authority.", strings.TrimSpace(g.HarnessKind), g.Policy, strings.Join(g.Targets, ", "), humanizeDurationSeconds(g.DurationSeconds)),
+		"title":       "Agent needs approval: " + g.Policy,
+		"body":        fmt.Sprintf("%s wants %s on %s.\nThe %s permission lifetime starts only after you approve on the Agent Manager page; this notification grants no authority.", strings.TrimSpace(g.HarnessKind), g.Policy, strings.Join(g.Targets, ", "), humanizeDurationSeconds(g.DurationSeconds)),
 		"category":    "authorization-requested",
 		"urgency":     "normal",
 		"sensitivity": "private",

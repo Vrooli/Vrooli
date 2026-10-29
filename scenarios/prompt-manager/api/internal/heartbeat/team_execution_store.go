@@ -251,9 +251,9 @@ func (s *TeamExecutionStore) RetryAdmissionDeferred(ctx context.Context, teamID,
 	return tec.RetryAdmissionDeferred(ctx, agentID)
 }
 
-// RetryManualDispatch replays a same-caller retained manual intent through
-// the existing manual-trigger route, after that route checks current owner
-// eligibility and the fresh caller binding.
+// RetryManualDispatch replays an exact retained manual intent through the
+// existing authorized manual-trigger route. The context preserves its original
+// caller binding or refreshes its original service authority.
 func (s *TeamExecutionStore) RetryManualDispatch(ctx context.Context, teamID, agentID string) (bool, error) {
 	tec, err := s.configureContext(ctx, teamID)
 	if err != nil {

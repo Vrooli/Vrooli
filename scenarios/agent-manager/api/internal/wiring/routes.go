@@ -1,7 +1,6 @@
 package wiring
 
 import (
-	"agent-manager/internal/promptmanager"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"agent-manager/internal/promptmanager"
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/capabilities"
@@ -45,6 +46,7 @@ import (
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/lifecycle"
+	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/cli-core/agentcatalog"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
@@ -88,7 +90,10 @@ type RouteDependencies struct {
 	ConversationControlToken func() string
 	StorageHealth            *storagehealth.Handler
 	LifecycleService         commonconnect.LifecycleMaintenanceServiceHandler
-	WorkspaceSandbox         interface {
+	// DecisionEffects are additional owners of notification-hub resolutions
+	// (e.g. the evidence-prune approval), each claiming only its own event type.
+	DecisionEffects  []operatordecision.DomainEffect
+	WorkspaceSandbox interface {
 		IsAvailable(context.Context) (bool, string)
 	}
 }
@@ -253,7 +258,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 	if secret != "" {
 		router.Handle(handlers.ProgramEventWebhookPath, handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
-		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret)).Methods(http.MethodPost)
+		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret, deps.DecisionEffects...)).Methods(http.MethodPost)
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

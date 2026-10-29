@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "key": "82f48e6596469b84607fc1528efb989bd2a9a3e7bcb715d140055bcd994e381c",
+  "key": "ea159b5bd9a1ac5c76e6e6eb849bb3203df1b8058733bc66f9a7a8a9920bf64f",
   "inputs": [
     "go.mod",
     "go.sum",
@@ -377,6 +377,7 @@
     "packages/cli-core/cliutil/agentresolve_unix.go",
     "packages/cli-core/cliutil/apiclient.go",
     "packages/cli-core/cliutil/cliutil.go",
+    "packages/cli-core/cliutil/command.go",
     "packages/cli-core/cliutil/config.go",
     "packages/cli-core/cliutil/dryrun.go",
     "packages/cli-core/cliutil/enumeration.go",
@@ -1499,6 +1500,7 @@
     "packages/cli-core/cliutil/agentresolve_unix.go",
     "packages/cli-core/cliutil/apiclient.go",
     "packages/cli-core/cliutil/cliutil.go",
+    "packages/cli-core/cliutil/command.go",
     "packages/cli-core/cliutil/config.go",
     "packages/cli-core/cliutil/dryrun.go",
     "packages/cli-core/cliutil/enumeration.go",

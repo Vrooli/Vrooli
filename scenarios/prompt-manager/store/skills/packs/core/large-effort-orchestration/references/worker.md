@@ -96,6 +96,16 @@ outcome-metric entries request strategy review; do not use bookkeeping counts as
 outcome metric. Native commission HARD STOP, explicit product requirements and actual
 authority/safety boundaries remain applicable.
 
+## Evidence placement
+
+Write retained evidence under `~/.vrooli/evidence/<effort>/`, named after the effort, and
+cite exact paths in LOG or STATUS. `/tmp` and the repository `scratch/` are disposable:
+Storage Manager deletes their idle top-level entries automatically, so never stage
+acceptance evidence there for later copying. Do not copy service binaries, tool or
+resource releases, dependency trees or raw frames beside an encoded video into evidence;
+cite their owner identity or hash instead. Agent Manager prunes unreferenced copies of
+those intermediates from a finished effort's evidence seven days after it ends.
+
 ## Return
 
 Complete the assigned work and its worker-owned checks, then return:

@@ -19,7 +19,10 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func createRunSnapshotForTest(t *testing.T, key, taskID, profileKey, tag string) string {
@@ -113,6 +116,75 @@ func TestServiceCallerReplayRefreshesProofWithoutChangingRequestBody(t *testing.
 	}
 	if tokens.calls != 2 {
 		t.Fatalf("canceled service replay must not refresh credentials, token calls=%d", tokens.calls)
+	}
+}
+
+type serviceReplayTriggerVerifier struct{}
+
+func (serviceReplayTriggerVerifier) Verify(string) (*cliutil.VerifyResult, error) {
+	return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "trigger-run", Subject: "trigger-owner"}}, nil
+}
+
+func (serviceReplayTriggerVerifier) VerifyPair(context.Context, string, string) (*cliutil.VerifyPairResult, error) {
+	grant, err := json.Marshal(identity.OperationGrant{ID: "trigger-grant", Approver: "trigger-owner", ExpiresAt: time.Now().Add(time.Hour)})
+	if err != nil {
+		return nil, err
+	}
+	return &cliutil.VerifyPairResult{Valid: true, Operation: &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{Meta: map[string]string{"operation_grant": string(grant)}}}}, nil
+}
+
+func TestServiceDispatchDoesNotForwardTriggeringAgentProof(t *testing.T) {
+	var inbound context.Context
+	middleware := provenance.Middleware(serviceReplayTriggerVerifier{})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { inbound = r.Context() }))
+	incoming := httptest.NewRequest(http.MethodPost, "/trigger", nil)
+	incoming.Header.Set(cliutil.HeaderAgentIdentityToken, "trigger-baseline")
+	incoming.Header.Set(cliutil.HeaderAgentOperationToken, "trigger-operation")
+	middleware.ServeHTTP(httptest.NewRecorder(), incoming)
+	if provenance.ForwardedIdentityToken(inbound) != "trigger-baseline" || provenance.ForwardedOperationToken(inbound) != "trigger-operation" {
+		t.Fatal("fixture must carry verified, forwardable trigger identity")
+	}
+
+	var received []http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received = append(received, r.Header.Clone())
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	client := &AgentManagerClient{serviceToken: &rotatingCreateRunServiceToken{}, testBaseURL: server.URL, httpClient: &http.Client{Transport: provenance.ForwardingTransport{Base: server.Client().Transport}}}
+	for _, mode := range []string{"initial", "retained-replay"} {
+		t.Run(mode, func(t *testing.T) {
+			var serviceCtx context.Context
+			var err error
+			if mode == "initial" {
+				serviceCtx, err = client.prepareCreateRunCaller(inbound)
+			} else {
+				serviceCtx, err = prepareReplayCaller(inbound, client, createRunCallerOriginService, "")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, path := range []string{"/api/v1/tasks", "/api/v1/runs"} {
+				resp, err := client.doRequest(serviceCtx, http.MethodPost, path, []byte(`{}`))
+				if err != nil {
+					t.Fatal(err)
+				}
+				_ = resp.Body.Close()
+				h := received[len(received)-1]
+				if !strings.HasPrefix(h.Get("Authorization"), "Bearer service-token-") || h.Get(cliutil.HeaderAgentIdentityToken) != "" || h.Get(cliutil.HeaderAgentOperationToken) != "" {
+					t.Errorf("%s: service request must carry only its service proof (service_bearer=%t, trigger_identity=%t, trigger_operation=%t)", path, strings.HasPrefix(h.Get("Authorization"), "Bearer service-token-"), h.Get(cliutil.HeaderAgentIdentityToken) != "", h.Get(cliutil.HeaderAgentOperationToken) != "")
+				}
+			}
+		})
+	}
+	// Selecting service authority must not erase the trigger's original context.
+	callerCtx := withCreateRunCaller(inbound, "", "trigger-baseline")
+	resp, err := client.doRequest(callerCtx, http.MethodPost, "/api/v1/runs", []byte(`{}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if received[len(received)-1].Get(cliutil.HeaderAgentIdentityToken) != "trigger-baseline" {
+		t.Fatal("caller-owned dispatch lost the original verified proof")
 	}
 }
 

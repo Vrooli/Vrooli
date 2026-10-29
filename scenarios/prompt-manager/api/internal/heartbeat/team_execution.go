@@ -1329,7 +1329,8 @@ func (c *TeamExecutionContext) RetryAdmissionDeferred(ctx context.Context, agent
 
 // RetryManualDispatch is called by the existing explicit manual-trigger route
 // after its normal team/member/pause checks. It retries only the exact retained
-// manual intent and requires the same freshly verified caller binding.
+// manual intent. Caller-backed intents require the same freshly verified
+// binding; service-backed intents retain the service's own fresh authority.
 func (c *TeamExecutionContext) RetryManualDispatch(ctx context.Context, agentID string) (bool, error) {
 	c.mu.Lock()
 	entry, ok := c.running[agentID]
@@ -1338,9 +1339,21 @@ func (c *TeamExecutionContext) RetryManualDispatch(ctx context.Context, agentID 
 		(entry.State != ObligationAdmissionDeferred && entry.State != ObligationDispatchUncertain) {
 		return false, nil
 	}
-	proof := createRunCaller(ctx)
-	if entry.CreateRunCallerMode != createRunCallerOriginCaller || proof.origin != createRunCallerOriginCaller ||
-		entry.CreateRunCallerBinding == "" || proof.binding == "" || proof.binding != entry.CreateRunCallerBinding {
+	switch entry.CreateRunCallerMode {
+	case createRunCallerOriginService:
+		if entry.CreateRunCallerBinding != "" {
+			return false, nil
+		}
+		// The manual route has already checked current trigger eligibility and
+		// caller authority. Replay mints fresh service proof through the existing
+		// owner client; the triggering caller never replaces that authority.
+	case createRunCallerOriginCaller:
+		proof := createRunCaller(ctx)
+		if proof.origin != createRunCallerOriginCaller || entry.CreateRunCallerBinding == "" ||
+			proof.binding == "" || proof.binding != entry.CreateRunCallerBinding {
+			return false, nil
+		}
+	default:
 		return false, nil
 	}
 	return true, c.ReconcileDispatch(ctx, agentID)

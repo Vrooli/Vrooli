@@ -61,6 +61,10 @@ For a broad effort or several studies needing shared direction, use `research-co
 2. Separate observations, hypotheses, and conclusions. Retain failures and alternative explanations. An anomaly or transaction link alone does not prove fraud or identity.
 3. Use the smallest task-owned script needed. Follow dependency/effect owners and keep sensitive data with its owner.
 
+When a tool or infrastructure gap blocks the next consequential check, investigate its actual owner and failure, then choose a proportionate authorized repair, temporary workaround, alternative path, or independent question. Ordinary reversible research setup and the user's existing authorization are not new approval gates. Record acquired tools and effects for cleanup; preserve actual safety and authority boundaries. Do not infer that user input is required until available authorized sources and practical alternatives have been checked.
+
+Before repeating a status, capacity, or diagnostic read, identify the changed condition or the distinct decision the result could affect. Repeated identical observations without a new discriminator are a signal to stop rechecking and choose a cause-isolating test, repair, workaround, or pivot. Bundle routine receipts and update the concise current view at material changes; preserve raw evidence without rewriting every summary for each observation.
+
 **Exit/artifact:** Evidence shows what changed, its cost, and what remains uncertain. Missing access is a limitation, not negative evidence.
 
 ### Phase 3: Continue or conclude

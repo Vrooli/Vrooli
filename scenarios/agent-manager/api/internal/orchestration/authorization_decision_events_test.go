@@ -421,7 +421,7 @@ func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient
 		t.Fatalf("decode event data: %v", err)
 	}
 	fields := payload.AsMap()
-	if fields["title"] != "Authorization requested: run-creation" {
+	if fields["title"] != "Agent needs approval: run-creation" {
 		t.Fatalf("wire title = %#v", fields["title"])
 	}
 	body, ok := fields["body"].(string)

@@ -1,5 +1,5 @@
 {
-  "archived": false,
+  "archived": true,
   "coordination": {
     "pattern": "leader-led",
     "leadAgentId": "notification-hub-delivery-orchestrator",
@@ -25,7 +25,7 @@
   "effortRefs": [
     "effort:notification-hub-redesign"
   ],
-  "enabled": true,
+  "enabled": false,
   "execution": {
     "queuePolicy": "bounded-parallel",
     "maxConcurrentRuns": 3
@@ -169,10 +169,10 @@
     }
   },
   "purpose": "delivery",
-  "revision": 6,
+  "revision": 7,
   "runtime": {
     "mode": "multi-process"
   },
   "schemaVersion": 1,
-  "updatedAt": "2026-10-24T13:48:51Z"
+  "updatedAt": "2026-10-28T22:13:39Z"
 }

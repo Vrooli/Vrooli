@@ -424,6 +424,17 @@ GET /teams/{teamId}/execution-status
 
 `owners` is the diagnostic detail behind the category arrays. A retained slot does not prove that an external process is active. A missing run ID is meaningful for pre-dispatch or uncertain entries; it does not prove that no external run exists.
 
+An otherwise eligible scheduled callback retries only an intent whose persisted
+admission origin is scheduled. An explicit manual trigger can retry a retained
+manual intent before completed-trigger deduplication. Both paths preserve the
+original task/run request bytes and idempotency key. Manual retry still passes
+the existing request authorization, team/member and pause gates. Caller-backed
+intents require the same freshly verified caller binding. Service-backed intents
+mint fresh Prompt Manager service proof through the existing owner client and
+retain service authority even when a newly authorized agent triggers the retry. Service proof qualification preserves initiating attribution, cancellation and deadlines while removing forwardable triggering-agent credentials from the outbound service context. The task, token exchange and run requests carry service proof without an unrelated agent baseline or operation token.
+An unknown origin or authority mode is never inferred from a new request. A retry
+does not replace a retained owner, bypass a service limit or create a second run.
+
 ---
 
 ### Clear One Retained Queue Owner

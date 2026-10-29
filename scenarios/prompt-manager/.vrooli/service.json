@@ -26,6 +26,18 @@
           "rationale": "The observed derived indexes are below 1 MiB; this bound allows growth while retaining a short, regenerable cache history."
         }
       },
+      "research_home": {
+        "rung": "pinned",
+        "kind": "dir",
+        "path": "$USER_HOME/.vrooli/research",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "Canonical retained-research home (runtime_home entry research in .vrooli/repo-contract.json; docs/internal/research-experimentation/STORAGE.md). Prompt Manager owns the research-coordination, adaptive-research and local-experimentation skills that direct writes here. Topics, runs, cohorts and migration receipts are research results and evidence: never pruned by budget or by a generic sweep. Regenerable run intermediates (builds*/dist-electron, node_modules, downloaded inputs) are reclaimed by the researcher at run closure or with operator approval.",
+        "budget": {
+          "max_bytes": "24GiB",
+          "rationale": "Alarm-only: 11 GiB measured 2026-10-28 after the October consolidation, about 4.5 GiB of it regenerable run builds and dependency trees. A breach means a closed run kept its intermediates or a study outgrew the home and needs an operator decision; storage-manager never deletes research."
+        }
+      },
       "retention_receipt": {
         "rung": "owned",
         "kind": "file",

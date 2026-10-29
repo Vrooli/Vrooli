@@ -268,6 +268,11 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// lifecycle, not as public CreateRun calls. Keep every other workflow
 		// lifecycle route outside this exact start exception.
 		return true
+	case "/api/v1/storage/evidence/prune":
+		// A dry run only previews. A real prune from an agent never removes on
+		// its own authority: the handler raises an operator decision and Agent
+		// Manager applies exactly the previewed prune once the operator approves.
+		return true
 	case "/api/v1/runs/wake-by-key":
 		// The handler applies the single-run wake lineage rule to every
 		// parked run on the key (a worker waking its orchestrator).
@@ -399,7 +404,7 @@ var agentReadPOSTRoute = map[string]bool{
 	"/agent_manager.v1.AgentManagerService/WaitWorkflowExecution":            true,
 	"/agent_manager.v1.ConversationSearchService/GetConversationContext":     true,
 	"/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus": true,
-	"/agent_manager.v1.ConversationSearchService/SearchConversations":         true,
+	"/agent_manager.v1.ConversationSearchService/SearchConversations":        true,
 	"/agent_manager.v1.EpisodesService/GetCrossScenarioLedger":               true,
 	"/agent_manager.v1.EpisodesService/GetEpisodes":                          true,
 	"/agent_manager.v1.EpisodesService/GetSelfReportSpans":                   true,

@@ -963,3 +963,15 @@ pending separately inspectable screenshot review.
 - Evidence: `validateFiniteLeaderUpdate` rejects every acceptedRevision/sourceRefs change before authorization. The native external-knowledge-delivery v2 update was refused as immutable, while both enabled flags and dispatch markers remained false. Team creation did not retain verified creator identity.
 - Repair: add the explicit disabled/undispatched `heartbeat-amend-effort` operation with expected revision, retained evidence, server-verified creator attribution, exact legacy owner operation grants, atomic receipt history and read-only idle-state recovery. Keep existing run/profile/effort/activation and current-grant fences.
 - Validation: focused regression and affected Test Genie evidence will be recorded after execution. Native legacy application requires actual authenticated approval; never retroactively stamp this conversation as the creator without historical proof.
+
+## Work ladder — service-backed manual dispatch retry (2026-10-28)
+
+- Rung: W3, localized retry behavior under the existing manual-trigger and service-authority contracts.
+- Finding: `RetryManualDispatch` accepted only caller-bound intents. A manually triggered intent originally dispatched through Prompt Manager service authority remained admission-deferred after capacity became available; another trigger returned already queued/running while the exact frozen task did not exist.
+- Repair: manual retry recognizes the original explicit service mode and reuses `ReconcileDispatch` / `prepareReplayCaller`. It preserves frozen task/run bytes and idempotency, re-mints service proof and retains caller-bound equality checks and all current route/eligibility/admission guards. It does not clear a queue owner or guess legacy authority.
+- Evidence: focused end-to-end service case failed with the observed 409 before repair and passes after restart with identical task bytes and fresh service authorization; caller and negative authorization cases pass. Scenario validation and native activation receiving remain separately qualified in the work record.
+
+
+### Service replay forwarded triggering-agent credentials
+
+A retained service-backed manual retry reached Agent Manager with a verified service bearer plus the triggering agent's identity and operation headers. Clearing only the heartbeat's private caller proof left the shared provenance transport able to forward those credentials. Native admission then rejected the mixed caller at run creation. Service proof qualification now reuses `provenance.NewContext` to preserve attribution and cancellation while removing forwardable inbound credentials before token exchange and owner I/O. Caller-backed dispatch keeps its original proof. A transport regression failed for both initial and retained service dispatch on task and run requests before the repair.

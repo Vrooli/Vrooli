@@ -40,9 +40,11 @@ type RunApprovalResolver interface {
 // deliveries, are acknowledged without change (run-approval and authorization
 // return a benign handled=true no-op for an unknown/already-decided ask of their
 // type; a resolution that matches no effort decision falls through to the
-// webhook's ignored response).
-func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalResolver, secret string) http.Handler {
-	effects := make([]operatordecision.DomainEffect, 0, 4)
+// webhook's ignored response). extra effects (each claiming only its own
+// source event type, such as the evidence-prune approval) run after the
+// requester tie-back and before the run/authorization/effort appliers.
+func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalResolver, secret string, extra ...operatordecision.DomainEffect) http.Handler {
+	effects := make([]operatordecision.DomainEffect, 0, 4+len(extra))
 	// The requester tie-back is a pure observer that runs FIRST and never claims
 	// the resolution (handled=false), so it fires for EVERY resolution carrying
 	// an agent-await key regardless of which later effect applies the decision —
@@ -50,6 +52,7 @@ func DecisionResolvedWebhook(service *supervision.Service, resolver RunApprovalR
 	if waker, ok := resolver.(requesterWaker); ok {
 		effects = append(effects, requesterWakeEffect{waker: waker})
 	}
+	effects = append(effects, extra...)
 	effects = append(effects,
 		runApprovalEffect{resolver: resolver},
 		authorizationEffect{resolver: resolver},

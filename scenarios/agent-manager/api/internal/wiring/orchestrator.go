@@ -48,6 +48,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // OrchestratorDependencies is the runtime service graph assembled by the
@@ -77,7 +78,10 @@ type OrchestratorDependencies struct {
 	SupervisionScheduler  *supervision.Scheduler
 	WatchActionAuthorizer handlers.WatchActionAuthorizer
 	InvocationReadModel   invocationreadmodel.Store
-	WorkspaceSandbox      interface {
+	// DecisionPublisher raises operator decisions through Vrooli Events; nil
+	// when Vrooli Events is unresolved.
+	DecisionPublisher operatordecision.Publisher
+	WorkspaceSandbox  interface {
 		IsAvailable(context.Context) (bool, string)
 	}
 }
@@ -274,7 +278,9 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	if uiBaseOverride := webconsole.ResolveUIBaseOverride(); uiBaseOverride != "" {
 		opts = append(opts, orchestration.WithWebConsoleUIBase(uiBaseOverride))
 	}
+	var decisionPublisher operatordecision.Publisher
 	if receiptsClient.Enabled() {
+		decisionPublisher = receiptsClient
 		// Run approvals (needs_review) publish *.decision_requested.v1 here so
 		// notification-hub alerts the operator with an Approve/Reject ask.
 		opts = append(opts, orchestration.WithApprovalEventPublisher(receiptsClient))
@@ -371,7 +377,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, levers.TranscriptImport.Interval, levers.TranscriptImport.ScanRoots...), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsService: orchestration.NewStatsOrchestrator(repos.Stats), StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: orchestration.NewTranscriptImportScheduler(orch, levers.TranscriptImport.Interval, levers.TranscriptImport.ScanRoots...), FrictionPublisher: orchestration.NewFrictionPublishScheduler(orch, frictionPublishInterval()), ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, StatsEngine: statsEngine, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 func frictionPublishInterval() time.Duration {

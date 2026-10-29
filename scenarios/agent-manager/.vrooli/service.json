@@ -312,6 +312,34 @@
           "rationale": "Variant-isolated Qdrant generations are owned by the conversation-search provider. Active and rollback generations are protected; failed or expired generations require preview and approval before Qdrant API deletion."
         },
         "rationale": "Qdrant is an external derived store. Physical allocation is measured by storage-manager; lifecycle state and deletion authorization remain in the agent-manager generation catalog."
+      },
+      "effort_evidence": {
+        "rung": "pinned",
+        "kind": "dir",
+        "path": "$USER_HOME/.vrooli/evidence",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "Shared effort evidence home: delivery and research workers write acceptance evidence under <effort>/ beside large regenerable intermediates (staged tool and resource releases, public release archives, dependency trees, copied ELF service binaries, rendered frames whose encoded video exists). Agent Manager owns it because effort enrollments are the only lifecycle signal for that work. Evidence itself is never reclaimed; the owner removes only unreferenced regenerable intermediates of efforts that are withdrawn or finalized past a 7-day grace, and operator-named finished efforts through `agent-manager storage evidence-prune --apply --local-owner`, each with a receipt.",
+        "budget": {
+          "max_bytes": "32GiB",
+          "rationale": "Measured 2026-10-28 at 23.3 GiB across nine effort directories, 14.1 GiB of it regenerable intermediates. Alarm-only: storage-manager never deletes evidence; a sustained breach means a finished effort still holds intermediates (run `agent-manager storage evidence`) or acceptance evidence itself outgrew the home."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "evidence_retention_receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "evidence-retention",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "latest.json from every evidence retention cycle plus one immutable prune-<time>.json per prune that removed anything, listing each removed path, class, bytes and reason. These receipts are the only record of what left the evidence home.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "A prune receipt is a few kilobytes to about a megabyte; alarm-only because receipts are audit history."
+        }
       }
     },
     "cleanup_providers": [

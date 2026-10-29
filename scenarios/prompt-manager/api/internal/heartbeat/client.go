@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/discovery"
@@ -982,6 +983,10 @@ func (c *AgentManagerClient) mintServiceCreateRunCaller(ctx context.Context) (co
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	// Service dispatch uses its own standing grant. Keep trigger attribution and
+	// cancellation, but do not let the shared forwarding transport reattach the
+	// triggering agent's proof to the service bearer (including during exchange).
+	ctx = provenance.NewContext(ctx, provenance.FromContext(ctx))
 	token, err := c.serviceToken.Token(ctx)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {

@@ -414,3 +414,22 @@ func TestConversationSearchUsesOrdinaryReadAdmission(t *testing.T) {
 		})
 	}
 }
+
+// An agent's evidence prune reaches the handler, which turns a real prune into
+// an operator decision instead of the middleware's bare global-management 403.
+func TestAgentEvidencePruneReachesTheApprovalHandler(t *testing.T) {
+	for _, interactive := range []bool{false, true} {
+		p := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true}
+		if interactive {
+			p.Grant = &identity.OperationGrant{}
+		}
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/storage/evidence/prune", strings.NewReader(`{"efforts":["x"],"reason":"r"}`))
+		r = r.WithContext(identity.WithPrincipal(r.Context(), p))
+		reached := false
+		w := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { reached = true; w.WriteHeader(http.StatusAccepted) })).ServeHTTP(w, r)
+		if !reached || w.Code != http.StatusAccepted {
+			t.Fatalf("interactive=%t: agent evidence prune refused at the middleware: %d %s", interactive, w.Code, w.Body.String())
+		}
+	}
+}

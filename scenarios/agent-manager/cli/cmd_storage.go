@@ -28,6 +28,10 @@ func (a *App) cmdStorage(args []string) error {
 		return a.storageReclaim(args[1:])
 	case "compact":
 		return a.storageCompact(args[1:])
+	case "evidence":
+		return a.storageEvidence(args[1:])
+	case "evidence-prune":
+		return a.storageEvidencePrune(args[1:])
 	case "help", "-h", "--help":
 		return nil
 	default:

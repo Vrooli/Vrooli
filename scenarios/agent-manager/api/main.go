@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/eventlog"
+	"agent-manager/internal/evidenceretention"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/invocationreadmodel"
@@ -120,6 +121,8 @@ type Server struct {
 	conversationTokens       *searchControlTokens
 	searchRegistrationStop   context.CancelFunc
 	storageHealth            *storageHealthRuntime
+	evidenceRetention        *evidenceretention.Service
+	evidenceApprovals        *evidenceretention.Approvals
 	workspaceSandbox         interface {
 		IsAvailable(context.Context) (bool, string)
 	}
@@ -326,6 +329,10 @@ func NewServer() (*Server, error) {
 		_ = db.Close()
 		return nil, err
 	}
+	if srv.evidenceRetention, srv.evidenceApprovals, err = srv.buildEvidenceRetention(repoRoot, deps.DecisionPublisher); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	srv.setupRoutes()
 	srv.startRecovery()
 	return srv, nil
@@ -436,6 +443,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 	// lives until Cleanup; it must not inherit a historical scan's deadline.
 	steps = append(steps, maintenance.RecoveryStep{Name: "background_workers", Run: func(ctx context.Context) error {
 		s.storageHealth.setWorkersContext(ctx)
+		startEvidenceRetention(ctx, s.evidenceRetention)
 		if s.supervisionScheduler != nil {
 			s.supervisionScheduler.Start(ctx)
 		}
@@ -484,7 +492,9 @@ func (s *Server) setupRoutes() {
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 		StorageHealth:            s.storageHealthHandler(),
 		LifecycleService:         s.lifecycleService,
+		DecisionEffects:          s.decisionEffects(),
 	})
+	s.registerEvidenceRetentionRoutes(s.router, s.evidenceRetention, s.evidenceApprovals)
 }
 
 func (s *Server) Router() http.Handler {

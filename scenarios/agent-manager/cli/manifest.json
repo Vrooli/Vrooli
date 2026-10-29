@@ -1838,7 +1838,7 @@
     },
     {
       "name": "storage",
-      "description": "Inspect and reclaim Agent Manager's SQLite storage",
+      "description": "Inspect and reclaim Agent Manager's SQLite storage and the shared effort evidence home",
       "commands": [
         {
           "name": "status",
@@ -1871,6 +1871,34 @@
         {
           "name": "compact",
           "description": "Fenced one-time rewrite into incremental auto-vacuum",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "evidence",
+          "description": "Classify ~/.vrooli/evidence into regenerable, referenced and unknown bytes per effort (dry run)",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "evidence-prune",
+          "description": "Preview or (--apply, owner) remove regenerable intermediates of finished efforts with a receipt",
           "binding": {
             "kind": "local"
           },
