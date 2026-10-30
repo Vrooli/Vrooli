@@ -50,6 +50,31 @@ type ClaudeStreamEvent struct {
 	MaxRetries      int    `json:"max_retries,omitempty"`
 	RetryDelayMs    int    `json:"retry_delay_ms,omitempty"`
 	ParentToolUseID string `json:"parent_tool_use_id,omitempty"`
+
+	// On-disk transcript user-line provenance. Older transcripts lack Origin;
+	// the message source then comes from content markers.
+	Origin       *ClaudeOrigin `json:"origin,omitempty"`
+	PromptSource string        `json:"promptSource,omitempty"`
+	TurnOrigin   string        `json:"turnOrigin,omitempty"`
+	IsMeta       bool          `json:"isMeta,omitempty"`
+}
+
+// ClaudeOrigin is the transcript's record of who produced a user-role line:
+// kind is human, task-notification, peer or auto-continuation.
+type ClaudeOrigin struct {
+	Kind string `json:"kind,omitempty"`
+}
+
+// messageSource classifies a user-role line from provider fields and content.
+func (ev *ClaudeStreamEvent) messageSource(text string) string {
+	kind := ""
+	if ev.Origin != nil {
+		kind = ev.Origin.Kind
+	}
+	if kind == "" {
+		kind = strings.ReplaceAll(ev.TurnOrigin, "_", "-")
+	}
+	return domain.ClassifyProviderMessage(text, kind, ev.PromptSource, ev.IsMeta)
 }
 
 // ClaudeMessage carries the role + content of a stream message. Content

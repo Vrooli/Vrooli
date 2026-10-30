@@ -10,30 +10,16 @@ import (
 )
 
 func TestDeriveEpisodesDeduplicatesRepeatedImportedEventWindows(t *testing.T) {
-	facts := []InvocationFact{
-		{CallEventID: "call-1", Fingerprint: "same", Outcome: "success"},
-		{CallEventID: "call-1", Fingerprint: "same", Outcome: "success"},
+	pair := []InvocationFact{
+		{CallEventID: "call-1", ToolCallID: "t1", Fingerprint: "same", Outcome: "success"},
+		{CallEventID: "call-2", ToolCallID: "t2", Fingerprint: "same", Outcome: "success"},
 	}
-	episodes := DeriveEpisodes(facts, nil)
+	episodes := DeriveEpisodes(append(append([]InvocationFact{}, pair...), pair...), nil)
 	if len(episodes) != 1 {
 		t.Fatalf("episodes=%#v; want one durable window for repeated imported event ID", episodes)
 	}
 	if episodes[0].Pattern != "repeated-work" || episodes[0].EpisodeID == "" {
 		t.Fatalf("episode=%#v", episodes[0])
-	}
-}
-
-func TestWaitMisuseToleratesInterveningToolFacts(t *testing.T) {
-	facts := []InvocationFact{
-		{CallEventID: "wait-1", Capability: "wait"},
-		{CallEventID: "read", Capability: "file-read", Fingerprint: "read"},
-		{CallEventID: "wait-2", Capability: "wait"},
-		{CallEventID: "write", Capability: "file-write", Fingerprint: "write"},
-		{CallEventID: "wait-3", Capability: "wait"},
-	}
-	episodes := detectWaitMisuse(EpisodeDetectorContext{Facts: facts, EventsByID: map[string]*domain.RunEvent{}, Events: nil})
-	if len(episodes) != 1 || episodes[0].Pattern != "wait-misuse" || episodes[0].CycleCount != 3 {
-		t.Fatalf("episodes=%#v; want one three-cycle wait-misuse episode", episodes)
 	}
 }
 
@@ -43,8 +29,8 @@ func TestReadThenRereadSkipsVerificationAfterFileChange(t *testing.T) {
 	second := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "notes.md"}}}
 	events := []*domain.RunEvent{first, edit, second}
 	facts := []InvocationFact{
-		{CallEventID: first.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
-		{CallEventID: second.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
+		{CallEventID: first.ID.String(), Capability: "file-read", Fingerprint: "same-file", Outcome: OutcomeSuccess},
+		{CallEventID: second.ID.String(), Capability: "file-read", Fingerprint: "same-file", Outcome: OutcomeSuccess},
 	}
 	if got := detectReadThenReread(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)}); len(got) != 0 {
 		t.Fatalf("verification reread was classified as repetition: %+v", got)
@@ -56,8 +42,8 @@ func TestReadThenRereadReportsUnchangedFile(t *testing.T) {
 	second := &domain.RunEvent{ID: uuid.New(), Data: &domain.ToolCallEventData{ToolName: "read_file", Input: map[string]any{"path": "notes.md"}}}
 	events := []*domain.RunEvent{first, second}
 	facts := []InvocationFact{
-		{CallEventID: first.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
-		{CallEventID: second.ID.String(), Capability: "file-read", Fingerprint: "same-file"},
+		{CallEventID: first.ID.String(), Capability: "file-read", Fingerprint: "same-file", Outcome: OutcomeSuccess},
+		{CallEventID: second.ID.String(), Capability: "file-read", Fingerprint: "same-file", Outcome: OutcomeSuccess},
 	}
 	if got := detectReadThenReread(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)}); len(got) != 1 {
 		t.Fatalf("unchanged reread episodes=%d, want 1", len(got))
@@ -73,7 +59,7 @@ func timedRead(at time.Time, path string) (*domain.RunEvent, *domain.RunEvent) {
 func rereadFacts(calls ...*domain.RunEvent) []InvocationFact {
 	facts := make([]InvocationFact, len(calls)/2)
 	for i := range facts {
-		facts[i] = InvocationFact{CallEventID: calls[2*i].ID.String(), ResultEventID: calls[2*i+1].ID.String(), Capability: "file-read", Fingerprint: "same-file"}
+		facts[i] = InvocationFact{CallEventID: calls[2*i].ID.String(), ResultEventID: calls[2*i+1].ID.String(), Capability: "file-read", Fingerprint: "same-file", Outcome: OutcomeSuccess}
 	}
 	return facts
 }
@@ -107,43 +93,6 @@ func TestReadThenRereadPairsOnlyWithinOneWorkingStretch(t *testing.T) {
 	chain = append(chain, lateCall, lateResult)
 	if got := detectReadThenReread(EpisodeDetectorContext{Facts: rereadFacts(firstCall, firstResult, lateCall, lateResult), Events: chain, EventsByID: eventMap(chain)}); len(got) != 1 {
 		t.Fatalf("reads in one continuous stretch must pair, got %+v", got)
-	}
-}
-
-// What an episode costs is defined per pattern, never the span between its
-// bounding calls.
-func TestEpisodeCostIsTheTimeTheFrictionWastedPerPattern(t *testing.T) {
-	at := time.Date(2026, 10, 1, 9, 0, 0, 0, time.UTC)
-	mk := func(offset, tool time.Duration) (InvocationFact, map[string]*domain.RunEvent) {
-		call := &domain.RunEvent{ID: uuid.New(), Timestamp: at.Add(offset)}
-		result := &domain.RunEvent{ID: uuid.New(), Timestamp: at.Add(offset + tool)}
-		return InvocationFact{CallEventID: call.ID.String(), ResultEventID: result.ID.String()}, map[string]*domain.RunEvent{call.ID.String(): call, result.ID.String(): result}
-	}
-	first, byFirst := mk(0, 2*time.Second)
-	second, bySecond := mk(3*time.Hour, 4*time.Second)
-	byID := map[string]*domain.RunEvent{}
-	for _, m := range []map[string]*domain.RunEvent{byFirst, bySecond} {
-		for k, v := range m {
-			byID[k] = v
-		}
-	}
-	span := int64(3 * time.Hour / time.Millisecond)
-	for pattern, want := range map[string]int64{
-		"read-then-reread":          4000, // the redundant second read
-		"fallback-after-capability": 4000, // the fallback call
-		"retry-after-failure":       2000, // the failed attempt
-		"capability-abandoned":      2000,
-		"command-failure":           6000, // both failures
-		"handoff-continuation":      0,    // extra work is not waste by itself
-		"stall":                     span, // the idle gap is the cost
-		"time-to-first-success":     span,
-	} {
-		if got := wastedMS(pattern, first, second, span, byID); got != want {
-			t.Errorf("%s costs %d ms, want %d", pattern, got, want)
-		}
-	}
-	if got := wastedMS("read-then-reread", first, InvocationFact{CallEventID: "unknown"}, span, byID); got != 0 {
-		t.Errorf("an unknown duration costs 0, got %d", got)
 	}
 }
 

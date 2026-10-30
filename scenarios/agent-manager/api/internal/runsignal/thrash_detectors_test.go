@@ -14,7 +14,7 @@ func TestThrashDetectorsFindBoundedCyclesOnly(t *testing.T) {
 	makeFact := func(offset int, fingerprint string) (InvocationFact, []*domain.RunEvent) {
 		call := &domain.RunEvent{ID: uuid.New(), Timestamp: now.Add(time.Duration(offset) * time.Second), Data: &domain.ToolCallEventData{Input: map[string]any{"read": true}}}
 		result := &domain.RunEvent{ID: uuid.New(), Timestamp: call.Timestamp.Add(time.Second), Data: &domain.ToolResultEventData{Success: true}}
-		return InvocationFact{CallEventID: call.ID.String(), ResultEventID: result.ID.String(), Fingerprint: fingerprint}, []*domain.RunEvent{call, result}
+		return InvocationFact{CallEventID: call.ID.String(), ResultEventID: result.ID.String(), Fingerprint: fingerprint, Ownership: OwnershipResolved, CommandPath: "tool " + fingerprint}, []*domain.RunEvent{call, result}
 	}
 	var facts []InvocationFact
 	var events []*domain.RunEvent

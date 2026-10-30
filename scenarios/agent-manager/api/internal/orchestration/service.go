@@ -32,6 +32,7 @@ import (
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
+	"agent-manager/internal/runsignal"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
@@ -364,6 +365,7 @@ func (o *Orchestrator) Durability(ctx context.Context, id uuid.UUID) (durability
 	if err != nil {
 		return durability.Verdict{}, err
 	}
+	episodes, _ = runsignal.ShownEpisodes(episodes)
 	for _, episode := range episodes {
 		evidence = append(evidence, durability.Evidence{Kind: "friction", Reference: "agent-manager://runs/" + id.String() + "/episodes/" + episode.EpisodeID, At: started, Lane: lane})
 	}

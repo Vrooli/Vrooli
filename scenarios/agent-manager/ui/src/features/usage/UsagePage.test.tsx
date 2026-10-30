@@ -250,10 +250,9 @@ test("friction lists open problems in plain words with owner, count and cost, an
   assert.equal(behaviour.queryByRole("button", { name: "Report bug" }), null, "agent behaviour files no bug");
   assert.equal(behaviour.getByRole("link", { name: "Suggest a fix" }).getAttribute("href"), `/usage?window=${encodeURIComponent("openai/primary/10080m")}#friction-${"a2".repeat(16)}`);
   assert.ok(behaviour.getByRole("button", { name: "Dismiss" }));
-  assert.match(rows[0]?.textContent ?? "", /fails, then the agent falls back.*agent-manager.*18× · 3 runs.*3 m 5 s/);
-  assert.match(rows[2]?.textContent ?? "", /120 calls · 4\.5 M tok/, "work after declaring done is not time lost");
-  assert.doesNotMatch(rows[2]?.textContent ?? "", /2 h 30 m/);
-  assert.doesNotMatch(visibleText(screen.getByTestId("usage-friction")), /Wall-clock lost.*2 h 30 m/, "handoff rows are excluded from the lost-time KPI");
+  assert.match(rows[0]?.textContent ?? "", /fails, then the agent falls back.*agent-manager.*18× · 3 runs.*3 m 5 s redundant call time/);
+  assert.match(rows[2]?.textContent ?? "", /2 h 30 m redundant call time · 4\.5 M tok/, "cost is the redundant calls' time and tokens");
+  assert.doesNotMatch(document.body.textContent ?? "", /handoff/i, "informational handoffs are not friction problems");
   assert.doesNotMatch(document.body.textContent ?? "", new RegExp(FRICTION_FINGERPRINT), "the fingerprint is detail, not the headline");
   assert.match(visibleText(screen.getByTestId("usage-friction")), /Reported to owners1/);
   await user.click(screen.getByRole("button", { name: "Reported" }));
@@ -347,14 +346,14 @@ test("friction plans cut across sessions, so the band adds only session plans an
   assert.match(visibleText(await screen.findByTestId("usage-focus")), /The session action below saves≈ 9.0 pts/, "the 50 pts of friction are not in the sum");
 });
 
-test("friction rows label their columns inline for phones, show command owners as code, and keep one short line for handoffs", async () => {
+test("friction rows label their columns inline for phones, show command owners as code, and price a problem by its redundant calls", async () => {
   renderUsage("/usage?tab=friction");
   const rows = await screen.findAllByTestId("usage-friction-row");
   assert.equal(within(rows[0] as HTMLElement).getByText("agent-manager").tagName, "CODE", "a command owner reads as code");
   assert.ok(within(rows[1] as HTMLElement).getByText("Agent behaviour"));
   assert.match(rows[0]?.textContent ?? "", /Owner.*Seen.*Cost/);
-  const handoff = within(rows[2] as HTMLElement).getByText("120 calls · 4.5 M tok");
-  assert.match(handoff.getAttribute("title") ?? "", /tool calls and 4\.5 M tokens of work after declaring done/);
+  const cost = within(rows[2] as HTMLElement).getByText(/redundant call time · 4\.5 M tok/);
+  assert.match(cost.getAttribute("title") ?? "", /120 redundant calls/);
   assert.match(rows[0]?.textContent ?? "", /typically 10 s each time/, "a typical time of a second or more is shown once");
 });
 

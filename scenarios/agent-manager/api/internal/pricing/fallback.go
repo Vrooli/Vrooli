@@ -28,7 +28,8 @@ func FallbackTokenPrices() TokenPrices {
 // unpriced subscription names). Codex tiers are the per-model fit on this host
 // (cached tokens per 1%: sol ≈50M, terra ≈100M, luna ≈520M); Claude tiers
 // follow Anthropic's list-price ratios. Only the ratios matter: consumers
-// calibrate the scale per window.
+// calibrate the scale per window. Every ratio here is a prior until a window
+// fits it; the attribution output labels it so.
 var tierPriors = []struct {
 	marker   string
 	relative float64
@@ -46,6 +47,33 @@ func TierTokenPrices(model string) (TokenPrices, bool) {
 		}
 	}
 	return TokenPrices{}, false
+}
+
+// cheaperTier maps a dearer tier to the next cheaper tier of the same family
+// that a session could move to (opus to sonnet, sol to terra, terra to luna).
+var cheaperTier = map[string]string{"opus": "sonnet", "sol": "terra", "terra": "luna"}
+
+// CheaperTier names the next cheaper tier marker a model could move to and
+// the prior price ratio of that tier to the model. The ratio is a prior from
+// tierPriors, never a fitted value. It returns false for models with no
+// cheaper tier.
+func CheaperTier(model string) (marker string, ratio float64, ok bool) {
+	model = strings.ToLower(model)
+	for _, tier := range tierPriors {
+		if !strings.Contains(model, tier.marker) {
+			continue
+		}
+		next, found := cheaperTier[tier.marker]
+		if !found {
+			return "", 0, false
+		}
+		for _, other := range tierPriors {
+			if other.marker == next {
+				return next, other.relative / tier.relative, true
+			}
+		}
+	}
+	return "", 0, false
 }
 
 // WithDefaultCacheRatios fills the cache prices a price book often omits.

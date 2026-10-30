@@ -38,7 +38,8 @@ type usageSpec struct {
 	model   string
 	every   time.Duration
 	reports int // reports per turn
-	prompt  int // prompt tokens per report (all but 2k cached)
+	prompt  int // prompt tokens per report (all but 2k cached), at the first turn
+	growth  int // prompt tokens added per turn: a worker's context grows
 	output  int
 	facts   transcriptindex.TurnFacts
 	from    time.Duration
@@ -51,8 +52,9 @@ func (u usageSpec) turns() []Turn {
 	if end == 0 {
 		end = 7 * 24 * time.Hour
 	}
-	for at := u.from + u.every; at <= end; at += u.every {
-		tokens := domain.UsageCounters{InputTokens: 2000 * u.reports, CacheReadTokens: (u.prompt - 2000) * u.reports, OutputTokens: u.output * u.reports}
+	for i, at := 0, u.from+u.every; at <= end; i, at = i+1, at+u.every {
+		prompt := u.prompt + u.growth*i
+		tokens := domain.UsageCounters{InputTokens: 2000 * u.reports, CacheReadTokens: (prompt - 2000) * u.reports, OutputTokens: u.output * u.reports}
 		out = append(out, Turn{At: fixtureStart.Add(at), RunID: u.run.ID, Runner: codex, Model: u.model, Tokens: tokens, Reports: u.reports, Facts: u.facts})
 	}
 	return out
@@ -106,10 +108,12 @@ func newWeekFixture() weekFixture {
 		f.runs[spec.run.ID] = spec.run
 		f.turns = append(f.turns, spec.turns()...)
 	}
-	// Dominant consumer: 180k re-read per report, every 10 minutes.
-	add(usageSpec{run: fixtureRun("orchestrator", "research", false), model: modelTerra, every: 10 * time.Minute, reports: 3, prompt: 180_000, output: 800})
+	// Dominant consumer: starts at a 50k floor and grows to ≈290k over the
+	// week, a request burst every 10 minutes.
+	add(usageSpec{run: fixtureRun("orchestrator", "research", false), model: modelTerra, every: 10 * time.Minute, reports: 3, prompt: 60_000, growth: 400, output: 800})
+	// Workers start at the 50k floor and grow to ≈250k over 48 requests.
 	for i := 0; i < 6; i++ {
-		add(usageSpec{run: fixtureRun(fmt.Sprintf("subagent-%d", i), "research", true), model: modelTerra, every: 30 * time.Minute, reports: 2, prompt: 90_000, output: 500, from: 24 * time.Hour, until: 30 * time.Hour})
+		add(usageSpec{run: fixtureRun(fmt.Sprintf("subagent-%d", i), "research", true), model: modelTerra, every: 30 * time.Minute, reports: 2, prompt: 50_000, growth: 8_500, output: 500, from: 24 * time.Hour, until: 36 * time.Hour})
 	}
 	// Idle poller: waits with tiny output.
 	poller := fixtureRun("poller", "heartbeat", false)
@@ -127,7 +131,7 @@ func newWeekFixture() weekFixture {
 		f.outcomes = append(f.outcomes, Outcome{RunID: fmt.Sprintf("draft-luna-%d", i), Runner: codex, Model: modelLuna, Workload: "workflow_node:draft", Succeeded: true, Tokens: draftRunTokens})
 	}
 	for i := 0; i < 5; i++ {
-		f.episodes = append(f.episodes, Episode{RunID: "orchestrator", EpisodeID: fmt.Sprintf("ep-%d", i), Pattern: "read-then-reread", Fingerprint: "reread:docs/SPEC.md", RepeatedElement: "docs/SPEC.md", Turns: 30, Tokens: 400_000})
+		f.episodes = append(f.episodes, Episode{RunID: "orchestrator", EpisodeID: fmt.Sprintf("ep-%d", i), Pattern: "command-failure", Fingerprint: "failure:rg", Turns: 30, Tokens: 400_000})
 	}
 	// True quota: terra 0.4 points per USD, luna 0.6 (luna is a little dearer
 	// per USD than its list price), plus 0.02 pts/h of off-disk use.

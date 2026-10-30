@@ -40,8 +40,11 @@ const (
 // are optional because many native CLIs only report that a limit was reached.
 // No value is derived from token usage, pricing, or subscription dollars.
 type QuotaObservation struct {
-	ID            string               `json:"id"`
-	Provider      string               `json:"provider"`
+	ID       string `json:"id"`
+	Provider string `json:"provider"`
+	// AccountScope is an opaque, verified quota-account identity. Empty means
+	// the account is unknown; it must never be inferred from a machine or home.
+	AccountScope  string               `json:"accountScope,omitempty"`
 	Pool          string               `json:"pool"`
 	Window        string               `json:"window"`
 	ObservedAt    time.Time            `json:"observedAt"`
@@ -65,6 +68,12 @@ type QuotaObservation struct {
 type QuotaObservationRepository interface {
 	RecordQuotaObservation(context.Context, *QuotaObservation) error
 	ListQuotaObservations(context.Context, string, string, string, int) ([]QuotaObservation, error)
+}
+
+// ScopedQuotaObservationRepository reads one proven account scope. An empty
+// scope is invalid; callers must never use it as a wildcard or as an account.
+type ScopedQuotaObservationRepository interface {
+	ListScopedQuotaObservations(context.Context, string, string, string, string, int) ([]QuotaObservation, error)
 }
 
 // QuotaHeartbeat bounds how long an unchanged reading goes unrecorded. The
@@ -92,6 +101,8 @@ type QuotaObservationCompactor interface {
 // by distinct readings rather than by frame volume (Codex repeats the same
 // reading on every token_count frame).
 type QuotaReadingSpan struct {
+	// AccountScope is empty for unscoped legacy evidence.
+	AccountScope  string
 	Provider      string
 	Pool          string
 	Window        string
@@ -111,12 +122,21 @@ type QuotaReadingSource interface {
 	QuotaReadingSpans(ctx context.Context, provider string, since time.Time) ([]QuotaReadingSpan, error)
 }
 
+// ScopedQuotaReadingSource reads one already-verified account, never a wildcard.
+// The caller must independently establish the relationship to its launch.
+type ScopedQuotaReadingSource interface {
+	ScopedQuotaReadingSpans(ctx context.Context, accountScope, provider string, since time.Time) ([]QuotaReadingSpan, error)
+}
+
 func (o *QuotaObservation) Validate() error {
 	if o == nil {
 		return errors.New("quota observation is required")
 	}
 	if strings.TrimSpace(o.Provider) == "" || strings.TrimSpace(o.Pool) == "" || strings.TrimSpace(o.Window) == "" {
 		return errors.New("quota provider, pool, and window are required")
+	}
+	if o.AccountScope != "" && (len(o.AccountScope) > 256 || strings.TrimSpace(o.AccountScope) != o.AccountScope || strings.ContainsAny(o.AccountScope, "|\x00\r\n")) {
+		return errors.New("quota account scope must be a bounded opaque identifier")
 	}
 	if o.ObservedAt.IsZero() {
 		return errors.New("quota observation time is required")
@@ -286,7 +306,13 @@ func QuotaObservationID(observation *QuotaObservation) string {
 	if observation.ResetAt != nil {
 		reset = observation.ResetAt.UTC().Format(time.RFC3339)
 	}
-	key := strings.Join([]string{observation.Provider, observation.Pool, observation.Window, observation.ObservedAt.UTC().Format(time.RFC3339Nano), observation.Provenance, string(observation.Standing), percent, reset}, "\x00")
+	parts := []string{observation.Provider, observation.Pool, observation.Window, observation.ObservedAt.UTC().Format(time.RFC3339Nano), observation.Provenance, string(observation.Standing), percent, reset}
+	// Preserve existing unscoped observation IDs so historical replay remains
+	// idempotent. Scoped observations get an additional, domain-separated key.
+	if observation.AccountScope != "" {
+		parts = append(parts, "account-scope", observation.AccountScope)
+	}
+	key := strings.Join(parts, "\x00")
 	sum := sha256.Sum256([]byte(key))
 	return hex.EncodeToString(sum[:])
 }

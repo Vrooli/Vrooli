@@ -160,3 +160,16 @@ func TestStatuslineSampleWithAPastResetYieldsNoObservation(t *testing.T) {
 		t.Fatalf("observations=%+v", got)
 	}
 }
+
+func TestQuotaObservationIDSeparatesAccountsAndRetainsLegacyReplay(t *testing.T) {
+	o := &QuotaObservation{Provider: "openai", Pool: "primary", Window: "300m", ObservedAt: time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC), Provenance: "test", Standing: QuotaStandingAvailable}
+	legacy := QuotaObservationID(o)
+	o.AccountScope = "account-a"
+	a := QuotaObservationID(o)
+	o.AccountScope = "account-b"
+	b := QuotaObservationID(o)
+	o.AccountScope = ""
+	if legacy == a || a == b || b == legacy || legacy != QuotaObservationID(o) {
+		t.Fatalf("observation identity must partition accounts and preserve unknown replay")
+	}
+}

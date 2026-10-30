@@ -15,7 +15,6 @@ import (
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/runreport"
 	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
@@ -68,28 +67,6 @@ func (o *Orchestrator) allRunEvents(ctx context.Context, runID uuid.UUID, opts e
 			return nil, fmt.Errorf("run %s exceeded the %d retained event ceiling", runID, projectionEventCeiling)
 		}
 	}
-}
-
-func (o *Orchestrator) EpisodeTrend(ctx context.Context, filter invocationreadmodel.Filter, bucket time.Duration, limit int) ([]runreport.EpisodeTrendBucket, error) {
-	projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore)
-	if !ok {
-		return nil, fmt.Errorf("episode trend requires a projection store")
-	}
-	episodes, err := projection.Episodes(ctx, filter, invocationEvidenceLimit)
-	if err != nil {
-		return nil, err
-	}
-	timed := make([]runreport.TimedEpisode, 0, len(episodes))
-	for _, episode := range episodes {
-		fact := episode.FrictionEpisode
-		fact.RunID = episode.RunID
-		timed = append(timed, runreport.TimedEpisode{Episode: fact, OccurredAt: episode.OccurredAt})
-	}
-	result := runreport.BuildEpisodeTrend(timed, bucket)
-	if limit > 0 && len(result) > limit {
-		result = result[len(result)-limit:]
-	}
-	return result, nil
 }
 
 type ReplayResult struct {

@@ -230,6 +230,20 @@
         "description": "Receives bounded supervision outcome projections while Agent Manager retains canonical state",
         "startup_policy": "try_start",
         "degraded_behavior": "Canonical outcomes remain durable in Agent Manager and report an explicit projection degradation reason."
+      },
+      "search-hub": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Conversation recall retains successful direct-search legs and reports failed or degraded federated search as partial.",
+        "versionRange": ">=0.0.1",
+        "description": "Federated search for retained conversation recall."
+      },
+      "ai-gateway": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Deterministic supervision predicates remain available; inference-dependent decisions return a bounded unavailable or abstaining disposition.",
+        "versionRange": ">=0.0.1",
+        "description": "Bounded inference for supervision evaluations not resolved by deterministic predicates."
       }
     }
   },

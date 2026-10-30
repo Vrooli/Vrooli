@@ -20,7 +20,7 @@
   "invariants": [
     "read only; no launches, mutations, cursor movement, or recommendations",
     "one report and one episode read per declared subject run, with at most four episode rows materialized per run",
-    "a failed subject read remains an explicit unknown and degrades the envelope to partial",
+    "report and episodes failures remain explicit per-source unknowns; a healthy sibling stays visible",
     "the envelope is printed exactly once on every path"
   ],
   "bindings": [
@@ -54,7 +54,12 @@
       ]
     },
     "signals": {
-      "summary": "Bounded subject evidence rows with availability and projection metadata"
+      "subjects": "Bounded subject rows with independent report and episode availability and projection metadata; source_completeness and source_freshness are unknown because these projections do not prove ingestion coverage or currency",
+      "subject_count": "Number of requested subjects",
+      "available": "Subjects with at least one available projection",
+      "unknown": "Subjects with at least one unavailable projection",
+      "projection_rows": "Number of returned episode rows",
+      "coverage": "complete only when both projections are available for every subject; this describes projection availability, not underlying source completeness or freshness"
     },
     "errors": {
       "classes": [
@@ -78,7 +83,8 @@
     "wall_ms": 90000,
     "inference_calls": 0,
     "delegated_runs": 0,
-    "materialize_limit": 32
+    "materialize_limit": 32,
+    "output_bytes": 65536
   },
   "fixtures": [
     {

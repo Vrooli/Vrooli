@@ -143,6 +143,7 @@ CREATE INDEX IF NOT EXISTS idx_runs_parent_run_id ON runs(parent_run_id) WHERE p
 -- Stats query indexes
 CREATE INDEX IF NOT EXISTS idx_runs_created_status ON runs(created_at, status);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_runs_import_provenance ON runs(import_source_harness, import_source_session_id) WHERE import_source_harness <> '' AND import_source_session_id <> '';
+CREATE INDEX IF NOT EXISTS idx_runs_import_session ON runs(import_source_session_id) WHERE import_source_session_id <> '';
 -- Authorization peer binding scans only nonterminal runs; keep that owner
 -- lookup from traversing the retained terminal history.
 CREATE INDEX IF NOT EXISTS idx_runs_status_created_at_id ON runs(status, created_at DESC, id DESC);

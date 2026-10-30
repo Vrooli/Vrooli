@@ -31,19 +31,19 @@ func (h *Handler) usageMeasures() []usageMeasure {
 		{
 			UsageForecast, "UsageForecast", "Current provider quota windows with burn rates and projected exhaustion.",
 			[]string{"will I run out of quota this week", "agent usage forecast"},
-			[]string{"provider"},
+			[]string{"provider", "account_scope"},
 			"windows", "pool", "percent",
 			func(ctx context.Context, p map[string]string) (proto.Message, error) {
-				return msg(h.UsageForecast(ctx, connect.NewRequest(&measurepb.UsageForecastRequest{Provider: p["provider"]})))
+				return msg(h.UsageForecast(ctx, connect.NewRequest(&measurepb.UsageForecastRequest{Provider: p["provider"], AccountScope: p["account_scope"]})))
 			},
 		},
 		{
 			UsageForecastBacktest, "UsageForecastBacktest", "Forecast error against the linear baseline on completed quota windows.",
 			[]string{"how accurate is the usage forecast"},
-			[]string{"provider"},
+			[]string{"provider", "account_scope"},
 			"summaries", "population", "points",
 			func(ctx context.Context, p map[string]string) (proto.Message, error) {
-				return msg(h.UsageForecastBacktest(ctx, connect.NewRequest(&measurepb.UsageForecastBacktestRequest{Provider: p["provider"]})))
+				return msg(h.UsageForecastBacktest(ctx, connect.NewRequest(&measurepb.UsageForecastBacktestRequest{Provider: p["provider"], AccountScope: p["account_scope"]})))
 			},
 		},
 		{

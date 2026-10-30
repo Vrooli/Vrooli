@@ -33,9 +33,9 @@ func (f *attributionFixture) UsageFriction(_ context.Context, req *connect.Reque
 	return connect.NewResponse(&measurepb.UsageFrictionResponse{
 		GeneratedAt: "2026-10-29T06:00:00Z", Open: 3, Reported: 1, RunsAnalysed: 3, RunsTotal: 10,
 		Problems: []*measurepb.UsageFrictionProblem{
-			{Fingerprint: "4454d97b01096183cda4b8798ba39b7e", Description: "Agents run `rg` repeatedly instead of the preferred `search-hub query`.", Owner: "rg", OwnerKind: "command", Episodes: 87, Runs: 53, TypicalWallClockMs: 477_000, WallClockMs: 196_560_000, Points: 0.68, Provider: "anthropic", Window: "10080m", Status: "open", TimeLost: true, TimeKind: "wasted"},
-			{Fingerprint: "95e3a7a62e5a82c4dcb7aca8ddac38c6", Description: "An agent reads a file, then reads the same file again with no edit in between.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 839, Runs: 18, TypicalWallClockMs: 280, WallClockMs: 677_000_000, Points: 7.19, Provider: "anthropic", Window: "10080m", Status: "reported", BugId: "knw-1790111426711964967", TimeLost: true, TimeKind: "wasted"},
-			{Fingerprint: "85dd60381afd06f12320256ee6c24d40", Description: "The agent declares it is done, then keeps working with no new instruction.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 50, Runs: 11, EpisodeTurns: 533, Tokens: 4_200_000, Points: 2.5, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "none"},
+			{Fingerprint: "4454d97b01096183cda4b8798ba39b7e", Description: "Agents run `rg` repeatedly instead of the preferred `search-hub query`.", Owner: "rg", OwnerKind: "command", Episodes: 87, Runs: 53, TypicalWallClockMs: 477_000, WallClockMs: 196_560_000, Points: 0.68, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "redundant"},
+			{Fingerprint: "95e3a7a62e5a82c4dcb7aca8ddac38c6", Description: "An agent reads a file, then reads the same file again with no edit in between.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 839, Runs: 18, TypicalWallClockMs: 280, WallClockMs: 677_000_000, Points: 7.19, Provider: "anthropic", Window: "10080m", Status: "reported", BugId: "knw-1790111426711964967", TimeKind: "redundant"},
+			{Fingerprint: "85dd60381afd06f12320256ee6c24d40", Description: "An agent repeats a short wait instead of one blocking wait.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 50, Runs: 11, EpisodeTurns: 533, Tokens: 4_200_000, Points: 2.5, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "redundant"},
 			{Fingerprint: "4885b8f01096183cda4b8798ba39b7ef", Description: "A run sits idle between tool calls for a long stretch.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 229, Runs: 57, TypicalWallClockMs: 819_000, WallClockMs: 693_000_000, Points: 1.4, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "idle"},
 		},
 	}), nil
@@ -186,12 +186,12 @@ func TestUsageFrictionListsPlainProblemsWithOwnerCostAndStatus(t *testing.T) {
 	}
 	assertContains(t, out,
 		"3 open · 1 reported · 0 dismissed as of Thu Oct 29 06:00 UTC",
-		"4454d97b0109  Agents run `rg` repeatedly instead of the preferred `search-hub query`.",
-		"owner rg · 87 episodes in 53 runs · typical 7m 57s wasted, total 54h 36m wasted · ≈0.7 pts of Claude · weekly · open",
-		"owner Agent behaviour · 839 episodes in 18 runs · typical 280 ms wasted, total 188h 03m wasted · ≈7.2 pts of Claude · weekly · reported knw-1790111426711964967",
+		"4454d97b01096183cda4b8798ba39b7e  Agents run `rg` repeatedly instead of the preferred `search-hub query`.",
+		"owner rg · 87 episodes in 53 runs · redundant call time typically 7m 57s, 54h 36m in total · ≈0.7 pts of Claude · weekly · open",
+		"owner Agent behaviour · 839 episodes in 18 runs · redundant call time typically 280 ms, 188h 03m in total · ≈7.2 pts of Claude · weekly · reported knw-1790111426711964967",
 		"Re-analysing 3 of 10 runs: counts and totals cover the analysed runs only.",
-		"idle typically 13m 39s, 192h 30m in total (waiting, not wasted work)",
-		"owner Agent behaviour · 50 episodes in 11 runs · 533 tool calls and 4.2M tokens of work after declaring done (not counted as lost time) · ≈2.5 pts",
+		"idle gap typically 13m 39s, 192h 30m in total",
+		"owner Agent behaviour · 50 episodes in 11 runs · ≈2.5 pts",
 	)
 }
 
@@ -245,5 +245,15 @@ func TestUsageFrictionReportAndDismissWriteThroughTheEpisodesService(t *testing.
 	}
 	if err := json.Unmarshal([]byte(run(frictionReportCommand(client), "4454d97b", "--json")), &decoded); err != nil || decoded.BugID != "knw-7" {
 		t.Fatalf("--json must be the wire shape: %v %+v", err, decoded)
+	}
+}
+
+// A problem with no measured time prints no time sentence, never "0s".
+func TestFrictionTimeCostOmitsUnmeasuredTime(t *testing.T) {
+	if got := frictionTimeCost(&measurepb.UsageFrictionProblem{}); got != "" {
+		t.Errorf("unmeasured = %q, want empty", got)
+	}
+	if got := frictionTimeCost(&measurepb.UsageFrictionProblem{WallClockMs: 60_000, TypicalWallClockMs: 30_000}); !strings.Contains(got, "redundant call time") {
+		t.Errorf("measured = %q", got)
 	}
 }

@@ -12,7 +12,7 @@ import (
 // Calibration methods.
 const (
 	MethodFitted = "fitted" // scale fitted on the window's blocks; unexplained increase is unattributed
-	MethodScaled = "scaled" // too few blocks: usage explains every block it ran in
+	MethodScaled = "scaled" // too few blocks to fit: the lowest block ratio scales, no R²
 	MethodNone   = "none"   // no usage to calibrate
 )
 
@@ -21,9 +21,11 @@ const (
 	// points before calibrating: integer rounding moves a single step's
 	// usage by up to a whole point.
 	blockPoints = 3
-	// minFitBlocks is the fewest blocks with usage the scale is fitted on;
-	// below it one scale makes the usage explain every block it ran in.
-	minFitBlocks = 5
+	// minFitBlocks is the fewest blocks with usage the scale is fitted on:
+	// max(8, 3 × fitted parameters), and the scale is the only parameter (model
+	// and category ratios are priors, not fitted). Below it the scale is the
+	// lowest block ratio, no R² is reported and the rest stays off-disk.
+	minFitBlocks = 8
 	// scaleQuantile is the increase-weighted quantile of block ratios taken
 	// as the window's scale.
 	scaleQuantile = 0.25
@@ -45,14 +47,18 @@ type ModelWeight struct {
 	// categories cost their weight times a cached-input token.
 	CachedPerPoint                         float64
 	InputWeight, CreationWeight, OutWeight float64
-	Source                                 string // price_book | tier_prior | fallback
-	Slices                                 int    // slices the model has usage in
+	// Source is where the ratio comes from: price_book | tier_prior | fallback.
+	// Every source is a prior: no window fits model ratios.
+	Source string
+	Slices int // slices the model has usage in
 }
 
 // Calibration records how one window converted tokens to points.
 type Calibration struct {
-	Method         string
-	Weights        []ModelWeight
+	Method  string
+	Weights []ModelWeight
+	// RSquared is the centered R² of the fit; zero when Method is not fitted
+	// (too few blocks to report one).
 	RSquared       float64
 	Slices         int
 	OffDiskPerHour float64
@@ -73,6 +79,11 @@ type Result struct {
 	Weighted []float64
 	// Pending is usage after the newest step, not yet in any reading.
 	Pending domain.UsageCounters
+	// proj is the projection context Recommend sets for its own copy.
+	proj projCtx
+	// pendingAt is each run's newest request after the newest step: it is in
+	// no consumer's points yet but shows the run is still going.
+	pendingAt map[string]time.Time
 }
 
 // Attributed is the observed increase explained by the turns.
@@ -134,6 +145,12 @@ func Attribute(w Window, from time.Time, turns []Turn, prices Prices) Result {
 		}
 		if len(slices) == 0 || turn.At.After(last) {
 			result.Pending = addCounters(result.Pending, turn.Tokens)
+			if result.pendingAt == nil {
+				result.pendingAt = map[string]time.Time{}
+			}
+			if turn.At.After(result.pendingAt[turn.RunID]) {
+				result.pendingAt[turn.RunID] = turn.At
+			}
 			continue
 		}
 		index := sort.Search(len(slices), func(i int) bool { return !slices[i].To.Before(turn.At) })
@@ -196,8 +213,6 @@ func Attribute(w Window, from time.Time, turns []Turn, prices Prices) Result {
 	for b, block := range slices {
 		switch {
 		case cost[b] <= 0:
-		case calibration.Method == MethodScaled:
-			explained[b] = block.Points
 		default:
 			explained[b] = min(block.Points, scale*cost[b])
 		}
@@ -257,8 +272,12 @@ func calibrate(blocks []Slice, blockOf []int, costs []float64) (float64, Calibra
 	}
 	if len(ratios) < minFitBlocks {
 		calibration.Method = MethodScaled
-		calibration.Note = fmt.Sprintf("only %d blocks with usage: usage explains every block it ran in", len(ratios))
-		return observed / total, calibration
+		calibration.Note = fmt.Sprintf("only %d blocks with usage (need %d): the lowest block ratio scales, the rest stays off-disk, no R² reported; %s", len(ratios), minFitBlocks, priorNote)
+		lowest := ratios[0].value
+		for _, r := range ratios {
+			lowest = math.Min(lowest, r.value)
+		}
+		return lowest, calibration
 	}
 	sort.Slice(ratios, func(i, j int) bool { return ratios[i].value < ratios[j].value })
 	rank, scale := observed*scaleQuantile, ratios[len(ratios)-1].value
@@ -268,14 +287,25 @@ func calibrate(blocks []Slice, blockOf []int, costs []float64) (float64, Calibra
 			break
 		}
 	}
-	var squares, residuals float64
+	// R² is centered on the blocks' mean increase: against zero, any fit that
+	// tracks the increase's size reads near 1.
+	var mean, squares, residuals float64
+	for _, block := range blocks {
+		mean += block.Points / float64(len(blocks))
+	}
 	for b, block := range blocks {
-		squares += block.Points * block.Points
+		squares += (block.Points - mean) * (block.Points - mean)
 		residuals += (block.Points - scale*cost[b]) * (block.Points - scale*cost[b])
 	}
-	calibration.Method, calibration.RSquared = MethodFitted, math.Max(0, 1-residuals/squares)
+	calibration.Method, calibration.Note = MethodFitted, priorNote
+	if squares > 0 {
+		calibration.RSquared = math.Max(0, 1-residuals/squares)
+	}
 	return scale, calibration
 }
+
+// priorNote states, in every calibration, that model ratios are not fitted.
+const priorNote = "per-model weights are priors (price book or tier ratios), not fitted; models that share blocks cannot be told apart"
 
 func classKey(turn Turn) string {
 	model := turn.Model

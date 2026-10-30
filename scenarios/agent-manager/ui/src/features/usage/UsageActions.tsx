@@ -34,6 +34,25 @@ function EvidenceRow({ evidence }: { evidence: UsageEvidenceRef }) {
   );
 }
 
+/** A lever that claims no saving: an unproven model move, or the starting-context floor. */
+function isInformational(lever: UsageLever): boolean {
+  return lever.confidence === "unproven" || lever.rule === "R-floor";
+}
+
+/** The upper bound of one informational lever, from its typed facts: the model's price gap, or the floor's share of the target's use. */
+function leverCeiling(lever: UsageLever, group: UsageRecommendationGroup): number {
+  const facts = lever.facts?.facts;
+  if (facts?.case === "model") return facts.value.expensiveWeeklyPoints * (1 - facts.value.priceRatio);
+  if (facts?.case === "context" && lever.rule === "R-floor") return facts.value.cachedShare * group.usedSoFarPoints;
+  return 0;
+}
+
+/** The "up to" ceiling of a group whose levers are all informational, or undefined when any lever claims a saving. */
+export function informationalCeiling(group: UsageRecommendationGroup): number | undefined {
+  if (group.crossCut || group.levers.length === 0 || !group.levers.every(isInformational)) return undefined;
+  return Math.max(...group.levers.map((lever) => leverCeiling(lever, group)));
+}
+
 function groupEvidence(group: UsageRecommendationGroup): UsageEvidenceRef[] {
   return group.levers.flatMap((lever) => lever.evidenceRefs).filter((ref, index, all) => all.findIndex((other) => other.kind === ref.kind && other.id === ref.id) === index);
 }
@@ -44,7 +63,8 @@ function ActionCard({ group }: { group: UsageRecommendationGroup }) {
   const evidence = groupEvidence(group);
   const firstRun = evidence.find((ref) => ref.kind === "run");
   const isFriction = group.crossCut;
-  const nothingLeft = !isFriction && group.recoverablePoints <= 0;
+  const ceiling = informationalCeiling(group);
+  const nothingLeft = !isFriction && ceiling === undefined && group.recoverablePoints <= 0;
   const runCount = evidence.filter((ref) => ref.kind === "run").length;
   return (
     <Card id={isFriction ? `friction-${group.targetId}` : undefined} className="flex scroll-mt-4 flex-col gap-3 bg-muted/20 p-3 sm:p-4" data-testid="usage-recommendation">
@@ -56,8 +76,8 @@ function ActionCard({ group }: { group: UsageRecommendationGroup }) {
           </p>
         </div>
         <div className="text-right">
-          {nothingLeft ? <div className="text-sm font-semibold text-muted-foreground">Nothing left to save</div> : <div className="text-base font-bold tabular-nums text-success">≈ {formatSaving(isFriction ? group.combinedSavedPoints : group.recoverablePoints)}</div>}
-          <div className="text-xs text-muted-foreground">{isFriction ? "also in the sessions above, not added to them" : nothingLeft ? "this target has stopped" : `recoverable before the reset${group.levers.length > 1 ? ", overlap removed" : ""}`}</div>
+          {ceiling !== undefined ? <div className="text-base font-bold tabular-nums text-muted-foreground" data-testid="usage-ceiling">up to ≈ {formatSaving(ceiling)} (unproven)</div> : nothingLeft ? <div className="text-sm font-semibold text-muted-foreground">Nothing left to save</div> : <div className="text-base font-bold tabular-nums text-success">≈ {formatSaving(isFriction ? group.combinedSavedPoints : group.recoverablePoints)}</div>}
+          <div className="text-xs text-muted-foreground">{isFriction ? "also in the sessions above, not added to them" : ceiling !== undefined ? "an upper bound, not a promised saving" : nothingLeft ? "this target has stopped" : `recoverable before the reset${group.levers.length > 1 ? ", overlap removed" : ""}`}</div>
         </div>
       </div>
       <p className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
@@ -73,11 +93,11 @@ function ActionCard({ group }: { group: UsageRecommendationGroup }) {
               {leverText(lever, group)}
               {index > 0 ? <span className="text-muted-foreground"> · more after the larger {group.levers.length > 2 ? "levers" : "lever"}</span> : null}
             </span>
-            <span className="font-semibold tabular-nums text-success">{nothingLeft ? "" : formatSaving(isFriction ? lever.marginalPoints : lever.recoverablePoints)}</span>
+            <span className="font-semibold tabular-nums text-success">{nothingLeft || ceiling !== undefined ? "" : formatSaving(isFriction ? lever.marginalPoints : lever.recoverablePoints)}</span>
           </li>
         ))}
       </ul>
-      {nothingLeft ? null : <p className="text-xs text-muted-foreground">Savings are what is still recoverable before the reset; points inside a description are what that activity used so far.</p>}
+      {nothingLeft || ceiling !== undefined ? null : <p className="text-xs text-muted-foreground">Savings are what is still recoverable before the reset; points inside a description are what that activity used so far.</p>}
       <div className="flex flex-wrap gap-2">
         {isFriction ? <Link to="/usage?tab=friction" className={BUTTON}>See in Friction</Link> : null}
         {!isFriction && firstRun ? <Link to={`/runs/${encodeURIComponent(firstRun.id)}?tab=usage`} className={`${BUTTON} bg-primary text-primary-foreground hover:bg-primary/90`}>Open session</Link> : null}
@@ -136,7 +156,8 @@ export function UsageActions({ groups, loading, error, onRetry, foldedGroups, fo
   const shown = groups.slice(0, SHOWN_ACTIONS);
   const rest = groups.slice(SHOWN_ACTIONS);
   const smaller = rest.length + foldedGroups;
-  const smallerPoints = rest.reduce((sum, group) => sum + group.combinedSavedPoints, foldedPoints);
+  // Friction plans are already inside the session plans; adding them would count a saving twice.
+  const smallerPoints = rest.reduce((sum, group) => (group.crossCut ? sum : sum + group.combinedSavedPoints), foldedPoints);
   return (
     <DataState
       compact

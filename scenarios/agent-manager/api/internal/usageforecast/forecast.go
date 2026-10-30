@@ -65,6 +65,7 @@ type interval struct{ first, last time.Time }
 
 // Window is one provider subscription window reconstructed from readings.
 type Window struct {
+	AccountScope  string
 	Provider      string
 	Pool          string
 	Window        string
@@ -88,7 +89,13 @@ type Window struct {
 }
 
 // Scope names the provider, pool and window length.
-func (w *Window) Scope() string { return w.Provider + "|" + w.Pool + "|" + w.Window }
+func (w *Window) Scope() string {
+	base := w.Provider + "|" + w.Pool + "|" + w.Window
+	if w.AccountScope != "" {
+		return base + "|account:" + w.AccountScope
+	}
+	return base
+}
 
 func (w *Window) nominal() time.Duration { return time.Duration(w.WindowMinutes) * time.Minute }
 
@@ -202,7 +209,7 @@ func (w *Window) add(span pricing.QuotaReadingSpan) {
 }
 
 func newWindow(span pricing.QuotaReadingSpan) *Window {
-	w := &Window{Provider: span.Provider, Pool: span.Pool, Window: span.Window, Start: span.FirstAt}
+	w := &Window{AccountScope: span.AccountScope, Provider: span.Provider, Pool: span.Pool, Window: span.Window, Start: span.FirstAt}
 	if span.WindowMinutes != nil {
 		w.WindowMinutes = *span.WindowMinutes
 	}
@@ -253,7 +260,7 @@ func Windows(spans []pricing.QuotaReadingSpan) []*Window {
 	var windows []*Window
 	byScope := map[string][]*Window{}
 	for _, span := range ordered {
-		scope := span.Provider + "|" + span.Pool + "|" + span.Window
+		scope := (&Window{AccountScope: span.AccountScope, Provider: span.Provider, Pool: span.Pool, Window: span.Window}).Scope()
 		var match *Window
 		if span.ResetAt == nil || span.ResetAt.IsZero() {
 			match = continues(byScope[scope], span)
@@ -727,7 +734,9 @@ func CurrentWithActivity(ctx context.Context, spans []pricing.QuotaReadingSpan, 
 		return forecasts
 	}
 	for i, f := range forecasts {
-		if !f.stale {
+		if !f.stale || f.Window.AccountScope != "" {
+			// Provider-wide activity cannot establish that a specific account
+			// has been idle; keep its stale standing unknown.
 			continue
 		}
 		if last, err := source.LastProviderActivity(ctx, f.Window.Provider); err == nil && !last.After(f.Window.LastAt) {

@@ -277,3 +277,88 @@ mockups are layout only.
 | P2-A8 | REST/RPC consolidation recorded with the consumer search and the kept list | search output + endpoints.json diff |
 | P2-A9 | Scoped Test Genie phases pass for changed docs/business/unit areas, or failures are shown pre-existing | `vrooli scenario test agent-manager --phases …` |
 | P2-A10 | Two consecutive fresh hostile review passes over the pass-2 changes find nothing material | review outputs |
+
+## 11. Pass 3 — accuracy (operator approved 2026-10-29)
+
+Audit of 2026-10-29 (orchestrator + four read-only audits; memory
+`agent-manager-friction-measures-are-currently-untrustworthy`): forecast, burners and coverage are
+trustworthy; friction and recommendations are not. Most friction episodes are false positives and the
+savings arithmetic overstates. Pass 3 makes every shown finding true before any UX redesign.
+
+### 11.1 Findings this pass must remove
+
+| ID | Finding (evidence) |
+|---|---|
+| P3-F1 | `intent_class` is argument shape, not intent: 93.5% of facts contain `shell:unparseable`; Codex `exec` input (JavaScript) is parsed as shell, giving executables `await`/`const`/`let` (2,119 facts) — `runsignal/invocation.go:312-358` |
+| P3-F2 | No message source: injected user-role messages (Claude `<task-notification>`, `<teammate-message>`, hook/system notices; Codex `<codex_internal_context source="goal">`, AGENTS.md/environment context; Agent Manager wakes `[wake…]`, `[awaited result…]`) read as operator turns. The Claude codec drops `origin.kind`, `promptSource`, `isMeta` |
+| P3-F3 | Outcome: the call exit code is copied onto every segment; `rg`/`grep` exit 1 (no match) counts as failure; Codex tool results never get an outcome |
+| P3-F4 | Detector precision (sampled): handoff-continuation ≈0% (3,163/3,165 in goal-mode runs), fallback-after-capability ≈0% (1,703/1,709 start and end on one call), guidance-repair mostly injected messages, wrong-primitive misreads AGENTS.md rule 6 (search-hub is recall, not in-file grep), stall ≈5% (574/653 start at Codex `task_complete`), time-to-first-success ≈0%, edit-revert ≈5% (Codex delete+add rewrite), flag-hunting ≈10% (`cd`), wait-misuse ≈15% (`await` matches "wait"), capability-abandoned ≈20%, retry-after-failure ≈30%, read-then-reread ≈40% (`/proc`, logs, status files), command-failure ≈55%, abandoned-command-family ≈45% |
+| P3-F5 | Episode cost: `wall_clock_ms` is one call's latency labelled "wasted"; `tokens` is all run usage between two timestamps (one episode: 115 ms, 7.66B tokens); `Turns` hard-coded |
+| P3-F6 | Projection: "active" is judged against the newest attributed turn of any consumer, not now (`usageattribution/rules.go:296`); horizon stretches a burst across the week (a finished session projected at 150 pts); no cap at window headroom; recoverable reuses extrapolated past time |
+| P3-F7 | Levers: fixed targets (fan-out brief 20k, context 60k) sit at or below the measured 46–60k prompt floor; fan-out never compares with doing the work in the parent; R-model sees only workload-tagged runs (interactive sessions are 78% of Claude burn) |
+| P3-F8 | Calibration: Opus:Sonnet 1:0.5 is a hard-coded prior (`pricing/fallback.go` tierPriors) presented beside an uncentered R² (0.997 over 8 blocks); the model ratio is not identifiable when models share blocks |
+| P3-F9 | Debt: pattern names hand-listed in four places; `measures` retry/help-recovery/repeated-work/tool-failure rates duplicate episode patterns; `run episodes` / `run messages-friction` / `run episode-trend` overlap `usage friction`; `measures help` lists an unregistered `episodes`; legacy `legacyOwnershipFree`; `BoundProjection` in `runreport`; tests pin the wrong behaviour |
+| P3-F10 | The A11 change ("short worker briefs", from R-fanout) rests on a wrong mechanism: Claude sub-agents start at the prompt floor, not the parent context |
+
+### 11.2 Targets
+
+- **Facts.** Every fact carries a parsed command identity (`command_path`: program + subcommand words,
+  e.g. `vrooli scenario logs`, `rg`, `ls`) and the intent key derives from it, never from argument
+  shape. Codex `exec` JavaScript is read for its `exec_command({cmd})` strings; other code is a `code`
+  fact, never shell. Each segment of a compound command gets its own outcome when knowable, else
+  `unknown`; exit 1 of `rg`/`grep`/`diff`/`test` is `no-match`, not failure. Codex tool results get an
+  outcome from the output's exit code.
+- **Message source.** Every message event carries `source`: `operator`, `injected_context`,
+  `notification`, `teammate`, `goal_continuation`, `wake`, `hook`, `tool_output` or `unknown`, from
+  provider fields when present (Claude `origin.kind`, `promptSource`, `isMeta`) and from content
+  markers otherwise (one shared classifier, reusing `isInjectedContextText`). Detectors that need the
+  operator use `source == operator`.
+- **Detectors.** One pattern table (id, version, cause scope, time kind, cost rule, description) is the
+  only list. time-to-first-success is deleted. handoff-continuation never fires in goal-mode runs or
+  across injected continuations and is informational (not priced). fallback-after-capability requires
+  two distinct calls and the same `command_path` family intent. wrong-primitive is limited to recall
+  intents (searching prior work/docs), not in-file search. Each other pattern takes the minimal fix in
+  P3-F4's audit. Command-failure and abandoned-command-family on Vrooli-owned commands are routed to
+  the owning scenario as owner.
+  Operator corrections (guidance-repair) form one aggregate problem, owned by agent behaviour and
+  never by a neighbouring command: a correction's subject is free text with no structured key, so
+  splitting it would invent groupings. The problem lists every correction as evidence; dismissing
+  it sets aside operator-correction friction as a whole (orchestrator, 2026-10-30).
+- **Episode cost.** An episode is priced by its own redundant calls (their argument + result +
+  residency tokens) and, where time is meaningful, by the redundant call's duration labelled as such.
+  No episode reports run-wide tokens.
+- **Precision gate.** A labelled corpus (true and false episodes per pattern, from real runs, reduced
+  to the events the detector reads) and a test that computes per-pattern precision. A pattern below
+  0.8 precision (or with fewer than 10 labelled episodes) is `quarantined`: kept in the read model,
+  excluded from `usage friction`, R-friction and the UI.
+- **Projection.** Active means `now − last ≤ max(15 min, 3 × the session's median request gap)`. A
+  finished session projects to its points. Projection decays for active ones. The sum of projections
+  and each lever's saving are capped at the window headroom (`100 − used%`) and at the lever's own
+  base. Recoverable is the saving rate over remaining expected activity.
+- **Levers.** The measured prompt floor (median first-request prompt per runner/model/profile) replaces
+  constants. R-fanout is replaced by **R-lifetime** (worker restart at a request cap, netting the
+  rebuild cost) and **R-model-mix** (sub-agents and interactive sessions on a dearer tier; shown as a
+  range, "unproven" while the ratio is a prior). **R-floor** reports the floor's share and
+  trimmable size. Fan-out fires only for duplicated workers.
+- **Calibration.** Centered R² with a minimum block count (`max(8, 3 × parameters)`); fewer blocks
+  → no R² shown; priors are labelled "prior" in the output.
+- **Debt.** Every P3-F9 item is deleted, merged or derived; net non-test LOC in the API and CLI falls
+  against the pass-3 baseline.
+  Exception (orchestrator, 2026-10-29): `measures retry-rate`, `repeated-work-rate` and
+  `tool-failure-rate` stay while `.vrooli/program-runtime/setpoint-read.py` and the
+  `agent-manager-improve` skill read them; they now derive from pass-3 facts. Migrating those two
+  readers to `usage friction` is the follow-up that retires them.
+
+### 11.3 Pass-3 acceptance
+
+| ID | Criterion | Proof |
+|---|---|---|
+| P3-A1 | Facts: <5% of shell facts lack a `command_path`; no fact has a JS keyword executable; segment outcomes and no-match semantics tested | unit tests + read-only SQL on the reindexed corpus |
+| P3-A2 | Message source populated for new events and derived for stored ones; guidance-repair fires only on `operator` | codec tests (Claude and Codex fixtures) + SQL distribution |
+| P3-A3 | Every pattern shown by `usage friction` has precision ≥0.8 on the labelled corpus; others quarantined | precision test output |
+| P3-A4 | No episode carries run-wide tokens; no "wasted" label on a single call's latency | tests + live `usage friction --json` |
+| P3-A5 | No finished session projects above its points; projections never exceed headroom; R-lifetime, R-model-mix, R-floor fire on the live corpus with measured floors | unit tests + live `usage recommendations` |
+| P3-A6 | Calibration output: centered R², minimum blocks, priors labelled | tests + live `usage burners` |
+| P3-A7 | P3-F9 debt closed; net non-test LOC falls in API and CLI | DEBT.md pass-3 rows + `wc -l` |
+| P3-A8 | Go/CLI/UI tests and type-check pass; scoped Test Genie phases pass or failures shown pre-existing | command output |
+| P3-A9 | Two consecutive fresh hostile review passes find nothing material | review outputs |

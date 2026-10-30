@@ -1215,6 +1215,43 @@ func (r *runRepository) GetByImportProvenance(ctx context.Context, sourceHarness
 	return nil, nil
 }
 
+// FindImportProvenance is a bounded identity read, independent of the run-list
+// page. It retains duplicate identities as ambiguity instead of choosing one.
+func (r *runRepository) FindImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) ([]uuid.UUID, error) {
+	if strings.TrimSpace(sourceHarness) == "" || strings.TrimSpace(sourceSessionID) == "" {
+		return nil, fmt.Errorf("harness and session ID are required")
+	}
+	rows, err := r.db.QueryxContext(ctx, `SELECT id, import_source_harness FROM runs WHERE import_source_session_id = ? AND import_source_session_id <> '' ORDER BY created_at ASC, id ASC`, sourceSessionID)
+	if err != nil {
+		return nil, wrapDBError("find_import_provenance", "Run", sourceHarness+":"+sourceSessionID, err)
+	}
+	defer rows.Close()
+	wanted := domain.NormalizeImportHarness(sourceHarness)
+	ids := make([]uuid.UUID, 0, 2)
+	for rows.Next() {
+		var id string
+		var harness sql.NullString
+		if err := rows.Scan(&id, &harness); err != nil {
+			return nil, err
+		}
+		if domain.NormalizeImportHarness(harness.String) != wanted {
+			continue
+		}
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, parsed)
+		if len(ids) == 2 {
+			break
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 // webConsoleSessionLookupChunk keeps each IN list well under SQLite's bound
 // on host parameters.
 const webConsoleSessionLookupChunk = 500

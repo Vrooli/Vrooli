@@ -35,6 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_subscription_periods_provider_window
 CREATE TABLE IF NOT EXISTS quota_observations (
     id TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
+    account_scope TEXT NOT NULL DEFAULT '',
     pool TEXT NOT NULL,
     window TEXT NOT NULL,
     observed_at TEXT NOT NULL,
@@ -55,6 +56,9 @@ CREATE TABLE IF NOT EXISTS quota_observations (
 
 CREATE INDEX IF NOT EXISTS idx_quota_observations_scope_time
     ON quota_observations(provider, pool, window, observed_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_quota_observations_account_scope_time
+    ON quota_observations(account_scope, provider, pool, window, observed_at DESC);
 
 CREATE TABLE IF NOT EXISTS model_pricing (
     id TEXT PRIMARY KEY,

@@ -25,7 +25,6 @@
       "agent-manager run result",
       "agent-manager run events",
       "agent-manager run episodes",
-      "agent-manager run messages-friction",
       "agent-manager usage run",
       "agent-manager measures episode-cohort",
       "agent-manager measures cohort-report",

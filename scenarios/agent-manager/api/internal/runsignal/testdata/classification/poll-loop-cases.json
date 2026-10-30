@@ -4,7 +4,7 @@
     "gapSeconds": 10,
     "stateChange": false,
     "expectedCount": 1,
-    "expectedWallClockMs": 21000,
+    "expectedWallClockMs": 3000,
     "expectedTokens": 42
   },
   {

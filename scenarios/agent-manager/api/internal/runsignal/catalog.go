@@ -305,7 +305,8 @@ func stripLeadingCommandFlags(tokens []string) []string {
 
 func catalogResolution(owner, command, snapshot string, state availability.State) CatalogResolution {
 	catalogCache.Lock()
-	semantics := catalogCache.semantics[owner+" "+command]
+	// command is the full catalog path, owner first ("agent-manager effort lint").
+	semantics := catalogCache.semantics[command]
 	catalogCache.Unlock()
 	result := CatalogResolution{Owner: owner, Command: command, Snapshot: snapshot, State: state, SemanticsKind: semantics.Kind}
 	if semantics.Verdict != nil {

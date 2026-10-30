@@ -52,6 +52,7 @@ func generate(output string) error {
 		return err
 	}
 	routes = append(routes, muxRoutesMust("internal/wiring/routes.go")...)
+	routes = append(routes, muxRoutesMust("internal/handlers/pricing.go")...)
 	routes = append(routes, connectRoutes(domainpb.File_agent_manager_v1_domain_episode_proto)...)
 	routes = append(routes, connectRoutes(measurepb.File_agent_manager_v1_measures_measures_proto)...)
 	seen := map[route]bool{}

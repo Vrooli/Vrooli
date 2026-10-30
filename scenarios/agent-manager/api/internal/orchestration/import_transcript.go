@@ -88,7 +88,7 @@ func readTranscriptLabelEvidence(source io.Reader) (transcriptLabelEvidence, err
 			// instructions block as the first user-role record, so accepting
 			// the first user text verbatim labelled thousands of runs with the
 			// same AGENTS.md boilerplate instead of the operator's request.
-			if candidate := findTranscriptString(value, transcriptUserText); !isInjectedContextText(candidate) {
+			if candidate := findTranscriptString(value, transcriptUserText); !domain.IsInjectedContextText(candidate) {
 				evidence.UserPrompt = candidate
 			}
 		}
@@ -118,42 +118,6 @@ func findTranscriptString(value any, match func(map[string]any) (string, bool)) 
 		}
 	}
 	return ""
-}
-
-// injectedContextFilePrefixes are instruction files harnesses inline into the
-// first user-role record. The marker is always at the start of the text.
-var injectedContextFilePrefixes = []string{
-	"# agents.md",
-	"# claude.md",
-	"agents.md instructions",
-	"claude.md instructions",
-}
-
-// isInjectedContextText reports whether a candidate user message is harness-
-// injected context (an instructions block, environment dump, or command
-// envelope) rather than something a person typed. Such text is unusable as a
-// run label: it is identical across every session the harness started.
-//
-// Empty text counts as injected so callers keep scanning for a real message.
-func isInjectedContextText(text string) bool {
-	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
-		return true
-	}
-	// Harness context blocks open with a tag: <user_instructions>,
-	// <environment_context>, <local-command-caveat>, <command-name>, ...
-	if strings.HasPrefix(trimmed, "<") {
-		if end := strings.IndexByte(trimmed, '>'); end > 1 && end <= 64 {
-			return true
-		}
-	}
-	lowered := strings.ToLower(trimmed)
-	for _, prefix := range injectedContextFilePrefixes {
-		if strings.HasPrefix(lowered, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func transcriptUserText(object map[string]any) (string, bool) {

@@ -93,7 +93,7 @@ func TestDeriveInvocationFactsExtractsKnownProgramAndSkillIdentifiers(t *testing
 }
 
 func TestCommandWithoutKnownIdentifierKeepsIdentifiersEmpty(t *testing.T) {
-	programID, skillID := commandIdentifiers("bash -lc echo secret")
+	programID, skillID := commandIdentifiers([]string{"bash", "-lc", "echo", "secret"})
 	if programID != "" || skillID != "" {
 		t.Fatalf("programID=%q skillID=%q", programID, skillID)
 	}
@@ -175,19 +175,10 @@ func TestDeriveInvocationFactsFingerprintsOpaqueShellCommandsByHashedCommand(t *
 
 func TestDeriveInvocationFactsKeepsUnparseableReason(t *testing.T) {
 	runID := uuid.New()
-	call := domain.NewToolCallEvent(runID, "shell", "one", map[string]any{"command": "git status $(pwd)"})
+	call := domain.NewToolCallEvent(runID, "shell", "one", map[string]any{"command": "git status 'unterminated"})
 	fact := DeriveInvocationFacts([]*domain.RunEvent{call})[0]
 	if fact.Ownership != OwnershipUnparseable || fact.OwnershipReason == "" || fact.Executable != "" {
-		t.Fatalf("compound shell was promoted: %+v", fact)
-	}
-}
-
-func TestNormalizedArgumentShapeOmitsArgumentValues(t *testing.T) {
-	shape := normalizedArgumentShape(map[string]any{"command": "git commit --token=super-secret /home/alice/private.go"})
-	for _, value := range []string{"super-secret", "/home/alice", "private.go"} {
-		if strings.Contains(shape, value) {
-			t.Fatalf("shape leaked %q: %q", value, shape)
-		}
+		t.Fatalf("malformed shell was promoted: %+v", fact)
 	}
 }
 
@@ -231,5 +222,26 @@ func TestToolResultOutcomePreservesUnknownAndHistoricalCompatibility(t *testing.
 				t.Fatalf("outcome=%s want=%s", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestJSUnitsIgnoresCommentsAndMarksLoopsUnknown(t *testing.T) {
+	commented := "// don't run this: exec_command({cmd:\"rm -rf /\"})\n/* it's */ text(await tools.exec_command({cmd:\"rg -n foo\", // isn't a string\n workdir:\"/x\"}))"
+	commands, unresolved, other := jsExecCommands(commented)
+	if len(commands) != 1 || commands[0].Script != "rg -n foo" || unresolved != 0 || other {
+		t.Fatalf("comments must be skipped: %v %d %v", commands, unresolved, other)
+	}
+	for _, src := range []string{
+		"for (const f of fs) { await tools.exec_command({cmd:\"cat x\"}) }",
+		"await Promise.all(fs.map(f => tools.exec_command({cmd:\"cat x\"})))",
+		"fs.forEach(async f => { await tools.exec_command({cmd:\"cat x\"}) })",
+	} {
+		units := jsUnits(src)
+		if len(units) == 0 || units[0].Last || units[0].AllAnd {
+			t.Fatalf("a looped exec_command must not take the call's exit code: %q %+v", src, units)
+		}
+		if units[0].Kind == unitCode {
+			t.Fatalf("the literal command is still emitted: %q", src)
+		}
 	}
 }

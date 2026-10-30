@@ -510,7 +510,8 @@ func parseUserEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEvent) 
 			state.compactFocus = focus
 		}
 		if state.retainUser {
-			events = append(events, domain.NewProviderMessageEvent(runID, "user", runner.StripANSI(textContent), domain.MessageEventData{ProviderOrigin: "claude", ProviderEventType: ev.Type, RawEvidenceRef: "claude:" + ev.Type}))
+			text := runner.StripANSI(textContent)
+			events = append(events, domain.NewProviderMessageEvent(runID, "user", text, domain.MessageEventData{ProviderOrigin: "claude", ProviderEventType: ev.Type, RawEvidenceRef: "claude:" + ev.Type, Source: ev.messageSource(text)}))
 		}
 	}
 	if len(events) > 0 {

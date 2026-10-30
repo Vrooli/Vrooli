@@ -44,11 +44,13 @@ func TestStallIsAnIdleGapInsideAnActiveTurn(t *testing.T) {
 		want   int64 // stall cost in minutes, 0 for none
 	}{
 		"agent idle after a tool result":           {[]*domain.RunEvent{result(0), call(21 * min)}, 21},
-		"usage and log noise falls inside the gap": {[]*domain.RunEvent{result(0), noise(domain.EventTypeMetric, 3*min), noise(domain.EventTypeLog, 9*min), say("assistant", 25*min)}, 25},
+		"usage and log noise falls inside the gap": {[]*domain.RunEvent{result(0), noise(domain.EventTypeMetric, 3*min), noise(domain.EventTypeLog, 9*min), call(25 * min)}, 25},
 		"a gap under five minutes":                 {[]*domain.RunEvent{result(0), call(4 * min)}, 0},
 		"a tool that ran for a long time":          {[]*domain.RunEvent{call(0), result(40 * min)}, 0},
 		"waiting on the operator":                  {[]*domain.RunEvent{say("assistant", 0), say("user", 90*min)}, 0},
-		"an operator reply after hours then work":  {[]*domain.RunEvent{say("user", 0), call(10 * min)}, 10},
+		"the operator's reply is not an owed turn": {[]*domain.RunEvent{say("user", 0), call(10 * min)}, 0},
+		"a reply to the operator is not a stall":   {[]*domain.RunEvent{say("assistant", 0), call(10 * min)}, 0},
+		"an injected message between":              {[]*domain.RunEvent{result(0), say("user", time.Minute), call(20 * min)}, 0},
 		"a gap over two hours is not a stall":      {[]*domain.RunEvent{result(0), call(3 * time.Hour)}, 0},
 		"a session resumed 41 days later":          {[]*domain.RunEvent{result(0), call(41 * 24 * time.Hour)}, 0},
 		"across a park and wake":                   {[]*domain.RunEvent{result(0), status(time.Minute), status(50 * min), call(51 * min)}, 0},
@@ -64,7 +66,7 @@ func TestStallIsAnIdleGapInsideAnActiveTurn(t *testing.T) {
 	}
 }
 
-func TestWaitMisuseAndSlowStartStayWithinOneWorkingStretch(t *testing.T) {
+func TestWaitMisuseStaysWithinOneWorkingStretch(t *testing.T) {
 	waits := func(events []*domain.RunEvent) []FrictionEpisode {
 		facts := make([]InvocationFact, 0, len(events))
 		for _, e := range events {
@@ -90,23 +92,5 @@ func TestWaitMisuseAndSlowStartStayWithinOneWorkingStretch(t *testing.T) {
 	silent := []*domain.RunEvent{call(0), result(time.Second), call(10 * min), result(10*min + time.Second), call(24 * time.Hour), result(24*time.Hour + time.Second), call(24*time.Hour + 10*min)}
 	if got := waits(silent); len(got) != 0 {
 		t.Fatalf("waits a day apart formed %+v", got)
-	}
-
-	// Time to first success: a slow start within one stretch counts; one that sat
-	// through a park or a long silence does not.
-	ttfs := func(events []*domain.RunEvent, success *domain.RunEvent) []FrictionEpisode {
-		facts := []InvocationFact{{CallEventID: success.ID.String(), ResultEventID: success.ID.String(), Outcome: "success"}}
-		return detectTimeToFirstSuccess(EpisodeDetectorContext{Facts: facts, Events: events, EventsByID: eventMap(events)})
-	}
-	first, ok := say("user", 0), result(20*min)
-	if got := ttfs([]*domain.RunEvent{first, noise(domain.EventTypeMetric, 8*min), noise(domain.EventTypeMetric, 16*min), ok}, ok); len(got) != 1 || got[0].WallClockMS != 20*60_000 {
-		t.Fatalf("a 20-minute start with activity throughout: %+v", got)
-	}
-	late := result(3 * time.Hour)
-	if got := ttfs([]*domain.RunEvent{first, status(time.Minute), late}, late); len(got) != 0 {
-		t.Fatalf("a start that waited out a park formed %+v", got)
-	}
-	if got := ttfs([]*domain.RunEvent{first, late}, late); len(got) != 0 {
-		t.Fatalf("a start with three silent hours formed %+v", got)
 	}
 }

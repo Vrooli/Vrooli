@@ -155,6 +155,33 @@ func TestParkRunRegisteredChildrenProducerIsAccepted(t *testing.T) {
 	eventually(t, func() bool { return registry.Watching(run.ID) }, "registered children producer did not get a waiter")
 }
 
+func TestParkRunReviewTimerValidationBeforeTransition(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore))
+	registry := orchestration.NewAwaitRegistry(svc, orchestration.NewReviewTimerWaiter())
+	svc.SetAwaitRegistry(registry)
+	defer registry.Stop()
+	run := newParkableRun(t, ctx, svc, repos)
+
+	if _, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: orchestration.ProducerReviewTimer, Key: "invalid"}); err == nil {
+		t.Fatal("invalid timer accepted")
+	}
+	current, err := svc.GetRun(ctx, run.ID)
+	if err != nil || current.Status != domain.RunStatusRunning || current.AwaitHandle != nil {
+		t.Fatalf("invalid timer changed run: %+v, err %v", current, err)
+	}
+	at := time.Now().Add(time.Minute)
+	parked, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: orchestration.ProducerReviewTimer, Key: at.UTC().Format(time.RFC3339Nano)})
+	if err != nil || parked.Status != domain.RunStatusParked || parked.AwaitHandle == nil {
+		t.Fatalf("valid review timer park: %+v, err %v", parked, err)
+	}
+	if !registry.Watching(run.ID) {
+		t.Fatal("timer waiter not registered")
+	}
+}
+
 func TestParkRunWithoutRegistryRetainsIsolatedSeam(t *testing.T) {
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)

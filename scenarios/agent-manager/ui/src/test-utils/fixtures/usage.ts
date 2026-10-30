@@ -148,13 +148,13 @@ export function makeUsageCoverage(): UsageCoverageResponse {
 export const FRICTION_FINGERPRINT = "f1".repeat(16);
 
 export function makeUsageFriction(): ReturnType<typeof create<typeof UsageFrictionResponseSchema>> {
-  const base = { owner: "agent-manager", ownerKind: "command", episodes: 18n, runs: 3n, wallClockMs: 185_000n, typicalWallClockMs: 10_000n, points: 0.4, timeLost: true, timeKind: "wasted", episodeTurns: 0n, tokens: 0n, ...CODEX_SCOPE };
+  const base = { owner: "agent-manager", ownerKind: "command", episodes: 18n, runs: 3n, wallClockMs: 185_000n, typicalWallClockMs: 10_000n, points: 0.4, timeKind: "redundant", episodeTurns: 0n, tokens: 0n, ...CODEX_SCOPE };
   return create(UsageFrictionResponseSchema, {
     open: 3n, reported: 1n, dismissed: 1n, runsAnalysed: 90n, runsTotal: 100n,
     problems: [
       { ...base, fingerprint: FRICTION_FINGERPRINT, pattern: "fallback_after_capability", description: "`agent-manager usage forecast` fails, then the agent falls back to another tool.", status: "open" },
-      { ...base, fingerprint: "a2".repeat(16), pattern: "read_reread", description: "An agent reads a file, then reads the same file again.", owner: "Agent behaviour", ownerKind: "agent", status: "open", points: 9.3, episodes: 1819n, runs: 26n },
-      { ...base, fingerprint: "d5".repeat(16), pattern: "handoff_continuation", description: "The agent declares it is done, then keeps working.", status: "open", timeLost: false, timeKind: "none", wallClockMs: 9_000_000n, episodeTurns: 120n, tokens: 4_500_000n },
+      { ...base, fingerprint: "a2".repeat(16), pattern: "read_reread", description: "An agent reads a file, then reads the same file again.", owner: "Agent behaviour", ownerKind: "agent", status: "open", points: 9.3, estSavedPoints: 4.6, episodes: 1819n, runs: 26n },
+      { ...base, fingerprint: "d5".repeat(16), pattern: "retry_after_failure", description: "`agent-manager usage burners` fails and the agent retries it straight away.", status: "open", wallClockMs: 9_000_000n, episodeTurns: 120n, tokens: 4_500_000n },
       { ...base, fingerprint: "b3".repeat(16), pattern: "stall", description: "A run sits idle between tool calls.", status: "reported", bugId: "knw-1793200000000000001" },
       { ...base, fingerprint: "c4".repeat(16), pattern: "wait_misuse", description: "An agent repeats a short wait.", status: "dismissed" },
     ],

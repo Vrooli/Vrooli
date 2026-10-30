@@ -183,14 +183,14 @@
       "status": "complete",
       "prd_ref": "OT-P0-016",
       "category": "recommendations",
-      "description": "When an operator or agent requests recommendations, Agent Manager shall evaluate the deterministic rule families R-model, R-context, R-fanout, R-friction and R-idle over durable facts and shall return one group per target (a session, a workload or a recurring friction problem), ranked by a combined quota saving that applies each lever to what the larger levers leave, each lever with its estimate, confidence, evidence references, typed facts and a concrete action, and each group with the quota used so far, the projected use and the share of the window's burn. Agent Manager shall list recurring friction problems in plain words with owner, cost and status, and shall file a reported problem in the scenario-qa bug inbox once. Where model inference contributes to a row, Agent Manager shall label that row as inferred (SPEC A6, T-6).",
+      "description": "When an operator or agent requests recommendations, Agent Manager shall evaluate the deterministic rule families R-model, R-model-mix, R-context, R-lifetime, R-floor, R-friction, R-idle and R-image over durable facts and shall return one group per target (a session, a workload or a recurring friction problem), ranked by a combined quota saving that applies each lever to what the larger levers leave, each lever with its estimate, confidence, evidence references, typed facts and a concrete action, and each group with the quota used so far, the projected use and the share of the window's burn. Agent Manager shall list recurring friction problems in plain words with owner, cost and status, and shall file a reported problem in the scenario-qa bug inbox once. Where model inference contributes to a row, Agent Manager shall label that row as inferred (SPEC A6, T-6).",
       "validation": [
         {
           "type": "test",
           "ref": "api/internal/usageattribution/rules_test.go::TestEveryRuleFamilyFiresWithEstimateConfidenceEvidenceAndAction",
           "phase": "unit",
           "status": "implemented",
-          "notes": "R-model, R-context, R-fanout, R-friction, R-idle and R-image each fire on the shared fixture week with estimate, confidence, evidence and action; companion tests rank the dominant consumer first, target the planted levers and explain non-firing rules."
+          "notes": "R-model, R-model-mix, R-context, R-lifetime, R-floor, R-friction, R-idle and R-image each fire on the shared fixture week with estimate, confidence, evidence and action; companion tests rank the dominant consumer first, target the planted levers and explain non-firing rules."
         },
         {
           "type": "test",

@@ -1,20 +1,12 @@
 package runsignal
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 )
-
-// EpisodeDetector is a pure, registered classification rule. Its declaration
-// is intentionally data-bearing so labels, projections, and later metrics can
-// identify the exact detector that made an episode without inspecting code.
-type EpisodeDetector interface {
-	Identifier() string
-	ClassifierVersion() string
-	CauseScope() string
-	Detect(EpisodeDetectorContext) []FrictionEpisode
-}
 
 type EpisodeDetectorContext struct {
 	Facts               []InvocationFact
@@ -22,61 +14,13 @@ type EpisodeDetectorContext struct {
 	EventsByID          map[string]*domain.RunEvent
 	SelfReports         []SelfReportSpan
 	PreferredPrimitives []PreferredPrimitive
-}
-
-type episodeDetector struct {
-	id, version, cause string
-	detect             func(EpisodeDetectorContext) []FrictionEpisode
-}
-
-func (d episodeDetector) Identifier() string                                  { return d.id }
-func (d episodeDetector) ClassifierVersion() string                           { return d.version }
-func (d episodeDetector) CauseScope() string                                  { return d.cause }
-func (d episodeDetector) Detect(ctx EpisodeDetectorContext) []FrictionEpisode { return d.detect(ctx) }
-
-// EpisodeDetectors is the complete deterministic registry. Adding a detector
-// requires a named declaration and labelled coverage; DeriveEpisodes itself
-// remains an unchanged generic dispatcher.
-func EpisodeDetectors() []EpisodeDetector {
-	return []EpisodeDetector{
-		episodeDetector{"repeated-work", EpisodeClassifierVersion, "recurring-workaround", adjacentEpisode("repeated-work", func(a, b InvocationFact) bool { return b.Fingerprint != "" && b.Fingerprint == a.Fingerprint })},
-		episodeDetector{"command-failure", EpisodeClassifierVersion, "toolchain", adjacentEpisode("command-failure", func(a, b InvocationFact) bool {
-			return a.Outcome == "failure" && b.Outcome == "failure" && a.Executable != "" && a.Executable == b.Executable
-		})},
-		episodeDetector{"help-recovery", EpisodeClassifierVersion, "run-execution", adjacentEpisode("help-recovery", func(a, b InvocationFact) bool { return a.Outcome == "failure" && b.HelpRecovery })},
-		episodeDetector{"stall", EpisodeClassifierVersion, "run-execution", detectStalls},
-		episodeDetector{"poll-loop", EpisodeClassifierVersion, "recurring-workaround", detectPollLoops},
-		episodeDetector{"wrong-primitive", EpisodeClassifierVersion, "recurring-workaround", func(ctx EpisodeDetectorContext) []FrictionEpisode {
-			return DetectWrongPrimitives(ctx.Facts, ctx.EventsByID, ctx.Events)
-		}},
-		episodeDetector{"oscillation", EpisodeClassifierVersion, "recurring-workaround", detectOscillations},
-		episodeDetector{"edit-revert", EpisodeClassifierVersion, "recurring-workaround", detectEditReverts},
-		episodeDetector{"wait-misuse", EpisodeClassifierVersion, "toolchain", detectWaitMisuse},
-		episodeDetector{"blocked-then-abandoned", EpisodeClassifierVersion, "run-execution", detectBlockedThenAbandoned},
-		episodeDetector{"guidance-repair", EpisodeClassifierVersion, "prompt-team-agent-storage", detectGuidanceRepair},
-		episodeDetector{"handoff-continuation", EpisodeClassifierVersion, "run-execution", detectHandoffContinuation},
-		episodeDetector{"fallback-after-capability", EpisodeClassifierVersion, "toolchain", detectFallbackAfterCapability},
-		episodeDetector{"capability-abandoned", EpisodeClassifierVersion, "toolchain", detectCapabilityAbandoned},
-		episodeDetector{"retry-after-failure", EpisodeClassifierVersion, "run-execution", detectRetryAfterFailure},
-		episodeDetector{"flag-hunting", EpisodeClassifierVersion, "toolchain", detectFlagHunting},
-		episodeDetector{"abandoned-command-family", EpisodeClassifierVersion, "toolchain", detectAbandonedCommandFamily},
-		episodeDetector{"read-then-reread", EpisodeClassifierVersion, "recurring-workaround", detectReadThenReread},
-		episodeDetector{"time-to-first-success", EpisodeClassifierVersion, "run-execution", detectTimeToFirstSuccess},
-	}
+	// GoalRun is a run with a goal (see WithGoalRun).
+	GoalRun bool
 }
 
 // detectorWindow is constant, which bounds each scan and keeps both detectors
 // linear in the size of even very large imported transcripts.
 const detectorWindow = 32
-
-func episodeCauseScope(id string) string {
-	for _, detector := range EpisodeDetectors() {
-		if detector.Identifier() == id {
-			return detector.CauseScope()
-		}
-	}
-	return "unknown"
-}
 
 func adjacentEpisode(pattern string, matches func(InvocationFact, InvocationFact) bool) func(EpisodeDetectorContext) []FrictionEpisode {
 	return func(ctx EpisodeDetectorContext) []FrictionEpisode {
@@ -88,6 +32,55 @@ func adjacentEpisode(pattern string, matches func(InvocationFact, InvocationFact
 		}
 		return out
 	}
+}
+
+// maxFailureLine bounds the first error line kept on a command-failure episode.
+const maxFailureLine = 160
+
+// detectCommandFailures reports scenario friction: a call of a Vrooli
+// project-owned command (resolved through the catalog) that fails with an
+// error, whatever the cause: wrong arguments, or the scenario or its
+// infrastructure being broken or unavailable. A no-match, an interrupt, a
+// help probe, a documented informational verdict and any command outside the
+// project are not command failures. One failing call is one episode.
+func detectCommandFailures(ctx EpisodeDetectorContext) []FrictionEpisode {
+	out := []FrictionEpisode{}
+	for _, fact := range ctx.Facts {
+		if fact.Ownership != OwnershipResolved || fact.Executable == "" || fact.CommandPath == "" || !comparableFingerprintFact(fact) || !failed(fact) || fact.SemanticsVerdict != "" || isHelpProbe(fact, ctx.EventsByID) {
+			continue
+		}
+		e := newEpisode("command-failure", fact, fact, ctx.EventsByID, ctx.Events)
+		e.RepeatedElement = firstErrorLine(fact, ctx.EventsByID)
+		out = append(out, e)
+	}
+	return out
+}
+
+// firstErrorLine is the first non-empty line of a failed call's error, else of
+// its output, bounded; the exit code when the result says nothing.
+func firstErrorLine(fact InvocationFact, byID map[string]*domain.RunEvent) string {
+	if event := byID[fact.ResultEventID]; event != nil {
+		if data, ok := event.Data.(*domain.ToolResultEventData); ok {
+			texts := []string{data.Error, data.Output}
+			for _, block := range data.OutputBlocks {
+				texts = append(texts, block.Text)
+			}
+			for _, text := range texts {
+				for _, line := range strings.Split(text, "\n") {
+					if line = strings.TrimSpace(line); line != "" {
+						if len(line) > maxFailureLine {
+							line = strings.ToValidUTF8(line[:maxFailureLine], "") + "…"
+						}
+						return line
+					}
+				}
+			}
+		}
+	}
+	if fact.ExitCode != nil {
+		return "exit code " + strconv.Itoa(*fact.ExitCode)
+	}
+	return "no error message"
 }
 
 // maxStallGap is the longest idle gap that can be a stall. Of the 48 gaps over
@@ -118,19 +111,13 @@ func isBoundaryEvent(event *domain.RunEvent) bool {
 	return false
 }
 
-func messageRole(event *domain.RunEvent) string {
-	if data, ok := event.Data.(*domain.MessageEventData); ok {
-		return data.Role
-	}
-	return ""
-}
-
-// detectStalls finds an idle gap inside an active turn: between two turn
-// events the agent's next call or reply came more than idleEpisodeThreshold
-// later. A gap is not a stall when the next event is a tool's result (the tool
-// was running) or the operator's message (the operator was), when it crosses a
-// park, wake, stop or other boundary event, or when it exceeds maxStallGap. Usage, quota and log
-// events fall in the gap without ending it.
+// detectStalls finds an idle gap the agent owed: a tool's result was in, and
+// the agent's next call came more than idleEpisodeThreshold later. Every other
+// gap is someone else's wait: a tool running (the next event is its result),
+// the operator or an injected message (the next event is a message), a
+// terminal or evidence-only message, a park, wake, stop or other boundary, or
+// a gap over maxStallGap. Usage, quota and log events fall in the gap without
+// ending it.
 func detectStalls(ctx EpisodeDetectorContext) []FrictionEpisode {
 	out := []FrictionEpisode{}
 	var prev *domain.RunEvent
@@ -138,20 +125,15 @@ func detectStalls(ctx EpisodeDetectorContext) []FrictionEpisode {
 		if event == nil {
 			continue
 		}
-		if isBoundaryEvent(event) {
+		if isBoundaryEvent(event) || endsTurn(event) {
 			prev = nil
 			continue
 		}
 		if !isTurnEvent(event) {
 			continue
 		}
-		if prev != nil {
-			gap := event.Timestamp.Sub(prev.Timestamp)
-			// The agent owns the turn after any turn event; what it was waiting on is
-			// excluded by what comes next: a tool's result (the tool was running) or
-			// the operator's message (the operator was).
-			agentNext := event.EventType == domain.EventTypeToolCall || (event.EventType == domain.EventTypeMessage && messageRole(event) != "user")
-			if gap > idleEpisodeThreshold && gap <= maxStallGap && agentNext {
+		if prev != nil && prev.EventType == domain.EventTypeToolResult && event.EventType == domain.EventTypeToolCall {
+			if gap := event.Timestamp.Sub(prev.Timestamp); gap > idleEpisodeThreshold && gap <= maxStallGap {
 				fact := InvocationFact{CallEventID: prev.ID.String(), ResultEventID: event.ID.String(), Ownership: "unknown"}
 				e := newEpisode("stall", fact, fact, ctx.EventsByID, ctx.Events)
 				e.EndEventID, e.EvidenceEventIDs = event.ID.String(), []string{e.StartEventID, event.ID.String()}
@@ -163,4 +145,11 @@ func detectStalls(ctx EpisodeDetectorContext) []FrictionEpisode {
 		prev = event
 	}
 	return out
+}
+
+// endsTurn is a message that closes the agent's turn: a terminal or
+// evidence-only message.
+func endsTurn(event *domain.RunEvent) bool {
+	data, ok := event.Data.(*domain.MessageEventData)
+	return ok && (data.Terminal || data.EvidenceOnly)
 }

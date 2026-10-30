@@ -11,7 +11,6 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration"
-	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -42,37 +41,6 @@ func (h *Handler) invocationReadModelFilter(r *http.Request) (invocationreadmode
 		}
 	}
 	return filter, nil
-}
-
-func (h *Handler) EpisodeTrend(w http.ResponseWriter, r *http.Request) {
-	filter, err := h.invocationReadModelFilter(r)
-	if err != nil {
-		writeSimpleError(w, r, "time_window", "from and to must be RFC3339 timestamps")
-		return
-	}
-	bucket := 24 * time.Hour
-	if raw := r.URL.Query().Get("bucket"); raw != "" {
-		parsed, parseErr := time.ParseDuration(raw)
-		if parseErr != nil || parsed <= 0 {
-			writeSimpleError(w, r, "bucket", "bucket must be a positive duration")
-			return
-		}
-		bucket = parsed
-	}
-	limit := 100
-	if raw := r.URL.Query().Get("limit"); raw != "" {
-		limit, err = strconv.Atoi(raw)
-		if err != nil || limit < 1 {
-			writeSimpleError(w, r, "limit", "limit must be positive")
-			return
-		}
-	}
-	trend, err := h.svc.EpisodeTrend(r.Context(), filter, bucket, limit)
-	if err != nil {
-		writeError(w, r, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"classifierVersion": runsignal.EpisodeClassifierVersion, "bucket": bucket.String(), "rows": trend})
 }
 
 func (h *Handler) DefineInvocationCohort(w http.ResponseWriter, r *http.Request) {

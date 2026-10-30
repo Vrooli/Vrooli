@@ -26,37 +26,63 @@ func (h *Handler) SetUsageForecast(source pricing.QuotaReadingSource) { h.quotaR
 // idle; without it such a window is unknown.
 func (h *Handler) SetUsageActivity(source usageforecast.ActivitySource) { h.usageActivity = source }
 
-func (h *Handler) usageSpans(ctx context.Context, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
+func (h *Handler) usageSpans(ctx context.Context, provider, scope string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
 	if h.quotaReadings == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("provider quota readings are unavailable"))
 	}
-	spans, err := h.quotaReadings.QuotaReadingSpans(ctx, strings.TrimSpace(provider), since)
+	if scope != "" && (len(scope) > 256 || strings.TrimSpace(scope) != scope || strings.ContainsAny(scope, "|\x00\r\n")) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid account scope"))
+	}
+	var spans []pricing.QuotaReadingSpan
+	var err error
+	if scope == "" {
+		spans, err = h.quotaReadings.QuotaReadingSpans(ctx, strings.TrimSpace(provider), since)
+	} else {
+		source, ok := h.quotaReadings.(pricing.ScopedQuotaReadingSource)
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("account-scoped quota readings are unavailable"))
+		}
+		spans, err = source.ScopedQuotaReadingSpans(ctx, scope, strings.TrimSpace(provider), since)
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	for _, span := range spans {
+		if span.AccountScope != scope {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("quota source returned a mismatched account scope"))
+		}
 	}
 	return spans, nil
 }
 
-func usageProvenance(spans []pricing.QuotaReadingSpan, since, now time.Time, provider string) *measurepb.MeasureProvenance {
+func usageProvenance(spans []pricing.QuotaReadingSpan, since, now time.Time, provider, scope string) *measurepb.MeasureProvenance {
 	provenance := &measurepb.MeasureProvenance{SourceTable: "quota_observations", WindowEnd: now.UTC().Format(time.RFC3339Nano), RowCount: int64(len(spans)), ExecutedQuery: "SELECT reading spans GROUP BY provider, pool, window, reset minute, used_percent, standing FROM quota_observations WHERE observed_at >= window_start"}
 	if !since.IsZero() {
 		provenance.WindowStart = since.UTC().Format(time.RFC3339Nano)
 	}
 	if provider != "" {
-		provenance.AppliedFilters = []*measurepb.MeasureFilter{{Field: "provider", Value: provider}}
+		provenance.AppliedFilters = append(provenance.AppliedFilters, &measurepb.MeasureFilter{Field: "provider", Value: provider})
 	}
+	provenance.ExecutedQuery += " AND account_scope = selected_scope"
+	provenance.AppliedFilters = append(provenance.AppliedFilters, &measurepb.MeasureFilter{Field: "account_scope", Value: scope})
 	return provenance
 }
 
 func (h *Handler) UsageForecast(ctx context.Context, req *connect.Request[measurepb.UsageForecastRequest]) (*connect.Response[measurepb.UsageForecastResponse], error) {
 	now := h.now().UTC()
 	since := now.Add(-usageforecast.CurrentLookback)
-	spans, err := h.usageSpans(ctx, req.Msg.GetProvider(), since)
+	scope := req.Msg.GetAccountScope()
+	spans, err := h.usageSpans(ctx, req.Msg.GetProvider(), scope, since)
 	if err != nil {
 		return nil, err
 	}
-	response := &measurepb.UsageForecastResponse{GeneratedAt: now.Format(time.RFC3339), Provenance: usageProvenance(spans, since, now, req.Msg.GetProvider()), DefinitionId: definitionID(UsageForecast)}
-	for _, forecast := range usageforecast.CurrentWithActivity(ctx, spans, now, h.usageActivity) {
+	response := &measurepb.UsageForecastResponse{GeneratedAt: now.Format(time.RFC3339), Provenance: usageProvenance(spans, since, now, req.Msg.GetProvider(), scope), DefinitionId: definitionID(UsageForecast)}
+	activity := h.usageActivity
+	if scope != "" {
+		// Provider-wide activity cannot establish whether this account was idle.
+		activity = nil
+	}
+	for _, forecast := range usageforecast.CurrentWithActivity(ctx, spans, now, activity) {
 		response.Windows = append(response.Windows, protoWindowForecast(forecast))
 	}
 	return connect.NewResponse(response), nil
@@ -64,7 +90,7 @@ func (h *Handler) UsageForecast(ctx context.Context, req *connect.Request[measur
 
 func (h *Handler) UsageForecastBacktest(ctx context.Context, req *connect.Request[measurepb.UsageForecastBacktestRequest]) (*connect.Response[measurepb.UsageForecastBacktestResponse], error) {
 	now := h.now().UTC()
-	spans, err := h.usageSpans(ctx, req.Msg.GetProvider(), time.Time{})
+	spans, err := h.usageSpans(ctx, req.Msg.GetProvider(), req.Msg.GetAccountScope(), time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +98,7 @@ func (h *Handler) UsageForecastBacktest(ctx context.Context, req *connect.Reques
 	response := &measurepb.UsageForecastBacktestResponse{
 		UnobservedWindows: report.Unobserved,
 		Limitation:        "scores only completed windows whose newest reading is within 6 hours of the window end; each checkpoint sees only readings and windows completed by then, but projects to the window's actual end, as the linear baseline does; history is limited to the readings in quota_observations",
-		Provenance:        usageProvenance(spans, time.Time{}, now, req.Msg.GetProvider()),
+		Provenance:        usageProvenance(spans, time.Time{}, now, req.Msg.GetProvider(), req.Msg.GetAccountScope()),
 		DefinitionId:      definitionID(UsageForecastBacktest),
 	}
 	scored := int64(-1)

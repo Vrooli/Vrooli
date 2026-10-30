@@ -123,7 +123,7 @@ func (db *DB) migrateQuotaEvents(ctx context.Context, tx *Tx) error {
 		if o.ResetAt != nil {
 			reset = SQLiteTime(o.ResetAt.UTC())
 		}
-		if _, err := tx.ExecContext(ctx, insertQuotaObservationSQL, o.ID, o.Provider, o.Pool, o.Window, SQLiteTime(o.ObservedAt.UTC()), o.Standing, o.Used, o.Limit, o.Remaining, o.UsedPercent, o.WindowMinutes, reset, o.SourceRunID, o.Freshness, o.Provenance, o.Uncertainty, o.EvidenceRef); err != nil {
+		if _, err := tx.ExecContext(ctx, insertQuotaObservationSQL, o.AccountScope, o.ID, o.Provider, o.Pool, o.Window, SQLiteTime(o.ObservedAt.UTC()), o.Standing, o.Used, o.Limit, o.Remaining, o.UsedPercent, o.WindowMinutes, reset, o.SourceRunID, o.Freshness, o.Provenance, o.Uncertainty, o.EvidenceRef); err != nil {
 			return &domain.DatabaseError{Operation: "quota_observation_backfill", EntityType: "QuotaObservation", Cause: err}
 		}
 	}

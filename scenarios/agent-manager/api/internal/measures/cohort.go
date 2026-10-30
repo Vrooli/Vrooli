@@ -132,33 +132,47 @@ func (h *Handler) runs(ctx context.Context, selection cohortSelection, limit int
 }
 
 // episodes returns the selection's persisted friction episodes, each carrying
-// its run id, and the number of runs in the population.
-func (h *Handler) episodes(ctx context.Context, selection cohortSelection) ([]runsignal.FrictionEpisode, int, error) {
+// its run id, the number of runs in the population and the number of
+// quarantined or informational episodes left out.
+func (h *Handler) episodes(ctx context.Context, selection cohortSelection) ([]runsignal.FrictionEpisode, int, int, error) {
 	projection, ok := h.store.(invocationreadmodel.ProjectionStore)
 	if !ok {
-		return nil, 0, fmt.Errorf("measure store does not provide persisted episodes")
+		return nil, 0, 0, fmt.Errorf("measure store does not provide persisted episodes")
 	}
 	var records []invocationreadmodel.Episode
+	hiddenRows := 0
 	population := len(selection.runIDs)
 	if selection.explicit() {
 		for _, id := range selection.runIDs {
 			rows, err := projection.EpisodesForRun(ctx, id)
 			if err != nil {
-				return nil, 0, err
+				return nil, 0, 0, err
 			}
 			records = append(records, rows...)
 		}
 	} else {
+		// Episodes count over the same runs as the population: an unscoped
+		// predicate selection means Agent Manager-executed runs, as runs() does.
+		if selection.filter.Scope == "" {
+			selection.filter.Scope = invocationreadmodel.ScopeAgentManager
+		}
 		rows, err := projection.Episodes(ctx, selection.filter, episodeEvidenceLimit)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 		records = rows
 		cohort, err := h.runs(ctx, selection, 1)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 		population = cohort.MatchedRuns
+		if counter, ok := h.store.(interface {
+			HiddenEpisodes(context.Context, invocationreadmodel.Filter) (int, error)
+		}); ok {
+			if hiddenRows, err = counter.HiddenEpisodes(ctx, selection.filter); err != nil {
+				return nil, 0, 0, err
+			}
+		}
 	}
 	out := make([]runsignal.FrictionEpisode, 0, len(records))
 	for _, record := range records {
@@ -166,7 +180,8 @@ func (h *Handler) episodes(ctx context.Context, selection cohortSelection) ([]ru
 		episode.RunID = record.RunID
 		out = append(out, episode)
 	}
-	return out, population, nil
+	shown, hidden := runsignal.ShownEpisodes(out)
+	return shown, population, hidden + hiddenRows, nil
 }
 
 func (h *Handler) cohortProvenance(ctx context.Context, selection cohortSelection, definition string, rows int64, query string) *measurepb.MeasureProvenance {
@@ -232,7 +247,7 @@ func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measur
 		return nil, err
 	}
 	limit := boundedLimit(req.Msg.GetLimit(), 25, 0)
-	episodes, _, err := h.episodes(ctx, selection)
+	episodes, _, hidden, err := h.episodes(ctx, selection)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -240,14 +255,22 @@ func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measur
 	for _, id := range selection.runIDs {
 		byRun[id] = nil
 	}
-	for _, episode := range episodes {
+	// Episodes arrive oldest first; fold the newest runs so a recent regression
+	// is never the one cut off, and say when runs were left out.
+	dropped := map[string]bool{}
+	for i := len(episodes) - 1; i >= 0; i-- {
+		episode := episodes[i]
 		if _, kept := byRun[episode.RunID]; !kept && len(byRun) >= limit {
+			dropped[episode.RunID] = true
 			continue
 		}
 		byRun[episode.RunID] = append(byRun[episode.RunID], episode)
 	}
 	cohort := runreport.BuildEpisodeCohort(byRun)
-	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason}
+	if len(dropped) > 0 && cohort.Availability.Reason == "" {
+		cohort.Availability.Reason = fmt.Sprintf("the %d most recent runs with friction are shown; %d older runs are left out", len(byRun), len(dropped))
+	}
+	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason, HiddenQuarantinedEpisodes: int64(hidden)}
 	for _, signal := range cohort.Signals {
 		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
 	}
@@ -296,7 +319,7 @@ func (h *Handler) CohortReport(ctx context.Context, req *connect.Request[measure
 		InvocationValidity: &measurepb.CohortInvocationValidity{TotalCalls: int64(folded.InvocationValidity.TotalCalls), ClassifiedBase: int64(folded.InvocationValidity.ClassifiedBase), UnclassifiedCount: int64(folded.InvocationValidity.UnclassifiedCount)},
 		Goal: &measurepb.CohortGoalProgression{
 			AvailabilityState: string(goal.Availability.State), AvailabilityReason: goal.Availability.Reason, GoalRuns: int64(goal.GoalRuns), MetRuns: int64(goal.MetRuns),
-			AverageTimeToFirstMetMs: goal.AverageTimeToFirstMetMS, AverageTokensToFirstMet: goal.AverageTokensToFirstMet, InterventionsBeforeMet: int64(goal.InterventionsBeforeMet), HandoffsBeforeMet: int64(goal.HandoffsBeforeMet), Regressions: int64(goal.Regressions), Restatements: int64(goal.Restatements),
+			AverageTimeToFirstMetMs: goal.AverageTimeToFirstMetMS, AverageTokensToFirstMet: goal.AverageTokensToFirstMet, InterventionsBeforeMet: int64(goal.InterventionsBeforeMet), Regressions: int64(goal.Regressions), Restatements: int64(goal.Restatements),
 		},
 	}
 	if folded.RunIDs == nil {
@@ -317,6 +340,7 @@ func (h *Handler) CompareEpisodeCohorts(ctx context.Context, req *connect.Reques
 	sides := [2]*measurepb.CohortSelector{req.Msg.GetLeft(), req.Msg.GetRight()}
 	var episodes [2][]runsignal.FrictionEpisode
 	var populations [2]int
+	hidden := 0
 	var selections [2]cohortSelection
 	for i, side := range sides {
 		selection, err := h.resolveCohort(ctx, side.GetWindow(), side.GetFilter(), side.GetCohort(), side.GetRunIds())
@@ -324,14 +348,16 @@ func (h *Handler) CompareEpisodeCohorts(ctx context.Context, req *connect.Reques
 			return nil, err
 		}
 		selections[i] = selection
-		episodes[i], populations[i], err = h.episodes(ctx, selection)
+		var sideHidden int
+		episodes[i], populations[i], sideHidden, err = h.episodes(ctx, selection)
+		hidden += sideHidden
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
 	comparison := runreport.BuildCohortComparison(episodes[0], episodes[1], populations[0], populations[1], boundedLimit(req.Msg.GetLimit(), 100, 0))
 	response := &measurepb.CompareEpisodeCohortsResponse{
-		ClassifierVersion: comparison.ClassifierVersion, ChangeBinding: req.Msg.GetChangeBinding(), LeftPopulation: int64(comparison.LeftPopulation), RightPopulation: int64(comparison.RightPopulation),
+		ClassifierVersion: comparison.ClassifierVersion, ChangeBinding: req.Msg.GetChangeBinding(), HiddenQuarantinedEpisodes: int64(hidden), LeftPopulation: int64(comparison.LeftPopulation), RightPopulation: int64(comparison.RightPopulation),
 		AvailabilityState: string(comparison.Availability.State), AvailabilityReason: comparison.Availability.Reason,
 	}
 	for _, signal := range comparison.Signals {

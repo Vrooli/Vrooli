@@ -120,13 +120,16 @@ type Store interface {
 type Price struct {
 	Input, Output, CacheRead, CacheCreation float64
 	Known                                   bool
+	// Prior marks a price taken from the tier priors or the fallback rather
+	// than a price-book entry: ratios built on it are guesses.
+	Prior bool
 }
 
 // Prices looks up a model's price; it returns Known=false when unpriced.
 type Prices func(runner, model string) Price
 
 // fallbackPrice prices unpriced models (the pricing package's fallback source).
-var fallbackPrice = priceFrom(pricing.FallbackTokenPrices(), true)
+var fallbackPrice = func() Price { p := priceFrom(pricing.FallbackTokenPrices(), true); p.Prior = true; return p }()
 
 func priceFrom(p pricing.TokenPrices, known bool) Price {
 	return Price{Input: p.Input, Output: p.Output, CacheRead: p.CacheRead, CacheCreation: p.CacheCreation, Known: known}
@@ -138,7 +141,9 @@ func TierPrice(model string) Price {
 	if !ok {
 		return Price{}
 	}
-	return priceFrom(tier, true)
+	price := priceFrom(tier, true)
+	price.Prior = true
+	return price
 }
 
 // normalized fills what a price book often omits with the pricing package's

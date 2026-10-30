@@ -386,6 +386,7 @@ func TestProjectErrorsRetainsOnlyAnalyticalErrorVocabulary(t *testing.T) {
 // pass with segment_count == 1 and none of them can observe the fan-out.
 func TestProjectApportionsCompoundCommandTokensAcrossSegments(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), CreatedAt: time.Now().UTC(), Status: domain.RunStatusComplete}
+	// `cd` is shell navigation, not an invocation: the call has two segments.
 	const compound = "cd /repo && rg pattern | head -20"
 	output := strings.Repeat("a matching line of output\n", 40)
 	call := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": compound})
@@ -394,11 +395,11 @@ func TestProjectApportionsCompoundCommandTokensAcrossSegments(t *testing.T) {
 	events := []*domain.RunEvent{call, result, usage}
 
 	facts, _ := Project(run, events, time.Now().UTC())
-	if len(facts) != 3 {
-		t.Fatalf("facts=%d, want one per segment of %q", len(facts), compound)
+	if len(facts) != 2 {
+		t.Fatalf("facts=%d, want one per invocation (no fact for cd) of %q", len(facts), compound)
 	}
 	for _, fact := range facts {
-		if fact.SegmentCount != 3 || fact.CallEventID != call.ID.String() {
+		if fact.SegmentCount != 2 || fact.CallEventID != call.ID.String() {
 			t.Fatalf("segment fact does not belong to the one call: %+v", fact.InvocationFact)
 		}
 	}
@@ -420,10 +421,10 @@ func TestProjectApportionsCompoundCommandTokensAcrossSegments(t *testing.T) {
 		gotIncurred += fact.IncurredInputTokens + fact.IncurredOutputTokens + fact.IncurredCacheReadTokens + fact.IncurredCacheCreationTokens
 	}
 	if gotArg != wantArg {
-		t.Fatalf("summed arg tokens = %d, want the call's %d (fan-out would give %d)", gotArg, wantArg, wantArg*3)
+		t.Fatalf("summed arg tokens = %d, want the call's %d (fan-out would give %d)", gotArg, wantArg, wantArg*2)
 	}
 	if gotResult != wantResult {
-		t.Fatalf("summed result tokens = %d, want the call's %d (fan-out would give %d)", gotResult, wantResult, wantResult*3)
+		t.Fatalf("summed result tokens = %d, want the call's %d (fan-out would give %d)", gotResult, wantResult, wantResult*2)
 	}
 
 	// The run ledger sums the by-call attribution map rather than the fact
@@ -438,20 +439,20 @@ func TestProjectApportionsCompoundCommandTokensAcrossSegments(t *testing.T) {
 
 // TestProjectDoesNotConcentrateCompoundTokensOnTheLeadingSegment pins the
 // choice of an even split. Charging the call to segment zero would send the
-// plurality of all shell token spend to `cd`, which leads every compound line.
+// plurality of all shell token spend to whichever command leads the line.
 func TestProjectDoesNotConcentrateCompoundTokensOnTheLeadingSegment(t *testing.T) {
 	run := &domain.Run{ID: uuid.New(), CreatedAt: time.Now().UTC(), Status: domain.RunStatusComplete}
-	call := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": "cd /repo && rg pattern"})
+	call := domain.NewToolCallEvent(run.ID, "shell", "call-1", map[string]any{"command": "git status && rg pattern"})
 	result := domain.NewToolResultEvent(run.ID, "shell", "call-1", strings.Repeat("line\n", 100), nil)
 	facts, _ := Project(run, []*domain.RunEvent{call, result}, time.Now().UTC())
 	if len(facts) != 2 {
 		t.Fatalf("facts=%d, want two segments", len(facts))
 	}
 	leading, trailing := facts[0], facts[1]
-	if leading.Executable != "cd" {
+	if leading.Executable != "git" {
 		t.Fatalf("fixture assumption broken: leading executable=%q", leading.Executable)
 	}
 	if leading.ResultTokens > trailing.ResultTokens+1 {
-		t.Fatalf("leading segment absorbed the payload: cd=%d rg=%d", leading.ResultTokens, trailing.ResultTokens)
+		t.Fatalf("leading segment absorbed the payload: git=%d rg=%d", leading.ResultTokens, trailing.ResultTokens)
 	}
 }

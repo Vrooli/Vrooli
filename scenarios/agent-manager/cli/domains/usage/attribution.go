@@ -125,7 +125,7 @@ func attributionLines(w *measurepb.UsageWindowAttribution, title string) []strin
 
 func recommendationsCommand(newClient clientFor) cliapp.Command {
 	return usageCommand("recommendations", "What should I change? Rule findings grouped by target with a combined saving [--provider NAME] [--pool P --window W] [--run ID] [--json]",
-		"Evaluates R-model, R-context, R-fanout, R-friction, R-idle and R-image over the current windows and groups the levers for one target (a session, a workload or a friction problem) into one entry whose combined saving never counts overlapping levers twice (each lever applies to what the larger ones leave). Each entry states the quota used so far, the projection over the window, its share of the window's burn and whether it is still running; groups saving under 0.1 pts are counted, and a rule that did not fire says why. --pool and --window evaluate one window alone.",
+		"Evaluates R-model, R-model-mix, R-context, R-lifetime, R-floor, R-friction, R-idle and R-image over the current windows and groups the levers for one target (a session, a workload or a friction problem) into one entry whose combined saving never counts overlapping levers twice (each lever applies to what the larger ones leave). Each entry states the quota used so far, the projection over the window, its share of the window's burn and whether it is still running; groups saving under 0.1 pts are counted, and a rule that did not fire says why. --pool and --window evaluate one window alone.",
 		[]cliapp.Flag{providerFlag, {Name: "pool", Description: "With --provider and --window: evaluate this window alone"}, {Name: "window", Description: "With --provider and --pool: evaluate this window alone"}, runFlag, limitFlag},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			limit, err := parseLimit(op)
@@ -206,7 +206,16 @@ func groupLines(group *measurepb.UsageRecommendationGroup, window string) []stri
 		if i > 0 {
 			gain = fmt.Sprintf("projected −%.1f more (−%.1f alone)", lever.GetMarginalPoints(), lever.GetSavedPoints())
 		}
-		lines = append(lines, fmt.Sprintf("   %s pts  %s  [%s, %s] %s", gain, lever.GetAction(), lever.GetRule(), lever.GetConfidence(), evidenceSummary(lever.GetEvidenceRefs())))
+		if model := lever.GetFacts().GetModel(); lever.GetConfidence() == "unproven" && model != nil {
+			// An unproven move claims no saving; its range is the finding.
+			gain = fmt.Sprintf("up to −%.1f (unproven) pts", model.GetExpensiveWeeklyPoints()*(1-model.GetPriceRatio()))
+		} else if lever.GetRule() == "R-floor" && lever.GetSavedPoints() == 0 {
+			// The floor lever reports where the cost sits; it claims no saving.
+			gain = fmt.Sprintf("floor %.0f%% of cost", lever.GetFacts().GetContext().GetCachedShare()*100)
+		} else {
+			gain += " pts"
+		}
+		lines = append(lines, fmt.Sprintf("   %s  %s  [%s, %s] %s", gain, lever.GetAction(), lever.GetRule(), lever.GetConfidence(), evidenceSummary(lever.GetEvidenceRefs())))
 	}
 	return lines
 }

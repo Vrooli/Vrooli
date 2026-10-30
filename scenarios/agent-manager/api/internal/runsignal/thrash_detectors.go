@@ -13,19 +13,9 @@ import (
 // constant. A and B are fingerprints rather than command text.
 func detectOscillations(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
-	// Synthetic fixtures from the original detector contract predate the
-	// ownership taxonomy. Permit that legacy shape only when the entire input
-	// has no ownership values; projected production facts are always strict.
-	legacyOwnershipFree := true
-	for _, fact := range ctx.Facts {
-		if fact.Ownership != "" {
-			legacyOwnershipFree = false
-			break
-		}
-	}
 	for end := 3; end < len(ctx.Facts); end++ {
 		b := ctx.Facts[end].Fingerprint
-		if !comparableCommandFact(ctx.Facts[end], legacyOwnershipFree) {
+		if !oscillatingFact(ctx.Facts[end]) {
 			continue
 		}
 		limit := end - detectorWindow
@@ -35,19 +25,20 @@ func detectOscillations(ctx EpisodeDetectorContext) []FrictionEpisode {
 		found := false
 		for secondA := end - 1; secondA >= limit && !found; secondA-- {
 			a := ctx.Facts[secondA].Fingerprint
-			if !comparableCommandFact(ctx.Facts[secondA], legacyOwnershipFree) || a == b {
+			if !oscillatingFact(ctx.Facts[secondA]) || a == b {
 				continue
 			}
 			for firstB := secondA - 1; firstB >= limit; firstB-- {
-				if !comparableCommandFact(ctx.Facts[firstB], legacyOwnershipFree) || ctx.Facts[firstB].Fingerprint != b {
+				if !oscillatingFact(ctx.Facts[firstB]) || ctx.Facts[firstB].Fingerprint != b {
 					continue
 				}
 				for firstA := firstB - 1; firstA >= limit; firstA-- {
-					if !comparableCommandFact(ctx.Facts[firstA], legacyOwnershipFree) || ctx.Facts[firstA].Fingerprint != a {
+					if !oscillatingFact(ctx.Facts[firstA]) || ctx.Facts[firstA].Fingerprint != a {
 						continue
 					}
 					e := newEpisode("oscillation", ctx.Facts[firstA], ctx.Facts[end], ctx.EventsByID, ctx.Events)
-					e.Turns, e.CycleCount, e.RepeatedElement = end-firstA+1, 1, pairElement(a, b)
+					e.price(ctx.Facts[firstA:end+1], ctx.EventsByID)
+					e.CycleCount, e.RepeatedElement = 1, pairElement(a, b)
 					out = append(out, e)
 					found = true
 					break
@@ -58,46 +49,101 @@ func detectOscillations(ctx EpisodeDetectorContext) []FrictionEpisode {
 	return out
 }
 
-func comparableFingerprintFact(fact InvocationFact) bool {
-	if fact.Fingerprint == "" || fact.Ownership == OwnershipUnparseable || fact.Ownership == OwnershipCompoundUnresolved {
-		return false
-	}
-	return !strings.Contains(fact.IntentClass, "shell:unparseable")
-}
-
-func comparableCommandFact(fact InvocationFact, legacyOwnershipFree bool) bool {
-	if !comparableFingerprintFact(fact) {
-		return false
-	}
-	return fact.Ownership == OwnershipResolved || (legacyOwnershipFree && fact.Ownership == "")
+// oscillatingFact is a resolved command that is not a read-only status or
+// listing, which is repeated by design.
+func oscillatingFact(fact InvocationFact) bool {
+	return comparableFingerprintFact(fact) && fact.Ownership == OwnershipResolved && !isPollingCommand(fact.CommandPath)
 }
 
 // detectEditReverts recognizes a file-change event whose path returns to a
 // prior operation (add/delete or modify/revert) within the same bounded window.
+// Codex rewrites a file as a delete followed by an add, so a path that was
+// rewritten that way is never reverted by it.
 func detectEditReverts(ctx EpisodeDetectorContext) []FrictionEpisode {
 	var out []FrictionEpisode
+	rewritten := rewrittenPaths(ctx.Events)
 	for end, event := range ctx.Events {
+		if prior, ok := swappedEdit(ctx.Events, end); ok {
+			fact := InvocationFact{CallEventID: ctx.Events[prior].ID.String(), ResultEventID: ctx.Events[prior].ID.String()}
+			endFact := InvocationFact{CallEventID: event.ID.String(), ResultEventID: event.ID.String()}
+			e := newEpisode("edit-revert", fact, endFact, ctx.EventsByID, ctx.Events)
+			e.CycleCount, e.RepeatedElement = 1, replacement(event).path
+			out = append(out, e)
+			continue
+		}
 		paths := changedPaths(event)
 		if len(paths) == 0 {
 			continue
 		}
-		start := end - detectorWindow
-		if start < 0 {
-			start = 0
-		}
+		start := max(end-detectorWindow, 0)
 		for prior := end - 1; prior >= start; prior-- {
 			for path, kind := range paths {
-				if priorKind, ok := changedPaths(ctx.Events[prior])[path]; ok && isRevert(priorKind, kind) {
+				if priorKind, ok := changedPaths(ctx.Events[prior])[path]; ok && isRevert(priorKind, kind) && !rewritten[path] {
 					fact := InvocationFact{CallEventID: ctx.Events[prior].ID.String(), ResultEventID: ctx.Events[prior].ID.String()}
 					endFact := InvocationFact{CallEventID: event.ID.String(), ResultEventID: event.ID.String()}
 					e := newEpisode("edit-revert", fact, endFact, ctx.EventsByID, ctx.Events)
-					e.Turns, e.CycleCount, e.RepeatedElement = end-prior+1, 1, path
+					e.CycleCount, e.RepeatedElement = 1, path
 					out = append(out, e)
 					goto next
 				}
 			}
 		}
 	next:
+	}
+	return out
+}
+
+type textReplacement struct{ path, old, new string }
+
+// replacement reads a string-replacing edit call (a path, the text it replaces
+// and its replacement).
+func replacement(event *domain.RunEvent) textReplacement {
+	call := toolCallData(event)
+	if call == nil {
+		return textReplacement{}
+	}
+	path, _ := call.Input["file_path"].(string)
+	oldText, _ := call.Input["old_string"].(string)
+	newText, _ := call.Input["new_string"].(string)
+	return textReplacement{path, oldText, newText}
+}
+
+// swappedEdit finds, within the window before event end, an edit of the same
+// file whose replaced and replacement text are this edit's, swapped: this edit
+// puts back what the earlier one took out.
+func swappedEdit(events []*domain.RunEvent, end int) (int, bool) {
+	now := replacement(events[end])
+	if now.path == "" || now.old == now.new || now.old == "" {
+		return 0, false
+	}
+	for prior := end - 1; prior >= max(end-detectorWindow, 0); prior-- {
+		if before := replacement(events[prior]); before.path == now.path && before.old == now.new && before.new == now.old {
+			return prior, true
+		}
+	}
+	return 0, false
+}
+
+// rewrittenPaths are the paths deleted and then added again with no message
+// between: a rewrite, not an edit and its reversal.
+func rewrittenPaths(events []*domain.RunEvent) map[string]bool {
+	out := map[string]bool{}
+	deleted := map[string]bool{}
+	for _, event := range events {
+		if _, ok := event.Data.(*domain.MessageEventData); ok {
+			clear(deleted)
+			continue
+		}
+		for path, kind := range changedPaths(event) {
+			switch kind {
+			case "delete":
+				deleted[path] = true
+			case "add":
+				if deleted[path] {
+					out[path] = true
+				}
+			}
+		}
 	}
 	return out
 }

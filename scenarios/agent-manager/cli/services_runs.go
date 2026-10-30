@@ -452,10 +452,6 @@ func (s *RunService) InvocationFacts(id string) ([]byte, error) {
 	return s.api.Request("GET", "/api/v1/runs/"+id+"/invocation-facts", nil, nil)
 }
 
-func (s *RunService) EpisodeTrend(values url.Values) ([]byte, error) {
-	return s.api.Request("GET", "/api/v1/runs/episode-trend", values, nil)
-}
-
 func (s *RunService) ImportSessionCorpus(payload []byte) ([]byte, error) {
 	return s.api.Request("POST", "/api/v1/runs/import-session-corpus", nil, payload)
 }

@@ -2,7 +2,6 @@ package runreport
 
 import (
 	"sort"
-	"time"
 
 	"agent-manager/internal/runsignal"
 )
@@ -45,7 +44,6 @@ type GoalCohort struct {
 	AverageTimeToFirstMetMS float64      `json:"averageTimeToFirstMetMs"`
 	AverageTokensToFirstMet float64      `json:"averageTokensToFirstMet"`
 	InterventionsBeforeMet  int          `json:"interventionsBeforeMet"`
-	HandoffsBeforeMet       int          `json:"handoffsBeforeMet"`
 	Regressions             int          `json:"regressions"`
 	Restatements            int          `json:"restatements"`
 }
@@ -79,18 +77,6 @@ type ComparisonSignal struct {
 	CostDeltaMS       int64  `json:"costDeltaMs"`
 }
 
-type EpisodeTrendBucket struct {
-	Bucket       time.Time `json:"bucket"`
-	Occurrences  int       `json:"occurrences"`
-	DistinctRuns int       `json:"distinctRuns"`
-	CostMS       int64     `json:"costMs"`
-}
-
-type TimedEpisode struct {
-	Episode    runsignal.FrictionEpisode
-	OccurredAt time.Time
-}
-
 func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) EpisodeCohort {
 	out := EpisodeCohort{Availability: Availability{State: AvailabilityAvailable}}
 	type bucket struct {
@@ -100,10 +86,8 @@ func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) Ep
 	}
 	buckets := map[string]*bucket{}
 	for runID, episodes := range episodesByRun {
-		if len(episodes) == 0 {
-			out.Availability = Availability{State: AvailabilityDegraded, Reason: "one or more selected runs have no derived episodes"}
-			continue
-		}
+		// A run with no shown episodes is a clean run, not a missing derivation:
+		// quarantined patterns are hidden and most runs have no friction.
 		for _, episode := range episodes {
 			b := buckets[episode.Fingerprint]
 			if b == nil {
@@ -153,7 +137,6 @@ func BuildGoalCohort(reports []*RunReport) GoalCohort {
 			timeTotal += float64(report.Goal.TimeToFirstMet.Milliseconds())
 			tokenTotal += float64(report.Goal.TokenCostBeforeFirstMet)
 			out.InterventionsBeforeMet += report.Goal.InterventionsBeforeMet
-			out.HandoffsBeforeMet += report.Goal.HandoffsBeforeMet
 		}
 		if report.Goal.Regression {
 			out.Regressions++
@@ -222,38 +205,6 @@ func BuildCohortComparison(left, right []runsignal.FrictionEpisode, leftPopulati
 	if leftPopulation < 5 || rightPopulation < 5 {
 		out.Availability = Availability{State: AvailabilityUnreliable, Reason: "both comparison populations require at least five runs"}
 	}
-	return out
-}
-
-func BuildEpisodeTrend(episodes []TimedEpisode, bucket time.Duration) []EpisodeTrendBucket {
-	if bucket <= 0 {
-		bucket = 24 * time.Hour
-	}
-	type aggregate struct {
-		occurrences int
-		cost        int64
-		ids         map[string]bool
-	}
-	aggregates := map[time.Time]*aggregate{}
-	for _, timed := range episodes {
-		if timed.OccurredAt.IsZero() {
-			continue
-		}
-		stamp := timed.OccurredAt.UTC().Truncate(bucket)
-		a := aggregates[stamp]
-		if a == nil {
-			a = &aggregate{ids: map[string]bool{}}
-			aggregates[stamp] = a
-		}
-		a.occurrences++
-		a.ids[timed.Episode.RunID] = true
-		a.cost += timed.Episode.WallClockMS
-	}
-	out := make([]EpisodeTrendBucket, 0, len(aggregates))
-	for stamp, a := range aggregates {
-		out = append(out, EpisodeTrendBucket{Bucket: stamp, Occurrences: a.occurrences, DistinctRuns: len(a.ids), CostMS: a.cost})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Bucket.Before(out[j].Bucket) })
 	return out
 }
 

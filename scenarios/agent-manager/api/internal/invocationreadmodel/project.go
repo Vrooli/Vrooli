@@ -323,7 +323,7 @@ func ProjectEpisodes(run *domain.Run, facts []Fact, events []*domain.RunEvent, p
 		invocations = append(invocations, fact.InvocationFact)
 	}
 	timestamps := eventTimestamps(events)
-	episodes := runsignal.DeriveEpisodes(invocations, events)
+	episodes := runsignal.DeriveEpisodes(invocations, events, runsignal.WithGoalRun(run.GoalID != ""))
 	out := make([]Episode, 0, len(episodes))
 	for _, episode := range episodes {
 		occurredAt, basis := timestamps[episode.StartEventID], "start_event"

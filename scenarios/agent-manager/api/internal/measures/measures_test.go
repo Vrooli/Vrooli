@@ -9,6 +9,7 @@ import (
 
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/runsignal"
 
 	"connectrpc.com/connect"
 	"github.com/jmoiron/sqlx"
@@ -506,4 +507,13 @@ func token(value sharedmeasurepb.TimeWindowToken) *sharedmeasurepb.TimeWindow {
 
 func measureRequest(name, window string) measurelib.MeasureRequest {
 	return measurelib.MeasureRequest{Measure: name, Params: map[string]string{"window": window}}
+}
+
+func TestCapabilityEfficacyDefinitionNamesOnlyShownCounts(t *testing.T) {
+	numerator := definitionFor("friction.capability_efficacy").Numerator
+	for pattern, word := range map[string]string{"fallback-after-capability": "fallback", "capability-abandoned": "abandoned"} {
+		if got := strings.Contains(numerator, word); got != runsignal.Shown(pattern) {
+			t.Errorf("numerator %q mentions %q = %v, pattern shown = %v", numerator, word, got, runsignal.Shown(pattern))
+		}
+	}
 }

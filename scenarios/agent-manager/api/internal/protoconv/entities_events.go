@@ -57,6 +57,7 @@ func RunEventToProto(e *domain.RunEvent) *pb.RunEvent {
 				RawEvidenceRef:     data.RawEvidenceRef,
 				EvidenceOnly:       data.EvidenceOnly,
 				EvidenceForEventId: data.EvidenceForEventID,
+				Source:             data.Source,
 			},
 		}
 	case *domain.MessageDeletedEventData:

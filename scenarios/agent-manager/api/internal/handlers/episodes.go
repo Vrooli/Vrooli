@@ -24,8 +24,10 @@ func (h *Handler) GetEpisodesHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
+	shown, hidden := runsignal.ShownEpisodes(episodes)
 	writeJSON(w, http.StatusOK, struct {
-		ClassifierVersion string                      `json:"classifierVersion"`
-		Episodes          []runsignal.FrictionEpisode `json:"episodes"`
-	}{runsignal.EpisodeClassifierVersion, episodes})
+		ClassifierVersion         string                      `json:"classifierVersion"`
+		Episodes                  []runsignal.FrictionEpisode `json:"episodes"`
+		HiddenQuarantinedEpisodes int                         `json:"hiddenQuarantinedEpisodes"`
+	}{runsignal.EpisodeClassifierVersion, shown, hidden})
 }

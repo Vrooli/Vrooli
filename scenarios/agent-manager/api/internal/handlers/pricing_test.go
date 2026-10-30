@@ -40,7 +40,8 @@ type pricingHandlerFake struct {
 }
 
 type quotaObservationHandlerFake struct {
-	rows []pricing.QuotaObservation
+	rows  []pricing.QuotaObservation
+	scope string
 }
 
 func (f *quotaObservationHandlerFake) RecordQuotaObservation(context.Context, *pricing.QuotaObservation) error {
@@ -48,6 +49,11 @@ func (f *quotaObservationHandlerFake) RecordQuotaObservation(context.Context, *p
 }
 
 func (f *quotaObservationHandlerFake) ListQuotaObservations(context.Context, string, string, string, int) ([]pricing.QuotaObservation, error) {
+	return f.rows, nil
+}
+
+func (f *quotaObservationHandlerFake) ListScopedQuotaObservations(_ context.Context, scope, _, _, _ string, _ int) ([]pricing.QuotaObservation, error) {
+	f.scope = scope
 	return f.rows, nil
 }
 
@@ -268,5 +274,22 @@ func TestPricingQuotaRouteProjectsDurableNativeAndUnknownUsage(t *testing.T) {
 	unknown, native := body[0], body[1]
 	if unknown.ID != "native-1" || unknown.UsedPercent != nil || native.ID != "native-0" || native.UsedPercent == nil || *native.UsedPercent != 20 || native.ResetAt == nil || !native.ResetAt.Equal(reset) || native.WindowMinutes == nil || *native.WindowMinutes != 10080 || native.SourceRunID != "original-run" || native.EvidenceRef != "event:0" || native.Limit != nil || native.Used != nil || native.Remaining != nil {
 		t.Fatalf("rows=%+v", body)
+	}
+}
+
+func TestPricingHandlerScopedQuotaReadRequiresScopeAndRecomputesFreshness(t *testing.T) {
+	now := time.Now().UTC()
+	reset := now.Add(-time.Minute)
+	quota := &quotaObservationHandlerFake{rows: []pricing.QuotaObservation{{AccountScope: "account-a", Provider: "openai", Pool: "primary", Window: "300m", ObservedAt: now.Add(-time.Minute), ResetAt: &reset, Standing: pricing.QuotaStandingAvailable, Provenance: "test", Freshness: pricing.ObservationFresh}}}
+	h := NewPricingHandlerWithQuota(&pricingHandlerFake{}, mocks.NewFakeStatsRepository(), nil, quota)
+	rw := httptest.NewRecorder()
+	h.ListQuotaObservations(rw, httptest.NewRequest(http.MethodGet, "/?account_scope=", nil))
+	if rw.Code != http.StatusBadRequest {
+		t.Fatalf("empty scope status=%d", rw.Code)
+	}
+	rw = httptest.NewRecorder()
+	h.ListQuotaObservations(rw, httptest.NewRequest(http.MethodGet, "/?account_scope=account-a", nil))
+	if rw.Code != http.StatusOK || quota.scope != "account-a" || !strings.Contains(rw.Body.String(), `"freshness":"stale"`) {
+		t.Fatalf("status=%d scope=%q body=%s", rw.Code, quota.scope, rw.Body.String())
 	}
 }

@@ -189,6 +189,16 @@ workflow catalog, workflow execution runs/advance/retry/resume and investigation
 
 ## CLI Commands
 
+`agent-manager run import-identity --harness codex --session-id <session-id> --json`
+looks up imported run provenance directly, without scanning run-list pages. A
+`matched` result gives one run ID; `ambiguous` gives two IDs as evidence of a
+collision. `not_observed` means only that this database lookup found no imported
+run at that moment: the source may exist, discovery or import may be pending,
+and native runs are outside the lookup. It does not establish transcript
+freshness or completeness. Unsupported harnesses and store failures are errors,
+not absence. Resource labels such as `resource:codex/sessions` normalize to
+their harness identity.
+
 ```bash
 # Profile management
 agent-manager profile create --name "default" --role-ref code.default

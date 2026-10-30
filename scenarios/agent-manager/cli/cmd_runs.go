@@ -19,6 +19,8 @@ func (a *App) cmdRun(args []string) error {
 		return a.runGet(args[1:])
 	case "identity":
 		return a.runIdentity(args[1:])
+	case "import-identity":
+		return a.runImportIdentity(args[1:])
 	case "report":
 		return a.runReport(args[1:])
 	case "attach":
@@ -29,10 +31,6 @@ func (a *App) cmdRun(args []string) error {
 		return a.runRecent(args[1:])
 	case "episodes":
 		return a.runEpisodes(args[1:])
-	case "messages-friction":
-		return a.runMessageFriction(args[1:])
-	case "episode-trend":
-		return a.runEpisodeTrend(args[1:])
 	case "ledger":
 		return a.runLedger(args[1:])
 	case "import-transcript":

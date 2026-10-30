@@ -129,6 +129,37 @@ func (h *Handler) ListImportSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"sources": views})
 }
 
+// FindImportIdentity resolves only imported run provenance, not native runs,
+// transcript discovery, or ingestion freshness. A miss is a point-in-time
+// database observation, not proof that a source does not exist.
+func (h *Handler) FindImportIdentity(w http.ResponseWriter, r *http.Request) {
+	harness := domain.NormalizeImportHarness(r.URL.Query().Get("harness"))
+	session := r.URL.Query().Get("sessionId")
+	if harness == "" || strings.TrimSpace(session) == "" || len(session) > 1024 {
+		writeSimpleError(w, r, "identity", "harness and sessionId are required")
+		return
+	}
+	switch domain.RunnerType(harness) {
+	case domain.RunnerTypeCodex, domain.RunnerTypeClaudeCode, domain.RunnerTypeOpenCode, domain.RunnerTypeGrok, domain.RunnerTypeAntigravity:
+	default:
+		writeSimpleError(w, r, "harness", "unsupported harness")
+		return
+	}
+	ids, err := h.svc.FindImportProvenance(r.Context(), harness, session)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	state := "not_observed"
+	if len(ids) == 1 {
+		state = "matched"
+	}
+	if len(ids) > 1 {
+		state = "ambiguous"
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"state": state, "harness": harness, "sessionId": session, "runIds": ids, "scope": "imported_run_provenance"})
+}
+
 func (h *Handler) ListRunnerSessions(w http.ResponseWriter, r *http.Request) {
 	source, ok := sourceForRunner(r.URL.Query().Get("runnerType"))
 	if !ok {

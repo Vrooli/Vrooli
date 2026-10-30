@@ -52,19 +52,10 @@ func frictionCommand(newClient clientFor) cliapp.Command {
 				if p.GetBugId() != "" {
 					status += " " + p.GetBugId()
 				}
-				typical, total := formatMillis(p.GetTypicalWallClockMs()), formatMillis(p.GetWallClockMs())
-				cost := fmt.Sprintf("typical %s wasted, total %s wasted", typical, total)
-				switch p.GetTimeKind() {
-				case "idle":
-					cost = fmt.Sprintf("idle typically %s, %s in total (waiting, not wasted work)", typical, total)
-				case "elapsed":
-					cost = fmt.Sprintf("took typically %s, %s in total", typical, total)
-				case "none":
-					cost = fmt.Sprintf("%d tool calls and %s tokens of work after declaring done (not counted as lost time)", p.GetEpisodeTurns(), compact(p.GetTokens()))
-				}
+				cost := frictionTimeCost(p)
 				report.Results = append(report.Results,
-					fmt.Sprintf("%s  %s", p.GetFingerprint()[:min(12, len(p.GetFingerprint()))], p.GetDescription()),
-					fmt.Sprintf("   owner %s · %d episodes in %d runs · %s · ≈%.1f pts of %s · %s", p.GetOwner(), p.GetEpisodes(), p.GetRuns(),
+					fmt.Sprintf("%s  %s", p.GetFingerprint(), p.GetDescription()),
+					fmt.Sprintf("   owner %s · %d episodes in %d runs%s · ≈%.1f pts of %s · %s", p.GetOwner(), p.GetEpisodes(), p.GetRuns(),
 						cost, p.GetPoints(), windowTitle(windowScope{provider: p.GetProvider(), pool: p.GetPool(), window: p.GetWindow()}), status))
 			}
 			report.RetrievalHints = []string{"agent-manager usage friction-report <fingerprint>  # file it with scenario-qa", "agent-manager usage friction-dismiss <fingerprint>  # set it aside"}
@@ -124,4 +115,17 @@ func formatMillis(ms int64) string {
 		return fmt.Sprintf("%dm %02ds", int(d.Minutes()), int(d.Seconds())%60)
 	}
 	return fmt.Sprintf("%dh %02dm", int(d.Hours()), int(d.Minutes())%60)
+}
+
+// frictionTimeCost is " · <time sentence>" or "" when the problem has no
+// measured time (a pattern priced in turns only).
+func frictionTimeCost(p *measurepb.UsageFrictionProblem) string {
+	if p.GetWallClockMs() <= 0 {
+		return ""
+	}
+	typical, total := formatMillis(p.GetTypicalWallClockMs()), formatMillis(p.GetWallClockMs())
+	if p.GetTimeKind() == "idle" {
+		return fmt.Sprintf(" · idle gap typically %s, %s in total", typical, total)
+	}
+	return fmt.Sprintf(" · redundant call time typically %s, %s in total", typical, total)
 }

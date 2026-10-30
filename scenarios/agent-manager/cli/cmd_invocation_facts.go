@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
@@ -238,44 +239,30 @@ func hasStruggleVocabulary(phrase string) bool {
 func (a *App) runEpisodes(args []string) error {
 	fs := flag.NewFlagSet("run episodes", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
+	spans := fs.Bool("spans", false, "show deterministic self-reported friction spans instead of episodes")
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return fmt.Errorf("usage: agent-manager run episodes <id> [--json]")
+		return fmt.Errorf("usage: agent-manager run episodes <id> [--spans] [--json]")
 	}
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
 		return err
 	}
 	h, base := cliapp.NewConnectHTTPClient(a.core)
-	response, err := domainconnect.NewEpisodesServiceClient(h, base).GetEpisodes(context.Background(), connect.NewRequest(&domainpb.GetEpisodesRequest{RunId: args[0]}))
-	if err != nil {
-		return err
+	client := domainconnect.NewEpisodesServiceClient(h, base)
+	var message proto.Message
+	if *spans {
+		response, err := client.GetSelfReportSpans(context.Background(), connect.NewRequest(&domainpb.GetSelfReportSpansRequest{RunId: args[0]}))
+		if err != nil {
+			return err
+		}
+		message = response.Msg
+	} else {
+		response, err := client.GetEpisodes(context.Background(), connect.NewRequest(&domainpb.GetEpisodesRequest{RunId: args[0]}))
+		if err != nil {
+			return err
+		}
+		message = response.Msg
 	}
-	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-	fmt.Println(string(body))
-	return nil
-}
-
-func (a *App) runMessageFriction(args []string) error {
-	fs := flag.NewFlagSet("run messages-friction", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return fmt.Errorf("usage: agent-manager run messages-friction <id> [--json]")
-	}
-	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
-		return err
-	}
-	h, base := cliapp.NewConnectHTTPClient(a.core)
-	response, err := domainconnect.NewEpisodesServiceClient(h, base).GetSelfReportSpans(context.Background(), connect.NewRequest(&domainpb.GetSelfReportSpansRequest{RunId: args[0]}))
-	if err != nil {
-		return err
-	}
-	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(response.Msg)
+	body, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(message)
 	if err != nil {
 		return err
 	}

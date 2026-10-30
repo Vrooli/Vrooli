@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -24,6 +25,8 @@ type PricingHandler struct {
 	statsRepo     repository.StatsRepository
 	subscriptions pricing.SubscriptionRepository
 	quotaStore    pricing.QuotaObservationRepository
+	liveQuotaMu   sync.Mutex
+	liveQuota     *liveQuotaCache
 }
 
 // NewPricingHandler creates a new pricing handler.
@@ -71,6 +74,7 @@ func (h *PricingHandler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/pricing/subscription-periods", h.CreateSubscriptionPeriod).Methods("POST")
 	r.HandleFunc("/api/v1/pricing/subscription-periods/{id}", h.DeleteSubscriptionPeriod).Methods("DELETE")
 	r.HandleFunc("/api/v1/pricing/quota-observations", h.ListQuotaObservations).Methods("GET")
+	r.HandleFunc("/api/v1/pricing/live-quota", h.LiveQuota).Methods("GET")
 }
 
 func (h *PricingHandler) ListQuotaObservations(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +91,35 @@ func (h *PricingHandler) ListQuotaObservations(w http.ResponseWriter, r *http.Re
 			return
 		}
 	}
-	rows, err := h.quotaStore.ListQuotaObservations(r.Context(), r.URL.Query().Get("provider"), r.URL.Query().Get("pool"), r.URL.Query().Get("window"), limit)
+	var rows []pricing.QuotaObservation
+	var err error
+	if r.URL.Query().Has("account_scope") {
+		scope := strings.TrimSpace(r.URL.Query().Get("account_scope"))
+		if scope == "" {
+			writeSimpleError(w, r, "quota_observation", "account_scope must not be empty")
+			return
+		}
+		store, ok := h.quotaStore.(pricing.ScopedQuotaObservationRepository)
+		if !ok {
+			writeSimpleError(w, r, "quota_observation", "scoped quota observations are unavailable")
+			return
+		}
+		rows, err = store.ListScopedQuotaObservations(r.Context(), scope, r.URL.Query().Get("provider"), r.URL.Query().Get("pool"), r.URL.Query().Get("window"), limit)
+	} else {
+		rows, err = h.quotaStore.ListQuotaObservations(r.Context(), r.URL.Query().Get("provider"), r.URL.Query().Get("pool"), r.URL.Query().Get("window"), limit)
+	}
 	if err != nil {
 		writeError(w, r, err)
 		return
+	}
+	// Freshness is evaluated on read, not frozen at ingestion. A reading whose
+	// reset has passed cannot describe the current provider window.
+	now := time.Now().UTC()
+	for i := range rows {
+		rows[i].Freshness = pricing.Freshness(&rows[i], now, pricing.QuotaFreshnessMaxAge)
+		if rows[i].ResetAt != nil && !rows[i].ResetAt.After(now) {
+			rows[i].Freshness = pricing.ObservationStale
+		}
 	}
 	writeJSON(w, http.StatusOK, rows)
 }

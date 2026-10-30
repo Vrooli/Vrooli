@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"agent-manager/internal/domain"
 )
 
 // The strings below are the four highest-volume boilerplate prefixes observed
@@ -19,7 +21,7 @@ func TestIsInjectedContextTextRejectsHarnessPreambles(t *testing.T) {
 		"   ",
 	}
 	for _, text := range injected {
-		if !isInjectedContextText(text) {
+		if !domain.IsInjectedContextText(text) {
 			t.Errorf("expected injected: %q", text)
 		}
 	}
@@ -31,7 +33,7 @@ func TestIsInjectedContextTextRejectsHarnessPreambles(t *testing.T) {
 		"a < b is the failing assertion, please fix it",
 	}
 	for _, text := range operator {
-		if isInjectedContextText(text) {
+		if domain.IsInjectedContextText(text) {
 			t.Errorf("expected operator message: %q", text)
 		}
 	}

@@ -40,9 +40,9 @@
     "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
     "phase": {"enum": ["validate", "collect", "report"]},
     "signals": {"description": "The bounded efficiency response and its evidence."},
-    "errors": {"classes": ["invalid_input", "binding_error", "stale_evidence", "scenario_unreachable", "deadline_exceeded", "remote_error", "no_grant", "not_run_eligible", "no_governed_binding", "kernel_runtime"]}
+    "errors": {"classes": ["invalid_input", "binding_error", "stale_evidence", "scenario_unreachable", "deadline_exceeded", "remote_error", "no_grant", "not_run_eligible", "no_governed_binding", "kernel_runtime", "output_limit"]}
   },
-  "budget": {"wall_ms": 15000, "async": false, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 100}
+  "budget": {"wall_ms": 15000, "async": false, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 100, "output_bytes": 65536}
   ,"fixtures": [
     {
       "id": "invalid-compare",

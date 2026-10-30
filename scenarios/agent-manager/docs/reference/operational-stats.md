@@ -278,9 +278,7 @@ these bounded surfaces:
   and abandoned counts; no blended score is emitted.
 - `measures episode-cohort` and `measures episode-compare`: recurring fingerprint cost,
   distinct-run counts, population sizes, and before/after deltas.
-- `run episode-trend`: time-bucketed episode occurrence, distinct-run, and
-  wall-clock cost trends with the episode classifier version.
-- `run messages-friction` and `run episodes`: bounded struggle vocabulary,
+- `run episodes` (and `run episodes --spans`): bounded struggle vocabulary,
   operator corrections, guidance repair, wait misuse, abandonment, and
   handoff continuation.
 - `usage friction`, `usage friction-report` and `usage friction-dismiss`:

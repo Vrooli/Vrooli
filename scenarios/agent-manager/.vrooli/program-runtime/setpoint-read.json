@@ -144,7 +144,7 @@
           "partial"
         ],
         "signals": {
-          "unavailable_permanent": 6
+          "unavailable_permanent": 4
         }
       },
       "requires": [

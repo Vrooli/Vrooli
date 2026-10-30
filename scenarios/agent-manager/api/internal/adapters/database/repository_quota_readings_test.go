@@ -130,7 +130,7 @@ func legacyQuotaRows(t *testing.T, db *DB, frames []*pricing.QuotaObservation) {
 		if o.ResetAt != nil {
 			reset = SQLiteTime(o.ResetAt.UTC())
 		}
-		if _, err := db.ExecContext(t.Context(), insertQuotaObservationSQL, o.ID, o.Provider, o.Pool, o.Window, SQLiteTime(o.ObservedAt.UTC()), o.Standing, o.Used, o.Limit, o.Remaining, o.UsedPercent, o.WindowMinutes, reset, o.SourceRunID, o.Freshness, o.Provenance, o.Uncertainty, o.EvidenceRef); err != nil {
+		if _, err := db.ExecContext(t.Context(), insertQuotaObservationSQL, o.AccountScope, o.ID, o.Provider, o.Pool, o.Window, SQLiteTime(o.ObservedAt.UTC()), o.Standing, o.Used, o.Limit, o.Remaining, o.UsedPercent, o.WindowMinutes, reset, o.SourceRunID, o.Freshness, o.Provenance, o.Uncertainty, o.EvidenceRef); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -194,5 +194,111 @@ func TestCompactQuotaObservationsPreservesSpansAndBacktestAndIsIdempotent(t *tes
 	again, err := repo.(pricing.QuotaObservationCompactor).CompactQuotaObservations(t.Context())
 	if err != nil || again.Deleted != 0 {
 		t.Fatalf("second pass=%+v err=%v must delete nothing", again, err)
+	}
+}
+
+// Account scopes partition identity, heartbeat deduplication and compaction.
+// The legacy forecast has no account dimension, so it must exclude scoped data
+// rather than merge it into the existing unknown-account history.
+func TestScopedQuotaObservationsRemainIsolated(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewPricingRepository(db, logrus.New())
+	store := repo.(pricing.QuotaObservationRepository)
+	scoped := repo.(pricing.ScopedQuotaObservationRepository)
+	base := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
+	reset := base.Add(5 * time.Hour)
+	zero := 0.0
+	for _, account := range []string{"", "account-a", "account-b"} {
+		for _, delta := range []time.Duration{0, time.Minute, 6 * time.Minute} {
+			o := &pricing.QuotaObservation{AccountScope: account, Provider: "openai", Pool: "primary", Window: "300m", ObservedAt: base.Add(delta), Standing: pricing.QuotaStandingAvailable, UsedPercent: &zero, ResetAt: &reset, Provenance: "test"}
+			if err := store.RecordQuotaObservation(t.Context(), o); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if got := quotaRowCount(t, db); got != 6 {
+		t.Fatalf("stored rows=%d; want two heartbeats for each of three scopes", got)
+	}
+	for _, account := range []string{"account-a", "account-b"} {
+		rows, err := scoped.ListScopedQuotaObservations(t.Context(), account, "openai", "primary", "300m", 10)
+		if err != nil || len(rows) != 2 || rows[0].AccountScope != account || rows[0].UsedPercent == nil || *rows[0].UsedPercent != 0 {
+			t.Fatalf("account %q rows=%+v err=%v", account, rows, err)
+		}
+	}
+	for _, account := range []string{"account-a", "account-b"} {
+		spans, err := repo.(pricing.ScopedQuotaReadingSource).ScopedQuotaReadingSpans(t.Context(), account, "openai", time.Time{})
+		if err != nil || len(spans) != 1 || spans[0].AccountScope != account || spans[0].Samples != 2 {
+			t.Fatalf("scoped forecast spans for %q: %+v, %v", account, spans, err)
+		}
+	}
+	if _, err := repo.(pricing.ScopedQuotaReadingSource).ScopedQuotaReadingSpans(t.Context(), "", "", time.Time{}); err == nil {
+		t.Fatal("empty scope must not select all scoped forecast readings")
+	}
+	if _, err := scoped.ListScopedQuotaObservations(t.Context(), "", "", "", "", 10); err == nil {
+		t.Fatal("empty account scope must not mean all accounts")
+	}
+	spans, err := repo.(pricing.QuotaReadingSource).QuotaReadingSpans(t.Context(), "openai", time.Time{})
+	if err != nil || len(spans) != 1 || spans[0].Samples != 2 {
+		t.Fatalf("legacy forecast must see only unscoped history: spans=%+v err=%v", spans, err)
+	}
+	if _, err := repo.(pricing.QuotaObservationCompactor).CompactQuotaObservations(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	for _, account := range []string{"account-a", "account-b"} {
+		rows, err := scoped.ListScopedQuotaObservations(t.Context(), account, "openai", "primary", "300m", 10)
+		if err != nil || len(rows) == 0 {
+			t.Fatalf("compaction discarded scope %q: %+v, %v", account, rows, err)
+		}
+	}
+}
+
+func TestQuotaScopeMigrationPreservesLegacyUnknownRows(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	// Recreate the pre-scope table shape with existing evidence in place.
+	if _, err := db.Exec(`DROP INDEX idx_quota_observations_account_scope_time`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`ALTER TABLE quota_observations DROP COLUMN account_scope`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO quota_observations (id,provider,pool,window,observed_at,standing,provenance) VALUES ('legacy','openai','primary','300m','2026-10-29T01:00:00Z','available','test')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatalf("migrate legacy table: %v", err)
+	}
+	var scope string
+	if err := db.Get(&scope, `SELECT account_scope FROM quota_observations WHERE id='legacy'`); err != nil || scope != "" {
+		t.Fatalf("legacy scope=%q, err=%v; want unknown", scope, err)
+	}
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatalf("repeat schema initialization: %v", err)
+	}
+}
+
+func TestCompactionDoesNotMergeAccountScopes(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := NewPricingRepository(db, logrus.New())
+	base := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
+	// Insert pre-compaction rows directly to model repeated historical frames.
+	for _, account := range []string{"account-a", "account-b"} {
+		for i := 0; i < 3; i++ {
+			if _, err := db.Exec(`INSERT INTO quota_observations (id,account_scope,provider,pool,window,observed_at,standing,used_percent,provenance) VALUES (?,?,?,?,?,?,?,?,?)`, fmt.Sprintf("%s-%d", account, i), account, "openai", "primary", "300m", SQLiteTime(base.Add(time.Duration(i)*time.Minute)), "available", 20, "test"); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	result, err := repo.(pricing.QuotaObservationCompactor).CompactQuotaObservations(t.Context())
+	if err != nil || result.Deleted != 2 {
+		t.Fatalf("compaction=%+v err=%v; want one redundant row per account", result, err)
+	}
+	for _, account := range []string{"account-a", "account-b"} {
+		rows, err := repo.(pricing.ScopedQuotaObservationRepository).ListScopedQuotaObservations(t.Context(), account, "", "", "", 10)
+		if err != nil || len(rows) != 2 {
+			t.Fatalf("scope %q rows=%+v err=%v; want first and last", account, rows, err)
+		}
 	}
 }

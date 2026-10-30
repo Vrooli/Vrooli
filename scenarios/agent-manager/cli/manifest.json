@@ -2930,6 +2930,11 @@
               "description": "Resume after this event sequence"
             },
             {
+              "name": "summary-only",
+              "bool": true,
+              "description": "Return page counts and latest sequence without event payloads"
+            },
+            {
               "name": "json",
               "bool": true,
               "local_only": true,
@@ -3085,79 +3090,25 @@
         },
         {
           "name": "episodes",
-          "description": "Show bounded friction episodes for one run",
+          "description": "Show bounded friction episodes for one run, or its self-reported friction spans with --spans",
           "positionals": [
             {
               "name": "run_id",
               "required": true,
               "description": "Run UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "spans",
+              "bool": true,
+              "description": "Show deterministic self-reported friction spans instead of episodes"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "EpisodesService",
             "method": "GetEpisodes"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "messages-friction",
-          "description": "Show deterministic self-reported friction spans",
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run UUID"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EpisodesService",
-            "method": "GetSelfReportSpans"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "episode-trend",
-          "description": "Trend durable episode fingerprints over time",
-          "flags": [
-            {
-              "name": "from",
-              "description": "RFC3339 inclusive time"
-            },
-            {
-              "name": "to",
-              "description": "RFC3339 exclusive time"
-            },
-            {
-              "name": "bucket",
-              "description": "Go duration bucket"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum buckets"
-            }
-          ],
-          "binding": {
-            "kind": "local"
           },
           "governance": {
             "effect": "read",
@@ -3983,6 +3934,9 @@
               "filesystem:read",
               "network:internal"
             ]
+          },
+          "semantics": {
+            "kind": "verify"
           }
         },
         {
@@ -4011,6 +3965,9 @@
             "permissions": [
               "filesystem:read"
             ]
+          },
+          "semantics": {
+            "kind": "verify"
           }
         },
         {
@@ -4824,46 +4781,6 @@
               "value_field": "rate",
               "unit": "share",
               "summary_template": "{rate} retry rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "help-recovery-rate",
-          "description": "Share of calls following help recovery.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "HelpRecoveryRate"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of tool invocations that follow a help-recovery signal.",
-            "questions": [
-              "what is the help recovery rate",
-              "how often do agents recover after asking for help",
-              "show help recoveries this month"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} help-recovery rate ({window})"
             }
           }
         },

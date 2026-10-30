@@ -100,6 +100,7 @@
     "provider ranking is preserved as contributing evidence; the program only deduplicates identities and orders by support count then best native rank",
     "raw clues are never echoed in output, evidence, errors, or telemetry",
     "one failed search leg preserves every successful leg and produces partial status",
+    "degraded or partial Search Hub results stay in signals.degradations and force partial status, even when no provider binding failed",
     "the envelope is printed exactly once on every path"
   ],
   "bindings": [
@@ -147,8 +148,8 @@
       "candidate_count": "Deduplicated attributable Agent Manager candidates returned.",
       "candidates": "Ranked bounded metadata, optional content, provenance, contributing surface/mode/rank evidence, and optional context.",
       "sibling_provider_count": "Federated hits owned by other providers; these are counted but their content is not copied.",
-      "degradations": "Deduplicated reason, leg, and retryability only; raw provider details are omitted.",
-      "next_actions": "Closed next steps derived from no-result, ambiguity, partial-leg, and degradation states.",
+      "degradations": "Deduplicated {reason, leg, retryable} from direct-search responses and Search Hub top-level or per-provider degraded/partial signals; provider notes are bounded and raw clues are omitted.",
+      "next_actions": "Closed next steps derived from no-result, ambiguity, failed legs, and degraded or partial provider groups; degraded groups are treated as unsearched.",
       "content_bytes": "Aggregate UTF-8 bytes of optional snippets and context retained in the envelope."
     },
     "errors": {

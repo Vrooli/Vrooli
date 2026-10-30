@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/runsignal"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
 	"agent-manager/internal/usageforecast"
@@ -28,7 +29,6 @@ import (
 const (
 	ExternalToolShare         = "friction.external_tool_share"
 	RetryRate                 = "friction.retry_rate"
-	HelpRecoveryRate          = "friction.help_recovery_rate"
 	RepeatedWorkRate          = "friction.repeated_work_rate"
 	ToolFailureRate           = "friction.tool_failure_rate"
 	RunSuccessRate            = "throughput.run_success_rate"
@@ -100,7 +100,6 @@ type metricKind string
 const (
 	externalToolShare     metricKind = "external_tool_share"
 	retryRate             metricKind = "retry_rate"
-	helpRecoveryRate      metricKind = "help_recovery_rate"
 	repeatedWorkRate      metricKind = "repeated_work_rate"
 	toolFailureRate       metricKind = "tool_failure_rate"
 	runSuccessRate        metricKind = "run_success_rate"
@@ -137,11 +136,24 @@ type Definition struct {
 	Limitation  string
 }
 
+// capabilityEfficacyNumerator names only the outcome counts whose episode
+// pattern is shown; a quarantined pattern's count is not measured, so the
+// definition must not promise it.
+func capabilityEfficacyNumerator() string {
+	parts := []string{"successful"}
+	if runsignal.Shown("fallback-after-capability") {
+		parts = append(parts, "fallback")
+	}
+	if runsignal.Shown("capability-abandoned") {
+		parts = append(parts, "abandoned")
+	}
+	return strings.Join(parts, ", ") + " calls"
+}
+
 func definitionFor(name string) Definition {
 	definitions := map[string]Definition{
 		ExternalToolShare:                    {ID: ExternalToolShare, Counts: "classified command invocations", Numerator: "external tool calls", Denominator: "classified command calls", SourceTable: "invocation_read_model_facts", Limitation: "unclassified ownership and unparseable evidence are excluded from the denominator"},
 		RetryRate:                            {ID: RetryRate, Counts: "durable tool invocations", Numerator: "retry-linked calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
-		HelpRecoveryRate:                     {ID: HelpRecoveryRate, Counts: "durable tool invocations", Numerator: "help-recovery calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
 		RepeatedWorkRate:                     {ID: RepeatedWorkRate, Counts: "durable tool invocations", Numerator: "repeated-work calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts", Limitation: "fingerprint concentration can make this measure unreliable"},
 		ToolFailureRate:                      {ID: ToolFailureRate, Counts: "durable tool invocations", Numerator: "failed calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
 		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "successful executed terminal runs", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
@@ -165,7 +177,7 @@ func definitionFor(name string) Definition {
 		FallbackInsights:                     {ID: FallbackInsights, Counts: "runner and model fallback events and policy-candidate outcomes", Numerator: "attempts, exhausted walks and outcomes", Denominator: "none", SourceTable: "run_events", Limitation: "only events still retained in the window are counted"},
 		ConversationSearchQuality:            {ID: ConversationSearchQuality, Counts: "privacy-safe conversation search request telemetry", Numerator: "no-result, weak-only, reformulated, selected, contributing-leg, degraded, error, and latency observations", Denominator: "search requests in the selected window", SourceTable: "conversation_search_telemetry", Limitation: "query and result content are never stored; at most the most recent 10000 requests in a window are aggregated"},
 		"friction.capability_usage":          {ID: "friction.capability_usage", Counts: "verified capability receipts", Numerator: "calls grouped by capability", Denominator: "none", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
-		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: "successful, fallback, and abandoned calls", Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
+		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: capabilityEfficacyNumerator(), Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
 		"select_cohort":                      {ID: "select_cohort", Counts: "terminal runs matching the selected filter", Numerator: "matching runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
 		"episode_cohort":                     {ID: "episode_cohort", Counts: "persisted friction episodes", Numerator: "episodes grouped by fingerprint", Denominator: "none", SourceTable: "invocation_read_model_episodes"},
 		"cohort_report":                      {ID: "cohort_report", Counts: "run reports of the selected cohort", Numerator: "friction signals, time accounting and goal progression", Denominator: "selected runs", SourceTable: "invocation_read_model_runs", Limitation: "at most 100 runs; each run report is built from its durable projection"},
@@ -184,7 +196,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{ExternalToolShare, RetryRate, HelpRecoveryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, FallbackInsights, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort", "cohort_report", "episode_comparison", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare} {
+	for _, name := range []string{ExternalToolShare, RetryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, FallbackInsights, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort", "cohort_report", "episode_comparison", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -251,7 +263,6 @@ func declarations() []struct {
 	}{
 		{ExternalToolShare, "ExternalToolShare", "Share of resolved tool invocations that target external tools, with unknown ownership reported separately.", "share", "{value} external-tool share ({window})", []string{"what is the external-tool share this week", "how often do agents use tools outside Vrooli", "which fraction of tool calls are external"}, externalToolShare},
 		{RetryRate, "RetryRate", "Share of durable tool invocations linked to a prior retry target.", "share", "{value} retry rate ({window})", []string{"what is the retry rate this week", "how often are agent tool calls retried", "show tool invocation retries"}, retryRate},
-		{HelpRecoveryRate, "HelpRecoveryRate", "Share of tool invocations that follow a help-recovery signal.", "share", "{value} help-recovery rate ({window})", []string{"what is the help recovery rate", "how often do agents recover after asking for help", "show help recoveries this month"}, helpRecoveryRate},
 		{RepeatedWorkRate, "RepeatedWorkRate", "Share of tool invocations in repeated-work fingerprints.", "share", "{value} repeated-work rate ({window})", []string{"what is the repeated work rate", "how much tool work is repeated", "show agent reread and repeated invocation rate"}, repeatedWorkRate},
 		{ToolFailureRate, "ToolFailureRate", "Share of durable tool invocations whose classified outcome failed.", "share", "{value} tool failure rate ({window})", []string{"what is the tool failure rate", "how often do agent tool calls fail", "show failed tool invocation share"}, toolFailureRate},
 		{RunSuccessRate, "RunSuccessRate", "Share of executed terminal runs that completed successfully; imported and interactive runs are separate.", "share", "{value} run success rate ({window})", []string{"what is the agent run success rate this week", "how often do agent runs complete successfully"}, runSuccessRate},
@@ -354,8 +365,6 @@ func execute(ctx context.Context, store Store, kind metricKind, filter invocatio
 		result.Rate, result.Numerator, result.Denom, result.Population = metrics.ExternalToolShare, metrics.ExternalCalls, classifiedBase, population
 	case retryRate:
 		result.Rate, result.Numerator, result.Denom = metrics.RetryRate, metrics.RetryCalls, classifiedBase
-	case helpRecoveryRate:
-		result.Rate, result.Numerator, result.Denom = metrics.HelpRecoveryRate, metrics.HelpRecoveries, classifiedBase
 	case repeatedWorkRate:
 		result.Rate, result.Numerator, result.Denom = metrics.RepeatedWorkRate, metrics.RepeatedCalls, classifiedBase
 	case toolFailureRate:
@@ -465,7 +474,7 @@ func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.
 	if err != nil {
 		return metricResult{}, connect.NewError(connect.CodeInternal, err)
 	}
-	if kind == externalToolShare || kind == retryRate || kind == helpRecoveryRate || kind == repeatedWorkRate || kind == toolFailureRate {
+	if kind == externalToolShare || kind == retryRate || kind == repeatedWorkRate || kind == toolFailureRate {
 		metrics, metricErr := h.store.Metrics(ctx, filter)
 		if metricErr != nil {
 			return metricResult{}, connect.NewError(connect.CodeInternal, metricErr)
@@ -524,14 +533,6 @@ func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.
 		return nil, err
 	}
 	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RetryRate, r), DefinitionId: definitionID(RetryRate)}), nil
-}
-
-func (h *Handler) HelpRecoveryRate(ctx context.Context, req *connect.Request[measurepb.HelpRecoveryRateRequest]) (*connect.Response[measurepb.HelpRecoveryRateResponse], error) {
-	r, err := h.metric(ctx, helpRecoveryRate, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.HelpRecoveryRateResponse{Rate: r.Rate, HelpRecoveries: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, HelpRecoveryRate, r), DefinitionId: definitionID(HelpRecoveryRate)}), nil
 }
 
 func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[measurepb.RepeatedWorkRateRequest]) (*connect.Response[measurepb.RepeatedWorkRateResponse], error) {
@@ -1303,9 +1304,17 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		}
 		fields := make([]map[string]string, 0, len(rows))
 		for _, row := range rows {
-			fields = append(fields, map[string]string{"target_scenario": row.TargetScenario, "operation": row.Operation, "call_count": strconv.FormatInt(row.CallCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10), "fallback_after_count": strconv.FormatInt(row.FallbackAfterCount, 10), "abandoned_count": strconv.FormatInt(row.AbandonedCount, 10)})
+			field := map[string]string{"target_scenario": row.TargetScenario, "operation": row.Operation, "call_count": strconv.FormatInt(row.CallCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10)}
+			// A quarantined pattern is not measured; its count is left out, not reported as 0.
+			if runsignal.Shown("fallback-after-capability") {
+				field["fallback_after_count"] = strconv.FormatInt(row.FallbackAfterCount, 10)
+			}
+			if runsignal.Shown("capability-abandoned") {
+				field["abandoned_count"] = strconv.FormatInt(row.AbandonedCount, 10)
+			}
+			fields = append(fields, field)
 		}
-		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT receipt calls joined to fallback and abandoned episode projections"}}, nil
+		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT receipt calls" + capabilityEfficacyJoinText()}}, nil
 	}); err != nil {
 		return nil, err
 	}
@@ -1345,3 +1354,18 @@ func (h *Handler) MeasuresHandler() (http.Handler, error) {
 }
 
 var _ measureconnect.MeasuresServiceHandler = (*Handler)(nil)
+
+// capabilityEfficacyJoinText names the episode joins that are measured.
+func capabilityEfficacyJoinText() string {
+	var joined []string
+	if runsignal.Shown("fallback-after-capability") {
+		joined = append(joined, "fallback")
+	}
+	if runsignal.Shown("capability-abandoned") {
+		joined = append(joined, "abandoned")
+	}
+	if len(joined) == 0 {
+		return ""
+	}
+	return " joined to " + strings.Join(joined, " and ") + " episode projections"
+}

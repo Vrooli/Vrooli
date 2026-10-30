@@ -176,10 +176,40 @@ status transition: running → complete|failed (or parked again on the next asyn
 
 **Levers:** `DefaultParkTTL` (park deadline, 30m), `DefaultParkTurnEndGrace` (delay before process-group kill, 2s). `Execution.DefaultTimeout`/`Heartbeat.RunHeartbeatInterval` apply to the woken turn (it is a continuation).
 
+### Optional review timer
+
+A supported managed run can choose its next review time without maintaining a
+separate scheduler. Inside that run, `agent-manager run identity --json` shows
+the verified run identity. Supply that run's ID below; the CLI uses its
+`VROOLI_AGENT_IDENTITY_TOKEN` environment variable, and the server verifies
+that the token owns the run. An operator cannot park an arbitrary run using
+only its ID. From the run, call:
+
+```sh
+agent-manager run park <own-run-id> --producer review-timer --key <RFC3339-review-time> --timeout <duration>
+```
+
+The key is an absolute timestamp, including a timezone. Choose a time beyond the
+turn-end grace, and a timeout whose deadline is later than that time. The
+default park deadline is 30 minutes, so longer review intervals need an explicit
+timeout. The supervisor chooses and can adjust each interval; a later review
+uses a new timestamp. If Agent Manager restarts, it reattaches the persisted
+wait and an elapsed review time wakes promptly, subject to the park deadline.
+An explicit wake or stop also ends the wait. The timer is a prompt to inspect
+evidence, not a claim about research progress, a worker-health monitor, or an
+enforced research cutoff.
+
+This mechanism requires a run eligible for Agent Manager park/wake. It does not
+make attached or externally owned native sessions parkable or provide a
+durable timer for them; supervisors should use available host facilities and
+retain an explicit fallback when a durable continuation is unavailable. The
+worker does not need to emit a special event for this timer.
+
 **Tests:**
 - `internal/orchestration/park_test.go` — `running→parked→running` round-trip preserves identity/env + resets heartbeat; timeout typed result; stop-while-parked → cancelled + handle cleared; wake idempotent; double-park rejected.
 - `internal/orchestration/park_from_agent_test.go` — identity-auth (owning token parks; foreign token → 403; invalid token; already-parked rejected).
 - `internal/orchestration/await_registry_test.go` — resolve/producer-error/deadline-timeout/cancel-no-wake/restart-recovery/idempotent-register.
+- `internal/orchestration/review_timer_test.go` — review-time validation, elapsed timer and cancellation; registry recovery also exercises an elapsed review timer.
 - `internal/database` `TestTouchHeartbeat_StatusGuarded` — a heartbeat tick during the park window cannot resurrect `parked→running` (atomic status-guarded update).
 
 ## Workflow completion nudge + blocking wait

@@ -2,6 +2,7 @@ package usageattribution
 
 import (
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,5 +180,41 @@ func TestGroupSplitsToolKindsByCallsAndNamesOperatorDefaults(t *testing.T) {
 	}
 	if only := Group(result, ByRun, runs, "b"); len(only) != 1 || only[0].Key != "b" || only[0].Source != SourceAgentManager {
 		t.Fatalf("run filter = %+v, want only run b", only)
+	}
+}
+
+// P3-F8: with enough blocks the fit reports a centered R² and says its model
+// weights are priors; both models share every block, so their ratio cannot be
+// fitted from the window.
+func TestFittedCalibrationReportsCenteredRSquaredAndLabelsPriors(t *testing.T) {
+	f := newWeekFixture()
+	result := Attribute(f.window, f.window.Start, f.turns, fixturePrices)
+	c := result.Calibration
+	if c.Method != MethodFitted || c.Slices < minFitBlocks {
+		t.Fatalf("method %s over %d blocks, want fitted with at least %d", c.Method, c.Slices, minFitBlocks)
+	}
+	if c.RSquared <= 0 || c.RSquared > 1 || !strings.Contains(c.Note, "priors") {
+		t.Errorf("R² %.3f note %q, want a centered R² in (0,1] and the weights labelled priors", c.RSquared, c.Note)
+	}
+	// Centered: a scale that predicts the mean increase explains nothing.
+	flat := Window{Provider: "openai", Pool: "primary", Name: "10080m", Minutes: 10080, Start: fixtureStart, LastAt: f.window.LastAt, Series: f.window.Series}
+	if r := Attribute(flat, flat.Start, f.turns, fixturePrices).Calibration.RSquared; r > 1 {
+		t.Errorf("R² = %v", r)
+	}
+}
+
+// Below the minimum block count no R² is reported and the part of an increase
+// the lowest block ratio does not explain stays off-disk.
+func TestTooFewBlocksReportNoRSquaredAndKeepAnOffDiskRemainder(t *testing.T) {
+	f := newWeekFixture()
+	few := f.window
+	few.Series = few.Series[:5]
+	result := Attribute(few, few.Start, f.turns, fixturePrices)
+	c := result.Calibration
+	if c.Method != MethodScaled || c.RSquared != 0 || !strings.Contains(c.Note, "no R²") || !strings.Contains(c.Note, "priors") {
+		t.Fatalf("calibration = %+v, want scaled, no R², weights labelled priors", c)
+	}
+	if result.Unattributed <= 0 {
+		t.Errorf("unattributed = %v, want an off-disk remainder kept below the minimum block count", result.Unattributed)
 	}
 }

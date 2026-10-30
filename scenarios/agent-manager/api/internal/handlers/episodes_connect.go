@@ -31,13 +31,15 @@ func (h *Handler) GetEpisodes(ctx context.Context, req *connect.Request[domainpb
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	out := make([]*domainpb.FrictionEpisode, 0, len(episodes))
-	for _, episode := range episodes {
+	shown, hidden := runsignal.ShownEpisodes(episodes)
+	out := make([]*domainpb.FrictionEpisode, 0, len(shown))
+	for _, episode := range shown {
 		out = append(out, episodeProto(episode))
 	}
 	return connect.NewResponse(&domainpb.GetEpisodesResponse{
-		ClassifierVersion: runsignal.EpisodeClassifierVersion,
-		Episodes:          out,
+		ClassifierVersion:         runsignal.EpisodeClassifierVersion,
+		Episodes:                  out,
+		HiddenQuarantinedEpisodes: int64(hidden),
 	}), nil
 }
 

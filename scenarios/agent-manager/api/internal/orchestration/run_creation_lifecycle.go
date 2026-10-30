@@ -52,6 +52,10 @@ func (o *Orchestrator) GetRunByImportProvenance(ctx context.Context, sourceHarne
 	return o.runs.GetByImportProvenance(ctx, sourceHarness, sourceSessionID)
 }
 
+func (o *Orchestrator) FindImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) ([]uuid.UUID, error) {
+	return o.runs.FindImportProvenance(ctx, sourceHarness, sourceSessionID)
+}
+
 func (opts RunListOptions) repositoryFilter() repository.RunListFilter {
 	return repository.RunListFilter{
 		ListFilter: repository.ListFilter{

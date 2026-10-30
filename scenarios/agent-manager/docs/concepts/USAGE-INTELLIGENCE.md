@@ -142,9 +142,17 @@ Implementation (`api/internal/transcriptindex`, host side in
   the indexing time and `unknown`; a start-up repair rewrote them from the
   transcripts once and has been removed.
 - **Contention is not unreadability.** A SQLite busy or locked error while a
-  file is read leaves the file `pending`, so the next tick resumes it from its
-  offset; only a file that cannot be opened or parsed is `unreadable`. Files
-  marked unreadable by contention before 2026-10-29 are re-read.
+  file is read leaves the file `pending`. When an event write may have
+  committed before an error, the indexer preserves the prior cursor and
+  replays the source from its start under the tick byte budget to reconstruct
+  parser state; event and usage identities prevent duplicate evidence. A
+  source changed since the failed read, a source larger than the tick budget, or a permanent
+  parse failure leaves an `unreadable` issue instead of guessing. Inspect the
+  exact file and reason with `agent-manager usage coverage --json` (choose a
+  sufficiently early `--since`). There is no supported automatic repair for
+  those unresolved cases: preserve the transcript and run evidence and seek
+  an owner-level reconciliation; importing it again does not clear the guard.
+  Files marked unreadable by contention before 2026-10-29 are re-read.
 
 ### T-2 Accounting
 
@@ -170,6 +178,55 @@ orchestrator's post-persist hooks: quota observation, token caps and workflow
 usage nudges. Each quota event produces one deduplicated `quota_observations`
 row. Claude Code's utilization percentage, which transcripts do not carry, comes
 from a `statusline` subcommand owned and installed by `resources/claude-code`.
+
+### Account scope and launcher limits
+
+Quota observations now have an optional opaque account scope. A blank scope
+means unknown; it does not identify a shared account. Account scope partitions
+observation identity, heartbeat deduplication, compaction and explicit scoped
+reads. Legacy rows migrate as unknown, and their original observation IDs stay
+stable for replay. Forecast and backtest accept an exact `account_scope`;
+without it they read only legacy unknown-scope history. Scoped forecasts do not
+use provider-wide activity to infer account idleness. Attribution and alerts
+still consume only legacy unknown-scope history. An exact `account_scope`
+filter on the bounded quota observation read selects only that scope; the
+caller must independently prove the selected launch uses it. The read computes
+freshness at request time, including an elapsed reset.
+
+Neither current Claude statusline samples nor current Codex transcript quota
+frames establish account identity, so their observations remain unscoped. No
+current reading can yet be represented as verified for a Web Console launcher.
+`GET /api/v1/pricing/live-quota?agent=codex` performs a bounded, coalesced local
+app-server read, returning provider windows without account identifiers. Its
+`likely` match reflects this Agent Manager process's login, not a proven future
+launcher account. `agent=claude-code` uses the newest coherent, recent
+statusline sample; recent contradictory samples from different sessions make
+the estimate unavailable. Stale or elapsed windows are not reported as current.
+Unsupported agents and failed reads return unavailable, never fabricated zero.
+The endpoint runs against the Agent Manager host and cannot be projected onto a
+different remote target. Codex responses are cached for one minute and failures
+for ten seconds; Claude timestamps are the original sample time.
+The installed Codex app-server schema exposes an optional account ID alongside
+`account/rateLimits/read`. The live reader discards that identifier and does
+not establish its relationship to a future launcher. Do not associate existing
+history with an account or treat a hostname, provider name or copied home as
+proof. The Web Console launcher
+currently runs operator-owned shell shortcuts in a PTY, whereas the existing
+managed app-server is a distinct launch mode. A prospective read from some
+other app-server cannot prove the credentials, executable or remote target that
+an arbitrary shortcut will use. A future integration must bind an exact launch
+intent and target to a provider-returned account scope, revalidate that binding
+at launch, and test wrappers, environment overrides and account changes. The
+provider's `accountId` is optional and must remain backend-only; its absence
+prevents verified account matching. The installed Codex schema also supports multiple limit buckets,
+so classify 5-hour and weekly windows by duration, not by primary/secondary
+position. On 2026-10-29, a bounded read using the installed Codex app-server
+in the investigating agent's inherited environment returned an account ID and
+one 10080-minute window; no 300-minute window was present. Only booleans and
+window lengths were retained as evidence. This proves neither that the next
+Web Console launch uses that account nor that all Codex accounts report the
+same windows. No credentials, account ID, or utilization percentage were
+recorded. The launcher must not use this unrelated sample as its own reading.
 
 ### T-4 Forecast
 
@@ -351,9 +408,14 @@ deleted.
 **Calibration.** Off-disk use only ever adds to a block's increase, so the
 window's scale is the 25th percentile (increase-weighted) of each block's
 increase over its usage cost (`fitted`). A block's usage explains at most its
-increase at that scale; the rest is unattributed. With fewer than 5 blocks
-with usage the usage explains every block it ran in (`scaled`). The scale,
-per-model cached tokens per point and their source are reported per window.
+increase at that scale; the rest is unattributed. A fit reports a centered R²
+(against the blocks' mean increase) and needs at least `max(8, 3 × fitted
+parameters)` blocks with usage; the scale is the only fitted parameter. With
+fewer, the lowest block ratio scales (`scaled`), no R² is reported and what it
+does not explain stays off-disk. Model and category ratios are priors (price
+book or tier ratios, e.g. Opus:Sonnet 1:0.5), never fitted, and the output says
+so; models that share blocks cannot be told apart from a window's own data. The
+scale, per-model cached tokens per point and their source are reported per window.
 On 2026-10-29 the Codex window calibrated to terra ≈138M and luna ≈690M
 cached tokens per point (E-2: 100M and 520M).
 
@@ -390,19 +452,23 @@ Plans saving under 0.1 pt are counted (`folded_groups`, `folded_points`), not
 listed.
 
 **Projection.** A saving is stated against the target's projected use over the
-window's horizon: a target whose last turn is within an hour of the newest
-attributed turn is still running and keeps its rate over the attributed
-period for the rest of the window (periods under a seventh of the window — a
-day for a week — count as that seventh); one that stopped is assumed to use
-nothing more, so its saving is what the lever would have saved of its use.
+window's horizon. A target is active when `now − last turn ≤ max(15 min, 3 ×
+the session's median request gap)`, judged against now (never another
+consumer's newest turn); a finished target projects to its points, so its
+saving is what the lever would have saved of its use. An active one adds its
+rate `r = points / max(span, 1 h)` decayed over the median session length τ (4 h
+when unknown) across the time R left in the window: `r·τ·(1 − e^(−R/τ))`. The
+future use of all active targets together is capped pro rata at the window's
+headroom (`100 − used%`), and each lever at its own base.
 Each lever carries typed facts for its rule (`UsageLeverFacts`: context,
-fanout, idle, image, friction or model), never a free-form metric map. Every
+lifetime (the `fanout` field), idle, image, friction, model or floor (the `context` field)), never a free-form metric map. Every
 rule family reports whether it fired and, if not, why from the data.
 A saving is stated over the window's whole horizon at the target's current
 rate (`at_this_rate_points` is a projection, not a forecast); `recoverable_points`
 (on each plan and lever) is the part still to be had before the reset: the
-saving times the share of the horizon left, and 0 for a target that has
-stopped. Friction plans are a cross-cut view (`cross_cut`): their points are
+saving times the future share of the projection (`(projected − used) /
+projected`, the saving rate over the expected remaining activity), and 0 for a
+target that has stopped. Friction plans are a cross-cut view (`cross_cut`): their points are
 already inside the session plans that ran them, so clients never sum savings
 or shares across target kinds. `usageattribution.Service.TopPlan` returns the largest plan for one window; it
 is the function an alert asks for "the #1 action".
@@ -411,12 +477,31 @@ is the function an alert asks for "the #1 action".
   least 3 runs and a success rate within 10 points of its pricier model. The
   saving is the pricier model's weekly points on that workload times
   `1 − price ratio`.
+- **R-model-mix:** sessions and sub-agents outside a workload (interactive
+  ones included) on a dearer tier (opus, sol, terra) that has a cheaper tier
+  (sonnet, terra, luna), priced per turn's model, with runs counted per model. The saving is a range from 0 to `points × (1 − ratio)`;
+  the lever claims none (`saved_points` 0), its confidence is `unproven` and the
+  ratio is a tier prior, not fitted.
 - **R-context:** a session's own provider requests (usage reports; a Codex
   turn makes many) average at least 120k prompt tokens over at least 50
-  requests. The saving is its cached-input share of points
-  times `1 − 60k / average`.
-- **R-fanout:** at least 3 sub-agents averaging at least 40k prompt tokens.
-  Half of what exceeds a 20k brief is assumed avoidable.
+  requests. The target is the measured floor (the median first-request prompt
+  of the runner, model and role over the window). The saving is its
+  cached-input share of points times `1 − floor / average`, less the cost of
+  rebuilding the floor.
+- **R-lifetime:** a sub-agent with at least 40 requests whose prompt grew from
+  its own first request `S` to `L` over `n` requests (`g = (L − S)/n`; the
+  measured floor `F` only prices the rebuild, so a worker that starts above `F`
+  is not credited for the excess). Capping its life at
+  `k ≥ 20` requests saves `g·n(n − k)/2` tokens and costs `(n/k − 1)` rebuilds
+  (`F × creation weight` plus 3 orientation requests at the mean prompt); the
+  `k` with the largest net is chosen and the lever fires only when it is
+  positive (at least 5% of the worker's tokens). It replaces R-fanout: fan-out
+  would fire only for duplicated workers (same brief fingerprint), which the
+  facts do not carry, so it is gone.
+- **R-floor:** at least 50 requests and at least 20% of the session's tokens
+  are the floor, in the same weighted units as the session's tokens (the first
+  request of a run writes the floor to cache, the rest re-read it). Informational (low confidence, no saving claimed): the
+  trimmable size is unknown.
 - **R-friction:** a persisted friction fingerprint recurs at least 3 times in
   runs that consumed the window (a *friction problem*, below; dismissed ones
   are listed but not recommended). Episodes are priced as their turns' share
@@ -424,13 +509,13 @@ is the function an alert asks for "the #1 action".
   half is assumed avoidable. Only episodes of the current episode classifier
   are read; a classifier change re-projects history through the reconcile
   sweep. A `handoff-continuation` episode counts only the calls after a
-  terminal answer and before the next user message (`friction-episode.v10`; v11 defines an episode cost per pattern and pairs a re-read only within one working stretch),
+  terminal answer and before the next user message (informational and never priced from v14),
   so work the operator asked for is never friction.
 - **R-idle:** at least 20 provider requests whose tool calls are mostly waits
-  with under 600 output tokens per report, or requests of a parked run; 70% avoidable.
+  (spawning a sub-agent is work, not a wait) with under 600 output tokens per report, or requests of a parked run; 70% avoidable.
 - **R-image:** at least 30 viewed images or 10 high-detail images (R-1). An
-  image is ≈1.3k input tokens (estimated) and is re-read while it stays in
-  context; downscaling halves it.
+  image is ≈1.3k input tokens (estimated), written to the cache once (creation
+  weight) and re-read while it stays in context; downscaling halves it.
 
 Plans are ranked by combined saving. The dominant consumer is the session with
 the largest share of its own window, since points of different subscriptions
@@ -438,24 +523,52 @@ are not comparable.
 
 ### Friction problems
 
-Episode definitions the problems rest on (classifier `friction-episode.v13`): a
-*stall* is an idle gap of 5 minutes to 2 hours between two turn events (call,
-result, message) in which the agent's next call or reply was due: not a tool
-running, not the operator, and not across a park, wake, stop or other boundary
-event. Two hours comes from the live distribution (46 of 48 agent-owned gaps
-over five minutes were shorter; the rest are a suspended machine or an outage).
-Wait loops and a slow first success must stay within one working stretch (no
-silence over 30 minutes, no boundary). A tool call counts once however many
-copies of its event were recorded. Each classifier bump prunes older versions
-once at start-up.
+Episode definitions the problems rest on (classifier `friction-episode.v16`).
+`runsignal.PatternSpecs()` is the only list of patterns: id, classifier
+version, cause scope, time kind, cost rule, description template and
+quarantine. A *stall* is an idle gap of 5 minutes to 2 hours that the agent
+owed: a tool result was in and the next tool call came late. A tool running,
+the operator or an injected message, a terminal or evidence-only message, a
+park, wake or stop, and gaps over two hours (a suspended machine or an
+outage) are never stalls. Wait loops and re-reads stay within one working
+stretch (no silence over 30 minutes, no boundary). A tool call counts once
+however many copies of its event were recorded. `handoff-continuation` is
+informational (reported on a run, never priced or shown) and never fires in a
+goal run or when the next user message is an injected one. A *command failure* is scenario friction: a
+Vrooli project-owned command (resolved through the catalog: scenario CLIs,
+`vrooli ...`) fails with an error, whatever the cause: the agent misused it
+(bad flag, wrong arguments) or the scenario or its infrastructure was broken or
+unavailable (capacity broker lock, read-only filesystem, unreachable API). A
+no-match, an interrupt, a help probe, a documented informational verdict and any
+command outside the project (`ls`, `rg`, `python`, `git`) are not command
+failures. One failing call is one episode, owned by the scenario and command
+path, described as "`<command>` failed: <first error line>". Each classifier
+bump prunes older versions once at start-up.
+
+An episode is priced by its own redundant calls: `turns` is their number,
+`tokens` their argument and result tokens, `wall_clock_ms` their own duration
+("redundant call time"; a stall's is its "idle gap"). No episode carries
+run-wide tokens. A pattern that fails the precision gate
+(`runsignal/testdata/precision`, `go test ./internal/runsignal -run Precision`)
+is `Quarantined` in its spec: kept in the read model, excluded from usage
+friction, R-friction and the UI.
+
+Classifier history: v23 (facts v25) guidance-repair is unpriced (the preceding call is not redundant work); episode reads honour workload and classifier-version filters. v22 (facts v25) existence probes (`command -v`, `which`, `type`, `hash`) are not calls of the probed program. v21 (facts v24) a heredoc inside `$(…)` no longer breaks parsing on an apostrophe; a non-literal element in a Codex `exec_command` argv makes the command unresolved; run scope applies to fact, episode and finding reads. v20 agent-behaviour episodes (operator corrections) carry no command owner, so they group as one problem and are never filed against a scenario. v19 harness blocks in front of another injected form keep that form's source; a second report of the same events counts against precision, distinct failing calls in one labelled span each count; recall counts labelled episodes found. v18 (facts v23) a unit after `&&` or `||` no longer inherits a failed call's exit (the failing unit is unknown; `;` and pipeline tails still inherit it); the precision gate needs at least 5 matched true detections and a 95% Wilson lower bound of precision of at least 0.7, with recall checked from 3 true labels (edit-revert and wait-misuse leave the shown set); cohort selection and cohort episode reads filter to shown patterns in SQL before the limit, with hidden episodes counted separately. v17 manifest command semantics now reach facts (the lookup used a doubled owner key, so no `semantics` declaration ever applied); a verify command's non-zero exit (`effort lint`, `effort epoch-check`) is its verdict, not a failure; command-failure shown. v16 command-failure is scenario friction: one episode per failing project-owned command call, any cause, owner scenario + command path, first error line in the description (labels re-judged under this rule, `relabel: scenario-friction-2026-10-30`). v15 operator corrections must target the agent's prior action, corpus-specific exit-code table removed, quarantined and informational patterns are excluded (runsignal.Shown) from run friction scores, durability evidence, capability efficacy, usage friction, cohort episodes and the episode endpoints; only the precision test and the durable read model read them unfiltered. The precision gate reports detections outside any label as unlabelled, fails a pattern whose unlabelled detections exceed 20%, and also requires all-label recall; quarantine reasons point at testdata/precision/results.json instead of quoting numbers. v14 one pattern table, command-path outcomes, message
+sources, redundant-call cost, `time-to-first-success` deleted. v13 a stall is an
+idle gap of 5 min–2 h inside an active turn (not waiting on a tool, the
+operator, a park or a resume); wait loops and slow starts stay within one
+working stretch. v12 a tool call is counted once however often its events were
+duplicated and never pairs with itself; a pipeline filter (`| head`) is not a
+file read. v11 wall clock is the time the friction wasted, per pattern;
+read-then-reread pairs only within one working stretch. v10 handoff-continuation
+stops at the next user message.
 
 Problems count only runs the current episode classifier has analysed;
 `UsageFriction` returns `runs_analysed` and `runs_total` for the windows so a
 client can say it is still re-analysing while history is re-projected. A
-problem's `time_kind` says what its time measures: `wasted` (a redundant or
-failed call's own duration; `time_lost` is true only for this), `idle` (a
-stall's gap: waiting, not wasted work), `elapsed` (how long a loop or slow
-start ran) or `none` (handoff-continuation: report calls and tokens).
+problem's `time_kind` says what its time measures: `redundant` (the
+redundant calls' own duration) or `idle` (a stall's gap: waiting, not wasted
+work).
 Reporting or dismissing a fingerprint no current problem has is rejected.
 
 `UsageFriction` (`agent-manager usage friction`) lists the problems R-friction

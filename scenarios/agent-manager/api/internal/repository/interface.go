@@ -265,6 +265,9 @@ type RunRepository interface {
 	// GetByImportProvenance returns the run that adopted an external source
 	// session, or nil when that session has not been imported.
 	GetByImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) (*domain.Run, error)
+	// FindImportProvenance returns at most two matching IDs. Two means ambiguous;
+	// unlike GetByImportProvenance it must not silently choose one duplicate.
+	FindImportProvenance(ctx context.Context, sourceHarness, sourceSessionID string) ([]uuid.UUID, error)
 
 	// ListByWebConsoleSessionIDs returns every run whose web_console_session_id
 	// is one of sessionIDs (several runs may share one session). Unknown and

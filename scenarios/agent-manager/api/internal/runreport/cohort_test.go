@@ -34,9 +34,11 @@ func TestBuildCohortRanksBoundedSignals(t *testing.T) {
 	}
 }
 
-func TestBuildEpisodeCohortDegradesForSelectedRunWithoutEpisodes(t *testing.T) {
-	cohort := BuildEpisodeCohort(map[string][]runsignal.FrictionEpisode{"run-without-episodes": {}})
-	if cohort.Availability.State != "degraded" || cohort.Availability.Reason == "" {
-		t.Fatalf("availability = %#v, want named degraded state", cohort.Availability)
+// A selected run with no shown episodes is a clean run: the cohort stays
+// available and has no signal for it.
+func TestBuildEpisodeCohortTreatsARunWithoutEpisodesAsClean(t *testing.T) {
+	cohort := BuildEpisodeCohort(map[string][]runsignal.FrictionEpisode{"clean-run": {}})
+	if cohort.Availability.State != AvailabilityAvailable || len(cohort.Signals) != 0 {
+		t.Fatalf("cohort = %#v, want available with no signals", cohort)
 	}
 }

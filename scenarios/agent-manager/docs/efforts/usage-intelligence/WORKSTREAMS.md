@@ -36,6 +36,49 @@ Recommendation #1 applied from 2026-10-29: cap sub-agent fan-out (short worker b
 - Next measures.proto pass: rename `UsageBurner.turns` → `requests`; cohort-definition RPCs to retire the REST cohort routes.
 - Decide: Investigations page default window (all-time vs this_week).
 
+## Pass 3 (SPEC §11; operator approved 2026-10-29)
+
+- Current: @ 2026-10-30 04:30Z. **Pass 3 implemented; acceptance below.** Live service restarted on facts v25 / episodes v23; the stale-projection sweep is re-deriving history newest-first (budget 10 s/min, ~1,400 of last week's runs left at 04:10Z).
+- A11 amended: the "short worker briefs" change came from the wrong R-fanout mechanism (P3-F10). The
+  binding change measured on/after 2026-11-05 is the Track-A guidance (sub-agent model by task kind,
+  worker restart per slice, prompt-floor trim) applied 2026-10-29.
+
+### Pass 3 acceptance (live, 2026-10-30)
+
+| ID | Result | Evidence |
+|---|---|---|
+| P3-A1 | met | v25 facts (654,057 rows so far): 0 JS-keyword executables, 0 `unparseable` intent keys, 120 of 228,080 shell facts (0.05%) without a command path; `invocation_command_test.go` covers heredocs, wrappers, Codex JS, chains, probes |
+| P3-A2 | met (derived) | `domain/message_source.go` + codec tests (Claude with/without `origin`, Codex goal/AGENTS.md/env, wakes, harness-block prefixes); stored events derive their source at read time; SQL distribution of sources not taken |
+| P3-A3 | met | `TestPrecisionGate` on 269 windows / 215 blind labels: shown = command-failure (Wilson LB 0.94) and guidance-repair (0.72); 15 others quarantined; hold-out split, unlabelled ≤20%, ≥5 matched true, all-label precision ≥0.8 |
+| P3-A4 | met | episodes priced by their own calls (`FrictionEpisode.price`); guidance-repair has no time; live `usage friction` shows no run-wide tokens and no "wasted" label |
+| P3-A5 | met | live `usage recommendations`: finished sessions project to their points (76d970de 27.3 → 27.3); R-lifetime "restart sub-agents after about 45 requests" −4.8 pts replaces R-fanout −54.8; R-model-mix shown as "up to −10.2 (unproven)"; R-floor "floor 33% of cost" |
+| P3-A6 | met | centered R², minimum 8 blocks, priors labelled; `attribute_test.go` |
+| P3-A7 | **not met** | debt items closed (one pattern table, four lists deleted, `help-recovery-rate`, `run episode-trend`, `run messages-friction`, TimeNone/TimeLost, legacy ownership branch, time-to-first-success, `HandoffsBeforeMet`, corpus-specific exit table); but non-test LOC rose in `runsignal` (now 4,689; new shell lexer + Codex JS reader ≈ +860) and `usageattribution` (now 3,017; three new levers). No pre-pass baseline was snapshotted for those two packages, so the net is estimated, not measured |
+| P3-A8 | met | `go test ./internal/...` (API), CLI `go test ./...`, `make type-check`, vitest usage + Investigations (65); Test Genie unit+docs run 20261030-013348-ef220f99 PASS (docs findings are pre-existing placeholder snippets) |
+| P3-A9 | **partly met** | 17 fresh hostile reviews; every material finding fixed. Pass 10 and pass 17 found nothing material in the core accuracy work, but not two consecutively: passes 11–16 found UI/rendering defects, all fixed. Stopped on diminishing returns |
+
+### Pass 3 follow-ups (open)
+
+- **Codex outcomes are unknowable for `exec` scripts.** The JS `exec` tool returns text ("Script completed … Output:") with no exit code, so ~98% of Codex facts have outcome `unknown` and command-failure cannot see Codex sessions. Needs exit status from the harness (per `exec_command`), not inference.
+- **repeated-work over-fires** (16,205 v23 episodes, quarantined, so hidden). Fix or delete before relabelling.
+- **Retire the three kept rate verbs** by moving `.vrooli/program-runtime/setpoint-read.py` and `agent-manager-improve` to `usage friction`.
+- **Labels:** guidance-repair passes narrowly (Wilson 0.72, thin hold-out); more operator-correction labels would firm it up. Several quarantined patterns have true cases the detectors miss (flag-hunting, fallback-after-capability via Codex one-liners, retry/abandoned precision).
+- **A11 (≥2026-11-05):** measure the Track-A guidance change (`.claude/agents`, Luna roles, worker restart per slice) with `usage compare`.
+- `make restart` failed twice with no captured error and succeeded on retry; uninvestigated.
+
+| ID | Outcome | Owns (only these) | Wave |
+|---|---|---|---|
+| P3-W1 | Facts: command identity, Codex JS exec, segment outcome, no-match (SPEC §11.2 Facts) | `api/internal/runsignal/invocation*.go` and its tests/testdata | 1 |
+| P3-W2 | Message source + Codex result outcome (§11.2 Message source) | `api/internal/domain` message event types, `api/internal/adapters/runner/codecs/`, `api/internal/orchestration/park.go` wake text, `import_transcript.go`, proto `events.proto`/`run.proto` message fields (proto ownership granted) | 1 |
+| P3-W4 | Projection, levers, calibration (§11.2 Projection/Levers/Calibration) | `api/internal/usageattribution/` except `friction.go`; `api/internal/pricing/` | 1 |
+| P3-W3 | Detectors, pattern table, episode cost, owner routing (§11.2 Detectors/Episode cost) | `api/internal/runsignal/` except invocation*.go; `usageattribution/friction.go`; friction UI component | 2 |
+| P3-W5 | Precision corpus + gate (§11.2 Precision gate) | `api/internal/runsignal/testdata/precision/`, `runsignal/precision_test.go`, quarantine wiring in `friction.go` after W3 returns | 2 |
+| P3-W6 | Debt (P3-F9 items not owned by W3) | `cli/` measures/run episode verbs, `invocationreadmodel` rate measures, `runreport/` | 3 |
+| P3-W7 | Integration fixups after W1–W4 | usageattribution tests, `measures/usage_attribution*`, `wiring/friction_board.go`, proto `time_lost`, `cli/domains/usage/`, `domain/message_source.go` | 3 |
+
+Orchestrator: restart, `usage reindex --full`, live validation, precision gate run, scoped Test Genie,
+DEBT rows, two hostile reviews.
+
 ## Pass 2 (SPEC §10; operator F-7/F-8)
 
 - Current: @ 2026-10-29 20:15Z. **Pass 2 accepted** (P2-A1–P2-A10 below). Fixture data deleted under operator-approved grants (P2-A2 data part done; see `p2-fixture-inventory.md` Outcome). Follow-ups shipped the same day: deletion requests reachable for agents (`run-deletion` policy; storage-manager grants fast, reviewable, `--paths-file`), `stop-by-tag`/`stop-all` requestable, investigation approvals asked in the inbox and withdrawn when decided in Agent Manager, Usage/Investigations scrolling, Investigations paging, deleted runs no longer counted (derived rows removed; repair `2026-10-29-drop-orphan-run-projections`), CLI warns instead of silently dropping a grant when the identity broker is slow. Remaining operator items: confirm Agent Manager notifications on the phone (P2-A3 pairing), A11 on 2026-11-05.

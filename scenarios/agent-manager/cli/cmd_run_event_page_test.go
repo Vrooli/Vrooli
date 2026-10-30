@@ -22,18 +22,63 @@ import (
 
 type runEventPageHandler struct {
 	apiconnect.UnimplementedAgentManagerServiceHandler
-	mu       sync.Mutex
-	requests []*apipb.GetRunEventsRequest
+	mu            sync.Mutex
+	requests      []*apipb.GetRunEventsRequest
+	ignoreSummary bool
 }
 
 func (h *runEventPageHandler) GetRunEvents(_ context.Context, req *connect.Request[apipb.GetRunEventsRequest]) (*connect.Response[apipb.GetRunEventsResponse], error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.requests = append(h.requests, req.Msg)
+	if req.Msg.GetSummaryOnly() && !h.ignoreSummary {
+		return connect.NewResponse(&apipb.GetRunEventsResponse{
+			Summary: &apipb.RunEventSummary{Counts: map[string]int64{"message": 2}, LatestSequence: ptr(int64(9))},
+			HasMore: true,
+		}), nil
+	}
 	return connect.NewResponse(&apipb.GetRunEventsResponse{
 		Events:  []*domainpb.RunEvent{{Sequence: 8}, {Sequence: 9}},
 		HasMore: true,
 	}), nil
+}
+
+func TestRunEventPageSummaryOnlyIsPayloadFreeAndFailsClosed(t *testing.T) {
+	const runID = "33333333-3333-4333-8333-333333333333"
+	for _, ignore := range []bool{false, true} {
+		owner := &runEventPageHandler{ignoreSummary: ignore}
+		path, handler := apiconnect.NewAgentManagerServiceHandler(owner)
+		mux := http.NewServeMux()
+		mux.Handle(path, handler)
+		server := httptest.NewServer(mux)
+		app, err := NewApp()
+		if err != nil {
+			t.Fatal(err)
+		}
+		app.core.APIOverride = server.URL
+		var out strings.Builder
+		err = app.core.CLI.RunWithWriters([]string{"run", "event-page", runID, "--limit=2", "--after-sequence=7", "--summary-only", "--json"}, &out, &strings.Builder{})
+		server.Close()
+		if len(owner.requests) != 1 || !owner.requests[0].GetSummaryOnly() || owner.requests[0].GetAfterSequence() != 7 {
+			t.Fatalf("summary request not forwarded: %+v", owner.requests)
+		}
+		if ignore {
+			if err == nil || strings.Contains(out.String(), "events") {
+				t.Fatalf("legacy response was not refused: output=%s error=%v", out.String(), err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		var response apipb.GetRunEventsResponse
+		if err := protojson.Unmarshal([]byte(out.String()), &response); err != nil {
+			t.Fatal(err)
+		}
+		if len(response.GetEvents()) != 0 || response.GetSummary().GetLatestSequence() != 9 || !response.GetHasMore() {
+			t.Fatalf("incorrect bounded summary: %s", out.String())
+		}
+	}
 }
 
 func TestRunEventPageUsesTypedConnectBindingAndRendersHasMore(t *testing.T) {

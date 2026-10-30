@@ -59,7 +59,7 @@ func (d selfReportDetector) ClassifierVersion() string { return SelfReportClassi
 func (d selfReportDetector) CauseScope() string        { return d.rule.CauseScope }
 func (d selfReportDetector) Detect(event *domain.RunEvent) []SelfReportSpan {
 	message, ok := event.Data.(*domain.MessageEventData)
-	if !ok || (d.rule.ID == "operator-correction" && !strings.EqualFold(message.Role, "user")) || (d.rule.ID != "operator-correction" && !strings.EqualFold(message.Role, "assistant")) {
+	if !ok || (d.rule.ID == "operator-correction" && domain.MessageSource(event) != domain.MessageSourceOperator) || (d.rule.ID != "operator-correction" && !strings.EqualFold(message.Role, "assistant")) {
 		return nil
 	}
 	lower := strings.ToLower(message.Content)

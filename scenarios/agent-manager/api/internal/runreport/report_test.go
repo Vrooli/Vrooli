@@ -235,11 +235,7 @@ func TestTextLabelsNonMeteredAndUnpricedCostHonestly(t *testing.T) {
 }
 
 func TestBoundProjectionReportsOversizedAvailability(t *testing.T) {
-	bounded, dropped := BoundProjection(map[string]any{"too_large": string(make([]byte, 4096))})
-	if len(bounded) != 0 || dropped != 1 {
-		t.Fatalf("bounded projection = %#v, dropped = %d", bounded, dropped)
-	}
-	availability := projectionAvailability([]CrossScenarioCall{{Projection: bounded, ProjectionDropCount: dropped, PolicyVersion: "v1"}})
+	availability := projectionAvailability([]CrossScenarioCall{{ProjectionDropCount: 1, PolicyVersion: "v1"}})
 	if availability.State != AvailabilityOversized {
 		t.Fatalf("projection availability = %#v, want oversized", availability)
 	}

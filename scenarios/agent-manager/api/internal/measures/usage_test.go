@@ -19,6 +19,69 @@ type quotaReadings struct {
 	since    time.Time
 }
 
+type scopedQuotaReadings struct {
+	quotaReadings
+	accounts map[string][]pricing.QuotaReadingSpan
+}
+
+func (q *scopedQuotaReadings) ScopedQuotaReadingSpans(_ context.Context, scope, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
+	q.provider, q.since = provider, since
+	return q.accounts[scope], nil
+}
+
+func TestUsageForecastIsolatesAccountScopes(t *testing.T) {
+	now := time.Date(2026, 10, 29, 6, 0, 0, 0, time.UTC)
+	account := func(scope string, percent float64) []pricing.QuotaReadingSpan {
+		spans := codexReadings(now)
+		for i := range spans {
+			spans[i].AccountScope = scope
+			p := percent
+			spans[i].UsedPercent = &p
+		}
+		return spans
+	}
+	source := &scopedQuotaReadings{quotaReadings: quotaReadings{spans: codexReadings(now)}, accounts: map[string][]pricing.QuotaReadingSpan{
+		"account-a": account("account-a", 20), "account-b": account("account-b", 70),
+	}}
+	h := NewHandler(&fakeStore{}, func() time.Time { return now })
+	h.SetUsageForecast(source)
+	for _, tc := range []struct {
+		scope string
+		want  float64
+	}{{"", 36}, {"account-a", 20}, {"account-b", 70}} {
+		response, err := h.UsageForecast(context.Background(), connect.NewRequest(&measurepb.UsageForecastRequest{Provider: "openai", AccountScope: tc.scope}))
+		if err != nil || len(response.Msg.GetWindows()) != 1 || response.Msg.GetWindows()[0].GetUsedPercent() != tc.want {
+			t.Fatalf("scope %q: response=%v error=%v", tc.scope, response, err)
+		}
+		filters := response.Msg.GetProvenance().GetAppliedFilters()
+		if len(filters) != 2 || filters[1].GetField() != "account_scope" || filters[1].GetValue() != tc.scope {
+			t.Fatalf("scope %q: filters=%v", tc.scope, filters)
+		}
+		backtest, err := h.UsageForecastBacktest(context.Background(), connect.NewRequest(&measurepb.UsageForecastBacktestRequest{AccountScope: tc.scope}))
+		if err != nil || len(backtest.Msg.GetWindows()) != 1 || backtest.Msg.GetWindows()[0].GetFinalPercent() != tc.want && tc.scope != "" {
+			t.Fatalf("backtest scope %q: response=%v error=%v", tc.scope, backtest, err)
+		}
+	}
+	empty, err := h.UsageForecast(context.Background(), connect.NewRequest(&measurepb.UsageForecastRequest{AccountScope: "missing"}))
+	if err != nil || len(empty.Msg.GetWindows()) != 0 {
+		t.Fatalf("unknown scope must be empty: %v, %v", empty, err)
+	}
+	for _, scope := range []string{" ", "account|other", "account\nother"} {
+		_, err := h.UsageForecast(context.Background(), connect.NewRequest(&measurepb.UsageForecastRequest{AccountScope: scope}))
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("invalid scope %q: %v", scope, err)
+		}
+	}
+	source.accounts["wrong"] = source.accounts["account-a"]
+	if _, err := h.UsageForecast(context.Background(), connect.NewRequest(&measurepb.UsageForecastRequest{AccountScope: "wrong"})); connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("mismatched source scope must fail: %v", err)
+	}
+	h.SetUsageForecast(&quotaReadings{spans: codexReadings(now)})
+	if _, err := h.UsageForecast(context.Background(), connect.NewRequest(&measurepb.UsageForecastRequest{AccountScope: "account-a"})); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("unsupported scoped source must not fall back: %v", err)
+	}
+}
+
 func (q *quotaReadings) QuotaReadingSpans(_ context.Context, provider string, since time.Time) ([]pricing.QuotaReadingSpan, error) {
 	q.provider, q.since = provider, since
 	return q.spans, nil

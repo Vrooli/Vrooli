@@ -124,16 +124,16 @@ func (r *pricingRepository) CompactQuotaObservations(ctx context.Context) (prici
 	return result, nil
 }
 
-func (r *pricingRepository) quotaScopes(ctx context.Context) ([][3]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT provider, pool, window FROM quota_observations`)
+func (r *pricingRepository) quotaScopes(ctx context.Context) ([][4]string, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT account_scope, provider, pool, window FROM quota_observations`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var scopes [][3]string
+	var scopes [][4]string
 	for rows.Next() {
-		var scope [3]string
-		if err := rows.Scan(&scope[0], &scope[1], &scope[2]); err != nil {
+		var scope [4]string
+		if err := rows.Scan(&scope[0], &scope[1], &scope[2], &scope[3]); err != nil {
 			return nil, err
 		}
 		scopes = append(scopes, scope)
@@ -143,10 +143,10 @@ func (r *pricingRepository) quotaScopes(ctx context.Context) ([][3]string, error
 
 // quotaScopePage reads the next page of a scope after the given row, in the
 // (observed_at, id) order the planner needs.
-func (r *pricingRepository) quotaScopePage(ctx context.Context, scope [3]string, after quotaReadingRow) ([]quotaReadingRow, error) {
+func (r *pricingRepository) quotaScopePage(ctx context.Context, scope [4]string, after quotaReadingRow) ([]quotaReadingRow, error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT id, observed_at, reset_at, used_percent, standing FROM quota_observations
-		WHERE provider = ? AND pool = ? AND window = ? AND (observed_at > ? OR (observed_at = ? AND id > ?))
-		ORDER BY observed_at, id LIMIT ?`, scope[0], scope[1], scope[2], after.observedAt, after.observedAt, after.id, quotaCompactionPage)
+		WHERE account_scope = ? AND provider = ? AND pool = ? AND window = ? AND (observed_at > ? OR (observed_at = ? AND id > ?))
+		ORDER BY observed_at, id LIMIT ?`, scope[0], scope[1], scope[2], scope[3], after.observedAt, after.observedAt, after.id, quotaCompactionPage)
 	if err != nil {
 		return nil, err
 	}

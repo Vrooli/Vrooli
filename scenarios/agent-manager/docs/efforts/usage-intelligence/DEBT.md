@@ -187,3 +187,20 @@ the scenario. By category:
 The two fixture lists were deletion inputs, one line per item, not code. They and their two scripts
 were removed after the deletion (2026-10-29). Once the scenario is restaged, its diff is about −4,600
 lines net, docs and tests included.
+## Pass 3 (P3-W6: measures and run episode verbs, runreport)
+
+Non-test `wc -l`. "Before" is measured only where noted; files edited in place are listed with the
+count after the change and the lines removed.
+
+| Item | Action | Files (after; change) |
+|---|---|---|
+| `measures help-recovery-rate` | Deleted. No reader outside agent-manager's own CLI and tests (fleet grep of scenarios/, packages/, internal/, cli/, docs/, ui/). Removed the verb, `HelpRecoveryRate` RPC and messages (proto regenerated), handler, measure definition and catalog entry, the SQL `help_recovery` SUM and `Metrics.HelpRecoveries/HelpRecoveryRate`, the manifest, endpoints and primitive-evidence entries | `cli/domains/measures/register.go` 446 (−9); `api/internal/measures/measures.go` 1,333 (−~12); `repository_invocation_read_model.go` 1,275 (−2); `invocationreadmodel/contract.go` 569 (−2); `measures.proto` (−~20) |
+| `measures retry-rate`, `repeated-work-rate`, `tool-failure-rate` | Kept. Readers: `.vrooli/program-runtime/setpoint-read.py` and `.json` (the improve skill's setpoint rows) and `skills/agent-manager-improve/SKILL.md` rows 46-51 and 131. Removing them needs the setpoint program and skill rewritten around `usage friction`, which is outside this worker's files | none |
+| `run messages-friction` | Merged into `run episodes <id> --spans` (one command, one client). `usage friction --run` was not possible without editing `cli/domains/usage` (P3-W7). Updated the acceptance walkthrough, skill, skill.json, operational-stats | `cli/cmd_invocation_facts.go` 421 (−17); `cli/cmd_runs.go` 99 (−4); `cli/app.go` 488 (−1) |
+| `run episode-trend` | Deleted with its whole chain: CLI verb and `cmd_cohort_report.go` (−45, file deleted), `RunService.EpisodeTrend`, REST route `/api/v1/runs/episode-trend`, handler, orchestrator method and interface entry, `runreport.BuildEpisodeTrend`, `EpisodeTrendBucket`, `TimedEpisode`. Only reader was the CLI | `handlers/invocation_replay.go` 152 (−~30); `handlers.go` 1,117 (−1); `orchestration/invocation_read_model.go` 510 (−~21); `operation_services.go` 263 (−1); `runreport/cohort.go` 323 (−~45); `cli/services_runs.go` 504 (−4) |
+| `measures --help` lists `episodes` | Not reproducible: `measures help` and the manifest list no `episodes` (only `run episodes`, which exists). No change | none |
+| `runreport.BoundProjection` | The function is 24 lines, not 141. Moved to its only caller as unexported `boundProjection`; its test moved with it | `runreport/report.go` (−24); `wiring/receipt_runtime.go` 179 (+24) |
+| `runreport.Build` | Split into `newReport`, `foldRun`, `foldEventEvidence`, `foldInvocationFacts`, `foldReceipts`; `Build` is 36 lines (was ~168). The four durable-or-derive branches are flat. `DeriveEpisodes` now gets `WithGoalRun(run.GoalID != "")` (it was missing, so goal runs were derived as non-goal) | `runreport/report.go` 771 (was 767 before BoundProjection left; net +4 from named-step doc comments) |
+| Read-model SQL | Only the help-recovery SUM was dead; the cohort and token-attribution reads were not split (a pure move) | `repository_invocation_read_model.go` 1,275 |
+
+Net: roughly −190 non-test lines across API and CLI plus the removed proto messages.

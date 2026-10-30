@@ -6,6 +6,14 @@ import "sort"
 // folded into a count: it would display as 0.0.
 const minPlanSaving = 0.1
 
+// floorPlanMinShare is the share of a target's points the starting-context
+// floor must make up for an R-floor-only plan to be worth showing, and
+// floorPlanMinPoints the least the target must have used.
+const (
+	floorPlanMinShare  = 0.2
+	floorPlanMinPoints = 1.0
+)
+
 // Plan is every lever for one target in one window, with a combined saving
 // that does not count overlapping levers twice.
 type Plan struct {
@@ -61,7 +69,7 @@ func buildPlans(levers []Recommendation) (plans, folded []Plan) {
 		g.Saved = applyLevers(g.Levers, g.Use.AtThisRate)
 		g.Recoverable = recoverable(g.Saved, g.Use)
 		g.CrossCut = g.TargetKind == "friction"
-		if g.Saved < minPlanSaving {
+		if g.Saved < minPlanSaving && !informative(g.Levers) {
 			folded = append(folded, *g)
 			continue
 		}
@@ -101,4 +109,22 @@ func (r Report) Top(key WindowKey) (Plan, bool) {
 		}
 	}
 	return Plan{}, false
+}
+
+// informative is a plan worth showing although it claims no saving: an
+// unproven model move whose upper bound is a real amount (its range, not a
+// point estimate, is the finding), or a starting-context floor that is a
+// material share of a target that used real points.
+func informative(levers []Recommendation) bool {
+	for _, lever := range levers {
+		if lever.Rule == RuleModelMix && lever.Facts.Model != nil &&
+			lever.Facts.Model.ExpensiveWeeklyPoints*(1-lever.Facts.Model.PriceRatio) >= minPlanSaving {
+			return true
+		}
+		if lever.Rule == RuleFloor && lever.Facts.Context != nil &&
+			lever.Facts.Context.CachedShare >= floorPlanMinShare && lever.Use.ConsumerPoints >= floorPlanMinPoints {
+			return true
+		}
+	}
+	return false
 }

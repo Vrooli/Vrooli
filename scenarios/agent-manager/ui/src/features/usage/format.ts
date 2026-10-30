@@ -152,7 +152,7 @@ export function evidenceText(evidence: { id: string; label: string }): string {
   return evidence.label.includes(shortId) ? evidence.label : `${evidence.label} · ${shortId}`;
 }
 
-const LEVER_LABELS: Record<string, string> = { model: "Model", context: "Context", fanout: "Fan-out", friction: "Friction", idle: "Idle", image: "Images" };
+const LEVER_LABELS: Record<string, string> = { model: "Model", context: "Context", lifetime: "Restart workers", "model-mix": "Model mix", floor: "Floor", friction: "Friction", idle: "Idle", image: "Images" };
 
 export function leverLabel(lever: string): string {
   return LEVER_LABELS[lever] ?? formatCode(lever);

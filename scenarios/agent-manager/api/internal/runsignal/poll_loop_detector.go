@@ -32,7 +32,7 @@ func detectPollLoops(ctx EpisodeDetectorContext) []FrictionEpisode {
 			continue
 		}
 		e := newEpisode("poll-loop", first, ctx.Facts[end-1], ctx.EventsByID, ctx.Events)
-		e.Turns = end - start
+		e.price(ctx.Facts[start:end], ctx.EventsByID)
 		e.Severity = "repeated"
 		e.HonestyFlags = append(e.HonestyFlags, "generic-read-only-repeat")
 		out = append(out, e)

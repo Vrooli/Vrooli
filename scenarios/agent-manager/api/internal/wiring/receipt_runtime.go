@@ -130,7 +130,7 @@ func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime
 				call.Outcome, call.StatusCode, call.DurationMS = receipt.GetOutcome(), receipt.GetStatusCode(), receipt.GetDurationMs()
 				call.PolicyVersion = receipt.GetPolicyVersion()
 				if receipt.GetProjection() != nil {
-					call.Projection, call.ProjectionDropCount = runreport.BoundProjection(receipt.GetProjection().AsMap())
+					call.Projection, call.ProjectionDropCount = boundProjection(receipt.GetProjection().AsMap())
 				}
 			}
 			calls = append(calls, call)
@@ -148,4 +148,32 @@ func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime
 		}
 		return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityAvailable}, Count: verified, UnmatchedCount: len(calls) - verified, EventIDs: eventIDs, Calls: calls}, nil
 	})
+}
+
+// boundProjection keeps a receipt projection within 16 keys and 2 KiB, returning
+// how many entries it dropped so the report can mark the projection oversized.
+func boundProjection(projection map[string]any) (map[string]any, int) {
+	if len(projection) == 0 {
+		return nil, 0
+	}
+	out := map[string]any{}
+	dropped := 0
+	for key, value := range projection {
+		if len(out) >= 16 {
+			dropped++
+			continue
+		}
+		candidate := make(map[string]any, len(out)+1)
+		for k, v := range out {
+			candidate[k] = v
+		}
+		candidate[key] = value
+		body, _ := json.Marshal(candidate)
+		if len(body) > 2048 {
+			dropped++
+			continue
+		}
+		out[key] = value
+	}
+	return out, dropped
 }

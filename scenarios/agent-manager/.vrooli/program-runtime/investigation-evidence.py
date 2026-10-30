@@ -33,12 +33,16 @@ def step_validate():
 
 
 def read_subject(run_id):
-    try:
-        report = agent_manager.run.report(run_id=run_id)
-        episodes = agent_manager.run.episodes(run_id=run_id)
-        return {"run_id": run_id, "report": report, "episodes": episodes}
-    except Exception as exc:
-        return {"run_id": run_id, "error": exc}
+    item = {"run_id": run_id}
+    for name, call in (
+        ("report", lambda: agent_manager.run.report(run_id=run_id, rows="tools")),
+        ("episodes", lambda: agent_manager.run.episodes(run_id=run_id)),
+    ):
+        try:
+            item[name] = call()
+        except Exception as exc:
+            item[name + "_error"] = exc
+    return item
 
 
 def step_collect():
@@ -54,20 +58,36 @@ def step_classify():
     unknown = 0
     rows_total = 0
     for item in work["subjects"]:
-        subject = {"run_id": item["run_id"], "availability": "complete", "report": {}, "episodes": []}
-        if item.get("error") is not None:
-            status, klass = program.classify(item["error"])
-            subject["availability"] = "unknown"
-            subject["reason"] = klass
-            envelope["errors"].append({"class": klass, "detail": str(item["error"])[:180], "where": "collect:" + item["run_id"]})
-            unknown += 1
-        else:
+        # Projection availability says only that the reads succeeded. Neither
+        # projection establishes that the underlying transcript is fully
+        # ingested or current, particularly for imported live sessions.
+        subject = {"run_id": item["run_id"], "availability": "complete", "source_completeness": "unknown", "source_freshness": "unknown", "report": {}, "episodes": []}
+        missing = 0
+        for name in ("report", "episodes"):
+            error = item.get(name + "_error")
+            subject[name + "_availability"] = "unknown" if error is not None else "available"
+            if error is not None:
+                _, klass = program.classify(error)
+                envelope["errors"].append({"class": klass, "detail": str(error)[:180], "where": "collect:" + item["run_id"] + ":" + name})
+                missing += 1
+        if "report" in item:
             report_meta = item["report"].meta()
-            episode_rows = item["episodes"].head(4)
             subject["report"] = {"status": report_meta.get("status"), "exit_code": report_meta.get("exitCode"), "events_availability": report_meta.get("eventsAvailability"), "receipts_availability": report_meta.get("receiptsAvailability")}
+            for field in ("eventsAvailability", "receiptsAvailability"):
+                availability = report_meta.get(field)
+                if not isinstance(availability, dict) or availability.get("state") != "available":
+                    subject["report_availability"] = "partial"
+                    missing += 1
+                    break
+        if "episodes" in item:
+            episode_rows = item["episodes"].head(4)
             subject["episodes"] = [{"episode_id": row.get("episodeId"), "pattern": row.get("pattern"), "owner_confidence": row.get("ownerConfidence")} for row in episode_rows]
             subject["sample_truncated"] = len(episode_rows) == 4
             rows_total += len(episode_rows)
+        if missing:
+            subject["availability"] = "partial" if "report" in item or "episodes" in item else "unknown"
+            unknown += 1
+        if "report" in item or "episodes" in item:
             available += 1
         subjects.append(subject)
     envelope["signals"] = {"subjects": subjects, "subject_count": len(subjects), "available": available, "unknown": unknown, "projection_rows": rows_total, "coverage": "complete" if unknown == 0 else "partial"}
@@ -79,7 +99,7 @@ def step_classify():
 def step_report():
     envelope["phase"] = "report"
     encoded = json.dumps(envelope, sort_keys=True, separators=(",", ":"))
-    if len(encoded.encode()) > 4096:
+    if len(encoded.encode()) > 16384:
         envelope["status"] = "failed"
         envelope["signals"] = {"subject_count": len(envelope["inputs"].get("run_ids", [])), "output_truncated": True}
         envelope["errors"].append({"class": "binding_error", "detail": "bounded evidence envelope exceeded output limit", "where": "report"})

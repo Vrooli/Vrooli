@@ -154,3 +154,23 @@ test("InvestigationsPage shows recurring friction a page at a time", async () =>
   assert.ok(await screen.findByText("fp-24"));
   assert.equal(screen.queryByTestId("friction-signals-show-more"), null);
 });
+
+test("InvestigationsPage says how many quarantined-pattern episodes the cohort hides", async () => {
+  episodeCohort.mockResolvedValue({ availabilityState: "available", availabilityReason: "", hiddenQuarantinedEpisodes: 7n, signals: [{ fingerprint: "fp", occurrences: 2n, distinctRuns: 2n, summedCostMs: 50n, confidence: "high", representativeRunIds: ["run-1"] }] });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ investigations: [] }))));
+  renderWithProviders(createElement(InvestigationsPage));
+  assert.match((await screen.findByTestId("hidden-quarantined-episodes")).textContent ?? "", /7 episodes of quarantined patterns hidden/);
+});
+
+test("InvestigationsPage calls an episode's count redundant calls and hides absent tokens and time", async () => {
+  cohort("available", [{ fingerprint: "fp", occurrences: 1n, distinctRuns: 1n, summedCostMs: 10n, confidence: "high", representativeRunIds: ["run-1"] }]);
+  vi.stubGlobal("fetch", vi.fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify({ investigations: [] })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ episodes: [{ episodeId: "e", pattern: "stall", causeScope: "run", ownerConfidence: "high", turns: 3, tokens: 0, wallClockMs: 0, evidenceEventIds: ["x"] }] })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ ledgerAvailability: { state: "available" }, projectionAvailability: { state: "available" }, ledgerTargetRollups: [] }))));
+  renderWithProviders(createElement(InvestigationsPage));
+  fireEvent.click(await screen.findByText("fp"));
+  const article = (await screen.findByText(/3 redundant calls/)).textContent ?? "";
+  assert.equal(article, "3 redundant calls");
+  assert.doesNotMatch(document.body.textContent ?? "", /requests,|0 tokens/);
+});

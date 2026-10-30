@@ -74,11 +74,14 @@ export function useUsageCoverage() {
   });
 }
 
+/** Every recurring friction problem shown on one page; the server's default is a short CLI list. */
+export const FRICTION_PAGE_LIMIT = 500;
+
 /** Recurring friction problems; an empty status returns every status. */
 export function useUsageFriction(status = "") {
   return useQuery({
     queryKey: usageQueryKeys.friction(status),
-    queryFn: () => measuresClient.usageFriction({ status }, CALL_OPTIONS),
+    queryFn: () => measuresClient.usageFriction({ status, limit: FRICTION_PAGE_LIMIT }, CALL_OPTIONS),
     refetchInterval: REFRESH_MS,
     retry: false,
   });

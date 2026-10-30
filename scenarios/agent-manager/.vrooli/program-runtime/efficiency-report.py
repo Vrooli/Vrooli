@@ -165,7 +165,29 @@ def step_collect():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False, separators=(",", ":")))
+    encoded = json.dumps(envelope, allow_nan=False, separators=(",", ":"))
+    if len(encoded.encode("utf-8")) > 65536:
+        # Retain the scalar measures and a small sample, and tell the caller
+        # that a bounded report is incomplete rather than emitting cut JSON.
+        report = envelope.get("report") or {}
+        for section in (report.get("measures"), report.get("baseline")):
+            if isinstance(section, dict):
+                for name in ("statuses", "breakdown", "tools"):
+                    if isinstance(section.get(name), list):
+                        section[name] = section[name][:4]
+        if envelope["status"] == "ok":
+            envelope["status"] = "partial"
+        report["status"] = envelope["status"]
+        report["output_truncated"] = True
+        envelope["errors"].append({"class": "output_limit", "detail": "report rows were compacted to fit the output limit", "where": "report"})
+        encoded = json.dumps(envelope, allow_nan=False, separators=(",", ":"))
+        if len(encoded.encode("utf-8")) > 65536:
+            envelope["report"] = None
+            envelope["inputs"] = {}
+            envelope["evidence"] = {}
+            envelope["errors"] = [{"class": "output_limit", "detail": "inspect individual owner measures; the report exceeded the output limit", "where": "report"}]
+            encoded = json.dumps(envelope, allow_nan=False, separators=(",", ":"))
+    print(encoded)
     return None
 
 

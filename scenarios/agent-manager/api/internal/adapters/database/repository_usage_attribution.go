@@ -339,7 +339,7 @@ func (r *UsageAttributionRepository) UsageEpisodes(ctx context.Context, from, to
 	var rows []usageEpisodeRow
 	if err := r.db.SelectContext(ctx, &rows, `SELECT run_id, episode_id, occurred_at, pattern, fingerprint, repeated_element,
 		suspected_owner_scenario, suspected_owner_command, cycle_count, wall_clock_ms, turns, tokens
-		FROM invocation_read_model_episodes WHERE occurred_at >= ? AND occurred_at <= ? AND turns > 0 AND classifier_version = ?`,
+		FROM invocation_read_model_episodes WHERE occurred_at >= ? AND occurred_at <= ? AND turns > 0 AND classifier_version = ? ORDER BY occurred_at, run_id, episode_id`,
 		from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano), runsignal.EpisodeClassifierVersion); err != nil {
 		return nil, wrapDBError("usage_episodes", "Episode", "", err)
 	}

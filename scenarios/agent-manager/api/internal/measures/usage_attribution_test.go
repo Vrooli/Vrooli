@@ -17,8 +17,8 @@ import (
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 )
 
-// usageFacts serves a day of usage for two sessions: an orchestrator that
-// re-reads a long context and a short helper run.
+// usageFacts serves a day of usage for two sessions: an orchestrator whose
+// re-read context grows from 60k to about 300k per request and a short helper run.
 type usageFacts struct {
 	now       time.Time
 	staleRuns int
@@ -26,12 +26,13 @@ type usageFacts struct {
 
 func (u usageFacts) UsageTurns(_ context.Context, from, to time.Time) ([]usageattribution.Turn, error) {
 	var turns []usageattribution.Turn
-	for at := u.now.Add(-24 * time.Hour); at.Before(u.now); at = at.Add(10 * time.Minute) {
+	for i, at := 0, u.now.Add(-24*time.Hour); at.Before(u.now); i, at = i+1, at.Add(10*time.Minute) {
 		if at.Before(from) || at.After(to) {
 			continue
 		}
+		cached := 3 * (60_000 + 1_700*i)
 		turns = append(turns,
-			usageattribution.Turn{At: at, RunID: "orchestrator", Runner: "codex", Model: "gpt-6.1-terra", Reports: 3, Tokens: domain.UsageCounters{InputTokens: 6000, CacheReadTokens: 540_000, OutputTokens: 2400}, Facts: transcriptindex.TurnFacts{ToolCalls: 3, ToolKinds: map[string]int{"shell": 3}}},
+			usageattribution.Turn{At: at, RunID: "orchestrator", Runner: "codex", Model: "gpt-6.1-terra", Reports: 3, Tokens: domain.UsageCounters{InputTokens: 6000, CacheReadTokens: cached, OutputTokens: 2400}, Facts: transcriptindex.TurnFacts{ToolCalls: 3, ToolKinds: map[string]int{"shell": 3}}},
 			usageattribution.Turn{At: at, RunID: "helper", Runner: "codex", Model: "gpt-6-luna", Reports: 1, Tokens: domain.UsageCounters{InputTokens: 2000, CacheReadTokens: 20_000, OutputTokens: 400}},
 		)
 	}
@@ -46,13 +47,13 @@ func (usageFacts) UsageRuns(_ context.Context, ids []string) (map[string]usageat
 	return out, nil
 }
 
-// Five episodes of one fingerprint: `rg` used where `search-hub query` is preferred.
+// Five episodes of one fingerprint: `rg` fails twice in a row.
 func (u usageFacts) UsageEpisodes(context.Context, time.Time, time.Time) ([]usageattribution.Episode, error) {
 	var episodes []usageattribution.Episode
 	for i := 0; i < 5; i++ {
 		episodes = append(episodes, usageattribution.Episode{
-			RunID: "orchestrator", EpisodeID: fmt.Sprintf("ep-%d", i), At: u.now.Add(-time.Duration(i+1) * time.Hour), Pattern: "wrong-primitive", Fingerprint: "fp-rg",
-			RepeatedElement: "search-hub query", OwnerScenario: "rg", OwnerCommand: "rg", WallClockMS: 20_000, Turns: 6, Tokens: 90_000,
+			RunID: "orchestrator", EpisodeID: fmt.Sprintf("ep-%d", i), At: u.now.Add(-time.Duration(i+1) * time.Hour), Pattern: "command-failure", Fingerprint: "fp-rg",
+			OwnerScenario: "rg", OwnerCommand: "rg", WallClockMS: 20_000, Turns: 6, Tokens: 90_000,
 		})
 	}
 	return episodes, nil
@@ -209,7 +210,7 @@ func TestUsageFrictionListsReportsAndDismissesProblems(t *testing.T) {
 		t.Fatalf("problems = %v", open)
 	}
 	p := open.GetProblems()[0]
-	if p.GetDescription() != "Agents run `rg` repeatedly instead of the preferred `search-hub query`." || p.GetOwner() != "rg" || p.GetOwnerKind() != "command" ||
+	if p.GetDescription() != "`rg` failed." || p.GetOwner() != "rg" || p.GetOwnerKind() != "command" ||
 		p.GetEpisodes() != 5 || p.GetRuns() != 1 || p.GetWallClockMs() != 100_000 || p.GetTypicalWallClockMs() != 20_000 || p.GetPoints() <= 0 || p.GetStatus() != "open" {
 		t.Fatalf("problem = %v", p)
 	}
@@ -338,8 +339,8 @@ func TestUsageFrictionReportsReprojectionProgress(t *testing.T) {
 	if response.Msg.GetRunsTotal() != 2 || response.Msg.GetRunsAnalysed() != 1 {
 		t.Fatalf("analysed %d of %d runs, want 1 of 2", response.Msg.GetRunsAnalysed(), response.Msg.GetRunsTotal())
 	}
-	if p := response.Msg.GetProblems()[0]; p.GetTimeKind() != "wasted" || !p.GetTimeLost() {
-		t.Fatalf("wrong-primitive wastes time: %v", p)
+	if p := response.Msg.GetProblems()[0]; p.GetTimeKind() != "redundant" {
+		t.Fatalf("command-failure prices redundant call time: %v", p)
 	}
 }
 

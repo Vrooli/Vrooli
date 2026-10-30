@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1412,13 +1413,31 @@ func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunE
 	return nil
 }
 
+// codexTextExitCodePattern matches the exit line Codex's exec tools print at the
+// start of a line ("Process exited with code 1", "Exit code: 1").
+var codexTextExitCodePattern = regexp.MustCompile(`(?m)^(?:Process exited with code|Exit code:?)\s*(-?\d{1,4})\s*$`)
+
+// codexTextExitCode reads the exit code from a plain-text tool result, nil when
+// the output carries none.
+func codexTextExitCode(output string) *int {
+	match := codexTextExitCodePattern.FindStringSubmatch(output)
+	if match == nil {
+		return nil
+	}
+	code, err := strconv.Atoi(match[1])
+	if err != nil {
+		return nil
+	}
+	return &code
+}
+
 // codexNestedResultMetadata handles the interactive tool-result envelope. It
 // intentionally extracts only typed process facts; output text remains in the
 // event log and is never copied into the analytical read model.
 func codexNestedResultMetadata(output string) (*int, *int64, bool) {
 	var envelope map[string]json.RawMessage
 	if json.Unmarshal([]byte(output), &envelope) != nil {
-		return nil, nil, false
+		return codexTextExitCode(output), nil, false
 	}
 	raw, present := envelope["metadata"]
 	if !present {

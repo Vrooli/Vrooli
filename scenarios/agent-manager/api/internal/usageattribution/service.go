@@ -188,7 +188,7 @@ func (s Service) Friction(ctx context.Context, provider string, now time.Time) (
 	if err != nil || len(attribution.Results) == 0 {
 		return report, err
 	}
-	primary := primaryResults(in.Results)
+	primary, _ := prepare(in)
 	report.Problems = frictionProblems(in, primary)
 	runs := map[string]bool{}
 	for _, result := range primary {

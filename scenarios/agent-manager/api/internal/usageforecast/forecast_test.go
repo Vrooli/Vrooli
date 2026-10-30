@@ -454,3 +454,24 @@ func TestStaleWindowIsIdleOnlyWhenNoWorkSinceTheLastReading(t *testing.T) {
 		t.Fatalf("reset passed: %s", got[0].Status)
 	}
 }
+
+func TestWindowsSeparateVerifiedAccountsAndUnknownHistory(t *testing.T) {
+	now := time.Date(2026, 10, 29, 1, 0, 0, 0, time.UTC)
+	reset := now.Add(5 * time.Hour)
+	percent := 25.0
+	var spans []pricing.QuotaReadingSpan
+	for _, account := range []string{"", "account-a", "account-b"} {
+		spans = append(spans, pricing.QuotaReadingSpan{AccountScope: account, Provider: "openai", Pool: "primary", Window: "300m", ResetAt: &reset, UsedPercent: &percent, Standing: pricing.QuotaStandingAvailable, FirstAt: now, LastAt: now})
+	}
+	windows := Windows(spans)
+	if len(windows) != 3 {
+		t.Fatalf("windows=%+v; identical observations from separate scopes must not merge", windows)
+	}
+	seen := make(map[string]bool)
+	for _, window := range windows {
+		seen[window.AccountScope] = true
+	}
+	if !seen[""] || !seen["account-a"] || !seen["account-b"] {
+		t.Fatalf("missing scope: %+v", seen)
+	}
+}

@@ -4,7 +4,6 @@ package runreport
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -85,32 +84,6 @@ type LedgerTargetRollup struct {
 	MedianDurationMS uint64 `json:"medianDurationMs"`
 }
 
-func BoundProjection(projection map[string]any) (map[string]any, int) {
-	if len(projection) == 0 {
-		return nil, 0
-	}
-	out := map[string]any{}
-	dropped := 0
-	for key, value := range projection {
-		if len(out) >= 16 {
-			dropped++
-			continue
-		}
-		candidate := make(map[string]any, len(out)+1)
-		for k, v := range out {
-			candidate[k] = v
-		}
-		candidate[key] = value
-		body, _ := json.Marshal(candidate)
-		if len(body) > 2048 {
-			dropped++
-			continue
-		}
-		out[key] = value
-	}
-	return out, dropped
-}
-
 // ReceiptSource is optional so fixture-only report sources stay lightweight.
 // Production composition supplies it through orchestration.
 type ReceiptSource interface {
@@ -166,7 +139,6 @@ type GoalProgress struct {
 	TimeToFirstMet          time.Duration `json:"timeToFirstMet,omitempty"`
 	TokenCostBeforeFirstMet int64         `json:"tokenCostBeforeFirstMet,omitempty"`
 	InterventionsBeforeMet  int           `json:"interventionsBeforeMet,omitempty"`
-	HandoffsBeforeMet       int           `json:"handoffsBeforeMet,omitempty"`
 	Regression              bool          `json:"regression"`
 	Restatement             bool          `json:"restatement"`
 }
@@ -184,46 +156,49 @@ type DiffSummary struct {
 	Available Availability `json:"available"`
 }
 type RunReport struct {
-	RunID                  uuid.UUID                    `json:"runId"`
-	Status                 domain.RunStatus             `json:"status"`
-	ExitCode               *int                         `json:"exitCode,omitempty"`
-	Error                  string                       `json:"error,omitempty"`
-	Duration               time.Duration                `json:"duration,omitempty"`
-	HeartbeatGap           time.Duration                `json:"heartbeatGap,omitempty"`
-	Turns                  int                          `json:"turns"`
-	Tokens                 int64                        `json:"tokens"`
-	CostUSD                float64                      `json:"costUsd"`
-	CostSource             string                       `json:"costSource,omitempty"`
-	ChargeReason           string                       `json:"chargeReason,omitempty"`
-	Result                 ResultSummary                `json:"result"`
-	Events                 map[string]int               `json:"events"`
-	Tools                  []ToolSummary                `json:"tools"`
-	ProjectOwnedToolCalls  int                          `json:"projectOwnedToolCalls"`
-	ExternalToolCalls      int                          `json:"externalToolCalls"`
-	RequestedModel         string                       `json:"requestedModel,omitempty"`
-	ActualModel            string                       `json:"actualModel,omitempty"`
-	FallbackCount          int                          `json:"fallbackCount"`
-	Diff                   DiffSummary                  `json:"diff"`
-	EventsAvailability     Availability                 `json:"eventsAvailability"`
-	ReceiptsAvailability   Availability                 `json:"receiptsAvailability"`
-	LedgerAvailability     Availability                 `json:"ledgerAvailability"`
-	ProjectionAvailability Availability                 `json:"projectionAvailability"`
-	ReceiptCount           int                          `json:"receiptCount"`
-	ReceiptEvidenceIDs     []string                     `json:"receiptEvidenceIds,omitempty"`
-	CrossScenarioCalls     []CrossScenarioCall          `json:"crossScenarioCalls,omitempty"`
-	LedgerTargetRollups    []LedgerTargetRollup         `json:"ledgerTargetRollups,omitempty"`
-	RepeatedToolCalls      int                          `json:"repeatedToolCalls"`
-	FilesReadMoreThanOnce  int                          `json:"filesReadMoreThanOnce"`
-	LongestEventGap        time.Duration                `json:"longestEventGap"`
-	InvocationFacts        []runsignal.InvocationFact   `json:"-"`
-	Episodes               []runsignal.FrictionEpisode  `json:"episodes,omitempty"`
-	SelfReportSpans        []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
-	HelpRecoveries         int                          `json:"helpRecoveries"`
-	UnknownInvocations     int                          `json:"unknownInvocations"`
-	TimeAccounting         runsignal.TimeAccounting     `json:"timeAccounting"`
-	Goal                   GoalProgress                 `json:"goal"`
-	InvocationValidity     EvidenceValidity             `json:"invocationValidity"`
-	WorkReferences         []*eventdomain.WorkReference `json:"workReferences,omitempty"`
+	RunID                  uuid.UUID                   `json:"runId"`
+	Status                 domain.RunStatus            `json:"status"`
+	ExitCode               *int                        `json:"exitCode,omitempty"`
+	Error                  string                      `json:"error,omitempty"`
+	Duration               time.Duration               `json:"duration,omitempty"`
+	HeartbeatGap           time.Duration               `json:"heartbeatGap,omitempty"`
+	Turns                  int                         `json:"turns"`
+	Tokens                 int64                       `json:"tokens"`
+	CostUSD                float64                     `json:"costUsd"`
+	CostSource             string                      `json:"costSource,omitempty"`
+	ChargeReason           string                      `json:"chargeReason,omitempty"`
+	Result                 ResultSummary               `json:"result"`
+	Events                 map[string]int              `json:"events"`
+	Tools                  []ToolSummary               `json:"tools"`
+	ProjectOwnedToolCalls  int                         `json:"projectOwnedToolCalls"`
+	ExternalToolCalls      int                         `json:"externalToolCalls"`
+	RequestedModel         string                      `json:"requestedModel,omitempty"`
+	ActualModel            string                      `json:"actualModel,omitempty"`
+	FallbackCount          int                         `json:"fallbackCount"`
+	Diff                   DiffSummary                 `json:"diff"`
+	EventsAvailability     Availability                `json:"eventsAvailability"`
+	ReceiptsAvailability   Availability                `json:"receiptsAvailability"`
+	LedgerAvailability     Availability                `json:"ledgerAvailability"`
+	ProjectionAvailability Availability                `json:"projectionAvailability"`
+	ReceiptCount           int                         `json:"receiptCount"`
+	ReceiptEvidenceIDs     []string                    `json:"receiptEvidenceIds,omitempty"`
+	CrossScenarioCalls     []CrossScenarioCall         `json:"crossScenarioCalls,omitempty"`
+	LedgerTargetRollups    []LedgerTargetRollup        `json:"ledgerTargetRollups,omitempty"`
+	RepeatedToolCalls      int                         `json:"repeatedToolCalls"`
+	FilesReadMoreThanOnce  int                         `json:"filesReadMoreThanOnce"`
+	LongestEventGap        time.Duration               `json:"longestEventGap"`
+	InvocationFacts        []runsignal.InvocationFact  `json:"-"`
+	Episodes               []runsignal.FrictionEpisode `json:"episodes,omitempty"`
+	// HiddenQuarantinedEpisodes counts episodes of quarantined or informational
+	// patterns left out of Episodes.
+	HiddenQuarantinedEpisodes int                          `json:"hiddenQuarantinedEpisodes,omitempty"`
+	SelfReportSpans           []runsignal.SelfReportSpan   `json:"selfReportSpans,omitempty"`
+	HelpRecoveries            int                          `json:"helpRecoveries"`
+	UnknownInvocations        int                          `json:"unknownInvocations"`
+	TimeAccounting            runsignal.TimeAccounting     `json:"timeAccounting"`
+	Goal                      GoalProgress                 `json:"goal"`
+	InvocationValidity        EvidenceValidity             `json:"invocationValidity"`
+	WorkReferences            []*eventdomain.WorkReference `json:"workReferences,omitempty"`
 }
 
 func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, error) {
@@ -234,16 +209,46 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 	if err != nil {
 		return nil, err
 	}
-	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, WorkReferences: run.WorkReferences, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}}
-	r.Goal = deriveGoalProgress(run, nil, nil)
-	r.InvocationValidity = invocationValidity(nil)
-	ownershipFromProjection := false
+	r := newReport(run)
 	imported := run.ExecutionMode.Normalized() == domain.ExecutionModeImported
 	if imported {
 		r.Diff.Available = Availability{State: AvailabilityUnavailable, Reason: "imported run has no sandbox"}
 		r.ReceiptsAvailability = Availability{State: AvailabilityUnavailable, Reason: "imported run predates run identity correlation"}
 		r.LedgerAvailability = Availability{State: AvailabilityUnavailable, Reason: "imported run predates run identity correlation"}
 	}
+	r.foldRun(run)
+	events, err := source.Events(ctx, runID)
+	if err != nil {
+		r.EventsAvailability = Availability{State: AvailabilityUnavailable, Reason: err.Error()}
+	} else if err := r.foldEventEvidence(ctx, source, run, events, imported); err != nil {
+		return nil, err
+	}
+	if !imported {
+		if diff, err := source.Diff(ctx, runID); err == nil && diff != nil {
+			r.Diff = DiffSummary{Files: len(diff.Files), Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityAvailable}}
+		} else if err != nil {
+			r.Diff.Available.Reason = err.Error()
+		}
+	}
+	if receipts, ok := source.(ReceiptSource); ok {
+		if err := r.foldReceipts(ctx, source, receipts, runID, events); err != nil {
+			return nil, err
+		}
+	}
+	return r, nil
+}
+
+// newReport is the report before any evidence is read: every availability
+// starts unavailable and each evidence step upgrades what it observed.
+func newReport(run *domain.Run) *RunReport {
+	r := &RunReport{RunID: run.ID, Status: run.Status, ExitCode: run.ExitCode, Error: run.ErrorMsg, Events: map[string]int{}, EventsAvailability: Availability{State: AvailabilityAvailable}, ReceiptsAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, LedgerAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, ProjectionAvailability: Availability{State: AvailabilityUnavailable, Reason: "receipt reader is not configured"}, RequestedModel: run.RequestedModel, ActualModel: run.ActualModel, WorkReferences: run.WorkReferences, Diff: DiffSummary{Files: run.ChangedFiles, Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityUnavailable}}}
+	r.Goal = deriveGoalProgress(run, nil, nil)
+	r.InvocationValidity = invocationValidity(nil)
+	return r
+}
+
+// foldRun copies the run record's own duration, summary and result fields.
+func (r *RunReport) foldRun(run *domain.Run) {
 	if run.StartedAt != nil && run.EndedAt != nil {
 		r.Duration = run.EndedAt.Sub(*run.StartedAt)
 	}
@@ -262,136 +267,138 @@ func Build(ctx context.Context, source Source, runID uuid.UUID) (*RunReport, err
 			}
 		}
 	}
-	events, err := source.Events(ctx, runID)
-	if err != nil {
-		r.EventsAvailability = Availability{State: AvailabilityUnavailable, Reason: err.Error()}
-	} else {
-		r.foldEvents(events)
-		// Source.Events is the complete stream, so the run's one usage account
-		// over it is the token total whenever the stream retains usage.
-		if hasUsage(events) {
-			r.Tokens = runsignal.AccountUsage(events).TotalTokens()
-		}
-		r.TimeAccounting = runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt)
-		if durable, ok := source.(DurableTimeAccountingSource); ok {
-			accounting, present, durableErr := durable.DurableTimeAccounting(ctx, runID)
-			if durableErr != nil {
-				return nil, fmt.Errorf("read durable time accounting: %w", durableErr)
-			}
-			if present {
-				r.TimeAccounting = accounting
-			}
-		}
-		if durable, ok := source.(DurableInvocationFactSource); ok {
-			facts, present, durableErr := durable.DurableInvocationFacts(ctx, runID)
-			if durableErr != nil {
-				return nil, fmt.Errorf("read durable invocation facts: %w", durableErr)
-			}
-			if present {
-				r.InvocationFacts = facts
-				ownershipFromProjection = true
-			} else {
-				r.InvocationFacts = runsignal.DeriveInvocationFacts(events)
-			}
-		} else {
-			r.InvocationFacts = runsignal.DeriveInvocationFacts(events)
-		}
-		for _, fact := range r.InvocationFacts {
-			if fact.RetryOfCallEventID != "" {
-				r.RepeatedToolCalls++
-			}
-			if fact.HelpRecovery {
-				r.HelpRecoveries++
-			}
-			if fact.Ownership == "unknown" || fact.Availability == "unknown" {
-				r.UnknownInvocations++
-			}
-		}
-		if ownershipFromProjection {
-			// The durable invocation projection is the runner-aware ownership
-			// authority. Reconcile the human-facing rollup with it so imported
-			// Codex wrapper calls do not fall back to tool-name heuristics.
-			r.ProjectOwnedToolCalls, r.ExternalToolCalls = 0, 0
-			for _, fact := range r.InvocationFacts {
-				switch fact.Ownership {
-				case runsignal.OwnershipResolved, "project":
-					r.ProjectOwnedToolCalls++
-				case runsignal.OwnershipExternal:
-					r.ExternalToolCalls++
-				}
-			}
-		}
-		r.InvocationValidity = invocationValidity(r.InvocationFacts)
-		if durable, ok := source.(DurableEpisodeSource); ok {
-			episodes, present, durableErr := durable.DurableEpisodes(ctx, runID)
-			if durableErr != nil {
-				return nil, fmt.Errorf("read durable episodes: %w", durableErr)
-			}
-			if present {
-				r.Episodes = episodes
-			} else {
-				r.Episodes = runsignal.DeriveEpisodes(r.InvocationFacts, events)
-			}
-		} else {
-			r.Episodes = runsignal.DeriveEpisodes(r.InvocationFacts, events)
-		}
-		if imported {
-			for index := range r.Episodes {
-				r.Episodes[index].OwnerConfidence = "manifest-derived-historical"
-			}
-		}
-		if durable, ok := source.(DurableSelfReportSpanSource); ok {
-			spans, present, durableErr := durable.DurableSelfReportSpans(ctx, runID)
-			if durableErr != nil {
-				return nil, fmt.Errorf("read durable self-report spans: %w", durableErr)
-			}
-			if present {
-				r.SelfReportSpans = spans
-			} else {
-				r.SelfReportSpans = runsignal.DeriveSelfReportSpans(events)
-			}
-		} else {
-			r.SelfReportSpans = runsignal.DeriveSelfReportSpans(events)
-		}
-		raiseEpisodeSeverityForRepeatedRules(r.Episodes, r.SelfReportSpans, events)
-		r.Goal = deriveGoalProgress(run, events, r.Episodes)
+}
+
+// foldEventEvidence derives everything that reads the complete event stream:
+// tool/time accounting, invocation facts, episodes, self-report spans and goal
+// progress. Durable projections win over replay when the source has them.
+func (r *RunReport) foldEventEvidence(ctx context.Context, source Source, run *domain.Run, events []*domain.RunEvent, imported bool) error {
+	runID := run.ID
+	r.foldEvents(events)
+	// Source.Events is the complete stream, so the run's one usage account
+	// over it is the token total whenever the stream retains usage.
+	if hasUsage(events) {
+		r.Tokens = runsignal.AccountUsage(events).TotalTokens()
 	}
-	if !imported {
-		if diff, err := source.Diff(ctx, runID); err == nil && diff != nil {
-			r.Diff = DiffSummary{Files: len(diff.Files), Bytes: run.TotalSizeBytes, Available: Availability{State: AvailabilityAvailable}}
-		} else if err != nil {
-			r.Diff.Available.Reason = err.Error()
-		}
-	}
-	if receipts, ok := source.(ReceiptSource); ok {
-		summary, err := receipts.Receipts(ctx, runID)
+	r.TimeAccounting = runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt)
+	if durable, ok := source.(DurableTimeAccountingSource); ok {
+		accounting, present, err := durable.DurableTimeAccounting(ctx, runID)
 		if err != nil {
-			r.ReceiptsAvailability = Availability{State: AvailabilityDegraded, Reason: err.Error()}
-		} else {
-			r.ReceiptsAvailability = Availability{State: summary.State, Reason: summary.Reason}
-			r.LedgerAvailability = Availability{State: summary.State, Reason: summary.Reason}
-			r.ReceiptCount = summary.Count
-			if summary.UnmatchedCount > 0 {
-				r.ReceiptsAvailability.Reason = fmt.Sprintf("%d receipt candidates were not safely matched", summary.UnmatchedCount)
-			}
-			r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
-			r.CrossScenarioCalls = append([]CrossScenarioCall(nil), summary.Calls...)
-			r.LedgerTargetRollups = ledgerTargetRollups(r.CrossScenarioCalls)
-			r.ProjectionAvailability = projectionAvailability(r.CrossScenarioCalls)
-			r.Episodes = UpgradeEpisodeOwnership(r.Episodes, events, r.CrossScenarioCalls, r.LedgerAvailability)
-			if store, ok := source.(LedgerStore); ok {
-				if err := store.ReplaceCrossScenarioCalls(ctx, runID, string(r.LedgerAvailability.State), r.CrossScenarioCalls); err != nil {
-					return nil, fmt.Errorf("persist cross-scenario ledger: %w", err)
-				}
-			}
+			return fmt.Errorf("read durable time accounting: %w", err)
 		}
-		if store, ok := source.(ReceiptJoinStore); ok {
-			if err := store.ReplaceReceiptEvidence(ctx, runID, string(r.ReceiptsAvailability.State), r.ReceiptEvidenceIDs); err != nil {
-				return nil, fmt.Errorf("persist receipt evidence: %w", err)
+		if present {
+			r.TimeAccounting = accounting
+		}
+	}
+	ownershipFromProjection := false
+	r.InvocationFacts = nil
+	if durable, ok := source.(DurableInvocationFactSource); ok {
+		facts, present, err := durable.DurableInvocationFacts(ctx, runID)
+		if err != nil {
+			return fmt.Errorf("read durable invocation facts: %w", err)
+		}
+		r.InvocationFacts, ownershipFromProjection = facts, present
+	}
+	if !ownershipFromProjection {
+		r.InvocationFacts = runsignal.DeriveInvocationFacts(events)
+	}
+	r.foldInvocationFacts(ownershipFromProjection)
+	r.InvocationValidity = invocationValidity(r.InvocationFacts)
+	episodes, present := []runsignal.FrictionEpisode(nil), false
+	if durable, ok := source.(DurableEpisodeSource); ok {
+		var err error
+		if episodes, present, err = durable.DurableEpisodes(ctx, runID); err != nil {
+			return fmt.Errorf("read durable episodes: %w", err)
+		}
+	}
+	if present {
+		r.Episodes = episodes
+	} else {
+		r.Episodes = runsignal.DeriveEpisodes(r.InvocationFacts, events, runsignal.WithGoalRun(strings.TrimSpace(run.GoalID) != ""))
+	}
+	if imported {
+		for index := range r.Episodes {
+			r.Episodes[index].OwnerConfidence = "manifest-derived-historical"
+		}
+	}
+	spans, present := []runsignal.SelfReportSpan(nil), false
+	if durable, ok := source.(DurableSelfReportSpanSource); ok {
+		var err error
+		if spans, present, err = durable.DurableSelfReportSpans(ctx, runID); err != nil {
+			return fmt.Errorf("read durable self-report spans: %w", err)
+		}
+	}
+	if present {
+		r.SelfReportSpans = spans
+	} else {
+		r.SelfReportSpans = runsignal.DeriveSelfReportSpans(events)
+	}
+	raiseEpisodeSeverityForRepeatedRules(r.Episodes, r.SelfReportSpans, events)
+	r.Goal = deriveGoalProgress(run, events, r.Episodes)
+	r.Episodes, r.HiddenQuarantinedEpisodes = runsignal.ShownEpisodes(r.Episodes)
+	return nil
+}
+
+// foldInvocationFacts rolls the facts up into retry, help-recovery and unknown
+// counts. When the facts are the durable projection, they are also the
+// runner-aware ownership authority, so imported Codex wrapper calls do not fall
+// back to tool-name heuristics.
+func (r *RunReport) foldInvocationFacts(ownershipFromProjection bool) {
+	for _, fact := range r.InvocationFacts {
+		if fact.RetryOfCallEventID != "" {
+			r.RepeatedToolCalls++
+		}
+		if fact.HelpRecovery {
+			r.HelpRecoveries++
+		}
+		if fact.Ownership == "unknown" || fact.Availability == "unknown" {
+			r.UnknownInvocations++
+		}
+	}
+	if !ownershipFromProjection {
+		return
+	}
+	r.ProjectOwnedToolCalls, r.ExternalToolCalls = 0, 0
+	for _, fact := range r.InvocationFacts {
+		switch fact.Ownership {
+		case runsignal.OwnershipResolved, "project":
+			r.ProjectOwnedToolCalls++
+		case runsignal.OwnershipExternal:
+			r.ExternalToolCalls++
+		}
+	}
+}
+
+// foldReceipts joins the run's cross-scenario receipts and persists the ledger
+// and receipt evidence back through the source's optional stores.
+func (r *RunReport) foldReceipts(ctx context.Context, source Source, receipts ReceiptSource, runID uuid.UUID, events []*domain.RunEvent) error {
+	summary, err := receipts.Receipts(ctx, runID)
+	if err != nil {
+		r.ReceiptsAvailability = Availability{State: AvailabilityDegraded, Reason: err.Error()}
+	} else {
+		r.ReceiptsAvailability = Availability{State: summary.State, Reason: summary.Reason}
+		r.LedgerAvailability = Availability{State: summary.State, Reason: summary.Reason}
+		r.ReceiptCount = summary.Count
+		if summary.UnmatchedCount > 0 {
+			r.ReceiptsAvailability.Reason = fmt.Sprintf("%d receipt candidates were not safely matched", summary.UnmatchedCount)
+		}
+		r.ReceiptEvidenceIDs = append([]string(nil), summary.EventIDs...)
+		r.CrossScenarioCalls = append([]CrossScenarioCall(nil), summary.Calls...)
+		r.LedgerTargetRollups = ledgerTargetRollups(r.CrossScenarioCalls)
+		r.ProjectionAvailability = projectionAvailability(r.CrossScenarioCalls)
+		r.Episodes = UpgradeEpisodeOwnership(r.Episodes, events, r.CrossScenarioCalls, r.LedgerAvailability)
+		if store, ok := source.(LedgerStore); ok {
+			if err := store.ReplaceCrossScenarioCalls(ctx, runID, string(r.LedgerAvailability.State), r.CrossScenarioCalls); err != nil {
+				return fmt.Errorf("persist cross-scenario ledger: %w", err)
 			}
 		}
 	}
-	return r, nil
+	if store, ok := source.(ReceiptJoinStore); ok {
+		if err := store.ReplaceReceiptEvidence(ctx, runID, string(r.ReceiptsAvailability.State), r.ReceiptEvidenceIDs); err != nil {
+			return fmt.Errorf("persist receipt evidence: %w", err)
+		}
+	}
+	return nil
 }
 
 func invocationValidity(facts []runsignal.InvocationFact) EvidenceValidity {
@@ -462,8 +469,7 @@ func deriveGoalProgress(run *domain.Run, events []*domain.RunEvent, episodes []r
 		if event == nil || (!firstMetAt.IsZero() && event.Timestamp.After(firstMetAt)) {
 			continue
 		}
-		message, ok := event.Data.(*domain.MessageEventData)
-		if !ok || !strings.EqualFold(message.Role, "user") {
+		if _, ok := event.Data.(*domain.MessageEventData); !ok || domain.MessageSource(event) != domain.MessageSourceOperator {
 			continue
 		}
 		for _, later := range events[i+1:] {
@@ -476,17 +482,6 @@ func deriveGoalProgress(run *domain.Run, events []*domain.RunEvent, episodes []r
 			}
 			if _, tool := later.Data.(*domain.ToolCallEventData); tool {
 				progress.InterventionsBeforeMet++
-				break
-			}
-		}
-	}
-	for _, episode := range episodes {
-		if episode.Pattern != "handoff-continuation" || firstMetAt.IsZero() {
-			continue
-		}
-		for _, event := range events {
-			if event != nil && event.ID.String() == episode.StartEventID && !event.Timestamp.After(firstMetAt) {
-				progress.HandoffsBeforeMet++
 				break
 			}
 		}

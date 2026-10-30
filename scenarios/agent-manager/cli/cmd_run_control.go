@@ -441,8 +441,8 @@ func (a *App) runContinue(args []string) error {
 func (a *App) runPark(args []string) error {
 	fs := flag.NewFlagSet("run park", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
-	producer := fs.String("producer", "", "Producer that resolves the await (e.g. test-genie, git-control-tower) (required)")
-	key := fs.String("key", "", "Producer-scoped identifier of the awaited work (required)")
+	producer := fs.String("producer", "", "Waiter to resolve the await (e.g. test-genie, git-control-tower, review-timer) (required)")
+	key := fs.String("key", "", "Producer-scoped identifier; for review-timer, an absolute RFC3339 review time (required)")
 	deadlineUnix := fs.Int64("deadline-unix", 0, "Optional wait deadline as a Unix timestamp (seconds); 0 = default TTL")
 	timeout := fs.Duration("timeout", 0, "Wake after this long even if the work is unresolved (timer wake), e.g. 15m; overrides --deadline-unix")
 	identityToken := fs.String("identity-token", "", "Owning run's identity token (defaults to $"+cliutil.EnvIdentityToken+")")

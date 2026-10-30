@@ -119,20 +119,23 @@ type Filter struct {
 	// Scope selects which runs a statistic counts; see RunScope. Empty counts
 	// only Agent Manager executed runs for run statistics and everything for
 	// token totals.
-	Scope                RunScope `json:"scope,omitempty"`
-	WorkloadKey          string   `json:"workloadKey,omitempty"`
-	ErrorCode            string   `json:"errorCode,omitempty"`
-	TagPrefix            string   `json:"tagPrefix,omitempty"`
-	RunStatus            string   `json:"runStatus,omitempty"`
-	ToolName             string   `json:"toolName,omitempty"`
-	ClassifierVersion    string   `json:"classifierVersion,omitempty"`
-	EpisodePattern       string   `json:"episodePattern,omitempty"`
-	EpisodeCauseScope    string   `json:"episodeCauseScope,omitempty"`
-	EpisodeFingerprint   string   `json:"episodeFingerprint,omitempty"`
-	SelfReportRuleID     string   `json:"selfReportRuleId,omitempty"`
-	SelfReportCauseScope string   `json:"selfReportCauseScope,omitempty"`
-	TargetScenario       string   `json:"targetScenario,omitempty"`
-	Operation            string   `json:"operation,omitempty"`
+	Scope             RunScope `json:"scope,omitempty"`
+	WorkloadKey       string   `json:"workloadKey,omitempty"`
+	ErrorCode         string   `json:"errorCode,omitempty"`
+	TagPrefix         string   `json:"tagPrefix,omitempty"`
+	RunStatus         string   `json:"runStatus,omitempty"`
+	ToolName          string   `json:"toolName,omitempty"`
+	ClassifierVersion string   `json:"classifierVersion,omitempty"`
+	EpisodePattern    string   `json:"episodePattern,omitempty"`
+	// ShownEpisodesOnly restricts episode reads to patterns runsignal.Shown, so a
+	// row limit applies after quarantined and informational patterns are excluded.
+	ShownEpisodesOnly    bool   `json:"shownEpisodesOnly,omitempty"`
+	EpisodeCauseScope    string `json:"episodeCauseScope,omitempty"`
+	EpisodeFingerprint   string `json:"episodeFingerprint,omitempty"`
+	SelfReportRuleID     string `json:"selfReportRuleId,omitempty"`
+	SelfReportCauseScope string `json:"selfReportCauseScope,omitempty"`
+	TargetScenario       string `json:"targetScenario,omitempty"`
+	Operation            string `json:"operation,omitempty"`
 }
 
 // RunScope is the origin filter of a statistic (P2-D8). Agent Manager runs
@@ -176,6 +179,9 @@ type Cohort struct {
 	Truncated   bool        `json:"truncated"`
 	MatchedRuns int         `json:"matchedRuns"`
 	DroppedRuns int         `json:"droppedRuns"`
+	// HiddenEpisodes counts episode rows of non-shown patterns the filter
+	// matched; an episode selection never selects by them.
+	HiddenEpisodes int `json:"hiddenEpisodes,omitempty"`
 }
 
 type CohortRun struct {
@@ -208,7 +214,6 @@ type Metrics struct {
 	UnclassifiedCalls        int64   `json:"unclassifiedCalls"`
 	FailedCalls              int64   `json:"failedCalls"`
 	RetryCalls               int64   `json:"retryCalls"`
-	HelpRecoveries           int64   `json:"helpRecoveries"`
 	RepeatedCalls            int64   `json:"repeatedCalls"`
 	LargestFingerprintBucket int64   `json:"largestFingerprintBucket"`
 	ClassifiedBase           int64   `json:"classifiedBase"`
@@ -219,7 +224,6 @@ type Metrics struct {
 	ExternalToolShare        float64 `json:"externalToolShare"`
 	FailureRate              float64 `json:"failureRate"`
 	RetryRate                float64 `json:"retryRate"`
-	HelpRecoveryRate         float64 `json:"helpRecoveryRate"`
 	RepeatedWorkRate         float64 `json:"repeatedWorkRate"`
 }
 

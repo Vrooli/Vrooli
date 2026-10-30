@@ -20,7 +20,7 @@ report="$(agent-manager run report "$run_id" --json)"
 echo '1. Time attribution'; printf '%s' "$report" | require '.time_accounting.model_generating_ms > 0 and .time_accounting.tool_executing_ms > 0 and .time_accounting.idle_waiting_ms > 0 and .time_accounting.awaiting_human_ms > 0'
 echo '2. Tool correctness'; agent-manager run invocation-facts "$run_id" --json | require '[.facts[] | select(.outcome == "failure" and .resultEventId != "" and .failureSignature != "")] | length > 0'
 echo '3. Repetition'; agent-manager run episodes "$episode_run_id" --json | require '[.episodes[] | select(.evidence_event_ids | length >= 2) | select(.wall_clock_ms | tonumber > 0)] | length > 0'
-echo '4. Self-reported friction'; agent-manager run messages-friction "$self_report_run_id" --json | require '[.spans[] | select(.text != "" and .rule_id != "")] | length > 0'
+echo '4. Self-reported friction'; agent-manager run episodes "$self_report_run_id" --spans --json | require '[.spans[] | select(.text != "" and .rule_id != "")] | length > 0'
 echo '5. Owned versus external tooling'; printf '%s' "$report" | require '.project_owned_tool_calls != null and .external_tool_calls > 0'
 echo '6. Per-run cross-scenario evidence'; require_verified_receipt "$search_hub_run_id" search-hub; require_verified_receipt "$test_genie_run_id" test-genie; require_verified_receipt "$prompt_manager_run_id" prompt-manager
 echo '7. Cohort recurrence'; agent-manager measures episode-cohort --json | require '[.signals[] | select((.occurrences | tonumber) > 0 and (.distinct_runs | tonumber) > 0 and ((.summed_cost_ms // "0") | tonumber) > 0)] | length > 0'

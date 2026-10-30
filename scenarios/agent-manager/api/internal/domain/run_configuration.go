@@ -147,6 +147,11 @@ type MessageEventData struct {
 	RawEvidenceRef     string `json:"rawEvidenceRef,omitempty"`
 	EvidenceOnly       bool   `json:"evidenceOnly,omitempty"`
 	EvidenceForEventID string `json:"evidenceForEventId,omitempty"`
+
+	// Source says who authored a user-role message (MessageSource* constants).
+	// Read it through MessageSource, which derives it for events stored before
+	// the field existed.
+	Source string `json:"source,omitempty"`
 }
 
 // MessageAttachmentInfo stores metadata about attachments included with a message.
@@ -168,7 +173,7 @@ func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
 		RunID:     runID,
 		EventType: EventTypeMessage,
 		Timestamp: time.Now(),
-		Data:      &MessageEventData{Role: role, Content: content},
+		Data:      &MessageEventData{Role: role, Content: content, Source: userMessageSource(role, content)},
 	}
 }
 
@@ -178,6 +183,9 @@ func NewMessageEvent(runID uuid.UUID, role, content string) *RunEvent {
 func NewProviderMessageEvent(runID uuid.UUID, role, content string, evidence MessageEventData) *RunEvent {
 	evidence.Role = role
 	evidence.Content = content
+	if evidence.Source == "" {
+		evidence.Source = userMessageSource(role, content)
+	}
 	return &RunEvent{
 		ID:        uuid.New(),
 		RunID:     runID,
@@ -194,7 +202,7 @@ func NewMessageEventWithAttachments(runID uuid.UUID, role, content string, attac
 		RunID:     runID,
 		EventType: EventTypeMessage,
 		Timestamp: time.Now(),
-		Data:      &MessageEventData{Role: role, Content: content, Attachments: attachments},
+		Data:      &MessageEventData{Role: role, Content: content, Attachments: attachments, Source: userMessageSource(role, content)},
 	}
 }
 

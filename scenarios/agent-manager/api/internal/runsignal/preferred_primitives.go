@@ -18,6 +18,9 @@ type PreferredPrimitive struct {
 	DetectShape     string `json:"detect_shape"`
 	MinRepeat       int    `json:"min_repeat"`
 	RationaleRef    string `json:"rationale_ref"`
+	// RecallOnly limits the row to searches of prior work (docs, memory, plans,
+	// earlier runs); searching a file or code in place is fine.
+	RecallOnly bool `json:"recall_only,omitempty"`
 }
 
 func PreferredPrimitives() []PreferredPrimitive {
@@ -39,6 +42,7 @@ func DetectWrongPrimitives(facts []InvocationFact, eventsByID map[string]*domain
 		count := 0
 		preferredSeen := false
 		var first, last InvocationFact
+		var matched []InvocationFact
 		for _, fact := range facts {
 			path := strings.TrimSpace(fact.CommandPath)
 			if path == row.PreferredPath || strings.HasPrefix(path, row.PreferredPath+" ") {
@@ -47,7 +51,11 @@ func DetectWrongPrimitives(facts []InvocationFact, eventsByID map[string]*domain
 			if path != row.DiscouragedPath && !strings.HasPrefix(path, row.DiscouragedPath+" ") {
 				continue
 			}
+			if row.RecallOnly && !isRecallSearch(fact, eventsByID) {
+				continue
+			}
 			count++
+			matched = append(matched, fact)
 			if first.CallEventID == "" {
 				first = fact
 			}
@@ -57,6 +65,7 @@ func DetectWrongPrimitives(facts []InvocationFact, eventsByID map[string]*domain
 			continue
 		}
 		episode := newEpisode("wrong-primitive", first, last, eventsByID, events)
+		episode.price(matched, eventsByID)
 		episode.Severity = "repeated"
 		episode.RepeatedElement = row.PreferredPath
 		episode.HonestyFlags = append(episode.HonestyFlags, "preferred-path-absent")
@@ -68,4 +77,38 @@ func DetectWrongPrimitives(facts []InvocationFact, eventsByID map[string]*domain
 		out = append(out, episode)
 	}
 	return out
+}
+
+// recallRoots are where an agent's prior work lives: docs, memory, plans and
+// earlier runs.
+var recallRoots = []string{"docs", ".vrooli", ".claude/projects", "memory"}
+
+// isRecallSearch is a search of prior work: a path under a recall root, or no
+// path and a natural-language pattern of several words. Searching a file or
+// code in place is not.
+func isRecallSearch(fact InvocationFact, byID map[string]*domain.RunEvent) bool {
+	var operands []string
+	tokens := factTokens(fact, byID)
+	isFind := len(tokens) > 0 && tokens[0] == "find"
+	for _, token := range tokens[min(1, len(tokens)):] {
+		if !isFlag(token) {
+			operands = append(operands, token)
+		}
+	}
+	paths := operands
+	if !isFind && len(operands) > 0 {
+		paths = operands[1:] // grep and rg: the first operand is the pattern
+	}
+	for _, path := range paths {
+		for _, root := range recallRoots {
+			if strings.HasPrefix(path, root) || strings.Contains(path, "/"+root) {
+				return true
+			}
+		}
+	}
+	if len(paths) > 0 || len(operands) == 0 || isFind {
+		return false
+	}
+	pattern := operands[0]
+	return strings.Contains(strings.TrimSpace(pattern), " ") && strings.IndexAny(pattern, `\*[](){}^$|+?`) < 0
 }

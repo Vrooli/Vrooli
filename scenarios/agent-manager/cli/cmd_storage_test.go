@@ -55,6 +55,27 @@ func storageApp(server *httptest.Server) *App {
 	return &App{services: NewServices(api)}
 }
 
+func TestRunImportIdentityUsesExactOwnerRead(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/import/identity" || r.URL.Query().Get("harness") != "resource:codex/sessions" || r.URL.Query().Get("sessionId") != "session+one" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.String())
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"state":"ambiguous","scope":"imported_run_provenance","runIds":["one","two"]}`))
+	}))
+	defer server.Close()
+	app := storageApp(server)
+	output := captureRunIdentityStdout(t, func() error {
+		return app.runImportIdentity([]string{"--harness", "resource:codex/sessions", "--session-id", "session+one", "--json"})
+	})
+	if !strings.Contains(output, `"ambiguous"`) || !strings.Contains(output, `"two"`) {
+		t.Fatalf("lost ambiguity: %s", output)
+	}
+	if err := app.runImportIdentity([]string{"--harness", "codex"}); err == nil {
+		t.Fatal("missing session accepted")
+	}
+}
+
 func TestStorageCLIUsesTheOwnerContract(t *testing.T) {
 	previous := storagePollInterval
 	storagePollInterval = time.Millisecond

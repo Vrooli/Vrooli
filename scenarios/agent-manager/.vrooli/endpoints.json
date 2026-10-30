@@ -147,14 +147,6 @@
       "category": "system"
     },
     {
-      "id": "post-agent-manager-v1-measures-measuresservice-helprecoveryrate",
-      "path": "/agent_manager.v1.measures.MeasuresService/HelpRecoveryRate",
-      "method": "POST",
-      "summary": "POST /agent_manager.v1.measures.MeasuresService/HelpRecoveryRate",
-      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
-      "category": "system"
-    },
-    {
       "id": "post-agent-manager-v1-measures-measuresservice-modelbreakdown",
       "path": "/agent_manager.v1.measures.MeasuresService/ModelBreakdown",
       "method": "POST",
@@ -515,6 +507,150 @@
       "category": "orchestration-settings"
     },
     {
+      "id": "get-api-v1-pricing-aliases",
+      "path": "/api/v1/pricing/aliases",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/aliases",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "post-api-v1-pricing-aliases",
+      "path": "/api/v1/pricing/aliases",
+      "method": "POST",
+      "summary": "POST /api/v1/pricing/aliases",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "delete-api-v1-pricing-aliases-runner-type-model",
+      "path": "/api/v1/pricing/aliases/{runner_type}/{model}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/pricing/aliases/{runner_type}/{model}",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-cache",
+      "path": "/api/v1/pricing/cache",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/cache",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "post-api-v1-pricing-compare",
+      "path": "/api/v1/pricing/compare",
+      "method": "POST",
+      "summary": "POST /api/v1/pricing/compare",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-live-quota",
+      "path": "/api/v1/pricing/live-quota",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/live-quota",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-models",
+      "path": "/api/v1/pricing/models",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/models",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-models-model-overrides",
+      "path": "/api/v1/pricing/models/{model}/overrides",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/models/{model}/overrides",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "put-api-v1-pricing-models-model-overrides",
+      "path": "/api/v1/pricing/models/{model}/overrides",
+      "method": "PUT",
+      "summary": "PUT /api/v1/pricing/models/{model}/overrides",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "delete-api-v1-pricing-models-model-overrides-component",
+      "path": "/api/v1/pricing/models/{model}/overrides/{component}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/pricing/models/{model}/overrides/{component}",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "post-api-v1-pricing-models-model-recalculate",
+      "path": "/api/v1/pricing/models/{model}/recalculate",
+      "method": "POST",
+      "summary": "POST /api/v1/pricing/models/{model}/recalculate",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-quota-observations",
+      "path": "/api/v1/pricing/quota-observations",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/quota-observations",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "post-api-v1-pricing-refresh",
+      "path": "/api/v1/pricing/refresh",
+      "method": "POST",
+      "summary": "POST /api/v1/pricing/refresh",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-settings",
+      "path": "/api/v1/pricing/settings",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/settings",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "put-api-v1-pricing-settings",
+      "path": "/api/v1/pricing/settings",
+      "method": "PUT",
+      "summary": "PUT /api/v1/pricing/settings",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "get-api-v1-pricing-subscription-periods",
+      "path": "/api/v1/pricing/subscription-periods",
+      "method": "GET",
+      "summary": "GET /api/v1/pricing/subscription-periods",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "post-api-v1-pricing-subscription-periods",
+      "path": "/api/v1/pricing/subscription-periods",
+      "method": "POST",
+      "summary": "POST /api/v1/pricing/subscription-periods",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
+      "id": "delete-api-v1-pricing-subscription-periods-id",
+      "path": "/api/v1/pricing/subscription-periods/{id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/pricing/subscription-periods/{id}",
+      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
+      "category": "pricing"
+    },
+    {
       "id": "get-api-v1-profiles",
       "path": "/api/v1/profiles",
       "method": "GET",
@@ -655,14 +791,6 @@
       "path": "/api/v1/runs/cohorts/{name}",
       "method": "GET",
       "summary": "GET /api/v1/runs/cohorts/{name}",
-      "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
-      "category": "runs"
-    },
-    {
-      "id": "get-api-v1-runs-episode-trend",
-      "path": "/api/v1/runs/episode-trend",
-      "method": "GET",
-      "summary": "GET /api/v1/runs/episode-trend",
       "description": "Generated from Agent Manager route and proto registrations; run make endpoints after route changes.",
       "category": "runs"
     },

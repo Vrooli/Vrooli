@@ -50,6 +50,7 @@ const (
 	defaultRecallWindow   = 30 * 24 * time.Hour
 	DefaultRecallMaxBytes = 4 << 30
 	recordBatch           = 500
+	uncertainRecordPrefix = "event recording outcome uncertain; cursor preserved: "
 )
 
 // ErrExcluded reports that a visibility policy keeps a file out of capture.
@@ -227,6 +228,9 @@ func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 	if row == nil {
 		return true
 	}
+	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
+		return false // a source or budget conflict requires explicit reconciliation
+	}
 	if row.Owner == OwnerIndexer && t.owned[candidate.Path] != "" {
 		return true // an Agent Manager run now reads this file itself
 	}
@@ -273,6 +277,41 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) er
 			return err
 		}
 		t.byKey[row.Key] = row
+	}
+	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
+		return errors.New(row.Error)
+	}
+	if row.Status == StatusPending && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
+		// Reconstruct parser state from the start. Re-reading only from the
+		// previous cursor can generate different payloads for the same event
+		// IDs (for example cumulative provider usage). The normal replay path
+		// deduplicates both events and usage rows; no retained evidence is
+		// deleted. A file changed since the failed read is not safe to replay:
+		// the head hash alone does not cover bytes elsewhere in the file.
+		if candidate.Path != row.Path || candidate.Size != row.Size || candidate.MtimeUnixNano != row.MtimeUnixNano || (row.Offset > 0 && HeadHash(candidate.Path, row.Offset) != row.HeadHash) {
+			row.Status = StatusUnreadable
+			row.Error = uncertainRecordPrefix + "transcript source changed; manual reconciliation required"
+			if err := ix.store.SaveTranscriptFile(ctx, *row, nil); err != nil {
+				return err
+			}
+			return errors.New(row.Error)
+		}
+		if candidate.Size > ix.cfg.TickBytes {
+			// Recovery must reach the ambiguous batch in the same pass; losing
+			// parser state between partial passes can change replayed payloads.
+			row.Status = StatusUnreadable
+			row.Error = uncertainRecordPrefix + "transcript exceeds tick byte budget; manual reconciliation required"
+			if err := ix.store.SaveTranscriptFile(ctx, *row, nil); err != nil {
+				return err
+			}
+			return errors.New(row.Error)
+		}
+		if candidate.Size > t.budget {
+			t.summary.Deferred++
+			return nil
+		}
+		row.Offset, row.Turns, row.UsageReports, row.HeadHash, row.PendingFacts = 0, 0, 0, "", ""
+		delete(ix.tails, row.Key)
 	}
 	t.byPath[candidate.Path] = row
 	row.Path, row.Size, row.MtimeUnixNano = candidate.Path, candidate.Size, candidate.MtimeUnixNano
@@ -469,6 +508,21 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow) error {
 		// One line is longer than the remaining budget; read it whole.
 		read, err = ix.read(ctx, row, runID, state, row.Offset, row.Size, recall, true)
 	}
+	if err != nil {
+		// A failed recording may have committed a prefix, and restarting a
+		// stateful parser at this offset can change an event's immutable payload.
+		// Keep the old cursor; on the next tick replay the source from the start
+		// under the ordinary byte budget so the parser state is reconstructed.
+		delete(ix.tails, row.Key)
+		if read.recordFailed || read.events > 0 {
+			row.Status, row.Error = failedStatus(err), uncertainRecordPrefix+err.Error()
+			if saveErr := ix.store.SaveTranscriptFile(ctx, *row, nil); saveErr != nil {
+				return errors.Join(err, saveErr)
+			}
+			return errors.New(row.Error)
+		}
+		return ix.fail(ctx, row, err)
+	}
 	t.budget -= read.cursor - row.Offset
 	t.summary.Read++
 	t.summary.BytesRead += read.cursor - row.Offset
@@ -483,9 +537,6 @@ func (ix *Indexer) tail(ctx context.Context, t *tick, row *FileRow) error {
 	}
 	if row.Offset < row.Size && end < row.Size {
 		row.Status = StatusPending
-	}
-	if err != nil {
-		row.Status, row.Error = failedStatus(err), err.Error()
 	}
 	now := ix.cfg.Now()
 	row.IndexedAt = &now
@@ -512,6 +563,7 @@ type readResult struct {
 	usage          []UsageRow
 	turns          int64
 	events         int
+	recordFailed   bool
 	sessionID      string
 	label          string
 	started, ended time.Time
@@ -578,6 +630,7 @@ func (ix *Indexer) read(ctx context.Context, row *FileRow, runID uuid.UUID, stat
 		err = errors.Join(err, flushErr)
 	}
 	result.events = sink.recorded
+	result.recordFailed = sink.failed
 	return result, err
 }
 
@@ -590,6 +643,7 @@ type recordSink struct {
 	discard  bool // the file's run records its own events
 	batch    []*domain.RunEvent
 	recorded int
+	failed   bool
 }
 
 func (s *recordSink) Emit(event *domain.RunEvent) error {
@@ -617,7 +671,11 @@ func (s *recordSink) flush() error {
 	if s.recall {
 		s.recorded += len(batch)
 	}
-	return s.host.Record(s.ctx, s.runID, batch, s.recall)
+	err := s.host.Record(s.ctx, s.runID, batch, s.recall)
+	if err != nil {
+		s.failed = true
+	}
+	return err
 }
 
 // completeIdle moves runs whose files stopped growing to complete.

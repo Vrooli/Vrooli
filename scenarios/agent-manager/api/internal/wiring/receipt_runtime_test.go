@@ -52,3 +52,10 @@ func TestReceiptSummaryReaderDistinguishesRuntimeEmptyStates(t *testing.T) {
 		})
 	}
 }
+
+func TestBoundProjectionDropsOversizedEntries(t *testing.T) {
+	bounded, dropped := boundProjection(map[string]any{"too_large": string(make([]byte, 4096)), "small": "ok"})
+	if len(bounded) != 1 || bounded["small"] != "ok" || dropped != 1 {
+		t.Fatalf("bounded projection = %#v, dropped = %d", bounded, dropped)
+	}
+}

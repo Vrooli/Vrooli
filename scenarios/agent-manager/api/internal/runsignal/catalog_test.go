@@ -117,3 +117,27 @@ func TestResolveCatalogUnwrapsLiteralDoubleQuotedRunnerEnvelope(t *testing.T) {
 		t.Fatalf("resolution=%+v", got)
 	}
 }
+
+func TestShownHidesQuarantinedAndInformationalPatterns(t *testing.T) {
+	var episodes []FrictionEpisode
+	wantShown, wantHidden := 0, 0
+	for _, spec := range PatternSpecs() {
+		episodes = append(episodes, FrictionEpisode{Pattern: spec.ID})
+		if spec.Informational || spec.Quarantined != "" {
+			wantHidden++
+		} else {
+			wantShown++
+		}
+	}
+	episodes = append(episodes, FrictionEpisode{Pattern: "removed-pattern"})
+	wantHidden++
+	shown, hidden := ShownEpisodes(episodes)
+	if len(shown) != wantShown || hidden != wantHidden {
+		t.Fatalf("shown %d hidden %d, want %d and %d", len(shown), hidden, wantShown, wantHidden)
+	}
+	for _, e := range shown {
+		if !Shown(e.Pattern) {
+			t.Fatalf("%s must not be shown", e.Pattern)
+		}
+	}
+}

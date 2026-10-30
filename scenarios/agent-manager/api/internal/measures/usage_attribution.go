@@ -208,7 +208,10 @@ func (h *Handler) UsageRecommendations(ctx context.Context, req *connect.Request
 		FoldedGroups: int64(len(report.Folded)),
 	}
 	for _, plan := range report.Folded {
-		response.FoldedPoints += plan.Saved
+		// A friction plan's saving is already inside the session plans.
+		if !plan.CrossCut {
+			response.FoldedPoints += plan.Saved
+		}
 	}
 	limit := usageRows(req.Msg.GetLimit())
 	for _, plan := range report.Plans {
@@ -351,7 +354,7 @@ func protoProblem(p usageattribution.Problem) *measurepb.UsageFrictionProblem {
 		OwnerScenario: p.OwnerScenario, OwnerCommand: p.OwnerCommand, Episodes: int64(p.Episodes), Runs: int64(p.Runs),
 		WallClockMs: p.WallClockMS, TypicalWallClockMs: p.TypicalMS, Points: p.Points, EstSavedPoints: p.EstSaved,
 		Provider: p.Provider, Pool: p.Pool, Window: p.Window, FirstAt: rfc3339(p.FirstAt), LastAt: rfc3339(p.LastAt),
-		Status: p.Status, BugId: p.BugID, RunIds: p.RunIDs, EpisodeTurns: int64(p.EpisodeTurns), Tokens: p.Tokens, TimeLost: p.TimeLost, TimeKind: p.TimeKind, EstRecoverablePoints: p.EstRecoverable,
+		Status: p.Status, BugId: p.BugID, RunIds: p.RunIDs, EpisodeTurns: int64(p.EpisodeTurns), Tokens: p.Tokens, TimeKind: p.TimeKind, EstRecoverablePoints: p.EstRecoverable,
 	}
 	if !p.StatusSetAt.IsZero() {
 		out.StatusAt = rfc3339(p.StatusSetAt)

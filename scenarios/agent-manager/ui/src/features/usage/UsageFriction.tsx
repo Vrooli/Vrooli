@@ -9,7 +9,7 @@ import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1";
 import { Toggle } from "@vrooli/react-component-library/Toggle/1";
 import type { UsageFrictionProblem } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { DataState } from "../../components/feedback/DataState";
-import { formatCode, formatCount, formatDuration, formatPoints, formatTokens } from "../../lib/format";
+import { formatCode, formatCount, formatDuration, formatPoints, formatTokens, subscriptionLabel } from "../../lib/format";
 import { useFrictionActions, useUsageFriction } from "./api";
 import { windowKey } from "./format";
 
@@ -30,6 +30,9 @@ function Kpi({ label, value }: { label: string; value: string }) {
 
 type Pending = "report" | "dismiss" | undefined;
 
+/** The smallest saving the server ranks as its own action (usageattribution minPlanSaving). */
+const MIN_PLAN_SAVING = 0.1;
+
 /** The row's actions: one button each, confirmed inline (no dialog) and disabled while the call is out. */
 function RowActions({ problem }: { problem: UsageFrictionProblem }) {
   const { report, dismiss } = useFrictionActions();
@@ -39,7 +42,10 @@ function RowActions({ problem }: { problem: UsageFrictionProblem }) {
   if (problem.status === "open" && problem.ownerKind === "agent" && !confirming) {
     return (
       <div className="flex gap-2">
-        <Link to={`/usage?window=${encodeURIComponent(windowKey(problem))}#friction-${problem.fingerprint}`} className={`${BUTTON} bg-primary text-primary-foreground hover:bg-primary/90`}>Suggest a fix</Link>
+        {/* A plan card exists only for a saving the actions list ranks (≥ 0.1 pts). */}
+        {problem.estSavedPoints >= MIN_PLAN_SAVING ? (
+          <Link to={`/usage?window=${encodeURIComponent(windowKey(problem))}#friction-${problem.fingerprint}`} className={`${BUTTON} bg-primary text-primary-foreground hover:bg-primary/90`}>Suggest a fix</Link>
+        ) : null}
         <button type="button" onClick={() => setConfirming("dismiss")} className={BUTTON}>Dismiss</button>
       </div>
     );
@@ -69,15 +75,15 @@ function RowActions({ problem }: { problem: UsageFrictionProblem }) {
 
 /** The description already says "Typically 13m 54s each time" until the server drops it: show the duration once. */
 function showTypical(problem: UsageFrictionProblem): boolean {
-  return problem.timeKind !== "none" && problem.typicalWallClockMs >= 1000n && !/typically/i.test(problem.description);
+  return problem.typicalWallClockMs >= 1000n && !/typically/i.test(problem.description);
 }
 
-/** Time is only "wasted" when it was; idle and elapsed time say what they are, and handoffs show the work done instead. */
+/** A problem's cost is its redundant calls' own time (a stall's is its idle gap) and tokens, never the run's. */
 function TimeLine({ problem }: { problem: UsageFrictionProblem }) {
-  if (problem.timeKind === "none") return <div className="whitespace-nowrap text-muted-foreground" title={`${formatCount(problem.episodeTurns)} tool calls and ${formatTokens(problem.tokens)} tokens of work after declaring done`}>{formatCount(problem.episodeTurns)} calls · {formatTokens(problem.tokens)} tok</div>;
-  if (problem.wallClockMs <= 0n) return null;
-  const suffix = problem.timeKind === "idle" ? " idle" : problem.timeKind === "elapsed" ? " elapsed" : "";
-  return <div className="whitespace-nowrap text-muted-foreground">{formatDuration(problem.wallClockMs)}{suffix}</div>;
+  if (problem.wallClockMs <= 0n && problem.tokens <= 0n) return null;
+  const time = problem.wallClockMs > 0n ? `${formatDuration(problem.wallClockMs)} ${problem.timeKind === "idle" ? "idle gap" : "redundant call time"}` : "";
+  const tokens = problem.tokens > 0n ? `${formatTokens(problem.tokens)} tok` : "";
+  return <div className="whitespace-nowrap text-muted-foreground" title={`${formatCount(problem.episodeTurns)} redundant calls`}>{[time, tokens].filter(Boolean).join(" · ")}</div>;
 }
 
 /** Column labels return inline on a phone, where the header row is hidden. */
@@ -109,15 +115,24 @@ export function UsageFriction() {
   const friction = useUsageFriction();
   const all = friction.data?.problems ?? [];
   const rows = all.filter((problem) => problem.status === status);
-  const points = all.reduce((sum, problem) => sum + problem.points, 0);
-  const wall = all.reduce((sum, problem) => (problem.timeKind === "wasted" ? sum + problem.wallClockMs : sum), 0n);
+  // Totals cover open problems only, and points stay per subscription window:
+  // a Claude point and a Codex point are not the same amount.
+  const open = all.filter((problem) => problem.status === "open");
+  const pointsByWindow = new Map<string, number>();
+  for (const problem of open) {
+    const label = subscriptionLabel(problem.provider, problem.window);
+    pointsByWindow.set(label, (pointsByWindow.get(label) ?? 0) + problem.points);
+  }
+  const points = [...pointsByWindow].map(([label, value]) => `≈ ${formatPoints(value)} ${label}`).join(" · ") || `≈ ${formatPoints(0)}`;
+  const wall = open.reduce((sum, problem) => (problem.timeKind === "redundant" ? sum + problem.wallClockMs : sum), 0n);
+  const total = (friction.data?.open ?? 0n) + (friction.data?.reported ?? 0n) + (friction.data?.dismissed ?? 0n);
   return (
     <div className="flex flex-col gap-4" data-testid="usage-friction">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-          <Kpi label="Friction this week" value={`≈ ${formatPoints(points)}`} />
-          <Kpi label="Time wasted" value={formatDuration(wall)} />
-          <Kpi label="Recurring problems" value={formatCount(all.length)} />
+          <Kpi label="Open friction this week" value={points} />
+          <Kpi label="Redundant call time" value={formatDuration(wall)} />
+          <Kpi label="Recurring problems" value={formatCount(total)} />
           <Kpi label="Reported to owners" value={formatCount(friction.data?.reported)} />
         </div>
         <ButtonGroup label="Status" collapse="never" className="flex-wrap">

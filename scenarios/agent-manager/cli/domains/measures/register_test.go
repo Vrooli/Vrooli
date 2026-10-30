@@ -3,6 +3,8 @@ package measures
 import (
 	"strings"
 	"testing"
+
+	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 )
 
 func TestRegisterDeclaresMeasureCommands(t *testing.T) {
@@ -49,5 +51,16 @@ func TestNormalizeTokenAttributionByMapsCLIValuesToAPIValues(t *testing.T) {
 	}
 	if _, err := normalizeTokenAttributionBy("bad"); err == nil || !strings.Contains(err.Error(), "accepted values") {
 		t.Fatalf("invalid grouping error should enumerate accepted values: %v", err)
+	}
+}
+
+func TestCapabilityEfficacyLineOmitsUnmeasuredZeros(t *testing.T) {
+	line := capabilityEfficacyLine(&measurepb.CapabilityEfficacyRow{TargetScenario: "s", Operation: "op", CallCount: 4, SuccessCount: 3})
+	if strings.Contains(line, "fallback") || strings.Contains(line, "abandoned") {
+		t.Fatalf("zero episode counts must not print as measured: %q", line)
+	}
+	line = capabilityEfficacyLine(&measurepb.CapabilityEfficacyRow{TargetScenario: "s", Operation: "op", CallCount: 4, SuccessCount: 1, FallbackAfterCount: 2})
+	if !strings.Contains(line, "2 fallback-after") {
+		t.Fatalf("measured count missing: %q", line)
 	}
 }

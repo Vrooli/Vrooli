@@ -150,15 +150,14 @@ func (a *App) runCommands() []cliapp.Command {
 		{"list", "List runs", "agent-manager run list [options]", a.runList},
 		{"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
 		{"identity", "Show the current Agent Manager run identity", "agent-manager run identity [--json]", a.runIdentity},
+		{"import-identity", "Resolve imported harness session provenance", "agent-manager run import-identity --harness kind --session-id id [--json]", a.runImportIdentity},
 		{"report", "Show bounded investigation diagnostics", "agent-manager run report <id> [--json]", a.runReport},
 		{"attach", "Attach an operator-started harness session", "agent-manager run attach --harness-kind kind --harness-session-id id [options]", a.runAttach},
 		{"detach", "Close an attached harness session", "agent-manager run detach <id> [--reason text]", a.runDetach},
 		{"recent", "Show recent work and evidence-bounded durability", "agent-manager run recent [--limit n] [--json]", a.runRecent},
 		{"stats", "Summarize runs from Measures: status, success, duration, cost, tokens, breakdowns", "agent-manager run stats [--since RFC3339] [--until RFC3339] [--profile UUID] [--runner type] [--model name] [--tag-prefix prefix] [--json]", a.runStats},
 		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
-		{"episodes", "Show bounded friction episodes", "agent-manager run episodes <id> [--json]", a.runEpisodes},
-		{"messages-friction", "Show deterministic self-reported friction spans", "agent-manager run messages-friction <id> [--json]", a.runMessageFriction},
-		{"episode-trend", "Trend recurring episode fingerprints over time", "agent-manager run episode-trend [--from RFC3339] [--to RFC3339] [--bucket 24h] [--json]", a.runEpisodeTrend},
+		{"episodes", "Show bounded friction episodes, or self-reported friction spans with --spans", "agent-manager run episodes <id> [--spans] [--json]", a.runEpisodes},
 		{"ledger", "Show cross-scenario receipt ledger", "agent-manager run ledger <id> [--with-projections] [--json]", a.runLedger},
 		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--json]", a.runImportTranscript},
 		{"import-session-corpus", "Import a bounded, reproducible governed runner-session corpus", "agent-manager run import-session-corpus [--runners codex,claude-code] [--from RFC3339] [--to RFC3339] [--per-month n] [--limit n] [--json]", a.runImportSessionCorpus},
@@ -178,7 +177,7 @@ func (a *App) runCommands() []cliapp.Command {
 		{"stop-all", "Stop all matching runs", "agent-manager run stop-all [options]", a.runStopAll},
 		{"quiesce", "Drain in-flight scenario runs", "agent-manager run quiesce --scenario <scenario>", a.runQuiesce},
 		{"continue", "Continue a run, or type into its running interactive session", "agent-manager run continue <id> --message <message> [--idempotency-key <key>] [--reinstall-goal]", a.runContinue},
-		{"park", "Park a run", "agent-manager run park <id> --producer <p> --key <k> [--timeout 15m]", a.runPark},
+		{"park", "Park a run", "agent-manager run park <id> --producer <p> --key <k> [--timeout 15m]\n  For a supervisor review, use --producer review-timer --key <RFC3339-time> and a timeout later than that time; requires the owning managed run's identity.", a.runPark},
 		{"wake", "Wake a parked run", "agent-manager run wake (<id> | --key <key> [--producer children]) [--result <r>]", a.runWake},
 		{"await-result", "Read a run's awaited result", "agent-manager run await-result <id>", a.runAwaitResult},
 		{"recover", "Reconcile execution or retry failed sandbox finalization", "agent-manager run recover <id>", a.runRecover},
@@ -222,6 +221,7 @@ func runEventPageCommand() cliapp.Command {
 			Flags: []cliapp.Flag{
 				{Name: "limit", Default: "100", Description: "Maximum events (1-1000)"},
 				{Name: "after-sequence", Description: "Resume after this event sequence", Bind: cliapp.FlagBind{Field: "after_sequence"}},
+				{Name: "summary-only", Bool: true, Description: "Return page counts and latest sequence without event payloads", Bind: cliapp.FlagBind{Field: "summary_only"}},
 			},
 		},
 	}
@@ -231,7 +231,7 @@ func runEventPageCommand() cliapp.Command {
 			if err != nil || limitValue < 1 || limitValue > 1000 {
 				return nil, fmt.Errorf("limit must be between 1 and 1000")
 			}
-			request := &apipb.GetRunEventsRequest{RunId: op.Positional("run_id"), Limit: proto.Int32(int32(limitValue))}
+			request := &apipb.GetRunEventsRequest{RunId: op.Positional("run_id"), Limit: proto.Int32(int32(limitValue)), SummaryOnly: op.BoolFlag("summary-only")}
 			if op.FlagProvided("after-sequence") {
 				sequence, parseErr := strconv.ParseInt(op.Flag("after-sequence"), 10, 64)
 				if parseErr != nil || sequence < 0 {
@@ -244,9 +244,15 @@ func runEventPageCommand() cliapp.Command {
 			if err != nil {
 				return nil, err
 			}
+			if request.SummaryOnly && (response.Msg.GetSummary() == nil || len(response.Msg.GetEvents()) != 0) {
+				return nil, fmt.Errorf("agent-manager API did not return the requested payload-free event summary")
+			}
 			return response.Msg, nil
 		},
 		func(_ cliapp.OperationContext, response *apipb.GetRunEventsResponse) cliapp.ListReport {
+			if summary := response.GetSummary(); summary != nil {
+				return cliapp.ListReport{Summary: []string{fmt.Sprintf("Run event summary: latest_sequence=%d (has_more=%t)", summary.GetLatestSequence(), response.GetHasMore())}}
+			}
 			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Run event page: %d events (has_more=%t)", len(response.GetEvents()), response.GetHasMore())}}
 		},
 	))

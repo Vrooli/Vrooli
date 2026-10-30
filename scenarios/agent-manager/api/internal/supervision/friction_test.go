@@ -37,7 +37,7 @@ func (f *frictionFixture) Watermark(context.Context, string) (*invocationreadmod
 func (f *frictionFixture) Episodes(_ context.Context, filter invocationreadmodel.Filter, limit int) ([]invocationreadmodel.Episode, error) {
 	f.filter = filter
 	f.limit = limit
-	return []invocationreadmodel.Episode{{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: "episode", Severity: "high", Pattern: "repeated-validation", Fingerprint: "same", SuspectedOwnerScenario: "test-genie"}}}, nil
+	return []invocationreadmodel.Episode{{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: "episode", Severity: "repeated", Pattern: "command-failure", Fingerprint: "same", SuspectedOwnerScenario: "test-genie"}}}, nil
 }
 func TestProductionSubjectResolutionCarriesBoundedAttributedFriction(t *testing.T) {
 	id := uuid.New()
@@ -49,10 +49,10 @@ func TestProductionSubjectResolutionCarriesBoundedAttributedFriction(t *testing.
 	if err != nil || len(result) != 1 {
 		t.Fatalf("%+v %v", result, err)
 	}
-	if source.filter.RunID != id.String() || source.limit != 4 || !source.filter.From.Equal(now.Add(-15*time.Minute)) {
+	if source.filter.RunID != id.String() || source.limit != supervisionEpisodeLimit || !source.filter.From.Equal(now.Add(-15*time.Minute)) {
 		t.Fatalf("unbounded/wrong-subject query: %+v limit=%d", source.filter, source.limit)
 	}
-	if result[0].FrictionUnavailable || len(result[0].Friction) != 1 || result[0].Friction[0].Owner != "test-genie" || result[0].FrictionScore != .9 {
+	if result[0].FrictionUnavailable || len(result[0].Friction) != 1 || result[0].Friction[0].Owner != "test-genie" || result[0].FrictionScore != .6 {
 		t.Fatalf("lost evidence: %+v", result)
 	}
 	source.available = false

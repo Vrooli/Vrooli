@@ -48,15 +48,6 @@ func Register() cliapp.SubcommandGroup {
 		}, func(r *measurepb.RetryRateResponse) string {
 			return fmt.Sprintf("Retry rate: %.1f%% (%d / %d calls)", r.GetRate()*100, r.GetRetryCalls(), r.GetTotalCalls())
 		}),
-		windowMeasure("help-recovery-rate", "Show help recovery rate", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.HelpRecoveryRateResponse, error) {
-			response, err := c.HelpRecoveryRate(ctx, connect.NewRequest(&measurepb.HelpRecoveryRateRequest{Window: window}))
-			if err != nil {
-				return nil, err
-			}
-			return response.Msg, nil
-		}, func(r *measurepb.HelpRecoveryRateResponse) string {
-			return fmt.Sprintf("Help-recovery rate: %.1f%% (%d / %d calls)", r.GetRate()*100, r.GetHelpRecoveries(), r.GetTotalCalls())
-		}),
 		windowMeasure("repeated-work-rate", "Show repeated-work rate", func(c measureconnect.MeasuresServiceClient, ctx context.Context, window *sharedmeasurepb.TimeWindow) (*measurepb.RepeatedWorkRateResponse, error) {
 			response, err := c.RepeatedWorkRate(ctx, connect.NewRequest(&measurepb.RepeatedWorkRateRequest{Window: window}))
 			if err != nil {
@@ -234,7 +225,7 @@ func Register() cliapp.SubcommandGroup {
 			}
 			parts := make([]string, 0, len(r.GetRows()))
 			for _, row := range r.GetRows() {
-				parts = append(parts, fmt.Sprintf("%s %s=%d (%d success, %d fallback-after, %d abandoned)", row.GetTargetScenario(), row.GetOperation(), row.GetCallCount(), row.GetSuccessCount(), row.GetFallbackAfterCount(), row.GetAbandonedCount()))
+				parts = append(parts, capabilityEfficacyLine(row))
 			}
 			return "Capability efficacy: " + strings.Join(parts, ", ")
 		}),
@@ -452,4 +443,18 @@ func parseWindow(value string) (*sharedmeasurepb.TimeWindow, error) {
 		return nil, fmt.Errorf("unsupported time window %q", value)
 	}
 	return &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: sharedmeasurepb.TimeWindowToken(number)}}, nil
+}
+
+// capabilityEfficacyLine prints the episode-derived counts only when they are
+// non-zero: a quarantined pattern is reported as zero by the server, and a
+// zero that was never measured must not read as a measured zero.
+func capabilityEfficacyLine(row *measurepb.CapabilityEfficacyRow) string {
+	details := []string{fmt.Sprintf("%d success", row.GetSuccessCount())}
+	if n := row.GetFallbackAfterCount(); n > 0 {
+		details = append(details, fmt.Sprintf("%d fallback-after", n))
+	}
+	if n := row.GetAbandonedCount(); n > 0 {
+		details = append(details, fmt.Sprintf("%d abandoned", n))
+	}
+	return fmt.Sprintf("%s %s=%d (%s)", row.GetTargetScenario(), row.GetOperation(), row.GetCallCount(), strings.Join(details, ", "))
 }

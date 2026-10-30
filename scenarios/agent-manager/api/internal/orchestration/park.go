@@ -150,6 +150,11 @@ func (o *Orchestrator) parkRun(ctx context.Context, in ParkRunInput, registerWai
 		d := now.Add(o.parkTTL())
 		deadline = &d
 	}
+	if producer == ProducerReviewTimer {
+		if err := validateReviewTimer(key, now, *deadline); err != nil {
+			return nil, err
+		}
+	}
 
 	// Record the handle on the run BEFORE the transition so applyRunStatusTransition
 	// persists it atomically with the status change (its Update writes the whole row).
@@ -790,6 +795,12 @@ func formatParkMessage(handle *domain.AwaitHandle) string {
 // inline, it has a non-blocking way to retrieve it rather than re-running the
 // blocking producer (which would just make it wait again).
 func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result string, timedOut bool) string {
+	if handle != nil && handle.Producer == ProducerReviewTimer {
+		if timedOut {
+			return domain.WakeTimerPrefix + " The review wait reached its park deadline; review and worker status are unknown. Inspect available evidence before deciding what to do."
+		}
+		return domain.WakeTimerPrefix + " " + strings.TrimSpace(result)
+	}
 	if handle != nil && handle.Producer == ProducerChildren {
 		return formatChildrenWakeMessage(result, timedOut)
 	}
@@ -807,7 +818,7 @@ func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result strin
 			deadline = " (deadline " + handle.Deadline.Format(time.RFC3339) + ")"
 		}
 		msg := fmt.Sprintf(
-			"[awaited result timed out] %s did not complete within the park deadline%s. Its result is unknown. Decide whether to retry the wait, proceed without the result, or report the stall — do not assume it succeeded.",
+			domain.WakeAwaitedTimedOutPrefix+" %s did not complete within the park deadline%s. Its result is unknown. Decide whether to retry the wait, proceed without the result, or report the stall — do not assume it succeeded.",
 			work, deadline,
 		)
 		if strings.TrimSpace(result) != "" {
@@ -817,7 +828,7 @@ func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result strin
 	}
 
 	return fmt.Sprintf(
-		"[awaited result available] %s has completed. Result:\n\n%s\n\nContinue from here with this result. Do NOT re-run the command you parked on — it has already completed and re-running it will only make you wait again. %s",
+		domain.WakeAwaitedResultPrefix+" %s has completed. Result:\n\n%s\n\nContinue from here with this result. Do NOT re-run the command you parked on — it has already completed and re-running it will only make you wait again. %s",
 		work, strings.TrimSpace(result), reFetchHint(runID),
 	)
 }
@@ -829,9 +840,9 @@ func formatWakeMessage(runID uuid.UUID, handle *domain.AwaitHandle, result strin
 func formatChildrenWakeMessage(result string, timedOut bool) string {
 	result = strings.TrimSpace(result)
 	if timedOut {
-		return "[wake: timer] No child run ended since your last wake. " + result
+		return domain.WakeTimerPrefix + " No child run ended since your last wake. " + result
 	}
-	return "[wake] " + result
+	return domain.WakePrefix + " " + result
 }
 
 // formatOperatorDecisionWakeMessage frames the wake of a run that parked on a
@@ -843,9 +854,9 @@ func formatChildrenWakeMessage(result string, timedOut bool) string {
 func formatOperatorDecisionWakeMessage(result string, timedOut bool) string {
 	result = strings.TrimSpace(result)
 	if timedOut {
-		return "[operator decision — still pending] " + result
+		return domain.WakeDecisionPendingPrefix + " " + result
 	}
-	return "[operator decision resolved] " + result
+	return domain.WakeDecisionResolvedPrefix + " " + result
 }
 
 // reFetchHint renders the one-line instruction pointing at the non-blocking

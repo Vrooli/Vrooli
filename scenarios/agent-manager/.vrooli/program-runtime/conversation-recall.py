@@ -152,6 +152,31 @@ def add_degradations(meta):
             known.add(key)
 
 
+def add_search_hub_degradations(meta):
+    """Translate QueryResponse and provider-group degradation into the shared signal shape."""
+    meta = meta or {}
+    groups = [group for group in (meta.get("groups") or []) if isinstance(group, dict)]
+    degraded_groups = [group for group in groups if group.get("degraded")]
+    incomplete = bool(meta.get("degraded") or meta.get("partial") or degraded_groups)
+    if not incomplete:
+        return
+    known = {(item["reason"], item["leg"]) for item in envelope["signals"]["degradations"]}
+    items = []
+    for group in degraded_groups[:8]:
+        provider = str(group.get("providerId") or "search-hub.provider").strip()[:80]
+        note = str(group.get("note") or "provider leg did not complete").strip()[:160]
+        items.append({"reason": f"{provider}: {note}"[:200], "leg": provider, "retryable": False})
+    if not items:
+        reason = str(meta.get("routingDegradeReason") or
+                     ("partial Search Hub response" if meta.get("partial") else "Search Hub reported degraded retrieval"))[:200]
+        items.append({"reason": reason, "leg": "search-hub.router", "retryable": False})
+    for item in items:
+        key = (item["reason"], item["leg"])
+        if key not in known:
+            envelope["signals"]["degradations"].append(item)
+            known.add(key)
+
+
 def merge_hit(hit, surface, query_index, mode, native_rank):
     metadata = hit.get("metadata") or {}
     stable_id = hit.get("stableHitId") or hit.get("id") or ""
@@ -238,6 +263,7 @@ def step_classify():
                 merge_hit(hit, "direct", call["query_index"], call["mode"], index + 1)
             envelope["evidence"].append(f"agent-manager/conversation/search:{label}:hits={min(len(rows), per_query_limit)}")
         else:
+            add_search_hub_degradations(meta)
             owned = 0
             sibling = 0
             for group in rows:
@@ -263,7 +289,7 @@ def step_classify():
             candidate.pop("snippet", None)
     envelope["signals"]["candidates"] = candidates
     envelope["signals"]["candidate_count"] = len(candidates)
-    if not candidates:
+    if not candidates and not envelope["signals"]["degradations"]:
         envelope["signals"]["next_actions"].append("narrow_or_replace_one_clue")
     elif len(candidates) > 1 and candidates[0]["support_count"] == candidates[1]["support_count"]:
         envelope["signals"]["next_actions"].append("compare_provenance_or_add_filter")
@@ -274,7 +300,7 @@ def step_classify():
     succeeded = envelope["signals"]["legs_succeeded"]
     failed = envelope["signals"]["legs_failed"]
     if succeeded:
-        envelope["status"] = "partial" if (failed or envelope["errors"]) else "ok"
+        envelope["status"] = "partial" if (failed or envelope["errors"] or envelope["signals"]["degradations"]) else "ok"
     elif failed and envelope["errors"] and all(item["class"] == "scenario_unreachable" for item in envelope["errors"]):
         envelope["status"] = "unavailable"
     else:

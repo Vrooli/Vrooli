@@ -51,6 +51,10 @@ type RunSubjectResolver struct {
 	now      func() time.Time
 }
 
+// supervisionEpisodeLimit bounds one subject's 15-minute episode read; it is
+// far above a run's episode rate, so the newest episodes are never cut off.
+const supervisionEpisodeLimit = 256
+
 func NewRunSubjectResolver(runs repository.RunRepository, sources ...FrictionSource) *RunSubjectResolver {
 	r := &RunSubjectResolver{runs: runs, now: time.Now}
 	if len(sources) > 0 {
@@ -76,7 +80,7 @@ func (r *RunSubjectResolver) Resolve(ctx context.Context, subjects []*domainpb.W
 			watermark, readErr := r.friction.Watermark(ctx, subject.GetRunId())
 			if readErr == nil && watermark != nil && watermark.EpisodeClassifierVersion == runsignal.EpisodeClassifierVersion {
 				from := r.now().UTC().Add(-15 * time.Minute)
-				episodes, err := r.friction.Episodes(ctx, invocationreadmodel.Filter{RunID: subject.GetRunId(), From: &from}, 4)
+				episodes, err := r.friction.Episodes(ctx, invocationreadmodel.Filter{RunID: subject.GetRunId(), From: &from, ShownEpisodesOnly: true}, supervisionEpisodeLimit)
 				if err == nil {
 					summary.FrictionUnavailable = false
 					summary.FrictionThrough = watermark.LastEventAt
@@ -89,8 +93,11 @@ func (r *RunSubjectResolver) Resolve(ctx context.Context, subjects []*domainpb.W
 							score = .9
 						case "medium":
 							score = .6
-						case "low":
+						case "low", "one-off":
 							score = .3
+						case "repeated":
+							// Detectors grade an episode one-off or repeated.
+							score = .6
 						default:
 							continue
 						}

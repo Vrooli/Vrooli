@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -147,11 +148,11 @@ func TestInvocationReadModelEpisodesUseSharedDimensionsAndEpisodeFilter(t *testi
 	defer cleanup()
 	repo := &invocationReadModelRepository{db: db}
 	now := time.Date(2026, 7, 30, 13, 0, 0, 0, time.UTC)
-	episode := invocationreadmodel.Episode{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: "episode-1", ClassifierVersion: "episodes.v1", Pattern: "stall", CauseScope: "run-execution", Severity: "medium", HonestyFlags: []string{}, StartEventID: "event-1", EndEventID: "event-1", EvidenceEventIDs: []string{"event-1"}, CycleCount: 2, RepeatedElement: "redacted-element", OwnerConfidence: "heuristic", Fingerprint: "episode-fp"}, RunID: "episode-run", OccurredAt: now, TimeBasis: "start_event", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "cohort-a", RunStatus: "complete"}
+	episode := invocationreadmodel.Episode{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: "episode-1", ClassifierVersion: "episodes.v1", Pattern: "command-failure", CauseScope: "run-execution", Severity: "medium", HonestyFlags: []string{}, StartEventID: "event-1", EndEventID: "event-1", EvidenceEventIDs: []string{"event-1"}, CycleCount: 2, RepeatedElement: "redacted-element", OwnerConfidence: "heuristic", Fingerprint: "episode-fp"}, RunID: "episode-run", OccurredAt: now, TimeBasis: "start_event", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "cohort-a", RunStatus: "complete"}
 	if err := repo.ReplaceProjection(context.Background(), nil, nil, []invocationreadmodel.Episode{episode}, nil, invocationreadmodel.Watermark{RunID: "episode-run", LastEventID: "event-1", LastEventAt: now, ClassifierVersion: "facts.v1", EpisodeClassifierVersion: "episodes.v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: "episode-run", OccurredAt: now, CreatedAt: now, Status: "complete", ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", Tag: "cohort-a", CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
 		t.Fatal(err)
 	}
-	got, err := repo.Episodes(context.Background(), invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour)), ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", TagPrefix: "cohort", EpisodePattern: "stall", EpisodeCauseScope: "run-execution", EpisodeFingerprint: "episode-fp"}, 10)
+	got, err := repo.Episodes(context.Background(), invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour)), ProfileID: "profile-1", RunnerType: "codex", Model: "gpt-test", TagPrefix: "cohort", EpisodePattern: "command-failure", EpisodeCauseScope: "run-execution", EpisodeFingerprint: "episode-fp"}, 10)
 	if err != nil || len(got) != 1 || got[0].EpisodeID != "episode-1" || got[0].CycleCount != 2 || got[0].RepeatedElement != "redacted-element" {
 		t.Fatalf("episodes=%+v err=%v", got, err)
 	}
@@ -384,5 +385,62 @@ func TestReceiptEvidenceRepositoryRebuildKeepsOnlyVerifiedIDs(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("receipt evidence=%v, want no stale identifiers", got)
+	}
+}
+
+func TestInvocationReadModelEpisodeReadsUseOnlyShownPatternsBeforeLimit(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	ctx := context.Background()
+	now := time.Date(2026, 7, 30, 13, 0, 0, 0, time.UTC)
+	var episodes []invocationreadmodel.Episode
+	// Five quarantined rows sort before the one shown row, so a LIMIT applied
+	// before the shown filter would return nothing.
+	for i, pattern := range []string{"stall", "stall", "stall", "stall", "stall", "command-failure"} {
+		id := fmt.Sprintf("ep-%d", i)
+		episodes = append(episodes, invocationreadmodel.Episode{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: id, ClassifierVersion: "episodes.v1", Pattern: pattern, CauseScope: "run-execution", Severity: "medium", HonestyFlags: []string{}, StartEventID: id, EndEventID: id, EvidenceEventIDs: []string{id}, OwnerConfidence: "heuristic", Fingerprint: "fp-" + pattern}, RunID: "run-" + id, OccurredAt: now.Add(time.Duration(i) * time.Minute), TimeBasis: "start_event", RunStatus: "complete"})
+	}
+	for _, episode := range episodes {
+		if err := repo.ReplaceProjection(ctx, nil, nil, []invocationreadmodel.Episode{episode}, nil, invocationreadmodel.Watermark{RunID: episode.RunID, LastEventID: episode.StartEventID, LastEventAt: now, ClassifierVersion: "facts.v1", EpisodeClassifierVersion: "episodes.v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: episode.RunID, OccurredAt: now, CreatedAt: now, Status: "complete", CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	window := invocationreadmodel.Filter{From: &now, To: ptrTime(now.Add(time.Hour))}
+	got, err := repo.Episodes(ctx, window, 1)
+	if err != nil || len(got) != 1 || got[0].Pattern != "command-failure" {
+		t.Fatalf("shown episodes=%+v err=%v", got, err)
+	}
+	if hidden, err := repo.HiddenEpisodes(ctx, window); err != nil || hidden != 5 {
+		t.Fatalf("hidden=%d err=%v want 5", hidden, err)
+	}
+	cohort, err := repo.Cohort(ctx, invocationreadmodel.Filter{From: window.From, To: window.To, EpisodePattern: "command-failure"}, 10)
+	if err != nil || len(cohort.RunIDs) != 1 || cohort.HiddenEpisodes != 0 {
+		t.Fatalf("shown cohort=%+v err=%v", cohort, err)
+	}
+	cohort, err = repo.Cohort(ctx, invocationreadmodel.Filter{From: window.From, To: window.To, EpisodePattern: "stall"}, 10)
+	if err != nil || len(cohort.RunIDs) != 0 || cohort.MatchedRuns != 0 || cohort.HiddenEpisodes != 5 {
+		t.Fatalf("quarantined cohort=%+v err=%v want no runs and 5 hidden", cohort, err)
+	}
+}
+
+// A run-scoped episode read returns that run's episodes only, so one watched
+// run's friction never comes from another run.
+func TestInvocationReadModelEpisodeReadsHonourTheRun(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repo := &invocationReadModelRepository{db: db}
+	ctx := context.Background()
+	now := time.Date(2026, 7, 30, 13, 0, 0, 0, time.UTC)
+	for i, runID := range []string{"run-a", "run-b", "run-b"} {
+		id := fmt.Sprintf("ep-%d", i)
+		episode := invocationreadmodel.Episode{FrictionEpisode: runsignal.FrictionEpisode{EpisodeID: id, ClassifierVersion: "episodes.v1", Pattern: "command-failure", CauseScope: "toolchain", Severity: "one-off", HonestyFlags: []string{}, StartEventID: id, EndEventID: id, EvidenceEventIDs: []string{id}, OwnerConfidence: "heuristic", Fingerprint: "fp-" + id}, RunID: runID, OccurredAt: now.Add(time.Duration(i) * time.Minute), TimeBasis: "start_event", RunStatus: "complete"}
+		if err := repo.ReplaceProjection(ctx, nil, nil, []invocationreadmodel.Episode{episode}, nil, invocationreadmodel.Watermark{RunID: runID, LastEventID: id, LastEventAt: now, ClassifierVersion: "facts.v1", EpisodeClassifierVersion: "episodes.v1", ProjectedAt: now}, invocationreadmodel.RunFact{RunID: runID, OccurredAt: now, CreatedAt: now, Status: "complete", CostTimeBasis: "ended_at", ProjectedAt: now}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := repo.Episodes(ctx, invocationreadmodel.Filter{RunID: "run-a", From: &now, ShownEpisodesOnly: true}, 10)
+	if err != nil || len(got) != 1 || got[0].RunID != "run-a" {
+		t.Fatalf("run-a episodes=%+v err=%v", got, err)
 	}
 }

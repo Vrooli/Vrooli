@@ -98,6 +98,27 @@ class EfficiencyReportErrorTests(unittest.TestCase):
         self.assertIn("remote_error", contract["outputs"]["errors"]["classes"])
         self.assertIn("no_grant", contract["outputs"]["errors"]["classes"])
 
+    def test_large_report_is_valid_partial_json_not_truncated_output(self):
+        program = ProgramHelper()
+        class LargeHandle:
+            def head(self, limit):
+                return [{"toolName": "x" * 5000, "key": "x" * 5000, "status": "x" * 5000} for _ in range(limit)]
+        class Measures:
+            def __getattr__(self, _name):
+                return lambda **_kwargs: LargeHandle()
+        environment = {"inputs": {"limit": 20}, "program": program,
+                       "agent_manager": type("AgentManager", (), {"measures": Measures()})(),
+                       "gather": lambda *calls: [call() for call in calls]}
+        program._bind(environment)
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            exec(compile(PROGRAM_SOURCE.read_text(), str(PROGRAM_SOURCE), "exec"), environment)
+        encoded = stdout.getvalue().encode("utf-8")
+        envelope = json.loads(encoded)
+        self.assertLessEqual(len(encoded), 65536)
+        self.assertEqual("partial", envelope["status"])
+        self.assertEqual("output_limit", envelope["errors"][0]["class"])
+
 
 if __name__ == "__main__":
     unittest.main()

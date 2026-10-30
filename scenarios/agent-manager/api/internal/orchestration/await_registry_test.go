@@ -275,6 +275,25 @@ func TestAwaitRegistry_RecoverParkedRunsRespawnsWaiters(t *testing.T) {
 	}
 }
 
+func TestAwaitRegistry_RecoversElapsedReviewTimer(t *testing.T) {
+	waker := newRecordingWaker()
+	deadline := time.Now().Add(time.Minute)
+	parked := &domain.Run{ID: uuid.New(), Status: domain.RunStatusParked, AwaitHandle: handle(orchestration.ProducerReviewTimer, time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano), &deadline)}
+	waker.parked = []*domain.Run{parked}
+	reg := orchestration.NewAwaitRegistry(waker, orchestration.NewReviewTimerWaiter())
+	waker.reg = reg
+	defer reg.Stop()
+
+	n, err := reg.RecoverParkedRuns(context.Background())
+	if err != nil || n != 1 {
+		t.Fatalf("recover = %d, %v; want one recovered timer", n, err)
+	}
+	wake := waker.awaitWake(t)
+	if wake.RunID != parked.ID || wake.TimedOut || !strings.Contains(wake.Result, "does not establish worker health or completion") {
+		t.Fatalf("unexpected recovered timer wake: %+v", wake)
+	}
+}
+
 func TestAwaitRegistry_RecoverAlreadyTerminalProducerDuringDowntime(t *testing.T) {
 	waker := newRecordingWaker()
 	waiter := mocks.NewFakeWaiter(orchestration.ProducerTestGenie)

@@ -35,6 +35,11 @@ function diagnosisSummary(item: TypedInvestigation): string {
   return diagnosis ? `${formatCode(diagnosis.condition)} · ${formatCode(diagnosis.disposition ?? "inconclusive")}` : "Pending";
 }
 
+function HiddenEpisodesNote({ count }: { count?: number }) {
+  if (!count) return null;
+  return <p className="text-sm text-muted-foreground" data-testid="hidden-quarantined-episodes">{formatCount(count)} {count === 1 ? "episode" : "episodes"} of quarantined patterns hidden</p>;
+}
+
 function AvailabilityNote({ value }: { value: Availability }) {
   if (value.state === "available") return null;
   return <p className="text-sm text-muted-foreground" data-testid={`availability-${value.state}`}>{formatCode(value.state)}{value.reason ? `: ${value.reason}` : ""}</p>;
@@ -70,17 +75,18 @@ function InvestigationRows({ items: all }: { items: TypedInvestigation[] }) {
   );
 }
 
-function EpisodeDetail({ runId, episodes, ledger }: { runId: string; episodes: Episode[]; ledger: Ledger }) {
+function EpisodeDetail({ runId, episodes, hidden, ledger }: { runId: string; episodes: Episode[]; hidden?: number; ledger: Ledger }) {
   return (
     <div className="space-y-3 overflow-auto p-4">
       {episodes.map((episode) => (
         <article key={episode.episodeId} className="rounded border p-3">
           <p>{formatCode(episode.pattern)} · {formatCode(episode.causeScope)} · {formatCode(episode.ownerConfidence)} confidence</p>
-          <p>{formatCount(episode.turns)} requests, {formatTokens(episode.tokens)} tokens, {formatDuration(episode.wallClockMs)}</p>
+          <p>{[`${formatCount(episode.turns)} redundant ${episode.turns === 1 ? "call" : "calls"}`, episode.tokens > 0 ? `${formatTokens(episode.tokens)} tokens` : "", episode.wallClockMs > 0 ? formatDuration(episode.wallClockMs) : ""].filter(Boolean).join(", ")}</p>
           <p>{shortenIds(`${episode.suspectedOwnerScenario ?? ""} ${episode.suspectedOwnerCommand ?? ""}`)}</p>
           <p className="flex flex-wrap gap-x-3">{episode.evidenceEventIds.map((id, index) => <Link key={id} className="inline-flex min-h-11 items-center text-primary underline sm:min-h-6" title={id} to={`/runs/${runId}?event=${encodeURIComponent(id)}`}>{`Evidence ${index + 1}`}</Link>)}</p>
         </article>
       ))}
+      <HiddenEpisodesNote count={hidden} />
       <AvailabilityNote value={ledger.ledgerAvailability} />
       <AvailabilityNote value={ledger.projectionAvailability} />
       <Table>
@@ -103,7 +109,7 @@ export function InvestigationsPage() {
     async (signal) => (await apiRequest<{ investigations?: TypedInvestigation[] }>("/investigations?limit=50", { signal })).investigations ?? [],
     { fallback: [] },
   );
-  const [selected, setSelected] = useState<{ runId: string; episodes: Episode[]; ledger: Ledger } | null>(null);
+  const [selected, setSelected] = useState<{ runId: string; episodes: Episode[]; hidden?: number; ledger: Ledger } | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
 
   const openSignal = async (signal: EpisodeSignal) => {
@@ -112,7 +118,7 @@ export function InvestigationsPage() {
     setDetailError(null);
     try {
       const [episodeData, ledger] = await Promise.all([getEpisodes(runId), getLedger(runId)]);
-      setSelected({ runId, episodes: episodeData.episodes, ledger });
+      setSelected({ runId, episodes: episodeData.episodes, hidden: episodeData.hiddenQuarantinedEpisodes, ledger });
     } catch (error) {
       setDetailError(error instanceof Error ? error.message : "The episode detail request failed.");
     }
@@ -154,7 +160,7 @@ export function InvestigationsPage() {
           <Table>
             <table className="min-w-[28rem]">
               <caption className="sr-only">Recurring friction patterns</caption>
-              <thead><tr><th>Pattern</th><th>Time lost</th><th>Runs</th><th>Confidence</th></tr></thead>
+              <thead><tr><th>Pattern</th><th>Redundant call time</th><th>Runs</th><th>Confidence</th></tr></thead>
               <tbody>
                 {signals.map((signal) => (
                   <tr key={signal.fingerprint}>
@@ -167,6 +173,7 @@ export function InvestigationsPage() {
               </tbody>
             </table>
           </Table>
+          <HiddenEpisodesNote count={cohort.data?.hiddenQuarantinedEpisodes} />
           <ShowMoreButton shown={signals.length} total={signalTotal} onShowMore={showMoreSignals} testId="friction-signals-show-more" />
         </DataState>
         {detailError ? <ErrorNotice compact error={detailError} subject="Episode detail" /> : null}

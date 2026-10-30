@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/findings"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/runsignal"
 	"agent-manager/internal/usageattribution"
 )
 
@@ -16,6 +17,18 @@ import (
 // the report-bug writer path (the same one the model-policy drift check uses).
 type frictionBugFiler struct {
 	client promptmanager.ScenarioQAReporter
+}
+
+// frictionCostPhrase is ", and <time>" or "" when the problem has no measured
+// time (a pattern priced in turns only).
+func frictionCostPhrase(p usageattribution.Problem) string {
+	switch {
+	case p.WallClockMS <= 0:
+		return ""
+	case p.TimeKind == runsignal.TimeIdle:
+		return fmt.Sprintf(", and sat idle for %s in total", usageattribution.FormatDuration(p.WallClockMS))
+	}
+	return fmt.Sprintf(", and spent %s on redundant calls in total", usageattribution.FormatDuration(p.WallClockMS))
 }
 
 func (f frictionBugFiler) FileFrictionBug(ctx context.Context, p usageattribution.Problem) (string, error) {
@@ -26,10 +39,7 @@ func (f frictionBugFiler) FileFrictionBug(ctx context.Context, p usageattributio
 	if p.OwnerCommand != "" {
 		context["command"] = p.OwnerCommand
 	}
-	cost := fmt.Sprintf("wasted %s in total", usageattribution.FormatDuration(p.WallClockMS))
-	if !p.TimeLost {
-		cost = fmt.Sprintf("made %d tool calls (%d tokens) of unrequested work", p.EpisodeTurns, p.Tokens)
-	}
+	cost := frictionCostPhrase(p)
 	return f.client.PublishScenarioQABug(ctx, promptmanager.ScenarioQABug{
 		Title:      "agent friction: " + strings.TrimSuffix(p.Description, "."),
 		SignalType: "unknown", Severity: "minor",
@@ -39,7 +49,7 @@ func (f frictionBugFiler) FileFrictionBug(ctx context.Context, p usageattributio
 			"Open the runs listed under it with `agent-manager run episodes <run-id>`",
 		},
 		Expected: "an agent finishes the work without repeating this pattern",
-		Actual:   fmt.Sprintf("%s It recurred in %d episodes across %d runs, used about %.1f quota points, and %s.", p.Description, p.Episodes, p.Runs, p.Points, cost),
+		Actual:   fmt.Sprintf("%s It recurred in %d episodes across %d runs, used about %.1f quota points%s.", p.Description, p.Episodes, p.Runs, p.Points, cost),
 		Description: fmt.Sprintf("Agent Manager grouped these episodes by fingerprint %s (pattern %s; suspected owner: %s). Evidence runs: %s.",
 			p.Fingerprint, p.Pattern, p.Owner, strings.Join(p.RunIDs, ", ")),
 		Context:      context,

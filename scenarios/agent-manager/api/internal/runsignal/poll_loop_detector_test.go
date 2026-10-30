@@ -43,10 +43,10 @@ func TestPollLoopDetectorRejectsRetriesAndSlowCalls(t *testing.T) {
 	for _, tc := range fixtures {
 		t.Run(tc.Name, func(t *testing.T) {
 			facts, events := makeEvents(time.Duration(tc.GapSeconds)*time.Second, tc.StateChange)
-			if tc.ExpectedTokens > 0 {
-				events = append(events, &domain.RunEvent{ID: uuid.New(), Timestamp: start.Add(15 * time.Second), EventType: domain.EventTypeMetric, Data: &domain.UsageEventData{InputTokens: tc.ExpectedTokens}})
+			// An episode is priced by its own calls: 14 tokens each, three calls.
+			for i := range facts {
+				facts[i].ArgTokens, facts[i].ResultTokens = 10, 4
 			}
-			// Episode tokens come from the run's usage account in DeriveEpisodes.
 			var got []FrictionEpisode
 			for _, episode := range DeriveEpisodes(facts, events) {
 				if episode.Pattern == "poll-loop" {

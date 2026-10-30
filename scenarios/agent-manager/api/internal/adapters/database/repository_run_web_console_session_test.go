@@ -90,3 +90,44 @@ func TestListByWebConsoleSessionIDsSpansLookupChunks(t *testing.T) {
 		t.Fatalf("sessions found = %v, want runs from both lookup chunks %v", found, want)
 	}
 }
+
+func TestFindImportProvenancePreservesAmbiguityAndHarnessIdentity(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	repos := NewRepositories(db, db.log)
+	ctx := context.Background()
+	task := &domain.Task{ID: uuid.New(), Title: "import lookup", ScopePath: "src/", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	create := func(harness, session string) uuid.UUID {
+		run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: uuid.NewString(), Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted, ExecutionMode: domain.ExecutionModeImported, ImportSourceHarness: harness, ImportSourceSessionID: session}
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		return run.ID
+	}
+	first := create("codex", "same")
+	create("claude-code", "same")
+	got, err := repos.Runs.FindImportProvenance(ctx, "resource:codex/sessions", "same")
+	if err != nil || len(got) != 1 || got[0] != first {
+		t.Fatalf("single match = %v, %v", got, err)
+	}
+	second := create("resource:codex/sessions", "same")
+	got, err = repos.Runs.FindImportProvenance(ctx, "codex", "same")
+	if err != nil || len(got) != 2 || !slices.Contains(got, first) || !slices.Contains(got, second) {
+		t.Fatalf("ambiguous matches = %v, %v", got, err)
+	}
+	create("resource:codex/alternate", "same")
+	got, err = repos.Runs.FindImportProvenance(ctx, "codex", "same")
+	if err != nil || len(got) != 2 {
+		t.Fatalf("ambiguous matches must be bounded: %v, %v", got, err)
+	}
+	got, err = repos.Runs.FindImportProvenance(ctx, "codex", "missing")
+	if err != nil || len(got) != 0 {
+		t.Fatalf("missing match = %v, %v", got, err)
+	}
+	if _, err = repos.Runs.FindImportProvenance(ctx, "codex", ""); err == nil {
+		t.Fatal("empty identity accepted")
+	}
+}

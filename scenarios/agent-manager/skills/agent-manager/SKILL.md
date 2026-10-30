@@ -17,7 +17,7 @@ metadata:
     capture: "every attempt"
   requires:
     scenarios: ["agent-manager", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager run messages-friction", "agent-manager usage run", "agent-manager measures episode-cohort", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager usage run", "agent-manager measures episode-cohort", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -153,7 +153,7 @@ programs are the owner-routed leaves. Read the contract for full schemas.
 
 | Need | Program | Purpose | Required inputs |
 |---|---|---|---|
-| Recover a retained conversation | `agent-manager.conversation-recall` | Merge bounded direct and federated conversation clues | `query`; optional `conversation_id`, `limit` |
+| Recover a retained conversation | `agent-manager.conversation-recall` | Merge bounded direct and federated conversation clues | `clues`; optional scope, time, mode, and result limits |
 | Digest recurring friction | `agent-manager.friction-digest` | Rank deterministic friction fingerprints for one owner scenario | `scenario`, `window_days` |
 | Start an investigation | `agent-manager.investigate` | Create and collect one durable investigation | `subject`, `scope` |
 | Collect investigation evidence | `agent-manager.investigation-evidence` | Gather bounded run reports for explicit investigation subjects | `run_ids` |
@@ -165,6 +165,13 @@ programs are the owner-routed leaves. Read the contract for full schemas.
 Use `program-runtime library run <name> --input key=value`; do not reconstruct
 these joins with direct database reads.
 
+For `agent-manager.conversation-recall`, a `partial` envelope with
+`signals.degradations` means the listed Search Hub provider legs were not
+searched completely. Preserve returned Agent Manager candidates and provenance,
+but do not interpret an empty candidate set as a complete negative. Follow
+`signals.next_actions` and check provider health before another search. Sibling
+provider hits remain counts only and never become conversation candidates.
+
 ### 4. Reading runs
 
 ```
@@ -173,7 +180,7 @@ Reading
 │   ├─ status FAILED or NEEDS_REVIEW  → run report <id>; then investigating-agent-runs                 [S1]
 │   ├─ result missing or abstained    → run result <id>                                              [S1]
 │   └─ succeeded but slow or costly   → run episodes <id>; reviewing-agent-run-efficiency              [S1]
-├─ One run, what did the agent say hurt?   run messages-friction <id>                                 [S1]
+├─ One run, what did the agent say hurt?   run episodes <id> --spans                                  [S1]
 ├─ One run, which commands ran?            usage run <id> --facts                                     [S1]
 ├─ Many runs, what recurs?
 │   ├─ by tag         → measures episode-cohort --filter-json '{"tag_prefix":"<p>"}' --limit 50                              [S1]

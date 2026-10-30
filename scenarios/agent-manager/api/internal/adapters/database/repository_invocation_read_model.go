@@ -339,13 +339,20 @@ func (r *invocationReadModelRepository) Cohort(ctx context.Context, filter invoc
 	if err := r.db.GetContext(ctx, &matched, "SELECT COUNT(DISTINCT run_id) FROM "+table+where, args...); err != nil {
 		return invocationreadmodel.Cohort{}, err
 	}
+	hiddenEpisodes := 0
+	if table == "invocation_read_model_episodes" {
+		var err error
+		if hiddenEpisodes, err = r.HiddenEpisodes(ctx, filter); err != nil {
+			return invocationreadmodel.Cohort{}, err
+		}
+	}
 	args = append(args, limit+1)
 	rows, err := r.db.QueryxContext(ctx, "SELECT DISTINCT run_id FROM "+table+where+" ORDER BY run_id LIMIT ?", args...)
 	if err != nil {
 		return invocationreadmodel.Cohort{}, err
 	}
 	defer rows.Close()
-	out := invocationreadmodel.Cohort{RunIDs: []string{}, MatchedRuns: matched}
+	out := invocationreadmodel.Cohort{RunIDs: []string{}, MatchedRuns: matched, HiddenEpisodes: hiddenEpisodes}
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -442,6 +449,17 @@ func (r *invocationReadModelRepository) Episodes(ctx context.Context, filter inv
 	return r.queryEpisodes(ctx, `SELECT run_id,episode_id,occurred_at,time_basis,classifier_version,pattern,cause_scope,severity,honesty_flags_json,start_event_id,end_event_id,evidence_event_ids_json,turns,cycle_count,repeated_element,tokens,wall_clock_ms,suspected_owner_scenario,suspected_owner_command,owner_confidence,failed_joined_calls,fingerprint,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_episodes`+where+` ORDER BY occurred_at, episode_id LIMIT ?`, args...)
 }
 
+// HiddenEpisodes counts the filter's episodes of patterns that are not shown
+// (quarantined or informational), separately from the bounded shown read.
+func (r *invocationReadModelRepository) HiddenEpisodes(ctx context.Context, filter invocationreadmodel.Filter) (int, error) {
+	where, args := episodeWhere(filter, true)
+	var count int
+	if err := r.db.GetContext(ctx, &count, "SELECT COUNT(*) FROM invocation_read_model_episodes"+where, args...); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *invocationReadModelRepository) EpisodesForRun(ctx context.Context, runID string) ([]invocationreadmodel.Episode, error) {
 	return r.queryEpisodes(ctx, `SELECT run_id,episode_id,occurred_at,time_basis,classifier_version,pattern,cause_scope,severity,honesty_flags_json,start_event_id,end_event_id,evidence_event_ids_json,turns,cycle_count,repeated_element,tokens,wall_clock_ms,suspected_owner_scenario,suspected_owner_command,owner_confidence,failed_joined_calls,fingerprint,profile_id,runner_type,model,tag,run_status FROM invocation_read_model_episodes WHERE run_id=? ORDER BY occurred_at, episode_id`, runID)
 }
@@ -507,18 +525,17 @@ func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invo
 		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND outcome NOT IN ('success', 'failure') THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND outcome = 'failure' THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND retry_of_call_event_id <> '' THEN 1 ELSE 0 END),
-		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND help_recovery = 1 THEN 1 ELSE 0 END),
 		SUM(CASE WHEN ownership IN ('resolved', 'project', 'external') AND fingerprint <> '' AND fingerprint IN (SELECT fingerprint FROM invocation_read_model_facts` + where + ` GROUP BY fingerprint HAVING COUNT(*) > 1) THEN 1 ELSE 0 END),
 		COALESCE((SELECT MAX(bucket_count) FROM (SELECT COUNT(*) AS bucket_count FROM invocation_read_model_facts` + fingerprintWhere + ` GROUP BY fingerprint)), 0)
 		FROM invocation_read_model_facts` + where
 	// The repeated-fingerprint subquery has the same predicate, so bind it
 	// twice; it cannot accidentally measure a wider population than the rates.
 	allArgs := append(append(append([]any{}, args...), args...), args...)
-	var values [13]sql.NullInt64
-	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8], &values[9], &values[10], &values[11], &values[12]); err != nil {
+	var values [12]sql.NullInt64
+	if err := r.db.QueryRowContext(ctx, query, allArgs...).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6], &values[7], &values[8], &values[9], &values[10], &values[11]); err != nil {
 		return invocationreadmodel.Metrics{}, err
 	}
-	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, NotACommandCalls: values[3].Int64, CompoundUnresolvedCalls: values[4].Int64, UnparseableCalls: values[5].Int64, PairedCalls: values[6].Int64, UnpairedCalls: values[7].Int64, FailedCalls: values[8].Int64, RetryCalls: values[9].Int64, HelpRecoveries: values[10].Int64, RepeatedCalls: values[11].Int64, LargestFingerprintBucket: values[12].Int64, ClassifiedBase: values[1].Int64}
+	m := invocationreadmodel.Metrics{TotalCalls: values[0].Int64, ResolvedCalls: values[1].Int64, ExternalCalls: values[2].Int64, NotACommandCalls: values[3].Int64, CompoundUnresolvedCalls: values[4].Int64, UnparseableCalls: values[5].Int64, PairedCalls: values[6].Int64, UnpairedCalls: values[7].Int64, FailedCalls: values[8].Int64, RetryCalls: values[9].Int64, RepeatedCalls: values[10].Int64, LargestFingerprintBucket: values[11].Int64, ClassifiedBase: values[1].Int64}
 	// `unknown` is retained only for pre-v5 rows; count it as explicitly
 	// unclassified while replay removes it from current projections.
 	var legacyUnknown int64
@@ -545,7 +562,6 @@ func (r *invocationReadModelRepository) Metrics(ctx context.Context, filter invo
 	if m.ClassifiedBase > 0 {
 		m.FailureRate = float64(m.FailedCalls) / float64(m.ClassifiedBase)
 		m.RetryRate = float64(m.RetryCalls) / float64(m.ClassifiedBase)
-		m.HelpRecoveryRate = float64(m.HelpRecoveries) / float64(m.ClassifiedBase)
 		m.RepeatedWorkRate = float64(m.RepeatedCalls) / float64(m.ClassifiedBase)
 	}
 	return m, nil
@@ -945,10 +961,17 @@ func (r *invocationReadModelRepository) CapabilityEfficacy(ctx context.Context, 
 		args = append(args, filter.Operation)
 	}
 	args = append(args, limit)
+	// Only shown patterns count; a quarantined one contributes a constant zero.
+	episodeCount := func(pattern string) string {
+		if !runsignal.Shown(pattern) {
+			return "0"
+		}
+		return "COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM invocation_read_model_episodes e WHERE e.run_id = c.run_id AND e.pattern = '" + pattern + "' AND e.suspected_owner_scenario = c.target_scenario) THEN 1 ELSE 0 END), 0)"
+	}
 	query := `SELECT c.target_scenario, c.operation, COUNT(*) AS call_count,
 		SUM(CASE WHEN c.outcome = 'success' THEN 1 ELSE 0 END) AS success_count,
-		COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM invocation_read_model_episodes e WHERE e.run_id = c.run_id AND e.pattern = 'fallback-after-capability' AND e.suspected_owner_scenario = c.target_scenario) THEN 1 ELSE 0 END), 0) AS fallback_after_count,
-		COALESCE(SUM(CASE WHEN EXISTS (SELECT 1 FROM invocation_read_model_episodes e WHERE e.run_id = c.run_id AND e.pattern = 'capability-abandoned' AND e.suspected_owner_scenario = c.target_scenario) THEN 1 ELSE 0 END), 0) AS abandoned_count
+		` + episodeCount("fallback-after-capability") + ` AS fallback_after_count,
+		` + episodeCount("capability-abandoned") + ` AS abandoned_count
 		FROM investigation_cross_scenario_calls c WHERE ` + strings.Join(clauses, " AND ") + ` GROUP BY c.target_scenario, c.operation ORDER BY call_count DESC, c.target_scenario ASC, c.operation ASC LIMIT ?`
 	rows, err := r.db.QueryxContext(ctx, query, args...)
 	if err != nil {
@@ -1012,6 +1035,17 @@ func (r *invocationReadModelRepository) FindingMetrics(ctx context.Context, filt
 	return m, nil
 }
 
+// runScopeMembership restricts a run-keyed read-model table to the filter's
+// run scope by delegating to runScopeClause, so every builder shares one
+// definition of scope. It adds nothing when no scope is set.
+func runScopeMembership(filter invocationreadmodel.Filter, column string) string {
+	scope := runScopeClause(filter.Scope, true)
+	if scope == "" {
+		return ""
+	}
+	return column + " IN (SELECT invocation_read_model_runs.run_id FROM invocation_read_model_runs WHERE " + scope + ")"
+}
+
 func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any) {
 	clauses, args := []string{}, []any{}
 	add := func(column, value string) {
@@ -1044,6 +1078,20 @@ func invocationReadModelWhere(filter invocationreadmodel.Filter) (string, []any)
 	if filter.TagPrefix != "" {
 		clauses = append(clauses, "tag LIKE ?")
 		args = append(args, filter.TagPrefix+"%")
+	}
+	if scope := runScopeMembership(filter, "run_id"); scope != "" {
+		clauses = append(clauses, scope)
+	}
+	if filter.ShownEpisodesOnly {
+		ids := runsignal.ShownPatternIDs()
+		if len(ids) == 0 {
+			clauses = append(clauses, "0")
+		} else {
+			clauses = append(clauses, "pattern IN ("+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+")")
+			for _, id := range ids {
+				args = append(args, id)
+			}
+		}
 	}
 	if len(clauses) == 0 {
 		return "", args
@@ -1112,20 +1160,50 @@ func runWhereClauses(filter invocationreadmodel.Filter, windowed, tokens bool) (
 // durable episode rows themselves. Invocation predicates remain explicit
 // EXISTS clauses, so a cohort never needs to reopen raw events.
 func invocationReadModelEpisodeWhere(filter invocationreadmodel.Filter) (string, []any) {
+	return episodeWhere(filter, false)
+}
+
+// episodeWhere restricts episode rows to shown patterns in SQL, before any
+// LIMIT, so quarantined rows cannot crowd shown ones out of a bounded read.
+// hidden inverts the restriction to count what the shown filter removed.
+func episodeWhere(filter invocationreadmodel.Filter, hidden bool) (string, []any) {
 	clauses, args := []string{}, []any{}
+	if ids := runsignal.ShownPatternIDs(); len(ids) == 0 {
+		if !hidden {
+			clauses = append(clauses, "0")
+		}
+	} else {
+		not := ""
+		if hidden {
+			not = "NOT "
+		}
+		clauses = append(clauses, "pattern "+not+"IN ("+strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")+")")
+		for _, id := range ids {
+			args = append(args, id)
+		}
+	}
 	if filter.From != nil {
 		clauses, args = append(clauses, "occurred_at >= ?"), append(args, SQLiteTime(*filter.From))
 	}
 	if filter.To != nil {
 		clauses, args = append(clauses, "occurred_at < ?"), append(args, SQLiteTime(*filter.To))
 	}
-	for _, predicate := range []struct{ column, value string }{{"profile_id", filter.ProfileID}, {"runner_type", filter.RunnerType}, {"model", filter.Model}, {"run_status", filter.RunStatus}, {"pattern", filter.EpisodePattern}, {"cause_scope", filter.EpisodeCauseScope}, {"fingerprint", filter.EpisodeFingerprint}} {
+	for _, predicate := range []struct{ column, value string }{{"run_id", filter.RunID}, {"profile_id", filter.ProfileID}, {"runner_type", filter.RunnerType}, {"model", filter.Model}, {"run_status", filter.RunStatus}, {"pattern", filter.EpisodePattern}, {"cause_scope", filter.EpisodeCauseScope}, {"fingerprint", filter.EpisodeFingerprint}, {"classifier_version", filter.ClassifierVersion}} {
 		if predicate.value != "" {
 			clauses, args = append(clauses, predicate.column+" = ?"), append(args, predicate.value)
 		}
 	}
+	// Episodes carry no workload; it is the run's.
+	for _, predicate := range []struct{ column, value string }{{"workload_kind", filter.WorkloadKind}, {"workload_key", filter.WorkloadKey}} {
+		if predicate.value != "" {
+			clauses, args = append(clauses, "run_id IN (SELECT run_id FROM invocation_read_model_runs WHERE "+predicate.column+" = ?)"), append(args, predicate.value)
+		}
+	}
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "tag LIKE ?"), append(args, filter.TagPrefix+"%")
+	}
+	if scope := runScopeMembership(filter, "run_id"); scope != "" {
+		clauses = append(clauses, scope)
 	}
 	invocationClauses, invocationArgs := []string{"f.run_id = invocation_read_model_episodes.run_id"}, []any{}
 	for _, predicate := range []struct{ column, value string }{{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"tool_name", filter.ToolName}} {
@@ -1199,6 +1277,9 @@ func invocationReadModelFindingWhere(filter invocationreadmodel.Filter) (string,
 	add("status", filter.RunStatus)
 	if filter.TagPrefix != "" {
 		clauses, args = append(clauses, "runs.tag LIKE ?"), append(args, filter.TagPrefix+"%")
+	}
+	if scope := runScopeMembership(filter, "runs.run_id"); scope != "" {
+		clauses = append(clauses, scope)
 	}
 	invocationClauses, invocationArgs := []string{"invocations.run_id = runs.run_id"}, []any{}
 	for _, predicate := range []struct{ column, value string }{{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"tool_name", filter.ToolName}} {

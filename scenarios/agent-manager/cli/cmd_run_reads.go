@@ -8,10 +8,35 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/proto"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
 )
+
+func (a *App) runImportIdentity(args []string) error {
+	fs := flag.NewFlagSet("run import-identity", flag.ContinueOnError)
+	jsonOutput := cliutil.JSONFlag(fs)
+	harness := fs.String("harness", "", "Import source harness")
+	session := fs.String("session-id", "", "Exact source session ID")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*harness) == "" || strings.TrimSpace(*session) == "" || fs.NArg() != 0 {
+		return fmt.Errorf("harness and session-id are required")
+	}
+	query := url.Values{"harness": {*harness}, "sessionId": {*session}}
+	body, err := a.services.Runs.api.Get("/api/v1/import/identity", query)
+	if err != nil {
+		return apiError(body, err)
+	}
+	if *jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+	fmt.Println(string(body))
+	return nil
+}
 
 // =============================================================================
 // Run List

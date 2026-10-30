@@ -437,6 +437,7 @@ var additiveColumnMigrations = []struct {
 	{"tasks", []columnMigration{{column: "current_run_id", ddl: "ALTER TABLE tasks ADD COLUMN current_run_id TEXT"}}},
 	{"runs", runColumnMigrations},
 	{"model_pricing", []columnMigration{{column: "price_book_revision_id", ddl: "ALTER TABLE model_pricing ADD COLUMN price_book_revision_id TEXT"}}},
+	{"quota_observations", []columnMigration{{column: "account_scope", ddl: "ALTER TABLE quota_observations ADD COLUMN account_scope TEXT NOT NULL DEFAULT ''"}}},
 	{"invocation_read_model_runs", invocationReadModelRunColumnMigrations},
 	{"invocation_read_model_facts", invocationReadModelFactColumnMigrations},
 	{"invocation_read_model_time_accounting", invocationReadModelTimeAccountingColumnMigrations},

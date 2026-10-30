@@ -33,7 +33,8 @@ func TestDeriveEpisodesEmitsBoundedPatterns(t *testing.T) {
 	a, b, c := call(0, "a"), call(1, "b"), call(8, "c")
 	facts := []runsignal.InvocationFact{{CallEventID: a.ID.String(), ToolCallID: "a", Executable: "agent-manager", CommandPath: "agent-manager run report", Ownership: "resolved", Outcome: "failure", Fingerprint: "same"}, {CallEventID: b.ID.String(), ToolCallID: "b", Executable: "agent-manager", CommandPath: "agent-manager run report", Ownership: "resolved", Outcome: "failure", HelpRecovery: true, Fingerprint: "same"}}
 	usage := &domain.RunEvent{ID: uuid.New(), RunID: run, Timestamp: now.Add(30 * time.Second), Data: &domain.UsageEventData{InputTokens: 3, OutputTokens: 2}}
-	episodes := runsignal.DeriveEpisodes(facts, []*domain.RunEvent{a, usage, b, c})
+	result := &domain.RunEvent{ID: uuid.New(), RunID: run, EventType: domain.EventTypeToolResult, Timestamp: now.Add(90 * time.Second), Data: &domain.ToolResultEventData{ToolCallID: "b"}}
+	episodes := runsignal.DeriveEpisodes(facts, []*domain.RunEvent{a, usage, b, result, c})
 	seen := map[string]bool{}
 	for _, e := range episodes {
 		seen[e.Pattern] = true
@@ -50,8 +51,8 @@ func TestDeriveEpisodesEmitsBoundedPatterns(t *testing.T) {
 		}
 	}
 	for _, episode := range episodes {
-		if episode.Pattern != "stall" && episode.Tokens != 5 {
-			t.Fatalf("%s tokens = %d, want window token cost 5", episode.Pattern, episode.Tokens)
+		if episode.Tokens != 0 {
+			t.Fatalf("%s tokens = %d: an episode is priced by its own calls (none carry tokens here), never by the run's usage", episode.Pattern, episode.Tokens)
 		}
 	}
 }

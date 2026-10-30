@@ -24,3 +24,9 @@ for `agent-manager`; its `nativeDetail.classifier_accuracy` field contains the
 per-detector rows. The response is intentionally attached to the existing
 Agent Conformance provider because Test Genie admits one provider descriptor per
 scenario and this preserves the existing consumer-conformance phase.
+
+The per-pattern precision gate over real runs is separate and is the one that
+decides what `usage friction` shows: `api/internal/runsignal/testdata/precision`
+(labelled windows from real runs) scored by `go test ./internal/runsignal -run
+Precision`. A pattern below 0.8 precision or with fewer than 10 labels is
+`Quarantined` in `runsignal.PatternSpecs()`.

@@ -4,11 +4,8 @@ package runsignal
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
-	"unicode"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/availability"
@@ -22,6 +19,10 @@ import (
 // v4 backfills bounded failure signatures into durable facts produced before
 // that field was projected, so historical failed invocations remain actionable
 // after a replay without retaining raw tool output.
+// v21 reads command identity from a tolerant shell lexer (heredocs, quotes,
+// wrappers) and Codex exec JavaScript, derives IntentClass from CommandPath
+// instead of argument shape, gives each segment its own outcome, and reports
+// exit 1 of rg/grep/diff/test as no-match.
 // v20 derives every token quantity from the one usage account
 // (AccountUsage): Codex totals are last cumulative counter minus the counter
 // before the run's first report, so re-tails and replays no longer inflate
@@ -33,7 +34,17 @@ import (
 // segment, so any SUM over them overcounts a run in proportion to how compound
 // its commands were. The version bump is what makes a refresh reproject those
 // runs instead of leaving the two conventions mixed in one cohort.
-const InvocationFactVersion = "invocation-fact.v20"
+const InvocationFactVersion = "invocation-fact.v25"
+
+// Outcome vocabulary of an InvocationFact.
+const (
+	OutcomeSuccess = "success"
+	OutcomeFailure = "failure"
+	OutcomeUnknown = "unknown"
+	// OutcomeNoMatch is exit 1 of a search or comparison (rg, grep, diff,
+	// test): the command ran and found nothing, which is not a failure.
+	OutcomeNoMatch = "no-match"
+)
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -148,31 +159,8 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 				capability = "other"
 			}
 		}
-		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, IntentClass: intentClass(call), Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: "unknown", PairingBasis: "unpaired", Availability: availability.Available, TokenBasis: tokenaccounting.BasisUnknown}
-		extraction := commandInput(call, commandResolvers...)
-		if extraction.Reason != "" {
-			factBase.OwnershipReason = extraction.Reason
-		}
-		command := extraction.Command
-		segments, compound, segmentError := SegmentShell(command)
-		if extraction.LiteralArgs {
-			if wrapper, script, ok := unwrapShellArgs(extraction.Args); ok {
-				factBase.Wrapper = wrapper
-				command = script
-				segments, compound, segmentError = SegmentShell(script)
-			} else {
-				segments, compound, segmentError = []string{command}, false, ""
-			}
-		}
-		if command == "" {
-			segments = []string{""}
-		}
-		if segmentError != "" {
-			segments = []string{command}
-		}
-		if len(segments) == 0 {
-			segments = []string{""}
-		}
+		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: OutcomeUnknown, PairingBasis: "unpaired", Availability: availability.Available, TokenBasis: tokenaccounting.BasisUnknown}
+		units := callUnits(call, commandInput(call, commandResolvers...))
 		var result *domain.RunEvent
 		if call.ToolCallID != "" {
 			result = results[call.ToolCallID]
@@ -184,24 +172,36 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 			ordinalResultIndex++
 			factBase.PairingBasis = "ordinal"
 		}
-		for segmentIndex, segment := range segments {
+		var resultData *domain.ToolResultEventData
+		if result != nil {
+			resultData, _ = result.Data.(*domain.ToolResultEventData)
+		}
+		for unitIndex, unit := range units {
 			fact := factBase
-			fact.SegmentIndex, fact.SegmentCount = segmentIndex, len(segments)
-			if segmentError != "" {
-				fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, segmentError
-			} else if command != "" {
-				resolution := ResolveCatalog(segment)
-				if extraction.LiteralArgs && factBase.Wrapper == "" {
-					resolution = ResolveCatalogArgs(extraction.Args)
+			fact.SegmentIndex, fact.SegmentCount = unitIndex, len(units)
+			fact.OwnershipReason = unit.Reason
+			fact.Wrapper = unit.Wrapper
+			var tokens []string
+			switch unit.Kind {
+			case unitCode:
+				fact.Capability, fact.IntentClass = "code", "code:"+strings.ToLower(call.ToolName)
+			case unitCommand:
+				tokens = unit.Tokens
+				if dynamicProgram(tokens[0]) {
+					fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, "command name needs shell evaluation"
+					break
 				}
-				fact.Executable, fact.CommandPath, fact.CatalogSnapshot = resolution.Owner, resolution.Command, resolution.Snapshot
-				fact.ProgramID, fact.SkillID = commandIdentifiers(segment)
-				if resolution.Command != "" {
-					fact.Capability = CapabilityForCommand(resolution.Command, fact.Capability)
-					// `| head -30` trims another command's output: it reads no file.
-					if fact.Capability == "file-read" && !readsFileOperand(segment) {
-						fact.Capability = factBase.Capability
-					}
+				if unit.FromScript && fact.Capability == "other" {
+					fact.Capability = "shell"
+				}
+				resolution := resolveCatalogTokens(tokens)
+				fact.Executable, fact.CatalogSnapshot = resolution.Owner, resolution.Snapshot
+				fact.CommandPath = commandPathFor(resolution, tokens)
+				fact.ProgramID, fact.SkillID = commandIdentifiers(tokens)
+				fact.Capability = CapabilityForCommand(fact.CommandPath, fact.Capability)
+				// `| head -30` trims another command's output: it reads no file.
+				if fact.Capability == "file-read" && !readsFileOperand(tokens) {
+					fact.Capability = factBase.Capability
 				}
 				fact.SemanticsKind, fact.SemanticsVerdict = resolution.SemanticsKind, resolution.SemanticsVerdict
 				fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
@@ -211,42 +211,42 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 						fact.OwnershipReason = "segment is not resolved by the manifest"
 					}
 				}
+			case unitUnparseable:
+				fact.Ownership = OwnershipUnparseable
 			}
-			if compound && fact.Ownership != OwnershipResolved && fact.Ownership != OwnershipExternal {
-				fact.Ownership = OwnershipCompoundUnresolved
+			if unit.Kind != unitCode {
+				fact.IntentClass = intentKey(fact.CommandPath, call.ToolName)
 			}
-			if result != nil {
+			if resultData != nil {
 				fact.ResultEventID = result.ID.String()
-				if data, ok := result.Data.(*domain.ToolResultEventData); ok {
-					fact.ExitCode, fact.DurationMS = data.ExitCode, data.DurationMS
-					fact.Outcome = ToolResultOutcome(data)
-					if fact.Outcome == "failure" {
-						fact.FailureSignature, fact.SignatureTruncated = failureSignature(data)
-					}
+				fact.ExitCode, fact.DurationMS = resultData.ExitCode, resultData.DurationMS
+				fact.Outcome = unitOutcome(resultData, unit, tokens)
+				if fact.Outcome == OutcomeFailure {
+					fact.FailureSignature, fact.SignatureTruncated = failureSignature(resultData)
 				}
+			} else if result != nil {
+				fact.ResultEventID = result.ID.String()
 			}
 			// A missing command is a real absence of a command signature. Do not
 			// hash the empty string: otherwise every non-command tool collapses
 			// into one retry/thrash bucket and inflates repeated-work rates.
-			if command != "" && segmentError == "" && fact.CommandPath != "" && fact.Ownership != OwnershipNotACommand {
-				// The command text is hashed into the fingerprint rather than
-				// retained as raw evidence. Shape-only material is intentionally
-				// useful for grouping, but cannot distinguish two opaque shell
-				// commands that both have the same argument shape.
-				fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, strings.TrimSpace(command), normalizedArgumentShape(call.Input), strconv.Itoa(segmentIndex))
+			if unit.Kind == unitCommand && fact.CommandPath != "" && fact.Ownership != OwnershipUnparseable {
+				// The command words are hashed into the fingerprint rather than
+				// retained as raw evidence.
+				fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, strings.Join(tokens, " "))
 			}
 			if fact.Fingerprint != "" {
-				if prior := previousByFingerprint[fact.Fingerprint]; prior != "" {
+				if prior := previousByFingerprint[fact.Fingerprint]; prior != "" && prior != fact.CallEventID {
 					fact.RetryOfCallEventID = prior
 					if helpAfterFailure[fact.Executable] {
 						fact.HelpRecovery = true
 					}
 				}
 			}
-			if fact.Outcome == "failure" && fact.Executable != "" {
+			if fact.Outcome == OutcomeFailure && fact.Executable != "" {
 				lastFailureByExecutable[fact.Executable] = fact.CallEventID
 			}
-			if isHelpCommand(segment) && fact.Executable != "" && lastFailureByExecutable[fact.Executable] != "" {
+			if isHelpCommand(tokens) && fact.Executable != "" && lastFailureByExecutable[fact.Executable] != "" {
 				helpAfterFailure[fact.Executable] = true
 			}
 			if fact.Fingerprint != "" {
@@ -259,11 +259,10 @@ func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver Capab
 }
 
 // commandIdentifiers extracts only identifiers from explicitly supported
-// command paths. It does not alter normalizedArgumentShape, so arbitrary
-// argument values remain absent from the privacy-preserving read model.
-func commandIdentifiers(command string) (programID, skillID string) {
-	tokens, ok := safeTokens(command)
-	if !ok || len(tokens) < 3 {
+// command paths. Arbitrary argument values remain absent from the
+// privacy-preserving read model.
+func commandIdentifiers(tokens []string) (programID, skillID string) {
+	if len(tokens) < 3 {
 		return "", ""
 	}
 	for i := 0; i+2 < len(tokens); i++ {
@@ -309,78 +308,13 @@ func CapabilityForTool(tool string) string {
 	}
 }
 
-func intentClass(call *domain.ToolCallEventData) string {
-	if call == nil {
-		return "other"
+// intentKey is the comparable identity of what a call tried to do: its
+// command path, or the tool name for calls that run no command.
+func intentKey(commandPath, toolName string) string {
+	if commandPath != "" {
+		return commandPath
 	}
-	return CapabilityForTool(call.ToolName) + ":" + normalizedArgumentShape(call.Input)
-}
-
-// normalizedArgumentShape returns a deterministic, redacted description of a
-// tool input. It keeps keys, flag names, value kinds, file extensions, and
-// coarse lengths, never an argument value. That makes fingerprints useful for
-// grouping while preserving the no-raw-input contract of invocation facts.
-func normalizedArgumentShape(input map[string]any) string {
-	if len(input) == 0 {
-		return "empty"
-	}
-	keys := make([]string, 0, len(input))
-	for key := range input {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	parts := make([]string, 0, len(keys))
-	for _, key := range keys {
-		parts = append(parts, key+":"+argumentValueShape(input[key]))
-	}
-	return strings.Join(parts, ",")
-}
-
-func argumentValueShape(value any) string {
-	switch value := value.(type) {
-	case string:
-		return stringArgumentShape(value)
-	case bool:
-		return "bool"
-	case float64, float32, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		return "number"
-	case nil:
-		return "null"
-	case []any:
-		return "list:" + strconv.Itoa(len(value))
-	case map[string]any:
-		return "object:" + strconv.Itoa(len(value))
-	default:
-		return "other"
-	}
-}
-
-func stringArgumentShape(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return "text:0"
-	}
-	if tokens, ok := safeTokens(unwrapShellCommand(value)); ok && len(tokens) > 0 {
-		parts := make([]string, 0, len(tokens))
-		for _, token := range tokens {
-			parts = append(parts, tokenShape(token))
-		}
-		return "command:" + strings.Join(parts, "+")
-	}
-	return "shell:unparseable"
-}
-
-func tokenShape(token string) string {
-	if strings.HasPrefix(token, "-") {
-		return "flag:" + strings.SplitN(token, "=", 2)[0]
-	}
-	if extension := strings.ToLower(filepath.Ext(token)); extension != "" && len(extension) <= 12 {
-		return "path:" + extension
-	}
-	if allDigits(token) {
-		return "number"
-	}
-	return "text"
+	return "tool:" + strings.ToLower(strings.TrimSpace(toolName))
 }
 
 func allDigits(value string) bool {
@@ -388,7 +322,7 @@ func allDigits(value string) bool {
 		return false
 	}
 	for _, r := range value {
-		if !unicode.IsDigit(r) {
+		if r < '0' || r > '9' {
 			return false
 		}
 	}
@@ -459,9 +393,8 @@ func boundedFailureSignature(signature string) (string, bool) {
 // readsFileOperand reports whether a cat/head/tail/sed segment names a file to
 // read. Without one it reads standard input, a filter on a pipeline. Flags,
 // their numeric values and sed's script are not files.
-func readsFileOperand(segment string) bool {
-	tokens, ok := safeTokens(segment)
-	if !ok || len(tokens) < 2 {
+func readsFileOperand(tokens []string) bool {
+	if len(tokens) < 2 {
 		return false
 	}
 	name := tokens[0]
@@ -481,12 +414,23 @@ func readsFileOperand(segment string) bool {
 	return operands >= 1
 }
 
+// hasWord reports whether a space-separated command path contains word as a
+// whole token, so `await` never counts as `wait`.
+func hasWord(path, word string) bool {
+	for _, field := range strings.Fields(path) {
+		if field == word {
+			return true
+		}
+	}
+	return false
+}
+
 func CapabilityForCommand(command, fallback string) string {
 	name := strings.ToLower(strings.TrimSpace(command))
 	switch {
 	case name == "rg", name == "find", strings.Contains(name, "search"), strings.Contains(name, "grep"), strings.Contains(name, " rg"), strings.Contains(name, " find"):
 		return "search"
-	case strings.Contains(name, "wait"):
+	case hasWord(name, "wait"):
 		return "wait"
 	case strings.Contains(name, "apply_patch"), strings.Contains(name, " edit"), strings.Contains(name, " write"):
 		return "file-edit"
@@ -548,11 +492,7 @@ func isShellTool(name string) bool {
 	return strings.Contains(name, "shell") || strings.Contains(name, "bash") || strings.Contains(name, "command")
 }
 
-func isHelpCommand(command string) bool {
-	tokens, ok := safeTokens(command)
-	if !ok {
-		return false
-	}
+func isHelpCommand(tokens []string) bool {
 	for _, token := range tokens {
 		if token == "help" || token == "--help" || token == "-h" {
 			return true
