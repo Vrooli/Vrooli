@@ -199,7 +199,7 @@ def step_classify():  # CLASSIFY · rows in the skill's table order; every readi
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    program.report(envelope)
     return None
 
 

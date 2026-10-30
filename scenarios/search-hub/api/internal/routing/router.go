@@ -21,6 +21,8 @@ package routing
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -35,6 +37,8 @@ import (
 	internalregistry "search-hub/internal/registry"
 
 	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -976,10 +980,6 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 	if len(candidates) == 1 {
 		return nil, false, false, "", "none", []string{"reranker skipped (single candidate)"}
 	}
-	if ok, line := r.rerankBreaker.allow(r.deps.Now()); !ok {
-		return nil, false, true, "reranker_circuit_open", "none", []string{line + " (reranker_circuit_open)"}
-	}
-
 	preference := rerankPreference(targets)
 	timeout, ok := r.rerankBudgetForLeg(ctx, preference)
 	if !ok {
@@ -987,6 +987,10 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 			"reranker skipped (query budget nearly exhausted; reranker_budget_exhausted) — showing honest by-provider grouping",
 		}
 	}
+	if ok, line := r.rerankBreaker.allow(r.deps.Now()); !ok {
+		return nil, false, true, "reranker_circuit_open", "none", []string{line + " (reranker_circuit_open)"}
+	}
+
 	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	var err error
@@ -1498,14 +1502,17 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
+			var probeClaimed uint64
 			if !isFailureRecoveryProbe(ctx) {
-				if ok, note := r.providerBreakers.allow(t.GetProviderId(), r.deps.Now()); !ok {
+				ok, note, claimed := r.providerBreakers.allowClaim(t.GetProviderId(), r.deps.Now())
+				probeClaimed = claimed
+				if !ok {
 					groups[i] = degrade(&routingv1.ProviderResultGroup{ProviderId: t.GetProviderId()}, note)
 					return
 				}
 			}
 			groups[i] = r.callProvider(ctx, t, query, limit, scope)
-			r.providerBreakers.record(t.GetProviderId(), groups[i].GetDegraded(), r.deps.Now())
+			r.providerBreakers.recordGroup(t.GetProviderId(), groups[i], r.deps.Now(), probeClaimed)
 			r.providerBreakers.recordResult(t.GetProviderId(), len(groups[i].GetHits()), groups[i].GetDegraded(), explicit, r.deps.Now())
 		}(i, t)
 	}
@@ -1520,8 +1527,27 @@ func (r *Router) fanOut(ctx context.Context, targets []*registryv1.ProviderDescr
 // callProvider performs one provider's round-trip and always returns a group:
 // on any failure it returns a degraded group carrying a human-readable note
 // rather than an error, so one bad provider never sinks the query.
+// Partition in-flight sharing by the exact proof forwarded by api-core and
+// verified principal. Only the digest is retained; raw credentials never enter
+// the coalescing map or logs.
+func callerPartition(ctx context.Context) string {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !principal.IsVerified() {
+		principal = identity.Principal{}
+	}
+	value := struct {
+		Principal           identity.Principal
+		Identity, Operation string
+	}{
+		principal, provenance.ForwardedIdentityToken(ctx), provenance.ForwardedOperationToken(ctx),
+	}
+	data, _ := json.Marshal(value) // Principal contains only JSON-compatible fields.
+	digest := sha256.Sum256(data)
+	return fmt.Sprintf("%x", digest)
+}
+
 func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {
-	key := strings.Join([]string{d.GetProviderId(), query, fmt.Sprint(limit), scope}, "\x00")
+	key := strings.Join([]string{d.GetProviderId(), query, fmt.Sprint(limit), scope, callerPartition(ctx)}, "\x00")
 	r.providerCallMu.Lock()
 	if call := r.providerCalls[key]; call != nil {
 		call.waiters++

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	aisearch "github.com/vrooli/ai-go/search"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
 // ProviderDemotionState is the durable, queryable portion of zero-yield
@@ -176,15 +177,19 @@ func (p *providerBreakers) yieldStats(id string) *providerYieldStats {
 }
 
 func (p *providerBreakers) allow(id string, now time.Time) (bool, string) {
+	ok, note, _ := p.allowClaim(id, now)
+	return ok, note
+}
+func (p *providerBreakers) allowClaim(id string, now time.Time) (bool, string, uint64) {
 	b := p.breaker(id)
 	if b == nil {
-		return true, ""
+		return true, "", 0
 	}
-	ok, note := b.allow(now)
+	ok, note, claimed := b.allowClaim(now)
 	if ok {
-		return true, ""
+		return true, "", claimed
 	}
-	return false, fmt.Sprintf("provider %s circuit unavailable: %s", id, note)
+	return false, fmt.Sprintf("provider %s circuit unavailable: %s", id, strings.Replace(note, "reranker circuit", "provider circuit", 1)), 0
 }
 
 func (p *providerBreakers) record(id string, degraded bool, now time.Time) {
@@ -197,6 +202,17 @@ func (p *providerBreakers) record(id string, degraded bool, now time.Time) {
 		return
 	}
 	b.recordSuccess()
+}
+
+// 401/403 describe this caller's authority, not shared provider health.
+func (p *providerBreakers) recordGroup(id string, group *routingv1.ProviderResultGroup, now time.Time, probeClaimed uint64) {
+	if group != nil && group.GetDegraded() && (group.GetNote() == "provider returned HTTP 401" || group.GetNote() == "provider returned HTTP 403") {
+		if probeClaimed != 0 {
+			p.breaker(id).releaseProbe(probeClaimed)
+		}
+		return
+	}
+	p.record(id, group.GetDegraded(), now)
 }
 
 func (p *providerBreakers) recordResult(id string, hitCount int, degraded, explicit bool, now time.Time) {
@@ -321,6 +337,7 @@ func (p *providerBreakers) beginFailureRecoveryProbe(id string, now time.Time) b
 	due := b.open && now.Sub(b.openedAt) >= b.cooldown && !b.probing
 	if due {
 		b.probing = true
+		b.probeID++
 	}
 	b.mu.Unlock()
 	if !due {

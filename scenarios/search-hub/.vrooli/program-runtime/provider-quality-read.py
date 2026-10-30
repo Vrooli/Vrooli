@@ -9,6 +9,8 @@ one bounded table (one row per provider), so the improve skill can name the prov
 and the measure that proves the defect in one filing.
 """
 
+import json
+
 inputs = program.inputs()
 raw_window = inputs.get("insights_window", "7")
 raw_group = inputs.get("provider_group", "")
@@ -29,6 +31,7 @@ envelope = {
 }
 handles = {}
 DEGRADED_BAND = 0.20  # the declared degraded_rate_max every provider descriptor carries
+REPORT_OUTPUT_BUDGET_BYTES = 3800  # leave headroom below Program Runtime's 4096-byte stdout cap
 
 
 fail = program.fail
@@ -151,7 +154,7 @@ def step_classify():  # CLASSIFY · one join keyed by providerId; deterministic 
     return "report"
 
 
-def step_report():  # REPORT · bounded: every list carries a count beside a five-row sample
+def step_report():  # REPORT · bounded: every list carries a count beside a sample
     envelope["phase"] = "report"
     sig = envelope["signals"]
     for key in ("providers", "suites_below_full_pass", "degraded_over_band",
@@ -162,8 +165,104 @@ def step_report():  # REPORT · bounded: every list carries a count beside a fiv
                 sig[key + "_count"] = len(value)
             sig[key] = value[:3 if key != "providers" else cfg["max_rows"]]
     envelope["evidence"] = envelope["evidence"][:4]
-    print(envelope)
+    sig["errors_count"] = len(envelope["errors"])
+    sig["evidence_count"] = len(envelope["evidence"])
+    report_bounded(envelope)
     return None
+
+
+def _bounded_text(value, limit):
+    return str(value or "")[:limit]
+
+
+def _compact_status(status):
+    return "partial" if status == "ok" else status
+
+
+def _compact_report(source):
+    """Keep caller status and actionable counts when detail exceeds the output budget."""
+    signals = source.get("signals") or {}
+    compact_signals = {"report_compacted": True}
+    list_keys = (
+        "degraded_over_band", "unreachable", "under_utilized",
+        "suites_without_runs", "suites_below_full_pass",
+    )
+    for key in list_keys:
+        value = signals.get(key)
+        count = signals.get(key + "_count")
+        compact_signals[key + "_count"] = count if type(count) is int else (len(value) if isinstance(value, list) else 0)
+
+    provider_rows = signals.get("providers")
+    if not isinstance(provider_rows, list):
+        provider_rows = []
+    provider_count = signals.get("provider_count")
+    compact_signals["provider_count"] = provider_count if type(provider_count) is int else len(provider_rows)
+    compact_signals["provider_ids_sample"] = [
+        _bounded_text(row.get("provider_id"), 80)
+        for row in provider_rows[:3]
+        if isinstance(row, dict)
+    ]
+
+    errors = source.get("errors")
+    if not isinstance(errors, list):
+        errors = []
+    compact_errors = []
+    for error in errors[:3]:
+        if isinstance(error, dict):
+            compact_errors.append({
+                "class": _bounded_text(error.get("class"), 64),
+                "where": _bounded_text(error.get("where"), 40),
+            })
+    compact_signals["errors_count"] = len(errors)
+    compact_signals["evidence_count"] = len(source.get("evidence") or [])
+
+    inputs = source.get("inputs") or {}
+    if not isinstance(inputs, dict):
+        inputs = {}
+    max_rows = inputs.get("max_rows", 0)
+    if type(max_rows) is int:
+        max_rows = max_rows if -10000 <= max_rows <= 10000 else _bounded_text(max_rows, 40)
+    else:
+        max_rows = _bounded_text(max_rows, 40)
+    return {
+        "program": _bounded_text(source.get("program"), 80),
+        "version": _bounded_text(source.get("version"), 16),
+        "status": _compact_status(source.get("status", "failed")),
+        "phase": "report",
+        "inputs": {
+            "insights_window": _bounded_text(inputs.get("insights_window"), 80),
+            "provider_group": _bounded_text(inputs.get("provider_group"), 80),
+            "max_rows": max_rows,
+        },
+        "signals": compact_signals,
+        "errors": compact_errors,
+    }
+
+
+def report_bounded(source):
+    """Use the full report when it fits; otherwise preserve status in a compact envelope."""
+    try:
+        encoded = json.dumps(source, allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError):
+        encoded = None
+    if encoded is not None and len(encoded) <= REPORT_OUTPUT_BUDGET_BYTES:
+        program.report(source)
+        return
+
+    compact = _compact_report(source)
+    compact_bytes = json.dumps(compact, allow_nan=False).encode("utf-8")
+    if len(compact_bytes) > REPORT_OUTPUT_BUDGET_BYTES:
+        # All variable strings and collections above are bounded. Keep a final
+        # status-and-error-class envelope if a future field breaks that bound.
+        compact = {
+            "program": "search-hub.provider-quality-read",
+            "version": "1",
+            "status": _compact_status(source.get("status", "failed")),
+            "phase": "report",
+            "signals": {"report_compacted": True},
+            "errors": compact.get("errors", [])[:1],
+        }
+    program.report(compact)
 
 
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}

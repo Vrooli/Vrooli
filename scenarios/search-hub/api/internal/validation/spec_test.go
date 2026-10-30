@@ -1,8 +1,8 @@
 package validation
 
 import (
+	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/vrooli/maturity-go/assessment"
@@ -129,11 +129,11 @@ func TestSearchHubMaturityFindingMappingsAreCapabilityScoped(t *testing.T) {
 
 func mustLoadSpec(t *testing.T) *assessment.Spec {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-	scenarioRoot := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", ".."))
+	scenarioRoot := filepath.Clean(filepath.Join(cwd, "..", "..", ".."))
 	spec, err := assessment.LoadSpecFromScenario(scenarioRoot)
 	if err != nil {
 		t.Fatalf("LoadSpecFromScenario: %v", err)

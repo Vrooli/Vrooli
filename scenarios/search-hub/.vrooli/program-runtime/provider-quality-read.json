@@ -20,7 +20,7 @@
     "max_rows": {
       "type": "integer",
       "default": 5,
-      "description": "Largest provider table returned (1..100); parsed in validate, a non-integer is invalid_input. The envelope must fit the 4 KB stdout bound, so filter with provider_group instead of raising it."
+      "description": "Largest provider table returned (1..100); parsed in validate, a non-integer is invalid_input. Oversized reports fall back to bounded counts and provider ID samples while preserving status and error classes."
     }
   },
   "assumptions": [
@@ -33,7 +33,7 @@
     "no binding with effect write or destructive is called",
     "one evals runs call per registered suite, limit 1, run concurrently; no retry",
     "the envelope is printed exactly once, on every path",
-    "the envelope stays within the 4 KB stdout bound: providers are capped by max_rows, evidence at six run ids, and each derived list at five rows with a count beside it"
+    "the envelope stays below the 4096-byte stdout bound: a detailed report is used only below 3800 bytes; otherwise a compact report preserves the original status, list counts, bounded provider ID samples, and error classes"
   ],
   "bindings": [
     {
@@ -86,10 +86,14 @@
       "unreachable": "providers federation status reports unreachable now, or whose insights degradation reasons in the window include unreachable: {provider_id, reachability, now, unreachable_in_window}",
       "under_utilized": "providers insights lists as retirement candidates (zero hits over routed calls)",
       "suites_without_runs": "registered suites with no stored run",
-      "suites_below_full_pass": "at most 8 suites whose newest run has pass_rate below 1.0",
+      "suites_below_full_pass": "at most 3 suites whose newest run has pass_rate below 1.0",
       "window": "insights window bounds",
       "fleet": "fleet totals from insights: totalQueries, zeroResultQueries, zeroResultRate, degradedQueries, latencyP95Ms",
-      "suites_below_full_pass_count": "How many registered suites are below a full pass; the list carries at most five."
+      "suites_below_full_pass_count": "How many registered suites are below a full pass; the detailed list carries at most three.",
+      "report_compacted": "true when the detailed report exceeded its safe byte budget; an original ok status becomes partial, while failed/refused/unavailable statuses are preserved",
+      "provider_ids_sample": "at most three provider IDs, each at most 80 characters; present only in the compact report",
+      "errors_count": "total error records before a compact report keeps up to three class/location summaries",
+      "evidence_count": "retained evidence references (at most four); a compact report omits the references"
     },
     "errors": {
       "classes": [

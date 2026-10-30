@@ -148,7 +148,7 @@ def step_classify():  # CLASSIFY · verdict table over the response meta; bounde
 
 def step_report():  # REPORT
     envelope["phase"] = "report"
-    print(envelope)
+    program.report(envelope)
     return None
 
 

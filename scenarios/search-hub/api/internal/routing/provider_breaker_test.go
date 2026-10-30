@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
 type quorumLister struct {
@@ -305,4 +306,21 @@ func TestCircuitOpenQuorumExcludesRecoveryProbe(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, share, "cooldown-elapsed recovery probes are reachable, not circuit-open")
 	require.False(t, breached)
+}
+
+func TestProviderAuthorizationRefusalDoesNotPoisonSharedCircuit(t *testing.T) {
+	now := time.Now()
+	p := newProviderBreakers(rerankBreakerConfig{FailureThreshold: 1, Cooldown: time.Second, MaxCooldown: time.Second})
+	p.recordGroup("leaf", &routingv1.ProviderResultGroup{Degraded: true, Note: "provider returned HTTP 403"}, now, 0)
+	allowed, _ := p.allow("leaf", now)
+	require.True(t, allowed, "one caller's refusal must not block another caller")
+	p.record("leaf", true, now)
+	allowed, _, claimed := p.allowClaim("leaf", now.Add(2*time.Second))
+	require.True(t, allowed)
+	p.recordGroup("leaf", &routingv1.ProviderResultGroup{Degraded: true, Note: "provider returned HTTP 401"}, now.Add(2*time.Second), 0)
+	stillBlocked, _ := p.allow("leaf", now.Add(2*time.Second))
+	require.False(t, stillBlocked, "a different request must not release the active probe")
+	p.recordGroup("leaf", &routingv1.ProviderResultGroup{Degraded: true, Note: "provider returned HTTP 401"}, now.Add(2*time.Second), claimed)
+	allowed, _ = p.allow("leaf", now.Add(2*time.Second))
+	require.True(t, allowed, "authorization refusal must release a half-open probe")
 }

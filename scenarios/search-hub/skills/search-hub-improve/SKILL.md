@@ -60,6 +60,14 @@ Read every row through `run search-hub.setpoint-read` (contract: `.vrooli/progra
 
 For provider filings, `run search-hub.provider-quality-read` joins insights, providers list, federation status, and the newest eval run per suite into one per-provider table (`degraded_over_band`, `unreachable`, `under_utilized`, `suites_below_full_pass`). A filing quotes its row.
 
+If the result sets `signals.report_compacted=true`, the full table exceeded the safe
+output budget. An otherwise `ok` result is `partial` when details are omitted;
+`failed`, `refused`, and `unavailable` remain unchanged. Counts and a provider ID
+sample remain available, while row details and raw error text are omitted. Rerun
+with `provider_group=<scenario>` to inspect one owner's rows; if that view is still
+compacted, read `federation status` or the relevant eval run directly before filing.
+A compacted sample is not evidence that omitted rows are healthy.
+
 Fleet sensors every scenario has: `program-runtime bindings condition` for search-hub's bindings, and `run agent-manager.friction-digest` (inputs `scenario`, `window_days`) for `search-hub` commands. The 2026-09-02 digest names `search-hub query` command failures as the recurring fingerprint; the usage skill's troubleshooting row on the stale CLI base is the likely cause and the first thing to confirm.
 
 ### 4. Golden corpora

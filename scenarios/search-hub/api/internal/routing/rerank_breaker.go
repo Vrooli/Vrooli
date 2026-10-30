@@ -24,6 +24,7 @@ type rerankBreaker struct {
 	open             bool
 	openedAt         time.Time
 	probing          bool
+	probeID          uint64
 }
 
 func newRerankBreaker(cfg rerankBreakerConfig) *rerankBreaker {
@@ -39,26 +40,33 @@ func newRerankBreaker(cfg rerankBreakerConfig) *rerankBreaker {
 }
 
 func (b *rerankBreaker) allow(now time.Time) (bool, string) {
+	ok, note, _ := b.allowClaim(now)
+	return ok, note
+}
+
+// allowClaim identifies the one call that owns a half-open probe.
+func (b *rerankBreaker) allowClaim(now time.Time) (bool, string, uint64) {
 	if b == nil {
-		return true, ""
+		return true, "", 0
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	if !b.open {
-		return true, ""
+		return true, "", 0
 	}
 	if now.Sub(b.openedAt) >= b.cooldown {
 		if b.probing {
-			return false, "reranker circuit half-open (probe in flight) - showing honest by-provider grouping"
+			return false, "reranker circuit half-open (probe in flight) - showing honest by-provider grouping", 0
 		}
 		b.probing = true
-		return true, ""
+		b.probeID++
+		return true, "", b.probeID
 	}
 
 	retryAt := b.openedAt.Add(b.cooldown)
 	return false, fmt.Sprintf("reranker circuit open after %d consecutive failure(s); retry after %s - showing honest by-provider grouping",
-		b.failures, retryAt.Format(time.RFC3339))
+		b.failures, retryAt.Format(time.RFC3339)), 0
 }
 
 func (b *rerankBreaker) recordSuccess() {
@@ -72,6 +80,19 @@ func (b *rerankBreaker) recordSuccess() {
 	b.cooldown = b.baseCooldown
 	b.openedAt = time.Time{}
 	b.probing = false
+}
+
+// An authorization refusal is caller-specific, not evidence about shared
+// availability. Release an acquired probe without closing or extending it.
+func (b *rerankBreaker) releaseProbe(claim uint64) {
+	if b == nil {
+		return
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if claim != 0 && b.probing && b.probeID == claim {
+		b.probing = false
+	}
 }
 
 func (b *rerankBreaker) recordFailure(now time.Time) {

@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -84,12 +83,11 @@ func TestSyntheticRegistrantUsesGenericRoutingPolicy(t *testing.T) {
 
 func repositoryRoot(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
 	}
-	// .../scenarios/search-hub/api/internal/routing/agnosticism_test.go
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
+	return filepath.Clean(filepath.Join(cwd, "..", "..", "..", "..", ".."))
 }
 
 func fleetIdentifiers(t *testing.T, repoRoot string) map[string]struct{} {

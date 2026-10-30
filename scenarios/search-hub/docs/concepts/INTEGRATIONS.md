@@ -108,3 +108,9 @@ reaches providers at runtime — never owning their data.
 - [`DATA.md`](DATA.md) — storage ownership
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+
+
+Provider HTTP 401 and 403 responses remain degraded caller-visible results;
+they do not by themselves establish a shared provider outage. Provider
+authority is evaluated by the provider. Search Hub does not infer an empty
+corpus from a refusal or automatically grant itself access.

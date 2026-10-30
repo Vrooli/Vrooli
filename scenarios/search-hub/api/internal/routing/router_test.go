@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/identity"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
@@ -1372,4 +1373,20 @@ func TestExplicitTypeWebReachesExternalScope(t *testing.T) {
 	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", Types: []string{"web"}})
 	require.NoError(t, err)
 	require.Equal(t, []string{"web-search.live"}, resp.GetCorporaSearched())
+}
+
+func TestConcurrentProviderCallsDoNotShareAcrossPrincipals(t *testing.T) {
+	doer := &coalescingDoer{started: make(chan struct{}), release: make(chan struct{})}
+	r := routing.NewRouter(routing.Deps{Lister: &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}}, Resolver: staticResolver{urls: map[string]string{"cli-health": "http://cli-health.test"}}, Doer: doer})
+	errs := make(chan error, 2)
+	for _, subject := range []string{"alice", "bob"} {
+		ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: subject, Verified: true})
+		go func() { _, err := r.Query(ctx, &routingv1.QueryRequest{Query: "same", All: true}); errs <- err }()
+	}
+	<-doer.started
+	require.Eventually(t, func() bool { doer.mu.Lock(); defer doer.mu.Unlock(); return doer.calls == 2 }, time.Second, time.Millisecond)
+	close(doer.release)
+	for range 2 {
+		require.NoError(t, <-errs)
+	}
 }
