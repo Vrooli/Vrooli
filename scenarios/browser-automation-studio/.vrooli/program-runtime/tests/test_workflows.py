@@ -124,7 +124,9 @@ class Programs(unittest.TestCase):
         scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':Program(inputs),'learn':self.learn,'ai':ai,
                'search_hub':NS(query=NS(query=lambda **kw:Handle(list(search_hub_rows or [])))),
                'workflow_health':NS(workflows=NS(search=lambda **kw:Handle(list(workflow_health_rows or []))))}
-        with contextlib.redirect_stdout(io.StringIO()):exec(compile((ROOT/(name+'.py')).read_text(),name,'exec'),scope)
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):exec(compile((ROOT/(name+'.py')).read_text(),name,'exec'),scope)
+        self.stdout = captured.getvalue()
         return scope['envelope']
 
     def test_setpoint_rows_read_measures_and_mark_missing_sensors_unavailable(self):
@@ -299,6 +301,51 @@ class Programs(unittest.TestCase):
         r=self.run_program('do-task',{'task':'open settings'},lib=lib)
         self.assertEqual('selection_required',r['errors'][0]['class'])
 
+    def test_failed_search_preserves_child_error_and_does_not_fall_through_to_navigation(self):
+        calls=[]
+        child={'status':'failed','signals':{'candidates':[]},
+               'errors':[{'class':'normalization_unavailable','detail':'owner row shape could not be verified','where':'classify'}],
+               'evidence':['search:attempt-1']}
+        lib=NS(browser_automation_studio=NS(
+            find_flows=lambda **kw:Handle([child]),
+            navigate_intent=lambda **kw:calls.append(('navigate',kw)) or Handle([])))
+        learn=Learn()
+        result=self.run_program('do-task',{'task':'open settings','session':'s','model':'m',
+                                           'auto_select':True,'authorized_workflows':['wf-a@2'],
+                                           'postconditions':[{'selector':'#ready','mode':'exists'}],
+                                           'advice_attempt_id':'earlier-search'},lib=lib,learn=learn)
+        self.assertEqual('failed',result['status'])
+        self.assertEqual('failed',result['signals']['outcome'])
+        self.assertEqual('failed',result['signals']['search_status'])
+        self.assertEqual(child['errors'],result['errors'])
+        self.assertEqual(child['evidence'],result['evidence'])
+        self.assertEqual([],calls)
+        self.assertEqual([],learn.graded)
+
+    def test_partial_search_preserves_candidates_and_errors_without_auto_selecting(self):
+        calls=[]
+        candidate={'id':'wf-a','version':2,'runnable_by_id':True}
+        child={'status':'partial','signals':{'candidates':[candidate]},
+               'errors':[{'class':'inference_unavailable','detail':'bounded tie-break unavailable','where':'classify'}],
+               'evidence':['workflow:wf-a:2']}
+        lib=NS(browser_automation_studio=NS(
+            find_flows=lambda **kw:Handle([child]),
+            smoke_flow=lambda **kw:calls.append(('smoke',kw)) or Handle([]),
+            navigate_intent=lambda **kw:calls.append(('navigate',kw)) or Handle([])))
+        learn=Learn()
+        result=self.run_program('do-task',{'task':'open settings','session':'s','model':'m',
+                                           'auto_select':True,'authorized_workflows':['wf-a@2'],
+                                           'postconditions':[{'selector':'#ready','mode':'exists'}]},
+                               lib=lib,learn=learn)
+        self.assertEqual('partial',result['status'])
+        self.assertEqual('unknown',result['signals']['outcome'])
+        self.assertEqual('partial',result['signals']['search_status'])
+        self.assertEqual([candidate],result['signals']['candidates'])
+        self.assertEqual(child['errors'],result['errors'])
+        self.assertEqual(child['evidence'],result['evidence'])
+        self.assertNotIn('recommended_workflow',result['signals'])
+        self.assertEqual([],calls)
+
     def test_excluded_workflow_returns_selection_required(self):
         learn = Learn()
         learn.choose = lambda *_: {'selected_id': None, 'source': 'unavailable', 'learning': {'advice': []}}
@@ -372,7 +419,7 @@ class Programs(unittest.TestCase):
     def test_auto_select_only_authorized_revision_before_navigation(self):
         calls=[]
         child={'status':'ok','signals':{'outcome':'verified_success'},'evidence':['execution:e']}
-        lib=NS(browser_automation_studio=NS(find_flows=lambda **kw:Handle([{'signals':{'candidates':[{'id':'other','version':1,'runnable_by_id':True},{'id':'safe','version':2,'runnable_by_id':True}]}}]),smoke_flow=lambda **kw:calls.append(kw) or Handle([child])))
+        lib=NS(browser_automation_studio=NS(find_flows=lambda **kw:Handle([{'status':'ok','signals':{'candidates':[{'id':'other','version':1,'runnable_by_id':True},{'id':'safe','version':2,'runnable_by_id':True}]}}]),smoke_flow=lambda **kw:calls.append(kw) or Handle([child])))
         result=self.run_program('do-task',{'task':'read','auto_select':True,'authorized_workflows':['safe@2'],'postconditions':[{'selector':'#result','mode':'exists'}],'session':'s','model':'m'},lib=lib)
         self.assertEqual('safe',calls[0]['workflow_id'])
         self.assertEqual('verified_success',result['signals']['outcome'])
@@ -407,7 +454,7 @@ class Programs(unittest.TestCase):
         self.assertEqual('refused',result['status']);self.assertEqual([],calls)
 
     def test_profile_and_contract_separate_learning_identity(self):
-        lib=NS(browser_automation_studio=NS(find_flows=lambda **kw:Handle([{'signals':{'candidates':[]}}])))
+        lib=NS(browser_automation_studio=NS(find_flows=lambda **kw:Handle([{'status':'ok','signals':{'candidates':[]}}])))
         a=Learn();b=Learn()
         self.run_program('do-task',{'task':'read','profile_id':'a'},lib=lib,learn=a)
         self.run_program('do-task',{'task':'read','profile_id':'b'},lib=lib,learn=b)
@@ -545,6 +592,19 @@ class Programs(unittest.TestCase):
         classified.clear()
         r=self.run_program('find-flows',{'task':'billing export','k':5},api,ai=ai)
         self.assertEqual([],classified);self.assertEqual(1,r['signals']['candidates'][0]['version'])
+
+    def test_find_flows_prints_one_json_envelope_without_inference(self):
+        learn = Learn()
+        classified = []
+        ai = NS(classify=lambda **kw:classified.append(kw) or Handle([]))
+        api = NS(workflows=NS(list=lambda **kw:Handle([{'id':'w1','version':3,'name':'Billing export','folderPath':'ops'}])))
+        result = self.run_program('find-flows',{'task':'billing export','k':5},api,learn=learn,ai=ai)
+        parsed = json.loads(self.stdout)
+        self.assertEqual(result,parsed)
+        self.assertEqual(1,len(self.stdout.splitlines()))
+        self.assertEqual([],classified)
+        self.assertEqual([],learn.graded)
+        self.assertFalse(result['signals']['tie_broken_by_ai'])
 
     def test_find_flows_normalizes_all_three_owner_shapes(self):
         """One mapping over three spellings of identity, name and folder, in the real sandbox.

@@ -345,6 +345,7 @@
         "deadline_exceeded",
         "binding_error",
         "kernel_runtime",
+        "normalization_unavailable",
         "inference_unavailable",
         "remote_error",
         "no_governed_binding"

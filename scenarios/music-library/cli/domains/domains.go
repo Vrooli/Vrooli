@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"music-library/cli/domains/catalog"
 	"music-library/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -37,6 +38,11 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	catalogGroup, err := catalog.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, catalogGroup)
 	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {

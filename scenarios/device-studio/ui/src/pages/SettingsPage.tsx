@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { Switch } from "@vrooli/react-component-library/Switch/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IntegrationsOverview, type IntegrationItem, type IntegrationStatus } from "@vrooli/react-component-library/IntegrationsOverview/1";
+import { Cpu, ShieldCheck } from "lucide-react";
 
 import { HealthCard } from "../features/health/HealthCard";
 import { fetchOptionalCapabilities, type CapabilityAvailability } from "../api/capabilities";
@@ -17,6 +21,16 @@ const THEME_LABEL_KEY: Record<ThemeChoice, (typeof strings.theme.choice)[ThemeCh
   dark: strings.theme.choice.dark,
   system: strings.theme.choice.system,
 };
+
+const C = strings.pages.settings.capabilities;
+const A = strings.pages.settings.account;
+
+/** The optional apps Device Studio builds on, in display order. */
+const OPTIONAL_SERVICES = [
+  { id: "ai-gateway", copy: C.items.aiGateway, provider: "AI Gateway", icon: <Cpu aria-hidden="true" /> },
+  { id: "workspace-sandbox", copy: C.items.workspaceSandbox, provider: "Workspace Sandbox", icon: <ShieldCheck aria-hidden="true" /> },
+] as const;
+
 
 /**
  * Settings owns every preference; nothing else in the shell duplicates one.
@@ -69,15 +83,22 @@ export function SettingsPage() {
 
   useEffect(() => { void refreshCreditBalance(); }, [desktopAuth]);
 
+  const [capabilityCheckCount, setCapabilityCheckCount] = useState(0);
+  const [checkingCapabilities, setCheckingCapabilities] = useState(true);
   useEffect(() => {
     let active = true;
+    setCheckingCapabilities(true);
     void fetchOptionalCapabilities().then((states) => {
-      if (active) setOptionalCapabilities(states);
+      if (!active) return;
+      setOptionalCapabilities(states);
+      setCapabilityCheckFailed(false);
     }).catch(() => {
       if (active) setCapabilityCheckFailed(true);
+    }).finally(() => {
+      if (active) setCheckingCapabilities(false);
     });
     return () => { active = false; };
-  }, []);
+  }, [capabilityCheckCount]);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +112,7 @@ export function SettingsPage() {
     return () => { active = false; };
   }, [desktopAuth]);
 
+  const balanceAvailable = creditBalance !== null && (creditBalance.state === "available" || creditBalance.state === "stale");
   const accountStateLabel = accountState
     ? t(strings.pages.settings.account.states[accountState.state])
     : t(strings.pages.settings.account.checking);
@@ -181,6 +203,28 @@ export function SettingsPage() {
     }
   }
 
+  const optionalServiceItem = (service: (typeof OPTIONAL_SERVICES)[number], states: CapabilityAvailability[] | null): IntegrationItem => {
+    const state = states?.find((candidate) => candidate.id === service.id);
+    const status: IntegrationStatus = state?.status === "available" ? "ready" : state?.status === "unavailable" ? "off" : states === null ? "checking" : "unknown";
+    const name = t(service.copy.name);
+    return {
+      id: service.id,
+      name,
+      subtitle: t(service.copy.subtitle),
+      provider: service.provider,
+      icon: service.icon,
+      status,
+      problem: status === "off" ? { title: t(C.problemOff, { name }), description: t(service.copy.problem) } : undefined,
+      features: [{ id: service.id, label: t(service.copy.feature), available: status !== "off" }],
+      facts: [
+        { label: t(C.facts.id), value: service.id, monospace: true },
+        ...(state?.message ? [{ label: t(C.facts.health), value: state.message }] : []),
+        ...(state?.checkedAt ? [{ label: t(C.facts.checked), value: new Date(state.checkedAt).toLocaleString(getCurrentLocale()) }] : []),
+        ...(status === "off" && state?.operatorCommand ? [{ label: t(C.facts.command), value: state.operatorCommand, monospace: true }] : []),
+      ],
+    };
+  };
+
   return (
     <section data-testid={selectors.pages.settings} aria-labelledby="settings-heading" className="flex flex-col gap-space-md">
       <PageHeader headingId="settings-heading" title={t(strings.pages.settings.title)} description={t(strings.pages.settings.description)} />
@@ -206,86 +250,93 @@ export function SettingsPage() {
           </SettingsList.Row>
         </SettingsList.Group>
       </SettingsList>
-      <section data-testid={selectors.settingsPage.accountPanel} aria-labelledby="settings-account-heading" className="flex flex-col gap-space-sm rounded-lg border border-border-subtle p-space-md">
-        <div>
-          <h2 id="settings-account-heading" className="text-lg font-semibold">{t(strings.pages.settings.account.heading)}</h2>
-          <p className="text-sm text-muted-foreground">{t(strings.pages.settings.account.description)}</p>
-        </div>
-        <p data-testid={selectors.settingsPage.accountStatus} aria-live="polite">
-          <span className="font-medium">{t(strings.pages.settings.account.statusLabel)}: </span>{accountStateLabel}
-        </p>
-        {accountState?.state === "linked" && <dl className="grid gap-space-xs text-sm">
-          <div><dt className="font-medium">{t(strings.pages.settings.account.businessAccount)}</dt><dd>{accountState.businessAccountId}</dd></div>
-          <div><dt className="font-medium">{t(strings.pages.settings.account.principal)}</dt><dd>{accountState.localPrincipal}</dd></div>
-          <div><dt className="font-medium">{t(strings.pages.settings.account.scopes)}</dt><dd>{accountState.scopes.length ? accountState.scopes.join(", ") : t(strings.pages.settings.account.noScopes)}</dd></div>
-        </dl>}
-        <p className="text-sm">{t(strings.pages.settings.account.localOnly)}</p>
-        {accountNotice && <p role="status" aria-live="polite">{accountNotice}</p>}
-        <div className="flex flex-wrap gap-space-sm">
-          <button type="button" data-testid={selectors.settingsPage.accountConnect} disabled={!desktopAuth || accountBusy || accountState === null} onClick={() => void connectAccount()}>
-            {t(accountState?.state === "linked" ? strings.pages.settings.account.switch : strings.pages.settings.account.connect)}
-          </button>
-          {accountState?.state === "linked" && <button type="button" data-testid={selectors.settingsPage.accountDisconnect} disabled={!desktopAuth || accountBusy} onClick={() => void disconnectAccount()}>
-            {t(strings.pages.settings.account.disconnect)}
-          </button>}
-        </div>
-      </section>
-      <section data-testid="settings-credit-session" aria-labelledby="settings-credit-heading" className="flex flex-col gap-space-sm rounded-lg border border-border-subtle p-space-md">
-        <div>
-          <h2 id="settings-credit-heading" className="text-lg font-semibold">{t(strings.pages.settings.account.creditHeading)}</h2>
-          <p className="text-sm text-muted-foreground">{t(strings.pages.settings.account.creditDescription)}</p>
-        </div>
-        <p aria-live="polite"><span className="font-medium">{t(strings.pages.settings.account.creditStatusLabel)}: </span>{creditStateLabel}</p>
-        <div className="grid gap-space-xs text-sm" aria-live="polite" data-testid="settings-credit-balance">
-          <p><span className="font-medium">{t(strings.pages.settings.account.balanceLabel)}: </span>{creditBalance && (creditBalance.state === "available" || creditBalance.state === "stale")
-            ? `${creditBalance.balanceCredits} ${creditBalance.displayCreditsLabel}`
-            : creditBalance === null ? t(strings.pages.settings.account.balanceChecking) : creditBalance.state === "signed_out" ? t(strings.pages.settings.account.balanceSignedOut) : t(strings.pages.settings.account.balanceUnavailable)}</p>
-          {creditBalance && (creditBalance.state === "available" || creditBalance.state === "stale") && <>
-            {creditBalance.state === "stale" && <p role="status">{t(strings.pages.settings.account.balanceStale)}</p>}
-            <p><span className="font-medium">{t(strings.pages.settings.account.balanceMultiplier)}: </span>{creditBalance.displayCreditsMultiplier}</p>
-            <p><span className="font-medium">{t(strings.pages.settings.account.balanceSource)}: </span>{creditBalance.source}</p>
-            <p><span className="font-medium">{t(strings.pages.settings.account.balanceFetched)}: </span>{new Date(creditBalance.fetchedAt!).toLocaleString()}</p>
-            {creditBalance.walletUpdatedAt && <p><span className="font-medium">{t(strings.pages.settings.account.balanceWalletUpdated)}: </span>{new Date(creditBalance.walletUpdatedAt).toLocaleString()}</p>}
+      <SettingsList variant="auto" data-testid={selectors.settingsPage.accountPanel}>
+        <SettingsList.Group label={t(A.heading)}>
+          <SettingsList.Row
+            label={t(A.statusLabel)}
+            hint={<>
+              <span data-testid={selectors.settingsPage.accountStatus} aria-live="polite" className="block">{desktopAuth ? accountStateLabel : t(A.desktopOnly)}</span>
+              {accountNotice
+                ? <span role="status" aria-live="polite" className="block">{accountNotice}</span>
+                : accountState?.state !== "linked" && <span className="block">{t(A.description)}</span>}
+            </>}
+          >
+            {/* Outside the desktop app there is nothing to connect, so no dead controls are shown. */}
+            {desktopAuth && <div className="flex flex-wrap justify-end gap-space-xs">
+              <Button size="sm" variant={accountState?.state === "linked" ? "outline" : "primary"} data-testid={selectors.settingsPage.accountConnect} disabled={accountBusy || accountState === null} onClick={() => void connectAccount()}>
+                {t(accountState?.state === "linked" ? A.switch : A.connect)}
+              </Button>
+              {accountState?.state === "linked" && <Button size="sm" variant="outline" data-testid={selectors.settingsPage.accountDisconnect} disabled={accountBusy} onClick={() => void disconnectAccount()}>
+                {t(A.disconnect)}
+              </Button>}
+            </div>}
+          </SettingsList.Row>
+          {accountState?.state === "linked" && <>
+            <SettingsList.Row label={t(A.businessAccount)}><span className="text-sm text-muted-foreground">{accountState.businessAccountId}</span></SettingsList.Row>
+            <SettingsList.Row label={t(A.principal)}><span className="text-sm text-muted-foreground">{accountState.localPrincipal}</span></SettingsList.Row>
+            <SettingsList.Row label={t(A.scopes)}><span className="text-sm text-muted-foreground">{accountState.scopes.length ? accountState.scopes.join(", ") : t(A.noScopes)}</span></SettingsList.Row>
           </>}
-        </div>
-        <button type="button" disabled={!desktopAuth?.getCreditBalance || balanceBusy} onClick={() => void refreshCreditBalance()}>
-          {balanceBusy ? t(strings.pages.settings.account.balanceRefreshing) : t(strings.pages.settings.account.balanceRefresh)}
-        </button>
-        {creditNotice && <p role="status" aria-live="polite">{creditNotice}</p>}
-        <div className="flex flex-wrap gap-space-sm">
-          {creditStatus?.state === "signed_out" && <button type="button" disabled={!desktopAuth?.signIn || creditBusy} onClick={() => void signInForCredits()}>{t(strings.pages.settings.account.creditSignIn)}</button>}
-          {creditStatus?.state !== "shared" && <button type="button" disabled={!desktopAuth?.setCreditSessionSharing || creditBusy || creditStatus === null} onClick={() => void setCreditSharing(true)}>{t(strings.pages.settings.account.creditShare)}</button>}
-          {(creditStatus?.state === "shared" || creditStatus?.state === "signed_out" || creditStatus?.state === "unavailable") && <button type="button" disabled={!desktopAuth?.setCreditSessionSharing || creditBusy} onClick={() => void setCreditSharing(false)}>{t(strings.pages.settings.account.creditStop)}</button>}
-        </div>
-      </section>
-      <section data-testid="settings-optional-capabilities" aria-labelledby="settings-capabilities-heading" className="flex flex-col gap-space-sm rounded-lg border border-border-subtle p-space-md">
-        <div>
-          <h2 id="settings-capabilities-heading" className="text-lg font-semibold">{t(strings.pages.settings.capabilities.heading)}</h2>
-          <p className="text-sm text-muted-foreground">{t(strings.pages.settings.capabilities.description)}</p>
-        </div>
-        {(["ai-gateway", "workspace-sandbox"] as const).map((id) => {
-          const item = optionalCapabilities?.find((state) => state.id === id);
-          const state = capabilityCheckFailed ? "unknown" : item?.status ?? "unknown";
-          const name = id === "ai-gateway"
-            ? strings.pages.settings.capabilities.aiGateway
-            : strings.pages.settings.capabilities.workspaceSandbox;
-          const statusLabel = state === "available"
-            ? strings.pages.settings.capabilities.available
-            : state === "unavailable"
-              ? strings.pages.settings.capabilities.unavailable
-              : strings.pages.settings.capabilities.unknown;
-          return <div key={id} data-testid={`settings-capability-${id}`} data-status={state} className="rounded-md border border-border-subtle p-space-sm">
-            <p className="font-medium">{t(name)} · {t(statusLabel)}</p>
-            <p className="text-sm text-muted-foreground">{item?.message ?? t(capabilityCheckFailed
-              ? strings.pages.settings.capabilities.checkFailed
-              : optionalCapabilities === null
-                ? strings.pages.settings.capabilities.checking
-                : strings.pages.settings.capabilities.unobserved)}</p>
-            {item && <p className="text-xs text-muted-foreground">{t(strings.pages.settings.capabilities.source)}</p>}
-            {item?.operatorCommand && <p className="text-xs text-muted-foreground">{t(strings.pages.settings.capabilities.operatorAction)}: <code>{item.operatorCommand}</code></p>}
-            {item?.checkedAt && <p className="text-xs text-muted-foreground">{t(strings.pages.settings.capabilities.observed)}: {new Date(item.checkedAt).toLocaleString()}</p>}
-          </div>;
-        })}
+        </SettingsList.Group>
+      </SettingsList>
+      <SettingsList variant="auto" data-testid="settings-credit-session">
+        <SettingsList.Group label={t(A.creditHeading)}>
+          <SettingsList.Row
+            label={t(A.creditStatusLabel)}
+            hint={<>
+              <span className="block">{t(desktopAuth ? A.creditDescription : A.desktopOnlyCredits)}</span>
+              {desktopAuth && creditStatus && creditStatus.state !== "shared" && creditStatus.state !== "not_shared" && <span className="block">{creditStateLabel}</span>}
+              {creditNotice && <span role="status" aria-live="polite" className="block">{creditNotice}</span>}
+            </>}
+          >
+            {desktopAuth && <div className="flex flex-wrap items-center justify-end gap-space-xs">
+              {creditStatus?.state === "signed_out" && desktopAuth.signIn
+                ? <Button size="sm" variant="primary" disabled={creditBusy} onClick={() => void signInForCredits()}>{t(A.creditSignIn)}</Button>
+                : <Switch
+                    data-testid="settings-credit-share"
+                    aria-label={t(A.creditStatusLabel)}
+                    checked={creditStatus?.state === "shared"}
+                    disabled={!desktopAuth.setCreditSessionSharing || creditBusy || creditStatus === null || creditStatus.state === "signed_out"}
+                    onCheckedChange={(checked) => void setCreditSharing(checked)}
+                  />}
+              {desktopAuth.setCreditSessionSharing && (creditStatus?.state === "signed_out" || creditStatus?.state === "unavailable") && <Button size="sm" variant="ghost" disabled={creditBusy} onClick={() => void setCreditSharing(false)}>{t(A.creditStop)}</Button>}
+            </div>}
+          </SettingsList.Row>
+          {desktopAuth && <SettingsList.Row
+            label={t(A.balanceLabel)}
+            hint={<span data-testid="settings-credit-balance" aria-live="polite">
+              <span className="block">{balanceAvailable
+                ? t(A.balanceValue, { amount: creditBalance.balanceCredits, label: creditBalance.displayCreditsLabel })
+                : creditBalance === null ? t(A.balanceChecking) : creditBalance.state === "signed_out" ? t(A.balanceSignedOut) : t(A.balanceUnavailable)}</span>
+              {creditBalance?.state === "stale" && <span role="status" className="block">{t(A.balanceStale)}</span>}
+              {balanceAvailable && creditBalance.state === "available" && creditBalance.fetchedAt && <span className="block">{t(A.balanceChecked, { time: new Date(creditBalance.fetchedAt).toLocaleString(currentLocale, { dateStyle: "medium", timeStyle: "short" }) })}</span>}
+            </span>}
+          >
+            {desktopAuth.getCreditBalance && <Button size="sm" variant="outline" disabled={balanceBusy} onClick={() => void refreshCreditBalance()}>
+              {balanceBusy ? t(A.balanceRefreshing) : t(A.balanceRefresh)}
+            </Button>}
+          </SettingsList.Row>}
+        </SettingsList.Group>
+      </SettingsList>
+      {balanceAvailable && <details data-testid="settings-credit-balance-details" className="-mt-space-sm px-space-md text-sm">
+        <summary className="min-h-11 cursor-pointer py-space-sm text-muted-foreground">{t(A.balanceDetails)}</summary>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-space-md gap-y-space-xs pb-space-sm">
+          <dt className="text-muted-foreground">{t(A.balanceSource)}</dt><dd>{creditBalance.source}</dd>
+          <dt className="text-muted-foreground">{t(A.balanceMultiplier)}</dt><dd>{creditBalance.displayCreditsMultiplier}</dd>
+          {creditBalance.fetchedAt && <><dt className="text-muted-foreground">{t(A.balanceFetched)}</dt><dd>{new Date(creditBalance.fetchedAt).toLocaleString(currentLocale, { dateStyle: "medium", timeStyle: "short" })}</dd></>}
+          {creditBalance.walletUpdatedAt && <><dt className="text-muted-foreground">{t(A.balanceWalletUpdated)}</dt><dd>{new Date(creditBalance.walletUpdatedAt).toLocaleString(currentLocale, { dateStyle: "medium", timeStyle: "short" })}</dd></>}
+        </dl>
+      </details>}
+      <section data-testid="settings-optional-capabilities" aria-label={t(C.heading)}>
+        <IntegrationsOverview
+          header={<SettingsList.Intro title={t(C.heading)} description={t(C.description)} />}
+          groups={[{ id: "apps", label: t(C.groupApps), items: OPTIONAL_SERVICES.map((service) => optionalServiceItem(service, optionalCapabilities)) }]}
+          checkedAt={optionalCapabilities?.find((state) => state.checkedAt)?.checkedAt}
+          loading={optionalCapabilities === null && !capabilityCheckFailed}
+          error={capabilityCheckFailed ? t(C.checkFailed) : null}
+          refreshing={checkingCapabilities && optionalCapabilities !== null}
+          onRefresh={() => setCapabilityCheckCount((count) => count + 1)}
+          locale={getCurrentLocale()}
+        />
       </section>
       <details className="flex flex-col gap-space-sm">
         <summary className="min-h-11 cursor-pointer py-space-sm font-medium">{t(strings.pages.settings.diagnostics)}</summary>

@@ -45,6 +45,17 @@ observations. A high BPM can still feel half-time or sparse. If hearing is
 unavailable, keep that choice provisional and preserve the known preference;
 do not claim the new arrangement beat the reference.
 
+For the current Aquila brief, the operator liked all four original 110-second
+takes on 2026-10-29, with A preferred and C second. The source files, prompts,
+receipts and scoped feedback are retained in
+`path:/home/matthalloran8/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md`.
+Use them as positive anchors, not guaranteed future output quality. Select a
+source long enough for the story and possible edits when feasible; repetition of
+a short source was explicitly reported as bland. Compare a complete candidate's
+musical development and its actual fit to picture, not just its opening or a
+normalized level. No lyrics is the user's current launch-video preference; a
+prompt alone does not verify that the resulting audio is vocal-free.
+
 Brief rhythm, instruments, bass, texture, build, break, and final resolve. Use
 silence when it directs attention. Align a few accents to visible actions; do not
 sonify every tween. Readability outranks a beat grid. If generation would threaten
@@ -239,3 +250,15 @@ the approved source within an appropriate brief is preferable to silently choosi
 an unreviewed replacement. Distinct product tracks remain the goal when new music
 is requested; the anchor preserves the quality direction rather than requiring
 one song everywhere.
+
+
+Before generating or selecting a score, search the Music Library catalog by
+relevant tags and unused status; inspect listener approval and source provenance.
+Keep accepted uses available for the same project and mark a new edit as draft
+until explicitly accepted. A fresh-music request still requires new candidates.
+See the music-generation skill for the catalog commands and retention limits.
+
+The October 29 follow-up added two fresh candidates that the operator liked as
+much as the initial four; the operator also confirmed that A works with the
+Aquila film pacing. Record this as a specific listening result, not publication
+approval or proof that every future generation will meet the same standard.

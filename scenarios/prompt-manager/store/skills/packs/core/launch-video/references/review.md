@@ -62,6 +62,15 @@ and phone shells for clean proportions and control occlusion. Review campaign
 films together: reusable primitives must not impose the same opening, middle and
 ending. Quiet shots and faithful stills remain useful; variety is purposeful.
 
+At animated entrances inspect consecutive decoded frames immediately before, at,
+and after each scene boundary and each delayed element reveal. A scene can show
+an element in its final position before a delayed `fromTo` tween initializes,
+then jump back to its starting position; a dark-frame check alone misses this.
+Set the intended hidden or starting state before the scene becomes visible and
+keep outgoing content present through any fade. Review the actual export after
+the correction, including the first frames of titles, cards, media and QR. Treat
+other playback flicker as a separate hypothesis until observed and tested.
+
 ## Product-footage craft pass
 
 Review the whole product sequence, not only its best frame. Inventory every

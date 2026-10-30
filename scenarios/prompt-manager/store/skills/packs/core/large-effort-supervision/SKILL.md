@@ -122,7 +122,7 @@ For each selected goal home:
    use `agent-manager run events <id> --stats --json` for retained event counts
    without payloads. Otherwise reuse the dated assessment and record a concise
    disposition; never treat unknown evidence as unchanged.
-2. Read `agent-manager run tokens <orchestrator run ID> --json` for daily
+2. Read `agent-manager usage run <orchestrator run ID> --json` for daily
    coordinator-only usage. `--children --json` reports the orchestrator and its
    direct children only; it is not recursive. Read it after a material worker/output
    change or when a due efficiency/audit decision needs direct-child accounting;

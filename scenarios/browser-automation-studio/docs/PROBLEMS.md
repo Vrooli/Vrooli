@@ -149,3 +149,10 @@ driver run that includes a motion qualification requiring unavailable environmen
 inputs before timing out. Retained findings include command tails. These are
 observations, not attribution to this patch. Existing QA unit finding
 `knw-1792096033017403914` remains relevant; no duplicate root-cause report was filed.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: Program Runtime sample `prog_6d33edc2-6fa4-47c9-967b-0c5bd7286934` records `browser-automation-studio.do-task` v6 with `workflow_id` present, no `version`, and `failure_shape=kernel_runtime` / `KeyError: 'version'`. `step_validate` rejects the input, but `step_report` then indexed the missing field while building feedback metadata.
+- Blocker: narrow report guard is in source and the existing `missing-version` fixture now asserts `invalid_input`. A direct test-provenance invocation of the current contract digest returned the expected `failed/invalid_input` without `KeyError`; however, Test Genie run `validation-0048985560814445f4f4550414633008` skipped the optional programs provider after a validation RPC deadline. Its outer receipt succeeded with `outcome=unknown`, and no fixture executed; scoped owner-suite validation remains open.
+- Measured: 2026-10-29 00:16 UTC

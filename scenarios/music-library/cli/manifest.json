@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "music-library",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Manage library notes and the track catalog through the Music Library API.",
   "groups": [
     {
       "name": "notes",
@@ -125,6 +125,155 @@
               "unit": "notes",
               "summary_template": "{count} notes created ({window})"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "catalog",
+      "description": "Manage track judgments and project use",
+      "commands": [
+        {
+          "name": "put",
+          "description": "Save a track and explicit listener judgment",
+          "flags": [
+            {
+              "name": "sha256",
+              "required": true,
+              "description": "Source audio SHA-256"
+            },
+            {
+              "name": "title",
+              "required": true,
+              "description": "Track title"
+            },
+            {
+              "name": "path",
+              "required": true,
+              "description": "Read-only source path"
+            },
+            {
+              "name": "take",
+              "required": false,
+              "description": "Generation take ID"
+            },
+            {
+              "name": "receipt",
+              "required": false,
+              "description": "Generation receipt path"
+            },
+            {
+              "name": "tags",
+              "required": false,
+              "description": "Comma-separated tags"
+            },
+            {
+              "name": "approval",
+              "required": true,
+              "description": "liked, unreviewed or rejected"
+            },
+            {
+              "name": "feedback",
+              "required": false,
+              "description": "Listener feedback"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "PutTrack"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "list",
+          "description": "Find tracks by tag, project or accepted use",
+          "flags": [
+            {
+              "name": "tag",
+              "required": false,
+              "description": "Exact tag"
+            },
+            {
+              "name": "unused",
+              "required": false,
+              "description": "true to exclude accepted uses"
+            },
+            {
+              "name": "project",
+              "required": false,
+              "description": "Project identifier"
+            },
+            {
+              "name": "approval",
+              "required": false,
+              "description": "liked, unreviewed or rejected"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "ListTracks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "use",
+          "description": "Record a draft or accepted project use",
+          "flags": [
+            {
+              "name": "sha256",
+              "required": true,
+              "description": "Source audio SHA-256"
+            },
+            {
+              "name": "project",
+              "required": true,
+              "description": "Project identifier"
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Revision identifier"
+            },
+            {
+              "name": "status",
+              "required": true,
+              "description": "draft or accepted"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CatalogService",
+            "method": "RecordUse"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]

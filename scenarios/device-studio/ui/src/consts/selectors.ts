@@ -1,4 +1,5 @@
 import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /** Application selector definitions. Shared behavior lives in @vrooli/ui-selectors.
  * Run selector:manifest after editing these maps; UI builds regenerate the manifest.
  */

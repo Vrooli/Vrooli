@@ -19,6 +19,7 @@ carries its own stable learning key, so its evidence pools across every search r
 restarting per task. It owns an attempt record for that reason; it still consumes no advice.
 """
 import hashlib
+import json
 
 inputs = program.inputs()
 task = str(inputs.get("task", "") or "").strip()
@@ -238,7 +239,7 @@ def step_report():  # REPORT
     # A caller that later finds this candidate set was wrong grades the search itself with this
     # reference; no domain read is repeated.
     envelope["signals"]["learning"] = {"feedback_ref": learn.result("search")}
-    print(envelope)
+    print(json.dumps(envelope, allow_nan=False))
     return None
 
 

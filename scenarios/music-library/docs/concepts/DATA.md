@@ -28,6 +28,29 @@ here against a track identity.
 
 ## Data Ownership
 
+### Track catalog and project usage
+
+The library owns listener judgments and use history, not Music Tools' generated
+take pool. A track is identified by the SHA-256 of its source audio and references
+the caller-owned original file and generation take/receipt. Listener approval,
+descriptive tags, and intended purposes are separate from use. Record a draft
+association with a specific project independently from an accepted use; only an
+accepted use makes a track used for an unused-track search. A used track remains
+discoverable for reuse in that same project. Keep source files read-only, retain the
+exact take provenance, and never infer preference from pool reservation or play.
+The implemented slice is a catalog and use ledger; it does not claim
+that automatic taste prediction, playback, missing-file monitoring, or generated-audio
+retention exists. Paths are references: callers must retain their files and receipts.
+The CLI verifies the source digest on registration; API clients provide metadata and
+are responsible for verifying it. The catalog currently searches its full set in
+memory, so it is intended for modest collections rather than unbounded scale.
+
+Use `music-library catalog put --help`, `catalog list --help` and `catalog use --help`
+for the generic commands. The exact-tag and project filters can be combined with
+`--unused true`; a draft association does not make the source used. A project and
+revision identify a use, and an accepted use cannot be downgraded to a draft by
+repeating the command.
+
 | Domain | Owns |
 |---|---|
 | library | Source roots, track index, content-derived identity, embedded metadata, scan state |

@@ -30,6 +30,28 @@ future tracks. Retrieve `stable-audio-3-harder-instrumental` through launch-vide
 catalog for exact audio, request, generation receipt and feedback hashes. Preserve
 the harder production character while creating distinct original tracks per brief.
 
+The October 29 Aquila trial is a newer positive reference: the operator liked all
+four 110-second instrumentals, preferred A and placed C second. Exact sources,
+briefs, model, actual seeds and feedback are in
+`path:/home/matthalloran8/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md`.
+The briefs ask for distinctive hooks, interacting musical layers, rhythmic detail,
+phrase development and meaningful returns, not generic promotional background.
+Prompts, seeds and duration varied together; their individual effects are unknown.
+Use those takes as listening anchors and retain fresh alternatives. The result is
+two liked batches (four initial tracks and two fresh follow-ups), not a guarantee
+of every future generation or permission to copy a reference composition. The
+operator also confirmed that A worked with the Aquila film pacing. Preserve the operator's instrumental and no-lyrics brief.
+
+Use Music Library's catalog for listener-approved and unreviewed source records:
+`music-library catalog list --tag TAG --approval liked --unused true` finds liked tracks without an
+accepted use, including drafts; `--project PROJECT` finds project associations.
+Inspect approval, tags, source and receipt before auditioning. Record exact source
+SHA-256, absolute source path, take, receipt, tags and actual listener feedback via
+`music-library catalog put`; the CLI verifies the source hash. Record project and
+revision with `music-library catalog use`, using `draft` until acceptance and
+`accepted` only on explicit acceptance. The catalog references caller-owned files;
+retain those files and receipts separately. Its judgments are not a taste model.
+
 Use Music Tools' maintained styles → compose → jobs → takes → delivery route.
 For fresh scores for different products, write a distinct original caption/style
 for each product first, compile each, then generate its bounded candidate batch.
@@ -48,8 +70,11 @@ music-tools takes audio TAKE_ID --out NEW_SOURCE.wav
 ```
 
 For a distinct original, import a new style with a brief-specific caption, blank
-lyrics (instrumental), and `variant: "stable-audio-3-medium"`; use 48 seconds,
-8 inference steps and guidance 1 as the qualified starting settings. Stable Audio
+lyrics (instrumental), and `variant: "stable-audio-3-medium"`; the 48-second pilot
+and four 110-second liked takes used 8 inference steps and guidance 1. Choose a
+duration that covers the intended film with useful editing room, within the
+provider's supported limit; audit actual audio and ending rather than loop a short
+source by default. Stable Audio
 accepts tempo/key intentions in the caption; leave structured BPM at 0 and key
 empty. It rejects unsupported controls rather than ignoring them. Read
 `path:scenarios/music-tools/docs/reference/cli-commands.md` for portable style JSON

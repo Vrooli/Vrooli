@@ -1,3 +1,5 @@
+import { i18n } from "./i18n";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -42,6 +44,8 @@ async function bootstrap() {
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <React.StrictMode>
       <SpatialNavProvider controller={spatialNav}>
         <QueryClientProvider client={queryClient}>
@@ -63,6 +67,8 @@ async function bootstrap() {
         </QueryClientProvider>
       </SpatialNavProvider>
     </React.StrictMode>
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
   );
 }
 

@@ -123,5 +123,26 @@ device zoom/parallax issue. The exact export and feedback are indexed as
 reference after restoring varied side layouts, large titles, connected native
 actions and a selected continuous desktop pointer. The rating does not separately
 validate each technique, final audio audition or future audience response. Preserve
-the unresolved device concern; await the operator’s further parallax direction
-before treating the current stationary-room transition as the intended final effect.
+the unresolved device concern; the later physical-v1 film replaced that stationary-room transition; see below.
+
+### Confirmed physical reveal cut, 2026-10-22
+
+The later physical-v1 Aquila film replaces the earlier dynamic cut’s device reveal
+with a geometry-first laptop camera move and continuous recording handoff. The
+operator confirmed and rated that exact 108-second export 8.5/10 on October 26.
+See `aquila-physical-v1-2026-10-22` in examples.json. The earlier device exception
+is historical feedback on the parent; do not imply it is a verdict on this cut.
+The selected scene is a bounded reference, not proof of arbitrary photo parallax
+or publication readiness.
+
+On October 29 the operator identified music, pacing, some text-only slides and
+the ending as remaining weaknesses, and called for more consistent, polished
+Web Console UX in the footage. Specifics will follow; do not infer a prescribed
+edit or a need for new product features. See the example's feedback history.
+
+The constellation ending's first revision briefly showed animated elements at
+their final positions before their delayed entrances. Overlapping scenes removed
+dark transition dips but did not fix that separate flash. Explicit initial hidden
+states and consecutive encoded-frame inspection addressed the observed case;
+do not generalize it to every flicker or claim playback acceptance from metrics.
+See the retained ending study for the before and after exports.

@@ -18,7 +18,7 @@ task_digest = hashlib.sha256(" ".join(task.lower().split()).encode("utf-8")).hex
 identity = learn.task(scope="bas-usage", operation="browser-automation-studio.do-task",
                       key={"site": site_key, "task": task_digest, "profile": inputs.get("profile_id", ""), "environment": inputs.get("environment_revision", ""), "contract": hashlib.sha256(json.dumps({"postconditions": inputs.get("postconditions", []), "extraction": inputs.get("extraction", [])}, sort_keys=True).encode()).hexdigest()[:16]})
 
-envelope = {"program": "browser-automation-studio.do-task", "version": "5", "status": "failed",
+envelope = {"program": "browser-automation-studio.do-task", "version": "6", "status": "failed",
             "phase": "validate", "inputs": {}, "signals": {"result": None, "candidates": [],
             "reused_workflow": False, "outcome": "unknown", "learning": {"attempt_id": identity.get("attempt_id"),
             "task_id": identity.get("task_id"), "key": identity.get("key")}}, "errors": [], "evidence": []}
@@ -55,9 +55,10 @@ def grade_advice(status):
         envelope["errors"].append({"class": "memory_unavailable", "detail": "feedback: " + str(exc)[:120], "where": "act"})
 
 
-def finish(status, evidence=None, reused=None):
+def finish(status, evidence=None, reused=None, grade=True):
     envelope["signals"]["outcome"] = status
-    grade_advice(status)
+    if grade:
+        grade_advice(status)
     measurements = {"reused_workflow": bool(reused)} if reused is not None else None
     learn.outcome(status, list(dict.fromkeys((evidence or [])[:20])), measurements=measurements)
     return "report"
@@ -295,10 +296,34 @@ def route_navigation():
 def route_search():
     with learn.step("find") as find_step:
         result = child_result(lib.browser_automation_studio.find_flows(task=task, scenario=inputs.get("scenario", ""), k=5))
+        child_status = result.get("status")
         find_status = (result.get("signals") or {}).get("outcome", "unknown")
+        if child_status == "failed":
+            find_status = "failed"
+        elif child_status == "unavailable":
+            find_status = "unavailable"
         find_step.outcome(find_status if find_status in ("verified_success", "failed", "unavailable", "unknown") else "unknown", result.get("evidence", []))
     candidates = ((result.get("signals") or {}).get("candidates") or [])[:5]
     envelope["signals"]["candidates"] = candidates
+    envelope["signals"]["search_status"] = child_status
+    child_errors = result.get("errors") or []
+    if not isinstance(child_errors, list):
+        child_errors = [{"class": "ambiguous_response", "detail": "Search child returned malformed errors", "where": "find"}]
+    if child_status not in ("ok", "partial", "unavailable", "refused", "failed"):
+        child_errors = [{"class": "ambiguous_response", "detail": "Search child returned no recognized status", "where": "find"}]
+        child_status = "failed"
+        envelope["signals"]["search_status"] = child_status
+    elif child_status in ("failed", "unavailable", "refused") and not child_errors:
+        child_errors = [{"class": "ambiguous_response", "detail": "Search child returned a non-success status without error details", "where": "find"}]
+    if child_errors:
+        envelope["errors"].extend(child_errors[:5])
+    if child_status not in ("ok",) or child_errors:
+        # A partial or failed search can still carry candidates for caller review, but it
+        # cannot select a workflow or fall through to navigation with incomplete evidence.
+        envelope["status"] = "partial" if child_status == "ok" else child_status
+        envelope["evidence"] = (result.get("evidence") or [])[:10]
+        outcome = "failed" if child_status == "failed" else "unavailable" if child_status == "unavailable" else "unknown"
+        return finish(outcome, result.get("evidence", []), reused=False, grade=False)
     runnable = [c for c in candidates if c.get("runnable_by_id") and c.get("id") and c.get("version")]
     if inputs.get("auto_select"):
         authorized = inputs.get("authorized_workflows", [])
@@ -344,7 +369,8 @@ def step_act():
 def step_report():
     envelope["phase"] = "report"
     selected = inputs.get("workflow_id")
-    artifact = {"kind": "workflow", "owner": "browser-automation-studio", "id": selected, "revision": str(inputs["version"])} if selected else None
+    version = inputs.get("version")
+    artifact = {"kind": "workflow", "owner": "browser-automation-studio", "id": selected, "revision": str(version)} if selected and type(version) is int and version > 0 else None
     if not artifact and envelope["signals"].get("navigation_id"):
         artifact = {"kind": "navigation", "owner": "browser-automation-studio", "id": envelope["signals"]["navigation_id"], "revision": "1"}
     envelope["signals"]["learning"]["feedback_ref"] = learn.result("task", artifact=artifact)

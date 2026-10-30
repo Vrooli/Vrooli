@@ -339,6 +339,37 @@
       "operator_rating": null
     },
     {
+      "id": "aquila-physical-v1-2026-10-22",
+      "kind": "film",
+      "product": "aquila",
+      "purpose": [
+        "story",
+        "desktop",
+        "device-screen-entry",
+        "physical-camera",
+        "source-continuity",
+        "cursor"
+      ],
+      "viewport": "1920x1080 desktop source and film",
+      "date": "2026-10-22",
+      "operator_rating": 8.5,
+      "rating_scale": 10,
+      "rating_scope": "Operator confirmed exact physical-v1 108-second export and rated it 8.5/10 on 2026-10-26.",
+      "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/film/physical-v1/aquila-in-motion.mp4",
+      "sha256": "f1181dfc5a783bf762fda1de1db029115a595ed357229977ebd8980be5a22a7a",
+      "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/film/physical-v1/manager-recovery-20261026/checkpoint.json",
+      "feedback_history": "/home/matthalloran8/.vrooli/research/topics/launch-video/runs/20261029-evidence-recovery/README.md",
+      "method": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/film/physical-v1/MANAGER.md",
+      "review": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/hybrid-device-scenes-2026-10-21/film/physical-v1/quality-review.md",
+      "proof_scope": "Exact operator-rated film and separately qualified geometry-first device shot.",
+      "lesson": "A physical laptop camera move reaches the next browser-card screen position while the recording continues; retain local source-clock and endpoint continuity.",
+      "limits": [
+        "Rating does not authorize publication or establish future audience response.",
+        "Selected scene and device do not qualify arbitrary photographic parallax or automatic scene preparation.",
+        "The exact rating supplies no new specific creative correction or listening-method claim."
+      ]
+    },
+    {
       "id": "aquila-dynamic-108s-2026-10-21",
       "kind": "film",
       "product": "aquila",
@@ -358,7 +389,7 @@
       "date": "2026-10-21",
       "operator_rating": 8.5,
       "rating_scale": 10,
-      "rating_scope": "Current Aquila 108-second film, with explicit device-zoom/parallax exception.",
+      "rating_scope": "Earlier Aquila dynamic 108-second film, with explicit device-zoom/parallax exception.",
       "video": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/dynamic/aquila-in-motion.mp4",
       "sha256": "e7ec15b06edd36784a72d1f02bb88b5cb09efc1299a69bd98defec8e6215f346",
       "feedback": "/home/matthalloran8/.vrooli/plan-artifacts/efforts/aquila-subscription-value-2026-10-21/dynamic/feedback.json",
@@ -370,6 +401,24 @@
         "No publication approval or independent audience/conversion evidence inferred.",
         "No separate sound-on audition assertion inferred from the general rating.",
         "Prepared-layer parallax operation is qualified separately; automatic photo preparation and calibrated device-screen parallax remain unqualified."
+      ]
+    },
+    {
+      "id": "launch-instrumentals-2026-10-29",
+      "kind": "audio-batch",
+      "purpose": [
+        "instrumental",
+        "launch-score",
+        "listener-approved"
+      ],
+      "date": "2026-10-29",
+      "proof_scope": "Operator liked four initial level-matched listening copies, preferred A and placed C second; later liked two fresh listening copies and confirmed A works with the Aquila film pacing. No numeric ratings.",
+      "method": "/home/matthalloran8/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/README.md",
+      "feedback": "/home/matthalloran8/.vrooli/research/topics/music-quality/runs/launch-instrumentals-20261029/operator-feedback.json",
+      "lesson": "Use as listening anchors for layered, evolving, energetic original instrumentals. Prompt, seed and duration varied; individual causal effects and repeatability are unproven.",
+      "limits": [
+        "Judgments apply to the specified listening copies and the A film mix, with source WAVs retained.",
+        "Six liked tracks are evidence for this approach, not a guarantee of future quality or publication approval."
       ]
     }
   ],

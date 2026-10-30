@@ -1,4 +1,4 @@
-"""browser-automation-studio.setpoint-read v1 — read every improve-setpoint row in one submission.
+"""browser-automation-studio.setpoint-read v2 — read every improve-setpoint row in one submission.
 
 Contract: setpoint-read.json.
 Skill:    browser-automation-studio-improve §2 (the rows), §3 (the sensors).
@@ -16,10 +16,10 @@ window = int(inputs.get("window", 100))
 evidence_sample = int(inputs.get("evidence_sample", 5))
 
 envelope = {
-    "program": "browser-automation-studio.setpoint-read", "version": "1",
+    "program": "browser-automation-studio.setpoint-read", "version": "2",
     "status": "failed", "phase": "validate",
     "inputs": {"window": window, "evidence_sample": evidence_sample},
-    "signals": {"rows": [], "readable": 0, "unavailable": 0},
+    "signals": {"rows": [], "readable": 0, "unavailable": 0, "source_details": {}},
     "errors": [], "evidence": [],
 }
 program.attach(envelope)
@@ -137,23 +137,51 @@ def step_classify():  # CLASSIFY · every reading is count or filter in the kern
     # the namespaced lib surface so this board exercises the same in-program
     # path available to an improve skill.
     try:
-        friction = lib.agent_manager.friction_digest(
+        friction_handle = lib.agent_manager.friction_digest(
             scenario="browser-automation-studio", window_days=7
-        ).head(1)
+        )
+        child_meta = friction_handle.meta()
+        friction = friction_handle.head(1)
         digest = friction[0] if friction else {}
         digest_signals = digest.get("signals") or {}
         recurring = digest_signals.get("recurring_count")
+        owner_confidence = digest_signals.get("owner_confidence") or {}
+        quality_causes = []
+        if digest.get("status") != "ok":
+            quality_causes.append("child_status_" + str(digest.get("status") or "missing"))
+        if recurring is None:
+            quality_causes.append("missing_recurring_count")
+        if digest_signals.get("window_truncated_by_run_limit"):
+            quality_causes.append("window_truncated_by_run_limit")
+        if digest_signals.get("episode_reads_failed"):
+            quality_causes.append("episode_reads_failed")
+        if digest_signals.get("runs_unparseable_timestamp"):
+            quality_causes.append("runs_unparseable_timestamp")
+        if owner_confidence.get("unknown"):
+            quality_causes.append("owner_confidence_unknown")
         valid = (digest.get("status") == "ok" and recurring is not None
                  and not digest_signals.get("window_truncated_by_run_limit")
                  and not digest_signals.get("episode_reads_failed")
                  and not digest_signals.get("runs_unparseable_timestamp")
-                 and not (digest_signals.get("owner_confidence") or {}).get("unknown"))
+                 and not owner_confidence.get("unknown"))
+        envelope["signals"]["source_details"]["external-friction"] = {
+            "child_reference": {
+                "program": child_meta.get("program") or digest.get("program") or "agent-manager.friction-digest",
+                "version": child_meta.get("version") or digest.get("version"),
+                "digest": child_meta.get("digest"),
+            },
+            "quality_causes": quality_causes,
+        }
         row("external-friction", {"recurring_count": recurring}, "0 recurring fingerprints",
             recurring == 0 if valid else None, unavailable=not valid,
             reason=None if valid else "unreliable:incomplete_or_unattributed_window",
             sensor="lib.agent_manager.friction_digest")
     except Exception as exc:
         status, klass = program.classify(exc)
+        envelope["signals"]["source_details"]["external-friction"] = {
+            "child_reference": {"program": "agent-manager.friction-digest", "version": None, "digest": None},
+            "quality_causes": ["child_call_failed"],
+        }
         row("external-friction", None, "0 recurring fingerprints", False, unavailable=True,
             reason=f"agent-manager.friction-digest unavailable: {str(exc)[:160]}",
             sensor="lib.agent_manager.friction_digest(scenario=browser-automation-studio, window_days=7)")

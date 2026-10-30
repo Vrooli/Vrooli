@@ -23,6 +23,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	capsH "music-library/handlers/capabilities"
+	catalogH "music-library/handlers/catalog"
 	healthH "music-library/handlers/health"
 	notesH "music-library/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
@@ -86,6 +87,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "music-library-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
+		catalogH.Module(db),
 		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 

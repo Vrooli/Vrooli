@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import { makeHealthResponse, renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
@@ -7,6 +7,8 @@ import { strings } from "../consts/strings";
 import { SettingsPage } from "./SettingsPage";
 import { fetchOptionalCapabilities } from "../api/capabilities";
 import { fetchHealth } from "../api/health";
+
+const C = strings.pages.settings.capabilities;
 
 vi.mock("../api/capabilities", () => ({ fetchOptionalCapabilities: vi.fn() }));
 vi.mock("../api/health", () => ({ fetchHealth: vi.fn() }));
@@ -29,40 +31,48 @@ describe("SettingsPage desktop account", () => {
     delete window.desktop;
   });
 
-  it("shows offline optional capabilities without gating local work", async () => {
+  it("calls out offline optional services without gating local work", async () => {
     vi.mocked(fetchOptionalCapabilities).mockResolvedValue([
-      { id: "ai-gateway", name: "AI Gateway", status: "unavailable", message: "AI Gateway is unavailable from this app; local project work remains available", checkedAt: "2026-10-21T12:00:00Z" },
-      { id: "workspace-sandbox", name: "Workspace Sandbox", status: "unavailable", message: "Workspace Sandbox is unavailable from this app; local project work remains available", checkedAt: "2026-10-21T12:00:00Z" },
-    ]);
-
-    renderWithProviders(<SettingsPage />);
-    await waitFor(() => expect(screen.getByTestId("settings-capability-ai-gateway")).toHaveAttribute("data-status", "unavailable"));
-    expect(screen.getByTestId("settings-capability-workspace-sandbox")).toHaveAttribute("data-status", "unavailable");
-    expect(screen.getByTestId("settings-capability-ai-gateway")).toHaveTextContent("local project work remains available");
-    expect(screen.getByTestId(selectors.settingsPage.accountConnect)).toBeDisabled();
-  });
-
-  it("reports observed optional capabilities when local health checks succeed", async () => {
-    vi.mocked(fetchOptionalCapabilities).mockResolvedValue([
-      { id: "ai-gateway", name: "AI Gateway", status: "available", message: "AI Gateway responded to a local health check", checkedAt: "2026-10-21T12:00:00Z", actionLabel: "Start AI Gateway", operatorCommand: "vrooli scenario start ai-gateway --json" },
+      { id: "ai-gateway", name: "AI Gateway", status: "unavailable", message: "AI Gateway is unavailable from this app; local project work remains available", checkedAt: "2026-10-21T12:00:00Z", operatorCommand: "vrooli scenario start ai-gateway --json" },
       { id: "workspace-sandbox", name: "Workspace Sandbox", status: "available", message: "Workspace Sandbox responded to a local health check", checkedAt: "2026-10-21T12:00:00Z" },
     ]);
 
     renderWithProviders(<SettingsPage />);
-    await waitFor(() => expect(screen.getByTestId("settings-capability-ai-gateway")).toHaveAttribute("data-status", "available"));
-    expect(screen.getByTestId("settings-capability-workspace-sandbox")).toHaveAttribute("data-status", "available");
-    expect(screen.getByTestId("settings-capability-ai-gateway")).toHaveTextContent("responded to a local health check");
-    expect(screen.getByTestId("settings-capability-ai-gateway")).toHaveTextContent(strings.pages.settings.capabilities.source);
-    expect(screen.getByTestId("settings-capability-ai-gateway")).toHaveTextContent("vrooli scenario start ai-gateway --json");
+    const section = screen.getByTestId("settings-optional-capabilities");
+    await waitFor(() => expect(within(section).getByText("1 of 2 ready")).toBeInTheDocument());
+    // The off service is called out with what still works; Device Studio cannot start it, so no button.
+    expect(within(section).getByText(C.items.aiGateway.problem)).toBeInTheDocument();
+    expect(within(section).queryByRole("button", { name: /start/i })).not.toBeInTheDocument();
+
+    // Its detail view keeps the health message and the start command under technical details.
+    fireEvent.click(within(section).getByRole("button", { name: new RegExp(C.items.aiGateway.name) }));
+    expect(within(section).getByText("vrooli scenario start ai-gateway --json")).toBeInTheDocument();
+    expect(within(section).getByText(/local project work remains available/)).toBeInTheDocument();
+  });
+
+  it("reports a failed check and checks again on request", async () => {
+    vi.mocked(fetchOptionalCapabilities).mockRejectedValueOnce(new Error("down"));
+    renderWithProviders(<SettingsPage />);
+    const section = screen.getByTestId("settings-optional-capabilities");
+    expect(await within(section).findByText(C.checkFailed)).toBeInTheDocument();
+
+    vi.mocked(fetchOptionalCapabilities).mockResolvedValue([
+      { id: "ai-gateway", name: "AI Gateway", status: "available" },
+      { id: "workspace-sandbox", name: "Workspace Sandbox", status: "available" },
+    ]);
+    fireEvent.click(within(section).getByRole("button", { name: /Check again/ }));
+    expect(await within(section).findByText("All 2 ready")).toBeInTheDocument();
   });
 
   it("keeps account linking and credit sharing unavailable in an ordinary browser", () => {
     renderWithProviders(<SettingsPage />);
 
-    expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent("pages.settings.account.states.unavailable");
-    expect(screen.getByText("pages.settings.account.creditStates.unavailable")).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.settingsPage.accountConnect)).toBeDisabled();
-    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("pages.settings.account.balanceUnavailable");
+    // A browser has no desktop owner: explain where the feature lives instead of showing dead controls.
+    expect(screen.getByTestId(selectors.settingsPage.accountStatus)).toHaveTextContent("pages.settings.account.desktopOnly");
+    expect(screen.getByText("pages.settings.account.desktopOnlyCredits")).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.settingsPage.accountConnect)).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("settings-credit-balance")).not.toBeInTheDocument();
   });
 
   it("keeps account settings available when the health API returns an invalid timestamp", async () => {
@@ -86,11 +96,12 @@ describe("SettingsPage desktop account", () => {
     } };
 
     renderWithProviders(<SettingsPage />);
-    await waitFor(() => expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("875 credits"));
-    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("LPBS");
-    fireEvent.click(screen.getByRole("button", { name: "pages.settings.account.balanceRefresh" }));
+    await waitFor(() => expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("pages.settings.account.balanceValue"));
+    expect(screen.getByTestId("settings-credit-balance-details")).toHaveTextContent("LPBS");
+    fireEvent.click(screen.getByRole("button", { name: /pages\.settings\.account\.balanceRefresh/ }));
     await waitFor(() => expect(screen.getByText("pages.settings.account.balanceStale")).toBeInTheDocument());
-    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("875 credits");
+    expect(screen.getByTestId("settings-credit-balance")).toHaveTextContent("pages.settings.account.balanceValue");
+    expect(screen.getByTestId("settings-credit-balance-details")).toHaveTextContent("LPBS");
   });
 
   it("shares the LPBS refresh session only after an explicit desktop-owner action", async () => {
@@ -107,11 +118,14 @@ describe("SettingsPage desktop account", () => {
     } };
 
     renderWithProviders(<SettingsPage />);
-    await waitFor(() => expect(screen.getByText("pages.settings.account.creditStates.not_shared")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("pages.settings.account.creditShare"));
+    const share = screen.getByRole("switch", { name: "pages.settings.account.creditStatusLabel" });
+    await waitFor(() => expect(share).toBeEnabled());
+    expect(share).not.toBeChecked();
+    expect(setCreditSessionSharing).not.toHaveBeenCalled();
+    fireEvent.click(share);
     await waitFor(() => expect(setCreditSessionSharing).toHaveBeenCalledWith(true));
-    expect(screen.getByText("pages.settings.account.creditStates.shared")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("pages.settings.account.creditStop"));
+    await waitFor(() => expect(share).toBeChecked());
+    fireEvent.click(share);
     await waitFor(() => expect(setCreditSessionSharing).toHaveBeenCalledWith(false));
     expect(screen.getByText("pages.settings.account.creditRemoteUncertain")).toBeInTheDocument();
   });

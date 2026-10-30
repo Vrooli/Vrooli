@@ -49,7 +49,50 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The capability descriptor is an operational JSON probe used by the control plane.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "catalog_put",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/PutTrack",
+      "method": "POST",
+      "summary": "Save a catalog track",
+      "description": "Store a content-identified track, tags and explicit listener feedback.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_list",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/ListTracks",
+      "method": "POST",
+      "summary": "List catalog tracks",
+      "description": "Filter tracks by tag, project and accepted-use state.",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_use",
+      "path": "/vrooli.music_library.v1.catalog.CatalogService/RecordUse",
+      "method": "POST",
+      "summary": "Record track use",
+      "description": "Associate a track with a project revision as draft or accepted.",
+      "category": "catalog"
     },
     {
       "id": "notes_list",

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "browser-automation-studio.do-task",
-  "version": "5",
+  "version": "6",
   "helpers": {
     "program": "1"
   },
@@ -215,6 +215,7 @@
     "signals": {
       "result": "Selected child result signals",
       "candidates": "At most five selection candidates, each with id and version when runnable_by_id",
+      "search_status": "status returned by find-flows; partial or non-ok results are not used to select or execute a workflow",
       "recommended_workflow": "On search: {workflow_id, version, option_id, source(advice|default), why[]} from learn.choose over remembered preferences and avoids",
       "learning": "Durable feedback_ref identifies this task or exact artifact for later learn.feedback.",
       "navigation_id": "Navigation started or resumed; pass back as navigation_id to resume",
@@ -238,6 +239,8 @@
         "binding_error",
         "kernel_runtime",
         "memory_unavailable",
+        "normalization_unavailable",
+        "inference_unavailable",
         "no_candidates",
         "selector_not_found",
         "timeout",
@@ -289,9 +292,8 @@
         "workflow_id": "test"
       },
       "expect": {
-        "status": [
-          "failed"
-        ]
+        "status": ["failed"],
+        "errors": [{"class": "invalid_input"}]
       },
       "requires": [
         "browser-automation-studio"
