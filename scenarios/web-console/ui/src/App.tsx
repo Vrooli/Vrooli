@@ -16,6 +16,7 @@ import { useCapabilities } from "./hooks/useCapabilities";
 import { onProfilerRender } from "./lib/profiler";
 import { useAppViewport } from "./hooks/useAppViewport";
 import LaunchScreen from "./components/LaunchScreen";
+import ContextCompactionSheet from "./components/ContextCompactionSheet";
 import { parseApprovalsDeepLink, useApprovalsStore } from "./stores/useApprovalsStore";
 
 const Workspace = lazy(() => import("./components/Workspace"));
@@ -124,6 +125,7 @@ export default function App() {
           </Profiler>
         )}
       </Suspense>
+      <ContextCompactionSheet />
     </ErrorBoundary>
     </HandednessProvider>
   );

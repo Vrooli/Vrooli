@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpCircle, Check, ChevronLeft, ChevronRight, CircleAlert, HelpCircle, Settings2 } from "lucide-react";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { useTranslation } from "react-i18next";
 
@@ -18,6 +19,8 @@ import { strings } from "../../consts/strings";
 import type { ShortcutEntry } from "../../consts/shortcuts";
 import type { InstallOutcome } from "../../api/capabilities";
 import type { TerminalTarget } from "../../api/targets";
+import type { UsageModeAgent, UsageModeView } from "../../api/usageMode";
+import { clockTime } from "./UsageModeSheet";
 import { slugify } from "../../lib/slugify";
 import { cn } from "../../lib/classnames";
 import AgentMark, { ReorderGrip } from "./AgentMark";
@@ -57,6 +60,17 @@ function without(source: Record<string, InstallOutcome>, keys: string[]): Record
   return Object.fromEntries(Object.entries(source).filter(([key]) => !drop.has(key)));
 }
 
+/**
+ * Adds an explicit model to a launch command. The launcher form takes runner
+ * arguments as repeated --arg tokens; a bare agent command takes them directly.
+ * An explicit model beats a usage mode, which is how full power bypasses it.
+ */
+export function withModelArgs(command: string, modelArgs: string): string {
+  const tokens = modelArgs.split(/\s+/).filter(Boolean);
+  if (/^vrooli\s+agent\s+launch(\s|$)/.test(command.trim())) return [command.trim(), ...tokens.map((token) => `--arg=${token}`)].join(" ");
+  return [command.trim(), ...tokens].join(" ");
+}
+
 /** Shared rail geometry, so switching between rails never resizes the card. */
 // Border colour is deliberately NOT set here: each rail supplies its own, and
 // two border-colour utilities on one element resolve by stylesheet order
@@ -66,6 +80,9 @@ const RAIL_BASE = "w-full border-t px-2 py-1.5 text-center text-[11.5px] font-se
 export interface AgentGridSectionProps {
   shortcuts: readonly ShortcutEntry[];
   target: TerminalTarget;
+  /** What each agent will use under the active usage mode; absent when no mode is readable. */
+  usageAgents?: readonly UsageModeAgent[];
+  usageModes?: readonly UsageModeView[];
   /** True when nothing in the grid may be pressed (creating, offline, …). */
   disabled: boolean;
   onLaunch: (command?: string) => void;
@@ -91,6 +108,8 @@ export interface AgentGridSectionProps {
 export default function AgentGridSection({
   shortcuts,
   target,
+  usageAgents,
+  usageModes,
   disabled,
   onLaunch,
   onInstall,
@@ -104,7 +123,7 @@ export default function AgentGridSection({
   preferencesError,
   onRetryPreferences,
 }: AgentGridSectionProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [manageOpen, setManageOpen] = useState(false);
   const manageButton = useRef<HTMLButtonElement>(null);
   const reordering = manageOpen && Boolean(onReorder);
@@ -348,6 +367,32 @@ export default function AgentGridSection({
     );
   };
 
+  /**
+   * The model a new session will use and why, or nothing without a mode. The
+   * full-power button passes the resource's normal default for this one launch
+   * only; nothing is stored, so it cannot be left on.
+   */
+  const renderModeNote = (card: AgentCard, canLaunch: boolean) => {
+    const info = usageAgents?.find((agent) => agent.agentId === card.agentID);
+    if (!info?.model) return null;
+    const mode = usageModes?.find((item) => item.id === info.modeId);
+    const until = !mode || mode.untilKind === "off" || !mode.expiresAt ? t(strings.launcher.usageModeUntilOffShort) : t(strings.launcher.usageModeUntil, { time: clockTime(mode.expiresAt, i18n.resolvedLanguage) });
+    const explicit = /(^|\s)(--arg=)?(-m|--model)(\s|=|$)/.test(card.command);
+    return (
+      <div className="space-y-1.5 px-2.5 pb-2" data-testid={`launcher-mode-note-${slugify(card.key)}`}>
+        <p className="break-words text-[11px] text-wc-text-muted"><span className="font-semibold text-wc-text-secondary">{t(strings.launcher.usageModeWillUse, { model: info.model, until })}</span>{" · "}{t(strings.launcher.usageModeUsually, { model: info.usualModel })}</p>
+        {info.fullPowerArgs && !explicit && (
+          <Button type="button" variant="secondary" size="md" data-testid={`launcher-full-power-${slugify(card.key)}`} disabled={disabled || !canLaunch}
+            title={t(strings.launcher.usageModeFullPowerHint, { model: info.usualModel })} className="min-h-11 w-full"
+            onClick={() => { onLaunch(withModelArgs(card.command, info.fullPowerArgs ?? "")); }}>
+            {t(strings.launcher.usageModeFullPower)}
+          </Button>
+        )}
+        {info.fullPowerArgs && !explicit && <p className="text-[11px] text-wc-text-faint">{t(strings.launcher.usageModeFullPowerHint, { model: info.usualModel })}</p>}
+      </div>
+    );
+  };
+
   const visibleAgents = agents.filter((card) => !hiddenAgentIds.includes(card.agentID) && (card.state === "ready" || card.state === "unknown"));
   return (
     <section aria-labelledby="launcher-actions-heading" className="space-y-3">
@@ -374,6 +419,7 @@ export default function AgentGridSection({
                     <ArrowUpCircle className="h-4 w-4 shrink-0 text-wc-warning" role="img" aria-label={t(strings.launcher.updateAvailable)} />}</span>
               </button>
               <div className="min-w-0 px-2.5 pb-2"><AgentUsage agent={card.label} usage={usageState.usages[card.agentID]} loading={usageState.loading} /></div>
+              {renderModeNote(card, canLaunch)}
             </div>
           );
         })}

@@ -139,6 +139,8 @@ func (s *Server) setupRoutes() {
 	}
 	sessionsH.Module(sessionAdapter, nil, mintSessionDelegation).Mount(s.router)
 	s.registerOwnerCleanupRoutes()
+	s.mountUsageMode()
+	s.mountContextCompaction()
 	s.mountTargetCatalog()
 	s.mountMachines()
 	s.mountDevices()

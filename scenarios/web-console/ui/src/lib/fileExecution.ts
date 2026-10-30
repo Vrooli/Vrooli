@@ -16,6 +16,10 @@ function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+export function riskyCommand(command: string): boolean {
+  return /(^|\s)(rm|rmdir|mkfs|dd|shutdown|reboot|kill|pkill|killall|chmod|chown|sudo|doas|apt|apt-get|dnf|yum|pacman|brew|npm|pnpm|yarn|pip|pip3|systemctl|service|mount|umount|iptables|nft|modprobe|insmod|sysctl)(\s|$)/i.test(command);
+}
+
 export function scriptRunPlan(path: string, text = ""): ScriptRunPlan | null {
   const name = basename(path);
   const extension = name.includes(".") ? name.split(".").pop()?.toLowerCase() ?? "" : "";
@@ -24,7 +28,7 @@ export function scriptRunPlan(path: string, text = ""): ScriptRunPlan | null {
   const interpreter = shebang || INTERPRETERS[extension];
   if (!interpreter) return null;
   const command = `${interpreter} ${shellQuote(path)}`;
-  const risky = /(^|\s)(rm|rmdir|mkfs|dd|shutdown|reboot|kill|chmod|chown|sudo|apt|brew|npm|pnpm|yarn|pip)(\s|$)/i.test(text);
+  const risky = riskyCommand(text);
   const separator = path.includes("\\") ? "\\" : "/";
   const index = path.lastIndexOf(separator);
   const workingDir = index > 0 ? path.slice(0, index) : (separator === "\\" && /^[A-Za-z]:/.test(path) ? path.slice(0, 3) : separator);

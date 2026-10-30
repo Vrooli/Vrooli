@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 //   notifications.ts -> RESTReasonBrowserSurface (same-origin facade to
 //                       notification-hub's REST notification-preferences API)
 //   monetization.ts  -> RESTReasonThirdPartyShape (commercial/session JSON)
+//   usageMode.ts     -> RESTReasonBrowserSurface (same-origin usage-mode file facade)
 //
 // The tts hook is a deliberately tiny web-console-internal surface that never
 // crosses scenario boundaries; all audio synthesis flows through Connect
@@ -39,6 +40,7 @@ const ALLOWLIST = new Set([
   "notifications.ts",
   "approvals.ts",
   "monetization.ts",
+  "usageMode.ts",
 ]);
 
 function listApiFiles(dir: string): string[] {

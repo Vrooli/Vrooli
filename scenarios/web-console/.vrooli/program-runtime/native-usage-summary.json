@@ -16,13 +16,13 @@
     },
     "start": {
       "type": "string",
-      "default": "",
-      "description": "Optional inclusive RFC3339 start."
+      "required": true,
+      "description": "Inclusive RFC3339 start; the window must not exceed 31 days."
     },
     "end": {
       "type": "string",
-      "default": "",
-      "description": "Optional exclusive RFC3339 end."
+      "required": true,
+      "description": "Exclusive RFC3339 end after start; the window must not exceed 31 days."
     }
   },
   "assumptions": [

@@ -369,3 +369,15 @@ measured. This is separate from Agent Manager's managed-run efficiency cohort.
 Each selected rollout is limited to 256 MiB, so a larger source is unknown; 16 selected threads permit up to 4 GiB of input in a single request. Response and duplicate counters cover successfully read records; incomplete counts cover observed incomplete records, not omitted threads or requests.
 
 `SessionsService.ReadNativeThreadState` (CLI `web-console session native-thread-state`) observes up to 16 explicitly selected threads through an existing session's native owner. It returns the native thread status, active flags, and, when available, native goal status and counters. `goal_available=false` means the goal read failed; `goal_available=true` with `has_goal=false` means the owner reported no goal. An unavailable thread is not inferred to be idle or complete. The call does not control threads, enforce deadlines, verify cleanup, or establish billing, and it returns no goal text or transcript. The same verified-session or `web-console:read` authorization applies as for native usage.
+
+## Usage modes
+
+Web Console reads and writes the shared usage-mode file (`~/.vrooli/state/vrooli/usage-mode/mode.json`, see [usage modes](../../../../docs/configuration/usage-modes.md)) through `cli-core/usagemode`. It has no Agent Manager dependency, and a missing or corrupt file means no mode. These are plain JSON routes, not Connect procedures.
+
+| Route | Who | Behaviour |
+|---|---|---|
+| `GET /api/v1/usage-mode` | any caller | Active modes, and for each agent whose resource declares `usage_tiers`: the model a new session will use (`model`), the resource default (`usualModel`) and, only when they differ, `fullPowerArgs`. `canControl` is true for a verified human. |
+| `POST /api/v1/usage-mode/start` | verified human, same origin | Body `{agentId, kind: "minutes"\|"off"\|"reset", minutes?, windowMinutes?}`. Builds the mode from the resource's `model-policy.json` (`LoadTiers`, `NewMode`). `reset` is accepted only when Web Console's own quota reading has exactly one future reset for that window; otherwise 409. A mode with the same runner scope is replaced. |
+| `POST /api/v1/usage-mode/end` | verified human, same origin | Body `{id}`. 404 when the mode is not active. |
+
+Agent and service identities get 403 on start and end. Managed Codex sessions fill an empty descriptor model from the mode (`codexLaunchArgs`); an explicit model always wins. The launcher's "Launch at full power" appends the resource default as an explicit model (`-m`, or `--arg=` tokens for `vrooli agent launch`) for that launch only and stores nothing.

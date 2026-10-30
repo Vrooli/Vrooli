@@ -65,6 +65,7 @@ interface WorkspacePaneShellProps {
   onPlayFromHere: (sessionId: string, eventId: string) => void;
   onPlayEvent: (sessionId: string, eventId: string) => void;
   onOpenFilePreview?: (sessionId: string, path: string, source: PreviewSourceContext) => void;
+  onRunCommand?: (sessionId: string, command: string) => void;
 }
 
 function WorkspacePaneShell({
@@ -109,6 +110,7 @@ function WorkspacePaneShell({
   onPlayFromHere,
   onPlayEvent,
   onOpenFilePreview,
+  onRunCommand,
 }: WorkspacePaneShellProps) {
   const { sessionId, name, headerColor, supportsMessagesView } = paneMeta;
 
@@ -221,6 +223,7 @@ function WorkspacePaneShell({
             onConversationEventReceived={onConversationEventReceived}
             onNeedsUnlock={onNeedsUnlock}
 			onOpenFilePreview={(path, source) => { onOpenFilePreview?.(sessionId, path, source); }}
+			onRunCommand={onRunCommand ? (command) => { onRunCommand(sessionId, command); } : undefined}
 			viewMode={viewMode}
 			supportsMessagesView={supportsMessagesView}
             ref={(handle) => {

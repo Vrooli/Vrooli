@@ -1,9 +1,10 @@
-import { ArrowDown, ArrowUp, Bell, BellOff, ClipboardCopy, Dot, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bell, BellOff, ClipboardCopy, Dot, Gauge, FolderCog, FolderMinus, FolderPlus, MailOpen, Palette, Pencil, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
 import { writeText } from "../lib/clipboard";
 import { useSessionNotificationMute } from "../hooks/useSessionNotificationMute";
+import { useContextCompactionStore } from "../stores/useContextCompactionStore";
 
 interface TabContextMenuProps {
   /** Viewport coordinates where the menu should appear. */
@@ -65,6 +66,13 @@ export default function TabContextMenu({
       icon: <Pencil className="h-4 w-4 shrink-0" />,
       testId: "tab-ctx-rename",
       onSelect: onRename,
+    },
+    {
+      id: "context-controls",
+      label: t(strings.tabContextMenu.contextControls),
+      icon: <Gauge className="h-4 w-4 shrink-0" />,
+      testId: "tab-ctx-context-controls",
+      onSelect: () => { useContextCompactionStore.getState().show(sessionId); },
     },
     {
       id: "toggle-unread",

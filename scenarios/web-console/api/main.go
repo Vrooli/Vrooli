@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	capsH "web-console/handlers/capabilities"
 	"web-console/internal/audioports"
 	"web-console/internal/backend"
 	"web-console/internal/capabilities"
@@ -118,6 +119,11 @@ type Server struct {
 	grokTailer            *GrokTailer
 	opencodeWatcher       *OpenCodeWatcher
 	agentCheckpointStore  AgentTranscriptCheckpointStore
+	// usageModeQuota overrides the quota reading used to resolve a reset time (tests).
+	usageModeQuota func(context.Context, string) (capsH.AgentUsageResult, error)
+	// compaction compacts idle sessions and watches context size (context_compaction.go).
+	compaction     *compactionManager
+	compactionOnce sync.Once
 
 	// Audio ports — all backed by audio-tools in production.
 	speechProcessor audioports.SpeechTextProcessor

@@ -31,6 +31,10 @@ import GroupModePanel, { type GroupCreationRequest } from "./launcher/GroupModeP
 import AgentGridSection from "./launcher/AgentGridSection";
 import { useAgentPreferences } from "./launcher/useAgentPreferences";
 import { mergeAgentOrder } from "./launcher/agentGrid";
+import { useUsageMode } from "./launcher/useUsageMode";
+import { CONTEXT_LIMIT_CHOICES, withContextLimit, type ContextLimitChoice } from "./launcher/contextLimit";
+import { useContextCompactionStore } from "../stores/useContextCompactionStore";
+import UsageModeSheet, { clockTime } from "./launcher/UsageModeSheet";
 
 export type { TerminalTarget } from "../api/targets";
 
@@ -165,7 +169,7 @@ export default function TerminalLauncher({
   onCreateGroupFromRoles,
   initialTarget,
 }: TerminalLauncherProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [customCommand, setCustomCommand] = useState("");
   const [workingDir, setWorkingDir] = useState("");
   const [apiShortcuts, setApiShortcuts] = useState<ShortcutEntry[] | null>(null);
@@ -227,6 +231,12 @@ export default function TerminalLauncher({
     return [local, ...catalogWithInitial.filter((target) => target.id !== "local")];
   }, [catalogTargets, initialTarget]);
   const selected = targets.find((target) => target.id === selectedTarget) ?? targets[0] ?? localFallback;
+  // The mode file belongs to this machine, so it is only shown for local launches.
+  const usageMode = useUsageMode(open && selected.kind === "local");
+  const [usageSheetOpen, setUsageSheetOpen] = useState(false);
+  // Per launch only: never stored, so it cannot be left on for the next session.
+  const [contextLimit, setContextLimit] = useState<ContextLimitChoice>("standard");
+  const activeMode = usageMode.state.modes[0];
   const statusLabels: Record<TerminalTargetState, string> = {
     dispatchable: t(strings.terminalLauncher.dispatchable),
     offline: t(strings.terminalLauncher.offline),
@@ -335,9 +345,40 @@ export default function TerminalLauncher({
       <div className="flex min-h-0 flex-col">
         <div className="min-h-0 flex-1 space-y-5 p-5">
           <header>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wc-accent">{t(strings.terminalLauncher.eyebrow)}</div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-wc-accent">{t(strings.terminalLauncher.eyebrow)}</div>
+              {selected.kind === "local" && (activeMode || usageMode.state.agents.length > 0) && (
+                <button type="button" data-testid={activeMode ? "launcher-usage-chip" : "launcher-usage-start"} onClick={() => { setUsageSheetOpen(true); }}
+                  className={activeMode
+                    ? "flex min-h-11 items-center gap-1.5 rounded-full border border-wc-accent/40 bg-wc-accent/10 px-3 text-xs font-semibold text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent"
+                    : "min-h-11 rounded-lg px-2 text-xs font-semibold text-wc-text-faint hover:text-wc-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent"}>
+                  {activeMode
+                    ? t(strings.launcher.usageModeChip, { until: activeMode.untilKind === "off" || !activeMode.expiresAt ? t(strings.launcher.usageModeUntilOffShort) : t(strings.launcher.usageModeUntil, { time: clockTime(activeMode.expiresAt, i18n.resolvedLanguage) }) })
+                    : t(strings.launcher.usageModeStartButton)}
+                </button>
+              )}
+            </div>
             <p className="mt-1 text-sm leading-5 text-wc-text-muted">{t(strings.terminalLauncher.description)}</p>
           </header>
+          {selected.kind === "local" && mode === "one-session" && (
+            <section aria-label={t(strings.launcher.contextLimitLabel)} className="space-y-1.5" data-testid="launcher-context-limit">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted">{t(strings.launcher.contextLimitLabel)}</h3>
+                <button type="button" data-testid="launcher-compact-idle" onClick={() => { useContextCompactionStore.getState().show(); }}
+                  className="min-h-11 rounded-lg px-2 text-xs font-semibold text-wc-text-faint hover:text-wc-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent">{t(strings.launcher.compactIdleOpen)}</button>
+              </div>
+              <div role="radiogroup" aria-label={t(strings.launcher.contextLimitLabel)} className="flex flex-wrap gap-2">
+                {CONTEXT_LIMIT_CHOICES.map((choice) => (
+                  <button key={choice} type="button" role="radio" aria-checked={contextLimit === choice} data-testid={`launcher-context-limit-${choice}`}
+                    onClick={() => { setContextLimit(choice); }}
+                    className={`min-h-11 rounded-lg border px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent ${contextLimit === choice ? "border-wc-accent bg-wc-accent/10 text-wc-text-primary" : "border-wc-default text-wc-text-secondary"}`}>
+                    {t(choice === "keep_long" ? strings.launcher.contextLimitKeepLong : choice === "tight" ? strings.launcher.contextLimitTight : strings.launcher.contextLimitStandard)}
+                  </button>))}
+              </div>
+              <p className="text-[11px] text-wc-text-faint">{t(strings.launcher.contextLimitHint)}</p>
+            </section>
+          )}
+          <UsageModeSheet open={usageSheetOpen} onClose={() => { setUsageSheetOpen(false); }} usageMode={usageMode} />
 
           {/* One session, or a whole group. The switch is only offered when
               the caller can actually create a group, and it is the library's
@@ -417,8 +458,10 @@ export default function TerminalLauncher({
               key={selected.id}
               shortcuts={shortcuts}
               target={selected}
+              usageAgents={selected.kind === "local" ? usageMode.state.agents : undefined}
+              usageModes={usageMode.state.modes}
               disabled={isCreating || !selected.available || noBackendAvailable}
-              onLaunch={(command) => { onLaunch(buildLaunchOptions(command)); }}
+              onLaunch={(command) => { onLaunch(buildLaunchOptions(command === undefined ? command : withContextLimit(command, contextLimit))); }}
               onInstall={onInstallCapability ? installAgent : undefined}
               onEditShortcuts={onEditShortcuts}
               updatesEnabled={open}

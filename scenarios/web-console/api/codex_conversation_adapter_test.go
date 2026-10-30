@@ -13,6 +13,7 @@ import (
 )
 
 func TestCodexLaunchArgsMakeApprovalPolicyExplicit(t *testing.T) {
+	t.Setenv("VROOLI_HOME", t.TempDir())
 	args := strings.Join(codexLaunchArgs(sessionstore.LaunchDescriptor{Agent: "codex", LaunchMode: "codex_app_server"}), " ")
 	if !strings.Contains(args, `approval_policy="never"`) {
 		t.Fatalf("launch args = %q", args)
@@ -20,6 +21,7 @@ func TestCodexLaunchArgsMakeApprovalPolicyExplicit(t *testing.T) {
 }
 
 func TestCodexLaunchArgsPreserveDescriptorSettings(t *testing.T) {
+	t.Setenv("VROOLI_HOME", t.TempDir())
 	args := strings.Join(codexLaunchArgs(sessionstore.LaunchDescriptor{
 		Agent: "codex", LaunchMode: "codex_app_server", Model: "gpt-5-codex", Profile: "safe", ApprovalPolicy: "on-request", Sandbox: "workspace-write",
 	}), " ")

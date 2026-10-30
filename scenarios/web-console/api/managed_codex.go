@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/usagemode"
 	"web-console/backends/codex"
 	sessionsH "web-console/handlers/sessions"
 	"web-console/internal/backend"
@@ -47,7 +48,23 @@ func codexLaunchArgs(d sessionstore.LaunchDescriptor) []string {
 			args = append(args, "-c", key+"=\""+strings.ReplaceAll(value, "\"", "\\\"")+"\"")
 		}
 	}
-	config("model", d.Model)
+	model := d.Model
+	if strings.TrimSpace(model) == "" {
+		// A mode only fills an empty model; an explicit choice always wins.
+		if mode, ok := usagemode.Resolve(usagemode.Query{Runner: "codex", Now: time.Now()}); ok {
+			if settings, has := mode.SettingsFor("codex"); has {
+				model = settings.SessionModel
+			}
+		}
+	}
+	config("model", model)
+	// A mode's context limit applies to this launch only; the descriptor has no
+	// limit of its own, so there is no explicit choice for it to override.
+	if mode, ok := usagemode.Resolve(usagemode.Query{Runner: "codex", Now: time.Now()}); ok {
+		if settings, has := mode.SettingsFor("codex"); has && settings.ContextLimitTokens > 0 {
+			args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", settings.ContextLimitTokens))
+		}
+	}
 	config("profile", d.Profile)
 	config("approval_policy", d.ApprovalPolicy)
 	config("sandbox_mode", d.Sandbox)

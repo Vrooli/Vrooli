@@ -19,7 +19,9 @@ import { TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
 import { useTerminalVoiceShortcut } from "../hooks/useKeyboardListeners";
 import { PaneSelectionLayer } from "./PaneSelectionLayer";
 import TerminalLinkMenu from "./TerminalLinkMenu";
+import TerminalCommandMenu from "./TerminalCommandMenu";
 import { linkAtCell, type TerminalLink, type TerminalLinkActivation } from "../lib/terminalFileLinks";
+import { commandBlockAtCell, type TerminalCommandActivation } from "../lib/terminalCommandBlocks";
 import { touchToCell } from "../hooks/useTerminalTouch";
 import { ScrollHistoryHint } from "./ScrollHistoryHint";
 import { ReturnToLivePill } from "./ReturnToLivePill";
@@ -56,6 +58,7 @@ interface TerminalPaneProps {
    */
   onNeedsUnlock?: (payload: { sessionId: string; enable: () => Promise<boolean> } | null) => void;
 	onOpenFilePreview?: (path: string, source: PreviewSourceContext) => void;
+	onRunCommand?: (command: string) => void;
 	viewMode?: "terminal" | "messages";
 	/** Whether this pane has a Messages view holding the agent transcript. Gates
 	 *  the "View in Messages" shortcut on the no-scrollback hint. */
@@ -90,7 +93,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, onOpenFilePreview, viewMode = "terminal", supportsMessagesView = false }, ref) {
+	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, onOpenFilePreview, onRunCommand, viewMode = "terminal", supportsMessagesView = false }, ref) {
     const { t } = useTranslation();
     const paneStatus = useWorkspaceStore((state) => state.paneStatuses?.[sessionId] ?? null);
     const updatePaneStatus = useWorkspaceStore((state) => state.setPaneStatus);
@@ -159,9 +162,14 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // A clicked terminal link opens an action menu (Open / Copy) anchored at
     // the pointer, rather than firing a single silent action on a tiny target.
     const [linkMenu, setLinkMenu] = useState<TerminalLinkActivation | null>(null);
+    const [commandMenu, setCommandMenu] = useState<TerminalCommandActivation | null>(null);
     const handleOpenLinkFile = useCallback((path: string) => {
       onOpenFilePreview?.(path, "cli");
     }, [onOpenFilePreview]);
+    const handleRunCommand = useCallback((command: string) => {
+      setCommandMenu(null);
+      onRunCommand?.(command);
+    }, [onRunCommand]);
     const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
     const { syncPaneUpdate } = useWorkspaceSync();
     const { containerRef, terminalHostRef, fitRef, terminal, paneSize, scrollAwareFit } = useXtermLifecycle({
@@ -299,12 +307,28 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       const bufferRow = row + terminal.buffer.active.viewportY;
       return linkAtCell(terminal, bufferRow, col);
     }, [terminal, containerRef, mouseMode]);
+    const resolveCommandAt = useCallback((clientX: number, clientY: number): TerminalCommandActivation | null => {
+      if (!terminal || mouseMode === true) return null;
+      const host = containerRef.current;
+      if (!host) return null;
+      const { col, row } = touchToCell(terminal, host, clientX, clientY);
+      const bufferRow = row + terminal.buffer.active.viewportY;
+      const command = commandBlockAtCell(terminal, bufferRow, col);
+      return command ? { ...command, position: { x: clientX, y: clientY } } : null;
+    }, [terminal, containerRef, mouseMode]);
     const handleLinkActivate = useCallback((clientX: number, clientY: number): boolean => {
       const link = resolveLinkAt(clientX, clientY);
-      if (!link) return false;
-      setLinkMenu({ ...link, position: { x: clientX, y: clientY } });
+      if (link) {
+        setCommandMenu(null);
+        setLinkMenu({ ...link, position: { x: clientX, y: clientY } });
+        return true;
+      }
+      const command = resolveCommandAt(clientX, clientY);
+      if (!command) return false;
+      setLinkMenu(null);
+      setCommandMenu(command);
       return true;
-    }, [resolveLinkAt]);
+    }, [resolveLinkAt, resolveCommandAt]);
     const isOverLink = useCallback((clientX: number, clientY: number): boolean => resolveLinkAt(clientX, clientY) !== null, [resolveLinkAt]);
 
     const selection = usePaneSelection({
@@ -425,6 +449,13 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
               activation={linkMenu}
               onOpenFile={handleOpenLinkFile}
               onClose={() => { setLinkMenu(null); }}
+            />
+          )}
+          {commandMenu && (
+            <TerminalCommandMenu
+              activation={commandMenu}
+              onRun={onRunCommand ? handleRunCommand : undefined}
+              onClose={() => { setCommandMenu(null); }}
             />
           )}
           {appliedFrame && <DeviceFrame

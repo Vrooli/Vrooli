@@ -133,6 +133,23 @@ describe("TerminalLauncher", () => {
     );
   });
 
+  it("applies the chosen context limit to that launch only: tight, then back to standard", () => {
+    render(
+      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
+    );
+    expect(screen.getByTestId("launcher-context-limit-standard")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo" }));
+    fireEvent.click(screen.getByTestId("launcher-context-limit-tight"));
+    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex -c model_auto_compact_token_limit=150000 --yolo" }));
+    fireEvent.click(screen.getByTestId("launcher-agent-claude-code"));
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: expect.stringMatching(/^CLAUDE_CODE_AUTO_COMPACT_WINDOW=150000 vrooli agent launch --runner claude /) }));
+    fireEvent.click(screen.getByTestId("launcher-context-limit-standard"));
+    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo" }));
+  });
+
   it("custom command input launches on Enter key", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,

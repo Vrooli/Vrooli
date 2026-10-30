@@ -100,7 +100,8 @@ import { useConversationStore } from "../stores/useConversationStore";
 import { useMessagesViewStore, type PaneViewMode } from "../stores/useMessagesViewStore";
 import WorkspaceFilePreview, { type WorkspaceFilePreviewRequest } from "./file-preview/WorkspaceFilePreview";
 import RunScriptDialog from "./file-preview/RunScriptDialog";
-import type { PreviewSourceContext } from "../api/filePreview";
+import RunCommandDialog from "./file-preview/RunCommandDialog";
+import { resolveFilePreview, type PreviewSourceContext } from "../api/filePreview";
 import { shouldFocusArtifactViewer } from "./file-preview/artifactViewerLayout";
 import { getTransport, usePlaybackPaused } from "../domains/tts-playback/transport";
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
@@ -502,6 +503,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const [filePreviewWidth, setFilePreviewWidth] = useState(440);
   const [filePreviewFocus, setFilePreviewFocus] = useState(false);
   const [runScriptRequest, setRunScriptRequest] = useState<{ sessionId: string; path: string; text: string } | null>(null);
+  const [runCommandRequest, setRunCommandRequest] = useState<{ sessionId: string; command: string; workingDir: string } | null>(null);
   const filePreviewAreaRef = useRef<HTMLDivElement | null>(null);
   const openFilePreview = useCallback((sessionId: string, path: string, source: PreviewSourceContext) => {
     activatePane(sessionId);
@@ -524,6 +526,26 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       markPendingIntents();
     }
   }, [launchSession, markPendingIntents, runScriptRequest]);
+  const openRunCommand = useCallback((sessionId: string, command: string) => {
+    setRunCommandRequest({ sessionId, command, workingDir: "." });
+    void resolveFilePreview(sessionId, ".").then((model) => {
+      if (!model.resolvedPath) return;
+      setRunCommandRequest((current) => (
+        current && current.sessionId === sessionId && current.command === command && current.workingDir === "."
+          ? { ...current, workingDir: model.resolvedPath }
+          : current
+      ));
+    }).catch(() => undefined);
+  }, []);
+  const runCommand = useCallback(async (command: string, workingDir: string) => {
+    if (!runCommandRequest) return;
+    const session = await launchSession({ command, workingDir, ephemeral: true });
+    if (session) {
+      pendingActivePaneRef.current = session.id;
+      setRunCommandRequest(null);
+      markPendingIntents();
+    }
+  }, [launchSession, markPendingIntents, runCommandRequest]);
   const promoteScratchRun = useCallback((sessionId: string) => {
     try { sessionStorage.removeItem(`web-console:scratch:${sessionId}`); } catch { /* storage is optional */ }
     setWorkspacePaneEphemeral(sessionId, false);
@@ -2058,6 +2080,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onPlayFromHere={playPaneFromHere}
         onPlayEvent={playPaneEvent}
         onOpenFilePreview={openFilePreview}
+        onRunCommand={openRunCommand}
       />
     );
   });
@@ -2325,6 +2348,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onPlayFromHere={playPaneFromHere}
                   onPlayEvent={playPaneEvent}
                   onOpenFilePreview={openFilePreview}
+                  onRunCommand={openRunCommand}
                 />
               );
             })}
@@ -2409,6 +2433,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       )}
 
       {runScriptRequest && <RunScriptDialog path={runScriptRequest.path} text={runScriptRequest.text} onClose={() => { setRunScriptRequest(null); }} onRun={runScript} />}
+      {runCommandRequest && <RunCommandDialog command={runCommandRequest.command} workingDir={runCommandRequest.workingDir} onClose={() => { setRunCommandRequest(null); }} onRun={runCommand} />}
 
       {/* Bottom bar */}
       <div className="relative z-wc-chrome shrink-0">
