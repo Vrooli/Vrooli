@@ -155,6 +155,26 @@
         "description": "Subscription key for the OpenCode Go model plan (opencode.ai/go).",
         "required": false,
         "obtain_url": "https://opencode.ai/auth"
+      },
+      {
+        "logical_id": "vrooli/orcarouter",
+        "field": "api-key",
+        "env": "ORCAROUTER_API_KEY",
+        "label": "OrcaRouter API key",
+        "provisioning": "operator",
+        "description": "Optional OpenAI-compatible provider credential for OpenCode.",
+        "required": false,
+        "obtain_url": "https://www.orcarouter.ai"
+      },
+      {
+        "logical_id": "vrooli/abliteration",
+        "field": "api-key",
+        "env": "ABLIT_KEY",
+        "label": "Abliteration API key",
+        "provisioning": "operator",
+        "description": "Optional explicit research provider credential for OpenCode.",
+        "required": false,
+        "obtain_url": "https://abliteration.ai/console"
       }
     ],
     "consumers": [
@@ -172,6 +192,22 @@
         "kind": "environment",
         "consumer": "OpenCode Go key resolver",
         "source_ref": "cli/internal/secrets/secrets.go:68",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/orcarouter",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenCode OrcaRouter resolver",
+        "source_ref": "cli/internal/configcli/configcli.go:1",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/abliteration",
+        "field": "api-key",
+        "kind": "environment",
+        "consumer": "OpenCode Abliteration resolver",
+        "source_ref": "cli/internal/configcli/configcli.go:1",
         "required": false
       }
     ]

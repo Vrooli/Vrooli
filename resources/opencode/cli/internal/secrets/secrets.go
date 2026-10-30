@@ -64,7 +64,7 @@ func resolveKeyFromAuth(authPath, providerID string) string {
 		return ""
 	}
 	var auth map[string]struct {
-		Key string `json:"key"`
+		Key  string `json:"key"`
 		Type string `json:"type"`
 	}
 	if err := json.Unmarshal(data, &auth); err != nil {
@@ -108,11 +108,26 @@ func SyncOpenCodeGoAuth(path, key string) (bool, error) {
 // SyncOpenRouterAuth mirrors the credential-authority value into the auth
 // file consumed by the upstream OpenCode binary.
 func SyncOpenRouterAuth(path, key string) (bool, error) {
+	return SyncProviderAuth(path, "openrouter", key)
+}
+
+// SyncProviderAuth writes or updates one provider entry in the OpenCode auth
+// file. Callers supply the same provider id used in opencode.json.
+func SyncProviderAuth(path, providerID, key string) (bool, error) {
 	key = strings.TrimSpace(key)
 	if !KeyUsable(key) {
 		return false, nil
 	}
-	return syncProviderAuth(path, "openrouter", key)
+	return syncProviderAuth(path, providerID, key)
+}
+
+// ResolveProviderKey resolves a provider key from the process environment,
+// falling back to the OpenCode auth file.
+func ResolveProviderKey(o Options, envVar, providerID string) string {
+	if key := strings.TrimSpace(o.getenv(envVar)); KeyUsable(key) {
+		return key
+	}
+	return resolveKeyFromAuth(o.AuthPath, providerID)
 }
 
 // syncProviderAuth writes or updates a provider entry in the OpenCode auth file.

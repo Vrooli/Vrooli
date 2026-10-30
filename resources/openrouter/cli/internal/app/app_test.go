@@ -64,7 +64,7 @@ func TestExtractPrimaryText(t *testing.T) {
 
 func TestResolveImageInputBuildsBoundedProviderNeutralPayload(t *testing.T) {
 	data := base64.StdEncoding.EncodeToString([]byte("image"))
-	selected := policy.ResolvedPolicyModel{Model: "vision-model", Modalities: policy.Modalities{Input: []string{"text", "image"}}}
+	selected := policy.ResolvedPolicyModel{Model: "vision-model", Modalities: policy.Modalities{Input: []policy.Modality{"text", "image"}}}
 	prompt, images, err := resolveImageInput(strings.NewReader(`{"prompt":"describe","images":[{"media_type":"image/png","data_b64":"`+data+`"}]}`), selected)
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestResolveImageInputBuildsBoundedProviderNeutralPayload(t *testing.T) {
 }
 
 func TestResolveImageInputRejectsRoleWithoutImageModality(t *testing.T) {
-	selected := policy.ResolvedPolicyModel{Model: "text-only", Modalities: policy.Modalities{Input: []string{"text"}}}
+	selected := policy.ResolvedPolicyModel{Model: "text-only", Modalities: policy.Modalities{Input: []policy.Modality{"text"}}}
 	_, _, err := resolveImageInput(strings.NewReader(`{"prompt":"describe","images":[{"media_type":"image/png","data_b64":"aGVsbG8="}]}`), selected)
 	if err == nil || !strings.Contains(err.Error(), "image_input.capability_mismatch") {
 		t.Fatalf("expected typed capability mismatch, got %v", err)

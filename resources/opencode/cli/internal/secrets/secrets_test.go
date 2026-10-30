@@ -10,12 +10,12 @@ import (
 func TestKeyUsable(t *testing.T) {
 	good := makeString(20)
 	cases := map[string]bool{
-		good:                        true,
-		makeString(10):              false,
-		makeString(19):              false,
-		"auto-null-123":             false,
-		"":                          false,
-		"[ERROR] nope":              false,
+		good:            true,
+		makeString(10):  false,
+		makeString(19):  false,
+		"auto-null-123": false,
+		"":              false,
+		"[ERROR] nope":  false,
 	}
 	for k, want := range cases {
 		if got := KeyUsable(k); got != want {

@@ -22,6 +22,9 @@ type Defaults struct {
 	OllamaDefaultModel string // local model declared in the provider block
 	NumCtx             int    // per-model num_ctx for the local coder
 	LocalRole          string // ollama policy role backing local coding (code.local)
+	OrcaRouterRole     string // policy role used when OrcaRouter is selected explicitly
+	AbliterationRole   string // policy role used when Abliteration is selected explicitly
+	ProviderPreference string // explicit provider id (OPENCODE_PROVIDER), empty for the default tier order
 	LegacyTargets      []string
 }
 
@@ -56,6 +59,9 @@ func DefaultDefaults(getenv func(string) string) Defaults {
 		OllamaDefaultModel: localModel,
 		NumCtx:             numCtx,
 		LocalRole:          "code.local",
+		OrcaRouterRole:     "code.default",
+		AbliterationRole:   "research.unrestricted.default",
+		ProviderPreference: strings.TrimSpace(getenv("OPENCODE_PROVIDER")),
 		LegacyTargets:      []string{"openrouter/qwen3-coder", "openrouter/qwen/qwen3-coder"},
 	}
 }
@@ -83,12 +89,14 @@ type LocalModelLister interface {
 
 // EnsureOptions configures Ensure.
 type EnsureOptions struct {
-	ConfigPath     string
-	Defaults       Defaults
-	HaveOpenCodeGo bool
-	HaveOpenRouter bool
-	Resolver       Resolver
-	Logf           func(format string, args ...any)
+	ConfigPath       string
+	Defaults         Defaults
+	HaveOpenCodeGo   bool
+	HaveOpenRouter   bool
+	HaveOrcaRouter   bool
+	HaveAbliteration bool
+	Resolver         Resolver
+	Logf             func(format string, args ...any)
 }
 
 // Ensure decides the provider (OpenCode Go → OpenRouter → local Ollama),
@@ -111,10 +119,46 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		useOllama       bool
 		useOpenCodeGo   bool
 		useOpenRouter   bool
+		useOrcaRouter   bool
+		useAbliteration bool
 	)
 
+	// Explicit operator preference wins over the default tier order. The
+	// provider must still have a usable key; otherwise the default order runs
+	// and the warning explains why the preference was ignored.
+	switch strings.ToLower(strings.TrimSpace(d.ProviderPreference)) {
+	case orcaRouterProviderID:
+		if opts.HaveOrcaRouter {
+			model, err := resolveProviderRole(ctx, "resource-orcarouter", d.OrcaRouterRole)
+			if err != nil {
+				return false, fmt.Errorf("resolve OrcaRouter role %q: %w", d.OrcaRouterRole, err)
+			}
+			useOrcaRouter = true
+			provider = orcaRouterProviderID
+			chatModel = model
+			completionModel = model
+			logf("Selected OrcaRouter by OPENCODE_PROVIDER (provider=%s, model=%s)", provider, chatModel)
+		} else {
+			logf("WARNING: OPENCODE_PROVIDER=%s requested but ORCAROUTER_API_KEY is not configured", orcaRouterProviderID)
+		}
+	case abliterationProviderID:
+		if opts.HaveAbliteration {
+			model, err := resolveProviderRole(ctx, "resource-abliteration", d.AbliterationRole)
+			if err != nil {
+				return false, fmt.Errorf("resolve Abliteration role %q: %w", d.AbliterationRole, err)
+			}
+			useAbliteration = true
+			provider = abliterationProviderID
+			chatModel = model
+			completionModel = model
+			logf("Selected Abliteration by OPENCODE_PROVIDER (provider=%s, model=%s)", provider, chatModel)
+		} else {
+			logf("WARNING: OPENCODE_PROVIDER=%s requested but ABLIT_KEY is not configured", abliterationProviderID)
+		}
+	}
+
 	// Tier 1: OpenCode Go subscription (cheapest, subscription-billed)
-	if opts.HaveOpenCodeGo {
+	if provider == "" && opts.HaveOpenCodeGo {
 		useOpenCodeGo = true
 		provider = goProviderID
 		chatModel = d.GoDefaultModel
@@ -123,7 +167,7 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	}
 
 	// Tier 2: OpenRouter metered API (fallback when no Go key)
-	if !useOpenCodeGo && opts.HaveOpenRouter {
+	if provider == "" && !useOpenCodeGo && opts.HaveOpenRouter {
 		useOpenRouter = true
 		if d.ChatModel == "" || d.CompletionModel == "" {
 			role := strings.TrimSpace(d.CloudRole)
@@ -148,7 +192,7 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	}
 
 	// Tier 3: Local Ollama (fallback when no cloud credentials)
-	if !useOpenCodeGo && !useOpenRouter && ollamaReachable {
+	if provider == "" && !useOpenCodeGo && !useOpenRouter && ollamaReachable {
 		useOllama = true
 		provider = ollamaProviderID
 		chatModel = d.OllamaDefaultModel
@@ -209,6 +253,10 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		in.Repoint = true
 	} else if useOpenRouter && currentProvider != "openrouter" {
 		in.Repoint = true
+	} else if useOrcaRouter && currentProvider != orcaRouterProviderID {
+		in.Repoint = true
+	} else if useAbliteration && currentProvider != abliterationProviderID {
+		in.Repoint = true
 	}
 
 	if useOpenCodeGo {
@@ -217,6 +265,22 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 			ChatModel:  chatModel,
 			SmallModel: completionModel,
 		}
+	}
+	if opts.HaveOrcaRouter {
+		in.OpenAIProviders = append(in.OpenAIProviders, OpenAIProvider{
+			ID:      orcaRouterProviderID,
+			Name:    orcaRouterName,
+			NPM:     orcaRouterNPM,
+			BaseURL: orcaRouterBaseURL,
+		})
+	}
+	if opts.HaveAbliteration {
+		in.OpenAIProviders = append(in.OpenAIProviders, OpenAIProvider{
+			ID:      abliterationProviderID,
+			Name:    abliterationName,
+			NPM:     abliterationNPM,
+			BaseURL: abliterationBaseURL,
+		})
 	}
 	if ollamaReachable {
 		in.Ollama = &OllamaProvider{
@@ -258,6 +322,10 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		logf("Created OpenCode config at %s (provider=%s)", opts.ConfigPath, provider)
 	case useOpenCodeGo:
 		logf("Switched to OpenCode Go subscription (provider=%s, model=%s)", provider, chatModel)
+	case useOrcaRouter:
+		logf("Using OrcaRouter provider (provider=%s, model=%s)", provider, chatModel)
+	case useAbliteration:
+		logf("Using Abliteration provider (provider=%s, model=%s)", provider, chatModel)
 	case useOllama:
 		logf("Self-healed OpenCode model -> %s/%s (no cloud key; local Ollama reachable)", provider, chatModel)
 	default:
@@ -265,7 +333,7 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 	}
 
 	if provider == "" {
-		logf("WARNING: No usable provider credentials found. Set OPENCODE_GO_KEY or OPENROUTER_API_KEY, or ensure Ollama is running.")
+		logf("WARNING: No usable provider credentials found. Set OPENCODE_GO_KEY, OPENROUTER_API_KEY, ORCAROUTER_API_KEY, or ABLIT_KEY, or ensure Ollama is running.")
 	}
 	return true, nil
 }
@@ -353,13 +421,24 @@ func parseInt(s string) (int, error) {
 var resolveCloudModel = execResolveCloudModel
 
 func execResolveCloudModel(ctx context.Context, role string) (string, error) {
-	out, err := exec.CommandContext(ctx, "resource-openrouter", "policy", "resolve", "--role", role, "--field", "model").Output()
+	return resolveProviderRole(ctx, "resource-openrouter", role)
+}
+
+// resolveProviderRole asks any provider resource for the concrete model behind
+// a role. This is the generic seam new providers use; no provider id is baked
+// into the resolution path.
+func resolveProviderRole(ctx context.Context, bin, role string) (string, error) {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		return "", fmt.Errorf("%s role is required", bin)
+	}
+	out, err := exec.CommandContext(ctx, bin, "policy", "resolve", "--role", role, "--field", "model").Output()
 	if err != nil {
-		return "", fmt.Errorf("exec resource-openrouter policy resolve --role %s --field model: %w", role, err)
+		return "", fmt.Errorf("exec %s policy resolve --role %s --field model: %w", bin, role, err)
 	}
 	model := strings.TrimSpace(string(out))
 	if model == "" {
-		return "", fmt.Errorf("resource-openrouter resolved an empty model for role %q", role)
+		return "", fmt.Errorf("%s resolved an empty model for role %q", bin, role)
 	}
 	return model, nil
 }

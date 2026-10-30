@@ -11,7 +11,7 @@ AI Gateway separates concepts that are currently easy to blur:
 
 | Layer | Owner | Examples | Source Of Truth |
 |---|---|---|---|
-| Provider model catalog | Resource | `llama3.2`, hosted provider slugs, context windows, embedding dimensions. | `resource-ollama`, `resource-openrouter` policy/model commands. |
+| Provider model catalog | Resource | `llama3.2`, hosted provider slugs, context windows, embedding dimensions. | `resource-ollama`, `resource-openrouter`, `resource-orcarouter`, `resource-abliteration` policy/model commands. |
 | Role mapping | Resource | `chat.default`, `summarize.default`, `embedding.default`. | Resource `model-policy.json` and resource policy CLI. |
 | Routing profile | AI Gateway | `local-first`, `privacy-sensitive`, `cheap-first`. | AI Gateway routing policy. |
 | Typed inference role | AI Gateway | `classify.fast`, `extract.structured`, `write.default`, schema subset, sampling stance, provider fallback order. | `config/inference-role-catalog.json`; candidates resolve through resource policy CLIs. |
@@ -42,14 +42,14 @@ provider does not support every role yet:
 |---|---|---|---|---|
 | `chat.small` | Low-cost/simple chat. | existing | existing | Useful default for short interactions. |
 | `chat.default` | General chat/generation. | existing | existing | Primary general-purpose role. |
-| `chat.quality` | Higher-quality hosted reasoning/chat. | not expected locally initially | existing | May route remote-only/quality-first. |
+| `chat.quality` | Higher-quality hosted reasoning/chat. | not expected locally initially | existing | May route remote-only/quality-first. OrcaRouter is an additional hosted candidate. |
 | `summarize.default` | Summarization. | existing | existing | Common scenario utility. |
 | `classify.routing` | Classification/routing decisions. | existing | existing | Should be cheap and reliable. |
 | `extract.structured` | JSON/structured extraction. | should be added | existing | User explicitly wants this added for Ollama. |
 | `locate.visual` | Visual grounding. | local-first | hosted fallback | Returns canonical bounds and caller-owned confidence. |
 | `embedding.default` | General embeddings. | existing | investigate/add if supported | OpenRouter support must be verified in resource-openrouter first. |
 | `rerank.llm_fallback` | LLM fallback reranking. | existing | existing | Not the same as a dedicated reranker. |
-| `code.default` / `code.local` | Code assistance. | local/hosted split | existing hosted | Gateway may normalize caller intent later. |
+| `code.default` / `code.local` | Code assistance. | local/hosted split | existing hosted | Gateway may normalize caller intent later. OrcaRouter is an additional hosted candidate. |
 | `agent.tools` | Tool-using agent model. | not local initially | existing | Likely hosted-only until local support exists. |
 
 Status should be read from resource policies at runtime. This table is
@@ -275,6 +275,8 @@ AI Gateway now reads resource policy through the resource CLIs rather
 than from policy files:
 
 - `resource-ollama policy roles --json`
+- `resource-orcarouter policy roles --json`
+- `resource-abliteration policy roles --json`
 - `resource-openrouter policy roles --json`
 
 The inventory API returns normalized provider, role, capabilities,
@@ -320,3 +322,14 @@ Bad:
 
 The first request lets AI Gateway and resources evolve. The second
 couples the scenario to a host, provider, and concrete model.
+
+## Explicit-hosted research
+
+`research.unrestricted` and its `.flash` and `.large` variants are
+explicit-only roles served by `resource-abliteration`. They are never default or
+fallback candidates. Selecting one is the caller's deliberate signal; the
+provider credential and the operator's dependency declaration still gate the
+call. `.flash` uses `abliterated-model-large-flash` (1M context, image input,
+$1/$2 per 1M). `.large` uses `abliterated-model-large-v2` (1M context, text
+only, $3/$5). `chat.uncensored` remains the local-only unrestricted role and is
+unchanged.

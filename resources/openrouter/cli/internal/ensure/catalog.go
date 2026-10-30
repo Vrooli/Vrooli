@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/auth"
 	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/config"

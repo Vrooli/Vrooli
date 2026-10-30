@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -169,6 +170,7 @@ func TestAdapterPiiDetectorExecutionCommand(t *testing.T) { // [REQ:AIGW-PROVIDE
 func TestNewDefaultAdaptersAreExecutableResourceCommands(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
 	want := map[string]string{
 		ProviderOllama: "resource-ollama", ProviderOpenRouter: "resource-openrouter",
+		ProviderOrcaRouter: "resource-orcarouter", ProviderAbliteration: "resource-abliteration",
 		ProviderPiiDetector: "resource-pii-detector", ProviderOllaya: "resource-ollaya",
 	}
 	for _, adapter := range NewDefaultAdapters(nil) {
@@ -427,5 +429,40 @@ func TestOllamaExecutionCommandRequiresExpectedWorkerDigest(t *testing.T) {
 	joined := strings.Join(command.Args, " ")
 	if !strings.Contains(joined, "--require-loopback") || !strings.Contains(joined, "--require-worker-digest "+digest) {
 		t.Fatalf("args = %v, want loopback and worker-digest requirements", command.Args)
+	}
+}
+
+func TestOpenAICompatibleProvidersShareExecutionShape(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	for _, provider := range []string{ProviderOrcaRouter, ProviderAbliteration} {
+		adapter := Adapter{Provider: provider, CommandName: "resource-" + provider, Locality: "remote"}
+		command, err := adapter.executionCommand(ExecutionRequest{
+			Kind:            sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+			Role:            "chat.default",
+			InputText:       "hello",
+			MaxOutputTokens: 64,
+		})
+		if err != nil {
+			t.Fatalf("%s execution command: %v", provider, err)
+		}
+		want := "resource-" + provider + " generate --role chat.default --json --max-tokens 64"
+		if command.String() != want || command.Stdin != "hello" {
+			t.Fatalf("%s command = %q stdin = %q", provider, command.String(), command.Stdin)
+		}
+	}
+}
+
+func TestNonOpenRouterProvidersRejectSpendCaps(t *testing.T) {
+	adapter := Adapter{Provider: ProviderOrcaRouter, CommandName: "resource-orcarouter"}
+	_, err := adapter.executionCommand(ExecutionRequest{
+		Kind:      sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:      "chat.default",
+		InputText: "hello",
+		SpendLimit: &inferencev1.SpendLimit{
+			MaxCostMicros: 1,
+			OperationId:   "op",
+		},
+	})
+	if err == nil {
+		t.Fatal("expected unsupported spend cap")
 	}
 }

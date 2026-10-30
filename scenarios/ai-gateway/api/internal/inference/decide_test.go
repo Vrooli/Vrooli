@@ -35,6 +35,7 @@ func newDecisionWorld() *decisionWorld {
 func resolveKey(role string) string {
 	return "resource-ollaya policy resolve --role " + role + " --json"
 }
+
 func decideKey(role string) string {
 	return "resource-ollaya gateway decide --role " + role + " --input-stdin --json --timeout 30s"
 }

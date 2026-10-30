@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sort"
-	"strings"
+
+	sharedensure "github.com/vrooli/ai-provider-go/ensure"
 
 	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
 
@@ -90,90 +90,12 @@ func runCLI(args []string, checker CatalogChecker) error {
 
 // Run is the testable entry point: validate deprecated fields, resolve every
 // declared role through policy (unknown roles are fatal), then best-effort verify
-// live catalog availability.
+// live catalog availability. The mechanics live in the shared ensure package;
+// this resource supplies its OpenRouter catalog, log prefix, and checker.
 func Run(ctx context.Context, cfg Config, p policy.Policy, checker CatalogChecker, stdout io.Writer) error {
-	if deprecated := cfg.DeprecatedFields(); len(deprecated) > 0 {
-		return fmt.Errorf("%s OpenRouter dependency config uses forbidden concrete-model field(s) %s; declare model_roles instead (greenfield contract)",
-			logPrefix, strings.Join(deprecated, ", "))
-	}
-	if len(cfg.ModelRoles) == 0 {
-		fmt.Fprintf(stdout, "%s no model_roles declared; nothing to validate\n", logPrefix)
-		return nil
-	}
-
-	resolution, err := p.Resolve(cfg.ResolveRequest())
-	if err != nil {
-		return fmt.Errorf("%s %w", logPrefix, err)
-	}
-	for _, w := range resolution.Warnings {
-		fmt.Fprintf(stdout, "%s warning: %s\n", logPrefix, w)
-	}
-
-	endpointSet := map[string]struct{}{}
-	wantModels := map[string][]string{} // endpoint -> model slugs (default + fallbacks)
-	for _, r := range resolution.Roles {
-		fmt.Fprintf(stdout, "%s resolved role %s -> %s [%s]\n", logPrefix, r.Role, r.Model, r.Endpoint)
-		endpointSet[r.Endpoint] = struct{}{}
-		role := p.Roles[r.Role]
-		models := append([]string{role.Model}, role.Fallbacks...)
-		wantModels[r.Endpoint] = append(wantModels[r.Endpoint], models...)
-	}
-
-	if checker == nil {
-		fmt.Fprintf(stdout, "%s catalog availability check skipped (no live checker / key)\n", logPrefix)
-		return nil
-	}
-
-	endpoints := keysOf(endpointSet)
-	allModels := dedupe(flatten(wantModels))
-	present, err := checker.Present(ctx, endpoints, allModels)
-	if err != nil {
-		fmt.Fprintf(stdout, "%s catalog availability check degraded (best-effort): %v\n", logPrefix, err)
-		return nil
-	}
-	var missing []string
-	for _, m := range allModels {
-		if !present[m] {
-			missing = append(missing, m)
-		}
-	}
-	sort.Strings(missing)
-	for _, m := range missing {
-		fmt.Fprintf(stdout, "%s warning: model %q is not visible in the live OpenRouter catalog; update model-policy.json if it was retired\n", logPrefix, m)
-	}
-	if len(missing) == 0 {
-		fmt.Fprintf(stdout, "%s all %d resolved model(s) present in live catalog\n", logPrefix, len(allModels))
-	}
-	return nil
-}
-
-func keysOf(m map[string]struct{}) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
-}
-
-func flatten(m map[string][]string) []string {
-	var out []string
-	for _, v := range m {
-		out = append(out, v...)
-	}
-	return out
-}
-
-func dedupe(in []string) []string {
-	seen := map[string]struct{}{}
-	var out []string
-	for _, v := range in {
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	sort.Strings(out)
-	return out
+	return sharedensure.Run(ctx, sharedensure.Config{
+		ModelRoles:       cfg.ModelRoles,
+		DeprecatedModel:  cfg.DeprecatedModel,
+		DeprecatedModels: cfg.DeprecatedModels,
+	}, p.Catalog, checker, stdout, logPrefix)
 }

@@ -5,8 +5,9 @@ Policy-driven AI inference gateway for routing scenario AI requests across local
 This scenario is Vrooli's policy-driven AI inference gateway. It exposes
 provider-neutral API, CLI, UI, and Test Genie conformance surfaces while
 delegating concrete provider credentials and model catalogs to the
-`resource-ollama`, `resource-openrouter`, `resource-pii-detector` and
-`resource-ollaya` resources.
+`resource-ollama`, `resource-openrouter`, `resource-orcarouter`,
+`resource-abliteration`, `resource-pii-detector` and `resource-ollaya`
+resources.
 
 Two inference capabilities share one role catalog and candidate walk:
 
@@ -141,7 +142,7 @@ finer-grained presets.
 7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
 8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
 9. **Use resource gateways for providers.** AI Gateway should call
-   `resource-ollama` and `resource-openrouter` command surfaces; it must
+   resource command surfaces; it must
    not own provider credentials, provider URLs, or concrete model catalogs.
 10. **Keep boundaries**: only edit within this scenario's directory.
 

@@ -67,13 +67,19 @@ func (h *Handlers) Ensure(args []string) error {
 	haveGo := secrets.KeyUsable(goKey)
 	orKey := secrets.ResolveOpenRouterKey(secretsOpts)
 	haveOpenRouter := secrets.KeyUsable(orKey)
+	orcaRouterKey := secrets.ResolveProviderKey(secretsOpts, "ORCAROUTER_API_KEY", "orcarouter")
+	haveOrcaRouter := secrets.KeyUsable(orcaRouterKey)
+	abliterationKey := secrets.ResolveProviderKey(secretsOpts, "ABLIT_KEY", "abliteration")
+	haveAbliteration := secrets.KeyUsable(abliterationKey)
 
 	changed, err := config.Ensure(ctx, config.EnsureOptions{
-		ConfigPath:      configPath(getenv),
-		Defaults:        config.DefaultDefaults(getenv),
-		HaveOpenCodeGo:  haveGo,
-		HaveOpenRouter:  haveOpenRouter,
-		Resolver:        config.ExecResolver{},
+		ConfigPath:       configPath(getenv),
+		Defaults:         config.DefaultDefaults(getenv),
+		HaveOpenCodeGo:   haveGo,
+		HaveOpenRouter:   haveOpenRouter,
+		HaveOrcaRouter:   haveOrcaRouter,
+		HaveAbliteration: haveAbliteration,
+		Resolver:         config.ExecResolver{},
 		Logf: func(format string, a ...any) {
 			fmt.Fprintf(h.Stdout, format+"\n", a...)
 		},
@@ -99,6 +105,24 @@ func (h *Handlers) Ensure(args []string) error {
 		}
 		if changedAuth {
 			fmt.Fprintf(h.Stdout, "Updated OpenCode auth (openrouter) at %s\n", authPath(getenv))
+		}
+	}
+	for _, provider := range []struct {
+		id  string
+		key string
+	}{
+		{id: "orcarouter", key: orcaRouterKey},
+		{id: "abliteration", key: abliterationKey},
+	} {
+		if provider.key == "" {
+			continue
+		}
+		changedAuth, err := secrets.SyncProviderAuth(authPath(getenv), provider.id, provider.key)
+		if err != nil {
+			return err
+		}
+		if changedAuth {
+			fmt.Fprintf(h.Stdout, "Updated OpenCode auth (%s) at %s\n", provider.id, authPath(getenv))
 		}
 	}
 

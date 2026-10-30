@@ -141,6 +141,28 @@
           "locate.visual"
         ],
         "startup_policy": "try_start"
+      },
+      "orcarouter": {
+        "type": "orcarouter",
+        "enabled": true,
+        "required": false,
+        "description": "Additional OpenAI-compatible hosted inference provider for reviewed fallback candidates",
+        "model_roles": [
+          "chat.default",
+          "extract.structured",
+          "vision.default"
+        ],
+        "startup_policy": "try_start"
+      },
+      "abliteration": {
+        "type": "abliteration",
+        "enabled": true,
+        "required": false,
+        "description": "Explicit-only research and red-team inference provider; never a default or fallback candidate",
+        "model_roles": [
+          "research.unrestricted.default"
+        ],
+        "startup_policy": "try_start"
       }
     }
   },
@@ -155,6 +177,26 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://openrouter.ai/keys"
+      },
+      {
+        "logical_id": "vrooli/orcarouter",
+        "field": "api-key",
+        "env": "ORCAROUTER_API_KEY",
+        "label": "OrcaRouter API key for hosted gateway fallback",
+        "description": "Process-scoped credential consumed only by the resource-orcarouter command invoked behind AI Gateway.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://www.orcarouter.ai"
+      },
+      {
+        "logical_id": "vrooli/abliteration",
+        "field": "api-key",
+        "env": "ABLIT_KEY",
+        "label": "Abliteration API key for explicit research roles",
+        "description": "Process-scoped credential consumed only by the resource-abliteration command invoked behind AI Gateway. Absent unless an operator opts into the explicit research role.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://abliteration.ai/console"
       },
       {
         "logical_id": "vrooli/edenai",

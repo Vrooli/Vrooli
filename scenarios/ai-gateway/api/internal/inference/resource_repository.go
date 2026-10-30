@@ -469,7 +469,7 @@ func decodeProviderResponse(provider, raw, prompt string) (string, providerUsage
 			usage.outputProvenance = inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN
 		}
 		return ExtractJSONValue(response.Response), usage, nil
-	case providers.ProviderOpenRouter:
+	case providers.ProviderOpenRouter, providers.ProviderOrcaRouter, providers.ProviderAbliteration:
 		var response struct {
 			Choices []struct {
 				Message struct {
@@ -483,10 +483,10 @@ func decodeProviderResponse(provider, raw, prompt string) (string, providerUsage
 			} `json:"usage"`
 		}
 		if err := json.Unmarshal([]byte(raw), &response); err != nil {
-			return "", providerUsage{}, fmt.Errorf("decode OpenRouter response: %w", err)
+			return "", providerUsage{}, fmt.Errorf("decode %s response: %w", provider, err)
 		}
 		if len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" {
-			return "", providerUsage{}, errors.New("OpenRouter returned no completion")
+			return "", providerUsage{}, fmt.Errorf("%s returned no completion", provider)
 		}
 		usage := providerUsage{}
 		if response.Usage != nil && response.Usage.PromptTokens != nil && *response.Usage.PromptTokens >= 0 {

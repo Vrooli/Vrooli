@@ -1,0 +1,341 @@
+{
+  "schema_version": "2026-10-30",
+  "provider": {
+    "id": "abliteration",
+    "family": "openai-compatible",
+    "endpoints": [
+      "chat",
+      "models"
+    ],
+    "capabilities": [
+      "chat",
+      "tools",
+      "structured_output",
+      "vision",
+      "reasoning",
+      "policy_gateway",
+      "streaming"
+    ]
+  },
+  "excluded_models": [],
+  "roles": {
+    "chat.default": {
+      "model": "abliterated-model",
+      "fallbacks": [
+        "abliterated-model-large-flash"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Default abliteration.ai role. This provider is intentionally excluded from fleet default routing; use it only through an explicit scenario dependency or research role.",
+      "preference": 10,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 4096
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "abliteration_docs",
+        "confidence": "low",
+        "source": "abliteration.ai OpenAI-compatibility and compatibility-matrix docs, 2026-10-30",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "research.unrestricted.default": {
+      "model": "abliterated-model",
+      "fallbacks": [
+        "abliterated-model-large-flash"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Explicit research/red-team role served by abliterated-model.",
+      "preference": 20,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 4096
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "abliteration_docs",
+        "confidence": "low",
+        "source": "abliteration.ai OpenAI-compatibility docs, 2026-10-30",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "research.unrestricted.flash": {
+      "model": "abliterated-model-large-flash",
+      "fallbacks": [
+        "abliterated-model"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat",
+        "vision"
+      ],
+      "description": "Higher-throughput research role with image input support.",
+      "preference": 30,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "abliteration_docs",
+        "confidence": "low",
+        "source": "abliteration.ai compatibility matrix, 2026-10-30",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "research.unrestricted.large": {
+      "model": "abliterated-model-large-v2",
+      "fallbacks": [
+        "abliterated-model-large"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "description": "Highest-capability research role. Text only; image content is rejected upstream.",
+      "preference": 40,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "abliteration_docs",
+        "confidence": "low",
+        "source": "abliteration.ai compatibility matrix, 2026-10-30",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    }
+  },
+  "models": {
+    "abliterated-model": {
+      "provider": "abliteration",
+      "family": "abliterated",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "vision",
+        "reasoning"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 262144,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "abliteration_docs",
+          "confidence": "low",
+          "source": "abliteration.ai model docs, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      },
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 1.0,
+        "output_per_mtok": 3.0
+      }
+    },
+    "abliterated-model-large-flash": {
+      "provider": "abliteration",
+      "family": "abliterated",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "vision",
+        "reasoning"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 1048576,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "abliteration_docs",
+          "confidence": "low",
+          "source": "abliteration.ai model docs, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      },
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 1.0,
+        "output_per_mtok": 2.0
+      }
+    },
+    "abliterated-model-large": {
+      "provider": "abliteration",
+      "family": "abliterated",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "reasoning"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "abliteration_docs",
+          "confidence": "low",
+          "source": "abliteration.ai model docs, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      },
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 5.0
+      }
+    },
+    "abliterated-model-large-v2": {
+      "provider": "abliteration",
+      "family": "abliterated",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "reasoning"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "abliteration_docs",
+          "confidence": "low",
+          "source": "abliteration.ai model docs, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      },
+      "pricing": {
+        "unit": "per_mtok",
+        "input_per_mtok": 3.0,
+        "output_per_mtok": 5.0
+      }
+    }
+  },
+  "constraints": {
+    "endpoints": [
+      "chat"
+    ],
+    "capability_vocabulary": [
+      "chat",
+      "text_input",
+      "text_output",
+      "tools",
+      "structured_output",
+      "vision",
+      "reasoning"
+    ],
+    "role_preference_order": [
+      "chat.default",
+      "research.unrestricted.default",
+      "research.unrestricted.flash",
+      "research.unrestricted.large"
+    ],
+    "direct_model_exception_required_fields": [
+      "reason",
+      "owner",
+      "review_after"
+    ],
+    "provenance_required": true,
+    "provenance_source_kinds": [
+      "manual_policy",
+      "operator_override",
+      "abliteration_docs",
+      "abliteration_models",
+      "static_estimate",
+      "scenario_pin"
+    ],
+    "modality_vocabulary": [
+      "text",
+      "image",
+      "vector",
+      "video",
+      "audio"
+    ]
+  },
+  "provenance": {
+    "policy": {
+      "source_kind": "manual_policy",
+      "confidence": "low",
+      "source": "Initial abliteration.ai provider policy, 2026-10-30",
+      "observed_at": "2026-10-30",
+      "sample_count": 0
+    }
+  }
+}

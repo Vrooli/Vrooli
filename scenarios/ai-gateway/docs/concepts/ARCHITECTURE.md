@@ -25,12 +25,12 @@ AI Gateway
         v
 Resource gateway commands
   - resource-ollama policy/gateway commands
-  - resource-openrouter policy/gateway commands
+  - resource-openrouter / resource-orcarouter / resource-abliteration policy/generate commands
         |
         v
 Concrete provider implementation
   - local Ollama models
-  - hosted OpenRouter models
+  - hosted OpenRouter, OrcaRouter, and explicit abliteration models
 ```
 
 The core invariant is simple: callers should bind to AI work, not to a
@@ -124,14 +124,17 @@ Allowed:
 
 - `resource-ollama policy roles/models/resolve`
 - `resource-ollama gateway generate/chat/embed`
+- `resource-orcarouter policy roles/models/resolve`
+- `resource-abliteration policy roles/models/resolve`
 - `resource-openrouter policy roles/models/resolve`
+- `resource-orcarouter generate` / `resource-abliteration generate` or equivalent approved
 - `resource-openrouter generate/chat/images` or equivalent approved
   resource gateway commands
 
 Forbidden inside AI Gateway:
 
 - `http://localhost:11434`
-- `api.openrouter.ai`
+- `api.openrouter.ai`, `api.orcarouter.ai`, `api.abliteration.ai`
 - `OLLAMA_URL`, `OPENROUTER_API_KEY`, or provider-specific secrets
 - hard-coded model names such as `llama3.2`, `codellama`, or hosted
   provider slugs
@@ -191,7 +194,7 @@ contract. See [`../reference/validation-provider.md`](../reference/validation-pr
 
 ## Intentional Non-Goals
 
-- Replacing `resource-ollama` or `resource-openrouter`.
+- Replacing `resource-ollama`, `resource-openrouter`, `resource-orcarouter`, or `resource-abliteration`.
 - Becoming the catalog authority for concrete model slugs.
 - Providing end-user chat widgets; that belongs in chatbot/product
   scenarios.

@@ -446,3 +446,16 @@ func TestResourceRepositoryRefusesContextOverflowBeforeProviderDispatch(t *testi
 		require.NotContains(t, command.String(), "gateway generate", "overflow must be refused before provider dispatch")
 	}
 }
+
+func TestDecodeOpenAICompatibleProviderResponses(t *testing.T) {
+	body := `{"choices":[{"message":{"content":"{\"ok\":true}"}}],"usage":{"prompt_tokens":4,"completion_tokens":2}}`
+	for _, provider := range []string{providers.ProviderOpenRouter, providers.ProviderOrcaRouter, providers.ProviderAbliteration} {
+		got, usage, err := decodeProviderResponse(provider, body, "prompt")
+		if err != nil {
+			t.Fatalf("%s decode: %v", provider, err)
+		}
+		if got != `{"ok":true}` || usage.input != 4 || usage.output != 2 {
+			t.Fatalf("%s result = %q usage = %+v", provider, got, usage)
+		}
+	}
+}

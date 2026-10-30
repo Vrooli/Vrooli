@@ -290,9 +290,9 @@ func configuredPositiveInt(name string, fallback int) int {
 	return fallback
 }
 
-func hasModality(values []string, want string) bool {
+func hasModality(values []policy.Modality, want string) bool {
 	for _, value := range values {
-		if strings.EqualFold(strings.TrimSpace(value), want) {
+		if strings.EqualFold(strings.TrimSpace(string(value)), want) {
 			return true
 		}
 	}

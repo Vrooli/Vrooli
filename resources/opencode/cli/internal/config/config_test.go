@@ -559,3 +559,30 @@ func TestEnsure_OpenCodeGoKeepsLocalModelInOllamaBlock(t *testing.T) {
 		t.Errorf("local model missing from ollama block: %v", models)
 	}
 }
+
+func TestRender_OpenAICompatibleProviderBlocks(t *testing.T) {
+	out, err := Render(nil, Inputs{
+		Provider: "orcarouter", ChatModel: "openai/gpt-4o-mini", CompletionModel: "openai/gpt-4o-mini", Repoint: true,
+		OpenAIProviders: []OpenAIProvider{
+			{ID: "orcarouter", Name: "OrcaRouter", NPM: "@ai-sdk/openai-compatible", BaseURL: "https://api.orcarouter.ai/v1"},
+			{ID: "abliteration", Name: "Abliteration", NPM: "@ai-sdk/openai-compatible", BaseURL: "https://api.abliteration.ai/v1"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, out)
+	providers := m["provider"].(map[string]any)
+	for _, id := range []string{"orcarouter", "abliteration"} {
+		block := providers[id].(map[string]any)
+		if block["npm"] != "@ai-sdk/openai-compatible" {
+			t.Errorf("%s npm = %v", id, block["npm"])
+		}
+		if block["options"].(map[string]any)["baseURL"] == "" {
+			t.Errorf("%s baseURL missing", id)
+		}
+	}
+	if m["model"] != "orcarouter/openai/gpt-4o-mini" {
+		t.Errorf("model = %v", m["model"])
+	}
+}

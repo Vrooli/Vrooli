@@ -18,14 +18,81 @@ import (
 )
 
 const (
-	ProviderOllama      = "ollama"
-	ProviderOpenRouter  = "openrouter"
-	ProviderMetered     = "lpbs"
-	ProviderPiiDetector = "pii-detector"
+	ProviderOllama       = "ollama"
+	ProviderOpenRouter   = "openrouter"
+	ProviderOrcaRouter   = "orcarouter"
+	ProviderAbliteration = "abliteration"
+	ProviderMetered      = "lpbs"
+	ProviderPiiDetector  = "pii-detector"
 	// ProviderOllaya is the decision-model resource: the local Ollaya daemon
 	// plus the credential-gated hosted System One upstreams it owns.
 	ProviderOllaya = "ollaya"
 )
+
+// Provider families describe the wire contract a resource implements. The
+// gateway switches on the family, not on the provider id, so adding another
+// OpenAI-compatible resource is one registry entry rather than another branch.
+const (
+	FamilyOllama           = "ollama"
+	FamilyOpenAICompatible = "openai-compatible"
+	FamilyPII              = "pii-detector"
+	FamilyDecision         = "decision"
+	FamilyMetered          = "metered"
+)
+
+// ProviderSpec is the static registration record for one provider resource.
+type ProviderSpec struct {
+	ID           string
+	CommandName  string
+	Locality     string
+	Family       string
+	Text         bool
+	SpendCapable bool
+}
+
+// DefaultProviderSpecs returns the resource-backed providers the gateway knows
+// how to execute. Adding a provider is an entry here plus its resource.
+func DefaultProviderSpecs() []ProviderSpec {
+	return []ProviderSpec{
+		{ID: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Family: FamilyOllama, Text: true},
+		{ID: ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote", Family: FamilyOpenAICompatible, Text: true, SpendCapable: true},
+		{ID: ProviderOrcaRouter, CommandName: "resource-orcarouter", Locality: "remote", Family: FamilyOpenAICompatible, Text: true},
+		{ID: ProviderAbliteration, CommandName: "resource-abliteration", Locality: "remote", Family: FamilyOpenAICompatible, Text: true},
+		{ID: ProviderPiiDetector, CommandName: "resource-pii-detector", Locality: "local", Family: FamilyPII},
+		{ID: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Family: FamilyDecision},
+	}
+}
+
+// SpecFor returns the registered spec for a provider id.
+func SpecFor(provider string) (ProviderSpec, bool) {
+	provider = strings.TrimSpace(provider)
+	for _, spec := range DefaultProviderSpecs() {
+		if spec.ID == provider {
+			return spec, true
+		}
+	}
+	return ProviderSpec{}, false
+}
+
+// TextProviderIDs returns the provider ids admissible for typed-value roles.
+func TextProviderIDs() map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, spec := range DefaultProviderSpecs() {
+		if spec.Text {
+			out[spec.ID] = struct{}{}
+		}
+	}
+	return out
+}
+
+// AllowedCommands returns the resource commands the runner may execute.
+func AllowedCommands() map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, spec := range DefaultProviderSpecs() {
+		out[spec.CommandName] = struct{}{}
+	}
+	return out
+}
 
 // Typed provider-limit codes. They are the provider-neutral seam between a
 // native provider failure and the routing classifier so an account-credit
@@ -57,6 +124,7 @@ type Adapter struct {
 	Provider    string
 	CommandName string
 	Locality    string
+	Family      string
 	Runner      CommandRunner
 	Metered     *MeteredClient
 }
@@ -204,12 +272,28 @@ func NewDefaultAdapters(runner CommandRunner) []Adapter {
 	if runner == nil {
 		runner = ExecRunner{}
 	}
-	return []Adapter{
-		{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner},
-		{Provider: ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote", Runner: runner},
-		{Provider: ProviderPiiDetector, CommandName: "resource-pii-detector", Locality: "local", Runner: runner},
-		{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Runner: runner},
+	specs := DefaultProviderSpecs()
+	adapters := make([]Adapter, 0, len(specs))
+	for _, spec := range specs {
+		adapters = append(adapters, Adapter{
+			Provider:    spec.ID,
+			CommandName: spec.CommandName,
+			Locality:    spec.Locality,
+			Family:      spec.Family,
+			Runner:      runner,
+		})
 	}
+	return adapters
+}
+
+func (a Adapter) family() string {
+	if strings.TrimSpace(a.Family) != "" {
+		return a.Family
+	}
+	if spec, ok := SpecFor(a.Provider); ok {
+		return spec.Family
+	}
+	return ""
 }
 
 func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
@@ -483,14 +567,14 @@ func (a Adapter) executionCommand(req ExecutionRequest) (Command, error) {
 	if strings.TrimSpace(input) == "" {
 		return Command{}, &CommandError{Code: "invalid_request", Command: a.Provider, ExitCode: -1, Err: errors.New("input_text is required")}
 	}
-	switch a.Provider {
-	case ProviderOllama:
+	switch a.family() {
+	case FamilyOllama:
 		return a.ollamaExecutionCommand(req, role, input, timeout)
-	case ProviderOpenRouter:
-		return a.openRouterExecutionCommand(req, role, input, timeout)
-	case ProviderPiiDetector:
+	case FamilyOpenAICompatible:
+		return a.openAICompatibleExecutionCommand(req, role, input, timeout)
+	case FamilyPII:
 		return a.piiDetectorExecutionCommand(req, role, input, timeout)
-	case ProviderOllaya:
+	case FamilyDecision:
 		return a.ollayaExecutionCommand(req, role, input, timeout)
 	default:
 		return Command{}, &CommandError{Code: "unsupported_provider", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("provider %q does not expose a gateway execution command", a.Provider)}
@@ -545,10 +629,14 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 	}
 }
 
-func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, input string, timeout time.Duration) (Command, error) {
+func (a Adapter) openAICompatibleExecutionCommand(req ExecutionRequest, role string, input string, timeout time.Duration) (Command, error) {
 	if req.Kind != sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION &&
 		req.Kind != sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION {
-		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable by openrouter", req.Kind.String())}
+		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable by %s", req.Kind.String(), a.Provider)}
+	}
+	spec, _ := SpecFor(a.Provider)
+	if req.SpendLimit != nil && !spec.SpendCapable {
+		return Command{}, &CommandError{Code: "unsupported_spend_cap", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("provider %q does not support spend-capped execution", a.Provider)}
 	}
 	args := []string{"generate", "--role", role, "--json"}
 	stdin, jsonEnvelope, err := multimodalStdin(input, req.Attachments)
@@ -563,7 +651,7 @@ func (a Adapter) openRouterExecutionCommand(req ExecutionRequest, role string, i
 	if req.MaxOutputTokens > 0 {
 		args = append(args, "--max-tokens", fmt.Sprintf("%d", req.MaxOutputTokens))
 	}
-	if req.SpendLimit != nil {
+	if req.SpendLimit != nil && spec.SpendCapable {
 		args = append(args, "--max-cost-micros", strconv.FormatInt(req.SpendLimit.GetMaxCostMicros(), 10),
 			"--operation-id", req.SpendLimit.GetOperationId(),
 			"--input-fingerprint", req.SpendLimit.GetInputFingerprint(),

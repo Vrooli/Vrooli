@@ -3,7 +3,6 @@ package providers
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,18 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/ai-provider-go/providererror"
 	"github.com/vrooli/envkit-go"
 )
 
 const DefaultCommandTimeout = 5 * time.Second
 
 // ProviderErrorMarker is the stable line protocol an owner adapter writes to
-// stderr when it classifies a provider-limit failure. The AI Gateway recovers
-// the typed code and observed recovery window from it so a resource-command
-// boundary does not flatten an account-credit exhaustion or a rate limit into a
-// generic exit error. Keep in sync with
-// resources/openrouter/cli/internal/health.ProviderErrorMarker.
-const ProviderErrorMarker = "VROOLI_PROVIDER_ERROR "
+// stderr when it classifies a provider-limit failure.
+const ProviderErrorMarker = providererror.Marker
 
 // seam: CommandRunner executes resource-owned CLI commands. Production wires
 // ExecRunner; tests wire providers/mocks.FakeRunner.
@@ -138,56 +134,32 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	return result, cmdErr
 }
 
-// providerErrorEnvelope is the JSON payload an owner adapter writes after the
-// ProviderErrorMarker. It mirrors the marker shape in the OpenRouter resource.
-type providerErrorEnvelope struct {
-	Code       string `json:"code"`
-	HTTPStatus int    `json:"http_status"`
-	RetryAfter string `json:"retry_after"`
-	Message    string `json:"message"`
-}
-
 // applyProviderErrorMarker recovers a typed provider failure an owner adapter
-// wrote to stderr, preserving the observed HTTP status and Retry-After instead
-// of flattening it into a generic exit error. It is best-effort: a missing or
-// malformed marker leaves the original CommandError untouched.
+// wrote to stderr. The marker contract lives in ai-provider-go so the resource
+// and the gateway cannot drift.
 func applyProviderErrorMarker(cmdErr *CommandError, stderr string) {
 	if cmdErr == nil {
 		return
 	}
-	for _, line := range strings.Split(stderr, "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, ProviderErrorMarker) {
-			continue
-		}
-		raw := strings.TrimSpace(strings.TrimPrefix(line, ProviderErrorMarker))
-		var envelope providerErrorEnvelope
-		if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
-			continue
-		}
-		code := normalizeProviderErrorCode(envelope.Code)
-		if code == "" {
-			continue
-		}
-		cmdErr.Code = code
-		if envelope.HTTPStatus != 0 {
-			cmdErr.HTTPStatus = envelope.HTTPStatus
-		}
-		if retryAfter := strings.TrimSpace(envelope.RetryAfter); retryAfter != "" {
-			cmdErr.RetryAfter = retryAfter
-		}
+	envelope, ok := providererror.ParseMarker(stderr)
+	if !ok {
 		return
+	}
+	code := providererror.NormalizeCode(envelope.Code)
+	if code == "" {
+		return
+	}
+	cmdErr.Code = code
+	if envelope.HTTPStatus != 0 {
+		cmdErr.HTTPStatus = envelope.HTTPStatus
+	}
+	if retryAfter := strings.TrimSpace(envelope.RetryAfter); retryAfter != "" {
+		cmdErr.RetryAfter = retryAfter
 	}
 }
 
 func normalizeProviderErrorCode(code string) string {
-	switch strings.TrimSpace(code) {
-	case CodeInsufficientCredits, CodeRateLimited, CodeProviderOverloaded,
-		CodeProviderFailed, CodeStreamFailed, CodeUnreachable, CodeUnconfigured, CodeContextOverflow:
-		return strings.TrimSpace(code)
-	default:
-		return ""
-	}
+	return providererror.NormalizeCode(code)
 }
 
 func (c Command) String() string {
@@ -196,12 +168,8 @@ func (c Command) String() string {
 }
 
 func allowedResourceCommand(name string) bool {
-	switch name {
-	case "resource-ollama", "resource-openrouter", "resource-pii-detector", "resource-ollaya":
-		return true
-	default:
-		return false
-	}
+	_, ok := AllowedCommands()[name]
+	return ok
 }
 
 var secretishPattern = regexp.MustCompile(`(?i)(api[_-]?key|authorization|bearer|token|secret)(["'=:\s]+)(bearer\s+)?[^,\s"]+`)

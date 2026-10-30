@@ -74,9 +74,10 @@ func TestCatalogDeclaresLocateVisualRole(t *testing.T) {
 	require.NoError(t, err)
 	role, ok := catalog.Roles["locate.visual"]
 	require.True(t, ok)
-	require.Len(t, role.Candidates, 3)
+	require.Len(t, role.Candidates, 4)
 	require.Equal(t, "vision.default", role.Candidates[0].ResourceRole)
 	require.Equal(t, "vision.default", role.Candidates[1].ResourceRole)
+	require.Equal(t, "vision.default", role.Candidates[2].ResourceRole)
 }
 
 func TestCatalogDeclaresDeviceControlPlanningRole(t *testing.T) {
@@ -84,10 +85,11 @@ func TestCatalogDeclaresDeviceControlPlanningRole(t *testing.T) {
 	require.NoError(t, err)
 	role, ok := catalog.Roles["device-control.plan"]
 	require.True(t, ok)
-	require.Len(t, role.Candidates, 3)
+	require.Len(t, role.Candidates, 4)
 	require.Equal(t, "extract.structured", role.Candidates[0].ResourceRole)
 	require.Equal(t, "extract.structured", role.Candidates[1].ResourceRole)
 	require.Equal(t, "extract.structured", role.Candidates[2].ResourceRole)
+	require.Equal(t, "extract.structured", role.Candidates[3].ResourceRole)
 }
 
 func visualAttachment(width, height uint32) *sharedv1.Attachment {

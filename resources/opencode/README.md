@@ -54,6 +54,11 @@ syncs the OpenRouter key into `auth.json`.
 - **OpenRouter** is the wired cloud default
   (`openrouter/x-ai/grok-code-fast-1`); the key is injected by the credential
   authority and written to `auth.json`.
+- **OrcaRouter** and **Abliteration** are written as OpenAI-compatible provider
+  blocks when their optional credentials (`ORCAROUTER_API_KEY`, `ABLIT_KEY`) are
+  present. Set `OPENCODE_PROVIDER=orcarouter` or `OPENCODE_PROVIDER=abliteration`
+  to make one the active provider; otherwise they remain available in the
+  picker without changing the default tier order.
 - **Ollama** is auto-configured as a keyless local provider
   (OpenAI-compatible, `http://localhost:11434/v1`) when a local daemon is
   reachable and no OpenRouter key is present. `resource-opencode ensure`

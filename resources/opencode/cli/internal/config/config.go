@@ -41,6 +41,16 @@ const (
 	goName           = "OpenCode Go"
 	goBaseURL        = "https://opencode.ai/zen/go/v1"
 
+	orcaRouterProviderID = "orcarouter"
+	orcaRouterNPM        = "@ai-sdk/openai-compatible"
+	orcaRouterName       = "OrcaRouter"
+	orcaRouterBaseURL    = "https://api.orcarouter.ai/v1"
+
+	abliterationProviderID = "abliteration"
+	abliterationNPM        = "@ai-sdk/openai-compatible"
+	abliterationName       = "Abliteration"
+	abliterationBaseURL    = "https://api.abliteration.ai/v1"
+
 	// retiredOllamaModelSubstr is dropped from the provider block: its family
 	// narrates tool calls as text instead of emitting structured tool_calls.
 	retiredOllamaModelSubstr = "qwen2.5-coder"
@@ -112,6 +122,20 @@ type Inputs struct {
 
 	// Go, when non-nil, writes/refreshes the OpenCode Go provider block.
 	Go *GoProvider
+
+	// OpenAIProviders writes or refreshes additional OpenAI-compatible
+	// provider blocks. This is the seam for OrcaRouter, abliteration, and any
+	// future provider resource that speaks the OpenAI wire shape.
+	OpenAIProviders []OpenAIProvider
+}
+
+// OpenAIProvider describes one OpenAI-compatible provider block in
+// opencode.json.
+type OpenAIProvider struct {
+	ID      string
+	Name    string
+	NPM     string
+	BaseURL string
 }
 
 // Render produces the new opencode.json bytes from the existing file content
@@ -163,6 +187,12 @@ func Render(existing []byte, in Inputs) ([]byte, error) {
 
 	if in.Go != nil {
 		if err := writeGoProvider(top); err != nil {
+			return nil, err
+		}
+	}
+
+	for _, provider := range in.OpenAIProviders {
+		if err := writeOpenAIProvider(top, provider); err != nil {
 			return nil, err
 		}
 	}
@@ -250,6 +280,21 @@ func writeOllamaProvider(top map[string]json.RawMessage, op *OllamaProvider) err
 
 // writeGoProvider writes or refreshes the OpenCode Go provider block.
 func writeGoProvider(top map[string]json.RawMessage) error {
+	return writeOpenAIProvider(top, OpenAIProvider{
+		ID:      goProviderID,
+		Name:    goName,
+		NPM:     goNPM,
+		BaseURL: goBaseURL,
+	})
+}
+
+// writeOpenAIProvider writes or refreshes one OpenAI-compatible provider block,
+// preserving unmanaged keys and sibling providers.
+func writeOpenAIProvider(top map[string]json.RawMessage, provider OpenAIProvider) error {
+	id := strings.TrimSpace(provider.ID)
+	if id == "" {
+		return fmt.Errorf("openai-compatible provider id is required")
+	}
 	providers := map[string]json.RawMessage{}
 	if raw, ok := top[keyProvider]; ok && len(raw) > 0 {
 		if err := json.Unmarshal(raw, &providers); err != nil {
@@ -257,23 +302,29 @@ func writeGoProvider(top map[string]json.RawMessage) error {
 		}
 	}
 
-	goBlock := map[string]json.RawMessage{}
-	if raw, ok := providers[goProviderID]; ok && len(raw) > 0 {
-		if err := json.Unmarshal(raw, &goBlock); err != nil {
-			return fmt.Errorf("parse go provider: %w", err)
+	block := map[string]json.RawMessage{}
+	if raw, ok := providers[id]; ok && len(raw) > 0 {
+		if err := json.Unmarshal(raw, &block); err != nil {
+			return fmt.Errorf("parse %s provider: %w", id, err)
 		}
 	}
-	goBlock["npm"] = mustRaw(goNPM)
-	goBlock["name"] = mustRaw(goName)
+	if strings.TrimSpace(provider.NPM) != "" {
+		block["npm"] = mustRaw(strings.TrimSpace(provider.NPM))
+	}
+	if strings.TrimSpace(provider.Name) != "" {
+		block["name"] = mustRaw(strings.TrimSpace(provider.Name))
+	}
 
 	opts := map[string]json.RawMessage{}
-	if raw, ok := goBlock["options"]; ok && len(raw) > 0 {
+	if raw, ok := block["options"]; ok && len(raw) > 0 {
 		_ = json.Unmarshal(raw, &opts)
 	}
-	opts["baseURL"] = mustRaw(goBaseURL)
-	goBlock["options"] = mustRaw(opts)
+	if strings.TrimSpace(provider.BaseURL) != "" {
+		opts["baseURL"] = mustRaw(strings.TrimRight(strings.TrimSpace(provider.BaseURL), "/"))
+	}
+	block["options"] = mustRaw(opts)
 
-	providers[goProviderID] = mustRaw(goBlock)
+	providers[id] = mustRaw(block)
 	top[keyProvider] = mustRaw(providers)
 	return nil
 }

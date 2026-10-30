@@ -80,7 +80,7 @@ resource-openrouter show-config --json
 ## Model Role Policy
 
 OpenRouter is the **policy authority** for model selection. Concrete OpenRouter
-model slugs live in exactly one place — [`model-policy.json`](/home/matthalloran8/Vrooli/resources/openrouter/model-policy.json).
+model slugs live in exactly one place — [`model-policy.json`](model-policy.json).
 Scenarios and resources declare the **roles** they need and resolve them through
 `resource-openrouter policy resolve`; they never hard-code a provider slug or an
 `OPENROUTER_*_MODEL` env default (enforced by the `openrouter_policy_facts`
@@ -109,7 +109,7 @@ invoke Vault, read user credential files, or manage secret storage.
 - Keep `cli/main.go` thin. Do not move provider logic into CLI wiring.
 - Keep endpoint, credential, and health expectations declarative in `resource.json` whenever possible.
 - `generate`, `list-models`, and `content models` are now native Go commands, not retained shell wrappers.
-- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/openrouter/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+- Use [docs/OPERATIONS.md](docs/OPERATIONS.md) as the architecture boundary for future migrations.
 ## Maturity
 
 M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

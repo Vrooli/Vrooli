@@ -163,8 +163,19 @@ func validateRole(role string, definition InferenceRole) error {
 // decision model cannot answer a typed-value request and a generative model
 // is reached by a decision role only through the gateway's own classify path.
 var candidateProviders = map[bool]map[string]struct{}{
-	false: {providers.ProviderOllama: {}, providers.ProviderOpenRouter: {}, providers.ProviderMetered: {}, providers.ProviderPiiDetector: {}},
+	false: textCandidateProviders(),
 	true:  {providers.ProviderOllaya: {}, ProviderGateway: {}},
+}
+
+func textCandidateProviders() map[string]struct{} {
+	out := map[string]struct{}{
+		providers.ProviderMetered:     {},
+		providers.ProviderPiiDetector: {},
+	}
+	for provider := range providers.TextProviderIDs() {
+		out[provider] = struct{}{}
+	}
+	return out
 }
 
 func validateCandidates(role string, decision bool, candidates []Candidate) error {
