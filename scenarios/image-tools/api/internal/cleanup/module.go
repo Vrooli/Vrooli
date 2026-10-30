@@ -25,7 +25,7 @@ import (
 const (
 	ProviderID = "image-tools-job-blobs"
 	batchCap   = 200
-	defaultAge = 7 * 24 * time.Hour
+	defaultAge = 30 * 24 * time.Hour
 )
 
 type jobSource interface {
@@ -233,6 +233,8 @@ func (h *ownerCleanup) apply(w http.ResponseWriter, r *http.Request) {
 	}
 	h.applyMu.Lock()
 	defer h.applyMu.Unlock()
+	deleteMu.Lock()
+	defer deleteMu.Unlock()
 	h.mu.Lock()
 	if prior, ok := h.done[req.IdempotencyKey]; ok {
 		prior.AlreadyDone = true

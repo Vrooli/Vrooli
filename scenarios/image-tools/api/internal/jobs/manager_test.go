@@ -560,3 +560,40 @@ func TestNetworkLaneDoesNotQueueBehindGPU(t *testing.T) {
 		t.Fatalf("gpu wait: %v", err)
 	}
 }
+
+func TestListManagedOutputsReturnsOnlySucceededManagedResultsOldestFirst(t *testing.T) {
+	m := startManager(t, Config{Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
+		return Result{}, nil
+	}})
+	mustRecord := func(ref string, runErr error) {
+		t.Helper()
+		if _, err := m.Record(Spec{Operation: "resize", Lane: LaneCPU}, ref, runErr); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	mustRecord("out/first.png", nil)
+	mustRecord("/home/user/owned.png", nil)
+	mustRecord("input/source.png", nil)
+	mustRecord("", errors.New("boom"))
+	mustRecord("out/second.png", nil)
+
+	got, err := m.ListManagedOutputs(context.Background(), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].ResultRef != "out/first.png" || got[1].ResultRef != "out/second.png" {
+		refs := make([]string, 0, len(got))
+		for _, j := range got {
+			refs = append(refs, j.ResultRef)
+		}
+		t.Fatalf("managed outputs = %v, want [out/first.png out/second.png]", refs)
+	}
+	active, err := m.ListActive(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(active) != 0 {
+		t.Fatalf("recorded jobs are terminal; active = %d", len(active))
+	}
+}

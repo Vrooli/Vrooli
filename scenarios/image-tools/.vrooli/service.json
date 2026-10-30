@@ -169,11 +169,11 @@
         "class": "cache",
         "regenerable": true,
         "subpath": "blobs/out",
-        "rationale": "Managed output blobs are derived from terminal jobs. The owner provider deletes only reviewed, age-qualified output references. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
+        "rationale": "Managed output blobs are derived from terminal jobs. The image-tools owner retention loop (internal/cleanup/retention.go, every 30m) deletes outputs whose newest referencing job finished beyond max_age, then the oldest beyond max_bytes after a 1h grace; it protects pinned results, inputs of queued/running jobs, and files no successful job indexes, and writes the shared enforcement receipt plus retention/job-outputs-cycle.json with protected counts by reason. The storage-manager owner provider remains a reviewed, operator-approved path over the same eligibility. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
         "budget": {
-          "max_age": "7d",
+          "max_age": "30d",
           "max_bytes": "32GiB",
-          "rationale": "Seven days preserves recent result retrieval while bounding derived output growth; cleanup requires owner preview plus operator approval."
+          "rationale": "Thirty days preserves result retrieval for consumers that fetch late while bounding derived output growth (an August 2026 burst wrote 8.4k outputs, ~5GiB, never reclaimed). Consumers that keep a result must copy its bytes or pin the job; IMAGE_TOOLS_OUTPUT_RETENTION_MAX_AGE/_MAX_BYTES override for an operator."
         },
         "reclaim": {
           "pruner": "custom"
@@ -187,9 +187,11 @@
         "subpath": "pyenv",
         "rationale": "The private Python environment is lock-rebuilt runtime material, separate from model weights and user data. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
         "budget": {
-          "max_age": "30d",
           "max_bytes": "12GiB",
-          "rationale": "The environment is rebuilt from the committed lock; the ceiling detects failed or duplicated provisioning. Active runtime state must be protected before any pruner is added."
+          "rationale": "The environment is rebuilt from the committed lock; the ceiling detects failed or duplicated provisioning. No age bound and no generic pruner: a live environment's files never change, so an age pruner selects every top-level entry (lib, bin, pyvenv.cfg) and leaves a half-deleted runtime."
+        },
+        "reclaim": {
+          "pruner": "custom"
         }
       },
       "sidecar_runtime": {
@@ -200,9 +202,11 @@
         "subpath": "sidecar",
         "rationale": "The embedded Python sidecar is materialized runtime code and can be rebuilt from source. The writer uses the resolver-selected cache root; source images and retained preparation bundles remain in data.",
         "budget": {
-          "max_age": "30d",
           "max_bytes": "1GiB",
-          "rationale": "Sidecar materialization is small and reproducible; the ceiling catches duplicate copies without authorizing active-runtime deletion."
+          "rationale": "Sidecar materialization is small and reproducible; the ceiling catches duplicate copies without authorizing active-runtime deletion. No age bound and no generic pruner: unchanging live runtime code would otherwise age into deletion."
+        },
+        "reclaim": {
+          "pruner": "custom"
         }
       },
       "deployment_state": {

@@ -255,6 +255,17 @@ func main() {
 	if err != nil {
 		log.Fatalf("blob storage init failed: %v", err)
 	}
+	// Owner retention for managed job outputs (storage entry job_outputs,
+	// pruner "custom"): storage-manager defers this entry to the owner and
+	// reads the enforcement receipt the loop writes. The budget comes from
+	// .vrooli/service.json, discovered from the working directory.
+	if err := internalcleanup.StartOutputRetention(jobCtx, internalcleanup.RetentionConfig{
+		Jobs:         jobManager,
+		Store:        blobStore,
+		StartupDelay: 2 * time.Minute,
+	}); err != nil {
+		log.Printf("WARNING: output retention disabled: %v", err)
+	}
 
 	// Model weights live alongside the blob root (outside the repo): the blob
 	// store roots at <dataDir>/blobs, so the models root is <dataDir>/models.

@@ -168,6 +168,34 @@ func (s *store) listRetentionCandidates(ctx context.Context, before time.Time, l
 	return out, nil
 }
 
+// listManagedOutputs returns every successful job that owns a managed out/
+// blob, oldest first. Unlike listRetentionCandidates it applies no age cutoff:
+// the owner retention loop compares parsed times in Go (stored offsets vary, so
+// a lexical SQL comparison is only approximate) and needs every reference to a
+// shared content-addressed key to decide its effective age.
+func (s *store) listManagedOutputs(ctx context.Context, limit int) ([]Job, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE state=? AND result_ref LIKE 'out/%' ORDER BY finished_at ASC LIMIT ?", string(StateSucceeded), limit)
+	if err != nil {
+		return nil, fmt.Errorf("jobs: list managed outputs: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Job
+	for rows.Next() {
+		j, err := scanJob(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("jobs: list managed outputs rows: %w", err)
+	}
+	return out, nil
+}
+
 // listNonTerminal returns jobs still queued/running (used at boot for recovery).
 func (s *store) listNonTerminal(ctx context.Context) ([]Job, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE state IN (?, ?)", string(StateQueued), string(StateRunning))

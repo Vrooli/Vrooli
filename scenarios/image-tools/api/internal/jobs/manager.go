@@ -603,6 +603,19 @@ func (m *Manager) ListRetentionCandidates(ctx context.Context, before time.Time,
 	return m.st.listRetentionCandidates(ctx, before, limit)
 }
 
+// ListManagedOutputs returns every successful job with a managed out/ blob,
+// oldest first, bounded by limit. It feeds the owner retention loop, which must
+// see every reference to a key before deciding the key is reclaimable.
+func (m *Manager) ListManagedOutputs(ctx context.Context, limit int) ([]Job, error) {
+	return m.st.listManagedOutputs(ctx, limit)
+}
+
+// ListActive returns queued and running jobs. Retention uses it to protect
+// blobs an in-flight job consumes as input.
+func (m *Manager) ListActive(ctx context.Context) ([]Job, error) {
+	return m.st.listNonTerminal(ctx)
+}
+
 // Subscribe returns a channel of progress events for the job and an unsubscribe
 // function. The last known event (if any) is replayed immediately. The channel
 // is closed when the job reaches a terminal state or unsubscribe is called.
