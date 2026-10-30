@@ -216,23 +216,13 @@ func TestEpochCheckAcceptanceExitsFourOnUnmetGate(t *testing.T) {
 
 func TestEpochCheckDiminishingReturnsFailsOnlyTheOrchestrator(t *testing.T) {
 	home := t.TempDir()
-	writeFile(t, filepath.Join(home, "GOAL.md"), "# Goal\n\n- Destination: runtime lines <= 205000\n- Current: 253452 @ 2026-10-07\n")
-	writeFile(t, filepath.Join(home, "QUEUE.md"), "# Queue\n\n## Needs operator\n\n## Handoff\n\nE24 admitted.\n")
-	writeFile(t, filepath.Join(home, "epochs", "E23.md"), readGoalhomeFixture(t, "bas", "epochs", "E23.md"))
-	writeFile(t, filepath.Join(home, "epochs", "E24.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E24.md"), "ACCEPTED 2026-10-07T00:42:30Z —", "ACCEPTED 2026-10-07T00:42:30Z | yield=-66 runtime lines |", 1))
+	writeFile(t, filepath.Join(home, goalhome.CharterFile), "# Goal\n\n- Destination: runtime lines <= 205000\n")
+	writeFile(t, filepath.Join(home, goalhome.StatusFile), "# Status\n\n## Current: 253452 @ 2026-10-07\n\n## Needs operator\n\n## Handoff\n\nE24 admitted.\n")
+	writeFile(t, filepath.Join(home, goalhome.FeedbackFile), "# Feedback\n\n## Resolved\n")
+	writeFile(t, filepath.Join(home, goalhome.LogFile), "# Log\n\n## Accepted units\n\n"+
+		"- E23 | ACCEPTED 2026-10-07T00:14:20Z | yield=-328 runtime lines | first tranche\n"+
+		"- E24 | ACCEPTED 2026-10-07T00:42:30Z | yield=-66 runtime lines | second tranche\n")
 	worker := writeFile(t, filepath.Join(home, "epochs", "E25.md"), strings.Replace(readGoalhomeFixture(t, "bas", "epochs", "E25.md"), "ACCEPTED 2026-10-07T01:28:54Z —", "", 1))
-	legacy, err := goalhome.LoadLegacy(os.DirFS(home))
-	if err != nil {
-		t.Fatal(err)
-	}
-	read := func(name string) []byte { b, _ := os.ReadFile(filepath.Join(home, name)); return b }
-	converted := goalhome.ConvertHome(legacy, read(goalhome.GoalFile), read(goalhome.QueueFile), nil)
-	if !converted.Equivalent {
-		t.Fatal(converted.Divergence)
-	}
-	for name, body := range map[string][]byte{goalhome.CharterFile: converted.Charter, goalhome.StatusFile: converted.Status, goalhome.LogFile: converted.Log} {
-		writeFile(t, filepath.Join(home, name), string(body))
-	}
 	output, code := runEpochCheck(t, &App{}, worker)
 	if code != 0 || !strings.Contains(output, "FINDING diminishing-returns: gap-horizon:") {
 		t.Fatalf("a worker sees the finding without failing (exit %d):\n%s", code, output)
@@ -419,21 +409,21 @@ func TestUsageReindexQuery(t *testing.T) {
 	}
 }
 
-// D-11: `usage run` and `usage reindex` are the usage group's per-run
-// commands; `run tokens`, `run invocation-facts` and the replay/refresh
-// commands are gone.
-func TestUsageGroupOwnsRunUsageCommands(t *testing.T) {
+// D-11/P4-F7: `usage reindex` is the usage group's only per-run command; the
+// run spend reads through `run report`, and `run tokens`, `run invocation-facts`
+// and the replay/refresh commands are gone.
+func TestUsageGroupOwnsReindexAndRunReportOwnsSpend(t *testing.T) {
 	app := &App{}
 	names := map[string]bool{}
 	for _, command := range app.usageCommands() {
 		names[command.Name] = true
 	}
-	if !names["run"] || !names["reindex"] {
+	if names["run"] || !names["reindex"] {
 		t.Fatalf("usage commands = %v", names)
 	}
 	for _, command := range app.runCommands() {
 		switch command.Name {
-		case "tokens", "invocation-facts", "replay-invocation-facts", "refresh-invocation-facts", "replay-invocation-corpus":
+		case "stats", "investigate", "cross-scenario", "mine-self-report-vocabulary", "backfill-labels", "backfill-subjects", "tokens", "invocation-facts", "replay-invocation-facts", "refresh-invocation-facts", "replay-invocation-corpus":
 			t.Errorf("run %s still exists", command.Name)
 		}
 	}

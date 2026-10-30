@@ -189,6 +189,24 @@ func TestParserEdgeCasesFromReview(t *testing.T) {
 	}
 }
 
+// One heredoc parser serves the lexer and $(...): any delimiter word the
+// shell accepts ends its body in both places, so an apostrophe in the body
+// never opens a quote.
+func TestHeredocDelimitersParseAlikeInsideAndOutsideSubstitution(t *testing.T) {
+	for _, delim := range []string{"EOF", "'END.TXT'", `"MSG v2"`, "PY:3"} {
+		end := strings.Trim(delim, `'"`)
+		for name, script := range map[string]string{
+			"top level":    "cat <<" + delim + "\nIt's fixed\n" + end + "\nrg -n x .",
+			"substitution": "git commit -m \"$(cat <<" + delim + "\nIt's fixed\n" + end + "\n)\" && rg -n x .",
+		} {
+			segments, ok := lexShell(script)
+			if !ok || len(segments) != 2 || segments[1].Tokens[0] != "rg" {
+				t.Errorf("%s %s: segments=%+v ok=%v", name, delim, segments, ok)
+			}
+		}
+	}
+}
+
 // A probe for whether a program exists does not run it.
 func TestExistenceProbesAreNotCalls(t *testing.T) {
 	for _, words := range [][]string{{"command", "-v", "vrooli"}, {"command", "-V", "vrooli"}} {

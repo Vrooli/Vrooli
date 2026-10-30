@@ -23,9 +23,11 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
-const sessionBindingProofVersion = cliutil.AgentSessionBindingProofVersion
-const sessionBindingProofTimeout = 3 * time.Second
-const sessionBindingProofMaxBytes = 4096
+const (
+	sessionBindingProofVersion  = cliutil.AgentSessionBindingProofVersion
+	sessionBindingProofTimeout  = 3 * time.Second
+	sessionBindingProofMaxBytes = 4096
+)
 
 var (
 	errBindingProofTimeout     = errors.New("session binding proof timed out")
@@ -68,6 +70,80 @@ func (b *limitedProofOutput) Write(p []byte) (int, error) {
 	return b.Buffer.Write(p)
 }
 
+// Only fixed control-plane categories are retained. Never return or log raw
+// subprocess stderr, which may contain environment or caller data.
+type bindingProofReason struct{ category string }
+
+func (e bindingProofReason) Error() string { return "owner proof " + e.category }
+
+func classifiedBindingProofFailure(stderr string) error {
+	allowed := map[string]bool{
+		"kernel_binding_unverified": true, "launch_owner_unverified": true,
+		"lease_changed_during_proof": true, "lease_identity_mismatch": true,
+		"lease_time_unverified": true, "lease_unavailable": true,
+		"process_changed_during_proof": true, "process_incarnation_unverified": true,
+		"process_started_after_lease": true, "proof_cancelled": true,
+		"proof_reader_unavailable": true, "run_binding_missing": true,
+		"run_process_mismatch": true, "scope_membership_unverified": true,
+		"selector_missing": true, "session_scope_unverified": true,
+		"web_console_session_unverified": true, "runtime_home": true,
+		"runtime_registry": true,
+	}
+	const prefix = "identity binding proof unavailable: "
+	// The control plane is invoked with --json, so its errors normally arrive
+	// as a JSON envelope on stderr. Decode only its documented fields and keep
+	// the error text private; it is used solely for an exact allowlist match.
+	if strings.HasPrefix(strings.TrimSpace(stderr), "{") {
+		keys := json.NewDecoder(strings.NewReader(stderr))
+		if first, err := keys.Token(); err != nil || first != json.Delim('{') {
+			return errBindingProofUnavailable
+		}
+		seen := make(map[string]bool)
+		for keys.More() {
+			token, err := keys.Token()
+			key, ok := token.(string)
+			if err != nil || !ok || seen[key] {
+				return errBindingProofUnavailable
+			}
+			seen[key] = true
+			var value json.RawMessage
+			if err := keys.Decode(&value); err != nil {
+				return errBindingProofUnavailable
+			}
+		}
+		if last, err := keys.Token(); err != nil || last != json.Delim('}') {
+			return errBindingProofUnavailable
+		}
+		var envelope struct {
+			Success  *bool  `json:"success"`
+			Error    string `json:"error"`
+			Code     string `json:"code"`
+			Category string `json:"category"`
+		}
+		decoder := json.NewDecoder(strings.NewReader(stderr))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&envelope); err != nil || envelope.Success == nil || *envelope.Success || envelope.Code == "" || envelope.Category == "" || strings.ContainsAny(envelope.Error, "\r\n") {
+			return errBindingProofUnavailable
+		}
+		var extra any
+		if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+			return errBindingProofUnavailable
+		}
+		stderr = envelope.Error
+	}
+	for _, line := range strings.Split(stderr, "\n") {
+		line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "Error: "))
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		reason := strings.TrimPrefix(line, prefix)
+		if allowed[reason] {
+			return fmt.Errorf("%w: %w", errBindingProofUnavailable, bindingProofReason{category: reason})
+		}
+	}
+	return errBindingProofUnavailable
+}
+
 func readCLISessionBindingProof(parent context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
 	ctx, cancel := context.WithTimeout(parent, sessionBindingProofTimeout)
 	defer cancel()
@@ -82,13 +158,14 @@ func readCLISessionBindingProof(parent context.Context, request SessionBindingRe
 	cmd.WaitDelay = 100 * time.Millisecond
 	cmd.Env = withoutAgentIdentity(os.Environ())
 	var stdout limitedProofOutput
+	var stderr limitedProofOutput
 	cmd.Stdout = &stdout
-	cmd.Stderr = io.Discard
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return SessionBindingProof{}, errBindingProofTimeout
 		}
-		return SessionBindingProof{}, errBindingProofUnavailable
+		return SessionBindingProof{}, classifiedBindingProofFailure(stderr.String())
 	}
 	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	dec.DisallowUnknownFields()
@@ -212,6 +289,10 @@ func identityRefreshUnavailable(cause error) error {
 // Log only bounded categories: proof errors and database failures can contain
 // caller data, and the broker's external refusal must not reveal it.
 func identityRefreshDiagnostic(err error) string {
+	var reason bindingProofReason
+	if errors.As(err, &reason) {
+		return "owner_proof_" + reason.category
+	}
 	switch {
 	case errors.Is(err, errBindingProofTimeout):
 		return "owner_proof_timeout"

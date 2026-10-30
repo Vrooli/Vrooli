@@ -1000,7 +1000,10 @@ func TestDecodeStreamLine_AutoCompactSystem(t *testing.T) {
 	}
 }
 
-func TestClaudeCompactionUsesAdjacentTurnUsage(t *testing.T) {
+// A manual compaction takes its before size from the previous turn's usage.
+// The size after is not stated, so it stays 0 (unknown) on the returned event:
+// the next turn's usage event carries it, and the compaction is not rewritten.
+func TestClaudeCompactionTakesBeforeFromThePreviousTurnAndLeavesAfterUnknown(t *testing.T) {
 	c := NewClaudeForTest()
 	state := c.NewState()
 	runID := uuid.New()
@@ -1019,11 +1022,20 @@ func TestClaudeCompactionUsesAdjacentTurnUsage(t *testing.T) {
 	}
 	data := requireType[*domain.CompactionEventData](t, compaction, 0)
 	if data.TokensBefore != 100 || data.TokensAfter != 0 {
-		t.Fatalf("before boundary=%+v, want before=100 and after initially zero", data)
+		t.Fatalf("compaction=%+v, want before=100 and after unknown", data)
 	}
-	decode(`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"after"}],"usage":{"input_tokens":40,"output_tokens":4}}}`)
-	if data.TokensAfter != 40 {
-		t.Fatalf("after boundary=%d, want 40", data.TokensAfter)
+	next := decode(`{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"after"}],"usage":{"input_tokens":40,"output_tokens":4}}}`)
+	if data.TokensAfter != 0 {
+		t.Fatalf("the next turn rewrote the returned compaction: after=%d", data.TokensAfter)
+	}
+	var usage *domain.UsageEventData
+	for _, event := range next {
+		if u, ok := event.Data.(*domain.UsageEventData); ok {
+			usage = u
+		}
+	}
+	if usage == nil || usage.InputTokens != 40 {
+		t.Fatalf("next turn usage = %+v, want the after size (40 input tokens)", usage)
 	}
 }
 

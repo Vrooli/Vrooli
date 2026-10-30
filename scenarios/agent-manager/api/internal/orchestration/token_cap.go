@@ -47,7 +47,7 @@ const tokenCapCheckTimeout = 30 * time.Second
 // TokenCapPolicy is the internal weighted-token cap configuration. Weighted
 // tokens are non-cache tokens (input, output and cache writes; cache reads
 // excluded) times the weight of the first tier name the model contains, the
-// same weighting `agent-manager usage run` reports. Unknown enforcement retains the legacy weight 1; cost comparisons remain unknown.
+// same weighting `agent-manager run report` reports. Unknown enforcement retains the legacy weight 1; cost comparisons remain unknown.
 type TokenCapPolicy struct {
 	Mode TokenCapMode
 	// Caps maps an agent profile key to its weighted-token cap per run. A
@@ -277,7 +277,7 @@ func (o *Orchestrator) tokenCapFor(ctx context.Context, run *domain.Run, policy 
 }
 
 // weightedRunTokens recounts a run's weighted non-cache tokens with the same
-// projection as RunAccounting, so the cap and `usage run` never disagree.
+// projection as RunAccounting, so the cap and `run report` never disagree.
 func (o *Orchestrator) weightedRunTokens(ctx context.Context, run *domain.Run, policy TokenCapPolicy) (*float64, error) {
 	events, err := o.meteredRunEvents(ctx, run.ID)
 	if err != nil {

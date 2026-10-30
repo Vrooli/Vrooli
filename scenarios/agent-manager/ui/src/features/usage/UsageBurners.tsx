@@ -87,24 +87,19 @@ function CalibrationDisclosure({ calibration, rules }: { calibration?: UsageCali
   );
 }
 
-/** Rows under this many points fold into one line; a row of 0.0 pts says nothing. */
-const FOLD_BELOW_POINTS = 0.1;
-
 function WindowAttribution({ attribution, rules }: { attribution: UsageWindowAttribution; rules: UsageRuleStatus[] }) {
   const groupBy = attribution.groupBy || "session";
   const pending = Number(attribution.pendingTokens?.total ?? 0n);
-  const shown = attribution.burners.filter((burner) => burner.points >= FOLD_BELOW_POINTS);
-  const folded = attribution.burners.filter((burner) => burner.points < FOLD_BELOW_POINTS);
-  const smallCount = folded.length + Number(attribution.otherBurners);
-  const smallPoints = folded.reduce((sum, burner) => sum + burner.points, attribution.otherPoints);
+  // The API folds rows past the list and rows under its threshold into one.
+  const smallCount = Number(attribution.otherBurners);
   return (
     <div className="space-y-3" data-testid="usage-attribution">
       <ul className="m-0 list-none p-0">
-        {shown.map((burner) => <BurnerRow key={burner.key} burner={burner} groupBy={groupBy} />)}
+        {attribution.burners.map((burner) => <BurnerRow key={burner.key} burner={burner} groupBy={groupBy} />)}
         {smallCount > 0 ? (
           <li className="flex items-center gap-3 border-b border-border py-3 text-sm text-muted-foreground" data-testid="usage-burner-other">
-            <span className="min-w-0 flex-1">{smallCount} smaller {smallCount === 1 ? "item" : "items"}, under {FOLD_BELOW_POINTS} pts each</span>
-            <span className="shrink-0 font-semibold tabular-nums">{smallPoints.toFixed(1)}</span>
+            <span className="min-w-0 flex-1">{smallCount} smaller {smallCount === 1 ? "item" : "items"} (under {attribution.foldBelowPoints} pts each, or past the rows shown)</span>
+            <span className="shrink-0 font-semibold tabular-nums">{attribution.otherPoints.toFixed(1)}</span>
           </li>
         ) : null}
         <li className="flex items-center gap-3 py-3 text-sm text-muted-foreground" data-testid="usage-burner-unattributed">

@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"agent-manager/cli/internal/support"
+
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
@@ -238,7 +240,7 @@ func (a *App) workflowStart(args []string) error {
 	preferredRunner := fs.String("preferred-runner", "", "Preferred runner type from the execution-options catalog")
 	model := fs.String("model", "", "Requested model identifier")
 	effort := fs.String("effort", "", "Requested effort level")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	if *owner == "" || (*key == "" && *digest == "") || *inputFile == "" || *idem == "" {

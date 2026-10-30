@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/toolfriction"
+
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 
@@ -306,7 +308,7 @@ func TestProgramInputMatchesDeclaredContract(t *testing.T) {
 	input := EvaluationInput{
 		Watch: watch, Now: now, ProposedCursor: "cursor-2", Reset: false, ResetFrom: 1, ResetTo: 1,
 		Events:   []eventlog.CohortEvent{{ID: uuid.New(), RunID: runID, Sequence: 7, EventType: domain.EventTypeStatus, Timestamp: now.Add(-time.Minute)}},
-		Subjects: []SubjectSummary{{RunID: runID.String(), Status: "running", Friction: []FrictionSummary{{EvidenceID: "friction-1", Score: 0.9, Pattern: "retry loop", Fingerprint: "fp", Owner: "agent-manager"}}}},
+		Subjects: []SubjectSummary{{RunID: runID.String(), Status: "running", ToolFriction: toolfriction.RunScore{Commands: 10, OutcomeKnown: 10, Failed: 9, Score: 0.9}}},
 	}
 	built, err := evaluator.programInput(context.Background(), input)
 	if err != nil {

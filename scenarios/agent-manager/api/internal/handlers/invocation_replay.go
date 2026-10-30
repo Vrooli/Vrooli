@@ -18,7 +18,7 @@ import (
 
 func (h *Handler) invocationReadModelFilter(r *http.Request) (invocationreadmodel.Filter, error) {
 	q := r.URL.Query()
-	filter := invocationreadmodel.Filter{Ownership: q.Get("ownership"), Outcome: q.Get("outcome"), Executable: q.Get("executable"), Fingerprint: q.Get("fingerprint"), ProfileID: q.Get("profile_id"), RunnerType: q.Get("runner_type"), Model: q.Get("model"), TagPrefix: q.Get("tag_prefix"), RunStatus: q.Get("run_status"), ToolName: q.Get("tool_name"), EpisodePattern: q.Get("episode_pattern"), EpisodeCauseScope: q.Get("episode_cause_scope"), EpisodeFingerprint: q.Get("episode_fingerprint"), SelfReportRuleID: q.Get("self_report_rule_id"), SelfReportCauseScope: q.Get("self_report_cause_scope"), TargetScenario: q.Get("target_scenario"), Operation: q.Get("operation")}
+	filter := invocationreadmodel.Filter{Ownership: q.Get("ownership"), Outcome: q.Get("outcome"), Executable: q.Get("executable"), Fingerprint: q.Get("fingerprint"), ProfileID: q.Get("profile_id"), RunnerType: q.Get("runner_type"), Model: q.Get("model"), TagPrefix: q.Get("tag_prefix"), RunStatus: q.Get("run_status"), ToolName: q.Get("tool_name"), TargetScenario: q.Get("target_scenario"), Operation: q.Get("operation")}
 	for _, target := range []struct {
 		raw  string
 		into **time.Time

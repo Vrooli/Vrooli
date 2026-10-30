@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { evidenceText, formatDayRange, formatServerText, friendlyLabel, isDormantWindow, targetTitle, windowTitle } from "./format.js";
+import { evidenceText, formatDayRange, formatServerText, friendlyLabel, windowTitle } from "./format.js";
 
 const HOUR = 3600_000;
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -25,15 +25,6 @@ test("windows whose titles collide on one surface append their pool id, like the
   assert.equal(windowTitle(primary, [primary, claude]), "Codex · weekly");
 });
 
-test("a window is dormant when its newest reading predates the current period", () => {
-  const now = Date.UTC(2026, 9, 29, 12);
-  const live = { observedAt: iso(now - HOUR), resetsAt: iso(now + 4 * HOUR), windowStart: iso(now - HOUR * 2) };
-  assert.equal(isDormantWindow(live, now), false);
-  assert.equal(isDormantWindow({ ...live, resetsAt: iso(now - 49 * 24 * HOUR), observedAt: iso(now - 49 * 24 * HOUR - HOUR) }, now), true, "reset passed with no reading since");
-  assert.equal(isDormantWindow({ ...live, observedAt: iso(now - 3 * HOUR) }, now), true, "reading from before the period began");
-  assert.equal(isDormantWindow({ ...live, observedAt: "" }, now), false, "no reading at all is 'no reading yet', not dormant");
-});
-
 test("evidence text tells same-label siblings apart by short id", () => {
   assert.equal(evidenceText({ id: "00b65371-7359-42d6-b8f4-83218914f65f", label: "sub-agent" }), "sub-agent · 00b65371");
   assert.equal(evidenceText({ id: "76d970de-82d0-4c52-b559-ceadb6acbf61", label: "76d970de Agent manager token usage analysis" }), "76d970de Agent manager token usage analysis");
@@ -49,11 +40,6 @@ test("times inside server sentences and one-line ranges are formatted, not raw R
   assert.equal(formatDayRange(start), "Oct 30");
 });
 
-test("raw UUIDs never label a row and long prompt titles are trimmed after the short id", () => {
+test("raw UUIDs never label a row", () => {
   assert.equal(friendlyLabel("Workflow 5f518188-6df0-48eb-a0f0-0085643e8634 node draft"), "Workflow 5f51… node draft");
-  const prompt = "1e5904ed I think we may have a skill for experimentation that was set up recently, where the idea is that it instructs us on how to do experiments";
-  const { shortId, title } = targetTitle(prompt);
-  assert.equal(shortId, "1e5904ed");
-  assert.ok(title.length <= 66 && title.endsWith("…") && !title.includes("1e5904ed"));
-  assert.deepEqual(targetTitle("Research orchestrator"), { shortId: "", title: "Research orchestrator" });
 });

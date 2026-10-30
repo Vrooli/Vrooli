@@ -1,7 +1,7 @@
 """agent-manager.investigation-evidence v1 — bounded subject evidence collection.
 
 Phases: validate -> collect -> classify -> report. The caller supplies every
-subject run explicitly; unavailable projections are not treated as healthy.
+subject run explicitly; an unavailable report is not treated as healthy.
 """
 
 import json
@@ -11,7 +11,7 @@ inputs = program.inputs()
 envelope = {
     "program": "agent-manager.investigation-evidence", "version": "1",
     "status": "failed", "phase": "validate", "inputs": {},
-    "signals": {"subjects": [], "subject_count": 0, "available": 0, "unknown": 0, "projection_rows": 0},
+    "signals": {"subjects": [], "subject_count": 0, "available": 0, "unknown": 0},
     "errors": [], "evidence": [],
 }
 work = {}
@@ -34,14 +34,10 @@ def step_validate():
 
 def read_subject(run_id):
     item = {"run_id": run_id}
-    for name, call in (
-        ("report", lambda: agent_manager.run.report(run_id=run_id, rows="tools")),
-        ("episodes", lambda: agent_manager.run.episodes(run_id=run_id)),
-    ):
-        try:
-            item[name] = call()
-        except Exception as exc:
-            item[name + "_error"] = exc
+    try:
+        item["report"] = agent_manager.run.report(run_id=run_id, rows="tools")
+    except Exception as exc:
+        item["report_error"] = exc
     return item
 
 
@@ -56,20 +52,18 @@ def step_classify():
     subjects = []
     available = 0
     unknown = 0
-    rows_total = 0
     for item in work["subjects"]:
-        # Projection availability says only that the reads succeeded. Neither
-        # projection establishes that the underlying transcript is fully
-        # ingested or current, particularly for imported live sessions.
-        subject = {"run_id": item["run_id"], "availability": "complete", "source_completeness": "unknown", "source_freshness": "unknown", "report": {}, "episodes": []}
+        # Report availability says only that the read succeeded. It does not
+        # establish that the underlying transcript is fully ingested or
+        # current, particularly for imported live sessions.
+        subject = {"run_id": item["run_id"], "availability": "complete", "source_completeness": "unknown", "source_freshness": "unknown", "report": {}, "report_availability": "available"}
         missing = 0
-        for name in ("report", "episodes"):
-            error = item.get(name + "_error")
-            subject[name + "_availability"] = "unknown" if error is not None else "available"
-            if error is not None:
-                _, klass = program.classify(error)
-                envelope["errors"].append({"class": klass, "detail": str(error)[:180], "where": "collect:" + item["run_id"] + ":" + name})
-                missing += 1
+        error = item.get("report_error")
+        if error is not None:
+            subject["report_availability"] = "unknown"
+            _, klass = program.classify(error)
+            envelope["errors"].append({"class": klass, "detail": str(error)[:180], "where": "collect:" + item["run_id"] + ":report"})
+            missing += 1
         if "report" in item:
             report_meta = item["report"].meta()
             subject["report"] = {"status": report_meta.get("status"), "exit_code": report_meta.get("exitCode"), "events_availability": report_meta.get("eventsAvailability"), "receipts_availability": report_meta.get("receiptsAvailability")}
@@ -79,20 +73,14 @@ def step_classify():
                     subject["report_availability"] = "partial"
                     missing += 1
                     break
-        if "episodes" in item:
-            episode_rows = item["episodes"].head(4)
-            subject["episodes"] = [{"episode_id": row.get("episodeId"), "pattern": row.get("pattern"), "owner_confidence": row.get("ownerConfidence")} for row in episode_rows]
-            subject["sample_truncated"] = len(episode_rows) == 4
-            rows_total += len(episode_rows)
-        if missing:
-            subject["availability"] = "partial" if "report" in item or "episodes" in item else "unknown"
-            unknown += 1
-        if "report" in item or "episodes" in item:
             available += 1
+        if missing:
+            subject["availability"] = "partial" if "report" in item else "unknown"
+            unknown += 1
         subjects.append(subject)
-    envelope["signals"] = {"subjects": subjects, "subject_count": len(subjects), "available": available, "unknown": unknown, "projection_rows": rows_total, "coverage": "complete" if unknown == 0 else "partial"}
+    envelope["signals"] = {"subjects": subjects, "subject_count": len(subjects), "available": available, "unknown": unknown, "coverage": "complete" if unknown == 0 else "partial"}
     envelope["status"] = "ok" if unknown == 0 else ("unavailable" if available == 0 else "partial")
-    envelope["evidence"] = list(envelope["inputs"]["run_ids"]) + ["agent-manager/run/report", "agent-manager/run/episodes"]
+    envelope["evidence"] = list(envelope["inputs"]["run_ids"]) + ["agent-manager/run/report"]
     return "report"
 
 

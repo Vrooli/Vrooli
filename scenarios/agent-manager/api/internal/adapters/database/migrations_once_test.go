@@ -3,10 +3,73 @@ package database
 import (
 	"context"
 	"testing"
+	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
+
+func TestEventWatermarkSchemaUpgradePreservesExistingCursor(t *testing.T) {
+	db := newMigrationTestDB(t)
+	ctx := context.Background()
+	id := uuid.New()
+	if _, err := db.Exec(`INSERT INTO runs (id, execution_mode, status) VALUES (?, 'imported', 'complete')`, id); err != nil {
+		t.Fatal(err)
+	}
+	store := event.NewSQLiteStore(db, logrus.New())
+	old := domain.NewLogEvent(id, "info", "legacy")
+	if err := store.Append(ctx, id, old); err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{`DROP TRIGGER run_event_highwater_insert`, `DROP TRIGGER run_event_highwater_delete`, `DROP TRIGGER run_event_highwater_run_delete`, `DROP TRIGGER run_event_highwater_orphan_delete`, `DROP TABLE run_event_highwater`} {
+		if _, err := db.Exec(statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Delete(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	next := domain.NewLogEvent(id, "info", "after upgrade")
+	if err := store.Append(ctx, id, next); err != nil {
+		t.Fatal(err)
+	}
+	if next.Sequence <= old.Sequence {
+		t.Fatalf("upgraded store reused prior cursor: before=%d after=%d", old.Sequence, next.Sequence)
+	}
+}
+
+func TestTranscriptLastObservedEventMigrationPreservesLegacyRow(t *testing.T) {
+	db := newMigrationTestDB(t)
+	if _, err := db.Exec(`INSERT INTO transcript_files (file_key, path, root_kind, root_path, harness, first_seen_at) VALUES ('legacy', '/legacy', 'codex-home', '/', 'codex', '2026-10-28T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`ALTER TABLE transcript_files DROP COLUMN last_observed_event_at`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.InitializeSchema(); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewTranscriptIndexRepository(db)
+	rows, err := repo.ListTranscriptFiles(context.Background())
+	if err != nil || len(rows) != 1 || rows[0].Key != "legacy" || rows[0].LastObservedEventAt != nil {
+		t.Fatalf("legacy checkpoint changed or timestamp invented: %+v, %v", rows, err)
+	}
+	want := time.Date(2026, 10, 28, 10, 1, 0, 0, time.UTC)
+	rows[0].LastObservedEventAt = &want
+	if err := repo.SaveTranscriptFile(context.Background(), rows[0], nil); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = repo.ListTranscriptFiles(context.Background())
+	if err != nil || len(rows) != 1 || rows[0].LastObservedEventAt == nil || !rows[0].LastObservedEventAt.Equal(want) {
+		t.Fatalf("observed timestamp did not round-trip: %+v, %v", rows, err)
+	}
+}
 
 func newMigrationTestDB(t *testing.T) *DB {
 	t.Helper()

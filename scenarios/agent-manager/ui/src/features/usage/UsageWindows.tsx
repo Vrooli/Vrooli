@@ -6,7 +6,7 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import type { UsageWindowForecast } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { MISSING } from "../../lib/format";
 import { DataState } from "../../components/feedback/DataState";
-import { dormantWindowLine, formatAgo, formatAt, formatRate, formatServerText, isDormantWindow, isStale, usageStatus, windowKey, windowTitle } from "./format";
+import { dormantWindowLine, formatAgo, formatAt, formatRate, formatServerText, isStale, usageStatus, windowKey, windowTitle } from "./format";
 import { UsageWindowChart } from "./UsageWindowChart";
 
 const HORIZONS = ["1h", "6h", "24h"] as const;
@@ -123,7 +123,7 @@ interface UsageWindowsProps {
 
 /** Subscription windows as one compact row of selectable tiles; dead windows collapse to a line. */
 export function UsageWindows({ windows, loading, error, onRetry, selected, onSelect }: UsageWindowsProps) {
-  const dormant = windows.filter((window) => isDormantWindow(window));
+  const dormant = windows.filter((window) => window.dormant);
   return (
     <DataState
       subject="Usage forecast"

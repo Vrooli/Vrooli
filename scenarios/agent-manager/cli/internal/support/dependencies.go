@@ -26,7 +26,6 @@ type Dependencies struct {
 	StandingGrants   CommandFunc
 	Health           CommandFunc
 	Events           CommandFunc
-	Findings         CommandFunc
 	Subscription     CommandFunc
 	Conversation     CommandFunc
 	ScenarioSmoke    CommandFunc

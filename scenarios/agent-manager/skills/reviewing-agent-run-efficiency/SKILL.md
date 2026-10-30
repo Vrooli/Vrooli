@@ -14,14 +14,14 @@ metadata:
   updatedAt: "2026-09-14T00:00:00Z"
   requires:
     scenarios: ["agent-manager"]
-    commands: ["agent-manager measures workload-efficiency", "agent-manager run recent", "agent-manager run report", "agent-manager run tools", "agent-manager run messages", "agent-manager run events", "agent-manager run result"]
+    commands: ["agent-manager measures get", "agent-manager run recent", "agent-manager run report", "agent-manager run tools", "agent-manager run messages", "agent-manager run events", "agent-manager run result"]
   origin:
     kind: "authored"
 ---
 ## Reviewing agent-run efficiency
 
 Start with the `agent-manager.efficiency-report` program (preset=24h, group_by=profile)
-to choose a bounded cohort. Use `--compare previous` when testing a change.
+to choose a bounded cohort. Pass the program input `compare=previous` (it is a program input, not a CLI flag) when testing a change.
 Then select independent sample runs from the largest or most suspicious cohort
 and read `agent-manager run recent --json` for the run's durability lane and
 evidence before starting each drill-down with `agent-manager run report <id>`.

@@ -1,6 +1,5 @@
 // Package goalhome reads a delivery goal home (large-effort-orchestration §3):
-// CHARTER.md, STATUS.md, LOG.md and FEEDBACK.md. Legacy GOAL/QUEUE parsing
-// is retained for explicit import and migration verification. The package also
+// CHARTER.md, STATUS.md, LOG.md and FEEDBACK.md. The package also
 // holds the rules the `agent-manager effort` commands enforce over those files:
 // step-back triggers, typed exit gates and acceptance, the single handoff,
 // goal-home lint, park policy and diminishing returns.

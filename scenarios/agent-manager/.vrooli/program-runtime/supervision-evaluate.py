@@ -12,7 +12,7 @@ inputs = program.inputs()
 raw = inputs if isinstance(inputs, dict) else {}
 watch_id = raw.get("watch_id", "")
 events = raw.get("events", [])
-friction = raw.get("friction_episodes", [])
+friction = raw.get("run_tool_friction", [])
 runs = raw.get("run_summaries", [])
 history = raw.get("prior_decisions", [])
 policy = raw.get("policy", {})
@@ -110,7 +110,7 @@ def step_validate():  # VALIDATE · no bindings
     actions = policy.get("allowed_actions")
     if not isinstance(actions, list) or len(actions) > 7 or len(set(actions)) != len(actions) or any(a not in valid_actions for a in actions):
         return fail("failed", "invalid_input", "policy.allowed_actions contains an invalid or duplicate action", "validate")
-    for value, name, limit in ((events, "events", 64), (friction, "friction_episodes", 16), (runs, "run_summaries", 32), (history, "prior_decisions", 8)):
+    for value, name, limit in ((events, "events", 64), (friction, "run_tool_friction", 16), (runs, "run_summaries", 32), (history, "prior_decisions", 8)):
         if not isinstance(value, list) or len(value) > limit:
             envelope["signals"]["classification"] = "budget_exhausted"
             return fail("failed", "input_budget_exhausted", f"{name} must be an array with at most {limit} items", "validate")
@@ -125,13 +125,15 @@ def step_validate():  # VALIDATE · no bindings
             return fail("failed", "invalid_input", "event identifiers and type must be bounded non-empty strings", "validate")
         if not isinstance(event["sequence"], int) or isinstance(event["sequence"], bool) or event["sequence"] < 0:
             return fail("failed", "invalid_input", "event sequence must be a non-negative integer", "validate")
-    for episode in friction:
-        if not isinstance(episode, dict) or any(key not in episode for key in ("evidence_id", "score", "pattern")):
-            return fail("failed", "invalid_input", "each friction episode requires evidence_id, score, and pattern", "validate")
-        if not valid_text(episode["evidence_id"], 128, False) or not valid_text(episode["pattern"], 240, False):
-            return fail("failed", "invalid_input", "friction evidence_id and pattern must be bounded non-empty strings", "validate")
-        if not isinstance(episode["score"], (int, float)) or isinstance(episode["score"], bool) or episode["score"] < 0 or episode["score"] > 1:
-            return fail("failed", "invalid_input", "friction score must be in [0, 1]", "validate")
+    for row in friction:
+        if not isinstance(row, dict) or any(key not in row for key in ("evidence_id", "run_id", "score", "commands", "summary")):
+            return fail("failed", "invalid_input", "each run tool-friction row requires evidence_id, run_id, score, commands, and summary", "validate")
+        if not valid_text(row["evidence_id"], 128, False) or not valid_text(row["run_id"], 128, False) or not valid_text(row["summary"], 240, False):
+            return fail("failed", "invalid_input", "tool-friction evidence_id, run_id and summary must be bounded non-empty strings", "validate")
+        if not isinstance(row["score"], (int, float)) or isinstance(row["score"], bool) or row["score"] < 0 or row["score"] > 1:
+            return fail("failed", "invalid_input", "tool-friction score must be in [0, 1]", "validate")
+        if not isinstance(row["commands"], int) or isinstance(row["commands"], bool) or row["commands"] < 1:
+            return fail("failed", "invalid_input", "tool-friction commands must be a positive integer", "validate")
     for summary in runs:
         if not isinstance(summary, dict) or not valid_text(summary.get("run_id"), 128, False) or not valid_text(summary.get("status"), 48, False):
             return fail("failed", "invalid_input", "each run summary requires bounded run_id and status", "validate")
@@ -184,8 +186,8 @@ def step_collect():  # COLLECT · optional bounded read bindings
     envelope["signals"]["run_count"] = len(runs)
     for event in events:
         remember(event.get("event_id"))
-    for episode in friction:
-        remember(episode.get("evidence_id"))
+    for row in friction:
+        remember(row.get("evidence_id"))
     for summary in runs:
         remember(summary.get("run_id"))
     for decision in history:
@@ -213,30 +215,25 @@ def step_classify():  # CLASSIFY · deterministic predicates before at most one 
         envelope["status"] = "ok"
         return "decide"
     event_types = [str(row.get("event_type", "")).lower() for row in events]
-    max_friction = max([float(row.get("score", 0)) for row in friction] or [0.0])
-    if policy["deadline_reached"]:
-        set_decision("signal", "deadline", 1.0, False, "escalate", proposed_cursor, "immediate")
-        envelope["status"] = "ok"
-        return "decide"
-    if policy["friction_enabled"] and friction and max_friction >= float(policy["friction_threshold"]):
-        set_decision("signal", "stalled", 1.0, False, "escalate", proposed_cursor, "immediate")
-        envelope["status"] = "ok"
-        return "decide"
-    # Projection lag remains unknown even when the batch is full or children park.
-    if policy["friction_enabled"] and any(row.get("friction_unavailable", False) for row in runs):
-        set_decision("unavailable", "dependency_unavailable", None, True, "observe", current_cursor, "after", policy["quiet_seconds"])
-        envelope["status"] = "ok"
-        return "decide"
-    if statuses and all(status == "parked" for status in statuses):
-        set_decision("quiet", "quiet", 1.0, False, "park", proposed_cursor, "after", policy["quiet_seconds"])
-        envelope["status"] = "ok"
-        return "decide"
-    # Batch size is a wake trigger, not evidence of productive progress.
-    if policy["quiet_reached"]:
-        set_decision("signal", "quiet_time", 1.0, False, "escalate", proposed_cursor, "immediate")
-        envelope["status"] = "ok"
-        return "decide"
-    if not events and not friction:
+    # One precedence with the agent-manager trigger evaluator: deadline,
+    # event_count, quiet_time, then friction. An unavailable run's friction is
+    # "cannot tell": it only removes that run from the friction trigger, and
+    # every other trigger still fires.
+    unavailable = {row.get("run_id") for row in runs if row.get("friction_unavailable", False)}
+    readable = [row for row in friction if row.get("run_id") not in unavailable]
+    max_friction = max([float(row.get("score", 0)) for row in readable] or [0.0])
+    triggered = (
+        (policy["deadline_reached"], "deadline"),
+        (policy["event_count_enabled"] and len(events) >= policy["event_count_threshold"], "event_count"),
+        (policy["quiet_reached"], "quiet_time"),
+        (policy["friction_enabled"] and readable and max_friction >= float(policy["friction_threshold"]), "stalled"),
+    )
+    for fired, classification in triggered:
+        if fired:
+            set_decision("signal", classification, 1.0, False, "escalate", proposed_cursor, "immediate")
+            envelope["status"] = "ok"
+            return "decide"
+    if (statuses and all(status == "parked" for status in statuses)) or (not events and not readable):
         set_decision("quiet", "quiet", 1.0, False, "park", proposed_cursor, "after", policy["quiet_seconds"])
         envelope["status"] = "ok"
         return "decide"
@@ -259,7 +256,7 @@ def step_classify():  # CLASSIFY · deterministic predicates before at most one 
     }
     compact = json.dumps({
         "event_types": event_types[:64],
-        "friction": [{"score": row.get("score"), "pattern": str(row.get("pattern", ""))[:120], "fingerprint": str(row.get("fingerprint", ""))[:120], "owner": str(row.get("owner", ""))[:80]} for row in friction[:16]],
+        "tool_friction": [{"score": row.get("score"), "commands": row.get("commands"), "summary": str(row.get("summary", ""))[:160]} for row in readable[:16]],
         "run_statuses": statuses[:32],
         "prior": [{"disposition": row.get("disposition"), "classification": row.get("classification")} for row in history[:8] if isinstance(row, dict)],
         "policy_version": policy["version"],

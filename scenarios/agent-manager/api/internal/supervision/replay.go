@@ -96,9 +96,10 @@ func (s *PolicyStore) validateOutcome(ctx context.Context, o SupervisionOutcome)
 	}
 	return nil
 }
+
 func knownClass(c string) bool {
 	switch c {
-	case "quiet", "progress", "stalled", "blocked", "failed", "completed", "deadline", "quiet_time":
+	case "quiet", "progress", "stalled", "blocked", "failed", "completed", "deadline", "event_count", "quiet_time":
 		return true
 	}
 	return false

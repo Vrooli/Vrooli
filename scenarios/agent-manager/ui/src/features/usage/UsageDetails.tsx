@@ -13,7 +13,7 @@ import type { TimeWindow } from "@vrooli/proto-types/measures/v1/measures_pb";
 import { DataState } from "../../components/feedback/DataState";
 import { formatUsd } from "../../lib/currency";
 import { formatCount, formatDuration, formatPercent, formatPoints, formatTokens, MISSING } from "../../lib/format";
-import { measuresClient } from "../stats/api/measuresClient";
+import { measuresClient } from "./measuresClient";
 import { CALL_OPTIONS, useUsageForecast } from "./api";
 import { windowKey, windowTitle } from "./format";
 
@@ -84,9 +84,8 @@ function QuotaTile() {
       label="Quota used (current windows)"
       query={forecast}
       render={(data) => {
-        const live = data.windows.filter((window) => window.hasPercent && window.sampleCount > 0n && window.status !== "unknown");
-        const longest = (provider: string) => live.filter((window) => window.provider === provider).sort((a, b) => Number(b.windowMinutes - a.windowMinutes))[0];
-        const rows = [...new Set(live.map((window) => window.provider))].map(longest).flatMap((window) => (window ? [window] : []));
+        // Each provider pool's primary window (the API's mark), with a percent reading in its period.
+        const rows = data.windows.filter((window) => window.primary && !window.dormant && window.hasPercent && window.sampleCount > 0n && window.status !== "unknown");
         if (rows.length === 0) return { value: MISSING };
         // 1 pt is 1% of its own window, so windows are listed, never summed.
         return { value: <ul className="m-0 list-none space-y-0.5 p-0 text-base">{rows.map((window) => <li key={windowKey(window)}>{windowTitle(window, rows)} {formatPoints(window.usedPercent)}</li>)}</ul> };

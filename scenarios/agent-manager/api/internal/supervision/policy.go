@@ -528,7 +528,7 @@ func boundedPolicyEvidence(values []string) []string {
 
 func isSignalClass(value string) bool {
 	switch strings.ToLower(value) {
-	case "stalled", "blocked", "failed", "deadline", "quiet_time":
+	case "stalled", "blocked", "failed", "deadline", "event_count", "quiet_time":
 		return true
 	default:
 		return false

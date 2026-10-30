@@ -19,7 +19,7 @@ func BeginsRunInvocation(event *domain.RunEvent) bool {
 }
 
 // UsageAccount is the one derivation of a run's provider token usage. Every
-// token total for a run (read model, report, time accounting, episodes, token
+// token total for a run (read model, report, time accounting, token
 // cap, workflow metering) reads it, so they cannot disagree.
 type UsageAccount struct {
 	// Contributions[i] is the part of the run total that events[i] carries.

@@ -802,6 +802,11 @@ func (f *createRunFlow) persistAttempt(ctx context.Context) error {
 		f.failReservation(ctx)
 		return err
 	}
+	// This flow owns its Task view; the repository leaves its inputs immutable.
+	f.task.Status = domain.TaskStatusRunning
+	id := run.ID
+	f.task.CurrentRunID = &id
+	f.task.UpdatedAt = run.UpdatedAt
 	o.markIdempotencyComplete(ctx, f.req.IdempotencyKey, run.ID, "Run")
 	return nil
 }

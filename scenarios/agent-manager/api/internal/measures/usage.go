@@ -82,8 +82,11 @@ func (h *Handler) UsageForecast(ctx context.Context, req *connect.Request[measur
 		// Provider-wide activity cannot establish whether this account was idle.
 		activity = nil
 	}
-	for _, forecast := range usageforecast.CurrentWithActivity(ctx, spans, now, activity) {
-		response.Windows = append(response.Windows, protoWindowForecast(forecast))
+	forecasts := usageforecast.CurrentWithActivity(ctx, spans, now, activity)
+	for i, marks := range usageforecast.Mark(forecasts, now) {
+		row := protoWindowForecast(forecasts[i])
+		row.Dormant, row.Primary, row.Focus = marks.Dormant, marks.Primary, marks.Focus
+		response.Windows = append(response.Windows, row)
 	}
 	return connect.NewResponse(response), nil
 }

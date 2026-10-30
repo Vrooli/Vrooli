@@ -58,3 +58,25 @@ func Window(minutes int64, window string) string {
 func Title(provider, window string, minutes int64) string {
 	return Provider(provider) + " · " + Window(minutes, window)
 }
+
+// Tokens is a token count as operators read it: 950, 12.5k, 3.0M.
+func Tokens(n int64) string {
+	switch {
+	case n >= 1_000_000:
+		return fmt.Sprintf("%.1fM", float64(n)/1e6)
+	case n >= 1_000:
+		return fmt.Sprintf("%.1fk", float64(n)/1e3)
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+// Duration is milliseconds as operators read them: 1.5 s, 3m 05s, 2h 04m.
+func Duration(ms int64) string {
+	switch {
+	case ms >= 3_600_000:
+		return fmt.Sprintf("%dh %02dm", ms/3_600_000, ms%3_600_000/60_000)
+	case ms >= 60_000:
+		return fmt.Sprintf("%dm %02ds", ms/60_000, ms%60_000/1000)
+	}
+	return fmt.Sprintf("%.1f s", float64(ms)/1000)
+}

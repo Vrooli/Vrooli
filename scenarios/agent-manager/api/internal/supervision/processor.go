@@ -10,9 +10,8 @@ import (
 	"time"
 
 	"agent-manager/internal/eventlog"
-	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/repository"
-	"agent-manager/internal/runsignal"
+	"agent-manager/internal/toolfriction"
 
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -20,47 +19,45 @@ import (
 )
 
 type SubjectSummary struct {
-	RunID               string
-	Status              string
-	Terminal            bool
-	FrictionScore       float64
-	EvidenceIDs         []string
-	Friction            []FrictionSummary
+	RunID       string
+	Status      string
+	Terminal    bool
+	EvidenceIDs []string
+	// ToolFriction is the run's tool friction (toolfriction.ScoreRun); the
+	// friction_score trigger reads its Score only when it is scorable: no
+	// commands, or too few with a known outcome, is "cannot tell" and leaves
+	// friction unavailable, never quiet.
+	ToolFriction        toolfriction.RunScore
 	FrictionUnavailable bool
 	FrictionThrough     time.Time
+}
+
+// FrictionReadable is the one rule both evaluators apply: a subject's friction
+// counts (signals, enters the program's friction list) only when it is
+// available at the current fact version and scorable.
+func (s SubjectSummary) FrictionReadable() bool {
+	return !s.FrictionUnavailable && s.ToolFriction.Scorable()
 }
 
 type SubjectResolver interface {
 	Resolve(context.Context, []*domainpb.WatchSubject) ([]SubjectSummary, error)
 }
 
-type FrictionSummary struct {
-	EvidenceID  string  `json:"evidence_id"`
-	Score       float64 `json:"score"`
-	Pattern     string  `json:"pattern"`
-	Fingerprint string  `json:"fingerprint"`
-	Owner       string  `json:"owner"`
+// ToolFrictionSource scores one run's command calls projected at the current
+// fact version and says how far that projection reaches (RunScore.Through).
+type ToolFrictionSource interface {
+	RunToolFriction(ctx context.Context, runID string) (toolfriction.RunScore, error)
 }
-type FrictionSource interface {
-	Episodes(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.Episode, error)
-	Watermark(context.Context, string) (*invocationreadmodel.Watermark, error)
-}
+
 type RunSubjectResolver struct {
-	runs     repository.RunRepository
-	friction FrictionSource
-	now      func() time.Time
+	runs  repository.RunRepository
+	tools ToolFrictionSource
 }
 
-// supervisionEpisodeLimit bounds one subject's 15-minute episode read; it is
-// far above a run's episode rate, so the newest episodes are never cut off.
-const supervisionEpisodeLimit = 256
-
-func NewRunSubjectResolver(runs repository.RunRepository, sources ...FrictionSource) *RunSubjectResolver {
-	r := &RunSubjectResolver{runs: runs, now: time.Now}
-	if len(sources) > 0 {
-		r.friction = sources[0]
-	}
-	return r
+// NewRunSubjectResolver reads each subject's run and its tool friction; a nil
+// source leaves friction unavailable.
+func NewRunSubjectResolver(runs repository.RunRepository, tools ToolFrictionSource) *RunSubjectResolver {
+	return &RunSubjectResolver{runs: runs, tools: tools}
 }
 
 func (r *RunSubjectResolver) Resolve(ctx context.Context, subjects []*domainpb.WatchSubject) ([]SubjectSummary, error) {
@@ -75,37 +72,12 @@ func (r *RunSubjectResolver) Resolve(ctx context.Context, subjects []*domainpb.W
 			return nil, err
 		}
 		summary := SubjectSummary{RunID: subject.GetRunId(), Status: string(run.Status), Terminal: run.Status.IsTerminal(), EvidenceIDs: []string{"run:" + subject.GetRunId()}}
+		// One source, one rule: the score reads only facts at the current
+		// fact version and says how far they reach; unscorable is unavailable.
 		summary.FrictionUnavailable = true
-		if r.friction != nil {
-			watermark, readErr := r.friction.Watermark(ctx, subject.GetRunId())
-			if readErr == nil && watermark != nil && watermark.EpisodeClassifierVersion == runsignal.EpisodeClassifierVersion {
-				from := r.now().UTC().Add(-15 * time.Minute)
-				episodes, err := r.friction.Episodes(ctx, invocationreadmodel.Filter{RunID: subject.GetRunId(), From: &from, ShownEpisodesOnly: true}, supervisionEpisodeLimit)
-				if err == nil {
-					summary.FrictionUnavailable = false
-					summary.FrictionThrough = watermark.LastEventAt
-					for _, episode := range episodes {
-						score := 0.0
-						switch episode.Severity {
-						case "critical":
-							score = 1
-						case "high":
-							score = .9
-						case "medium":
-							score = .6
-						case "low", "one-off":
-							score = .3
-						case "repeated":
-							// Detectors grade an episode one-off or repeated.
-							score = .6
-						default:
-							continue
-						}
-						summary.FrictionScore = max(summary.FrictionScore, score)
-						summary.Friction = append(summary.Friction, FrictionSummary{EvidenceID: episode.EpisodeID, Score: score, Pattern: episode.Pattern, Fingerprint: episode.Fingerprint, Owner: episode.SuspectedOwnerScenario})
-						summary.EvidenceIDs = append(summary.EvidenceIDs, episode.EpisodeID)
-					}
-				}
+		if r.tools != nil {
+			if score, readErr := r.tools.RunToolFriction(ctx, subject.GetRunId()); readErr == nil {
+				summary.ToolFriction, summary.FrictionThrough, summary.FrictionUnavailable = score, score.Through, !score.Scorable()
 			}
 		}
 		summaries = append(summaries, summary)
@@ -152,7 +124,10 @@ func (TriggerEvaluator) Evaluate(_ context.Context, input EvaluationInput) (*dom
 	allTerminal := len(input.Subjects) > 0
 	for _, subject := range input.Subjects {
 		allTerminal = allTerminal && subject.Terminal
-		if triggers.GetFrictionScore() > 0 && subject.FrictionScore >= triggers.GetFrictionScore() {
+		// A subject whose friction cannot be read (facts not projected at the
+		// current version, or too few known outcomes) is "cannot tell": it
+		// never trips the trigger.
+		if triggers.GetFrictionScore() > 0 && subject.FrictionReadable() && subject.ToolFriction.Score >= triggers.GetFrictionScore() {
 			decision.Disposition, decision.Classification = domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, "friction_threshold"
 		}
 	}

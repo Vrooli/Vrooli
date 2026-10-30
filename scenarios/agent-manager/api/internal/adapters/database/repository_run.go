@@ -13,6 +13,8 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/sirupsen/logrus"
 	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
@@ -734,6 +736,31 @@ func (r *runRepository) Get(ctx context.Context, id uuid.UUID) (*domain.Run, err
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
+		return nil, wrapDBError("get", "Run", id.String(), err)
+	}
+	return row.toDomain(), nil
+}
+
+// getTx reads the current canonical run within an existing owner transaction.
+func (r *runRepository) getTx(ctx context.Context, tx *Tx, id uuid.UUID) (*domain.Run, error) {
+	rows, err := tx.QueryContext(ctx, fmt.Sprintf("SELECT %s FROM runs WHERE id = ?", runColumns), id)
+	if err != nil {
+		return nil, wrapDBError("get", "Run", id.String(), err)
+	}
+	defer rows.Close()
+	mapper := r.db.mapper
+	if mapper == nil {
+		mapper = reflectx.NewMapper("db")
+	}
+	xrows := &sqlx.Rows{Rows: rows, Mapper: mapper}
+	if !xrows.Next() {
+		if err := xrows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	var row runRow
+	if err := xrows.StructScan(&row); err != nil {
 		return nil, wrapDBError("get", "Run", id.String(), err)
 	}
 	return row.toDomain(), nil

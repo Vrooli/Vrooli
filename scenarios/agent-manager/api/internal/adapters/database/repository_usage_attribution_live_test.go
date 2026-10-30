@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/opportunities"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
@@ -72,7 +73,6 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 		{"agent_profiles", "1"},
 		{"runs", "1"},
 		{"run_events", "timestamp >= '" + since + "' AND event_type IN ('metric', 'tool_call')"},
-		{"invocation_read_model_episodes", "occurred_at >= '" + since + "'"},
 		{"invocation_read_model_runs", "occurred_at >= '" + now.Add(-15*24*time.Hour).Format(time.RFC3339Nano) + "'"},
 		{"model_pricing", "1"},
 		{"model_aliases", "1"},
@@ -122,6 +122,10 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 		Store:    NewUsageAttributionRepository(temp),
 		Readings: readings,
 		Pricer:   pricer,
+		// Tool facts are read from the live database (read-only) so the merged
+		// list ranks tool friction and opportunities beside the levers.
+		Tools:   NewUsageAttributionRepository(source),
+		Library: liveLibrary{},
 	}
 	started = time.Now()
 	attribution, err := service.Current(ctx, "", time.Time{}, now)
@@ -164,37 +168,38 @@ func TestLiveUsageAttributionDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("dominant consumer: %s (%s)", recs.Dominant, recs.DominantLabel)
 	for _, rule := range recs.Rules {
 		t.Logf("rule %-10s fired=%v rows=%d candidates=%d %s", rule.Rule, rule.Fired, rule.Rows, rule.Candidates, rule.Reason)
 	}
-	t.Logf("%d plans, %d folded (<0.1 pts)", len(recs.Plans), len(recs.Folded))
-	for i, plan := range recs.Plans {
-		if i >= 5 {
+	t.Logf("%d actions, %d under the materiality floor", len(recs.Actions), recs.Below)
+	for i, a := range recs.Actions {
+		if i >= 15 {
 			break
 		}
-		var sum float64
-		for _, l := range plan.Levers {
-			sum += l.Saved
-		}
-		t.Logf("#%d %s %s on %s (%s %s): combined −%.2f pts (levers alone sum −%.2f) | used %.2f so far, %.2f at this rate, %.0f%% of the window's burn, running=%v, recoverable %.2f in the %.0fh left, cross-cut=%v",
-			plan.Rank, plan.TargetKind, trimLabel(plan.TargetLabel), plan.TargetID, plan.Provider, plan.Window, plan.Saved, sum, plan.Use.ConsumerPoints, plan.Use.AtThisRate, plan.Use.Share*100, plan.Use.StillRunning, plan.Recoverable, plan.Use.RemainingHours, plan.CrossCut)
-		for _, l := range plan.Levers {
-			t.Logf("     %-10s alone −%.2f, after larger levers −%.2f [%s] %s", l.Rule, l.Saved, l.Marginal, l.Confidence, trimLabel(l.Action))
-		}
+		t.Logf("#%d %s [%s %s, %s] %s | owner %s %s | effect %.2f %s (%s)", a.Rank, a.ScoreBasis, a.Source, a.Kind, a.Confidence, a.Title, a.OwnerKind, a.Owner, a.Effect.Value, a.Effect.Unit, a.Effect.Basis)
 	}
-	friction, err := service.Friction(ctx, "", now)
+	friction, err := service.Friction(ctx, time.Time{}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	problems := friction.Problems
-	t.Logf("%d recurring friction problems; runs analysed %d of %d", len(problems), friction.RunsAnalysed, friction.RunsTotal)
-	for i, p := range problems {
+	t.Logf("%d tool findings over %d commands", len(friction.ToolFindings), friction.Tools.Coverage.Commands)
+	for i, f := range friction.ToolFindings {
 		if i >= 8 {
 			break
 		}
-		t.Logf("friction %s %s | owner %s (%s) | %d episodes in %d runs | typical %s total %s | ≈%.2f pts | %s", p.Fingerprint[:8], p.Description, p.Owner, p.OwnerKind, p.Episodes, p.Runs, usageattribution.FormatDuration(p.TypicalMS), usageattribution.FormatDuration(p.WallClockMS), p.Points, p.Status)
+		t.Logf("friction %s %s | owner %s (%s) | %d calls in %d runs | %s", f.Fingerprint[:8], f.Description, f.Owner, f.OwnerKind, f.Calls, f.Runs, f.Status)
 	}
+}
+
+// liveLibrary is a small stand-in for the program library: the live check does
+// not reach program-runtime, so sequences are matched against a few programs
+// whose commands agents run by hand.
+type liveLibrary struct{}
+
+func (liveLibrary) Library(context.Context) opportunities.Library {
+	return opportunities.Library{Programs: []opportunities.Program{
+		{Name: "test-genie.iterate", Scenario: "test-genie", Purpose: "Validate a change: submit test phases and return one durable wait command", Bindings: []string{"test-genie/validation/create"}},
+	}}
 }
 
 // indexRunOwnedFiles runs the production indexer over this host's Agent
@@ -257,6 +262,19 @@ func (h *runOwnedHost) Parser(_ context.Context, file transcriptindex.FileRow) (
 		return codecs.NewClaudeForTest().NewTranscriptParser(), nil
 	}
 	return codecs.NewCodexForTest().NewTranscriptParser(), nil
+}
+
+// ParserVersion is the version the harness's real codec declares, as the
+// orchestrator's host reports it.
+func (h *runOwnedHost) ParserVersion(harness string) int {
+	parser, err := h.Parser(context.Background(), transcriptindex.FileRow{Harness: harness})
+	if err != nil {
+		return 0
+	}
+	if versioned, ok := parser.(runner.TranscriptVersioner); ok {
+		return versioned.TranscriptVersion()
+	}
+	return 0
 }
 
 func (h *runOwnedHost) Record(context.Context, string, []*domain.RunEvent, bool) error {

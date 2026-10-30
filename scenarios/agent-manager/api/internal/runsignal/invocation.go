@@ -16,25 +16,38 @@ import (
 
 // InvocationFactVersion is pinned into every derivation so a rebuild can be
 // compared honestly when classifier behavior evolves.
-// v4 backfills bounded failure signatures into durable facts produced before
-// that field was projected, so historical failed invocations remain actionable
-// after a replay without retaining raw tool output.
+// v32 gives a command's output to the segment that holds its duration: its
+// printed bytes and its result tokens (what its nested result says it could
+// show, capped by its exec_command max_output_tokens; the script's own unit
+// takes the rest of the result). Other segments of the command hold none and
+// their tokens are unknown, so a window counts each output once.
+// v31 gives a command's duration to one of its segments (not to each), and
+// reads each segment's words from its own pipeline of a nested Codex command,
+// so segments stop sharing another segment's command text and poll key.
+// v30 derives compaction events from the Claude and Codex transcripts, so
+// residency segments and context tax stop at each compaction, and reads verify
+// semantics from the control-plane manifest and durable-run exceptions.
+// v29 estimates a result's tokens from the text blocks of structured results
+// (Codex exec output was counted as empty), so output weight and context tax
+// see Codex commands.
+// v28 keeps the target of a read command in its poll key (only volatile
+// values are dropped), attributes a compound call's notice to the segment that
+// printed it, and counts HTTP bypass only on API ports and non-health routes.
+// v27 stores the tool friction features of each command fact and keeps the
+// next word of a manifest group as its command path (`test-genie runs wait`).
+// v26 joins Codex rollout CommandExecution results to the exec call that ran
+// them (per-command outcome, exit code, duration and output size), reports
+// harness refusals as refused, splits the call's result tokens across its
+// commands by output size, counts residency in provider requests until the
+// next compaction, and takes capability from the one tool-kind table.
 // v21 reads command identity from a tolerant shell lexer (heredocs, quotes,
 // wrappers) and Codex exec JavaScript, derives IntentClass from CommandPath
 // instead of argument shape, gives each segment its own outcome, and reports
 // exit 1 of rg/grep/diff/test as no-match.
 // v20 derives every token quantity from the one usage account
-// (AccountUsage): Codex totals are last cumulative counter minus the counter
-// before the run's first report, so re-tails and replays no longer inflate
-// runs, and Claude usage counts each provider message once.
-// v19 applies canonical per-invocation authority and replay selection to durable time-accounting token buckets.
-// v18 adds bounded identifiers for known program and skill command paths.
-// v17 apportions per-call token quantities across the segments of a compound
-// command. Facts at v16 and earlier copied the whole call's payload onto every
-// segment, so any SUM over them overcounts a run in proportion to how compound
-// its commands were. The version bump is what makes a refresh reproject those
-// runs instead of leaving the two conventions mixed in one cohort.
-const InvocationFactVersion = "invocation-fact.v25"
+// (AccountUsage). v17 apportions per-call token quantities across the
+// segments of a compound command, so a SUM over facts reconciles to the run.
+const InvocationFactVersion = "invocation-fact.v32"
 
 // Outcome vocabulary of an InvocationFact.
 const (
@@ -44,7 +57,14 @@ const (
 	// OutcomeNoMatch is exit 1 of a search or comparison (rg, grep, diff,
 	// test): the command ran and found nothing, which is not a failure.
 	OutcomeNoMatch = "no-match"
+	// OutcomeRefused is a call the harness refused before running it (a
+	// Claude Code `<tool_use_error>Blocked` or PreToolUse hook error).
+	OutcomeRefused = "refused"
 )
+
+// PairingCommandExecution is the pairing basis of a fact whose outcome comes
+// from the command's own nested result rather than the call's result.
+const PairingCommandExecution = "command-execution"
 
 // FailureSignatureMaxLength bounds retained failure vocabulary. Signatures are
 // controlled class labels, never copied error text.
@@ -52,10 +72,14 @@ const FailureSignatureMaxLength = 64
 
 // InvocationFact is a bounded, redacted interpretation of one durable tool
 // call/result pair. It intentionally excludes raw input and output bodies.
+// ResultEventID is the result of the fact's command: a nested command result
+// when one reports on it (PairingCommandExecution), else the call's result.
+// OutputEventID is the call's own result, the output the agent saw.
 type InvocationFact struct {
 	Version                     string                `json:"version"`
 	CallEventID                 string                `json:"callEventId"`
 	ResultEventID               string                `json:"resultEventId,omitempty"`
+	OutputEventID               string                `json:"outputEventId,omitempty"`
 	ToolCallID                  string                `json:"toolCallId,omitempty"`
 	ToolName                    string                `json:"toolName"`
 	Capability                  string                `json:"capability"`
@@ -84,8 +108,11 @@ type InvocationFact struct {
 	SemanticsVerdict            string                `json:"semanticsVerdict,omitempty"`
 	ArgTokens                   int64                 `json:"argTokens"`
 	ResultTokens                int64                 `json:"resultTokens"`
+	OutputBytes                 int64                 `json:"outputBytes"`
+	OutputShare                 OutputShare           `json:"-"`
+	OwnTokens                   int64                 `json:"-"`
 	TokenBasis                  tokenaccounting.Basis `json:"tokenBasis"`
-	ResidencyTurns              int64                 `json:"residencyTurns"`
+	ResidencyRequests           int64                 `json:"residencyRequests"`
 	ResidencySegment            int64                 `json:"residencySegment"`
 	IncurredInputTokens         int64                 `json:"incurredInputTokens"`
 	IncurredOutputTokens        int64                 `json:"incurredOutputTokens"`
@@ -93,169 +120,162 @@ type InvocationFact struct {
 	IncurredCacheCreationTokens int64                 `json:"incurredCacheCreationTokens"`
 }
 
-// DeriveInvocationFacts pairs durable tool calls/results by their provider
-// correlation identifier when present. Imported transcripts frequently omit
-// that identifier, so unmatched calls/results fall back to their stable stream
-// ordinal. The basis is retained on every fact rather than silently treating a
-// best-effort historical pairing as provider-proven correlation.
-// CapabilityResolver is supplied by the runner codec that owns a harness
-// tool surface. A nil resolver retains the conservative generic fallback used
-// by standalone callers and historical fixtures.
-type CapabilityResolver func(string) string
+// OutputShare is a fact's part in its call's result, which the read model
+// turns into result tokens so that each output is counted once. One segment
+// of each command holds the command's output (the holder that also carries
+// its duration): ShareOwn when a nested result reports what the command
+// printed (OutputBytes, and OwnTokens: that size capped by the command's
+// max_output_tokens), ShareRest when it takes part of what no command claims
+// (the script's own output, or a call's one result). Any other segment of the
+// command holds none (ShareNone): its output is in its holder's, inseparably.
+type OutputShare int
+
+const (
+	ShareRest OutputShare = iota
+	ShareOwn
+	ShareNone
+)
 
 // CommandResolver delegates command interpretation to the selected runner
 // codec. Literal argv stays separate from shell text so safe tokenization can
 // never turn an argument's data into syntax.
 type CommandResolver func(string, map[string]any) runner.CommandExtraction
 
-func DeriveInvocationFacts(events []*domain.RunEvent) []InvocationFact {
-	return DeriveInvocationFactsWithResolver(events, nil)
-}
-
-func DeriveInvocationFactsWithResolver(events []*domain.RunEvent, resolver CapabilityResolver, commandResolvers ...CommandResolver) []InvocationFact {
-	results := map[string]*domain.RunEvent{}
-	ordinalResults := make([]*domain.RunEvent, 0)
-	for _, event := range events {
-		if event == nil {
-			continue
-		}
-		if result, ok := event.Data.(*domain.ToolResultEventData); ok {
-			if result.ToolCallID != "" {
-				// A duplicated result keeps the first copy.
-				if _, seen := results[result.ToolCallID]; !seen {
-					results[result.ToolCallID] = event
-				}
-			} else {
-				ordinalResults = append(ordinalResults, event)
-			}
-		}
-	}
+// DeriveInvocationFacts derives one fact per command segment of every tool
+// call (planCalls pairs calls, results and nested command results). The
+// pairing basis is retained on every fact rather than silently treating a
+// best-effort historical pairing as provider-proven correlation.
+func DeriveInvocationFacts(events []*domain.RunEvent, commandResolvers ...CommandResolver) []InvocationFact {
+	plans := planCalls(events, commandResolvers...)
 	facts := make([]InvocationFact, 0)
-	previousByFingerprint := map[string]string{}
-	lastFailureByExecutable := map[string]string{}
-	helpAfterFailure := map[string]bool{}
-	ordinalResultIndex := 0
-	seenCalls := map[string]bool{}
+	history := retryHistory{previousByFingerprint: map[string]string{}, lastFailureByExecutable: map[string]string{}, helpAfterFailure: map[string]bool{}}
 	for _, event := range events {
-		if event == nil {
-			continue
-		}
-		call, ok := event.Data.(*domain.ToolCallEventData)
-		if !ok {
-			continue
-		}
-		// A tool call is one invocation however many copies of its event were
-		// recorded (an importer once appended the events twice): keep the first.
-		if call.ToolCallID != "" {
-			if seenCalls[call.ToolCallID] {
-				continue
-			}
-			seenCalls[call.ToolCallID] = true
-		}
-		capability := CapabilityForTool(call.ToolName)
-		if resolver != nil {
-			capability = resolver(call.ToolName)
-			if capability == "" {
-				capability = "other"
-			}
-		}
-		factBase := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: capability, Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: OutcomeUnknown, PairingBasis: "unpaired", Availability: availability.Available, TokenBasis: tokenaccounting.BasisUnknown}
-		units := callUnits(call, commandInput(call, commandResolvers...))
-		var result *domain.RunEvent
-		if call.ToolCallID != "" {
-			result = results[call.ToolCallID]
-			if result != nil {
-				factBase.PairingBasis = "call-id"
-			}
-		} else if ordinalResultIndex < len(ordinalResults) {
-			result = ordinalResults[ordinalResultIndex]
-			ordinalResultIndex++
-			factBase.PairingBasis = "ordinal"
-		}
-		var resultData *domain.ToolResultEventData
-		if result != nil {
-			resultData, _ = result.Data.(*domain.ToolResultEventData)
-		}
-		for unitIndex, unit := range units {
-			fact := factBase
-			fact.SegmentIndex, fact.SegmentCount = unitIndex, len(units)
-			fact.OwnershipReason = unit.Reason
-			fact.Wrapper = unit.Wrapper
-			var tokens []string
-			switch unit.Kind {
-			case unitCode:
-				fact.Capability, fact.IntentClass = "code", "code:"+strings.ToLower(call.ToolName)
-			case unitCommand:
-				tokens = unit.Tokens
-				if dynamicProgram(tokens[0]) {
-					fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, "command name needs shell evaluation"
-					break
-				}
-				if unit.FromScript && fact.Capability == "other" {
-					fact.Capability = "shell"
-				}
-				resolution := resolveCatalogTokens(tokens)
-				fact.Executable, fact.CatalogSnapshot = resolution.Owner, resolution.Snapshot
-				fact.CommandPath = commandPathFor(resolution, tokens)
-				fact.ProgramID, fact.SkillID = commandIdentifiers(tokens)
-				fact.Capability = CapabilityForCommand(fact.CommandPath, fact.Capability)
-				// `| head -30` trims another command's output: it reads no file.
-				if fact.Capability == "file-read" && !readsFileOperand(tokens) {
-					fact.Capability = factBase.Capability
-				}
-				fact.SemanticsKind, fact.SemanticsVerdict = resolution.SemanticsKind, resolution.SemanticsVerdict
-				fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
-				if fact.Ownership == string(availability.Unknown) {
-					fact.Ownership = OwnershipCompoundUnresolved
-					if fact.OwnershipReason == "" {
-						fact.OwnershipReason = "segment is not resolved by the manifest"
-					}
-				}
-			case unitUnparseable:
-				fact.Ownership = OwnershipUnparseable
-			}
-			if unit.Kind != unitCode {
-				fact.IntentClass = intentKey(fact.CommandPath, call.ToolName)
-			}
-			if resultData != nil {
-				fact.ResultEventID = result.ID.String()
-				fact.ExitCode, fact.DurationMS = resultData.ExitCode, resultData.DurationMS
-				fact.Outcome = unitOutcome(resultData, unit, tokens)
-				if fact.Outcome == OutcomeFailure {
-					fact.FailureSignature, fact.SignatureTruncated = failureSignature(resultData)
-				}
-			} else if result != nil {
-				fact.ResultEventID = result.ID.String()
-			}
-			// A missing command is a real absence of a command signature. Do not
-			// hash the empty string: otherwise every non-command tool collapses
-			// into one retry/thrash bucket and inflates repeated-work rates.
-			if unit.Kind == unitCommand && fact.CommandPath != "" && fact.Ownership != OwnershipUnparseable {
-				// The command words are hashed into the fingerprint rather than
-				// retained as raw evidence.
-				fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, strings.Join(tokens, " "))
-			}
-			if fact.Fingerprint != "" {
-				if prior := previousByFingerprint[fact.Fingerprint]; prior != "" && prior != fact.CallEventID {
-					fact.RetryOfCallEventID = prior
-					if helpAfterFailure[fact.Executable] {
-						fact.HelpRecovery = true
-					}
-				}
-			}
-			if fact.Outcome == OutcomeFailure && fact.Executable != "" {
-				lastFailureByExecutable[fact.Executable] = fact.CallEventID
-			}
-			if isHelpCommand(tokens) && fact.Executable != "" && lastFailureByExecutable[fact.Executable] != "" {
-				helpAfterFailure[fact.Executable] = true
-			}
-			if fact.Fingerprint != "" {
-				previousByFingerprint[fact.Fingerprint] = fact.CallEventID
-			}
-			facts = append(facts, fact)
+		if plan := plans[event]; plan != nil {
+			facts = append(facts, plan.facts(event, &history)...)
 		}
 	}
 	return facts
+}
+
+// retryHistory links a fact to an earlier fact with the same fingerprint and
+// marks help lookups that follow a failure of the same executable.
+type retryHistory struct {
+	previousByFingerprint, lastFailureByExecutable map[string]string
+	helpAfterFailure                               map[string]bool
+}
+
+func (p *callPlan) facts(event *domain.RunEvent, history *retryHistory) []InvocationFact {
+	call := p.call
+	base := InvocationFact{Version: InvocationFactVersion, CallEventID: event.ID.String(), ToolCallID: call.ToolCallID, ToolName: call.ToolName, Capability: CapabilityForTool(call.ToolName), Ownership: OwnershipNotACommand, OwnershipReason: "no declared command field", Outcome: OutcomeUnknown, PairingBasis: p.basis, Availability: availability.Available, TokenBasis: tokenaccounting.BasisUnknown}
+	var resultData *domain.ToolResultEventData
+	if p.result != nil {
+		base.ResultEventID, base.OutputEventID = p.result.ID.String(), p.result.ID.String()
+		resultData, _ = p.result.Data.(*domain.ToolResultEventData)
+	}
+	units, evidence := p.joinedUnits()
+	covered := oneResultCovers(units)
+	holders := outputHolders(units)
+	_, scripted := holders[codeCommand]
+	facts := make([]InvocationFact, 0, len(units))
+	for unitIndex, unit := range units {
+		fact := base
+		fact.SegmentIndex, fact.SegmentCount = unitIndex, len(units)
+		fact.OwnershipReason, fact.Wrapper = unit.Reason, unit.Wrapper
+		var tokens []string
+		switch unit.Kind {
+		case unitCode:
+			fact.Capability, fact.IntentClass = "code", "code:"+strings.ToLower(call.ToolName)
+		case unitCommand:
+			tokens = unit.Tokens
+			if dynamicProgram(tokens[0]) {
+				fact.Ownership, fact.OwnershipReason = OwnershipUnparseable, "command name needs shell evaluation"
+				break
+			}
+			if unit.FromScript && fact.Capability == KindOther {
+				fact.Capability = KindShell
+			}
+			resolution := resolveCatalogTokens(tokens)
+			fact.Executable, fact.CatalogSnapshot = resolution.Owner, resolution.Snapshot
+			fact.CommandPath = commandPathFor(resolution, tokens)
+			fact.ProgramID, fact.SkillID = commandIdentifiers(tokens)
+			fact.Capability = CapabilityForCommand(fact.CommandPath, fact.Capability)
+			// `| head -30` trims another command's output: it reads no file.
+			if fact.Capability == KindFileRead && !readsFileOperand(tokens) {
+				fact.Capability = base.Capability
+			}
+			fact.SemanticsKind, fact.SemanticsVerdict = resolution.SemanticsKind, resolution.SemanticsVerdict
+			fact.Ownership, fact.OwnershipReason = string(resolution.State), resolution.Reason
+			if fact.Ownership == string(availability.Unknown) {
+				fact.Ownership = OwnershipCompoundUnresolved
+				if fact.OwnershipReason == "" {
+					fact.OwnershipReason = "segment is not resolved by the manifest"
+				}
+			}
+		case unitUnparseable:
+			fact.Ownership = OwnershipUnparseable
+		}
+		if unit.Kind != unitCode {
+			fact.IntentClass = intentKey(fact.CommandPath, call.ToolName)
+		}
+		var outcome *domain.ToolResultEventData
+		nested := evidence[unit.Command]
+		if nested != nil {
+			outcome = nested.data
+			fact.ResultEventID, fact.PairingBasis = nested.event.ID.String(), PairingCommandExecution
+		} else if covered {
+			outcome = resultData
+		}
+		holds := holders[unit.Command] == unitIndex
+		switch {
+		case !holds:
+			fact.OutputShare = ShareNone
+		case nested != nil:
+			fact.OutputShare, fact.OutputBytes, fact.OwnTokens = ShareOwn, nested.outputBytes, p.visibleTokens(unit.Command, nested.outputBytes)
+		case scripted && unit.Command != codeCommand:
+			// The script's own unit takes what no command claims; this
+			// command's output is somewhere in it, of unknown size.
+			fact.OutputShare = ShareNone
+		}
+		if outcome != nil {
+			fact.ExitCode = outcome.ExitCode
+			if holds {
+				fact.DurationMS = outcome.DurationMS
+			}
+			fact.Outcome = unitOutcome(outcome, unit, tokens)
+			if fact.Outcome == OutcomeFailure {
+				fact.FailureSignature, fact.SignatureTruncated = failureSignature(outcome)
+			}
+		}
+		// A missing command is a real absence of a command signature. Do not
+		// hash the empty string: otherwise every non-command tool collapses
+		// into one retry/thrash bucket and inflates repeated-work rates.
+		if unit.Kind == unitCommand && fact.CommandPath != "" && fact.Ownership != OwnershipUnparseable {
+			// The command words are hashed into the fingerprint rather than
+			// retained as raw evidence.
+			fact.Fingerprint = fingerprint(fact.ToolName, fact.CommandPath, fact.Ownership, strings.Join(tokens, " "))
+		}
+		history.observe(&fact, tokens)
+		facts = append(facts, fact)
+	}
+	return facts
+}
+
+func (h *retryHistory) observe(fact *InvocationFact, tokens []string) {
+	if fact.Fingerprint != "" {
+		if prior := h.previousByFingerprint[fact.Fingerprint]; prior != "" && prior != fact.CallEventID {
+			fact.RetryOfCallEventID = prior
+			fact.HelpRecovery = h.helpAfterFailure[fact.Executable]
+		}
+	}
+	if fact.Outcome == OutcomeFailure && fact.Executable != "" {
+		h.lastFailureByExecutable[fact.Executable] = fact.CallEventID
+	}
+	if isHelpCommand(tokens) && fact.Executable != "" && h.lastFailureByExecutable[fact.Executable] != "" {
+		h.helpAfterFailure[fact.Executable] = true
+	}
+	if fact.Fingerprint != "" {
+		h.previousByFingerprint[fact.Fingerprint] = fact.CallEventID
+	}
 }
 
 // commandIdentifiers extracts only identifiers from explicitly supported
@@ -280,32 +300,75 @@ func commandIdentifiers(tokens []string) (programID, skillID string) {
 	return programID, skillID
 }
 
-// CapabilityForTool is the closed harness capability vocabulary. Runner
-// adapters use these same labels when translating their native tool names;
-// the classifier accepts unknown names as other rather than guessing a
-// scenario-specific owner.
+// Tool kinds: the one vocabulary for what a harness tool does. Invocation
+// facts carry it as Capability; transcript turn facts count calls by it.
+const (
+	KindShell           = "shell"
+	KindFileRead        = "file-read"
+	KindFileEdit        = "file-edit"
+	KindSearch          = "search"
+	KindWait            = "wait"
+	KindPlan            = "plan"
+	KindDelegate        = "delegate"
+	KindWebSearch       = "web-search"
+	KindWebFetch        = "web-fetch"
+	KindImageGeneration = "image-generation"
+	KindMCP             = "mcp"
+	KindOther           = "other"
+)
+
+// toolKinds maps every runner's native tool names (lower-cased) to a kind.
+var toolKinds = func() map[string]string {
+	kinds := map[string]string{}
+	for kind, names := range map[string][]string{
+		KindShell:           {"bash", "shell", "local_shell", "exec", "exec_command", "command_execution", "write_stdin", "bashoutput", "killshell", "killbash"},
+		KindFileRead:        {"read", "view", "cat", "view_image", "notebookread"},
+		KindFileEdit:        {"edit", "write", "multiedit", "apply_patch", "notebookedit", "file_change"},
+		KindSearch:          {"grep", "glob", "search", "toolsearch"},
+		KindWait:            {"wait", "sleep", "schedulewakeup", "monitor"},
+		KindPlan:            {"update_plan", "todowrite", "exitplanmode", "enterplanmode"},
+		KindDelegate:        {"task", "agent", "spawn_agent", "send_message", "sendmessage", "wait_agent", "followup_task", "list_agents", "interrupt_agent", "create_thread"},
+		KindWebSearch:       {"websearch", "web_search", "web"},
+		KindWebFetch:        {"webfetch", "web_fetch"},
+		KindImageGeneration: {"image_gen__imagegen", "imagegen", "image_generation"},
+	} {
+		for _, name := range names {
+			kinds[name] = kind
+		}
+	}
+	return kinds
+}()
+
+// CapabilityForTool is the tool's kind. A name no runner declares is a shell
+// when it says so (`shell_command`) and other otherwise, never a guessed owner.
 func CapabilityForTool(tool string) string {
 	name := strings.ToLower(strings.TrimSpace(tool))
-	switch {
-	case name == "read" || strings.Contains(name, "read") || name == "cat" || name == "view":
-		return "file-read"
-	case name == "write" || name == "edit" || name == "apply_patch" || name == "file_change" || strings.Contains(name, "write"):
-		return "file-edit"
-	case strings.Contains(name, "grep") || strings.Contains(name, "search") || name == "glob":
-		return "search"
-	case name == "wait" || strings.Contains(name, "poll"):
-		return "wait"
-	case strings.Contains(name, "plan"):
-		return "plan"
-	case name == "task" || strings.Contains(name, "delegate") || strings.Contains(name, "agent"):
-		return "delegate"
-	case strings.Contains(name, "web") || strings.Contains(name, "network") || strings.Contains(name, "fetch"):
-		return "network"
-	case isShellTool(name) || name == "exec" || name == "bash":
-		return "shell"
-	default:
-		return "other"
+	if kind, ok := toolKinds[name]; ok {
+		return kind
 	}
+	switch {
+	case strings.HasPrefix(name, "mcp__"):
+		return KindMCP
+	case isShellTool(name):
+		return KindShell
+	}
+	return KindOther
+}
+
+// CallScenario is the Vrooli scenario whose CLI a tool call runs first (a
+// manifest-catalogued program other than the control plane), else "".
+func CallScenario(tool string, input map[string]any) string {
+	call := &domain.ToolCallEventData{ToolName: tool, Input: input}
+	units, _ := callUnits(call, genericCommandInput(call))
+	for _, unit := range units {
+		if unit.Kind != unitCommand || dynamicProgram(unit.Tokens[0]) || unit.Tokens[0] == "vrooli" {
+			continue
+		}
+		if resolution := resolveCatalogTokens(unit.Tokens); resolution.State != availability.External {
+			return resolution.Owner
+		}
+	}
+	return ""
 }
 
 // intentKey is the comparable identity of what a call tried to do: its
@@ -333,6 +396,9 @@ func ToolResultOutcome(data *domain.ToolResultEventData) string {
 	if data == nil {
 		return "unknown"
 	}
+	if harnessRefused(data) {
+		return OutcomeRefused
+	}
 	if data.ExitCode != nil {
 		if !domain.SupportedToolExitCode(data.ExitCode) {
 			return "unknown"
@@ -351,6 +417,20 @@ func ToolResultOutcome(data *domain.ToolResultEventData) string {
 		return "failure"
 	}
 	return "success"
+}
+
+// harnessRefused reports a call the harness blocked before it ran: a Claude
+// Code `<tool_use_error>Blocked: …` or a PreToolUse hook error. Other
+// `<tool_use_error>`s (unread file, invalid input) are the call failing.
+func harnessRefused(data *domain.ToolResultEventData) bool {
+	if data.Success {
+		return false
+	}
+	text := strings.TrimSpace(data.Error)
+	if text == "" {
+		text = strings.TrimSpace(data.Output)
+	}
+	return strings.HasPrefix(text, "<tool_use_error>Blocked") || strings.HasPrefix(text, "PreToolUse:") && strings.Contains(text, "hook error")
 }
 
 func failureSignature(data *domain.ToolResultEventData) (string, bool) {
@@ -429,13 +509,13 @@ func CapabilityForCommand(command, fallback string) string {
 	name := strings.ToLower(strings.TrimSpace(command))
 	switch {
 	case name == "rg", name == "find", strings.Contains(name, "search"), strings.Contains(name, "grep"), strings.Contains(name, " rg"), strings.Contains(name, " find"):
-		return "search"
+		return KindSearch
 	case hasWord(name, "wait"):
-		return "wait"
+		return KindWait
 	case strings.Contains(name, "apply_patch"), strings.Contains(name, " edit"), strings.Contains(name, " write"):
-		return "file-edit"
+		return KindFileEdit
 	case name == "cat", name == "head", name == "tail", name == "sed", strings.HasPrefix(name, "cat "), strings.HasPrefix(name, "head "), strings.HasPrefix(name, "tail "), strings.HasPrefix(name, "sed "):
-		return "file-read"
+		return KindFileRead
 	default:
 		return fallback
 	}

@@ -21,17 +21,17 @@
         }
       }
     },
-    "friction_episodes": {
+    "run_tool_friction": {
       "type": "array", "maxItems": 16, "default": [],
       "items": {
         "type": "object", "additionalProperties": false,
-        "required": ["evidence_id", "score", "pattern"],
+        "required": ["evidence_id", "run_id", "score", "commands", "summary"],
         "properties": {
           "evidence_id": {"type": "string", "maxLength": 128},
+          "run_id": {"type": "string", "maxLength": 128},
           "score": {"type": "number", "minimum": 0, "maximum": 1},
-          "pattern": {"type": "string", "maxLength": 240},
-          "fingerprint": {"type": "string", "maxLength": 128},
-          "owner": {"type": "string", "maxLength": 128}
+          "commands": {"type": "integer", "minimum": 1},
+          "summary": {"type": "string", "maxLength": 240}
         }
       }
     },

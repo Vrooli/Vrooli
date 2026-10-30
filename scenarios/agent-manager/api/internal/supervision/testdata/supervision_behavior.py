@@ -40,14 +40,27 @@ def evaluate(update):
     assert len(out.getvalue().encode())<=4096
     return result["signals"]
 
+# With --stdin, evaluate one Go-built program input and print its signals so a
+# Go test can compare the program with the trigger evaluator.
+if sys.argv[2:] == ["--stdin"]:
+    print(json.dumps(evaluate(json.load(sys.stdin))))
+    sys.exit(0)
+
 r=evaluate({"events":[{"event_id":str(i),"run_id":"child","sequence":i,"event_type":"tool_completed"} for i in range(3)]})
+assert r["disposition"]=="signal" and r["classification"]=="event_count",r
+r=evaluate({"events":[{"event_id":str(i),"run_id":"child","sequence":i,"event_type":"tool_completed"} for i in range(3)],"policy":dict(base["policy"],event_count_enabled=False)})
 assert r["disposition"]=="unavailable" and r["classification"]!="progress",r
-r=evaluate({"run_summaries":[{"run_id":"child","status":"parked"}],"policy":dict(base["policy"],quiet_reached=True)})
+r=evaluate({"run_summaries":[{"run_id":"child","status":"parked"}]})
 assert r["disposition"]=="quiet",r
+r=evaluate({"run_summaries":[{"run_id":"child","status":"parked"}],"policy":dict(base["policy"],quiet_reached=True)})
+assert r["disposition"]=="signal" and r["classification"]=="quiet_time",r
 r=evaluate({"run_summaries":[{"run_id":"child","status":"running","friction_unavailable":True}]})
-assert r["disposition"]=="unavailable" and r["next_cursor"]=="before",r
-r=evaluate({"friction_episodes":[{"evidence_id":"episode","score":.9,"pattern":"repeated_validation","fingerprint":"stable","owner":"test-genie"}]})
+assert r["disposition"]=="quiet" and r["next_cursor"]=="after",r
+r=evaluate({"run_tool_friction":[{"evidence_id":"tool-friction:child","run_id":"child","score":.9,"commands":20,"summary":"18 of 20 commands failed (18), guessed a shape (0) or polled (0)"}]})
 assert r["disposition"]=="signal" and r["classification"]=="stalled",r
+r=evaluate({"run_summaries":[{"run_id":"child","status":"running","friction_unavailable":True}],
+    "run_tool_friction":[{"evidence_id":"tool-friction:child","run_id":"child","score":.9,"commands":20,"summary":"18 of 20 commands failed (18), guessed a shape (0) or polled (0)"}]})
+assert r["disposition"]=="quiet" and r["classification"]!="stalled",r
 r=evaluate({"run_summaries":[{"run_id":"child","status":"completed"}]})
 assert r["disposition"]=="terminal",r
 r=evaluate({"cursor_reset_required":True})
@@ -57,7 +70,9 @@ assert r["disposition"]=="unavailable" and r["next_cursor"]=="before",r
 for status in ("running", "parked"):
     r=evaluate({"run_summaries":[{"run_id":"child","status":status,"friction_unavailable":True}],
         "events":[{"event_id":str(i),"run_id":"child","sequence":i,"event_type":"tool_failed"} for i in range(3)]})
-    assert r["disposition"]=="unavailable" and r["next_cursor"]=="before",r
+    assert r["disposition"]=="signal" and r["classification"]=="event_count",r
+    r=evaluate({"run_summaries":[{"run_id":"child","status":status,"friction_unavailable":True}],"policy":dict(base["policy"],quiet_reached=True)})
+    assert r["disposition"]=="signal" and r["classification"]=="quiet_time",r
 r=evaluate({"allow_inference":True,"events":[{"event_id":"one","run_id":"child","sequence":1,"event_type":"progress_changed"}]})
 assert r["disposition"]=="signal" and r["classification"]=="ambiguous",r
-print("10 supervised behavior cases passed")
+print("15 supervised behavior cases passed")

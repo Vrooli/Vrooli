@@ -6,6 +6,8 @@ package orchestration
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -13,10 +15,13 @@ import (
 	"strings"
 	"sync"
 
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/conversationpolicy"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/pricing"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/transcriptredact"
@@ -69,11 +74,8 @@ func (h *transcriptIndexHost) OwnedTranscripts(ctx context.Context) (map[string]
 }
 
 func (h *transcriptIndexHost) runnerType(file transcriptindex.FileRow) (domain.RunnerType, float64, error) {
-	switch transcriptindex.Family(file.Harness) {
-	case transcriptindex.HarnessCodex:
-		return domain.RunnerTypeCodex, 1, nil
-	case transcriptindex.HarnessClaude:
-		return domain.RunnerTypeClaudeCode, 1, nil
+	if runnerType, ok := familyRunner(file.Harness); ok {
+		return runnerType, 1, nil
 	}
 	source, err := os.Open(file.Path)
 	if err != nil {
@@ -82,6 +84,45 @@ func (h *transcriptIndexHost) runnerType(file transcriptindex.FileRow) (domain.R
 	defer source.Close()
 	detection, err := h.o.detectTranscriptRunner(source, "")
 	return detection.RunnerType, detection.Score, err
+}
+
+// familyRunner names the runner of a harness known without reading the file.
+func familyRunner(harness string) (domain.RunnerType, bool) {
+	switch transcriptindex.Family(harness) {
+	case transcriptindex.HarnessCodex:
+		return domain.RunnerTypeCodex, true
+	case transcriptindex.HarnessClaude:
+		return domain.RunnerTypeClaudeCode, true
+	}
+	return "", false
+}
+
+// ParserVersion is the version the harness's codec declares for the events
+// it derives (runner.TranscriptVersioner); a configured harness, whose runner
+// is detected per file, is version 0 and never re-imported.
+func (h *transcriptIndexHost) ParserVersion(harness string) int {
+	runnerType, ok := familyRunner(harness)
+	if !ok {
+		return 0
+	}
+	owned, err := h.o.runners.Get(runnerType)
+	if err != nil {
+		return 0
+	}
+	factory, ok := owned.(runner.TranscriptParserFactory)
+	if !ok {
+		return 0
+	}
+	if versioned, ok := factory.NewTranscriptParser().(runner.TranscriptVersioner); ok {
+		return versioned.TranscriptVersion()
+	}
+	return 0
+}
+
+// TranscriptParserVersion is the current parser version of a harness's
+// transcripts, for readers that judge which runs an older parser read.
+func (o *Orchestrator) TranscriptParserVersion(harness string) int {
+	return (&transcriptIndexHost{o: o}).ParserVersion(harness)
 }
 
 // Adopt applies the import visibility policy to a file and returns its run:
@@ -131,11 +172,8 @@ func (h *transcriptIndexHost) Adopt(ctx context.Context, file transcriptindex.Fi
 			h.rememberRedact(existing.ID.String(), redact)
 			return transcriptindex.Adoption{RunID: existing.ID.String()}, nil
 		case !file.Child() && h.isLegacyCopy(ctx, existing):
-			if err := h.relinkLegacy(ctx, existing, file, parent); err != nil {
-				return transcriptindex.Adoption{}, err
-			}
 			h.rememberRedact(existing.ID.String(), redact)
-			return transcriptindex.Adoption{RunID: existing.ID.String()}, nil
+			return transcriptindex.Adoption{RunID: existing.ID.String(), LegacyRelink: true, LegacyPath: existing.TranscriptPath}, nil
 		default:
 			// Another file already carries this session id (a resumed
 			// rollout): provenance stays unique per file.
@@ -178,27 +216,6 @@ func (h *transcriptIndexHost) isLegacyCopy(ctx context.Context, run *domain.Run)
 	}
 	root, err := h.o.resolveRunStateRoot(ctx)
 	return err == nil && filepath.Dir(run.TranscriptPath) == filepath.Join(root, run.ID.String())
-}
-
-// relinkLegacy points a snapshot-imported run at its source file and deletes
-// its stale copy and events; the indexer then re-reads the source from zero
-// and the projection sweep corrects its read model.
-func (h *transcriptIndexHost) relinkLegacy(ctx context.Context, run *domain.Run, file transcriptindex.FileRow, parent *uuid.UUID) error {
-	o := h.o
-	if err := o.events.Delete(ctx, run.ID); err != nil {
-		return fmt.Errorf("drop legacy imported events: %w", err)
-	}
-	o.notifyConversationSearch(ctx, "delete_run", run.ID.String(), "")
-	if err := os.RemoveAll(filepath.Dir(run.TranscriptPath)); err != nil {
-		obs.Component("transcript-index").Warn("legacy transcript copy removal failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
-	} else {
-		obs.Component("transcript-index").Info("removed legacy transcript copy", obs.KeyRunID, run.ID.String(), "path", filepath.Dir(run.TranscriptPath))
-	}
-	run.TranscriptPath, run.TranscriptCursor, run.TranscriptLastSeq = file.Path, 0, 0
-	run.WebConsoleSessionID, run.ParentRunID = file.WebConsoleSessionID, parent
-	run.StartedAt, run.EndedAt = nil, nil
-	run.Status, run.Phase, run.UpdatedAt = domain.RunStatusRunning, domain.RunPhaseExecuting, o.now()
-	return o.runs.Update(ctx, run)
 }
 
 func (h *transcriptIndexHost) rememberRedact(runID string, redact bool) {
@@ -289,8 +306,8 @@ func (h *transcriptIndexHost) Record(ctx context.Context, runID string, events [
 
 // UpdateRun applies a tick's activity: the event window, the harness title,
 // and the status rule for external runs — running while the file grew within
-// the active window, complete once idle. Going idle marks the run for the
-// durable projection sweep.
+// the active window, complete once idle. Going idle, or gaining events while
+// idle (a re-import), marks the run for the durable projection sweep.
 func (h *transcriptIndexHost) UpdateRun(ctx context.Context, runID string, update transcriptindex.RunUpdate) error {
 	o := h.o
 	id, err := uuid.Parse(runID)
@@ -304,6 +321,16 @@ func (h *transcriptIndexHost) UpdateRun(ctx context.Context, runID string, updat
 	if run == nil {
 		return domain.NewNotFoundError("Run", id)
 	}
+	wasActive := h.applyRunUpdate(run, update)
+	if err := o.runs.Update(ctx, run); err != nil {
+		return err
+	}
+	h.afterRunUpdate(ctx, run, update, wasActive)
+	return nil
+}
+
+func (h *transcriptIndexHost) applyRunUpdate(run *domain.Run, update transcriptindex.RunUpdate) bool {
+	o := h.o
 	if update.SessionID != "" && run.SessionID == "" {
 		run.SessionID = update.SessionID
 	}
@@ -314,13 +341,14 @@ func (h *transcriptIndexHost) UpdateRun(ctx context.Context, runID string, updat
 		started := update.StartedAt
 		run.StartedAt = &started
 	}
-	if !update.EndedAt.IsZero() && (run.EndedAt == nil || update.EndedAt.After(*run.EndedAt)) {
+	if !update.Active && !update.EndedAt.IsZero() && (run.EndedAt == nil || update.EndedAt.After(*run.EndedAt)) {
 		ended := update.EndedAt
 		run.EndedAt = &ended
 	}
 	wasActive := !run.Status.IsTerminal()
 	if update.Active {
 		run.Status, run.Phase = domain.RunStatusRunning, domain.RunPhaseExecuting
+		run.EndedAt = nil
 	} else {
 		run.Status, run.Phase = domain.RunStatusComplete, domain.RunPhaseCompleted
 		if run.StartedAt == nil {
@@ -329,14 +357,248 @@ func (h *transcriptIndexHost) UpdateRun(ctx context.Context, runID string, updat
 		}
 	}
 	run.UpdatedAt = o.now()
-	if err := o.runs.Update(ctx, run); err != nil {
+	return wasActive
+}
+
+func (h *transcriptIndexHost) afterRunUpdate(ctx context.Context, run *domain.Run, update transcriptindex.RunUpdate, wasActive bool) {
+	if !update.Active && (wasActive || update.Recorded > 0) {
+		h.o.projectTerminalInvocationReadModel(run)
+		h.o.notifyConversationSearch(ctx, "upsert_run", run.ID.String(), "")
+	}
+}
+
+func (h *transcriptIndexHost) CommitTranscript(ctx context.Context, store transcriptindex.Store, file transcriptindex.FileRow, usage []transcriptindex.UsageRow, expected *transcriptindex.FileRow, intent string, update transcriptindex.RunUpdate) error {
+	owner, ok := store.(interface {
+		CommitTranscriptAndRun(context.Context, transcriptindex.FileRow, []transcriptindex.UsageRow, *transcriptindex.FileRow, string, func(*domain.Run) error) error
+	})
+	if !ok {
+		return fmt.Errorf("atomic transcript/run update unavailable")
+	}
+	var run *domain.Run
+	var wasActive bool
+	if err := owner.CommitTranscriptAndRun(ctx, file, usage, expected, intent, func(current *domain.Run) error {
+		run = current
+		wasActive = h.applyRunUpdate(current, update)
+		return nil
+	}); err != nil {
 		return err
 	}
-	if wasActive && !update.Active {
-		o.projectTerminalInvocationReadModel(run)
-		o.notifyConversationSearch(ctx, "upsert_run", run.ID.String(), "")
-	}
+	h.afterRunUpdate(ctx, run, update, wasActive)
 	return nil
+}
+
+type replacementStore interface {
+	TranscriptReplacementToken(context.Context, string) (string, error)
+	MarkReplacementIntent(context.Context, string, string) (string, error)
+	CommitTranscriptReplacement(context.Context, string, string, transcriptindex.FileRow, []transcriptindex.UsageRow, func(*domain.Run) error, func(*sql.Tx) error) error
+	FinishReplacementEffects(context.Context, transcriptindex.FileRow) error
+}
+
+func (h *transcriptIndexHost) ReplacementTokens(ctx context.Context, store transcriptindex.Store, file transcriptindex.FileRow) (string, string, error) {
+	owner, ok := store.(replacementStore)
+	if !ok {
+		return "", "", fmt.Errorf("atomic transcript replacement unavailable")
+	}
+	eventOwner, ok := h.o.events.(event.StreamReplacer)
+	if !ok {
+		return "", "", fmt.Errorf("event stream replacement unavailable")
+	}
+	id, err := uuid.Parse(file.RunID)
+	if err != nil {
+		return "", "", err
+	}
+	fileToken, err := owner.TranscriptReplacementToken(ctx, file.Key)
+	if err != nil {
+		return "", "", err
+	}
+	eventToken, err := eventOwner.StreamToken(ctx, id)
+	return fileToken, eventToken, err
+}
+
+func (h *transcriptIndexHost) CommitReplacement(ctx context.Context, store transcriptindex.Store, oldKey, fileToken, eventToken string, file transcriptindex.FileRow, usage []transcriptindex.UsageRow, events []*domain.RunEvent, retain bool, update transcriptindex.RunUpdate) (bool, error) {
+	reject := func(err error) (bool, error) { return false, &transcriptindex.ReplacementPrecommitError{Err: err} }
+	owner, ok := store.(replacementStore)
+	if !ok {
+		return reject(fmt.Errorf("atomic transcript replacement unavailable"))
+	}
+	eventOwner, ok := h.o.events.(event.StreamReplacer)
+	if !ok {
+		return reject(fmt.Errorf("event stream replacement unavailable"))
+	}
+	id, err := uuid.Parse(file.RunID)
+	if err != nil {
+		return reject(err)
+	}
+	masked := make([]*domain.RunEvent, 0, len(events))
+	var observations []*pricing.QuotaObservation
+	redact := h.redacts(ctx, id)
+	for _, item := range events {
+		if item.EventType == domain.EventTypeQuota && !h.o.quotaObservationsDisabled {
+			if h.o.quotaObservations == nil {
+				return reject(fmt.Errorf("quota observation owner unavailable"))
+			}
+			observation, err := pricing.ObservationFromEvent(item, h.o.now().UTC())
+			if err != nil {
+				return reject(fmt.Errorf("replacement quota observation: %w", err))
+			}
+			if observation != nil {
+				if !retain {
+					observation.EvidenceRef = "agent-manager://runs/" + file.RunID
+				}
+				observations = append(observations, observation)
+			}
+		}
+		if !retain {
+			continue
+		}
+		if message, ok := item.Data.(*domain.MessageEventData); ok && (strings.EqualFold(message.Role, "user") || strings.EqualFold(message.Role, "operator")) {
+			copied := *message
+			copied.Content = transcriptredact.Redact(copied.Content)
+			item = &domain.RunEvent{ID: item.ID, RunID: item.RunID, EventType: item.EventType, Timestamp: item.Timestamp, Data: &copied}
+		}
+		if redact {
+			var failed bool
+			item, failed = h.o.piiMasker.MaskEvent(ctx, item)
+			if failed {
+				return reject(fmt.Errorf("replacement PII masking unavailable; prior evidence retained"))
+			}
+		}
+		data, err := json.Marshal(item.Data)
+		if err != nil {
+			return reject(fmt.Errorf("measure replacement event: %w", err))
+		}
+		if item.Data == nil {
+			data = []byte("{}")
+		}
+		file.RecallBytes += int64(len(data))
+		masked = append(masked, item)
+	}
+	quotaOwner, quotaAtomic := h.o.quotaObservations.(interface {
+		RecordQuotaObservationInTx(context.Context, *sql.Tx, *pricing.QuotaObservation) error
+	})
+	if len(observations) > 0 && !quotaAtomic {
+		return reject(fmt.Errorf("atomic quota observation owner unavailable"))
+	}
+	fileToken, err = owner.MarkReplacementIntent(ctx, oldKey, fileToken)
+	if err != nil {
+		return false, fmt.Errorf("replacement intent failed or outcome uncertain: %w", err)
+	}
+	guard := eventOwner.LockReplacement()
+	var legacyPath string
+	err = owner.CommitTranscriptReplacement(ctx, oldKey, fileToken, file, usage, func(current *domain.Run) error {
+		if current.TranscriptPath != file.Path {
+			if file.Child() || !h.isLegacyCopy(ctx, current) || current.ImportSourceHarness != file.Harness || current.ImportSourceSessionID != file.SessionID {
+				return fmt.Errorf("replacement run source changed during staging")
+			}
+			legacyPath = current.TranscriptPath
+			current.TranscriptPath, current.TranscriptCursor, current.TranscriptLastSeq = file.Path, 0, 0
+			current.WebConsoleSessionID = file.WebConsoleSessionID
+		}
+		h.applyRunUpdate(current, update)
+		return nil
+	}, func(tx *sql.Tx) error {
+		if legacyPath != "" {
+			cleanupOwner, ok := store.(interface {
+				RecordLegacyCleanupInTx(context.Context, *sql.Tx, transcriptindex.FileRow, string) error
+			})
+			if !ok {
+				return fmt.Errorf("legacy cleanup owner unavailable")
+			}
+			if err := cleanupOwner.RecordLegacyCleanupInTx(ctx, tx, file, legacyPath); err != nil {
+				return err
+			}
+		}
+		if err := guard.ReplaceInTx(ctx, tx, id, eventToken, masked); err != nil {
+			return err
+		}
+		for _, observation := range observations {
+			if err := quotaOwner.RecordQuotaObservationInTx(ctx, tx, observation); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	// Even an error may be a commit with an unknown result. Closing existing
+	// readers makes them reconnect instead of retaining an invalid sequence.
+	guard.Finish(id, true)
+	if err != nil {
+		return false, fmt.Errorf("replacement failed or outcome uncertain; inspect owner before retry: %w", err)
+	}
+	if err := h.CompleteReplacementEffects(ctx, store, file); err != nil {
+		return true, fmt.Errorf("replacement committed but derived effects remain pending: %w", err)
+	}
+	return true, nil
+}
+
+func (h *transcriptIndexHost) CompleteReplacementEffects(ctx context.Context, store transcriptindex.Store, file transcriptindex.FileRow) error {
+	owner, ok := store.(replacementStore)
+	if !ok {
+		return fmt.Errorf("replacement effects owner unavailable")
+	}
+	id, err := uuid.Parse(file.RunID)
+	if err != nil {
+		return err
+	}
+	run, err := h.o.runs.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if run == nil {
+		return domain.NewNotFoundError("Run", id)
+	}
+	if run.Status.IsTerminal() {
+		queue, ok := h.o.invocationReadModel.(invocationreadmodel.ProjectionQueue)
+		if !ok {
+			return fmt.Errorf("invocation projection owner unavailable")
+		}
+		if err := queue.MarkProjectionPending(ctx, run.ID.String(), h.o.now()); err != nil {
+			return err
+		}
+	}
+	if h.o.conversationSearchNotify == nil {
+		return fmt.Errorf("conversation search owner unavailable")
+	}
+	if err := h.o.conversationSearchNotify(ctx, "delete_run", file.RunID, ""); err != nil {
+		return err
+	}
+	if err := h.o.conversationSearchNotify(ctx, "upsert_run", file.RunID, ""); err != nil {
+		return err
+	}
+	return owner.FinishReplacementEffects(ctx, file)
+}
+
+func (h *transcriptIndexHost) EvictRecall(ctx context.Context, store transcriptindex.Store, expected transcriptindex.FileRow) (bool, error) {
+	owner, ok := store.(interface {
+		CommitRecallEviction(context.Context, transcriptindex.FileRow, transcriptindex.FileRow, func(*sql.Tx) error) error
+	})
+	if !ok {
+		return false, fmt.Errorf("atomic recall eviction unavailable")
+	}
+	eventOwner, ok := h.o.events.(event.StreamReplacer)
+	if !ok {
+		return false, fmt.Errorf("event stream eviction unavailable")
+	}
+	id, err := uuid.Parse(expected.RunID)
+	if err != nil {
+		return false, err
+	}
+	token, err := eventOwner.StreamToken(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	file := expected
+	file.RecallBytes, file.RecallEvicted = 0, true
+	file.Status, file.Error = transcriptindex.StatusPending, transcriptindex.ReplacementEffectsPending
+	guard := eventOwner.LockReplacement()
+	err = owner.CommitRecallEviction(ctx, expected, file, func(tx *sql.Tx) error { return guard.ReplaceInTx(ctx, tx, id, token, nil) })
+	guard.Finish(id, true)
+	if err != nil {
+		return false, fmt.Errorf("recall eviction failed or outcome uncertain: %w", err)
+	}
+	if err := h.CompleteReplacementEffects(ctx, store, file); err != nil {
+		return true, fmt.Errorf("recall eviction committed but derived effects remain pending: %w", err)
+	}
+	return true, nil
 }
 
 func (h *transcriptIndexHost) DropRecall(ctx context.Context, runID string) error {
@@ -348,6 +610,72 @@ func (h *transcriptIndexHost) DropRecall(ctx context.Context, runID string) erro
 		return err
 	}
 	return h.o.DeleteRunFromConversationSearch(ctx, runID)
+}
+
+func (h *transcriptIndexHost) RecallToken(ctx context.Context, runID string) (string, error) {
+	id, err := uuid.Parse(runID)
+	if err != nil {
+		return "", err
+	}
+	owner, ok := h.o.events.(event.StreamReplacer)
+	if !ok {
+		return "", fmt.Errorf("atomic recall event owner unavailable")
+	}
+	return owner.StreamToken(ctx, id)
+}
+
+func (h *transcriptIndexHost) ReplaceRecall(ctx context.Context, store transcriptindex.Store, expected, file transcriptindex.FileRow, token string, events []*domain.RunEvent) (bool, error) {
+	id, err := uuid.Parse(expected.RunID)
+	if err != nil {
+		return false, err
+	}
+	owner, ok := store.(interface {
+		CommitRecallRebuild(context.Context, transcriptindex.FileRow, transcriptindex.FileRow, func(*sql.Tx) error) error
+	})
+	if !ok {
+		return false, fmt.Errorf("atomic recall checkpoint owner unavailable")
+	}
+	eventOwner, ok := h.o.events.(event.StreamReplacer)
+	if !ok {
+		return false, fmt.Errorf("atomic recall event owner unavailable")
+	}
+	masked := make([]*domain.RunEvent, 0, len(events))
+	redact := h.redacts(ctx, id)
+	file.RecallBytes = 0
+	for _, item := range events {
+		if message, ok := item.Data.(*domain.MessageEventData); ok && (strings.EqualFold(message.Role, "user") || strings.EqualFold(message.Role, "operator")) {
+			copied := *message
+			copied.Content = transcriptredact.Redact(copied.Content)
+			item = &domain.RunEvent{ID: item.ID, RunID: item.RunID, EventType: item.EventType, Timestamp: item.Timestamp, Data: &copied}
+		}
+		if redact {
+			var failed bool
+			item, failed = h.o.piiMasker.MaskEvent(ctx, item)
+			if failed {
+				return false, fmt.Errorf("recall PII masking unavailable; prior evidence retained")
+			}
+		}
+		data, err := json.Marshal(item.Data)
+		if err != nil {
+			return false, err
+		}
+		if item.Data == nil {
+			data = []byte("{}")
+		}
+		file.RecallBytes += int64(len(data))
+		masked = append(masked, item)
+	}
+	guard := eventOwner.LockReplacement()
+	err = owner.CommitRecallRebuild(ctx, expected, file, func(tx *sql.Tx) error { return guard.AppendEmptyInTx(ctx, tx, id, token, masked) })
+	if err != nil {
+		guard.Finish(id, true)
+		return false, fmt.Errorf("recall promotion failed or outcome uncertain; inspect owner before retry: %w", err)
+	}
+	guard.FinishAppend(id, true, masked)
+	if err := h.CompleteReplacementEffects(ctx, store, file); err != nil {
+		return true, fmt.Errorf("recall events committed but derived effects remain pending: %w", err)
+	}
+	return true, nil
 }
 
 // summaryUsageEvents returns an imported run's usage rebuilt from durable

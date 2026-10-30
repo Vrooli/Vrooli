@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Collect bounded run reports and friction projections for an explicit investigation subject set, preserving unknown evidence as unknown.",
+  "purpose": "Collect bounded run reports for an explicit investigation subject set, preserving unknown evidence as unknown.",
   "inputs": {
     "run_ids": {
       "type": "array",
@@ -14,22 +14,18 @@
     }
   },
   "assumptions": [
-    "agent-manager is running and its report and episode projections are reachable",
-    "run reports and episodes are bounded owner projections; transcript bodies are not read"
+    "agent-manager is running and its run report projection is reachable",
+    "run reports are bounded owner projections; transcript bodies are not read"
   ],
   "invariants": [
     "read only; no launches, mutations, cursor movement, or recommendations",
-    "one report and one episode read per declared subject run, with at most four episode rows materialized per run",
-    "report and episodes failures remain explicit per-source unknowns; a healthy sibling stays visible",
+    "one report read per declared subject run",
+    "a report failure remains an explicit per-subject unknown; a healthy sibling stays visible",
     "the envelope is printed exactly once on every path"
   ],
   "bindings": [
     {
       "id": "agent-manager/run/report",
-      "effect": "read"
-    },
-    {
-      "id": "agent-manager/run/episodes",
       "effect": "read"
     }
   ],
@@ -54,12 +50,11 @@
       ]
     },
     "signals": {
-      "subjects": "Bounded subject rows with independent report and episode availability and projection metadata; source_completeness and source_freshness are unknown because these projections do not prove ingestion coverage or currency",
+      "subjects": "Bounded subject rows with report availability; source_completeness and source_freshness are unknown because the report does not prove ingestion coverage or currency",
       "subject_count": "Number of requested subjects",
       "available": "Subjects with at least one available projection",
       "unknown": "Subjects with at least one unavailable projection",
-      "projection_rows": "Number of returned episode rows",
-      "coverage": "complete only when both projections are available for every subject; this describes projection availability, not underlying source completeness or freshness"
+      "coverage": "complete only when the report is available for every subject; this describes report availability, not underlying source completeness or freshness"
     },
     "errors": {
       "classes": [

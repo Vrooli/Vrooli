@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,9 @@ const (
 	CharterFile = "CHARTER.md"
 	StatusFile  = "STATUS.md"
 	LogFile     = "LOG.md"
+	// GoalFile is only the sentinel an enrollment destination may name
+	// ("path:<goal home>/GOAL.md"); no reader opens it.
+	GoalFile = "GOAL.md"
 )
 
 var (
@@ -33,8 +37,8 @@ var (
 )
 
 // LoadV2 reads a Phase-2 goal home (CHARTER.md/STATUS.md/LOG.md/FEEDBACK.md)
-// from fsys, whose root is the goal-home directory, into the same *Home the v1
-// LoadLegacy produces. Only read failures other than a missing file are errors.
+// from fsys, whose root is the goal-home directory. Only read failures other
+// than a missing file are errors.
 func LoadV2(fsys fs.FS) (*Home, error) {
 	return loadV2(fsys, false)
 }
@@ -48,7 +52,7 @@ func LoadBoardProjectionV2(fsys fs.FS) (*Home, error) {
 }
 
 func loadV2(fsys fs.FS, tolerateLogGaps bool) (*Home, error) {
-	home := &Home{FileBytes: make(map[string]int), EpochsComplete: true, V2: true}
+	home := &Home{FileBytes: make(map[string]int), EpochsComplete: true}
 
 	charter, err := home.read(fsys, CharterFile)
 	if err != nil {
@@ -76,7 +80,7 @@ func loadV2(fsys fs.FS, tolerateLogGaps bool) (*Home, error) {
 	return parseV2(home, charter, status, feedback, logData, tolerateLogGaps)
 }
 
-// parseV2 is shared by filesystem reads and the importer's losslessness check.
+// parseV2 assembles a Home from the four goal-home files.
 func parseV2(home *Home, charter, status, feedback, logData []byte, tolerateLogGaps bool) (*Home, error) {
 	home.Goal = ParseCharter(charter)
 	home.Feedback = ParseFeedback(feedback)
@@ -93,7 +97,7 @@ func parseV2(home *Home, charter, status, feedback, logData []byte, tolerateLogG
 		home.Goal.Current = st.current
 	}
 
-	if missingName(home, LogFile) || missingName(home, StatusFile) {
+	if slices.Contains(home.Missing, LogFile) || slices.Contains(home.Missing, StatusFile) {
 		home.EpochsComplete = false
 		home.IncompleteEpochFiles = append(home.IncompleteEpochFiles, LogFile)
 	}
@@ -121,8 +125,7 @@ type MalformedLogError struct{ Detail string }
 
 func (e *MalformedLogError) Error() string { return e.Detail }
 
-// read accounts for every file through the same missing/error semantics in
-// runtime parsing and legacy import.
+// read accounts for every file through one missing/error semantics.
 func (h *Home) read(fsys fs.FS, name string) ([]byte, error) {
 	data, err := fs.ReadFile(fsys, name)
 	if errors.Is(err, fs.ErrNotExist) {

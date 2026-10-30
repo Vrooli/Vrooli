@@ -68,8 +68,6 @@ func NewAntigravityForTestWithBinary(path string) *Antigravity {
 	return c
 }
 
-func (c *Antigravity) ToolCapabilityMap() map[string]string { return map[string]string{} }
-
 func (c *Antigravity) Capabilities() runner.Capabilities {
 	return codingAgentCapabilities(runner.Capabilities{
 		SupportsToolEvents:       false,

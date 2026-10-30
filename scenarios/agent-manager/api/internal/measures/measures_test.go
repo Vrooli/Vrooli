@@ -1,7 +1,13 @@
 package measures
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -9,7 +15,6 @@ import (
 
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
-	"agent-manager/internal/runsignal"
 
 	"connectrpc.com/connect"
 	"github.com/jmoiron/sqlx"
@@ -21,8 +26,46 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// TestRuntimeMeasureBindingsCurrent is the owner of the offline Runtime
+// projection. UPDATE_RUNTIME_MEASURES=1 refreshes it from the policy and
+// registry; normal tests fail on drift rather than silently changing it.
+func TestRuntimeMeasureBindingsCurrent(t *testing.T) {
+	declaration, err := NewHandler(nil, nil).RuntimeBindings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(declaration.Bindings) != 10 {
+		t.Fatalf("runtime bindings = %d, want ten explicitly reviewed measures", len(declaration.Bindings))
+	}
+	source, err := os.ReadFile("measures.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	declaration.SourceDigests = map[string]string{"api/internal/measures/measures.go": fmt.Sprintf("sha256:%x", sha256.Sum256(source))}
+	encoded, err := json.MarshalIndent(declaration, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded = append(encoded, '\n')
+	path := filepath.Join("..", "..", "..", ".vrooli", "generated", "runtime-measures.json")
+	if os.Getenv("UPDATE_RUNTIME_MEASURES") == "1" {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, encoded, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	current, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(current, encoded) {
+		t.Fatal("runtime measures projection is stale; run UPDATE_RUNTIME_MEASURES=1 go test ./internal/measures -run '^TestRuntimeMeasureBindingsCurrent$'")
+	}
+}
+
 type fakeStore struct {
-	metrics          invocationreadmodel.Metrics
 	runMetrics       invocationreadmodel.RunMetrics
 	usage            invocationreadmodel.UsageTotals
 	fallback         invocationreadmodel.FallbackInsights
@@ -32,10 +75,7 @@ type fakeStore struct {
 	breakdowns       map[string][]invocationreadmodel.RunBreakdownRow
 	runTimeSeries    []invocationreadmodel.RunTimeSeriesBucket
 	toolUsage        []invocationreadmodel.ToolUsageRow
-	capabilityUsage  []invocationreadmodel.CapabilityUsageRow
 	tokenAttribution []invocationreadmodel.TokenAttributionRow
-	errorPatterns    []invocationreadmodel.ErrorPattern
-	findingMetrics   invocationreadmodel.FindingMetrics
 	filter           invocationreadmodel.Filter
 	latestProjection time.Time
 }
@@ -170,11 +210,6 @@ func (s *fakeStore) ToolUsage(_ context.Context, filter invocationreadmodel.Filt
 	return s.toolUsage, nil
 }
 
-func (s *fakeStore) CapabilityUsage(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.CapabilityUsageRow, error) {
-	s.filter = filter
-	return s.capabilityUsage, nil
-}
-
 func (s *fakeStore) TokenAttribution(_ context.Context, filter invocationreadmodel.Filter, groupBy, _ string, _ int) ([]invocationreadmodel.TokenAttributionRow, error) {
 	s.filter = filter
 	for index := range s.tokenAttribution {
@@ -196,55 +231,11 @@ func TestTokenAttributionValidatesSelectionsAndReturnsEstimatedShare(t *testing.
 	}
 }
 
-func (s *fakeStore) ErrorPatterns(_ context.Context, filter invocationreadmodel.Filter, _ int) ([]invocationreadmodel.ErrorPattern, error) {
-	s.filter = filter
-	return s.errorPatterns, nil
-}
-
-func (s *fakeStore) FindingMetrics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error) {
-	s.filter = filter
-	return s.findingMetrics, nil
-}
-
-func (s *fakeStore) Metrics(_ context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.Metrics, error) {
-	s.filter = filter
-	return s.metrics, nil
-}
-
-func TestRegistryAndTypedRPCShareExternalToolComputation(t *testing.T) {
-	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{metrics: invocationreadmodel.Metrics{ExternalToolShare: 0.4, ExternalCalls: 4, ResolvedCalls: 10, UnknownCalls: 3}}
-	handler := NewHandler(store, func() time.Time { return now })
-
-	rpc, err := handler.ExternalToolShare(context.Background(), connect.NewRequest(&measurepb.ExternalToolShareRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rpc.Msg.GetShare() != 0.4 || rpc.Msg.GetUnknownCalls() != 3 || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
-		t.Fatalf("rpc response=%+v", rpc.Msg)
-	}
-
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(ExternalToolShare, "last_7d"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if served.Value != strconv.FormatFloat(rpc.Msg.GetShare(), 'f', -1, 64) || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
-		t.Fatalf("registry=%+v rpc=%+v", served, rpc.Msg)
-	}
-	if store.filter.From == nil || store.filter.To == nil || !store.filter.To.After(*store.filter.From) {
-		t.Fatalf("expected resolved half-open range, filter=%+v", store.filter)
-	}
-}
-
 func TestTypedMeasuresDefaultWindowAndMapFilterDimensions(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{metrics: invocationreadmodel.Metrics{RetryRate: 0.25, RetryCalls: 2, TotalCalls: 8}}
+	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{SuccessRate: 0.25, SuccessfulRuns: 2, TerminalRuns: 8}}
 	handler := NewHandler(store, func() time.Time { return now })
-	response, err := handler.RetryRate(context.Background(), connect.NewRequest(&measurepb.RetryRateRequest{Filter: &measurepb.InvocationFilter{Ownership: "external", ProfileId: "profile-a", TagPrefix: "batch-"}}))
+	response, err := handler.RunSuccessRate(context.Background(), connect.NewRequest(&measurepb.RunSuccessRateRequest{Filter: &measurepb.InvocationFilter{Ownership: "external", ProfileId: "profile-a", TagPrefix: "batch-"}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -282,46 +273,36 @@ func TestWorkloadEfficiencyIncludesFailedAttemptsInNumerator(t *testing.T) {
 	}
 }
 
-func TestRepeatedWorkRateMarksDegenerateFingerprintCorpusUnreliable(t *testing.T) {
-	store := &fakeStore{metrics: invocationreadmodel.Metrics{RepeatedWorkRate: 0.991, RepeatedCalls: 109, TotalCalls: 110, LargestFingerprintBucket: 100}}
+// `measures get` reads the registry, so the registry must carry the same
+// reliability verdict as the typed RPC rather than a bare number.
+func TestRegistryRateCarriesTheTypedValidity(t *testing.T) {
+	store := &fakeStore{runMetrics: invocationreadmodel.RunMetrics{SuccessRate: 1, SuccessfulRuns: 2, TerminalRuns: 2}}
 	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
-	response, err := handler.RepeatedWorkRate(context.Background(), connect.NewRequest(&measurepb.RepeatedWorkRateRequest{}))
+	registry, err := handler.Registry()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := response.Msg.GetValidity(); got.GetState() != "unreliable" || got.GetLargestFingerprintBucket() != 100 || got.GetReason() == "" {
-		t.Fatalf("validity=%+v, want unreliable concentration result", got)
-	}
-}
-
-func TestRepeatedWorkRateMarksHealthyFingerprintCorpusAvailable(t *testing.T) {
-	store := &fakeStore{metrics: invocationreadmodel.Metrics{RepeatedWorkRate: 0.2, RepeatedCalls: 2, TotalCalls: 10, LargestFingerprintBucket: 3}}
-	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
-	response, err := handler.RepeatedWorkRate(context.Background(), connect.NewRequest(&measurepb.RepeatedWorkRateRequest{}))
+	result, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: RunSuccessRate, Params: map[string]string{"window": "last_7d"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := response.Msg.GetValidity(); got.GetState() != "available" || got.GetReason() != "" {
-		t.Fatalf("validity=%+v, want available healthy result", got)
+	typed, err := handler.RunSuccessRate(context.Background(), connect.NewRequest(&measurepb.RunSuccessRateRequest{}))
+	if err != nil || typed.Msg.GetValidity().GetState() != "unreliable" || typed.Msg.GetValidity().GetSampleSize() != 2 {
+		t.Fatalf("a two-run sample is unreliable: %+v %v", typed.Msg.GetValidity(), err)
 	}
-}
-
-func TestRateMarksSmallSampleUnreliable(t *testing.T) {
-	store := &fakeStore{metrics: invocationreadmodel.Metrics{RetryRate: 1, RetryCalls: 2, TotalCalls: 2, LargestFingerprintBucket: 1}}
-	handler := NewHandler(store, func() time.Time { return time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC) })
-	response, err := handler.RetryRate(context.Background(), connect.NewRequest(&measurepb.RetryRateRequest{}))
-	if err != nil {
-		t.Fatal(err)
+	cycle, err := registry.Execute(context.Background(), measurelib.MeasureRequest{Measure: RunCycleTime, Params: map[string]string{"window": "last_7d"}})
+	if err != nil || cycle.Fields[0]["p50_ms"] == "" || cycle.Fields[0]["p90_ms"] == "" {
+		t.Fatalf("run cycle time must keep its percentiles beside the average: %+v %v", cycle, err)
 	}
-	if got := response.Msg.GetValidity(); got.GetState() != "unreliable" || got.GetSampleSize() != 2 {
-		t.Fatalf("validity=%+v, want unreliable small sample", got)
+	if len(result.Fields) != 1 || result.Fields[0]["validity"] != "unreliable" || result.Fields[0]["sample_size"] != "2" || result.Fields[0]["validity_reason"] == "" {
+		t.Fatalf("registry result lost the validity verdict: %+v", result)
 	}
 }
 
 func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
 	store := &fakeStore{
-		runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, P50DurationMS: 1000, P90DurationMS: 2000, ReadCalls: 6, FileRereads: 2, FileRereadRate: 1.0 / 3.0},
+		runMetrics: invocationreadmodel.RunMetrics{TotalRuns: 8, TerminalRuns: 6, SuccessfulRuns: 3, SuccessRate: 0.5, CompletedDurationRuns: 5, AverageDurationMS: 1234, P50DurationMS: 1000, P90DurationMS: 2000},
 		usage:      invocationreadmodel.UsageTotals{MeteredCostUSD: 4.5, TotalTokens: 99, Runs: 8, Requests: 20},
 	}
 	handler := NewHandler(store, func() time.Time { return now })
@@ -345,10 +326,6 @@ func TestRegistryAndTypedRPCShareRunThroughputComputation(t *testing.T) {
 	if err != nil || served.Value != "8" || served.Provenance.ExecutedQuery == "" {
 		t.Fatalf("volume registry=%+v err=%v", served, err)
 	}
-	rereads, err := handler.FileRereadRate(context.Background(), connect.NewRequest(&measurepb.FileRereadRateRequest{}))
-	if err != nil || rereads.Msg.GetRate() != 1.0/3.0 || rereads.Msg.GetFilesReadMoreThanOnce() != 2 || rereads.Msg.GetReadCalls() != 6 {
-		t.Fatalf("reread rpc=%+v err=%v", rereads.Msg, err)
-	}
 }
 
 func TestRunDurationStatisticsUsesDurableStore(t *testing.T) {
@@ -358,6 +335,14 @@ func TestRunDurationStatisticsUsesDurableStore(t *testing.T) {
 	response, err := handler.RunDurationStatistics(context.Background(), connect.NewRequest(&measurepb.RunDurationStatisticsRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
 	if err != nil || response.Msg.GetAverageDurationMs() != 100 || response.Msg.GetMinDurationMs() != 25 || response.Msg.GetMaxDurationMs() != 200 || response.Msg.GetCount() != 3 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
 		t.Fatalf("duration response=%+v err=%v", response.Msg, err)
+	}
+	registry, err := handler.Registry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered, err := registry.Execute(context.Background(), measureRequest("throughput.run_duration_statistics", "last_7d"))
+	if err != nil || registered.Value != "100" || len(registered.Fields) != 1 || registered.Fields[0]["count"] != "3" || registered.Fields[0]["min_ms"] != "25" || registered.Fields[0]["validity"] != response.Msg.GetValidity().GetState() || registered.Provenance.ExecutedQuery == "" {
+		t.Fatalf("duration registry=%+v err=%v", registered, err)
 	}
 }
 
@@ -391,15 +376,14 @@ func TestRunCostPopulatesDistribution(t *testing.T) {
 	if len(response.Msg.GetTokenBuckets()) != 1 || response.Msg.GetTokenBuckets()[0].GetRunCount() != 5 {
 		t.Fatalf("token buckets = %+v", response.Msg.GetTokenBuckets())
 	}
-}
-
-func TestTypedFindingRecurrenceUsesSharedComputation(t *testing.T) {
-	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{findingMetrics: invocationreadmodel.FindingMetrics{TotalFindings: 3, RecurringFindings: 2, RecurringFingerprints: 1, RecurrenceRate: 2.0 / 3.0}}
-	handler := NewHandler(store, func() time.Time { return now })
-	response, err := handler.FindingRecurrenceRate(context.Background(), connect.NewRequest(&measurepb.FindingRecurrenceRateRequest{}))
-	if err != nil || response.Msg.GetRate() != 2.0/3.0 || response.Msg.GetRecurringFindings() != 2 || response.Msg.GetTotalFindings() != 3 || response.Msg.GetRecurringFingerprints() != 1 || response.Msg.GetProvenance().GetExecutedQuery() == "" {
-		t.Fatalf("recurrence response=%+v err=%v", response.Msg, err)
+	// `measures get run-cost` carries the same distribution.
+	registry, err := handler.Registry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	served, err := registry.Execute(context.Background(), measureRequest(RunCost, "last_7d"))
+	if err != nil || served.Fields[0]["p90_tokens"] != "9000" || served.Fields[0]["max_cost_usd"] != "0.1" || served.Fields[0]["distribution_runs"] != "5" {
+		t.Fatalf("run-cost registry = %+v err=%v", served, err)
 	}
 }
 
@@ -483,37 +467,10 @@ func TestRegistryAndTypedRPCShareTerminalRunTrend(t *testing.T) {
 	}
 }
 
-func TestRegistryAndTypedRPCShareErrorPatterns(t *testing.T) {
-	now := time.Date(2026, time.July, 29, 12, 0, 0, 0, time.UTC)
-	store := &fakeStore{errorPatterns: []invocationreadmodel.ErrorPattern{{ErrorCode: "runner_failed", Count: 2, LastSeen: now.Add(-time.Hour), SampleRunID: "run-2"}}}
-	handler := NewHandler(store, func() time.Time { return now })
-	rpc, err := handler.ErrorPatterns(context.Background(), connect.NewRequest(&measurepb.ErrorPatternsRequest{Window: token(sharedmeasurepb.TimeWindowToken_TIME_WINDOW_TOKEN_LAST_7D)}))
-	if err != nil || len(rpc.Msg.GetRows()) != 1 || rpc.Msg.GetRows()[0].GetErrorCode() != "runner_failed" || rpc.Msg.GetRows()[0].GetCount() != 2 || rpc.Msg.GetRows()[0].GetSampleRunId() != "run-2" || rpc.Msg.GetProvenance().GetExecutedQuery() == "" {
-		t.Fatalf("errors rpc=%+v err=%v", rpc.Msg, err)
-	}
-	registry, err := handler.Registry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	served, err := registry.Execute(context.Background(), measureRequest(ErrorPatterns, "last_7d"))
-	if err != nil || len(served.Fields) != 1 || served.Fields[0]["error_code"] != "runner_failed" || served.Fields[0]["count"] != "2" || served.Provenance.ExecutedQuery != rpc.Msg.GetProvenance().GetExecutedQuery() {
-		t.Fatalf("errors registry=%+v rpc=%+v err=%v", served, rpc.Msg, err)
-	}
-}
-
 func token(value sharedmeasurepb.TimeWindowToken) *sharedmeasurepb.TimeWindow {
 	return &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Token{Token: value}}
 }
 
 func measureRequest(name, window string) measurelib.MeasureRequest {
 	return measurelib.MeasureRequest{Measure: name, Params: map[string]string{"window": window}}
-}
-
-func TestCapabilityEfficacyDefinitionNamesOnlyShownCounts(t *testing.T) {
-	numerator := definitionFor("friction.capability_efficacy").Numerator
-	for pattern, word := range map[string]string{"fallback-after-capability": "fallback", "capability-abandoned": "abandoned"} {
-		if got := strings.Contains(numerator, word); got != runsignal.Shown(pattern) {
-			t.Errorf("numerator %q mentions %q = %v, pattern shown = %v", numerator, word, got, runsignal.Shown(pattern))
-		}
-	}
 }

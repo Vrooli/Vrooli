@@ -2,64 +2,17 @@ package handlers
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/runreport"
-	"agent-manager/internal/runsignal"
-	"agent-manager/internal/usageattribution"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/types/known/structpb"
 )
-
-// GetEpisodes implements the proto-first EpisodesService read surface.
-func (h *Handler) GetEpisodes(ctx context.Context, req *connect.Request[domainpb.GetEpisodesRequest]) (*connect.Response[domainpb.GetEpisodesResponse], error) {
-	runID, err := uuid.Parse(req.Msg.GetRunId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	if _, err := h.svc.GetRun(ctx, runID); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, err)
-	}
-	episodes, err := h.svc.Episodes(ctx, runID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	shown, hidden := runsignal.ShownEpisodes(episodes)
-	out := make([]*domainpb.FrictionEpisode, 0, len(shown))
-	for _, episode := range shown {
-		out = append(out, episodeProto(episode))
-	}
-	return connect.NewResponse(&domainpb.GetEpisodesResponse{
-		ClassifierVersion:         runsignal.EpisodeClassifierVersion,
-		Episodes:                  out,
-		HiddenQuarantinedEpisodes: int64(hidden),
-	}), nil
-}
-
-// GetSelfReportSpans exposes the deterministic, versioned assistant-message
-// projection through the same proto-first investigation service as episodes.
-func (h *Handler) GetSelfReportSpans(ctx context.Context, req *connect.Request[domainpb.GetSelfReportSpansRequest]) (*connect.Response[domainpb.GetSelfReportSpansResponse], error) {
-	runID, err := uuid.Parse(req.Msg.GetRunId())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	spans, err := h.svc.SelfReportSpans(ctx, runID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	out := make([]*domainpb.SelfReportSpan, 0, len(spans))
-	for _, span := range spans {
-		out = append(out, &domainpb.SelfReportSpan{ClassifierVersion: span.ClassifierVersion, EventId: span.EventID, RuleId: span.RuleID, CauseScope: span.CauseScope, StartOffset: int64(span.StartOffset), EndOffset: int64(span.EndOffset), Text: span.Text})
-	}
-	return connect.NewResponse(&domainpb.GetSelfReportSpansResponse{ClassifierVersion: runsignal.SelfReportClassifierVersion, Spans: out}), nil
-}
 
 // GetCrossScenarioLedger returns bounded receipt evidence and availability
 // states; the projection remains opaque and is only included on request.
@@ -107,60 +60,4 @@ func (h *Handler) ImportTranscript(ctx context.Context, req *connect.Request[dom
 
 func availabilityProto(value runreport.Availability) *domainpb.Availability {
 	return &domainpb.Availability{State: string(value.State), Reason: value.Reason}
-}
-
-func episodeProto(episode runsignal.FrictionEpisode) *domainpb.FrictionEpisode {
-	return &domainpb.FrictionEpisode{
-		EpisodeId:              episode.EpisodeID,
-		RunId:                  episode.RunID,
-		ClassifierVersion:      episode.ClassifierVersion,
-		Pattern:                episode.Pattern,
-		CauseScope:             episode.CauseScope,
-		Severity:               episode.Severity,
-		HonestyFlags:           append([]string(nil), episode.HonestyFlags...),
-		StartEventId:           episode.StartEventID,
-		EndEventId:             episode.EndEventID,
-		EvidenceEventIds:       append([]string(nil), episode.EvidenceEventIDs...),
-		Turns:                  int64(episode.Turns),
-		Tokens:                 int64(episode.Tokens),
-		WallClockMs:            episode.WallClockMS,
-		SuspectedOwnerScenario: episode.SuspectedOwnerScenario,
-		SuspectedOwnerCommand:  episode.SuspectedOwnerCommand,
-		OwnerConfidence:        episode.OwnerConfidence,
-		Fingerprint:            episode.Fingerprint,
-		CycleCount:             int64(episode.CycleCount),
-		RepeatedElement:        episode.RepeatedElement,
-	}
-}
-
-// ReportFrictionProblem files a recurring friction problem in the scenario-qa
-// bug inbox with its evidence and marks it reported.
-func (h *Handler) ReportFrictionProblem(ctx context.Context, req *connect.Request[domainpb.ReportFrictionProblemRequest]) (*connect.Response[domainpb.ReportFrictionProblemResponse], error) {
-	if h.frictionBoard == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("friction reporting is unavailable"))
-	}
-	fingerprint := strings.TrimSpace(req.Msg.GetFingerprint())
-	if fingerprint == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("fingerprint is required"))
-	}
-	problem, err := h.frictionBoard.ReportFriction(ctx, fingerprint, time.Now().UTC())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-	}
-	return connect.NewResponse(&domainpb.ReportFrictionProblemResponse{Fingerprint: problem.Fingerprint, Description: problem.Description, Status: problem.Status, BugId: problem.BugID}), nil
-}
-
-// DismissFrictionProblem sets a friction problem aside.
-func (h *Handler) DismissFrictionProblem(ctx context.Context, req *connect.Request[domainpb.DismissFrictionProblemRequest]) (*connect.Response[domainpb.DismissFrictionProblemResponse], error) {
-	if h.frictionBoard == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("friction status is unavailable"))
-	}
-	fingerprint := strings.TrimSpace(req.Msg.GetFingerprint())
-	if fingerprint == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("fingerprint is required"))
-	}
-	if err := h.frictionBoard.DismissFriction(ctx, fingerprint, time.Now().UTC()); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	return connect.NewResponse(&domainpb.DismissFrictionProblemResponse{Fingerprint: fingerprint, Status: usageattribution.StatusDismissed}), nil
 }

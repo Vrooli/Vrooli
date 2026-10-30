@@ -73,10 +73,6 @@ func (b *baseCodec) GoalStatusFromTranscriptLine(line string) (runner.GoalMarker
 	return b.goalStatus(line)
 }
 
-// ToolCapabilityMap satisfies [Codec] for codecs that have no native tool
-// declarations. Concrete harness codecs override it with their vocabulary.
-func (b *baseCodec) ToolCapabilityMap() map[string]string { return map[string]string{} }
-
 func (b *baseCodec) ExtractCommand(input map[string]any) CommandExtraction {
 	for _, key := range []string{"command", "cmd", "argv", "args"} {
 		value, ok := input[key]

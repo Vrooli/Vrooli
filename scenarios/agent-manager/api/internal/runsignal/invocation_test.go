@@ -77,7 +77,7 @@ func TestDeriveInvocationFactsPreservesLiteralArgvArguments(t *testing.T) {
 			LiteralArgs: true,
 		}
 	}
-	facts := DeriveInvocationFactsWithResolver([]*domain.RunEvent{call}, nil, resolver)
+	facts := DeriveInvocationFacts([]*domain.RunEvent{call}, resolver)
 	if len(facts) != 2 || facts[0].Ownership != OwnershipExternal || facts[0].Executable != "awk" || facts[0].Wrapper != "bash -lc" || facts[0].Fingerprint == "" {
 		t.Fatalf("literal argv was parsed as shell syntax: %+v", facts)
 	}
@@ -236,8 +236,8 @@ func TestJSUnitsIgnoresCommentsAndMarksLoopsUnknown(t *testing.T) {
 		"await Promise.all(fs.map(f => tools.exec_command({cmd:\"cat x\"})))",
 		"fs.forEach(async f => { await tools.exec_command({cmd:\"cat x\"}) })",
 	} {
-		units := jsUnits(src)
-		if len(units) == 0 || units[0].Last || units[0].AllAnd {
+		units, _ := jsUnits(src)
+		if len(units) == 0 || oneResultCovers(units) {
 			t.Fatalf("a looped exec_command must not take the call's exit code: %q %+v", src, units)
 		}
 		if units[0].Kind == unitCode {

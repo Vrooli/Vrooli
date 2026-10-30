@@ -59,13 +59,15 @@ test("DashboardPage labels its tiles, links each to its runs, and groups thousan
 
 test("DashboardPage names the biggest lever under a window that will run out and links to that window", () => {
   usage.forecast.data = { windows: [{ provider: "claude", pool: "", window: "seven_day", status: "will_exhaust" }] };
-  usage.recommendations.data = { groups: [
-    { provider: "codex", pool: "", window: "seven_day", targetLabel: "other", levers: [{ action: "ignored", savedPoints: 90 }] },
-    { provider: "claude", pool: "", window: "seven_day", targetLabel: "Agent manager token usage analysis", levers: [{ action: "brief sub-agents", savedPoints: 46.2 }, { action: "trim context", savedPoints: 3 }] },
+  usage.recommendations.data = { actions: [
+    { source: "lever", provider: "codex", pool: "", window: "seven_day", action: "ignored", score: 90, effect: { unit: "points", basis: "projected" } },
+    { source: "tool", provider: "", pool: "", window: "", action: "a tool fix is not a quota lever", score: 80, effect: { unit: "calls", basis: "observed" } },
+    { source: "lever", provider: "claude", pool: "", window: "seven_day", action: "unproven move", score: 0, effect: { unit: "points", basis: "range", upper: 60 } },
+    { source: "lever", provider: "claude", pool: "", window: "seven_day", action: "Restart claude-code sub-agents after about 45 requests", score: 46.2, effect: { unit: "points", basis: "projected" } },
   ] };
   renderWithProviders(createElement(DashboardPage, { health: null, runs: [], onRefresh: vi.fn() }));
   const lever = screen.getByTestId("dashboard-usage-lever");
-  assert.match(lever.textContent ?? "", /Biggest lever: brief sub-agents in "Agent manager token usage analysis", ≈ −46 pts\/wk\./);
+  assert.match(lever.textContent ?? "", /Biggest lever: Restart claude-code sub-agents after about 45 requests, ≈ −46 pts\/wk\./);
   assert.equal(screen.getByRole("link", { name: "What to do →" }).getAttribute("href"), "/usage?window=claude%2F%2Fseven_day");
   usage.forecast.data = { windows: [{ provider: "claude", pool: "", window: "seven_day", status: "on_track" }] };
   renderWithProviders(createElement(DashboardPage, { health: null, runs: [], onRefresh: vi.fn() }));

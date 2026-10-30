@@ -6,7 +6,7 @@ metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["agent-manager", "run", "workflow", "conversation-search", "recall", "subagent", "delegation", "result-spec", "classify", "episodes", "friction", "findings", "investigation", "learning-spine"]
+  tags: ["agent-manager", "run", "workflow", "conversation-search", "recall", "subagent", "delegation", "result-spec", "classify", "friction", "findings", "investigation", "learning-spine"]
   icon: "terminal"
   status: "active"
   revision: 2
@@ -17,7 +17,7 @@ metadata:
     capture: "every attempt"
   requires:
     scenarios: ["agent-manager", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager run episodes", "agent-manager usage run", "agent-manager measures episode-cohort", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run investigate", "agent-manager run apply-investigation", "agent-manager findings list", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures run-success-rate", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["agent-manager run create", "agent-manager run get", "agent-manager run report", "agent-manager run result", "agent-manager run events", "agent-manager measures cohort-report", "agent-manager run park", "agent-manager run wake", "agent-manager run await-result", "agent-manager run continue", "agent-manager run stop", "agent-manager investigation start", "agent-manager investigation get", "agent-manager investigation list", "agent-manager investigation wait", "agent-manager investigation cancel", "agent-manager run apply-investigation", "agent-manager workflow simulate", "agent-manager workflow start", "agent-manager workflow execution-wait", "agent-manager workflow execution-get", "agent-manager workflow execution-result", "agent-manager workflow trace", "agent-manager task create", "agent-manager profile list", "agent-manager conversation search", "agent-manager conversation context", "agent-manager conversation index status", "agent-manager measures get", "search-hub query query", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -50,7 +50,7 @@ for an exact selected effort) and the existing UI's Efforts view. Read
 `large-effort-supervision` for judgment and
 `path:scenarios/agent-manager/docs/reference/effort-supervision.md` for typed
 enrollment and withdrawal requests and the delivery orchestration commands
-(`run continue`, `run park`, `run wake --key`, `usage run`, `effort epoch-check`).
+(`run continue`, `run park`, `run wake --key`, `run report --children`, `effort epoch-check`).
 Automatic discovery permits observation only; completion is independent of
 accepted outcomes. Missing metrics remain unknown. Steer a delivery goal through
 its goal home files, not the board. Explicit local operators can use
@@ -101,7 +101,7 @@ Bare run
 
 Rules:
 - Exactly one of `--classify`, `--result-schema`, `--result-schema-file`; the CLI refuses two.
-- `--workload-key` is what `measures repeated-work-rate` and `token-attribution` group on. Reuse the same key for the same recurring job; do not put a timestamp in it.
+- `--workload-key` is what `measures get workload-breakdown` and `measures get workload-efficiency` group on. Reuse the same key for the same recurring job; do not put a timestamp in it.
 - `--idempotency-key` makes a retry of `run create` return the same run instead of a second one.
 - A run that needs another producer's result parks itself: `agent-manager run park <id> --producer <scenario> --key <k>`; the producer's owner wakes it with `run wake <id> --result "<text>"`; the run reads it with `run await-result <id>`. [S1]
 
@@ -179,11 +179,11 @@ Reading
 ├─ One run, what happened?          run get <id> → status, phase, exit code                        [S1]
 │   ├─ status FAILED or NEEDS_REVIEW  → run report <id>; then investigating-agent-runs                 [S1]
 │   ├─ result missing or abstained    → run result <id>                                              [S1]
-│   └─ succeeded but slow or costly   → run episodes <id>; reviewing-agent-run-efficiency              [S1]
-├─ One run, what did the agent say hurt?   run episodes <id> --spans                                  [S1]
-├─ One run, which commands ran?            usage run <id> --facts                                     [S1]
+│   └─ succeeded but slow or costly   → run report <id>; reviewing-agent-run-efficiency              [S1]
+├─ One run, what did the agent say hurt?   run report <id> --json (selfReportSpans)                 [S1]
+├─ One run, which commands ran?            run report <id> --facts                                    [S1]
 ├─ Many runs, what recurs?
-│   ├─ by tag         → measures episode-cohort --filter-json '{"tag_prefix":"<p>"}' --limit 50                              [S1]
+│   ├─ by tag         → measures cohort-report --filter-json '{"tag_prefix":"<p>"}' --limit 50                       [S1]
 │   ├─ by explicit ids → measures cohort-report --run-ids a,b,c                                            [S1]
 │   └─ for one owning scenario → run agent-manager.friction-digest (inputs: scenario, window_days)   [S3]
 │         status ok       → signals.top_fingerprints are the fingerprints to act on
@@ -191,13 +191,17 @@ Reading
 │         errors[0].class scenario_unreachable → agent-manager is down; journal, stop
 │         errors[0].class no_runs_in_window    → widen window_days once, or accept the empty reading
 │         errors[0].class invalid_input        → fix scenario or window_days; nothing was read
-├─ Recurring findings from investigations   findings list [--severity recurring] [--fingerprint f]    [S1]
-└─ Fleet rate for one week                  measures run-success-rate --window last_7d              [S1]
+├─ Recurring friction problems              usage friction [--status open]                          [S1]
+├─ What should I change? (quota, tools,     usage recommendations [--run ID]                       [S1]
+│   programs, corrections — one ranked list; each action names its owner, effect in its own
+│   unit, evidence and the verify command; finished sessions read "would have saved")
+└─ Fleet rate for one week                  measures get run-success-rate --window last_7d          [S1]
+   (any other declared measure: measures list, then measures get <id> [--param name=value])
 ```
 
 Running an `[S3]` leaf: use `program-runtime library run <scenario>.<program> --input key=value`. The runner owns inputs, session, wait, and cleanup. Branch on the declared envelope; never copy source into a scratch session for ordinary use.
 
-Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. Reading `run episodes`: each row is a bounded episode with `pattern`, `causeScope`, `fingerprint`, `severity`, `suspectedOwnerScenario`, and `ownerConfidence`. A row with `ownerConfidence: unknown` has no owner scenario; do not attribute it by hand.
+Reading `run report`: status and cost first, then result provenance, then failure counts. Its `Next:` lines are the drill-down; the report deliberately excludes transcript bodies. `selfReportSpans` in `run report --json` are the assistant's own phrases ("blocked", "cannot find"): a cue to read the run, not a verdict. Command friction is read from `measures get tool-profiles` and `usage friction`, whose coverage line says how many commands came from runs an older parser read (outcomes there may be missing).
 
 #### 4.1 Recalling an unknown run
 
@@ -225,8 +229,8 @@ Do not paste snippets or raw conversation text into Vrooli Memory, source record
 
 ```
 Investigate
-├─ One or more failed runs → run investigate --run-ids a,b --depth standard              [S1]
-│     canonicalizes to the finite typed lifecycle and returns an investigation id
+├─ One or more failed runs → investigation start --file request.json (subject run_ids a,b) [S1]
+│     the finite typed lifecycle returns an investigation id
 │     → investigation wait/get/list                                                        [S1]
 ├─ A reusable program caller → program-runtime library run agent-manager.investigate       [S3]
 │     with a stable request key and bounded subject/evidence inputs
@@ -265,7 +269,7 @@ replay/promotion process and never come directly from remembered prose.
 |---|---|---|
 | Result parses as prose when the caller needs a label | Restart with `--classify a,b,c` | the label set and the run id |
 | Result has fields but `run result` shows abstained | Restart with `--result-schema-file`; keep the schema in the caller's repo | the schema path |
-| Runs of one job are not grouped in `measures repeated-work-rate` | Set one stable `--workload-key` | the key |
+| Runs of one job are not grouped in `measures get workload-breakdown` | Set one stable `--workload-key` | the key |
 | `run create` retried and made a second run | Add `--idempotency-key` | both run ids |
 | Workflow wait returned at the bound, execution still running | Call `execution-wait` again with a longer `--timeout-seconds`; one call, not a loop | the execution id and bound |
 | Run stalls on another scenario's output | Park; name the producer and key | producer, key |
@@ -289,12 +293,10 @@ replay/promotion process and never come directly from remembered prose.
 
 | Symptom | Likely cause | First check | Fix |
 |---|---|---|---|
-| `--help` on `run create`, `task create`, `workflow start`, `findings list` prints no flags | Help renders only the usage line for those subcommands | `agent-manager run create --task-id x` errors name the flags | Use the flag names in this skill; file `report-bug` against agent-manager |
 | `run report` through program-runtime fails | The run id is invalid, missing, or the report service is unavailable | `program-runtime bindings describe agent-manager/run/report` and `agent-manager run report <id>` | Supply a real run UUID; retry only when the service reports a transient dependency failure |
 | `run create` refuses: "use exactly one of --result-schema, --result-schema-file, or --classify" | Two result specs given | the command line | Keep one |
 | `execution-wait` returns immediately with a terminal status you did not expect | The idempotency key matched an earlier execution | `workflow execution-get <id>` `created_at` | Use a new key for new work |
-| `run episodes <id>` returns zero rows on a finished run | The run has no deterministic friction, or it is still finalizing | `run get <id>` `finalizationStatus` | Re-read after `RUN_FINALIZATION_STATUS_SUCCEEDED` |
-| `measures <x>` prints `state: unreliable` | Classified share is below 90 percent, or the sample is under 5 | the `validity.reason` line | Read the number as unreliable; do not quote it as a rate |
+| `measures get <x>` shows `validity=unreliable` | Classified share is below 90 percent, or the sample is under 5 | the `validity_reason` field | Read the number as unreliable; do not quote it as a rate |
 | `run wake <id>` refused | The run is not `RUN_STATUS_PARKED` | `run get <id>` | Only a parked run wakes |
 | Heartbeat runs crowd `run list` | Heartbeat members create runs every cycle | `run list --tag-prefix <your prefix>` | Filter by tag or workload key |
 

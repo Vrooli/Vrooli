@@ -3,7 +3,7 @@ import { Progress } from "@vrooli/react-component-library/Progress/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import type { UsageWindowForecast } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { useUsageForecast, useUsageRecommendations } from "./api";
-import { formatDayRange, isDormantWindow, usageStatus, windowKey, windowTitle } from "./format";
+import { formatDayRange, usageStatus, windowKey, windowTitle } from "./format";
 import { DormantWindows, progressTone } from "./UsageWindows";
 
 /**
@@ -53,8 +53,8 @@ export function DashboardUsageStrip() {
   const recommendations = useUsageRecommendations();
   const windows = forecast.data?.windows ?? [];
   if (windows.length === 0) return null;
-  const dormant = windows.filter((window) => isDormantWindow(window));
-  const perProvider = (provider: string) => (recommendations.data?.groups ?? []).filter((group) => group.provider === provider).length;
+  const dormant = windows.filter((window) => window.dormant);
+  const perProvider = (provider: string) => (recommendations.data?.actions ?? []).filter((action) => action.provider === provider).length;
   return (
     <section aria-label="Subscription usage" data-testid="dashboard-usage-strip" className="flex min-w-0 flex-col gap-2">
       {windows.filter((window) => !dormant.includes(window)).map((window) => <StripLine key={windowKey(window)} forecast={window} recommendations={perProvider(window.provider)} siblings={windows} />)}

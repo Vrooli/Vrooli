@@ -1,13 +1,14 @@
-"""agent-manager.friction-digest v1 — recurring friction fingerprints for one owning scenario.
+"""agent-manager.friction-digest v2 — the owner-level tool friction of one owning scenario.
 
 Contract: friction-digest.json (inputs, invariants, bindings, outputs).
 Skill:    agent-manager §4 (the [S3] leaf), agent-manager-improve §3 (the fleet friction sensor),
           and every other scenario's improve skill §3.
 
 Phases: validate -> collect -> classify -> report. Read-only. No inference, no delegation.
-Episodes carry no timestamp, so the window is applied to the run's createdAt; the digest
-covers the most recent `run_limit` runs that fall inside `window_days`. Zero runs in the
-window is an empty digest with status ok, not an error.
+One tool-friction read narrowed to the scenario returns its findings (failures clustered by
+error signature, degradations, shape guessing, heavy output, polling, bypasses of its CLI) and
+its command profiles over the last `window_days`, with the coverage that says what was seen.
+An empty digest is read beside that coverage, never as "no friction".
 """
 
 import datetime
@@ -17,21 +18,18 @@ import json
 inputs = program.inputs()
 scenario = str(inputs.get("scenario", "")).strip()
 window_days = int(inputs.get("window_days", 7))
-run_limit = int(inputs.get("run_limit", 40))
 top_n = int(inputs.get("top_n", 10))
 policy_version = str(inputs.get("policy_version", "")).strip()
 outcome_limit = int(inputs.get("outcome_limit", 100))
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "agent-manager.friction-digest", "version": "1",
+    "program": "agent-manager.friction-digest", "version": "2",
     "status": "failed", "phase": "validate",
-    "inputs": {"scenario": scenario, "window_days": window_days, "run_limit": run_limit, "top_n": top_n},
+    "inputs": {"scenario": scenario, "window_days": window_days, "top_n": top_n},
     "signals": {
-        "runs_listed": 0, "runs_in_window": 0, "runs_unparseable_timestamp": 0,
-        "window_truncated_by_run_limit": False, "earliest_run_created_at": None,
-        "episodes_total": 0, "episodes_for_scenario": 0, "episode_reads_failed": 0,
-        "owner_confidence": {}, "recurring_count": 0, "top_fingerprints": [],
+        "window_start": None, "coverage": None, "profiles_for_scenario": 0, "calls_for_scenario": 0,
+        "findings_for_scenario": 0, "recurring_count": 0, "top_fingerprints": [],
         "supervision_outcomes": None, "supervision_calibration_available": False, "supervision_false_positives": None,
         "supervision_false_negatives": None, "supervision_overrides": 0,
         "supervision_counterexamples": 0, "supervision_safety_violations": None,
@@ -39,7 +37,7 @@ envelope = {
     },
     "errors": [], "evidence": [],
 }
-handles = {"run_ids": [], "episodes": []}
+handles = {"tools": None}
 
 
 def fail(status, klass, detail, where):
@@ -49,36 +47,18 @@ def fail(status, klass, detail, where):
     return "report"
 
 
-def parse_ts(value):
-    """RFC3339 with nanoseconds -> aware datetime; None when unparseable."""
-    if not value:
-        return None
-    text = str(value).replace("Z", "+00:00")
-    if "." in text:
-        head, tail = text.split(".", 1)
-        frac = tail[: tail.index("+")] if "+" in tail else tail
-        zone = tail[len(frac):]
-        text = f"{head}.{frac[:6].ljust(6, '0')}{zone}"
-    try:
-        return datetime.datetime.fromisoformat(text)
-    except ValueError:
-        return None
-
-
 # ---- state machine ---------------------------------------------------------------
 def step_validate():
     if not scenario:
         return fail("failed", "invalid_input", "scenario is required", "validate")
     if window_days < 1 or window_days > 90:
         return fail("failed", "invalid_input", f"window_days={window_days} outside [1, 90]", "validate")
-    if run_limit < 1 or run_limit > 200:
-        return fail("failed", "invalid_input", f"run_limit={run_limit} outside [1, 200]", "validate")
     if outcome_limit < 1 or outcome_limit > 500:
         return fail("failed", "invalid_input", f"outcome_limit={outcome_limit} outside [1, 500]", "validate")
     return "collect"
 
 
-def step_collect():  # COLLECT · governed reads only; episodes fan out through gather
+def step_collect():  # COLLECT · governed reads only
     envelope["phase"] = "collect"
     sig = envelope["signals"]
     try:
@@ -117,87 +97,39 @@ def step_collect():  # COLLECT · governed reads only; episodes fan out through 
         except Exception:
             klass = "kernel_runtime"
         envelope["errors"].append({"class": klass, "detail": str(exc)[:160], "where": "collect:supervision-outcomes"})
+    now = datetime.datetime.now(datetime.timezone.utc)
+    window = {"custom": {"from": (now - datetime.timedelta(days=window_days)).isoformat(), "to": now.isoformat()}}
     try:
-        runs = agent_manager.run.list(limit=run_limit)
-        rows = runs.head(run_limit)  # bounded by run_limit <= 200: the ids are needed for the episode reads
+        handles["tools"] = agent_manager.measures.tool_friction(window=window, owner=scenario, limit=200)
     except Exception as exc:
         status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
-    sig["runs_listed"] = len(rows)
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=window_days)
-    stamped = [(r, parse_ts(r.get("createdAt"))) for r in rows]
-    sig["runs_unparseable_timestamp"] = sum(1 for _, ts in stamped if ts is None)
-    in_window = [r for r, ts in stamped if ts is not None and ts >= cutoff]  # an unparseable timestamp is never in-window
-    sig["runs_in_window"] = len(in_window)
-    # Every listed run is inside the window and the list stopped at run_limit (or the server says more
-    # exist): older in-window runs were never read, so the digest is a lower bound on the window.
-    more = bool(runs.meta().get("hasMore")) or len(rows) >= run_limit
-    sig["window_truncated_by_run_limit"] = bool(in_window) and len(in_window) == len(rows) and more
-    envelope["evidence"].append(f"agent-manager run list --limit {run_limit}")
-    if in_window:
-        sig["earliest_run_created_at"] = min(r.get("createdAt") for r in in_window)
-    else:
-        return "classify"  # zero runs in the window: an empty digest, status ok
-    handles["run_ids"] = [r["id"] for r in in_window]
-
-    def read(run_id):
-        try:
-            return agent_manager.run.episodes(run_id=run_id)
-        except Exception as exc:  # one run's episodes failing degrades to partial, never to a lie
-            return exc
-
-    results = gather(*[lambda i=i: read(i) for i in handles["run_ids"]])
-    for run_id, result in zip(handles["run_ids"], results):
-        if isinstance(result, Exception):
-            sig["episode_reads_failed"] += 1
-            try:
-                raise result
-            except Exception as exc:  # program.classify re-raises a missing kernel name; the driver labels it
-                klass = program.classify(exc)[1]
-            envelope["errors"].append({"class": klass, "detail": str(result)[:160], "where": f"collect:episodes:{run_id}"})
-        else:
-            handles["episodes"].append((run_id, result))
-    envelope["evidence"].append(f"agent-manager run episodes <id> x{len(handles['episodes'])}")
+    envelope["evidence"].append(f"agent-manager usage friction --since <{window_days} days ago>  # findings owned by {scenario}")
     return "classify"
 
 
-def step_classify():  # CLASSIFY · deterministic; counts and groups in the kernel, bounded materialization
+def step_classify():  # CLASSIFY · deterministic; one record, bounded lists
     envelope["phase"] = "classify"
     sig = envelope["signals"]
-    conf = {}
-    groups = {}
-    for run_id, handle in handles["episodes"]:
-        sig["episodes_total"] += handle.count()
-        # ownerConfidence may be omitted by protojson: map with .get, then group_by; nothing materialized
-        for label, n in handle.map(lambda e: {"c": e.get("ownerConfidence") or "unknown"}).group_by("c").items():
-            conf[label] = conf.get(label, 0) + int(n)
-        # `unknown` episodes omit suspectedOwnerScenario, so filter with .get before reading it.
-        mine = handle.filter(lambda r: r.get("suspectedOwnerScenario") == scenario)
-        sig["episodes_for_scenario"] += mine.count()
-        projected = mine.map(lambda r: {
-            "fingerprint": r.get("fingerprint"), "pattern": r.get("pattern"), "cause_scope": r.get("causeScope"),
-            "owner_command": r.get("suspectedOwnerCommand"), "owner_confidence": r.get("ownerConfidence"),
-            "wall_clock_ms": int(r.get("wallClockMs") or 0),
-        })
-        for row in projected.head(500):  # bounded: at most 500 episode projections per run (budget.materialize_limit)
-            group = groups.setdefault(row["fingerprint"], {
-                "fingerprint": row["fingerprint"], "occurrences": 0, "runs": set(),
-                "pattern": row["pattern"], "cause_scope": row["cause_scope"],
-                "owner_command": row["owner_command"], "owner_confidence": row["owner_confidence"],
-                "wall_clock_ms": 0,
-            })
-            group["occurrences"] += 1
-            group["runs"].add(run_id)
-            group["wall_clock_ms"] += row["wall_clock_ms"]
-    sig["owner_confidence"] = conf
-    ranked = sorted(groups.values(), key=lambda g: (-len(g["runs"]), -g["occurrences"]))
-    sig["recurring_count"] = sum(1 for g in ranked if len(g["runs"]) >= 3)
-    sig["top_fingerprints"] = []
-    for g in ranked[:top_n]:
-        entry = {k: v for k, v in g.items() if k != "runs"}
-        entry["distinct_runs"] = len(g["runs"])
-        sig["top_fingerprints"].append(entry)
-    envelope["status"] = "partial" if sig["episode_reads_failed"] else "ok"
+    rows = handles["tools"].head(1)
+    record = rows[0] if rows else {}
+    summary = record.get("summary") or {}
+    coverage = summary.get("coverage") or {}
+    sig["window_start"] = record.get("windowStart")
+    sig["coverage"] = coverage.get("sentence")
+    profiles = record.get("profiles") or []
+    sig["profiles_for_scenario"] = len(profiles)
+    sig["calls_for_scenario"] = sum(int(p.get("calls") or 0) for p in profiles)
+    findings = record.get("findings") or []  # ranked by their share of the window's harm, owner already narrowed
+    sig["findings_for_scenario"] = len(findings)
+    sig["recurring_count"] = sum(1 for f in findings if int(f.get("runs") or 0) >= 3)
+    sig["top_fingerprints"] = [{
+        "fingerprint": f.get("fingerprint"), "kind": f.get("kind"), "command_path": f.get("commandPath"),
+        "description": f.get("description"), "calls": int(f.get("calls") or 0), "distinct_runs": int(f.get("runs") or 0),
+        "cost": int(f.get("cost") or 0), "cost_unit": f.get("costUnit"), "cost_share": float(f.get("costShare") or 0.0),
+        "status": f.get("status"),
+    } for f in findings[:top_n]]
+    envelope["status"] = "ok"
     return "report"
 
 

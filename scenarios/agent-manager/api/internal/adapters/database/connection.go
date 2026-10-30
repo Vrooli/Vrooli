@@ -442,7 +442,6 @@ var additiveColumnMigrations = []struct {
 	{"invocation_read_model_facts", invocationReadModelFactColumnMigrations},
 	{"invocation_read_model_time_accounting", invocationReadModelTimeAccountingColumnMigrations},
 	{"invocation_read_model_watermarks", invocationReadModelWatermarkColumnMigrations},
-	{"invocation_read_model_episodes", invocationReadModelEpisodeColumnMigrations},
 	{"invocation_read_model_self_report_spans", invocationReadModelSelfReportColumnMigrations},
 	{"investigation_cross_scenario_calls", investigationProjectionColumnMigrations},
 	{"run_findings", runFindingColumnMigrations},
@@ -536,12 +535,32 @@ var invocationReadModelFactColumnMigrations = []columnMigration{
 	{column: "arg_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN arg_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "result_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN result_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "token_basis", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN token_basis TEXT NOT NULL DEFAULT 'unknown'"},
-	{column: "residency_turns", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN residency_turns INTEGER NOT NULL DEFAULT 0"},
+	// residency_turns (attenuated turns across compactions) became provider
+	// requests until the next compaction; facts re-derive at their new version.
+	{column: "residency_requests", ddl: "ALTER TABLE invocation_read_model_facts RENAME COLUMN residency_turns TO residency_requests"},
+	{column: "output_event_id", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN output_event_id TEXT NOT NULL DEFAULT ''"},
+	{column: "output_bytes", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN output_bytes INTEGER NOT NULL DEFAULT 0"},
 	{column: "residency_segment", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN residency_segment INTEGER NOT NULL DEFAULT 0"},
 	{column: "incurred_input_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_input_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "incurred_output_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_output_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "incurred_cache_read_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_cache_read_tokens INTEGER NOT NULL DEFAULT 0"},
 	{column: "incurred_cache_creation_tokens", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN incurred_cache_creation_tokens INTEGER NOT NULL DEFAULT 0"},
+	// Tool friction features, read from the call and result text at projection.
+	{column: "tool_profiled", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_profiled INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_command", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_command TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_key", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_key TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_help", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_help INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_filtered", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_filtered INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_wrapped", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_wrapped INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_truncated", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_truncated INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_shape_guess", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_shape_guess INTEGER NOT NULL DEFAULT 0"},
+	{column: "tool_json_paths", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_json_paths TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_signature", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_signature TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_error_line", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_error_line TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_notice", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_notice TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_notice_line", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_notice_line TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_bypass_owner", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_bypass_owner TEXT NOT NULL DEFAULT ''"},
+	{column: "tool_bypass_method", ddl: "ALTER TABLE invocation_read_model_facts ADD COLUMN tool_bypass_method TEXT NOT NULL DEFAULT ''"},
 }
 
 var invocationReadModelTimeAccountingColumnMigrations = []columnMigration{
@@ -549,26 +568,21 @@ var invocationReadModelTimeAccountingColumnMigrations = []columnMigration{
 }
 
 var invocationReadModelWatermarkColumnMigrations = []columnMigration{
-	{column: "episode_classifier_version", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN episode_classifier_version TEXT NOT NULL DEFAULT ''"},
 	{column: "self_report_classifier_version", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN self_report_classifier_version TEXT NOT NULL DEFAULT ''"},
 	// Existing watermarks were committed atomically with their derived facts
 	// before this marker existed, so they are safe to retain as complete.
 	{column: "projection_complete", ddl: "ALTER TABLE invocation_read_model_watermarks ADD COLUMN projection_complete INTEGER NOT NULL DEFAULT 1"},
 }
 
-var invocationReadModelEpisodeColumnMigrations = []columnMigration{
-	{column: "cycle_count", ddl: "ALTER TABLE invocation_read_model_episodes ADD COLUMN cycle_count INTEGER NOT NULL DEFAULT 0"},
-	{column: "repeated_element", ddl: "ALTER TABLE invocation_read_model_episodes ADD COLUMN repeated_element TEXT NOT NULL DEFAULT ''"},
-}
-
 var invocationReadModelSelfReportColumnMigrations = []columnMigration{
 	{column: "role", ddl: "ALTER TABLE invocation_read_model_self_report_spans ADD COLUMN role TEXT NOT NULL DEFAULT 'assistant'"},
-	{column: "operator_correction", ddl: "ALTER TABLE invocation_read_model_self_report_spans ADD COLUMN operator_correction INTEGER NOT NULL DEFAULT 0"},
 	{column: "span_capped", ddl: "ALTER TABLE invocation_read_model_self_report_spans ADD COLUMN span_capped INTEGER NOT NULL DEFAULT 0"},
 }
 
 var transcriptFileColumnMigrations = []columnMigration{
 	{column: "pending_facts_json", ddl: "ALTER TABLE transcript_files ADD COLUMN pending_facts_json TEXT NOT NULL DEFAULT ''"},
+	{column: "parser_version", ddl: "ALTER TABLE transcript_files ADD COLUMN parser_version INTEGER NOT NULL DEFAULT 0"},
+	{column: "last_observed_event_at", ddl: "ALTER TABLE transcript_files ADD COLUMN last_observed_event_at TEXT"},
 }
 
 var investigationProjectionColumnMigrations = []columnMigration{
@@ -640,7 +654,16 @@ func (db *DB) migrateColumns(ctx context.Context, table string, migrations []col
 // tableColumns returns the set of column names on a table via PRAGMA
 // table_info. The table name is a trusted internal constant, never user input.
 func (db *DB) tableColumns(ctx context.Context, table string) (map[string]struct{}, error) {
-	rows, err := db.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
+	return columnsOf(ctx, db, table)
+}
+
+// columnsOf is tableColumns over any query runner, so a migration can read a
+// table's shape inside its own transaction.
+func columnsOf(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, table string,
+) (map[string]struct{}, error) {
+	rows, err := q.QueryContext(ctx, fmt.Sprintf("PRAGMA table_info(%s)", table))
 	if err != nil {
 		return nil, &domain.DatabaseError{Operation: "schema_introspect", EntityType: "Schema", Cause: err}
 	}

@@ -97,7 +97,6 @@ func fixtureRun(id, session string, child bool) Run {
 type weekFixture struct {
 	turns    []Turn
 	runs     map[string]Run
-	episodes []Episode
 	outcomes []Outcome
 	window   Window
 }
@@ -129,9 +128,6 @@ func newWeekFixture() weekFixture {
 	}
 	for i := 0; i < 6; i++ {
 		f.outcomes = append(f.outcomes, Outcome{RunID: fmt.Sprintf("draft-luna-%d", i), Runner: codex, Model: modelLuna, Workload: "workflow_node:draft", Succeeded: true, Tokens: draftRunTokens})
-	}
-	for i := 0; i < 5; i++ {
-		f.episodes = append(f.episodes, Episode{RunID: "orchestrator", EpisodeID: fmt.Sprintf("ep-%d", i), Pattern: "command-failure", Fingerprint: "failure:rg", Turns: 30, Tokens: 400_000})
 	}
 	// True quota: terra 0.4 points per USD, luna 0.6 (luna is a little dearer
 	// per USD than its list price), plus 0.02 pts/h of off-disk use.

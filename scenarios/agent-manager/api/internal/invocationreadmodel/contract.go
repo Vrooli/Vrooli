@@ -7,6 +7,7 @@ import (
 
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/tokenaccounting"
+	"agent-manager/internal/toolfriction"
 )
 
 // Store persists the durable analytical projection. Replace is atomic: facts
@@ -16,7 +17,6 @@ type Store interface {
 	Facts(context.Context, string) ([]Fact, error)
 	Watermark(context.Context, string) (*Watermark, error)
 	Cohort(context.Context, Filter, int) (Cohort, error)
-	Metrics(context.Context, Filter) (Metrics, error)
 	RunMetrics(context.Context, Filter) (RunMetrics, error)
 	WindowedUsage(context.Context, Filter) (UsageTotals, error)
 	RunDurationStatistics(context.Context, Filter) (RunDurationStatistics, error)
@@ -24,8 +24,6 @@ type Store interface {
 	RunBreakdown(context.Context, Filter, string, int) ([]RunBreakdownRow, error)
 	RunTimeSeries(context.Context, Filter, time.Duration) ([]RunTimeSeriesBucket, error)
 	ToolUsage(context.Context, Filter, int) ([]ToolUsageRow, error)
-	ErrorPatterns(context.Context, Filter, int) ([]ErrorPattern, error)
-	FindingMetrics(context.Context, Filter) (FindingMetrics, error)
 	FallbackInsights(context.Context, Filter) (FallbackInsights, error)
 }
 
@@ -83,8 +81,8 @@ type PendingProjection struct {
 type ProjectionQueue interface {
 	MarkProjectionPending(ctx context.Context, runID string, at time.Time) error
 	// EnqueueStaleProjections marks ended runs whose watermark is missing or
-	// was written by another fact or episode classifier version.
-	EnqueueStaleProjections(ctx context.Context, factVersion, episodeVersion string, at time.Time, limit int) (int, error)
+	// was written by another fact classifier version.
+	EnqueueStaleProjections(ctx context.Context, factVersion string, at time.Time, limit int) (int, error)
 	DueProjections(ctx context.Context, at time.Time, limit int) ([]PendingProjection, error)
 	CompleteProjection(ctx context.Context, runID string, generation int64) error
 	DeferProjection(ctx context.Context, runID string, until time.Time) error
@@ -95,9 +93,12 @@ type ProjectionQueue interface {
 // implements this contract so a crash cannot leave terminal throughput facts
 // ahead of, or behind, invocation facts and their watermark.
 type ProjectionStore interface {
-	ReplaceProjection(context.Context, []Fact, []ErrorFact, []Episode, []SelfReportSpan, Watermark, RunFact) error
-	Episodes(context.Context, Filter, int) ([]Episode, error)
-	EpisodesForRun(context.Context, string) ([]Episode, error)
+	ReplaceProjection(context.Context, []Fact, []SelfReportSpan, Watermark, RunFact) error
+	// AdvanceWatermark records the classifier versions and projection time of
+	// a run whose stored projection is kept as it is (its source events are
+	// evicted), so the stale sweep stops queueing it. It writes no facts,
+	// spans and leaves an existing watermark's last event.
+	AdvanceWatermark(context.Context, Watermark) error
 	SelfReportSpansForRun(context.Context, string) ([]SelfReportSpan, error)
 	TimeAccountingForRun(context.Context, string) (runsignal.TimeAccounting, bool, error)
 }
@@ -121,21 +122,12 @@ type Filter struct {
 	// token totals.
 	Scope             RunScope `json:"scope,omitempty"`
 	WorkloadKey       string   `json:"workloadKey,omitempty"`
-	ErrorCode         string   `json:"errorCode,omitempty"`
 	TagPrefix         string   `json:"tagPrefix,omitempty"`
 	RunStatus         string   `json:"runStatus,omitempty"`
 	ToolName          string   `json:"toolName,omitempty"`
 	ClassifierVersion string   `json:"classifierVersion,omitempty"`
-	EpisodePattern    string   `json:"episodePattern,omitempty"`
-	// ShownEpisodesOnly restricts episode reads to patterns runsignal.Shown, so a
-	// row limit applies after quarantined and informational patterns are excluded.
-	ShownEpisodesOnly    bool   `json:"shownEpisodesOnly,omitempty"`
-	EpisodeCauseScope    string `json:"episodeCauseScope,omitempty"`
-	EpisodeFingerprint   string `json:"episodeFingerprint,omitempty"`
-	SelfReportRuleID     string `json:"selfReportRuleId,omitempty"`
-	SelfReportCauseScope string `json:"selfReportCauseScope,omitempty"`
-	TargetScenario       string `json:"targetScenario,omitempty"`
-	Operation            string `json:"operation,omitempty"`
+	TargetScenario    string   `json:"targetScenario,omitempty"`
+	Operation         string   `json:"operation,omitempty"`
 }
 
 // RunScope is the origin filter of a statistic (P2-D8). Agent Manager runs
@@ -152,36 +144,12 @@ const (
 	ScopeAll              RunScope = "all"
 )
 
-// CapabilityUsageRow is the receipt-backed efficacy population. A receipt is
-// the only evidence that a project-owned capability returned an outcome.
-type CapabilityUsageRow struct {
-	TargetScenario      string  `json:"targetScenario"`
-	Operation           string  `json:"operation"`
-	CallCount           int64   `json:"callCount"`
-	SuccessCount        int64   `json:"successCount"`
-	FailedCount         int64   `json:"failedCount"`
-	TotalDurationMS     uint64  `json:"totalDurationMs"`
-	TotalTokens         int64   `json:"totalTokens"`
-	EstimatedTokenShare float64 `json:"estimatedTokenShare"`
-}
-
-type CapabilityEfficacyRow struct {
-	TargetScenario     string `json:"targetScenario"`
-	Operation          string `json:"operation"`
-	CallCount          int64  `json:"callCount"`
-	SuccessCount       int64  `json:"successCount"`
-	FallbackAfterCount int64  `json:"fallbackAfterCount"`
-	AbandonedCount     int64  `json:"abandonedCount"`
-}
 type Cohort struct {
 	RunIDs      []string    `json:"runIds"`
 	Rows        []CohortRun `json:"rows,omitempty"`
 	Truncated   bool        `json:"truncated"`
 	MatchedRuns int         `json:"matchedRuns"`
 	DroppedRuns int         `json:"droppedRuns"`
-	// HiddenEpisodes counts episode rows of non-shown patterns the filter
-	// matched; an episode selection never selects by them.
-	HiddenEpisodes int `json:"hiddenEpisodes,omitempty"`
 }
 
 type CohortRun struct {
@@ -200,33 +168,6 @@ type CohortRun struct {
 	ToolCallCount       *int64
 }
 
-// Metrics is the shared SQL result used by friction measure consumers. Counts
-// are retained separately so callers never hide an unknown population behind a
-// percentage.
-type Metrics struct {
-	TotalCalls               int64   `json:"totalCalls"`
-	ResolvedCalls            int64   `json:"resolvedCalls"`
-	ExternalCalls            int64   `json:"externalCalls"`
-	UnknownCalls             int64   `json:"unknownCalls"`
-	NotACommandCalls         int64   `json:"notACommandCalls"`
-	CompoundUnresolvedCalls  int64   `json:"compoundUnresolvedCalls"`
-	UnparseableCalls         int64   `json:"unparseableCalls"`
-	UnclassifiedCalls        int64   `json:"unclassifiedCalls"`
-	FailedCalls              int64   `json:"failedCalls"`
-	RetryCalls               int64   `json:"retryCalls"`
-	RepeatedCalls            int64   `json:"repeatedCalls"`
-	LargestFingerprintBucket int64   `json:"largestFingerprintBucket"`
-	ClassifiedBase           int64   `json:"classifiedBase"`
-	PairedCalls              int64   `json:"pairedCalls"`
-	UnpairedCalls            int64   `json:"unpairedCalls"`
-	UnclassifiedCount        int64   `json:"unclassifiedCount"`
-	UnclassifiedShare        float64 `json:"unclassifiedShare"`
-	ExternalToolShare        float64 `json:"externalToolShare"`
-	FailureRate              float64 `json:"failureRate"`
-	RetryRate                float64 `json:"retryRate"`
-	RepeatedWorkRate         float64 `json:"repeatedWorkRate"`
-}
-
 // RunMetrics is the shared SQL result for run-level throughput measures. It
 // intentionally has separate denominators for terminal success and completed
 // cycle-time populations, so a partial lifecycle is never presented as a
@@ -240,9 +181,6 @@ type RunMetrics struct {
 	AverageDurationMS     float64 `json:"averageDurationMs"`
 	P50DurationMS         float64 `json:"p50DurationMs"`
 	P90DurationMS         float64 `json:"p90DurationMs"`
-	ReadCalls             int64   `json:"readCalls"`
-	FileRereads           int64   `json:"fileRereads"`
-	FileRereadRate        float64 `json:"fileRereadRate"`
 }
 
 // UsageTotals is the token and charge spend of the transcript requests
@@ -391,35 +329,6 @@ type TokenAttributionRow struct {
 	MaxFootprintTokens  int64
 }
 
-// ErrorFact retains only safe analytical error vocabulary. Human messages,
-// stack traces, and opaque provider details stay in the prunable event log.
-type ErrorFact struct {
-	RunID      string
-	EventID    string
-	OccurredAt time.Time
-	TimeBasis  string
-	ErrorCode  string
-	ProfileID  string
-	RunnerType string
-	Model      string
-	Tag        string
-}
-
-// Episode is a durable friction signal plus the run dimensions required for
-// the shared analytical filter. It retains identifiers and bounded classifier
-// output only; raw event bodies stay in the prunable event log.
-type Episode struct {
-	runsignal.FrictionEpisode
-	RunID      string
-	OccurredAt time.Time
-	TimeBasis  string
-	ProfileID  string
-	RunnerType string
-	Model      string
-	Tag        string
-	RunStatus  string
-}
-
 // SelfReportSpan is a durable, redacted self-reported-friction signal. The
 // classifier's Text field is already bounded/redacted before it reaches this
 // projection.
@@ -435,23 +344,6 @@ type SelfReportSpan struct {
 	RunStatus  string
 }
 
-type ErrorPattern struct {
-	ErrorCode   string
-	Count       int64
-	LastSeen    time.Time
-	SampleRunID string
-}
-
-// FindingMetrics measures persisted investigation evidence by finding
-// creation time. Recurrence is explicit: a row is recurring only when its
-// fingerprint appears more than once in the same filtered population.
-type FindingMetrics struct {
-	TotalFindings         int64   `json:"totalFindings"`
-	RecurringFindings     int64   `json:"recurringFindings"`
-	RecurringFingerprints int64   `json:"recurringFingerprints"`
-	RecurrenceRate        float64 `json:"recurrenceRate"`
-}
-
 // Fact is one persisted analytical observation plus the dimensions required by
 // corpus filters. Unknown is represented as an explicit value, never NULL.
 type Fact struct {
@@ -464,6 +356,9 @@ type Fact struct {
 	Model      string
 	Tag        string
 	RunStatus  string
+	// Tool is what the call's and result's text say about the command, read
+	// once at projection (nil for a fact the tool profiles do not read).
+	Tool *toolfriction.Features
 }
 
 // RunFact is the durable terminal summary used for run-level throughput and
@@ -508,8 +403,6 @@ type RunFact struct {
 	PreambleTokenBasis     tokenaccounting.Basis
 	UnattributedTokens     int64
 	UnattributedReason     string
-	ReadCalls              int64
-	FileRereads            int64
 	TimeAccounting         runsignal.TimeAccounting
 	CostTimeBasis          string
 	// TimeBasis identifies whether lifecycle/event time came from the source
@@ -547,7 +440,6 @@ type Watermark struct {
 	LastEventID                 string
 	LastEventAt                 time.Time
 	ClassifierVersion           string
-	EpisodeClassifierVersion    string
 	SelfReportClassifierVersion string
 	ProjectedAt                 time.Time
 }

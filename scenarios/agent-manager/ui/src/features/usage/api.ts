@@ -5,9 +5,9 @@
 import { createClient } from "@connectrpc/connect";
 import { createScenarioConnectTransport } from "@vrooli/api-base";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { EpisodesService } from "@vrooli/proto-types/agent-manager/v1/domain/episode_pb";
+import { FrictionService } from "@vrooli/proto-types/agent-manager/v1/domain/friction_pb";
 import { REQUEST_DEADLINE_MS, resolveAgentManagerApiBase } from "../../lib/api";
-import { measuresClient } from "../stats/api/measuresClient";
+import { measuresClient } from "./measuresClient";
 
 export const USAGE_GROUP_BY = ["session", "run", "profile", "workload", "model", "runner", "modality", "tool_kind"] as const;
 export type UsageGroupBy = (typeof USAGE_GROUP_BY)[number];
@@ -24,7 +24,7 @@ const REFRESH_MS = 60_000;
 /** Attribution can take seconds while the API compacts; past the shared deadline it is an error, not a spinner. */
 export const CALL_OPTIONS = { timeoutMs: REQUEST_DEADLINE_MS };
 
-const episodesClient = createClient(EpisodesService, createScenarioConnectTransport({ baseUrl: resolveAgentManagerApiBase() }));
+const frictionClient = createClient(FrictionService, createScenarioConnectTransport({ baseUrl: resolveAgentManagerApiBase() }));
 
 const usageQueryKeys = {
   forecast: ["usage", "forecast"] as const,
@@ -74,10 +74,10 @@ export function useUsageCoverage() {
   });
 }
 
-/** Every recurring friction problem shown on one page; the server's default is a short CLI list. */
+/** Every material friction finding shown on one page; the server's default is a short CLI list. */
 export const FRICTION_PAGE_LIMIT = 500;
 
-/** Recurring friction problems; an empty status returns every status. */
+/** Material friction findings; an empty status returns every status. */
 export function useUsageFriction(status = "") {
   return useQuery({
     queryKey: usageQueryKeys.friction(status),
@@ -87,11 +87,17 @@ export function useUsageFriction(status = "") {
   });
 }
 
+/** A finding as listed: its fingerprint and the start of the window it was listed in, where the API looks it up. */
+export interface FrictionTarget {
+  fingerprint: string;
+  since: string;
+}
+
 /** Report files the problem to its owner and resolves with the bug id; dismiss resolves with the new status. */
 export function useFrictionActions() {
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["usage", "friction"] });
-  const report = useMutation({ mutationFn: (fingerprint: string) => episodesClient.reportFrictionProblem({ fingerprint }, CALL_OPTIONS), onSuccess: refresh });
-  const dismiss = useMutation({ mutationFn: (fingerprint: string) => episodesClient.dismissFrictionProblem({ fingerprint }, CALL_OPTIONS), onSuccess: refresh });
+  const report = useMutation({ mutationFn: (target: FrictionTarget) => frictionClient.reportFriction(target, CALL_OPTIONS), onSuccess: refresh });
+  const dismiss = useMutation({ mutationFn: (target: FrictionTarget) => frictionClient.dismissFriction(target, CALL_OPTIONS), onSuccess: refresh });
   return { report, dismiss };
 }

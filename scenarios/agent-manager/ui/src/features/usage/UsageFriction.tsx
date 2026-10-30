@@ -7,11 +7,10 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { Table } from "@vrooli/react-component-library/Table/1";
 import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1";
 import { Toggle } from "@vrooli/react-component-library/Toggle/1";
-import type { UsageFrictionProblem } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
+import type { UsageInterventions, UsageToolFinding, UsageToolGuess, UsageToolSub } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { DataState } from "../../components/feedback/DataState";
-import { formatCode, formatCount, formatDuration, formatPoints, formatTokens, subscriptionLabel } from "../../lib/format";
+import { formatCode, formatCount, formatPercent, formatTokens } from "../../lib/format";
 import { useFrictionActions, useUsageFriction } from "./api";
-import { windowKey } from "./format";
 
 const STATUSES = ["open", "reported", "dismissed"] as const;
 type FrictionStatus = (typeof STATUSES)[number];
@@ -30,33 +29,28 @@ function Kpi({ label, value }: { label: string; value: string }) {
 
 type Pending = "report" | "dismiss" | undefined;
 
-/** The smallest saving the server ranks as its own action (usageattribution minPlanSaving). */
-const MIN_PLAN_SAVING = 0.1;
+/** What a row's actions need: a tool finding and the start of the window it was listed in. */
+interface Actionable {
+  fingerprint: string;
+  since: string;
+  status: string;
+  bugId: string;
+  owner: string;
+}
 
 /** The row's actions: one button each, confirmed inline (no dialog) and disabled while the call is out. */
-function RowActions({ problem }: { problem: UsageFrictionProblem }) {
+function RowActions({ item }: { item: Actionable }) {
   const { report, dismiss } = useFrictionActions();
   const [confirming, setConfirming] = useState<Pending>();
   const busy = report.isPending || dismiss.isPending;
   const error = (report.error ?? dismiss.error) as Error | null;
-  if (problem.status === "open" && problem.ownerKind === "agent" && !confirming) {
-    return (
-      <div className="flex gap-2">
-        {/* A plan card exists only for a saving the actions list ranks (≥ 0.1 pts). */}
-        {problem.estSavedPoints >= MIN_PLAN_SAVING ? (
-          <Link to={`/usage?window=${encodeURIComponent(windowKey(problem))}#friction-${problem.fingerprint}`} className={`${BUTTON} bg-primary text-primary-foreground hover:bg-primary/90`}>Suggest a fix</Link>
-        ) : null}
-        <button type="button" onClick={() => setConfirming("dismiss")} className={BUTTON}>Dismiss</button>
-      </div>
-    );
-  }
-  if (problem.status === "reported") return <StatusBadge tone="success">Reported · {problem.bugId || "filed"}</StatusBadge>;
-  if (problem.status === "dismissed") return <StatusBadge tone="neutral">Dismissed</StatusBadge>;
-  const run = (action: "report" | "dismiss") => (action === "report" ? report : dismiss).mutate(problem.fingerprint, { onSettled: () => setConfirming(undefined) });
+  if (item.status === "reported") return <StatusBadge tone="success">Reported · {item.bugId || "filed"}</StatusBadge>;
+  if (item.status === "dismissed") return <StatusBadge tone="neutral">Dismissed</StatusBadge>;
+  const run = (action: "report" | "dismiss") => (action === "report" ? report : dismiss).mutate({ fingerprint: item.fingerprint, since: item.since }, { onSettled: () => setConfirming(undefined) });
   if (confirming) {
     return (
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Confirm">
-        <span className="text-sm">{confirming === "report" ? `File a bug with ${problem.owner || "its owner"}?` : "Dismiss this problem?"}</span>
+        <span className="text-sm">{confirming === "report" ? `File a bug with ${item.owner || "its owner"}?` : "Dismiss this problem?"}</span>
         <button type="button" disabled={busy} onClick={() => run(confirming)} className={`${BUTTON} bg-primary text-primary-foreground hover:bg-primary/90`}>{busy ? "Working…" : "Confirm"}</button>
         <button type="button" disabled={busy} onClick={() => setConfirming(undefined)} className={BUTTON}>Cancel</button>
       </div>
@@ -73,95 +67,172 @@ function RowActions({ problem }: { problem: UsageFrictionProblem }) {
   );
 }
 
-/** The description already says "Typically 13m 54s each time" until the server drops it: show the duration once. */
-function showTypical(problem: UsageFrictionProblem): boolean {
-  return problem.typicalWallClockMs >= 1000n && !/typically/i.test(problem.description);
-}
-
-/** A problem's cost is its redundant calls' own time (a stall's is its idle gap) and tokens, never the run's. */
-function TimeLine({ problem }: { problem: UsageFrictionProblem }) {
-  if (problem.wallClockMs <= 0n && problem.tokens <= 0n) return null;
-  const time = problem.wallClockMs > 0n ? `${formatDuration(problem.wallClockMs)} ${problem.timeKind === "idle" ? "idle gap" : "redundant call time"}` : "";
-  const tokens = problem.tokens > 0n ? `${formatTokens(problem.tokens)} tok` : "";
-  return <div className="whitespace-nowrap text-muted-foreground" title={`${formatCount(problem.episodeTurns)} redundant calls`}>{[time, tokens].filter(Boolean).join(" · ")}</div>;
-}
-
 /** Column labels return inline on a phone, where the header row is hidden. */
 function Label({ children }: { children: string }) {
   return <span className="mr-2 text-xs text-muted-foreground md:hidden">{children}</span>;
 }
 
-function ProblemRow({ problem }: { problem: UsageFrictionProblem }) {
+/** What a finding or action adds to its sentence: the lines a root cause rolls up, the guessed commands with the alias to add, and printed against read tokens. */
+export function FrictionDetail({ rootCause, subs, guesses, printedTokens = 0n, readTokens = 0n }: { rootCause: string; subs: UsageToolSub[]; guesses: UsageToolGuess[]; printedTokens?: bigint; readTokens?: bigint }) {
+  const rolledUp = subs.length > 1;
+  if (!rolledUp && guesses.length === 0 && !(printedTokens > 0n && readTokens > 0n)) return null;
   return (
-    <tr data-testid="usage-friction-row" className="max-md:block max-md:border-b max-md:border-border max-md:py-2">
+    <div className="mt-1 flex flex-col gap-1 text-xs text-muted-foreground" data-testid="usage-friction-detail">
+      {rolledUp ? (
+        <div>
+          Root cause {formatCode(rootCause)} rolls up {subs.length} lines:
+          <ul className="m-0 list-none p-0" aria-label="Rolled-up lines">
+            {subs.map((sub) => <li key={`${sub.kind}/${sub.signature}`} className="break-words">{sub.kind} in {formatCount(sub.calls)} calls · <code>{sub.signature}</code></li>)}
+          </ul>
+        </div>
+      ) : null}
+      {guesses.length > 0 ? (
+        <ul className="m-0 list-none p-0" aria-label="Guessed commands">
+          {guesses.map((guess) => (
+            <li key={guess.token} className="break-words">
+              guessed <code>{guess.token}</code> ×{formatCount(guess.calls)}: {guess.suggestion ? <>add alias <code>{guess.token}</code> → <code>{guess.suggestion}</code></> : "fix the help"}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {printedTokens > 0n && readTokens > 0n ? <div>Largest call printed ~{formatTokens(printedTokens)} tokens; the model read {formatTokens(readTokens)}</div> : null}
+    </div>
+  );
+}
+
+function ToolRow({ finding, since }: { finding: UsageToolFinding; since: string }) {
+  return (
+    <tr data-testid="usage-tool-finding" className="max-md:block max-md:border-b max-md:border-border max-md:py-2">
       <td className={CELL}>
-        <b className="break-words">{problem.description || formatCode(problem.pattern)}</b>
-        <div className="text-xs text-muted-foreground">{formatCode(problem.pattern)}{showTypical(problem) ? ` · typically ${formatDuration(problem.typicalWallClockMs)} each time` : ""}</div>
+        <b className="break-words">{finding.description}</b>
+        <div className="text-xs text-muted-foreground">{formatCode(finding.kind)}</div>
+        <FrictionDetail rootCause={finding.rootCause} subs={finding.subs} guesses={finding.guesses} printedTokens={finding.printedTokens} readTokens={finding.readTokens} />
+        {finding.exampleCommands.length > 0 ? (
+          <ul className="mt-1 flex flex-col gap-0.5" aria-label="Example commands">
+            {finding.exampleCommands.map((example) => <li key={example}><code className="break-all text-xs">{example}</code></li>)}
+          </ul>
+        ) : null}
       </td>
-      <td className={CELL}><Label>Owner</Label>{problem.ownerKind === "agent" ? problem.owner : <code className="break-words text-sm">{problem.owner}</code>}</td>
-      <td className={`${CELL} whitespace-nowrap tabular-nums md:text-right`}><Label>Seen</Label>{formatCount(problem.episodes)}× · {formatCount(problem.runs)} {problem.runs === 1n ? "run" : "runs"}</td>
+      <td className={CELL}><Label>Owner</Label><code className="break-words text-sm">{finding.owner}</code></td>
+      <td className={`${CELL} whitespace-nowrap tabular-nums md:text-right`}><Label>Seen</Label>{formatCount(finding.calls)} calls · {formatCount(finding.runs)} {finding.runs === 1n ? "run" : "runs"}</td>
       <td className={`${CELL} tabular-nums md:text-right`}>
-        <Label>Cost</Label>{problem.points > 0 ? <div className="whitespace-nowrap">≈ {formatPoints(problem.points)}</div> : null}
-        <TimeLine problem={problem} />
+        <Label>Cost</Label>
+        {/* One line per kind of harm, each over the base the API divided it by: a roll-up's failures and notices are shares of different totals. */}
+        <ul className="m-0 list-none p-0 text-xs" aria-label="Cost by kind of harm">
+          {finding.shares.map((share) => <li key={share.kind} className="break-words">{share.sentence}</li>)}
+        </ul>
       </td>
-      <td className={`${CELL} md:text-right`}><RowActions problem={problem} /></td>
+      <td className={`${CELL} md:text-right`}><RowActions item={{ fingerprint: finding.fingerprint, since, status: finding.status, bugId: finding.bugId, owner: finding.owner }} /></td>
     </tr>
   );
 }
 
-/** Usage › Friction: recurring problems in plain words, each with an owner, a cost, and Report bug or Dismiss. */
+/** Operator messages the classifier put in a friction category that passed the accuracy gate, or why none is shown. */
+function Interventions({ section }: { section: UsageInterventions }) {
+  const summary = `${formatCount(section.operatorMessages)} operator messages, ${formatPercent(section.coverage, 0)} classified, over ${section.agentHours.toFixed(1)} agent-hours`;
+  return (
+    <Card className="flex flex-col gap-3 p-4" data-testid="usage-interventions">
+      <div>
+        <h3 className="text-base font-semibold">Operator interventions</h3>
+        <p className="text-sm text-muted-foreground" data-testid="usage-interventions-coverage">{summary}.</p>
+      </div>
+      {section.categories.length === 0 ? (
+        <p className="text-sm" role="status" data-testid="usage-interventions-empty">None shown: {section.unshownReason}. This is not "no friction".</p>
+      ) : (
+        <>
+          <Table>
+            <table>
+              <thead className="max-md:sr-only">
+                <tr><th scope="col">Category</th><th scope="col">Owner</th><th scope="col" className="md:text-right">Interventions</th><th scope="col" className="md:text-right">Agent work before</th></tr>
+              </thead>
+              <tbody>
+                {section.categories.map((category) => (
+                  <tr key={category.category} data-testid="usage-intervention-category" className="max-md:block max-md:border-b max-md:border-border max-md:py-2">
+                    <td className={CELL}>
+                      <b>{category.pooled ? "Operator friction (category unproven)" : formatCode(category.category)}</b>
+                      {category.repeats > 0n ? <div className="text-xs text-muted-foreground">{formatCount(category.repeats)} repeat reports</div> : null}
+                    </td>
+                    <td className={CELL}>
+                      <Label>Owner</Label>
+                      {category.pooled ? (
+                        <ul className="m-0 list-none p-0 text-xs text-muted-foreground" aria-label="Hints, unproven">
+                          {category.hints.map((hint) => <li key={hint.category}>{formatCount(hint.count)} look like {formatCode(hint.category)} (unproven): {hint.owner}</li>)}
+                        </ul>
+                      ) : category.owner}
+                    </td>
+                    <td className={`${CELL} whitespace-nowrap tabular-nums md:text-right`}><Label>Interventions</Label>{formatCount(category.interventions)} · {category.perAgentHour.toFixed(2)} per agent-hour</td>
+                    <td className={`${CELL} tabular-nums md:text-right`}><Label>Agent work before</Label>{formatCount(category.workRequests)} requests · {formatCount(category.workToolCalls)} tool calls · {formatTokens(category.workTokens)} tokens</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Table>
+          <ul className="flex flex-col gap-1" aria-label="Example messages">
+            {section.examples.map((example) => (
+              <li key={example.eventId} className="text-sm" data-testid="usage-intervention-example">
+                <span className="text-muted-foreground">{formatCode(example.category)}{example.pooled ? " (unproven)" : ""}: </span>“{example.text}” <Link to={`/runs/${encodeURIComponent(example.runId)}`} className="underline">open run</Link>
+                {example.repeatOfEventId ? <span className="text-muted-foreground"> · repeats an earlier report</span> : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function Header() {
+  return (
+    <thead className="max-md:sr-only">
+      <tr><th scope="col">What keeps going wrong</th><th scope="col">Owner</th><th scope="col" className="md:text-right">Seen</th><th scope="col" className="md:text-right">Cost</th><th scope="col"><span className="sr-only">Actions</span></th></tr>
+    </thead>
+  );
+}
+
+/** Usage › Friction: owner-level tool problems in plain words, each with an owner, a cost, and Report bug or Dismiss, beside what the profiles could see; then the classified operator interventions the accuracy gate admits. */
 export function UsageFriction() {
   const [status, setStatus] = useState<FrictionStatus>("open");
   const friction = useUsageFriction();
-  const all = friction.data?.problems ?? [];
-  const rows = all.filter((problem) => problem.status === status);
-  // Totals cover open problems only, and points stay per subscription window:
-  // a Claude point and a Codex point are not the same amount.
-  const open = all.filter((problem) => problem.status === "open");
-  const pointsByWindow = new Map<string, number>();
-  for (const problem of open) {
-    const label = subscriptionLabel(problem.provider, problem.window);
-    pointsByWindow.set(label, (pointsByWindow.get(label) ?? 0) + problem.points);
-  }
-  const points = [...pointsByWindow].map(([label, value]) => `≈ ${formatPoints(value)} ${label}`).join(" · ") || `≈ ${formatPoints(0)}`;
-  const wall = open.reduce((sum, problem) => (problem.timeKind === "redundant" ? sum + problem.wallClockMs : sum), 0n);
-  const total = (friction.data?.open ?? 0n) + (friction.data?.reported ?? 0n) + (friction.data?.dismissed ?? 0n);
+  const findings = (friction.data?.toolFindings ?? []).filter((finding) => finding.status === status);
+  const coverage = friction.data?.coverage;
+  const interventions = friction.data?.interventions;
+  const below = friction.data?.belowFloor ?? 0n;
   return (
     <div className="flex flex-col gap-4" data-testid="usage-friction">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4">
-          <Kpi label="Open friction this week" value={points} />
-          <Kpi label="Redundant call time" value={formatDuration(wall)} />
-          <Kpi label="Recurring problems" value={formatCount(total)} />
+          <Kpi label="Open tool problems" value={formatCount(friction.data?.open)} />
+          <Kpi label="Operator interventions" value={!interventions?.shown ? "not shown" : formatCount(interventions.shown)} />
+          <Kpi label="Outcome known" value={coverage ? formatPercent(coverage.outcomeKnownShare, 0) : "—"} />
           <Kpi label="Reported to owners" value={formatCount(friction.data?.reported)} />
         </div>
         <ButtonGroup label="Status" collapse="never" className="flex-wrap">
           {STATUSES.map((value) => <Toggle key={value} size="lg" pressed={status === value} onPressedChange={() => setStatus(value)}>{formatCode(value)}</Toggle>)}
         </ButtonGroup>
       </div>
-      {friction.data && friction.data.runsAnalysed < friction.data.runsTotal ? (
-        <p role="status" className="text-sm text-muted-foreground" data-testid="usage-friction-progress">Re-analysing {formatCount(friction.data.runsAnalysed)} of {formatCount(friction.data.runsTotal)} runs; the numbers below fill in as it goes.</p>
-      ) : null}
+      {coverage ? <p className="text-sm text-muted-foreground" data-testid="usage-friction-coverage">Seen since {friction.data?.windowStart.slice(0, 10)}: {coverage.sentence}.</p> : null}
+      {below > 0n ? <p className="text-sm text-muted-foreground" data-testid="usage-friction-below">{formatCount(below)} more {below === 1n ? "finding scores" : "findings score"} under the materiality floor ({formatPercent(friction.data?.materialityScore ?? 0, 0)}): counted, not listed.</p> : null}
       <Card className="p-0">
         <DataState
           subject="Friction"
           loading={friction.isLoading}
           error={friction.error}
-          isEmpty={rows.length === 0}
+          isEmpty={findings.length === 0}
           onRetry={() => void friction.refetch()}
-          empty={<EmptyState icon={<Bug aria-hidden="true" />} title={`No ${status} problems`} description="Recurring friction appears here once the same problem has cost several runs time or quota." />}
+          empty={<EmptyState icon={<Bug aria-hidden="true" />} title={`No ${status} problems`} description={coverage ? `None met its threshold in what was seen: ${coverage.sentence}. Unknown outcomes cannot show failures.` : "Nothing was seen in the window, so there is no telling whether tools caused friction."} />}
         >
           <Table>
             <table>
-              <thead className="max-md:sr-only">
-                <tr><th scope="col">What keeps going wrong</th><th scope="col">Owner</th><th scope="col" className="md:text-right">Seen</th><th scope="col" className="md:text-right">Cost</th><th scope="col"><span className="sr-only">Actions</span></th></tr>
-              </thead>
-              <tbody>{rows.map((problem) => <ProblemRow key={problem.fingerprint} problem={problem} />)}</tbody>
+              <Header />
+              <tbody>
+                {findings.map((finding) => <ToolRow key={finding.fingerprint} finding={finding} since={friction.data?.windowStart ?? ""} />)}
+              </tbody>
             </table>
           </Table>
         </DataState>
       </Card>
-      <p className="text-sm text-muted-foreground">Report bug files the problem to a scenario or command owner through the report-bug path, with the evidence attached, and marks the row Reported. Problems owned by agent behaviour link to their recommendation instead. The fingerprint is detail, not the headline.</p>
+      {interventions ? <Interventions section={interventions} /> : null}
+      <p className="text-sm text-muted-foreground">Tool problems rank by √(their share of the window's harm in their own unit × the share of runs that show it): failed calls, command time or context tax. Report bug files one to its owner through the report-bug path with example commands and evidence runs, and marks the row Reported. Operator interventions are shown per category only once the classifier has passed its accuracy gate for it.</p>
     </div>
   );
 }

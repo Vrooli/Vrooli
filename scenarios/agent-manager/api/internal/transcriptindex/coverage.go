@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -27,7 +28,8 @@ type Coverage struct {
 
 // RootCoverage counts one root kind. Captured files are indexed by the
 // indexer or owned by the Agent Manager run that reads them. IndexedBytes
-// over Bytes is the byte share of on-disk transcripts that is captured.
+// over Bytes is a conservative share of bytes at stored checkpoints, not a
+// content-integrity proof or evidence that a run recorded every event.
 type RootCoverage struct {
 	Kind         string      `json:"kind"`
 	Harness      string      `json:"harness"`
@@ -67,8 +69,12 @@ func (ix *Indexer) Coverage(ctx context.Context, since time.Time) (Coverage, err
 // stored rows. A nil rows slice reports the disk alone (the dry run).
 func BuildCoverage(roots []Root, rows []FileRow, since time.Time) Coverage {
 	byKey := make(map[string]FileRow, len(rows))
+	byReconciliationPath := make(map[string]FileRow)
 	for _, row := range rows {
 		byKey[row.Key] = row
+		if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, sourceReconcilePrefix) {
+			byReconciliationPath[row.Path] = row
+		}
 	}
 	byKind := map[string]*RootCoverage{}
 	entry := func(kind string) *RootCoverage {
@@ -97,14 +103,17 @@ func BuildCoverage(roots []Root, rows []FileRow, since time.Time) Coverage {
 			cov.Files++
 			cov.Bytes += candidate.Size
 			row, known := byKey[candidate.Key]
-			switch {
-			case candidate.Root.RunID != "" || (known && row.Status == StatusOwned):
-				cov.Owned++
-				cov.IndexedBytes += candidate.Size
-				if known {
-					cov.Turns += row.Turns
-					cov.UsageReports += row.UsageReports
+			if !known {
+				// A replacement inode has a different key. Surface the prior
+				// checkpoint's unresolved state without counting its bytes as
+				// capture of the new file.
+				if prior, ok := byReconciliationPath[candidate.Path]; ok {
+					cov.Unreadable++
+					cov.issue(candidate.Path, prior.Error)
+					continue
 				}
+			}
+			switch {
 			case !known:
 				cov.Pending++
 				cov.issue(candidate.Path, "not indexed yet")
@@ -112,15 +121,31 @@ func BuildCoverage(roots []Root, rows []FileRow, since time.Time) Coverage {
 				cov.Excluded++
 			case row.Status == StatusUnreadable:
 				cov.Unreadable++
-				cov.IndexedBytes += min(row.Offset, candidate.Size)
 				cov.issue(candidate.Path, row.Error)
 			default:
-				cov.IndexedBytes += min(row.Offset, candidate.Size)
-				if row.Offset >= candidate.Size || (row.Status == StatusIndexed && row.Size == candidate.Size) {
+				// Metadata changes after the checkpoint make the relationship
+				// between its bytes and the current source unknown, including a
+				// same-size rewrite. A pending/error row is never all-clear just
+				// because its saved offset equals the current file length.
+				unchanged := row.Path == candidate.Path && row.Size == candidate.Size && row.MtimeUnixNano == candidate.MtimeUnixNano
+				checkpoint := row.Status == StatusIndexed || row.Status == StatusOwned || (row.Status == StatusPending && row.Offset < candidate.Size)
+				if unchanged && row.IndexedAt != nil && row.Error == "" && checkpoint {
+					cov.IndexedBytes += min(row.Offset, candidate.Size)
+				}
+				complete := unchanged && row.IndexedAt != nil && row.Error == "" && row.Offset >= candidate.Size
+				if complete && row.Status == StatusOwned {
+					cov.Owned++
+				} else if complete && row.Status == StatusIndexed {
 					cov.Indexed++
 				} else {
 					cov.Pending++
-					cov.issue(candidate.Path, "partially indexed")
+					reason := "partially indexed"
+					if row.Error != "" {
+						reason = row.Error
+					} else if !unchanged {
+						reason = "source changed since index checkpoint"
+					}
+					cov.issue(candidate.Path, reason)
 				}
 				if row.UsageReports > 0 {
 					cov.WithUsage++
@@ -139,8 +164,8 @@ func BuildCoverage(roots []Root, rows []FileRow, since time.Time) Coverage {
 	return out
 }
 
-// CapturedShare is the byte share of on-disk transcripts that is captured;
-// 1 when there are none.
+// CapturedShare is the checkpoint byte share; 1 for an empty denominator.
+// A positive share does not prove source integrity or complete event capture.
 func (c RootCoverage) CapturedShare() float64 {
 	if c.Bytes == 0 {
 		return 1

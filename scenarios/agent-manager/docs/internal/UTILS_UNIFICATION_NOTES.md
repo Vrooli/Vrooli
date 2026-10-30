@@ -1,27 +1,23 @@
 # Utils Unification Notes
 
 ## Last Updated
-2026-04-30
+2026-10-30 (stale paths: `ui/src/features/stats` was deleted in P4-W6a; its entries below are history)
 
 ## Summary
 Consolidated repeated UI display utilities and fully migrated date/time + currency formatting onto shared modules in `agent-manager` to reduce drift across dashboard, stats, run detail, and pricing surfaces. Shared logic now lives in `ui/src/lib/display.ts`, `ui/src/lib/dateTime.ts`, and `ui/src/lib/currency.ts`.
 
 ## Duplications
-- Status label + badge variant helpers duplicated in:
-  - `ui/src/features/stats/components/breakdown/ModelUsageBreakdown.tsx`
-  - `ui/src/features/stats/components/breakdown/ToolUsageAnalytics.tsx`
-- Unknown-value (`"unknown"`/empty) name formatting duplicated in:
-  - `ui/src/features/stats/components/breakdown/ModelUsageBreakdown.tsx`
-  - `ui/src/features/stats/components/breakdown/ToolUsageAnalytics.tsx`
+- Status label + badge variant helpers were duplicated in the stats breakdown components (deleted with `features/stats`).
+- Unknown-value (`"unknown"`/empty) name formatting duplicated in the stats breakdown components (deleted) and:
   - `ui/src/components/ModelCostComparison.tsx`
 - Hyphenated runner-name humanization local logic in:
   - `ui/src/pages/DashboardPage.tsx`
 - Date/time formatter logic previously split between:
   - `ui/src/lib/utils.ts`
-  - `ui/src/features/stats/utils/formatters.ts`
+  - the stats formatters (deleted with `features/stats`)
   - `ui/src/components/dialogs/pricingDisplay.ts`
 - Currency formatter logic previously split between:
-  - `ui/src/features/stats/utils/formatters.ts`
+  - the stats formatters (deleted with `features/stats`)
   - `ui/src/components/RunDetail.tsx`
   - `ui/src/components/dialogs/pricingDisplay.ts`
 
@@ -31,9 +27,9 @@ Consolidated repeated UI display utilities and fully migrated date/time + curren
 ## Notes
 - Consolidation kept behavior intact for all updated call sites.
 - `ModelCostComparison` still applies its local truncation rule, now layered on shared unknown-value handling.
-- Date/time and currency compatibility wrappers were removed from legacy formatter modules (`ui/src/lib/utils.ts`, `ui/src/features/stats/utils/formatters.ts`) after full callsite migration.
+- Date/time and currency compatibility wrappers were removed from legacy formatter modules (`ui/src/lib/utils.ts` and the since-deleted stats formatters) after full callsite migration.
 - Shared `Intl` formatter instances are now cached in `ui/src/lib/dateTime.ts` and `ui/src/lib/currency.ts` to reduce repeated constructor overhead.
-- Added lightweight UI utility unit tests using Node test runner (`ui/tests/lib/*.test.ts`) with `pnpm test`.
+- UI utility unit tests run under vitest beside their sources (`ui/src/**/*.test.ts`, `pnpm test`); the earlier Node test runner suite under `ui/tests/lib` is gone.
 
 ## Realtime Utility Consolidation - 2026-04-30
 

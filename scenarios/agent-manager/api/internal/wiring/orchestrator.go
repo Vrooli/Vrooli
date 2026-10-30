@@ -23,6 +23,7 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/identity"
+	"agent-manager/internal/interventions"
 	"agent-manager/internal/invocationreadmodel"
 	investigationlearning "agent-manager/internal/learning"
 	"agent-manager/internal/modelpolicydrift"
@@ -67,6 +68,7 @@ type OrchestratorDependencies struct {
 	TranscriptImporter    *orchestration.TranscriptIndex
 	ClaudeQuotaFeed       *pricing.ClaudeStatuslineReader // statusline samples -> quota_observations
 	UsageAlerts           *usageforecast.Alerter          // will_exhaust -> notification-hub
+	Interventions         *interventions.Job              // operator messages -> ai-gateway decisions
 	ModelHealthProbe      *healthstore.Probe
 	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	RolePolicyState       *rolepolicy.State
@@ -171,7 +173,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithLabelGenerator(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
-		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
+		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithPortOwners(processPortOwners()), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 		orchestration.WithOwnerIdentity(ownerIdentity),
 		orchestration.WithAuthorizations(database.NewAuthorizationRepository(db)),
 		orchestration.WithSessionBindingProofReader(orchestration.NewCLISessionBindingProofReader()),
@@ -239,9 +241,10 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		modelPolicyRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
-	usageAlerts := newUsageAlerts(db, pricingRepository, pricingService, receiptsClient)
+	usageAlerts := newUsageAlerts(db, usageAttributionStore(db, orch), pricingRepository, pricingService, receiptsClient)
+	interventionJob := &interventions.Job{Store: interventions.NewStore(db), Events: eventStore, Classifier: interventions.NewClassifier(), Log: obs.Component("interventions")}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, Interventions: interventionJob, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 // usagePageURL links a will-exhaust notification to the Agent Manager Usage
@@ -373,8 +376,7 @@ func wireSupervision(db *database.DB, repos *database.Repositories, orch *orches
 	supervisionService.SetPolicyArtifactResolver(programEvaluator.CurrentArtifactDigest)
 	supervisionPolicies.SetReplayEvaluator(programEvaluator)
 	supervisionEvaluator := supervision.PolicyControlledEvaluator{Store: supervisionPolicies, Delegate: programEvaluator}
-	frictionSource, _ := repos.InvocationReadModel.(supervision.FrictionSource)
-	subjectResolver := supervision.NewRunSubjectResolver(repos.Runs, frictionSource)
+	subjectResolver := supervision.NewRunSubjectResolver(repos.Runs, usageAttributionStore(db, orch))
 	supervisionService.SetSubjectResolver(subjectResolver)
 	supervisionProcessor := supervision.NewProcessor(supervisionService, subjectResolver, supervisionEvaluator)
 	supervisionScheduler := supervision.NewScheduler(supervisionRepo, supervisionProcessor, func(err error) {
@@ -404,8 +406,9 @@ func wireSupervision(db *database.DB, repos *database.Repositories, orch *orches
 }
 
 // newUsageAlerts builds the will-exhaust alerter over the quota readings, the
-// activity source and the attribution actions it recommends.
-func newUsageAlerts(db *database.DB, pricingRepository pricing.Repository, pricingService pricing.Service, receiptsClient eventbus.Client) *usageforecast.Alerter {
+// activity source and the quota levers it recommends, ranked from the same
+// store and inputs as the Usage page (its tool calls feed R-skill).
+func newUsageAlerts(db *database.DB, store *database.UsageAttributionRepository, pricingRepository pricing.Repository, pricingService pricing.Service, receiptsClient eventbus.Client) *usageforecast.Alerter {
 	usageAlerts := &usageforecast.Alerter{Store: usageforecast.NewSQLiteAlertStore(db), UsageURL: usagePageURL, OnError: func(err error) {
 		obs.Component("usage-alerts").Warn("usage alert evaluation failed", obs.KeyError, err.Error())
 	}}
@@ -413,7 +416,7 @@ func newUsageAlerts(db *database.DB, pricingRepository pricing.Repository, prici
 	usageAlerts.Activity = database.NewUsageActivityRepository(db)
 	usageAlerts.Location = usageforecast.DigestLocation()
 	if usageAlerts.Readings != nil {
-		usageAlerts.Actions = usageattribution.AlertActions{Service: usageattribution.Service{Store: database.NewUsageAttributionRepository(db), Readings: usageAlerts.Readings, Pricer: usageattribution.NewPriceBook(pricingService)}}
+		usageAlerts.Actions = usageattribution.AlertActions{Service: usageattribution.Service{Store: store, Tools: store, Readings: usageAlerts.Readings, Pricer: usageattribution.NewPriceBook(pricingService)}}
 	}
 	if receiptsClient.Enabled() {
 		usageAlerts.Publisher = receiptsClient

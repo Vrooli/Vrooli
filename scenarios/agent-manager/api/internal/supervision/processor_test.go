@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/toolfriction"
+
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 
@@ -129,7 +131,10 @@ func TestTriggerEvaluatorCoversQuietDeadlineFrictionAndTerminal(t *testing.T) {
 	}{
 		{name: "quiet", triggers: &domainpb.WatchTriggers{QuietTime: durationpb.New(time.Minute)}, updatedAt: now.Add(-2 * time.Minute), want: domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, classification: "quiet_time"},
 		{name: "deadline", triggers: &domainpb.WatchTriggers{Deadline: timestamppb.New(now.Add(-time.Second))}, updatedAt: now, want: domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, classification: "deadline"},
-		{name: "friction", triggers: &domainpb.WatchTriggers{FrictionScore: .7}, summaries: []SubjectSummary{{FrictionScore: .8}}, updatedAt: now, want: domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, classification: "friction_threshold"},
+		{name: "friction", triggers: &domainpb.WatchTriggers{FrictionScore: .7}, summaries: []SubjectSummary{{ToolFriction: toolfriction.RunScore{Commands: 10, OutcomeKnown: 9, Score: .8}}}, updatedAt: now, want: domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, classification: "friction_threshold"},
+		// A scorable score over the threshold from a subject whose projection is
+		// not current is "cannot tell": the trigger is skipped.
+		{name: "friction unavailable", triggers: &domainpb.WatchTriggers{FrictionScore: .7}, summaries: []SubjectSummary{{FrictionUnavailable: true, ToolFriction: toolfriction.RunScore{Commands: 10, OutcomeKnown: 9, Score: .8}}}, updatedAt: now, want: domainpb.WatchDisposition_WATCH_DISPOSITION_QUIET, classification: "quiet"},
 		{name: "terminal", triggers: &domainpb.WatchTriggers{Terminal: true}, summaries: []SubjectSummary{{Terminal: true}}, updatedAt: now, want: domainpb.WatchDisposition_WATCH_DISPOSITION_TERMINAL, classification: "cohort_terminal"},
 	}
 	for _, tc := range cases {

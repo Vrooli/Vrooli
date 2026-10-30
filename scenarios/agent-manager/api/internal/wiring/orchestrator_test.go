@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/usageattribution"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/filerouting"
@@ -79,6 +80,27 @@ func TestNewOrchestratorBuildsCompleteGraphWithoutStartingWorkers(t *testing.T) 
 	// Construction must not start workers: cleanup is safe before Server.Start
 	// has established lifecycle ownership.
 	Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter)
+}
+
+// The will-exhaust alert ranks quota levers from the store the Usage page
+// reads, tool calls included (R-skill is priced from them): supervision, the
+// alert and the routes share one store, and with it one tool-window memo.
+func TestUsageSurfacesShareOneStore(t *testing.T) {
+	db, cleanup := testutil.SetupTestDB(t)
+	defer cleanup()
+	deps, err := NewOrchestrator(db, nil, logrus.New(), nil, nil, testDurableRoots(t))
+	if err != nil {
+		t.Fatalf("build orchestrator graph: %v", err)
+	}
+	defer Shutdown(nil, deps.Reconciler, deps.AwaitRegistry, deps.WorkflowNudger, deps.TranscriptImporter)
+	routes := usageAttributionStore(db, deps.Orchestrator)
+	actions, ok := deps.UsageAlerts.Actions.(usageattribution.AlertActions)
+	if !ok {
+		t.Fatalf("alert actions = %T, want the recommendations service", deps.UsageAlerts.Actions)
+	}
+	if actions.Service.Store != routes || actions.Service.Tools != routes {
+		t.Fatalf("alert store %p, tools %v; want the routes' store %p for both", actions.Service.Store, actions.Service.Tools, routes)
+	}
 }
 
 func TestNewOrchestratorHonorsExplicitLevers(t *testing.T) {

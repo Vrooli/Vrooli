@@ -14,7 +14,7 @@ import (
 func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
 	deps := support.Dependencies{RunCommands: []cliapp.Command{support.Command("list", "List", func([]string) error { return nil })}}
 	groups := SubcommandGroups(deps)
-	want := map[string]bool{"profile": true, "role-policy": true, "settings": true, "permission-policy": true, "runner": true, "declarations": true, "workflow": true, "task": true, "maintenance": true, "storage": true, "health": true, "events": true, "findings": true, "subscription": true, "conversation": true, "space": true, "run": true}
+	want := map[string]bool{"profile": true, "role-policy": true, "settings": true, "permission-policy": true, "runner": true, "declarations": true, "workflow": true, "task": true, "maintenance": true, "storage": true, "health": true, "events": true, "subscription": true, "conversation": true, "space": true, "run": true}
 	for _, group := range groups {
 		if len(group.Subcommands) == 0 {
 			t.Fatalf("registered group %q has no subcommands", group.Name)
@@ -42,7 +42,6 @@ func TestEffortDispatcherCommandsReachTheirRegisteredHandler(t *testing.T) {
 		{"epoch-check", "goal/epochs/E27.md", "--acceptance", "--json"},
 		{"lint", "goal", "--json"},
 		{"handoff", "set", "goal", "--stdin"},
-		{"migrate", "goal", "--apply", "--json"},
 		{"park", "goal", "--run", "run-1", "--timeout", "1h"},
 		{"signals", "effort:goal", "--after", "3", "--json"},
 		{"signal", "effort:goal", "--kind", "feedback", "--detail", "FB-070"},
@@ -67,7 +66,7 @@ func TestEffortGoalHomeFileCommandsRunWithoutTheAPI(t *testing.T) {
 	group := effortGroup(support.Dependencies{Effort: func([]string) error { return nil }})
 	for _, command := range group.Subcommands {
 		offline := command.NeedsAPIOverride != nil && !*command.NeedsAPIOverride
-		if want := command.Name == "lint" || command.Name == "handoff" || command.Name == "migrate"; offline != want {
+		if want := command.Name == "lint" || command.Name == "handoff"; offline != want {
 			t.Fatalf("%s: runs without the API = %t, want %t", command.Name, offline, want)
 		}
 	}

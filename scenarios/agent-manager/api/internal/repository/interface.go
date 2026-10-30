@@ -164,7 +164,8 @@ type RunRepository interface {
 	// That snapshot must be the persisted task before admission-time normalization
 	// or recovery overrides. expectedCurrentRunID is nil for an unowned queued or
 	// legacy task with no live historical attempt, or the exact terminal attempt
-	// being replaced.
+	// being replaced. Task inputs are not mutated; successful callers can use
+	// the admitted run to update their own local view or read the stored Task.
 	CreateTaskAttempt(ctx context.Context, task, expectedTaskSnapshot *domain.Task, run *domain.Run, expectedCurrentRunID *uuid.UUID) error
 	// CancelTaskAttempt atomically records explicit Task cancellation and fences
 	// the exact current Run. Pending Runs become terminal before recovery can

@@ -630,6 +630,14 @@ type TranscriptRetentionSetter interface {
 	SetTranscriptRetention(bool)
 }
 
+// TranscriptVersioner names the version of the events a parser derives from
+// a transcript. A parser bumps it when the same lines start producing
+// different events; the Transcript Indexer re-imports files that an older
+// version read. A parser without it is version 0.
+type TranscriptVersioner interface {
+	TranscriptVersion() int
+}
+
 // AgentLaunchInfo exposes the per-agent facts the interactive execution
 // substrate needs to build a launch command for the real interactive CLI: the
 // per-run tag env key (so the reconciler can attribute the process from

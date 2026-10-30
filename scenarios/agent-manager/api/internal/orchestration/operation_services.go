@@ -9,7 +9,6 @@ import (
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/durability"
-	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/orchestration/spawn"
@@ -166,8 +165,6 @@ type RunAccountingService interface {
 
 type InvocationFactService interface {
 	InvocationFacts(context.Context, uuid.UUID) ([]runsignal.InvocationFact, error)
-	Episodes(context.Context, uuid.UUID) ([]runsignal.FrictionEpisode, error)
-	SelfReportSpans(context.Context, uuid.UUID) ([]runsignal.SelfReportSpan, error)
 	ReplayInvocationFacts(context.Context, uuid.UUID) (*ReplayResult, error)
 	ReplayInvocationCorpus(context.Context, ReplayFilter, bool) (*ReplaySummary, error)
 	DefineCohort(context.Context, string, string, string) (invocationreadmodel.CohortDefinition, error)
@@ -176,9 +173,7 @@ type InvocationFactService interface {
 	DeleteCohort(context.Context, string) error
 }
 
-type FindingsService interface {
-	ListFindings(context.Context, findings.Filter) ([]findings.Finding, error)
-}
+type FindingsService interface{}
 
 type ProjectRootService interface {
 	GetDefaultProjectRoot() string

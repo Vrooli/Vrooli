@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/runsignal"
 )
 
 // factMarkers gate the structural read of a line: most transcript lines carry
@@ -74,9 +75,9 @@ func (a *factAccumulator) addTool(kind string) {
 	a.facts.ToolCalls++
 	a.facts.ToolKinds[kind]++
 	switch kind {
-	case "web_search":
+	case runsignal.KindWebSearch:
 		a.facts.WebSearches++
-	case "web_fetch":
+	case runsignal.KindWebFetch:
 		a.facts.WebFetches++
 	}
 }
@@ -201,47 +202,25 @@ func (a *factAccumulator) countImage(image map[string]any, user bool) {
 	a.facts.ImageBytesIn += int64(len(data)) * 3 / 4
 }
 
-// scenarioCLIs are Vrooli scenarios reached through the shell whose cost is
-// the scenario's own, not a runner meter (R-1).
-var scenarioCLIs = []string{"image-tools", "whisper", "tts"}
-
-// ToolKind classifies one tool call for the per-turn tool_kinds count.
+// ToolKind classifies one tool call for the per-turn tool_kinds count: its
+// runsignal tool kind, with an MCP call named by server and tool, and a shell
+// call that runs a Vrooli scenario's CLI named by the scenario, whose cost is
+// the scenario's own rather than a runner meter (R-1).
 func ToolKind(name string, input map[string]any) string {
-	switch {
-	case strings.HasPrefix(name, "mcp__"):
-		parts := strings.SplitN(strings.TrimPrefix(name, "mcp__"), "__", 2)
+	kind := runsignal.CapabilityForTool(name)
+	switch kind {
+	case runsignal.KindMCP:
+		parts := strings.SplitN(name[len("mcp__"):], "__", 2)
 		if len(parts) == 2 {
 			return mcpKind(parts[0], parts[1])
 		}
 		return "mcp:" + parts[0]
-	}
-	switch strings.ToLower(name) {
-	case "exec", "exec_command", "bash", "shell", "local_shell", "command_execution", "write_stdin":
-		command := strings.ToLower(fmt.Sprint(input))
-		for _, cli := range scenarioCLIs {
-			if strings.Contains(command, cli) {
-				return "scenario:" + cli
-			}
+	case runsignal.KindShell:
+		if scenario := runsignal.CallScenario(name, input); scenario != "" {
+			return "scenario:" + scenario
 		}
-		return "shell"
-	case "websearch", "web_search":
-		return "web_search"
-	case "webfetch", "web_fetch":
-		return "web_fetch"
-	case "read", "view_image", "notebookread":
-		return "file_read"
-	case "edit", "write", "multiedit", "apply_patch", "notebookedit", "file_change":
-		return "file_edit"
-	case "grep", "glob", "toolsearch":
-		return "search"
-	case "agent", "task", "spawn_agent", "send_message", "sendmessage", "wait_agent", "followup_task", "list_agents", "interrupt_agent":
-		return "agent"
-	case "sleep", "wait", "schedulewakeup", "monitor":
-		return "wait"
-	case "image_gen__imagegen", "imagegen", "image_generation":
-		return "image_generation"
 	}
-	return "other"
+	return kind
 }
 
 func mcpKind(server, tool string) string {

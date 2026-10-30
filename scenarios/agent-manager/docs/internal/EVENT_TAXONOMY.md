@@ -345,7 +345,7 @@ Three HTTP/CLI surfaces consume the typed event log:
 
 CLI parity:
 
-- `agent-manager measures fallback-insights`
+- `agent-manager measures get fallback-insights`
 - `agent-manager health {models|runners|audit}`
 - `agent-manager events list [--run --type --since --limit]`
 

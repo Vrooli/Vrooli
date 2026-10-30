@@ -17,10 +17,11 @@ const (
 	cacheCreationInputRatio = 1.25
 )
 
-// FallbackTokenPrices prices unpriced models: API ratios
-// cached:input:creation:output of 1:20:25:100 at a mid-tier (terra-like) level.
+// FallbackTokenPrices prices unpriced models at a mid-tier (terra-like) level:
+// input and output are fixed, and the cache prices come from
+// WithDefaultCacheRatios so the ratios have one source.
 func FallbackTokenPrices() TokenPrices {
-	return TokenPrices{CacheRead: 5e-8, Input: 1e-6, CacheCreation: 1.25e-6, Output: 5e-6}
+	return TokenPrices{Input: 1e-6, Output: 5e-6}.WithDefaultCacheRatios()
 }
 
 // tierPriors scale FallbackTokenPrices by model tier when the price book has

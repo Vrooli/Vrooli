@@ -5,7 +5,7 @@ import { useDashboardRunCounts } from "./useApi.js";
 import { RunScope } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 
 const measures = vi.hoisted(() => ({ runStatusDistribution: vi.fn() }));
-vi.mock("../features/stats/api/measuresClient.js", () => ({ measuresClient: measures }));
+vi.mock("../features/usage/measuresClient.js", () => ({ measuresClient: measures }));
 
 afterEach(() => {
   vi.unstubAllGlobals();

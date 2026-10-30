@@ -321,6 +321,10 @@ func HeadHash(path string, readOffset int64) string {
 	defer file.Close()
 	head := make([]byte, min(int64(headHashBytes), readOffset))
 	n, _ := io.ReadFull(file, head)
-	sum := sha256.Sum256(head[:n])
+	return hashHead(head[:n])
+}
+
+func hashHead(data []byte) string {
+	sum := sha256.Sum256(data[:min(len(data), headHashBytes)])
 	return hex.EncodeToString(sum[:])
 }

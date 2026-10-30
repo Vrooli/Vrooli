@@ -9,7 +9,6 @@ import (
 
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/runreport"
-	"agent-manager/internal/runsignal"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -22,9 +21,6 @@ import (
 const (
 	// maxCohortRunIDs bounds explicit selections and run-report folds.
 	maxCohortRunIDs = 100
-	// episodeEvidenceLimit bounds one episode read; it is a safety ceiling, not
-	// a sample size.
-	episodeEvidenceLimit = 1_000_000
 )
 
 // CohortSource supplies what the read model alone cannot: named cohort
@@ -131,59 +127,6 @@ func (h *Handler) runs(ctx context.Context, selection cohortSelection, limit int
 	return cohortStore.Cohort(ctx, selection.filter, limit)
 }
 
-// episodes returns the selection's persisted friction episodes, each carrying
-// its run id, the number of runs in the population and the number of
-// quarantined or informational episodes left out.
-func (h *Handler) episodes(ctx context.Context, selection cohortSelection) ([]runsignal.FrictionEpisode, int, int, error) {
-	projection, ok := h.store.(invocationreadmodel.ProjectionStore)
-	if !ok {
-		return nil, 0, 0, fmt.Errorf("measure store does not provide persisted episodes")
-	}
-	var records []invocationreadmodel.Episode
-	hiddenRows := 0
-	population := len(selection.runIDs)
-	if selection.explicit() {
-		for _, id := range selection.runIDs {
-			rows, err := projection.EpisodesForRun(ctx, id)
-			if err != nil {
-				return nil, 0, 0, err
-			}
-			records = append(records, rows...)
-		}
-	} else {
-		// Episodes count over the same runs as the population: an unscoped
-		// predicate selection means Agent Manager-executed runs, as runs() does.
-		if selection.filter.Scope == "" {
-			selection.filter.Scope = invocationreadmodel.ScopeAgentManager
-		}
-		rows, err := projection.Episodes(ctx, selection.filter, episodeEvidenceLimit)
-		if err != nil {
-			return nil, 0, 0, err
-		}
-		records = rows
-		cohort, err := h.runs(ctx, selection, 1)
-		if err != nil {
-			return nil, 0, 0, err
-		}
-		population = cohort.MatchedRuns
-		if counter, ok := h.store.(interface {
-			HiddenEpisodes(context.Context, invocationreadmodel.Filter) (int, error)
-		}); ok {
-			if hiddenRows, err = counter.HiddenEpisodes(ctx, selection.filter); err != nil {
-				return nil, 0, 0, err
-			}
-		}
-	}
-	out := make([]runsignal.FrictionEpisode, 0, len(records))
-	for _, record := range records {
-		episode := record.FrictionEpisode
-		episode.RunID = record.RunID
-		out = append(out, episode)
-	}
-	shown, hidden := runsignal.ShownEpisodes(out)
-	return shown, population, hidden + hiddenRows, nil
-}
-
 func (h *Handler) cohortProvenance(ctx context.Context, selection cohortSelection, definition string, rows int64, query string) *measurepb.MeasureProvenance {
 	provenance := h.provenanceWithQuery(ctx, selection.filter, definitionFor(definition).SourceTable, rows, query)
 	if selection.name != "" {
@@ -239,47 +182,6 @@ func (h *Handler) SelectCohort(ctx context.Context, req *connect.Request[measure
 	return connect.NewResponse(&measurepb.SelectCohortResponse{RunIds: cohort.RunIDs, Rows: rows, Truncated: cohort.Truncated, Validity: h.validityForSample(int64(len(cohort.RunIDs))), Provenance: h.cohortProvenance(ctx, selection, "select_cohort", int64(len(cohort.RunIDs)), query), DefinitionId: definitionID("select_cohort")}), nil
 }
 
-// EpisodeCohort ranks the recurring friction-episode fingerprints of one
-// selected cohort. A predicate selection folds at most limit distinct runs.
-func (h *Handler) EpisodeCohort(ctx context.Context, req *connect.Request[measurepb.EpisodeCohortRequest]) (*connect.Response[measurepb.EpisodeCohortResponse], error) {
-	selection, err := h.resolveCohort(ctx, req.Msg.GetWindow(), req.Msg.GetFilter(), req.Msg.GetCohort(), req.Msg.GetRunIds())
-	if err != nil {
-		return nil, err
-	}
-	limit := boundedLimit(req.Msg.GetLimit(), 25, 0)
-	episodes, _, hidden, err := h.episodes(ctx, selection)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	byRun := map[string][]runsignal.FrictionEpisode{}
-	for _, id := range selection.runIDs {
-		byRun[id] = nil
-	}
-	// Episodes arrive oldest first; fold the newest runs so a recent regression
-	// is never the one cut off, and say when runs were left out.
-	dropped := map[string]bool{}
-	for i := len(episodes) - 1; i >= 0; i-- {
-		episode := episodes[i]
-		if _, kept := byRun[episode.RunID]; !kept && len(byRun) >= limit {
-			dropped[episode.RunID] = true
-			continue
-		}
-		byRun[episode.RunID] = append(byRun[episode.RunID], episode)
-	}
-	cohort := runreport.BuildEpisodeCohort(byRun)
-	if len(dropped) > 0 && cohort.Availability.Reason == "" {
-		cohort.Availability.Reason = fmt.Sprintf("the %d most recent runs with friction are shown; %d older runs are left out", len(byRun), len(dropped))
-	}
-	response := &measurepb.EpisodeCohortResponse{AvailabilityState: string(cohort.Availability.State), AvailabilityReason: cohort.Availability.Reason, HiddenQuarantinedEpisodes: int64(hidden)}
-	for _, signal := range cohort.Signals {
-		response.Signals = append(response.Signals, &measurepb.EpisodeCohortSignal{Fingerprint: signal.Fingerprint, Occurrences: int64(signal.Occurrences), DistinctRuns: int64(signal.DistinctRuns), SummedCostMs: signal.SummedCostMS, Confidence: signal.Confidence, RepresentativeRunIds: append([]string(nil), signal.RepresentativeRunIDs...)})
-	}
-	response.Validity = h.validityForSample(int64(len(cohort.Signals)))
-	response.Provenance = h.cohortProvenance(ctx, selection, "episode_cohort", int64(len(cohort.Signals)), fmt.Sprintf("SELECT persisted friction episodes FROM selected cohort LIMIT %d runs", limit))
-	response.DefinitionId = definitionID("episode_cohort")
-	return connect.NewResponse(response), nil
-}
-
 // CohortReport folds the run reports of one selected cohort into ranked
 // friction signals, summed time accounting, evidence validity and goal
 // progression.
@@ -331,43 +233,5 @@ func (h *Handler) CohortReport(ctx context.Context, req *connect.Request[measure
 	response.Validity = h.validityForSample(int64(len(reports)))
 	response.Provenance = h.cohortProvenance(ctx, selection, "cohort_report", int64(len(reports)), "BUILD run reports FOR selected cohort")
 	response.DefinitionId = definitionID("cohort_report")
-	return connect.NewResponse(response), nil
-}
-
-// CompareEpisodeCohorts compares episode fingerprints between two selected
-// cohorts; the right cohort is the "after" side of every delta.
-func (h *Handler) CompareEpisodeCohorts(ctx context.Context, req *connect.Request[measurepb.CompareEpisodeCohortsRequest]) (*connect.Response[measurepb.CompareEpisodeCohortsResponse], error) {
-	sides := [2]*measurepb.CohortSelector{req.Msg.GetLeft(), req.Msg.GetRight()}
-	var episodes [2][]runsignal.FrictionEpisode
-	var populations [2]int
-	hidden := 0
-	var selections [2]cohortSelection
-	for i, side := range sides {
-		selection, err := h.resolveCohort(ctx, side.GetWindow(), side.GetFilter(), side.GetCohort(), side.GetRunIds())
-		if err != nil {
-			return nil, err
-		}
-		selections[i] = selection
-		var sideHidden int
-		episodes[i], populations[i], sideHidden, err = h.episodes(ctx, selection)
-		hidden += sideHidden
-		if err != nil {
-			return nil, connect.NewError(connect.CodeInternal, err)
-		}
-	}
-	comparison := runreport.BuildCohortComparison(episodes[0], episodes[1], populations[0], populations[1], boundedLimit(req.Msg.GetLimit(), 100, 0))
-	response := &measurepb.CompareEpisodeCohortsResponse{
-		ClassifierVersion: comparison.ClassifierVersion, ChangeBinding: req.Msg.GetChangeBinding(), HiddenQuarantinedEpisodes: int64(hidden), LeftPopulation: int64(comparison.LeftPopulation), RightPopulation: int64(comparison.RightPopulation),
-		AvailabilityState: string(comparison.Availability.State), AvailabilityReason: comparison.Availability.Reason,
-	}
-	for _, signal := range comparison.Signals {
-		response.Signals = append(response.Signals, &measurepb.EpisodeComparisonSignal{
-			Fingerprint: signal.Fingerprint, LeftOccurrences: int64(signal.LeftOccurrences), RightOccurrences: int64(signal.RightOccurrences), LeftDistinctRuns: int64(signal.LeftDistinctRuns), RightDistinctRuns: int64(signal.RightDistinctRuns),
-			LeftCostMs: signal.LeftCostMS, RightCostMs: signal.RightCostMS, OccurrenceDelta: int64(signal.OccurrenceDelta), CostDeltaMs: signal.CostDeltaMS,
-		})
-	}
-	response.Validity = h.validityForSample(int64(min(populations[0], populations[1])))
-	response.Provenance = h.cohortProvenance(ctx, selections[1], "episode_comparison", int64(len(episodes[0])+len(episodes[1])), "SELECT persisted friction episodes FROM left and right cohorts")
-	response.DefinitionId = definitionID("episode_comparison")
 	return connect.NewResponse(response), nil
 }

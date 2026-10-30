@@ -99,6 +99,21 @@ func (r *pricingRepository) DeleteSubscriptionPeriod(ctx context.Context, id str
 // reading that repeats the scope's preceding row within
 // pricing.QuotaHeartbeat is not stored: it changes no window state.
 func (r *pricingRepository) RecordQuotaObservation(ctx context.Context, observation *pricing.QuotaObservation) error {
+	return recordQuotaObservation(ctx, r.db, observation)
+}
+
+// RecordQuotaObservationInTx participates in the transcript owner's atomic
+// replacement transaction while retaining quota validation and dedup rules.
+func (r *pricingRepository) RecordQuotaObservationInTx(ctx context.Context, tx *sql.Tx, observation *pricing.QuotaObservation) error {
+	return recordQuotaObservation(ctx, tx, observation)
+}
+
+type quotaExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+func recordQuotaObservation(ctx context.Context, db quotaExecutor, observation *pricing.QuotaObservation) error {
 	if observation != nil && observation.Freshness == "" {
 		observation.Freshness = pricing.ObservationUnknown
 	}
@@ -113,11 +128,11 @@ func (r *pricingRepository) RecordQuotaObservation(ctx context.Context, observat
 		observation.ID = pricing.QuotaObservationID(observation)
 	}
 	observedAt := SQLiteTime(observation.ObservedAt.UTC())
-	repeat, err := r.repeatsPrecedingReading(ctx, observation, observedAt)
+	repeat, err := repeatsPrecedingReading(ctx, db, observation, observedAt)
 	if err != nil || repeat {
 		return err
 	}
-	_, err = r.db.ExecContext(ctx, insertQuotaObservationSQL,
+	_, err = db.ExecContext(ctx, insertQuotaObservationSQL,
 		observation.AccountScope, observation.ID, observation.Provider, observation.Pool, observation.Window, observedAt, observation.Standing, observation.Used, observation.Limit, observation.Remaining, observation.UsedPercent, observation.WindowMinutes, reset, observation.SourceRunID, observation.Freshness, observation.Provenance, observation.Uncertainty, observation.EvidenceRef)
 	return err
 }
@@ -126,9 +141,9 @@ func (r *pricingRepository) RecordQuotaObservation(ctx context.Context, observat
 // observedAt carries the same reading and lies within the heartbeat. The
 // preceding row, not the newest, is compared because back-fill and
 // concurrent sessions record readings out of time order.
-func (r *pricingRepository) repeatsPrecedingReading(ctx context.Context, o *pricing.QuotaObservation, observedAt SQLiteTime) (bool, error) {
+func repeatsPrecedingReading(ctx context.Context, db quotaExecutor, o *pricing.QuotaObservation, observedAt SQLiteTime) (bool, error) {
 	var previous quotaReadingRow
-	err := r.db.QueryRowContext(ctx, `SELECT id, observed_at, reset_at, used_percent, standing FROM quota_observations
+	err := db.QueryRowContext(ctx, `SELECT id, observed_at, reset_at, used_percent, standing FROM quota_observations
 		WHERE account_scope = ? AND provider = ? AND pool = ? AND window = ? AND observed_at <= ? ORDER BY observed_at DESC LIMIT 1`,
 		o.AccountScope, o.Provider, o.Pool, o.Window, observedAt).Scan(&previous.id, &previous.observedAt, &previous.resetAt, &previous.usedPercent, &previous.standing)
 	if errors.Is(err, sql.ErrNoRows) {

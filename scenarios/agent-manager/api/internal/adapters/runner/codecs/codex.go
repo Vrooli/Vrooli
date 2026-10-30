@@ -23,7 +23,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
@@ -58,12 +57,6 @@ type Codex struct {
 	baseCodec
 	pricingService PricingService
 	ollama         *ollamaLister
-}
-
-// ToolCapabilityMap declares Codex's native tool vocabulary at the codec
-// boundary; runsignal consumes the same closed capability labels.
-func (c *Codex) ToolCapabilityMap() map[string]string {
-	return map[string]string{"bash": "shell", "command_execution": "shell", "apply_patch": "file-edit", "file_change": "file-edit", "read": "file-read", "grep": "search", "wait": "wait", "update_plan": "plan", "task": "delegate"}
 }
 
 // Codex exposes no per-launch native tool allowlist.
@@ -267,6 +260,12 @@ type codexState struct {
 	turnUsageObserved bool
 	turnAmount        domain.UsageCounters
 	retainUser        bool
+	// subagentThread says session_meta named this rollout a sub-agent thread:
+	// its user-role text is the parent agent's, not the operator's.
+	subagentThread bool
+	// forkPrefix says the rollout is still in the parent history a fork
+	// copied (see parseRolloutLine).
+	forkPrefix bool
 	// Goal evidence survives Consume segments with this parser, but cannot be
 	// shared across runs or inferred from a request without its accepted result.
 	goal codexGoalContext
@@ -293,7 +292,8 @@ type CodexStreamEvent struct {
 	Tool     *CodexToolEvent `json:"tool,omitempty"`
 }
 
-// CodexItem represents an item in the Codex stream.
+// CodexItem represents an item in the Codex stream, and the rollout's
+// event_msg item_completed CommandExecution item, which has the same fields.
 type CodexItem struct {
 	ID               string            `json:"id"`
 	Type             string            `json:"type"`
@@ -302,10 +302,49 @@ type CodexItem struct {
 	Input            json.RawMessage   `json:"input,omitempty"`
 	Output           string            `json:"output,omitempty"`
 	ExitCode         *int              `json:"exit_code,omitempty"`
-	Command          string            `json:"command,omitempty"`
+	Command          codexCommand      `json:"command,omitempty"`
 	AggregatedOutput string            `json:"aggregated_output,omitempty"`
 	Changes          []CodexFileChange `json:"changes,omitempty"`
 	Status           string            `json:"status,omitempty"`
+	Cwd              string            `json:"cwd,omitempty"`
+	Source           string            `json:"source,omitempty"`
+	Duration         *codexDuration    `json:"duration,omitempty"`
+}
+
+// codexCommand is a command execution's command: shell text on the exec
+// stream, argv (["/bin/bash", "-lc", "<script>"]) in rollout items.
+type codexCommand []string
+
+func (c *codexCommand) UnmarshalJSON(data []byte) error {
+	var text string
+	if json.Unmarshal(data, &text) == nil {
+		*c = nil
+		if strings.TrimSpace(text) != "" {
+			*c = codexCommand{text}
+		}
+		return nil
+	}
+	var argv []string
+	if json.Unmarshal(data, &argv) != nil {
+		*c = nil // an unknown shape is no command, not a failed line
+		return nil
+	}
+	*c = argv
+	return nil
+}
+
+// codexDuration is the rollout's {secs, nanos} duration.
+type codexDuration struct {
+	Secs  int64 `json:"secs"`
+	Nanos int64 `json:"nanos"`
+}
+
+func (d *codexDuration) milliseconds() *int64 {
+	if d == nil || d.Secs < 0 || d.Nanos < 0 {
+		return nil
+	}
+	ms := d.Secs*1000 + d.Nanos/1_000_000
+	return &ms
 }
 
 // CodexFileChange represents a file modification in Codex's file_change event.
@@ -587,561 +626,6 @@ func (p *codexTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string
 }
 
 // =============================================================================
-// On-disk rollout dialect (interactive runs)
-// =============================================================================
-
-// codexRolloutLine is the outer envelope of a codex on-disk rollout record
-// ($CODEX_HOME/sessions/YYYY/MM/DD/rollout-*.jsonl). Every line is one of a
-// small set of wrapper types carrying a typed payload.
-type codexRolloutLine struct {
-	Type    string              `json:"type"`
-	Payload codexRolloutPayload `json:"payload"`
-}
-
-// codexRolloutPayload is the union of the payload fields this codec maps.
-// Unused fields for a given payload type stay zero.
-type codexRolloutPayload struct {
-	Type string `json:"type"`
-	// session_meta
-	ID string `json:"id"`
-	// response_item message
-	Role    string          `json:"role"`
-	Content json.RawMessage `json:"content"`
-	// agent_message / user_message
-	Message string `json:"message"`
-	// task_started/task_complete
-	TurnID string `json:"turn_id"`
-	// function_call / custom_tool_call
-	Name      string `json:"name"`
-	Arguments string `json:"arguments"` // function_call: JSON-encoded args
-	Input     string `json:"input"`     // custom_tool_call: raw tool input
-	CallID    string `json:"call_id"`
-	// function_call_output / custom_tool_call_output
-	Output json.RawMessage `json:"output"`
-	// turn_context
-	Model string `json:"model"`
-	// turn_aborted
-	Reason string               `json:"reason"`
-	Info   *codexTokenCountInfo `json:"info"`
-	// Native quota metadata is a sibling of info in token_count frames. It is
-	// present even when info is null (for example at session start).
-	RateLimits codexRateLimits `json:"rate_limits"`
-}
-
-// codexRateLimits keeps the window-shaped entries of a token_count frame's
-// rate_limits and skips the rest. Newer Codex CLIs add scalar siblings such as
-// limit_id, plan_type and credits; a strict map type would fail the whole frame
-// and silently drop its usage.
-type codexRateLimits map[string]CodexRateLimitWindow
-
-func (m *codexRateLimits) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil
-	}
-	out := codexRateLimits{}
-	for key, value := range raw {
-		trimmed := bytes.TrimSpace(value)
-		if len(trimmed) == 0 || trimmed[0] != '{' {
-			continue
-		}
-		var window CodexRateLimitWindow
-		if json.Unmarshal(trimmed, &window) == nil && (window.UsedPercent != nil || window.WindowMinutes != 0) {
-			out[key] = window
-		}
-	}
-	*m = out
-	return nil
-}
-
-type codexTokenCountInfo struct {
-	LastTokenUsage  *CodexUsage `json:"last_token_usage"`
-	TotalTokenUsage *CodexUsage `json:"total_token_usage"`
-}
-
-// CodexRateLimitWindow is the bounded, metadata-only native quota shape. The
-// CLI reports a percentage/window/reset rather than an absolute token quota;
-// keeping these as optional fields avoids inventing a ceiling.
-type CodexRateLimitWindow struct {
-	UsedPercent   *float64 `json:"used_percent,omitempty"`
-	WindowMinutes int64    `json:"window_minutes,omitempty"`
-	ResetAt       int64    `json:"reset_at,omitempty"`
-	ResetsAt      int64    `json:"resets_at,omitempty"`
-}
-
-const codexProvider = "openai"
-
-// rolloutWrapperTypes are the outer `type` values that mark a line as the
-// on-disk rollout dialect rather than the flat exec-json stdout dialect.
-var rolloutWrapperTypes = map[string]bool{
-	"event_msg":     true,
-	"response_item": true,
-	"session_meta":  true,
-	"turn_context":  true,
-}
-
-// parseRolloutLine maps one on-disk rollout record to the same domain events
-// the exec-json decoder emits. ok=false means the line is not a rollout record
-// (blank, non-JSON, or a flat exec-json line) and the caller should fall back
-// to the stdout decoder. The mapping mirrors parseCodexEvents:
-//   - event_msg.agent_message           → assistant MessageEvent
-//   - event_msg.user_message            → suppressed (orchestrator owns the prompt)
-//   - response_item.function_call       → ToolCallEvent
-//   - response_item.custom_tool_call    → ToolCallEvent
-//   - response_item.*_output            → ToolResultEvent
-//   - event_msg.task_complete/turn_completed → terminal success
-//   - event_msg.turn_aborted            → terminal (not success)
-//   - event_msg.error                   → error event + terminal failure
-//   - session_meta.id                   → SessionID (thread id)
-func (p *codexTranscriptParser) parseRolloutLine(runID uuid.UUID, line string) (runner.TranscriptParseResult, bool) {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" || trimmed[0] != '{' {
-		return runner.TranscriptParseResult{}, false
-	}
-	// Recognize the dialect before decoding variable payload content. A known
-	// wrapper with unsupported content must never fall into flat stdout parsing.
-	var envelope struct {
-		Type string `json:"type"`
-	}
-	if json.Unmarshal([]byte(trimmed), &envelope) != nil || !rolloutWrapperTypes[envelope.Type] {
-		return runner.TranscriptParseResult{}, false
-	}
-	var rl codexRolloutLine
-	if err := json.Unmarshal([]byte(trimmed), &rl); err != nil {
-		warning := domain.NewLogEvent(runID, "warning", "Unsupported Codex rollout payload: "+err.Error())
-		return runner.TranscriptParseResult{Events: []*domain.RunEvent{warning}, Timestamp: transcriptLineTimestamp(line)}, true
-	}
-
-	result := runner.TranscriptParseResult{Timestamp: transcriptLineTimestamp(line)}
-	pl := rl.Payload
-	if pl.TurnID != "" {
-		p.state.rolloutTurnID = pl.TurnID
-	}
-
-	switch rl.Type {
-	case "session_meta":
-		if pl.ID != "" {
-			p.state.observeSession(pl.ID)
-			p.state.sessionFromStart = true
-			result.SessionID = pl.ID
-		}
-		return result, true
-
-	case "turn_context":
-		// The turn's own model is the truth; a configured model may be absent
-		// (imported sessions) or overridden in the session.
-		if model := strings.TrimSpace(pl.Model); model != "" {
-			p.state.runModel = model
-		}
-		p.state.turn++
-		result.ProviderTurnStarted = true
-		return result, true
-
-	case "response_item":
-		if pl.Type == "message" {
-			role := strings.ToLower(strings.TrimSpace(pl.Role))
-			result.UserTurnStarted = role == "user" || role == "operator"
-		}
-		result.Events = parseCodexRolloutItem(runID, pl, p.state)
-		return result, true
-
-	case "event_msg":
-		switch pl.Type {
-		case "task_started":
-			p.state.turnUsageObserved, p.state.turnAmount = false, domain.UsageCounters{}
-			if p.state.turn == 0 {
-				p.state.turn = 1
-			}
-		case "token_count":
-			if pl.Info != nil && (pl.Info.TotalTokenUsage != nil || pl.Info.LastTokenUsage != nil) {
-				if p.state.turn == 0 {
-					p.state.turn = 1
-				}
-				// Quota refreshes repeat the previous frame's counters; only a
-				// changed counter is a new usage report.
-				if usage, fresh := p.state.usageReport(runID, p.codec.pricingService, pl.Info.TotalTokenUsage, pl.Info.LastTokenUsage); fresh {
-					// The report happened at the line's time, not at parse time:
-					// an indexer back-fill reads it days later.
-					for _, event := range usage {
-						if !result.Timestamp.IsZero() {
-							event.Timestamp = result.Timestamp
-						}
-					}
-					result.Events = usage
-					p.state.turnUsageObserved = true
-					p.state.turnAmount = counterSum(p.state.turnAmount, usage[0].Data.(*domain.UsageEventData).Counters())
-				}
-			}
-			result.Events = append(result.Events, codexQuotaEvents(runID, result.Timestamp, pl.RateLimits)...)
-		case "agent_message":
-			if text := runner.StripANSI(strings.TrimSpace(pl.Message)); text != "" {
-				p.state.lastMessage = text
-				p.state.lastMessageID = pl.ID
-				messageEvent := newCodexMessageEvent(runID, p.state, text, pl.ID, "event_msg.agent_message", false, "")
-				p.state.lastMessageEvent = messageEvent
-				result.Events = []*domain.RunEvent{messageEvent}
-			}
-		case "user_message":
-			result.UserTurnStarted = true
-			if p.state.retainUser && strings.TrimSpace(pl.Message) != "" {
-				result.Events = []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", runner.StripANSI(pl.Message), domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "event_msg.user_message", RawEvidenceRef: "codex:event_msg.user_message"})}
-			}
-		case "task_complete", "turn_completed":
-			result.Events = append(result.Events, p.rolloutTerminalReceipt(runID, result.Timestamp)...)
-			if p.state.lastMessageEvent != nil {
-				markProviderMessageTerminal(p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type)
-				result.Events = append(result.Events, newProviderTerminalEvidence(runID, p.state.lastMessageEvent, pl.Type, "event_msg."+pl.Type, "codex:event_msg."+pl.Type))
-			}
-			result.Terminal = &runner.TranscriptTerminal{Success: true, ExitCode: 0}
-		case "turn_aborted":
-			result.Events = append(result.Events, p.rolloutTerminalReceipt(runID, result.Timestamp)...)
-			msg := "turn aborted"
-			if pl.Reason != "" {
-				msg = "turn aborted: " + pl.Reason
-			}
-			result.Terminal = &runner.TranscriptTerminal{Success: false, ExitCode: 1, ErrorMessage: msg}
-		case "error":
-			if msg := runner.StripANSI(strings.TrimSpace(pl.Message)); msg != "" {
-				result.Events = []*domain.RunEvent{domain.NewErrorEvent(runID, "execution_error", msg, false)}
-				result.Terminal = &runner.TranscriptTerminal{Success: false, ExitCode: 1, ErrorMessage: msg}
-			}
-		}
-		return result, true
-	}
-	return result, true
-}
-
-// codexQuotaEvents converts only the native rate-limit metadata into typed
-// observations. A Codex token_count frame has no absolute quota ceiling, so
-// this intentionally emits percentage/window/reset metadata only.
-func codexQuotaEvents(runID uuid.UUID, observedAt time.Time, rateLimits map[string]CodexRateLimitWindow) []*domain.RunEvent {
-	if len(rateLimits) == 0 {
-		return nil
-	}
-	capacity := len(rateLimits)
-	if capacity > 64 {
-		capacity = 64
-	}
-	result := make([]*domain.RunEvent, 0, capacity)
-	for pool, limit := range rateLimits {
-		if len(result) >= 64 {
-			break
-		}
-		pool = strings.TrimSpace(pool)
-		if pool == "" || len(pool) > 64 || limit.UsedPercent == nil || *limit.UsedPercent < 0 || *limit.UsedPercent > 100 || limit.WindowMinutes <= 0 {
-			continue
-		}
-		resetEpoch := limit.ResetAt
-		if resetEpoch == 0 {
-			resetEpoch = limit.ResetsAt
-		}
-		var reset *time.Time
-		if resetEpoch > 0 {
-			value := time.Unix(resetEpoch, 0).UTC()
-			reset = &value
-		}
-		event := domain.NewRateLimitEvent(runID, fmt.Sprintf("%dm", limit.WindowMinutes), "Codex provider quota observation", reset, 0)
-		event.Timestamp = observedAt
-		data, ok := event.Data.(*domain.RateLimitEventData)
-		if !ok {
-			continue
-		}
-		percent := *limit.UsedPercent
-		data.Provider = codexProvider
-		data.Pool = pool
-		data.UsedPercent = &percent
-		data.WindowMinutes = limit.WindowMinutes
-		data.Provenance = "codex:event_msg.token_count.rate_limits"
-		result = append(result, event)
-	}
-	return result
-}
-
-// Both explicit successful and aborted turn boundaries close provider usage.
-// The receipt carries the turn's summed amount and the session's latest
-// cumulative counter, so it stands alone when it is the only retained report
-// (transcript recovery) and adds nothing when the turn's reports are retained:
-// the accounting credits each counter value once. Missing token evidence
-// remains unknown; a terminal marker alone cannot create zero.
-func (p *codexTranscriptParser) rolloutTerminalReceipt(runID uuid.UUID, at time.Time) []*domain.RunEvent {
-	if !p.state.turnUsageObserved || p.state.lastCumulative == nil {
-		return nil
-	}
-	cumulative := *p.state.lastCumulative
-	events := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, p.codec.pricingService, p.state.runModel, usageTokens(p.state.turnAmount), p.state.billing), p.state.turn)
-	usage := events[0].Data.(*domain.UsageEventData)
-	usage.ReconciliationAuthority, usage.Turns = true, 1
-	usage.SessionID, usage.Cumulative = p.state.threadID, &cumulative
-	events[0].Timestamp = at
-	return attachCharge(events)
-}
-
-// attachCharge moves a receipt's charge onto its usage event, so the charge
-// has one representation: an authoritative receipt carries it and no separate
-// charge event repeats it (F-W1-2). events[0] is the usage event.
-func attachCharge(events []*domain.RunEvent) []*domain.RunEvent {
-	usage, ok := events[0].Data.(*domain.UsageEventData)
-	if !ok {
-		return events
-	}
-	out := events[:1]
-	for _, event := range events[1:] {
-		if charge, isCharge := event.Data.(*domain.ChargeEventData); isCharge {
-			usage.Charge = charge
-			continue
-		}
-		out = append(out, event)
-	}
-	return out
-}
-
-// closingReport repeats the session's latest counter with no amount, so a
-// turn boundary can close the invocation without adding usage.
-func (s *codexState) closingReport(runID uuid.UUID, pricing PricingService) []*domain.RunEvent {
-	events := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, pricing, s.runModel, usageTokens{}, s.billing), s.turn)
-	if usage, ok := events[0].Data.(*domain.UsageEventData); ok && s.lastCumulative != nil {
-		cumulative := *s.lastCumulative
-		usage.SessionID, usage.Cumulative = s.threadID, &cumulative
-	}
-	return events
-}
-
-// usageReport turns one provider counter report into usage events carrying
-// the raw session-cumulative counter and the provider's explicit amount for
-// this report. The amount is last_token_usage when Codex supplies it, the
-// difference from this parser's previous counter, the whole counter when the
-// parser saw the session start, and otherwise zero (unknown) — never the
-// counter of a session observed mid-way. fresh is false when the counter
-// repeats the previous report. A report without a cumulative counter (older
-// rollouts) carries only its amount.
-func (s *codexState) usageReport(runID uuid.UUID, pricing PricingService, total, last *CodexUsage) ([]*domain.RunEvent, bool) {
-	var amount domain.UsageCounters
-	var cumulative *domain.UsageCounters
-	switch {
-	case total != nil:
-		value := codexCounters(total)
-		if s.lastCumulative != nil && *s.lastCumulative == value {
-			return nil, false
-		}
-		switch {
-		case last != nil:
-			amount = codexCounters(last)
-		case s.lastCumulative != nil:
-			amount = counterDifference(value, *s.lastCumulative)
-		case s.sessionFromStart:
-			amount = value
-		}
-		s.lastCumulative, cumulative = &value, &value
-	case last != nil:
-		amount = codexCounters(last)
-	default:
-		return nil, false
-	}
-	events := markUsageTurn(buildCostEvents(runID, domain.RunnerTypeCodex, pricing, s.runModel, usageTokens(amount), s.billing), s.turn)
-	if usage, ok := events[0].Data.(*domain.UsageEventData); ok {
-		usage.SessionID, usage.Cumulative = s.threadID, cumulative
-	}
-	return events, true
-}
-
-// codexCounters splits Codex's usage into disjoint components. Codex input
-// includes cached reads (and cache writes, when reported), so those subsets
-// are removed from input before persistence and consumed exactly once.
-func codexCounters(u *CodexUsage) domain.UsageCounters {
-	input := u.InputTokens
-	if input >= u.CachedInputTokens+u.CacheWriteInputTokens {
-		input -= u.CachedInputTokens + u.CacheWriteInputTokens
-	}
-	return domain.UsageCounters{InputTokens: input, OutputTokens: u.OutputTokens, CacheReadTokens: u.CachedInputTokens, CacheCreationTokens: u.CacheWriteInputTokens}
-}
-
-func counterSum(a, b domain.UsageCounters) domain.UsageCounters {
-	return domain.UsageCounters{InputTokens: a.InputTokens + b.InputTokens, OutputTokens: a.OutputTokens + b.OutputTokens, CacheReadTokens: a.CacheReadTokens + b.CacheReadTokens, CacheCreationTokens: a.CacheCreationTokens + b.CacheCreationTokens}
-}
-
-func counterDifference(current, previous domain.UsageCounters) domain.UsageCounters {
-	return domain.UsageCounters{
-		InputTokens:         max(0, current.InputTokens-previous.InputTokens),
-		OutputTokens:        max(0, current.OutputTokens-previous.OutputTokens),
-		CacheReadTokens:     max(0, current.CacheReadTokens-previous.CacheReadTokens),
-		CacheCreationTokens: max(0, current.CacheCreationTokens-previous.CacheCreationTokens),
-	}
-}
-
-// parseCodexRolloutItem maps a response_item payload to tool events. Both the
-// generic function_call/output and MCP-style custom_tool_call/output shapes
-// carry a call_id, a name (on the call side), and a string output.
-func parseCodexRolloutItem(runID uuid.UUID, pl codexRolloutPayload, state *codexState) []*domain.RunEvent {
-	if pl.Type == "message" {
-		text := codexRolloutMessageText(pl.Content)
-		if text == "" {
-			return nil
-		}
-		text = runner.StripANSI(strings.TrimSpace(text))
-		switch strings.ToLower(strings.TrimSpace(pl.Role)) {
-		case "assistant":
-			message := newCodexMessageEvent(runID, state, text, pl.ID, "response_item.message", false, "")
-			state.lastMessage = text
-			state.lastMessageID = pl.ID
-			state.lastMessageEvent = message
-			return []*domain.RunEvent{message}
-		case "user", "operator":
-			if state != nil && state.retainUser {
-				return []*domain.RunEvent{domain.NewProviderMessageEvent(runID, "user", text, domain.MessageEventData{ProviderOrigin: "codex", ProviderEventType: "response_item.message"})}
-			}
-		}
-		return nil
-	}
-	switch pl.Type {
-	case "function_call":
-		var input map[string]interface{}
-		if pl.Arguments != "" {
-			_ = json.Unmarshal([]byte(pl.Arguments), &input)
-		}
-		return []*domain.RunEvent{domain.NewToolCallEvent(runID, pl.Name, pl.CallID, input)}
-	case "custom_tool_call":
-		input := map[string]interface{}{}
-		if pl.Input != "" {
-			input["input"] = pl.Input
-		}
-		return []*domain.RunEvent{domain.NewToolCallEvent(runID, pl.Name, pl.CallID, input)}
-	case "function_call_output", "custom_tool_call_output":
-		return codexRolloutToolResult(runID, pl)
-	}
-	// message / reasoning and other response items carry no distinct
-	// domain event here (assistant text arrives via event_msg.agent_message).
-	return nil
-}
-
-// inlineImageData matches the base64 body of an inline image data URI.
-var inlineImageData = regexp.MustCompile(`(data:[A-Za-z0-9.+/-]+;base64,)[A-Za-z0-9+/=]+`)
-
-// stripInlineImageData drops inline image bytes from stored tool output: a
-// screenshot is megabytes of base64 with no recall value, and the indexer
-// counts images from the source transcript, not from stored events (R-1).
-func stripInlineImageData(raw string) string {
-	if !strings.Contains(raw, ";base64,") {
-		return raw
-	}
-	return inlineImageData.ReplaceAllString(raw, "${1}<omitted>")
-}
-
-// codexRolloutToolResult preserves native strings and ordered typed text blocks.
-// A returned tool payload establishes evidence, not a successful process exit.
-func codexRolloutToolResult(runID uuid.UUID, pl codexRolloutPayload) []*domain.RunEvent {
-	data := &domain.ToolResultEventData{ToolCallID: pl.CallID, RawOutputJSON: stripInlineImageData(string(pl.Output))}
-	known := false
-	data.OutcomeKnown = &known
-	unsupported := false
-	conflictingMetadata := false
-	conflictingDuration := false
-	var text string
-	if json.Unmarshal(pl.Output, &text) == nil && len(pl.Output) > 0 && string(bytes.TrimSpace(pl.Output)) != "null" {
-		data.Output = runner.StripANSI(text)
-		data.ExitCode, data.DurationMS, unsupported = codexNestedResultMetadata(text)
-	} else {
-		var blocks []json.RawMessage
-		if json.Unmarshal(pl.Output, &blocks) != nil || string(bytes.TrimSpace(pl.Output)) == "null" {
-			unsupported = true
-		} else {
-			for _, raw := range blocks {
-				var block struct {
-					Type string  `json:"type"`
-					Text *string `json:"text"`
-				}
-				output := domain.ToolOutputBlock{RawJSON: stripInlineImageData(string(raw))}
-				if json.Unmarshal(raw, &block) == nil {
-					output.Type = block.Type
-					if (block.Type == "input_text" || block.Type == "output_text" || block.Type == "text") && block.Text != nil {
-						output.Text = runner.StripANSI(*block.Text)
-						// Typed metadata is parsed only from a complete text block, never
-						// recursively extracted or synthesized from concatenated fragments.
-						exit, duration, invalid := codexNestedResultMetadata(*block.Text)
-						unsupported = unsupported || invalid
-						if exit != nil {
-							if data.ExitCode != nil && *data.ExitCode != *exit {
-								conflictingMetadata = true
-							}
-							data.ExitCode = exit
-						}
-						if duration != nil {
-							if data.DurationMS != nil && *data.DurationMS != *duration {
-								conflictingDuration = true
-							}
-							data.DurationMS = duration
-						}
-					} else {
-						unsupported = true
-					}
-				} else {
-					unsupported = true
-				}
-				data.OutputBlocks = append(data.OutputBlocks, output)
-			}
-		}
-	}
-	if !domain.SupportedToolExitCode(data.ExitCode) {
-		conflictingMetadata = true
-	}
-	if conflictingMetadata {
-		data.ExitCode = nil
-		unsupported = true
-	}
-	if conflictingDuration {
-		data.DurationMS = nil
-		unsupported = true
-	}
-	if data.ExitCode != nil {
-		known = true
-		data.Success = *data.ExitCode == 0
-		if !data.Success {
-			data.Error = fmt.Sprintf("command exited with code %d", *data.ExitCode)
-		}
-	}
-	event := &domain.RunEvent{ID: uuid.New(), RunID: runID, EventType: domain.EventTypeToolResult, Timestamp: time.Now(), Data: data}
-	events := []*domain.RunEvent{event}
-	if unsupported {
-		events = append(events, domain.NewLogEvent(runID, "warning", "Unsupported Codex tool output content retained for call "+pl.CallID))
-	}
-	return events
-}
-
-// codexRolloutMessageText extracts the text-bearing content items used by
-// Codex response_item messages. Developer/system messages are filtered by the
-// caller; content itself is intentionally reduced to text, never attachments
-// or tool metadata.
-func codexRolloutMessageText(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var value any
-	if json.Unmarshal(raw, &value) != nil {
-		return ""
-	}
-	var collect func(any)
-	parts := []string{}
-	collect = func(item any) {
-		switch value := item.(type) {
-		case string:
-			if strings.TrimSpace(value) != "" {
-				parts = append(parts, value)
-			}
-		case []any:
-			for _, child := range value {
-				collect(child)
-			}
-		case map[string]any:
-			if text, ok := value["text"].(string); ok && strings.TrimSpace(text) != "" {
-				parts = append(parts, text)
-				return
-			}
-		}
-	}
-	collect(value)
-	return strings.Join(parts, "\n")
-}
-
-// =============================================================================
 // Stream parser
 // =============================================================================
 
@@ -1357,60 +841,100 @@ func newCodexMessageEvent(runID uuid.UUID, state *codexState, content, messageID
 	})
 }
 
-// parseCodexCommandExecution extracts shell commands as bash tool events.
+// codexNestedCommandTool names the result of a command that an exec call ran
+// (a rollout CommandExecution item). It has no tool call of its own: the
+// model called exec, and runsignal joins the result to that call.
+const codexNestedCommandTool = "command_execution"
+
+// codexNestedOutputLimit bounds the output kept on a nested command result.
+// The agent saw the command's output through the exec call's own result,
+// which is stored in full; this excerpt keeps the first and last lines, where
+// errors are, without storing every output twice.
+const codexNestedOutputLimit = 2048
+
+// codexCommandRecord is a nested command result's RawOutputJSON: the native
+// item's scalar fields, with its output bodies replaced by their size.
+type codexCommandRecord struct {
+	Type        string   `json:"type"`
+	Command     []string `json:"command"`
+	Cwd         string   `json:"cwd,omitempty"`
+	Status      string   `json:"status"`
+	ExitCode    *int     `json:"exit_code"`
+	Source      string   `json:"source,omitempty"`
+	OutputBytes int      `json:"output_bytes"`
+}
+
+// parseCodexCommandExecution maps one command execution to tool events. On the
+// exec stream (type command_execution) the command is the model's own tool
+// call: item.started emits the call and the terminal item its result, with the
+// call repeated for a failure so its command survives a missed start. In a
+// rollout (type CommandExecution) the command ran inside an exec call, so it
+// is a result only, carrying the command record, exit code and duration.
 func parseCodexCommandExecution(runID uuid.UUID, item *CodexItem) []*domain.RunEvent {
 	const toolName = "bash"
-	isTerminal := item.Status == "completed" ||
-		item.Status == "failed" ||
-		item.Status == "error" ||
-		item.Status == "cancelled" ||
-		item.Status == "timed_out"
-
-	if isTerminal {
-		events := make([]*domain.RunEvent, 0, 2)
-		// For non-success terminal states, emit tool_call + tool_result
-		// so failed commands retain command/status context. Successful
-		// command completion only emits tool_result for backward-compat.
-		if item.Command != "" && item.Status != "completed" {
-			input := map[string]interface{}{
-				"command":     item.Command,
-				"status":      item.Status,
-				"runner_tool": "command_execution",
-			}
-			events = append(events, domain.NewToolCallEvent(runID, toolName, item.ID, input))
+	nested := item.Type == "CommandExecution"
+	command := ""
+	if len(item.Command) > 0 {
+		command = item.Command[len(item.Command)-1]
+		if !nested {
+			command = strings.Join(item.Command, " ")
 		}
-
-		var errMsg error
-		if item.ExitCode != nil && *item.ExitCode != 0 {
-			errMsg = fmt.Errorf("command exited with code %d", *item.ExitCode)
-		} else if item.Status != "completed" {
-			errMsg = fmt.Errorf("command status: %s", item.Status)
-		}
-
-		output := item.AggregatedOutput
-		if strings.TrimSpace(output) == "" {
-			output = item.Output
-		}
-		result := domain.NewToolResultEvent(
-			runID, toolName, item.ID,
-			runner.StripANSI(output), errMsg,
-		)
-		if data, ok := result.Data.(*domain.ToolResultEventData); ok {
-			data.ExitCode = item.ExitCode
-		}
-		events = append(events, result)
-		return events
 	}
-
-	if item.Command != "" {
-		input := map[string]interface{}{
-			"command":     item.Command,
-			"status":      item.Status,
-			"runner_tool": "command_execution",
-		}
-		return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, item.ID, input)}
+	callInput := func() map[string]interface{} {
+		return map[string]interface{}{"command": command, "status": item.Status, "runner_tool": "command_execution"}
 	}
-	return nil
+	switch item.Status {
+	case "completed", "failed", "error", "cancelled", "timed_out":
+	default:
+		if command != "" && !nested {
+			return []*domain.RunEvent{domain.NewToolCallEvent(runID, toolName, item.ID, callInput())}
+		}
+		return nil
+	}
+	events := make([]*domain.RunEvent, 0, 2)
+	if command != "" && item.Status != "completed" && !nested {
+		events = append(events, domain.NewToolCallEvent(runID, toolName, item.ID, callInput()))
+	}
+	var errMsg error
+	if item.ExitCode != nil && *item.ExitCode != 0 {
+		errMsg = fmt.Errorf("command exited with code %d", *item.ExitCode)
+	} else if item.Status != "completed" {
+		errMsg = fmt.Errorf("command status: %s", item.Status)
+	}
+	output := item.AggregatedOutput
+	if strings.TrimSpace(output) == "" {
+		output = item.Output
+	}
+	printed := len(output)
+	output = runner.StripANSI(output)
+	name := toolName
+	if nested {
+		name = codexNestedCommandTool
+		output = boundedExcerpt(output, codexNestedOutputLimit)
+	}
+	result := domain.NewToolResultEvent(runID, name, item.ID, output, errMsg)
+	data := result.Data.(*domain.ToolResultEventData)
+	data.ExitCode = item.ExitCode
+	if nested {
+		if !domain.SupportedToolExitCode(data.ExitCode) {
+			data.ExitCode = nil
+		}
+		data.DurationMS = item.Duration.milliseconds()
+		known := true
+		data.OutcomeKnown = &known
+		record, _ := json.Marshal(codexCommandRecord{Type: item.Type, Command: item.Command, Cwd: item.Cwd, Status: item.Status, ExitCode: data.ExitCode, Source: item.Source, OutputBytes: printed})
+		data.RawOutputJSON = string(record)
+	}
+	return append(events, result)
+}
+
+// boundedExcerpt keeps text up to limit bytes, else its head and tail.
+func boundedExcerpt(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+	half := limit / 2
+	return strings.ToValidUTF8(text[:half], "") + "\n[…]\n" + strings.ToValidUTF8(text[len(text)-half:], "")
 }
 
 // codexTextExitCodePattern matches the exit line Codex's exec tools print at the

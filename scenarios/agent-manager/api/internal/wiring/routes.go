@@ -22,6 +22,7 @@ import (
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
 	"agent-manager/internal/httpmw"
+	"agent-manager/internal/interventions"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/maintenance"
@@ -32,6 +33,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/programlibrary"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
@@ -174,7 +176,11 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		return runreport.Availability{State: runreport.AvailabilityUnobserved}
 	}
 	var frictionBoard handlers.FrictionBoard
-	if service, ok := newFrictionService(deps); ok {
+	var usageStore *database.UsageAttributionRepository
+	if deps.DB != nil {
+		usageStore = usageAttributionStore(deps.DB, deps.Orchestrator)
+	}
+	if service, ok := newFrictionService(deps, usageStore); ok {
 		frictionBoard = service
 	}
 	handler := handlers.New(
@@ -204,6 +210,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
 	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
 	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
+	frictionPath, frictionHandler := domainconnect.NewFrictionServiceHandler(handler)
+	router.PathPrefix(strings.TrimRight(frictionPath, "/")).Handler(frictionHandler)
 	router.HandleFunc("/api/v1/runs/external/tombstone", handlers.TombstoneExternalConversation(deps.Orchestrator, deps.DB, deps.ConversationIndexer)).Methods(http.MethodPost)
 	if deps.StorageHealth != nil {
 		// The reclaim pair is the contract storage-manager calls when the declared
@@ -333,7 +341,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 				coverage = deps.TranscriptImporter
 			}
 			measureHandler.SetUsageActivity(database.NewUsageActivityRepository(deps.DB))
-			measureHandler.SetUsageAttribution(database.NewUsageAttributionRepository(deps.DB), deps.PricingService, coverage, findings.NewFrictionStatusStore(deps.DB))
+			measureHandler.SetInterventions(interventions.NewStore(deps.DB))
+			measureHandler.SetProgramLibrary(programlibrary.New())
+			measureHandler.SetUsageAttribution(usageStore, deps.PricingService, coverage, findings.NewFrictionStatusStore(deps.DB))
 		}
 		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
 			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())

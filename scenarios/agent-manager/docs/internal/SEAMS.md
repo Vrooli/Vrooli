@@ -1925,9 +1925,8 @@ on the run. See the interim mapping in
 
 ## Friction investigation seam
 
-`handlers.EpisodesService` is the sole transport adapter for episode reads,
-deterministic self-report spans, receipt-ledger disclosure, and transcript
-import. It translates Connect requests into `runreport` and `orchestration`
+`handlers.EpisodesService` is the sole transport adapter for receipt-ledger
+disclosure, transcript import and the friction-problem board writes. It translates Connect requests into `runreport` and `orchestration`
 calls; `runreport` remains transport-free and receipt projections remain
 opaque `Struct` values at the boundary.
 

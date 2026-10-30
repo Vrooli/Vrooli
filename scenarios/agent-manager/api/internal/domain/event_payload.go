@@ -71,6 +71,8 @@ func DecodeEventPayload(eventType RunEventType, raw []byte) (EventPayload, error
 		return decodePayload[LifecycleEventData](data)
 	case EventTypeGoalStatusChanged:
 		return decodePayload[GoalStatusChangedEventData](data)
+	case EventTypeCompaction:
+		return decodePayload[CompactionEventData](data)
 	default:
 		return nil, fmt.Errorf("unsupported run event type %q", eventType)
 	}

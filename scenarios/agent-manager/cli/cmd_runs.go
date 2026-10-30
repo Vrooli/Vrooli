@@ -4,98 +4,20 @@ import (
 	"fmt"
 )
 
+// cmdRun dispatches one run subcommand through runCommands, the single table
+// the discoverable command tree is built from.
 func (a *App) cmdRun(args []string) error {
 	if len(args) == 0 {
 		return nil
 	}
-	if err := rejectRunIdentityLifecycleCommand(args[0]); err != nil {
-		return err
-	}
-
 	switch args[0] {
-	case "list":
-		return a.runList(args[1:])
-	case "get":
-		return a.runGet(args[1:])
-	case "identity":
-		return a.runIdentity(args[1:])
-	case "import-identity":
-		return a.runImportIdentity(args[1:])
-	case "report":
-		return a.runReport(args[1:])
-	case "attach":
-		return a.runAttach(args[1:])
-	case "detach":
-		return a.runDetach(args[1:])
-	case "recent":
-		return a.runRecent(args[1:])
-	case "episodes":
-		return a.runEpisodes(args[1:])
-	case "ledger":
-		return a.runLedger(args[1:])
-	case "import-transcript":
-		return a.runImportTranscript(args[1:])
-	case "import-session-corpus":
-		return a.runImportSessionCorpus(args[1:])
-	case "import-sweep":
-		return a.runImportSweep(args[1:])
-	case "backfill-labels":
-		return a.runBackfillLabels(args[1:])
-	case "backfill-subjects":
-		return a.runBackfillSubjects(args[1:])
-	case "mine-self-report-vocabulary":
-		return a.runMineSelfReportVocabulary(args[1:])
-	case "stats":
-		return a.runStats(args[1:])
-	case "result":
-		return a.runResult(args[1:])
-	case "tools":
-		return a.runTools(args[1:])
-	case "messages":
-		return a.runMessages(args[1:])
-	case "receipts":
-		return a.runReceipts(args[1:])
-	case "get-by-tag":
-		return a.runGetByTag(args[1:])
-	case "create":
-		return a.runCreate(args[1:])
-	case "delete":
-		return a.runDelete(args[1:])
-	case "stop":
-		return a.runStop(args[1:])
-	case "stop-by-tag":
-		return a.runStopByTag(args[1:])
-	case "stop-all":
-		return a.runStopAll(args[1:])
-	case "quiesce":
-		return a.runQuiesce(args[1:])
-	case "continue":
-		return a.runContinue(args[1:])
-	case "park":
-		return a.runPark(args[1:])
-	case "wake":
-		return a.runWake(args[1:])
-	case "await-result":
-		return a.runAwaitResult(args[1:])
-	case "recover":
-		return a.runRecover(args[1:])
-	case "investigate":
-		return a.runInvestigate(args[1:])
-	case "apply-investigation":
-		return a.runApplyInvestigation(args[1:])
-	case "sandbox-sync":
-		return a.runSandboxSync(args[1:])
-	case "approve":
-		return a.runApprove(args[1:])
-	case "reject":
-		return a.runReject(args[1:])
-	case "diff":
-		return a.runDiff(args[1:])
-	case "events":
-		return a.runEvents(args[1:])
 	case "help", "-h", "--help":
 		return nil
-	default:
-		return fmt.Errorf("unknown run subcommand: %s\n\nRun 'agent-manager run help' for usage", args[0])
 	}
+	for _, command := range a.runCommands() {
+		if command.Name == args[0] && command.Run != nil {
+			return command.Run(args[1:])
+		}
+	}
+	return fmt.Errorf("unknown run subcommand: %s\n\nRun 'agent-manager run help' for usage", args[0])
 }

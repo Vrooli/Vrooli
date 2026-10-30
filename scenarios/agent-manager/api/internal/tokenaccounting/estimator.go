@@ -19,7 +19,16 @@ func EstimateText(payload string) Estimate {
 	if payload == "" {
 		return Estimate{Basis: BasisEstimated}
 	}
-	return Estimate{Tokens: int64((len(payload) + estimatedBytesPerToken - 1) / estimatedBytesPerToken), Basis: BasisEstimated}
+	return Estimate{Tokens: EstimateBytes(int64(len(payload))), Basis: BasisEstimated}
+}
+
+// EstimateBytes is EstimateText's heuristic for a payload known only by its
+// size in bytes.
+func EstimateBytes(n int64) int64 {
+	if n <= 0 {
+		return 0
+	}
+	return (n + estimatedBytesPerToken - 1) / estimatedBytesPerToken
 }
 
 // Measured wraps a provider-reported token count.

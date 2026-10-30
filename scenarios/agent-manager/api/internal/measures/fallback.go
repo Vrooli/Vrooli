@@ -62,7 +62,7 @@ func (h *Handler) registerFallbackInsights(registry *measurelib.Registry) error 
 		Result:    measurelib.Result{Kind: measurelib.ResultTable, ValueField: "reason", Unit: "events", SummaryTemplate: "fallback insights ({window})"},
 		Effect:    measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "FallbackInsights",
 	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}

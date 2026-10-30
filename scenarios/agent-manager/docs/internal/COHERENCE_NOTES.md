@@ -9,8 +9,7 @@
 
 **Observations**:
 - Highest state density remains in `RunDetail.tsx` and page containers (`RunsPage.tsx`, `TasksPage.tsx`).
-- Replaced stats `TimeWindow` Context with a centralized module-level store in `ui/src/features/stats/hooks/useTimeWindow.tsx`.
-- `TimeWindowProvider` is now a lightweight compatibility wrapper that applies `defaultPreset` lifecycle behavior without Context coupling.
+- The stats `TimeWindow` store and its provider were deleted with `ui/src/features/stats` (P4-W6a, 2026-10-30); Usage › Details keeps its range in the URL.
 - `RunDetail.tsx` had duplicated collapsible/resizable panel logic that diverged from shared hooks.
 - This pass consolidated `RunDetail.tsx` onto shared hooks to reduce bespoke state/effect management and align panel behavior.
 
@@ -31,7 +30,7 @@
 **Status**: No major token/CVA migration in this pass.
 
 **Notes**:
-- Existing arbitrary spacing remains in `ui/src/components/ui/scroll-area.tsx` (`p-[1px]`), inherited from Radix wrapper implementation.
+- The Radix `scroll-area` wrapper and its arbitrary `p-[1px]` spacing were removed (`ui/src/components/ui/scroll-area.tsx` no longer exists).
 
 ## Priority Actions
 
@@ -54,7 +53,7 @@
 1. Introduced a focused reducer-backed run event store:
    - Pure state machine: `ui/src/lib/runEventStore.ts`
    - React seam: `ui/src/hooks/useRunEventStore.ts`
-   - Unit coverage: `ui/tests/lib/runEventStore.test.ts`
+   - Unit coverage: `ui/src/lib/runEventStore.test.ts`
 
 2. Removed split realtime ownership between `App.tsx` and `RunsPage.tsx`:
    - `App.tsx` owns the WebSocket message ingress and dispatches `run_status`, `run_event`, and `task_status` into the store.

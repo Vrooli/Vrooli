@@ -64,10 +64,6 @@ type OpenCode struct {
 	ollama *ollamaLister
 }
 
-func (c *OpenCode) ToolCapabilityMap() map[string]string {
-	return map[string]string{"bash": "shell", "read": "file-read", "write": "file-edit", "edit": "file-edit", "grep": "search", "glob": "search", "webfetch": "network", "task": "delegate", "wait": "wait"}
-}
-
 // OpenCode exposes no per-launch native tool allowlist.
 var openCodeToolTranslations = map[domain.CanonicalTool]string{}
 

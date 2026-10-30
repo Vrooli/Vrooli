@@ -57,10 +57,6 @@ type Grok struct {
 	baseCodec
 }
 
-func (c *Grok) ToolCapabilityMap() map[string]string {
-	return map[string]string{"bash": "shell", "read": "file-read", "write": "file-edit", "search": "search", "wait": "wait", "task": "delegate", "web": "network"}
-}
-
 // Grok documents --allow/--deny as the Claude Code allowedTools and
 // disallowedTools equivalents. Keep the shared vocabulary at the codec seam.
 var grokToolTranslations = map[domain.CanonicalTool]string{

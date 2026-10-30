@@ -5,7 +5,7 @@
 
 import type { StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { formatRelativeTimeShort, formatStatsDateTime, toValidDate } from "../../lib/dateTime";
-import { formatCode, formatPercent, formatPoints, MISSING, subscriptionLabel } from "../../lib/format";
+import { formatCode, formatPercent, MISSING, subscriptionLabel } from "../../lib/format";
 
 /** A reading older than this cannot support a projection (SPEC T-4). */
 const STALE_READING_MS = 6 * 3600_000;
@@ -106,27 +106,9 @@ export function isStale(observedAt: string, now = Date.now()): boolean {
   return !at || now - at.getTime() > STALE_READING_MS;
 }
 
-/**
- * A window whose newest reading predates its current period: the scheduled
- * reset has passed (or the period began after the reading), so nothing is known
- * about the period in progress. Shown as one muted line, not a forecast card.
- */
-export function isDormantWindow(forecast: { observedAt: string; resetsAt: string; windowStart: string }, now = Date.now()): boolean {
-  const observed = toValidDate(forecast.observedAt || undefined);
-  if (!observed) return false;
-  const resets = toValidDate(forecast.resetsAt || undefined);
-  const start = toValidDate(forecast.windowStart || undefined);
-  return (!!resets && resets.getTime() <= now) || (!!start && observed.getTime() < start.getTime());
-}
-
 /** "Codex · 5-hour: no reading since Sep 9, 4:28 PM". */
 export function dormantWindowLine(forecast: WindowScope & { observedAt: string }, siblings: readonly WindowScope[] = []): string {
   return `${windowTitle(forecast, siblings)}: no reading since ${formatAt(forecast.observedAt)}`;
-}
-
-/** −48 pts: the saving a recommendation estimates in its window. */
-export function formatSaving(points: number): string {
-  return `−${formatPoints(points)}`;
 }
 
 const UUID = /\b([0-9a-f]{4})[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
@@ -136,26 +118,11 @@ export function friendlyLabel(label: string): string {
   return label.replace(UUID, "$1…");
 }
 
-const TITLE_LIMIT = 64;
-
-/** A target label as a short id and a trimmed title: "76d970de Agent manager token usage" → { shortId, title }. */
-export function targetTitle(label: string): { shortId: string; title: string } {
-  const match = /^([0-9a-f]{8})\s+(.*)$/s.exec(label);
-  const title = friendlyLabel(match?.[2] ?? label).replace(/\s+/g, " ").trim();
-  return { shortId: match?.[1] ?? "", title: title.length > TITLE_LIMIT ? `${title.slice(0, title.lastIndexOf(" ", TITLE_LIMIT) > 24 ? title.lastIndexOf(" ", TITLE_LIMIT) : TITLE_LIMIT)}…` : title };
-}
-
 /** Evidence text that tells siblings apart: "sub-agent · 00b65371", or the label when it already names the id. */
 export function evidenceText(evidence: { id: string; label: string }): string {
   const shortId = evidence.id.length > 12 ? evidence.id.slice(0, 8) : evidence.id;
   if (!evidence.label || evidence.label === evidence.id) return shortId;
   return evidence.label.includes(shortId) ? evidence.label : `${evidence.label} · ${shortId}`;
-}
-
-const LEVER_LABELS: Record<string, string> = { model: "Model", context: "Context", lifetime: "Restart workers", "model-mix": "Model mix", floor: "Floor", friction: "Friction", idle: "Idle", image: "Images" };
-
-export function leverLabel(lever: string): string {
-  return LEVER_LABELS[lever] ?? formatCode(lever);
 }
 
 export function groupByLabel(groupBy: string): string {

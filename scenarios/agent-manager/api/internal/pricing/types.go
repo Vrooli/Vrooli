@@ -21,18 +21,6 @@ const (
 	ComponentServerToolUse PricingComponent = "server_tool_use"
 )
 
-// AllComponents returns all pricing components for iteration.
-func AllComponents() []PricingComponent {
-	return []PricingComponent{
-		ComponentInputTokens,
-		ComponentOutputTokens,
-		ComponentCacheRead,
-		ComponentCacheCreation,
-		ComponentWebSearch,
-		ComponentServerToolUse,
-	}
-}
-
 // PricingSource indicates where a pricing value originated from.
 type PricingSource string
 
@@ -72,82 +60,6 @@ type ModelPricing struct {
 
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
-}
-
-// GetPrice returns the price for a specific component.
-func (m *ModelPricing) GetPrice(component PricingComponent) *float64 {
-	switch component {
-	case ComponentInputTokens:
-		return m.InputTokenPrice
-	case ComponentOutputTokens:
-		return m.OutputTokenPrice
-	case ComponentCacheRead:
-		return m.CacheReadPrice
-	case ComponentCacheCreation:
-		return m.CacheCreationPrice
-	case ComponentWebSearch:
-		return m.WebSearchPrice
-	case ComponentServerToolUse:
-		return m.ServerToolUsePrice
-	default:
-		return nil
-	}
-}
-
-// SetPrice sets the price for a specific component.
-func (m *ModelPricing) SetPrice(component PricingComponent, price *float64) {
-	switch component {
-	case ComponentInputTokens:
-		m.InputTokenPrice = price
-	case ComponentOutputTokens:
-		m.OutputTokenPrice = price
-	case ComponentCacheRead:
-		m.CacheReadPrice = price
-	case ComponentCacheCreation:
-		m.CacheCreationPrice = price
-	case ComponentWebSearch:
-		m.WebSearchPrice = price
-	case ComponentServerToolUse:
-		m.ServerToolUsePrice = price
-	}
-}
-
-// GetSource returns the source for a specific component.
-func (m *ModelPricing) GetSource(component PricingComponent) PricingSource {
-	switch component {
-	case ComponentInputTokens:
-		return m.InputTokenSource
-	case ComponentOutputTokens:
-		return m.OutputTokenSource
-	case ComponentCacheRead:
-		return m.CacheReadSource
-	case ComponentCacheCreation:
-		return m.CacheCreationSource
-	case ComponentWebSearch:
-		return m.WebSearchSource
-	case ComponentServerToolUse:
-		return m.ServerToolUseSource
-	default:
-		return SourceUnknown
-	}
-}
-
-// SetSource sets the source for a specific component.
-func (m *ModelPricing) SetSource(component PricingComponent, source PricingSource) {
-	switch component {
-	case ComponentInputTokens:
-		m.InputTokenSource = source
-	case ComponentOutputTokens:
-		m.OutputTokenSource = source
-	case ComponentCacheRead:
-		m.CacheReadSource = source
-	case ComponentCacheCreation:
-		m.CacheCreationSource = source
-	case ComponentWebSearch:
-		m.WebSearchSource = source
-	case ComponentServerToolUse:
-		m.ServerToolUseSource = source
-	}
 }
 
 // IsExpired returns true if the pricing data has expired.
@@ -294,20 +206,6 @@ type ProviderCacheStatus struct {
 	IsStale       bool      `json:"isStale"`
 }
 
-// PricingHistory represents a historical pricing lookup entry.
-type PricingHistory struct {
-	ID                 uuid.UUID     `json:"id"`
-	CanonicalModelName string        `json:"canonicalModelName"`
-	Provider           string        `json:"provider"`
-	InputTokenPrice    *float64      `json:"inputTokenPrice,omitempty"`
-	OutputTokenPrice   *float64      `json:"outputTokenPrice,omitempty"`
-	CacheReadPrice     *float64      `json:"cacheReadPrice,omitempty"`
-	CacheCreationPrice *float64      `json:"cacheCreationPrice,omitempty"`
-	Source             PricingSource `json:"source"`
-	PricingVersion     string        `json:"pricingVersion,omitempty"`
-	Timestamp          time.Time     `json:"timestamp"`
-}
-
 // ModelPricingListItem is used for API responses when listing models with pricing.
 type ModelPricingListItem struct {
 	Model         string `json:"model"`         // Runner model name
@@ -339,9 +237,4 @@ type ModelPricingListItem struct {
 // TokensToMillion converts per-token price to per-million-token price.
 func TokensToMillion(perTokenPrice float64) float64 {
 	return perTokenPrice * 1_000_000
-}
-
-// MillionToTokens converts per-million-token price to per-token price.
-func MillionToTokens(perMillionPrice float64) float64 {
-	return perMillionPrice / 1_000_000
 }

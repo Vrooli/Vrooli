@@ -2,6 +2,7 @@ package usageforecast
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -473,5 +474,87 @@ func TestWindowsSeparateVerifiedAccountsAndUnknownHistory(t *testing.T) {
 	}
 	if !seen[""] || !seen["account-a"] || !seen["account-b"] {
 		t.Fatalf("missing scope: %+v", seen)
+	}
+}
+
+// A saving comes out of the window's remaining burn in the shape the burn is
+// projected in: none leaves the forecast's own run-out; enough to bring the
+// end under 100% lasts until the reset; in between the run-out moves later
+// but still short of the reset; the cut needed is against the measured 24 h
+// rate. A window not at risk has no projected outcome.
+func TestWithSavingProjectsTheWindowWithTheLeversApplied(t *testing.T) {
+	f := onlyForecast(t, spans(oct28Shape()), at("2026-10-29T04:40:00Z"))
+	reset := f.Window.ResetAt
+	none := f.WithSaving(0)
+	if !none.Projected || none.ReachesReset || none.RunOut == nil || !none.RunOut.Equal(*f.Projected) || none.Shortfall != reset.Sub(*f.Projected) {
+		t.Fatalf("no saving = %+v, want the forecast's own run-out %v", none, f.Projected)
+	}
+	if none.CutNeeded == nil || !near(*none.CutNeeded, 1-*f.Lasting/(33/21.72), 0.01) {
+		t.Fatalf("cut needed = %v, want against the 24h rate", none.CutNeeded)
+	}
+	hot := f
+	hot.Burn = append([]Burn(nil), f.Burn...)
+	for i := range hot.Burn {
+		if hot.Burn[i].Horizon == 24*time.Hour {
+			hot.Burn[i].Rate = 3 // twice the central burn: the cut follows what is burning now
+		}
+	}
+	if cut := hot.WithSaving(0).CutNeeded; cut == nil || !near(*cut, 1-*f.Lasting/3, 0.001) {
+		t.Fatalf("cut needed at a 3%%/h 24h rate = %v, want %v", cut, 1-*f.Lasting/3)
+	}
+	over := none.EndPercent - 100 // the points that must go to last until the reset
+	partial := f.WithSaving(over / 2)
+	if !partial.Projected || partial.ReachesReset || partial.RunOut == nil || !partial.RunOut.After(*none.RunOut) || !partial.RunOut.Before(reset) || partial.Shortfall >= none.Shortfall || !near(partial.EndPercent, 100+over/2, 0.001) {
+		t.Fatalf("partial saving = %+v, want a later run-out still before %v", partial, reset)
+	}
+	if enough := f.WithSaving(over + 1); !enough.ReachesReset || enough.RunOut != nil || !near(enough.EndPercent, 99, 0.001) {
+		t.Fatalf("enough saving = %+v, want it to last at 99%%", enough)
+	}
+	if all := f.WithSaving(1e6); all.EndPercent != f.Used {
+		t.Fatalf("a saving larger than the burn ends at %v, want the used %v", all.EndPercent, f.Used)
+	}
+	f.Status = StatusOnTrack
+	if calm := f.WithSaving(5); calm.Projected || calm.CutNeeded != nil {
+		t.Fatalf("on-track window = %+v, want no projected outcome", calm)
+	}
+}
+
+// The usage surfaces read the windows as the API marks them: a window whose
+// newest reading predates its period is dormant (no reading at all is not);
+// each provider pool's longest window is primary, so a provider's second pool
+// keeps its own; the most urgent window with a reading in its period is the
+// focus.
+func TestMarkNamesDormantPrimaryAndFocusWindows(t *testing.T) {
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	at := func(h int) *time.Time { t := now.Add(time.Duration(h) * time.Hour); return &t }
+	window := func(provider, pool string, minutes int64, start, reset time.Time) *Window {
+		return &Window{Provider: provider, Pool: pool, Window: fmt.Sprint(minutes), WindowMinutes: minutes, Start: start, ResetAt: reset}
+	}
+	week, day := now.Add(-48*time.Hour), now.Add(-2*time.Hour)
+	forecasts := []Forecast{
+		{Window: window("openai", "codex", 300, day, now.Add(3*time.Hour)), AsOf: now.Add(-time.Hour), Status: StatusOnTrack, Used: 80},
+		{Window: window("openai", "codex", 10080, week, now.Add(5*24*time.Hour)), AsOf: now.Add(-time.Hour), Status: StatusAtRisk, Used: 40, Projected: at(30)},
+		{Window: window("openai", "spark", 10080, week, now.Add(5*24*time.Hour)), AsOf: now.Add(-time.Hour), Status: StatusWillExhaust, Used: 70, Projected: at(20)},
+		{Window: window("anthropic", "", 10080, week, now.Add(-time.Hour)), AsOf: now.Add(-3 * time.Hour), Status: StatusWillExhaust, Used: 99, Projected: at(1)},   // reset passed: dormant
+		{Window: window("anthropic", "opus", 300, day, now.Add(3*time.Hour)), AsOf: now.Add(-5 * time.Hour), Status: StatusWillExhaust, Used: 90, Projected: at(2)}, // reading before the period: dormant
+		{Window: window("google", "", 1440, day, now.Add(20*time.Hour)), Status: StatusUnknown},                                                                     // no reading yet
+	}
+	marks := Mark(forecasts, now)
+	want := []Marks{{Primary: false}, {Primary: true}, {Primary: true, Focus: true}, {Dormant: true, Primary: true}, {Dormant: true, Primary: true}, {Primary: true}}
+	for i := range want {
+		if marks[i] != want[i] {
+			t.Errorf("window %d (%s %s %dm): marks %+v, want %+v", i, forecasts[i].Window.Provider, forecasts[i].Window.Pool, forecasts[i].Window.WindowMinutes, marks[i], want[i])
+		}
+	}
+	if got := Mark(forecasts[:2], now); !got[1].Focus || got[0].Focus {
+		t.Errorf("among live windows the one that may run out is the focus before a quieter one more used: %+v", got)
+	}
+	if got := Mark([]Forecast{forecasts[1], forecasts[0]}, now); !got[0].Focus {
+		t.Errorf("a window that may run out stays the focus whatever is listed after it: %+v", got)
+	}
+	later, sooner := forecasts[2], forecasts[2]
+	later.Projected, sooner.Projected = at(40), at(10)
+	if got := Mark([]Forecast{later, sooner}, now); !got[1].Focus {
+		t.Errorf("of two windows that will run out, the sooner is the focus: %+v", got)
 	}
 }

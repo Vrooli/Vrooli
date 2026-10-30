@@ -30,11 +30,6 @@ type CohortSignal struct {
 	RepresentativeRunIDs []string `json:"representativeRunIds"`
 }
 
-type EpisodeCohort struct {
-	Availability Availability    `json:"availability"`
-	Signals      []EpisodeSignal `json:"signals"`
-}
-
 type GoalCohort struct {
 	ClassifierVersion       string       `json:"classifierVersion"`
 	Availability            Availability `json:"availability"`
@@ -46,81 +41,6 @@ type GoalCohort struct {
 	InterventionsBeforeMet  int          `json:"interventionsBeforeMet"`
 	Regressions             int          `json:"regressions"`
 	Restatements            int          `json:"restatements"`
-}
-type EpisodeSignal struct {
-	Fingerprint          string   `json:"fingerprint"`
-	Occurrences          int      `json:"occurrences"`
-	DistinctRuns         int      `json:"distinctRuns"`
-	SummedCostMS         int64    `json:"summedCostMs"`
-	Confidence           string   `json:"confidence"`
-	RepresentativeRunIDs []string `json:"representativeRunIds"`
-}
-
-type CohortComparison struct {
-	ClassifierVersion string             `json:"classifierVersion"`
-	ChangeBinding     string             `json:"changeBinding,omitempty"`
-	LeftPopulation    int                `json:"leftPopulation"`
-	RightPopulation   int                `json:"rightPopulation"`
-	Availability      Availability       `json:"availability"`
-	Signals           []ComparisonSignal `json:"signals"`
-}
-
-type ComparisonSignal struct {
-	Fingerprint       string `json:"fingerprint"`
-	LeftOccurrences   int    `json:"leftOccurrences"`
-	RightOccurrences  int    `json:"rightOccurrences"`
-	LeftDistinctRuns  int    `json:"leftDistinctRuns"`
-	RightDistinctRuns int    `json:"rightDistinctRuns"`
-	LeftCostMS        int64  `json:"leftCostMs"`
-	RightCostMS       int64  `json:"rightCostMs"`
-	OccurrenceDelta   int    `json:"occurrenceDelta"`
-	CostDeltaMS       int64  `json:"costDeltaMs"`
-}
-
-func BuildEpisodeCohort(episodesByRun map[string][]runsignal.FrictionEpisode) EpisodeCohort {
-	out := EpisodeCohort{Availability: Availability{State: AvailabilityAvailable}}
-	type bucket struct {
-		occurrences int
-		cost        int64
-		ids         map[string]bool
-	}
-	buckets := map[string]*bucket{}
-	for runID, episodes := range episodesByRun {
-		// A run with no shown episodes is a clean run, not a missing derivation:
-		// quarantined patterns are hidden and most runs have no friction.
-		for _, episode := range episodes {
-			b := buckets[episode.Fingerprint]
-			if b == nil {
-				b = &bucket{ids: map[string]bool{}}
-				buckets[episode.Fingerprint] = b
-			}
-			b.occurrences++
-			b.cost += episode.WallClockMS
-			b.ids[runID] = true
-		}
-	}
-	for fingerprint, b := range buckets {
-		ids := make([]string, 0, len(b.ids))
-		for id := range b.ids {
-			ids = append(ids, id)
-		}
-		sort.Strings(ids)
-		confidence := "medium"
-		if len(ids) >= 2 {
-			confidence = "high"
-		}
-		if len(ids) > 5 {
-			ids = ids[:5]
-		}
-		out.Signals = append(out.Signals, EpisodeSignal{Fingerprint: fingerprint, Occurrences: b.occurrences, DistinctRuns: len(b.ids), SummedCostMS: b.cost, Confidence: confidence, RepresentativeRunIDs: ids})
-	}
-	sort.Slice(out.Signals, func(i, j int) bool {
-		if out.Signals[i].SummedCostMS != out.Signals[j].SummedCostMS {
-			return out.Signals[i].SummedCostMS > out.Signals[j].SummedCostMS
-		}
-		return out.Signals[i].DistinctRuns > out.Signals[j].DistinctRuns
-	})
-	return out
 }
 
 func BuildGoalCohort(reports []*RunReport) GoalCohort {
@@ -152,67 +72,6 @@ func BuildGoalCohort(reports []*RunReport) GoalCohort {
 		out.Availability = Availability{State: AvailabilityUnavailable, Reason: "no goal-carrying run reached a first-met marker"}
 	}
 	return out
-}
-
-func BuildCohortComparison(left, right []runsignal.FrictionEpisode, leftPopulation, rightPopulation, limit int) CohortComparison {
-	type bucket struct {
-		occurrences int
-		cost        int64
-		runs        map[string]bool
-	}
-	build := func(episodes []runsignal.FrictionEpisode) map[string]*bucket {
-		result := map[string]*bucket{}
-		for _, episode := range episodes {
-			b := result[episode.Fingerprint]
-			if b == nil {
-				b = &bucket{runs: map[string]bool{}}
-				result[episode.Fingerprint] = b
-			}
-			b.occurrences++
-			b.cost += episode.WallClockMS
-			b.runs[episode.RunID] = true
-		}
-		return result
-	}
-	l, r := build(left), build(right)
-	keys := map[string]bool{}
-	for key := range l {
-		keys[key] = true
-	}
-	for key := range r {
-		keys[key] = true
-	}
-	out := CohortComparison{ClassifierVersion: runsignal.EpisodeClassifierVersion, LeftPopulation: leftPopulation, RightPopulation: rightPopulation, Availability: Availability{State: AvailabilityAvailable}}
-	for key := range keys {
-		lb, rb := l[key], r[key]
-		if lb == nil {
-			lb = &bucket{runs: map[string]bool{}}
-		}
-		if rb == nil {
-			rb = &bucket{runs: map[string]bool{}}
-		}
-		out.Signals = append(out.Signals, ComparisonSignal{Fingerprint: key, LeftOccurrences: lb.occurrences, RightOccurrences: rb.occurrences, LeftDistinctRuns: len(lb.runs), RightDistinctRuns: len(rb.runs), LeftCostMS: lb.cost, RightCostMS: rb.cost, OccurrenceDelta: rb.occurrences - lb.occurrences, CostDeltaMS: rb.cost - lb.cost})
-	}
-	sort.Slice(out.Signals, func(i, j int) bool {
-		if absInt(out.Signals[i].OccurrenceDelta) != absInt(out.Signals[j].OccurrenceDelta) {
-			return absInt(out.Signals[i].OccurrenceDelta) > absInt(out.Signals[j].OccurrenceDelta)
-		}
-		return out.Signals[i].Fingerprint < out.Signals[j].Fingerprint
-	})
-	if limit > 0 && len(out.Signals) > limit {
-		out.Signals = out.Signals[:limit]
-	}
-	if leftPopulation < 5 || rightPopulation < 5 {
-		out.Availability = Availability{State: AvailabilityUnreliable, Reason: "both comparison populations require at least five runs"}
-	}
-	return out
-}
-
-func absInt(value int) int {
-	if value < 0 {
-		return -value
-	}
-	return value
 }
 
 // BuildCohort folds a caller-selected, comparable set of reports. It never

@@ -18,8 +18,7 @@ import (
 var ErrIncompleteLabelCoverage = errors.New("incomplete labelled detector coverage")
 
 // DetectorAccuracy is one detector's score on the committed structural corpus
-// (testdata/classification), published by the agent-conformance response. The
-// per-pattern precision gate over real runs is testdata/precision.
+// (testdata/classification), published by the agent-conformance response.
 type DetectorAccuracy struct {
 	ID        string  `json:"id"`
 	Precision float64 `json:"precision"`
@@ -36,21 +35,7 @@ type (
 	accuracyCase struct {
 		Name     string         `json:"name"`
 		Expected []string       `json:"expected"`
-		Facts    []accuracyFact `json:"facts"`
 		Events   []accuracyItem `json:"events"`
-	}
-	accuracyFact struct {
-		CallEventID      string `json:"callEventId"`
-		ResultEventID    string `json:"resultEventId"`
-		Outcome          string `json:"outcome"`
-		Executable       string `json:"executable"`
-		Ownership        string `json:"ownership"`
-		CommandPath      string `json:"commandPath"`
-		Capability       string `json:"capability"`
-		IntentClass      string `json:"intentClass"`
-		Fingerprint      string `json:"fingerprint"`
-		HelpRecovery     bool   `json:"helpRecovery"`
-		FailureSignature string `json:"failureSignature"`
 	}
 	accuracyItem struct {
 		ID             string              `json:"id"`
@@ -95,9 +80,6 @@ func ClassificationAccuracy(repoRoot string) ([]DetectorAccuracy, error) {
 		labelled[id] = true
 	}
 	shipped := make([]string, 0)
-	for _, d := range EpisodeDetectors() {
-		shipped = append(shipped, "episode/"+d.Identifier())
-	}
 	for _, d := range SelfReportDetectors() {
 		shipped = append(shipped, "span/"+d.Identifier())
 	}
@@ -138,7 +120,7 @@ func ClassificationAccuracy(repoRoot string) ([]DetectorAccuracy, error) {
 	return out, nil
 }
 
-// detect runs the production detectors over a labelled case.
+// detect runs the production self-report detectors over a labelled case.
 func (c accuracyCase) detect() map[string]bool {
 	now := time.Date(2026, 7, 31, 0, 0, 0, 0, time.UTC)
 	ids := map[string]uuid.UUID{}
@@ -166,14 +148,7 @@ func (c accuracyCase) detect() map[string]bool {
 		}
 		events = append(events, event)
 	}
-	facts := make([]InvocationFact, 0, len(c.Facts))
-	for _, f := range c.Facts {
-		facts = append(facts, InvocationFact{CallEventID: ids[f.CallEventID].String(), ResultEventID: ids[f.ResultEventID].String(), Outcome: f.Outcome, Ownership: f.Ownership, Executable: f.Executable, CommandPath: f.CommandPath, Capability: f.Capability, IntentClass: f.IntentClass, Fingerprint: f.Fingerprint, HelpRecovery: f.HelpRecovery, FailureSignature: f.FailureSignature})
-	}
 	actual := map[string]bool{}
-	for _, episode := range DeriveEpisodes(facts, events) {
-		actual["episode/"+episode.Pattern] = true
-	}
 	for _, span := range DeriveSelfReportSpans(events) {
 		actual["span/"+span.RuleID] = true
 	}

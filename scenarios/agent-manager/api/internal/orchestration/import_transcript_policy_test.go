@@ -408,6 +408,43 @@ func TestImportRedactMasksPIIBeforeIndex(t *testing.T) {
 	}
 }
 
+func TestReplacementMaskingFailurePreservesExistingEvents(t *testing.T) {
+	det := &fakeImportDetector{}
+	policy := mustImportPolicy(t, redactImportRule(sessionsHarness))
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc, _ := buildImportPolicyOrchestratorWithMasker(t, repos, eventStore, policy, piimask.New(det))
+	path := writeCodexFixtureWithPII(t)
+	request := codexImportRequest(path, sessionsHarness, "pii-mask-replacement")
+	run, err := svc.ImportTranscript(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := eventStore.Get(context.Background(), run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(before) == 0 {
+		t.Fatalf("fixture events: %+v %v", before, err)
+	}
+	det.failAll = true
+	body := "{\"type\":\"thread.started\",\"thread_id\":\"pii-test\"}\n" +
+		"{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"changed " + piiMarkerEmail + "\"}}\n" +
+		"{\"type\":\"turn.completed\"}\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ImportTranscript(context.Background(), request); err == nil {
+		t.Fatal("expected replacement masking failure")
+	}
+	after, err := eventStore.Get(context.Background(), run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(after) != len(before) {
+		t.Fatalf("masking failure lost existing events: before=%d after=%d %v", len(before), len(after), err)
+	}
+	for i := range before {
+		if before[i].ID != after[i].ID {
+			t.Fatalf("masking failure replaced event %d", i)
+		}
+	}
+}
+
 // TestImportNonMatchingRunMakesZeroDetectorCalls proves masking is scoped to
 // redact-matched runs: an import that does not match the redact rule imports
 // its content untouched and never calls the detector (the performance contract

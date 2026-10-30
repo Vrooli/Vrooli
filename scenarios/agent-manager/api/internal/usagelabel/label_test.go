@@ -36,3 +36,16 @@ func TestMinutesRoundsToTheNearestWholeHourWithinTwoMinutes(t *testing.T) {
 		}
 	}
 }
+
+func TestTokensAndDurationReadAsOperatorsSayThem(t *testing.T) {
+	for in, want := range map[int64]string{950: "950", 12500: "12.5k", 3_000_000: "3.0M"} {
+		if got := Tokens(in); got != want {
+			t.Errorf("Tokens(%d) = %q, want %q", in, got, want)
+		}
+	}
+	for in, want := range map[int64]string{1500: "1.5 s", 185_000: "3m 05s", 7_440_000: "2h 04m"} {
+		if got := Duration(in); got != want {
+			t.Errorf("Duration(%d) = %q, want %q", in, got, want)
+		}
+	}
+}

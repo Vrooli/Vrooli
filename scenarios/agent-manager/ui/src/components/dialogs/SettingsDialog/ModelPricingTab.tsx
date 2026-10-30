@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
 import { EditPricingDialog } from "../EditPricingDialog";
-import { SortHeaderCell, compareSortValues, useTableSort } from "../../../features/stats/components/tables/SortableHeader";
+import { SortHeaderCell, compareSortValues, useTableSort } from "../../../features/usage/SortableHeader";
 import {
   useModelPricing,
   usePricingSettings,

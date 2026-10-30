@@ -202,6 +202,24 @@ func (r *runRepository) UpdateInteractiveContinuation(ctx context.Context, run *
 }
 
 func (r *runRepository) update(ctx context.Context, run *domain.Run, continuation *expectedInteractiveContinuation) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return wrapDBError("update", "Run", run.ID.String(), err)
+	}
+	defer tx.Rollback()
+	var nextLifecycleVersion int64
+	if err := r.updateTx(ctx, tx, run, continuation, &nextLifecycleVersion); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return wrapDBError("update", "Run", run.ID.String(), err)
+	}
+	run.LifecycleVersion = nextLifecycleVersion
+	run.EffortSignalReceipt = nil
+	return nil
+}
+
+func (r *runRepository) updateTx(ctx context.Context, tx *Tx, run *domain.Run, continuation *expectedInteractiveContinuation, nextVersion *int64) error {
 	if run.EffortSignalReceipt != nil && run.Status != domain.RunStatusRunning {
 		return fmt.Errorf("effort signal receipt is valid only for a parked-to-running wake")
 	}
@@ -291,11 +309,6 @@ func (r *runRepository) update(ctx context.Context, run *domain.Run, continuatio
 	if run.EffortSignalReceipt != nil {
 		args = append(args, string(domain.RunStatusParked))
 	}
-	tx, err := r.db.BeginTxx(ctx, nil)
-	if err != nil {
-		return wrapDBError("update", "Run", run.ID.String(), err)
-	}
-	defer tx.Rollback()
 	var nextLifecycleVersion int64
 	err = tx.QueryRowContext(ctx, bound, args...).Scan(&nextLifecycleVersion)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -343,11 +356,7 @@ func (r *runRepository) update(ctx context.Context, run *domain.Run, continuatio
 			}
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return wrapDBError("update", "Run", run.ID.String(), err)
-	}
-	run.LifecycleVersion = nextLifecycleVersion
-	run.EffortSignalReceipt = nil
+	*nextVersion = nextLifecycleVersion
 	return nil
 }
 

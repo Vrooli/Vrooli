@@ -8,7 +8,7 @@ import { DataState } from "../../components/feedback/DataState";
 import { useUsageBurners, useUsageRecommendations } from "./api";
 import { formatCount, formatPoints, formatTokens } from "../../lib/format";
 import { windowKey, windowTitle } from "./format";
-import { ActionGroups } from "./UsageActions";
+import { ActionList } from "./UsageActions";
 
 function Tile({ label, value, caption }: { label: string; value: string; caption: string }) {
   return (
@@ -62,7 +62,7 @@ export function RunUsagePanel({ runId, children, hasCost, costLoading }: RunUsag
   const burners = useUsageBurners("run", runId);
   const recommendations = useUsageRecommendations(runId);
   const rows = (burners.data?.windows ?? []).flatMap((attribution) => attribution.burners.filter((burner) => burner.key === runId).map((burner) => ({ attribution, burner })));
-  const runGroups = recommendations.data?.groups ?? [];
+  const runActions = recommendations.data?.actions ?? [];
   return (
     <section aria-labelledby="run-usage-heading" className="space-y-4" data-testid="run-usage-panel">
       <h3 id="run-usage-heading" className="sr-only">Quota usage</h3>
@@ -79,13 +79,13 @@ export function RunUsagePanel({ runId, children, hasCost, costLoading }: RunUsag
         {rows.map(({ attribution, burner }) => <RunWindowUsage key={windowKey(attribution)} attribution={attribution} burner={burner} />)}
         {children}
       </DataState>
-      {runGroups.length > 0 ? (
+      {runActions.length > 0 ? (
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
             <h4 className="text-sm font-semibold">Recommendations for this run</h4>
             <Link to="/usage" className="inline-flex min-h-11 items-center text-sm text-primary sm:min-h-8">All recommendations →</Link>
           </div>
-          <ActionGroups groups={runGroups} />
+          <ActionList actions={runActions} />
         </div>
       ) : null}
     </section>

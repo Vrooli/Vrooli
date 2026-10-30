@@ -53,6 +53,17 @@ first-block completion headers, absent exit metadata and the observed
 quota/private content is excluded. It proves the incident return shape, not
 byte-identical history or command success.
 
+`codex_command_executions.jsonl` is an observed web-console rollout trace
+(session `01a182ed-c43e-7be0-9406-10c15448b4a7`, 2026-10-28, used by
+`codex_command_execution_test.go`): three `exec` calls with their
+`event_msg` `item_completed` `CommandExecution` items, outputs and usage
+frames. It keeps a parallel `Promise.allSettled` call with one failed
+command, two commands that complete after their exec call returned, and a
+script that builds its command list at run time. Home paths are rewritten to
+`/workspace`; command output keeps its first line and size, padded with dots;
+exec outputs keep their completion header and size; reasoning, quota and
+client metadata are dropped.
+
 Usage-accounting fixtures (observed traces, trimmed and redacted on
 2026-10-29; used by `usage_accounting_test.go` and the orchestration
 usage regressions). Only usage-bearing records and their turn boundaries are

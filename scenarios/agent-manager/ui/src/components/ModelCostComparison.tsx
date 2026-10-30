@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { EditPricingDialog } from "./dialogs/EditPricingDialog";
-import { useModelCostComparison } from "../features/stats/hooks/useModelCostComparison";
-import type { CompareModelsRequest } from "../features/stats/api/types";
+import { useModelCostComparison, type CompareModelsRequest } from "../features/usage/modelCostComparison";
 import { formatUnknownLabel } from "../lib/display";
 import { truncate } from "../lib/utils";
 import { formatUsdFixed } from "../lib/currency";

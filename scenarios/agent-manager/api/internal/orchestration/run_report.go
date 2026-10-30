@@ -42,39 +42,6 @@ func (o *Orchestrator) InvocationFacts(ctx context.Context, runID uuid.UUID) ([]
 	return []runsignal.InvocationFact{}, nil
 }
 
-// Episodes returns the durable episode projection for one run. A report build
-// creates it, so callers receive an explicit empty collection before evidence
-// has been derived rather than a fabricated aggregate.
-func (o *Orchestrator) Episodes(ctx context.Context, runID uuid.UUID) ([]runsignal.FrictionEpisode, error) {
-	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		episodes, err := projection.EpisodesForRun(ctx, runID.String())
-		if err != nil {
-			return nil, err
-		}
-		out := make([]runsignal.FrictionEpisode, 0, len(episodes))
-		for _, episode := range episodes {
-			out = append(out, episode.FrictionEpisode)
-		}
-		return out, nil
-	}
-	return []runsignal.FrictionEpisode{}, nil
-}
-
-func (o *Orchestrator) SelfReportSpans(ctx context.Context, runID uuid.UUID) ([]runsignal.SelfReportSpan, error) {
-	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		spans, err := projection.SelfReportSpansForRun(ctx, runID.String())
-		if err != nil {
-			return nil, err
-		}
-		out := make([]runsignal.SelfReportSpan, 0, len(spans))
-		for _, span := range spans {
-			out = append(out, span.SelfReportSpan)
-		}
-		return out, nil
-	}
-	return []runsignal.SelfReportSpan{}, nil
-}
-
 func (s orchestratorReportSource) DurableInvocationFacts(ctx context.Context, id uuid.UUID) ([]runsignal.InvocationFact, bool, error) {
 	if s.o.invocationReadModel == nil {
 		return nil, false, nil
@@ -91,7 +58,6 @@ type orchestratorReportSource struct{ o *Orchestrator }
 
 var (
 	_ runreport.DurableInvocationFactSource = orchestratorReportSource{}
-	_ runreport.DurableEpisodeSource        = orchestratorReportSource{}
 	_ runreport.DurableSelfReportSpanSource = orchestratorReportSource{}
 	_ runreport.DurableTimeAccountingSource = orchestratorReportSource{}
 	_ runreport.LedgerStore                 = orchestratorReportSource{}
@@ -125,29 +91,6 @@ func (s orchestratorReportSource) Receipts(ctx context.Context, id uuid.UUID) (r
 		return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityUnavailable, Reason: "vrooli-events receipt reader is not configured"}}, nil
 	}
 	return s.o.receipts.ReadReceiptSummary(ctx, id)
-}
-
-func (s orchestratorReportSource) DurableEpisodes(ctx context.Context, id uuid.UUID) ([]runsignal.FrictionEpisode, bool, error) {
-	if s.o.invocationReadModel == nil {
-		return nil, false, nil
-	}
-	watermark, err := s.o.invocationReadModel.Watermark(ctx, id.String())
-	if err != nil || watermark == nil {
-		return nil, false, err
-	}
-	projection, ok := s.o.invocationReadModel.(invocationreadmodel.ProjectionStore)
-	if !ok {
-		return nil, false, nil
-	}
-	episodes, err := projection.EpisodesForRun(ctx, id.String())
-	if err != nil {
-		return nil, false, err
-	}
-	out := make([]runsignal.FrictionEpisode, 0, len(episodes))
-	for _, episode := range episodes {
-		out = append(out, episode.FrictionEpisode)
-	}
-	return out, true, nil
 }
 
 func (s orchestratorReportSource) DurableSelfReportSpans(ctx context.Context, id uuid.UUID) ([]runsignal.SelfReportSpan, bool, error) {

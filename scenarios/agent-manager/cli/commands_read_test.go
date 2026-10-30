@@ -554,7 +554,6 @@ func TestRunCommandsValidateAndUseServiceContracts(t *testing.T) {
 		{"wake", "run-1", "--result=ready", "--json"},
 		{"await-result", "run-1", "--json"},
 		{"recover", "run-1", "--json"},
-		{"investigate", "--run-ids=run-1,run-2", "--depth=quick", "--json"},
 		{"apply-investigation", "run-1", "--json"},
 		{"sandbox-sync", "run-1", "--status=stopped", "--json"},
 	} {
@@ -563,7 +562,7 @@ func TestRunCommandsValidateAndUseServiceContracts(t *testing.T) {
 			t.Fatalf("create lost owner response: %s", output)
 		}
 	}
-	for _, args := range [][]string{{"get"}, {"create", "--task-id=task-1"}, {"quiesce"}, {"continue", "run-1"}, {"park", "run-1"}, {"investigate"}, {"sandbox-sync", "run-1"}, {"unknown"}} {
+	for _, args := range [][]string{{"get"}, {"create", "--task-id=task-1"}, {"quiesce"}, {"continue", "run-1"}, {"park", "run-1"}, {"sandbox-sync", "run-1"}, {"unknown"}} {
 		if err := app.cmdRun(args); err == nil {
 			t.Fatalf("run %v should fail validation", args)
 		}
@@ -698,8 +697,6 @@ func TestRunReliabilityOperationsRenderSuccessfulStateTransitions(t *testing.T) 
 			return `{"found":true,"key":"test-genie/run","result":"completed","resolvedAt":"2026-07-23T12:00:00Z"}`
 		case "/api/v1/runs/run-1/recover":
 			return `{"recovered":true,"idempotent":false,"message":"transcript reconciled","run":{"id":"run-1","status":"RUN_STATUS_COMPLETE"}}`
-		case "/agent_manager.v1.AgentManagerService/StartInvestigation":
-			return `{"investigation":{"investigationId":"investigation-1","operationStatus":"accepted","workflowRef":"workflow-1"},"reused":false}`
 		case "/api/v1/runs/investigation-apply":
 			return `{"run":{"id":"apply-1","status":"RUN_STATUS_PENDING"}}`
 		default:
@@ -716,25 +713,10 @@ func TestRunReliabilityOperationsRenderSuccessfulStateTransitions(t *testing.T) 
 		{"wake", "run-1", "--result=completed"},
 		{"await-result", "run-1"},
 		{"recover", "run-1"},
-		{"investigate", "--run-ids=run-1,run-2", "--depth=quick"},
 		{"apply-investigation", "run-1", "--context=apply the evidence"},
 	} {
 		if err := app.cmdRun(args); err != nil {
 			t.Fatalf("run %v: %v", args, err)
-		}
-	}
-}
-
-func TestRunInvestigateRejectsRetiredSelectorsAndMutationInputs(t *testing.T) {
-	services, _ := newContractServices(t)
-	app := &App{services: services}
-	for _, args := range [][]string{
-		{"investigate", "--run-ids=run-1", "--filter-json={}"},
-		{"investigate", "--run-ids=run-1", "--project-root=/workspace"},
-		{"investigate", "--run-ids=run-1", "--scope-paths=api"},
-	} {
-		if err := app.cmdRun(args); err == nil {
-			t.Errorf("run %v unexpectedly succeeded", args)
 		}
 	}
 }

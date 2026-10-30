@@ -1,12 +1,12 @@
 ---
 name: "agent-manager-improve"
-description: "Regulate Agent Manager against its setpoint: episode ownership attribution, investigation completion, skill and program identity on invocation facts, and the durable friction measures. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
+description: "Regulate Agent Manager against its setpoint: command outcome coverage, investigation completion, skill and program identity on invocation facts, and the tool friction rates. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["practice"]
-  tags: ["agent-manager", "improve", "self-improvement", "control-loop", "setpoint", "friction", "episodes", "findings", "meta-optimization"]
+  tags: ["agent-manager", "improve", "self-improvement", "control-loop", "setpoint", "friction", "findings", "meta-optimization"]
   icon: "gauge"
   status: "active"
   revision: 3
@@ -14,13 +14,13 @@ metadata:
   updatedAt: "2026-09-04T00:00:00Z"
   requires:
     scenarios: ["agent-manager", "program-runtime", "prompt-manager", "vrooli-memory"]
-    commands: ["agent-manager usage friction", "agent-manager findings list", "agent-manager run list", "agent-manager run episodes", "agent-manager measures episode-cohort", "agent-manager usage run", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures external-tool-share", "agent-manager measures retry-rate", "agent-manager measures tool-failure-rate", "agent-manager measures repeated-work-rate", "agent-manager measures run-success-rate", "agent-manager measures finding-recurrence-rate", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+    commands: ["agent-manager usage recommendations", "agent-manager usage friction", "agent-manager run list", "agent-manager run report", "agent-manager watch policy-get", "agent-manager watch policy-outcomes", "agent-manager conversation index status", "agent-manager measures get", "search-hub evals runs", "search-hub federation status", "search-hub insights insights", "program-runtime bindings condition", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
 ## Practice focus: Agent Manager Improve
 
-Regulate Agent Manager, the run and friction instrument, against the setpoint below. The plant is the evidence chain from a run to an owner: runs, episodes, invocation facts, findings, and the durable friction measures. This skill is read by an agent whose task is Agent Manager itself (`goal-loop`, or the meta-optimization heartbeat that owns the friction inbox). It never edits another scenario; it files.
+Regulate Agent Manager, the run and friction instrument, against the setpoint below. The plant is the evidence chain from a run to an owner: runs, invocation facts, tool-friction profiles, findings, and the durable friction measures. This skill is read by an agent whose task is Agent Manager itself (`goal-loop`, or the meta-optimization heartbeat that owns the friction inbox). It never edits another scenario; it files.
 
 Required reading:
 - `prompt-manager skill read agent-manager` — the usage skill; every command named here is documented there or in the CLI.
@@ -30,7 +30,7 @@ Required reading:
 
 ### 1. Focus and scope
 
-**In scope:** the setpoint rows below; reporting recurring friction (`usage friction-report`); filing ladder rungs against Agent Manager; filing `report-bug` against the scenarios whose commands the episodes name.
+**In scope:** the setpoint rows below; reporting owner-level friction (`usage friction-report`); filing ladder rungs against Agent Manager; filing `report-bug` against the scenarios the tool findings name as owners.
 
 **Out of scope:** editing another scenario's manifest, skills, or programs (file instead); the meta-optimization inbox's own triage (that owner drains it); the usage skill's content; changing a detector threshold without a recorded derivation.
 
@@ -38,24 +38,24 @@ Required reading:
 
 Bands are targets. Readings are dated observations; re-read them every cycle with `run agent-manager.setpoint-read`.
 
-| Row | Sensor | Band | Today (2026-09-02) |
+| Row | Sensor | Band | Reading |
 |---|---|---|---|
-| ownership-attribution-share | `run agent-manager.friction-digest` (or `setpoint-read`) → episodes with `ownerConfidence == manifest-derived` ÷ all episodes over the 25 most recent runs | ≥ 0.90 | 0.706 over the 25 most recent runs (`setpoint-read` live run 2026-09-02) |
-| investigation-completion-rate | `agent-manager run list --tag-prefix agent-manager-investigation --json` → `RUN_STATUS_COMPLETE` ÷ terminal | ≥ 0.80 | unavailable, reason `unreliable:no_terminal_runs_with_tag_prefix` |
-| skill-and-program-identity-on-facts | `agent-manager usage run <id> --facts` → facts carrying a `skill_id` or `program_id` | every fact whose executable is `program-runtime` or `prompt-manager skill read` carries the id | unavailable, reason `pending_telemetry`: the fact schema has neither field |
-| friction-measure-validity | `agent-manager measures retry-rate --window last_7d` → `validity.state` (same field on `tool-failure-rate`, `repeated-work-rate`, `external-tool-share`) | `available` on all four | 0 of four measures `available` (last_7d): classified share 83.4 percent against a 90.0 percent minimum |
-| external-tool-share | `agent-manager measures external-tool-share --window last_7d` → `share` | pending-baseline; direction falling once the row is `available` | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
-| run-success-rate | `agent-manager measures run-success-rate --window last_7d` → `rate` | ≥ 0.85 | 0.892 last_7d (`setpoint-read` live run 2026-09-02) |
-| retry-rate | `agent-manager measures retry-rate --window last_7d` → `rate` | ≤ 0.03 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
-| tool-failure-rate | `agent-manager measures tool-failure-rate --window last_7d` → `rate` | ≤ 0.01 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
-| repeated-work-rate | `agent-manager measures repeated-work-rate --window last_7d` → `rate` | ≤ 0.05 | unavailable, reason `unreliable:classified share 83.4% is below the minimum 90.0%` |
+| command-outcome-coverage | `agent-manager measures get tool-friction --window last_7d` → `coverage.vrooli_outcome_known` ÷ `coverage.vrooli_commands` (Vrooli CLI calls whose outcome is known) | ≥ 0.95 | read it with `setpoint-read`; below the band the failure and shape rates are not banded |
+| investigation-completion-rate | `agent-manager run list --tag-prefix agent-manager-investigation --json` → `RUN_STATUS_COMPLETE` ÷ terminal | ≥ 0.80 | `unreliable:no_terminal_runs_with_tag_prefix` until investigation runs with that tag finish |
+| skill-and-program-identity-on-facts | `agent-manager run report <id> --facts` → facts carrying a `skill_id` or `program_id` | every fact whose executable is `program-runtime` or `prompt-manager skill read` carries the id | unavailable, reason `pending_telemetry`: the fact schema has neither field |
+| tool-friction-validity | `agent-manager measures get tool-friction --window last_7d` → `validity` | `available` | `unreliable` for a small sample; the row carries the reason |
+| bypass-calls | `agent-manager measures get tool-friction --window last_7d` → `bypass_calls` (calls that reached a scenario's database, port or state directory around its CLI) | pending-baseline; direction falling | descriptive until a week of profiles sets the baseline |
+| run-success-rate | `agent-manager measures get run-success-rate --window last_7d` → value (a rate) | ≥ 0.85 | read with `setpoint-read` |
+| shape-guess-rate | `agent-manager measures get tool-friction --window last_7d` → `shape_guess_rate` (Vrooli CLI calls that hit an unknown command, flag or missing argument, or looked up help to recover) | ≤ 0.03 | `unreliable:outcome_coverage_below_band` while command-outcome-coverage is below its band |
+| vrooli-cli-failure-rate | `agent-manager measures get tool-friction --window last_7d` → `vrooli_failure_rate` (failed ÷ succeeded-or-failed Vrooli CLI calls; no-match, refusals, verify verdicts excluded) | ≤ 0.05 (provisional: re-derive after a week of v26 facts) | `unreliable:outcome_coverage_below_band` while command-outcome-coverage is below its band |
+| polled-share | `agent-manager measures get tool-friction --window last_7d` → `polled_share` (calls in a series of one read command run three or more times within ten minutes) | pending-baseline; direction falling | descriptive until a week of profiles sets the baseline |
 | supervision-safety | `run agent-manager.friction-digest` → `supervision_safety_violations` | 0 | read from durable supervision outcomes; any non-zero value blocks promotion |
 | supervision-calibration | `run agent-manager.supervision-experiment-read` → owner replay gates and evidence coverage | non-regressing against the active policy replay | compare candidates offline; never tune the policy during a family run |
 | supervision-outcome-coverage | `agent-manager watch policy-outcomes` → outcomes with decision, action, child, family, and evidence | 1.0 | incomplete linkage is an Agent Manager outcome-contract defect |
 
 ### 3. Sensors
 
-Read base rows and supervision routing rows through `run agent-manager.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Three rows are unavailable in-program by construction: `publish-recurring-friction` and `findings list` have no program binding, and `usage run --facts` carries no identity field to read. Measures bindings take `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` in-kernel; the CLI takes `--window last_7d`.
+Read base rows and supervision routing rows through `run agent-manager.setpoint-read` (contract: `.vrooli/program-runtime/setpoint-read.json`). Rows the program marks `unavailable` are read by hand only with the exact command in the table, and the hand reading is journaled as such. Rows whose sensor has no program binding, or whose fact carries no identity field to read (`run report <id> --facts`), are unavailable in-program by construction. Measures bindings take `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` in-kernel; the CLI takes `--window last_7d`.
 
 Fleet sensors every scenario has: `program-runtime bindings condition` for Agent Manager's own bindings, and Agent Manager's own friction for `agent-manager` commands through `run agent-manager.friction-digest` with `scenario=agent-manager`.
 
@@ -76,7 +76,7 @@ predictions or caller-supplied rollout counts.
 
 | Suite | Floor | Derivation |
 |---|---|---|
-| `api/internal/runsignal/testdata/classification/all-detectors.labels.json` (50 labelled friction windows) | every shipped detector at or above its committed per-detector precision and recall threshold | thresholds are committed beside the corpus; scored only by `runsignal.ClassificationAccuracy` through `GOWORK=off go test ./internal/runsignal/...` from `scenarios/agent-manager/api` and the `agent-conformance` test-genie phase |
+| `api/internal/runsignal/testdata/classification/all-detectors.labels.json` (42 labelled windows) | every shipped detector at or above its committed per-detector precision and recall threshold | thresholds are committed beside the corpus; scored only by `runsignal.ClassificationAccuracy` through `GOWORK=off go test ./internal/runsignal/...` from `scenarios/agent-manager/api` and the `agent-conformance` test-genie phase |
 
 A detector below its threshold is a stop: no other route runs until the corpus route (§5) has been taken and the re-read is at or above threshold. A threshold is never lowered by this skill. A threshold is raised only with a new derivation over the same corpus version, recorded in the labels file.
 
@@ -116,21 +116,20 @@ artifact immutability. These are correctness gates, not an operator-benefit floo
 
 One route per row per cycle. When two rows' predicates hold for the same reading, take the first matching row from the top; re-read next cycle before taking the next.
 
-`Actuator` rows are moves the agent running this skill performs in-cycle without a diff (an investigation request, `usage friction-report`). `Filing` rows hand off: a work-ladder rung against agent-manager, or `report-bug` against the scenario an episode names. `None` rows are honest readings with no move.
+`Actuator` rows are moves the agent running this skill performs in-cycle without a diff (an investigation request, `usage friction-report`). `Filing` rows hand off: a work-ladder rung against agent-manager, or `report-bug` against the scenario a tool finding names. `None` rows are honest readings with no move.
 
 | Kind | Row out of band | Route | Sensor that should move |
 |---|---|---|---|
-| Filing | ownership-attribution-share below band, `unknown` episodes name a command with no manifest entry | W3 against agent-manager: extend the manifest-derived owner resolver (`runsignal/capability_detectors.go`) to read the command's `cli/manifest.json` when the scenario directory exists; until then `report-bug` against each named scenario whose manifest lacks the command | ownership-attribution-share |
-| None | ownership-attribution-share below band, `unknown` episodes name a shell builtin or non-Vrooli tool (`grep`) | No route: these are honest unknowns. Record the share of unknowns that are non-Vrooli in the journal so the band can be re-derived | ownership-attribution-share |
+| Filing | command-outcome-coverage below band | W3 against agent-manager: name the runner whose commands lack an outcome (`measures get tool-profiles` → `unknown` per profile); a codec that drops the command's result is the defect, never an inferred outcome | command-outcome-coverage |
 | Filing | investigation-completion-rate below band | Read the failed investigation runs with `run report <id>`; a preflight or resource-role failure is W3 here; a prompt-contract failure is `skill-validation` on `agent-manager-process-investigation` | investigation-completion-rate |
 | Filing | skill-and-program-identity-on-facts pending | W3 against agent-manager: carry `skill_id` when the executable is `prompt-manager skill read` and `program_id` when it is `program-runtime`; subscribe to program-runtime and ai-gateway typed events so a submit and a route carry the run id | skill-and-program-identity-on-facts |
-| Filing | friction-measure-validity `unreliable`, `unclassifiedShare` above 0.10 | W3 against agent-manager: sample 10 unclassified facts with `usage run <id> --facts`; each is a missing detector case; add it to the labelled corpus with a reason before adding detector logic | friction-measure-validity |
-| Filing | external-tool-share above its baseline once `available` | Read the top external commands with `measures episode-cohort --limit 50`; if one Vrooli scenario owns them, `report-bug` against it with the fingerprint; if none does, the row is descriptive and stays | external-tool-share |
-| Actuator, then operator | run-success-rate below band, failures concentrated in one profile (`measures profile-breakdown`) | `run investigate --run-ids <top failures> --depth standard`; apply only with an operator decision | run-success-rate |
+| None | tool-friction-validity `unreliable` for the sample-size reason | No route; journal the sample size | tool-friction-validity |
+| Actuator | bypass-calls above its baseline | `usage friction` → the `bypass` finding names the scenario and method (database, port, state directory); `usage friction-report <fingerprint>` files it so the owner can add the read agents reach for | bypass-calls |
+| Actuator, then operator | run-success-rate below band, failures concentrated in one profile (`measures get profile-breakdown`) | `investigation start --file request.json` naming the top failures as the subject run_ids; apply only with an operator decision | run-success-rate |
 | Filing | run-success-rate below band, failures spread across profiles | W2 against agent-manager: the runner or sandbox layer; read `run report` for the exit code class first | run-success-rate |
-| Filing | retry-rate, tool-failure-rate, or repeated-work-rate above band while `available` | `measures episode-cohort --limit 50`; the top fingerprint's `suspectedOwnerScenario` gets a `report-bug` with the fingerprint and `representativeRunIds`; if the owner is agent-manager, W3 here | the row that moved |
+| Actuator | shape-guess-rate, vrooli-cli-failure-rate, or polled-share above band | `usage friction` lists owner-level findings ranked by their share of the window's harm; `usage friction-report <fingerprint>` files the top open one with its owner (the inbox deduplicates on the fingerprint); if the owner is agent-manager, W3 here | the row that moved |
+| Actuator | quota burn or tool friction worth acting on, and no single row above names its owner | `usage recommendations` ranks quota levers, tool findings, opportunities and gated operator corrections by the share of their own kind of harm; act on or file the top action with its owner, and use its `verify` command as the check | the action's own effect next window |
 | None | any measure row `unreliable` for the sample-size reason | No route; journal the sample size. Do not widen the window to manufacture a sample | none |
-| Filing | a detector below its corpus threshold | Corpus route: read the failing cases, fix the detector or add labelled near-miss cases with a reason; never edit a threshold | classifier accuracy |
 
 ### 6. Anti-gaming
 
@@ -174,7 +173,6 @@ A sensor unavailable for three cycles is a `docs/internal/PROBLEMS.md` entry wit
 | `setpoint-read` reports every row unavailable | program-runtime restarted and the CLI resolved a stale port | `vrooli scenario status program-runtime`; `PROGRAM_RUNTIME_API_PORT` | Use control-plane discovery and readiness; preserve unavailable evidence until the owner resolves the stale route |
 | `setpoint-read` measures rows fail with `proto: syntax error ... unexpected token` | The window was passed as a string | the program's `window=` argument | Pass `{"token": "TIME_WINDOW_TOKEN_LAST_7D"}` |
 | `run/report` binding is unavailable | The typed RPC or agent-manager service is not reachable | `program-runtime bindings describe agent-manager/run/report` and `agent-manager run report <run-id> --json` | Confirm the service is healthy, then inspect the typed not-found or transport error |
-| `group_by("suspectedOwnerScenario")` raises `key is missing` in a program | `unknown` episodes omit the field | the episode row keys | Filter with `r.get(...)` before grouping |
 
 ### Supervision evidence validity
 

@@ -25,13 +25,12 @@ part of reliable operation, not a substitute for useful results.
 | Capability | Customer-facing value | Proof boundary |
 |---|---|---|
 | Run/workflow history, immutable policy snapshots and lifecycle events | Know what was attempted and under which conditions | Native supported owner records; terminal status alone does not establish useful output |
-| Friction messages, episodes and recurring fingerprints | Investigate repeated obstacles rather than guessing from one failure | Classifier version, evidence, time window, omissions and representative cases matter |
+| Friction messages, tool-friction profiles and recurring fingerprints | Investigate repeated obstacles rather than guessing from one failure | Classifier version, evidence, time window, omissions and representative cases matter |
 | Duration, usage/cost basis and runner/model/profile breakdowns | Locate expensive or slow patterns for investigation | Reported/estimated cost is distinct from provider invoices; unavailable values remain unknown |
 | Cohort comparisons and improvement records | Compare a change against suitable prior workloads | Comparable populations and outcome checks are needed; a previous-window delta is not a causal savings estimate |
 | Roles, permissions, bounded execution and approval handling | Run supported work with explicit operating controls | Actual runner/target support and authority still apply; no universal external-terminal coverage |
 
-Sources: [Operational stats](../reference/operational-stats.md),
-[Token attribution](../reference/token-attribution.md),
+Sources: [Measures and operational stats](../reference/operational-stats.md),
 [Workflow adoption](../guides/workflow-adoption.md),
 `../../.vrooli/program-runtime/efficiency-report.json`, and the recurring-friction
 owner programs. Inspect their current contracts before demonstrating a report.
@@ -40,7 +39,7 @@ owner programs. Inspect their current contracts before demonstrating a report.
 
 The deterministic `agent-manager.efficiency-report` covers its durable invocation
 projection and excludes imported and interactive workloads from that operational
-cohort. Imported conversations, interactive sessions and episode/cohort reports
+cohort. Imported conversations, interactive sessions and cohort reports
 have distinct evidence paths. Do not imply that the invocation report measures
 all Aquila conversations, every vendor subscription or every external terminal.
 

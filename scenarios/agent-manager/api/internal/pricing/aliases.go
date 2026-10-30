@@ -63,14 +63,6 @@ type modelResolution struct {
 // can only fail; callers short-circuit instead of asking a resource.
 const UnknownModel = "unknown"
 
-// resetModelResolutionCache drops every memoized resolution. Tests use it so a
-// replaced command runner is actually consulted.
-func resetModelResolutionCache() {
-	modelResolutionMu.Lock()
-	defer modelResolutionMu.Unlock()
-	modelResolutions = map[string]modelResolution{}
-}
-
 func (r CLIModelResolver) Resolve(ctx context.Context, runner, model string) (string, string, error) {
 	runner = strings.TrimSpace(runner)
 	model = strings.TrimSpace(model)

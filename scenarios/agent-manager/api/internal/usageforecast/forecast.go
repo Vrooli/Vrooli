@@ -554,6 +554,61 @@ func (f Forecast) runOut(remaining, factor float64) *time.Time {
 	return f.profile.until(f.Anchor, remaining/(factor*f.intensity))
 }
 
+// Outcome is a window's projection with saving points taken out of its
+// remaining burn: where it ends and when it runs out if the saving is made.
+type Outcome struct {
+	Saving float64
+	// Projected is false when the window is not at risk, has no projected
+	// burn or no time left; the fields below are then zero.
+	Projected    bool
+	EndPercent   float64
+	ReachesReset bool
+	// RunOut is the run-out with the saving, when it still comes before the
+	// reset; Shortfall is how long before.
+	RunOut    *time.Time
+	Shortfall time.Duration
+	// CutNeeded is the share of the current burn (the last-24 h rate, else
+	// the central burn) that has to go to last until the reset; nil when the
+	// window is not at risk.
+	CutNeeded *float64
+}
+
+// WithSaving projects the window with saving points spread over its
+// remaining burn in proportion to the hour-of-week profile, the same shape
+// that projects the burn itself.
+func (f Forecast) WithSaving(saving float64) Outcome {
+	out := Outcome{Saving: saving}
+	atRisk := f.Status == StatusWillExhaust || f.Status == StatusAtRisk
+	burn := f.Central
+	for _, b := range f.Burn {
+		if b.Horizon == 24*time.Hour && b.Available {
+			burn = b.Rate
+		}
+	}
+	if atRisk && burn > 0 && f.Lasting != nil && *f.Lasting > 0 {
+		cut := math.Max(0, 1-*f.Lasting/burn)
+		out.CutNeeded = &cut
+	}
+	reset := f.Window.ResetAt
+	if !atRisk || f.Central <= 0 || reset.IsZero() || !reset.After(f.Anchor) {
+		return out
+	}
+	toReset := f.burnBetween(f.Anchor, reset)
+	out.Projected = true
+	out.EndPercent = math.Max(f.Used, f.Used+toReset-saving)
+	if out.ReachesReset = out.EndPercent <= 100; out.ReachesReset {
+		return out
+	}
+	out.RunOut = f.Projected
+	if saving > 0 {
+		out.RunOut = f.runOut(100-f.Used, f.Calibration.Factor*(1-saving/toReset))
+	}
+	if out.RunOut != nil {
+		out.Shortfall = reset.Sub(*out.RunOut)
+	}
+	return out
+}
+
 func (f Forecast) withStaleness(now time.Time) Forecast {
 	w := f.Window
 	switch {
@@ -744,6 +799,95 @@ func CurrentWithActivity(ctx context.Context, spans []pricing.QuotaReadingSpan, 
 		}
 	}
 	return forecasts
+}
+
+// Dormant reports whether the window's newest reading predates its current
+// period: its scheduled reset has passed, or its period began after the
+// reading, so nothing is known about the period in progress. A window with no
+// reading is not dormant: it has no reading yet.
+func (f Forecast) Dormant(now time.Time) bool {
+	w := f.Window
+	if f.AsOf.IsZero() {
+		return false
+	}
+	return (!w.ResetAt.IsZero() && !w.ResetAt.After(now)) || (!w.Start.IsZero() && f.AsOf.Before(w.Start))
+}
+
+// Marks are how the usage surfaces read one current window: Dormant
+// (Forecast.Dormant), Primary (the longest window of its provider pool, the
+// one the recommendations evaluate and the quota tile shows; see Longest) and
+// Focus (the most urgent window with a reading in its period, the one the
+// focus band shows unless the operator picks another).
+type Marks struct{ Dormant, Primary, Focus bool }
+
+// Mark marks the current forecasts as of now.
+func Mark(forecasts []Forecast, now time.Time) []Marks {
+	out := make([]Marks, len(forecasts))
+	primary := Longest(len(forecasts), func(i int) (string, string, int64) {
+		w := forecasts[i].Window
+		return w.Provider, w.Pool, w.WindowMinutes
+	})
+	focus := -1
+	for i, f := range forecasts {
+		out[i].Dormant, out[i].Primary = f.Dormant(now), primary[i]
+		if !out[i].Dormant && !f.AsOf.IsZero() && (focus < 0 || moreUrgent(f, forecasts[focus])) {
+			focus = i
+		}
+	}
+	if focus >= 0 {
+		out[focus].Focus = true
+	}
+	return out
+}
+
+// moreUrgent orders windows by urgency: will run out (soonest projected
+// run-out first), then may run out (likewise), then the rest by used percent.
+func moreUrgent(a, b Forecast) bool {
+	rank := func(f Forecast) int {
+		switch f.Status {
+		case StatusWillExhaust:
+			return 0
+		case StatusAtRisk:
+			return 1
+		}
+		return 2
+	}
+	if rank(a) != rank(b) {
+		return rank(a) < rank(b)
+	}
+	if rank(a) < 2 {
+		switch {
+		case a.Projected == nil:
+			return false
+		case b.Projected == nil:
+			return true
+		}
+		return a.Projected.Before(*b.Projected)
+	}
+	return a.Used > b.Used
+}
+
+// Longest marks, of n windows given by their provider, pool and length, the
+// longest of each provider pool (the first of equal lengths): weekly savings
+// are stated in the weekly window, and two pools of one provider each keep
+// theirs. It is the one primary-window rule of the forecast marks and the
+// recommendations.
+func Longest(n int, at func(i int) (provider, pool string, minutes int64)) []bool {
+	best := map[[2]string]int{}
+	for i := 0; i < n; i++ {
+		provider, pool, minutes := at(i)
+		key := [2]string{provider, pool}
+		if current, ok := best[key]; !ok {
+			best[key] = i
+		} else if _, _, have := at(current); minutes > have {
+			best[key] = i
+		}
+	}
+	out := make([]bool, n)
+	for _, i := range best {
+		out[i] = true
+	}
+	return out
 }
 
 func median(values []float64) float64 {

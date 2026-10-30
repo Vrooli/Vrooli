@@ -36,8 +36,8 @@ other reports cover other populations. Lifecycle completion is not proof of
 usefulness. Previous-window comparisons can guide investigation but cannot by
 themselves establish a causal reduction in spend.
 
-See [Operational stats](../reference/operational-stats.md),
-[Token attribution](../reference/token-attribution.md), and
+See [Measures and operational stats](../reference/operational-stats.md) (including token
+attribution) and
 `../../.vrooli/program-runtime/efficiency-report.json` before deriving a claim.
 
 ## What would establish customer value

@@ -8,7 +8,7 @@ The response publishes a row for every shipped detector with its identifier,
 precision, recall, and committed threshold. The corpus and thresholds live at
 `api/internal/runsignal/testdata/classification/all-detectors.labels.json`.
 
-The committed corpus contains 50 labelled friction windows, including
+The committed corpus contains 42 labelled windows, including
 near-miss negatives. Every case carries an auditable labeller reason; the
 source metadata identifies redacted imported evidence spanning the Codex and
 Claude-Code harnesses and multiple months. This keeps the gate about structural
@@ -25,8 +25,7 @@ per-detector rows. The response is intentionally attached to the existing
 Agent Conformance provider because Test Genie admits one provider descriptor per
 scenario and this preserves the existing consumer-conformance phase.
 
-The per-pattern precision gate over real runs is separate and is the one that
-decides what `usage friction` shows: `api/internal/runsignal/testdata/precision`
-(labelled windows from real runs) scored by `go test ./internal/runsignal -run
-Precision`. A pattern below 0.8 precision or with fewer than 10 labels is
-`Quarantined` in `runsignal.PatternSpecs()`.
+Command and tool friction has no pattern classifier to score: the tool-friction
+profiles are aggregations, checked against seeded clusters in
+`internal/toolfriction`. The operator-intervention classifier has its own
+labelled hold-out and validation sets (`api/internal/runsignal/testdata/interventions`).

@@ -2,7 +2,6 @@ package invocationreadmodel
 
 import (
 	"encoding/json"
-	"math"
 	"sort"
 	"strings"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/tokenaccounting"
+	"agent-manager/internal/toolfriction"
 )
 
 // BeginsRunInvocation preserves the existing invocationreadmodel API while
@@ -44,30 +44,18 @@ func DeriveRunSubject(facts []Fact, events []*domain.RunEvent) []string {
 }
 
 // Project is the one adapter from durable run events to the analytical row
-// shape. Classification itself remains owned by runsignal.
-func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, resolver ...runsignal.CapabilityResolver) ([]Fact, Watermark) {
-	var capability runsignal.CapabilityResolver
-	if len(resolver) > 0 {
-		capability = resolver[0]
-	}
-	return project(run, events, projectedAt, capability, nil)
-}
-
-// ProjectWithResolvers is the production projection entry point. It wires
-// both runner-owned capability and command extraction contracts while keeping
-// Project available to focused callers that only need capability labels.
-func ProjectWithResolvers(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, capability runsignal.CapabilityResolver, command runsignal.CommandResolver) ([]Fact, Watermark) {
-	return project(run, events, projectedAt, capability, command)
-}
-
-func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, capability runsignal.CapabilityResolver, command runsignal.CommandResolver) ([]Fact, Watermark) {
+// shape. Classification itself remains owned by runsignal; the runner codec
+// that owns the tool surface supplies command extraction.
+func Project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, ports toolfriction.PortOwners, command ...runsignal.CommandResolver) ([]Fact, Watermark) {
 	timestamps := make(map[string]time.Time, len(events))
+	byID := make(map[string]*domain.RunEvent, len(events))
 	var last *domain.RunEvent
 	for _, event := range events {
 		if event == nil {
 			continue
 		}
 		timestamps[event.ID.String()] = event.Timestamp
+		byID[event.ID.String()] = event
 		if last == nil || event.Sequence > last.Sequence {
 			last = event
 		}
@@ -77,22 +65,26 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 	if tag == "" {
 		tag = "unknown"
 	}
-	argTokens, resultTokens, tokenBases, residencyTurns, residencySegments := tokenFactors(events)
+	argTokens, resultTokens, tokenBases, residencyRequests, residencySegments := tokenFactors(events)
 	preambleInjectedTokens, preambleFixedTokens, _ := derivePreamble(run, events)
 	incurredByCall, _, _ := attributeIncurred(events, runsignal.AccountUsage(events), preambleInjectedTokens, preambleFixedTokens)
-	facts := make([]Fact, 0)
-	for _, fact := range runsignal.DeriveInvocationFactsWithResolver(events, capability, command) {
+	derived := runsignal.DeriveInvocationFacts(events, command...)
+	resultShares := apportionResults(derived, resultTokens)
+	facts := make([]Fact, 0, len(derived))
+	var sources []toolfriction.Source
+	var observed []int
+	for index, fact := range derived {
 		// Token quantities are per call, but a compound command emits one fact
 		// per segment. Apportion them so a SUM over facts reconciles to the run
 		// instead of multiplying the call's payload by its segment count.
-		// Residency turns are a multiplier rather than a token quantity, so it
-		// stays whole: result_tokens * residency_turns then apportions with the
-		// result share it is paired with.
+		// Residency requests are a multiplier rather than a token quantity, so
+		// they stay whole: result_tokens * residency_requests then apportions
+		// with the result share it is paired with.
 		share := func(total int64) int64 {
 			return tokenaccounting.SegmentShare(total, fact.SegmentCount, fact.SegmentIndex)
 		}
 		fact.ArgTokens = share(argTokens[fact.CallEventID])
-		fact.ResidencyTurns = residencyTurns[fact.ResultEventID]
+		fact.ResidencyRequests = residencyRequests[fact.OutputEventID]
 		if incurred, ok := incurredByCall[fact.CallEventID]; ok {
 			fact.IncurredInputTokens = share(incurred.Input)
 			fact.IncurredOutputTokens = share(incurred.Output)
@@ -102,21 +94,34 @@ func project(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, 
 		// A result is required before an estimated footprint can be treated as
 		// a complete call footprint. Unpaired calls retain their argument count
 		// but are explicitly unknown rather than silently estimated.
-		if result, ok := resultTokens[fact.ResultEventID]; ok {
-			fact.ResultTokens = share(result)
-			fact.TokenBasis = tokenBases[fact.ResultEventID]
+		if _, ok := resultTokens[fact.OutputEventID]; ok && fact.OutputShare != runsignal.ShareNone {
+			fact.ResultTokens = resultShares[index]
+			fact.TokenBasis = tokenBases[fact.OutputEventID]
 		} else {
 			fact.TokenBasis = tokenaccounting.BasisUnknown
 		}
-		fact.ResidencySegment = residencySegments[fact.ResultEventID]
+		fact.ResidencySegment = residencySegments[fact.OutputEventID]
 		occurredAt, ok := timestamps[fact.CallEventID]
 		timeBasis := "call_event"
 		if !ok {
 			occurredAt, timeBasis = projectedAt, "projection_time"
 		}
 		facts = append(facts, Fact{InvocationFact: fact, RunID: run.ID.String(), OccurredAt: occurredAt, TimeBasis: timeBasis, ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, RunStatus: string(run.Status)})
+		if toolfriction.Profiled(fact) {
+			source := toolfriction.Source{Fact: toolfriction.Fact{InvocationFact: fact, RunID: run.ID.String(), At: occurredAt, Runner: runnerType}}
+			if call := byID[fact.CallEventID]; call != nil {
+				source.Call, _ = call.Data.(*domain.ToolCallEventData)
+			}
+			if result := byID[fact.ResultEventID]; result != nil {
+				source.Result, _ = result.Data.(*domain.ToolResultEventData)
+			}
+			sources, observed = append(sources, source), append(observed, len(facts)-1)
+		}
 	}
-	watermark := Watermark{RunID: run.ID.String(), ClassifierVersion: runsignal.InvocationFactVersion, EpisodeClassifierVersion: runsignal.EpisodeClassifierVersion, SelfReportClassifierVersion: runsignal.SelfReportClassifierVersion, ProjectedAt: projectedAt}
+	for i, features := range toolfriction.Extract(sources, ports) {
+		facts[observed[i]].Tool = &features
+	}
+	watermark := Watermark{RunID: run.ID.String(), ClassifierVersion: runsignal.InvocationFactVersion, SelfReportClassifierVersion: runsignal.SelfReportClassifierVersion, ProjectedAt: projectedAt}
 	if last != nil {
 		watermark.LastEventID, watermark.LastEventAt = last.ID.String(), last.Timestamp
 	} else {
@@ -229,111 +234,145 @@ func eventDataUsage(event *domain.RunEvent) (*domain.UsageEventData, bool) {
 	return usage, ok
 }
 
+// apportionResults splits each call's result tokens (what the agent saw)
+// across its facts so that each output counts once (runsignal.OutputShare): a
+// command whose nested result reports its size takes the tokens it could have
+// put there (OwnTokens), the rest of the result goes evenly to the facts that
+// hold it, and segments whose output another segment holds take none. When
+// the commands claim more than the result holds, or nothing holds the rest,
+// the commands share the whole result by their claims. Shares of one call sum
+// to its result tokens.
+func apportionResults(facts []runsignal.InvocationFact, resultTokens map[string]int64) []int64 {
+	shares := make([]int64, len(facts))
+	for start := 0; start < len(facts); {
+		end := start + 1
+		for end < len(facts) && facts[end].CallEventID == facts[start].CallEventID {
+			end++
+		}
+		total := resultTokens[facts[start].OutputEventID]
+		var own, rest []int
+		var claimed int64
+		for i := start; i < end; i++ {
+			switch facts[i].OutputShare {
+			case runsignal.ShareOwn:
+				own, claimed = append(own, i), claimed+facts[i].OwnTokens
+			case runsignal.ShareRest:
+				rest = append(rest, i)
+			}
+		}
+		switch {
+		case len(rest) > 0 && claimed <= total:
+			for _, i := range own {
+				shares[i] = facts[i].OwnTokens
+			}
+			for k, i := range rest {
+				shares[i] = tokenaccounting.SegmentShare(total-claimed, len(rest), k)
+			}
+		case claimed > 0:
+			largest, assigned := own[0], int64(0)
+			for _, i := range own {
+				shares[i] = total * facts[i].OwnTokens / claimed
+				assigned += shares[i]
+				if facts[i].OwnTokens > facts[largest].OwnTokens {
+					largest = i
+				}
+			}
+			// Integer division leaves at most one token per fact; the largest
+			// claim takes it so the call still sums to its total.
+			shares[largest] += total - assigned
+		default:
+			for k, i := range own {
+				shares[i] = tokenaccounting.SegmentShare(total, len(own), k)
+			}
+		}
+		start = end
+	}
+	return shares
+}
+
 // tokenFactors estimates bounded payload factors while the source events are
 // still available. The durable projection never needs to reopen event JSON.
+// A result's residency is the provider requests after it that re-read it:
+// those before the next compaction (or the end of the run). Without per-turn
+// usage, assistant messages stand in for requests. Requests are counted once
+// per segment and each result takes the count after it when its segment
+// closes, so the pass is linear in events.
 func tokenFactors(events []*domain.RunEvent) (map[string]int64, map[string]int64, map[string]tokenaccounting.Basis, map[string]int64, map[string]int64) {
 	argTokens := make(map[string]int64)
 	resultTokens := make(map[string]int64)
 	tokenBases := make(map[string]tokenaccounting.Basis)
-	residencyTurns := make(map[string]int64)
+	residencyRequests := make(map[string]int64)
 	residencySegments := make(map[string]int64)
-	resultIndexes := make(map[string]int)
-	segments := make([]int64, len(events))
-	attenuation := []float64{1}
-	segment := int64(0)
 	hasPerTurnUsage := false
-	for index, event := range events {
+	for _, event := range events {
+		if usage, ok := eventDataUsage(event); ok && !usage.ReconciliationAuthority {
+			hasPerTurnUsage = true
+			break
+		}
+	}
+	type residentResult struct {
+		id string
+		at int64 // the segment's requests before the result
+	}
+	var resident []residentResult // results read by every request until the next compaction
+	segment, requests := int64(0), int64(0)
+	closeSegment := func() {
+		for _, r := range resident {
+			if n := requests - r.at; n > 0 {
+				residencyRequests[r.id] += n
+			}
+		}
+		resident, requests = resident[:0], 0
+	}
+	for _, event := range events {
 		if event == nil {
 			continue
 		}
-		segments[index] = segment
 		switch payload := event.Data.(type) {
-		case *domain.UsageEventData:
-			if !payload.ReconciliationAuthority {
-				hasPerTurnUsage = true
-			}
 		case *domain.CompactionEventData:
-			if payload.TokensBefore > 0 && payload.TokensAfter > 0 {
-				ratio := float64(payload.TokensAfter) / float64(payload.TokensBefore)
-				if ratio > 1 {
-					ratio = 1
-				}
-				attenuation = append(attenuation, attenuation[len(attenuation)-1]*ratio)
-			} else {
-				attenuation = append(attenuation, attenuation[len(attenuation)-1])
-			}
+			closeSegment()
 			segment++
+		case *domain.UsageEventData:
+			if hasPerTurnUsage && !payload.ReconciliationAuthority {
+				requests++
+			}
+		case *domain.MessageEventData:
+			if !hasPerTurnUsage && payload.Role == "assistant" {
+				requests++
+			}
 		case *domain.ToolCallEventData:
 			encoded, err := json.Marshal(payload.Input)
 			if err == nil {
 				argTokens[event.ID.String()] = tokenaccounting.EstimateText(string(encoded)).Tokens
 			}
 		case *domain.ToolResultEventData:
-			resultIndexes[event.ID.String()] = index
-			output := payload.Output
-			if payload.Error != "" {
-				output += "\n" + payload.Error
-			}
-			estimate := tokenaccounting.EstimateText(output)
-			resultTokens[event.ID.String()] = estimate.Tokens
-			tokenBases[event.ID.String()] = estimate.Basis
+			id := event.ID.String()
+			estimate := tokenaccounting.EstimateText(resultPayload(payload))
+			resultTokens[id], tokenBases[id], residencySegments[id] = estimate.Tokens, estimate.Basis, segment
+			resident = append(resident, residentResult{id: id, at: requests})
 		}
 	}
-	for resultID, index := range resultIndexes {
-		residencySegments[resultID] = segments[index]
-		weightedTurns := 0.0
-		for laterIndex := index + 1; laterIndex < len(events); laterIndex++ {
-			event := events[laterIndex]
-			if event == nil {
-				continue
-			}
-			countsAsTurn := false
-			if usage, ok := event.Data.(*domain.UsageEventData); ok {
-				countsAsTurn = hasPerTurnUsage && !usage.ReconciliationAuthority
-			} else if message, ok := event.Data.(*domain.MessageEventData); ok {
-				countsAsTurn = !hasPerTurnUsage && message.Role == "assistant"
-			}
-			if !countsAsTurn {
-				continue
-			}
-			laterSegment := segments[laterIndex]
-			weight := 1.0
-			if laterSegment >= 0 && laterSegment < int64(len(attenuation)) && segments[index] >= 0 && segments[index] < int64(len(attenuation)) && attenuation[segments[index]] > 0 {
-				weight = attenuation[laterSegment] / attenuation[segments[index]]
-			}
-			weightedTurns += weight
-		}
-		if weightedTurns > 0 {
-			residencyTurns[resultID] = int64(math.Ceil(weightedTurns))
-		}
-	}
-	return argTokens, resultTokens, tokenBases, residencyTurns, residencySegments
+	closeSegment()
+	return argTokens, resultTokens, tokenBases, residencyRequests, residencySegments
 }
 
-// ProjectEpisodes folds the same retained event set as invocation facts and
-// attaches the shared run dimensions used by every durable cohort query.
-func ProjectEpisodes(run *domain.Run, facts []Fact, events []*domain.RunEvent, projectedAt time.Time) []Episode {
-	profileID, runnerType, model := runDimensions(run)
-	tag := run.Tag
-	if tag == "" {
-		tag = "unknown"
-	}
-	invocations := make([]runsignal.InvocationFact, 0, len(facts))
-	for _, fact := range facts {
-		invocations = append(invocations, fact.InvocationFact)
-	}
-	timestamps := eventTimestamps(events)
-	episodes := runsignal.DeriveEpisodes(invocations, events, runsignal.WithGoalRun(run.GoalID != ""))
-	out := make([]Episode, 0, len(episodes))
-	for _, episode := range episodes {
-		occurredAt, basis := timestamps[episode.StartEventID], "start_event"
-		if occurredAt.IsZero() {
-			occurredAt, basis = projectedAt, "projection_time"
+// resultPayload is the text a tool result put in the agent's context: its
+// output (else, for harnesses that return structured content such as Codex's
+// exec, its text blocks) and its error. Result tokens, and so the context tax
+// and output weight, are estimated from it. A command's own output size
+// (Fact.OutputBytes) can exceed it when the harness cut the output first; the
+// tokens are what the model read, the bytes what was printed.
+func resultPayload(result *domain.ToolResultEventData) string {
+	text := result.Output
+	if text == "" {
+		for _, block := range result.OutputBlocks {
+			text += block.Text
 		}
-		episode.RunID = run.ID.String()
-		out = append(out, Episode{FrictionEpisode: episode, RunID: run.ID.String(), OccurredAt: occurredAt, TimeBasis: basis, ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, RunStatus: string(run.Status)})
 	}
-	return out
+	if result.Error != "" {
+		text += "\n" + result.Error
+	}
+	return text
 }
 
 // ProjectSelfReportSpans folds assistant messages from the same retained
@@ -367,40 +406,10 @@ func eventTimestamps(events []*domain.RunEvent) map[string]time.Time {
 	return timestamps
 }
 
-// ProjectErrors folds typed error events into compact, durable analytical
-// facts. It intentionally retains no human-readable error content.
-func ProjectErrors(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) []ErrorFact {
-	profileID, runnerType, model := runDimensions(run)
-	tag := run.Tag
-	if tag == "" {
-		tag = "unknown"
-	}
-	facts := make([]ErrorFact, 0)
-	for _, event := range events {
-		if event == nil {
-			continue
-		}
-		payload, ok := event.Data.(*domain.ErrorEventData)
-		if !ok {
-			continue
-		}
-		occurredAt, basis := event.Timestamp, "error_event"
-		if occurredAt.IsZero() {
-			occurredAt, basis = projectedAt, "projection_time"
-		}
-		code := payload.Code
-		if code == "" {
-			code = "unknown"
-		}
-		facts = append(facts, ErrorFact{RunID: run.ID.String(), EventID: event.ID.String(), OccurredAt: occurredAt, TimeBasis: basis, ErrorCode: code, ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag})
-	}
-	return facts
-}
-
 // ProjectRun folds a terminal run and its retained cost events into one
 // durable throughput fact. Cost events are additive because runners can emit
 // usage for several turns; cache tokens are usage and therefore included.
-func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time, resolver ...runsignal.CapabilityResolver) RunFact {
+func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Time) RunFact {
 	profileID, runnerType, model := runDimensions(run)
 	tag := run.Tag
 	if tag == "" {
@@ -431,8 +440,6 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	preambleInjectedTokens, preambleFixedTokens, preambleBasis := derivePreamble(run, events)
 	unpriced := false
 	charged := false
-	var readCalls, rereads int64
-	fileReads := map[string]int{}
 	// The run's one usage account: token aggregates, incurred attribution and
 	// time-accounting buckets all read the same per-event contributions.
 	usage := runsignal.AccountUsage(events)
@@ -497,15 +504,8 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		if charge, ok := event.Data.(*domain.ChargeEventData); ok {
 			addCharge(charge)
 		}
-		if call, ok := event.Data.(*domain.ToolCallEventData); ok {
+		if _, ok := event.Data.(*domain.ToolCallEventData); ok {
 			toolCalls++
-			if path := runsignal.ReadPath(call); path != "" {
-				readCalls++
-				fileReads[path]++
-				if fileReads[path] == 2 {
-					rereads++
-				}
-			}
 		}
 	}
 	tokens = usage.TotalTokens()
@@ -553,7 +553,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		// durable so cost aggregates can exclude it or report it explicitly.
 		costBasis = "unknown"
 	}
-	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, CostSource: costSource, ChargeReason: chargeReason, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, PreambleInjectedTokens: preambleInjectedTokens, PreambleFixedTokens: preambleFixedTokens, PreambleTokenBasis: preambleBasis, UnattributedTokens: unattributedTokens, UnattributedReason: unattributedReason, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
+	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, CostSource: costSource, ChargeReason: chargeReason, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, PreambleInjectedTokens: preambleInjectedTokens, PreambleFixedTokens: preambleFixedTokens, PreambleTokenBasis: preambleBasis, UnattributedTokens: unattributedTokens, UnattributedReason: unattributedReason, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
 }
 
 func hasEventTimestamp(events []*domain.RunEvent) bool {

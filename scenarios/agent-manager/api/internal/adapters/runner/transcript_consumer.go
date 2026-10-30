@@ -26,7 +26,10 @@ var transcriptPollInterval = config.DefaultLevers().Recovery.TranscriptPollInter
 type ConsumeArgs struct {
 	RunID      uuid.UUID
 	Transcript string
-	StartAt    int64
+	// Snapshot supplies an already bounded immutable source for a non-live
+	// read beginning at zero. Transcript remains its logical path.
+	Snapshot io.Reader
+	StartAt  int64
 	// EndAt bounds a non-live inspection to an immutable observed file extent.
 	// Zero preserves ordinary live/replay behavior.
 	EndAt        int64
@@ -99,16 +102,26 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 	if args.ParseFn == nil {
 		return args.StartAt, nil, fmt.Errorf("parse function is required")
 	}
-	file, err := os.Open(args.Transcript)
-	if err != nil {
-		return args.StartAt, nil, err
-	}
-	defer file.Close()
-
-	if args.StartAt > 0 {
-		if _, err := file.Seek(args.StartAt, io.SeekStart); err != nil {
+	var source io.Reader
+	var file *os.File
+	if args.Snapshot != nil {
+		if args.Live || args.StartAt != 0 {
+			return args.StartAt, nil, fmt.Errorf("snapshot requires a non-live read starting at zero")
+		}
+		source = args.Snapshot
+	} else {
+		var err error
+		file, err = os.Open(args.Transcript)
+		if err != nil {
 			return args.StartAt, nil, err
 		}
+		defer file.Close()
+		if args.StartAt > 0 {
+			if _, err := file.Seek(args.StartAt, io.SeekStart); err != nil {
+				return args.StartAt, nil, err
+			}
+		}
+		source = file
 	}
 
 	poll := args.PollInterval
@@ -116,12 +129,11 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 		poll = transcriptPollInterval
 	}
 
-	var source io.Reader = file
 	if args.EndAt > 0 {
 		if args.Live || args.EndAt < args.StartAt {
 			return args.StartAt, nil, fmt.Errorf("bounded inspection requires a non-live valid extent")
 		}
-		source = io.LimitReader(file, args.EndAt-args.StartAt)
+		source = io.LimitReader(source, args.EndAt-args.StartAt)
 	}
 	reader := bufio.NewReader(source)
 	cursor := args.StartAt

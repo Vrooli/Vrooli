@@ -5,17 +5,17 @@ import { ConnectError, Code } from "@connectrpc/connect";
 import { createElement } from "react";
 import { useLocation } from "react-router-dom";
 import { afterEach, beforeEach, test, vi } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { UsageWindowForecastSchema } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { UsagePage } from "./UsagePage.js";
 import { renderWithProviders } from "../../test-utils/index.js";
-import { create } from "@bufbuild/protobuf";
-import { UsageRecommendationGroupSchema } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
-import { BURNER_RUN_ID, CLAUDE_SCOPE, CODEX_SCOPE, FRICTION_FINGERPRINT, makeDetailsMeasures, makeUsageBurners, makeUsageCoverage, makeUsageForecast, makeUsageFriction, makeUsageRecommendations, USAGE_NOW } from "../../test-utils/fixtures/usage.js";
+import { BURNER_RUN_ID, CLAUDE_SCOPE, CODEX_SCOPE, FRICTION_FINGERPRINT, makeAdmittedInterventions, makeDetailsMeasures, makePooledInterventions, makeUsageBurners, makeUsageCoverage, makeUsageForecast, makeUsageFriction, makeUsageRecommendations, USAGE_NOW } from "../../test-utils/fixtures/usage.js";
 
 const measures = vi.hoisted(() => ({
   usageForecast: vi.fn(), usageBurners: vi.fn(), usageRecommendations: vi.fn(), usageCoverage: vi.fn(), usageFriction: vi.fn(),
   runSuccessRate: vi.fn(), runCost: vi.fn(), runCycleTime: vi.fn(), runStatusDistribution: vi.fn(), modelBreakdown: vi.fn(), profileBreakdown: vi.fn(),
 }));
-vi.mock("../stats/api/measuresClient.js", () => ({ measuresClient: measures }));
+vi.mock("./measuresClient.js", () => ({ measuresClient: measures }));
 vi.mock("./ManualImport.js", () => ({ ManualImport: () => createElement("div", { "data-testid": "manual-import" }, "Manual import") }));
 
 function serveFixtures() {
@@ -81,7 +81,7 @@ test("choosing a window tile puts it in the URL", async () => {
   assert.equal(screen.getByTestId("location").textContent, `/usage?window=${encodeURIComponent("anthropic/five_hour/300m")}`);
 });
 
-test("the focus band states the burn, what can be afforded, the cut and an honest consequence", async () => {
+test("the focus band states the burn, what can be afforded, and the API's cut, combined saving and consequence", async () => {
   renderUsage();
   const focus = await screen.findByTestId("usage-focus");
   const text = visibleText(focus);
@@ -90,28 +90,30 @@ test("the focus band states the burn, what can be afforded, the cut and an hones
   assert.match(text, /Burning now \(24h\)1\.5%\/h/);
   assert.match(text, /Can afford until reset≤ 0\.46%\/h/);
   assert.match(text, /Needs a cut of69%/);
-  assert.match(text, /The session action below saves≈ 9.0 pts/);
-  assert.match(text, /still \d+ (days|hours) short of the reset|last until it resets/, "the consequence says whether the reset is reached");
+  assert.match(text, /The quota action below can still save≈ 9.0 pts/);
+  const runOut = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric" }).format(Date.parse(makeUsageRecommendations().outcome?.runOutAt ?? ""));
+  assert.ok(text.includes(`move the run-out to around ${runOut}, still 4 days short of the reset`), "the consequence is the API's projected outcome, not a page computation");
 });
 
-test("actions are grouped per target: trimmed title, used and projected points, levers, and what each button does", async () => {
+test("one ranked list: owner, action, score and native effect, evidence on demand, coverage and the materiality count", async () => {
   const user = userEvent.setup();
   renderUsage();
   const cards = await within(await section("recommendations")).findAllByTestId("usage-recommendation");
-  assert.equal(cards.length, 2);
+  assert.equal(cards.length, 3);
   const first = within(cards[0] as HTMLElement);
-  assert.ok(first.getByText("Research orchestrator"));
-  assert.match(cards[0]?.textContent ?? "", /session 1e5904ed · still running/);
-  assert.match(cards[0]?.textContent ?? "", /Used so far 28 pts.*At this rate ≈ 60 pts.*80% of the window's burn/);
-  assert.match(cards[0]?.textContent ?? "", /Context.*−9.0 pts/);
-  assert.equal(first.getByRole("link", { name: "Open session" }).getAttribute("href"), `/runs/${BURNER_RUN_ID}?tab=usage`);
+  assert.ok(first.getByText("Compact codex sessions after ~60 requests of growth"));
+  assert.match(cards[0]?.textContent ?? "", /harness: codex session context/);
+  assert.match(cards[0]?.textContent ?? "", /26\.7%.*≈ 12 pts · projected.*26\.7% of the openai 10080m window's 45\.0 observed points/);
+  assert.match(cards[1]?.textContent ?? "", /command: test-genie runs wait.*7\.5%.*161 calls · observed.*of the window's 2149 failed calls/);
+  assert.match(cards[2]?.textContent ?? "", /unproven.*0 to 6\.0 pts · unproven/);
   assert.equal(first.queryByRole("button", { name: /Dismiss/ }), null, "the API has no recommendation dismissal, so none is offered");
-  assert.match((await section("recommendations")).textContent ?? "", /\+ 3 smaller actions for this window/, "server-folded items are counted");
+  assert.match((await section("recommendations")).textContent ?? "", /3 scoring under 1%/, "server-folded items are counted");
   assert.equal(first.queryByTestId("usage-evidence"), null);
-  await user.click(first.getByRole("button", { name: /Show evidence \(3 runs\)/ }));
+  await user.click(first.getByRole("button", { name: "Show evidence" }));
   assert.ok(first.getByRole("link", { name: "sub-agent · 00b65371" }));
-  assert.ok(first.getByText("web-console 1e5904ed"), "a label that already names its id is not repeated");
-  assert.equal(within(await section("recommendations")).queryByTestId("usage-rules-not-fired"), null, "rule diagnostics are not in the main view");
+  assert.match(cards[0]?.textContent ?? "", /Token usage analysis · would have saved ≈4\.0 pts \(finished\); compacted 6×/);
+  assert.match(cards[0]?.textContent ?? "", /Verify: after the change/);
+  assert.match(within(await section("recommendations")).getByTestId("usage-recommendation-notes").textContent ?? "", /cannot tell, not none.*kinds of harm weigh equally/);
 });
 
 test("where it went lists points and share per row, folds near-zero rows, and drills into runs", async () => {
@@ -122,12 +124,12 @@ test("where it went lists points and share per row, folds near-zero rows, and dr
   assert.equal(rows.length, 2);
   assert.match(rows[0]?.textContent ?? "", /Research orchestrator.*28\.0 · 84%/);
   assert.equal(burners.getByRole("link", { name: "Vega E1 Overview" }).getAttribute("href"), `/runs/${BURNER_RUN_ID}?tab=usage`);
-  assert.match(burners.getByTestId("usage-burner-other").textContent ?? "", /77 smaller items, under 0\.1 pts each.*0\.3/);
+  assert.match(burners.getByTestId("usage-burner-other").textContent ?? "", /77 smaller items \(under 0\.25 pts each, or past the rows shown\).*0\.3/, "the fold rule and its sum are the API's");
   assert.match(burners.getByTestId("usage-burner-unattributed").textContent ?? "", /Unattributed \/ off-disk.*0\.4/);
   assert.match(burners.getByTestId("usage-metered-lines").textContent ?? "", /Web search · 3 calls · charge unknown/);
   await user.click(burners.getByText("How this is estimated"));
   assert.match((await section("burners")).textContent ?? "", /fitted on 48 slices, R² 0\.91/);
-  assert.equal(within(await section("burners")).getByTestId("usage-rules-not-fired").textContent, "R-idle did not fire: no parked session consumed quota this window");
+  assert.equal(within(await section("burners")).getByTestId("usage-rules-not-fired").textContent, "R-idle did not fire: no session made wait-only requests this window");
   await user.click(burners.getByRole("button", { name: "Profile" }));
   await waitFor(() => assert.ok(measures.usageBurners.mock.calls.some(([request]) => request.groupBy === "profile")));
   assert.equal(burners.getByRole("button", { name: "Profile" }).getAttribute("aria-pressed"), "true");
@@ -164,6 +166,19 @@ test("coverage: the header chip links to the Coverage tab, which names every unr
   await user.click(screen.getByText("How this is measured"));
   assert.ok(screen.getByText(/Compare with: find/));
   assert.ok(screen.getByTestId("manual-import"));
+});
+
+test("coverage with no observed bytes is unknown rather than 100%", async () => {
+  const coverage = makeUsageCoverage();
+  coverage.totals!.bytes = 0n;
+  coverage.totals!.capturedShare = 1;
+  coverage.roots[0].bytes = 0n;
+  coverage.roots[0].capturedShare = 1;
+  measures.usageCoverage.mockResolvedValue(coverage);
+  renderUsage("/usage?tab=coverage");
+  assert.match((await screen.findByTestId("usage-coverage-chip")).textContent ?? "", /Coverage n\/a/);
+  assert.match((await screen.findAllByTestId("usage-coverage-root"))[0].textContent ?? "", /n\/a/);
+  assert.match(document.body.textContent ?? "", /Captured n\/a of transcript bytes/);
 });
 
 test("an unknown 'since' date is not replaced by today's", async () => {
@@ -234,49 +249,57 @@ test("tabs are addressable by URL; switching resets the previous tab's parameter
   assert.equal(screen.getByTestId("usage-tab-overview").getAttribute("aria-selected"), "true");
 });
 
-const episodes = vi.hoisted(() => ({ reportFrictionProblem: vi.fn(), dismissFrictionProblem: vi.fn() }));
+const frictionWrites = vi.hoisted(() => ({ reportFriction: vi.fn(), dismissFriction: vi.fn() }));
 vi.mock("@connectrpc/connect", async (original) => {
   const actual = await original<typeof import("@connectrpc/connect")>();
-  return { ...actual, createClient: (service: { typeName: string }, ...rest: unknown[]) => (service.typeName === "agent_manager.v1.EpisodesService" ? episodes : (actual.createClient as (...args: unknown[]) => unknown)(service, ...rest)) };
+  return { ...actual, createClient: (service: { typeName: string }, ...rest: unknown[]) => (service.typeName === "agent_manager.v1.FrictionService" ? frictionWrites : (actual.createClient as (...args: unknown[]) => unknown)(service, ...rest)) };
 });
 
-test("friction lists open problems in plain words with owner, count and cost, and filters by status", async () => {
+test("friction lists open tool problems in plain words with owner, count, cost and coverage, and filters by status", async () => {
   const user = userEvent.setup();
   renderUsage("/usage?tab=friction");
-  const rows = await screen.findAllByTestId("usage-friction-row");
-  assert.equal(rows.length, 3, "only open problems by default");
-  assert.equal(within(rows[0] as HTMLElement).queryByRole("link", { name: "Suggest a fix" }), null, "a command owner gets Report bug");
-  const behaviour = within(rows[1] as HTMLElement);
-  assert.equal(behaviour.queryByRole("button", { name: "Report bug" }), null, "agent behaviour files no bug");
-  assert.equal(behaviour.getByRole("link", { name: "Suggest a fix" }).getAttribute("href"), `/usage?window=${encodeURIComponent("openai/primary/10080m")}#friction-${"a2".repeat(16)}`);
-  assert.ok(behaviour.getByRole("button", { name: "Dismiss" }));
-  assert.match(rows[0]?.textContent ?? "", /fails, then the agent falls back.*agent-manager.*18× · 3 runs.*3 m 5 s redundant call time/);
-  assert.match(rows[2]?.textContent ?? "", /2 h 30 m redundant call time · 4\.5 M tok/, "cost is the redundant calls' time and tokens");
-  assert.doesNotMatch(document.body.textContent ?? "", /handoff/i, "informational handoffs are not friction problems");
+  const tools = await screen.findAllByTestId("usage-tool-finding");
+  assert.equal(tools.length, 2, "only open tool problems by default");
+  assert.match(tools[0]?.textContent ?? "", /identity_refresh_unavailable.*failure.*search-hub query recall notes.*vrooli.*128 calls · 20 runs.*failure 101 calls = 12\.4% of the window's 812 Vrooli CLI failed calls.*degraded 63 calls = 0\.3% of the window's 24041 Vrooli CLI calls/i, "a roll-up states each kind's share over its own base");
+  assert.match(tools[1]?.textContent ?? "", /output-weight 19\.3M tokens = 3\.1% of the window's context tax/, "cost is in the unit of the harm");
+  assert.doesNotMatch(screen.getByTestId("usage-friction").textContent ?? "", /of the window's command calls/, "no share is labelled with a base it was not divided by");
+  assert.ok(within(tools[0] as HTMLElement).getByRole("button", { name: "Report bug" }), "a tool problem is filed with its owner");
+  assert.match(screen.getByTestId("usage-friction-coverage").textContent ?? "", /Seen since 2026-10-22: 175706 commands, outcome known for 40%/);
   assert.doesNotMatch(document.body.textContent ?? "", new RegExp(FRICTION_FINGERPRINT), "the fingerprint is detail, not the headline");
   assert.match(visibleText(screen.getByTestId("usage-friction")), /Reported to owners1/);
+  assert.match(visibleText(screen.getByTestId("usage-friction")), /Open tool problems3/, "the open count is the API's, not the rows on screen");
+  assert.match(screen.getByTestId("usage-friction-below").textContent ?? "", /371 more findings score under the materiality floor \(1%\): counted, not listed/);
   await user.click(screen.getByRole("button", { name: "Reported" }));
-  assert.match(screen.getByTestId("usage-friction-row").textContent ?? "", /Reported · knw-1793200000000000001/);
+  assert.match(screen.getByTestId("usage-tool-finding").textContent ?? "", /Reported · knw-1793200000000000001/);
   await user.click(screen.getByRole("button", { name: "Dismissed" }));
-  assert.match(screen.getByTestId("usage-friction-row").textContent ?? "", /Dismissed/);
+  assert.match(screen.getByTestId("usage-tool-finding").textContent ?? "", /Dismissed/);
 });
 
-test("Report bug confirms inline, calls the API once, and shows the bug id when the list refreshes", async () => {
+test("an empty friction list says what was seen, never a bare no-problems", async () => {
+  const empty = makeUsageFriction();
+  empty.toolFindings = [];
+  measures.usageFriction.mockResolvedValue(empty);
+  renderUsage("/usage?tab=friction");
+  assert.match((await screen.findByText(/None met its threshold in what was seen/)).textContent ?? "", /175706 commands, outcome known for 40%/);
+});
+
+test("Report bug confirms inline, calls the API once with the listed window, and shows the bug id when the list refreshes", async () => {
   const user = userEvent.setup();
   let answer: (value: unknown) => void = () => undefined;
-  episodes.reportFrictionProblem.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+  frictionWrites.reportFriction.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
   renderUsage("/usage?tab=friction");
-  const [row] = await screen.findAllByTestId("usage-friction-row");
+  const [row] = await screen.findAllByTestId("usage-tool-finding");
   const first = within(row as HTMLElement);
   await user.click(first.getByRole("button", { name: "Report bug" }));
-  assert.equal(episodes.reportFrictionProblem.mock.calls.length, 0, "the first click only asks");
-  assert.ok(first.getByText(/File a bug with agent-manager\?/));
+  assert.equal(frictionWrites.reportFriction.mock.calls.length, 0, "the first click only asks");
+  assert.ok(first.getByText(/File a bug with vrooli\?/));
   await user.click(first.getByRole("button", { name: "Confirm" }));
   await waitFor(() => assert.equal(first.getByRole("button", { name: "Working…" }).hasAttribute("disabled"), true));
-  assert.equal(episodes.reportFrictionProblem.mock.calls[0]?.[0].fingerprint, FRICTION_FINGERPRINT);
+  assert.equal(frictionWrites.reportFriction.mock.calls[0]?.[0].fingerprint, FRICTION_FINGERPRINT);
+  assert.equal(frictionWrites.reportFriction.mock.calls[0]?.[0].since, "2026-10-22T06:00:00Z", "the finding is looked up in the window the page listed it in");
   const reported = makeUsageFriction();
-  reported.problems[0]!.status = "reported";
-  reported.problems[0]!.bugId = "knw-42";
+  reported.toolFindings[0]!.status = "reported";
+  reported.toolFindings[0]!.bugId = "knw-42";
   measures.usageFriction.mockResolvedValue(reported);
   answer({ fingerprint: FRICTION_FINGERPRINT, status: "reported", bugId: "knw-42" });
   await user.click(await screen.findByRole("button", { name: "Reported" }));
@@ -285,9 +308,9 @@ test("Report bug confirms inline, calls the API once, and shows the bug id when 
 
 test("Dismiss confirms inline and a failed call says so on the row", async () => {
   const user = userEvent.setup();
-  episodes.dismissFrictionProblem.mockRejectedValue(new Error("api down"));
+  frictionWrites.dismissFriction.mockRejectedValue(new Error("api down"));
   renderUsage("/usage?tab=friction");
-  const [row] = await screen.findAllByTestId("usage-friction-row");
+  const [row] = await screen.findAllByTestId("usage-tool-finding");
   const first = within(row as HTMLElement);
   await user.click(first.getByRole("button", { name: "Dismiss" }));
   await user.click(first.getByRole("button", { name: "Confirm" }));
@@ -310,6 +333,18 @@ test("Details defaults to Agent Manager runs over 7 days and reads every tile fr
   const request = measures.runSuccessRate.mock.calls[0]?.[0];
   assert.equal(request.filter.scope, 1, "RUN_SCOPE_AGENT_MANAGER");
   assert.equal(Number(request.window.window.value.to.seconds) - Number(request.window.window.value.from.seconds), 7 * 86400);
+});
+
+test("the quota tile lists each provider pool's primary window as the API marks it, a provider's second pool included", async () => {
+  const forecast = makeUsageForecast({ dormant: true });
+  // Codex's second pool reports its own weekly window: the API marks it primary for that pool.
+  forecast.windows.push(create(UsageWindowForecastSchema, { ...CODEX_SCOPE, pool: "secondary", windowMinutes: 10080n, status: "on_track", hasPercent: true, usedPercent: 12, windowStart: new Date(USAGE_NOW - 24 * 3600_000).toISOString(), resetsAt: new Date(USAGE_NOW + 6 * 24 * 3600_000).toISOString(), observedAt: new Date(USAGE_NOW - 60_000).toISOString(), sampleCount: 9n, primary: true }));
+  measures.usageForecast.mockResolvedValue(forecast);
+  renderUsage("/usage?tab=details");
+  const tiles = await screen.findByTestId("usage-details-tiles");
+  await waitFor(() => assert.match(visibleText(tiles), /Codex · weekly · secondary 12 pts/));
+  assert.match(visibleText(tiles), /Codex · weekly · primary 33 pts/);
+  assert.doesNotMatch(visibleText(tiles), /5-hour 0 pts/, "a dormant, non-primary window is not a current reading");
 });
 
 test("Details scope and range live in the URL; the profile table says 'No profile (interactive)', never 'unknown'", async () => {
@@ -335,26 +370,43 @@ test("each Details section fails and retries on its own", async () => {
   assert.ok(await screen.findByText("gpt-6.1-terra"));
 });
 
-test("friction plans cut across sessions, so the band adds only session plans and the card says it is not added", async () => {
-  const recommendations = makeUsageRecommendations();
-  recommendations.groups.push(create(UsageRecommendationGroupSchema, { rank: 3, targetKind: "friction", crossCut: true, targetId: "ff".repeat(16), targetLabel: "An agent reads a file again", ...CODEX_SCOPE, combinedSavedPoints: 50, levers: [{ rule: "R-friction", lever: "friction", savedPoints: 50, marginalPoints: 50, confidence: "medium", action: "Fix the recurring problem" }] }));
-  measures.usageRecommendations.mockResolvedValue(recommendations);
-  renderUsage();
-  const cards = await screen.findAllByTestId("usage-recommendation");
-  assert.equal(cards.length, 3);
-  assert.match(cards[2]?.textContent ?? "", /also in the sessions above, not added to them/);
-  assert.match(visibleText(await screen.findByTestId("usage-focus")), /The session action below saves≈ 9.0 pts/, "the 50 pts of friction are not in the sum");
+test("with no category through the gate, the interventions section gives coverage and why, never no friction", async () => {
+  renderUsage("/usage?tab=friction");
+  assert.match((await screen.findByTestId("usage-interventions-coverage")).textContent ?? "", /120 operator messages, 90% classified, over 40\.0 agent-hours/);
+  assert.match(screen.getByTestId("usage-interventions-empty").textContent ?? "", /None shown: no category has passed the accuracy gate yet.*not "no friction"/);
+  assert.match(visibleText(screen.getByTestId("usage-friction")), /Operator interventionsnot shown/);
+  assert.equal(screen.queryAllByTestId("usage-intervention-category").length, 0);
 });
 
-test("friction rows label their columns inline for phones, show command owners as code, and price a problem by its redundant calls", async () => {
+test("an admitted category shows its count, owner, rate, preceding work and an example linking to its run", async () => {
+  const friction = makeUsageFriction();
+  friction.interventions = makeAdmittedInterventions();
+  measures.usageFriction.mockResolvedValue(friction);
   renderUsage("/usage?tab=friction");
-  const rows = await screen.findAllByTestId("usage-friction-row");
-  assert.equal(within(rows[0] as HTMLElement).getByText("agent-manager").tagName, "CODE", "a command owner reads as code");
-  assert.ok(within(rows[1] as HTMLElement).getByText("Agent behaviour"));
-  assert.match(rows[0]?.textContent ?? "", /Owner.*Seen.*Cost/);
-  const cost = within(rows[2] as HTMLElement).getByText(/redundant call time · 4\.5 M tok/);
-  assert.match(cost.getAttribute("title") ?? "", /120 redundant calls/);
-  assert.match(rows[0]?.textContent ?? "", /typically 10 s each time/, "a typical time of a second or more is shown once");
+  const row = await screen.findByTestId("usage-intervention-category");
+  assert.match(row.textContent ?? "", /Quality miss.*3 repeat reports.*scientific-debugging.*20 · 0\.50 per agent-hour.*80 requests · 55 tool calls · 1\.2 M tokens/);
+  const example = screen.getByTestId("usage-intervention-example");
+  assert.match(example.textContent ?? "", /Still broken on mobile.*repeats an earlier report/);
+  assert.equal(within(example).getByRole("link", { name: "open run" }).getAttribute("href"), "/runs/run-7");
+  assert.equal(screen.queryByTestId("usage-interventions-empty"), null);
+});
+
+test("the pooled bucket reads as category unproven and labels every hint and example unproven", async () => {
+  const friction = makeUsageFriction();
+  friction.interventions = makePooledInterventions();
+  measures.usageFriction.mockResolvedValue(friction);
+  renderUsage("/usage?tab=friction");
+  const row = await screen.findByTestId("usage-intervention-category");
+  assert.match(visibleText(screen.getByTestId("usage-friction")), /Operator interventions18/, "the shown count is the API's");
+  assert.match(row.textContent ?? "", /Operator friction \(category unproven\).*11 look like Quality miss \(unproven\): scientific-debugging.*4 look like Early stop \(unproven\): harness-goal-authoring.*18 · 0\.45 per agent-hour/);
+  assert.match(screen.getByTestId("usage-intervention-example").textContent ?? "", /Quality miss \(unproven\): “It is not fixed”/);
+});
+
+test("friction rows label their columns inline for phones and show owners as code", async () => {
+  renderUsage("/usage?tab=friction");
+  const tools = await screen.findAllByTestId("usage-tool-finding");
+  assert.equal(within(tools[0] as HTMLElement).getByText("vrooli").tagName, "CODE", "an owner reads as code");
+  assert.match(tools[0]?.textContent ?? "", /Owner.*Seen.*Cost/);
 });
 
 test("the page owns its scroll container, since the app shell's main area does not scroll", async () => {

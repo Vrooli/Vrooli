@@ -4,6 +4,7 @@ package orchestration
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -32,11 +33,11 @@ import (
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
 	"agent-manager/internal/runreport"
-	"agent-manager/internal/runsignal"
 	"agent-manager/internal/runstate"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/structuredresult"
 	"agent-manager/internal/supervision"
+	"agent-manager/internal/toolfriction"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/google/uuid"
@@ -90,14 +91,15 @@ type Orchestrator struct {
 	investigationSettings repository.InvestigationSettingsRepository // For investigation config
 
 	// Adapters (external integrations)
-	runners           runner.Registry
-	sandbox           sandbox.Provider
-	workspaceSandbox  phases.WorkspaceSandboxEnsurer
-	events            event.Store
-	quotaObservations pricing.QuotaObservationRepository
-	artifacts         artifact.Collector
-	runStateRoot      string
-	runStateResolver  runstate.RootResolver
+	runners                   runner.Registry
+	sandbox                   sandbox.Provider
+	workspaceSandbox          phases.WorkspaceSandboxEnsurer
+	events                    event.Store
+	quotaObservations         pricing.QuotaObservationRepository
+	quotaObservationsDisabled bool
+	artifacts                 artifact.Collector
+	runStateRoot              string
+	runStateResolver          runstate.RootResolver
 
 	// Policy evaluation
 	policy policy.Evaluator
@@ -165,6 +167,7 @@ type Orchestrator struct {
 	receiptEvidence     runreport.ReceiptJoinStore
 	investigationLedger runreport.LedgerStore
 	invocationReadModel invocationreadmodel.Store
+	portOwners          toolfriction.PortOwners
 	durabilityEvidence  DurabilityEvidenceReader
 	durabilityBoundary  durability.BoundaryStore
 	learningRecorder    investigationlearning.Recorder
@@ -340,7 +343,7 @@ func WithDurabilityBoundary(store durability.BoundaryStore) Option {
 	}
 }
 
-// Durability projects a run's durable friction and optional swarm evidence.
+// Durability projects a run's optional swarm evidence.
 // It deliberately never reads Run.Result, Run.Status, or any other
 // self-authored completion field.
 func (o *Orchestrator) Durability(ctx context.Context, id uuid.UUID) (durability.Verdict, error) {
@@ -361,14 +364,6 @@ func (o *Orchestrator) Durability(ctx context.Context, id uuid.UUID) (durability
 		lane = durability.LaneObserved
 	}
 	evidence := make([]durability.Evidence, 0)
-	episodes, err := o.Episodes(ctx, id)
-	if err != nil {
-		return durability.Verdict{}, err
-	}
-	episodes, _ = runsignal.ShownEpisodes(episodes)
-	for _, episode := range episodes {
-		evidence = append(evidence, durability.Evidence{Kind: "friction", Reference: "agent-manager://runs/" + id.String() + "/episodes/" + episode.EpisodeID, At: started, Lane: lane})
-	}
 	if o.durabilityEvidence == nil {
 		// An unconfigured source was never consulted. Staying silent here would
 		// let a run with no local friction report durable while the entire
@@ -526,7 +521,25 @@ func WithEvents(e event.Store) Option {
 // provider quota frames. Observation failures remain diagnostic and never
 // change a run's owner outcome.
 func WithQuotaObservationStore(store pricing.QuotaObservationRepository) Option {
-	return func(o *Orchestrator) { o.quotaObservations = store }
+	return func(o *Orchestrator) {
+		if store != nil {
+			value := reflect.ValueOf(store)
+			switch value.Kind() {
+			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+				if value.IsNil() {
+					store = nil
+				}
+			}
+		}
+		o.quotaObservations = store
+		o.quotaObservationsDisabled = false
+	}
+}
+
+// WithoutQuotaObservations explicitly disables quota capture. An absent owner
+// without this option is unavailable, not evidence that capture was disabled.
+func WithoutQuotaObservations() Option {
+	return func(o *Orchestrator) { o.quotaObservations = nil; o.quotaObservationsDisabled = true }
 }
 
 func WithReceiptSummaryReader(reader ReceiptSummaryReader) Option {
@@ -564,6 +577,12 @@ func WithInvestigationLedgerStore(store runreport.LedgerStore) Option {
 // It is deliberately distinct from the legacy report cache.
 func WithInvocationReadModel(store invocationreadmodel.Store) Option {
 	return func(o *Orchestrator) { o.invocationReadModel = store }
+}
+
+// WithPortOwners names the scenario serving a local port, so an HTTP call to
+// it projects as a bypass of that scenario's CLI.
+func WithPortOwners(ports toolfriction.PortOwners) Option {
+	return func(o *Orchestrator) { o.portOwners = ports }
 }
 
 // WithArtifacts sets the artifact collector.

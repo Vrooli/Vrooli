@@ -56,6 +56,15 @@ type claudeTranscriptParser struct {
 	promptAnswered bool
 }
 
+// claudeTranscriptVersion names the events this codec derives from a
+// transcript. Bump it when the same lines start producing different events;
+// the Transcript Indexer then re-imports the files an older version read.
+//   - 1: a system compact_boundary line yields a compaction event.
+const claudeTranscriptVersion = 1
+
+// TranscriptVersion satisfies [runner.TranscriptVersioner].
+func (p *claudeTranscriptParser) TranscriptVersion() int { return claudeTranscriptVersion }
+
 func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line string) runner.TranscriptParseResult {
 	events, err := parseClaudeStreamEvents(p.state, runID, line)
 	result := runner.TranscriptParseResult{
@@ -67,7 +76,8 @@ func (p *claudeTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line strin
 	// indexer back-fill or a recovery replay reads it later.
 	if !result.Timestamp.IsZero() {
 		for _, event := range events {
-			if _, ok := event.Data.(*domain.UsageEventData); ok {
+			switch event.Data.(type) {
+			case *domain.UsageEventData, *domain.CompactionEventData:
 				event.Timestamp = result.Timestamp
 			}
 		}

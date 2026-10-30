@@ -11,10 +11,15 @@ import { formatCount } from "../../lib/format";
 import { coverageRootLabel, formatAt, formatShare } from "./format";
 
 /** SPEC A1 asks for at least 95% of transcript turns captured. */
-function coverageTone(share: number): StatusTone {
+function coverageTone(share: number, bytes: bigint): StatusTone {
+  if (bytes === 0n) return "warning";
   if (share >= 0.95) return "success";
   if (share >= 0.8) return "warning";
   return "danger";
+}
+
+function coverageShare(root: UsageCoverageRoot): string {
+  return root.bytes === 0n ? "n/a" : formatShare(root.capturedShare);
 }
 
 /** Header chip: captured share of the trailing 7 days; hidden until coverage is measured. */
@@ -23,8 +28,8 @@ export function CoverageChip() {
   const totals = coverage.data?.totals;
   if (!totals || totals.files === 0n) return null;
   return (
-    <Link to="/usage?tab=coverage" className="inline-flex min-h-11 items-center sm:min-h-8" aria-label={`Coverage ${formatShare(totals.capturedShare)} of the last 7 days; open coverage`} data-testid="usage-coverage-chip">
-      <StatusBadge tone={coverageTone(totals.capturedShare)}>Coverage {formatShare(totals.capturedShare)} · 7 days</StatusBadge>
+    <Link to="/usage?tab=coverage" className="inline-flex min-h-11 items-center sm:min-h-8" aria-label={`Coverage ${coverageShare(totals)} of the last 7 days; open coverage`} data-testid="usage-coverage-chip">
+      <StatusBadge tone={coverageTone(totals.capturedShare, totals.bytes)}>Coverage {coverageShare(totals)} · 7 days</StatusBadge>
     </Link>
   );
 }
@@ -34,7 +39,7 @@ function RootTile({ root }: { root: UsageCoverageRoot }) {
   return (
     <div className="rounded-md border border-border p-3" data-testid="usage-coverage-root">
       <div className="text-xs text-muted-foreground">{coverageRootLabel(root.kind)}</div>
-      <div className="text-lg font-bold tabular-nums">{formatShare(root.capturedShare)}</div>
+      <div className="text-lg font-bold tabular-nums">{coverageShare(root)}</div>
       <div className="text-xs text-muted-foreground">{formatCount(captured)} of {formatCount(root.files)} files{root.pending > 0n ? ` · ${root.pending} pending` : ""}</div>
     </div>
   );
@@ -44,7 +49,7 @@ function issueSummary(unreadable: bigint): string {
   return `${unreadable} ${unreadable === 1n ? "file" : "files"} could not be read`;
 }
 
-/** Capture coverage against the on-disk truth: per-root shares, every named issue, and how it was measured. */
+/** Show checkpoint coverage, bounded issues and how it was measured. */
 export function UsageCoverage() {
   const coverage = useUsageCoverage();
   const roots = coverage.data?.roots ?? [];
@@ -64,7 +69,7 @@ export function UsageCoverage() {
       >
         {totals ? (
           <p className="text-sm">
-            Captured <strong>{formatShare(totals.capturedShare)}</strong> of transcript bytes{coverage.data?.since ? ` since ${formatAt(coverage.data.since)}` : ""} · {formatCount(totals.turns)} requests · {formatCount(totals.usageReports)} usage reports
+            Captured <strong>{coverageShare(totals)}</strong> of transcript bytes{coverage.data?.since ? ` since ${formatAt(coverage.data.since)}` : ""} · {formatCount(totals.turns)} requests · {formatCount(totals.usageReports)} usage reports
           </p>
         ) : null}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

@@ -684,8 +684,11 @@ type CompactionEventData struct {
 	Focus             string `json:"focus,omitempty"` // Optional focus instruction
 	MessagesCompacted int64  `json:"messagesCompacted"`
 	TokensBefore      int64  `json:"tokensBefore"`
-	TokensAfter       int64  `json:"tokensAfter"`
-	OriginalCommand   string `json:"originalCommand,omitempty"`
+	// TokensAfter is 0 (unknown) for transcript-derived compactions: neither
+	// Claude nor Codex states the size after one; the next request's usage
+	// event carries it.
+	TokensAfter     int64  `json:"tokensAfter"`
+	OriginalCommand string `json:"originalCommand,omitempty"`
 }
 
 func (d *CompactionEventData) EventType() RunEventType { return EventTypeCompaction }

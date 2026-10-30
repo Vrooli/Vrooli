@@ -16,13 +16,11 @@ import (
 )
 
 type recordingInvocationReadModel struct {
-	mu             sync.Mutex
-	facts          []invocationreadmodel.Fact
-	watermark      *invocationreadmodel.Watermark
-	err            error
-	findingMetrics invocationreadmodel.FindingMetrics
-	findingErr     error
-	calls          chan struct{}
+	mu        sync.Mutex
+	facts     []invocationreadmodel.Fact
+	watermark *invocationreadmodel.Watermark
+	err       error
+	calls     chan struct{}
 }
 
 func (s *recordingInvocationReadModel) Replace(_ context.Context, facts []invocationreadmodel.Fact, watermark invocationreadmodel.Watermark) error {
@@ -50,10 +48,6 @@ func (s *recordingInvocationReadModel) Watermark(_ context.Context, _ string) (*
 
 func (s *recordingInvocationReadModel) Cohort(context.Context, invocationreadmodel.Filter, int) (invocationreadmodel.Cohort, error) {
 	return invocationreadmodel.Cohort{}, nil
-}
-
-func (s *recordingInvocationReadModel) Metrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error) {
-	return invocationreadmodel.Metrics{}, nil
 }
 
 func (s *recordingInvocationReadModel) RunMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
@@ -86,14 +80,6 @@ func (s *recordingInvocationReadModel) RunTimeSeries(context.Context, invocation
 
 func (s *recordingInvocationReadModel) ToolUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ToolUsageRow, error) {
 	return nil, nil
-}
-
-func (s *recordingInvocationReadModel) ErrorPatterns(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ErrorPattern, error) {
-	return nil, nil
-}
-
-func (s *recordingInvocationReadModel) FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error) {
-	return s.findingMetrics, s.findingErr
 }
 
 // A terminal writer leaves a durable mark; the reconcile sweep projects it
@@ -132,23 +118,22 @@ func TestTerminalProjectionIsDurableMarkProjectedBySweep(t *testing.T) {
 		t.Fatalf("a current watermark was re-enqueued: %+v %v", due, err)
 	}
 
-	// An episode classifier change (F-W5-4) re-projects ended history like a
-	// fact classifier change does.
+	// A fact classifier change re-projects ended history.
 	ended := time.Date(2026, 7, 29, 18, 29, 30, 0, time.UTC)
 	run.EndedAt, run.Status = &ended, domain.RunStatusComplete
 	if err := repos.Runs.Update(ctx, run); err != nil {
 		t.Fatal(err)
 	}
-	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, runsignal.EpisodeClassifierVersion, time.Now(), 10); err != nil || added != 0 {
+	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, time.Now(), 10); err != nil || added != 0 {
 		t.Fatalf("a current watermark was enqueued: %d %v", added, err)
 	}
 	stale := *watermark
-	stale.EpisodeClassifierVersion = "friction-episode.v9"
+	stale.ClassifierVersion = "invocation-fact.v9"
 	if err := repos.InvocationReadModel.Replace(ctx, nil, stale); err != nil {
 		t.Fatal(err)
 	}
-	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, runsignal.EpisodeClassifierVersion, time.Now(), 10); err != nil || added != 1 {
-		t.Fatalf("stale episode classifier enqueued %d runs (%v), want 1", added, err)
+	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, time.Now(), 10); err != nil || added != 1 {
+		t.Fatalf("stale fact classifier enqueued %d runs (%v), want 1", added, err)
 	}
 }
 
@@ -300,5 +285,91 @@ func TestReplayInvocationFacts_ProjectsRunsLongerThanOneEventPage(t *testing.T) 
 	}
 	if !seen["call-first"] || !seen["call-last"] {
 		t.Fatalf("projected tool calls=%v, want both the leading and trailing call", seen)
+	}
+}
+
+// A run whose tool events were evicted keeps only usage events (retained or
+// synthesized from the transcript summary). Projecting those would replace its
+// stored facts with none, so replay and the sweep keep the facts, and the
+// watermark advances so the stale sweep does not queue the run every pass.
+func TestEvictedRunKeepsItsStoredFactsOnReplayAndSweep(t *testing.T) {
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	defer cleanup()
+	ctx := context.Background()
+	now := time.Date(2026, 7, 29, 18, 30, 0, 0, time.UTC)
+	o := New(nil, nil, repos.Runs, WithEvents(events), WithInvocationReadModel(repos.InvocationReadModel), WithClock(func() time.Time { return now }))
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	stored := invocationreadmodel.Fact{InvocationFact: runsignal.InvocationFact{Version: "invocation-fact.v26", CallEventID: "call-1", ToolName: "shell", Ownership: "external", Outcome: "success", PairingBasis: "ordinal", Fingerprint: "fp", Availability: "available"}, RunID: run.ID.String(), OccurredAt: now, TimeBasis: "call_event", ProfileID: "unknown", RunnerType: "codex", Model: "m", Tag: "t", RunStatus: "complete"}
+	if err := repos.InvocationReadModel.Replace(ctx, []invocationreadmodel.Fact{stored}, invocationreadmodel.Watermark{RunID: run.ID.String(), LastEventID: "e", LastEventAt: now, ClassifierVersion: "invocation-fact.v26", ProjectedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	ended := now.Add(-time.Minute)
+	run.EndedAt, run.Status = &ended, domain.RunStatusComplete
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	queue := repos.InvocationReadModel.(invocationreadmodel.ProjectionQueue)
+	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, now, 10); err != nil || added != 1 {
+		t.Fatalf("a run with an older watermark enqueued %d (%v), want 1", added, err)
+	}
+	if err := queue.CompleteProjection(ctx, run.ID.String(), 1); err != nil {
+		t.Fatal(err)
+	}
+	usage := &domain.RunEvent{ID: uuid.New(), RunID: run.ID, EventType: domain.EventTypeMetric, Timestamp: now, Data: &domain.UsageEventData{InputTokens: 10, OutputTokens: 2}}
+	if err := events.Append(ctx, run.ID, usage); err != nil {
+		t.Fatal(err)
+	}
+	result, err := o.ReplayInvocationFacts(ctx, run.ID)
+	if err != nil || result.Status != "unreplayable" || result.FactCount != 1 {
+		t.Fatalf("replay = %+v, %v", result, err)
+	}
+	if err := o.projectInvocationReadModel(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	facts, err := repos.InvocationReadModel.Facts(ctx, run.ID.String())
+	if err != nil || len(facts) != 1 || facts[0].Version != "invocation-fact.v26" {
+		t.Fatalf("facts = %+v, %v; want the stored fact unchanged", facts, err)
+	}
+	// Kept is settled: the sweep must not queue the run again (the loop this
+	// guard used to cause: facts kept, watermark left at the old version).
+	if added, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, now, 10); err != nil || added != 0 {
+		t.Fatalf("a kept run was enqueued again: %d %v", added, err)
+	}
+	watermark, err := repos.InvocationReadModel.Watermark(ctx, run.ID.String())
+	if err != nil || watermark == nil || watermark.ClassifierVersion != runsignal.InvocationFactVersion || watermark.LastEventID != "e" {
+		t.Fatalf("watermark = %+v, %v; want current versions and the original last event", watermark, err)
+	}
+}
+
+// Due marks are served live run first, then newest ended run, whatever order
+// they were enqueued in: an old backlog must not hold the current week.
+func TestDueProjectionsServeLiveThenNewestRunsBeforeAnOlderBacklog(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	defer cleanup()
+	ctx := context.Background()
+	queue := repos.InvocationReadModel.(invocationreadmodel.ProjectionQueue)
+	base := time.Now().UTC().Add(-48 * time.Hour)
+	var runs []*domain.Run
+	for i, ended := range []*time.Time{ptrTime(base), ptrTime(base.Add(24 * time.Hour)), nil} {
+		run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+		run.EndedAt = ended
+		if err := repos.Runs.Update(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		// The oldest run was enqueued first, as a leftover backlog is.
+		if err := queue.MarkProjectionPending(ctx, run.ID.String(), base.Add(time.Duration(i)*time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+		runs = append(runs, run)
+	}
+	due, err := queue.DueProjections(ctx, time.Now(), 10)
+	if err != nil || len(due) != 3 {
+		t.Fatalf("due = %+v, %v", due, err)
+	}
+	want := []string{runs[2].ID.String(), runs[1].ID.String(), runs[0].ID.String()}
+	for i := range want {
+		if due[i].RunID != want[i] {
+			t.Fatalf("due order = %v, want live then newest ended: %v", due, want)
+		}
 	}
 }

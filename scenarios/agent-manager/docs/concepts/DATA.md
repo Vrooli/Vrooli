@@ -68,7 +68,7 @@ measurement. Runs without per-turn usage report zero preamble tokens with an
 unknown basis.
 
 Token attribution is exposed in three deliberately distinct views; see the
-[token attribution reference](../reference/token-attribution.md). `footprint`
+[token attribution reference](../reference/operational-stats.md#token-attribution). `footprint`
 answers how large a tool result was, `residency` estimates how much context it
 occupied across turns, and `incurred` attributes measured turn usage with an
 explicit residual. Invocation facts retain the independent token factors and
@@ -114,6 +114,63 @@ events from the source file. The full events and search documents of indexed
 runs are a recall layer bounded by `ImportedCorpusMaxBytes`, measured on
 those rows alone.
 
+For an imported run, `running` and `complete` reflect the indexer's activity
+window, not an authoritative native goal state. An active import has no
+`ended_at`; an idle import can use the latest timestamp actually observed in
+its transcript, which is not proof of native completion. That observation is
+stored with the file checkpoint across restarts. Missing, unreadable, changed
+or incompletely indexed sources do not establish an idle transition in the
+idle sweep; inspect the native owner and capture coverage when their state
+matters. The imported-run status and transcript checkpoint commit in one
+owner transaction, preceded by a durable capture intent. An interrupted or
+uncertain capture requires reconciliation; no automatic repair command is
+currently provided. Event writes and downstream projections remain separate
+effects. Recovery cannot establish source identity from file metadata and a
+short head hash alone. Run-owned usage capture uses the same conditional intent
+fence. Recall eviction excludes unresolved checkpoints and atomically checks
+the checkpoint and event stream before removing recall; per-run sequence
+watermarks and the global retention generation preserve cursor semantics.
+Detected transcript replacement or parser-version
+reimport stages a bounded snapshot and promotes the new checkpoint, usage,
+events, run state and configured SQLite quota observations together, fenced
+against concurrent changes to the old evidence. Existing quota observations
+are immutable provider history and remain even if their source is replaced;
+unrelated same-scope observations are never deleted. Failure before promotion
+retains prior evidence. A missing required quota owner fails replacement closed;
+only an explicitly disabled quota sink skips observation capture. Size,
+timestamps and a matching second source read
+detect some changes but do not prove an atomic snapshot against a concurrent
+writer. Post-commit search and projection notifications have a durable pending
+marker and are retried. Do not treat these records as proof of complete capture.
+
+For a source-replacement guard, inspect `GET /api/v1/runs/{run-id}/transcript-reconcile`
+to obtain its exact file key and reason. After inspecting the retained evidence
+and source, an authorized human operator may explicitly retry that one target with
+`POST /api/v1/runs/{run-id}/transcript-reconcile` and JSON `{"fileKey":"..."}`.
+This operation does not clear uncertain event-recording outcomes. A failed or
+ambiguous response requires checking the owner before another attempt.
+Legacy snapshot imports can be staged and relinked only when their exact run
+provenance and private path still match, its old event stream is empty, and no
+other transcript or usage rows are associated with the run. The owner transaction replaces the event stream,
+run pointer and source checkpoint together and records a cleanup obligation.
+The private transcript is retained: `GET` reports the pending cleanup, including
+after restart, but no identity-safe cleanup operation is currently provided.
+The POST retry applies only to a guarded source, not this cleanup obligation.
+The obligation survives run deletion; discovery currently requires the run ID.
+Existing files and usage requiring cross-source reconciliation remain guarded.
+
+An explicit recall rebuild stages at most 32 MiB of checkpointed source and
+32 MiB of parsed event data in memory, then publishes only if the retained event
+stream remains empty and the original checkpoint still matches in the owner
+transaction that commits both events and the new checkpoint. Read, parse, and
+pre-commit failures do not publish staged events. A failed post-commit search
+or projection notification leaves a durable retry marker. Size and
+modification-time checks and a comparison of
+the first up to 4 KiB with the checkpoint fingerprint detect some changes, but
+do not prove that the snapshot matches historical source bytes. A missing or
+invalid checkpoint fingerprint requires reconciliation.
+Replacing a nonempty retained stream is not supported by this rebuild path.
+
 Conversation-search state has a different retention class. Canonical messages
 remain in `run_events` under the policy above. `conversation_search_catalog`,
 its external-content FTS table, generation/checkpoint rows, and the variant-scoped Qdrant
@@ -137,16 +194,14 @@ truncated list as complete.
 The typed Measures service (`agent_manager.v1.measures.MeasuresService`, Connect)
 is the canonical analytics contract. The current consumers are:
 
-- `ui/src/features/stats/` reads the Measures procedures through
+- `ui/src/features/usage/` reads the Measures procedures through
   `measuresClient` for every analytics panel. It does not read the REST
   `/api/v1/stats/summary` or drill-down routes. It reads
   `/api/v1/pricing/compare` for model cost comparison.
-- `agent-manager run stats` composes its summary from the Measures
-  procedures `RunStatusDistribution`, `RunSuccessRate`,
-  `RunDurationStatistics`, `RunCost`, `RunnerBreakdown`, `ProfileBreakdown`,
-  `ModelBreakdown` and `ToolUsage` over one explicit `[from,to)` window.
-  `run efficiency` still reads `/api/v1/stats/efficiency` (D-11 folds it).
-- `agent-manager measures fallback-insights` reads the retained fallback and
+- `agent-manager measures get <id>` executes any measure the API declares
+  through the measure registry (`measures list` prints them); there is no
+  per-measure CLI verb and no `run stats`.
+- `agent-manager measures get fallback-insights` reads the retained fallback and
   policy-candidate events through `FallbackInsights`; it is not part of the
   durable read model.
 - The pricing model picker ranks recent and popular models from

@@ -51,7 +51,7 @@ func (a *App) runList(args []string) error {
 	profileID := fs.String("profile-id", "", "Filter by profile ID")
 	status := fs.String("status", "", "Filter by status")
 	tagPrefix := fs.String("tag-prefix", "", "Filter by tag prefix")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	body, runs, err := a.services.Runs.List(*limit, *offset, *taskID, *profileID, *status, *tagPrefix)

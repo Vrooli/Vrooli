@@ -8,7 +8,7 @@ import { renderWithProviders } from "../../../test-utils/index.js";
 import { FallbackInsights } from "./FallbackInsights.js";
 
 const measures = vi.hoisted(() => ({ fallbackInsights: vi.fn() }));
-vi.mock("../../stats/api/measuresClient.js", () => ({ measuresClient: measures }));
+vi.mock("../../usage/measuresClient.js", () => ({ measuresClient: measures }));
 
 test("fallback insights summarise runner and model fallbacks with their pairs", async () => {
   measures.fallbackInsights.mockResolvedValue(create(FallbackInsightsResponseSchema, { runnerAttempts: 3n, runnerExhausted: 1n, modelAttempts: 2n, runnerPairs: [{ from: "codex", to: "claude-code", reason: "rate_limited", count: 3n }] }));

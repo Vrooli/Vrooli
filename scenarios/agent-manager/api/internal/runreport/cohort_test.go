@@ -33,12 +33,3 @@ func TestBuildCohortRanksBoundedSignals(t *testing.T) {
 		t.Fatalf("cohort time accounting=%+v", cohort.TimeAccounting)
 	}
 }
-
-// A selected run with no shown episodes is a clean run: the cohort stays
-// available and has no signal for it.
-func TestBuildEpisodeCohortTreatsARunWithoutEpisodesAsClean(t *testing.T) {
-	cohort := BuildEpisodeCohort(map[string][]runsignal.FrictionEpisode{"clean-run": {}})
-	if cohort.Availability.State != AvailabilityAvailable || len(cohort.Signals) != 0 {
-		t.Fatalf("cohort = %#v, want available with no signals", cohort)
-	}
-}

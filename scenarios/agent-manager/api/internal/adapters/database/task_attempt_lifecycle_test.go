@@ -601,6 +601,9 @@ func TestConcurrentTaskAttemptAdmissionsHaveOneExactWinner(t *testing.T) {
 	if winners != 1 {
 		t.Fatalf("concurrent admission winners=%d, outcomes=(%v, %v)", winners, first.err, second.err)
 	}
+	if task.CurrentRunID != nil || task.Status != domain.TaskStatusQueued {
+		t.Fatalf("admission mutated caller's task: %+v", task)
+	}
 	got, err := repos.Tasks.Get(ctx, task.ID)
 	if err != nil || got.CurrentRunID == nil || *got.CurrentRunID != winner || got.Status != domain.TaskStatusRunning {
 		t.Fatalf("Task projection does not name the unique winner: task=%+v err=%v", got, err)

@@ -11,7 +11,7 @@ import { BURNER_RUN_ID, makeUsageBurners, makeUsageForecast, makeUsageRecommenda
 const NO_COST = { hasCost: false, costLoading: false };
 
 const measures = vi.hoisted(() => ({ usageForecast: vi.fn(), usageBurners: vi.fn(), usageRecommendations: vi.fn() }));
-vi.mock("../stats/api/measuresClient.js", () => ({ measuresClient: measures }));
+vi.mock("./measuresClient.js", () => ({ measuresClient: measures }));
 
 afterEach(() => Object.values(measures).forEach((fn) => fn.mockReset()));
 
@@ -29,7 +29,7 @@ test("the dashboard strip shows one line per window: at-risk with run-out and fi
   assert.match(firstLine.textContent ?? "", /Will run out.*Codex · weekly.*33%/);
   const bar = firstLine.querySelector("[data-rcl-progress]") as HTMLElement;
   assert.match(bar.style.minWidth, /^0(px)?$/);
-  await waitFor(() => assert.match(codex.textContent ?? "", /2 recommendations →/));
+  await waitFor(() => assert.match(codex.textContent ?? "", /2 recommendations →/), "two quota levers name the Codex provider");
   assert.match(claude.textContent ?? "", /No reading.*Readings appear after the next reply/);
 });
 
@@ -74,7 +74,7 @@ test("the run usage panel reads the run's own row and the recommendations that n
 
 test("a run with neither quota nor cost data shows one empty message, only after both have loaded", async () => {
   measures.usageBurners.mockResolvedValue(makeUsageBurners("run"));
-  measures.usageRecommendations.mockResolvedValue({ groups: [], rules: [] });
+  measures.usageRecommendations.mockResolvedValue({ actions: [], rules: [] });
   const { rerender } = renderWithProviders(createElement(RunUsagePanel, { runId: "other-run", hasCost: false, costLoading: true }));
   await waitFor(() => assert.ok(measures.usageBurners.mock.calls.length > 0));
   assert.ok(screen.getByTestId("data-state-skeleton"), "cost still loading: a skeleton, not an empty claim");
@@ -87,7 +87,7 @@ test("a run with neither quota nor cost data shows one empty message, only after
 
 test("cost events without attributed quota show the cost, never an empty message beside it", async () => {
   measures.usageBurners.mockResolvedValue(makeUsageBurners("run"));
-  measures.usageRecommendations.mockResolvedValue({ groups: [], rules: [] });
+  measures.usageRecommendations.mockResolvedValue({ actions: [], rules: [] });
   renderWithProviders(createElement(RunUsagePanel, { runId: "other-run", hasCost: true, costLoading: false }, createElement("div", { "data-testid": "run-cost" }, "$0.12")));
   assert.ok(await screen.findByTestId("run-cost"));
   await waitFor(() => assert.ok(measures.usageBurners.mock.calls.length > 0));

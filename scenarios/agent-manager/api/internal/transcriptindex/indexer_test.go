@@ -2,6 +2,7 @@ package transcriptindex_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -51,7 +52,9 @@ func newRig(t *testing.T, recall int64) *rig {
 	r := &rig{t: t, home: t.TempDir(), runRoot: t.TempDir(), repos: repos, events: events, now: time.Now(), recall: recall}
 	r.svc = orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(events), orchestration.WithRunners(registry),
 		orchestration.WithRunStateRoot(r.runRoot), orchestration.WithInvocationReadModel(repos.InvocationReadModel),
+		orchestration.WithoutQuotaObservations(),
 		orchestration.WithConfig(orchestration.OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 1}))
+	r.svc.SetConversationSearchNotifier(func(context.Context, string, string, string) error { return nil })
 	r.restart()
 	return r
 }
@@ -462,12 +465,18 @@ func (h *dropFailingHost) Parser(context.Context, transcriptindex.FileRow) (runn
 	return nil, errors.New("no parser")
 }
 
+func (h *dropFailingHost) ParserVersion(string) int { return 0 }
+
 func (h *dropFailingHost) Record(context.Context, string, []*domain.RunEvent, bool) error {
 	return nil
 }
 
 func (h *dropFailingHost) UpdateRun(context.Context, string, transcriptindex.RunUpdate) error {
 	return nil
+}
+
+func (h *dropFailingHost) CommitTranscript(ctx context.Context, store transcriptindex.Store, file transcriptindex.FileRow, usage []transcriptindex.UsageRow, expected *transcriptindex.FileRow, intent string, update transcriptindex.RunUpdate) error {
+	return store.SaveTranscriptFile(ctx, file, usage)
 }
 
 func (h *dropFailingHost) DropRecall(context.Context, string) error {
@@ -478,36 +487,57 @@ func (h *dropFailingHost) DropRecall(context.Context, string) error {
 	return nil
 }
 
-// deleteFailingStore fails to forget a transcript row while failDelete is set.
-type deleteFailingStore struct {
+// replacementFailingStore injects pre-commit owner failures without changing
+// the expected successful retry behavior.
+type replacementFailingStore struct {
 	transcriptindex.Store
-	failDelete bool
+	failures int
 }
 
-func (s *deleteFailingStore) DeleteTranscriptFile(ctx context.Context, key string) error {
-	if s.failDelete {
-		return errors.New("database is locked")
+func (s *replacementFailingStore) TranscriptReplacementToken(ctx context.Context, key string) (string, error) {
+	return s.Store.(interface {
+		TranscriptReplacementToken(context.Context, string) (string, error)
+	}).TranscriptReplacementToken(ctx, key)
+}
+
+func (s *replacementFailingStore) FinishReplacementEffects(ctx context.Context, file transcriptindex.FileRow) error {
+	return s.Store.(interface {
+		FinishReplacementEffects(context.Context, transcriptindex.FileRow) error
+	}).FinishReplacementEffects(ctx, file)
+}
+
+func (s *replacementFailingStore) MarkReplacementIntent(ctx context.Context, key, token string) (string, error) {
+	return s.Store.(interface {
+		MarkReplacementIntent(context.Context, string, string) (string, error)
+	}).MarkReplacementIntent(ctx, key, token)
+}
+
+func (s *replacementFailingStore) CommitTranscriptReplacement(ctx context.Context, oldKey, token string, file transcriptindex.FileRow, usage []transcriptindex.UsageRow, apply func(*domain.Run) error, replace func(*sql.Tx) error) error {
+	if s.failures > 0 {
+		s.failures--
+		return errors.New("simulated promotion failure")
 	}
-	return s.Store.DeleteTranscriptFile(ctx, key)
+	return s.Store.(interface {
+		CommitTranscriptReplacement(context.Context, string, string, transcriptindex.FileRow, []transcriptindex.UsageRow, func(*domain.Run) error, func(*sql.Tx) error) error
+	}).CommitTranscriptReplacement(ctx, oldKey, token, file, usage, apply, replace)
 }
 
-// A file replaced by a new inode re-reads from zero under the old run, so the
-// old events must be dropped first. A failed drop fails the pass and keeps the
-// old row; the next pass retries instead of appending a second copy.
+// A failed staged replacement retains prior evidence; retry installs the
+// new inode under the same run only after atomic promotion succeeds.
 func TestReplacedFileKeepsItsRowUntilItsEventsAreDropped(t *testing.T) {
 	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
-	host := &dropFailingHost{}
-	store := &deleteFailingStore{Store: r.repos.TranscriptIndex}
-	index := transcriptindex.New(store, host, transcriptindex.Config{
-		Roots: transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot}, RecallMaxBytes: r.recall,
-		Now: func() time.Time { return r.now },
-	})
 	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
 	write(t, path, sessionMeta(parentID), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
-	index.RunOnce(context.Background())
+	r.tick()
 	first := r.row(path)
 	if first.RunID == "" {
 		t.Fatalf("first row has no run: %+v", first)
+	}
+	store := &replacementFailingStore{Store: r.repos.TranscriptIndex, failures: 2}
+	index := orchestration.NewTranscriptIndex(r.svc, store, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot}, RecallMaxBytes: r.recall, Now: func() time.Time { return r.now }})
+	oldCount, err := r.events.Count(context.Background(), uuid.MustParse(first.RunID))
+	if err != nil || oldCount == 0 {
+		t.Fatalf("fixture events: %d %v", oldCount, err)
 	}
 
 	replacement := path + ".tmp"
@@ -515,26 +545,26 @@ func TestReplacedFileKeepsItsRowUntilItsEventsAreDropped(t *testing.T) {
 	if err := os.Rename(replacement, path); err != nil {
 		t.Fatal(err)
 	}
-	host.failDrop = true
-	if summary, _ := index.RunOnce(context.Background()); len(summary.Failures) == 0 {
-		t.Fatal("a failed event drop did not fail the pass")
+	for i := 0; i < 2; i++ {
+		if i == 0 {
+			if summary, _ := index.RunOnce(context.Background()); len(summary.Failures) == 0 {
+				t.Fatal("failed promotion did not fail the pass")
+			}
+		} else if err := index.ReconcileReplacement(context.Background(), first.RunID, first.Key); err == nil {
+			t.Fatal("failed explicit promotion did not report failure")
+		}
+		if kept := r.row(path); kept.Key != first.Key {
+			t.Fatalf("old row replaced after failure: %+v", kept)
+		}
+		if count, err := r.events.Count(context.Background(), uuid.MustParse(first.RunID)); err != nil || count != oldCount {
+			t.Fatalf("failed promotion lost events: %d %v", count, err)
+		}
 	}
-	if kept := r.row(path); kept.Key != first.Key {
-		t.Fatalf("old row replaced although its events were not dropped: %+v", kept)
+	if err := index.ReconcileReplacement(context.Background(), first.RunID, first.Key); err != nil {
+		t.Fatalf("retry failed: %v", err)
 	}
-
-	host.failDrop, store.failDelete = false, true
-	if summary, _ := index.RunOnce(context.Background()); len(summary.Failures) == 0 {
-		t.Fatal("a failed row delete did not fail the pass")
-	}
-	if kept := r.row(path); kept.Key != first.Key {
-		t.Fatalf("old row replaced although it could not be forgotten: %+v", kept)
-	}
-
-	store.failDelete = false
-	index.RunOnce(context.Background())
-	if replaced := r.row(path); replaced.Key == first.Key || replaced.RunID != first.RunID || host.drops == 0 {
-		t.Fatalf("retry did not replace the row under the same run after dropping: %+v drops=%d", replaced, host.drops)
+	if replaced := r.row(path); replaced.Key == first.Key || replaced.RunID != first.RunID {
+		t.Fatalf("retry did not replace the row under the same run: %+v", replaced)
 	}
 }
 
@@ -611,6 +641,10 @@ func TestIndexerEvictsRecallByItsOwnBudgetAndKeepsSummaries(t *testing.T) {
 	if count, _ := r.events.Count(context.Background(), id); count == 0 || row.RecallBytes == 0 {
 		t.Fatalf("active file has no recall: events=%d row=%+v", count, row)
 	}
+	original, err := r.events.Get(context.Background(), id, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	r.now = r.now.Add(time.Hour) // the file has been idle past the active window
 	summary := r.tick()
@@ -632,8 +666,116 @@ func TestIndexerEvictsRecallByItsOwnBudgetAndKeepsSummaries(t *testing.T) {
 	if count, _ := r.events.Count(context.Background(), id); count == 0 {
 		t.Fatal("replay did not rebuild recall from the source file")
 	}
+	rebuilt, err := r.events.Get(context.Background(), id, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(rebuilt) != len(original) {
+		t.Fatalf("rebuild events: %d vs %d, %v", len(rebuilt), len(original), err)
+	}
+	for i := range original {
+		if original[i].ID != rebuilt[i].ID {
+			t.Fatalf("snapshot changed logical event identity at %d", i)
+		}
+	}
 	if rows := r.usageRows(row.RunID); len(rows) != 1 {
 		t.Fatalf("rebuild duplicated usage rows: %d", len(rows))
+	}
+}
+
+func TestIndexerDoesNotCompleteAnUnresolvedOrMissingTranscript(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		prepare func(*testing.T, *rig, string, *transcriptindex.FileRow)
+	}{
+		{"unreadable", func(t *testing.T, r *rig, path string, row *transcriptindex.FileRow) {
+			row.Status = transcriptindex.StatusUnreadable
+			row.Error = "event recording outcome uncertain; cursor preserved: source changed"
+			if err := r.repos.TranscriptIndex.SaveTranscriptFile(context.Background(), *row, nil); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"missing", func(t *testing.T, _ *rig, path string, _ *transcriptindex.FileRow) {
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+			path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+			write(t, path, sessionMeta(parentID), turnContext(), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
+			r.tick()
+			row := r.row(path)
+			if !row.Active {
+				t.Fatal("fixture must begin active")
+			}
+			tc.prepare(t, r, path, &row)
+			r.now = r.now.Add(time.Hour)
+			summary, err := r.index.RunOnce(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if summary.Completed != 0 || r.run(row.RunID).Status == domain.RunStatusComplete {
+				t.Fatalf("unresolved transcript marked complete: summary=%+v run=%+v", summary, r.run(row.RunID))
+			}
+		})
+	}
+}
+
+func TestOldTranscriptRemainsNonterminalUntilFullyIndexed(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	first := sessionMeta(parentID)
+	write(t, path, first, turnContext(), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
+	r.now = r.now.Add(time.Hour)
+	r.index = orchestration.NewTranscriptIndex(r.svc, r.repos.TranscriptIndex, transcriptindex.Config{
+		Roots:          transcriptindex.RootConfig{Home: r.home, RunStateRoot: r.runRoot},
+		RecallMaxBytes: r.recall, TickBytes: int64(len(first) + 1), Now: func() time.Time { return r.now },
+	})
+	r.tick()
+	row := r.row(path)
+	if row.Status != transcriptindex.StatusPending || row.Offset >= row.Size {
+		t.Fatalf("fixture should be partially indexed: %+v", row)
+	}
+	if run := r.run(row.RunID); run.Status.IsTerminal() || run.EndedAt != nil {
+		t.Fatalf("partial transcript marked terminal: status=%s ended=%v", run.Status, run.EndedAt)
+	}
+	for i := 0; i < 5 && row.Status == transcriptindex.StatusPending; i++ {
+		r.tick()
+		row = r.row(path)
+	}
+	if row.Status != transcriptindex.StatusIndexed || row.Offset != row.Size {
+		t.Fatalf("transcript did not finish indexing: %+v", row)
+	}
+	if run := r.run(row.RunID); run.Status != domain.RunStatusComplete {
+		t.Fatalf("fully indexed idle transcript not completed: %s", run.Status)
+	}
+}
+
+func TestImportedRunEndTimeOnlyAppearsWhenIdleAndSurvivesRestart(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, path, sessionMeta(parentID), turnContext(), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
+	r.tick()
+	row := r.row(path)
+	active := r.run(row.RunID)
+	if active.Status != domain.RunStatusRunning || active.EndedAt != nil {
+		t.Fatalf("active imported run exposes terminal time: status=%s ended=%v", active.Status, active.EndedAt)
+	}
+	r.restart()
+	r.now = r.now.Add(time.Hour)
+	r.tick()
+	idle := r.run(row.RunID)
+	want := time.Date(2026, 10, 28, 10, 1, 0, 0, time.UTC)
+	if idle.Status != domain.RunStatusComplete || idle.EndedAt == nil || !idle.EndedAt.Equal(want) {
+		t.Fatalf("idle imported run lost observed end time across restart: status=%s ended=%v", idle.Status, idle.EndedAt)
+	}
+	appendLines(t, path, tokenCount(3000, 0, 300, 2000, 0, 200, 3))
+	if err := os.Chtimes(path, r.now, r.now); err != nil {
+		t.Fatal(err)
+	}
+	r.tick()
+	reactivated := r.run(row.RunID)
+	if reactivated.Status != domain.RunStatusRunning || reactivated.EndedAt != nil {
+		t.Fatalf("reactivated import retains terminal time: status=%s ended=%v", reactivated.Status, reactivated.EndedAt)
 	}
 }
 
@@ -775,5 +917,139 @@ func TestIndexerKeepsWorkAfterTheNewestReportAcrossARestart(t *testing.T) {
 	}
 	if facts := rows[0].Facts; facts.ImagesIn != 0 {
 		t.Fatalf("the image was attached to the earlier report: %+v", facts)
+	}
+}
+
+// commandFixture is a real web-console rollout excerpt: three exec calls whose
+// eleven commands Codex reports as item_completed CommandExecution records.
+func commandFixture(t *testing.T) []string {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "adapters", "runner", "codecs", "testdata", "codex_command_executions.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append([]string{sessionMeta(parentID), turnContext()}, strings.Split(strings.TrimSpace(string(raw)), "\n")...)
+}
+
+// commandOutcomes reads a run's stored command results and how many of them
+// have a derived fact with a known outcome once the projection sweep ran.
+func (r *rig) commandOutcomes(id uuid.UUID) (events, results, known int) {
+	r.t.Helper()
+	ctx := context.Background()
+	if err := r.svc.ProjectPendingInvocationReadModels(ctx); err != nil {
+		r.t.Fatal(err)
+	}
+	stored, err := r.events.Get(ctx, id, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	facts, err := r.repos.InvocationReadModel.Facts(ctx, id.String())
+	if err != nil {
+		r.t.Fatal(err)
+	}
+	knownByResult := map[string]bool{}
+	for _, fact := range facts {
+		knownByResult[fact.ResultEventID] = knownByResult[fact.ResultEventID] || fact.Outcome != runsignal.OutcomeUnknown
+	}
+	for _, stored := range stored {
+		data, ok := stored.Data.(*domain.ToolResultEventData)
+		if !ok || data.ToolName != runsignal.NestedCommandTool {
+			continue
+		}
+		results++
+		if knownByResult[stored.ID.String()] {
+			known++
+		}
+	}
+	return len(stored), results, known
+}
+
+// An imported Codex rollout stores one result per command an exec call ran,
+// and every one of them derives a fact with a known outcome (SPEC P4-A1).
+func TestImportedCodexCommandsReachStoredEventsAndFacts(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, path, commandFixture(t)...)
+	r.tick()
+	r.now = r.now.Add(time.Hour) // idle: the run completes and is projected
+	r.tick()
+	row := r.row(path)
+	if _, results, known := r.commandOutcomes(uuid.MustParse(row.RunID)); results != 11 || known != 11 {
+		t.Fatalf("stored command results=%d with known outcome=%d, want 11/11", results, known)
+	}
+	if row.ParserVersion == 0 {
+		t.Fatalf("row does not record the parser version that read it: %+v", row)
+	}
+}
+
+// A file whose events an older parser derived (here: the pre-P4-W1 codec,
+// which stored no command results) is re-imported into the same run by the
+// background tick: its events are replaced, never duplicated, its usage rows
+// stay single, its facts re-derive, and a second pass changes nothing.
+func TestStaleParserVersionReimportsIntoTheSameRunOnce(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	ctx := context.Background()
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, path, commandFixture(t)...)
+	r.tick()
+	r.now = r.now.Add(time.Hour)
+	r.tick()
+	row := r.row(path)
+	id := uuid.MustParse(row.RunID)
+	want, _, _ := r.commandOutcomes(id)
+	usage := len(r.usageRows(row.RunID))
+
+	// Rewind the run to what the old parser stored: no command results, and
+	// facts derived from that.
+	stored, err := r.events.Get(ctx, id, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old []*domain.RunEvent
+	for _, stored := range stored {
+		if data, ok := stored.Data.(*domain.ToolResultEventData); ok && data.ToolName == runsignal.NestedCommandTool {
+			continue
+		}
+		copied := *stored
+		copied.Sequence = 0
+		old = append(old, &copied)
+	}
+	if err := r.events.Delete(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.events.Append(ctx, id, old...); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.svc.ReplayInvocationFacts(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	row.ParserVersion = 0
+	if err := r.repos.TranscriptIndex.SaveTranscriptFile(ctx, row, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, results, _ := r.commandOutcomes(id); results != 0 {
+		t.Fatalf("rewound run still has %d command results", results)
+	}
+
+	summary := r.tick()
+	if summary.Reimported != 1 {
+		t.Fatalf("stale file not re-imported: %+v", summary)
+	}
+	after := r.row(path)
+	if after.RunID != row.RunID || after.ParserVersion == 0 || after.Offset != after.Size {
+		t.Fatalf("re-import row = %+v", after)
+	}
+	events, results, known := r.commandOutcomes(id)
+	if events != want || results != 11 || known != 11 {
+		t.Fatalf("after re-import events=%d (want %d) command results=%d known=%d", events, want, results, known)
+	}
+	if got := len(r.usageRows(row.RunID)); got != usage {
+		t.Fatalf("re-import duplicated usage rows: %d, want %d", got, usage)
+	}
+	if summary := r.tick(); summary.Reimported != 0 || summary.Read != 0 {
+		t.Fatalf("current file re-imported again: %+v", summary)
+	}
+	if again, _, _ := r.commandOutcomes(id); again != want {
+		t.Fatalf("second pass changed events: %d, want %d", again, want)
 	}
 }

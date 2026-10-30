@@ -141,3 +141,19 @@ No implementation until the operator answers.
 
 Disposition: P2-D1..P2-D13 approved as recommended; SPEC §10 written; WORKSTREAMS "Pass 2" allocated; DEBT P2 rows opened. F-7 closed by this approval.
 Closed 2026-10-29 18:25Z: P2-A1–P2-A10 met (WORKSTREAMS "Pass 2 acceptance"); operator-owned items remain (fixture deletion scripts, phone pairing, A11).
+
+## F-9 — 2026-10-30 — Pass 3 evaluation: recommendations not useful; plan pass 4
+
+> These are great findings and recommendations. I agree that what it's saying for recommendations are not great. I don't find Most of these recommendations useful nor accurate. I'd expect more specific recommendations that can correctly find when certain tools are not easy to use or have a lot of friction around them or have excessive output or things like that, common patterns of tool usage which could indicate potential opportunities for generating programs to automate or additional capabilities to build, and other things that would be good to know and identity genuine friction and heavy token usage and whatnot. Exercise creative thinking. [...] give me a more detailed plan of how you recommend we improve everything [...] There should be just as much effort on finding debt and complexity and contradictions, and just generally messy code and things like that and driving down that as well, so that we are leaving things more clean and maintainable than we found it
+
+Also (same day): "if there's a lack of user friction insights, that probably indicates an insufficient analysis or false negatives. Before it was the opposite situation"
+
+Disposition: evaluation against a 60,921-call raw-transcript corpus + two read-only debt/surface audits; SPEC §12 written (proposed). Closed by F-10.
+
+## F-10 — 2026-10-30 — Pass 4 approved
+
+> These all sound great! I think this can succeed but only if we really focus on making sure this is done professionally and that we're genuinely driving down debt and making sure everything if architected like a senior engineer would. So go ahead and fully implement and validate all of this.
+>
+> Also for W4, I suspect the best approach would be using a decisions model from ai-gateway. I don't know if those are set up fully yet, but research what a decision model (e.g. jev) is when you get to that and you'll see. They are super fast and efficient for this type of work I think
+
+Disposition: SPEC §12 approved; W4 classifier uses an ai-gateway decision model (research first, recorded in WORKSTREAMS pass 4). Open until P4-A1–A9 are met.

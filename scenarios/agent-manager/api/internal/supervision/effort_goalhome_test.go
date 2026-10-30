@@ -42,11 +42,11 @@ func (f fakeSpend) TokenCapUsage(_ context.Context, id uuid.UUID) (*float64, int
 	return nil, f.limit, "report"
 }
 
-// goalHomeTree copies the trimmed BAS goal home under root/goalHomeRef,
+// goalHomeTree copies the trimmed BAS v2 goal home under root/goalHomeRef,
 // applying edits by file name.
 func goalHomeTree(t *testing.T, root string, edits map[string]func(string) string) string {
 	t.Helper()
-	source, home := filepath.Join("..", "goalhome", "testdata", "bas"), filepath.Join(root, filepath.FromSlash(goalHomeRef))
+	source, home := filepath.Join("..", "goalhome", "testdata", "v2-bas"), filepath.Join(root, filepath.FromSlash(goalHomeRef))
 	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return err
@@ -75,23 +75,39 @@ func goalHomeTree(t *testing.T, root string, edits map[string]func(string) strin
 			}
 		}
 	}
-	migrateGoalHomeFixture(t, home)
 	return home
 }
 
-func migrateGoalHomeFixture(t *testing.T, home string) {
+// journeyGoal makes a tree's destination "journeys >= 24" at the given reading,
+// chaining extra STATUS edits after it.
+func journeyGoal(current string, status ...func(string) string) map[string]func(string) string {
+	return map[string]func(string) string{
+		goalhome.CharterFile: func(text string) string {
+			return strings.Replace(text, "- Destination: runtime lines <= 205000", "- Destination: journeys >= 24", 1)
+		},
+		goalhome.StatusFile: func(text string) string {
+			text = strings.Replace(text, "## Current: 253452 @ 2026-10-07", "## Current: "+current, 1)
+			for _, edit := range status {
+				text = edit(text)
+			}
+			return text
+		},
+	}
+}
+
+func replaceOnce(old, new string) func(string) string {
+	return func(text string) string { return strings.Replace(text, old, new, 1) }
+}
+
+// writeGoalHome writes a minimal goal home of the given files under the project root.
+func writeGoalHome(t *testing.T, root string, files map[string]string) {
 	t.Helper()
-	v1, err := goalhome.LoadLegacy(os.DirFS(home))
-	if err != nil {
+	home := filepath.Join(root, filepath.FromSlash(goalHomeRef))
+	if err := os.MkdirAll(home, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	read := func(name string) []byte { b, _ := os.ReadFile(filepath.Join(home, name)); return b }
-	conv := goalhome.ConvertHome(v1, read(goalhome.GoalFile), read(goalhome.QueueFile), read(goalhome.WorkaroundsFile))
-	if !conv.Equivalent {
-		t.Fatal(conv.Divergence)
-	}
-	for name, body := range map[string][]byte{goalhome.CharterFile: conv.Charter, goalhome.StatusFile: conv.Status, goalhome.LogFile: conv.Log} {
-		if err := os.WriteFile(filepath.Join(home, name), body, 0o644); err != nil {
+	for name, data := range files {
+		if err := os.WriteFile(filepath.Join(home, name), []byte(data), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -117,18 +133,10 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
 	measured, active := uuid.MustParse("a7240424-43e7-4d36-87f6-2b2e83d0c959"), uuid.New()
-	goalHomeTree(t, s.config.ProjectRoot, map[string]func(string) string{
-		"GOAL.md": func(text string) string {
-			title, rest, _ := strings.Cut(text, "\n")
-			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n" + rest
-		},
-		"QUEUE.md": func(text string) string {
-			return strings.Replace(text, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- BAS-D-070 Close the goal or re-aim at quality?", 1)
-		},
-		"epochs/E27.md": func(string) string {
-			return "# E27\n\n- Status: in-progress\n- Workers: " + active.String() + " (task 1; worker)\n\n## Slice log\n"
-		},
-	})
+	goalHomeTree(t, s.config.ProjectRoot, journeyGoal("12 @ 2026-10-07",
+		replaceOnce("(none; the operator answered BAS-FB-063 on 2026-10-06)", "- BAS-D-070 Close the goal or re-aim at quality?"),
+		replaceOnce("- unit: E26  status: acceptance review (BAS-FB-064 gate amendment)  workers: e8c322ca-72e7-434c-9d37-1d2cf853961f", "- unit: E27  status: in-progress  workers: "+active.String()),
+	))
 	c.runs[measured] = &domain.Run{ID: measured, Status: domain.RunStatusComplete}
 	c.runs[active] = &domain.Run{ID: active, Status: domain.RunStatusRunning}
 	s.SetSpendReader(fakeSpend{weighted: map[uuid.UUID]float64{measured: 640000, active: 120000}, limit: 1000000})
@@ -176,30 +184,12 @@ func TestEffortGoalHomeProjectsRegisteredHome(t *testing.T) {
 func TestEffortGoalHomeProjectsActiveEpochIndependentlyOfLatestAcceptance(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
-	home := filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef))
-	epochs := filepath.Join(home, "epochs")
-	for _, dir := range []string{home, epochs} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	files := map[string]string{
-		"GOAL.md":        "# Goal\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n",
-		"QUEUE.md":       "# Queue\n\n## Handoff\n\nContinue the admitted work.\n",
-		"FEEDBACK.md":    "# Feedback\n\n## Resolved\n",
-		"WORKAROUNDS.md": "# Workarounds\n\n## Resolved\n",
-		"epochs/E1.md":   "# E1\n\n- Status: active — D35 same-run correction continuation admitted\n- Workers: 11111111-1111-4111-8111-111111111111\n\n## Slice log\n",
-		"epochs/E2.md":   "# E2\n\n- Status: A190 validation complete; G1 failed, E2 remains unaccepted\n\n## Slice log\n",
-		"epochs/E3.md":   "# E3\n\n- Status: accepted by the original owner\n\n## Slice log\nACCEPTED 2026-10-18T10:03:08Z delivered; gates=G1,G2,G3\n",
-	}
-	for name, data := range files {
-		path := filepath.Join(home, filepath.FromSlash(name))
-		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	migrateGoalHomeFixture(t, home)
+	writeGoalHome(t, s.config.ProjectRoot, map[string]string{
+		"CHARTER.md":  "# Goal\n\n- Destination: journeys >= 24\n",
+		"STATUS.md":   "# Status\n\n## Current: 12 @ 2026-10-07\n\n## Active\n\n- unit: E1  status: active — D35 same-run correction continuation admitted  workers: 11111111-1111-4111-8111-111111111111\n\n## Handoff\n\nContinue the admitted work.\n",
+		"FEEDBACK.md": "# Feedback\n\n## Resolved\n",
+		"LOG.md":      "# Log\n\n## Accepted units\n\n- E3 | ACCEPTED 2026-10-18T10:03:08Z | gates=G1,G2,G3 | delivered\n",
+	})
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
 	if facts == nil || facts.ActiveUnit != "E1" || facts.ActiveStatus != "active — D35 same-run correction continuation admitted" {
 		t.Fatalf("the explicit active epoch must remain visible beside a later accepted epoch: %+v", facts)
@@ -215,31 +205,14 @@ func TestEffortGoalHomeProjectsActiveEpochIndependentlyOfLatestAcceptance(t *tes
 func TestEffortGoalHomeProjectsReopenedEpochDespiteStaleAcceptedStatus(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
-	home := filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef))
-	epochs := filepath.Join(home, "epochs")
-	for _, dir := range []string{home, epochs} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	files := map[string]string{
-		"GOAL.md":        "# Goal\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n",
-		"QUEUE.md":       "# Queue\n\n## Handoff\n\nContinue the reopened work.\n",
-		"FEEDBACK.md":    "# Feedback\n\n## Resolved\n",
-		"WORKAROUNDS.md": "# Workarounds\n\n## Resolved\n",
-		"epochs/E1.md":   "# E1\n\n- Status: in-progress\n\n## Slice log\n",
-		"epochs/E2.md":   "# E2\n\n- Status: A190 validation complete; G1 failed, E2 remains unaccepted\n\n## Slice log\n",
-		"epochs/E3.md":   "# E3\n\n- Status: accepted by the original owner\n\n## Directives\n- D1 2026-10-18T10:10:00Z resume after new directive\n\n## Slice log\nACCEPTED 2026-10-18T10:03:08Z delivered; gates=G1,G2,G3\n",
-	}
-	for name, data := range files {
-		if err := os.WriteFile(filepath.Join(home, filepath.FromSlash(name)), []byte(data), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	migrateGoalHomeFixture(t, home)
+	writeGoalHome(t, s.config.ProjectRoot, map[string]string{
+		"CHARTER.md":  "# Goal\n\n- Destination: journeys >= 24\n",
+		"STATUS.md":   "# Status\n\n## Current: 12 @ 2026-10-07\n\n## Handoff\n\nContinue the reopened work.\n",
+		"FEEDBACK.md": "# Feedback\n\n## Resolved\n",
+		"LOG.md":      "# Log\n\n## Accepted units\n\n- E3 | ACCEPTED 2026-10-18T10:03:08Z | gates=G1,G2,G3 | delivered\n\n## Reopened\n\n- E3 | 2026-10-18T10:10:00Z\n",
+	})
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if facts == nil || facts.ActiveUnit != "E3" || facts.ActiveStatus != "accepted by the original owner" {
+	if facts == nil || facts.ActiveUnit != "E3" || facts.ActiveStatus != "accepted" {
 		t.Fatalf("a later directive must reopen E3 even when its status text is stale: %+v", facts)
 	}
 	if facts.LastAcceptedUnit != "" || facts.LastAcceptedAt != nil {
@@ -253,28 +226,12 @@ func TestEffortGoalHomeProjectsReopenedEpochDespiteStaleAcceptedStatus(t *testin
 func TestEffortGoalHomeNewestActiveEpochWinsReopenedTie(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
-	home := filepath.Join(s.config.ProjectRoot, filepath.FromSlash(goalHomeRef))
-	epochs := filepath.Join(home, "epochs")
-	for _, dir := range []string{home, epochs} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	files := map[string]string{
-		"GOAL.md":        "# Goal\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-07\n",
-		"QUEUE.md":       "# Queue\n\n## Handoff\n\nContinue the current work.\n",
-		"FEEDBACK.md":    "# Feedback\n\n## Resolved\n",
-		"WORKAROUNDS.md": "# Workarounds\n\n## Resolved\n",
-		"epochs/E1.md":   "# E1\n\n- Status: accepted by the original owner\n\n## Directives\n- D1 2026-10-18T10:10:00Z resume after new directive\n\n## Slice log\nACCEPTED 2026-10-18T10:03:08Z delivered; gates=G1,G2,G3\n",
-		"epochs/E2.md":   "# E2\n\n- Status: in-progress\n\n## Slice log\n",
-	}
-	for name, data := range files {
-		if err := os.WriteFile(filepath.Join(home, filepath.FromSlash(name)), []byte(data), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	migrateGoalHomeFixture(t, home)
+	writeGoalHome(t, s.config.ProjectRoot, map[string]string{
+		"CHARTER.md":  "# Goal\n\n- Destination: journeys >= 24\n",
+		"STATUS.md":   "# Status\n\n## Current: 12 @ 2026-10-07\n\n## Active\n\n- unit: E2  status: in-progress\n\n## Handoff\n\nContinue the current work.\n",
+		"FEEDBACK.md": "# Feedback\n\n## Resolved\n",
+		"LOG.md":      "# Log\n\n## Accepted units\n\n- E1 | ACCEPTED 2026-10-18T10:03:08Z | gates=G1,G2,G3 | delivered\n\n## Reopened\n\n- E1 | 2026-10-18T10:10:00Z\n",
+	})
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
 	if facts == nil || facts.ActiveUnit != "E2" || facts.ActiveStatus != "in-progress" {
 		t.Fatalf("newer explicitly active E2 must win the shared active-priority tie: %+v", facts)
@@ -288,13 +245,11 @@ func TestEffortGoalHomeLeavesProseWorkersUnknown(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
 	goalHomeTree(t, s.config.ProjectRoot, map[string]func(string) string{
-		"epochs/E27.md": func(string) string {
-			return "# E27\n\n- Status: in-progress\n- Workers: attempt 1 task 8e9bda82-a42e-4bbe-aec8-9ac0a6957122 / run 7e762c65-72ee-413c-b051-e498d384baaa\n\n## Slice log\n"
-		},
+		goalhome.StatusFile: replaceOnce("workers: e8c322ca-72e7-434c-9d37-1d2cf853961f\n", "workers: attempt 1 task 8e9bda82-a42e-4bbe-aec8-9ac0a6957122 / run 7e762c65-72ee-413c-b051-e498d384baaa\n"),
 	})
 
 	home := goalHomeBoardRow(t, s, c).GetGoalHome()
-	if home == nil || home.ActiveUnit != "E27" || len(home.ActiveWorkers) != 0 {
+	if home == nil || home.ActiveUnit != "E26" || len(home.ActiveWorkers) != 0 {
 		t.Fatalf("prose must not become active workers: %+v", home)
 	}
 	if !strings.Contains(strings.Join(home.Limitations, "; "), "Workers field is not a well-formed UUID list") {
@@ -348,16 +303,7 @@ func TestEffortGoalHomeRefusesSymlinkedHome(t *testing.T) {
 func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testing.T) {
 	root := t.TempDir()
 	epoch := "# E99\n\n- Status: in-progress\n\n## Slice log\n" + strings.Repeat("x\n", goalhome.DefaultBoardFileBytes/2+2)
-	home := goalHomeTree(t, root, map[string]func(string) string{
-		"GOAL.md": func(text string) string {
-			title, rest, _ := strings.Cut(text, "\n")
-			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-20\n" + rest
-		},
-		"QUEUE.md": func(text string) string {
-			return strings.Replace(text, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Review the current handoff", 1)
-		},
-		"epochs/E99.md": func(string) string { return epoch },
-	})
+	home := goalHomeTree(t, root, journeyGoal("12 @ 2026-10-20", replaceOnce("(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Review the current handoff")))
 
 	logPath := filepath.Join(home, goalhome.LogFile)
 	logBytes, _ := os.ReadFile(logPath)
@@ -432,7 +378,7 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 			break
 		}
 	}
-	if customFacts == nil || customFacts.State != "available" || customFacts.ActiveUnit != "E99" {
+	if customFacts == nil || customFacts.State != "available" || customFacts.ActiveUnit != "E26" {
 		t.Fatalf("a configured larger safe-read cap must remain authoritative and preserve typed epoch parsing: %+v", customFacts)
 	}
 }
@@ -440,12 +386,7 @@ func TestEffortGoalHomeSharesDefaultFileCapAndHonorsConfiguredOverride(t *testin
 func TestEffortGoalHomePartialProjectionDoesNotFollowEpochSymlinks(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
-	home := goalHomeTree(t, s.config.ProjectRoot, map[string]func(string) string{
-		"GOAL.md": func(text string) string {
-			title, rest, _ := strings.Cut(text, "\n")
-			return title + "\n\n- Destination: journeys >= 24\n- Current: 12 @ 2026-10-20\n" + rest
-		},
-	})
+	home := goalHomeTree(t, s.config.ProjectRoot, journeyGoal("12 @ 2026-10-20"))
 	epoch := filepath.Join(home, goalhome.LogFile)
 	if err := os.Remove(epoch); err != nil {
 		t.Fatal(err)
@@ -555,7 +496,7 @@ func TestEffortGoalHomeReadsPhase2FormatThroughSniff(t *testing.T) {
 	}
 }
 
-func TestEffortGoalHomeReportsUnmigratedHomeUnknown(t *testing.T) {
+func TestEffortGoalHomeWithoutCurrentFilesReadsUnknown(t *testing.T) {
 	s, _, c := effortFixture(t)
 	s.config.ProjectRoot = t.TempDir()
 	home := goalHomeTree(t, s.config.ProjectRoot, nil)
@@ -566,7 +507,7 @@ func TestEffortGoalHomeReportsUnmigratedHomeUnknown(t *testing.T) {
 	}
 	facts := goalHomeBoardRow(t, s, c).GetGoalHome()
 	if facts == nil || facts.State != "partial" || facts.DestinationTarget != nil || facts.ActiveUnit != "" || facts.LastAcceptedUnit != "" {
-		t.Fatalf("unmigrated home must stay unknown pending explicit import: %+v", facts)
+		t.Fatalf("a home without CHARTER/STATUS/LOG must stay unknown: %+v", facts)
 	}
 }
 

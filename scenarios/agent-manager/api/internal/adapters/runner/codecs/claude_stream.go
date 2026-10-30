@@ -15,9 +15,15 @@ import (
 // ClaudeStreamEvent represents a single event from Claude Code's
 // stream-json output.
 type ClaudeStreamEvent struct {
-	Type      string          `json:"type"`
-	Subtype   string          `json:"subtype,omitempty"`
-	AiTitle   string          `json:"aiTitle,omitempty"`
+	Type    string `json:"type"`
+	Subtype string `json:"subtype,omitempty"`
+	AiTitle string `json:"aiTitle,omitempty"`
+	// CompactMetadata accompanies a `system` compact_boundary line: the
+	// on-disk marker (and the stream-json one) that the context was compacted.
+	CompactMetadata *struct {
+		Trigger   string `json:"trigger"`
+		PreTokens int64  `json:"preTokens"`
+	} `json:"compactMetadata,omitempty"`
 	Message   *ClaudeMessage  `json:"message,omitempty"`
 	Usage     *ClaudeUsage    `json:"usage,omitempty"`
 	ToolUse   *ClaudeToolUse  `json:"tool_use,omitempty"`

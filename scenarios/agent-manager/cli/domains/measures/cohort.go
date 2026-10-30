@@ -100,32 +100,6 @@ func selectCohortCommand() cliapp.Command {
 		})
 }
 
-func episodeCohortCommand() cliapp.Command {
-	return cohortCommand("episode-cohort", "Rank recurring friction episodes across a cohort", append(SelectorFlags(""), limitDef),
-		func(op cliapp.OperationContext) (proto.Message, error) {
-			s, err := ReadSelector(op, "")
-			if err != nil {
-				return nil, err
-			}
-			limit, err := limitFlag(op)
-			if err != nil {
-				return nil, err
-			}
-			r, err := client(op).EpisodeCohort(context.Background(), connect.NewRequest(&measurepb.EpisodeCohortRequest{Window: s.Window, Filter: s.Filter, Cohort: s.Cohort, RunIds: s.RunIds, Limit: limit}))
-			if err != nil {
-				return nil, err
-			}
-			return r.Msg, nil
-		}, func(m proto.Message) []string {
-			r := m.(*measurepb.EpisodeCohortResponse)
-			lines := []string{fmt.Sprintf("Episode cohort: %d fingerprints (evidence %s %s)", len(r.GetSignals()), r.GetAvailabilityState(), r.GetAvailabilityReason())}
-			for _, s := range r.GetSignals() {
-				lines = append(lines, fmt.Sprintf("- %s: %d occurrences in %d runs, %d ms (%s)", s.GetFingerprint(), s.GetOccurrences(), s.GetDistinctRuns(), s.GetSummedCostMs(), s.GetConfidence()))
-			}
-			return lines
-		})
-}
-
 func cohortReportCommand() cliapp.Command {
 	return cohortCommand("cohort-report", "Fold run reports across a cohort: friction signals, time accounting, goal progression", append(SelectorFlags(""), limitDef),
 		func(op cliapp.OperationContext) (proto.Message, error) {
@@ -151,37 +125,6 @@ func cohortReportCommand() cliapp.Command {
 			}
 			for _, s := range r.GetSignals() {
 				lines = append(lines, fmt.Sprintf("- %s: count=%d impact=%d confidence=%s evidence=%s", s.GetKind(), s.GetCount(), s.GetImpact(), s.GetConfidence(), strings.Join(s.GetRepresentativeRunIds(), ",")))
-			}
-			return lines
-		})
-}
-
-func episodeCompareCommand() cliapp.Command {
-	flags := append(append(SelectorFlags("left-"), SelectorFlags("right-")...), cliapp.Flag{Name: "change-binding", Description: "Change label, plan slug or commit range"}, limitDef)
-	return cohortCommand("episode-compare", "Compare friction-episode fingerprints between two cohorts (right = after)", flags,
-		func(op cliapp.OperationContext) (proto.Message, error) {
-			left, err := ReadSelector(op, "left-")
-			if err != nil {
-				return nil, err
-			}
-			right, err := ReadSelector(op, "right-")
-			if err != nil {
-				return nil, err
-			}
-			limit, err := limitFlag(op)
-			if err != nil {
-				return nil, err
-			}
-			r, err := client(op).CompareEpisodeCohorts(context.Background(), connect.NewRequest(&measurepb.CompareEpisodeCohortsRequest{Left: left, Right: right, ChangeBinding: op.Flag("change-binding"), Limit: limit}))
-			if err != nil {
-				return nil, err
-			}
-			return r.Msg, nil
-		}, func(m proto.Message) []string {
-			r := m.(*measurepb.CompareEpisodeCohortsResponse)
-			lines := []string{fmt.Sprintf("Episode comparison: left %d runs, right %d runs (%s %s)", r.GetLeftPopulation(), r.GetRightPopulation(), r.GetAvailabilityState(), r.GetAvailabilityReason())}
-			for _, s := range r.GetSignals() {
-				lines = append(lines, fmt.Sprintf("- %s: %d → %d (Δ%d), cost Δ%d ms", s.GetFingerprint(), s.GetLeftOccurrences(), s.GetRightOccurrences(), s.GetOccurrenceDelta(), s.GetCostDeltaMs()))
 			}
 			return lines
 		})

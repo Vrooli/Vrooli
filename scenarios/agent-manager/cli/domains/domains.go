@@ -42,8 +42,7 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 			[2]string{"list", "List all runners and their status"}, [2]string{"probe", "Probe a runner"}, [2]string{"tools", "List canonical tool enforcement mappings"}, [2]string{"execution-options", "List truthful runner, objective, model, and effort options"}),
 		support.SubcommandGroup("declarations", "Manage unified scenario declarations", deps.Declarations,
 			[2]string{"reconcile-scenario", "Reconcile a scenario's profiles and workflows"}, [2]string{"plan", "Validate declaration sources without writing"}),
-		support.SubcommandGroup("workflow", "Validate and execute declared workflows", deps.Workflow,
-			[2]string{"validate", "Validate and canonicalize a workflow file"}, [2]string{"plan", "Validate scenario workflow sources without writes"}, [2]string{"reconcile-scenario", "Reconcile scenario workflow sources"}, [2]string{"reload", "Reload scenario workflow sources"}, [2]string{"list", "List workflow revisions"}, [2]string{"get", "Get a workflow revision"}, [2]string{"explain", "Explain the active workflow revision"}, [2]string{"simulate", "Simulate a workflow execution plan"}, [2]string{"start", "Start a workflow execution"}, [2]string{"execution-list", "List workflow executions"}, [2]string{"execution-runs", "List execution node attempts and runs"}, [2]string{"execution-get", "Get a workflow execution"}, [2]string{"execution-result", "Get execution input and output"}, [2]string{"execution-advance", "Advance a workflow execution"}, [2]string{"execution-wait", "Wait for a terminal execution"}, [2]string{"trace", "Show an execution journal"}, [2]string{"signal", "Signal a waiting execution"}, [2]string{"cancel", "Cancel a workflow execution"}, [2]string{"retry", "Retry a workflow execution"}, [2]string{"resume", "Resume a workflow execution"}),
+		workflowGroup(deps),
 		effortGroup(deps),
 		support.SubcommandGroup("watch", "Supervise a durable family execution cohort", deps.Watch,
 			[2]string{"create", "Create a durable cohort watch"}, [2]string{"get", "Get a cohort watch"}, [2]string{"list", "List cohort watches"}, [2]string{"wait", "Wait for a watch revision"}, [2]string{"cancel", "Cancel an active watch"}, [2]string{"inspect", "Inspect bounded pending events"}, [2]string{"action", "Request a typed intervention"}, [2]string{"actions", "List durable intervention history"}, [2]string{"policy-get", "Get the durable supervision policy"}, [2]string{"policy-outcomes", "List bounded durable policy outcomes"},
@@ -67,7 +66,6 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		support.SubcommandGroup("health", "Inspect persisted health snapshots and audit", deps.Health,
 			[2]string{"models", "Show current model health"}, [2]string{"runners", "Show current runner health"}, [2]string{"audit", "Show paginated health history"}),
 		support.SubcommandGroup("events", "Query the typed operational event log", deps.Events, [2]string{"list", "List typed events with optional filters"}),
-		support.SubcommandGroup("findings", "Inspect recurring investigation findings", deps.Findings, [2]string{"list", "List recurring findings"}),
 		subscription,
 		conversationGroup(deps),
 		space,
@@ -75,6 +73,19 @@ func SubcommandGroups(deps support.Dependencies) []cliapp.SubcommandGroup {
 		measures.Register(),
 		usage.Register(deps.UsageCommands...),
 	}
+}
+
+// workflowGroup lists the workflow subcommands; `start` takes its flags from the
+// handler's own flag set so `--help` shows them.
+func workflowGroup(deps support.Dependencies) cliapp.SubcommandGroup {
+	group := support.SubcommandGroup("workflow", "Validate and execute declared workflows", deps.Workflow,
+		[2]string{"validate", "Validate and canonicalize a workflow file"}, [2]string{"plan", "Validate scenario workflow sources without writes"}, [2]string{"reconcile-scenario", "Reconcile scenario workflow sources"}, [2]string{"reload", "Reload scenario workflow sources"}, [2]string{"list", "List workflow revisions"}, [2]string{"get", "Get a workflow revision"}, [2]string{"explain", "Explain the active workflow revision"}, [2]string{"simulate", "Simulate a workflow execution plan"}, [2]string{"start", "Start a workflow execution"}, [2]string{"execution-list", "List workflow executions"}, [2]string{"execution-runs", "List execution node attempts and runs"}, [2]string{"execution-get", "Get a workflow execution"}, [2]string{"execution-result", "Get execution input and output"}, [2]string{"execution-advance", "Advance a workflow execution"}, [2]string{"execution-wait", "Wait for a terminal execution"}, [2]string{"trace", "Show an execution journal"}, [2]string{"signal", "Signal a waiting execution"}, [2]string{"cancel", "Cancel a workflow execution"}, [2]string{"retry", "Retry a workflow execution"}, [2]string{"resume", "Resume a workflow execution"})
+	for i := range group.Subcommands {
+		if group.Subcommands[i].Name == "start" {
+			group.Subcommands[i].HelpText = support.FlagHelp(deps.Workflow, "start")
+		}
+	}
+	return group
 }
 
 func taskGroup(deps support.Dependencies) cliapp.SubcommandGroup {
@@ -111,10 +122,13 @@ func maintenanceGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		[2]string{"begin", "Close admission without cancelling admitted work"},
 		[2]string{"drain", "Wait for admitted work; timeout leaves the fence closed"},
 		[2]string{"resume", "Reopen admission using the exact maintenance revision"},
-		[2]string{"purge", "Delete matching profiles, tasks, or runs"})
+		[2]string{"purge", "Delete matching profiles, tasks, or runs"},
+		[2]string{"backfill-labels", "Recover labels from retained imported transcripts"},
+		[2]string{"backfill-subjects", "Project run subjects from retained invocation facts"})
 	for i := range group.Subcommands {
 		command := &group.Subcommands[i]
-		if command.Name == "purge" {
+		switch command.Name {
+		case "purge", "backfill-labels", "backfill-subjects":
 			continue
 		}
 		command.Usage = "agent-manager maintenance " + command.Name + " [--json]"
@@ -151,7 +165,6 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 		[2]string{"lint", "Check a goal home's orchestrator rules (exit 4 on a failing rule)"},
 		[2]string{"handoff", "Replace the single ## Handoff of a goal home's STATUS.md"},
 		[2]string{"delivery", "Commission, pause, resume or stop finite delivery through owner enrollment"},
-		[2]string{"migrate", "Convert a v1 goal home to the v2 file set (CHARTER/STATUS/LOG), verifying board facts are unchanged"},
 		[2]string{"park", "Park the orchestrator for as long as goal state allows (exit 4 when refused)"},
 		[2]string{"signals", "Read an effort's signal log after a cursor (check-in dispatch input)"},
 		[2]string{"signal", "Record a feedback or step_back signal for an effort"},
@@ -209,7 +222,7 @@ func effortGroup(deps support.Dependencies) cliapp.SubcommandGroup {
 			continue
 		}
 		if goalHomeCommand(command) {
-			if command.Name == "lint" || command.Name == "handoff" || command.Name == "migrate" {
+			if command.Name == "lint" || command.Name == "handoff" {
 				command.NeedsAPIOverride = &offline
 			}
 			continue
@@ -251,10 +264,6 @@ func goalHomeCommand(command *cliapp.Command) bool {
 		command.Usage = "agent-manager effort handoff set <goal home> (--file <markdown> | --stdin) [--json]"
 		command.HelpText = "Atomically replaces the single ## Handoff section of STATUS.md (creating it after ## Needs operator when missing). Writes nothing when the text is unchanged. Refuses (exit 4) text over 4 KB, a queue with more than one handoff, and a STATUS.md that changed during the write. Reads and writes files only." + reference
 		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "file", LocalOnly: true, Description: "Markdown file holding the handoff text"}, {Name: "stdin", Bool: true, LocalOnly: true, Description: "Read the handoff text from standard input"}}
-	case "migrate":
-		command.Usage = "agent-manager effort migrate <goal home> [--apply] [--json]"
-		command.HelpText = "Converts a v1 goal home (GOAL/QUEUE/WORKAROUNDS/epochs) to the v2 file set (CHARTER/STATUS/LOG), self-verifying that the board's load-bearing facts (destination, current, active unit and workers, accepted-unit worker sets, last acceptance, needs-operator, open workarounds and feedback, lint findings) are byte-equivalent before writing. Refuses (exit 4) when they would diverge. Without --apply it is a dry run that only reports equivalence. Idempotent: a home that already has CHARTER.md is left unchanged. With --apply, writes the three files, keeps FEEDBACK.md and moves the v1 files to archive/v1/. Reads and writes files only." + reference
-		command.Args.Flags = []cliapp.Flag{jsonFlag, {Name: "apply", Bool: true, LocalOnly: true, Description: "Write the v2 files and archive the v1 files (default: dry run)"}}
 	case "park":
 		command.Usage = "agent-manager effort park <goal home> [--run <run-id>] [--timeout D] [--json]"
 		command.HelpText = "Parks the orchestrator (producer children, keyed by its run) for up to 1h while a direct child run is live, or up to 72h while ## Needs operator holds an item; otherwise refuses (exit 4) with the admissible-slice rule. --run defaults to the verified calling run; inspect the returned park run status and await handle in the JSON receipt, and preserve any refusal or command error." + reference

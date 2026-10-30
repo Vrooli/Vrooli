@@ -209,12 +209,6 @@ func (s *SubscriptionService) QuotaObservations(provider, pool, window string, l
 	return s.api.Get("/api/v1/pricing/quota-observations", query)
 }
 
-type FindingsService struct{ api *cliutil.APIClient }
-
-func (s *FindingsService) List(query url.Values) ([]byte, error) {
-	return s.api.Get("/api/v1/findings", query)
-}
-
 type WorkflowService struct{ api *cliutil.APIClient }
 
 // typedRPC calls one procedure and returns the typed response with its JSON in

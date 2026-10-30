@@ -30,6 +30,10 @@ func (a *App) cmdMaintenance(args []string) error {
 		return a.maintenanceAdmission(args[0], args[1:])
 	case "purge":
 		return a.maintenancePurge(args[1:])
+	case "backfill-labels":
+		return a.runBackfillLabels(args[1:])
+	case "backfill-subjects":
+		return a.runBackfillSubjects(args[1:])
 	case "help", "-h", "--help":
 		return nil
 	default:

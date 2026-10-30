@@ -98,28 +98,3 @@ func TestUsageTurnsCountEachReportOnceFromTranscriptUsage(t *testing.T) {
 		t.Fatalf("turns = %d, want two operator-session buckets and one run-owned bucket", len(turns))
 	}
 }
-
-// F-W5-4: recommendations read only episodes of the current classifier, so an
-// episode written by an older detector (a handoff continuation that counted
-// every call of the run) is never priced beside current ones.
-func TestUsageEpisodesReadOnlyTheCurrentClassifier(t *testing.T) {
-	db, cleanup := setupTestDB(t)
-	defer cleanup()
-	ctx := context.Background()
-	at := time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC)
-	for _, row := range []struct{ id, version string }{{"current", runsignal.EpisodeClassifierVersion}, {"stale", "friction-episode.v9"}} {
-		if _, err := db.ExecContext(ctx, `INSERT INTO invocation_read_model_episodes (run_id, episode_id, occurred_at, time_basis, classifier_version, pattern, cause_scope, severity,
-			honesty_flags_json, start_event_id, end_event_id, evidence_event_ids_json, turns, tokens, wall_clock_ms, owner_confidence, failed_joined_calls, fingerprint)
-			VALUES ('run', ?, ?, 'event', ?, 'handoff-continuation', 'run-execution', 'one-off', '[]', 'a', 'b', '[]', 3, 0, 0, 'unknown', 0, 'fp')`,
-			row.id, at.Format(time.RFC3339Nano), row.version); err != nil {
-			t.Fatal(err)
-		}
-	}
-	episodes, err := NewUsageAttributionRepository(db).UsageEpisodes(ctx, at.Add(-time.Hour), at.Add(time.Hour))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(episodes) != 1 || episodes[0].EpisodeID != "current" {
-		t.Fatalf("episodes = %+v, want only the current classifier's", episodes)
-	}
-}

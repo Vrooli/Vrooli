@@ -253,20 +253,26 @@ func (e *ProgramRuntimeEvaluator) programInput(ctx context.Context, input Evalua
 		events = append(events, map[string]any{"event_id": event.ID.String(), "run_id": event.RunID.String(), "sequence": event.Sequence, "event_type": string(event.EventType)})
 	}
 	runs := make([]any, 0, len(input.Subjects))
-	friction := make([]any, 0, len(input.Subjects))
-	selectedFriction := []FrictionSummary{}
+	scored := make([]SubjectSummary, 0, len(input.Subjects))
 	for _, subject := range input.Subjects {
 		runs = append(runs, map[string]any{"friction_unavailable": subject.FrictionUnavailable, "run_id": subject.RunID, "status": subject.Status, "blocked": strings.EqualFold(subject.Status, "blocked"), "needs_review": strings.EqualFold(subject.Status, "needs_review")})
-		selectedFriction = append(selectedFriction, subject.Friction...)
-	}
-	sort.SliceStable(selectedFriction, func(i, j int) bool {
-		if selectedFriction[i].Score == selectedFriction[j].Score {
-			return selectedFriction[i].EvidenceID < selectedFriction[j].EvidenceID
+		if subject.FrictionReadable() {
+			scored = append(scored, subject)
 		}
-		return selectedFriction[i].Score > selectedFriction[j].Score
+	}
+	sort.SliceStable(scored, func(i, j int) bool {
+		if scored[i].ToolFriction.Score == scored[j].ToolFriction.Score {
+			return scored[i].RunID < scored[j].RunID
+		}
+		return scored[i].ToolFriction.Score > scored[j].ToolFriction.Score
 	})
-	for _, episode := range selectedFriction[:min(16, len(selectedFriction))] {
-		friction = append(friction, map[string]any{"evidence_id": episode.EvidenceID, "score": episode.Score, "pattern": episode.Pattern, "fingerprint": episode.Fingerprint, "owner": episode.Owner})
+	friction := make([]any, 0, min(16, len(scored)))
+	for _, subject := range scored[:min(16, len(scored))] {
+		f := subject.ToolFriction
+		friction = append(friction, map[string]any{
+			"evidence_id": "tool-friction:" + subject.RunID, "run_id": subject.RunID, "score": f.Score, "commands": f.Commands,
+			"summary": fmt.Sprintf("%d of %d commands had friction (a command counts once): %d failed, %d guessed a shape, %d polled", f.Frictional, f.Commands, f.Failed, f.ShapeGuesses, f.Polled),
+		})
 	}
 
 	history := []any{}
@@ -294,7 +300,7 @@ func (e *ProgramRuntimeEvaluator) programInput(ctx context.Context, input Evalua
 		}
 	}
 	return map[string]any{
-		"events": events, "friction_episodes": friction, "run_summaries": runs, "prior_decisions": history,
+		"events": events, "run_tool_friction": friction, "run_summaries": runs, "prior_decisions": history,
 		"policy": map[string]any{
 			"version": input.Watch.GetSpec().GetPolicyVersion(), "event_count_threshold": eventThreshold,
 			"friction_threshold": frictionThreshold, "quiet_seconds": quietSeconds,

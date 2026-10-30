@@ -27,7 +27,25 @@ type usageMeasure struct {
 }
 
 func (h *Handler) usageMeasures() []usageMeasure {
+	toolFriction := func(ctx context.Context, p map[string]string) (proto.Message, error) {
+		return msg(h.ToolFriction(ctx, connect.NewRequest(&measurepb.ToolFrictionRequest{Window: tokenWindow(p["window"]), Owner: p["owner"]})))
+	}
 	return []usageMeasure{
+		{
+			name: ToolFriction, method: "ToolFriction", intent: "The window's tool friction rates: Vrooli CLI failure rate, shape guesses, polling, bypasses, context tax, with outcome coverage.",
+			questions: []string{"how often do agent commands fail", "what is the tool failure rate", "how much tool output stays in context"},
+			params:    []string{"window", "owner"}, rows: "summary", valueField: "vrooli_failure_rate", unit: "share", call: toolFriction,
+		},
+		{
+			name: ToolProfiles, method: "ToolFriction", intent: "One profile per command path: calls, failure rate, shape guesses, output weight, context tax, latency, polling.",
+			questions: []string{"which commands are hardest for agents", "which tools return the most output", "which commands do agents poll"},
+			params:    []string{"window", "owner"}, rows: "profiles", valueField: "command_path", unit: "calls", call: toolFriction,
+		},
+		{
+			name: ErrorSignatures, method: "ToolFriction", intent: "Failures and degradation notices of Vrooli CLIs clustered by normalised error line, with the owner who can fix each.",
+			questions: []string{"what errors do agent commands hit", "which errors recur across CLIs"},
+			params:    []string{"window", "owner"}, rows: "clusters", valueField: "signature", unit: "calls", call: toolFriction,
+		},
 		{
 			UsageForecast, "UsageForecast", "Current provider quota windows with burn rates and projected exhaustion.",
 			[]string{"will I run out of quota this week", "agent usage forecast"},
@@ -56,21 +74,21 @@ func (h *Handler) usageMeasures() []usageMeasure {
 			},
 		},
 		{
-			UsageRecommendations, "UsageRecommendations", "Changes grouped by target with a combined quota saving, confidence and evidence.",
-			[]string{"how do I use less agent quota", "agent usage recommendations"},
+			UsageRecommendations, "UsageRecommendations", "One ranked list of owner-level changes (quota levers, tool friction, opportunities, gated operator interventions) with effect, score, evidence and a verifying measure.",
+			[]string{"how do I use less agent quota", "agent usage recommendations", "what should I change"},
 			[]string{"provider", "run_id", "pool", "window"},
-			"groups", "target_label", "combined_saved_points",
+			"actions", "title", "score",
 			func(ctx context.Context, p map[string]string) (proto.Message, error) {
 				return msg(h.UsageRecommendations(ctx, connect.NewRequest(&measurepb.UsageRecommendationsRequest{Provider: p["provider"], RunId: p["run_id"], Pool: p["pool"], Window: p["window"]})))
 			},
 		},
 		{
-			UsageFriction, "UsageFriction", "Recurring friction problems in plain words with owner, count, cost and status.",
+			UsageFriction, "UsageFriction", "Owner-level tool problems with count, cost and status, and the operator interventions classified as agent friction.",
 			[]string{"what keeps going wrong for agents", "recurring agent friction"},
-			[]string{"provider", "status"},
-			"problems", "description", "points",
+			[]string{"status"},
+			"tool_findings", "description", "cost_share",
 			func(ctx context.Context, p map[string]string) (proto.Message, error) {
-				return msg(h.UsageFriction(ctx, connect.NewRequest(&measurepb.UsageFrictionRequest{Provider: p["provider"], Status: p["status"]})))
+				return msg(h.UsageFriction(ctx, connect.NewRequest(&measurepb.UsageFrictionRequest{Status: p["status"]})))
 			},
 		},
 		{
@@ -126,9 +144,13 @@ func (h *Handler) registerUsageMeasures(registry *measurelib.Registry) error {
 		params := map[string]measurelib.Param{}
 		for _, name := range m.params {
 			params[name] = measurelib.Param{Name: name, Type: "string"}
+			if name == "window" {
+				params[name] = measurelib.Param{Name: name, Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}
+			}
 		}
+		domain, _, _ := strings.Cut(m.name, ".")
 		declaration := measurelib.MeasureDeclaration{
-			Name: m.name, Scenario: "agent-manager", Domain: "usage", Intent: m.intent, Questions: m.questions, Params: params,
+			Name: m.name, Scenario: "agent-manager", Domain: domain, Intent: m.intent, Questions: m.questions, Params: params,
 			Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: m.valueField, Unit: m.unit, SummaryTemplate: strings.ReplaceAll(m.name, "_", " ")},
 			Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: m.method,
 		}
@@ -153,10 +175,13 @@ func (h *Handler) registerUsageMeasures(registry *measurelib.Registry) error {
 
 // tableRows flattens a response into rows. path names nested repeated
 // message fields ("windows.burners": one row per burner, carrying its
-// window's fields prefixed "windows."); "sides" is the left/right pair of a
-// comparison.
+// window's fields prefixed "windows."), or one singular message field that is
+// the only row ("summary"); "sides" is the left/right pair of a comparison.
 func tableRows(response proto.Message, path string) []map[string]string {
 	message := response.ProtoReflect()
+	if field := message.Descriptor().Fields().ByName(protoreflect.Name(path)); field != nil && !field.IsList() && field.Message() != nil {
+		return []map[string]string{protoFields(message.Get(field).Message(), "")}
+	}
 	if path == "sides" {
 		var rows []map[string]string
 		for _, side := range []string{"left", "right"} {

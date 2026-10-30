@@ -38,8 +38,6 @@ func (a *App) cmdEffort(args []string) error {
 		return a.effortLint(args[1:])
 	case "handoff":
 		return a.effortHandoff(args[1:])
-	case "migrate":
-		return a.effortMigrate(args[1:])
 	case "delivery":
 		return a.effortDelivery(args[1:])
 	case "park":

@@ -454,9 +454,6 @@ export function App() {
                 </Suspense>
               }
             />
-            {/* Stats and Import folded into Usage (SPEC D8); old links land on the matching tab. */}
-            <Route path="/stats" element={<Navigate to="/usage?tab=details" replace />} />
-            <Route path="/import" element={<Navigate to="/usage?tab=coverage" replace />} />
             <Route
               path="/observability"
               element={
@@ -469,7 +466,6 @@ export function App() {
                 </Suspense>
               }
             />
-            <Route path="/findings" element={<Navigate to="/usage?tab=friction" replace />} />
             <Route path="/investigations" element={<Suspense fallback={pageFallback}><ErrorBoundary section="Investigations"><ProfiledPage id="InvestigationsPage"><InvestigationsPage /></ProfiledPage></ErrorBoundary></Suspense>} />
             {/* Redirect unknown paths to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />

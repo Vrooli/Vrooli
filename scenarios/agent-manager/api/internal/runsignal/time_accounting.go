@@ -100,7 +100,8 @@ func DeriveTimeAccounting(events []*domain.RunEvent, startedAt, endedAt *time.Ti
 		}
 		if _, ok := event.Data.(*domain.UsageEventData); ok {
 			addTokens(&out, state, usage.Tokens(indexed.index))
-		} else {
+		} else if result, ok := event.Data.(*domain.ToolResultEventData); !ok || result.ToolName != NestedCommandTool {
+			// A command finishing inside an exec call does not end the call.
 			state = timeStateAfter(event)
 		}
 		previousAt = event.Timestamp

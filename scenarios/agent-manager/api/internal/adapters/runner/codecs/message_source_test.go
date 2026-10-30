@@ -68,6 +68,47 @@ func codexResponseUser(text string) string {
 	return fmt.Sprintf(`{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":%q}]}}`, text)
 }
 
+func codexResponseUserMeta(text, kinds, metadata string) string {
+	return fmt.Sprintf(`{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":%q}],"internal_chat_message_metadata_passthrough":{"content_item_kinds":%s,"content_item_metadata":%s}}}`, text, kinds, metadata)
+}
+
+// A sub-agent rollout's user-role text is the parent agent's assignment or
+// report: it must never count as something the operator said (P4-W4).
+func TestCodexSubagentThreadUserTextIsTeammate(t *testing.T) {
+	metas := map[string]string{
+		"spawned worker":  `{"type":"session_meta","payload":{"id":"t1","thread_source":"subagent","source":{"subagent":{"thread_spawn":{"parent_thread_id":"p1","depth":1}}}}}`,
+		"guardian review": `{"type":"session_meta","payload":{"id":"t2","thread_source":"guardian_review","source":{"subagent":{"other":"guardian"}}}}`,
+	}
+	for name, meta := range metas {
+		t.Run(name, func(t *testing.T) {
+			parser := NewCodexForTest().NewTranscriptParser()
+			parser.(interface{ SetTranscriptRetention(bool) }).SetTranscriptRetention(true)
+			parser.ParseTranscriptLine(uuid.New(), meta)
+			var got []string
+			for _, line := range []string{
+				codexResponseUserMeta("Audit the parser and report back", `["user.text"]`, `[]`),
+				codexUserMessage("Handoff received: 12:04Z exactT3response verified"),
+				codexResponseUser("# AGENTS.md instructions for /repo\n\n<INSTRUCTIONS>x</INSTRUCTIONS>"),
+			} {
+				for _, event := range parser.ParseTranscriptLine(uuid.New(), line).Events {
+					got = append(got, domain.MessageSource(event))
+				}
+			}
+			want := []string{domain.MessageSourceTeammate, domain.MessageSourceTeammate, domain.MessageSourceInjectedContext}
+			if fmt.Sprint(got) != fmt.Sprint(want) {
+				t.Fatalf("sources = %v, want %v", got, want)
+			}
+		})
+	}
+	parser := NewCodexForTest().NewTranscriptParser()
+	parser.(interface{ SetTranscriptRetention(bool) }).SetTranscriptRetention(true)
+	parser.ParseTranscriptLine(uuid.New(), `{"type":"session_meta","payload":{"id":"t3","thread_source":"user","source":"vscode"}}`)
+	events := parser.ParseTranscriptLine(uuid.New(), codexUserMessage("keep going")).Events
+	if len(events) != 1 || domain.MessageSource(events[0]) != domain.MessageSourceOperator {
+		t.Fatalf("top-level thread typed text must stay the operator's: %+v", events)
+	}
+}
+
 func TestCodexTranscriptMessageSource(t *testing.T) {
 	cases := []struct {
 		name, line, want string
@@ -78,7 +119,9 @@ func TestCodexTranscriptMessageSource(t *testing.T) {
 		{"AGENTS.md injection", codexResponseUser("# AGENTS.md instructions for /home/u/repo\n\n<INSTRUCTIONS>...</INSTRUCTIONS>"), domain.MessageSourceInjectedContext},
 		{"environment context", codexResponseUser("<environment_context><cwd>/x</cwd></environment_context>"), domain.MessageSourceInjectedContext},
 		{"browser context", codexResponseUser("<in-app-browser-context>tab</in-app-browser-context>"), domain.MessageSourceInjectedContext},
-		{"question reply", codexResponseUser("<send_user_message_question_reply>yes</send_user_message_question_reply>"), domain.MessageSourceInjectedContext},
+		{"question reply is the operator's answer", codexResponseUser("<send_user_message_question_reply>yes</send_user_message_question_reply>"), domain.MessageSourceOperator},
+		{"typed item with provenance", codexResponseUserMeta("Web-console is down", `["user.text"]`, `[{"provenance":{"type":"user"}}]`), domain.MessageSourceOperator},
+		{"harness item without markers", codexResponseUserMeta("plain injected text", `["agents_md.instructions","environments.environment_context"]`, `[{"provenance":{"type":"agents_md"}},{"provenance":{"type":"harness","hook":false}}]`), domain.MessageSourceInjectedContext},
 		{"agent manager wake", codexUserMessage("[wake: timer] No child run ended since your last wake."), domain.MessageSourceWake},
 		{"awaited result", codexResponseUser("[awaited result available] job has completed."), domain.MessageSourceWake},
 	}

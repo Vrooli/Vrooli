@@ -83,15 +83,6 @@ test("phone bottom navigation holds at most five destinations", async () => {
   }
 });
 
-test("old Stats and Import links land on the matching Usage tab with Usage marked current", async () => {
-  for (const path of ["/stats", "/import"]) {
-    const view = renderWithProviders(createElement(App), { initialEntries: [path] });
-    assert.ok(await screen.findByText("Usage page"));
-    assert.equal(screen.getByTestId("agent-manager-nav-usage").getAttribute("aria-current"), "page");
-    view.unmount();
-  }
-});
-
 test("App opens the status surface from the header without requiring route data", async () => {
   const user = userEvent.setup();
   renderWithProviders(createElement(App), { initialEntries: ["/runs"] });

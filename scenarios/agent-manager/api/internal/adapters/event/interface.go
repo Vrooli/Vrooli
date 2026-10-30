@@ -8,6 +8,7 @@ package event
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -42,6 +43,26 @@ type Store interface {
 
 	// Delete removes all events for a run (for cleanup).
 	Delete(ctx context.Context, runID uuid.UUID) error
+}
+
+// EmptyStreamAppender inserts a rebuilt stream only if the canonical stream
+// is still empty when the owner transaction begins.
+type EmptyStreamAppender interface {
+	AppendIfEmpty(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error
+}
+
+// StreamReplacer coordinates an event-stream replacement with another owner
+// transaction. The token detects changes between staging and promotion.
+type StreamReplacer interface {
+	StreamToken(context.Context, uuid.UUID) (string, error)
+	LockReplacement() StreamReplacementGuard
+}
+
+type StreamReplacementGuard interface {
+	ReplaceInTx(context.Context, *sql.Tx, uuid.UUID, string, []*domain.RunEvent) error
+	AppendEmptyInTx(context.Context, *sql.Tx, uuid.UUID, string, []*domain.RunEvent) error
+	FinishAppend(uuid.UUID, bool, []*domain.RunEvent)
+	Finish(uuid.UUID, bool)
 }
 
 // Summary describes the currently retained rows selected by a run-event query.

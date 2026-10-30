@@ -16,10 +16,13 @@ import (
 // tools.exec_command call is a command; whatever else the script does is
 // code.
 
-// jsCommand is one literal exec_command argument: shell text or argv.
+// jsCommand is one literal exec_command argument: shell text or argv, and
+// the literal max_output_tokens that bounds how much of the command's output
+// the script receives (0 when the call sets none).
 type jsCommand struct {
-	Script string
-	Args   []string
+	Script          string
+	Args            []string
+	MaxOutputTokens int64
 }
 
 var jsOtherToolCall = regexp.MustCompile(`\btools\.[A-Za-z_$][A-Za-z0-9_$]*\s*\(|\bfor\s*\(|\bwhile\s*\(|\.(?:map|flatMap|forEach|reduce|filter)\s*\(|\bfetch\s*\(|\bimport\s*\(`)
@@ -147,8 +150,8 @@ func maskJS(src string) string {
 }
 
 // parseJSCommandObject parses the object literal at s[i] and returns its cmd
-// or command value. end is the index after the object (or where scanning
-// stopped).
+// or command value with its max_output_tokens. end is the index after the
+// object (or where scanning stopped).
 func parseJSCommandObject(s string, i int) (command jsCommand, end int, ok bool) {
 	i++
 	for {
@@ -184,10 +187,18 @@ func parseJSCommandObject(s string, i int) (command jsCommand, end int, ok bool)
 			continue // shorthand property
 		}
 		i = skipJSSpace(s, i+1)
-		if (key == "cmd" || key == "command") && !ok {
+		switch {
+		case (key == "cmd" || key == "command") && !ok:
 			if value, next, valueOK := parseJSCommandValue(s, i); valueOK {
+				value.MaxOutputTokens = command.MaxOutputTokens
 				command, ok, i = value, true, next
 			}
+		case key == "max_output_tokens":
+			digits := i
+			for digits < len(s) && s[digits] >= '0' && s[digits] <= '9' {
+				digits++
+			}
+			command.MaxOutputTokens, _ = strconv.ParseInt(s[i:digits], 10, 64)
 		}
 		i = skipJSValue(s, i)
 	}

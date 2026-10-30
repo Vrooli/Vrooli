@@ -24,6 +24,21 @@ const (
 	RootManual          = "manual"
 )
 
+// ReplacementEffectsPending marks committed replacement evidence whose
+// derived-owner notifications have not yet been acknowledged.
+const ReplacementEffectsPending = "replacement committed; search and projection reconciliation pending"
+
+// ReplacementReconciliationRequired marks old evidence retained while a
+// source replacement needs an explicit owner retry.
+const ReplacementReconciliationRequired = "transcript replacement requires reconciliation; prior evidence retained: "
+
+// ReplacementPrecommitError means no promotion intent or owner transaction
+// was attempted, so the prior checkpoint can be guarded with a CAS.
+type ReplacementPrecommitError struct{ Err error }
+
+func (e *ReplacementPrecommitError) Error() string { return e.Err.Error() }
+func (e *ReplacementPrecommitError) Unwrap() error { return e.Err }
+
 // Harness labels stored on file rows and as run import provenance.
 const (
 	HarnessCodex      = "codex"
@@ -89,8 +104,15 @@ type FileRow struct {
 	// PendingFacts is the non-text work read after the newest usage report,
 	// not yet attached to a report (encoded accumulator).
 	PendingFacts string
-	FirstSeenAt  time.Time
-	IndexedAt    *time.Time
+	// ParserVersion is the version of the events the parser derived
+	// (runner.TranscriptVersioner). A recall file read by an older version is
+	// re-imported from zero into the same run.
+	ParserVersion int
+	// LastObservedEventAt is the latest timestamp actually parsed from this
+	// transcript, not a claim that the native session has ended.
+	LastObservedEventAt *time.Time
+	FirstSeenAt         time.Time
+	IndexedAt           *time.Time
 }
 
 // Mtime is the file's modification time.
@@ -147,8 +169,10 @@ type Store interface {
 
 // Adoption is the run that represents an external file.
 type Adoption struct {
-	RunID    string
-	Excluded bool
+	RunID        string
+	Excluded     bool
+	LegacyRelink bool
+	LegacyPath   string
 }
 
 // RunUpdate is the activity a tick observed for a file's run.
@@ -158,6 +182,9 @@ type RunUpdate struct {
 	StartedAt time.Time
 	EndedAt   time.Time
 	Active    bool
+	// Recorded counts the events this tick appended to the run's recall. An
+	// idle run that gained events was re-imported and must be re-derived.
+	Recorded int
 }
 
 // Host is the run, event and search side of capture, implemented by the
@@ -173,6 +200,9 @@ type Host interface {
 	Adopt(ctx context.Context, file FileRow, parentRunID string) (Adoption, error)
 	// Parser returns a fresh transcript parser for the file's format.
 	Parser(ctx context.Context, file FileRow) (runner.TranscriptParser, error)
+	// ParserVersion is the current version of the events the harness's
+	// parser derives; 0 for a parser that declares none.
+	ParserVersion(harness string) int
 	// Record applies one parsed batch: provider quota observations always;
 	// the full events only when recall is true.
 	Record(ctx context.Context, runID string, events []*domain.RunEvent, recall bool) error

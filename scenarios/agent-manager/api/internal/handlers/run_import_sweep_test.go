@@ -6,16 +6,95 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/transcriptindex"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/identity"
 )
 
 type transcriptImporterFake struct {
 	summary transcriptindex.Summary
 	err     error
 	calls   int
+}
+
+type replacementImporterFake struct {
+	transcriptImporterFake
+	runID         string
+	fileKey       string
+	expectedRunID string
+}
+
+func (f *replacementImporterFake) ReplacementIssues(_ context.Context, runID string) (transcriptindex.ReplacementIssues, error) {
+	f.runID = runID
+	return transcriptindex.ReplacementIssues{Items: []transcriptindex.ReplacementIssue{{FileKey: "key", Reason: "reconciliation required"}}}, nil
+}
+
+func (f *replacementImporterFake) ReconcileReplacement(_ context.Context, runID, fileKey string) error {
+	if f.expectedRunID != "" && f.expectedRunID != runID {
+		return errors.New("run mismatch")
+	}
+	f.runID, f.fileKey = runID, fileKey
+	return nil
+}
+
+func TestReplacementReconciliationRouterEnforcesOperatorAndTarget(t *testing.T) {
+	id := uuid.NewString()
+	fake := &replacementImporterFake{expectedRunID: id}
+	h := New(orchestration.EmptyHandlerServices(), WithTranscriptImporter(fake))
+	router := mux.NewRouter()
+	h.RegisterRoutes(router)
+	wrapped := AgentOperationMiddleware(router)
+	call := func(target string, principal identity.Principal) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+target+"/transcript-reconcile", strings.NewReader(`{"fileKey":"key"}`))
+		r.RemoteAddr = "127.0.0.1:4321"
+		r = r.WithContext(identity.WithPrincipal(r.Context(), principal))
+		w := httptest.NewRecorder()
+		wrapped.ServeHTTP(w, r)
+		return w
+	}
+	agent := identity.Principal{Kind: identity.ActorAgent, Subject: uuid.NewString(), Verified: true, Scopes: []string{"agent-manager:write"}}
+	if w := call(id, agent); w.Code != http.StatusForbidden || fake.fileKey != "" {
+		t.Fatalf("ungranted agent admitted: %d %s", w.Code, w.Body.String())
+	}
+	operator := identity.Principal{Kind: identity.ActorHuman, Subject: "operator", Verified: true, Source: identity.SourceCloudflareAccess, Scopes: []string{"agent-manager:write"}}
+	if w := call(uuid.NewString(), operator); w.Code == http.StatusOK || fake.fileKey != "" {
+		t.Fatalf("cross-run target admitted: %d %s", w.Code, w.Body.String())
+	}
+	if w := call(id, operator); w.Code != http.StatusOK || fake.runID != id || fake.fileKey != "key" {
+		t.Fatalf("operator refused: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func TestReplacementReconciliationHandlerFencesInputs(t *testing.T) {
+	fake := &replacementImporterFake{}
+	h := New(orchestration.EmptyHandlerServices(), WithTranscriptImporter(fake))
+	id := uuid.NewString()
+	request := func(method, body string) *http.Request {
+		return mux.SetURLVars(httptest.NewRequest(method, "/", strings.NewReader(body)), map[string]string{"id": id})
+	}
+	w := httptest.NewRecorder()
+	h.ListTranscriptReplacementIssues(w, request(http.MethodGet, ""))
+	if w.Code != http.StatusOK || fake.runID != id || !strings.Contains(w.Body.String(), `"fileKey":"key"`) {
+		t.Fatalf("inspection: %d %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ReconcileTranscriptReplacement(w, request(http.MethodPost, `{"fileKey":"key"}`))
+	if w.Code != http.StatusOK || fake.runID != id || fake.fileKey != "key" {
+		t.Fatalf("reconciliation: %d %s", w.Code, w.Body.String())
+	}
+	for _, body := range []string{`{"fileKey":"key","extra":1}`, `{"fileKey":"key","fileKey":"other"}`, `{"fileKey":"key"}{}`, `{"fileKey":"` + strings.Repeat("x", 5000) + `"}`} {
+		fake.fileKey = ""
+		w = httptest.NewRecorder()
+		h.ReconcileTranscriptReplacement(w, request(http.MethodPost, body))
+		if w.Code == http.StatusOK || fake.fileKey != "" {
+			t.Fatalf("invalid request admitted: %d", w.Code)
+		}
+	}
 }
 
 func (f *transcriptImporterFake) RunOnce(context.Context) (transcriptindex.Summary, error) {

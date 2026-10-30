@@ -73,7 +73,6 @@ type ReplayResult struct {
 	RunID             string `json:"runId"`
 	Status            string `json:"status"`
 	FactCount         int    `json:"factCount"`
-	EpisodeCount      int    `json:"episodeCount"`
 	ClassifierVersion string `json:"classifierVersion"`
 }
 
@@ -91,13 +90,12 @@ type ReplayFilter struct {
 }
 
 type ReplaySummary struct {
-	Replayed          int             `json:"replayed"`
-	Refreshed         int             `json:"refreshed"`
-	Skipped           int             `json:"skipped"`
-	Unreplayable      int             `json:"unreplayable"`
-	EpisodesReDerived int             `json:"episodesReDerived"`
-	Truncated         bool            `json:"truncated"`
-	Failures          []ReplayFailure `json:"failures,omitempty"`
+	Replayed     int             `json:"replayed"`
+	Refreshed    int             `json:"refreshed"`
+	Skipped      int             `json:"skipped"`
+	Unreplayable int             `json:"unreplayable"`
+	Truncated    bool            `json:"truncated"`
+	Failures     []ReplayFailure `json:"failures,omitempty"`
 }
 
 // ReplayFailure makes a per-run maintenance failure inspectable without
@@ -230,26 +228,25 @@ func (o *Orchestrator) ReplayInvocationFacts(ctx context.Context, runID uuid.UUI
 		}
 		return &ReplayResult{RunID: runID.String(), Status: "unreplayable", ClassifierVersion: version}, nil
 	}
+	if kept, err := o.keepEvictedFacts(ctx, runID, events); err != nil {
+		return nil, err
+	} else if kept != nil {
+		return &ReplayResult{RunID: runID.String(), Status: "unreplayable", FactCount: len(kept), ClassifierVersion: kept[0].Version}, nil
+	}
 	projectedAt := o.now()
-	facts, next := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, o.capabilityResolver(run), o.commandResolver(run))
+	facts, next := invocationreadmodel.Project(run, events, projectedAt, o.portOwners, o.commandResolver(run))
 	if err := o.persistRunSubject(ctx, run, facts, events); err != nil {
 		return nil, err
 	}
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		episodes := invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt)
 		spans := invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt)
-		if err := projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), episodes, spans, next, invocationreadmodel.ProjectRun(run, events, projectedAt)); err != nil {
+		if err := projection.ReplaceProjection(ctx, facts, spans, next, invocationreadmodel.ProjectRun(run, events, projectedAt)); err != nil {
 			return nil, err
 		}
-		return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), EpisodeCount: len(episodes), ClassifierVersion: next.ClassifierVersion}, nil
 	} else if err := o.invocationReadModel.Replace(ctx, facts, next); err != nil {
 		return nil, err
 	}
-	report, err := o.BuildRunReport(ctx, runID)
-	if err != nil {
-		return nil, fmt.Errorf("re-derive episodes: %w", err)
-	}
-	return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), EpisodeCount: len(report.Episodes), ClassifierVersion: next.ClassifierVersion}, nil
+	return &ReplayResult{RunID: runID.String(), Status: "replayed", FactCount: len(facts), ClassifierVersion: next.ClassifierVersion}, nil
 }
 
 func (o *Orchestrator) persistRunSubject(ctx context.Context, run *domain.Run, facts []invocationreadmodel.Fact, events []*domain.RunEvent) error {
@@ -290,7 +287,6 @@ func (o *Orchestrator) RefreshInvocationFacts(ctx context.Context, runID uuid.UU
 	// older than the current classifier; otherwise mixed-version cohorts can
 	// never converge without an ad hoc database operation.
 	if watermark.ClassifierVersion != runsignal.InvocationFactVersion ||
-		watermark.EpisodeClassifierVersion != runsignal.EpisodeClassifierVersion ||
 		watermark.SelfReportClassifierVersion != runsignal.SelfReportClassifierVersion {
 		return o.ReplayInvocationFacts(ctx, runID)
 	}
@@ -366,7 +362,6 @@ func (o *Orchestrator) ReplayInvocationCorpus(ctx context.Context, filter Replay
 		case "unreplayable":
 			summary.Unreplayable++
 		}
-		summary.EpisodesReDerived += result.EpisodeCount
 	}
 	return summary, nil
 }
@@ -383,37 +378,51 @@ func (o *Orchestrator) projectInvocationReadModel(ctx context.Context, run *doma
 		return fmt.Errorf("load run events: %w", err)
 	}
 	events = o.summaryUsageEvents(ctx, run, events)
+	if kept, err := o.keepEvictedFacts(ctx, run.ID, events); err != nil || kept != nil {
+		return err
+	}
 	projectedAt := o.now()
-	capabilityResolver := o.capabilityResolver(run)
-	facts, watermark := invocationreadmodel.ProjectWithResolvers(run, events, projectedAt, capabilityResolver, o.commandResolver(run))
+	facts, watermark := invocationreadmodel.Project(run, events, projectedAt, o.portOwners, o.commandResolver(run))
 	if err := o.persistRunSubject(ctx, run, facts, events); err != nil {
 		return err
 	}
 	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
-		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectErrors(run, events, projectedAt), invocationreadmodel.ProjectEpisodes(run, facts, events, projectedAt), invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt, capabilityResolver))
+		return projection.ReplaceProjection(ctx, facts, invocationreadmodel.ProjectSelfReportSpans(run, events, projectedAt), watermark, invocationreadmodel.ProjectRun(run, events, projectedAt))
 	}
 	return o.invocationReadModel.Replace(ctx, facts, watermark)
 }
 
-func (o *Orchestrator) capabilityResolver(run *domain.Run) runsignal.CapabilityResolver {
-	if o == nil || o.runners == nil || run == nil || run.ResolvedConfig == nil {
-		return nil
-	}
-	owned, err := o.runners.Get(run.ResolvedConfig.RunnerType)
-	if err != nil {
-		return nil
-	}
-	provider, ok := owned.(interface{ ToolCapabilityMap() map[string]string })
-	if !ok {
-		return nil
-	}
-	declared := provider.ToolCapabilityMap()
-	return func(tool string) string {
-		if value := declared[tool]; value != "" {
-			return value
+// keepEvictedFacts returns the stored facts of a run whose tool events are gone
+// (recall evicted; only synthesized usage events remain). Projecting those
+// events would replace the facts with none, so the stored facts are kept and
+// the watermark advances to the current classifier versions: the run is
+// settled, and the stale sweep must not queue it again. It returns nil when
+// the events can be projected.
+func (o *Orchestrator) keepEvictedFacts(ctx context.Context, runID uuid.UUID, events []*domain.RunEvent) ([]invocationreadmodel.Fact, error) {
+	for _, event := range events {
+		switch event.Data.(type) {
+		case *domain.ToolCallEventData, *domain.ToolResultEventData:
+			return nil, nil
 		}
-		return "other"
 	}
+	stored, err := o.invocationReadModel.Facts(ctx, runID.String())
+	if err != nil || len(stored) == 0 {
+		return nil, err
+	}
+	if projection, ok := o.invocationReadModel.(invocationreadmodel.ProjectionStore); ok {
+		watermark := invocationreadmodel.Watermark{
+			RunID: runID.String(), LastEventAt: o.now(), ClassifierVersion: runsignal.InvocationFactVersion,
+			SelfReportClassifierVersion: runsignal.SelfReportClassifierVersion, ProjectedAt: o.now(),
+		}
+		if len(events) > 0 {
+			last := events[len(events)-1]
+			watermark.LastEventID, watermark.LastEventAt = last.ID.String(), last.Timestamp
+		}
+		if err := projection.AdvanceWatermark(ctx, watermark); err != nil {
+			return nil, err
+		}
+	}
+	return stored, nil
 }
 
 func (o *Orchestrator) commandResolver(run *domain.Run) runsignal.CommandResolver {
@@ -471,7 +480,7 @@ func (o *Orchestrator) ProjectPendingInvocationReadModels(ctx context.Context) e
 		return nil
 	}
 	now := o.now()
-	if _, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, runsignal.EpisodeClassifierVersion, now, projectionSweepBatch); err != nil {
+	if _, err := queue.EnqueueStaleProjections(ctx, runsignal.InvocationFactVersion, now, projectionSweepBatch); err != nil {
 		return fmt.Errorf("enqueue stale projections: %w", err)
 	}
 	due, err := queue.DueProjections(ctx, now, projectionSweepBatch)

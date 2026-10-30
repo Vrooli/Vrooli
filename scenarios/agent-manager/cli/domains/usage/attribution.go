@@ -124,8 +124,8 @@ func attributionLines(w *measurepb.UsageWindowAttribution, title string) []strin
 }
 
 func recommendationsCommand(newClient clientFor) cliapp.Command {
-	return usageCommand("recommendations", "What should I change? Rule findings grouped by target with a combined saving [--provider NAME] [--pool P --window W] [--run ID] [--json]",
-		"Evaluates R-model, R-model-mix, R-context, R-lifetime, R-floor, R-friction, R-idle and R-image over the current windows and groups the levers for one target (a session, a workload or a friction problem) into one entry whose combined saving never counts overlapping levers twice (each lever applies to what the larger ones leave). Each entry states the quota used so far, the projection over the window, its share of the window's burn and whether it is still running; groups saving under 0.1 pts are counted, and a rule that did not fire says why. --pool and --window evaluate one window alone.",
+	return usageCommand("recommendations", "What should I change? One ranked list of owner-level actions [--provider NAME] [--pool P --window W] [--run ID] [--json]",
+		"Merges the quota levers (R-model, R-model-mix, R-context, R-lifetime, R-floor, R-idle, R-image, R-skill), tool friction findings, opportunities (repeated sequences, bypasses) and operator interventions the accuracy gate admits into one list. Each action names its owner (skill, scenario, command, program, harness setting, session or workload), the change, its effect in its own unit (points, calls, tokens, interventions; finished sessions 'would have saved', only running ones are 'projected'), a score on its named scale with the absolute cost it is a share of (quota scale for levers: share of the window's points; friction scale for the rest: the geometric mean of harm share and run breadth, or operator-message share for interventions), evidence and the measure that verifies it. Quota levers are listed first, then friction actions: the two scales are never interleaved. Harm kinds weigh equally. Actions under 1% of their kind are counted; a lever family that did not fire says why; coverage says what each source could see. --pool and --window evaluate one window's levers alone.",
 		[]cliapp.Flag{providerFlag, {Name: "pool", Description: "With --provider and --window: evaluate this window alone"}, {Name: "window", Description: "With --provider and --pool: evaluate this window alone"}, runFlag, limitFlag},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			limit, err := parseLimit(op)
@@ -142,82 +142,88 @@ func recommendationsCommand(newClient clientFor) cliapp.Command {
 		},
 		func(response proto.Message) cliapp.ListReport {
 			r := response.(*measurepb.UsageRecommendationsResponse)
-			report := cliapp.ListReport{ResultsHeading: "Recommendations", Summary: []string{fmt.Sprintf("%d group(s) as of %s; savings are estimates", len(r.GetGroups()), stamp(r.GetGeneratedAt()))}}
-			if r.GetFoldedGroups() > 0 {
-				report.Summary[0] += fmt.Sprintf(" (%d more saving under 0.1 pts together ≈%.2f)", r.GetFoldedGroups(), r.GetFoldedPoints())
+			summary := fmt.Sprintf("%d action(s) as of %s: quota levers ranked by their share of a window's points, then friction actions ranked by √(harm share × runs touched); the scales are not comparable", len(r.GetActions()), stamp(r.GetGeneratedAt()))
+			if r.GetBelowMateriality() > 0 {
+				summary += fmt.Sprintf("; %d more scoring under %.0f%%", r.GetBelowMateriality(), 100*r.GetMaterialityScore())
 			}
-			if r.GetDominantConsumer() != "" {
-				report.Summary = append(report.Summary, "Dominant consumer: "+truncateLabel(r.GetDominantConsumerLabel(), 90))
-			}
-			scopes := make([]windowScope, len(r.GetGroups()))
-			for i, group := range r.GetGroups() {
-				scopes[i] = windowScope{provider: group.GetProvider(), pool: group.GetPool(), window: group.GetWindow()}
-			}
-			distinct, seen := []windowScope{}, map[windowScope]bool{}
-			for _, s := range scopes {
-				if !seen[s] {
-					seen[s] = true
-					distinct = append(distinct, s)
+			report := cliapp.ListReport{ResultsHeading: "Actions", Summary: []string{summary}}
+			group := ""
+			for _, action := range r.GetActions() {
+				if heading := actionGroup(action); heading != group {
+					group = heading
+					report.Results = append(report.Results, heading)
 				}
-			}
-			named := map[windowScope]string{}
-			for i, title := range windowTitles(distinct) {
-				named[distinct[i]] = title
-			}
-			for i, group := range r.GetGroups() {
-				report.Results = append(report.Results, groupLines(group, named[scopes[i]])...)
+				report.Results = append(report.Results, actionLines(action)...)
 			}
 			for _, rule := range r.GetRules() {
 				if !rule.GetFired() {
 					report.Results = append(report.Results, fmt.Sprintf("   %s did not fire: %s", rule.GetRule(), rule.GetReason()))
 				}
 			}
-			report.RetrievalHints = []string{"agent-manager usage recommendations --json  # evidence ids and typed facts per lever", "agent-manager usage burners  # who is using the window", "agent-manager usage friction  # recurring problems with owners"}
+			for _, line := range r.GetCoverage() {
+				report.Results = append(report.Results, "   coverage: "+line)
+			}
+			for _, line := range r.GetScoring() {
+				report.Results = append(report.Results, "   "+line)
+			}
+			report.RetrievalHints = []string{"agent-manager usage recommendations --json  # evidence ids and drill-down per action", "agent-manager usage friction  # report or dismiss a tool finding by fingerprint", "agent-manager usage opportunities  # every repeated sequence and bypass"}
 			return report
 		})
 }
 
-func groupLines(group *measurepb.UsageRecommendationGroup, window string) []string {
-	var alone float64
-	for _, lever := range group.GetLevers() {
-		alone += lever.GetSavedPoints()
-	}
-	saving := fmt.Sprintf("projected −%.1f pts of %s at this rate", group.GetCombinedSavedPoints(), window)
-	if len(group.GetLevers()) > 1 {
-		saving += fmt.Sprintf(" (levers alone sum −%.1f)", alone)
-	}
-	running := "stopped"
-	if group.GetStillRunning() {
-		running = "still running"
-	}
-	if group.GetStillRunning() {
-		saving += fmt.Sprintf(", −%.1f of it still recoverable in the %.0fh left", group.GetRecoverablePoints(), group.GetRemainingHours())
-	}
-	burn := fmt.Sprintf("%.0f%% of the window's burn", group.GetShareOfWindowBurn()*100)
-	if group.GetCrossCut() {
-		burn = fmt.Sprintf("%.0f%% of the window's burn, already counted in the session plans (do not add)", group.GetShareOfWindowBurn()*100)
-	}
+// actionLines renders one action: rank, title, score and confidence; owner;
+// the change; its effect in its own unit; evidence and verification; the
+// largest drill-down sessions.
+func actionLines(a *measurepb.UsageAction) []string {
 	lines := []string{
-		fmt.Sprintf("%d. %s  %s", group.GetRank(), truncateLabel(group.GetTargetLabel(), 90), saving),
-		fmt.Sprintf("   uses ≈%.1f pts so far, ≈%.1f at this rate · %s · %s", group.GetUsedSoFarPoints(), group.GetAtThisRatePoints(), burn, running),
+		fmt.Sprintf("%d. %s  %s  [%s %s, %s]", a.GetRank(), a.GetTitle(), scoreText(a), a.GetSource(), a.GetKind(), a.GetConfidence()),
+		fmt.Sprintf("   owner: %s %s", a.GetOwnerKind(), truncateLabel(a.GetOwner(), 90)),
+		"   " + a.GetAction(),
+		"   effect: " + effectText(a.GetEffect()) + " · " + a.GetRationale(),
+		"   score: " + a.GetScoreBasis(),
 	}
-	for i, lever := range group.GetLevers() {
-		gain := fmt.Sprintf("projected −%.1f", lever.GetSavedPoints())
-		if i > 0 {
-			gain = fmt.Sprintf("projected −%.1f more (−%.1f alone)", lever.GetMarginalPoints(), lever.GetSavedPoints())
-		}
-		if model := lever.GetFacts().GetModel(); lever.GetConfidence() == "unproven" && model != nil {
-			// An unproven move claims no saving; its range is the finding.
-			gain = fmt.Sprintf("up to −%.1f (unproven) pts", model.GetExpensiveWeeklyPoints()*(1-model.GetPriceRatio()))
-		} else if lever.GetRule() == "R-floor" && lever.GetSavedPoints() == 0 {
-			// The floor lever reports where the cost sits; it claims no saving.
-			gain = fmt.Sprintf("floor %.0f%% of cost", lever.GetFacts().GetContext().GetCachedShare()*100)
-		} else {
-			gain += " pts"
-		}
-		lines = append(lines, fmt.Sprintf("   %s  %s  [%s, %s] %s", gain, lever.GetAction(), lever.GetRule(), lever.GetConfidence(), evidenceSummary(lever.GetEvidenceRefs())))
+	lines = append(lines, frictionDetailLines(a.GetRootCause(), a.GetSubs(), a.GetGuesses(), 0, 0)...)
+	if a.GetRecoverablePoints() > 0 {
+		lines = append(lines, fmt.Sprintf("   ≈%.1f pts of it still recoverable before the window resets", a.GetRecoverablePoints()))
 	}
-	return lines
+	for _, d := range a.GetDrilldown()[:min(3, len(a.GetDrilldown()))] {
+		lines = append(lines, fmt.Sprintf("   · %s: %s", truncateLabel(d.GetLabel(), 60), d.GetDetail()))
+	}
+	return append(lines, "   "+evidenceSummary(a.GetEvidenceRefs())+" · verify: "+a.GetVerify())
+}
+
+// actionGroup is the heading of the group the API ranks an action in: quota
+// levers, friction actions, then a live session's own advice.
+func actionGroup(a *measurepb.UsageAction) string {
+	switch {
+	case a.GetOwnerKind() == "session":
+		return "Live sessions (quota scale)"
+	case a.GetSource() == "lever":
+		return "Quota levers (quota scale: share of a window's observed points)"
+	}
+	return "Friction actions (friction scale: √(harm share × runs touched))"
+}
+
+func scoreText(a *measurepb.UsageAction) string {
+	if a.GetEffect().GetBasis() == "range" {
+		return "unproven range"
+	}
+	return fmt.Sprintf("%.1f%%", 100*a.GetScore())
+}
+
+func effectText(e *measurepb.UsageActionEffect) string {
+	switch e.GetUnit() {
+	case "points":
+		if e.GetBasis() == "range" {
+			return fmt.Sprintf("0 to %.1f pts (unproven range)", e.GetUpper())
+		}
+		return fmt.Sprintf("%.1f pts (%s)", e.GetValue(), e.GetBasis())
+	case "ms":
+		return fmt.Sprintf("%.0f min (%s)", e.GetValue()/60000, e.GetBasis())
+	case "tokens":
+		return fmt.Sprintf("%s tokens (%s)", compact(int64(e.GetValue())), e.GetBasis())
+	}
+	return fmt.Sprintf("%.0f %s (%s)", e.GetValue(), e.GetUnit(), e.GetBasis())
 }
 
 func evidenceSummary(refs []*measurepb.UsageEvidenceRef) string {
@@ -233,12 +239,15 @@ func evidenceSummary(refs []*measurepb.UsageEvidenceRef) string {
 	for _, kind := range order {
 		parts = append(parts, fmt.Sprintf("%d %s", counts[kind], kind))
 	}
+	if len(parts) == 0 {
+		return "evidence: drill-down"
+	}
 	return "evidence: " + strings.Join(parts, ", ")
 }
 
 func coverageCommand(newClient clientFor) cliapp.Command {
 	return usageCommand("coverage", "Can I trust this? Transcript capture coverage against the disk [--since RFC3339] [--json]",
-		"Walks every transcript root now and compares the files modified since --since (default 7 days) with what the Transcript Indexer captured, per root, naming every uncaptured file.",
+		"Walks transcript roots and compares files modified since --since (default 7 days) with index checkpoints, listing up to 50 issues per root.",
 		[]cliapp.Flag{{Name: "since", Description: "RFC 3339 (default 7 days ago)"}},
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			response, err := newClient(op.Core()).UsageCoverage(context.Background(), connect.NewRequest(&measurepb.UsageCoverageRequest{Since: strings.TrimSpace(op.Flag("since"))}))
@@ -250,10 +259,10 @@ func coverageCommand(newClient clientFor) cliapp.Command {
 		func(response proto.Message) cliapp.ListReport {
 			r := response.(*measurepb.UsageCoverageResponse)
 			t := r.GetTotals()
-			report := cliapp.ListReport{ResultsHeading: "Roots", Summary: []string{fmt.Sprintf("captured %.1f%% of transcript bytes since %s · %d files · %d pending · %d unreadable", t.GetCapturedShare()*100, stamp(r.GetSince()), t.GetFiles(), t.GetPending(), t.GetUnreadable())}}
+			report := cliapp.ListReport{ResultsHeading: "Roots", Summary: []string{fmt.Sprintf("captured %s of transcript bytes since %s · %d files · %d pending · %d unreadable", coverageShare(t), stamp(r.GetSince()), t.GetFiles(), t.GetPending(), t.GetUnreadable())}}
 			for _, root := range r.GetRoots() {
-				report.Results = append(report.Results, fmt.Sprintf("%-24s %-11s %5.1f%%  files %d (indexed %d, owned %d, excluded %d, pending %d, unreadable %d)  turns %d, usage reports %d",
-					root.GetKind(), root.GetHarness(), root.GetCapturedShare()*100, root.GetFiles(), root.GetIndexed(), root.GetOwned(), root.GetExcluded(), root.GetPending(), root.GetUnreadable(), root.GetTurns(), root.GetUsageReports()))
+				report.Results = append(report.Results, fmt.Sprintf("%-24s %-11s %6s  files %d (indexed %d, owned %d, excluded %d, pending %d, unreadable %d)  turns %d, usage reports %d",
+					root.GetKind(), root.GetHarness(), coverageShare(root), root.GetFiles(), root.GetIndexed(), root.GetOwned(), root.GetExcluded(), root.GetPending(), root.GetUnreadable(), root.GetTurns(), root.GetUsageReports()))
 				for _, issue := range root.GetIssues() {
 					report.Results = append(report.Results, "    "+issue.GetReason()+": "+issue.GetPath())
 				}
@@ -261,6 +270,13 @@ func coverageCommand(newClient clientFor) cliapp.Command {
 			report.RetrievalHints = []string{"Method: " + r.GetMethod()}
 			return report
 		})
+}
+
+func coverageShare(root *measurepb.UsageCoverageRoot) string {
+	if root.GetBytes() <= 0 {
+		return "n/a"
+	}
+	return fmt.Sprintf("%.1f%%", root.GetCapturedShare()*100)
 }
 
 func compareCommand(newClient clientFor) cliapp.Command {

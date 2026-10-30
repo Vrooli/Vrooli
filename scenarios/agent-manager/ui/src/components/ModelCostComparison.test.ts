@@ -7,7 +7,7 @@ import { ModelCostComparison } from "./ModelCostComparison.js";
 import { renderWithProviders } from "../test-utils/index.js";
 
 const comparisonHook = vi.fn();
-vi.mock("../features/stats/hooks/useModelCostComparison.js", () => ({
+vi.mock("../features/usage/modelCostComparison.js", () => ({
   useModelCostComparison: (input: unknown) => comparisonHook(input),
 }));
 vi.mock("./dialogs/EditPricingDialog.js", () => ({

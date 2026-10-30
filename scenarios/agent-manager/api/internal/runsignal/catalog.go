@@ -4,24 +4,29 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"agent-manager/internal/availability"
-	"github.com/vrooli/envkit-go"
 )
 
 // CatalogResolution conservatively resolves an executable against the read-only manifest index.
 type CatalogResolution struct {
 	Owner, Command, Snapshot string
-	State                    availability.State
-	Reason                   string
-	SemanticsKind            string
-	SemanticsVerdict         string
+	// Group is a resolved path the manifest declares subcommands under: the
+	// next word of the line still selects the operation (`test-genie runs
+	// wait`) even when the manifest does not list it.
+	Group            bool
+	State            availability.State
+	Reason           string
+	SemanticsKind    string
+	SemanticsVerdict string
 }
 
 const (
@@ -32,108 +37,19 @@ const (
 	OwnershipUnparseable        = "unparseable"
 )
 
-// shellSegments is deliberately a non-evaluating lexer. It recognizes only
-// the separators Agent Manager can classify safely; command substitution,
-// process substitution, malformed quotes, and other shell grammar remain
-// unparseable evidence rather than being guessed at.
-func shellSegments(command string) ([]string, bool, bool) {
-	command = strings.TrimSpace(command)
-	if command == "" {
-		return nil, false, false
-	}
-	segments := []string{}
-	start := 0
-	var quote rune
-	escaped := false
-	compound := false
-	for i, r := range command {
-		if escaped {
-			escaped = false
-			continue
-		}
-		if r == '\\' && quote != '\'' {
-			escaped = true
-			continue
-		}
-		if quote != 0 {
-			if r == quote {
-				quote = 0
-			}
-			continue
-		}
-		// The first byte of a two-byte operator advances start past the
-		// second byte; ignore that second byte when range visits it.
-		if i < start {
-			continue
-		}
-		switch r {
-		case '\'', '"':
-			quote = r
-		case '`':
-			return nil, false, true
-		case '$':
-			// `$(` and `${` can change the command or arguments. The
-			// latter is also rejected because expanding it requires shell.
-			return nil, false, true
-		case '<', '>':
-			// Process substitution is explicitly unparseable. Ordinary
-			// redirection is retained as part of the segment.
-			if i+1 < len(command) && command[i+1] == '(' {
-				return nil, false, true
-			}
-		case ';', '|', '&':
-			// Redirection operators are part of the current command. In
-			// particular, 2>&1 must never create a phantom executable "1".
-			if r == '&' && ((i+1 < len(command) && command[i+1] == '>') || (i > 0 && command[i-1] == '>')) {
-				continue
-			}
-			if r == '|' && i+1 < len(command) && command[i+1] == '|' || r == '&' && i+1 < len(command) && command[i+1] == '&' {
-				// The range index is a byte offset for ASCII operators.
-				compound = true
-			}
-			if r == '&' && i+1 >= len(command) {
-				return nil, false, true
-			}
-			if r == '&' && i+1 < len(command) && command[i+1] != '&' {
-				return nil, false, true
-			}
-			if r == ';' || r == '|' || r == '&' {
-				part := strings.TrimSpace(command[start:i])
-				if part == "" {
-					return nil, false, true
-				}
-				segments = append(segments, part)
-				start = i + 1
-				if (r == '|' || r == '&') && start < len(command) && command[start] == byte(r) {
-					start++
-				}
-			}
-		}
-	}
-	if quote != 0 || escaped {
-		return nil, false, true
-	}
-	part := strings.TrimSpace(command[start:])
-	if part == "" {
-		return nil, false, true
-	}
-	segments = append(segments, part)
-	return segments, compound || len(segments) > 1, false
-}
-
-// SegmentShell returns literal shell segments and whether the source was a
-// compound command. It never executes or expands the input.
-func SegmentShell(command string) ([]string, bool, string) {
-	segments, compound, unparseable := shellSegments(command)
-	if unparseable {
-		return nil, false, "shell syntax requires evaluation"
-	}
-	return segments, compound, ""
-}
-
 type manifest struct {
-	Name   string          `json:"name"`
-	Groups []manifestGroup `json:"groups"`
+	Name       string              `json:"name"`
+	Groups     []manifestGroup     `json:"groups"`
+	Exceptions []manifestException `json:"exceptions"`
+}
+
+// manifestException is a command a CLI serves outside its manifest bindings
+// (a durable run, a stream): it is a command path like any other, and it may
+// declare semantics (`test-genie runs wait` maps the run's verdict to its exit
+// code).
+type manifestException struct {
+	Command   string             `json:"command"`
+	Semantics *manifestSemantics `json:"semantics,omitempty"`
 }
 type manifestGroup struct {
 	Name     string            `json:"name"`
@@ -148,6 +64,18 @@ type manifestCommand struct {
 type manifestSemantics struct {
 	Kind    string           `json:"kind"`
 	Verdict *manifestVerdict `json:"verdict,omitempty"`
+	Blocks  *manifestBlocks  `json:"blocks,omitempty"`
+}
+
+// manifestBlocks declares that a command blocks until its target changes:
+// only with Flag when one is named, and only on a target one of After acted
+// on first (`vrooli scenario wait` blocks on an in-flight start or restart;
+// with none it returns at once). Replaces are the reads an agent polling one
+// target can replace with one call of it.
+type manifestBlocks struct {
+	Flag     string   `json:"flag,omitempty"`
+	After    []string `json:"after,omitempty"`
+	Replaces []string `json:"replaces,omitempty"`
 }
 type manifestVerdict struct {
 	Path string `json:"path,omitempty"`
@@ -155,53 +83,44 @@ type manifestVerdict struct {
 	Fail string `json:"fail,omitempty"`
 }
 
+// catalog is the manifest index parsed once: every declared command path by
+// owner, what a command's exit means, the commands declared blocking by path,
+// and those that replace polling each read, in declaration order. Snapshot
+// names the manifest bytes it was built from.
+type catalog struct {
+	root, snapshot, stamp string
+	checked               time.Time
+	owners                map[string]map[string]bool
+	semantics             map[string]manifestSemantics
+	blocks                map[string]Blocking
+	replacing             map[string][]Blocking
+}
+
+// catalogRecheck bounds how often the manifests are stat'ed for a change: a
+// resolution runs per command call, a manifest changes when a CLI is edited.
+var catalogRecheck = 5 * time.Second
+
 var catalogCache struct {
 	sync.Mutex
-	root      string
-	owners    map[string]map[string]bool
-	semantics map[string]manifestSemantics
-	snapshot  string
+	current *catalog
 }
 
-// ResolveCatalog returns the conservative, manifest-backed classification for a command.
+// ResolveCatalog returns the conservative, manifest-backed classification of
+// a shell line that runs one command (wrappers such as `bash -lc '…'`, env
+// assignments, redirections and `cd` prefixes are not commands). A line that
+// runs several commands, or cannot be lexed, is unknown.
 func ResolveCatalog(command string) CatalogResolution {
-	command = unwrapShellCommand(command)
-	command = stripRedirectionTokens(command)
-	tokens, ok := safeTokens(command)
-	if !ok || len(tokens) == 0 {
-		return CatalogResolution{State: availability.Unknown, Reason: "command cannot be safely tokenized"}
+	units, ok := shellUnits(command)
+	if !ok || len(units) != 1 || units[0].Kind != unitCommand || dynamicProgram(units[0].Tokens[0]) {
+		return CatalogResolution{State: availability.Unknown, Reason: "command is not one simple command"}
 	}
-	return resolveCatalogTokens(tokens)
-}
-
-// ResolveCatalogArgs resolves literal argv without treating argument values
-// as shell operators. This is essential for argv such as
-// ["bash", "-lc", "awk '$4==...'"] where the dollar sign is data inside
-// an argument, not syntax that Agent Manager must evaluate.
-func ResolveCatalogArgs(args []string) CatalogResolution {
-	if _, script, ok := unwrapShellArgs(args); ok {
-		segments, _, unparseable := shellSegments(script)
-		if unparseable || len(segments) == 0 {
-			return CatalogResolution{State: availability.Unknown, Reason: "wrapped command cannot be safely segmented"}
-		}
-		return ResolveCatalog(segments[0])
-	}
-	tokens := make([]string, 0, len(args))
-	for _, arg := range args {
-		if strings.TrimSpace(arg) == "" {
-			continue
-		}
-		tokens = append(tokens, strings.TrimSpace(arg))
-	}
-	if len(tokens) == 0 {
-		return CatalogResolution{State: availability.Unknown, Reason: "command has no executable argv"}
-	}
-	return resolveCatalogTokens(tokens)
+	return resolveCatalogTokens(units[0].Tokens)
 }
 
 func resolveCatalogTokens(tokens []string) CatalogResolution {
-	_, owners, snapshot := loadCatalog()
-	paths, known := owners[tokens[0]]
+	c := currentCatalog()
+	snapshot := c.snapshot
+	paths, known := c.owners[tokens[0]]
 	if !known {
 		// A safely tokenized command has a factual executable even when it is
 		// not catalog-owned. Compound or unparseable shell remains unknown.
@@ -220,73 +139,13 @@ func resolveCatalogTokens(tokens []string) CatalogResolution {
 	for n := len(pathTokens); n > 1; n-- {
 		candidate := strings.Join(pathTokens[:n], " ")
 		if paths[candidate] {
-			return catalogResolution(tokens[0], candidate, snapshot, availability.Resolved)
+			return c.resolution(tokens[0], candidate, paths)
 		}
 	}
 	if paths[tokens[0]] {
-		return catalogResolution(tokens[0], tokens[0], snapshot, availability.Resolved)
+		return c.resolution(tokens[0], tokens[0], paths)
 	}
 	return CatalogResolution{Owner: tokens[0], Snapshot: snapshot, State: availability.Unknown, Reason: "catalog executable has no matching command path"}
-}
-
-// unwrapShellArgs accepts only the literal argv wrapper shape emitted by
-// coding-agent harnesses. It never evaluates, expands, or reparses shell
-// syntax; the returned script is subsequently passed through shellSegments.
-func unwrapShellArgs(args []string) (string, string, bool) {
-	if len(args) != 3 {
-		return "", "", false
-	}
-	executable := filepath.Base(strings.TrimSpace(args[0]))
-	if executable != "bash" && executable != "sh" {
-		return "", "", false
-	}
-	flag := strings.TrimSpace(args[1])
-	if flag != "-c" && flag != "-lc" {
-		return "", "", false
-	}
-	script := strings.TrimSpace(args[2])
-	if script == "" {
-		return "", "", false
-	}
-	return executable + " " + flag, script, true
-}
-
-// stripRedirectionTokens removes only syntactic redirection tokens. It does
-// not evaluate paths, variables, substitutions, or quoting. The command
-// remains evidence that can be conservatively tokenized after this pass.
-func stripRedirectionTokens(command string) string {
-	parts := strings.Fields(command)
-	kept := make([]string, 0, len(parts))
-	for i := 0; i < len(parts); i++ {
-		part := parts[i]
-		if isRedirectionToken(part) {
-			if !redirectionHasInlineTarget(part) && i+1 < len(parts) {
-				i++
-			}
-			continue
-		}
-		kept = append(kept, part)
-	}
-	return strings.Join(kept, " ")
-}
-
-func isRedirectionToken(token string) bool {
-	trimmed := strings.TrimSpace(token)
-	for _, prefix := range []string{"&>", ">>", ">", "<", "2>&", "1>&", "0>&"} {
-		if strings.HasPrefix(trimmed, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
-func redirectionHasInlineTarget(token string) bool {
-	for _, prefix := range []string{"&>", ">>", ">", "<", "2>&", "1>&", "0>&"} {
-		if strings.HasPrefix(token, prefix) && len(token) > len(prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func stripLeadingCommandFlags(tokens []string) []string {
@@ -303,12 +162,16 @@ func stripLeadingCommandFlags(tokens []string) []string {
 	return filtered
 }
 
-func catalogResolution(owner, command, snapshot string, state availability.State) CatalogResolution {
-	catalogCache.Lock()
+func (c *catalog) resolution(owner, command string, paths map[string]bool) CatalogResolution {
 	// command is the full catalog path, owner first ("agent-manager effort lint").
-	semantics := catalogCache.semantics[command]
-	catalogCache.Unlock()
-	result := CatalogResolution{Owner: owner, Command: command, Snapshot: snapshot, State: state, SemanticsKind: semantics.Kind}
+	semantics := c.semantics[command]
+	result := CatalogResolution{Owner: owner, Command: command, Snapshot: c.snapshot, State: availability.Resolved, SemanticsKind: semantics.Kind}
+	for path := range paths {
+		if strings.HasPrefix(path, command+" ") {
+			result.Group = true
+			break
+		}
+	}
 	if semantics.Verdict != nil {
 		result.SemanticsVerdict = semantics.Verdict.Path + "|" + semantics.Verdict.Pass + "|" + semantics.Verdict.Fail
 	}
@@ -317,80 +180,56 @@ func catalogResolution(owner, command, snapshot string, state availability.State
 
 // CurrentCatalogSnapshot returns the manifest-index digest used at import time.
 func CurrentCatalogSnapshot() string {
-	_, _, snapshot := loadCatalog()
-	return snapshot
+	return currentCatalog().snapshot
 }
 
-// unwrapShellCommand accepts only literal runner wrappers and never evaluates shell syntax.
-func unwrapShellCommand(command string) string {
-	command = strings.TrimSpace(command)
-	for _, prefix := range []string{"/bin/bash -lc ", "bash -lc ", "/bin/sh -c ", "sh -c "} {
-		if !strings.HasPrefix(command, prefix) {
-			continue
-		}
-		inner := strings.TrimSpace(strings.TrimPrefix(command, prefix))
-		if len(inner) < 2 || (inner[0] != '\'' && inner[0] != '"') || inner[len(inner)-1] != inner[0] {
-			return command
-		}
-		quote := inner[0]
-		inner = inner[1 : len(inner)-1]
-		if strings.ContainsRune(inner, rune(quote)) {
-			return command
-		}
-		return inner
-	}
-	return command
+// manifestPaths are every scenario CLI's manifest and the control plane's
+// (cli/manifest.json, the `vrooli` CLI), in the order the snapshot hashes them.
+func manifestPaths(root string) []string {
+	entries, _ := filepath.Glob(filepath.Join(root, "scenarios", "*", "cli", "manifest.json"))
+	sort.Strings(entries)
+	return append(entries, filepath.Join(root, "cli", "manifest.json"))
 }
 
-func safeTokens(command string) ([]string, bool) {
-	command = strings.TrimSpace(command)
-	if command == "" {
-		return nil, false
-	}
-	var quote rune
-	escaped := false
-	for _, r := range command {
-		if escaped {
-			escaped = false
-			continue
-		}
-		if r == '\\' && quote != '\'' {
-			escaped = true
-			continue
-		}
-		if quote != 0 {
-			if r == quote {
-				quote = 0
-			} else if quote == '"' && (r == '`' || r == '$') {
-				return nil, false
-			}
-			continue
-		}
-		switch r {
-		case '\'', '"':
-			quote = r
-		case '|', ';', '&', '`', '$', '\n', '\r':
-			return nil, false
+// manifestStamp names the manifests' paths, sizes and modification times: a
+// changed stamp means the index must be rebuilt.
+func manifestStamp(paths []string) string {
+	var b strings.Builder
+	for _, path := range paths {
+		if info, err := os.Stat(path); err == nil {
+			fmt.Fprintf(&b, "%s %d %d\n", path, info.Size(), info.ModTime().UnixNano())
 		}
 	}
-	if quote != 0 || escaped {
-		return nil, false
-	}
-	return strings.Fields(command), true
+	return b.String()
 }
 
-func loadCatalog() (string, map[string]map[string]bool, string) {
+// currentCatalog is the index for the project root, rebuilt when a manifest
+// was added, removed or changed since it was built (checked at most every
+// catalogRecheck), so the snapshot a fact records names the manifests its
+// resolution used.
+func currentCatalog() *catalog {
 	root := projectRoot()
 	catalogCache.Lock()
 	defer catalogCache.Unlock()
-	if catalogCache.root == root && catalogCache.owners != nil {
-		return root, catalogCache.owners, catalogCache.snapshot
+	c := catalogCache.current
+	if c != nil && c.root == root && time.Since(c.checked) < catalogRecheck {
+		return c
 	}
-	owners := map[string]map[string]bool{}
-	semantics := map[string]manifestSemantics{}
+	paths := manifestPaths(root)
+	stamp := manifestStamp(paths)
+	if c != nil && c.root == root && c.stamp == stamp {
+		c.checked = time.Now()
+		return c
+	}
+	c = buildCatalog(root, paths)
+	c.stamp, c.checked = stamp, time.Now()
+	catalogCache.current = c
+	return c
+}
+
+func buildCatalog(root string, entries []string) *catalog {
+	c := &catalog{root: root, owners: map[string]map[string]bool{}, semantics: map[string]manifestSemantics{}, blocks: map[string]Blocking{}, replacing: map[string][]Blocking{}}
 	hash := sha256.New()
-	entries, _ := filepath.Glob(filepath.Join(root, "scenarios", "*", "cli", "manifest.json"))
-	sort.Strings(entries)
 	for _, path := range entries {
 		body, err := os.ReadFile(path)
 		if err != nil {
@@ -403,36 +242,36 @@ func loadCatalog() (string, map[string]map[string]bool, string) {
 		}
 		paths := map[string]bool{value.Name: true}
 		for _, group := range value.Groups {
-			collectCommands(value.Name, nil, group, paths, semantics)
+			collectCommands(value.Name, nil, group, paths, c)
 		}
-		owners[value.Name] = paths
-	}
-	// The control plane is not a scenario manifest. Index its read-only help
-	// tree as a second source so `vrooli ...` is project-owned evidence.
-	controlOutput := []byte("control-plane:unavailable")
-	cmd := exec.Command("vrooli", "help")
-	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
-	if output, err := cmd.Output(); err == nil {
-		controlOutput = output
-	}
-	_, _ = hash.Write(controlOutput)
-	controlPaths := map[string]bool{"vrooli": true}
-	for _, line := range strings.Split(string(controlOutput), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 1 && strings.HasPrefix(line, "  ") && !strings.HasPrefix(strings.TrimSpace(line), "-") {
-			name := strings.TrimSpace(fields[0])
-			if name != "" && !strings.ContainsAny(name, ":<>") {
-				controlPaths["vrooli "+name] = true
+		for _, exception := range value.Exceptions {
+			if command := strings.Join(strings.Fields(exception.Command), " "); command != "" {
+				path := value.Name + " " + command
+				paths[path] = true
+				c.note(path, exception.Semantics)
 			}
 		}
+		c.owners[value.Name] = paths
 	}
-	owners["vrooli"] = controlPaths
-	catalogCache.root, catalogCache.owners, catalogCache.semantics = root, owners, semantics
-	catalogCache.snapshot = "manifest-index:" + hex.EncodeToString(hash.Sum(nil))[:16]
-	return root, owners, catalogCache.snapshot
+	c.snapshot = "manifest-index:" + hex.EncodeToString(hash.Sum(nil))[:16]
+	return c
 }
 
-func collectCommands(owner string, prefix []string, group manifestGroup, paths map[string]bool, semantics map[string]manifestSemantics) {
+// note records what the manifest declares for one command path.
+func (c *catalog) note(path string, semantics *manifestSemantics) {
+	if semantics == nil {
+		return
+	}
+	c.semantics[path] = *semantics
+	if b := semantics.Blocks; b != nil {
+		c.blocks[path] = Blocking{Path: path, Flag: b.Flag, After: b.After}
+		for _, read := range b.Replaces {
+			c.replacing[read] = append(c.replacing[read], c.blocks[path])
+		}
+	}
+}
+
+func collectCommands(owner string, prefix []string, group manifestGroup, paths map[string]bool, c *catalog) {
 	next := append([]string{}, prefix...)
 	if !group.Flat {
 		next = append(next, group.Name)
@@ -444,13 +283,11 @@ func collectCommands(owner string, prefix []string, group manifestGroup, paths m
 		if command.Name != "" {
 			path := strings.Join(append(append([]string{owner}, next...), command.Name), " ")
 			paths[path] = true
-			if command.Semantics != nil {
-				semantics[path] = *command.Semantics
-			}
+			c.note(path, command.Semantics)
 		}
 	}
 	for _, child := range group.Groups {
-		collectCommands(owner, next, child, paths, semantics)
+		collectCommands(owner, next, child, paths, c)
 	}
 }
 
@@ -475,4 +312,36 @@ func projectRoot() string {
 		}
 		dir = parent
 	}
+}
+
+// Blocking is a command its manifest declares blocks until its target changes
+// (semantics.blocks): always, with Flag when one is named, and only on a target
+// one of After (command paths as facts record them) acted on first.
+type Blocking struct {
+	Path, Flag string
+	After      []string
+}
+
+// Command is the blocking call as an agent types it: `agent-manager run
+// events --follow`.
+func (b Blocking) Command() string {
+	return strings.TrimSpace(b.Path + " " + b.Flag)
+}
+
+// BlockingSiblings are the commands the owning CLI's manifest (commands and
+// declared exceptions alike, and the control plane's cli/manifest.json)
+// declares replace polling commandPath, in declaration order: `vrooli scenario
+// wait` for `vrooli scenario status`. A verb is never evidence (`agent-manager
+// run await-result` re-reads a parked result and blocks on nothing), and a
+// listing or a read of something else has none.
+func BlockingSiblings(commandPath string) []Blocking {
+	return currentCatalog().replacing[commandPath]
+}
+
+// Blocks reports whether a call of commandPath with words blocks by its
+// manifest's declaration: the command blocks, and its flag (when it names
+// one) is among words.
+func Blocks(commandPath string, words []string) bool {
+	b, ok := currentCatalog().blocks[commandPath]
+	return ok && (b.Flag == "" || slices.ContainsFunc(words, func(w string) bool { return w == b.Flag || strings.HasPrefix(w, b.Flag+"=") }))
 }

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/toolfriction"
+
 	"agent-manager/internal/eventlog"
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -31,7 +33,7 @@ func labelledDecision(t *testing.T, repo *Repository, store *PolicyStore, versio
 	decision := &domainpb.WatchDecision{IdempotencyKey: uuid.NewString(), Disposition: domainpb.WatchDisposition_WATCH_DISPOSITION_QUIET, Classification: "quiet", EvidenceIds: []string{"event-proof"}}
 	input := EvaluationInput{Watch: watch, Now: repo.now(), ProposedCursor: after.Token, Subjects: []SubjectSummary{{RunID: spec.Subjects[0].RunId, Status: "running"}}, Events: []eventlog.CohortEvent{{ID: uuid.New(), Data: []byte(`{"private":"must-not-persist"}`)}}}
 	if observed == "stalled" {
-		input.Subjects[0].FrictionScore = .9
+		input.Subjects[0].ToolFriction = toolfriction.RunScore{Commands: 10, Score: .9}
 	}
 	saved, err := repo.CommitDecision(ctx, watch.WatchId, watch.Revision, before, decision, after, input)
 	if err != nil {
@@ -137,7 +139,7 @@ func TestReplayRunsCandidateAndRolloutCannotBeClaimed(t *testing.T) {
 			return nil, err
 		}
 		klass := "quiet"
-		if in.Subjects[0].FrictionScore > .7 {
+		if in.Subjects[0].ToolFriction.Score > .7 {
 			klass = "stalled"
 		}
 		return &domainpb.WatchDecision{Disposition: domainpb.WatchDisposition_WATCH_DISPOSITION_SIGNAL, Classification: klass, RecommendedAction: domainpb.WatchActionKind_WATCH_ACTION_KIND_OBSERVE}, nil

@@ -5,26 +5,9 @@ import (
 	"time"
 )
 
-func TestModelPricingComponentAccessorsAndCloneAreIndependent(t *testing.T) {
-	prices := []float64{1, 2, 3, 4, 5, 6}
-	components := AllComponents()
-	if len(components) != len(prices) {
-		t.Fatalf("components=%v", components)
-	}
-	model := &ModelPricing{}
-	for index, component := range components {
-		model.SetPrice(component, &prices[index])
-		model.SetSource(component, SourceProviderAPI)
-		if got := model.GetPrice(component); got == nil || *got != prices[index] {
-			t.Fatalf("component %s price=%v", component, got)
-		}
-		if got := model.GetSource(component); got != SourceProviderAPI {
-			t.Fatalf("component %s source=%s", component, got)
-		}
-	}
-	if model.GetPrice(PricingComponent("unknown")) != nil || model.GetSource(PricingComponent("unknown")) != SourceUnknown {
-		t.Fatal("unknown component must fail closed")
-	}
+func TestModelPricingCloneIsIndependent(t *testing.T) {
+	input := 1.0
+	model := &ModelPricing{InputTokenPrice: &input}
 	clone := model.Clone()
 	if clone == nil || clone == model {
 		t.Fatal("clone was not allocated")
@@ -38,18 +21,12 @@ func TestModelPricingComponentAccessorsAndCloneAreIndependent(t *testing.T) {
 	}
 }
 
-func TestPricingExpiryAndDefaults(t *testing.T) {
-	now := time.Now()
-	if !(&ModelPricing{ExpiresAt: now.Add(-time.Second)}).IsExpired() || (&ModelPricing{ExpiresAt: now.Add(time.Second)}).IsExpired() {
-		t.Fatal("model pricing expiry boundary incorrect")
+func TestPricingExpiry(t *testing.T) {
+	past, future := time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+	if !(&ModelPricing{ExpiresAt: past}).IsExpired() || (&ModelPricing{ExpiresAt: future}).IsExpired() {
+		t.Fatal("model pricing expiry must follow ExpiresAt")
 	}
-	if (&ManualPriceOverride{}).IsExpired() || !(&ManualPriceOverride{ExpiresAt: ptrTime(now.Add(-time.Second))}).IsExpired() || (&ManualPriceOverride{ExpiresAt: ptrTime(now.Add(time.Second))}).IsExpired() {
-		t.Fatal("manual override expiry boundary incorrect")
-	}
-	defaults := DefaultPricingSettings()
-	if defaults.ProviderCacheTTL != 6*time.Hour {
-		t.Fatalf("defaults=%+v", defaults)
+	if (&ManualPriceOverride{}).IsExpired() || (&ManualPriceOverride{ExpiresAt: &future}).IsExpired() || !(&ManualPriceOverride{ExpiresAt: &past}).IsExpired() {
+		t.Fatal("an override without ExpiresAt is permanent; otherwise it follows ExpiresAt")
 	}
 }
-
-func ptrTime(value time.Time) *time.Time { return &value }

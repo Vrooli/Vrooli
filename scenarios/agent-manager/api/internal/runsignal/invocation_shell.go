@@ -48,49 +48,6 @@ func lexShell(s string) ([]rawSegment, bool) {
 			segments[len(segments)-1].Op = op
 		}
 	}
-	// readWord consumes one shell word starting at i, returning its unquoted
-	// text and the index after it.
-	var readWord func(i int) (string, int, bool)
-	readWord = func(i int) (string, int, bool) {
-		var b strings.Builder
-		for i < len(s) {
-			c := s[i]
-			switch {
-			case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ';' || c == '|' || c == '&' || c == '<' || c == '>' || c == '(' || c == ')':
-				return b.String(), i, true
-			case c == '\\':
-				if i+1 < len(s) && s[i+1] != '\n' {
-					b.WriteByte(s[i+1])
-				}
-				i += 2
-			case c == '\'':
-				end := strings.IndexByte(s[i+1:], '\'')
-				if end < 0 {
-					return "", i, false
-				}
-				b.WriteString(s[i+1 : i+1+end])
-				i += end + 2
-			case c == '"':
-				text, next, ok := scanDoubleQuoted(s, i)
-				if !ok {
-					return "", i, false
-				}
-				b.WriteString(text)
-				i = next
-			case c == '$' || c == '`':
-				next, ok := skipExpansion(s, i)
-				if !ok {
-					return "", i, false
-				}
-				b.WriteString(s[i:next])
-				i = next
-			default:
-				b.WriteByte(c)
-				i++
-			}
-		}
-		return b.String(), i, true
-	}
 	for i := 0; i < len(s); {
 		c := s[i]
 		switch {
@@ -126,24 +83,15 @@ func lexShell(s string) ([]rawSegment, bool) {
 			}
 			flush()
 			if strings.HasPrefix(s[i:], "<<<") {
-				_, next, ok := readWord(skipBlanks(s, i+3))
+				_, next, ok := readShellWord(s, skipBlanks(s, i+3))
 				if !ok {
 					return nil, false
 				}
 				i = next
 				continue
 			}
-			if strings.HasPrefix(s[i:], "<<") {
-				j := i + 2
-				strip := j < len(s) && s[j] == '-'
-				if strip {
-					j++
-				}
-				delim, next, ok := readWord(skipBlanks(s, j))
-				if !ok {
-					return nil, false
-				}
-				pending = append(pending, heredoc{delim: delim, strip: strip})
+			if h, next, ok := heredocOperator(s, i); ok {
+				pending = append(pending, h)
 				i = next
 				continue
 			}
@@ -158,7 +106,7 @@ func lexShell(s string) ([]rawSegment, bool) {
 				i = j
 				continue
 			}
-			_, next, ok := readWord(skipBlanks(s, j))
+			_, next, ok := readShellWord(s, skipBlanks(s, j))
 			if !ok {
 				return nil, false
 			}
@@ -193,7 +141,7 @@ func lexShell(s string) ([]rawSegment, bool) {
 			flush()
 			i++
 		default:
-			text, next, ok := readWord(i)
+			text, next, ok := readShellWord(s, i)
 			if !ok {
 				return nil, false
 			}
@@ -220,7 +168,9 @@ func skipBlanks(s string, i int) int {
 }
 
 // heredocOperator reads `<<WORD`, `<<-WORD`, `<<'WORD'` or `<<"WORD"` at i and
-// returns the heredoc and the index after its delimiter word.
+// returns the heredoc and the index after its delimiter word. The delimiter
+// is the word with its quotes removed, as the shell reads it; the one parser
+// serves both the lexer and a heredoc inside $(...).
 func heredocOperator(s string, i int) (heredoc, int, bool) {
 	if !strings.HasPrefix(s[i:], "<<") || strings.HasPrefix(s[i:], "<<<") {
 		return heredoc{}, i, false
@@ -231,27 +181,56 @@ func heredocOperator(s string, i int) (heredoc, int, bool) {
 		h.strip = true
 		j++
 	}
-	j = skipBlanks(s, j)
-	quote := byte(0)
-	if j < len(s) && (s[j] == '\'' || s[j] == '"') {
-		quote = s[j]
-		j++
-	}
-	start := j
-	for j < len(s) && (s[j] == '_' || s[j] == '-' || s[j] >= '0' && s[j] <= '9' || s[j] >= 'A' && s[j] <= 'Z' || s[j] >= 'a' && s[j] <= 'z') {
-		j++
-	}
-	if j == start {
+	delim, next, ok := readShellWord(s, skipBlanks(s, j))
+	if !ok || delim == "" {
 		return heredoc{}, i, false
 	}
-	h.delim = s[start:j]
-	if quote != 0 {
-		if j >= len(s) || s[j] != quote {
-			return heredoc{}, i, false
+	h.delim = delim
+	return h, next, true
+}
+
+// readShellWord consumes one shell word starting at s[i], returning its
+// unquoted text and the index after it. It reports false for an unterminated
+// quote or substitution.
+func readShellWord(s string, i int) (string, int, bool) {
+	var b strings.Builder
+	for i < len(s) {
+		c := s[i]
+		switch {
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == ';' || c == '|' || c == '&' || c == '<' || c == '>' || c == '(' || c == ')':
+			return b.String(), i, true
+		case c == '\\':
+			if i+1 < len(s) && s[i+1] != '\n' {
+				b.WriteByte(s[i+1])
+			}
+			i += 2
+		case c == '\'':
+			end := strings.IndexByte(s[i+1:], '\'')
+			if end < 0 {
+				return "", i, false
+			}
+			b.WriteString(s[i+1 : i+1+end])
+			i += end + 2
+		case c == '"':
+			text, next, ok := scanDoubleQuoted(s, i)
+			if !ok {
+				return "", i, false
+			}
+			b.WriteString(text)
+			i = next
+		case c == '$' || c == '`':
+			next, ok := skipExpansion(s, i)
+			if !ok {
+				return "", i, false
+			}
+			b.WriteString(s[i:next])
+			i = next
+		default:
+			b.WriteByte(c)
+			i++
 		}
-		j++
 	}
-	return h, j, true
+	return b.String(), i, true
 }
 
 // skipHeredocBody advances past the lines of a heredoc body, through its
@@ -481,7 +460,9 @@ type commandUnit struct {
 	Wrapper    string
 	Reason     string
 	FromScript bool // read from a script's exec_command call, so it is a shell command whatever the tool is named
-	Last       bool // inherits the call's exit status
+	Command    int  // which command of the call it belongs to: the exec_command index, codeCommand for code
+	Last       bool // inherits its command's exit status
+	Piped      bool // reads another segment's output through a pipe
 	AllAnd     bool // every operator in the chain is &&, so success is provable for all
 }
 
@@ -507,23 +488,28 @@ func shellUnits(command string) ([]commandUnit, bool) {
 			allAnd = false
 		}
 	}
-	var kept, noise []commandUnit
+	words := make([][]string, len(segments))
+	last := -1 // the last segment that runs a command; `done`/`fi` do not
 	for i, seg := range segments {
 		tokens := seg.Tokens
 		for len(tokens) > 0 && controlPrefixes[tokens[0]] {
 			tokens = tokens[1:]
 		}
-		if len(tokens) == 0 || controlOnly[tokens[0]] {
-			continue
+		if len(tokens) > 0 && !controlOnly[tokens[0]] {
+			if words[i] = stripWrappers(tokens); len(words[i]) > 0 {
+				last = i
+			}
 		}
-		tokens = stripWrappers(tokens)
+	}
+	var kept, noise []commandUnit
+	for i, tokens := range words {
 		if len(tokens) == 0 {
 			continue
 		}
 		// A unit after && or || may never have run, so the call's exit
 		// status cannot be attributed to it; ; and pipeline tails inherit it.
 		afterChain := i > 0 && (segments[i-1].Op == "&&" || segments[i-1].Op == "||")
-		unit := commandUnit{Last: i == len(segments)-1 && !afterChain, AllAnd: allAnd}
+		unit := commandUnit{Last: i == last && !afterChain, AllAnd: allAnd, Piped: i > 0 && segments[i-1].Op == "|"}
 		if wrapper, script, wrapped := shellScript(tokens); wrapped {
 			inner, innerOK := shellUnits(script)
 			if !innerOK {
@@ -553,13 +539,6 @@ func shellUnits(command string) ([]commandUnit, bool) {
 // argvUnits is the literal-argv form: words are never reparsed as syntax,
 // except for the `bash -lc` wrapper whose script is shell text.
 func argvUnits(args []string) ([]commandUnit, bool) {
-	if wrapper, script, ok := unwrapShellArgs(args); ok {
-		units, ok := shellUnits(script)
-		for i := range units {
-			units[i].Wrapper = wrapper
-		}
-		return units, ok
-	}
 	tokens := stripWrappers(args)
 	if len(tokens) == 0 {
 		return nil, true
@@ -589,9 +568,9 @@ var subcommandWord = regexp.MustCompile(`^[a-z][a-z0-9:_-]*$`)
 // word when the program is subcommand-style.
 func commandPathFor(resolution CatalogResolution, tokens []string) string {
 	if resolution.Command != "" && resolution.Command != tokens[0] {
-		// The control plane's index stops at its top-level verb; its next word
-		// (`vrooli scenario logs`) still selects the operation.
-		if tokens[0] == "vrooli" {
+		// A manifest group does not list every operation under it; the next
+		// word (`test-genie runs <verb>`) still selects it.
+		if resolution.Group {
 			if sub := subcommandAfter(tokens, strings.Count(resolution.Command, " ")+1, nil); sub != "" && !strings.Contains(resolution.Command, sub) {
 				return resolution.Command + " " + sub
 			}

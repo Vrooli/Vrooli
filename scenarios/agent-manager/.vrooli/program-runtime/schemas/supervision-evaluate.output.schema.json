@@ -84,6 +84,7 @@
             "budget_exhausted",
             "invalid_input",
             "deadline",
+            "event_count",
             "quiet_time"
           ]
         },

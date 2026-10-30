@@ -74,51 +74,9 @@ func TestEffortLocalOwnerDoesNotElevateAgentRequests(t *testing.T) {
 	}
 }
 
-// copyBASGoalHome copies the trimmed real BAS goal home into a temporary
-// directory and applies edits to named files.
+// copyBASGoalHome copies the trimmed BAS goal home (CHARTER/STATUS/LOG/FEEDBACK)
+// into a temp dir and applies edits to named files.
 func copyBASGoalHome(t *testing.T, edits map[string]func(string) string) string {
-	t.Helper()
-	source, home := filepath.Join(goalhomeTestdata, "bas"), t.TempDir()
-	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
-			return err
-		}
-		name, _ := filepath.Rel(source, path)
-		data, err := os.ReadFile(path)
-		text := string(data)
-		if edit := edits[name]; edit != nil {
-			text = edit(text)
-		}
-		writeFile(t, filepath.Join(home, name), text)
-		return err
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return home
-}
-
-func copyRuntimeBASGoalHome(t *testing.T, edits map[string]func(string) string) string {
-	t.Helper()
-	home := copyBASGoalHome(t, edits)
-	v1, err := goalhome.LoadLegacy(os.DirFS(home))
-	if err != nil {
-		t.Fatal(err)
-	}
-	read := func(name string) []byte { b, _ := os.ReadFile(filepath.Join(home, name)); return b }
-	conv := goalhome.ConvertHome(v1, read(goalhome.GoalFile), read(goalhome.QueueFile), read(goalhome.WorkaroundsFile))
-	if !conv.Equivalent {
-		t.Fatal(conv.Divergence)
-	}
-	if err := applyMigration(home, conv); err != nil {
-		t.Fatal(err)
-	}
-	return home
-}
-
-// copyV2BASGoalHome copies the Phase-2 v2 BAS home (CHARTER/STATUS/LOG/FEEDBACK)
-// into a temp dir, so the CLI writers sniff it as v2 and target STATUS.md.
-func copyV2BASGoalHome(t *testing.T, edits map[string]func(string) string) string {
 	t.Helper()
 	source, home := filepath.Join(goalhomeTestdata, "v2-bas"), t.TempDir()
 	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
@@ -150,19 +108,25 @@ func runEffort(t *testing.T, app *App, args ...string) (string, int) {
 	return output, code
 }
 
+// acknowledgeReaim records the [re-aim] decision that answers the BAS home's
+// gap-horizon finding, leaving the other lint rules to the test.
+func acknowledgeReaim(s string) string {
+	return strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- [re-aim] Close the line-count phase? Options: re-aim at journeys, close.", 1)
+}
+
 func TestEffortLintNamesDuplicateHandoffAndExitsFour(t *testing.T) {
-	home := copyRuntimeBASGoalHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
-		s = strings.Replace(s, "3. **RD-EXP", "3. [ready] **RD-EXP", 1)
-		s = strings.Replace(s, "- The census notes", "- FB-063 is translated into the RD slices; SUP-AUDIT-003 is tracked under Waiting on others.\n- The census notes", 1)
+	home := copyBASGoalHome(t, map[string]func(string) string{"STATUS.md": func(s string) string {
+		s = acknowledgeReaim(strings.Replace(s, "3. **RD-EXP", "3. [ready] **RD-EXP", 1))
+		s = strings.Replace(s, "  4. Keep this section short", "- FB-063 is translated into the RD slices; SUP-AUDIT-003 is tracked under Waiting on others.\n  4. Keep this section short", 1)
 		return strings.Replace(s, "## Waiting on others", "### Orchestrator handoff — 2026-10-06T16:43Z\n\nNothing changed; parking for 12 hours.\n\n## Waiting on others", 1)
 	}})
 	output, code := runEffort(t, &App{}, "lint", home)
 	if code != exitRefused || !strings.Contains(output, "FAIL handoff-count STATUS.md") || !strings.Contains(output, "### Orchestrator handoff — 2026-10-06T16:43Z") || !strings.Contains(output, "goal home fails 1 rules: handoff-count") {
 		t.Fatalf("lint must fail and name the duplicate handoff (exit %d):\n%s", code, output)
 	}
-	home = copyRuntimeBASGoalHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
-		s = strings.Replace(s, "3. **RD-EXP", "3. [ready] **RD-EXP", 1)
-		return strings.Replace(s, "- The census notes", "- FB-063 is translated into the RD slices; SUP-AUDIT-003 is tracked under Waiting on others.\n- The census notes", 1)
+	home = copyBASGoalHome(t, map[string]func(string) string{"STATUS.md": func(s string) string {
+		s = acknowledgeReaim(strings.Replace(s, "3. **RD-EXP", "3. [ready] **RD-EXP", 1))
+		return strings.Replace(s, "  4. Keep this section short", "- FB-063 is translated into the RD slices; SUP-AUDIT-003 is tracked under Waiting on others.\n  4. Keep this section short", 1)
 	}})
 	if output, code = runEffort(t, &App{}, "lint", home, "--json"); code != 0 || !strings.Contains(output, `"blocking": false`) {
 		t.Fatalf("a goal home that meets the rules passes (exit %d):\n%s", code, output)
@@ -170,7 +134,7 @@ func TestEffortLintNamesDuplicateHandoffAndExitsFour(t *testing.T) {
 }
 
 func TestEffortHandoffSetReplacesOnceAndRefusesOversizedText(t *testing.T) {
-	home := copyRuntimeBASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	queue := filepath.Join(home, "STATUS.md")
 	text := writeFile(t, filepath.Join(t.TempDir(), "handoff.md"), "- 2026-10-07T15:00Z: E26 accepted; admit JX-2 as E27 next.\n")
 	output, code := runEffort(t, &App{}, "handoff", "set", home, "--file", text)
@@ -196,7 +160,7 @@ func TestEffortHandoffSetReplacesOnceAndRefusesOversizedText(t *testing.T) {
 // TestEffortHandoffSetTargetsStatusForV2Home proves the handoff writer targets
 // STATUS.md (not STATUS.md) when the home is a Phase-2 v2 home.
 func TestEffortHandoffSetTargetsStatusForV2Home(t *testing.T) {
-	home := copyV2BASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	status := filepath.Join(home, goalhome.StatusFile)
 	text := writeFile(t, filepath.Join(t.TempDir(), "handoff.md"), "- 2026-10-08T09:00Z: migrated; admit the next journey slice.\n")
 	output, code := runEffort(t, &App{}, "handoff", "set", home, "--file", text)
@@ -207,7 +171,7 @@ func TestEffortHandoffSetTargetsStatusForV2Home(t *testing.T) {
 	if strings.Count(string(written), "## Handoff") != 1 || !strings.Contains(string(written), "- 2026-10-08T09:00Z: migrated") || strings.Contains(string(written), "act on BAS-FB-064") {
 		t.Fatalf("STATUS.md must hold exactly the new handoff:\n%s", written)
 	}
-	if _, err := os.Stat(filepath.Join(home, goalhome.QueueFile)); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(home, "QUEUE.md")); !os.IsNotExist(err) {
 		t.Fatal("the v2 handoff writer must not create a QUEUE.md")
 	}
 }
@@ -217,7 +181,7 @@ func TestEffortHandoffSetTargetsStatusForV2Home(t *testing.T) {
 // never flagged missing. The unmodified v2-bas home already fails idle-queue,
 // feedback-unacknowledged and diminishing-returns, so a refusal is expected.
 func TestEffortLintV2HomeUsesStatusAnchors(t *testing.T) {
-	home := copyV2BASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	output, code := runEffort(t, &App{}, "lint", home)
 	if code != exitRefused {
 		t.Fatalf("the v2-bas home must fail lint on its open items (exit %d):\n%s", code, output)
@@ -227,67 +191,8 @@ func TestEffortLintV2HomeUsesStatusAnchors(t *testing.T) {
 		t.Fatalf("a queue-section finding must name STATUS.md for a v2 home:\n%s", output)
 	}
 	// No finding may name the absent v1 files, nor flag them missing.
-	if strings.Contains(output, "missing-file") || strings.Contains(output, goalhome.QueueFile) || strings.Contains(output, goalhome.GoalFile) {
+	if strings.Contains(output, "missing-file") || strings.Contains(output, "QUEUE.md") || strings.Contains(output, "GOAL.md") {
 		t.Fatalf("no lint finding may reference the absent v1 GOAL.md/QUEUE.md for a v2 home:\n%s", output)
-	}
-}
-
-func TestEffortMigrationResumesPublicationAndArchivesOnce(t *testing.T) {
-	home := copyBASGoalHome(t, nil)
-	v1, err := goalhome.LoadLegacy(os.DirFS(home))
-	if err != nil {
-		t.Fatal(err)
-	}
-	read := func(name string) []byte {
-		data, err := os.ReadFile(filepath.Join(home, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		return data
-	}
-	conv := goalhome.ConvertHome(v1, read(goalhome.GoalFile), read(goalhome.QueueFile), read(goalhome.WorkaroundsFile))
-	if !conv.Equivalent {
-		t.Fatal(conv.Divergence)
-	}
-	// An archive collision interrupts publication after the new files exist.
-	writeFile(t, filepath.Join(home, "archive/v1/GOAL.md"), "unrelated retained data")
-	if err := applyMigration(home, conv); err == nil {
-		t.Fatal("archive collision must preserve existing data")
-	}
-	// Retry refuses to clobber an operator edit to a partially published file.
-	published := read(goalhome.StatusFile)
-	writeFile(t, filepath.Join(home, goalhome.StatusFile), "operator edit")
-	if err := finishMigration(home); err == nil {
-		t.Fatal("retry overwrote an operator edit")
-	}
-	if string(read(goalhome.StatusFile)) != "operator edit" {
-		t.Fatal("operator edit was changed")
-	}
-	writeFile(t, filepath.Join(home, goalhome.StatusFile), string(published))
-	if err := os.Remove(filepath.Join(home, "archive/v1/GOAL.md")); err != nil {
-		t.Fatal(err)
-	}
-	app := &App{}
-	if _, code := runEffort(t, app, "migrate", home, "--apply", "--json"); code != 0 {
-		t.Fatalf("recover interrupted migration: exit %d", code)
-	}
-	before := read(goalhome.LogFile)
-	if _, code := runEffort(t, app, "migrate", home, "--apply", "--json"); code != 0 {
-		t.Fatalf("repeat migration: exit %d", code)
-	}
-	if string(read(goalhome.LogFile)) != string(before) {
-		t.Fatal("repeat changed the accepted ledger")
-	}
-	if _, err := os.Stat(filepath.Join(home, goalhome.GoalFile)); !os.IsNotExist(err) {
-		t.Fatal("recovery did not finish archiving GOAL")
-	}
-}
-
-func TestEffortMigrationRejectsIncompleteV2AndPreservesEdits(t *testing.T) {
-	home := t.TempDir()
-	writeFile(t, filepath.Join(home, goalhome.CharterFile), "# Partial publication\n")
-	if _, code := runEffort(t, &App{}, "migrate", home, "--apply", "--json"); code == 0 {
-		t.Fatal("a lone charter is not a completed migration")
 	}
 }
 
@@ -498,7 +403,7 @@ func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 	if parkRequests(server) != 0 {
 		t.Fatalf("a refused park must not reach the server: %+v", server.Requests())
 	}
-	readyAndDecision := copyAcknowledgedParkHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
+	readyAndDecision := copyAcknowledgedParkHome(t, map[string]func(string) string{"STATUS.md": func(s string) string {
 		s = strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- [decision X-1] Wait for an owner? Options: wait, continue.\n", 1)
 		return strings.Replace(s, "1. **RD-WF", "1. [ready] **RD-WF", 1)
 	}})
@@ -508,7 +413,7 @@ func TestEffortParkRefusesWithoutChildOrDecision(t *testing.T) {
 	if parkRequests(server) != 0 {
 		t.Fatalf("a refused park with ready work must not reach the server: %+v", server.Requests())
 	}
-	decision := copyAcknowledgedParkHome(t, map[string]func(string) string{"QUEUE.md": func(s string) string {
+	decision := copyAcknowledgedParkHome(t, map[string]func(string) string{"STATUS.md": func(s string) string {
 		return strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Retire Record mode? Options: keep, retire. Recommendation: keep.", 1)
 	}})
 	if output, code = runEffort(t, app, "park", decision, "--run", run); code != 0 || !strings.Contains(output, "for 72h0m0s (needs-operator)") || parkRequests(server) != 1 {
@@ -585,7 +490,7 @@ func TestEffortBoardPrintsGoalHomeFactsAndUnknowns(t *testing.T) {
 // add a fresh entry explicitly; unrelated child/identity cases retain their focus.
 func copyAcknowledgedParkHome(t *testing.T, edits map[string]func(string) string) string {
 	t.Helper()
-	home := copyRuntimeBASGoalHome(t, edits)
+	home := copyBASGoalHome(t, edits)
 	writeFile(t, filepath.Join(home, goalhome.FeedbackFile), "# Feedback\n\n## Resolved\n\nPrior fixture steering was resolved before this park.\n")
 	return home
 }

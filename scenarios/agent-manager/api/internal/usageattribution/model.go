@@ -64,27 +64,6 @@ type Run struct {
 	Child     bool
 	Status    string
 	Succeeded bool
-	// Parked is an Agent Manager run waiting on an await or wake.
-	Parked bool
-}
-
-// Episode is one persisted friction episode.
-type Episode struct {
-	RunID           string
-	EpisodeID       string
-	At              time.Time
-	Pattern         string
-	Fingerprint     string
-	RepeatedElement string
-	// OwnerScenario and OwnerCommand are the suspected owner, when known.
-	OwnerScenario string
-	OwnerCommand  string
-	CycleCount    int
-	WallClockMS   int64
-	// Turns is the provider turns the episode spans; its cost is their share
-	// of the run's turns.
-	Turns  int
-	Tokens int64
 }
 
 // Outcome is one finished Agent Manager run, for R-model comparisons.
@@ -107,11 +86,7 @@ type Store interface {
 	// report counted once.
 	UsageTurns(ctx context.Context, from, to time.Time) ([]Turn, error)
 	UsageRuns(ctx context.Context, runIDs []string) (map[string]Run, error)
-	UsageEpisodes(ctx context.Context, from, to time.Time) ([]Episode, error)
 	UsageOutcomes(ctx context.Context, from, to time.Time) ([]Outcome, error)
-	// UsageEpisodeCoverage counts the runs among runIDs whose episodes the
-	// current episode classifier has projected.
-	UsageEpisodeCoverage(ctx context.Context, runIDs []string) (int, error)
 }
 
 // Price is a model's API price per token. Under a subscription it is only a

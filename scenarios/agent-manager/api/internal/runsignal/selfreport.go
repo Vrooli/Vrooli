@@ -3,6 +3,8 @@ package runsignal
 import (
 	_ "embed"
 	"encoding/json"
+	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -11,7 +13,7 @@ import (
 
 // SelfReportClassifierVersion pins deterministic message-pattern extraction.
 const (
-	SelfReportClassifierVersion = "self-report.v3"
+	SelfReportClassifierVersion = "self-report.v4"
 	selfReportSpanLimit         = 8
 )
 
@@ -19,16 +21,15 @@ const (
 var embeddedSelfReportRulePack []byte
 
 type SelfReportSpan struct {
-	ClassifierVersion  string `json:"classifierVersion"`
-	EventID            string `json:"eventId"`
-	RuleID             string `json:"ruleId"`
-	CauseScope         string `json:"causeScope"`
-	StartOffset        int    `json:"startOffset"`
-	EndOffset          int    `json:"endOffset"`
-	Text               string `json:"text"`
-	Role               string `json:"role"`
-	OperatorCorrection bool   `json:"operatorCorrection,omitempty"`
-	SpanCapped         bool   `json:"spanCapped,omitempty"`
+	ClassifierVersion string `json:"classifierVersion"`
+	EventID           string `json:"eventId"`
+	RuleID            string `json:"ruleId"`
+	CauseScope        string `json:"causeScope"`
+	StartOffset       int    `json:"startOffset"`
+	EndOffset         int    `json:"endOffset"`
+	Text              string `json:"text"`
+	Role              string `json:"role"`
+	SpanCapped        bool   `json:"spanCapped,omitempty"`
 }
 
 type (
@@ -41,6 +42,9 @@ type (
 		ID         string   `json:"id"`
 		CauseScope string   `json:"causeScope"`
 		Phrases    []string `json:"phrases"`
+		// patterns match each phrase case-insensitively in the original text,
+		// so offsets index it (lowercasing can change a string's byte length).
+		patterns []*regexp.Regexp
 	}
 )
 
@@ -59,26 +63,21 @@ func (d selfReportDetector) ClassifierVersion() string { return SelfReportClassi
 func (d selfReportDetector) CauseScope() string        { return d.rule.CauseScope }
 func (d selfReportDetector) Detect(event *domain.RunEvent) []SelfReportSpan {
 	message, ok := event.Data.(*domain.MessageEventData)
-	if !ok || (d.rule.ID == "operator-correction" && domain.MessageSource(event) != domain.MessageSourceOperator) || (d.rule.ID != "operator-correction" && !strings.EqualFold(message.Role, "assistant")) {
+	if !ok || !strings.EqualFold(message.Role, "assistant") {
 		return nil
 	}
-	lower := strings.ToLower(message.Content)
 	spans := make([]SelfReportSpan, 0)
-	for _, phrase := range d.rule.Phrases {
-		needle := strings.ToLower(phrase)
-		for start := 0; start < len(lower); {
-			at := strings.Index(lower[start:], needle)
-			if at < 0 {
-				break
-			}
-			at += start
-			end := at + len(phrase)
-			spans = append(spans, SelfReportSpan{ClassifierVersion: d.ClassifierVersion(), EventID: event.ID.String(), RuleID: d.Identifier(), CauseScope: d.CauseScope(), StartOffset: at, EndOffset: end, Text: redact(message.Content[at:end]), Role: strings.ToLower(message.Role), OperatorCorrection: d.rule.ID == "operator-correction"})
+	for p, pattern := range d.rule.patterns {
+		matches := pattern.FindAllStringIndex(message.Content, selfReportSpanLimit+1)
+		for i, match := range matches {
+			at, end := match[0], match[1]
+			spans = append(spans, SelfReportSpan{ClassifierVersion: d.ClassifierVersion(), EventID: event.ID.String(), RuleID: d.Identifier(), CauseScope: d.CauseScope(), StartOffset: at, EndOffset: end, Text: redact(message.Content[at:end]), Role: strings.ToLower(message.Role)})
 			if len(spans) >= selfReportSpanLimit {
-				spans[len(spans)-1].SpanCapped = strings.Contains(lower[end:], needle)
+				// Capped when anything is left unreported: a further match of
+				// this phrase or of any later one.
+				spans[len(spans)-1].SpanCapped = i+1 < len(matches) || slices.ContainsFunc(d.rule.patterns[p+1:], func(later *regexp.Regexp) bool { return later.MatchString(message.Content) })
 				return spans
 			}
-			start = end
 		}
 	}
 	return spans
@@ -97,9 +96,12 @@ func SelfReportDetectors() []SelfReportDetector {
 		if selfReportPack.Version != SelfReportClassifierVersion || selfReportPack.Owner == "" {
 			panic("invalid embedded self-report rule pack metadata")
 		}
-		for _, rule := range selfReportPack.Rules {
+		for i, rule := range selfReportPack.Rules {
 			if rule.ID == "" || rule.CauseScope == "" || len(rule.Phrases) == 0 {
 				panic("invalid embedded self-report rule")
+			}
+			for _, phrase := range rule.Phrases {
+				selfReportPack.Rules[i].patterns = append(selfReportPack.Rules[i].patterns, regexp.MustCompile("(?i)"+regexp.QuoteMeta(phrase)))
 			}
 		}
 	})
@@ -114,8 +116,9 @@ func SelfReportDetectors() []SelfReportDetector {
 // versioned rule pack is embedded as data; classifiers remain network-free.
 func DeriveSelfReportSpans(events []*domain.RunEvent) []SelfReportSpan {
 	spans := []SelfReportSpan{}
+	detectors := SelfReportDetectors()
 	for _, event := range events {
-		for _, detector := range SelfReportDetectors() {
+		for _, detector := range detectors {
 			spans = append(spans, detector.Detect(event)...)
 		}
 	}

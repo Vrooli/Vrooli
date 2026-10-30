@@ -52,15 +52,15 @@ func hasWakePrefix(text string) bool {
 }
 
 // injectedContextTags are the harness/provider blocks inlined into user-role
-// records. Any other leading tag (<div>, <pasted_content>, ...) is text the
-// operator typed or pasted.
+// records. Any other leading tag (<div>, <pasted_content>,
+// <send_user_message_question_reply> wrapping the operator's answer to an agent
+// question, ...) is text the operator typed or pasted.
 var injectedContextTags = map[string]bool{
 	"environment_context": true, "user_instructions": true, "instructions": true,
 	"skills_instructions": true, "system-instructions": true,
 	"local-command-caveat": true, "local-command-stdout": true, "local-command-stderr": true,
 	"command-name": true, "command-message": true, "command-args": true,
-	"in-app-browser-context": true, "send_user_message_question_reply": true,
-	"turn_aborted": true, "subagent_notification": true,
+	"in-app-browser-context": true, "turn_aborted": true, "subagent_notification": true,
 }
 
 // leadingTagName returns the lowercased name of an opening tag at the start of
@@ -187,6 +187,51 @@ func ClassifyProviderMessage(text, originKind, promptSource string, isMeta bool)
 		return MessageSourceInjectedContext
 	}
 	return MessageSourceOperator
+}
+
+// codexTypedInputKinds are the Codex content item kinds of text and images a
+// person typed. Every other kind (goal.internal_context, agents_md.instructions,
+// environments.environment_context, user.goal, ...) is harness-injected.
+var codexTypedInputKinds = map[string]bool{"user.text": true, "user.image": true}
+
+// ClassifyCodexUserMessage derives the source of a Codex user-role message from
+// the rollout's structure before its text. Content markers (wakes, harness
+// blocks, notifications) keep their source. Then: an item whose content
+// provenance (recorded from about 2026-10-29) names no "user" item, or whose
+// content item kinds name no typed input, is injected context; absent
+// provenance or kinds prove nothing. In a sub-agent thread (session_meta
+// thread_source "subagent", or a source naming a subagent spawn) user-role text
+// is the parent agent's assignment or report, so it is a teammate's.
+func ClassifyCodexUserMessage(text string, subagentThread bool, kinds, provenance []string) string {
+	content := ClassifyMessageText(text)
+	if content != MessageSourceOperator {
+		return content
+	}
+	if len(provenance) > 0 && !containsFold(provenance, "user") {
+		return MessageSourceInjectedContext
+	}
+	if len(kinds) > 0 {
+		typed := false
+		for _, kind := range kinds {
+			typed = typed || codexTypedInputKinds[strings.ToLower(kind)]
+		}
+		if !typed {
+			return MessageSourceInjectedContext
+		}
+	}
+	if subagentThread {
+		return MessageSourceTeammate
+	}
+	return MessageSourceOperator
+}
+
+func containsFold(values []string, wanted string) bool {
+	for _, value := range values {
+		if strings.EqualFold(strings.TrimSpace(value), wanted) {
+			return true
+		}
+	}
+	return false
 }
 
 // MessageSource returns the source of a user-role message event: the stored

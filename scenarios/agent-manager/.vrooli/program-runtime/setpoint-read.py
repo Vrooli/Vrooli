@@ -1,4 +1,4 @@
-"""agent-manager.setpoint-read v1 — read every improve-setpoint row in one submission.
+"""agent-manager.setpoint-read v2 — read every improve-setpoint row in one submission.
 
 Contract: setpoint-read.json (inputs, invariants, bindings, outputs).
 Skill:    agent-manager-improve §2 (the rows), §3 (the sensors).
@@ -14,8 +14,7 @@ import json
 
 inputs = program.inputs()
 window_token = str(inputs.get("window_token", "TIME_WINDOW_TOKEN_LAST_7D"))
-recent_runs = int(inputs.get("recent_runs", 25))
-attribution_band = float(inputs.get("attribution_band", 0.90))
+coverage_band = float(inputs.get("coverage_band", 0.95))
 investigation_tag_prefix = str(inputs.get("investigation_tag_prefix", "agent-manager-investigation"))
 
 WINDOW_TOKENS = {"TIME_WINDOW_TOKEN_THIS_WEEK", "TIME_WINDOW_TOKEN_LAST_7D", "TIME_WINDOW_TOKEN_LAST_30D",
@@ -26,9 +25,9 @@ TERMINAL = ("RUN_STATUS_NEEDS_REVIEW", "RUN_STATUS_COMPLETE", "RUN_STATUS_FAILED
 
 # ---- envelope: created first, printed once, on every path ----------------------
 envelope = {
-    "program": "agent-manager.setpoint-read", "version": "1",
+    "program": "agent-manager.setpoint-read", "version": "2",
     "status": "failed", "phase": "validate",
-    "inputs": {"window_token": window_token, "recent_runs": recent_runs, "attribution_band": attribution_band,
+    "inputs": {"window_token": window_token, "coverage_band": coverage_band,
                "investigation_tag_prefix": investigation_tag_prefix},
     "signals": {"rows": [], "readable": 0, "unavailable": 0, "unavailable_permanent": 0, "detail": {}},
     "errors": [], "evidence": [],
@@ -58,7 +57,8 @@ def row(name, reading, target, in_band, reason=None):
 
 
 def measure(handle):
-    """A measures binding returns one record as its only row; None when the handle carries no row."""
+    """A measures binding returns one record as its only row (tool-friction's summary declares the whole
+    response the record); None when the handle carries no row."""
     rows = handle.head(1)
     return rows[0] if rows else None
 
@@ -97,10 +97,8 @@ def safe(fn):
 def step_validate():
     if window_token not in WINDOW_TOKENS:
         return fail("failed", "invalid_input", f"window_token={window_token} not a TimeWindowToken", "validate")
-    if recent_runs < 1 or recent_runs > 100:
-        return fail("failed", "invalid_input", f"recent_runs={recent_runs} outside [1, 100]", "validate")
-    if not (0.0 < attribution_band <= 1.0):
-        return fail("failed", "invalid_input", f"attribution_band={attribution_band} outside (0, 1]", "validate")
+    if not (0.0 < coverage_band <= 1.0):
+        return fail("failed", "invalid_input", f"coverage_band={coverage_band} outside (0, 1]", "validate")
     return "collect"
 
 
@@ -109,43 +107,26 @@ def step_collect():  # COLLECT · governed reads only, concurrent
     window = {"token": window_token}
     # Each read is guarded: one dead binding marks its own rows unavailable, it never empties the board.
     _results = gather(
-        lambda: safe(lambda: agent_manager.run.list(limit=recent_runs)),
         lambda: safe(lambda: agent_manager.run.list(tag_prefix=investigation_tag_prefix, limit=50)),
-        lambda: safe(lambda: agent_manager.measures.external_tool_share(window=window)),
-        lambda: safe(lambda: agent_manager.measures.retry_rate(window=window)),
-        lambda: safe(lambda: agent_manager.measures.tool_failure_rate(window=window)),
-        lambda: safe(lambda: agent_manager.measures.repeated_work_rate(window=window)),
+        lambda: safe(lambda: agent_manager.measures.tool_friction(window=window)),
         lambda: safe(lambda: agent_manager.measures.run_success_rate(window=window)),
     )
-    _names = ("runs", "inv", "ext", "retry", "toolfail", "repeat", "success")
+    _names = ("inv", "tools", "success")
     _dead = {}
     for _n, (_h, _e) in zip(_names, _results):
         if _e is not None:
             _dead[_n] = program.classify(_e)
             envelope["errors"].append({"class": _dead[_n][1], "detail": f"{_n}: {str(_e)[:110]}", "where": "collect"})
-    runs, inv, ext, retry, toolfail, repeat, success = [h for h, _ in _results]
-    handles["dead"] = _dead
+    inv, tools, success = [h for h, _ in _results]
     if len(_dead) == len(_names):      # nothing answered: the board is unknown, not merely partial
         status, klass = next(iter(_dead.values()))
-        exc = "every agent-manager read failed"
-        return fail(status, klass, exc, "collect")
-    # runs may be None when that one read failed; the episode rows then read unavailable, the board still reports.
-    run_ids = [r["id"] for r in runs.head(recent_runs)] if runs is not None else []
-
-    def read(run_id):
-        try:
-            return agent_manager.run.episodes(run_id=run_id)
-        except Exception as exc:
-            return exc
-
-    episodes = gather(*[lambda i=i: read(i) for i in run_ids]) if run_ids else []
-    handles.update(runs=runs, inv=inv, ext=ext, retry=retry, toolfail=toolfail, repeat=repeat, success=success,
-                   episodes=episodes, run_ids=run_ids)
+        return fail(status, klass, "every agent-manager read failed", "collect")
+    handles.update(inv=inv, tools=tools, success=success, dead=_dead)
     cli_window = window_token.replace("TIME_WINDOW_TOKEN_", "").lower()
     envelope["evidence"] = [
-        f"agent-manager run list --limit {recent_runs}; run episodes <id> x{len(run_ids)}",
         f"agent-manager run list --tag-prefix {investigation_tag_prefix}",
-        f"agent-manager measures {{external-tool-share,retry-rate,tool-failure-rate,repeated-work-rate,run-success-rate}} --window {cli_window}",
+        f"agent-manager measures get tool-friction --window {cli_window}",
+        f"agent-manager measures get run-success-rate --window {cli_window}",
     ]
     return "classify"
 
@@ -154,68 +135,60 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count, head(
     envelope["phase"] = "classify"
     h = handles
     detail = envelope["signals"]["detail"]
+    dead = h["dead"]
 
-    # ownership-attribution-share: episodes over the most recent runs, by ownerConfidence.
-    conf = {}
-    failed_reads = 0
-    for run_id, result in zip(h["run_ids"], h["episodes"]):
-        if isinstance(result, Exception):
-            failed_reads += 1
-            if len(envelope["errors"]) < 3:  # bounded: the count is in detail, the first three carry text
-                try:
-                    raise result
-                except Exception as exc:  # program.classify re-raises a missing kernel name; the driver labels it
-                    klass = program.classify(exc)[1]
-                envelope["errors"].append({"class": klass, "detail": str(result)[:120], "where": f"collect:episodes:{run_id}"})
-            continue
-        # ownerConfidence may be omitted by protojson on an unknown-owner episode: map with .get, then group_by
-        for label, n in result.map(lambda e: {"c": e.get("ownerConfidence") or "unknown"}).group_by("c").items():
-            conf[label] = conf.get(label, 0) + int(n)
-    total = sum(conf.values())
-    derived = conf.get("manifest-derived", 0)
-    share = (derived / total) if total else None
-    detail["ownership-attribution-share"] = {"manifest_derived": derived, "episodes": total, "runs": len(h["run_ids"]),
-                                             "episode_reads_failed": failed_reads, "by_confidence": conf}
-    row("ownership-attribution-share", share, f">= {attribution_band}", share is not None and share >= attribution_band,
-        reason=None if total else "unreliable:no_episodes_on_recent_runs")
+    # tool-friction: one record whose summary carries the window's rates and coverage; protojson omits zeros.
+    tools = None if "tools" in dead else measure(h["tools"])
+    state, tools_reason = gate(tools) if "tools" not in dead else (None, "unreliable:tool_friction_read_failed")
+    summary = (tools or {}).get("summary") or {}
+    coverage = summary.get("coverage") or {}
+    vrooli_calls = int(coverage.get("vrooliCommands") or 0)
+    vrooli_known = int(coverage.get("vrooliOutcomeKnown") or 0)
+    detail["tool-friction"] = {"sentence": coverage.get("sentence"), "profiles": int(summary.get("profiles") or 0),
+                               "failed_calls": int(summary.get("failedCalls") or 0), "context_tax_tokens": int(summary.get("contextTaxTokens") or 0)}
+
+    # command-outcome-coverage: Vrooli CLI calls whose outcome is known. Below the band, failure rates cannot be read.
+    share = (vrooli_known / vrooli_calls) if vrooli_calls else None
+    row("command-outcome-coverage", share, f">= {coverage_band}", share is not None and share >= coverage_band,
+        reason=tools_reason or (None if vrooli_calls else "unreliable:no_vrooli_cli_calls"))
 
     # investigation-completion-rate: runs by tag prefix, complete over terminal. status may be omitted at its zero value.
-    statuses = {k: int(v) for k, v in h["inv"].map(lambda r: {"s": r.get("status") or "RUN_STATUS_UNSPECIFIED"}).group_by("s").items()}
-    terminal = sum(v for k, v in statuses.items() if k in TERMINAL)
-    complete = statuses.get("RUN_STATUS_COMPLETE", 0)
-    inv_rate = (complete / terminal) if terminal else None
-    detail["investigation-completion-rate"] = {"complete": complete, "terminal": terminal, "by_status": statuses}
-    row("investigation-completion-rate", inv_rate, ">= 0.8", inv_rate is not None and inv_rate >= 0.8,
-        reason=None if terminal else "unreliable:no_terminal_runs_with_tag_prefix")
+    if "inv" in dead:
+        row("investigation-completion-rate", None, ">= 0.8", None, reason="unreliable:run_list_read_failed")
+    else:
+        statuses = {k: int(v) for k, v in h["inv"].map(lambda r: {"s": r.get("status") or "RUN_STATUS_UNSPECIFIED"}).group_by("s").items()}
+        terminal = sum(v for k, v in statuses.items() if k in TERMINAL)
+        complete = statuses.get("RUN_STATUS_COMPLETE", 0)
+        inv_rate = (complete / terminal) if terminal else None
+        detail["investigation-completion-rate"] = {"complete": complete, "terminal": terminal, "by_status": statuses}
+        row("investigation-completion-rate", inv_rate, ">= 0.8", inv_rate is not None and inv_rate >= 0.8,
+            reason=None if terminal else "unreliable:no_terminal_runs_with_tag_prefix")
 
     row("skill-and-program-identity-on-facts", None, "skill_id or program_id on every fact", None,
         reason="pending_telemetry")
 
-    # friction-measure-validity: how many of the four friction measures pass their own validity gate.
-    ext, retry, toolfail, repeat, success = (measure(h[k]) for k in ("ext", "retry", "toolfail", "repeat", "success"))
-    gates = {name: gate(rec) for name, rec in
-             (("external-tool-share", ext), ("retry-rate", retry), ("tool-failure-rate", toolfail), ("repeated-work-rate", repeat))}
-    available = sum(1 for _, reason in gates.values() if reason is None)
-    detail["friction-measure-validity"] = {  # states are on the rows themselves; only the shared counts live here
-        "sample_size": int((retry or {}).get("validity", {}).get("sampleSize") or 0) if retry else None,
-        "unknown_calls": int((ext or {}).get("unknownCalls") or 0) if ext else None,
-    }
-    row("friction-measure-validity", available, "4 of 4 available", available == 4)
+    # tool-friction-validity: the profiles' own validity gate.
+    row("tool-friction-validity", state, "available", state == "available", reason=None if state else tools_reason)
 
-    # external-tool-share: descriptive, no band yet (target null); read only when its own gate passes.
-    _, ext_reason = gates["external-tool-share"]
-    row("external-tool-share", None if ext_reason else float(ext.get("share", 0.0)), None, None, reason=ext_reason)
+    # bypass-calls: descriptive, no band yet: calls that reached a scenario's database, port or state around its CLI.
+    row("bypass-calls", None if tools_reason else int(summary.get("bypassCalls") or 0), None, None, reason=tools_reason)
 
-    rate_row("run-success-rate", success, ">= 0.85", lambda r: r >= 0.85)
-    rate_row("retry-rate", retry, "<= 0.03", lambda r: r <= 0.03)
-    rate_row("tool-failure-rate", toolfail, "<= 0.01", lambda r: r <= 0.01)
-    rate_row("repeated-work-rate", repeat, "<= 0.05", lambda r: r <= 0.05)
+    rate_row("run-success-rate", None if "success" in dead else measure(h["success"]), ">= 0.85", lambda r: r >= 0.85)
+
+    # The three tool-friction rates read only when their gate and the outcome coverage both hold.
+    rates_reason = tools_reason or (None if share is not None and share >= coverage_band else "unreliable:outcome_coverage_below_band")
+    shape = float(summary.get("shapeGuessRate") or 0.0)
+    row("shape-guess-rate", shape, "<= 0.03", shape <= 0.03, reason=rates_reason)
+    failure = float(summary.get("vrooliFailureRate") or 0.0)
+    row("vrooli-cli-failure-rate", failure, "<= 0.05", failure <= 0.05, reason=rates_reason)
+    polled = float(summary.get("polledShare") or 0.0)
+    row("polled-share", None if tools_reason else polled, None, None, reason=tools_reason)
 
     for name in ("supervision-safety", "supervision-calibration", "supervision-outcome-coverage"):
         row(name, None, None, None, reason="read_elsewhere:agent-manager.friction-digest")
 
     # A permanent or unreliable row does not lower the status; only a failed read does (program-contracts.md).
-    envelope["status"] = "partial" if failed_reads else "ok"
+    envelope["status"] = "partial" if dead else "ok"
     return "report"
 
 

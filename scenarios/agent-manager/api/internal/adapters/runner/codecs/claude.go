@@ -14,11 +14,12 @@
 package codecs
 
 import (
-	"agent-manager/internal/adapters/runner"
-	"agent-manager/internal/domain"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
 )
 
 // ClaudeCLICommand is the binary name resolved on the host PATH.
@@ -40,10 +41,6 @@ type Claude struct {
 	// pricingService computes a charge for interactive runs whose on-disk
 	// transcript has no cost line. Optional; nil leaves the charge unknown.
 	pricingService PricingService
-}
-
-func (c *Claude) ToolCapabilityMap() map[string]string {
-	return map[string]string{"Read": "file-read", "Write": "file-edit", "Edit": "file-edit", "Bash": "shell", "Glob": "search", "Grep": "search", "WebSearch": "network", "WebFetch": "network", "Task": "delegate", "TodoWrite": "plan", "wait": "wait"}
 }
 
 var claudeToolTranslations = map[domain.CanonicalTool]string{
@@ -251,7 +248,6 @@ type claudeState struct {
 	turn                 int
 	lastTurnInput        int64
 	messagesSinceCompact int64
-	lastCompaction       *domain.RunEvent
 
 	// /compact command tracking
 	pendingCompact bool

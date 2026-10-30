@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
+	"sync"
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/interventions"
+	"agent-manager/internal/opportunities"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/toolfriction"
 	"agent-manager/internal/usageforecast"
 )
 
@@ -22,13 +25,21 @@ type Service struct {
 	// Statuses and Bugs are set where friction problems are acted on.
 	Statuses StatusStore
 	Bugs     BugFiler
+	// Tools reads the projected command facts tool friction profiles.
+	Tools ToolCallStore
+	// Library and Interventions feed opportunities and operator corrections
+	// into Recommendations.
+	Library       LibrarySource
+	Interventions InterventionSummarizer
 }
 
-// Attribution is the current windows' results and the runs they name.
+// Attribution is the current windows' results and the runs they name, with
+// the forecasts of those windows.
 type Attribution struct {
-	Results []Result
-	Runs    map[string]Run
-	Spans   int
+	Results   []Result
+	Runs      map[string]Run
+	Spans     int
+	Forecasts []usageforecast.Forecast
 }
 
 // Current attributes every current window of provider (all when empty) after
@@ -39,13 +50,17 @@ func (s Service) Current(ctx context.Context, provider string, since, now time.T
 		return Attribution{}, err
 	}
 	var windows []Window
+	var forecasts []usageforecast.Forecast
 	for _, forecast := range usageforecast.Current(spans, now) {
 		// A window whose reset has passed is history, not a current window.
 		if forecast.Window != nil && forecast.Window.HasPercent && (forecast.Window.ResetAt.IsZero() || forecast.Window.ResetAt.After(now)) {
 			windows = append(windows, FromForecast(forecast.Window))
+			forecasts = append(forecasts, forecast)
 		}
 	}
-	return s.attribute(ctx, windows, since, now, len(spans))
+	out, err := s.attribute(ctx, windows, since, now, len(spans))
+	out.Forecasts = forecasts
+	return out, err
 }
 
 func (s Service) attribute(ctx context.Context, windows []Window, since, now time.Time, spans int) (Attribution, error) {
@@ -92,186 +107,230 @@ type StatusStore interface {
 }
 
 // BugFiler files a friction problem with its evidence in the scenario-qa bug
-// inbox and returns the bug id.
+// inbox and returns the bug id; the inbox deduplicates on the fingerprint.
 type BugFiler interface {
-	FileFrictionBug(ctx context.Context, problem Problem) (string, error)
+	FileFrictionBug(ctx context.Context, bug FrictionBug) (string, error)
 }
 
-// inputs gathers what the rules read: the current windows' attribution, the
-// friction episodes since the earliest priced window, and the run outcomes.
-func (s Service) inputs(ctx context.Context, provider string, now time.Time, only WindowKey) (Inputs, Attribution, error) {
-	attribution, err := s.Current(ctx, provider, time.Time{}, now)
-	if err != nil || len(attribution.Results) == 0 {
-		return Inputs{}, attribution, err
-	}
-	from := now
-	for _, result := range selectResults(attribution.Results, only) {
-		if result.From.Before(from) {
-			from = result.From
-		}
-	}
-	episodes, err := s.Store.UsageEpisodes(ctx, from, now)
-	if err != nil {
-		return Inputs{}, attribution, err
-	}
-	outcomes, err := s.Store.UsageOutcomes(ctx, now.Add(-Lookback), now)
-	if err != nil {
-		return Inputs{}, attribution, err
-	}
-	// Runs named only by episodes still need their runner for pricing.
-	missing := map[string]bool{}
-	for _, episode := range episodes {
-		if _, ok := attribution.Runs[episode.RunID]; !ok {
-			missing[episode.RunID] = true
-		}
-	}
-	if len(missing) > 0 {
-		extra, err := s.Store.UsageRuns(ctx, keys(missing))
-		if err != nil {
-			return Inputs{}, attribution, err
-		}
-		for id, run := range extra {
-			attribution.Runs[id] = run
-		}
-	}
-	in := Inputs{Results: attribution.Results, Runs: attribution.Runs, Episodes: episodes, Outcomes: outcomes, Prices: s.Pricer.prices(ctx, nil, outcomes), Only: only, Now: now}
-	if s.Statuses != nil {
-		statuses, err := s.Statuses.FrictionStatuses(ctx)
-		if err != nil {
-			return Inputs{}, attribution, err
-		}
-		in.Dismissed = map[string]bool{}
-		for fingerprint, status := range statuses {
-			in.Dismissed[fingerprint] = status.Status == StatusDismissed
-		}
-	}
-	return in, attribution, nil
+// ToolCallStore reads the command facts of a window projected at the current
+// fact version, with the features stored for them, and counts what the window
+// holds at older versions.
+type ToolCallStore interface {
+	ToolCalls(ctx context.Context, from, to time.Time) (toolfriction.Window, error)
 }
 
-// Recommendations evaluates the rules over the current windows: each
-// provider's longest window, or only the window named by only.
+// ToolFrictionWindow is the default tool-friction window: a week.
+const ToolFrictionWindow = 7 * 24 * time.Hour
+
+// MaxLookback is the longest window the friction list, the opportunities and
+// a finding's lookup read: an older start is clamped to it.
+const MaxLookback = 90 * 24 * time.Hour
+
+// ToolWindowStart is the start of a tool window that asks for since: the
+// default week when since is zero, at most MaxLookback before now, and never
+// at or after now.
+func ToolWindowStart(since, now time.Time) (time.Time, error) {
+	switch {
+	case since.IsZero():
+		return now.Add(-ToolFrictionWindow), nil
+	case !since.Before(now):
+		return time.Time{}, fmt.Errorf("since %s is not before now (%s)", since.UTC().Format(time.RFC3339), now.UTC().Format(time.RFC3339))
+	case since.Before(now.Add(-MaxLookback)):
+		return now.Add(-MaxLookback), nil
+	}
+	return since, nil
+}
+
+// LibrarySource reads the program library sequences are matched to.
+type LibrarySource interface {
+	Library(ctx context.Context) opportunities.Library
+}
+
+// InterventionSummarizer summarizes classified operator messages under a gate.
+type InterventionSummarizer interface {
+	Summarize(ctx context.Context, version string, gate interventions.Gate, from, to time.Time) (interventions.Summary, error)
+}
+
+// Recommendations is the one ranked list of what to change: the quota levers
+// of the current windows (each provider's longest, or only the window named by
+// only) merged with the tool friction findings, opportunities and gated
+// operator interventions of the last ToolFrictionWindow. A source that cannot
+// be read is left out and named in the coverage.
 func (s Service) Recommendations(ctx context.Context, provider string, only WindowKey, now time.Time) (Report, Attribution, error) {
-	in, attribution, err := s.inputs(ctx, provider, now, only)
-	if err != nil || len(attribution.Results) == 0 {
-		return Report{Rules: emptyRules()}, attribution, err
-	}
-	return Recommend(in), attribution, nil
-}
-
-// TopPlan is the largest plan of levers for one window, evaluated for that
-// window alone: the action an alert for the window names.
-func (s Service) TopPlan(ctx context.Context, key WindowKey, now time.Time) (Plan, bool, error) {
-	report, _, err := s.Recommendations(ctx, key.Provider, key, now)
+	attribution, err := s.Current(ctx, provider, time.Time{}, now)
 	if err != nil {
-		return Plan{}, false, err
+		return Report{}, attribution, err
 	}
-	plan, ok := report.Top(key)
-	return plan, ok, nil
+	in := Inputs{Results: attribution.Results, Runs: attribution.Runs, Only: only, Now: now}
+	if len(attribution.Results) > 0 {
+		if in.Outcomes, err = s.Store.UsageOutcomes(ctx, now.Add(-Lookback), now); err != nil {
+			return Report{}, attribution, err
+		}
+		in.Prices = s.Pricer.prices(ctx, nil, in.Outcomes)
+	}
+	from := now.Add(-ToolFrictionWindow)
+	if s.Tools != nil {
+		window, err := s.Tools.ToolCalls(ctx, from, now)
+		if err != nil {
+			return Report{}, attribution, err
+		}
+		in.Calls = append([]toolfriction.Call{}, window.Calls...) // non-nil: the source was read
+		in.Stale = window.Stale
+		if s.Statuses != nil {
+			if in.Statuses, err = s.Statuses.FrictionStatuses(ctx); err != nil {
+				return Report{}, attribution, err
+			}
+		}
+		if s.Library != nil {
+			library := s.Library.Library(ctx)
+			in.Library = &library
+			in.Outputs = opportunities.OutputsFrom(ctx, s.Tools)
+		}
+	} else {
+		in.Coverage = append(in.Coverage, "tool calls are unavailable: tool friction, skill weight and opportunities cannot tell")
+	}
+	if s.Interventions != nil {
+		summary, err := s.Interventions.Summarize(ctx, interventions.ClassifierVersion, interventions.ProvenGate, from, now)
+		if err != nil {
+			return Report{}, attribution, err
+		}
+		in.Interventions = &summary
+	}
+	report := Recommend(in)
+	report.Outcome = outcome(report.Actions, attribution.Forecasts, only)
+	return report, attribution, nil
 }
 
-// FrictionReport is the friction problems with how much of the window's runs
-// the current episode classifier has analysed: problems count only analysed
-// runs, so while history is re-projected their totals are partial.
-type FrictionReport struct {
-	Problems []Problem
-	// RunsAnalysed of RunsTotal runs that used quota in the windows have
-	// episodes from the current classifier.
-	RunsAnalysed, RunsTotal int
-	Attribution             Attribution
-}
-
-// Friction lists the recurring friction problems of the current windows with
-// their durable status, largest saving first.
-func (s Service) Friction(ctx context.Context, provider string, now time.Time) (FrictionReport, error) {
-	in, attribution, err := s.inputs(ctx, provider, now, WindowKey{})
-	report := FrictionReport{Attribution: attribution}
-	if err != nil || len(attribution.Results) == 0 {
-		return report, err
+// outcome is the named window's forecast with its listed quota levers
+// applied (CombinedRecoverable); nil when no window is named or it has no
+// current forecast.
+func outcome(actions []Action, forecasts []usageforecast.Forecast, only WindowKey) *WindowOutcome {
+	if only.Pool == "" {
+		return nil
 	}
-	primary, _ := prepare(in)
-	report.Problems = frictionProblems(in, primary)
-	runs := map[string]bool{}
-	for _, result := range primary {
-		for _, turn := range result.Turns {
-			runs[turn.RunID] = true
+	for _, f := range forecasts {
+		if f.Window.Provider == only.Provider && f.Window.Pool == only.Pool && f.Window.Window == only.Window {
+			saving, levers := CombinedRecoverable(actions, only)
+			return &WindowOutcome{Outcome: f.WithSaving(saving), Levers: levers}
 		}
 	}
-	report.RunsTotal = len(runs)
-	if report.RunsAnalysed, err = s.Store.UsageEpisodeCoverage(ctx, keys(runs)); err != nil {
-		return report, err
-	}
-	if s.Statuses == nil {
-		return report, nil
-	}
-	statuses, err := s.Statuses.FrictionStatuses(ctx)
+	return nil
+}
+
+// FrictionReport is the window's owner-level tool findings from the tool
+// profiles since Since, with the coverage that says how much of it they could
+// see. Operator interventions are classified per message by package
+// interventions and read beside it.
+type FrictionReport struct {
+	Since        time.Time
+	Tools        toolfriction.Report
+	ToolFindings []ToolFinding
+}
+
+// Friction lists the window's tool findings with their durable status. The
+// window starts at ToolWindowStart(since, now).
+func (s Service) Friction(ctx context.Context, since, now time.Time) (FrictionReport, error) {
+	since, err := ToolWindowStart(since, now)
 	if err != nil {
-		return report, err
+		return FrictionReport{}, err
 	}
-	for i, problem := range report.Problems {
-		if status, ok := statuses[problem.Fingerprint]; ok {
-			report.Problems[i].Status, report.Problems[i].BugID, report.Problems[i].StatusSetAt = status.Status, status.BugID, status.At
+	report := FrictionReport{Since: since}
+	statuses := map[string]ProblemStatus{}
+	if s.Statuses != nil {
+		var err error
+		if statuses, err = s.Statuses.FrictionStatuses(ctx); err != nil {
+			return report, err
+		}
+	}
+	if s.Tools != nil {
+		window, err := s.Tools.ToolCalls(ctx, since, now)
+		if err != nil {
+			return report, err
+		}
+		report.Tools = toolfriction.Analyze(window)
+		for _, finding := range report.Tools.Findings {
+			item := ToolFinding{Finding: finding, Status: StatusOpen}
+			if status, ok := statuses[finding.Fingerprint]; ok {
+				item.Status, item.BugID, item.StatusSetAt = status.Status, status.BugID, status.At
+			}
+			report.ToolFindings = append(report.ToolFindings, item)
 		}
 	}
 	return report, nil
 }
 
-// problem finds a friction problem by fingerprint among the current windows'.
-func (s Service) problem(ctx context.Context, fingerprint string, now time.Time) (Problem, error) {
-	report, err := s.Friction(ctx, "", now)
+// FrictionItem is a tool finding as an operator acts on it.
+type FrictionItem struct {
+	Fingerprint, Description, Status, BugID string
+	bug                                     FrictionBug
+}
+
+// ErrUnknownFinding is a fingerprint no tool finding of the window has.
+var ErrUnknownFinding = errors.New("no tool finding has this fingerprint")
+
+// ErrFrictionUnavailable is a status store or bug inbox that cannot be
+// reached: retrying later can succeed.
+var ErrFrictionUnavailable = errors.New("friction reporting is unavailable")
+
+// item finds a tool finding by fingerprint in the window the caller listed it
+// in (ToolWindowStart(since, now)).
+func (s Service) item(ctx context.Context, fingerprint string, since, now time.Time) (FrictionItem, error) {
+	report, err := s.Friction(ctx, since, now)
 	if err != nil {
-		return Problem{}, err
+		return FrictionItem{}, err
 	}
-	for _, problem := range report.Problems {
-		if problem.Fingerprint == fingerprint {
-			return problem, nil
+	for _, finding := range report.ToolFindings {
+		if finding.Fingerprint == fingerprint {
+			return FrictionItem{Fingerprint: fingerprint, Description: finding.Description, Status: finding.Status, BugID: finding.BugID, bug: finding.bug()}, nil
 		}
 	}
-	return Problem{}, fmt.Errorf("no recurring friction problem has fingerprint %q in the current windows", fingerprint)
+	return FrictionItem{}, fmt.Errorf("%w %q since %s", ErrUnknownFinding, fingerprint, report.Since.UTC().Format(time.RFC3339))
 }
 
-// ReportFriction files the problem in the bug inbox and records the bug id on
-// it. Reporting a problem that was already reported returns it unchanged.
-func (s Service) ReportFriction(ctx context.Context, fingerprint string, now time.Time) (Problem, error) {
+// reporting serializes the actions on one fingerprint in this process, so two
+// concurrent reports of a finding file it once.
+var reporting sync.Map
+
+func lockFingerprint(fingerprint string) func() {
+	mu, _ := reporting.LoadOrStore(fingerprint, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	return mu.(*sync.Mutex).Unlock
+}
+
+// ReportFriction files the finding listed since in the bug inbox and records
+// the bug id on it. It files at most once per fingerprint: a reported finding
+// returns its bug unchanged, concurrent calls are serialized, and the filing
+// is keyed on the fingerprint, so a retry after the status write failed gets
+// the bug the inbox already holds.
+func (s Service) ReportFriction(ctx context.Context, fingerprint string, since, now time.Time) (FrictionItem, error) {
 	if s.Statuses == nil || s.Bugs == nil {
-		return Problem{}, errors.New("friction reporting is unavailable")
+		return FrictionItem{}, ErrFrictionUnavailable
 	}
-	problem, err := s.problem(ctx, fingerprint, now)
+	defer lockFingerprint(fingerprint)()
+	item, err := s.item(ctx, fingerprint, since, now)
+	if err != nil || item.Status == StatusReported {
+		return item, err
+	}
+	id, err := s.Bugs.FileFrictionBug(ctx, item.bug)
 	if err != nil {
-		return Problem{}, err
+		return FrictionItem{}, fmt.Errorf("%w: %v", ErrFrictionUnavailable, err)
 	}
-	if problem.Status == StatusReported {
-		return problem, nil
-	}
-	id, err := s.Bugs.FileFrictionBug(ctx, problem)
-	if err != nil {
-		return Problem{}, err
-	}
-	problem.Status, problem.BugID, problem.StatusSetAt = StatusReported, id, now
-	return problem, s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusReported, BugID: id, At: now})
+	item.Status, item.BugID = StatusReported, id
+	return item, s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusReported, BugID: id, At: now})
 }
 
-// DismissFriction sets a problem aside: it stays listed as dismissed and is
-// no longer recommended. A reported problem keeps its bug id.
-func (s Service) DismissFriction(ctx context.Context, fingerprint string, now time.Time) error {
+// DismissFriction sets the finding listed since aside: it stays listed as
+// dismissed and is no longer recommended. A reported problem keeps its bug id.
+func (s Service) DismissFriction(ctx context.Context, fingerprint string, since, now time.Time) error {
 	if s.Statuses == nil {
-		return errors.New("friction status is unavailable")
+		return ErrFrictionUnavailable
 	}
-	if strings.TrimSpace(fingerprint) == "" {
-		return errors.New("fingerprint is required")
-	}
-	problem, err := s.problem(ctx, fingerprint, now)
+	defer lockFingerprint(fingerprint)()
+	item, err := s.item(ctx, fingerprint, since, now)
 	if err != nil {
 		return err
 	}
-	return s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusDismissed, BugID: problem.BugID, At: now})
-}
-
-func emptyRules() []RuleStatus {
-	rules := make([]RuleStatus, 0, len(Rules))
-	for _, rule := range Rules {
-		rules = append(rules, RuleStatus{Rule: rule, Reason: "no provider window has used-percent readings"})
-	}
-	return rules
+	return s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusDismissed, BugID: item.BugID, At: now})
 }
 
 // Side is one cohort's quota per successful workload unit.

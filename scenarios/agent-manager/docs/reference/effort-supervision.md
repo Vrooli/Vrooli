@@ -245,7 +245,7 @@ the native commission limit; team heartbeat concurrency is a separate boundary.
 | `run continue <id> --message <text>` | The one way to talk to a run. A running interactive session receives the text as its next user message (the harness queues it behind the current turn); per-turn overrides are refused there. Any other continuable run starts a new turn. A codec-pipe run that is still mid-turn is refused; write an epoch directive instead. |
 | `run park <id> --producer children --key <orchestrator-run-id> --timeout 1h` | Parks the calling run until a direct child exits, the timeout elapses, or a wake names the key. The wake message names only the children that ended since the last wake and the ones still active (`[wake: timer] …` or `[wake] …`). |
 | `run wake --key <key> [--producer children] [--result <text>]` | `POST /api/v1/runs/wake-by-key`: the server matches every parked run whose await handle has exactly this producer and key and wakes it. A run identity may wake only runs its lineage permits (its parent, or its own children under the orchestrate scope). `run wake <id>` wakes one run. |
-| `usage run <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (operator heuristic `operator-non-cache-v2-2026-10-27`: Sol 10, Terra 5, Luna 1; unmatched models are unknown and disable spend comparisons). This is non-cache-token policy, not billing or measured subscription quota. Usage that is not final is listed, never counted as zero. |
+| `run report <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (operator heuristic `operator-non-cache-v2-2026-10-27`: Sol 10, Terra 5, Luna 1; unmatched models are unknown and disable spend comparisons). This is non-cache-token policy, not billing or measured subscription quota. Usage that is not final is listed, never counted as zero. |
 | `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 for a flatline strategy review; estimate overruns report optimization and continue with exit 0; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `usage run`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
 | `effort lint <goal home>` | Checks the goal-home rules the orchestrator owns; exit 4 on a failing rule. |
 | `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `STATUS.md`; exit 4 when refused. |
@@ -275,8 +275,7 @@ the parent's execution restrictions.
 
 `epoch-check`, `lint`, `handoff set` and `park` read a delivery goal home
 (`large-effort-orchestration` §3) through `api/internal/goalhome`'s current-format
-reader. Runtime operations require CHARTER/STATUS/LOG/FEEDBACK; they do not fall
-back to legacy registers. `effort migrate` is the explicit recoverable legacy import.
+reader. Runtime operations require CHARTER/STATUS/LOG/FEEDBACK.
 Working epoch briefs remain in `epochs/`; accepted-unit identity and worker
 attribution live in LOG. Start with the [work entry point](../../../../.vrooli/work/README.md). `lint` and `handoff set` read and write files only and
 run without the API. Exit codes: 3 is a worker step-back; 4 is an orchestrator

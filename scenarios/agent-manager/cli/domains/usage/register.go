@@ -27,9 +27,9 @@ func connectClient(core *cliapp.ScenarioApp) measureconnect.MeasuresServiceClien
 }
 
 // Register declares the `usage` group; run adds the per-run commands the
-// CLI's run services implement (`usage run`, `usage reindex`).
+// CLI's run services implement (`usage reindex`).
 func Register(run ...cliapp.Command) cliapp.SubcommandGroup {
-	commands := []cliapp.Command{forecastCommand(connectClient), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(episodesConnectClient), frictionDismissCommand(episodesConnectClient), coverageCommand(connectClient), compareCommand(connectClient)}
+	commands := []cliapp.Command{forecastCommand(connectClient), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(frictionConnectClient), frictionDismissCommand(frictionConnectClient), opportunitiesCommand(registryFetch), coverageCommand(connectClient), compareCommand(connectClient)}
 	return cliapp.SubcommandGroup{Name: "usage", Description: "Provider subscription usage from the provider's own quota readings", NeedsAPI: true, Subcommands: append(commands, run...)}
 }
 

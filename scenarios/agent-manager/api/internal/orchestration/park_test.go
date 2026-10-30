@@ -182,6 +182,61 @@ func TestParkRunReviewTimerValidationBeforeTransition(t *testing.T) {
 	}
 }
 
+// Exercise the real timer, persistent await registry and continuation together.
+// This is an in-process owner test, not a managed-harness lifecycle proof.
+func TestReviewTimerParksAndContinuesAtChosenTime(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	mockRunner, captured, captureMu, done := newContinuationRunner(t)
+	runners := runner.NewRegistry()
+	if err := runners.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(eventStore), orchestration.WithRunners(runners),
+		orchestration.WithIdentitySecret([]byte("review-timer-integration-secret-0123456789")),
+		orchestration.WithRunStateRoot(t.TempDir()), newTestRolePolicyOption(t))
+	waiters := orchestration.NewAwaitRegistry(svc, orchestration.NewReviewTimerWaiter())
+	svc.SetAwaitRegistry(waiters)
+	defer waiters.Stop()
+	run := newParkableRun(t, ctx, svc, repos)
+	at := time.Now().Add(orchestration.DefaultParkTurnEndGrace + 2*time.Second)
+	parked, err := svc.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: orchestration.ProducerReviewTimer, Key: at.UTC().Format(time.RFC3339Nano)})
+	if err != nil || parked.Status != domain.RunStatusParked {
+		t.Fatalf("park: run=%+v err=%v", parked, err)
+	}
+	reloaded, err := svc.GetRun(ctx, run.ID)
+	if err != nil || reloaded.AwaitHandle == nil || reloaded.AwaitHandle.Producer != orchestration.ProducerReviewTimer {
+		t.Fatalf("persisted await: run=%+v err=%v", reloaded, err)
+	}
+	select {
+	case <-done:
+		t.Fatal("continued before the selected review time")
+	case <-time.After(time.Until(at) / 2):
+	}
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timer did not resume the parked run")
+	}
+	captureMu.Lock()
+	prompt := captured.Prompt
+	token := captured.Environment["VROOLI_AGENT_IDENTITY_TOKEN"]
+	captureMu.Unlock()
+	if !strings.Contains(prompt, "Review time") || !strings.Contains(prompt, "does not establish worker health or completion") {
+		t.Fatalf("continuation prompt = %q", prompt)
+	}
+	identity, err := svc.VerifyIdentityToken(ctx, token)
+	if err != nil || !identity.Valid || identity.Claims == nil || identity.Claims.RunID != run.ID {
+		t.Fatalf("continuation identity invalid: err=%v", err)
+	}
+	eventually(t, func() bool {
+		current, err := svc.GetRun(ctx, run.ID)
+		return err == nil && current.Status == domain.RunStatusComplete && current.AwaitHandle == nil
+	}, "timer continuation did not complete and clear its await handle")
+}
+
 func TestParkRunWithoutRegistryRetainsIsolatedSeam(t *testing.T) {
 	ctx := context.Background()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)

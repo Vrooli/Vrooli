@@ -255,7 +255,7 @@ func (s *Service) Inspect(ctx context.Context, req *domainpb.InspectCohortWatchR
 			response.SubjectStateUnavailable = resolveErr.Error()
 		} else {
 			for _, v := range summaries {
-				item := &domainpb.WatchSubjectState{RunId: v.RunID, Status: v.Status, Terminal: v.Terminal, FrictionUnavailable: v.FrictionUnavailable}
+				item := &domainpb.WatchSubjectState{RunId: v.RunID, Status: v.Status, Terminal: v.Terminal, FrictionUnavailable: v.FrictionUnavailable, FrictionScore: v.ToolFriction.Score, FrictionCommands: int64(v.ToolFriction.Commands)}
 				if !v.FrictionThrough.IsZero() {
 					item.FrictionThrough = timestamppb.New(v.FrictionThrough)
 				}

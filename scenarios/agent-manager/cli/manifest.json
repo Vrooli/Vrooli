@@ -125,7 +125,8 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["agent-manager investigation get"]}}
         },
         {
           "name": "cancel",
@@ -292,7 +293,8 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["agent-manager watch get"]}}
         },
         {
           "name": "cancel",
@@ -1603,26 +1605,6 @@
       ]
     },
     {
-      "name": "findings",
-      "description": "Inspect recurring investigation findings",
-      "commands": [
-        {
-          "name": "list",
-          "description": "List recurring investigation findings",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        }
-      ]
-    },
-    {
       "name": "health",
       "description": "Inspect persisted health snapshots and audit history",
       "commands": [
@@ -1785,6 +1767,43 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "backfill-labels",
+          "description": "Recover labels from retained imported transcripts without changing run attribution.",
+          "flags": [],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
+          "name": "backfill-subjects",
+          "description": "Project run subjects from retained invocation facts without rewriting run identity",
+          "flags": [],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "operational"
           }
         }
       ]
@@ -2959,7 +2978,7 @@
         },
         {
           "name": "report",
-          "description": "Show the bounded shared run investigation report",
+          "description": "Show the bounded shared run investigation report with the run's weighted token spend, or its invocation facts",
           "positionals": [
             {
               "name": "run_id",
@@ -2981,7 +3000,23 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          }
+          },
+          "flags": [
+            {
+              "name": "children",
+              "bool": true,
+              "description": "Include the run's direct child runs in the token spend"
+            },
+            {
+              "name": "weights",
+              "description": "Tier weights by model-name substring for the token spend, e.g. sol=10,luna=1"
+            },
+            {
+              "name": "facts",
+              "bool": true,
+              "description": "Print the run's redacted normalized invocation facts instead of the report"
+            }
+          ]
         },
         {
           "name": "attach",
@@ -3059,56 +3094,6 @@
           ],
           "binding": {
             "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "cross-scenario",
-          "description": "Report generic cross-scenario receipt and semantics evidence",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "episodes",
-          "description": "Show bounded friction episodes for one run, or its self-reported friction spans with --spans",
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run UUID"
-            }
-          ],
-          "flags": [
-            {
-              "name": "spans",
-              "bool": true,
-              "description": "Show deterministic self-reported friction spans instead of episodes"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "EpisodesService",
-            "method": "GetEpisodes"
           },
           "governance": {
             "effect": "read",
@@ -3232,70 +3217,6 @@
             "permissions": [
               "filesystem:read",
               "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "backfill-labels",
-          "description": "Recover labels from retained imported transcripts without changing run attribution.",
-          "flags": [],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read",
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "backfill-subjects",
-          "description": "Project run subjects from retained invocation facts without rewriting run identity",
-          "flags": [],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "operational"
-          }
-        },
-        {
-          "name": "mine-self-report-vocabulary",
-          "description": "Mine bounded assistant struggle phrase candidates offline for human review.",
-          "flags": [
-            {
-              "name": "output",
-              "description": "Review JSON output path"
-            },
-            {
-              "name": "limit",
-              "description": "Maximum ranked candidates"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read"
             ]
           },
           "architecture": {
@@ -3454,7 +3375,8 @@
           },
           "architecture": {
             "primitive": "operational"
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"flag": "--follow", "replaces": ["agent-manager run get", "agent-manager run events"]}}
         },
         {
           "name": "apply-investigation",
@@ -3605,20 +3527,6 @@
           }
         },
         {
-          "name": "investigate",
-          "description": "Create an investigation",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
           "name": "list",
           "description": "List runs with bounded filters and a total count",
           "flags": [
@@ -3731,20 +3639,6 @@
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "stats",
-          "description": "Run summary read from Measures (status, success, duration, cost, tokens, runner/profile/model/tool breakdowns)",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
             "permissions": [
               "network:internal"
             ]
@@ -3994,40 +3888,6 @@
               "name": "stdin",
               "bool": true,
               "description": "Read the handoff text from standard input"
-            },
-            {
-              "name": "json",
-              "bool": true,
-              "description": "Print the result as JSON"
-            }
-          ],
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "filesystem:read",
-              "filesystem:write"
-            ]
-          }
-        },
-        {
-          "name": "migrate",
-          "description": "Convert a v1 goal home to the v2 file set, verifying board facts are unchanged; dry run unless --apply",
-          "positionals": [
-            {
-              "name": "goal-home",
-              "required": true,
-              "description": "Goal-home directory"
-            }
-          ],
-          "flags": [
-            {
-              "name": "apply",
-              "bool": true,
-              "description": "Write the v2 files and archive the v1 files (default: dry run)"
             },
             {
               "name": "json",
@@ -4705,15 +4565,13 @@
       "description": "Typed durable friction measures over Agent Manager invocation history",
       "commands": [
         {
-          "name": "external-tool-share",
-          "description": "Share of resolved tool calls that are external.",
+          "name": "list",
+          "description": "List every declared measure with its question and parameters",
           "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ExternalToolShare"
+            "kind": "local"
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           },
           "governance": {
             "effect": "read",
@@ -4721,39 +4579,33 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of resolved tool invocations that target external tools, with unknown ownership reported separately.",
-            "questions": [
-              "what is the external-tool share this week",
-              "how often do agents use tools outside Vrooli",
-              "which fraction of tool calls are external"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "share",
-              "unit": "share",
-              "summary_template": "{share} external-tool share ({window})"
-            }
           }
         },
         {
-          "name": "retry-rate",
-          "description": "Share of tool calls linked to a retry.",
+          "name": "get",
+          "description": "Execute one declared measure by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Measure id (domain.name) or bare name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "window",
+              "description": "Analytical time window"
+            },
+            {
+              "name": "param",
+              "description": "Measure parameter as name=value (repeatable)"
+            }
+          ],
           "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RetryRate"
+            "kind": "local"
           },
           "architecture": {
-            "primitive": "proto_list"
+            "primitive": "action"
           },
           "governance": {
             "effect": "read",
@@ -4761,808 +4613,6 @@
             "permissions": [
               "network:internal"
             ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of durable tool invocations linked to a prior retry target.",
-            "questions": [
-              "what is the retry rate this week",
-              "how often are agent tool calls retried",
-              "show tool invocation retries"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} retry rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "repeated-work-rate",
-          "description": "Share of calls in repeated-work fingerprints.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RepeatedWorkRate"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of tool invocations in repeated-work fingerprints.",
-            "questions": [
-              "what is the repeated work rate",
-              "how much tool work is repeated",
-              "show agent reread and repeated invocation rate"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} repeated-work rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "tool-failure-rate",
-          "description": "Share of durable tool calls whose outcome failed.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ToolFailureRate"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of durable tool invocations whose classified outcome failed.",
-            "questions": [
-              "what is the tool failure rate",
-              "how often do agent tool calls fail",
-              "show failed tool invocation share"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} tool failure rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "run-success-rate",
-          "description": "Share of terminal runs that complete successfully.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunSuccessRate"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Share of terminal runs that completed successfully.",
-            "questions": [
-              "what is the agent run success rate this week",
-              "how often do agent runs complete successfully"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} run success rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "run-cycle-time",
-          "description": "Average completed run cycle time.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunCycleTime"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Average completed run cycle time in milliseconds.",
-            "questions": [
-              "what is the average agent run cycle time",
-              "how long do completed agent runs take"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "average_duration_ms",
-              "unit": "milliseconds",
-              "summary_template": "{average_duration_ms} average run cycle time ({window})"
-            }
-          }
-        },
-        {
-          "name": "run-duration-statistics",
-          "description": "Complete durable run duration statistics.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunDurationStatistics"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Complete durable run duration summary including SQLite-compatible percentile values.",
-            "questions": [
-              "show agent run duration percentiles",
-              "what are the p95 agent run durations"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "average_duration_ms",
-              "unit": "milliseconds",
-              "summary_template": "durable run duration statistics ({window})"
-            }
-          }
-        },
-        {
-          "name": "run-cost",
-          "description": "Tokens requested in the window, and dollars for per-token billed runs.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunCost"
-          },
-          "architecture": {
-            "primitive": "proto_list",
-            "primary_field": "total_cost_usd"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Token totals from transcript requests in the window; dollars only for per-token billed runs.",
-            "questions": [
-              "how many tokens did agent runs use this week",
-              "show total agent run cost"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "total_cost_usd",
-              "unit": "usd",
-              "summary_template": "{total_cost_usd} per-token billed cost ({window})"
-            }
-          }
-        },
-        {
-          "name": "fallback-insights",
-          "description": "Runner and model fallbacks and policy-candidate outcomes.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "FallbackInsights"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "health",
-            "intent": "Runner and model fallback attempts, exhausted walks and policy-candidate outcomes.",
-            "questions": [
-              "how often do runs fall back to another runner or model",
-              "why do model fallbacks happen"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "reason",
-              "unit": "events",
-              "summary_template": "fallback insights ({window})"
-            }
-          }
-        },
-        {
-          "name": "run-volume",
-          "description": "Number of durable terminal run summaries.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunVolume"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Number of terminal run summaries in the window.",
-            "questions": [
-              "how many agent runs completed this week",
-              "show agent run volume"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "total_runs",
-              "unit": "runs",
-              "summary_template": "{total_runs} agent run volume ({window})"
-            }
-          }
-        },
-        {
-          "name": "run-status-distribution",
-          "description": "Distribution of durable terminal runs by status.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunStatusDistribution"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Distribution of durable terminal run summaries by status.",
-            "questions": [
-              "what is the agent run status distribution this week",
-              "how many agent runs are complete, failed, or cancelled"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "status",
-              "unit": "runs",
-              "summary_template": "run status distribution ({window})"
-            }
-          }
-        },
-        {
-          "name": "runner-breakdown",
-          "description": "Durable terminal-run performance by runner.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "RunnerBreakdown"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Durable terminal-run performance grouped by runner.",
-            "questions": [
-              "agent run runner breakdown this week"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "value",
-              "unit": "runs",
-              "summary_template": "runner run breakdown ({window})"
-            }
-          }
-        },
-        {
-          "name": "model-breakdown",
-          "description": "Durable terminal-run performance by model.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ModelBreakdown"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Durable terminal-run performance grouped by model.",
-            "questions": [
-              "agent run model breakdown this week"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "value",
-              "unit": "runs",
-              "summary_template": "model run breakdown ({window})"
-            }
-          }
-        },
-        {
-          "name": "profile-breakdown",
-          "description": "Durable terminal-run performance by profile.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ProfileBreakdown"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Durable terminal-run performance grouped by profile.",
-            "questions": [
-              "agent run profile breakdown this week"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "value",
-              "unit": "runs",
-              "summary_template": "profile run breakdown ({window})"
-            }
-          }
-        },
-        {
-          "name": "terminal-run-trend",
-          "description": "Hourly durable terminal-run outcome trend.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "TerminalRunTrend"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "run",
-            "intent": "Hourly durable terminal-run outcomes, cost, and duration trends.",
-            "questions": [
-              "show the agent terminal run trend this week",
-              "how are agent run completions and failures trending"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "bucket",
-              "unit": "runs",
-              "summary_template": "terminal run trend ({window})"
-            }
-          }
-        },
-        {
-          "name": "tool-usage",
-          "description": "Durable tool invocation counts and outcomes.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ToolUsage"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Durable tool invocation counts and classified outcomes by tool.",
-            "questions": [
-              "which tools do agents use most",
-              "agent tool usage this week"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "tool_name",
-              "unit": "calls",
-              "summary_template": "tool usage ({window})"
-            }
-          }
-        },
-        {
-          "name": "capability-usage",
-          "description": "Verified cross-scenario capability usage by target and operation.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "CapabilityUsage"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Verified receipt-backed capability usage grouped by target scenario and operation.",
-            "questions": [
-              "which capabilities are used most",
-              "show verified cross-scenario capability usage"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "target_scenario",
-              "unit": "calls",
-              "summary_template": "verified capability usage ({window})"
-            }
-          }
-        },
-        {
-          "name": "capability-efficacy",
-          "description": "Verified capability fallback and abandonment rates.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "CapabilityEfficacy"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Verified receipt-backed capability success, fallback, and abandonment by target scenario and operation.",
-            "questions": [
-              "which capabilities require fallback",
-              "show capability abandonment rates"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "target_scenario",
-              "unit": "calls",
-              "summary_template": "capability efficacy ({window})"
-            }
-          }
-        },
-        {
-          "name": "error-patterns",
-          "description": "Durable error-code frequency and sample runs.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ErrorPatterns"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Durable error-code frequency and recent sample runs.",
-            "questions": [
-              "what agent errors recur this week",
-              "show agent error patterns"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "error_code",
-              "unit": "errors",
-              "summary_template": "error patterns ({window})"
-            }
-          }
-        },
-        {
-          "name": "file-reread-rate",
-          "description": "Share of file-read calls that revisit a path.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "FileRereadRate"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of file-read calls that revisit a path already read in the same run.",
-            "questions": [
-              "what is the agent file reread rate",
-              "how often do agents reread files"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} file reread rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "finding-recurrence-rate",
-          "description": "Share of investigation findings whose fingerprint recurs.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "FindingRecurrenceRate"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.",
-            "questions": [
-              "what is the recurring finding rate",
-              "which agent findings recur"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "rate",
-              "unit": "share",
-              "summary_template": "{rate} finding recurrence rate ({window})"
-            }
-          }
-        },
-        {
-          "name": "conversation-search-quality",
-          "description": "Privacy-safe conversation recall quality, latency, degradation, and index-lag aggregates.",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "ConversationSearchQuality"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "conversation_search",
-            "intent": "Aggregate recall quality and operational health without retaining query or result content.",
-            "questions": [
-              "how reliable is conversation recall this week",
-              "show conversation search latency and degradation",
-              "what is the conversation search selection quality"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "queries",
-              "unit": "queries",
-              "summary_template": "conversation search quality ({window})"
-            }
           }
         },
         {
@@ -5602,226 +4652,12 @@
           }
         },
         {
-          "name": "workload-efficiency",
-          "description": "Consumption per successful workload completion.",
-          "binding": {
-            "kind": "local"
-          },
-          "architecture": {
-            "primitive": "action"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "workload-breakdown",
-          "description": "Terminal run performance grouped by workload key.",
-          "binding": {
-            "kind": "local"
-          },
-          "architecture": {
-            "primitive": "action"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "token-attribution",
-          "description": "Durable token attribution grouped by dimension and view.",
-          "flags": [
-            {
-              "name": "window",
-              "description": "Analytical time window",
-              "bind": {
-                "field": "window",
-                "kind": "json_inline"
-              }
-            },
-            {
-              "name": "by",
-              "description": "Grouping dimension",
-              "default": "capability",
-              "values": [
-                "capability",
-                "executable",
-                "command_path",
-                "target_scenario_operation"
-              ],
-              "value_aliases": {
-                "command-path": "command_path",
-                "scenario-operation": "target_scenario_operation"
-              },
-              "bind": {
-                "field": "group_by"
-              }
-            },
-            {
-              "name": "view",
-              "description": "Token view",
-              "default": "footprint",
-              "values": [
-                "footprint",
-                "residency",
-                "incurred"
-              ]
-            },
-            {
-              "name": "runner-type",
-              "description": "Runner type"
-            },
-            {
-              "name": "model",
-              "description": "Model"
-            },
-            {
-              "name": "workload-key",
-              "description": "Declared workload key"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "TokenAttribution"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "measure": {
-            "domain": "friction",
-            "intent": "Durable token spend grouped by capability, executable, command path, or target scenario operation across footprint, residency, and incurred views.",
-            "questions": [
-              "which capabilities consume the most tokens",
-              "which commands have the largest token footprint",
-              "what incurred token spend follows each tool call"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              },
-              "group_by": {
-                "default": "capability"
-              },
-              "view": {
-                "default": "footprint"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "total_tokens",
-              "unit": "tokens",
-              "summary_template": "{view} token attribution by {group_by} ({window})"
-            }
-          }
-        },
-        {
-          "name": "episode-cohort",
-          "description": "Rank recurring friction episodes across a selected cohort",
-          "flags": [
-            {
-              "name": "cohort",
-              "description": "Named durable cohort"
-            },
-            {
-              "name": "run-ids",
-              "description": "Comma-separated run UUIDs"
-            },
-            {
-              "name": "filter-json",
-              "description": "InvocationFilter JSON",
-              "bind": {
-                "field": "filter",
-                "kind": "json_inline"
-              }
-            },
-            {
-              "name": "limit",
-              "description": "Maximum selected runs"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "EpisodeCohort"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "measure": {
-            "domain": "episode",
-            "intent": "Rank recurring friction episode fingerprints across the selected durable run cohort.",
-            "questions": [
-              "which friction episodes recur across agent runs",
-              "what recurring agent friction costs the most",
-              "show the episode recurrence rate"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
-              },
-              "limit": {
-                "default": "25"
-              }
-            },
-            "result": {
-              "kind": "table",
-              "value_field": "signals",
-              "unit": "episodes",
-              "summary_template": "recurring friction episodes ({window})"
-            }
-          }
-        },
-        {
           "name": "cohort-report",
           "description": "Fold run reports across a selected cohort: friction signals, time accounting, goal progression",
           "binding": {
             "kind": "connect-rpc",
             "service": "MeasuresService",
             "method": "CohortReport"
-          },
-          "architecture": {
-            "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "episode-compare",
-          "description": "Compare friction-episode fingerprints between two selected cohorts",
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "MeasuresService",
-            "method": "CompareEpisodeCohorts"
           },
           "architecture": {
             "primitive": "proto_list"
@@ -5920,7 +4756,7 @@
         },
         {
           "name": "recommendations",
-          "description": "What should I change? Rule findings grouped by target with a combined saving",
+          "description": "What should I change? One ranked list of owner-level actions",
           "flags": [
             {
               "name": "provider",
@@ -5964,11 +4800,11 @@
         },
         {
           "name": "friction",
-          "description": "What keeps going wrong for agents? Recurring friction problems in plain words",
+          "description": "What keeps going wrong for agents? Owner-level tool problems and classified operator interventions",
           "flags": [
             {
-              "name": "provider",
-              "description": "Provider filter (e.g. openai, anthropic)"
+              "name": "since",
+              "description": "RFC 3339 start of the friction window (default 7 days ago)"
             },
             {
               "name": "status",
@@ -5997,18 +4833,18 @@
         },
         {
           "name": "friction-report",
-          "description": "File a friction problem in the scenario-qa bug inbox",
+          "description": "File a friction finding in the scenario-qa bug inbox",
           "positionals": [
             {
               "name": "fingerprint",
               "required": true,
-              "description": "Problem fingerprint from `usage friction`"
+              "description": "Finding fingerprint from `usage friction`"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "EpisodesService",
-            "method": "ReportFrictionProblem"
+            "service": "FrictionService",
+            "method": "ReportFriction"
           },
           "architecture": {
             "primitive": "proto_mutation"
@@ -6023,18 +4859,18 @@
         },
         {
           "name": "friction-dismiss",
-          "description": "Set a friction problem aside",
+          "description": "Set a friction finding aside",
           "positionals": [
             {
               "name": "fingerprint",
               "required": true,
-              "description": "Problem fingerprint from `usage friction`"
+              "description": "Finding fingerprint from `usage friction`"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "EpisodesService",
-            "method": "DismissFrictionProblem"
+            "service": "FrictionService",
+            "method": "DismissFriction"
           },
           "architecture": {
             "primitive": "proto_mutation"
@@ -6082,43 +4918,6 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "run",
-          "description": "Show a run's weighted non-cache token spend, optionally its children's, or its redacted invocation facts",
-          "positionals": [
-            {
-              "name": "run_id",
-              "required": true,
-              "description": "Run UUID"
-            }
-          ],
-          "flags": [
-            {
-              "name": "children",
-              "bool": true,
-              "description": "Include the run's direct child runs"
-            },
-            {
-              "name": "weights",
-              "description": "Tier weights by model-name substring, e.g. sol=10,luna=1"
-            },
-            {
-              "name": "facts",
-              "bool": true,
-              "description": "Print the run's redacted normalized invocation facts"
-            }
-          ],
-          "binding": {
-            "kind": "local"
           },
           "governance": {
             "effect": "read",
@@ -6503,6 +5302,116 @@
       "service": "MeasuresService",
       "method": "UsageForecastBacktest",
       "reason": "Read by `usage forecast --backtest`; the command binds UsageForecast and selects the backtest procedure with a local flag."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ExternalToolShare",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RetryRate",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RepeatedWorkRate",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ToolFailureRate",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunSuccessRate",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunCycleTime",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunDurationStatistics",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunCost",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "FallbackInsights",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunVolume",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunStatusDistribution",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RunnerBreakdown",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ModelBreakdown",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ProfileBreakdown",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "TerminalRunTrend",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ToolUsage",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "CapabilityUsage",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "CapabilityEfficacy",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ErrorPatterns",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "FileRereadRate",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "FindingRecurrenceRate",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "TokenAttribution",
+      "reason": "Served by `measures get` through the measure registry, not a per-measure command."
     }
   ],
   "measures": {
@@ -6513,11 +5422,6 @@
         "reason": "Terminal run throughput is measured through the durable invocation read model rather than raw run-event transport."
       },
       {
-        "domain": "episode",
-        "stateful": true,
-        "reason": "Episode recurrence is exposed by the bounded run episodes measure and will be aggregated by episode cohorts."
-      },
-      {
         "domain": "conversation_search",
         "stateful": true,
         "reason": "Conversation recall quality, latency, degradation, selection rank, and current index lag are exposed by the privacy-safe conversation-search-quality measure."
@@ -6526,7 +5430,7 @@
     "omitted": [
       {
         "domain": "events",
-        "reason": "Run events are append-only investigation evidence, not an independently meaningful historical business entity. Operators use the bounded per-run report, events, tools, and aggregate run-stats queries; a time-windowed event-count measure would only restate transport volume and risk optimizing for noisy telemetry rather than run outcomes."
+        "reason": "Run events are append-only investigation evidence, not an independently meaningful historical business entity. Operators use the bounded per-run report, events, tools, and registry measures; a time-windowed event-count measure would only restate transport volume and risk optimizing for noisy telemetry rather than run outcomes."
       },
       {
         "domain": "types",
@@ -6622,7 +5526,7 @@
       },
       {
         "domain": "watch",
-        "reason": "Cohort watches and supervision policies are supervision definitions with their own bounded owner reads (watch list, inspect, policy-outcomes); watch counts by state are configuration inventory, and the friction they act on is already measured through the run, episode and usage measures."
+        "reason": "Cohort watches and supervision policies are supervision definitions with their own bounded owner reads (watch list, inspect, policy-outcomes); watch counts by state are configuration inventory, and the friction they act on is already measured through the run, tool-friction and usage measures."
       }
     ]
   }

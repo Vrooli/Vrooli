@@ -59,7 +59,7 @@ func TestClassifyMessageTextSources(t *testing.T) {
 		{"<local-command-stdout>x", MessageSourceInjectedContext},
 		{"<command-name>/x</command-name>", MessageSourceInjectedContext},
 		{"<in-app-browser-context>x", MessageSourceInjectedContext},
-		{"<send_user_message_question_reply>x", MessageSourceInjectedContext},
+		{"<send_user_message_question_reply>[{\"answer\":\"it arrived\"}]", MessageSourceOperator},
 		{"# AGENTS.md instructions for /x", MessageSourceInjectedContext},
 		{"# AGENTS.md notes I pasted", MessageSourceOperator},
 		{"<system-reminder>ctx</system-reminder>\n\nplease fix the bug", MessageSourceOperator},
@@ -102,6 +102,34 @@ func TestHarnessBlocksBeforeInjectedFormsKeepTheirSource(t *testing.T) {
 	for text, want := range cases {
 		if got := ClassifyMessageText(text); got != want {
 			t.Errorf("ClassifyMessageText(%q) = %q, want %q", text, got, want)
+		}
+	}
+}
+
+// Codex structural evidence decides before text: provenance and content item
+// kinds mark injected items, and a sub-agent thread's typed text is the parent
+// agent's (P4-W4 discriminators 1-3). Absent evidence proves nothing.
+func TestClassifyCodexUserMessage(t *testing.T) {
+	cases := []struct {
+		name             string
+		text             string
+		subagent         bool
+		kinds, provenace []string
+		want             string
+	}{
+		{"typed, no evidence", "keep going", false, nil, nil, MessageSourceOperator},
+		{"typed with provenance", "keep going", false, []string{"user.text"}, []string{"user"}, MessageSourceOperator},
+		{"typed with image", "look", false, []string{"user.image", "user.text"}, nil, MessageSourceOperator},
+		{"harness provenance", "plain text", false, nil, []string{"harness"}, MessageSourceInjectedContext},
+		{"agents.md kind", "plain text", false, []string{"agents_md.instructions", "environments.environment_context"}, nil, MessageSourceInjectedContext},
+		{"goal kind", "ship it", false, []string{"user.goal"}, nil, MessageSourceInjectedContext},
+		{"sub-agent assignment", "Audit the parser and report back", true, []string{"user.text"}, nil, MessageSourceTeammate},
+		{"sub-agent thread injected", "# AGENTS.md instructions for /repo\n...", true, nil, nil, MessageSourceInjectedContext},
+		{"wake keeps its source", "[wake] child ended", true, []string{"user.text"}, []string{"user"}, MessageSourceWake},
+	}
+	for _, tc := range cases {
+		if got := ClassifyCodexUserMessage(tc.text, tc.subagent, tc.kinds, tc.provenace); got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
 		}
 	}
 }

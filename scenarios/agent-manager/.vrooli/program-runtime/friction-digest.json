@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.friction-digest",
-  "version": "1",
+  "version": "2",
   "helpers": {
     "program": "1"
   },
@@ -10,22 +10,17 @@
     "scenario": {
       "type": "string",
       "required": true,
-      "description": "Owning scenario slug to digest, matched against each episode's suspectedOwnerScenario."
+      "description": "Owning scenario slug to digest: the owner of its tool findings and command profiles (a Vrooli CLI's scenario, or vrooli for the control plane)."
     },
     "window_days": {
       "type": "integer",
       "default": 7,
-      "description": "Runs created inside the last N days are read; episodes carry no timestamp of their own. Range [1, 90]."
-    },
-    "run_limit": {
-      "type": "integer",
-      "default": 40,
-      "description": "Most recent runs listed before the window filter. Range [1, 200]."
+      "description": "The tool-friction window is the last N days. Range [1, 90]."
     },
     "top_n": {
       "type": "integer",
       "default": 10,
-      "description": "How many fingerprints to report, ranked by distinct runs then occurrences."
+      "description": "How many findings to report, ranked by their share of the window's harm in their own unit."
     },
     "policy_version": {
       "type": "string",
@@ -39,27 +34,22 @@
     }
   },
   "assumptions": [
-    "agent-manager is running and its run/list and run/episodes bindings are reachable from the kernel",
-    "run/list returns newest first; the window filter is applied to createdAt in the kernel",
-    "episodes with ownerConfidence unknown omit suspectedOwnerScenario and never match the scenario input",
+    "agent-manager is running and its measures/tool-friction binding is reachable from the kernel",
+    "tool-friction takes window as a TimeWindow message ({token} or {custom: {from, to}}) and owner narrows its profiles, clusters and findings to one scenario",
+    "the tool-friction response is one record (primary field summary) whose findings are already ranked by cost share",
     "each call runs in its own program-runtime session; session variables persist across submissions",
-    "the caller treats a partial digest, or one with window_truncated_by_run_limit true, as a lower bound, never as the whole picture"
+    "the caller reads an empty digest beside coverage: unknown outcomes cannot show failures"
   ],
   "invariants": [
     "no binding with effect write or destructive is called",
-    "at most run_limit (200) run rows and at most 500 episode projections per run are materialized; every other reading is count or group_by",
+    "one tool-friction record is materialized; at most top_n findings are reported",
     "at most outcome_limit (500) supervision outcomes are materialized and transcript bodies are never read",
     "the envelope is printed exactly once, on every path",
-    "a run whose episodes cannot be read is counted in episode_reads_failed and degrades the status to partial; it is never dropped silently",
-    "zero runs inside the window is an empty digest with status ok, never an error"
+    "an owner with no findings in the window is an empty digest with status ok and its coverage, never an error"
   ],
   "bindings": [
     {
-      "id": "agent-manager/run/list",
-      "effect": "read"
-    },
-    {
-      "id": "agent-manager/run/episodes",
+      "id": "agent-manager/measures/tool-friction",
       "effect": "read"
     },
     {
@@ -90,17 +80,13 @@
       ]
     },
     "signals": {
-      "runs_listed": "runs returned by run/list before the window filter",
-      "runs_in_window": "runs whose createdAt is inside window_days",
-      "runs_unparseable_timestamp": "listed runs whose createdAt could not be parsed; never counted as in-window",
-      "window_truncated_by_run_limit": "true when every listed run is inside the window and the list stopped at run_limit or the server reports more: older in-window runs were not read, so the digest is a lower bound",
-      "earliest_run_created_at": "createdAt of the oldest run in the window, so the caller knows what the window really covered; null when runs_in_window is 0",
-      "episodes_total": "episodes across every run read, all owners",
-      "episodes_for_scenario": "episodes whose suspectedOwnerScenario equals the input",
-      "episode_reads_failed": "runs whose episodes binding raised; each is also an errors[] entry",
-      "owner_confidence": "counts of episodes by ownerConfidence across all owners (manifest-derived, unknown)",
-      "recurring_count": "fingerprints for the scenario seen in 3 or more distinct runs",
-      "top_fingerprints": "at most top_n of {fingerprint, occurrences, distinct_runs, pattern, cause_scope, owner_command, owner_confidence, wall_clock_ms}",
+      "window_start": "start of the tool-friction window",
+      "coverage": "what the profiles could see: command calls and the share with a known outcome; an empty digest is read beside it",
+      "profiles_for_scenario": "command paths the scenario owns that ran in the window",
+      "calls_for_scenario": "calls of those command paths",
+      "findings_for_scenario": "owner-level tool findings the scenario owns",
+      "recurring_count": "findings with evidence in 3 or more distinct runs",
+      "top_fingerprints": "at most top_n of {fingerprint, kind, command_path, description, calls, distinct_runs, cost, cost_unit, cost_share, status}, ranked by cost share",
       "supervision_outcomes": "Current bounded outcomes including unassessed observations; null when the read failed",
       "supervision_false_positives": "signal predictions whose observed class was non-signal",
       "supervision_false_negatives": "non-signal predictions whose observed class was signal",
@@ -162,8 +148,7 @@
       "id": "live-source-ledger",
       "inputs": {
         "scenario": "source-ledger",
-        "window_days": 1,
-        "run_limit": 25
+        "window_days": 1
       },
       "expect": {
         "status": [
@@ -174,7 +159,7 @@
       "requires": [
         "agent-manager"
       ],
-      "note": "A one-day window on a quiet host is legitimately empty: status ok with runs_in_window 0."
+      "note": "A one-day window on a quiet host is legitimately empty: status ok with findings_for_scenario 0 beside its coverage."
     },
     {
       "id": "missing-scenario",

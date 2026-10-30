@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/cli/internal/support"
+
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -130,7 +132,7 @@ func (a *App) runCreate(args []string) error {
 	fs.Var(&targetInstances, "target-instance", "Scenario instance this run changes, <scenario>@<instance> (repeatable); a quiesce of another instance skips the run")
 	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Observed weighted-token threshold; may only lower the profile limit; action depends on token-cap mode and usage reporting")
 
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 

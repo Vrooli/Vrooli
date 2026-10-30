@@ -44,7 +44,7 @@ func fixtureFiles(t *testing.T, name string, edits map[string]func(string) strin
 
 func basHome(t *testing.T, edits map[string]func(string) string) *Home {
 	t.Helper()
-	home, err := LoadLegacy(fixtureFiles(t, "bas", edits))
+	home, err := LoadV2(fixtureFiles(t, "v2-bas", edits))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,14 +80,14 @@ func TestRealBASGoalHomeParses(t *testing.T) {
 			open++
 		}
 	}
-	if len(home.Workarounds.Entries) != 5 || open != 3 {
-		t.Fatalf("workarounds = %d entries, %d open; want 5 and 3", len(home.Workarounds.Entries), open)
+	if len(home.Workarounds.Entries) != 4 || open != 3 {
+		t.Fatalf("workarounds = %d entries, %d open; want 4 and 3", len(home.Workarounds.Entries), open)
 	}
 	if len(home.Epochs) != 4 || home.Epochs[0].Name != "E23.md" || !home.Epochs[2].Epoch.IsAccepted() || home.Epochs[3].Epoch.IsAccepted() {
 		t.Fatalf("epochs misread: %+v", home.Epochs)
 	}
-	if home.Goal.Destination != nil {
-		t.Fatalf("the BAS GOAL.md states its destination in prose; got %+v", home.Goal.Destination)
+	if d := home.Goal.Destination; d == nil || d.Metric != "runtime lines" || d.Op != "<=" || d.Target != 205000 {
+		t.Fatalf("destination = %+v, want runtime lines <= 205000", d)
 	}
 }
 
@@ -103,48 +103,48 @@ func TestLintBASGoalHome(t *testing.T) {
 		// Live BAS on 2026-10-07: no slice marked [ready], the Needs operator
 		// placeholder is empty, and FB-063 and the SUP-AUDIT-003 supervisor
 		// audit are open but the handoff names only FB-064.
-		{name: "as recorded", want: "idle-queue,feedback-unacknowledged,feedback-unacknowledged"},
-		{name: "duplicate handoff is named", edits: map[string]func(string) string{QueueFile: duplicate}, want: "handoff-count,idle-queue,feedback-unacknowledged,feedback-unacknowledged"},
-		{name: "a [ready] slice clears the idle queue", edits: map[string]func(string) string{QueueFile: func(s string) string {
+		{name: "as recorded", want: "idle-queue,feedback-unacknowledged,feedback-unacknowledged,diminishing-returns"},
+		{name: "duplicate handoff is named", edits: map[string]func(string) string{StatusFile: duplicate}, want: "handoff-count,idle-queue,feedback-unacknowledged,feedback-unacknowledged,diminishing-returns"},
+		{name: "a [ready] slice clears the idle queue", edits: map[string]func(string) string{StatusFile: func(s string) string {
 			return strings.Replace(s, "3. **RD-EXP", "3. [ready] **RD-EXP", 1)
-		}}, want: "feedback-unacknowledged,feedback-unacknowledged"},
-		{name: "a Needs operator item clears the idle queue", edits: map[string]func(string) string{QueueFile: func(s string) string {
+		}}, want: "feedback-unacknowledged,feedback-unacknowledged,diminishing-returns"},
+		{name: "a Needs operator item clears the idle queue", edits: map[string]func(string) string{StatusFile: func(s string) string {
 			return strings.Replace(s, "(none; the operator answered BAS-FB-063 on 2026-10-06)", "- Retire Record mode? Options: keep, retire. Recommendation: keep.", 1)
-		}}, want: "feedback-unacknowledged,feedback-unacknowledged"},
-		{name: "naming the operator feedback leaves the supervisor audit open", edits: map[string]func(string) string{QueueFile: func(s string) string {
-			return strings.Replace(s, "- The census notes", "- FB-063 is translated into the RD slices.\n- The census notes", 1)
-		}}, want: "idle-queue,feedback-unacknowledged"},
-		{name: "naming every open entry acknowledges them", edits: map[string]func(string) string{QueueFile: func(s string) string {
-			return strings.Replace(s, "- The census notes", "- FB-063 is translated into the RD slices; SUP-AUDIT-003 is tracked under Waiting on others.\n- The census notes", 1)
-		}}, want: "idle-queue"},
+		}}, want: "feedback-unacknowledged,feedback-unacknowledged,diminishing-returns"},
+		{name: "naming the operator feedback leaves the supervisor audit open", edits: map[string]func(string) string{StatusFile: func(s string) string {
+			return strings.Replace(s, "  4. Keep this section short", "- FB-063 is translated into the RD slices.\n  4. Keep this section short", 1)
+		}}, want: "idle-queue,feedback-unacknowledged,diminishing-returns"},
+		{name: "naming every open entry acknowledges them", edits: map[string]func(string) string{StatusFile: func(s string) string {
+			return strings.Replace(s, "  4. Keep this section short", "- FB-063 is translated into the RD slices; SUP-AUDIT-003 is tracked under Waiting on others.\n  4. Keep this section short", 1)
+		}}, want: "idle-queue,diminishing-returns"},
 		{name: "a supervisor-audit source is checked", edits: map[string]func(string) string{
-			QueueFile: func(s string) string {
-				return strings.Replace(s, "- The census notes", "- FB-063 is translated into the RD slices.\n- The census notes", 1)
+			StatusFile: func(s string) string {
+				return strings.Replace(s, "  4. Keep this section short", "- FB-063 is translated into the RD slices.\n  4. Keep this section short", 1)
 			},
 			FeedbackFile: func(s string) string {
 				return strings.Replace(s, "(2026-10-06, supervisor)", "(2026-10-06, supervisor-audit)", 1)
 			},
-		}, want: "idle-queue,feedback-unacknowledged"},
+		}, want: "idle-queue,feedback-unacknowledged,diminishing-returns"},
 		{name: "another source is not checked", edits: map[string]func(string) string{
-			QueueFile: func(s string) string {
-				return strings.Replace(s, "- The census notes", "- FB-063 is translated into the RD slices.\n- The census notes", 1)
+			StatusFile: func(s string) string {
+				return strings.Replace(s, "  4. Keep this section short", "- FB-063 is translated into the RD slices.\n  4. Keep this section short", 1)
 			},
 			FeedbackFile: func(s string) string { return strings.Replace(s, "(2026-10-06, supervisor)", "(2026-10-06, qa)", 1) },
-		}, want: "idle-queue"},
-		{name: "a missing handoff is named", edits: map[string]func(string) string{QueueFile: func(s string) string {
-			start, end := strings.Index(s, "## Handoff"), strings.Index(s, "## Forecast")
+		}, want: "idle-queue,diminishing-returns"},
+		{name: "a missing handoff is named", edits: map[string]func(string) string{StatusFile: func(s string) string {
+			start, end := strings.Index(s, "## Handoff"), strings.Index(s, "## Next")
 			return s[:start] + s[end:]
-		}}, want: "handoff-count,idle-queue,feedback-unacknowledged,feedback-unacknowledged,feedback-unacknowledged"},
-		{name: "an oversized handoff", edits: map[string]func(string) string{QueueFile: func(s string) string {
-			return strings.Replace(s, "- The census notes", "- "+strings.Repeat("census prose ", 400)+"\n- The census notes", 1)
-		}}, want: "handoff-size,idle-queue,feedback-unacknowledged,feedback-unacknowledged"},
+		}}, want: "handoff-count,idle-queue,feedback-unacknowledged,feedback-unacknowledged,feedback-unacknowledged,diminishing-returns"},
+		{name: "an oversized handoff", edits: map[string]func(string) string{StatusFile: func(s string) string {
+			return strings.Replace(s, "  4. Keep this section short", "- "+strings.Repeat("census prose ", 400)+"\n  4. Keep this section short", 1)
+		}}, want: "handoff-size,idle-queue,feedback-unacknowledged,feedback-unacknowledged,diminishing-returns"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			report := Lint(basHome(t, tc.edits))
 			if got := blockingCodes(report); got != tc.want {
 				t.Fatalf("blocking findings = %s, want %s: %+v", got, tc.want, report.Findings)
 			}
-			if first := report.Findings[0]; first.Code == "handoff-count" && tc.name == "duplicate handoff is named" && (!strings.Contains(first.Detail, `"## Handoff" (line 10)`) || !strings.Contains(first.Detail, `"### Orchestrator handoff — 2026-10-06T16:43Z"`)) {
+			if first := report.Findings[0]; first.Code == "handoff-count" && tc.name == "duplicate handoff is named" && (!strings.Contains(first.Detail, `"## Handoff" (line 21)`) || !strings.Contains(first.Detail, `"### Orchestrator handoff — 2026-10-06T16:43Z"`)) {
 				t.Fatalf("duplicate handoff finding must name both sections: %s", first.Detail)
 			}
 			if !report.Blocking {
@@ -154,72 +154,41 @@ func TestLintBASGoalHome(t *testing.T) {
 	}
 }
 
-func TestLintResumeBudgetCountsOnlyOpenEntries(t *testing.T) {
+func TestLintResumeBudgetCountsOnlyOpenFeedback(t *testing.T) {
 	padding := strings.Repeat("x", ResumeBudgetBytes)
-	for _, tc := range []struct {
-		name   string
-		status string
-		want   bool
-	}{
-		{name: "open entry counts", status: "open.", want: true},
-		{name: "resolved entry does not", status: "resolved 2026-10-07.", want: false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			report := Lint(basHome(t, map[string]func(string) string{WorkaroundsFile: func(s string) string {
-				return s + "- 2026-10-07 · " + padding + " · fallback · retry · " + tc.status + "\n"
-			}}))
-			if got := strings.Contains(blockingCodes(report), "resume-budget"); got != tc.want {
-				t.Fatalf("resume-budget = %t, want %t (open workarounds %d bytes)", got, tc.want, report.ResumeSet.OpenWorkarounds)
-			}
-		})
-	}
 	report := Lint(basHome(t, map[string]func(string) string{FeedbackFile: func(s string) string { return s + "| BAS-FB-001 | " + padding + " |\n" }}))
 	if strings.Contains(blockingCodes(report), "resume-budget") {
 		t.Fatalf("resolved feedback must not count: %+v", report.ResumeSet)
 	}
+	report = Lint(basHome(t, map[string]func(string) string{StatusFile: func(s string) string { return s + padding + "\n" }}))
+	if !strings.Contains(blockingCodes(report), "resume-budget") {
+		t.Fatalf("STATUS bytes count toward the resume set: %+v", report.ResumeSet)
+	}
 }
 
-func TestLintAdvisesWhenLoadedEpochExceedsBoardDefaultWithoutChangingResumeBudget(t *testing.T) {
+func TestLintAdvisesWhenFileExceedsBoardDefaultWithoutChangingResumeBudget(t *testing.T) {
 	baseline := Lint(basHome(t, nil))
-	epoch := "# E99\n\n- Status: accepted\n\n## Directives\n- D1 2026-10-20T03:00:00Z retain the acceptance gate\n\n## Slice log\n2026-10-20T03:01:00Z | verified typed state | exit metric=gates pass | net runtime lines=0 | net test lines=0 | ack=D1\n\n## Notes\n" + strings.Repeat("x\n", DefaultBoardFileBytes/2+2)
 	home := basHome(t, map[string]func(string) string{
-		"epochs/E99.md": func(string) string { return epoch },
+		LogFile: func(s string) string { return s + strings.Repeat("x\n", DefaultBoardFileBytes/2+2) },
 	})
-
-	if got := home.FileBytes["epochs/E99.md"]; got != len(epoch) {
-		t.Fatalf("loaded epoch byte count = %d, want %d", got, len(epoch))
-	}
-	if home.FileBytes[GoalFile] != home.Goal.Bytes || home.FileBytes[QueueFile] != home.Queue.Bytes {
-		t.Fatalf("root file sizes were not retained from the same load: %+v", home.FileBytes)
-	}
-	var parsed *Epoch
-	for _, epochFile := range home.Epochs {
-		if epochFile.Name == "E99.md" {
-			parsed = epochFile.Epoch
-			break
-		}
-	}
-	if parsed == nil || len(parsed.Directives) != 1 || len(parsed.Log) != 1 || len(parsed.Log[0].Acks) != 1 || parsed.Log[0].Acks[0] != "D1" {
-		t.Fatalf("oversized advisory must retain the parsed epoch's typed state: %+v", parsed)
-	}
 	report := Lint(home)
 	var advisory *Finding
 	for i := range report.Findings {
-		if report.Findings[i].Code == "board-file-size-advisory" && report.Findings[i].File == "epochs/E99.md" {
+		if report.Findings[i].Code == "board-file-size-advisory" && report.Findings[i].File == LogFile {
 			advisory = &report.Findings[i]
 			break
 		}
 	}
 	if advisory == nil || advisory.Blocking || !strings.Contains(advisory.Detail, "configured board limits are authoritative") {
-		t.Fatalf("oversized epoch should have a nonblocking default-baseline advisory: %+v", report.Findings)
+		t.Fatalf("oversized LOG should have a nonblocking default-baseline advisory: %+v", report.Findings)
 	}
 	if report.ResumeSet != baseline.ResumeSet {
-		t.Fatalf("epoch advisory must not change the distinct resume context budget: got %+v, baseline %+v", report.ResumeSet, baseline.ResumeSet)
+		t.Fatalf("file advisory must not change the distinct resume context budget: got %+v, baseline %+v", report.ResumeSet, baseline.ResumeSet)
 	}
 }
 
 func TestSetHandoff(t *testing.T) {
-	queue := readFixture(t, "bas", QueueFile)
+	queue := readFixture(t, "v2-bas", StatusFile)
 	body := "- 2026-10-07T15:00Z: E26 accepted. Next: admit JX-2 as E27."
 	for _, tc := range []struct {
 		name    string
@@ -230,17 +199,17 @@ func TestSetHandoff(t *testing.T) {
 		check   func(t *testing.T, out string)
 	}{
 		{name: "replaces the single handoff", queue: queue, body: body, changed: true, check: func(t *testing.T, out string) {
-			if !strings.Contains(out, "## Handoff\n\n"+body+"\n\n## Forecast") || strings.Contains(out, "act on BAS-FB-064") || strings.Count(out, "## Handoff") != 1 {
+			if !strings.Contains(out, "## Handoff\n\n"+body+"\n\n## Next") || strings.Contains(out, "act on BAS-FB-064") || strings.Count(out, "## Handoff") != 1 {
 				t.Fatalf("handoff not replaced in place:\n%s", out)
 			}
 		}},
 		{name: "accepts a leading heading in the text", queue: queue, body: "## Handoff\n\n" + body, changed: true},
-		{name: "creates the section after Needs operator", queue: strings.Replace(queue, queue[strings.Index(queue, "## Handoff"):strings.Index(queue, "## Forecast")], "", 1), body: body, changed: true, check: func(t *testing.T, out string) {
-			if !strings.Contains(out, "2026-10-06)\n\n## Handoff\n\n"+body+"\n\n## Forecast") {
+		{name: "creates the section after Needs operator", queue: strings.Replace(queue, queue[strings.Index(queue, "## Handoff"):strings.Index(queue, "## Next")], "", 1), body: body, changed: true, check: func(t *testing.T, out string) {
+			if !strings.Contains(out, "2026-10-06)\n\n## Handoff\n\n"+body+"\n\n## Next") {
 				t.Fatalf("handoff not created after Needs operator:\n%s", out)
 			}
 		}},
-		{name: "unchanged text writes nothing", queue: strings.Replace(queue, queue[strings.Index(queue, "## Handoff"):strings.Index(queue, "## Forecast")], "## Handoff\n\n"+body+"\n\n", 1), body: body + "\n\n", changed: false},
+		{name: "unchanged text writes nothing", queue: strings.Replace(queue, queue[strings.Index(queue, "## Handoff"):strings.Index(queue, "## Next")], "## Handoff\n\n"+body+"\n\n", 1), body: body + "\n\n", changed: false},
 		{name: "refuses over 4 KB", queue: queue, body: strings.Repeat("x", HandoffMaxBytes+1), code: "handoff-size"},
 		{name: "refuses a duplicate handoff", queue: strings.Replace(queue, "## Waiting on others", "### Orchestrator handoff — 2026-10-06T16:43Z\n\nparked\n\n## Waiting on others", 1), body: body, code: "handoff-count"},
 		{name: "refuses a section heading in the text", queue: queue, body: body + "\n\n## Next\n\n1. [ready] JX-2", code: "handoff-content"},
@@ -271,7 +240,7 @@ func TestSetHandoff(t *testing.T) {
 }
 
 func TestWriteIfUnchangedRefusesAConcurrentChange(t *testing.T) {
-	path := filepath.Join(t.TempDir(), QueueFile)
+	path := filepath.Join(t.TempDir(), StatusFile)
 	if err := os.WriteFile(path, []byte("written by another session\n"), 0o640); err != nil {
 		t.Fatal(err)
 	}
@@ -294,10 +263,12 @@ func TestWriteIfUnchangedRefusesAConcurrentChange(t *testing.T) {
 }
 
 // forecastHome builds a goal home whose epochs E1..En were accepted an hour
-// apart with the given "estimate/yield" pairs (empty means absent).
-func forecastHome(t *testing.T, goal, queue string, epochs ...string) *Home {
+// apart with the given "estimate/yield" pairs (empty means absent). The charter
+// supplies the destination and the status the live Current and queue sections.
+func forecastHome(t *testing.T, charter, status string, epochs ...string) *Home {
 	t.Helper()
-	files := fstest.MapFS{GoalFile: {Data: []byte(goal)}, QueueFile: {Data: []byte(queue)}}
+	home := &Home{Goal: ParseCharter([]byte(charter)), Queue: ParseQueue([]byte(status))}
+	home.Goal.Current = parseStatusCurrent(parseDocument([]byte(status)))
 	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	for i, pair := range epochs {
 		estimate, yield, _ := strings.Cut(pair, "/")
@@ -309,18 +280,18 @@ func forecastHome(t *testing.T, goal, queue string, epochs ...string) *Home {
 		if yield != "" {
 			accepted += " | yield=" + yield
 		}
-		files[fmt.Sprintf("epochs/E%d.md", i+1)] = &fstest.MapFile{Data: []byte(fmt.Sprintf("# E%d\n\n- Kind: refactor\n%s\n## Slice log\n%s | accepted\n", i+1, header, accepted))}
-	}
-	home, err := LoadLegacy(files)
-	if err != nil {
-		t.Fatal(err)
+		epoch, err := ParseEpoch(strings.NewReader(fmt.Sprintf("# E%d\n\n- Kind: refactor\n%s\n## Slice log\n%s | accepted\n", i+1, header, accepted)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		home.Epochs = append(home.Epochs, EpochFile{Name: fmt.Sprintf("E%d.md", i+1), Number: i + 1, Epoch: epoch})
 	}
 	return home
 }
 
 func TestDiminishingReturns(t *testing.T) {
-	goal := "# Goal\n\n- Destination: runtime lines <= 205000\n- Current: 253452 @ 2026-10-07\n"
-	queue := "# Queue\n\n## Needs operator\n\n## Handoff\n\nnone\n"
+	goal := "# Goal\n\n- Destination: runtime lines <= 205000\n"
+	queue := "# Status\n\n## Current: 253452 @ 2026-10-07\n\n## Needs operator\n\n## Handoff\n\nnone\n"
 	censuses := func(values ...string) string {
 		text := queue + "\n## Censuses\n\n"
 		for i, value := range values {
@@ -401,8 +372,10 @@ func TestDecidePark(t *testing.T) {
 }
 
 func TestHomeParkRequiresNewSteeringDispositionBeforeWaitingOnChild(t *testing.T) {
-	home := &Home{Queue: ParseQueue([]byte("# Status\n\n## Handoff\n\nWaiting on the same child.\n")),
-		Feedback: Feedback{Entries: []FeedbackEntry{{ID: "NEW-REPAIR", Status: "open", Source: "supervisor"}}}}
+	home := &Home{
+		Queue:    ParseQueue([]byte("# Status\n\n## Handoff\n\nWaiting on the same child.\n")),
+		Feedback: Feedback{Entries: []FeedbackEntry{{ID: "NEW-REPAIR", Status: "open", Source: "supervisor"}}},
+	}
 	got := DecideHomePark([]string{"worker"}, home, 0)
 	if got.Allowed || got.Rule != "feedback-unacknowledged" || !strings.Contains(got.Reason, "NEW-REPAIR") {
 		t.Fatalf("unconsumed steering was hidden by a live child: %+v", got)

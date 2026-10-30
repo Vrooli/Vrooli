@@ -57,8 +57,11 @@ projections remain unavailable even when the event batch is full or a child is p
 An AI completion label can request inspection. Only every watched run's
 terminal owner state can terminate the cohort.
 Event count alone does not justify nudging a productive child. A parked child may
-be waiting correctly on server-owned validation. Repeated calibrated friction is
-stronger evidence than one failed tool call. A nudge cannot waive a required gate.
+be waiting correctly on server-owned validation. The friction score of a watched
+run is its tool friction: the share of its projected command calls that failed,
+guessed a command shape or polled (`watch` subject `friction_score` over
+`friction_commands`; zero commands means cannot tell). A high share over many
+commands is stronger evidence than one failed tool call. A nudge cannot waive a required gate.
 Accepted actions reserve their count and cooldown budget. Emergency disable and
 watch cancellation also prevent pending delivery.
 Nudge delivery remains pending until the owner reaches a safe resumable boundary;

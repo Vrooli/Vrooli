@@ -20,16 +20,18 @@ import (
 )
 
 // UsageAttributionRepository implements usageattribution.Store.
-type UsageAttributionRepository struct{ db *DB }
+type UsageAttributionRepository struct {
+	db            *DB
+	parserVersion func(harness string) int
+	memo          *toolCallMemo
+}
 
 // NewUsageAttributionRepository builds the attribution store.
 func NewUsageAttributionRepository(db *DB) *UsageAttributionRepository {
 	return &UsageAttributionRepository{db: db}
 }
 
-var (
-	_ usageattribution.Store           = (*UsageAttributionRepository)(nil)
-)
+var _ usageattribution.Store = (*UsageAttributionRepository)(nil)
 
 // usageBucket folds one session's Codex reports into a short bucket: usage
 // is attributed to quota slices that are minutes to hours long, and a bucket
@@ -189,29 +191,28 @@ func parseEventTime(value string) (time.Time, error) {
 }
 
 type usageRunRow struct {
-	ID               string         `db:"id"`
-	Label            string         `db:"label"`
-	Mode             string         `db:"execution_mode"`
-	ProfileID        string         `db:"profile_id"`
-	ProfileName      string         `db:"profile_name"`
-	WorkloadKind     string         `db:"workload_kind"`
-	WorkloadKey      string         `db:"workload_key"`
-	Status           string         `db:"status"`
-	Phase            string         `db:"phase"`
-	AwaitHandle      sql.NullString `db:"await_handle"`
-	ParentRunID      string         `db:"parent_run_id"`
-	RunWebConsole    string         `db:"run_web_console"`
-	Runner           string         `db:"runner"`
-	FileWebConsole   string         `db:"file_web_console"`
-	FileSession      string         `db:"file_session"`
-	FileHeader       string         `db:"file_header"`
-	FileParent       string         `db:"file_parent"`
-	FileSidechain    bool           `db:"file_sidechain"`
-	FileHarness      string         `db:"file_harness"`
-	ImportSessionID  string         `db:"import_session"`
-	ImportHarness    string         `db:"import_harness"`
-	HasIndexedSource bool           `db:"indexed"`
-	StartedAt        string         `db:"started_at"`
+	ID               string `db:"id"`
+	Label            string `db:"label"`
+	Mode             string `db:"execution_mode"`
+	ProfileID        string `db:"profile_id"`
+	ProfileName      string `db:"profile_name"`
+	WorkloadKind     string `db:"workload_kind"`
+	WorkloadKey      string `db:"workload_key"`
+	Status           string `db:"status"`
+	Phase            string `db:"phase"`
+	ParentRunID      string `db:"parent_run_id"`
+	RunWebConsole    string `db:"run_web_console"`
+	Runner           string `db:"runner"`
+	FileWebConsole   string `db:"file_web_console"`
+	FileSession      string `db:"file_session"`
+	FileHeader       string `db:"file_header"`
+	FileParent       string `db:"file_parent"`
+	FileSidechain    bool   `db:"file_sidechain"`
+	FileHarness      string `db:"file_harness"`
+	ImportSessionID  string `db:"import_session"`
+	ImportHarness    string `db:"import_harness"`
+	HasIndexedSource bool   `db:"indexed"`
+	StartedAt        string `db:"started_at"`
 }
 
 // UsageRuns resolves the grouping dimensions of runIDs. Sessions group a run
@@ -225,7 +226,7 @@ func (r *UsageAttributionRepository) UsageRuns(ctx context.Context, runIDs []str
 		query := `SELECT r.id, COALESCE(r.label, '') AS label, COALESCE(r.execution_mode, '') AS execution_mode,
 			COALESCE(r.agent_profile_id, '') AS profile_id, COALESCE(p.name, '') AS profile_name,
 			COALESCE(r.workload_kind, '') AS workload_kind, COALESCE(r.workload_key, '') AS workload_key,
-			COALESCE(r.status, '') AS status, COALESCE(r.phase, '') AS phase, r.await_handle,
+			COALESCE(r.status, '') AS status, COALESCE(r.phase, '') AS phase,
 			COALESCE(r.parent_run_id, '') AS parent_run_id, COALESCE(r.web_console_session_id, '') AS run_web_console,
 			COALESCE(json_extract(r.resolved_config, '$.runnerType'), r.harness_kind, '') AS runner,
 			COALESCE(f.web_console_session_id, '') AS file_web_console, COALESCE(f.session_id, '') AS file_session,
@@ -305,7 +306,6 @@ func usageRun(row usageRunRow) usageattribution.Run {
 	// Each Agent Manager run is its own harness session: a parent run
 	// orchestrates it but does not share its context.
 	run.Session = row.ID
-	run.Parked = row.Status == string(domain.RunStatusParked) || (row.AwaitHandle.Valid && row.AwaitHandle.String != "")
 	return run
 }
 
@@ -316,39 +316,6 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
-}
-
-type usageEpisodeRow struct {
-	RunID      string `db:"run_id"`
-	EpisodeID  string `db:"episode_id"`
-	OccurredAt string `db:"occurred_at"`
-	Pattern    string `db:"pattern"`
-	Finger     string `db:"fingerprint"`
-	Element    string `db:"repeated_element"`
-	Scenario   string `db:"suspected_owner_scenario"`
-	Command    string `db:"suspected_owner_command"`
-	Cycles     int    `db:"cycle_count"`
-	WallClock  int64  `db:"wall_clock_ms"`
-	Turns      int    `db:"turns"`
-	Tokens     int64  `db:"tokens"`
-}
-
-// UsageEpisodes reads persisted friction episodes in [from, to] written by the
-// current episode classifier; older episodes are never compared with them.
-func (r *UsageAttributionRepository) UsageEpisodes(ctx context.Context, from, to time.Time) ([]usageattribution.Episode, error) {
-	var rows []usageEpisodeRow
-	if err := r.db.SelectContext(ctx, &rows, `SELECT run_id, episode_id, occurred_at, pattern, fingerprint, repeated_element,
-		suspected_owner_scenario, suspected_owner_command, cycle_count, wall_clock_ms, turns, tokens
-		FROM invocation_read_model_episodes WHERE occurred_at >= ? AND occurred_at <= ? AND turns > 0 AND classifier_version = ? ORDER BY occurred_at, run_id, episode_id`,
-		from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano), runsignal.EpisodeClassifierVersion); err != nil {
-		return nil, wrapDBError("usage_episodes", "Episode", "", err)
-	}
-	out := make([]usageattribution.Episode, 0, len(rows))
-	for _, row := range rows {
-		at, _ := parseEventTime(row.OccurredAt)
-		out = append(out, usageattribution.Episode{RunID: row.RunID, EpisodeID: row.EpisodeID, At: at, Pattern: row.Pattern, Fingerprint: row.Finger, RepeatedElement: row.Element, OwnerScenario: row.Scenario, OwnerCommand: row.Command, CycleCount: row.Cycles, WallClockMS: row.WallClock, Turns: row.Turns, Tokens: row.Tokens})
-	}
-	return out, nil
 }
 
 type usageOutcomeRow struct {
@@ -384,24 +351,4 @@ func (r *UsageAttributionRepository) UsageOutcomes(ctx context.Context, from, to
 		})
 	}
 	return out, nil
-}
-
-
-// UsageEpisodeCoverage counts the runs among runIDs whose episodes the current
-// classifier has projected (their watermark carries its version).
-func (r *UsageAttributionRepository) UsageEpisodeCoverage(ctx context.Context, runIDs []string) (int, error) {
-	total := 0
-	for start := 0; start < len(runIDs); start += 500 {
-		chunk := runIDs[start:min(len(runIDs), start+500)]
-		args := []any{runsignal.EpisodeClassifierVersion}
-		for _, id := range chunk {
-			args = append(args, id)
-		}
-		var count int
-		if err := r.db.GetContext(ctx, &count, `SELECT COUNT(*) FROM invocation_read_model_watermarks WHERE episode_classifier_version = ? AND run_id IN (?`+strings.Repeat(",?", len(chunk)-1)+`)`, args...); err != nil {
-			return 0, wrapDBError("usage_episode_coverage", "Watermark", "", err)
-		}
-		total += count
-	}
-	return total, nil
 }

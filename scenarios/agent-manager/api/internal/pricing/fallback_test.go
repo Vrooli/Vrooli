@@ -23,3 +23,11 @@ func TestWithDefaultCacheRatiosKeepsListedCachePrices(t *testing.T) {
 		t.Fatalf("listed cache prices were overwritten: %+v", listed)
 	}
 }
+
+func TestFallbackTokenPricesUseTheDefaultCacheRatios(t *testing.T) {
+	got := FallbackTokenPrices()
+	want := TokenPrices{Input: got.Input}.WithDefaultCacheRatios()
+	if got.CacheRead != want.CacheRead || got.CacheCreation != want.CacheCreation || got.Output <= got.Input {
+		t.Fatalf("fallback = %+v, want cache prices %+v", got, want)
+	}
+}

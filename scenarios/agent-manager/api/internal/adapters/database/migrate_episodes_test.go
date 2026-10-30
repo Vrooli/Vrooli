@@ -5,15 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"agent-manager/internal/runsignal"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
 )
 
-// A classifier bump prunes the episodes of older classifiers once and keeps the
-// current ones; a later start does nothing.
-func TestClassifierBumpPrunesOlderEpisodesOnce(t *testing.T) {
+// The episode drop removes the table and the two retired columns once, keeps
+// the rows of the live tables, and a later start does nothing.
+func TestDropEpisodesRemovesTheTableAndRetiredColumnsOnce(t *testing.T) {
 	log := logrus.New()
 	log.SetLevel(logrus.PanicLevel)
 	raw, err := sqlx.Connect("sqlite", "file:"+filepath.Join(t.TempDir(), "episodes.db"))
@@ -24,35 +22,47 @@ func TestClassifierBumpPrunesOlderEpisodesOnce(t *testing.T) {
 	db := &DB{DB: raw, log: log}
 	ctx := context.Background()
 	for _, ddl := range []string{
-		`CREATE TABLE invocation_read_model_episodes (run_id TEXT, episode_id TEXT, classifier_version TEXT)`,
+		`CREATE TABLE invocation_read_model_episodes (run_id TEXT, episode_id TEXT)`,
+		`CREATE INDEX idx_episodes_run ON invocation_read_model_episodes(run_id)`,
+		`CREATE TABLE invocation_read_model_watermarks (run_id TEXT PRIMARY KEY, classifier_version TEXT NOT NULL, episode_classifier_version TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE invocation_read_model_self_report_spans (run_id TEXT NOT NULL, rule_id TEXT NOT NULL, operator_correction INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (run_id, rule_id))`,
 		`CREATE TABLE schema_migrations_done (name TEXT PRIMARY KEY, completed_at TEXT NOT NULL)`,
+		`INSERT INTO invocation_read_model_watermarks VALUES ('r', 'v27', 'friction-episode.v26')`,
+		`INSERT INTO invocation_read_model_self_report_spans VALUES ('r', 'blocked', 1)`,
 	} {
 		if _, err := db.ExecContext(ctx, ddl); err != nil {
 			t.Fatal(err)
 		}
 	}
-	insert := func(id, version string) {
-		if _, err := db.ExecContext(ctx, `INSERT INTO invocation_read_model_episodes VALUES ('r', ?, ?)`, id, version); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for id, version := range map[string]string{"old9": "friction-episode.v9", "old11": "friction-episode.v11", "current": runsignal.EpisodeClassifierVersion} {
-		insert(id, version)
-	}
-	prune := func() {
+	migrate := func() {
 		t.Helper()
-		if err := db.runOnce(ctx, migrationPruneEpisodesBefore+runsignal.EpisodeClassifierVersion, func(tx *Tx) error { return pruneStaleEpisodes(ctx, tx) }); err != nil {
+		if err := db.runOnce(ctx, migrationDropEpisodes, func(tx *Tx) error { return dropEpisodes(ctx, tx) }); err != nil {
 			t.Fatal(err)
 		}
 	}
-	prune()
-	insert("late-old", "friction-episode.v9") // a later start must not rerun the prune
-	prune()
-	var ids []string
-	if err := db.SelectContext(ctx, &ids, `SELECT episode_id FROM invocation_read_model_episodes ORDER BY episode_id`); err != nil {
+	migrate()
+	var tables int
+	if err := db.GetContext(ctx, &tables, `SELECT COUNT(*) FROM sqlite_master WHERE name LIKE '%episodes%'`); err != nil || tables != 0 {
+		t.Fatalf("episode table and index remaining = %d, %v", tables, err)
+	}
+	for table, column := range map[string]string{"invocation_read_model_watermarks": "episode_classifier_version", "invocation_read_model_self_report_spans": "operator_correction"} {
+		columns, err := db.tableColumns(ctx, table)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, present := columns[column]; present {
+			t.Errorf("%s.%s still exists", table, column)
+		}
+	}
+	var version string
+	if err := db.GetContext(ctx, &version, `SELECT classifier_version FROM invocation_read_model_watermarks WHERE run_id = 'r'`); err != nil || version != "v27" {
+		t.Fatalf("watermark row = %q, %v; the drop must keep the live tables' rows", version, err)
+	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE invocation_read_model_episodes (run_id TEXT)`); err != nil {
 		t.Fatal(err)
 	}
-	if len(ids) != 2 || ids[0] != "current" || ids[1] != "late-old" {
-		t.Fatalf("episodes kept = %v, want the current one, and the prune run only once", ids)
+	migrate() // already done: a later start must not drop a table again
+	if err := db.GetContext(ctx, &tables, `SELECT COUNT(*) FROM sqlite_master WHERE name = 'invocation_read_model_episodes'`); err != nil || tables != 1 {
+		t.Fatalf("the drop ran twice (tables=%d, %v)", tables, err)
 	}
 }

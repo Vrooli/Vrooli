@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -1179,5 +1180,21 @@ func TestNewRateLimitEventIsQuotaEvent(t *testing.T) {
 	event := NewRateLimitEvent(uuid.New(), "10080m", "native", nil, 0)
 	if event.EventType != EventTypeQuota || event.Data.EventType() != EventTypeQuota || !EventTypeQuota.IsValid() {
 		t.Fatalf("rate-limit event type = %s/%s, want quota", event.EventType, event.Data.EventType())
+	}
+}
+
+// A persisted compaction event must decode, or reading the run's events fails.
+func TestCompactionEventRoundTripsThroughDurableDecode(t *testing.T) {
+	event := NewCompactionEvent(uuid.New(), "summary", "auto", "", 3, 100, 0, "")
+	raw, err := json.Marshal(event.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := DecodeEventPayload(EventTypeCompaction, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, ok := payload.(*CompactionEventData); !ok || data.Trigger != "auto" || data.TokensBefore != 100 || !EventTypeCompaction.IsValid() {
+		t.Fatalf("decoded %#v", payload)
 	}
 }

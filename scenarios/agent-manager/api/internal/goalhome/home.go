@@ -39,13 +39,10 @@ type Home struct {
 	QueueData []byte
 	// FileBytes records sizes of all successfully loaded goal-home files.
 	FileBytes map[string]int
-	// Scoreboard is the Phase-2 STATUS.md "## Scoreboard" gradient, one row per
-	// delivery surface. Empty for a v1 home, which has no scoreboard.
+	// Scoreboard is the STATUS.md "## Scoreboard" gradient, one row per
+	// delivery surface.
 	Scoreboard       []SurfaceProgress
 	WorkaroundsKnown bool
-	// V2 distinguishes current runtime facts from explicit legacy import facts.
-	// Ordinary readers and writers use v2; import verification retains old anchors.
-	V2 bool
 }
 
 // SurfaceProgress is one row of the STATUS.md "## Scoreboard" gradient: a
@@ -181,7 +178,6 @@ type WorkaroundEntry struct {
 }
 
 var (
-	epochNamePattern   = regexp.MustCompile(`^E(\d+)\.md$`)
 	handoffWord        = regexp.MustCompile(`(?i)\bhandoff\b`)
 	destinationPattern = regexp.MustCompile(`^(.+?)\s*(<=|>=|≤|≥|<|>|=)\s*([+\-−]?\d[\d,_]*(?:\.\d+)?)`)
 	feedbackSource     = regexp.MustCompile(`\(([^()]*)\)\s*$`)
@@ -196,7 +192,7 @@ func EpochHome(epochPath string) (string, bool) {
 	return filepath.Dir(dir), true
 }
 
-// ParseQueue reads QUEUE.md.
+// ParseQueue reads the queue sections of a STATUS.md.
 func ParseQueue(data []byte) Queue {
 	doc := parseDocument(data)
 	queue := Queue{Bytes: len(data)}

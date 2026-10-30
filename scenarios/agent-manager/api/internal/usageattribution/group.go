@@ -342,19 +342,16 @@ type MeteredLine struct {
 	Note   string
 }
 
-// MeteredLines lists a window's non-token work. None of it is in Points.
+// MeteredLines lists a window's work the provider meters outside the token
+// counters: Codex credits, web searches and generated images. None of it is in
+// Points. A Vrooli scenario call is local work, not provider-metered: its
+// count, failures and output weight are in the tool friction profiles.
 func MeteredLines(result Result) []MeteredLine {
 	var webSearches, imagesOut int
-	scenarios := map[string]int{}
 	var firstCredits, lastCredits string
 	for _, turn := range result.Turns {
 		webSearches += turn.Facts.WebSearches
 		imagesOut += turn.Facts.ImagesOut
-		for kind, count := range turn.Facts.ToolKinds {
-			if len(kind) > len("scenario:") && kind[:len("scenario:")] == "scenario:" {
-				scenarios[kind] += count
-			}
-		}
 		if turn.Facts.CreditsBalance != "" {
 			if firstCredits == "" {
 				firstCredits = turn.Facts.CreditsBalance
@@ -375,14 +372,6 @@ func MeteredLines(result Result) []MeteredLine {
 	}
 	if imagesOut > 0 {
 		lines = append(lines, MeteredLine{Kind: "image_generation", Count: imagesOut, State: "unknown", Note: "generated images draw on shared limits or credits; the transcript records no charge"})
-	}
-	kinds := make([]string, 0, len(scenarios))
-	for kind := range scenarios {
-		kinds = append(kinds, kind)
-	}
-	sort.Strings(kinds)
-	for _, kind := range kinds {
-		lines = append(lines, MeteredLine{Kind: kind, Count: scenarios[kind], State: "unknown", Note: "a Vrooli scenario call; its cost is in the scenario's own records"})
 	}
 	return lines
 }

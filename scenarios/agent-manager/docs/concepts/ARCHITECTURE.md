@@ -371,6 +371,46 @@ type DomainError interface {
 | `escalate` | Human intervention |
 | `abort` | Give up |
 
+## Failure modes and degradation
+
+Agent Manager prevents accidents rather than adversaries: fail closed (require
+sandbox and approval when uncertain), log every failure with correlation IDs, leave state
+consistent on failure, and tell the caller what to do next (the error taxonomy above carries the
+recovery action).
+
+**Investigation self-spawn refusal.** A run-issued identity token is refused on
+lifecycle routes (create, stop, quiesce, investigation-apply) with `403 run identity cannot
+perform lifecycle operation`. This is intentional: the report records a failed project-owned
+tool call, and the investigator classifies it as a policy boundary instead of retrying.
+
+**Coding-agent identity attachment.** Native launches make a bounded, best-effort
+`POST /api/v1/runs/attach` before the child starts. A refusal is observability degradation, not a
+failed agent: the launch proceeds and is recorded as a tier-4 ungoverned launch.
+
+| Attach failure | Meaning | Operator action |
+|---|---|---|
+| `bad base URL` | Configured endpoint is not a valid URL | Correct `AGENT_MANAGER_API_BASE` or port authority |
+| `timeout` | No answer within the attach budget | Inspect Agent Manager health and local load |
+| `agent-manager unreachable` | Endpoint could not be contacted | Start or repair Agent Manager |
+| `non-2xx response` | Agent Manager rejected the attachment | Inspect the response and run policy state |
+| `malformed response` | Unusable JSON or no identity token | Inspect API/version compatibility |
+
+If the manager accepts the run but its lifecycle refusal counter reaches the functional-health
+threshold, `/health` stays ready for diagnostics while reporting degraded functional status; the
+refusal response carries `run_id`, `run_status` and `token_mint_time` to correlate with the
+durable run before escalating through `vrooli agent recover`.
+
+**Degradation.** Runner unavailable: do not create a failed run; report health in the error so the
+client can retry with another runner. Sandbox unavailable: block new runs with 503 and a retry
+hint while existing sandboxes continue and approval is deferred. Database unavailable: `/health`
+reports it. Mid-run failure: keep the sandbox for inspection, flush buffered events before marking the
+run failed, and classify the outcome (exit_error, timeout, exception).
+
+**State recovery.** Runs stuck in `running` after a restart with no executor are marked failed
+(`system_restart`) and an event is emitted. Scope locks past their TTL are released by a background
+job and logged. An approval whose sandbox state advanced but whose run state did not is
+re-applied on the next read; approval operations are idempotent.
+
 ## Decision Functions
 
 Pure functions for testable business logic:
@@ -957,15 +997,14 @@ lost session finalizes as `failed`.
 
 ## Friction investigation transport
 
-`EpisodesService` is the proto-first boundary for bounded friction evidence:
-`GetEpisodes`, `GetSelfReportSpans`, `GetCrossScenarioLedger`, and
-`ImportTranscript`. The CLI invokes each through its generated Connect client;
-the retained REST paths are compatibility routes rather than new command
-bindings. Episode cohort selection is owned by `MeasuresService.EpisodeCohort`.
+`EpisodesService` (a name kept so generated client paths stay stable) is the
+proto-first boundary for `GetCrossScenarioLedger` and `ImportTranscript`;
+`FrictionService` holds the friction board writes (`ReportFriction`,
+`DismissFriction`). The CLI invokes each through its generated Connect client. Friction itself is
+read through `MeasuresService.ToolFriction` and `UsageFriction`.
 
 ## Related Documentation
 
 - [SEAMS.md](../internal/SEAMS.md) - Architectural boundaries and interfaces
-- [FAILURE_TOPOGRAPHY.md](../FAILURE_TOPOGRAPHY.md) - Failure mode analysis
 - [PROBLEMS.md](../internal/PROBLEMS.md) - Known issues and deferred work
 - [RESEARCH.md](../RESEARCH.md) - Architecture decisions and research

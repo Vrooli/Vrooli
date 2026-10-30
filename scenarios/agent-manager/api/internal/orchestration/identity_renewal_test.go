@@ -59,6 +59,42 @@ func TestCLISessionBindingProofDistinguishesTimeout(t *testing.T) {
 	}
 }
 
+func TestCLISessionBindingProofReportsOnlyAllowlistedOwnerReason(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires a POSIX executable")
+	}
+	for _, tc := range []struct{ name, stderr, want string }{
+		{"lease", "Error: identity binding proof unavailable: lease_unavailable\n", "owner_proof_lease_unavailable"},
+		{"json_lease", `{"success":false,"error":"identity binding proof unavailable: lease_unavailable","code":"untyped_cli_error","category":"Runtime"}`, "owner_proof_lease_unavailable"},
+		{"json_unknown", `{"success":false,"error":"identity binding proof unavailable: secret-token-do-not-log","code":"untyped_cli_error","category":"Runtime"}`, "owner_proof_unavailable"},
+		{"json_suffix", `{"success":false,"error":"identity binding proof unavailable: lease_unavailable secret-token-do-not-log","code":"untyped_cli_error","category":"Runtime"}`, "owner_proof_unavailable"},
+		{"json_multiline", `{"success":false,"error":"identity binding proof unavailable: lease_unavailable\nsecret-token-do-not-log","code":"untyped_cli_error","category":"Runtime"}`, "owner_proof_unavailable"},
+		{"json_malformed", `{"success":false,"error":"identity binding proof unavailable: lease_unavailable"`, "owner_proof_unavailable"},
+		{"json_extra_field", `{"success":false,"error":"identity binding proof unavailable: lease_unavailable","code":"untyped_cli_error","category":"Runtime","secret":"do-not-log"}`, "owner_proof_unavailable"},
+		{"json_duplicate", `{"success":false,"error":"redacted","error":"identity binding proof unavailable: lease_unavailable","code":"untyped_cli_error","category":"Runtime"}`, "owner_proof_unavailable"},
+		{"json_success", `{"success":true,"error":"identity binding proof unavailable: lease_unavailable","code":"untyped_cli_error","category":"Runtime"}`, "owner_proof_unavailable"},
+		{"web_console", "Error: identity binding proof unavailable: web_console_session_unverified\n", "owner_proof_web_console_session_unverified"},
+		{"unknown", "Error: identity binding proof unavailable: secret-token-do-not-log\n", "owner_proof_unavailable"},
+		{"extra_suffix", "Error: identity binding proof unavailable: lease_unavailable secret-token-do-not-log\n", "owner_proof_unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			command := filepath.Join(dir, "vrooli")
+			if err := os.WriteFile(command, []byte("#!/bin/sh\nprintf '%s' '"+tc.stderr+"' >&2\nexit 1\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", dir)
+			_, err := readCLISessionBindingProof(context.Background(), SessionBindingRequest{})
+			if !errors.Is(err, errBindingProofUnavailable) {
+				t.Fatalf("proof error = %v, want unavailable", err)
+			}
+			if got := identityRefreshDiagnostic(identityRefreshUnavailable(err)); got != tc.want {
+				t.Fatalf("diagnostic = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing.T) {
 	for _, legacy := range []bool{false, true} {
 		name := "canonical host lease"
@@ -209,7 +245,6 @@ func TestExpiredAttachedBaselineRenewsSameRunAndSurvivesBrokerRestart(t *testing
 			}
 		})
 	}
-
 }
 
 func TestRenewedOwnerlessBaselineKeepsIndependentGrantOnlyCredential(t *testing.T) {

@@ -59,7 +59,7 @@ func decisionServer(t *testing.T, decisions ...*pb.EffortDecision) (*Services, *
 }
 
 func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
-	home := copyRuntimeBASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	before, _ := os.ReadFile(filepath.Join(home, goalhome.StatusFile))
 	services, server := decisionServer(t)
 	output, code := runEffort(t, &App{services: services}, "decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070",
@@ -82,7 +82,7 @@ func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
 }
 
 func TestDecisionRaiseAddsTheNeedsOperatorItemOnce(t *testing.T) {
-	home := copyRuntimeBASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	services, _ := decisionServer(t, decisionFixture(effortdecision.Pending, "", "", "", time.Time{}))
 	args := []string{
 		"decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070", "--question", "Close the BAS goal or re-aim at quality?",
@@ -102,7 +102,7 @@ func TestDecisionRaiseAddsTheNeedsOperatorItemOnce(t *testing.T) {
 func TestDecisionReraiseDoesNotReopenAnsweredHumanDependency(t *testing.T) {
 	for _, state := range []string{effortdecision.Answered, effortdecision.Defaulted} {
 		t.Run(state, func(t *testing.T) {
-			home := copyV2BASGoalHome(t, nil)
+			home := copyBASGoalHome(t, nil)
 			d := decisionFixture(state, "close", "retain this answer", effortdecision.ViaPhone, time.Now())
 			services, _ := decisionServer(t, d)
 			path := filepath.Join(home, goalhome.StatusFile)
@@ -134,7 +134,7 @@ func TestDecisionReraiseDoesNotReopenAnsweredHumanDependency(t *testing.T) {
 // TestDecisionRaiseTargetsStatusForV2Home proves the decision writer appends the
 // ## Needs operator item to STATUS.md (not QUEUE.md) for a Phase-2 v2 home.
 func TestDecisionRaiseTargetsStatusForV2Home(t *testing.T) {
-	home := copyV2BASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	services, _ := decisionServer(t, decisionFixture(effortdecision.Pending, "", "", "", time.Time{}))
 	args := []string{
 		"decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070", "--question", "Close the BAS goal or re-aim at quality?",
@@ -149,7 +149,7 @@ func TestDecisionRaiseTargetsStatusForV2Home(t *testing.T) {
 	if n := strings.Count(string(status), "[decision BAS-D-070]"); n != 1 {
 		t.Fatalf("a repeated raise must list the decision once under STATUS.md ## Needs operator, found %d:\n%s", n, status)
 	}
-	if _, err := os.Stat(filepath.Join(home, goalhome.QueueFile)); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(home, "QUEUE.md")); !os.IsNotExist(err) {
 		t.Fatal("the v2 decision writer must not create a QUEUE.md")
 	}
 }
@@ -159,7 +159,7 @@ func TestDecisionSyncRecordsAnswersVerbatimAndIsIdempotent(t *testing.T) {
 	answered.RecordedAt = timestamppb.New(time.Date(2026, 10, 8, 10, 1, 0, 0, time.UTC))
 	defaulted := decisionFixture(effortdecision.Defaulted, "re-aim", "", effortdecision.ViaDefault, time.Date(2026, 10, 9, 9, 0, 0, 0, time.UTC))
 	defaulted.DecisionId = "BAS-D-071"
-	home := copyRuntimeBASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	queuePath := filepath.Join(home, goalhome.StatusFile)
 	queue, _ := os.ReadFile(queuePath)
 	for _, d := range []*pb.EffortDecision{answered, defaulted} {
@@ -209,7 +209,7 @@ func TestDecisionSyncRecordsAnswersVerbatimAndIsIdempotent(t *testing.T) {
 }
 
 func TestRoutineDecisionSyncDoesNotRecreateHandledArchivedFeedback(t *testing.T) {
-	home := copyV2BASGoalHome(t, nil)
+	home := copyBASGoalHome(t, nil)
 	d := decisionFixture(effortdecision.Answered, "close", "handled before archival", effortdecision.ViaPhone, time.Now())
 	d.RecordedAt = timestamppb.Now()
 	services, server := decisionServer(t, d)
@@ -241,7 +241,7 @@ func TestRoutineDecisionSyncDoesNotRecreateHandledArchivedFeedback(t *testing.T)
 func TestDecisionSyncReadsOlderRecordedPolicyAndRefusesAmbiguityBeforeWrites(t *testing.T) {
 	for _, conflict := range []bool{false, true} {
 		t.Run(fmt.Sprint(conflict), func(t *testing.T) {
-			home := copyRuntimeBASGoalHome(t, nil)
+			home := copyBASGoalHome(t, nil)
 			feedbackPath, statusPath := filepath.Join(home, goalhome.FeedbackFile), filepath.Join(home, goalhome.StatusFile)
 			beforeFeedback, _ := os.ReadFile(feedbackPath)
 			beforeStatus, _ := os.ReadFile(statusPath)

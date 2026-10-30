@@ -66,6 +66,15 @@ func setupTestDB(t *testing.T) (*sqlx.DB, func()) {
 			id TEXT PRIMARY KEY,
 			execution_mode TEXT NOT NULL DEFAULT 'codec_pipe'
 		);
+		CREATE TABLE run_event_highwater (run_id TEXT PRIMARY KEY, high_sequence INTEGER NOT NULL);
+		CREATE TRIGGER run_event_highwater_insert AFTER INSERT ON run_events BEGIN
+			INSERT INTO run_event_highwater VALUES (NEW.run_id, NEW.sequence) ON CONFLICT(run_id) DO UPDATE SET high_sequence = MAX(high_sequence, excluded.high_sequence);
+		END;
+		CREATE TRIGGER run_event_highwater_delete BEFORE DELETE ON run_events WHEN EXISTS (SELECT 1 FROM runs WHERE id = OLD.run_id) BEGIN
+			INSERT INTO run_event_highwater VALUES (OLD.run_id, OLD.sequence) ON CONFLICT(run_id) DO UPDATE SET high_sequence = MAX(high_sequence, excluded.high_sequence);
+		END;
+		CREATE TRIGGER run_event_highwater_run_delete AFTER DELETE ON runs BEGIN DELETE FROM run_event_highwater WHERE run_id = OLD.id; END;
+		CREATE TRIGGER run_event_highwater_orphan_delete AFTER DELETE ON run_events WHEN NOT EXISTS (SELECT 1 FROM runs WHERE id = OLD.run_id) AND NOT EXISTS (SELECT 1 FROM run_events WHERE run_id = OLD.run_id) BEGIN DELETE FROM run_event_highwater WHERE run_id = OLD.run_id; END;
 	`
 	if _, err := db.Exec(schema); err != nil {
 		_ = db.Close()
@@ -87,6 +96,459 @@ func newTestLogger() *logrus.Logger {
 // =============================================================================
 // SQLiteStore Tests
 // =============================================================================
+
+func TestSQLiteStoreAppendIfEmptyPreservesConcurrentEvidence(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	runID, otherID := uuid.New(), uuid.New()
+	old := domain.NewLogEvent(runID, "info", "old")
+	other := domain.NewLogEvent(otherID, "info", "other")
+	if err := store.Append(ctx, runID, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Append(ctx, otherID, other); err != nil {
+		t.Fatal(err)
+	}
+	conflict := domain.NewLogEvent(runID, "info", "different")
+	conflict.ID = other.ID
+	if err := store.AppendIfEmpty(ctx, runID, conflict); err == nil {
+		t.Fatal("expected nonempty stream rejection")
+	}
+	got, err := store.Get(ctx, runID, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(got) != 1 || got[0].ID != old.ID {
+		t.Fatalf("old stream lost: %+v %v", got, err)
+	}
+	emptyID := uuid.New()
+	replacement := domain.NewLogEvent(emptyID, "info", "new")
+	if err := store.AppendIfEmpty(ctx, emptyID, replacement); err != nil {
+		t.Fatal(err)
+	}
+	got, err = store.Get(ctx, emptyID, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(got) != 1 || got[0].ID != replacement.ID {
+		t.Fatalf("replacement not committed: %+v %v", got, err)
+	}
+}
+
+func TestSQLiteStoreAppendIfEmptyRacesAppend(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	id := uuid.New()
+	regular := domain.NewLogEvent(id, "info", "concurrent")
+	rebuilt := domain.NewLogEvent(id, "info", "rebuilt")
+	start := make(chan struct{})
+	appendResult, rebuildResult := make(chan error, 1), make(chan error, 1)
+	go func() { <-start; appendResult <- store.Append(ctx, id, regular) }()
+	go func() { <-start; rebuildResult <- store.AppendIfEmpty(ctx, id, rebuilt) }()
+	close(start)
+	if err := <-appendResult; err != nil {
+		t.Fatal(err)
+	}
+	rebuildErr := <-rebuildResult
+	got, err := store.Get(ctx, id, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, item := range got {
+		if item.ID == regular.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("concurrent append was lost: %+v (rebuild err %v)", got, rebuildErr)
+	}
+}
+
+func TestSQLiteStreamReplacementFencesConcurrentAppend(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	id := uuid.New()
+	old := domain.NewLogEvent(id, "info", "old")
+	if err := store.Append(ctx, id, old); err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.StreamToken(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	concurrent := domain.NewLogEvent(id, "info", "concurrent")
+	if err := store.Append(ctx, id, concurrent); err != nil {
+		t.Fatal(err)
+	}
+	guard := store.LockReplacement()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	err = guard.ReplaceInTx(ctx, tx, id, token, []*domain.RunEvent{domain.NewLogEvent(id, "info", "replacement")})
+	_ = tx.Rollback()
+	guard.Finish(id, false)
+	if err == nil {
+		t.Fatal("stale replacement token accepted")
+	}
+	got, err := store.Get(ctx, id, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(got) != 2 || got[0].ID != old.ID || got[1].ID != concurrent.ID {
+		t.Fatalf("concurrent evidence lost: %+v %v", got, err)
+	}
+}
+
+func TestSQLiteRecallTokenDetectsAppendThenDelete(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	id := uuid.New()
+	if _, err := db.Exec(`INSERT INTO runs(id) VALUES (?)`, id); err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.StreamToken(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Append(ctx, id, domain.NewLogEvent(id, "info", "intervening")); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Delete(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	guard := store.LockReplacement()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	err = guard.AppendEmptyInTx(ctx, tx, id, token, []*domain.RunEvent{domain.NewLogEvent(id, "info", "stale")})
+	_ = tx.Rollback()
+	guard.Finish(id, false)
+	if err == nil {
+		t.Fatal("append/delete generation change was not detected")
+	}
+	count, err := store.Count(ctx, id)
+	if err != nil || count != 0 {
+		t.Fatalf("stale events published: %d %v", count, err)
+	}
+}
+
+func TestSQLiteStreamReplacementRollsBackBeforeCommit(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	id := uuid.New()
+	old := domain.NewLogEvent(id, "info", "old")
+	if err := store.Append(ctx, id, old); err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.StreamToken(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard := store.LockReplacement()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	if err := guard.ReplaceInTx(ctx, tx, id, token, []*domain.RunEvent{domain.NewLogEvent(id, "info", "replacement")}); err != nil {
+		_ = tx.Rollback()
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	if err := tx.Rollback(); err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	guard.Finish(id, false)
+	got, err := store.Get(ctx, id, event.GetOptions{AfterSequence: -1})
+	if err != nil || len(got) != 1 || got[0].ID != old.ID {
+		t.Fatalf("rollback lost old event: %+v %v", got, err)
+	}
+}
+
+func TestSQLiteEmptyReplacementAndEvictionPreserveSequenceWatermark(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx := context.Background()
+	id := uuid.New()
+	if _, err := db.Exec(`INSERT INTO runs(id) VALUES (?)`, id); err != nil {
+		t.Fatal(err)
+	}
+	old := domain.NewLogEvent(id, "info", "old")
+	if err := store.Append(ctx, id, old); err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.StreamToken(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard := store.LockReplacement()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	if err := guard.ReplaceInTx(ctx, tx, id, token, nil); err != nil {
+		_ = tx.Rollback()
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	guard.Finish(id, true)
+	var generation int
+	if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 2 {
+		t.Fatalf("replacement did not advance retention generation: %d %v", generation, err)
+	}
+	next := domain.NewLogEvent(id, "info", "next")
+	if err := store.Append(ctx, id, next); err != nil {
+		t.Fatal(err)
+	}
+	if next.Sequence <= old.Sequence {
+		t.Fatalf("empty replacement reused sequence: old=%d next=%d", old.Sequence, next.Sequence)
+	}
+	if err := store.Delete(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 3 {
+		t.Fatalf("recall deletion did not advance retention generation: %d %v", generation, err)
+	}
+	if err := store.Delete(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Get(&generation, `SELECT generation FROM event_retention_state WHERE singleton=1`); err != nil || generation != 3 {
+		t.Fatalf("empty deletion changed retention generation: %d %v", generation, err)
+	}
+	afterEviction := domain.NewLogEvent(id, "info", "after eviction")
+	if err := store.AppendIfEmpty(ctx, id, afterEviction); err != nil {
+		t.Fatal(err)
+	}
+	if afterEviction.Sequence <= next.Sequence {
+		t.Fatalf("eviction reused sequence: before=%d after=%d", next.Sequence, afterEviction.Sequence)
+	}
+	if _, err := db.Exec(`DELETE FROM runs WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Delete(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	var remaining int
+	if err := db.Get(&remaining, `SELECT COUNT(*) FROM run_event_highwater WHERE run_id = ?`, id); err != nil || remaining != 0 {
+		t.Fatalf("deleted run retained watermark: %d %v", remaining, err)
+	}
+}
+
+func TestSQLiteStreamReplacementDoesNotCloseNewSubscriber(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	id := uuid.New()
+	old := domain.NewLogEvent(id, "info", "old")
+	if err := store.Append(ctx, id, old); err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.StreamToken(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStream, err := store.Stream(ctx, id, event.StreamOptions{FromSequence: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-oldStream:
+	case <-time.After(time.Second):
+		t.Fatal("old stream did not deliver history")
+	}
+	guard := store.LockReplacement()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	newEvent := domain.NewLogEvent(id, "info", "new")
+	if err := guard.ReplaceInTx(ctx, tx, id, token, []*domain.RunEvent{newEvent}); err != nil {
+		_ = tx.Rollback()
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	newStream := make(chan (<-chan *domain.RunEvent), 1)
+	go func() { stream, _ := store.Stream(ctx, id, event.StreamOptions{FromSequence: 0}); newStream <- stream }()
+	if err := tx.Commit(); err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	guard.Finish(id, true)
+	resumed, err := store.Get(ctx, id, event.GetOptions{AfterSequence: old.Sequence})
+	if err != nil || len(resumed) != 1 || resumed[0].ID != newEvent.ID || resumed[0].Sequence <= old.Sequence {
+		t.Fatalf("old cursor missed replacement: %+v %v", resumed, err)
+	}
+	select {
+	case _, open := <-oldStream:
+		if open {
+			t.Fatal("old subscription was not closed")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("old subscription remained open")
+	}
+	select {
+	case stream := <-newStream:
+		select {
+		case got, open := <-stream:
+			if !open || got.ID != newEvent.ID {
+				t.Fatalf("new subscriber did not receive replacement: %+v open=%v", got, open)
+			}
+		case <-time.After(time.Second):
+			t.Fatal("new subscriber received no history")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("new subscriber remained blocked")
+	}
+}
+
+func TestSQLiteReplacementStopsBlockedHistoricalStream(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	id := uuid.New()
+	var originals []*domain.RunEvent
+	for i := 0; i < 50; i++ {
+		originals = append(originals, domain.NewLogEvent(id, "info", fmt.Sprint(i)))
+	}
+	if err := store.Append(ctx, id, originals...); err != nil {
+		t.Fatal(err)
+	}
+	stream, err := store.Stream(ctx, id, event.StreamOptions{FromSequence: 0, BufferSize: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := store.StreamToken(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard := store.LockReplacement()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	if err := guard.ReplaceInTx(ctx, tx, id, token, []*domain.RunEvent{domain.NewLogEvent(id, "info", "replacement")}); err != nil {
+		_ = tx.Rollback()
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		guard.Finish(id, false)
+		t.Fatal(err)
+	}
+	guard.Finish(id, true)
+	deadline := time.After(time.Second)
+	for {
+		select {
+		case _, open := <-stream:
+			if !open {
+				return
+			}
+		case <-deadline:
+			t.Fatal("blocked historical stream did not close")
+		}
+	}
+}
+
+func TestSQLiteStoreAppendIfEmptyKeepsSubscribers(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+	store := event.NewSQLiteStore(db, newTestLogger())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	id := uuid.New()
+	ch, err := store.Stream(ctx, id, event.StreamOptions{FromSequence: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := domain.NewLogEvent(id, "info", "rebuilt")
+	if err := store.AppendIfEmpty(ctx, id, item); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case received, open := <-ch:
+		if !open || received.ID != item.ID {
+			t.Fatalf("subscriber missed rebuilt event: %+v open=%v", received, open)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("subscriber received no rebuilt event")
+	}
+}
+
+func TestSQLiteSubscriberOverflowClosesForReplay(t *testing.T) {
+	for _, staged := range []bool{false, true} {
+		t.Run(fmt.Sprintf("staged_%t", staged), func(t *testing.T) {
+			db, cleanup := setupTestDB(t)
+			defer cleanup()
+			store := event.NewSQLiteStore(db, newTestLogger())
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			id := uuid.New()
+			stream, err := store.Stream(ctx, id, event.StreamOptions{FromSequence: 0, BufferSize: 1})
+			if err != nil {
+				t.Fatal(err)
+			}
+			events := []*domain.RunEvent{domain.NewLogEvent(id, "info", "one"), domain.NewLogEvent(id, "info", "two"), domain.NewLogEvent(id, "info", "three")}
+			if staged {
+				token, err := store.StreamToken(ctx, id)
+				if err != nil {
+					t.Fatal(err)
+				}
+				guard := store.LockReplacement()
+				tx, err := db.BeginTx(ctx, nil)
+				if err != nil {
+					guard.Finish(id, false)
+					t.Fatal(err)
+				}
+				if err := guard.AppendEmptyInTx(ctx, tx, id, token, events); err != nil {
+					_ = tx.Rollback()
+					guard.Finish(id, false)
+					t.Fatal(err)
+				}
+				if err := tx.Commit(); err != nil {
+					guard.Finish(id, false)
+					t.Fatal(err)
+				}
+				guard.FinishAppend(id, true, events)
+			} else if err := store.Append(ctx, id, events...); err != nil {
+				t.Fatal(err)
+			}
+			deadline := time.After(time.Second)
+			for {
+				select {
+				case _, open := <-stream:
+					if !open {
+						got, err := store.Get(ctx, id, event.GetOptions{AfterSequence: -1})
+						if err != nil || len(got) != 3 {
+							t.Fatalf("replay evidence missing: %+v %v", got, err)
+						}
+						return
+					}
+				case <-deadline:
+					t.Fatal("overflowed stream stayed open")
+				}
+			}
+		})
+	}
+}
 
 func TestSQLiteStore_Append(t *testing.T) {
 	db, cleanup := setupTestDB(t)

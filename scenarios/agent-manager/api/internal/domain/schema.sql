@@ -107,13 +107,30 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_facts (
 	duration_ms INTEGER,
 	arg_tokens INTEGER NOT NULL DEFAULT 0,
 	result_tokens INTEGER NOT NULL DEFAULT 0,
+	output_event_id TEXT NOT NULL DEFAULT '',
+	output_bytes INTEGER NOT NULL DEFAULT 0,
 	token_basis TEXT NOT NULL DEFAULT 'unknown',
-	residency_turns INTEGER NOT NULL DEFAULT 0,
+	residency_requests INTEGER NOT NULL DEFAULT 0,
 	residency_segment INTEGER NOT NULL DEFAULT 0,
 	incurred_input_tokens INTEGER NOT NULL DEFAULT 0,
 	incurred_output_tokens INTEGER NOT NULL DEFAULT 0,
 	incurred_cache_read_tokens INTEGER NOT NULL DEFAULT 0,
 	incurred_cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+	tool_profiled INTEGER NOT NULL DEFAULT 0,
+	tool_command TEXT NOT NULL DEFAULT '',
+	tool_key TEXT NOT NULL DEFAULT '',
+	tool_help INTEGER NOT NULL DEFAULT 0,
+	tool_filtered INTEGER NOT NULL DEFAULT 0,
+	tool_wrapped INTEGER NOT NULL DEFAULT 0,
+	tool_truncated INTEGER NOT NULL DEFAULT 0,
+	tool_shape_guess INTEGER NOT NULL DEFAULT 0,
+	tool_json_paths TEXT NOT NULL DEFAULT '',
+	tool_signature TEXT NOT NULL DEFAULT '',
+	tool_error_line TEXT NOT NULL DEFAULT '',
+	tool_notice TEXT NOT NULL DEFAULT '',
+	tool_notice_line TEXT NOT NULL DEFAULT '',
+	tool_bypass_owner TEXT NOT NULL DEFAULT '',
+	tool_bypass_method TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (run_id, call_event_id, segment_index)
 );
 
@@ -133,6 +150,7 @@ CREATE INDEX IF NOT EXISTS idx_invocation_read_model_ownership ON invocation_rea
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_outcome ON invocation_read_model_facts(outcome, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_executable ON invocation_read_model_facts(executable, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_fingerprint ON invocation_read_model_facts(fingerprint, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_invocation_read_model_tool_profiled ON invocation_read_model_facts(occurred_at) WHERE tool_profiled = 1;
 
 CREATE TABLE IF NOT EXISTS invocation_cohort_definitions (
     name TEXT PRIMARY KEY,
@@ -195,15 +213,6 @@ CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_profile ON invocation_
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_runner ON invocation_read_model_runs(runner_type, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_invocation_read_model_runs_model ON invocation_read_model_runs(model, occurred_at);
 
--- Per-run efficiency signals use the same terminal lifecycle as the run
--- summary, while staying separate so this additive schema remains compatible
--- with databases created before the durable run projection existed.
-CREATE TABLE IF NOT EXISTS invocation_read_model_run_signals (
-    run_id TEXT PRIMARY KEY,
-    read_calls INTEGER NOT NULL DEFAULT 0,
-    files_read_more_than_once INTEGER NOT NULL DEFAULT 0
-);
-
 -- Time attribution is retained independently of raw events so completed runs
 -- remain explainable after the event retention sweep.
 CREATE TABLE IF NOT EXISTS invocation_read_model_time_accounting (
@@ -221,59 +230,8 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_time_accounting (
     unattributable_reason TEXT NOT NULL DEFAULT ''
 );
 
--- Error-code facts retain the analytical pattern after source run_events are
--- pruned. Messages and stack traces are intentionally excluded.
-CREATE TABLE IF NOT EXISTS invocation_read_model_errors (
-    run_id TEXT NOT NULL,
-    event_id TEXT NOT NULL,
-    occurred_at TEXT NOT NULL,
-    time_basis TEXT NOT NULL,
-    error_code TEXT NOT NULL,
-    profile_id TEXT NOT NULL DEFAULT 'unknown',
-    runner_type TEXT NOT NULL DEFAULT 'unknown',
-    model TEXT NOT NULL DEFAULT 'unknown',
-    tag TEXT NOT NULL DEFAULT 'unknown',
-    PRIMARY KEY (run_id, event_id)
-);
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_errors_occurred_at ON invocation_read_model_errors(occurred_at);
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_errors_code ON invocation_read_model_errors(error_code, occurred_at);
-
--- Episodes and redacted self-report spans share the invocation projection
--- lifecycle, so they remain queryable after raw run_events are pruned.
-CREATE TABLE IF NOT EXISTS invocation_read_model_episodes (
-    run_id TEXT NOT NULL,
-    episode_id TEXT NOT NULL,
-    occurred_at TEXT NOT NULL,
-    time_basis TEXT NOT NULL,
-    classifier_version TEXT NOT NULL,
-    pattern TEXT NOT NULL,
-    cause_scope TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    honesty_flags_json TEXT NOT NULL,
-    start_event_id TEXT NOT NULL,
-    end_event_id TEXT NOT NULL,
-    evidence_event_ids_json TEXT NOT NULL,
-    turns INTEGER NOT NULL,
-    cycle_count INTEGER NOT NULL DEFAULT 0,
-    repeated_element TEXT NOT NULL DEFAULT '',
-    tokens INTEGER NOT NULL,
-    wall_clock_ms INTEGER NOT NULL,
-    suspected_owner_scenario TEXT NOT NULL DEFAULT '',
-    suspected_owner_command TEXT NOT NULL DEFAULT '',
-    owner_confidence TEXT NOT NULL,
-    failed_joined_calls INTEGER NOT NULL,
-    fingerprint TEXT NOT NULL,
-    profile_id TEXT NOT NULL DEFAULT 'unknown',
-    runner_type TEXT NOT NULL DEFAULT 'unknown',
-    model TEXT NOT NULL DEFAULT 'unknown',
-    tag TEXT NOT NULL DEFAULT 'unknown',
-    run_status TEXT NOT NULL DEFAULT 'unknown',
-    PRIMARY KEY (run_id, episode_id)
-);
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_episodes_occurred_at ON invocation_read_model_episodes(occurred_at);
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_episodes_pattern ON invocation_read_model_episodes(pattern, occurred_at);
-CREATE INDEX IF NOT EXISTS idx_invocation_read_model_episodes_dimensions ON invocation_read_model_episodes(profile_id, runner_type, model, tag, occurred_at);
-
+-- Redacted self-report spans share the invocation projection lifecycle, so they
+-- remain queryable after raw run_events are pruned.
 CREATE TABLE IF NOT EXISTS invocation_read_model_self_report_spans (
     run_id TEXT NOT NULL,
     event_id TEXT NOT NULL,
@@ -286,7 +244,6 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_self_report_spans (
     cause_scope TEXT NOT NULL,
     text TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'assistant',
-    operator_correction INTEGER NOT NULL DEFAULT 0,
     span_capped INTEGER NOT NULL DEFAULT 0,
     profile_id TEXT NOT NULL DEFAULT 'unknown',
     runner_type TEXT NOT NULL DEFAULT 'unknown',
@@ -307,7 +264,6 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_watermarks (
     last_event_id TEXT NOT NULL,
     last_event_at TEXT NOT NULL,
     classifier_version TEXT NOT NULL,
-    episode_classifier_version TEXT NOT NULL DEFAULT '',
     self_report_classifier_version TEXT NOT NULL DEFAULT '',
     projection_complete INTEGER NOT NULL DEFAULT 0,
     projected_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -411,6 +367,10 @@ CREATE TABLE IF NOT EXISTS transcript_files (
     recall_evicted INTEGER NOT NULL DEFAULT 0,
     -- non-text work read after the newest usage report (F-W2-2)
     pending_facts_json TEXT NOT NULL DEFAULT '',
+    -- version of the events the parser derived (runner.TranscriptVersioner);
+    -- an older version's recall is re-imported from the file
+    parser_version INTEGER NOT NULL DEFAULT 0,
+    last_observed_event_at TEXT,
     first_seen_at TEXT NOT NULL,
     indexed_at TEXT
 );
@@ -418,6 +378,15 @@ CREATE INDEX IF NOT EXISTS idx_transcript_files_path ON transcript_files(path);
 CREATE INDEX IF NOT EXISTS idx_transcript_files_run ON transcript_files(run_id);
 CREATE INDEX IF NOT EXISTS idx_transcript_files_web_console ON transcript_files(web_console_session_id);
 CREATE INDEX IF NOT EXISTS idx_transcript_files_session ON transcript_files(session_id);
+-- A legacy private transcript remains intact until an owner-controlled cleanup
+-- operation can safely establish its identity. Never delete by this path alone.
+CREATE TABLE IF NOT EXISTS transcript_legacy_cleanup (
+    -- Preserve this obligation even if the run itself is later deleted.
+    run_id TEXT PRIMARY KEY,
+    file_key TEXT NOT NULL,
+    private_path TEXT NOT NULL,
+    source_path TEXT NOT NULL
+);
 -- Durable per-report usage summaries (SPEC D2). Written as a file is read and
 -- never evicted with run events. Counters keep the provider's raw cumulative
 -- value (Codex) and the report's own amount, so runsignal.AccountUsage derives

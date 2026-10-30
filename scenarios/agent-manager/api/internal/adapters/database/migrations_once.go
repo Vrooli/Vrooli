@@ -9,7 +9,6 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/pricing"
-	"agent-manager/internal/runsignal"
 
 	"github.com/google/uuid"
 )
@@ -19,9 +18,14 @@ const (
 	migrationQuotaEvents         = "2026-10-29-quota-event-type"
 	migrationAttachedExitStatus  = "2026-10-29-attached-exit-status"
 	migrationDropRetiredBookkeep = "2026-10-29-drop-stats-checkpoint-and-usage-repairs"
-	// migrationPruneEpisodesBefore plus the current episode classifier version
-	// names the prune that version's bump runs.
-	migrationPruneEpisodesBefore = "prune-episodes-before-"
+	// The error-code and file-reread projections served only the retired
+	// error-patterns and file-reread-rate measures (tool friction profiles
+	// replace both).
+	migrationDropRetiredSignals = "2026-10-30-drop-error-and-reread-projections"
+	// Friction episodes were deleted with their classifier; the watermark's
+	// episode version and the self-report operator-correction flag went with
+	// them.
+	migrationDropEpisodes = "2026-10-30-drop-friction-episodes"
 )
 
 // attachedExitReason is the error the reconciler wrote when it marked every
@@ -69,19 +73,29 @@ func (db *DB) runOnceMigrations(ctx context.Context) error {
 	if err := db.runOnce(ctx, migrationAttachedExitStatus, func(tx *Tx) error { return migrateAttachedExitStatus(ctx, tx) }); err != nil {
 		return err
 	}
-	// Each episode classifier bump prunes the episodes of older classifiers once;
-	// the reconcile sweep re-projects those runs (their watermark names the old
-	// version) and no reader looks at an older version.
-	if err := db.runOnce(ctx, migrationPruneEpisodesBefore+runsignal.EpisodeClassifierVersion, func(tx *Tx) error { return pruneStaleEpisodes(ctx, tx) }); err != nil {
+	for _, drop := range []struct {
+		name   string
+		tables []string
+	}{
+		{migrationDropRetiredBookkeep, []string{"stats_checkpoint", "transcript_usage_repairs"}},
+		{migrationDropRetiredSignals, []string{"invocation_read_model_errors", "invocation_read_model_run_signals"}},
+	} {
+		if err := db.runOnce(ctx, drop.name, func(tx *Tx) error { return dropTables(ctx, tx, drop.tables) }); err != nil {
+			return err
+		}
+	}
+	return db.runOnce(ctx, migrationDropEpisodes, func(tx *Tx) error { return dropEpisodes(ctx, tx) })
+}
+
+// dropEpisodes removes the episode projection and the two columns that went
+// with it.
+func dropEpisodes(ctx context.Context, tx *Tx) error {
+	if err := dropTables(ctx, tx, []string{"invocation_read_model_episodes"}); err != nil {
 		return err
 	}
-	return db.runOnce(ctx, migrationDropRetiredBookkeep, func(tx *Tx) error {
-		for _, table := range []string{"stats_checkpoint", "transcript_usage_repairs"} {
-			if _, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS "+table); err != nil {
-				return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
-			}
-		}
-		return nil
+	return dropColumns(ctx, tx, map[string][]string{
+		"invocation_read_model_watermarks":        {"episode_classifier_version"},
+		"invocation_read_model_self_report_spans": {"operator_correction"},
 	})
 }
 
@@ -148,6 +162,36 @@ func migrateAttachedExitStatus(ctx context.Context, tx *Tx) error {
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE runs SET status = 'complete', phase = 'completed', error_msg = '' WHERE `+match, attachedExitReason); err != nil {
 		return &domain.DatabaseError{Operation: "attached_exit_correct", EntityType: "Run", Cause: err}
+	}
+	return nil
+}
+
+// dropTables drops retired tables (their indexes go with them).
+func dropTables(ctx context.Context, tx *Tx, tables []string) error {
+	for _, table := range tables {
+		if _, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS "+table); err != nil {
+			return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
+		}
+	}
+	return nil
+}
+
+// dropColumns drops retired columns that still exist; a fresh database never
+// had them.
+func dropColumns(ctx context.Context, tx *Tx, columns map[string][]string) error {
+	for table, retired := range columns {
+		existing, err := columnsOf(ctx, tx, table)
+		if err != nil {
+			return err
+		}
+		for _, column := range retired {
+			if _, ok := existing[column]; !ok {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, "ALTER TABLE "+table+" DROP COLUMN "+column); err != nil {
+				return &domain.DatabaseError{Operation: "schema_migrate", EntityType: "Schema", Cause: err}
+			}
+		}
 	}
 	return nil
 }

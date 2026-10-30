@@ -14,7 +14,6 @@ import (
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/pricing"
-	"agent-manager/internal/runsignal"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
 	"agent-manager/internal/usageforecast"
@@ -24,13 +23,10 @@ import (
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	sharedmeasurepb "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const (
-	ExternalToolShare         = "friction.external_tool_share"
-	RetryRate                 = "friction.retry_rate"
-	RepeatedWorkRate          = "friction.repeated_work_rate"
-	ToolFailureRate           = "friction.tool_failure_rate"
 	RunSuccessRate            = "throughput.run_success_rate"
 	RunCycleTime              = "throughput.run_cycle_time"
 	RunCost                   = "throughput.run_cost"
@@ -44,9 +40,9 @@ const (
 	TerminalRunTrend          = "throughput.terminal_run_trend"
 	ToolUsage                 = "friction.tool_usage"
 	TokenAttribution          = "friction.token_attribution"
-	ErrorPatterns             = "friction.error_patterns"
-	FileRereadRate            = "friction.file_reread_rate"
-	FindingRecurrenceRate     = "friction.finding_recurrence_rate"
+	ToolFriction              = "friction.tool_friction"
+	ToolProfiles              = "friction.tool_profiles"
+	ErrorSignatures           = "friction.error_signatures"
 	ConversationSearchQuality = "conversation_search.quality"
 	FallbackInsights          = "health.fallback_insights"
 )
@@ -54,7 +50,6 @@ const (
 // Store is the narrow durable analytical substrate. The database read-model
 // repository satisfies it; no measure reads raw run_events JSON.
 type Store interface {
-	Metrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.Metrics, error)
 	RunMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error)
 	WindowedUsage(context.Context, invocationreadmodel.Filter) (invocationreadmodel.UsageTotals, error)
 	RunDurationStatistics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunDurationStatistics, error)
@@ -62,9 +57,13 @@ type Store interface {
 	RunBreakdown(context.Context, invocationreadmodel.Filter, string, int) ([]invocationreadmodel.RunBreakdownRow, error)
 	RunTimeSeries(context.Context, invocationreadmodel.Filter, time.Duration) ([]invocationreadmodel.RunTimeSeriesBucket, error)
 	ToolUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ToolUsageRow, error)
-	ErrorPatterns(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.ErrorPattern, error)
-	FindingMetrics(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FindingMetrics, error)
 	FallbackInsights(context.Context, invocationreadmodel.Filter) (invocationreadmodel.FallbackInsights, error)
+}
+
+// runCostDistributionStore is a store that can read the per-run token and
+// cost distribution behind RunCost.
+type runCostDistributionStore interface {
+	RunCostDistribution(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error)
 }
 
 type tokenAttributionStore interface {
@@ -98,17 +97,11 @@ func containsString(values []string, wanted string) bool {
 type metricKind string
 
 const (
-	externalToolShare     metricKind = "external_tool_share"
-	retryRate             metricKind = "retry_rate"
-	repeatedWorkRate      metricKind = "repeated_work_rate"
-	toolFailureRate       metricKind = "tool_failure_rate"
-	runSuccessRate        metricKind = "run_success_rate"
-	runCycleTime          metricKind = "run_cycle_time"
-	runCost               metricKind = "run_cost"
-	runVolume             metricKind = "run_volume"
-	fileRereadRate        metricKind = "file_reread_rate"
-	findingRecurrenceRate metricKind = "finding_recurrence_rate"
-	tokenAttribution      metricKind = "token_attribution"
+	runSuccessRate   metricKind = "run_success_rate"
+	runCycleTime     metricKind = "run_cycle_time"
+	runCost          metricKind = "run_cost"
+	runVolume        metricKind = "run_volume"
+	tokenAttribution metricKind = "token_attribution"
 )
 
 type metricResult struct {
@@ -136,26 +129,8 @@ type Definition struct {
 	Limitation  string
 }
 
-// capabilityEfficacyNumerator names only the outcome counts whose episode
-// pattern is shown; a quarantined pattern's count is not measured, so the
-// definition must not promise it.
-func capabilityEfficacyNumerator() string {
-	parts := []string{"successful"}
-	if runsignal.Shown("fallback-after-capability") {
-		parts = append(parts, "fallback")
-	}
-	if runsignal.Shown("capability-abandoned") {
-		parts = append(parts, "abandoned")
-	}
-	return strings.Join(parts, ", ") + " calls"
-}
-
 func definitionFor(name string) Definition {
 	definitions := map[string]Definition{
-		ExternalToolShare:                    {ID: ExternalToolShare, Counts: "classified command invocations", Numerator: "external tool calls", Denominator: "classified command calls", SourceTable: "invocation_read_model_facts", Limitation: "unclassified ownership and unparseable evidence are excluded from the denominator"},
-		RetryRate:                            {ID: RetryRate, Counts: "durable tool invocations", Numerator: "retry-linked calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
-		RepeatedWorkRate:                     {ID: RepeatedWorkRate, Counts: "durable tool invocations", Numerator: "repeated-work calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts", Limitation: "fingerprint concentration can make this measure unreliable"},
-		ToolFailureRate:                      {ID: ToolFailureRate, Counts: "durable tool invocations", Numerator: "failed calls", Denominator: "all classified tool calls", SourceTable: "invocation_read_model_facts"},
 		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "successful executed terminal runs", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
 		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed executed terminal runs", Numerator: "duration milliseconds", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
 		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed executed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
@@ -168,26 +143,24 @@ func definitionFor(name string) Definition {
 		WorkloadBreakdown:                    {ID: WorkloadBreakdown, Counts: "executed terminal runs", Numerator: "workload totals and completion outcomes", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions; model assignment is observational, not randomized"},
 		WorkloadEfficiency:                   {ID: WorkloadEfficiency, Counts: "executed terminal runs for a workload", Numerator: "total tokens", Denominator: "successful completions", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions; model assignment is observational, not randomized"},
 		TerminalRunTrend:                     {ID: TerminalRunTrend, Counts: "executed terminal runs", Numerator: "hourly terminal outcomes", Denominator: "none", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		ToolFriction:                         {ID: ToolFriction, Counts: "command calls in the window at the current fact version (code excluded)", Numerator: "failed calls, shape guesses, polled calls, bypasses, context tax and command time", Denominator: "calls whose outcome is known (failure rate); each finding's share is over its kind's base (Vrooli CLI failed calls, calls, shape guesses, polled calls or time; context tax; bypass calls)", SourceTable: "invocation_read_model_facts", Limitation: "failure rates cover calls with a known outcome; facts at an older fact version are not read and the coverage sentence counts them as awaiting re-derivation. Error text, notices and truncation are read from the first 3,000 characters of a result"},
+		ToolProfiles:                         {ID: ToolProfiles, Counts: "command calls in the window grouped by command path", Numerator: "calls, failures, shape guesses, output weight, context tax, latency, polling per command path", Denominator: "the profile's calls", SourceTable: "invocation_read_model_facts", Limitation: "ranked by the profile's largest share of the window's failed calls, command time or context tax"},
+		ErrorSignatures:                      {ID: ErrorSignatures, Counts: "failed and degraded Vrooli CLI calls", Numerator: "calls whose first meaningful error line normalises to one signature", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "ids, numbers, paths and quoted values are normalised away; a line seen across several CLIs that names no scenario is owned by the control plane"},
 		ToolUsage:                            {ID: ToolUsage, Counts: "tool invocation facts", Numerator: "calls grouped by tool", Denominator: "none", SourceTable: "invocation_read_model_facts"},
 		"friction.tool_command_breakdown":    {ID: "friction.tool_command_breakdown", Counts: "tool invocation facts", Numerator: "calls grouped by executable and command path", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "command detail is unavailable when the source fact did not record it"},
 		TokenAttribution:                     {ID: TokenAttribution, Counts: "durable invocation token factors", Numerator: "tokens grouped by the selected dimension and view", Denominator: "none", SourceTable: "invocation_read_model_facts", Limitation: "estimated share identifies rankings that rely on payload estimates; target scenario and operation require a verified receipt join"},
-		ErrorPatterns:                        {ID: ErrorPatterns, Counts: "durable error facts", Numerator: "errors grouped by code", Denominator: "none", SourceTable: "invocation_read_model_errors"},
-		FileRereadRate:                       {ID: FileRereadRate, Counts: "file-read calls", Numerator: "files read more than once", Denominator: "file-read calls", SourceTable: "invocation_read_model_runs"},
-		FindingRecurrenceRate:                {ID: FindingRecurrenceRate, Counts: "persisted investigation findings", Numerator: "recurring findings", Denominator: "all findings", SourceTable: "run_findings"},
 		FallbackInsights:                     {ID: FallbackInsights, Counts: "runner and model fallback events and policy-candidate outcomes", Numerator: "attempts, exhausted walks and outcomes", Denominator: "none", SourceTable: "run_events", Limitation: "only events still retained in the window are counted"},
 		ConversationSearchQuality:            {ID: ConversationSearchQuality, Counts: "privacy-safe conversation search request telemetry", Numerator: "no-result, weak-only, reformulated, selected, contributing-leg, degraded, error, and latency observations", Denominator: "search requests in the selected window", SourceTable: "conversation_search_telemetry", Limitation: "query and result content are never stored; at most the most recent 10000 requests in a window are aggregated"},
-		"friction.capability_usage":          {ID: "friction.capability_usage", Counts: "verified capability receipts", Numerator: "calls grouped by capability", Denominator: "none", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
-		"friction.capability_efficacy":       {ID: "friction.capability_efficacy", Counts: "verified capability receipts", Numerator: capabilityEfficacyNumerator(), Denominator: "verified capability calls", SourceTable: "investigation_cross_scenario_calls", Limitation: "only verified receipts are included"},
 		"select_cohort":                      {ID: "select_cohort", Counts: "terminal runs matching the selected filter", Numerator: "matching runs", Denominator: "none", SourceTable: "invocation_read_model_runs"},
-		"episode_cohort":                     {ID: "episode_cohort", Counts: "persisted friction episodes", Numerator: "episodes grouped by fingerprint", Denominator: "none", SourceTable: "invocation_read_model_episodes"},
 		"cohort_report":                      {ID: "cohort_report", Counts: "run reports of the selected cohort", Numerator: "friction signals, time accounting and goal progression", Denominator: "selected runs", SourceTable: "invocation_read_model_runs", Limitation: "at most 100 runs; each run report is built from its durable projection"},
-		"episode_comparison":                 {ID: "episode_comparison", Counts: "persisted friction episodes in two selected cohorts", Numerator: "episode occurrences and cost per fingerprint", Denominator: "runs in each cohort", SourceTable: "invocation_read_model_episodes", Limitation: "unreliable unless both cohorts hold at least five runs"},
 		UsageForecast:                        {ID: UsageForecast, Counts: "provider quota readings in the current windows", Numerator: "used percent, trailing burn and projected exhaustion per window", Denominator: "none", SourceTable: "quota_observations", Limitation: "readings come only from captured sessions; a window with no reading for 6 hours is unknown"},
 		UsageBurners:                         {ID: UsageBurners, Counts: "transcript usage reports (operator sessions and Agent Manager runs) in each current window", Numerator: "each consumer's share of the window's observed used-percent increase", Denominator: "the window's observed increase", SourceTable: "transcript_usage, quota_observations", Limitation: "points are estimates from a per-window calibration of API-price-weighted tokens; off-disk use is the unattributed remainder"},
-		UsageRecommendations:                 {ID: UsageRecommendations, Counts: "attributed usage, friction episodes and finished runs", Numerator: "estimated quota points saved per target, levers combined without double counting", Denominator: "none", SourceTable: "transcript_usage, invocation_read_model_episodes, invocation_read_model_runs", Limitation: "deterministic rules; a consumer still running is projected at its rate over the window's length, a stopped one is not, and no estimate exceeds the consumer's projected use"},
-		UsageFriction:                        {ID: UsageFriction, Counts: "friction episodes by fingerprint in runs that consumed quota", Numerator: "episodes, elapsed time and attributed quota points per recurring problem", Denominator: "none", SourceTable: "invocation_read_model_episodes, transcript_usage, friction_problem_status", Limitation: "problems recurred at least three times; cost is each episode's turns share of its run's attributed points; elapsed time sums episodes that may overlap"},
+		UsageRecommendations:                 {ID: UsageRecommendations, Counts: "owner-level actions from quota levers, tool friction findings, opportunities and gate-proven operator interventions", Numerator: "each action's effect in its own unit, scored in quota points a week by the stated conversions", Denominator: "none", SourceTable: "transcript_usage, invocation_read_model_runs, invocation_read_model_facts, operator_interventions, program-runtime library", Limitation: "deterministic rules; finished sessions say what they would have saved and only running ones are projected; calls and interventions are priced by stated assumptions; actions under the materiality floor are counted, not listed"},
+		UsageFriction:                        {ID: UsageFriction, Counts: "owner-level tool findings from the tool profiles of the window, and operator messages the intervention classifier put in a category that passed the accuracy gate", Numerator: "each finding's cost in the unit of its harm (calls, command time, context tax); operator interventions per category and per agent-hour", Denominator: "the window's total of each kind of harm the finding holds (one named base per kind)", SourceTable: "invocation_read_model_facts, operator_interventions, transcript_usage, friction_problem_status", Limitation: "findings need three or more calls; an empty list is read beside the coverage sentence; no operator intervention category is shown until it passes the accuracy gate, and the section then states coverage and why instead of reading as no friction"},
 		UsageCoverage:                        {ID: UsageCoverage, Counts: "transcript files on disk modified in the period", Numerator: "captured bytes and files", Denominator: "bytes and files on disk", SourceTable: "transcript_files", Limitation: "walks the configured roots at request time; a file still being written counts as partially indexed"},
 		UsageCompare:                         {ID: UsageCompare, Counts: "runs of two selected cohorts", Numerator: "attributed quota points", Denominator: "successful runs", SourceTable: "transcript_usage, quota_observations, runs", Limitation: "unreliable below five successful runs per side; cohorts are observational, not randomized"},
+		UsageInterventions:                   interventionsDefinition,
+		UsageOpportunities:                   opportunitiesDefinition,
 		UsageForecastBacktest:                {ID: UsageForecastBacktest, Counts: "completed windows with an observed outcome", Numerator: "absolute error of the projected final percent at 25% and 50% of each window", Denominator: "scored windows", SourceTable: "quota_observations", Limitation: "windows whose newest reading is more than 6 hours before their end are not scored"},
 	}
 	return definitions[name]
@@ -196,7 +169,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{ExternalToolShare, RetryRate, RepeatedWorkRate, ToolFailureRate, RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ErrorPatterns, FileRereadRate, FindingRecurrenceRate, ConversationSearchQuality, FallbackInsights, "friction.capability_usage", "friction.capability_efficacy", "select_cohort", "episode_cohort", "cohort_report", "episode_comparison", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare} {
+	for _, name := range []string{RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ToolFriction, ToolProfiles, ErrorSignatures, ConversationSearchQuality, FallbackInsights, "select_cohort", "cohort_report", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare, UsageInterventions} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -215,13 +188,24 @@ func provenanceFor(filter invocationreadmodel.Filter, source string, rows int64)
 		provenance.WindowEnd = filter.To.UTC().Format(time.RFC3339Nano)
 	}
 	for _, item := range []struct{ field, value string }{
-		{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"profile_id", filter.ProfileID}, {"runner_type", filter.RunnerType}, {"model", filter.Model}, {"workload_kind", filter.WorkloadKind}, {"workload_key", filter.WorkloadKey}, {"tag_prefix", filter.TagPrefix}, {"run_status", filter.RunStatus}, {"tool_name", filter.ToolName}, {"episode_pattern", filter.EpisodePattern}, {"episode_cause_scope", filter.EpisodeCauseScope}, {"episode_fingerprint", filter.EpisodeFingerprint}, {"self_report_rule_id", filter.SelfReportRuleID}, {"self_report_cause_scope", filter.SelfReportCauseScope}, {"target_scenario", filter.TargetScenario}, {"operation", filter.Operation},
+		{"ownership", filter.Ownership}, {"outcome", filter.Outcome}, {"executable", filter.Executable}, {"fingerprint", filter.Fingerprint}, {"profile_id", filter.ProfileID}, {"runner_type", filter.RunnerType}, {"model", filter.Model}, {"workload_kind", filter.WorkloadKind}, {"workload_key", filter.WorkloadKey}, {"tag_prefix", filter.TagPrefix}, {"run_status", filter.RunStatus}, {"tool_name", filter.ToolName}, {"target_scenario", filter.TargetScenario}, {"operation", filter.Operation},
 	} {
 		if item.value != "" {
 			provenance.AppliedFilters = append(provenance.AppliedFilters, &measurepb.MeasureFilter{Field: item.field, Value: item.value})
 		}
 	}
 	return provenance
+}
+
+// resolveWindow reads the request's window token, or the measure's declared
+// default when the caller names none (the CLI and `measures get` send only the
+// parameters the operator typed).
+func (h *Handler) resolveWindow(request measurelib.MeasureRequest, fallback measurelib.TimeWindowToken) (measurelib.Range, error) {
+	token := measurelib.TimeWindowToken(strings.TrimSpace(request.Params["window"]))
+	if token == "" {
+		token = fallback
+	}
+	return measurelib.ResolveToken(token, h.now(), time.UTC)
 }
 
 func (h *Handler) provenanceWithQuery(ctx context.Context, filter invocationreadmodel.Filter, source string, rows int64, query string) *measurepb.MeasureProvenance {
@@ -261,16 +245,10 @@ func declarations() []struct {
 		questions                           []string
 		kind                                metricKind
 	}{
-		{ExternalToolShare, "ExternalToolShare", "Share of resolved tool invocations that target external tools, with unknown ownership reported separately.", "share", "{value} external-tool share ({window})", []string{"what is the external-tool share this week", "how often do agents use tools outside Vrooli", "which fraction of tool calls are external"}, externalToolShare},
-		{RetryRate, "RetryRate", "Share of durable tool invocations linked to a prior retry target.", "share", "{value} retry rate ({window})", []string{"what is the retry rate this week", "how often are agent tool calls retried", "show tool invocation retries"}, retryRate},
-		{RepeatedWorkRate, "RepeatedWorkRate", "Share of tool invocations in repeated-work fingerprints.", "share", "{value} repeated-work rate ({window})", []string{"what is the repeated work rate", "how much tool work is repeated", "show agent reread and repeated invocation rate"}, repeatedWorkRate},
-		{ToolFailureRate, "ToolFailureRate", "Share of durable tool invocations whose classified outcome failed.", "share", "{value} tool failure rate ({window})", []string{"what is the tool failure rate", "how often do agent tool calls fail", "show failed tool invocation share"}, toolFailureRate},
 		{RunSuccessRate, "RunSuccessRate", "Share of executed terminal runs that completed successfully; imported and interactive runs are separate.", "share", "{value} run success rate ({window})", []string{"what is the agent run success rate this week", "how often do agent runs complete successfully"}, runSuccessRate},
 		{RunCycleTime, "RunCycleTime", "Average cycle time in milliseconds of completed runs Agent Manager executed.", "milliseconds", "{value} average run cycle time ({window})", []string{"what is the average agent run cycle time", "how long do completed agent runs take"}, runCycleTime},
 		{RunCost, "RunCost", "Per-token billed cost in USD of the requests made in the window; subscription work is quota points, not dollars.", "usd", "{value} per-token billed cost ({window})", []string{"what did per-token billed runs cost this week", "show total agent run cost"}, runCost},
 		{RunVolume, "RunVolume", "Number of executed terminal run summaries in the window.", "runs", "{value} agent run volume ({window})", []string{"how many agent runs completed this week", "show agent run volume"}, runVolume},
-		{FileRereadRate, "FileRereadRate", "Share of file-read calls that revisit a path already read in the same run.", "share", "{value} file reread rate ({window})", []string{"what is the agent file reread rate", "how often do agents reread files"}, fileRereadRate},
-		{FindingRecurrenceRate, "FindingRecurrenceRate", "Share of persisted investigation findings whose fingerprint recurs in the same filtered finding corpus.", "share", "{value} finding recurrence rate ({window})", []string{"what is the recurring finding rate", "which agent findings recur"}, findingRecurrenceRate},
 		{TokenAttribution, "TokenAttribution", "Durable token spend grouped by capability, executable, command path, or target scenario operation across footprint, residency, and incurred views.", "tokens", "{value} token attribution ({window})", []string{"which capabilities consume the most tokens", "which commands have the largest token footprint", "what incurred token spend follows each tool call"}, tokenAttribution},
 	}
 }
@@ -301,14 +279,6 @@ func declaration(spec struct {
 }
 
 func execute(ctx context.Context, store Store, kind metricKind, filter invocationreadmodel.Filter) (metricResult, error) {
-	query := fmt.Sprintf("SELECT durable invocation aggregate FROM invocation_read_model_facts WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	if kind == findingRecurrenceRate {
-		findings, err := store.FindingMetrics(ctx, filter)
-		if err != nil {
-			return metricResult{}, err
-		}
-		return metricResult{Rate: findings.RecurrenceRate, Numerator: findings.RecurringFindings, Denom: findings.TotalFindings, Secondary: findings.RecurringFingerprints, Query: fmt.Sprintf("SELECT recurrence aggregate FROM run_findings WHERE created_at >= %q AND created_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))}, nil
-	}
 	if kind == runCost {
 		usage, err := store.WindowedUsage(ctx, filter)
 		if err != nil {
@@ -316,61 +286,21 @@ func execute(ctx context.Context, store Store, kind metricKind, filter invocatio
 		}
 		return metricResult{Rate: usage.MeteredCostUSD, Numerator: usage.Requests, Denom: usage.Runs, Query: usageQuery(filter)}, nil
 	}
-	if kind == runSuccessRate || kind == runCycleTime || kind == runVolume || kind == fileRereadRate {
-		runs, err := store.RunMetrics(ctx, filter)
-		if err != nil {
-			return metricResult{}, err
-		}
-		result := metricResult{Query: fmt.Sprintf("SELECT durable terminal aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))}
-		switch kind {
-		case runSuccessRate:
-			result.Rate, result.Numerator, result.Denom = runs.SuccessRate, runs.SuccessfulRuns, runs.TerminalRuns
-		case runCycleTime:
-			result.Rate, result.P50, result.P90 = runs.AverageDurationMS, runs.P50DurationMS, runs.P90DurationMS
-			result.Numerator, result.Denom = runs.CompletedDurationRuns, runs.CompletedDurationRuns
-		case runVolume:
-			result.Rate, result.Numerator, result.Denom = float64(runs.TotalRuns), runs.TotalRuns, runs.TerminalRuns
-		case fileRereadRate:
-			result.Rate, result.Numerator, result.Denom = runs.FileRereadRate, runs.FileRereads, runs.ReadCalls
-		}
-		return result, nil
-	}
-	metrics, err := store.Metrics(ctx, filter)
+	runs, err := store.RunMetrics(ctx, filter)
 	if err != nil {
 		return metricResult{}, err
 	}
-	unclassified := metrics.UnclassifiedCalls
-	if unclassified == 0 {
-		unclassified = metrics.UnknownCalls
-	}
-	result := metricResult{Unknown: unclassified, Query: query}
-	population := metrics.TotalCalls
-	if population == 0 {
-		// Compatibility for focused stores created before the explicit total
-		// population field; production repositories always populate it.
-		population = metrics.ResolvedCalls + metrics.UnknownCalls
-	}
-	classifiedBase := metrics.ClassifiedBase
-	if classifiedBase == 0 {
-		classifiedBase = metrics.ResolvedCalls
-	}
-	if classifiedBase == 0 {
-		classifiedBase = metrics.TotalCalls - unclassified
-		if classifiedBase < 0 {
-			classifiedBase = 0
-		}
-	}
+	result := metricResult{Query: fmt.Sprintf("SELECT durable terminal aggregate FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))}
 	switch kind {
-	case externalToolShare:
-		result.Rate, result.Numerator, result.Denom, result.Population = metrics.ExternalToolShare, metrics.ExternalCalls, classifiedBase, population
-	case retryRate:
-		result.Rate, result.Numerator, result.Denom = metrics.RetryRate, metrics.RetryCalls, classifiedBase
-	case repeatedWorkRate:
-		result.Rate, result.Numerator, result.Denom = metrics.RepeatedWorkRate, metrics.RepeatedCalls, classifiedBase
-	case toolFailureRate:
-		result.Rate, result.Numerator, result.Denom = metrics.FailureRate, metrics.FailedCalls, classifiedBase
+	case runSuccessRate:
+		result.Rate, result.Numerator, result.Denom = runs.SuccessRate, runs.SuccessfulRuns, runs.TerminalRuns
+	case runCycleTime:
+		result.Rate, result.P50, result.P90 = runs.AverageDurationMS, runs.P50DurationMS, runs.P90DurationMS
+		result.Numerator, result.Denom = runs.CompletedDurationRuns, runs.CompletedDurationRuns
+	case runVolume:
+		result.Rate, result.Numerator, result.Denom = float64(runs.TotalRuns), runs.TotalRuns, runs.TerminalRuns
 	default:
-		return metricResult{}, fmt.Errorf("unknown friction measure %q", kind)
+		return metricResult{}, fmt.Errorf("unknown measure %q", kind)
 	}
 	return result, nil
 }
@@ -379,7 +309,7 @@ func filterFromProto(input *measurepb.InvocationFilter, now time.Time) (invocati
 	if input == nil {
 		input = &measurepb.InvocationFilter{}
 	}
-	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), WorkloadKey: input.GetWorkloadKey(), ErrorCode: input.GetErrorCode(), EpisodePattern: input.GetEpisodePattern(), EpisodeCauseScope: input.GetEpisodeCauseScope(), EpisodeFingerprint: input.GetEpisodeFingerprint(), SelfReportRuleID: input.GetSelfReportRuleId(), SelfReportCauseScope: input.GetSelfReportCauseScope(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
+	filter := invocationreadmodel.Filter{Ownership: input.GetOwnership(), Outcome: input.GetOutcome(), Executable: input.GetExecutable(), Fingerprint: input.GetFingerprint(), ProfileID: input.GetProfileId(), RunnerType: input.GetRunnerType(), Model: input.GetModel(), TagPrefix: input.GetTagPrefix(), RunStatus: input.GetRunStatus(), ToolName: input.GetToolName(), WorkloadKey: input.GetWorkloadKey(), TargetScenario: input.GetTargetScenario(), Operation: input.GetOperation()}
 	filter.Scope = scopeFromProto(input.GetScope())
 	window := input.GetWindow()
 	if window == nil {
@@ -438,6 +368,9 @@ type Handler struct {
 	frictionStatuses    usageattribution.StatusStore
 	usagePricer         *usageattribution.PriceBook
 	coverage            transcriptindex.CoverageReader
+	interventions       InterventionSource
+	programs            ProgramLibrarySource
+	tools               usageattribution.ToolCallStore
 }
 
 func (h *Handler) SetConversationSearchQuality(service *conversationsearch.Service, indexer *conversationsearch.Indexer) {
@@ -470,39 +403,17 @@ func (h *Handler) metric(ctx context.Context, kind metricKind, input *measurepb.
 	if err != nil {
 		return metricResult{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	return h.metricFor(ctx, kind, filter)
+}
+
+// metricFor computes one measure with its validity for a resolved filter. The
+// typed RPCs and the registry share it, so both report the same reliability.
+func (h *Handler) metricFor(ctx context.Context, kind metricKind, filter invocationreadmodel.Filter) (metricResult, error) {
 	result, err := execute(ctx, h.store, kind, filter)
 	if err != nil {
 		return metricResult{}, connect.NewError(connect.CodeInternal, err)
 	}
-	if kind == externalToolShare || kind == retryRate || kind == repeatedWorkRate || kind == toolFailureRate {
-		metrics, metricErr := h.store.Metrics(ctx, filter)
-		if metricErr != nil {
-			return metricResult{}, connect.NewError(connect.CodeInternal, metricErr)
-		}
-		population := metrics.TotalCalls
-		if population == 0 {
-			population = metrics.ResolvedCalls + metrics.UnknownCalls
-		}
-		unclassified := metrics.UnclassifiedCalls
-		if unclassified == 0 {
-			unclassified = metrics.UnknownCalls
-		}
-		classifiedBase := metrics.ClassifiedBase
-		if classifiedBase == 0 {
-			classifiedBase = metrics.ResolvedCalls
-		}
-		if classifiedBase == 0 {
-			classifiedBase = population - unclassified
-			if classifiedBase < 0 {
-				classifiedBase = 0
-			}
-		}
-		sample := result.Denom
-		result.Validity = assessValidity(sample, metrics.LargestFingerprintBucket, h.validityConfig)
-		result.Validity = withDenominatorValidity(result.Validity, population, classifiedBase, unclassified, h.validityConfig)
-	} else {
-		result.Validity = assessValidity(result.Denom, 0, h.validityConfig)
-	}
+	result.Validity = assessValidity(result.Denom, 0, h.validityConfig)
 	result.Filter = filter
 	return result, nil
 }
@@ -517,38 +428,6 @@ func (h *Handler) metricProvenance(ctx context.Context, name string, result metr
 
 func (h *Handler) validityForSample(sample int64) *measurepb.MeasureValidity {
 	return protoValidity(assessValidity(sample, 0, h.validityConfig))
-}
-
-func (h *Handler) ExternalToolShare(ctx context.Context, req *connect.Request[measurepb.ExternalToolShareRequest]) (*connect.Response[measurepb.ExternalToolShareResponse], error) {
-	r, err := h.metric(ctx, externalToolShare, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.ExternalToolShareResponse{Share: r.Rate, ExternalCalls: r.Numerator, ResolvedCalls: r.Denom, UnknownCalls: r.Unknown, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, ExternalToolShare, r), DefinitionId: definitionID(ExternalToolShare)}), nil
-}
-
-func (h *Handler) RetryRate(ctx context.Context, req *connect.Request[measurepb.RetryRateRequest]) (*connect.Response[measurepb.RetryRateResponse], error) {
-	r, err := h.metric(ctx, retryRate, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.RetryRateResponse{Rate: r.Rate, RetryCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RetryRate, r), DefinitionId: definitionID(RetryRate)}), nil
-}
-
-func (h *Handler) RepeatedWorkRate(ctx context.Context, req *connect.Request[measurepb.RepeatedWorkRateRequest]) (*connect.Response[measurepb.RepeatedWorkRateResponse], error) {
-	r, err := h.metric(ctx, repeatedWorkRate, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.RepeatedWorkRateResponse{Rate: r.Rate, RepeatedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, RepeatedWorkRate, r), DefinitionId: definitionID(RepeatedWorkRate)}), nil
-}
-
-func (h *Handler) ToolFailureRate(ctx context.Context, req *connect.Request[measurepb.ToolFailureRateRequest]) (*connect.Response[measurepb.ToolFailureRateResponse], error) {
-	r, err := h.metric(ctx, toolFailureRate, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.ToolFailureRateResponse{Rate: r.Rate, FailedCalls: r.Numerator, TotalCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, ToolFailureRate, r), DefinitionId: definitionID(ToolFailureRate)}), nil
 }
 
 func (h *Handler) RunSuccessRate(ctx context.Context, req *connect.Request[measurepb.RunSuccessRateRequest]) (*connect.Response[measurepb.RunSuccessRateResponse], error) {
@@ -583,9 +462,7 @@ func (h *Handler) RunCost(ctx context.Context, req *connect.Request[measurepb.Ru
 	if usage.Runs > 0 {
 		response.AverageCostUsd = usage.MeteredCostUSD / float64(usage.Runs)
 	}
-	if distStore, ok := h.store.(interface {
-		RunCostDistribution(context.Context, invocationreadmodel.Filter) (invocationreadmodel.RunCostDistribution, error)
-	}); ok {
+	if distStore, ok := h.store.(runCostDistributionStore); ok {
 		dist, distErr := distStore.RunCostDistribution(ctx, filter)
 		if distErr != nil {
 			return nil, connect.NewError(connect.CodeInternal, distErr)
@@ -637,67 +514,6 @@ func (h *Handler) RunVolume(ctx context.Context, req *connect.Request[measurepb.
 		response.OutsideHistoryRunCount = outside
 	}
 	return connect.NewResponse(response), nil
-}
-
-func (h *Handler) CapabilityUsage(ctx context.Context, req *connect.Request[measurepb.CapabilityUsageRequest]) (*connect.Response[measurepb.CapabilityUsageResponse], error) {
-	filter, err := filterWithWindow(nil, req.Msg.GetWindow(), h.now())
-	if req.Msg.GetFilter() != nil {
-		filter, err = filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	capabilityStore, ok := h.store.(interface {
-		CapabilityUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityUsageRow, error)
-	})
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("receipt capability usage is unavailable"))
-	}
-	rows, err := capabilityStore.CapabilityUsage(ctx, filter, 100)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	protoRows := make([]*measurepb.CapabilityUsageRow, 0, len(rows))
-	var sample int64
-	for _, row := range rows {
-		sample += row.CallCount
-		protoRows = append(protoRows, &measurepb.CapabilityUsageRow{TargetScenario: row.TargetScenario, Operation: row.Operation, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FailedCount: row.FailedCount, TotalDurationMs: row.TotalDurationMS, TotalTokens: row.TotalTokens, EstimatedTokenShare: row.EstimatedTokenShare})
-	}
-	validity := assessValidity(sample, 0, h.validityConfig)
-	if sample == 0 {
-		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
-	}
-	query := "SELECT target_scenario, operation, outcome, duration_ms FROM investigation_cross_scenario_calls WHERE verified = 1 AND target_scenario <> ''"
-	return connect.NewResponse(&measurepb.CapabilityUsageResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("friction.capability_usage").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_usage")}), nil
-}
-
-func (h *Handler) CapabilityEfficacy(ctx context.Context, req *connect.Request[measurepb.CapabilityEfficacyRequest]) (*connect.Response[measurepb.CapabilityEfficacyResponse], error) {
-	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	efficacyStore, ok := h.store.(interface {
-		CapabilityEfficacy(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityEfficacyRow, error)
-	})
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("receipt capability efficacy is unavailable"))
-	}
-	rows, err := efficacyStore.CapabilityEfficacy(ctx, filter, 100)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	protoRows := make([]*measurepb.CapabilityEfficacyRow, 0, len(rows))
-	var sample int64
-	for _, row := range rows {
-		sample += row.CallCount
-		protoRows = append(protoRows, &measurepb.CapabilityEfficacyRow{TargetScenario: row.TargetScenario, Operation: row.Operation, CallCount: row.CallCount, SuccessCount: row.SuccessCount, FallbackAfterCount: row.FallbackAfterCount, AbandonedCount: row.AbandonedCount})
-	}
-	validity := assessValidity(sample, 0, h.validityConfig)
-	if sample == 0 {
-		validity.Availability = availability.New(availability.Unavailable, "no verified receipt exists for the filtered population")
-	}
-	query := "SELECT receipt calls joined to fallback and abandoned episode projections"
-	return connect.NewResponse(&measurepb.CapabilityEfficacyResponse{Rows: protoRows, Validity: protoValidity(validity), Provenance: h.provenanceWithQuery(ctx, filter, definitionFor("friction.capability_efficacy").SourceTable, sample, query), DefinitionId: definitionID("friction.capability_efficacy")}), nil
 }
 
 func (h *Handler) runStatusRows(ctx context.Context, input *measurepb.InvocationFilter, window *sharedmeasurepb.TimeWindow) ([]invocationreadmodel.RunStatusCount, string, invocationreadmodel.Filter, error) {
@@ -965,46 +781,6 @@ func (h *Handler) TokenAttribution(ctx context.Context, req *connect.Request[mea
 	return connect.NewResponse(response), nil
 }
 
-func (h *Handler) ErrorPatterns(ctx context.Context, req *connect.Request[measurepb.ErrorPatternsRequest]) (*connect.Response[measurepb.ErrorPatternsResponse], error) {
-	filter, err := filterWithWindow(req.Msg.GetFilter(), req.Msg.GetWindow(), h.now())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
-	}
-	rows, err := h.store.ErrorPatterns(ctx, filter, 20)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	query := fmt.Sprintf("SELECT error_code aggregate FROM invocation_read_model_errors WHERE occurred_at >= %q AND occurred_at < %q GROUP BY error_code LIMIT 20", filter.From.UTC().Format(time.RFC3339Nano), filter.To.UTC().Format(time.RFC3339Nano))
-	response := &measurepb.ErrorPatternsResponse{Rows: make([]*measurepb.ErrorPatternRow, 0, len(rows))}
-	for _, row := range rows {
-		response.Rows = append(response.Rows, &measurepb.ErrorPatternRow{ErrorCode: row.ErrorCode, Count: row.Count, LastSeen: row.LastSeen.UTC().Format(time.RFC3339), SampleRunId: row.SampleRunID})
-	}
-	var sample int64
-	for _, row := range rows {
-		sample += row.Count
-	}
-	response.Validity = h.validityForSample(sample)
-	response.Provenance = h.provenanceWithQuery(ctx, filter, definitionFor(ErrorPatterns).SourceTable, sample, query)
-	response.DefinitionId = definitionID(ErrorPatterns)
-	return connect.NewResponse(response), nil
-}
-
-func (h *Handler) FileRereadRate(ctx context.Context, req *connect.Request[measurepb.FileRereadRateRequest]) (*connect.Response[measurepb.FileRereadRateResponse], error) {
-	r, err := h.metric(ctx, fileRereadRate, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.FileRereadRateResponse{Rate: r.Rate, FilesReadMoreThanOnce: r.Numerator, ReadCalls: r.Denom, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, FileRereadRate, r), DefinitionId: definitionID(FileRereadRate)}), nil
-}
-
-func (h *Handler) FindingRecurrenceRate(ctx context.Context, req *connect.Request[measurepb.FindingRecurrenceRateRequest]) (*connect.Response[measurepb.FindingRecurrenceRateResponse], error) {
-	r, err := h.metric(ctx, findingRecurrenceRate, req.Msg.GetFilter(), req.Msg.GetWindow())
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&measurepb.FindingRecurrenceRateResponse{Rate: r.Rate, RecurringFindings: r.Numerator, TotalFindings: r.Denom, RecurringFingerprints: r.Secondary, Validity: protoValidity(r.Validity), Provenance: h.metricProvenance(ctx, FindingRecurrenceRate, r), DefinitionId: definitionID(FindingRecurrenceRate)}), nil
-}
-
 func (h *Handler) ConversationSearchQuality(ctx context.Context, req *connect.Request[measurepb.ConversationSearchQualityRequest]) (*connect.Response[measurepb.ConversationSearchQualityResponse], error) {
 	if h.conversationSearch == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("conversation search telemetry is unavailable"))
@@ -1064,7 +840,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 	for _, spec := range declarations() {
 		spec := spec
 		if err := registry.Register(declaration(spec), func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-			rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+			rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 			if err != nil {
 				return measurelib.MeasureResult{}, err
 			}
@@ -1088,14 +864,63 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 				}
 				return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT token attribution aggregates from invocation_read_model_facts"}}, nil
 			}
-			result, err := execute(ctx, h.store, spec.kind, filter)
+			result, err := h.metricFor(ctx, spec.kind, filter)
 			if err != nil {
 				return measurelib.MeasureResult{}, err
 			}
-			return measurelib.MeasureResult{Value: strconv.FormatFloat(result.Rate, 'f', -1, 64), Provenance: measurelib.Provenance{ExecutedQuery: result.Query}}, nil
+			row := map[string]string{"validity": string(result.Validity.State), "sample_size": strconv.FormatInt(result.Validity.SampleSize, 10)}
+			if result.Validity.Reason != "" {
+				row["validity_reason"] = result.Validity.Reason
+			}
+			switch spec.kind {
+			case runCycleTime:
+				row["p50_ms"], row["p90_ms"] = strconv.FormatFloat(result.P50, 'f', -1, 64), strconv.FormatFloat(result.P90, 'f', -1, 64)
+			case runCost:
+				row["requests"], row["runs"] = strconv.FormatInt(result.Numerator, 10), strconv.FormatInt(result.Denom, 10)
+				// The per-run distribution is the same one the RunCost RPC returns.
+				if distStore, ok := h.store.(runCostDistributionStore); ok {
+					dist, err := distStore.RunCostDistribution(ctx, filter)
+					if err != nil {
+						return measurelib.MeasureResult{}, err
+					}
+					for name, value := range map[string]int64{"p50_tokens": dist.P50Tokens, "p90_tokens": dist.P90Tokens, "p95_tokens": dist.P95Tokens, "p99_tokens": dist.P99Tokens, "max_tokens": dist.MaxTokens, "distribution_runs": dist.SampleSize} {
+						row[name] = strconv.FormatInt(value, 10)
+					}
+					for name, value := range map[string]float64{"p50_cost_usd": dist.P50CostUSD, "p90_cost_usd": dist.P90CostUSD, "p95_cost_usd": dist.P95CostUSD, "p99_cost_usd": dist.P99CostUSD, "max_cost_usd": dist.MaxCostUSD} {
+						row[name] = strconv.FormatFloat(value, 'f', -1, 64)
+					}
+				}
+			}
+			return measurelib.MeasureResult{Value: strconv.FormatFloat(result.Rate, 'f', -1, 64), Fields: []map[string]string{row}, Provenance: measurelib.Provenance{ExecutedQuery: result.Query}}, nil
 		}); err != nil {
 			return nil, err
 		}
+	}
+	if err := registry.Register(measurelib.MeasureDeclaration{
+		Name: "throughput.run_duration_statistics", Scenario: "agent-manager", Domain: "run",
+		Intent:    "Duration percentiles and range for completed Agent Manager runs.",
+		Questions: []string{"what are the agent run duration percentiles"},
+		Params:    map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}},
+		Result:    measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "value", Unit: "milliseconds", SummaryTemplate: "run duration statistics ({window})"},
+		Effect:    measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "RunDurationStatistics",
+	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
+		window, err := h.resolveWindow(request, measurelib.TokenThisWeek)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		filter := invocationreadmodel.Filter{From: &window.From, To: &window.To}
+		stats, err := h.store.RunDurationStatistics(ctx, filter)
+		if err != nil {
+			return measurelib.MeasureResult{}, err
+		}
+		validity := h.validityForSample(stats.Count)
+		fields := map[string]string{"count": strconv.FormatInt(stats.Count, 10), "p50_ms": strconv.FormatFloat(stats.P50DurationMS, 'f', -1, 64), "p90_ms": strconv.FormatFloat(stats.P90DurationMS, 'f', -1, 64), "p95_ms": strconv.FormatFloat(stats.P95DurationMS, 'f', -1, 64), "p99_ms": strconv.FormatFloat(stats.P99DurationMS, 'f', -1, 64), "min_ms": strconv.FormatInt(stats.MinDurationMS, 10), "max_ms": strconv.FormatInt(stats.MaxDurationMS, 10), "validity": validity.GetState()}
+		if validity.GetReason() != "" {
+			fields["validity_reason"] = validity.GetReason()
+		}
+		return measurelib.MeasureResult{Value: strconv.FormatFloat(stats.AverageDurationMS, 'f', -1, 64), Fields: []map[string]string{fields}, Provenance: measurelib.Provenance{ExecutedQuery: fmt.Sprintf("SELECT duration statistics FROM invocation_read_model_runs WHERE occurred_at >= %q AND occurred_at < %q", window.From.UTC().Format(time.RFC3339Nano), window.To.UTC().Format(time.RFC3339Nano))}}, nil
+	}); err != nil {
+		return nil, err
 	}
 	if err := registry.Register(measurelib.MeasureDeclaration{
 		Name: ConversationSearchQuality, Scenario: "agent-manager", Domain: "conversation_search",
@@ -1108,7 +933,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		if h.conversationSearch == nil {
 			return measurelib.MeasureResult{}, fmt.Errorf("conversation search telemetry is unavailable")
 		}
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}
@@ -1141,7 +966,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		Result:    measurelib.Result{Kind: measurelib.ResultTable, ValueField: "status", Unit: "runs", SummaryTemplate: "run status distribution ({window})"},
 		Effect:    measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "RunStatusDistribution",
 	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}
@@ -1170,7 +995,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 			Questions: []string{"agent run " + spec.dimension + " breakdown this week"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}},
 			Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "value", Unit: "runs", SummaryTemplate: spec.dimension + " run breakdown ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: spec.method,
 		}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-			rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+			rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 			if err != nil {
 				return measurelib.MeasureResult{}, err
 			}
@@ -1201,7 +1026,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		Result: measurelib.Result{Kind: measurelib.ResultScalar, ValueField: "value", Unit: "tokens_per_success", SummaryTemplate: "workload efficiency ({window})"},
 		Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "WorkloadEfficiency",
 	}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}
@@ -1228,7 +1053,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		return nil, err
 	}
 	if err := registry.Register(measurelib.MeasureDeclaration{Name: TerminalRunTrend, Scenario: "agent-manager", Domain: "run", Intent: "Hourly durable terminal-run outcomes, cost, and duration trends.", Questions: []string{"show the agent terminal run trend this week", "how are agent run completions and failures trending"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "bucket", Unit: "runs", SummaryTemplate: "terminal run trend ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "TerminalRunTrend"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}
@@ -1246,7 +1071,7 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		return nil, err
 	}
 	if err := registry.Register(measurelib.MeasureDeclaration{Name: ToolUsage, Scenario: "agent-manager", Domain: "friction", Intent: "Durable tool invocation counts and classified outcomes by tool.", Questions: []string{"which tools do agents use most", "agent tool usage this week"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "tool_name", Unit: "calls", SummaryTemplate: "tool usage ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "ToolUsage"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
+		rangeValue, err := h.resolveWindow(request, measurelib.TokenThisWeek)
 		if err != nil {
 			return measurelib.MeasureResult{}, err
 		}
@@ -1263,83 +1088,16 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 	}); err != nil {
 		return nil, err
 	}
-	if err := registry.Register(measurelib.MeasureDeclaration{Name: "friction.capability_usage", Scenario: "agent-manager", Domain: "friction", Intent: "Receipt-backed project capability calls, outcomes, and duration.", Questions: []string{"which project capabilities do agents use", "how effective are project-owned capability calls"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "target_scenario", Unit: "calls", SummaryTemplate: "capability usage ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "CapabilityUsage"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
-		if err != nil {
-			return measurelib.MeasureResult{}, err
-		}
-		capabilityStore, ok := h.store.(interface {
-			CapabilityUsage(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityUsageRow, error)
-		})
-		if !ok {
-			return measurelib.MeasureResult{}, fmt.Errorf("receipt capability usage is unavailable")
-		}
-		rows, err := capabilityStore.CapabilityUsage(ctx, invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To}, 100)
-		if err != nil {
-			return measurelib.MeasureResult{}, err
-		}
-		fields := make([]map[string]string, 0, len(rows))
-		for _, row := range rows {
-			fields = append(fields, map[string]string{"target_scenario": row.TargetScenario, "operation": row.Operation, "call_count": strconv.FormatInt(row.CallCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10), "failed_count": strconv.FormatInt(row.FailedCount, 10), "total_duration_ms": strconv.FormatUint(row.TotalDurationMS, 10)})
-		}
-		query := fmt.Sprintf("SELECT target_scenario, operation, outcome, duration_ms FROM investigation_cross_scenario_calls WHERE verified = 1 AND occurred_at >= %q AND occurred_at < %q GROUP BY target_scenario, operation", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
-		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
-	}); err != nil {
-		return nil, err
-	}
-	if err := registry.Register(measurelib.MeasureDeclaration{Name: "friction.capability_efficacy", Scenario: "agent-manager", Domain: "friction", Intent: "Receipt-backed capability success, fallback, and abandonment counts.", Questions: []string{"which capabilities work for agents", "where do capability calls lead to fallback"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "target_scenario", Unit: "calls", SummaryTemplate: "capability efficacy ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "CapabilityEfficacy"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
-		if err != nil {
-			return measurelib.MeasureResult{}, err
-		}
-		efficacyStore, ok := h.store.(interface {
-			CapabilityEfficacy(context.Context, invocationreadmodel.Filter, int) ([]invocationreadmodel.CapabilityEfficacyRow, error)
-		})
-		if !ok {
-			return measurelib.MeasureResult{}, fmt.Errorf("receipt capability efficacy is unavailable")
-		}
-		rows, err := efficacyStore.CapabilityEfficacy(ctx, invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To}, 100)
-		if err != nil {
-			return measurelib.MeasureResult{}, err
-		}
-		fields := make([]map[string]string, 0, len(rows))
-		for _, row := range rows {
-			field := map[string]string{"target_scenario": row.TargetScenario, "operation": row.Operation, "call_count": strconv.FormatInt(row.CallCount, 10), "success_count": strconv.FormatInt(row.SuccessCount, 10)}
-			// A quarantined pattern is not measured; its count is left out, not reported as 0.
-			if runsignal.Shown("fallback-after-capability") {
-				field["fallback_after_count"] = strconv.FormatInt(row.FallbackAfterCount, 10)
-			}
-			if runsignal.Shown("capability-abandoned") {
-				field["abandoned_count"] = strconv.FormatInt(row.AbandonedCount, 10)
-			}
-			fields = append(fields, field)
-		}
-		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: "SELECT receipt calls" + capabilityEfficacyJoinText()}}, nil
-	}); err != nil {
-		return nil, err
-	}
-	if err := registry.Register(measurelib.MeasureDeclaration{Name: ErrorPatterns, Scenario: "agent-manager", Domain: "friction", Intent: "Durable error-code frequency and recent sample runs.", Questions: []string{"what agent errors recur this week", "show agent error patterns"}, Params: map[string]measurelib.Param{"window": {Name: "window", Type: measurelib.ParamTypeTimeWindow, Default: string(measurelib.TokenThisWeek)}}, Result: measurelib.Result{Kind: measurelib.ResultTable, ValueField: "error_code", Unit: "errors", SummaryTemplate: "error patterns ({window})"}, Effect: measurelib.EffectRead, RunEligible: true, Service: "MeasuresService", Method: "ErrorPatterns"}, func(ctx context.Context, request measurelib.MeasureRequest) (measurelib.MeasureResult, error) {
-		rangeValue, err := measurelib.ResolveToken(measurelib.TimeWindowToken(request.Params["window"]), h.now(), time.UTC)
-		if err != nil {
-			return measurelib.MeasureResult{}, err
-		}
-		rows, err := h.store.ErrorPatterns(ctx, invocationreadmodel.Filter{From: &rangeValue.From, To: &rangeValue.To}, 20)
-		if err != nil {
-			return measurelib.MeasureResult{}, err
-		}
-		fields := make([]map[string]string, 0, len(rows))
-		for _, row := range rows {
-			fields = append(fields, map[string]string{"error_code": row.ErrorCode, "count": strconv.FormatInt(row.Count, 10), "last_seen": row.LastSeen.UTC().Format(time.RFC3339), "sample_run_id": row.SampleRunID})
-		}
-		query := fmt.Sprintf("SELECT error_code aggregate FROM invocation_read_model_errors WHERE occurred_at >= %q AND occurred_at < %q GROUP BY error_code LIMIT 20", rangeValue.From.UTC().Format(time.RFC3339Nano), rangeValue.To.UTC().Format(time.RFC3339Nano))
-		return measurelib.MeasureResult{Fields: fields, Provenance: measurelib.Provenance{ExecutedQuery: query}}, nil
-	}); err != nil {
-		return nil, err
-	}
 	if err := h.registerFallbackInsights(registry); err != nil {
 		return nil, err
 	}
 	if err := h.registerUsageMeasures(registry); err != nil {
+		return nil, err
+	}
+	if err := h.registerInterventions(registry); err != nil {
+		return nil, err
+	}
+	if err := h.registerOpportunities(registry); err != nil {
 		return nil, err
 	}
 	return registry, nil
@@ -1353,19 +1111,64 @@ func (h *Handler) MeasuresHandler() (http.Handler, error) {
 	return registry.Handler(), nil
 }
 
-var _ measureconnect.MeasuresServiceHandler = (*Handler)(nil)
-
-// capabilityEfficacyJoinText names the episode joins that are measured.
-func capabilityEfficacyJoinText() string {
-	var joined []string
-	if runsignal.Shown("fallback-after-capability") {
-		joined = append(joined, "fallback")
-	}
-	if runsignal.Shown("capability-abandoned") {
-		joined = append(joined, "abandoned")
-	}
-	if len(joined) == 0 {
-		return ""
-	}
-	return " joined to " + strings.Join(joined, " and ") + " episode projections"
+// RuntimeMeasureBinding is an explicitly governed typed RPC projection, not a
+// CLI command. Its owner-produced snapshot lets Runtime resolve the existing
+// measure service without depending on a running Agent Manager instance.
+type RuntimeMeasureBinding struct {
+	ID           string   `json:"id"`
+	Service      string   `json:"service"`
+	Method       string   `json:"method"`
+	Effect       string   `json:"effect"`
+	RunEligible  bool     `json:"run_eligible"`
+	Permissions  []string `json:"permissions"`
+	PrimaryField string   `json:"primary_field"`
 }
+
+type RuntimeMeasureBindings struct {
+	Version       int                     `json:"version"`
+	Scenario      string                  `json:"scenario"`
+	SourceDigests map[string]string       `json:"source_digests"`
+	Bindings      []RuntimeMeasureBinding `json:"bindings"`
+}
+
+// RuntimeBindings is a deliberately narrow owner policy. Registry membership
+// alone is not permission to expose every measure RPC as a program binding.
+// Adding a method here requires an explicit owner-reviewed governance choice.
+func (h *Handler) RuntimeBindings() (RuntimeMeasureBindings, error) {
+	registry, err := h.Registry()
+	if err != nil {
+		return RuntimeMeasureBindings{}, err
+	}
+	type policy struct{ name, method, id, primary string }
+	policies := []policy{
+		{ToolFriction, "ToolFriction", "tool-friction", "summary"},
+		{RunSuccessRate, "RunSuccessRate", "run-success-rate", "rate"},
+		{RunVolume, "RunVolume", "run-volume", "total_runs"},
+		{"throughput.run_duration_statistics", "RunDurationStatistics", "run-duration-statistics", "average_duration_ms"},
+		{RunCost, "RunCost", "run-cost", "total_cost_usd"},
+		{RunStatusDistribution, "RunStatusDistribution", "run-status-distribution", "rows"},
+		{RunnerBreakdown, "RunnerBreakdown", "runner-breakdown", "rows"},
+		{ModelBreakdown, "ModelBreakdown", "model-breakdown", "rows"},
+		{ProfileBreakdown, "ProfileBreakdown", "profile-breakdown", "rows"},
+		{ToolUsage, "ToolUsage", "tool-usage", "rows"},
+	}
+	service := measurepb.File_agent_manager_v1_measures_measures_proto.Services().ByName("MeasuresService")
+	if service == nil {
+		return RuntimeMeasureBindings{}, fmt.Errorf("measure service descriptor is unavailable")
+	}
+	output := RuntimeMeasureBindings{Version: 1, Scenario: "agent-manager", Bindings: make([]RuntimeMeasureBinding, 0, len(policies))}
+	for _, p := range policies {
+		decl, ok := registry.Lookup(p.name)
+		if !ok || decl.Scenario != output.Scenario || decl.Service != "MeasuresService" || decl.Method != p.method || decl.Effect != measurelib.EffectRead || !decl.RunEligible {
+			return RuntimeMeasureBindings{}, fmt.Errorf("runtime measure policy does not match eligible registry declaration %q", p.name)
+		}
+		method := service.Methods().ByName(protoreflect.Name(p.method))
+		if method == nil || method.Output().Fields().ByName(protoreflect.Name(p.primary)) == nil {
+			return RuntimeMeasureBindings{}, fmt.Errorf("runtime measure %q has an unresolved method or primary field", p.name)
+		}
+		output.Bindings = append(output.Bindings, RuntimeMeasureBinding{ID: output.Scenario + "/measures/" + p.id, Service: string(service.FullName()), Method: p.method, Effect: string(decl.Effect), RunEligible: decl.RunEligible, Permissions: []string{"network:internal"}, PrimaryField: p.primary})
+	}
+	return output, nil
+}
+
+var _ measureconnect.MeasuresServiceHandler = (*Handler)(nil)

@@ -291,6 +291,16 @@ Rules the indexer applies:
   capacity and are skipped by process liveness.
 - **Rewrites.** A file that shrank, changed its first 4 KiB, or was replaced at
   the same path (new inode) is re-read from offset 0 under the same run.
+- **Parser versions.** Each file row records the version of the events its
+  parser derived (`parser_version`; a codec declares it through
+  `runner.TranscriptVersioner`, Codex in `codecs/codex_rollout.go`). A codec
+  change that makes the same lines produce different events bumps it. A recall
+  file read by an older version is then re-imported in the background: its
+  run's events are dropped and the file is re-read from offset 0 under the same
+  run, so nothing is duplicated, and the projection sweep re-derives its facts.
+  Re-imports run newest change first and start at most 64 MiB of files per
+  tick (at least one). Files outside recall have no stored events and are not
+  re-imported. No operator command is involved.
 
 | Field | Default | What it controls |
 |---|---|---|
@@ -407,7 +417,7 @@ owner/key or digest.
 `Storage.EventRetentionDays` controls only the raw `run_events` log (30 days
 in production, 7 in development). Those rows can contain full tool output and
 are reclaimed in bounded batches by the reconciler. Durable invocation facts,
-run summaries, errors, friction episodes, self-report spans, and watermarks
+run summaries, command facts, self-report spans, and watermarks
 are not retention targets and remain queryable after their source events are
 removed.
 

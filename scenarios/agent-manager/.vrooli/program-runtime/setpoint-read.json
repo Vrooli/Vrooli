@@ -1,7 +1,7 @@
 {
   "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
   "name": "agent-manager.setpoint-read",
-  "version": "1",
+  "version": "2",
   "helpers": {
     "program": "1"
   },
@@ -20,15 +20,10 @@
       ],
       "description": "measures TimeWindow token; the binding takes window={\"token\": <this>}."
     },
-    "recent_runs": {
-      "type": "integer",
-      "default": 25,
-      "description": "Most recent runs whose episodes feed ownership-attribution-share. Range [1, 100]."
-    },
-    "attribution_band": {
+    "coverage_band": {
       "type": "number",
-      "default": 0.9,
-      "description": "Lower band for the manifest-derived share of episodes. Range (0, 1]."
+      "default": 0.95,
+      "description": "Lower band for the share of Vrooli CLI calls with a known outcome; below it the tool-friction rates are not banded. Range (0, 1]."
     },
     "investigation_tag_prefix": {
       "type": "string",
@@ -39,18 +34,18 @@
   "assumptions": [
     "agent-manager is running and its run and measures bindings are reachable from the kernel",
     "measures bindings accept window as a TimeWindow message {token}; a bare string fails to encode",
-    "a measures response has no repeated field, so the record is the handle's only row and its validity.state is a plain string",
+    "a measures response is one record: a scalar response is the handle's only row, and tool-friction declares its whole response the record (primary field summary); validity.state is a plain string",
     "protojson omits zero-valued fields, so a missing rate on an available measure is zero, never unavailable",
     "each call runs in its own program-runtime session; session variables persist across submissions",
     "the caller reads rows.reason with program-contracts.md's vocabulary: a permanent reason is routed, an unreliable: reason is reported and never banded"
   ],
   "invariants": [
     "no binding with effect write or destructive is called",
-    "at most recent_runs (100) run rows are materialized to read their ids; every other reading is count, head(1), meta, or group_by",
+    "at most 50 investigation run rows are materialized; every other reading is a field of one measure record, count, head(1), meta, or group_by",
     "the envelope is printed exactly once, on every path, and stays under 4 KB: readings are scalars, evidence is three items, errors are capped at three",
     "a row whose sensor has no governed binding is reported with reason no_governed_binding, not computed by hand",
     "a row the program declines to evaluate carries reading null and a reason; a number is never printed for a declined row",
-    "a permanent reason (no_governed_binding, pending_telemetry) or an unreliable: reason never lowers the status; only a failed episode read makes the board partial"
+    "a permanent reason (no_governed_binding, pending_telemetry) or an unreliable: reason never lowers the status; only a failed read makes the board partial"
   ],
   "bindings": [
     {
@@ -58,23 +53,7 @@
       "effect": "read"
     },
     {
-      "id": "agent-manager/run/episodes",
-      "effect": "read"
-    },
-    {
-      "id": "agent-manager/measures/external-tool-share",
-      "effect": "read"
-    },
-    {
-      "id": "agent-manager/measures/retry-rate",
-      "effect": "read"
-    },
-    {
-      "id": "agent-manager/measures/tool-failure-rate",
-      "effect": "read"
-    },
-    {
-      "id": "agent-manager/measures/repeated-work-rate",
+      "id": "agent-manager/measures/tool-friction",
       "effect": "read"
     },
     {
@@ -104,11 +83,11 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one entry per setpoint row in the improve skill's table order: ownership-attribution-share, investigation-completion-rate, skill-and-program-identity-on-facts, friction-measure-validity, external-tool-share, run-success-rate, retry-rate, tool-failure-rate, repeated-work-rate. reading is the sensor's value or null; target and in_band are null when the row has no band; reason is one of no_governed_binding, pending_telemetry, unreliable:<validity reason text or empty_measure|no_episodes_on_recent_runs|no_terminal_runs_with_tag_prefix> Supervision-safety, supervision-calibration and supervision-outcome-coverage explicitly route read_elsewhere:agent-manager.friction-digest.",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason}; one entry per setpoint row in the improve skill's table order: command-outcome-coverage, investigation-completion-rate, skill-and-program-identity-on-facts, tool-friction-validity, bypass-calls, run-success-rate, shape-guess-rate, vrooli-cli-failure-rate, polled-share. reading is the sensor's value or null; target and in_band are null when the row has no band; reason is one of no_governed_binding, pending_telemetry, unreliable:<validity reason text or empty_measure|tool_friction_read_failed|run_list_read_failed|no_vrooli_cli_calls|outcome_coverage_below_band|no_terminal_runs_with_tag_prefix> Supervision-safety, supervision-calibration and supervision-outcome-coverage explicitly route read_elsewhere:agent-manager.friction-digest.",
       "readable": "count of rows evaluated against their band or read as a descriptive value",
       "unavailable": "count of rows with a reason (not evaluated)",
       "unavailable_permanent": "Count of rows with permanent or read_elsewhere reasons.",
-      "detail": "per-row counts behind a reading: ownership-attribution-share {manifest_derived, episodes, runs, episode_reads_failed, by_confidence}; investigation-completion-rate {complete, terminal, by_status}; friction-measure-validity {sample_size, unknown_calls}"
+      "detail": "per-row counts behind a reading: tool-friction {sentence, profiles, failed_calls, context_tax_tokens}; investigation-completion-rate {complete, terminal, by_status}"
     },
     "errors": {
       "classes": [
@@ -126,7 +105,7 @@
         "no_governed_binding"
       ]
     },
-    "evidence": "three items: the run list plus episode read count, the tagged run list, and the five measures commands with the CLI window"
+    "evidence": "three items: the tagged run list and the tool-friction and run-success-rate measures commands with the CLI window"
   },
   "budget": {
     "wall_ms": 90000,

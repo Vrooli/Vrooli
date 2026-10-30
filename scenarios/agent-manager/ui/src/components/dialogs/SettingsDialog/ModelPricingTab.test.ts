@@ -16,6 +16,8 @@ vi.mock("../../../hooks/usePricing.js", () => ({
 }));
 
 const model = { model: "gpt-5", canonicalName: "gpt-5", inputPricePer1M: 2, outputPricePer1M: 8, cacheReadPricePer1M: 0.5, inputSource: "provider_api", outputSource: "manual_override", cacheReadSource: "unknown", fetchedAt: "2026-07-29T00:00:00Z" };
+const alphaPricing = { ...model, model: "alpha-display", canonicalName: "canonical-alpha", inputPricePer1M: 4, outputPricePer1M: 1, cacheReadPricePer1M: 3, outputSource: "provider_api", cacheReadSource: "provider_api", fetchedAt: "2026-07-28T00:00:00Z" };
+const zuluPricing = { ...model, model: "zulu-display", canonicalName: "canonical-zulu", inputPricePer1M: 1, outputPricePer1M: 4, cacheReadPricePer1M: 0.5, fetchedAt: "2026-07-30T00:00:00Z", inputSource: "manual_override", outputSource: "manual_override", cacheReadSource: "manual_override" };
 function setup(overrides: Record<string, unknown> = {}) {
   const refetch = vi.fn(); const refetchSettings = vi.fn(); const refetchCache = vi.fn();
   hooks.model.mockReturnValue({ data: [model], loading: false, error: null, refetch });
@@ -117,12 +119,10 @@ test("ModelPricingTab edits, saves, and clears a component-level manual override
   assert.ok(refetchOverrides.mock.calls.length >= 2);
 });
 
-test("ModelPricingTab supports canonical-name search, source toggling, empty data, and every sortable price column", async () => {
+test("ModelPricingTab supports canonical-name search, source toggling, and empty results", async () => {
   const user = userEvent.setup();
-  const alpha = { ...model, model: "alpha-display", canonicalName: "canonical-alpha", inputPricePer1M: 4, outputPricePer1M: 1, cacheReadPricePer1M: 3, outputSource: "provider_api", cacheReadSource: "provider_api", fetchedAt: "2026-07-28T00:00:00Z" };
-  const zulu = { ...model, model: "zulu-display", canonicalName: "canonical-zulu", inputPricePer1M: 1, outputPricePer1M: 4, cacheReadPricePer1M: 0.5, fetchedAt: "2026-07-30T00:00:00Z", inputSource: "manual_override", outputSource: "manual_override", cacheReadSource: "manual_override" };
   setup();
-  hooks.model.mockReturnValue({ data: [alpha, zulu], loading: false, error: null, refetch: vi.fn() });
+  hooks.model.mockReturnValue({ data: [alphaPricing, zuluPricing], loading: false, error: null, refetch: vi.fn() });
   renderWithProviders(createElement(ModelPricingTab));
 
   const search = screen.getByPlaceholderText("Search models...");
@@ -136,13 +136,26 @@ test("ModelPricingTab supports canonical-name search, source toggling, empty dat
   await user.click(screen.getAllByText("Manual")[0]!);
   assert.ok(screen.getByText("alpha-display"));
 
-  for (const column of ["Output", "Cache Read", "Fetched", "Model"]) {
-    await user.click(screen.getByRole("button", { name: column }));
-    await user.click(screen.getByRole("button", { name: column }));
-  }
-
   await user.type(search, "not-present");
   assert.ok(screen.getByText("No models match your filters."));
+});
+
+test("ModelPricingTab toggles each sortable price column", async () => {
+  const user = userEvent.setup();
+  setup();
+  hooks.model.mockReturnValue({ data: [alphaPricing, zuluPricing], loading: false, error: null, refetch: vi.fn() });
+  renderWithProviders(createElement(ModelPricingTab));
+
+  for (const column of ["Output", "Cache Read", "Fetched", "Model"]) {
+    const header = screen.getByRole("button", { name: column });
+    await user.click(header);
+    const first = header.closest("th")?.getAttribute("aria-sort");
+    assert.ok(first === "ascending" || first === "descending");
+    await user.click(header);
+    assert.equal(header.closest("th")?.getAttribute("aria-sort"), first === "ascending" ? "descending" : "ascending");
+  }
+  assert.ok(screen.getByText("alpha-display"));
+  assert.ok(screen.getByText("zulu-display"));
 });
 
 test("ModelPricingTab shows the honest empty-data and unavailable side-panel states", () => {

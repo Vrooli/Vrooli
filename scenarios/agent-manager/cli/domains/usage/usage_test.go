@@ -151,8 +151,8 @@ func TestRegisterDeclaresTheUsageGroup(t *testing.T) {
 		}
 	}
 	// SPEC §4 and P2-D1: usage forecast|burners|recommendations|friction (with
-	// its report and dismiss actions)|coverage|compare.
-	if group.Name != "usage" || strings.Join(names, ",") != "forecast,burners,recommendations,friction,friction-report,friction-dismiss,coverage,compare" {
+	// its report and dismiss actions)|opportunities|coverage|compare.
+	if group.Name != "usage" || strings.Join(names, ",") != "forecast,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare" {
 		t.Fatalf("group %q declares %v", group.Name, names)
 	}
 }

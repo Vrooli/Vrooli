@@ -123,10 +123,7 @@ func TestRunSignalDetectorRegistryHasLabelledCoverage(t *testing.T) {
 	for _, id := range corpus.Expected {
 		covered[id] = true
 	}
-	registered := make(map[string]bool, len(runsignal.EpisodeDetectors())+len(runsignal.SelfReportDetectors()))
-	for _, detector := range runsignal.EpisodeDetectors() {
-		assertRegisteredDetector(t, registered, covered, "episode/"+detector.Identifier(), detector.ClassifierVersion(), detector.CauseScope())
-	}
+	registered := make(map[string]bool, len(runsignal.SelfReportDetectors()))
 	for _, detector := range runsignal.SelfReportDetectors() {
 		assertRegisteredDetector(t, registered, covered, "span/"+detector.Identifier(), detector.ClassifierVersion(), detector.CauseScope())
 	}
@@ -137,7 +134,7 @@ func TestRunSignalDetectorRegistryHasLabelledCoverage(t *testing.T) {
 
 func assertRegisteredDetector(t *testing.T, registered, covered map[string]bool, id, version, scope string) {
 	t.Helper()
-	if id == "episode/" || id == "span/" || version == "" || scope == "" {
+	if id == "span/" || version == "" || scope == "" {
 		t.Fatalf("detector declares incomplete metadata: id=%q version=%q scope=%q", id, version, scope)
 	}
 	if registered[id] {
@@ -318,7 +315,7 @@ func TestDurableProjectionHasOneRuntimeWriterAndNoRetiredSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"invocation_read_model_facts", "invocation_read_model_episodes", "invocation_read_model_self_report_spans"} {
+	for _, table := range []string{"invocation_read_model_facts", "invocation_read_model_self_report_spans"} {
 		for _, verb := range []string{"INSERT INTO " + table, "DELETE FROM " + table} {
 			if !strings.Contains(string(writerSource), verb) {
 				t.Fatalf("durable projection writer is missing %q", verb)
@@ -333,7 +330,7 @@ func TestDurableProjectionHasOneRuntimeWriterAndNoRetiredSchema(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, table := range []string{"invocation_read_model_facts", "invocation_read_model_episodes", "invocation_read_model_self_report_spans"} {
+		for _, table := range []string{"invocation_read_model_facts", "invocation_read_model_self_report_spans"} {
 			if strings.Contains(string(source), "INSERT INTO "+table) || strings.Contains(string(source), "DELETE FROM "+table) {
 				rel, _ := filepath.Rel(root, path)
 				t.Fatalf("%s is a second runtime writer for %s", filepath.ToSlash(rel), table)
@@ -380,8 +377,8 @@ func TestHealthDoesNotImportSiblingDomains(t *testing.T) {
 
 func TestHandlersDirectPersistenceImportsAreReadSideExceptions(t *testing.T) {
 	allowed := map[string]bool{
-		"events.go":            true,
-		"pricing.go":           true,
+		"events.go":  true,
+		"pricing.go": true,
 	}
 	for _, path := range goFiles(t, filepath.Join(scenarioRoot(t), "api/internal/handlers")) {
 		imports, err := importsFromFile(path)

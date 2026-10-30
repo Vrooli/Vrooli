@@ -143,13 +143,13 @@ func WithTranscriptImporter(runner TranscriptImportRunner) HandlerOption {
 	}
 }
 
-// FrictionBoard acts on recurring friction problems: filing one in the bug
-// inbox and setting one aside. The usage attribution service implements it.
+// FrictionBoard acts on friction problems and tool findings: filing one in
+// the bug inbox and setting one aside. The usage attribution service implements it.
 //
 // seam: handlers.FrictionBoard
 type FrictionBoard interface {
-	ReportFriction(ctx context.Context, fingerprint string, now time.Time) (usageattribution.Problem, error)
-	DismissFriction(ctx context.Context, fingerprint string, now time.Time) error
+	ReportFriction(ctx context.Context, fingerprint string, since, now time.Time) (usageattribution.FrictionItem, error)
+	DismissFriction(ctx context.Context, fingerprint string, since, now time.Time) error
 }
 
 // WithFrictionBoard installs the friction problem actions; without it they
@@ -255,13 +255,13 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/import/sessions", h.ListRunnerSessions).Methods("GET")
 	r.HandleFunc("/api/v1/import/sessions", h.ImportRunnerSession).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}", h.GetRun).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/transcript-reconcile", h.ReconcileTranscriptReplacement).Methods("POST")
+	r.HandleFunc("/api/v1/runs/{id}/transcript-reconcile", h.ListTranscriptReplacementIssues).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/report", h.GetRunReport).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/accounting", h.GetRunAccounting).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/durability", h.GetDurability).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/invocation-facts", h.GetInvocationFacts).Methods("GET")
-	r.HandleFunc("/api/v1/runs/{id}/episodes", h.GetEpisodesHTTP).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/ledger", h.GetLedger).Methods("GET")
-	r.HandleFunc("/api/v1/findings", h.ListFindings).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/observed-receipts", h.GetObservedReceipts).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}", h.DeleteRun).Methods("DELETE")
 	r.HandleFunc("/api/v1/runs/{id}/stop", h.StopRun).Methods("POST")

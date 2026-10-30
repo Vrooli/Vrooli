@@ -600,20 +600,3 @@ func TestTokensToMillion(t *testing.T) {
 		assert.InDelta(t, tc.perMillion, result, 0.0001)
 	}
 }
-
-func TestMillionToTokens(t *testing.T) {
-	tests := []struct {
-		perMillion float64
-		perToken   float64
-	}{
-		{3.0, 0.000003},
-		{15.0, 0.000015},
-		{1.5, 0.0000015},
-		{0.1, 0.0000001},
-	}
-
-	for _, tc := range tests {
-		result := MillionToTokens(tc.perMillion)
-		assert.InDelta(t, tc.perToken, result, 0.0000001)
-	}
-}

@@ -6,7 +6,7 @@ import (
 )
 
 // The structural corpus scores every shipped detector for the conformance
-// response; the precision corpus (precision_test.go) is the gate on real runs.
+// response.
 func TestStructuralCorpusMeetsItsThresholds(t *testing.T) {
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {

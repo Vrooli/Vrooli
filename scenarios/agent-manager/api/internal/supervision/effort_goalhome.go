@@ -263,7 +263,7 @@ func (s *EffortService) goalHomeFileFacts(out *pb.EffortGoalHome, home *goalhome
 			out.CurrentAsOf = timestamppb.New(c.At)
 		}
 	}
-	// Phase-2 CHARTER/STATUS facts; zero/empty for an un-migrated v1 home.
+	// CHARTER/STATUS facts; zero/empty when the file is absent.
 	out.BudgetSeconds = home.Goal.BudgetSeconds
 	for _, surface := range home.Scoreboard {
 		out.SurfaceScoreboard = append(out.SurfaceScoreboard, &pb.SurfaceProgress{

@@ -7,17 +7,16 @@ import (
 )
 
 // ResumeBudgetBytes caps the files an orchestrator reads on every resume:
-// CHARTER.md, STATUS.md and open FEEDBACK (legacy import counts WORKAROUNDS separately).
+// CHARTER.md, STATUS.md and open FEEDBACK.
 const ResumeBudgetBytes = 30000
 
 // ResumeSet reports the resume-set sizes in bytes.
 type ResumeSet struct {
-	Goal            int `json:"goal"`
-	Queue           int `json:"queue"`
-	OpenFeedback    int `json:"open_feedback"`
-	OpenWorkarounds int `json:"open_workarounds"`
-	Total           int `json:"total"`
-	Budget          int `json:"budget"`
+	Goal         int `json:"goal"`
+	Queue        int `json:"queue"`
+	OpenFeedback int `json:"open_feedback"`
+	Total        int `json:"total"`
+	Budget       int `json:"budget"`
 }
 
 // LintReport is the goal-home lint result. Blocking is true when any finding
@@ -27,8 +26,6 @@ type LintReport struct {
 	Findings  []Finding `json:"findings"`
 	Forecast  *Forecast `json:"forecast"`
 	Blocking  bool      `json:"blocking"`
-	// V2 is true for a Phase-2 home, so text output names CHARTER/STATUS.
-	V2 bool `json:"v2,omitempty"`
 }
 
 // Lint checks the goal-home rules the orchestrator owns. It is separate from
@@ -39,13 +36,7 @@ func Lint(home *Home) *LintReport {
 		report.Findings = append(report.Findings, finding)
 		report.Blocking = report.Blocking || finding.Blocking
 	}
-	// The required-file and queue-section anchors name CHARTER/STATUS for a
-	// Phase-2 v2 home, GOAL/QUEUE for a v1 home. Same thresholds, new anchors.
-	goalFile, queueFile := GoalFile, QueueFile
-	if home.V2 {
-		goalFile, queueFile = CharterFile, StatusFile
-	}
-	report.V2 = home.V2
+	goalFile, queueFile := CharterFile, StatusFile
 	for _, missing := range home.Missing {
 		add(Finding{Code: "missing-file", Blocking: missing == goalFile || missing == queueFile, File: missing, Detail: missing + " is missing from the goal home"})
 	}
@@ -65,15 +56,12 @@ func Lint(home *Home) *LintReport {
 		}
 	}
 
-	resume := ResumeSet{Goal: home.Goal.Bytes, Queue: home.Queue.Bytes, OpenFeedback: home.Feedback.OpenBytes, OpenWorkarounds: home.Workarounds.OpenBytes, Budget: ResumeBudgetBytes}
-	if home.V2 {
-		// STATUS already includes its workaround section; count each byte once.
-		resume.OpenWorkarounds = 0
-	}
-	resume.Total = resume.Goal + resume.Queue + resume.OpenFeedback + resume.OpenWorkarounds
+	// STATUS already includes its workaround section; count each byte once.
+	resume := ResumeSet{Goal: home.Goal.Bytes, Queue: home.Queue.Bytes, OpenFeedback: home.Feedback.OpenBytes, Budget: ResumeBudgetBytes}
+	resume.Total = resume.Goal + resume.Queue + resume.OpenFeedback
 	report.ResumeSet = resume
 	if resume.Total > ResumeBudgetBytes {
-		add(Finding{Code: "resume-budget", Blocking: true, Detail: fmt.Sprintf("the resume set is %d bytes against %d (%s %d, %s %d, open FEEDBACK %d, open WORKAROUNDS %d); move done slices, resolved entries and census evidence to archive/", resume.Total, ResumeBudgetBytes, goalFile, resume.Goal, queueFile, resume.Queue, resume.OpenFeedback, resume.OpenWorkarounds)})
+		add(Finding{Code: "resume-budget", Blocking: true, Detail: fmt.Sprintf("the resume set is %d bytes against %d (%s %d, %s %d, open FEEDBACK %d); move done slices, resolved entries and census evidence to archive/", resume.Total, ResumeBudgetBytes, goalFile, resume.Goal, queueFile, resume.Queue, resume.OpenFeedback)})
 	}
 
 	handoffs := home.Queue.Handoffs

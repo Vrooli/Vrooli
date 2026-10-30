@@ -204,6 +204,18 @@ func parseClaudeDecodedEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStre
 				recordParseFailure(runID, siteClaudeSystemResult, err.Error(), string(streamEvent.Result))
 			}
 		}
+		if streamEvent.Subtype == "compact_boundary" {
+			trigger, before := "auto", int64(0)
+			if meta := streamEvent.CompactMetadata; meta != nil {
+				before = meta.PreTokens
+				if meta.Trigger != "" {
+					trigger = meta.Trigger
+				}
+			}
+			event := newClaudeCompactionEvent(state, runID, "", trigger, "", "")
+			event.Data.(*domain.CompactionEventData).TokensBefore = before
+			return []*domain.RunEvent{event}, nil
+		}
 		if strings.Contains(strings.ToLower(streamEvent.Subtype), "auto-compact") || isAutoCompactMarker(sysResult) {
 			return []*domain.RunEvent{newClaudeCompactionEvent(state, runID, strings.TrimSpace(sysResult), "auto", "", "")}, nil
 		}
@@ -415,12 +427,6 @@ func parseAssistantEvent(state *claudeState, runID uuid.UUID, ev *ClaudeStreamEv
 	}
 	if ev.Message.Usage != nil {
 		state.turn++
-		if state.lastCompaction != nil {
-			if data, ok := state.lastCompaction.Data.(*domain.CompactionEventData); ok && data.TokensAfter == 0 {
-				data.TokensAfter = int64(usageInputTokens(ev.Message.Usage))
-			}
-			state.lastCompaction = nil
-		}
 		state.lastTurnInput = int64(usageInputTokens(ev.Message.Usage))
 		events = append(events, newClaudeUsageEvent(runID, ev, state.turn, state.model))
 	}
@@ -756,7 +762,6 @@ func newClaudeCompactionEvent(state *claudeState, runID uuid.UUID, summary, trig
 		state.messagesSinceCompact, state.lastTurnInput, 0, originalCommand,
 	)
 	state.messagesSinceCompact = 0
-	state.lastCompaction = event
 	return event
 }
 

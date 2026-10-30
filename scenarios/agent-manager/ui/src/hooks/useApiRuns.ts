@@ -18,7 +18,7 @@ import { ExtraFlagListSchema, FeatureFlagsSchema, SandboxConfigSchema } from "@v
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { RunScope } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import type { TimeWindow } from "@vrooli/proto-types/measures/v1/measures_pb";
-import { measuresClient } from "../features/stats/api/measuresClient";
+import { measuresClient } from "../features/usage/measuresClient";
 import { useApiQuery } from "./useApiQuery";
 import { apiRequest, parseProto, toProtoJson, durationFromMinutes, sandboxModeFromForm, networkAccessToProto } from "./useApiTransport";
 

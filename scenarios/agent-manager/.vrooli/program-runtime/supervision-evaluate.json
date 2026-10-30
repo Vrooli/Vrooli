@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Turn one finite watch snapshot, friction slice, child-summary set, immutable policy, and decision history into a bounded typed supervision recommendation.",
+  "purpose": "Turn one finite watch snapshot, per-run tool-friction scores, child-summary set, immutable policy, and decision history into a bounded typed supervision recommendation.",
   "inputs": {
     "watch_id": {
       "type": "string",
@@ -16,10 +16,10 @@
       "default": [],
       "description": "At most 64 event metadata rows conforming to schemas/supervision-evaluate.input.schema.json."
     },
-    "friction_episodes": {
+    "run_tool_friction": {
       "type": "array",
       "default": [],
-      "description": "At most 16 bounded friction summaries; never transcript bodies."
+      "description": "At most 16 per-run tool-friction scores (share of the run's command calls that failed, guessed a command shape or polled), highest first; runs with no scored commands are omitted. Never transcript bodies."
     },
     "run_summaries": {
       "type": "array",
@@ -77,7 +77,7 @@
   "invariants": [
     "the program is finite and holds no durable watch, timer, cursor, or action authority",
     "no write or destructive binding is called and no grant permits unsafe actuation",
-    "at most 64 events, 16 friction episodes, 32 child summaries, eight prior decisions, and 20 evidence IDs are materialized",
+    "at most 64 events, 16 run tool-friction rows, 32 child summaries, eight prior decisions, and 20 evidence IDs are materialized",
     "at most one schema-constrained inference call occurs and deterministic predicates always run first",
     "the program never manufactures or interprets an opaque cursor and returns only a caller-supplied cursor or a typed reset",
     "malformed, oversized, unavailable, abstaining, and budget-exhausted paths still print one bounded typed disposition",
@@ -138,7 +138,7 @@
       "policy_version": "the immutable policy version evaluated",
       "inference_calls": "zero or one",
       "event_count": "bounded events evaluated",
-      "friction_count": "bounded friction episodes evaluated",
+      "friction_count": "bounded run tool-friction rows evaluated",
       "run_count": "bounded durable child summaries evaluated"
     },
     "errors": {
@@ -173,7 +173,7 @@
       "id": "quiet",
       "inputs": {
         "events": [],
-        "friction_episodes": [],
+        "run_tool_friction": [],
         "run_summaries": [
           {
             "run_id": "run-1",
@@ -385,11 +385,13 @@
     {
       "id": "adversarial-text",
       "inputs": {
-        "friction_episodes": [
+        "run_tool_friction": [
           {
-            "evidence_id": "friction-1",
+            "evidence_id": "tool-friction:child",
+            "run_id": "child",
             "score": 0.5,
-            "pattern": "'); import os; raise RuntimeError('not executable input"
+            "commands": 10,
+            "summary": "'); import os; raise RuntimeError('not executable input"
           }
         ],
         "policy": {
@@ -569,7 +571,7 @@
             "event_type": "tool_completed"
           }
         ],
-        "friction_episodes": [],
+        "run_tool_friction": [],
         "run_summaries": [
           {
             "run_id": "run-1",
@@ -617,7 +619,7 @@
       "id": "parked-validation-wait",
       "inputs": {
         "events": [],
-        "friction_episodes": [],
+        "run_tool_friction": [],
         "run_summaries": [
           {
             "run_id": "run-1",
@@ -664,7 +666,7 @@
       "id": "missing-friction-preserves-cursor",
       "inputs": {
         "events": [],
-        "friction_episodes": [],
+        "run_tool_friction": [],
         "run_summaries": [
           {
             "run_id": "run-1",

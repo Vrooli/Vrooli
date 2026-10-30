@@ -18,6 +18,34 @@ CREATE TABLE IF NOT EXISTS run_events (
 
 CREATE INDEX IF NOT EXISTS idx_run_events_run_id ON run_events(run_id);
 CREATE INDEX IF NOT EXISTS idx_run_events_run_sequence ON run_events(run_id, sequence);
+
+-- Sequence cursors survive complete recall eviction or an empty replacement.
+-- Triggers cover every event owner, including retention and legacy cleanup.
+CREATE TABLE IF NOT EXISTS run_event_highwater (
+    run_id TEXT PRIMARY KEY,
+    high_sequence INTEGER NOT NULL
+);
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_insert AFTER INSERT ON run_events
+BEGIN
+    INSERT INTO run_event_highwater(run_id, high_sequence) VALUES (NEW.run_id, NEW.sequence)
+    ON CONFLICT(run_id) DO UPDATE SET high_sequence = MAX(high_sequence, excluded.high_sequence);
+END;
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_delete BEFORE DELETE ON run_events
+WHEN EXISTS (SELECT 1 FROM runs WHERE id = OLD.run_id)
+BEGIN
+    INSERT INTO run_event_highwater(run_id, high_sequence) VALUES (OLD.run_id, OLD.sequence)
+    ON CONFLICT(run_id) DO UPDATE SET high_sequence = MAX(high_sequence, excluded.high_sequence);
+END;
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_run_delete AFTER DELETE ON runs
+BEGIN
+    DELETE FROM run_event_highwater WHERE run_id = OLD.id;
+END;
+CREATE TRIGGER IF NOT EXISTS run_event_highwater_orphan_delete AFTER DELETE ON run_events
+WHEN NOT EXISTS (SELECT 1 FROM runs WHERE id = OLD.run_id)
+ AND NOT EXISTS (SELECT 1 FROM run_events WHERE run_id = OLD.run_id)
+BEGIN
+    DELETE FROM run_event_highwater WHERE run_id = OLD.run_id;
+END;
 CREATE INDEX IF NOT EXISTS idx_run_events_type ON run_events(run_id, event_type);
 -- Retention covers every event type. Its read-only candidate scan must not
 -- sort the full event payload table on each reconciler pass.

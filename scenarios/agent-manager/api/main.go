@@ -24,6 +24,7 @@ import (
 	"agent-manager/internal/evidenceretention"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
+	"agent-manager/internal/interventions"
 	"agent-manager/internal/invocationreadmodel"
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/modelpolicydrift"
@@ -100,6 +101,7 @@ type Server struct {
 	transcriptImporter       *orchestration.TranscriptIndex
 	claudeQuotaFeed          *pricing.ClaudeStatuslineReader
 	usageAlerts              *usageforecast.Alerter
+	interventions            *interventions.Job
 	modelHealthProbe         *healthstore.Probe
 	modelPolicyDrift         *modelpolicydrift.Scheduler
 	rolePolicyState          *rolepolicy.State
@@ -271,7 +273,7 @@ func NewServer() (*Server, error) {
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
-		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts, interventions: deps.Interventions,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
@@ -466,6 +468,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		}
 		s.claudeQuotaFeed.Start(ctx)
 		s.usageAlerts.Start(ctx)
+		s.interventions.Start(ctx)
 		startQuotaCompaction(ctx, s.pricingRepository)
 		// Scans every run's events, so it runs here, never in schema init. An
 		// interrupted pass leaves no marker and repeats on the next start.

@@ -6,12 +6,13 @@ package event
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -81,7 +82,7 @@ type SQLiteStore struct {
 	db          sqlcompat.DB
 	log         *logrus.Logger
 	mu          sync.RWMutex
-	subscribers map[uuid.UUID][]chan *domain.RunEvent
+	subscribers map[uuid.UUID][]*eventSubscriber
 	compaction  compactionCursor
 }
 
@@ -90,9 +91,18 @@ func NewSQLiteStore(db sqlcompat.DB, log *logrus.Logger) *SQLiteStore {
 	return &SQLiteStore{
 		db:          db,
 		log:         log,
-		subscribers: make(map[uuid.UUID][]chan *domain.RunEvent),
+		subscribers: make(map[uuid.UUID][]*eventSubscriber),
 	}
 }
+
+type eventSubscriber struct {
+	ch          chan *domain.RunEvent
+	done        chan struct{}
+	historyDone chan struct{}
+	once        sync.Once
+}
+
+func (s *eventSubscriber) stop() { s.once.Do(func() { close(s.done) }) }
 
 // eventRow is the database row representation for run_events.
 type eventRow struct {
@@ -128,7 +138,190 @@ const eventColumns = `id, run_id, sequence, event_type, timestamp, schema_versio
 // Append adds events to a run's event stream.
 // Events are assigned sequence numbers automatically and persisted to SQLite.
 func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
-	if len(events) == 0 {
+	return s.append(ctx, runID, false, events...)
+}
+
+// AppendIfEmpty fails closed if another writer has retained events.
+func (s *SQLiteStore) AppendIfEmpty(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
+	return s.append(ctx, runID, true, events...)
+}
+
+type streamQuery interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// streamToken fingerprints the complete canonical stream, not only its last
+// sequence. A bound prevents a replacement from consuming unbounded memory or
+// work when the old recall layer is unexpectedly large.
+func streamToken(ctx context.Context, db streamQuery, runID uuid.UUID) (string, error) {
+	rows, err := db.QueryContext(ctx, `SELECT id, sequence, event_type, CAST(timestamp AS TEXT), schema_version, data FROM run_events WHERE run_id = ? ORDER BY sequence`, runID)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	h := sha256.New()
+	var total int
+	for rows.Next() {
+		var id, kind, timestamp string
+		var sequence, version int64
+		var data []byte
+		if err := rows.Scan(&id, &sequence, &kind, &timestamp, &version, &data); err != nil {
+			return "", err
+		}
+		total += len(id) + len(kind) + len(timestamp) + len(data) + 32
+		if total > 32<<20 {
+			return "", errors.New("event stream exceeds replacement token limit")
+		}
+		fmt.Fprintf(h, "%d:%s:%d:%d:%s:%d:%s:%d:%d:", len(id), id, sequence, len(kind), kind, len(timestamp), timestamp, version, len(data))
+		_, _ = h.Write(data)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	if err := rows.Close(); err != nil {
+		return "", err
+	}
+	var high int64
+	if err := db.QueryRowContext(ctx, `SELECT COALESCE((SELECT high_sequence FROM run_event_highwater WHERE run_id = ?), -1)`, runID).Scan(&high); err != nil {
+		return "", err
+	}
+	fmt.Fprintf(h, "high:%d", high)
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func (s *SQLiteStore) StreamToken(ctx context.Context, runID uuid.UUID) (string, error) {
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback()
+	return streamToken(ctx, tx, runID)
+}
+
+type sqliteReplacementGuard struct {
+	store    *SQLiteStore
+	finished bool
+}
+
+func (s *SQLiteStore) LockReplacement() StreamReplacementGuard {
+	s.mu.Lock()
+	return &sqliteReplacementGuard{store: s}
+}
+
+func (g *sqliteReplacementGuard) ReplaceInTx(ctx context.Context, tx *sql.Tx, runID uuid.UUID, expected string, events []*domain.RunEvent) error {
+	if g.finished || tx == nil {
+		return errors.New("replacement guard is not active")
+	}
+	actual, err := streamToken(ctx, tx, runID)
+	if err != nil {
+		return err
+	}
+	if actual != expected {
+		return errors.New("event stream changed during replacement staging")
+	}
+	var previousHigh int64
+	if err := tx.QueryRowContext(ctx, `SELECT MAX(COALESCE((SELECT MAX(sequence) FROM run_events WHERE run_id = ?), -1), COALESCE((SELECT high_sequence FROM run_event_highwater WHERE run_id = ?), -1))`, runID, runID).Scan(&previousHigh); err != nil {
+		return err
+	}
+	deleted, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE run_id = ?`, runID)
+	if err != nil {
+		return err
+	}
+	count, err := deleted.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		if _, err := tx.ExecContext(ctx, `UPDATE event_retention_state SET generation=generation+1, floor_rowid=COALESCE((SELECT MIN(rowid) FROM run_events),0), updated_at=? WHERE singleton=1`, sqliteTime(time.Now().UTC())); err != nil {
+			return err
+		}
+	}
+	return g.insertInTx(ctx, tx, runID, previousHigh, events)
+}
+
+func (g *sqliteReplacementGuard) insertInTx(ctx context.Context, tx *sql.Tx, runID uuid.UUID, previousHigh int64, events []*domain.RunEvent) error {
+	for i, evt := range events {
+		if evt == nil || evt.ID == uuid.Nil || evt.Timestamp.IsZero() {
+			return errors.New("replacement event lacks identity or timestamp")
+		}
+		data, err := g.store.marshalEventData(evt)
+		if err != nil {
+			return err
+		}
+		version := evt.SchemaVersion
+		if version == 0 {
+			version = 1
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO run_events (id, run_id, sequence, event_type, timestamp, schema_version, data) VALUES (?, ?, ?, ?, ?, ?, ?)`, evt.ID, runID, previousHigh+1+int64(i), string(evt.EventType), sqliteTime(evt.Timestamp), version, data); err != nil {
+			return err
+		}
+		evt.RunID, evt.Sequence, evt.SchemaVersion = runID, previousHigh+1+int64(i), version
+	}
+	return nil
+}
+
+func (g *sqliteReplacementGuard) AppendEmptyInTx(ctx context.Context, tx *sql.Tx, runID uuid.UUID, expected string, events []*domain.RunEvent) error {
+	if g.finished || tx == nil {
+		return errors.New("replacement guard is not active")
+	}
+	actual, err := streamToken(ctx, tx, runID)
+	if err != nil {
+		return err
+	}
+	if actual != expected {
+		return errors.New("event stream changed during recall staging")
+	}
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_events WHERE run_id = ?`, runID).Scan(&count); err != nil {
+		return err
+	}
+	if count != 0 {
+		return errors.New("recall stream is no longer empty")
+	}
+	var high int64
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE((SELECT high_sequence FROM run_event_highwater WHERE run_id = ?), -1)`, runID).Scan(&high); err != nil {
+		return err
+	}
+	return g.insertInTx(ctx, tx, runID, high, events)
+}
+
+func (g *sqliteReplacementGuard) FinishAppend(runID uuid.UUID, committed bool, events []*domain.RunEvent) {
+	if g.finished {
+		return
+	}
+	if committed {
+		for _, item := range events {
+			for _, sub := range g.store.subscribers[runID] {
+				deliverSubscriber(sub, item)
+			}
+		}
+	}
+	g.finished = true
+	g.store.mu.Unlock()
+}
+
+func (g *sqliteReplacementGuard) Finish(runID uuid.UUID, committed bool) {
+	if g.finished {
+		return
+	}
+	if committed {
+		for _, sub := range g.store.subscribers[runID] {
+			sub.stop()
+		}
+		delete(g.store.subscribers, runID)
+	}
+	g.finished = true
+	g.store.mu.Unlock()
+}
+
+func (s *SQLiteStore) append(ctx context.Context, runID uuid.UUID, requireEmpty bool, events ...*domain.RunEvent) error {
+	if len(events) == 0 && !requireEmpty {
 		return nil
 	}
 
@@ -151,9 +344,18 @@ func (s *SQLiteStore) Append(ctx context.Context, runID uuid.UUID, events ...*do
 
 	// Get the next sequence number
 	var maxSeq int64
-	query := `SELECT COALESCE(MAX(sequence), -1) FROM run_events WHERE run_id = ?`
-	if err := conn.QueryRowContext(ctx, query, runID).Scan(&maxSeq); err != nil {
+	query := `SELECT MAX(COALESCE((SELECT MAX(sequence) FROM run_events WHERE run_id = ?), -1), COALESCE((SELECT high_sequence FROM run_event_highwater WHERE run_id = ?), -1))`
+	if err := conn.QueryRowContext(ctx, query, runID, runID).Scan(&maxSeq); err != nil {
 		return dbError("get_max_sequence", err)
+	}
+	if requireEmpty {
+		var present int
+		if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM run_events WHERE run_id = ?`, runID).Scan(&present); err != nil {
+			return dbError("count_existing_events", err)
+		}
+		if present != 0 {
+			return fmt.Errorf("cannot rebuild recall: event stream is no longer empty")
+		}
 	}
 
 	storedEvents := make([]*domain.RunEvent, 0, len(events))
@@ -319,17 +521,28 @@ func (s *SQLiteStore) marshalEventData(evt *domain.RunEvent) ([]byte, error) {
 // notifySubscribers sends events to all subscribers for a run.
 func (s *SQLiteStore) notifySubscribers(runID uuid.UUID, events []*domain.RunEvent) {
 	s.mu.RLock()
+	defer s.mu.RUnlock()
 	subs := s.subscribers[runID]
-	s.mu.RUnlock()
 
 	for _, evt := range events {
-		for _, ch := range subs {
-			select {
-			case ch <- evt:
-			default:
-				// Channel full, skip (non-blocking)
-			}
+		for _, sub := range subs {
+			deliverSubscriber(sub, evt)
 		}
+	}
+}
+
+// A full live buffer invalidates the stream: close it so the subscriber can
+// resume from its last cursor rather than silently missing an event.
+func deliverSubscriber(sub *eventSubscriber, event *domain.RunEvent) {
+	select {
+	case <-sub.done:
+		return
+	default:
+	}
+	select {
+	case sub.ch <- event:
+	default:
+		sub.stop()
 	}
 }
 
@@ -444,20 +657,16 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 		bufSize = 100
 	}
 
-	ch := make(chan *domain.RunEvent, bufSize)
+	sub := &eventSubscriber{ch: make(chan *domain.RunEvent, bufSize), done: make(chan struct{}), historyDone: make(chan struct{})}
 
 	// Register subscriber
 	s.mu.Lock()
-	s.subscribers[runID] = append(s.subscribers[runID], ch)
+	s.subscribers[runID] = append(s.subscribers[runID], sub)
 	s.mu.Unlock()
 
 	// Send existing events from the database in a goroutine
 	go func() {
-		defer func() {
-			if v := recover(); v != nil {
-				s.log.WithField("panic", fmt.Sprint(v)).WithField("stack", string(debug.Stack())).Error("historical event stream panic recovered")
-			}
-		}()
+		defer close(sub.historyDone)
 		// Build type filter if needed
 		var typeFilter []domain.RunEventType
 		if len(opts.EventTypes) > 0 {
@@ -476,8 +685,8 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 
 		for _, evt := range events {
 			select {
-			case ch <- evt:
-			case <-ctx.Done():
+			case sub.ch <- evt:
+			case <-sub.done:
 				return
 			}
 		}
@@ -485,22 +694,27 @@ func (s *SQLiteStore) Stream(ctx context.Context, runID uuid.UUID, opts StreamOp
 
 	// Clean up on context cancellation
 	go func() {
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+		case <-sub.done:
+		}
 		s.mu.Lock()
-		defer s.mu.Unlock()
 
 		// Remove from subscribers
 		subs := s.subscribers[runID]
-		for i, sub := range subs {
-			if sub == ch {
+		for i, registered := range subs {
+			if registered == sub {
 				s.subscribers[runID] = append(subs[:i], subs[i+1:]...)
 				break
 			}
 		}
-		close(ch)
+		sub.stop()
+		s.mu.Unlock()
+		<-sub.historyDone
+		close(sub.ch)
 	}()
 
-	return ch, nil
+	return sub.ch, nil
 }
 
 // Count returns the number of events for a run.
@@ -515,17 +729,38 @@ func (s *SQLiteStore) Count(ctx context.Context, runID uuid.UUID) (int64, error)
 
 // Delete removes all events for a run.
 func (s *SQLiteStore) Delete(ctx context.Context, runID uuid.UUID) error {
-	query := `DELETE FROM run_events WHERE run_id = ?`
-	_, err := s.db.ExecContext(ctx, query, runID)
+	conn, err := s.db.Conn(ctx)
+	if err != nil {
+		return dbError("delete_events_connection", err)
+	}
+	defer conn.Close()
+	tx, err := conn.BeginTx(ctx, nil)
+	if err != nil {
+		return dbError("begin_delete_events", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `DELETE FROM run_events WHERE run_id = ?`, runID)
 	if err != nil {
 		return dbError("delete_events", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return dbError("count_deleted_events", err)
+	}
+	if count > 0 {
+		if _, err := tx.ExecContext(ctx, `UPDATE event_retention_state SET generation=generation+1, floor_rowid=COALESCE((SELECT MIN(rowid) FROM run_events),0), updated_at=? WHERE singleton=1`, sqliteTime(time.Now().UTC())); err != nil {
+			return dbError("advance_event_retention_generation", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return dbError("commit_delete_events", err)
 	}
 
 	// Clean up subscribers
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, ch := range s.subscribers[runID] {
-		close(ch)
+	for _, sub := range s.subscribers[runID] {
+		sub.stop()
 	}
 	delete(s.subscribers, runID)
 

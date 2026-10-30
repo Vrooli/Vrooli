@@ -134,7 +134,6 @@ func (a *App) dependencies() support.Dependencies {
 		StandingGrants:   a.cmdStandingGrants,
 		Health:           a.cmdHealth,
 		Events:           a.cmdEvents,
-		Findings:         a.cmdFindings,
 		Subscription:     a.cmdSubscription,
 		Conversation:     a.cmdConversation,
 		ScenarioSmoke:    a.cmdScenarioSmoke,
@@ -151,21 +150,15 @@ func (a *App) runCommands() []cliapp.Command {
 		{"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
 		{"identity", "Show the current Agent Manager run identity", "agent-manager run identity [--json]", a.runIdentity},
 		{"import-identity", "Resolve imported harness session provenance", "agent-manager run import-identity --harness kind --session-id id [--json]", a.runImportIdentity},
-		{"report", "Show bounded investigation diagnostics", "agent-manager run report <id> [--json]", a.runReport},
+		{"report", "Show bounded investigation diagnostics and the run's weighted token spend (--facts: invocation facts)", "agent-manager run report <id> [--children] [--weights sol=10,luna=1] [--facts] [--json]", a.runReport},
 		{"attach", "Attach an operator-started harness session", "agent-manager run attach --harness-kind kind --harness-session-id id [options]", a.runAttach},
 		{"detach", "Close an attached harness session", "agent-manager run detach <id> [--reason text]", a.runDetach},
 		{"recent", "Show recent work and evidence-bounded durability", "agent-manager run recent [--limit n] [--json]", a.runRecent},
-		{"stats", "Summarize runs from Measures: status, success, duration, cost, tokens, breakdowns", "agent-manager run stats [--since RFC3339] [--until RFC3339] [--profile UUID] [--runner type] [--model name] [--tag-prefix prefix] [--json]", a.runStats},
 		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
-		{"episodes", "Show bounded friction episodes, or self-reported friction spans with --spans", "agent-manager run episodes <id> [--spans] [--json]", a.runEpisodes},
 		{"ledger", "Show cross-scenario receipt ledger", "agent-manager run ledger <id> [--with-projections] [--json]", a.runLedger},
 		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--json]", a.runImportTranscript},
 		{"import-session-corpus", "Import a bounded, reproducible governed runner-session corpus", "agent-manager run import-session-corpus [--runners codex,claude-code] [--from RFC3339] [--to RFC3339] [--per-month n] [--limit n] [--json]", a.runImportSessionCorpus},
 		{"import-sweep", "Run one Transcript Indexer pass over every transcript root now", "agent-manager run import-sweep [--json]", a.runImportSweep},
-		{"backfill-labels", "Recover labels from retained imported transcripts", "agent-manager run backfill-labels [--json]", a.runBackfillLabels},
-		{"backfill-subjects", "Project run subjects from retained invocation facts", "agent-manager run backfill-subjects [--json]", a.runBackfillSubjects},
-		{"mine-self-report-vocabulary", "Mine offline self-report phrase candidates for human review", "agent-manager run mine-self-report-vocabulary [--output review.json] <transcript.jsonl> ...", a.runMineSelfReportVocabulary},
-		{"cross-scenario", "Calculate declared cross-scenario command semantics", "agent-manager run cross-scenario <run-id> [--json]", a.runCrossScenario},
 		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools},
 		{"messages", "Inspect messages in one known run", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
 		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts},
@@ -181,7 +174,6 @@ func (a *App) runCommands() []cliapp.Command {
 		{"wake", "Wake a parked run", "agent-manager run wake (<id> | --key <key> [--producer children]) [--result <r>]", a.runWake},
 		{"await-result", "Read a run's awaited result", "agent-manager run await-result <id>", a.runAwaitResult},
 		{"recover", "Reconcile execution or retry failed sandbox finalization", "agent-manager run recover <id>", a.runRecover},
-		{"investigate", "Create an investigation run", "agent-manager run investigate [options]", a.runInvestigate},
 		{"apply-investigation", "Apply investigation recommendations", "agent-manager run apply-investigation <id>", a.runApplyInvestigation},
 		{"sandbox-sync", "Sync run state from sandbox", "agent-manager run sandbox-sync <id>", a.runSandboxSync},
 		{"approve", "Approve run changes", "agent-manager run approve <id>", a.runApprove},
@@ -202,6 +194,9 @@ func (a *App) runCommands() []cliapp.Command {
 			return run(args)
 		})
 		command.Usage = item.usage
+		if item.name == "list" || item.name == "create" {
+			command.HelpText = support.FlagHelp(item.run)
+		}
 		commands = append(commands, command)
 	}
 	// Keep the richer local `run events` view for statistics, failed-result filtering,

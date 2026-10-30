@@ -6,7 +6,7 @@ import type { TimeWindow } from "@vrooli/proto-types/measures/v1/measures_pb";
 import { DataState } from "../../../components/feedback/DataState";
 import { REQUEST_DEADLINE_MS } from "../../../lib/api";
 import { formatCode, formatCount } from "../../../lib/format";
-import { measuresClient } from "../../stats/api/measuresClient";
+import { measuresClient } from "../../usage/measuresClient";
 
 function window7d(): TimeWindow {
   const to = new Date(Math.floor(Date.now() / 60_000) * 60_000);

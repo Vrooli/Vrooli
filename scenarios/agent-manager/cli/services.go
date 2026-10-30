@@ -25,7 +25,6 @@ type Services struct {
 	Maintenance      *MaintenanceService
 	HealthAudit      *HealthAuditService
 	Events           *EventsService
-	Findings         *FindingsService
 	Subscriptions    *SubscriptionService
 	Conversation     *ConversationSearchService
 }
@@ -47,7 +46,6 @@ func NewServices(api *cliutil.APIClient) *Services {
 		Maintenance:      &MaintenanceService{api: api},
 		HealthAudit:      &HealthAuditService{api: api},
 		Events:           &EventsService{api: api},
-		Findings:         &FindingsService{api: api},
 		Subscriptions:    &SubscriptionService{api: api},
 		Conversation:     &ConversationSearchService{api: api},
 	}

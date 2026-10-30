@@ -26,18 +26,35 @@ type attributionFixture struct {
 	coverage *measurepb.UsageCoverageRequest
 	compare  *measurepb.UsageCompareRequest
 	friction *measurepb.UsageFrictionRequest
+	// interventions is the operator interventions section the friction fixture serves.
+	interventions *measurepb.UsageInterventions
 }
 
 func (f *attributionFixture) UsageFriction(_ context.Context, req *connect.Request[measurepb.UsageFrictionRequest]) (*connect.Response[measurepb.UsageFrictionResponse], error) {
 	f.friction = req.Msg
 	return connect.NewResponse(&measurepb.UsageFrictionResponse{
-		GeneratedAt: "2026-10-29T06:00:00Z", Open: 3, Reported: 1, RunsAnalysed: 3, RunsTotal: 10,
-		Problems: []*measurepb.UsageFrictionProblem{
-			{Fingerprint: "4454d97b01096183cda4b8798ba39b7e", Description: "Agents run `rg` repeatedly instead of the preferred `search-hub query`.", Owner: "rg", OwnerKind: "command", Episodes: 87, Runs: 53, TypicalWallClockMs: 477_000, WallClockMs: 196_560_000, Points: 0.68, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "redundant"},
-			{Fingerprint: "95e3a7a62e5a82c4dcb7aca8ddac38c6", Description: "An agent reads a file, then reads the same file again with no edit in between.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 839, Runs: 18, TypicalWallClockMs: 280, WallClockMs: 677_000_000, Points: 7.19, Provider: "anthropic", Window: "10080m", Status: "reported", BugId: "knw-1790111426711964967", TimeKind: "redundant"},
-			{Fingerprint: "85dd60381afd06f12320256ee6c24d40", Description: "An agent repeats a short wait instead of one blocking wait.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 50, Runs: 11, EpisodeTurns: 533, Tokens: 4_200_000, Points: 2.5, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "redundant"},
-			{Fingerprint: "4885b8f01096183cda4b8798ba39b7ef", Description: "A run sits idle between tool calls for a long stretch.", Owner: "Agent behaviour", OwnerKind: "agent", Episodes: 229, Runs: 57, TypicalWallClockMs: 819_000, WallClockMs: 693_000_000, Points: 1.4, Provider: "anthropic", Window: "10080m", Status: "open", TimeKind: "idle"},
+		GeneratedAt: "2026-10-29T06:00:00Z", Open: 2, Reported: 1, WindowStart: "2026-10-22T06:00:00Z", BelowFloor: 371, BeyondLimit: 3, MaterialityScore: 0.01,
+		Coverage: &measurepb.ToolFrictionCoverage{Commands: 175706, OutcomeKnown: 70000, Sentence: "175706 commands, outcome known for 40% (24041 Vrooli CLI calls, 35% known)"},
+		ToolFindings: []*measurepb.UsageToolFinding{
+			{Fingerprint: "a1b2c3", Kind: "failure", Owner: "vrooli", OwnerKind: "control-plane", Description: "`prompt-manager team bug-capture`, `search-hub query` and 6 other commands failed 128 times in 20 runs with: Error: agent identity identity_refresh_unavailable", Calls: 128, Runs: 20, CostUnit: "calls", Cost: 128, CostShare: 0.158, Signature: "identity_refresh_unavailable", ExampleCommands: []string{"search-hub query notes"}, Status: "open", Shares: []*measurepb.UsageToolShare{{Sentence: "failure 128 calls = 15.8% of the window's 812 Vrooli CLI failed calls"}}},
+			{Fingerprint: "d4e5f6", Kind: "degraded", Owner: "agent-manager", OwnerKind: "scenario", CommandPath: "test-genie runs", Description: "`test-genie runs` reported \"agent-manager park unavailable … waiting inline instead\" 161 times in 34 runs", Calls: 161, Runs: 34, CostUnit: "calls", Cost: 161, CostShare: 0.0067, Status: "reported", BugId: "knw-9", Shares: []*measurepb.UsageToolShare{{Sentence: "degraded 161 calls = 0.7% of the window's 24041 Vrooli CLI calls"}}},
+			{
+				Fingerprint: "778899", Kind: "output-weight", Owner: "vrooli", CommandPath: "vrooli locks", Description: "`vrooli locks` returns heavy output", Calls: 18, Runs: 4, CostUnit: "tokens", Cost: 3_200_000, CostShare: 0.01, Status: "open",
+				PrintedTokens: 262_144, ReadTokens: 10_000, Shares: []*measurepb.UsageToolShare{{Sentence: "output-weight 3.2M tokens = 1.0% of the window's context tax (320M re-read tokens)"}},
+			},
+			{Fingerprint: "s10w01", Kind: "slow", Owner: "agent-manager", CommandPath: "agent-manager run status", Description: "`agent-manager run status` should answer in under 5s but its p90 is 41s over 30 timed calls: 12m beyond the budget", Calls: 30, Runs: 9, CostUnit: "ms", Cost: 720_000, CostShare: 0.05, Status: "open", Shares: []*measurepb.UsageToolShare{{Sentence: "slow 12m 00s = 5.0% of the window's Vrooli CLI time (4h 00m)"}}},
+			{
+				Fingerprint: "r00t01", Kind: "failure", Owner: "vrooli", OwnerKind: "control-plane", RootCause: "identity", Description: "6 commands hit the identity broker or refresh failing 40 times in 20 runs", Calls: 40, Runs: 20, CostUnit: "calls", Cost: 40, CostShare: 0.037, Status: "open",
+				Shares: []*measurepb.UsageToolShare{{Sentence: "failure 30 calls = 3.7% of the window's 812 Vrooli CLI failed calls"}, {Sentence: "degraded 10 calls = 0.0% of the window's 24041 Vrooli CLI calls"}},
+				Subs:   []*measurepb.UsageToolSub{{Kind: "failure", Signature: "identity broker did not answer", Calls: 30}, {Kind: "degraded", Signature: "identity_refresh_unavailable", Calls: 10}},
+			},
+			{
+				Fingerprint: "g0e550", Kind: "shape-guessing", Owner: "agent-manager", CommandPath: "agent-manager", Description: "Agents guess how to call `agent-manager`", Calls: 12, Runs: 6, CostUnit: "calls", Cost: 12, CostShare: 0.03, Status: "open",
+				Guesses: []*measurepb.UsageToolGuess{{Token: "runs", Suggestion: "run", Calls: 8}, {Token: "--tail", Calls: 4}},
+			},
+			{Fingerprint: "bypa55", Kind: "bypass", Owner: "agent-manager", Description: "Agents reach around agent-manager's CLI: 968 database in 4 runs; 62% of it in one run, so its cost counts that run at most 10x the median run", Calls: 968, Runs: 4, CostUnit: "calls", Cost: 130, CostShare: 0.02, TopRunShare: 0.62, Status: "open"},
 		},
+		Interventions: f.interventions,
 	}), nil
 }
 
@@ -56,17 +73,41 @@ func (f *attributionFixture) UsageBurners(_ context.Context, req *connect.Reques
 func (f *attributionFixture) UsageRecommendations(_ context.Context, req *connect.Request[measurepb.UsageRecommendationsRequest]) (*connect.Response[measurepb.UsageRecommendationsResponse], error) {
 	f.recs = req.Msg
 	return connect.NewResponse(&measurepb.UsageRecommendationsResponse{
-		GeneratedAt: "2026-10-29T06:00:00Z", DominantConsumer: "web-console:1e5904ed", DominantConsumerLabel: "1e5904ed research orchestrator",
-		FoldedGroups: 3, FoldedPoints: 0.12,
-		Groups: []*measurepb.UsageRecommendationGroup{{
-			Rank: 1, TargetKind: "session", TargetId: "web-console:1e5904ed", TargetLabel: "1e5904ed research orchestrator", Provider: "openai", Window: "10080m",
-			CombinedSavedPoints: 9.2, UsedSoFarPoints: 26, AtThisRatePoints: 60, RecoverablePoints: 1.5, RemainingHours: 24, ShareOfWindowBurn: 0.76, StillRunning: true,
-			Levers: []*measurepb.UsageLever{
-				{Rule: "R-context", Confidence: "high", SavedPoints: 8, MarginalPoints: 8, Action: "Start a fresh session or compact 1e5904ed (185k re-read per request over 900 requests)", EvidenceRefs: []*measurepb.UsageEvidenceRef{{Kind: "session", Id: "web-console:1e5904ed"}, {Kind: "run", Id: "a"}, {Kind: "run", Id: "b"}}},
-				{Rule: "R-idle", Confidence: "low", SavedPoints: 1.5, MarginalPoints: 1.2, Action: "Replace polling in 1e5904ed with an event wait or park it", EvidenceRefs: []*measurepb.UsageEvidenceRef{{Kind: "session", Id: "web-console:1e5904ed"}}},
+		GeneratedAt: "2026-10-29T06:00:00Z", BelowMateriality: 7, MaterialityScore: 0.01,
+		Actions: []*measurepb.UsageAction{
+			{
+				Rank: 1, Source: "lever", Kind: "R-context", OwnerKind: "harness", Owner: "claude-code session context", Title: "Compact claude-code sessions after ~60 requests of growth",
+				Action: "Compact claude-code sessions about every 60 requests", Rationale: "70% of claude-code session quota was requests above 200k tokens.", Confidence: "medium",
+				Effect: &measurepb.UsageActionEffect{Value: 9.2, Unit: "points", Basis: "projected"}, Score: 0.142, ScoreBasis: "quota scale: 14.2% (9.2 pts) of the anthropic 10080m window's 65.0 observed points", RecoverablePoints: 1.5,
+				Drilldown:    []*measurepb.UsageActionDrill{{Kind: "session", Id: "s1", Label: "research orchestrator", Detail: "would have saved ≈6.0 pts (finished); compacted 47×"}},
+				EvidenceRefs: []*measurepb.UsageEvidenceRef{{Kind: "run", Id: "a"}, {Kind: "run", Id: "b"}}, Verify: "agent-manager usage compare …",
 			},
-		}},
-		Rules: []*measurepb.UsageRuleStatus{{Rule: "R-context", Fired: true, Rows: 1}, {Rule: "R-model", Reason: "no workload ran on two models"}},
+			{
+				Rank: 2, Source: "lever", Kind: "R-model-mix", OwnerKind: "harness", Owner: "claude-code sub-agent model", Title: "Try sonnet for claude-code sub-agents", Action: "Run lighter sub-agent work on sonnet",
+				Confidence: "unproven", Effect: &measurepb.UsageActionEffect{Upper: 4.4, Unit: "points", Basis: "range"}, ScoreBasis: "0–6.8% of the anthropic 10080m window's 65.0 observed points", Verify: "compare",
+			},
+			{
+				Rank: 3, Source: "tool", Kind: "failure", OwnerKind: "command", Owner: "test-genie runs wait", Title: "Fix failing `test-genie runs wait`", Action: "Fix `test-genie runs wait`: it failed 161 times",
+				Rationale: "161 failures.", Confidence: "high", Effect: &measurepb.UsageActionEffect{Value: 161, Unit: "calls", Basis: "observed"}, Score: 0.075, ScoreBasis: "7.5% of the window's 2149 failed calls",
+				EvidenceRefs: []*measurepb.UsageEvidenceRef{{Kind: "run", Id: "a"}}, Verify: "usage friction should no longer list it",
+			},
+			{
+				Rank: 4, Source: "tool", Kind: "failure", OwnerKind: "scenario", Owner: "vrooli", Title: "Fix the identity root cause", Action: "Fix the identity broker or refresh that 2 lines trace to", Rationale: "40 calls.", Confidence: "high",
+				Effect: &measurepb.UsageActionEffect{Value: 40, Unit: "calls", Basis: "observed"}, Score: 0.2, ScoreBasis: "20.0%; 62% of it in one run, so the effect counts each run at most 10x the median run", RootCause: "identity", TopRunShare: 0.62,
+				Subs: []*measurepb.UsageToolSub{{Kind: "failure", Signature: "identity broker did not answer", Calls: 30}, {Kind: "degraded", Signature: "identity_refresh_unavailable", Calls: 10}},
+			},
+			{
+				Rank: 5, Source: "tool", Kind: "shape-guessing", OwnerKind: "command", Owner: "agent-manager", Title: "Make `agent-manager` easier to call", Action: "add alias `runs`→`run` (x8)", Confidence: "high",
+				Effect: &measurepb.UsageActionEffect{Value: 12, Unit: "calls", Basis: "observed"}, Guesses: []*measurepb.UsageToolGuess{{Token: "runs", Suggestion: "run", Calls: 8}, {Token: "--tail", Calls: 4}},
+			},
+			{
+				Rank: 6, Source: "tool", Kind: "slow", OwnerKind: "command", Owner: "agent-manager run status", Title: "Make `agent-manager run status` faster", Action: "Make `agent-manager run status` faster or give it a cheaper status/summary", Confidence: "high",
+				Effect: &measurepb.UsageActionEffect{Value: 720_000, Unit: "ms", Basis: "observed"},
+			},
+		},
+		Rules:    []*measurepb.UsageRuleStatus{{Rule: "R-context", Fired: true, Rows: 1}, {Rule: "R-model", Reason: "no workload ran on two models"}},
+		Coverage: []string{"operator interventions: 300 messages classified (90% coverage); no category has passed the accuracy gate, so none is recommended: cannot tell, not none"},
+		Scoring:  []string{"assumption: kinds of harm weigh equally"},
 	}), nil
 }
 
@@ -74,6 +115,15 @@ func (f *attributionFixture) UsageCoverage(_ context.Context, req *connect.Reque
 	f.coverage = req.Msg
 	root := &measurepb.UsageCoverageRoot{Kind: "codex-home", Harness: "codex", Files: 40, Indexed: 38, Pending: 1, Unreadable: 1, Bytes: 1000, CapturedBytes: 970, CapturedShare: 0.97, Turns: 900, UsageReports: 2000, Issues: []*measurepb.UsageCoverageIssue{{Path: "/home/x/rollout.jsonl", Reason: "not indexed yet"}}}
 	return connect.NewResponse(&measurepb.UsageCoverageResponse{Since: "2026-10-22T06:00:00Z", Roots: []*measurepb.UsageCoverageRoot{root}, Totals: root, Method: "Independent scan: …"}), nil
+}
+
+func TestCoverageShareDoesNotPresentEmptyDenominatorAsComplete(t *testing.T) {
+	if got := coverageShare(&measurepb.UsageCoverageRoot{CapturedShare: 1}); got != "n/a" {
+		t.Fatalf("empty denominator = %q", got)
+	}
+	if got := coverageShare(&measurepb.UsageCoverageRoot{Bytes: 100, CapturedShare: 0.97}); got != "97.0%" {
+		t.Fatalf("nonempty denominator = %q", got)
+	}
 }
 
 func (f *attributionFixture) UsageCompare(_ context.Context, req *connect.Request[measurepb.UsageCompareRequest]) (*connect.Response[measurepb.UsageCompareResponse], error) {
@@ -144,21 +194,43 @@ func TestUsageBurnersShowsSharesRemainderAndCalibration(t *testing.T) {
 	}
 }
 
-func TestUsageRecommendationsShowsGroupsWithCombinedSavingAndSilentRules(t *testing.T) {
+func TestUsageRecommendationsShowsOneRankedOwnerLevelList(t *testing.T) {
 	fixture := &attributionFixture{}
 	out := runUsageCommand(t, fixture, recommendationsCommand, "--run", "a", "--provider", "openai", "--pool", "primary", "--window", "10080m")
 	if r := fixture.recs; r.GetRunId() != "a" || r.GetProvider() != "openai" || r.GetPool() != "primary" || r.GetWindow() != "10080m" {
 		t.Fatalf("request = %v", r)
 	}
+	if n := strings.Count(out, "Quota levers ("); n != 1 {
+		t.Errorf("the quota levers are one group, headed once: %d headings", n)
+	}
 	assertContains(t, out,
-		"1 group(s) as of Thu Oct 29 06:00 UTC; savings are estimates (3 more saving under 0.1 pts together ≈0.12)",
-		"Dominant consumer: 1e5904ed research orchestrator",
-		"1. 1e5904ed research orchestrator  projected −9.2 pts of Codex · weekly at this rate (levers alone sum −9.5), −1.5 of it still recoverable in the 24h left",
-		"uses ≈26.0 pts so far, ≈60.0 at this rate · 76% of the window's burn · still running",
-		"projected −8.0 pts  Start a fresh session or compact 1e5904ed (185k re-read per request over 900 requests)  [R-context, high] evidence: 1 session, 2 run",
-		"projected −1.2 more (−1.5 alone) pts  Replace polling in 1e5904ed with an event wait or park it  [R-idle, low]",
+		"6 action(s) as of Thu Oct 29 06:00 UTC: quota levers ranked by their share of a window's points, then friction actions ranked by √(harm share × runs touched); the scales are not comparable; 7 more scoring under 1%",
+		"Actions:\n  Quota levers (quota scale: share of a window's observed points)\n  1. Compact",
+		"verify: compare\n  Friction actions (friction scale: √(harm share × runs touched))\n  3. Fix failing",
+		"1. Compact claude-code sessions after ~60 requests of growth  14.2%  [lever R-context, medium]",
+		"score: quota scale: 14.2% (9.2 pts) of the anthropic 10080m window's 65.0 observed points",
+		"owner: harness claude-code session context",
+		"effect: 9.2 pts (projected) · 70% of claude-code session quota",
+		`root cause "identity" rolls up 2 lines:`,
+		"degraded in 10 calls  identity_refresh_unavailable",
+		"score: 20.0%; 62% of it in one run, so the effect counts each run at most 10x the median run",
+		"guessed `runs` x8: add alias `runs`→`run`",
+		"Make `agent-manager run status` faster or give it a cheaper status/summary",
+		"effect: 12 min (observed)",
+		"≈1.5 pts of it still recoverable before the window resets",
+		"· research orchestrator: would have saved ≈6.0 pts (finished); compacted 47×",
+		"evidence: 2 run · verify: agent-manager usage compare …",
+		"3. Fix failing `test-genie runs wait`  7.5%  [tool failure, high]",
+		"effect: 161 calls (observed)",
+		"2. Try sonnet for claude-code sub-agents  unproven range  [lever R-model-mix, unproven]",
+		"effect: 0 to 4.4 pts (unproven range)",
 		"R-model did not fire: no workload ran on two models",
+		"coverage: operator interventions: 300 messages classified",
+		"assumption: kinds of harm weigh equally",
 	)
+	if strings.Contains(out, "projected −") || strings.Contains(out, "Dominant consumer") {
+		t.Fatalf("per-session post-mortem rendering survived:\n%s", out)
+	}
 }
 
 func TestUsageCoverageAndCompareRender(t *testing.T) {
@@ -179,47 +251,87 @@ func TestUsageCoverageAndCompareRender(t *testing.T) {
 }
 
 func TestUsageFrictionListsPlainProblemsWithOwnerCostAndStatus(t *testing.T) {
-	fixture := &attributionFixture{}
-	out := runUsageCommand(t, fixture, frictionCommand, "--status", "open", "--limit", "5")
-	if f := fixture.friction; f.GetStatus() != "open" || f.GetLimit() != 5 {
+	fixture := &attributionFixture{interventions: &measurepb.UsageInterventions{
+		OperatorMessages: 120, Classified: 108, Coverage: 0.9, AgentHours: 40,
+		UnshownReason: "no category has passed the accuracy gate yet, so the classified messages are not shown",
+	}}
+	out := runUsageCommand(t, fixture, frictionCommand, "--status", "open", "--limit", "5", "--since", "2026-10-22T06:00:00Z")
+	if f := fixture.friction; f.GetStatus() != "open" || f.GetLimit() != 5 || f.GetSince() != "2026-10-22T06:00:00Z" {
 		t.Fatalf("request = %v", f)
 	}
 	assertContains(t, out,
-		"3 open · 1 reported · 0 dismissed as of Thu Oct 29 06:00 UTC",
-		"4454d97b01096183cda4b8798ba39b7e  Agents run `rg` repeatedly instead of the preferred `search-hub query`.",
-		"owner rg · 87 episodes in 53 runs · redundant call time typically 7m 57s, 54h 36m in total · ≈0.7 pts of Claude · weekly · open",
-		"owner Agent behaviour · 839 episodes in 18 runs · redundant call time typically 280 ms, 188h 03m in total · ≈7.2 pts of Claude · weekly · reported knw-1790111426711964967",
-		"Re-analysing 3 of 10 runs: counts and totals cover the analysed runs only.",
-		"idle gap typically 13m 39s, 192h 30m in total",
-		"owner Agent behaviour · 50 episodes in 11 runs · ≈2.5 pts",
+		"2 open · 1 reported · 0 dismissed as of Thu Oct 29 06:00 UTC; tool window since Thu Oct 22 06:00 UTC",
+		"Listed 7; 371 more under the materiality floor (score 1%), 3 more past --limit",
+		"Coverage: 175706 commands, outcome known for 40% (24041 Vrooli CLI calls, 35% known)",
+		"a1b2c3  [failure] `prompt-manager team bug-capture`, `search-hub query` and 6 other commands failed 128 times in 20 runs with: Error: agent identity identity_refresh_unavailable",
+		"owner vrooli · 128 calls in 20 runs · score 0.0% · cost failure 128 calls = 15.8% of the window's 812 Vrooli CLI failed calls · open",
+		"cost failure 30 calls = 3.7% of the window's 812 Vrooli CLI failed calls; degraded 10 calls = 0.0% of the window's 24041 Vrooli CLI calls · open",
+		"e.g. search-hub query notes",
+		"[slow] `agent-manager run status` should answer in under 5s",
+		"cost slow 12m 00s = 5.0% of the window's Vrooli CLI time (4h 00m)",
+		`root cause "identity" rolls up 2 lines:`,
+		"failure in 30 calls  identity broker did not answer",
+		"degraded in 10 calls  identity_refresh_unavailable",
+		"guessed `runs` x8: add alias `runs`→`run`",
+		"guessed `--tail` x4: fix the help",
+		"62% of it in one run, so its cost counts that run at most 10x the median run",
+		"largest call printed ~262k tokens; the model read 10k",
+		"owner agent-manager · 161 calls in 34 runs · score 0.0% · cost degraded 161 calls = 0.7% of the window's 24041 Vrooli CLI calls · reported knw-9",
+		"cost output-weight 3.2M tokens = 1.0% of the window's context tax (320M re-read tokens)",
+		"Operator interventions: 120 operator messages, 90% classified over 40.0 agent-hours",
+		"none shown: no category has passed the accuracy gate yet, so the classified messages are not shown (this is not \"no friction\")",
 	)
+	if strings.Contains(out, "of the window's command calls") {
+		t.Fatalf("a share is labelled with a base it was not divided by:\n%s", out)
+	}
+	if strings.Contains(out, "Re-analysing") || strings.Contains(out, "operator correction") {
+		t.Fatalf("output still speaks of the deleted episode path:\n%s", out)
+	}
 }
 
-type episodesFixture struct {
-	domainconnect.UnimplementedEpisodesServiceHandler
-	reported  *domainpb.ReportFrictionProblemRequest
-	dismissed *domainpb.DismissFrictionProblemRequest
+// A category the gate admits is counted with its owner, rate, preceding agent
+// work and redacted examples linking to their run and the report they repeat.
+func TestUsageFrictionShowsAdmittedInterventionsWithOwnerWorkAndExamples(t *testing.T) {
+	fixture := &attributionFixture{interventions: &measurepb.UsageInterventions{
+		OperatorMessages: 120, Classified: 108, Coverage: 0.9, AgentHours: 40,
+		Categories: []*measurepb.UsageInterventionCategory{{Category: "quality_miss", Owner: "proof before claim: scientific-debugging", Interventions: 20, PerAgentHour: 0.5, Repeats: 3, WorkRequests: 80, WorkToolCalls: 55, WorkTokens: 1_200_000}},
+		Examples:   []*measurepb.UsageInterventionExample{{Category: "quality_miss", RunId: "run-7", Text: "Still broken on mobile", RepeatOfEventId: "evt-1"}},
+	}}
+	out := runUsageCommand(t, fixture, frictionCommand)
+	assertContains(t, out,
+		"quality_miss · 20 (0.50 per agent-hour) · owner proof before claim: scientific-debugging · agent work before: 80 requests, 55 tool calls, 1.2M tokens · 3 repeat reports",
+		`e.g. [quality_miss] "Still broken on mobile"  run run-7 (agent-manager run report run-7) · repeats evt-1`,
+	)
+	if strings.Contains(out, "none shown") {
+		t.Fatalf("an admitted category must not print the nothing-shown line:\n%s", out)
+	}
 }
 
-func (f *episodesFixture) ReportFrictionProblem(_ context.Context, req *connect.Request[domainpb.ReportFrictionProblemRequest]) (*connect.Response[domainpb.ReportFrictionProblemResponse], error) {
+type frictionFixture struct {
+	domainconnect.UnimplementedFrictionServiceHandler
+	reported  *domainpb.ReportFrictionRequest
+	dismissed *domainpb.DismissFrictionRequest
+}
+
+func (f *frictionFixture) ReportFriction(_ context.Context, req *connect.Request[domainpb.ReportFrictionRequest]) (*connect.Response[domainpb.ReportFrictionResponse], error) {
 	f.reported = req.Msg
-	return connect.NewResponse(&domainpb.ReportFrictionProblemResponse{Fingerprint: req.Msg.GetFingerprint(), Description: "Agents run `rg` repeatedly.", Status: "reported", BugId: "knw-7"}), nil
+	return connect.NewResponse(&domainpb.ReportFrictionResponse{Fingerprint: req.Msg.GetFingerprint(), Description: "Agents run `rg` repeatedly.", Status: "reported", BugId: "knw-7"}), nil
 }
 
-func (f *episodesFixture) DismissFrictionProblem(_ context.Context, req *connect.Request[domainpb.DismissFrictionProblemRequest]) (*connect.Response[domainpb.DismissFrictionProblemResponse], error) {
+func (f *frictionFixture) DismissFriction(_ context.Context, req *connect.Request[domainpb.DismissFrictionRequest]) (*connect.Response[domainpb.DismissFrictionResponse], error) {
 	f.dismissed = req.Msg
-	return connect.NewResponse(&domainpb.DismissFrictionProblemResponse{Fingerprint: req.Msg.GetFingerprint(), Status: "dismissed"}), nil
+	return connect.NewResponse(&domainpb.DismissFrictionResponse{Fingerprint: req.Msg.GetFingerprint(), Status: "dismissed"}), nil
 }
 
-func TestUsageFrictionReportAndDismissWriteThroughTheEpisodesService(t *testing.T) {
-	fixture := &episodesFixture{}
-	path, handler := domainconnect.NewEpisodesServiceHandler(fixture)
+func TestUsageFrictionReportAndDismissWriteThroughTheFrictionService(t *testing.T) {
+	fixture := &frictionFixture{}
+	path, handler := domainconnect.NewFrictionServiceHandler(fixture)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)
-	client := func(*cliapp.ScenarioApp) domainconnect.EpisodesServiceClient {
-		return domainconnect.NewEpisodesServiceClient(server.Client(), server.URL)
+	client := func(*cliapp.ScenarioApp) domainconnect.FrictionServiceClient {
+		return domainconnect.NewFrictionServiceClient(server.Client(), server.URL)
 	}
 	run := func(cmd cliapp.Command, args ...string) string {
 		var stdout bytes.Buffer
@@ -232,12 +344,12 @@ func TestUsageFrictionReportAndDismissWriteThroughTheEpisodesService(t *testing.
 		}
 		return stdout.String()
 	}
-	assertContains(t, run(frictionReportCommand(client), "4454d97b"), "Reported as knw-7: Agents run `rg` repeatedly.")
-	if fixture.reported.GetFingerprint() != "4454d97b" {
+	assertContains(t, run(frictionReportCommand(client), "4454d97b", "--since", "2026-10-01T00:00:00Z"), "Reported as knw-7: Agents run `rg` repeatedly.")
+	if fixture.reported.GetFingerprint() != "4454d97b" || fixture.reported.GetSince() != "2026-10-01T00:00:00Z" {
 		t.Fatalf("report request = %v", fixture.reported)
 	}
-	assertContains(t, run(frictionDismissCommand(client), "4454d97b"), "Dismissed 4454d97b")
-	if fixture.dismissed.GetFingerprint() != "4454d97b" {
+	assertContains(t, run(frictionDismissCommand(client), "4454d97b", "--since", "2026-10-01T00:00:00Z"), "Dismissed 4454d97b")
+	if fixture.dismissed.GetFingerprint() != "4454d97b" || fixture.dismissed.GetSince() != "2026-10-01T00:00:00Z" {
 		t.Fatalf("dismiss request = %v", fixture.dismissed)
 	}
 	var decoded struct {
@@ -248,12 +360,17 @@ func TestUsageFrictionReportAndDismissWriteThroughTheEpisodesService(t *testing.
 	}
 }
 
-// A problem with no measured time prints no time sentence, never "0s".
-func TestFrictionTimeCostOmitsUnmeasuredTime(t *testing.T) {
-	if got := frictionTimeCost(&measurepb.UsageFrictionProblem{}); got != "" {
-		t.Errorf("unmeasured = %q, want empty", got)
-	}
-	if got := frictionTimeCost(&measurepb.UsageFrictionProblem{WallClockMs: 60_000, TypicalWallClockMs: 30_000}); !strings.Contains(got, "redundant call time") {
-		t.Errorf("measured = %q", got)
-	}
+// The pooled bucket prints as "category unproven" with each hint labelled unproven.
+func TestUsageFrictionLabelsThePooledBucketAndItsHintsUnproven(t *testing.T) {
+	fixture := &attributionFixture{interventions: &measurepb.UsageInterventions{
+		OperatorMessages: 120, Classified: 108, Coverage: 0.9, AgentHours: 40,
+		Categories: []*measurepb.UsageInterventionCategory{{Category: "operator_friction", Pooled: true, Interventions: 18, PerAgentHour: 0.45, Hints: []*measurepb.UsageInterventionHint{{Category: "quality_miss", Owner: "scientific-debugging", Count: 11}}}},
+		Examples:   []*measurepb.UsageInterventionExample{{Category: "quality_miss", Pooled: true, RunId: "run-7", Text: "Still broken"}},
+	}}
+	out := runUsageCommand(t, fixture, frictionCommand)
+	assertContains(t, out,
+		"operator friction (category unproven) · 18 (0.45 per agent-hour) · owners by hint",
+		"hint (unproven): 11 look like quality_miss · owner scientific-debugging",
+		`e.g. [quality_miss, unproven] "Still broken"`,
+	)
 }

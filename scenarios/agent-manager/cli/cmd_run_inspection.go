@@ -12,27 +12,68 @@ import (
 	"agent-manager/cli/internal/support"
 	"github.com/vrooli/cli-core/cliutil"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
-	sharedmeasurepb "github.com/vrooli/vrooli/packages/proto/gen/go/measures/v1"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (a *App) runReport(args []string) error {
 	fs := flag.NewFlagSet("run report", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
+	children := fs.Bool("children", false, "Include the run's direct child runs in the token spend")
+	facts := fs.Bool("facts", false, "Print the run's redacted normalized invocation facts instead of the report")
+	rawWeights := fs.String("weights", "", "Tier weights by model-name substring for the token spend, e.g. sol=10,luna=1 (defaults shown)")
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
-		return fmt.Errorf("usage: agent-manager run report <id> [--json]")
+		return fmt.Errorf("usage: agent-manager run report <id> [--children] [--weights sol=10,luna=1] [--facts] [--json]")
 	}
 	id := args[0]
 	if err := cliutil.ParseInterspersed(fs, args[1:]); err != nil {
+		return err
+	}
+	if *facts {
+		body, err := a.services.Runs.InvocationFacts(id)
+		if err != nil {
+			return err
+		}
+		if *jsonOutput {
+			cliutil.PrintJSON(body)
+		} else {
+			fmt.Println(string(body))
+		}
+		return nil
+	}
+	weights, err := parseTierWeights(*rawWeights)
+	if err != nil {
 		return err
 	}
 	body, err := a.services.Runs.GetReport(id)
 	if err != nil {
 		return err
 	}
+	ids := []string{id}
+	if *children {
+		_, kids, err := a.services.Runs.ListChildren(id, 1000)
+		if err != nil {
+			return err
+		}
+		for _, kid := range kids {
+			ids = append(ids, kid.GetId())
+		}
+	}
+	spend, err := a.weightedTokens(ids, weights)
+	if err != nil {
+		return err
+	}
 	if *jsonOutput {
-		cliutil.PrintJSON(body)
+		var merged map[string]json.RawMessage
+		if err := json.Unmarshal(body, &merged); err != nil {
+			return fmt.Errorf("decode run report: %w", err)
+		}
+		if merged["usage_spend"], err = json.Marshal(spend); err != nil {
+			return err
+		}
+		encoded, err := json.Marshal(merged)
+		if err != nil {
+			return err
+		}
+		cliutil.PrintJSON(encoded)
 		return nil
 	}
 	var r struct {
@@ -118,6 +159,7 @@ func (a *App) runReport(args []string) error {
 	fmt.Println()
 	fmt.Printf("Diff: files=%d bytes=%d (%s)\n", r.Diff.Files, r.Diff.Bytes, r.Diff.Available.State)
 	fmt.Printf("Receipts: %s (%d)\n", r.Receipts.State, r.ReceiptCount)
+	printSpend(spend)
 	support.NextSteps(fmt.Sprintf("agent-manager run result %s", id), fmt.Sprintf("agent-manager run events %s", id), fmt.Sprintf("agent-manager run tools %s --failed", id), fmt.Sprintf("agent-manager run diff %s", id), fmt.Sprintf("agent-manager run receipts %s", id))
 	return nil
 }
@@ -183,129 +225,6 @@ func (a *App) runRecent(args []string) error {
 		fmt.Printf("- %s %s lane=%s verdict=%s subject=%s\n", current.ID, current.Label, current.Lane, verdict, strings.Join(current.Subject, ","))
 	}
 	return nil
-}
-
-func (a *App) runStats(args []string) error {
-	fs := flag.NewFlagSet("run stats", flag.ContinueOnError)
-	jsonOutput := cliutil.JSONFlag(fs)
-	profile := fs.String("profile", "", "Profile UUID")
-	since := fs.String("since", "", "RFC3339 lower time bound (default: 24h before --until)")
-	until := fs.String("until", "", "RFC3339 exclusive upper time bound (default: now)")
-	tagPrefix := fs.String("tag-prefix", "", "Run tag prefix")
-	runner := fs.String("runner", "", "Runner type")
-	model := fs.String("model", "", "Model")
-	scope := fs.String("scope", "", "Run origin: agent_manager (default for run statistics), operator_sessions or all")
-	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
-	}
-	runScope, err := parseRunScope(*scope)
-	if err != nil {
-		return err
-	}
-	window, err := runStatsWindow(*since, *until, time.Now().UTC())
-	if err != nil {
-		return err
-	}
-	filter := &measurepb.InvocationFilter{ProfileId: *profile, TagPrefix: *tagPrefix, RunnerType: *runner, Model: *model, Scope: runScope}
-	report, err := a.services.Runs.Stats(filter, window)
-	if err != nil {
-		return err
-	}
-	if *jsonOutput {
-		body, err := json.Marshal(report.Raw)
-		if err != nil {
-			return err
-		}
-		cliutil.PrintJSON(body)
-		return nil
-	}
-	printRunStats(report, window.GetCustom().GetFrom().AsTime(), window.GetCustom().GetTo().AsTime())
-	support.NextSteps("agent-manager run stats --json", "agent-manager measures cohort-report --cohort <name>", "agent-manager run report <run-id>")
-	return nil
-}
-
-func parseRunScope(value string) (measurepb.RunScope, error) {
-	switch value {
-	case "":
-		return measurepb.RunScope_RUN_SCOPE_UNSPECIFIED, nil
-	case "agent_manager":
-		return measurepb.RunScope_RUN_SCOPE_AGENT_MANAGER, nil
-	case "operator_sessions":
-		return measurepb.RunScope_RUN_SCOPE_OPERATOR_SESSIONS, nil
-	case "all":
-		return measurepb.RunScope_RUN_SCOPE_ALL, nil
-	}
-	return 0, fmt.Errorf("--scope must be agent_manager, operator_sessions or all")
-}
-
-// runStatsWindow resolves the CLI bounds to one explicit [from, to) range.
-func runStatsWindow(since, until string, now time.Time) (*sharedmeasurepb.TimeWindow, error) {
-	to := now
-	if until != "" {
-		parsed, err := time.Parse(time.RFC3339, until)
-		if err != nil {
-			return nil, fmt.Errorf("--until must be RFC3339: %w", err)
-		}
-		to = parsed
-	}
-	from := to.Add(-24 * time.Hour)
-	if since != "" {
-		parsed, err := time.Parse(time.RFC3339, since)
-		if err != nil {
-			return nil, fmt.Errorf("--since must be RFC3339: %w", err)
-		}
-		from = parsed
-	}
-	if !from.Before(to) {
-		return nil, fmt.Errorf("--since must be before --until")
-	}
-	return &sharedmeasurepb.TimeWindow{Window: &sharedmeasurepb.TimeWindow_Custom{Custom: &sharedmeasurepb.CustomRange{From: timestamppb.New(from), To: timestamppb.New(to)}}}, nil
-}
-
-func printRunStats(report *RunStatsReport, from, to time.Time) {
-	fmt.Printf("Run stats %s .. %s\n", from.Format(time.RFC3339), to.Format(time.RFC3339))
-	var total int64
-	statuses := make([]string, 0, len(report.Status.GetRows()))
-	for _, row := range report.Status.GetRows() {
-		total += row.GetCount()
-		statuses = append(statuses, fmt.Sprintf("%s=%d", row.GetStatus(), row.GetCount()))
-	}
-	fmt.Printf("Runs: total=%d %s\n", total, strings.Join(statuses, " "))
-	fmt.Printf("Success: rate=%.3f (%d/%d terminal)\n", report.Success.GetRate(), report.Success.GetSuccessfulRuns(), report.Success.GetTerminalRuns())
-	d := report.Duration
-	fmt.Printf("Duration: n=%d avg=%s p50=%s p90=%s p95=%s p99=%s min=%s max=%s\n", d.GetCount(), formatMS(d.GetAverageDurationMs()), formatMS(d.GetP50DurationMs()), formatMS(d.GetP90DurationMs()), formatMS(d.GetP95DurationMs()), formatMS(d.GetP99DurationMs()), formatMS(float64(d.GetMinDurationMs())), formatMS(float64(d.GetMaxDurationMs())))
-	c := report.Cost
-	fmt.Printf("Cost: per-token billed $%.4f; subscription work is quota points, see agent-manager usage\n", c.GetTotalCostUsd())
-	fmt.Printf("Tokens: total=%d input=%d output=%d cache_read=%d cache_creation=%d requests=%d runs=%d\n", c.GetTotalTokens(), c.GetInputTokens(), c.GetOutputTokens(), c.GetCacheReadTokens(), c.GetCacheCreationTokens(), c.GetRequests(), c.GetTotalRuns())
-	printBreakdown("Runners", report.Runners.GetRows())
-	printBreakdown("Profiles", report.Profiles.GetRows())
-	printBreakdown("Models", report.Models.GetRows())
-	if rows := report.Tools.GetRows(); len(rows) > 0 {
-		fmt.Println("Tools:")
-		for _, row := range rows {
-			fmt.Printf("  %-28s calls=%d ok=%d failed=%d tokens=%d\n", row.GetToolName(), row.GetCallCount(), row.GetSuccessCount(), row.GetFailedCount(), row.GetTotalTokens())
-		}
-	}
-	for _, validity := range []*measurepb.MeasureValidity{report.Status.GetValidity(), report.Success.GetValidity(), report.Duration.GetValidity(), report.Cost.GetValidity()} {
-		if validity != nil && validity.GetState() != "" && validity.GetState() != "meaningful" {
-			fmt.Printf("Validity: %s (%s)\n", validity.GetState(), validity.GetReason())
-			break
-		}
-	}
-}
-
-func printBreakdown(title string, rows []*measurepb.RunBreakdownRow) {
-	if len(rows) == 0 {
-		return
-	}
-	fmt.Printf("%s:\n", title)
-	for _, row := range rows {
-		fmt.Printf("  %-28s runs=%d ok=%d failed=%d cost=$%.4f tokens=%d avg=%s\n", row.GetValue(), row.GetRunCount(), row.GetSuccessCount(), row.GetFailedCount(), row.GetTotalCostUsd(), row.GetTotalTokens(), formatMS(row.GetAverageDurationMs()))
-	}
-}
-
-func formatMS(ms float64) string {
-	return (time.Duration(ms) * time.Millisecond).Round(time.Millisecond).String()
 }
 
 func (a *App) runResult(args []string) error {

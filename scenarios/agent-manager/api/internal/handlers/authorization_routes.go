@@ -426,8 +426,6 @@ var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
 	"/agent_manager.v1.ConversationSearchService/GetConversationIndexStatus": true,
 	"/agent_manager.v1.ConversationSearchService/SearchConversations":        true,
 	"/agent_manager.v1.EpisodesService/GetCrossScenarioLedger":               true,
-	"/agent_manager.v1.EpisodesService/GetEpisodes":                          true,
-	"/agent_manager.v1.EpisodesService/GetSelfReportSpans":                   true,
 })
 
 // readOnlyMeasureRoutes are the measure reads outside the generated service:

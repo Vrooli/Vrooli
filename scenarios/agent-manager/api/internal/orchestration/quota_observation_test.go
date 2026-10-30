@@ -31,6 +31,15 @@ type recordingQuotaObservationStore struct {
 	rows []pricing.QuotaObservation
 }
 
+func TestTypedNilQuotaOwnerIsUnavailable(t *testing.T) {
+	var owner *recordingQuotaObservationStore
+	o := &Orchestrator{}
+	WithQuotaObservationStore(owner)(o)
+	if o.quotaObservations != nil || o.quotaObservationsDisabled {
+		t.Fatal("typed-nil owner must remain unavailable, not enabled or disabled")
+	}
+}
+
 func (s *recordingQuotaObservationStore) RecordQuotaObservation(_ context.Context, observation *pricing.QuotaObservation) error {
 	s.rows = append(s.rows, *observation)
 	return nil

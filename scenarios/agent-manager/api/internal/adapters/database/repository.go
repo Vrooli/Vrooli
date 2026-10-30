@@ -572,7 +572,12 @@ func (r *runRepository) CreateTaskAttempt(ctx context.Context, task, expectedTas
 	if err != nil {
 		return fmt.Errorf("prepare effort orchestrator admission: %w", err)
 	}
-	storedSnapshot := taskFromDomain(expectedTaskSnapshot)
+	// Only prompt-bearing fields are part of the CAS; both inputs are immutable.
+	storedSnapshot := taskRow{
+		Title: expectedTaskSnapshot.Title, Description: expectedTaskSnapshot.Description,
+		ScopePath: expectedTaskSnapshot.ScopePath, ProjectRoot: expectedTaskSnapshot.ProjectRoot,
+		ContextAttachments: expectedTaskSnapshot.ContextAttachments,
+	}
 	query := `UPDATE tasks SET status = ?, current_run_id = ?, project_root = ?, updated_at = ?
 		WHERE id = ? AND project_root = ? AND title = ? AND description = ? AND scope_path = ?
 		AND json(context_attachments) = json(?)`
@@ -607,7 +612,11 @@ func (r *runRepository) CreateTaskAttempt(ctx context.Context, task, expectedTas
 				return domain.NewStateErrorWithID("Run", run.ID.String(), "active_effort_owner", "create", "another nonterminal orchestrator run already owns this effort")
 			}
 		}
-		return domain.NewStateErrorWithID("Task", task.ID.String(), string(task.Status), "start run", "task attempt changed or is not eligible; no run was admitted")
+		var status string
+		if err := tx.QueryRowContext(ctx, `SELECT status FROM tasks WHERE id = ?`, task.ID).Scan(&status); err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return wrapDBError("read_task_attempt_conflict", "Task", task.ID.String(), err)
+		}
+		return domain.NewStateErrorWithID("Task", task.ID.String(), status, "start run", "task attempt changed or is not eligible; no run was admitted")
 	}
 	if err := r.insertRun(ctx, tx, run); err != nil {
 		return err
@@ -615,10 +624,6 @@ func (r *runRepository) CreateTaskAttempt(ctx context.Context, task, expectedTas
 	if err := tx.Commit(); err != nil {
 		return wrapDBError("claim_task_attempt", "Task", task.ID.String(), err)
 	}
-	task.Status = domain.TaskStatusRunning
-	id := run.ID
-	task.CurrentRunID = &id
-	task.UpdatedAt = run.UpdatedAt
 	return nil
 }
 
