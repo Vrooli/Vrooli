@@ -26,6 +26,22 @@ type layoutSnapshot struct {
 	Chrome         chromeIntent
 	SafeAreaInsets safeAreaInsets
 	CaptureKind    string
+	KeyboardFocus  keyboardFocusEvidence
+}
+
+// keyboardFocusEvidence records a post-Tab observation. It only qualifies an
+// offscreen finding when it identifies the same captured node and that node is
+// visibly keyboard-focused and in the viewport after the browser scrolls.
+type keyboardFocusEvidence struct {
+	NodeKey      string
+	NodeIdentity string
+	Focused      bool
+	FocusVisible bool
+	Visible      bool
+	X            float64
+	Y            float64
+	Width        float64
+	Height       float64
 }
 
 type chromeIntent struct {
@@ -52,6 +68,8 @@ func (c chromeIntent) empty() bool {
 
 type layoutElement struct {
 	Selector          string
+	NodeKey           string
+	NodeIdentity      string
 	ParentSelector    string
 	NodeType          string
 	Tag               string
@@ -82,6 +100,7 @@ type layoutElement struct {
 	Opacity           float64
 	AriaModal         bool
 	Interactive       bool
+	Disabled          bool
 	ContentEditable   bool
 	InScrollContainer bool
 }
@@ -155,13 +174,13 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 		if !el.visible() {
 			continue
 		}
-		if el.isInteractive() && !el.InScrollContainer && snap.hasViewport() && el.offscreen(snap) {
+		if el.isInteractive() && !el.InScrollContainer && snap.hasViewport() && el.offscreen(snap) && !snap.sameNodeReachedByKeyboard(el) {
 			findings = append(findings, &visualpb.VisualFinding{
 				Code:        "visual_offscreen_interactive",
 				Severity:    severityError,
 				Category:    categoryLayout,
 				Message:     "interactive element is outside the visible viewport",
-				Location:    firstNonEmpty(el.Selector, locationFor(step)),
+				Location:    firstNonEmpty(el.NodeKey, el.Selector, locationFor(step)),
 				Evidence:    el.describeRect(),
 				Remediation: "Keep interactive controls inside the visible viewport or inside reachable scroll containers.",
 				StepId:      step.GetStepId(),
@@ -203,7 +222,7 @@ func analyzeLayout(step *visualpb.VisualStepArtifact) ([]*visualpb.VisualFinding
 				StepId:      step.GetStepId(),
 			})
 		}
-		if snap.mobileLike() && el.isTextEntry() && el.FontSize > 0 && el.FontSize < minMobileFontPx {
+		if snap.mobileLike() && el.isTextEntry() && !el.Disabled && el.FontSize > 0 && el.FontSize < minMobileFontPx {
 			findings = append(findings, &visualpb.VisualFinding{
 				Code:        "visual_focus_zoom_risk",
 				Severity:    severityWarning,
@@ -269,6 +288,23 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 		snap.DocumentHeight = firstNumber(raw, "scrollHeight", "documentHeight")
 	}
 	snap.CaptureKind = firstString(firstMap(raw, "capture"), "kind")
+	if focus := mapValue(raw, "keyboardFocus"); focus != nil {
+		rect := firstMap(focus, "rect", "bounds")
+		if rect == nil {
+			rect = focus
+		}
+		snap.KeyboardFocus = keyboardFocusEvidence{
+			NodeKey:      firstString(focus, "nodeKey"),
+			NodeIdentity: firstString(focus, "nodeIdentity"),
+			Focused:      boolValue(focus, "focused"),
+			FocusVisible: boolValue(focus, "focusVisible"),
+			Visible:      boolValue(focus, "visible"),
+			X:            firstNumber(rect, "x", "left"),
+			Y:            firstNumber(rect, "y", "top"),
+			Width:        firstNumber(rect, "width", "clientWidth"),
+			Height:       firstNumber(rect, "height", "clientHeight"),
+		}
+	}
 	snap.Chrome = parseChromeIntent(raw)
 	snap.SafeAreaInsets = parseSafeAreaInsets(raw)
 	snap.Tokens = stringArray(raw, "tokens", "tokenSet", "token_set")
@@ -285,6 +321,28 @@ func parseLayoutSnapshot(step *visualpb.VisualStepArtifact) (layoutSnapshot, err
 		}
 	}
 	return snap, nil
+}
+
+func (s layoutSnapshot) sameNodeReachedByKeyboard(el layoutElement) bool {
+	focus := s.KeyboardFocus
+	if !focus.Focused || !focus.FocusVisible || !focus.Visible ||
+		strings.TrimSpace(focus.NodeKey) == "" || focus.NodeKey != el.NodeKey ||
+		strings.TrimSpace(focus.NodeIdentity) == "" || focus.NodeIdentity != el.NodeIdentity {
+		return false
+	}
+	identityMatches := 0
+	for _, candidate := range s.Elements {
+		if candidate.NodeIdentity == focus.NodeIdentity {
+			identityMatches++
+		}
+	}
+	if identityMatches != 1 {
+		return false
+	}
+	if focus.Width <= 0 || focus.Height <= 0 {
+		return false
+	}
+	return focus.X >= 0 && focus.Y >= 0 && focus.X+focus.Width <= s.ViewportWidth && focus.Y+focus.Height <= s.ViewportHeight
 }
 
 func appendDOMTreeElements(snap *layoutSnapshot, node map[string]any, parentSelector string) {
@@ -391,6 +449,8 @@ func parseLayoutElement(m map[string]any) layoutElement {
 	}
 	return layoutElement{
 		Selector:          firstString(m, "selector", "id", "path"),
+		NodeKey:           firstString(m, "nodeKey", "node_key"),
+		NodeIdentity:      firstString(m, "nodeIdentity", "node_identity"),
 		ParentSelector:    firstString(m, "parentSelector", "parent_selector", "parent"),
 		NodeType:          strings.ToLower(firstString(m, "nodeType", "node_type")),
 		Tag:               strings.ToLower(firstString(m, "tag", "tagName", "nodeName")),
@@ -421,6 +481,7 @@ func parseLayoutElement(m map[string]any) layoutElement {
 		Opacity:           numberDefault(m, 1, "opacity"),
 		AriaModal:         boolValue(m, "ariaModal", "aria-modal"),
 		Interactive:       boolValue(m, "interactive", "focusable"),
+		Disabled:          boolValue(m, "disabled"),
 		ContentEditable:   boolValue(m, "contentEditable", "isContentEditable"),
 		InScrollContainer: boolValue(m, "inScrollContainer", "insideScrollContainer"),
 	}

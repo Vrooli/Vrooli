@@ -23,6 +23,11 @@ func TestRenderKeepsTransitionTableOutOfVerifiedInvariants(t *testing.T) {
 	c.Model.Verify = contract.Verify{Invariants: []string{"TypeOK"}}
 	flow := testkit.MustCompile(t, c)
 	rendered := quint.Render(flow)
+	for _, declaration := range []string{"type Status = | Idle", "type Event = | Tick"} {
+		if !strings.Contains(rendered, declaration) {
+			t.Fatalf("singleton must declare a constructor, not a type alias: missing %q", declaration)
+		}
+	}
 	if strings.Contains(rendered, "AllDeclaredTransitionsCovered") {
 		t.Fatalf("rendered model still contains fake invariant:\n%s", rendered)
 	}

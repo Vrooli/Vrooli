@@ -28,23 +28,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
-	case r.URL.Path == "/api/v1/packaged/capture" && r.Method == http.MethodPost:
+	case (r.URL.Path == "/api/v1/packaged/capture" || r.URL.Path == "/api/v1/packaged/capture/plan") && r.Method == http.MethodPost:
 		var request CaptureRequest
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32<<10)).Decode(&request); err != nil {
 			http.Error(w, "invalid capture request: "+err.Error(), http.StatusBadRequest)
 			return
+		}
+		if r.URL.Path == "/api/v1/packaged/capture/plan" {
+			request.PlanOnly = true
 		}
 		samples, err := h.service.Capture(r.Context(), request)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		experiment := request.Experiment
-		if experiment == "" && len(samples) > 0 {
-			experiment = samples[0].ExperimentID
-		}
 		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(map[string]any{"experiment_id": experiment, "samples": samples})
+		_ = json.NewEncoder(w).Encode(captureResult(request, samples))
 	case r.URL.Path == "/api/v1/packaged/report" && r.Method == http.MethodGet:
 		q := r.URL.Query()
 		report, err := h.service.Report(r.Context(), q.Get("scenario"), q.Get("ramp"), q.Get("strategy"), q.Get("condition"), q.Get("experiment_id"))
@@ -86,4 +85,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Allow", http.MethodGet+", "+http.MethodPost)
 		http.Error(w, "not found", http.StatusNotFound)
 	}
+}
+
+// captureResult keeps the REST and RPC projections of owner work identical.
+func captureResult(request CaptureRequest, samples []Sample) map[string]any {
+	experiment := request.Experiment
+	if experiment == "" && len(samples) > 0 {
+		experiment = samples[0].ExperimentID
+	}
+	return map[string]any{"experiment_id": experiment, "samples": samples, "planned_work": request.PlannedWork()}
 }

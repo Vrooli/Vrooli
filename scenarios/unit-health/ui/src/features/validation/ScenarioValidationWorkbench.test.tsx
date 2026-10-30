@@ -368,6 +368,10 @@ describe("ScenarioValidationWorkbench", () => {
     expect(await screen.findByTestId(selectors.validationWorkbench.degraded)).toHaveTextContent(
       "Code Facts discovery returned no surfaces.",
     );
+    expect(screen.getByRole("status")).toHaveTextContent("degraded");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Code Facts discovery returned no surfaces.",
+    );
     // Maturity metric falls back to Unknown when absent.
     expect(screen.getByTestId(selectors.validationWorkbench.maturity)).toHaveTextContent(
       strings.validation.unknown,

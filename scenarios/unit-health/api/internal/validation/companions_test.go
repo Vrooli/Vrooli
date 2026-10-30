@@ -2,10 +2,71 @@ package validation
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestCompanionShapeDistinguishesForwardingCallCountersFromRepositories(t *testing.T) {
+	for _, tc := range []struct {
+		name, getBody string
+		wantMatch     bool
+		multiFile     bool
+	}{
+		{"embedded forwarding counter", "s.getCalls++; return s.mediaRPCStub.Get(ctx, projectID, id)", false, false},
+		{"embedded forwarding without counter", "return s.mediaRPCStub.Get(ctx, projectID, id)", false, false},
+		{"independent implementation with embedded field", "s.getCalls++; return nil", true, false},
+		{"forwarding changes argument", "return s.mediaRPCStub.Get(ctx, projectID, \"other\")", true, false},
+		{"forwarding to another receiver", "return other.mediaRPCStub.Get(ctx, projectID, id)", true, false},
+		{"forwarding methods in sibling file", "s.getCalls++; return s.mediaRPCStub.Get(ctx, projectID, id)", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			path := filepath.Join(root, "store", "rpc_test.go")
+			writeFile(t, path, `package store
+import (
+ "context"
+ _ "github.com/vrooli/api-core/database"
+)
+type mediaRPCStub struct{}
+type callCounter struct { mediaRPCStub; getCalls, listCalls int }
+func (s *callCounter) Get(ctx context.Context, projectID, id string) error { `+tc.getBody+` }
+func (s *callCounter) List(ctx context.Context, projectID string, limit int32, token string) error {
+ s.listCalls++
+ return s.mediaRPCStub.List(ctx, projectID, limit, token)
+}
+`)
+			if tc.multiFile {
+				data, err := os.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				parts := strings.SplitN(string(data), "func (s *callCounter)", 2)
+				writeFile(t, path, parts[0])
+				writeFile(t, filepath.Join(root, "store", "methods_test.go"), "package store\nimport \"context\"\nfunc (s *callCounter)"+parts[1])
+			}
+			registry := companionRegistry{Companions: []companionExport{{
+				OwnerImportPath: "github.com/vrooli/api-core/database", ImportPath: "github.com/vrooli/api-core/databasetest",
+				Symbols: []companionSymbol{{Name: "SliceRepo", Kind: "type", Methods: []string{"Create", "Get", "List"}}},
+			}}}
+			found := false
+			for _, declaration := range collectLocalDeclarations(root) {
+				if declaration.Name != "callCounter" {
+					continue
+				}
+				found = true
+				_, matched := bestCompanionMatch(declaration, registry, packageImportIndex{})
+				if matched != tc.wantMatch {
+					t.Fatalf("shape match=%v, want %v", matched, tc.wantMatch)
+				}
+			}
+			if !found {
+				t.Fatal("call counter declaration was not inspected")
+			}
+		})
+	}
+}
 
 func writeCompanionFixture(t *testing.T, root string) {
 	t.Helper()
@@ -457,5 +518,33 @@ func TestCompanionRuleWaiversSuppressAllNewCodes(t *testing.T) {
 		if !finding.Suppressed {
 			t.Errorf("finding %s was not suppressed", finding.Code)
 		}
+	}
+}
+
+func TestCompanionAliasesAdoptRatherThanReimplement(t *testing.T) {
+	for _, tc := range []struct {
+		name, decl string
+		want       bool
+	}{
+		{"generic alias", "type Transition = modeltest.Transition[int,string]", false},
+		{"new named type", "type Transition func(int,string)(int,error)", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			registry := companionRegistry{SchemaVersion: companionRegistrySchemaVersion, Companions: []companionExport{{OwnerImportPath: "github.com/vrooli/vrooli/packages/proto/modeltest", ImportPath: "github.com/vrooli/vrooli/packages/proto/modeltest", Symbols: []companionSymbol{{Name: "Transition", Kind: "type"}}}}}
+			raw, err := json.Marshal(registry)
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeFile(t, filepath.Join(root, ".vrooli", "test-companions.json"), string(raw))
+			writeFile(t, filepath.Join(root, "replay_test.go"), `package demo
+import modeltest "github.com/vrooli/vrooli/packages/proto/modeltest"
+`+tc.decl)
+			findings := analyzeGoCompanionDeclarations("demo", Workspace{ID: "api", Language: "go", RootPath: root}, fixedNowStr, DependencyClosure{Imports: map[string]bool{"github.com/vrooli/vrooli/packages/proto/modeltest": true}, Available: true})
+			_, found := findingByCode(findings, codeCompanionReimplemented)
+			if found != tc.want {
+				t.Fatalf("reimplementation=%v want%v: %+v", found, tc.want, findings)
+			}
+		})
 	}
 }

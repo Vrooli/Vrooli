@@ -107,6 +107,9 @@ func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now 
 		var below []belowFile
 		for _, name := range names {
 			fc := fileCov[name]
+			if fc.total == 0 {
+				continue
+			}
 			agg.covered += fc.covered
 			agg.total += fc.total
 			status := coverageStatus(fc.percent(), threshold)
@@ -124,6 +127,26 @@ func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now 
 			if status == "below" {
 				below = append(below, belowFile{name: name, percent: fc.percent()})
 			}
+		}
+		if agg.total == 0 {
+			findings = append(findings, Finding{
+				ID:           codeCoverageAbsent + "-" + ws.ID,
+				Scenario:     scenario,
+				WorkspaceID:  ws.ID,
+				Language:     ws.Language,
+				Code:         codeCoverageAbsent,
+				Category:     "coverage",
+				Severity:     codeSeverity[codeCoverageAbsent],
+				FilePath:     ws.RootPath,
+				Message:      fmt.Sprintf("Workspace %q coverage artifact contains no executable units.", ws.ID),
+				Evidence:     "coverage artifact contained zero measured units",
+				Expected:     "Coverage data for executable code, when present.",
+				Observed:     "no executable units measured",
+				WhyItMatters: "Without measured units, coverage for this workspace cannot be assessed.",
+				Remediation:  "Check whether the workspace contains executable code and whether coverage includes it.",
+				CreatedAt:    now,
+			})
+			continue
 		}
 
 		// B1: emit a per-file LOW_COVERAGE finding for each under-threshold file

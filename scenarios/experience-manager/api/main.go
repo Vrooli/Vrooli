@@ -63,6 +63,12 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	// auto_vacuum=INCREMENTAL takes effect on a new database immediately and on
+	// an existing one after its next full VACUUM; evidence retention then
+	// returns freed pages to the filesystem instead of leaving a high-water mark.
+	if err := ensureIncrementalOnNewDatabase(context.Background(), db.Primary()); err != nil {
+		log.Printf("set auto_vacuum=INCREMENTAL: %v", err)
+	}
 	if err := reconcile.EnsureMigrations(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("reconcile evidence migration failed: %v", err)
 	}
@@ -70,9 +76,16 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	retentionCtx, cancelRetention := context.WithCancel(context.Background())
+	defer cancelRetention()
+	compactor, err := startEvidenceRetention(retentionCtx, db, log.Default())
+	if err != nil {
+		log.Printf("evidence retention disabled: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
-		healthH.Module(db, "experience-manager-api", "1.0.0"),
+		healthH.Module(maintenancePinger{inner: db, compactor: compactor}, "experience-manager-api", "1.0.0"),
 		capabilitiesH.Module(repoRoot()),
 		studioH.Module(log.Default(), repoRoot(), studioH.WithDatabase(db)),
 		validationH.Module(log.Default(), repoRoot(), nil, validationH.WithDatabase(db)),
@@ -96,7 +109,10 @@ func main() {
 		// Full-fidelity validation can capture the complete declared state
 		// matrix before returning its evidence envelope.
 		WriteTimeout: 10 * time.Minute,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			cancelRetention()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

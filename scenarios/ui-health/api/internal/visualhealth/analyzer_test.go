@@ -2,6 +2,7 @@ package visualhealth
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -202,6 +203,104 @@ func TestAnalyzeReportsOffscreenInteractive(t *testing.T) {
 	assertFindingCodes(t, resp, "visual_offscreen_interactive")
 }
 
+func TestAnalyzeRequiresSameNodeVisibleKeyboardFocusBeforeClearingOffscreenFinding(t *testing.T) {
+	const base = `{"viewport":{"width":390,"height":844},"elements":[{"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","selector":"a.skip-link","tag":"a","rect":{"x":8,"y":-56,"width":117,"height":32}}],"keyboardFocus":%s}`
+	cases := []struct {
+		name        string
+		focus       string
+		wantFinding bool
+	}{
+		{
+			name:        "same initially hidden node becomes keyboard visible in viewport",
+			focus:       `{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","rect":{"x":8,"y":0,"width":117,"height":32}}`,
+			wantFinding: false,
+		},
+		{
+			name:        "permanently offscreen control remains an error while another node receives focus",
+			focus:       `{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"#different-control","nodeIdentity":"doc-1:2","rect":{"x":8,"y":0,"width":117,"height":32}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "no focus evidence",
+			focus:       `{}`,
+			wantFinding: true,
+		},
+		{
+			name:        "focus is not keyboard visible",
+			focus:       `{"focused":true,"focusVisible":false,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","rect":{"x":8,"y":0,"width":117,"height":32}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "same node remains outside viewport after focus",
+			focus:       `{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","rect":{"x":8,"y":-56,"width":117,"height":32}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "matching selector but replaced DOM node",
+			focus:       `{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"new-document:1","rect":{"x":8,"y":0,"width":117,"height":32}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "same node is partially clipped by viewport",
+			focus:       `{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","rect":{"x":-1,"y":0,"width":117,"height":32}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "zero-sized focused element",
+			focus:       `{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","rect":{"x":8,"y":0,"width":0,"height":0}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "invisible focused element",
+			focus:       `{"focused":true,"focusVisible":true,"visible":false,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"doc-1:1","rect":{"x":8,"y":0,"width":117,"height":32}}`,
+			wantFinding: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			layout := fmt.Sprintf(base, tc.focus)
+			resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+				StepId:     "layout",
+				Viewport:   &visualpb.Viewport{Width: 390, Height: 844},
+				LayoutJson: layout,
+			}}})
+			found := false
+			for _, finding := range resp.GetFindings() {
+				if finding.GetCode() == "visual_offscreen_interactive" {
+					found = true
+					break
+				}
+			}
+			if found != tc.wantFinding {
+				t.Fatalf("offscreen finding = %v, want %v (%+v)", found, tc.wantFinding, resp.GetFindings())
+			}
+		})
+	}
+}
+
+func TestAnalyzeRejectsAmbiguousDuplicateFocusIdentity(t *testing.T) {
+	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+		StepId:   "layout",
+		Viewport: &visualpb.Viewport{Width: 390, Height: 844},
+		LayoutJson: `{"viewport":{"width":390,"height":844},"elements":[` +
+			`{"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"duplicate","tag":"a","rect":{"x":8,"y":-56,"width":117,"height":32}},` +
+			`{"nodeKey":"html > body > a:nth-of-type(2)","nodeIdentity":"duplicate","tag":"a","rect":{"x":8,"y":-56,"width":117,"height":32}}],` +
+			`"keyboardFocus":{"focused":true,"focusVisible":true,"visible":true,"nodeKey":"html > body > a:nth-of-type(1)","nodeIdentity":"duplicate","rect":{"x":8,"y":0,"width":117,"height":32}}}`,
+	}}})
+	count := 0
+	for _, finding := range resp.GetFindings() {
+		if finding.GetCode() == "visual_offscreen_interactive" {
+			count++
+			if finding.GetLocation() != "html > body > a:nth-of-type(1)" && finding.GetLocation() != "html > body > a:nth-of-type(2)" {
+				t.Fatalf("offscreen location is not exact enough: %q", finding.GetLocation())
+			}
+		}
+	}
+	if count != 2 {
+		t.Fatalf("ambiguous focus identity must retain both offscreen findings, got %d: %+v", count, resp.GetFindings())
+	}
+}
+
 func TestAnalyzeAllowsInteractiveControlsInsideOwnedScrollContainers(t *testing.T) {
 	resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
 		StepId:     "layout",
@@ -257,6 +356,61 @@ func TestAnalyzeReportsFocusZoomRisk(t *testing.T) {
 		LayoutJson: `{"elements":[{"selector":"input[name=q]","tag":"input","type":"search","fontSize":14,"rect":{"x":20,"y":30,"width":240,"height":36}}]}`,
 	}}})
 	assertFindingCodes(t, resp, "visual_focus_zoom_risk")
+}
+
+func TestAnalyzeFocusZoomRiskRequiresEnabledMobileTextEntry(t *testing.T) {
+	tests := []struct {
+		name        string
+		width       int32
+		elementJSON string
+		wantFinding bool
+	}{
+		{
+			name:        "enabled mobile text below threshold",
+			width:       390,
+			elementJSON: `{"selector":"#enabled-14","tag":"input","type":"text","fontSize":14,"rect":{"x":16,"y":24,"width":240,"height":40}}`,
+			wantFinding: true,
+		},
+		{
+			name:        "enabled mobile text at threshold",
+			width:       390,
+			elementJSON: `{"selector":"#enabled-16","tag":"input","type":"text","fontSize":16,"rect":{"x":16,"y":24,"width":240,"height":40}}`,
+		},
+		{
+			name:        "desktop text below mobile threshold",
+			width:       1440,
+			elementJSON: `{"selector":"#desktop-14","tag":"input","type":"text","fontSize":14,"rect":{"x":16,"y":24,"width":240,"height":40}}`,
+		},
+		{
+			name:        "disabled mobile text below threshold",
+			width:       390,
+			elementJSON: `{"selector":"#disabled-14","tag":"input","type":"text","fontSize":14,"disabled":true,"rect":{"x":16,"y":24,"width":240,"height":40}}`,
+		},
+		{
+			name:        "mobile button input below text threshold",
+			width:       390,
+			elementJSON: `{"selector":"#button-14","tag":"input","type":"button","fontSize":14,"rect":{"x":16,"y":24,"width":240,"height":40}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := NewAnalyzer(pixel.DefaultThresholds()).Analyze(&visualpb.AnalyzeArtifactsRequest{Steps: []*visualpb.VisualStepArtifact{{
+				StepId:     tt.name,
+				Viewport:   &visualpb.Viewport{Width: tt.width, Height: 844},
+				LayoutJson: `{"elements":[` + tt.elementJSON + `]}`,
+			}}})
+			found := false
+			for _, finding := range resp.GetFindings() {
+				if finding.GetCode() == "visual_focus_zoom_risk" {
+					found = true
+				}
+			}
+			if found != tt.wantFinding {
+				t.Fatalf("visual_focus_zoom_risk = %v, want %v; findings: %+v", found, tt.wantFinding, resp.GetFindings())
+			}
+		})
+	}
 }
 
 func TestAnalyzeReportsBlockingOverlay(t *testing.T) {

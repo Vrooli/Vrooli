@@ -214,7 +214,7 @@ func collectLocalDeclarations(root string) []localDeclaration {
 				}
 				for _, spec := range d.Specs {
 					typeSpec, ok := spec.(*ast.TypeSpec)
-					if !ok || typeSpec.Name == nil {
+					if !ok || typeSpec.Name == nil || typeSpec.Assign.IsValid() {
 						continue
 					}
 					kind := "type"
@@ -482,6 +482,122 @@ func companionSymbolReimplemented(local localDeclaration, symbol companionSymbol
 	return true
 }
 
+// A call-count decorator delegates behavior rather than rebuilding it. Only
+// exempt method-name inference: exact name/signature matches still win. Every
+// exported method must forward unchanged arguments to an embedded field.
+func isForwardingCounter(local localDeclaration) bool {
+	file, err := parser.ParseFile(token.NewFileSet(), local.File, nil, 0)
+	if err != nil || local.Kind != "type" || len(local.Methods) == 0 {
+		return false
+	}
+	embedded := map[string]bool{}
+	for _, declaration := range file.Decls {
+		general, ok := declaration.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		for _, spec := range general.Specs {
+			typ, ok := spec.(*ast.TypeSpec)
+			if !ok || typ.Name.Name != local.Name {
+				continue
+			}
+			structure, ok := typ.Type.(*ast.StructType)
+			if !ok {
+				continue
+			}
+			for _, field := range structure.Fields.List {
+				if len(field.Names) == 0 {
+					embedded[receiverName(field.Type)] = true
+				}
+			}
+		}
+	}
+	if len(embedded) == 0 {
+		return false
+	}
+	// Match enrichment's package-wide method set, including methods declared
+	// beside the type in a sibling file. External test packages stay separate.
+	entries, err := os.ReadDir(filepath.Dir(local.File))
+	if err != nil {
+		return false
+	}
+	var methodDeclarations []ast.Decl
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
+			continue
+		}
+		sibling, err := parser.ParseFile(token.NewFileSet(), filepath.Join(filepath.Dir(local.File), entry.Name()), nil, 0)
+		if err != nil {
+			return false
+		}
+		if sibling.Name.Name == file.Name.Name {
+			methodDeclarations = append(methodDeclarations, sibling.Decls...)
+		}
+	}
+	forwarded := 0
+	for _, declaration := range methodDeclarations {
+		fn, ok := declaration.(*ast.FuncDecl)
+		if !ok || fn.Recv == nil || receiverName(fn.Recv.List[0].Type) != local.Name || !ast.IsExported(fn.Name.Name) {
+			continue
+		}
+		if len(fn.Recv.List[0].Names) != 1 || fn.Body == nil || len(fn.Body.List) == 0 {
+			return false
+		}
+		receiver := fn.Recv.List[0].Names[0].Name
+		for _, statement := range fn.Body.List[:len(fn.Body.List)-1] {
+			counter, ok := statement.(*ast.IncDecStmt)
+			if !ok {
+				return false
+			}
+			field, ok := counter.X.(*ast.SelectorExpr)
+			if !ok {
+				return false
+			}
+			owner, ok := field.X.(*ast.Ident)
+			if !ok || owner.Name != receiver || embedded[field.Sel.Name] {
+				return false
+			}
+		}
+		returned, ok := fn.Body.List[len(fn.Body.List)-1].(*ast.ReturnStmt)
+		if !ok || len(returned.Results) != 1 {
+			return false
+		}
+		call, ok := returned.Results[0].(*ast.CallExpr)
+		if !ok || call.Ellipsis.IsValid() {
+			return false
+		}
+		method, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || method.Sel.Name != fn.Name.Name {
+			return false
+		}
+		field, ok := method.X.(*ast.SelectorExpr)
+		if !ok || !embedded[field.Sel.Name] {
+			return false
+		}
+		owner, ok := field.X.(*ast.Ident)
+		if !ok || owner.Name != receiver {
+			return false
+		}
+		var parameters []string
+		for _, parameter := range fn.Type.Params.List {
+			for _, name := range parameter.Names {
+				parameters = append(parameters, name.Name)
+			}
+		}
+		if len(parameters) != len(call.Args) {
+			return false
+		}
+		for i, argument := range call.Args {
+			name, ok := argument.(*ast.Ident)
+			if !ok || name.Name != parameters[i] {
+				return false
+			}
+		}
+		forwarded++
+	}
+	return forwarded == len(local.Methods)
+}
+
 // companionHelperAdapted reports whether a test-only declaration is a
 // registered helper rebuilt around a different input. Exact matching cannot see
 // these: vrooli-autoheal's MustDecodeJSON takes the recorder where the
@@ -534,6 +650,9 @@ func bestCompanionMatch(local localDeclaration, registry companionRegistry, inde
 				return companionMatch{Export: export, Symbol: symbol, Reason: matchByAdaptation}, true
 			}
 		}
+	}
+	if isForwardingCounter(local) {
+		return companionMatch{}, false
 	}
 	for _, export := range exports {
 		if !declarationWorksWithOwner(index, local, export) {

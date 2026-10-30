@@ -54,45 +54,52 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) ([]Sample
 	if request.Strategy == "electron-optimized" && !request.Toggles.Any() {
 		return nil, errors.New("packaged: electron-optimized requires at least one enabled E3 optimization toggle")
 	}
+	if request.PlanOnly {
+		return nil, nil
+	}
 	if request.Experiment == "" {
 		request.Experiment = fmt.Sprintf("%s-%d", request.Scenario, s.clock().UTC().UnixNano())
 	}
-	// A discarded warmup establishes caches and validates the producer contract;
-	// it is intentionally excluded from stored statistics.
-	warmup := request
-	warmup.Runs = 1
-	if _, err := s.launcher.Launch(ctx, warmup); err != nil {
-		return nil, fmt.Errorf("packaged: warmup: %w", err)
-	}
+	// Every capture performs one discarded warmup and the requested measured
+	// samples. Record both in the existing attempt ledger; only measurements
+	// enter statistics and reliability acceptance.
 	out := make([]Sample, 0, request.Runs)
-	for i := 0; i < request.Runs; i++ {
+	for i := 0; i <= request.Runs; i++ {
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
-		sample, err := s.launcher.Launch(ctx, request)
-		if err != nil {
-			if attemptErr := s.recordAttempt(ctx, request, false, err); attemptErr != nil {
-				return out, fmt.Errorf("packaged: run %d/%d failed: %v; recording attempt failed: %w", i+1, request.Runs, err, attemptErr)
-			}
-			return out, fmt.Errorf("packaged: run %d/%d: %w", i+1, request.Runs, err)
+		launch := request
+		if i == 0 {
+			launch.Runs = 1
 		}
-		sample.Scenario, sample.Ramp, sample.Strategy, sample.Condition, sample.ExperimentID = request.Scenario, request.Ramp, request.Strategy, request.Condition, request.Experiment
-		if sample.ToggleAttribution != request.Toggles {
-			attemptErr := fmt.Errorf("artifact attribution %s does not match requested toggles %s", sample.ToggleAttribution.Identity(), request.Toggles.Identity())
-			if err := s.recordAttempt(ctx, request, false, attemptErr); err != nil {
-				return out, fmt.Errorf("packaged: run %d failed: %v; recording attempt failed: %w", i+1, attemptErr, err)
-			}
-			return out, fmt.Errorf("packaged: run %d %w", i+1, attemptErr)
+		sample, launchErr := s.launcher.Launch(ctx, launch)
+		if launchErr == nil && sample.ToggleAttribution != request.Toggles {
+			launchErr = fmt.Errorf("artifact attribution %s does not match requested toggles %s", sample.ToggleAttribution.Identity(), request.Toggles.Identity())
 		}
-		if err := sample.Validate(); err != nil {
-			if attemptErr := s.recordAttempt(ctx, request, false, err); attemptErr != nil {
-				return out, fmt.Errorf("packaged: run %d invalid sample: %v; recording attempt failed: %w", i+1, err, attemptErr)
-			}
-			return out, fmt.Errorf("packaged: run %d returned invalid sample: %w", i+1, err)
+		if launchErr == nil {
+			launchErr = sample.Validate()
 		}
-		if err := s.recordAttempt(ctx, request, true, nil); err != nil {
+		attempt := LaunchAttempt{Scenario: request.Scenario, Ramp: request.Ramp, Strategy: request.Strategy, Experiment: request.Experiment, Condition: request.Condition, Toggles: request.Toggles, Attempted: s.clock().UTC(), Succeeded: launchErr == nil, Warmup: i == 0}
+		if launchErr != nil {
+			attempt.Error = truncate(launchErr.Error(), 240)
+		}
+		// Request cancellation must stop work, while its outcome remains recordable.
+		recordCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		recordErr := s.store.RecordAttempt(recordCtx, attempt)
+		cancel()
+		if recordErr != nil {
+			return out, fmt.Errorf("packaged: recording attempt: %w", errors.Join(launchErr, recordErr))
+		}
+		if launchErr != nil {
+			return out, fmt.Errorf("packaged: attempt %d/%d (warmup=%t): %w", i, request.Runs, i == 0, launchErr)
+		}
+		if err := ctx.Err(); err != nil {
 			return out, err
 		}
+		if i == 0 {
+			continue
+		}
+		sample.Scenario, sample.Ramp, sample.Strategy, sample.Condition, sample.ExperimentID = request.Scenario, request.Ramp, request.Strategy, request.Condition, request.Experiment
 		if err := s.store.Insert(ctx, sample); err != nil {
 			return out, err
 		}
@@ -104,17 +111,6 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) ([]Sample
 		out = append(out, sample)
 	}
 	return out, nil
-}
-
-func (s *Service) recordAttempt(ctx context.Context, request CaptureRequest, succeeded bool, attemptErr error) error {
-	if s == nil || s.store == nil {
-		return errors.New("packaged: service is unavailable")
-	}
-	attempt := LaunchAttempt{Scenario: request.Scenario, Ramp: request.Ramp, Strategy: request.Strategy, Experiment: request.Experiment, Condition: request.Condition, Toggles: request.Toggles, Attempted: s.clock().UTC(), Succeeded: succeeded}
-	if attemptErr != nil {
-		attempt.Error = truncate(attemptErr.Error(), 240)
-	}
-	return s.store.RecordAttempt(ctx, attempt)
 }
 
 func persistEvidence(root string, sample Sample) error {
@@ -198,7 +194,7 @@ func (s *Service) Report(ctx context.Context, scenario, ramp, strategy, conditio
 		cellKey := attemptGroupKey(key.scenario, key.ramp, key.strategy, key.condition, key.experiment, key.toggles)
 		cellAttempts := attemptsByCell[cellKey]
 		seenCells[cellKey] = true
-		group := ReportCell{Scenario: key.scenario, Ramp: key.ramp, Strategy: key.strategy, Platform: key.platform, Condition: key.condition, ExperimentID: key.experiment, Comparable: comparable, Samples: len(values), Metrics: summarize(values), ArtifactDigest: key.digest, Environment: EnvironmentMetadata{HostFingerprint: key.host, Display: key.display, ProfilerMode: key.profiler, PowerState: key.power}, JourneyParity: journeyStatus, JourneyReceipts: journeyReceipts, Reliability: summarizeReliability(cellAttempts, len(values))}
+		group := ReportCell{Scenario: key.scenario, Ramp: key.ramp, Strategy: key.strategy, Platform: key.platform, Condition: key.condition, ExperimentID: key.experiment, Comparable: comparable, Samples: len(values), Metrics: summarize(values), ArtifactDigest: key.digest, Environment: EnvironmentMetadata{HostFingerprint: key.host, Display: key.display, ProfilerMode: key.profiler, PowerState: key.power}, JourneyParity: journeyStatus, JourneyReceipts: journeyReceipts, Reliability: summarizeReliability(cellAttempts, len(values), false), WarmupReliability: summarizeReliability(cellAttempts, 0, true)}
 		group.ToggleAttribution = values[0].ToggleAttribution
 		group.AttributionStatus = "unavailable: packaged-launch producer has not recorded optimization toggle values"
 		if key.strategy == "electron-sidecar" {
@@ -235,7 +231,7 @@ func (s *Service) Report(ctx context.Context, scenario, ramp, strategy, conditio
 			continue
 		}
 		first := cellAttempts[0]
-		group := ReportCell{Scenario: first.Scenario, Ramp: first.Ramp, Strategy: first.Strategy, Condition: first.Condition, ExperimentID: first.Experiment, Comparable: false, Metrics: map[string]MetricSummary{}, ToggleAttribution: first.Toggles, AttributionStatus: "known: captured from requested matrix cell", JourneyParity: "unavailable: no valid launch samples", Reliability: summarizeReliability(cellAttempts, 0)}
+		group := ReportCell{Scenario: first.Scenario, Ramp: first.Ramp, Strategy: first.Strategy, Condition: first.Condition, ExperimentID: first.Experiment, Comparable: false, Metrics: map[string]MetricSummary{}, ToggleAttribution: first.Toggles, AttributionStatus: "known: captured from requested matrix cell", JourneyParity: "unavailable: no valid launch samples", Reliability: summarizeReliability(cellAttempts, 0, false), WarmupReliability: summarizeReliability(cellAttempts, 0, true)}
 		report.Cells = append(report.Cells, group)
 		report.MissingData = append(report.MissingData, "no valid launch samples for "+first.Scenario+" "+first.Strategy+" "+first.Condition)
 	}
@@ -255,12 +251,20 @@ func attemptGroupKey(scenario, ramp, strategy, condition, experiment string, tog
 	return strings.Join([]string{scenario, ramp, strategy, condition, experiment, toggles.Identity()}, "\x00")
 }
 
-func summarizeReliability(attempts []LaunchAttempt, successfulSamples int) ReliabilityEvidence {
+func summarizeReliability(attempts []LaunchAttempt, successfulSamples int, warmup bool) ReliabilityEvidence {
 	if len(attempts) == 0 {
 		return ReliabilityEvidence{Attempts: successfulSamples, Successful: successfulSamples, Status: "unavailable: launch attempt outcomes were not retained"}
 	}
-	out := ReliabilityEvidence{Attempts: len(attempts)}
+	kind := "measurement"
+	if warmup {
+		kind = "warmup"
+	}
+	out := ReliabilityEvidence{}
 	for _, attempt := range attempts {
+		if attempt.Warmup != warmup {
+			continue
+		}
+		out.Attempts++
 		if attempt.Succeeded {
 			out.Successful++
 		} else {
@@ -270,10 +274,14 @@ func summarizeReliability(attempts []LaunchAttempt, successfulSamples int) Relia
 			}
 		}
 	}
+	if out.Attempts == 0 {
+		out.Status = "unavailable: no " + kind + " operations were attempted"
+		return out
+	}
 	if out.Failed == 0 {
-		out.Status = fmt.Sprintf("recorded: %d of %d launches succeeded", out.Successful, out.Attempts)
+		out.Status = fmt.Sprintf("recorded: %d of %d %s operations succeeded", out.Successful, out.Attempts, kind)
 	} else {
-		out.Status = fmt.Sprintf("failed: %d of %d launches failed", out.Failed, out.Attempts)
+		out.Status = fmt.Sprintf("failed: %d of %d %s operations failed", out.Failed, out.Attempts, kind)
 	}
 	return out
 }
@@ -328,7 +336,7 @@ func RenderMarkdown(report Report) string {
 			p50 = fmt.Sprintf("%.3f ms", *value)
 		}
 		t := g.ToggleAttribution
-		fmt.Fprintf(&b, "| %s | %s | %s | %t / %t / %t / %t | %s | %s | %d | %s | %s | %s (%d/%d known launches) | `%s` | %s / %s / %s / %s | %t |\n", g.Scenario, g.Strategy, g.AttributionStatus, t.SharedRuntimeReadiness, t.SecureCustomSchemeUI, t.V8SnapshotCodeCache, t.ElectronFuses, g.Platform, g.Condition, g.Samples, p50, g.JourneyParity, g.Reliability.Status, g.Reliability.Successful, g.Reliability.Attempts, g.ArtifactDigest, g.Environment.HostFingerprint, g.Environment.Display, g.Environment.ProfilerMode, g.Environment.PowerState, g.Comparable)
+		fmt.Fprintf(&b, "| %s | %s | %s | %t / %t / %t / %t | %s | %s | %d | %s | %s | %s (%d/%d known measurement operations) | `%s` | %s / %s / %s / %s | %t |\n", g.Scenario, g.Strategy, g.AttributionStatus, t.SharedRuntimeReadiness, t.SecureCustomSchemeUI, t.V8SnapshotCodeCache, t.ElectronFuses, g.Platform, g.Condition, g.Samples, p50, g.JourneyParity, g.Reliability.Status, g.Reliability.Successful, g.Reliability.Attempts, g.ArtifactDigest, g.Environment.HostFingerprint, g.Environment.Display, g.Environment.ProfilerMode, g.Environment.PowerState, g.Comparable)
 	}
 	if len(report.MissingData) > 0 {
 		b.WriteString("\n## Missing data\n\n")

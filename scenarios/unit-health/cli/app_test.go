@@ -78,13 +78,15 @@ func TestMetadata(t *testing.T) {
 	}
 }
 
-// Long validation keeps its server-owned deadline even when ordinary requests
-// use a short client timeout. Exercise the actual CLI/Connect transport.
+// Executed validation delegates its deadline to the server while ordinary
+// requests retain their configured client deadline. Exercise the actual
+// CLI/Connect transport.
 func TestExecutedValidationWaitsForTerminalResponse(t *testing.T) {
+	requests := make(chan string, 4)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- r.Method + " " + r.URL.Path
 		w.Header().Set("Content-Type", "application/json")
 		if strings.Contains(r.URL.Path, "ValidateScenario") {
-			time.Sleep(80 * time.Millisecond)
 			w.Header().Set("Content-Type", "application/proto")
 			body, err := proto.Marshal(&validationv1.ValidateScenarioResponse{RunId: "delayed-validation", Scenario: "demo", Status: "passed"})
 			if err != nil {
@@ -101,9 +103,66 @@ func TestExecutedValidationWaitsForTerminalResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app.core.HTTPClient = cliutil.NewHTTPClient(cliutil.HTTPClientOptions{Timeout: 10 * time.Millisecond})
+	app.core.HTTPClient = cliutil.NewHTTPClient(cliutil.HTTPClientOptions{Timeout: 30 * time.Second})
+	previousTransport := http.DefaultTransport
+	transportObservations := make(chan requestDeadlineObservation, 4)
+	http.DefaultTransport = recordingRoundTripper{next: previousTransport, observations: transportObservations}
+	defer func() { http.DefaultTransport = previousTransport }()
+	var runErr error
 	output := cliapptest.CaptureStdout(t, func() error {
-		return app.Run([]string{"--api-base", server.URL, "validate", "scenario", "demo", "--execution", "--json"})
+		runErr = app.Run([]string{"--api-base", server.URL, "validate", "scenario", "demo", "--execution", "--json"})
+		return nil
 	})
+	seen := drainRequests(requests)
+	if len(seen) != 2 || seen[0] != "GET /health" || !strings.Contains(seen[1], "ValidateScenario") {
+		t.Fatalf("server requests = %v, want health preflight followed by validation", seen)
+	}
+	deadlines := drainDeadlineObservations(transportObservations)
+	if len(deadlines) != 2 || !deadlines[0].hasDeadline || deadlines[1].hasDeadline {
+		t.Fatalf("request deadlines = %+v, want bounded health preflight then server-owned validation", deadlines)
+	}
+	if runErr != nil {
+		t.Fatalf("CLI validation returned error: %v", runErr)
+	}
 	testutil.RequireContains(t, output, "delayed-validation")
+}
+
+type requestDeadlineObservation struct {
+	path        string
+	hasDeadline bool
+}
+
+type recordingRoundTripper struct {
+	next         http.RoundTripper
+	observations chan<- requestDeadlineObservation
+}
+
+func (r recordingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	_, hasDeadline := req.Context().Deadline()
+	r.observations <- requestDeadlineObservation{path: req.URL.Path, hasDeadline: hasDeadline}
+	return r.next.RoundTrip(req)
+}
+
+func drainDeadlineObservations(observations <-chan requestDeadlineObservation) []requestDeadlineObservation {
+	var seen []requestDeadlineObservation
+	for {
+		select {
+		case observation := <-observations:
+			seen = append(seen, observation)
+		default:
+			return seen
+		}
+	}
+}
+
+func drainRequests(requests <-chan string) []string {
+	var seen []string
+	for {
+		select {
+		case request := <-requests:
+			seen = append(seen, request)
+		default:
+			return seen
+		}
+	}
 }

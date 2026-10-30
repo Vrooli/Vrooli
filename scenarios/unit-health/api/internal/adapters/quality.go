@@ -44,6 +44,12 @@ type ExecutionDiagnosticsAdapter interface {
 	NewExecutionDiagnostics() ExecutionDiagnostics
 }
 
+// StderrExecutionDiagnosticsAdapter is an optional stream-specific companion
+// for runners that write useful bounded failure identities to stderr.
+type StderrExecutionDiagnosticsAdapter interface {
+	NewStderrExecutionDiagnostics() ExecutionDiagnostics
+}
+
 // QualityCollector is an optional adapter capability. The kernel supplies a
 // command-unique run identity and never interprets framework evidence itself.
 type QualityCollector interface {

@@ -32,10 +32,11 @@ function analyze(input, ts) {
     if (!/\.[jt]sx?$/.test(file)) continue;
     const ast = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true,
       file.endsWith('.tsx') ? ts.ScriptKind.TSX : file.endsWith('.ts') ? ts.ScriptKind.TS : file.endsWith('.jsx') ? ts.ScriptKind.JSX : ts.ScriptKind.JS);
-    const imports = new Map(), exports = new Map(), locals = new Map();
+    const imports = new Map(), exports = new Map(), locals = new Map(), dependencies = new Set();
     for (const statement of ast.statements) {
       if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
         const source = statement.moduleSpecifier.text, clause = statement.importClause;
+        if (hasRuntimeImportBindings(clause, ts)) dependencies.add(source);
         if (clause?.isTypeOnly) continue;
         if (clause?.name) imports.set(clause.name.text, { source, name:'default' });
         if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
@@ -61,8 +62,25 @@ function analyze(input, ts) {
           local:item.propertyName?.text || item.name.text, source:literal(statement.moduleSpecifier),
         });
       }
+      if (ts.isExportDeclaration(statement) && !statement.isTypeOnly && statement.moduleSpecifier && ts.isStringLiteralLike(statement.moduleSpecifier)) {
+        const clause = statement.exportClause;
+        if (!clause || !ts.isNamedExports(clause) || clause.elements.some(element => !element.isTypeOnly)) {
+          dependencies.add(statement.moduleSpecifier.text);
+        }
+      }
     }
-    modules.set(file, { ast, imports, exports, locals });
+    // The serving graph includes literal dynamic imports as well as static
+    // imports and re-exports. Ignore computed specifiers: their target cannot
+    // be proven from this source-only graph.
+    function collectDynamicImports(node) {
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+          node.arguments.length >= 1 && ts.isStringLiteralLike(node.arguments[0])) {
+        dependencies.add(node.arguments[0].text);
+      }
+      ts.forEachChild(node, collectDynamicImports);
+    }
+    collectDynamicImports(ast);
+    modules.set(file, { ast, imports, exports, locals, dependencies });
     if (ast.parseDiagnostics.length) add(file, null, 'source', 'JSX could not be parsed; repair syntax before ownership can be verified');
   }
 
@@ -102,8 +120,8 @@ function analyze(input, ts) {
       if (file === target) return true;
       const mod = modules.get(file);
       if (!mod) return false;
-      for (const imp of mod.imports.values()) {
-        const child = resolve(file, imp.source);
+      for (const specifier of mod.dependencies) {
+        const child = resolve(file, specifier);
         if (child && visit(child)) return true;
       }
       return false;
@@ -222,6 +240,16 @@ function analyze(input, ts) {
   }
   const entryReachable = reachableFromBrowserEntry(shell.entry);
   return { mounted, findings, entryReachable };
+}
+
+function hasRuntimeImportBindings(clause, ts) {
+  if (!clause) return true; // side-effect import
+  if (clause.isTypeOnly) return false;
+  if (clause.name) return true; // default import
+  const bindings = clause.namedBindings;
+  if (!bindings) return false;
+  if (ts.isNamespaceImport(bindings)) return true;
+  return ts.isNamedImports(bindings) && bindings.elements.some(element => !element.isTypeOnly);
 }
 
 module.exports = { analyze };

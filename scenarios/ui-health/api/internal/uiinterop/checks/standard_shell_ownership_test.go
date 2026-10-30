@@ -172,6 +172,83 @@ func TestShellOwnershipProvesDeclaredEntryIsBrowserReachable(t *testing.T) {
 	}
 }
 
+func TestShellOwnershipFollowsLiteralDynamicImportFromBrowserEntry(t *testing.T) {
+	root := t.TempDir()
+	writeShellFixture(t, root, "ui/src/main.tsx", `import {createRoot} from "react-dom/client"; async function bootstrap(){ const {default: App} = await import("./App", {}); createRoot(document.getElementById("root")!).render(<App/>); } void bootstrap();`)
+	writeShellFixture(t, root, "ui/src/App.tsx", `import {AppRouter} from "./app/routes"; export default function App(){return <AppRouter/>}`)
+	writeShellFixture(t, root, "ui/src/app/routes.tsx", `import {AppShell} from "../layout/AppShell"; export function AppRouter(){return <AppShell/>}`)
+	writeShellFixture(t, root, "ui/src/layout/AppShell.tsx", `import {AppShell as LibraryShell} from '@vrooli/react-component-library/AppShell/2'; export function AppShell(){return <LibraryShell/>}`)
+	ctx := uiinterop.CheckContext{ScenarioRoot: root, Sources: uiinterop.WalkUISource(root, "ui")}
+	result, err := analyzeShellOwnership(ctx, shellDeclaration{Archetype: "navigated-console", Asset: "AppShell", Entry: "ui/src/layout/AppShell.tsx", Export: "AppShell"})
+	if err != nil || result.EntryReachable == nil || !*result.EntryReachable || !result.Mounted || len(result.Findings) != 0 {
+		t.Fatalf("literal dynamic-import browser path was not proven: %+v, %v", result, err)
+	}
+}
+
+func TestShellOwnershipDoesNotResolveComputedDynamicImport(t *testing.T) {
+	root := t.TempDir()
+	writeShellFixture(t, root, "ui/src/main.tsx", `async function bootstrap(path: string){ return import(path); }`)
+	writeShellFixture(t, root, "ui/src/layout/AppShell.tsx", `import {AppShell as LibraryShell} from '@vrooli/react-component-library/AppShell/2'; export function AppShell(){return <LibraryShell/>}`)
+	ctx := uiinterop.CheckContext{ScenarioRoot: root, Sources: uiinterop.WalkUISource(root, "ui")}
+	result, err := analyzeShellOwnership(ctx, shellDeclaration{Archetype: "navigated-console", Asset: "AppShell", Entry: "ui/src/layout/AppShell.tsx", Export: "AppShell"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.EntryReachable == nil || *result.EntryReachable || !result.Mounted {
+		t.Fatalf("computed dynamic import incorrectly established browser reachability: %+v", result)
+	}
+}
+
+func TestShellOwnershipReachabilityUsesRuntimeTypeScriptEdges(t *testing.T) {
+	cases := []struct {
+		name      string
+		main      string
+		wrapper   string
+		reachable bool
+	}{
+		{
+			name:      "all type-only import does not create runtime edge",
+			main:      `import {type AppShell} from "./layout/AppShell"; type Shell = typeof AppShell;`,
+			reachable: false,
+		},
+		{
+			name:      "all type-only named re-export does not create runtime edge",
+			main:      `import "./wrapper";`,
+			wrapper:   `export {type AppShell} from "./layout/AppShell";`,
+			reachable: false,
+		},
+		{
+			name:      "mixed named import retains runtime edge",
+			main:      `import {createRoot} from "react-dom/client"; import {type AppShellProps, AppShell} from "./layout/AppShell"; createRoot(document.getElementById("root")!).render(<AppShell/>);`,
+			reachable: true,
+		},
+		{
+			name:      "value re-export retains runtime edge",
+			main:      `import {createRoot} from "react-dom/client"; import {AppShell} from "./wrapper"; createRoot(document.getElementById("root")!).render(<AppShell/>);`,
+			wrapper:   `export {AppShell} from "./layout/AppShell";`,
+			reachable: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeShellFixture(t, root, "ui/src/main.tsx", tc.main)
+			if tc.wrapper != "" {
+				writeShellFixture(t, root, "ui/src/wrapper.ts", tc.wrapper)
+			}
+			writeShellFixture(t, root, "ui/src/layout/AppShell.tsx", `import {AppShell as LibraryShell} from '@vrooli/react-component-library/AppShell/2'; export function AppShell(){return <LibraryShell/>}`)
+			ctx := uiinterop.CheckContext{ScenarioRoot: root, Sources: uiinterop.WalkUISource(root, "ui")}
+			result, err := analyzeShellOwnership(ctx, shellDeclaration{Archetype: "navigated-console", Asset: "AppShell", Entry: "ui/src/layout/AppShell.tsx", Export: "AppShell"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.EntryReachable == nil || *result.EntryReachable != tc.reachable {
+				t.Fatalf("runtime reachability = %v, want %v: %+v", result.EntryReachable, tc.reachable, result)
+			}
+		})
+	}
+}
+
 func TestShellOwnershipRejectsDeclaredEntryOutsideBrowserGraph(t *testing.T) {
 	root := t.TempDir()
 	writeShellFixture(t, root, "ui/manifest.json", `{"shell":{"archetype":"navigated-console","asset":"AppShell","entry":"ui/src/layout/AppShell.tsx","export":"AppShell"}}`)

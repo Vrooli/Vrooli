@@ -9,6 +9,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
+	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0-00010101000000-000000000000
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -19,7 +20,6 @@ require (
 require (
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/platform-go v0.0.0 // indirect
 )
 
 require (
@@ -33,7 +33,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

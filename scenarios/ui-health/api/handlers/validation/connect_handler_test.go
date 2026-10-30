@@ -13,10 +13,12 @@ import (
 	"connectrpc.com/connect"
 
 	"ui-health/internal/services/manifestvalidation"
+	"ui-health/internal/visualhealth"
 
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 )
 
 func TestBuildMaturityAssessmentMapsUIFindings(t *testing.T) {
@@ -68,6 +70,14 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, rule := range visualhealth.Rules() {
+		if rule.GetSeverity() != visualpb.VisualSeverity_VISUAL_SEVERITY_INFO {
+			continue
+		}
+		if _, ok := spec.Findings[rule.GetId()]; !ok {
+			t.Fatalf("maturity spec does not classify informational visual-health rule %q", rule.GetId())
+		}
+	}
 	for _, code := range []string{
 		"no_ui_surface",
 		"ui_predates_template_layout",
@@ -117,6 +127,74 @@ func TestMaturitySpecCoversUIHealthFindings(t *testing.T) {
 		if _, ok := spec.Findings[code]; !ok {
 			t.Fatalf("maturity spec does not map emitted finding code %q", code)
 		}
+	}
+}
+
+func TestInformationalVisualRulesAreAdvisoryAndRequiredNativeScreenStillFails(t *testing.T) {
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var infoFindings []manifestvalidation.Finding
+	var nativeScreenCode string
+	for _, rule := range visualhealth.Rules() {
+		if rule.GetSeverity() == visualpb.VisualSeverity_VISUAL_SEVERITY_INFO {
+			infoFindings = append(infoFindings, manifestvalidation.Finding{Severity: manifestvalidation.SeverityInfo, Code: rule.GetId()})
+		}
+		if rule.GetId() == "visual_native_screen_unverified" {
+			nativeScreenCode = rule.GetId()
+		}
+	}
+	if len(infoFindings) == 0 || nativeScreenCode == "" {
+		t.Fatalf("visual rule catalog missing informational/native-screen contract: info=%d native=%q", len(infoFindings), nativeScreenCode)
+	}
+	infoReport := manifestvalidation.Report{Scenario: "demo", Findings: infoFindings}
+	info, err := buildMaturityAssessment(infoReport, spec)
+	if err != nil {
+		t.Fatalf("build info assessment: %v", err)
+	}
+	if !info.GetLocal().GetClean() {
+		t.Fatalf("optional browser limitations must not make local maturity dirty: %+v", info.GetLocal())
+	}
+	for _, finding := range infoFindings {
+		for _, blocking := range info.GetPresentation().GetBlockingFindingCodes() {
+			if blocking == finding.Code {
+				t.Fatalf("INFO finding %q must remain advisory, presentation blockers=%v", finding.Code, info.GetPresentation().GetBlockingFindingCodes())
+			}
+		}
+	}
+	if status := NewConnectHandler(Deps{}).sharedStatus(infoFindings); status != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("informational browser limits phase status = %v, want PASSED", status)
+	}
+
+	errorReport := manifestvalidation.Report{Scenario: "demo", Findings: []manifestvalidation.Finding{{
+		Severity: manifestvalidation.SeverityError, Code: nativeScreenCode,
+	}}}
+	errorAssessment, err := buildMaturityAssessment(errorReport, spec)
+	if err != nil {
+		t.Fatalf("build required-native-screen assessment: %v", err)
+	}
+	var nativeCapability *commonv1.CapabilityMaturityAssessment
+	for _, capability := range errorAssessment.GetCapabilities() {
+		if capability.GetId() == "pwa_native_readiness" {
+			nativeCapability = capability
+			break
+		}
+	}
+	if nativeCapability == nil || nativeCapability.GetCurrentLevel() != "L4" {
+		t.Fatalf("configured native-screen ERROR should cap native readiness below L5: %+v", nativeCapability)
+	}
+	found := false
+	for _, code := range nativeCapability.GetBlockingFindingCodes() {
+		if code == nativeScreenCode {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("configured native-screen ERROR missing from capability blockers: %v", nativeCapability.GetBlockingFindingCodes())
+	}
+	if status := NewConnectHandler(Deps{}).sharedStatus(errorReport.Findings); status != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("configured native-screen ERROR phase status = %v, want FAILED", status)
 	}
 }
 

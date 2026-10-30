@@ -3,6 +3,8 @@ package uiruntime
 import (
 	"strings"
 	"testing"
+
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
 func TestArtifactCaptureScriptCollectsOnlyDeclaredExperienceSurfaces(t *testing.T) {
@@ -11,6 +13,12 @@ func TestArtifactCaptureScriptCollectsOnlyDeclaredExperienceSurfaces(t *testing.
 		if !strings.Contains(script, fragment) {
 			t.Fatalf("artifact capture script missing %q", fragment)
 		}
+	}
+}
+
+func TestArtifactCaptureScriptRecordsNativeDisabledState(t *testing.T) {
+	if !strings.Contains(artifactCaptureScript(), "el.matches(':disabled')") {
+		t.Fatal("artifact capture must retain native disabled state for focusability checks")
 	}
 }
 
@@ -53,6 +61,65 @@ func TestHandshakeWorkflowKeepsHandshakeOnlyPathWithoutDeclaredSurfaces(t *testi
 	}
 	if !foundRenderSettle {
 		t.Fatal("runtime workflow must wait for its first post-handshake paint")
+	}
+}
+
+func TestHandshakeWorkflowCapturesExactKeyboardFocusAfterInitialLayout(t *testing.T) {
+	def := buildHandshakeWorkflow("http://scenario", nil, nil, 0, 1280, 720)
+	nodes := def["nodes"].([]any)
+	positions := map[string]int{}
+	for i, raw := range nodes {
+		node := raw.(map[string]any)
+		positions[node["id"].(string)] = i
+	}
+	if !(positions[nodeArtifacts] < positions[nodeScreens] && positions[nodeScreens] < positions[nodeFocusFrame] && positions[nodeFocusFrame] < positions[nodeKeyboardTab] && positions[nodeKeyboardTab] < positions[nodeFocusCapture]) {
+		t.Fatalf("focus probe must capture layout before entering the target frame and sending Tab: %#v", positions)
+	}
+	var focusExpression string
+	var frameSwitch map[string]any
+	for _, raw := range nodes {
+		node := raw.(map[string]any)
+		action := node["action"].(map[string]any)
+		if node["id"] == nodeFocusFrame {
+			if action["type"] != "ACTION_TYPE_FRAME_SWITCH" {
+				t.Fatalf("keyboard focus must switch BAS execution into the embedded UI frame; action=%#v", action)
+			}
+			frameSwitch = action["frameSwitch"].(map[string]any)
+		}
+		if node["id"] == nodeKeyboardTab && action["type"] != "ACTION_TYPE_KEYBOARD" {
+			t.Fatalf("keyboard traversal must remain a real BAS keyboard action; action=%#v", action)
+		}
+		if node["id"] == nodeFocusCapture {
+			focusExpression = action["evaluate"].(map[string]any)["expression"].(string)
+		}
+	}
+	if frameSwitch["action"] != "FRAME_SWITCH_ACTION_ENTER" || frameSwitch["selector"] != hostFrameSelector {
+		t.Fatalf("keyboard focus must enter the exact embedded UI frame: %#v", frameSwitch)
+	}
+	compiled, err := definitionToProto(def)
+	if err != nil {
+		t.Fatalf("workflow frame-switch action must satisfy BAS's typed contract: %v", err)
+	}
+	var enteredFrame, sentTab bool
+	for _, node := range compiled.GetNodes() {
+		switch node.GetId() {
+		case nodeFocusFrame:
+			params := node.GetAction().GetFrameSwitch()
+			if params == nil || params.GetAction() != basactions.FrameSwitchAction_FRAME_SWITCH_ACTION_ENTER || params.GetSelector() != hostFrameSelector {
+				t.Fatalf("typed BAS workflow does not enter the target iframe: %+v", node.GetAction())
+			}
+			enteredFrame = true
+		case nodeKeyboardTab:
+			sentTab = node.GetAction().GetKeyboard() != nil && node.GetAction().GetKeyboard().GetKey() == "Tab"
+		}
+	}
+	if !enteredFrame || !sentTab {
+		t.Fatalf("typed BAS workflow must enter the target frame before a real Tab; entered=%v tab=%v", enteredFrame, sentTab)
+	}
+	for _, fragment := range []string{"activeElement", "matches(':focus-visible')", "nodeKey", "nodeIdentity", "getBoundingClientRect", "parent.getBoundingClientRect", "rect.right <= right"} {
+		if !strings.Contains(focusExpression, fragment) {
+			t.Fatalf("keyboard focus capture missing %q", fragment)
+		}
 	}
 }
 

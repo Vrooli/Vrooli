@@ -64,6 +64,10 @@ func main() {
 		})
 	}
 
+	if err := startRunArtifactRetention(syncCtx, db, repoRoot, log.Default()); err != nil {
+		log.Printf("run artifact retention disabled: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "workflow-health-api", "1.0.0"),

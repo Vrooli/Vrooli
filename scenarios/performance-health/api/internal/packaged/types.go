@@ -134,6 +134,7 @@ func (s Sample) Metric(name string) (Metric, bool) {
 }
 
 type CaptureRequest struct {
+	PlanOnly   bool                `json:"plan_only,omitempty"`
 	Scenario   string              `json:"scenario"`
 	Ramp       string              `json:"ramp"`
 	Strategy   string              `json:"strategy"`
@@ -145,7 +146,22 @@ type CaptureRequest struct {
 	Journey    string              `json:"journey,omitempty"`
 }
 
+// CaptureWork describes planned launcher work, not observed process starts.
+// Each measured-launch operation normally starts protocol and demo processes.
+// Failed/cancelled work may start fewer; subprocesses are not enumerated here.
+type CaptureWork struct {
+	MeasurementSamples        int `json:"measurement_samples"`
+	DiscardedWarmups          int `json:"discarded_warmups"`
+	MeasuredLaunchOperations  int `json:"measured_launch_operations"`
+	NominalProtocolDemoStarts int `json:"nominal_protocol_demo_starts"`
+}
+
+func (r CaptureRequest) PlannedWork() CaptureWork {
+	return CaptureWork{MeasurementSamples: r.Runs, DiscardedWarmups: 1, MeasuredLaunchOperations: r.Runs + 1, NominalProtocolDemoStarts: 2 * (r.Runs + 1)}
+}
+
 type LaunchAttempt struct {
+	Warmup     bool                `json:"warmup,omitempty"`
 	Scenario   string              `json:"scenario"`
 	Ramp       string              `json:"ramp"`
 	Strategy   string              `json:"strategy"`
@@ -343,6 +359,7 @@ type ReportCell struct {
 	AttributionStatus string                   `json:"attribution_status"`
 	JourneyParity     string                   `json:"journey_parity"`
 	JourneyReceipts   []JourneyEvidence        `json:"journey_receipts,omitempty"`
+	WarmupReliability ReliabilityEvidence      `json:"warmup_reliability"`
 	Reliability       ReliabilityEvidence      `json:"reliability"`
 	ArtifactDigest    string                   `json:"artifact_digest"`
 	Environment       EnvironmentMetadata      `json:"environment"`

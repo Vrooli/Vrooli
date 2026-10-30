@@ -22,6 +22,17 @@ describe("Textarea", () => {
     expect(el.className).toMatch(/border/);
   });
 
+  it("uses semantic theme colors for readable text and focus", () => {
+    renderWithProviders(<Textarea data-testid="t" />);
+    const el = screen.getByTestId("t");
+
+    expect(el.className).toContain("border-app-border");
+    expect(el.className).toContain("bg-app-surface");
+    expect(el.className).toContain("text-app-foreground");
+    expect(el.className).toContain("placeholder:text-app-muted-foreground");
+    expect(el.className).toContain("focus-visible:ring-app-primary/50");
+  });
+
   it("merges a custom className with the base classes via cn()", () => {
     renderWithProviders(<Textarea data-testid="t" className="custom-extra" />);
     const el = screen.getByTestId("t");

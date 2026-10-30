@@ -187,8 +187,10 @@ error. Page headers, alert fallbacks, and dialog content retain their own scope.
 The entry exports the scenario wrapper that renders the named library component.
 Use `@vrooli/react-component-library/AppShell/2` for the navigated console.
 An unused import or an unused helper is not mount evidence. The scanner follows
-relative component imports and named reexports; it parses source without
-executing scenario code. Parser unavailability is an explicit validation error.
+relative component imports, named reexports, and literal relative dynamic
+imports from the browser entry; it parses source without executing scenario
+code. A computed dynamic import does not establish a reachable target. Parser
+unavailability is an explicit validation error.
 
 The archetype is a product decision. When its library asset cannot carry the
 product, record the concrete missing behavior in

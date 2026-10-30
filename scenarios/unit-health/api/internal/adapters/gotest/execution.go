@@ -17,7 +17,15 @@ import (
 
 // nativeEvent is shared by complete execution proof and bounded diagnostics;
 // only the complete-proof path validates native run/terminal state ordering.
-type nativeEvent struct{ Action, Package, Test, Time, Output string }
+type nativeEvent struct {
+	Action      string
+	Package     string
+	ImportPath  string
+	FailedBuild string
+	Test        string
+	Time        string
+	Output      string
+}
 
 func (Analyzer) PrepareExecutionEvidence(executable string, args []string) ([]string, bool) {
 	name := filepath.Base(executable)

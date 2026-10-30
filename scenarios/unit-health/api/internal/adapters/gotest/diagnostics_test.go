@@ -105,6 +105,74 @@ func outputDiagnosticEvent(pkg, test, output string) []byte {
 	return append(data, '\n')
 }
 
+func rawGoBuildEvent(action, importPath, output string) []byte {
+	data, _ := json.Marshal(map[string]string{
+		"Action": action, "ImportPath": importPath, "Output": output,
+	})
+	return append(data, '\n')
+}
+
+func TestGoFailureDiagnosticsRetainCompilerOutputAndFailedBuildIdentity(t *testing.T) {
+	const packagePath = "personal-planner/cli/docs/historical-controls"
+	d := &failureDiagnostics{}
+	d.Write(rawGoBuildEvent("build-output", packagePath, "# "+packagePath+"\n"))
+	d.Write(rawGoBuildEvent("build-output", packagePath, "historical/app.go:28:49: undefined: manifestBytes\n"))
+	d.Write(rawGoBuildEvent("build-fail", packagePath, ""))
+	d.Write(outputDiagnosticEvent(packagePath, "", "FAIL\t"+packagePath+" [build failed]\n"))
+	failed, _ := json.Marshal(map[string]string{"Action": "fail", "Package": packagePath, "FailedBuild": packagePath})
+	d.Write(append(failed, '\n'))
+
+	summary := d.Summary()
+	for _, want := range []string{
+		`package="` + packagePath + `" failed_build="` + packagePath + `" (package failure; no test identity supplied)`,
+		`undefined: manifestBytes`,
+		"retained=1 omitted_failure_events=0 omitted_output_bytes=1 malformed_lines=0 oversized_lines=0 unterminated_line=false valid_events=5; diagnostics partial",
+	} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("compiler failure evidence %q missing from summary: %s", want, summary)
+		}
+	}
+	if !strings.Contains(summary, "diagnostics partial") || len(summary) > maxDiagnosticSummaryBytes || d.pendingOutputBytes > maxPendingOutputTotalBytes || d.failureOutputBytes > maxDiagnosticFailureOutputTotalBytes {
+		t.Fatalf("compiler failure evidence bypassed existing bounds: pending=%d failure=%d summary=%d: %s", d.pendingOutputBytes, d.failureOutputBytes, len(summary), summary)
+	}
+}
+
+func TestGoFailureDiagnosticsJoinDependencyCompilerOutputToFailedBuild(t *testing.T) {
+	const importingPackage = "example/application"
+	const dependencyPackage = "example/internal/dependency"
+	d := &failureDiagnostics{}
+	d.Write(rawGoBuildEvent("build-output", dependencyPackage, "dependency/file.go:12:3: undefined: missingSymbol\n"))
+	d.Write(rawGoBuildEvent("build-fail", dependencyPackage, ""))
+	failed, _ := json.Marshal(map[string]string{
+		"Action": "fail", "Package": importingPackage, "FailedBuild": dependencyPackage,
+	})
+	d.Write(append(failed, '\n'))
+
+	summary := d.Summary()
+	for _, want := range []string{
+		`package="` + importingPackage + `" failed_build="` + dependencyPackage + `"`,
+		`output="dependency/file.go:12:3: undefined: missingSymbol"`,
+		"malformed_lines=0 oversized_lines=0",
+	} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("dependency build evidence %q missing from summary: %s", want, summary)
+		}
+	}
+	if len(d.pendingOutputs) != 0 || d.pendingOutputBytes != 0 {
+		t.Fatalf("dependency compiler output was not consumed by its failure: pending=%d bytes=%d", len(d.pendingOutputs), d.pendingOutputBytes)
+	}
+}
+
+func TestGoFailureDiagnosticsRejectBuildOutputIdentityBeyondSharedKeyBound(t *testing.T) {
+	d := &failureDiagnostics{}
+	overlongImportPath := strings.Repeat("x", maxPendingOutputKeyBytes+1)
+	d.Write(rawGoBuildEvent("build-output", overlongImportPath, "compiler detail that must not be retained\n"))
+	summary := d.Summary()
+	if !strings.Contains(summary, "malformed_lines=1") || strings.Contains(summary, "compiler detail") || len(d.pendingOutputs) != 0 || d.pendingOutputBytes != 0 {
+		t.Fatalf("oversized build identity bypassed diagnostic bounds: pending=%d bytes=%d %s", len(d.pendingOutputs), d.pendingOutputBytes, summary)
+	}
+}
+
 func TestGoFailureDiagnosticsRetainMatchedAssertionAfterLaterPassingOutput(t *testing.T) {
 	d := &failureDiagnostics{}
 	d.Write(diagnosticEvent("run", "example/api", "TestBroken"))

@@ -52,12 +52,13 @@ func findDuplicatedPackageSeams(scenario string, ws Workspace, now string) []Fin
 			return nil
 		}
 	}
-	// schedule.Clock is the canonical owner established by Phase 5. Keeping
-	// its method set here makes this rule useful against both the historical
-	// api-core duplicates and any future package that recreates only a subset
-	// of the shared clock seam.
-	canonical := seamDeclaration{Name: "schedule.Clock", Methods: canonicalClockMethodSet()}
-	all := append(append([]seamDeclaration(nil), declarations...), canonical)
+	// schedule.NowSource and schedule.Clock are the canonical owners for the
+	// minimal observation seam and the full scheduling seam respectively.
+	canonical := []seamDeclaration{
+		{Name: "schedule.NowSource", Methods: canonicalNowSourceMethodSet()},
+		{Name: "schedule.Clock", Methods: canonicalClockMethodSet()},
+	}
+	all := append(append([]seamDeclaration(nil), declarations...), canonical...)
 
 	duplicates := make([]bool, len(declarations))
 	for i := range declarations {
@@ -296,12 +297,19 @@ func formatMethodSet(methods seamMethodSet) string {
 }
 
 func sharedSeamSymbol(methods seamMethodSet) string {
+	if len(methods) == 1 && methods["Now"] == "() time.Time" {
+		return "api-core/schedule.NowSource"
+	}
 	for name := range methods {
 		if name == "Now" || name == "Sleep" || name == "NewTimer" || name == "NewTicker" {
 			return "api-core/schedule.Clock"
 		}
 	}
 	return "the owning package's shared companion interface"
+}
+
+func canonicalNowSourceMethodSet() seamMethodSet {
+	return seamMethodSet{"Now": "() time.Time"}
 }
 
 func canonicalClockMethodSet() seamMethodSet {

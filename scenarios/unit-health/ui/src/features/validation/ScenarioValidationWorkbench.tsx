@@ -165,6 +165,15 @@ export function ScenarioValidationWorkbench() {
 
       {data && (
         <>
+          <div
+            data-testid="validation-announcement"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="sr-only"
+          >
+            {[data.status, data.summary, data.degradedReason].filter(Boolean).join(". ")}
+          </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Metric
               testId={selectors.validationWorkbench.status}

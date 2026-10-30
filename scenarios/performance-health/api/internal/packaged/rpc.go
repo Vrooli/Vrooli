@@ -47,11 +47,7 @@ func (h *RPCHandler) Capture(ctx context.Context, req *connect.Request[packagedv
 	if err != nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	experimentID := input.Experiment
-	if experimentID == "" && len(samples) > 0 {
-		experimentID = samples[0].ExperimentID
-	}
-	result, err := json.Marshal(map[string]any{"experiment_id": experimentID, "samples": samples})
+	result, err := json.Marshal(captureResult(input, samples))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}

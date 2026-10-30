@@ -75,6 +75,44 @@ func TestAnalyzeCoverageVitestSummary(t *testing.T) {
 	}
 }
 
+func TestAnalyzeCoverageDoesNotFlagFilesWithoutExecutableLines(t *testing.T) {
+	root := t.TempDir()
+	wsDir := filepath.Join(root, "ui")
+	writeFile(t, filepath.Join(wsDir, "coverage", "coverage-summary.json"),
+		`{"total":{"lines":{"total":10,"covered":2}},"src/types.ts":{"lines":{"total":0,"covered":0}},"src/app.ts":{"lines":{"total":10,"covered":2}}}`)
+	ws := Workspace{ID: "ui", Language: "typescript", RootPath: wsDir, CoverageCommand: "pnpm test:coverage"}
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	if len(targets) != 1 || targets[0].FilePath != "src/app.ts" {
+		t.Fatalf("expected only executable file as coverage target, got %+v", targets)
+	}
+	for _, f := range findings {
+		if f.Code == codeLowCoverage && f.FilePath == "src/types.ts" {
+			t.Fatalf("non-executable file flagged as uncovered: %+v", f)
+		}
+	}
+	if _, ok := findingByCode(findings, codeLowCoverage); !ok {
+		t.Fatal("the genuinely under-covered executable file must remain flagged")
+	}
+}
+
+func TestAnalyzeCoverageReportsWhenNoExecutableLinesAreMeasured(t *testing.T) {
+	root := t.TempDir()
+	wsDir := filepath.Join(root, "ui")
+	writeFile(t, filepath.Join(wsDir, "coverage", "coverage-summary.json"),
+		`{"total":{"lines":{"total":0,"covered":0}},"src/types.ts":{"lines":{"total":0,"covered":0}}}`)
+	ws := Workspace{ID: "ui", Language: "typescript", RootPath: wsDir, CoverageCommand: "pnpm test:coverage"}
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	if len(targets) != 0 {
+		t.Fatalf("unexpected targets: %+v", targets)
+	}
+	if _, ok := findingByCode(findings, codeCoverageAbsent); !ok {
+		t.Fatalf("missing no-measurement finding: %+v", findings)
+	}
+	if _, ok := findingByCode(findings, codeLowCoverage); ok {
+		t.Fatalf("no executable lines are not low coverage: %+v", findings)
+	}
+}
+
 func TestParseLCOV(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "lcov.info")

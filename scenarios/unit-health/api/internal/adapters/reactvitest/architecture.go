@@ -19,6 +19,14 @@ type ArchitectureDrift = adapters.ArchitectureDrift
 // adapter contract. Framework-specific parsing remains in this package.
 type Analyzer struct{}
 
+func (Analyzer) NewExecutionDiagnostics() adapters.ExecutionDiagnostics {
+	return newVitestStreamDiagnostics(vitestStdout)
+}
+
+func (Analyzer) NewStderrExecutionDiagnostics() adapters.ExecutionDiagnostics {
+	return newVitestStreamDiagnostics(vitestStderr)
+}
+
 func (Analyzer) Identity() adapters.Identity {
 	return adapters.Identity{ID: "react-vitest", Version: "1.0.0"}
 }

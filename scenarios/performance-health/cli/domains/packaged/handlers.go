@@ -31,14 +31,23 @@ func (h handlers) capture(ctx cliapp.RunContext) error {
 	var response struct {
 		ExperimentID string            `json:"experiment_id"`
 		Samples      []json.RawMessage `json:"samples"`
+		PlannedWork  json.RawMessage   `json:"planned_work,omitempty"`
 	}
-	if err := h.call(context.Background(), http.MethodPost, "/api/v1/packaged/capture", request, &response); err != nil {
+	path := "/api/v1/packaged/capture"
+	if ctx.BoolFlag("plan") {
+		path += "/plan"
+	}
+	if err := h.call(context.Background(), http.MethodPost, path, request, &response); err != nil {
 		return err
 	}
 	if ctx.JSON() {
 		return json.NewEncoder(ctx.Stdout()).Encode(response)
 	}
-	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Captured %d %s packaged launches for %s", len(response.Samples), ctx.Flag("condition"), ctx.Flag("scenario")), "Experiment: " + response.ExperimentID}})
+	verb, count := "Captured", len(response.Samples)
+	if ctx.BoolFlag("plan") {
+		verb, count = "Planned", runs
+	}
+	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("%s %d %s packaged samples for %s", verb, count, ctx.Flag("condition"), ctx.Flag("scenario")), "Experiment: " + response.ExperimentID, "Planned work: " + string(response.PlannedWork)}})
 }
 
 func (h handlers) report(ctx cliapp.RunContext) error {
@@ -59,13 +68,13 @@ func (h handlers) report(ctx cliapp.RunContext) error {
 	var decoded struct {
 		Cells []struct {
 			Scenario     string `json:"scenario"`
+			Strategy     string `json:"strategy"`
 			Condition    string `json:"condition"`
 			ExperimentID string `json:"experiment_id"`
 			Samples      int    `json:"samples"`
 			Comparable   bool   `json:"comparable"`
 			Metrics      map[string]struct {
-				P50       *float64 `json:"p50"`
-				Available int      `json:"available_samples"`
+				P50 *float64 `json:"p50"`
 			} `json:"metrics"`
 		} `json:"cells"`
 	}
@@ -74,18 +83,19 @@ func (h handlers) report(ctx cliapp.RunContext) error {
 	}
 	lines := make([]string, 0, len(decoded.Cells))
 	comparableCount := 0
+	format := func(value *float64, unit string) string {
+		if value == nil {
+			return "unavailable"
+		}
+		return fmt.Sprintf("%.1f %s", *value, unit)
+	}
 	for _, group := range decoded.Cells {
 		if group.Comparable {
 			comparableCount++
 		}
-		interactive := group.Metrics["app_interactive_ms"].P50
-		value := "unavailable"
-		if interactive != nil {
-			value = fmt.Sprintf("%.1f ms", *interactive)
-		}
-		lines = append(lines, fmt.Sprintf("%s %s (%s): %d samples, app_interactive p50 %s, comparable=%t", group.Scenario, group.Condition, group.ExperimentID, group.Samples, value, group.Comparable))
+		lines = append(lines, fmt.Sprintf("%s %s (%s): strategy=%s, %d samples, app_interactive p50 %s, steady PSS p50 %s, artifact p50 %s, comparable=%t", group.Scenario, group.Condition, group.ExperimentID, group.Strategy, group.Samples, format(group.Metrics["app_interactive_ms"].P50, "ms"), format(group.Metrics["steady_pss_mb"].P50, "MB"), format(group.Metrics["artifact_bytes"].P50, "bytes"), group.Comparable))
 	}
-	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Packaged launch report: %d comparable of %d cells", comparableCount, len(lines))}, ResultsHeading: "Packaged cells", Results: lines})
+	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Packaged launch report: %d comparable of %d cells", comparableCount, len(lines)), "Measurements are not an adoption decision; review sample count, target gaps, parity and resource tradeoffs."}, ResultsHeading: "Packaged cells", Results: lines})
 }
 
 func (h handlers) compare(ctx cliapp.RunContext) error {

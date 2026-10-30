@@ -20,6 +20,9 @@ const (
 	nodeRenderSettle = "smoke-wait-for-first-paint"
 	nodeArtifacts    = "visual-capture-artifacts"
 	nodeScreens      = "smoke-screenshot-frame"
+	nodeFocusFrame   = "smoke-focus-embedded-ui"
+	nodeKeyboardTab  = "smoke-tab-to-first-focus-target"
+	nodeFocusCapture = "visual-capture-keyboard-focus"
 
 	// hostFrameSelector is the id of the host iframe element embedding the
 	// scenario UI; the screenshot step captures it.
@@ -111,8 +114,17 @@ func buildHandshakeWorkflow(scenarioURL string, signals []string, expected []req
 	nodes = append(nodes,
 		node(nodeArtifacts, "Capture visual health artifacts", map[string]any{"type": "ACTION_TYPE_EVALUATE", "evaluate": map[string]any{"expression": artifactCaptureScript(), "storeResult": "visual_artifacts"}}),
 		node(nodeScreens, "Screenshot embedded UI", map[string]any{"type": "ACTION_TYPE_SCREENSHOT", "screenshot": map[string]any{"selector": hostFrameSelector}}),
+		node(nodeFocusFrame, "Enter embedded UI frame for keyboard probe", map[string]any{"type": "ACTION_TYPE_FRAME_SWITCH", "frameSwitch": map[string]any{"action": "FRAME_SWITCH_ACTION_ENTER", "selector": hostFrameSelector}}),
+		node(nodeKeyboardTab, "Move keyboard focus to first UI target", map[string]any{"type": "ACTION_TYPE_KEYBOARD", "keyboard": map[string]any{"key": "Tab"}}),
+		node(nodeFocusCapture, "Capture keyboard focus evidence", map[string]any{"type": "ACTION_TYPE_EVALUATE", "evaluate": map[string]any{"expression": keyboardFocusCaptureScript(), "storeResult": "keyboard_focus_artifacts"}}),
 	)
-	edges = append(edges, edge(previous, nodeArtifacts), edge(nodeArtifacts, nodeScreens))
+	edges = append(edges,
+		edge(previous, nodeArtifacts),
+		edge(nodeArtifacts, nodeScreens),
+		edge(nodeScreens, nodeFocusFrame),
+		edge(nodeFocusFrame, nodeKeyboardTab),
+		edge(nodeKeyboardTab, nodeFocusCapture),
+	)
 
 	return map[string]any{
 		"metadata": map[string]any{
@@ -344,6 +356,68 @@ func artifactCaptureScript() string {
 	return artifactCaptureTemplate
 }
 
+func keyboardFocusCaptureScript() string {
+	return `(() => {
+  var frame = document.querySelector('#ui-smoke-frame');
+  var doc = document;
+  try {
+    if (frame && frame.contentDocument && frame.contentDocument.documentElement) { doc = frame.contentDocument; }
+  } catch (e) {}
+  var el = doc.activeElement;
+  if (!el || !el.tagName || el === doc.body || el === doc.documentElement) {
+    return { keyboardFocus: { focused: false } };
+  }
+  var rect = el.getBoundingClientRect();
+  var view = doc.defaultView;
+  var style = view.getComputedStyle(el);
+  function isFullyVisible() {
+    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0 || !el.getClientRects().length) { return false; }
+    var left = 0, top = 0, right = view.innerWidth, bottom = view.innerHeight;
+    for (var parent = el.parentElement; parent; parent = parent.parentElement) {
+      var parentStyle = view.getComputedStyle(parent);
+      var clipX = /(hidden|clip|auto|scroll)/.test(parentStyle.overflowX || '');
+      var clipY = /(hidden|clip|auto|scroll)/.test(parentStyle.overflowY || '');
+      if (!clipX && !clipY) { continue; }
+      var bounds = parent.getBoundingClientRect();
+      if (clipX) { left = Math.max(left, bounds.left); right = Math.min(right, bounds.right); }
+      if (clipY) { top = Math.max(top, bounds.top); bottom = Math.min(bottom, bounds.bottom); }
+    }
+    return rect.width > 0 && rect.height > 0 && rect.left >= left && rect.top >= top && rect.right <= right && rect.bottom <= bottom;
+  }
+  var nodeKey = '';
+  if (el.id) {
+    nodeKey = '#' + el.id;
+  } else {
+    var testId = el.getAttribute && el.getAttribute('data-testid');
+    if (testId) { nodeKey = '[data-testid="' + testId.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]'; }
+  }
+  if (!nodeKey) {
+    var path = [];
+    for (var cur = el; cur && cur.nodeType === 1; cur = cur.parentElement) {
+      var part = String(cur.tagName).toLowerCase();
+      var count = 0;
+      for (var sibling = cur; sibling; sibling = sibling.previousElementSibling) {
+        if (sibling.tagName === cur.tagName) { count++; }
+      }
+      if (count > 1) { part += ':nth-of-type(' + count + ')'; }
+      path.unshift(part);
+      if (cur.id) { path[0] = '#' + cur.id; break; }
+    }
+    nodeKey = path.join(' > ');
+  }
+  var state = view && view.__uiHealthFocusCaptureState;
+  var nodeIdentity = state && state.nodes ? state.nodes.get(el) || '' : '';
+  return { keyboardFocus: {
+    focused: true,
+    focusVisible: !!(el.matches && el.matches(':focus-visible')),
+    nodeKey: nodeKey,
+    nodeIdentity: nodeIdentity,
+    visible: isFullyVisible(),
+    rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  } };
+})();`
+}
+
 const artifactCaptureTemplate = `(() => {
   function candidateDocument() {
     var frame = document.querySelector('#ui-smoke-frame');
@@ -361,12 +435,50 @@ const artifactCaptureTemplate = `(() => {
     if (!el || !el.tagName) { return ''; }
     if (el.id) { return '#' + el.id; }
     var tag = String(el.tagName).toLowerCase();
+    var testId = el.getAttribute && el.getAttribute('data-testid');
+    if (testId) { return tag + '[data-testid="' + testId.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]'; }
     var name = el.getAttribute && el.getAttribute('name');
     if (name) { return tag + '[name="' + name + '"]'; }
     var role = el.getAttribute && el.getAttribute('role');
     if (role) { return tag + '[role="' + role + '"]'; }
     var cls = el.classList && el.classList.length ? Array.prototype.slice.call(el.classList, 0, 2).join('.') : '';
     return cls ? tag + '.' + cls : tag;
+  }
+
+  function nodeKeyFor(el) {
+    if (!el || !el.tagName) { return ''; }
+    if (el.id) { return '#' + el.id; }
+    var testId = el.getAttribute && el.getAttribute('data-testid');
+    if (testId) { return '[data-testid="' + testId.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"]'; }
+    var path = [];
+    for (var cur = el; cur && cur.nodeType === 1; cur = cur.parentElement) {
+      var part = String(cur.tagName).toLowerCase();
+      var count = 0;
+      for (var sibling = cur; sibling; sibling = sibling.previousElementSibling) {
+        if (sibling.tagName === cur.tagName) { count++; }
+      }
+      if (count > 1) { part += ':nth-of-type(' + count + ')'; }
+      path.unshift(part);
+      if (cur.id) { path[0] = '#' + cur.id; break; }
+    }
+    return path.join(' > ');
+  }
+
+  function nodeIdentityFor(el) {
+    var view = el && el.ownerDocument && el.ownerDocument.defaultView;
+    if (!view || typeof WeakMap === 'undefined') { return ''; }
+    var state = view.__uiHealthFocusCaptureState;
+    if (!state) {
+      var nonce = view.crypto && view.crypto.randomUUID ? view.crypto.randomUUID() : String(Date.now()) + '-' + String(Math.random()).slice(2);
+      state = { nonce: nonce, next: 0, nodes: new WeakMap() };
+      view.__uiHealthFocusCaptureState = state;
+    }
+    var identity = state.nodes.get(el);
+    if (!identity) {
+      identity = state.nonce + ':' + String(++state.next);
+      state.nodes.set(el, identity);
+    }
+    return identity;
   }
 
   function visibleText(el) {
@@ -402,6 +514,8 @@ const artifactCaptureTemplate = `(() => {
       el.isContentEditable || tabIndex >= 0;
     return {
       selector: selectorFor(el),
+      nodeKey: nodeKeyFor(el),
+      nodeIdentity: nodeIdentityFor(el),
       parentSelector: selectorFor(el.parentElement),
       tag: tag,
       role: role,
@@ -409,6 +523,7 @@ const artifactCaptureTemplate = `(() => {
       type: el.getAttribute('type') || '',
       text: visibleText(el),
       interactive: !!interactive,
+      disabled: typeof el.matches === 'function' && el.matches(':disabled'),
       contentEditable: !!el.isContentEditable,
       rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
       clientWidth: el.clientWidth,

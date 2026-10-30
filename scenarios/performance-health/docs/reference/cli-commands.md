@@ -185,3 +185,33 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+
+### Packaged capture work and evidence
+
+`packaged capture --plan --runs N` validates inputs and returns the owner-derived
+`planned_work` without launches, attempt writes, samples, or evidence files.
+The CLI uses the dedicated `POST /api/v1/packaged/capture/plan` operation,
+so older servers reject it without executing a normal capture; there is no
+fallback. Generic RPC Capture JSON `plan_only` requires a server revision that
+implements that flag and is not a backward-safe capability negotiation. Use the
+dedicated REST preview operation when the server revision is uncertain.
+Omit `--plan` to execute. `packaged capture --runs N` retains N measurement samples and performs one
+additional discarded warmup. Each measured-launch operation normally starts
+one protocol process and one demo process: the nominal plan is `2 * (N + 1)`
+protocol/demo starts. The capture response's `planned_work` describes this
+plan, not observed physical work. Failed or cancelled operations may stop
+before either stage; helper and descendant processes are not included in that
+count. Actual partial-work counts remain unavailable in the Performance Health
+sample projection.
+
+Warmup outcomes are retained in the existing attempt ledger and reported as
+`warmup_reliability`; they do not enter measurement statistics or measurement
+reliability acceptance. Failed-only captures remain visible in reports. Measured
+runs retain their first failed process attempt without smoke recovery retries;
+ordinary smoke tests retain their existing retry policy.
+
+The fixed `packaged-experiment.v1` certification remains four subjects, six
+cells, two conditions, and ten retained samples per capture: 480 retained samples,
+48 discarded warmups, and 1,056 nominal protocol/demo starts. A smaller screening
+capture does not satisfy that certification or change its metric definitions.

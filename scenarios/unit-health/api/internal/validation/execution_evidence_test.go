@@ -15,7 +15,7 @@ func TestExecutionEvidencePreparationAndUnknownFailure(t *testing.T) {
 	root := t.TempDir()
 	plan := ExecutionPlan{Commands: []PlannedCommand{{WorkspaceID: "api", Executable: "go", Args: []string{"test", "./..."}, WorkingDirectory: root, TestKind: "unit"}}}
 	collections := prepareExecutionEvidence(&plan, []Workspace{{ID: "api", Language: "go", RootPath: root}}, "request")
-	if len(collections) != 1 || !plan.Commands[0].CaptureStdout || !buildExecCommands(plan.Commands)[0].CaptureStdout {
+	if len(collections) != 1 || !plan.Commands[0].CaptureStdout || !buildExecCommands(plan.Commands)[0].CaptureStdout || buildExecCommands(plan.Commands)[0].StderrObserver != nil {
 		t.Fatalf("capture not wired: %+v", plan)
 	}
 	declaration := testquality.TestLinks{Target: testquality.Target{Workspace: "api", File: "trace_test.go", TestID: "TestOne"}, IDs: []string{"UH-CORE-001"}, EvidenceKind: testquality.Static}
@@ -39,6 +39,16 @@ func TestExecutionEvidencePreparationAndUnknownFailure(t *testing.T) {
 	}
 	if persisted.StdoutEvidence != nil || persisted.StdoutEvidenceComplete {
 		t.Fatal("ephemeral structured capture persisted as reusable current evidence")
+	}
+}
+
+func TestUnregisteredNonGoCommandDoesNotGainObservers(t *testing.T) {
+	root := t.TempDir()
+	plan := ExecutionPlan{Commands: []PlannedCommand{{WorkspaceID: "misc", Executable: "pytest", Args: []string{"-q"}, WorkingDirectory: root, TestKind: "unit"}}}
+	prepareExecutionEvidence(&plan, []Workspace{{ID: "misc", Language: "python", Framework: "pytest", RootPath: root}}, "request")
+	command := buildExecCommands(plan.Commands)[0]
+	if plan.Commands[0].ExecutionDiagnostics != nil || plan.Commands[0].StderrDiagnostics != nil || command.StdoutObserver != nil || command.StderrObserver != nil {
+		t.Fatal("unregistered workspace gained an execution diagnostics observer")
 	}
 }
 
@@ -89,16 +99,25 @@ func TestGoFailureWitnessSurvivesLongOutputAndFindingSerialization(t *testing.T)
 	}
 }
 
-func TestNonGoCommandOutputDoesNotGainGoDiagnostics(t *testing.T) {
+func TestVitestFailureHeadersAndSummaryAreRetained(t *testing.T) {
 	root := t.TempDir()
 	plan := ExecutionPlan{Commands: []PlannedCommand{{WorkspaceID: "ui", Executable: "pnpm", Args: []string{"test"}, WorkingDirectory: root, TestKind: "unit"}}}
 	prepareExecutionEvidence(&plan, []Workspace{{ID: "ui", Language: "typescript", Framework: "vitest", RootPath: root}}, "request")
-	if plan.Commands[0].ExecutionDiagnostics != nil || buildExecCommands(plan.Commands)[0].StdoutObserver != nil {
-		t.Fatal("ordinary output gained a Go observer")
+	command := buildExecCommands(plan.Commands)[0]
+	if plan.Commands[0].ExecutionDiagnostics == nil || plan.Commands[0].StderrDiagnostics == nil || command.StdoutObserver == nil || command.StderrObserver == nil {
+		t.Fatal("Vitest bounded diagnostics were not wired to both streams")
 	}
-	svc := Service{Executor: fakeExecutor{byWorkspace: map[string]executor.Result{"ui": {Status: executor.StatusFailed, FailureReason: "exit status 1", Stderr: "ordinary failure"}}}, MaxConcurrency: 1}
+	svc := Service{Executor: vitestDiagnosticRunner{}, MaxConcurrency: 1}
 	_, findings := svc.execute(context.Background(), "demo", plan, nil, "now", nil)
-	if len(findings) != 1 || findings[0].Evidence != "exit status 1\n--- stderr tail ---\nordinary failure" {
+	if len(findings) != 1 || !strings.Contains(findings[0].Evidence, "FAIL src/example.test.ts > suite > assertion") || !strings.Contains(findings[0].Evidence, "Tests  1 failed | 10 passed") || !strings.Contains(findings[0].Evidence, "--- stderr tail ---\nordinary failure tail") {
 		t.Fatal(findings)
 	}
+}
+
+type vitestDiagnosticRunner struct{}
+
+func (vitestDiagnosticRunner) Run(_ context.Context, command executor.Command) executor.Result {
+	_, _ = command.StdoutObserver.Write([]byte("Test Files  1 failed | 2 passed (3)\nTests  1 failed | 10 passed (11)\n"))
+	_, _ = command.StderrObserver.Write([]byte("FAIL src/example.test.ts > suite > assertion\n" + strings.Repeat("<div>large snapshot</div>\n", 2000)))
+	return executor.Result{WorkspaceID: command.WorkspaceID, Name: command.Name, Command: "pnpm run test:coverage", Status: executor.StatusFailed, FailureClass: executor.ClassTestFailure, FailureReason: "exit status 1", ExitCode: 1, Stderr: "ordinary failure tail"}
 }

@@ -62,6 +62,13 @@ a migration handoff with a planned retirement path back into
 |---|---|---|---|
 | _None yet._ |  |  |  |
 
+## Work ladder
+
+- Rung: W3
+- Evidence: The focus-zoom analyzer flagged a disabled 14px mobile text input in the frozen AnalyzeArtifacts control set. Disabled state was absent from the browser snapshot and parser. The repair adds native `:disabled` capture and excludes disabled controls; the five-case analyzer control matrix and capture-script test pass, and both affected Go packages pass.
+- Blocker: Scoped Test Genie unit run `20261028-092925-1f738dc9` failed in other UI Health interop and frontend tests; no clean baseline comparison is available because the checkout was already dirty in seven other UI Health files and shared packages. The live API was not restarted because the deploy report included dozens of unrelated shared package changes. Device Control reports Galaxy A03s screenshot/input unavailable; no physical or human acceptance claim.
+- Measured: 2026-10-28
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

@@ -47,9 +47,34 @@ type Config struct { Sleeper func(time.Duration) }
 		if finding.Code != codeSeamDuplicatedInPackage || finding.Severity != "error" {
 			t.Fatalf("unexpected finding: %+v", finding)
 		}
-		if !strings.Contains(finding.Remediation, "api-core/schedule.Clock") {
-			t.Errorf("remediation does not name shared symbol: %q", finding.Remediation)
+		wantOwner := "api-core/schedule.Clock"
+		if strings.Contains(finding.Evidence, "{Now() time.Time}") {
+			wantOwner = "api-core/schedule.NowSource"
 		}
+		if !strings.Contains(finding.Remediation, wantOwner) {
+			t.Errorf("remediation does not name shared symbol %q: %q", wantOwner, finding.Remediation)
+		}
+	}
+}
+
+func TestFindDuplicatedPackageSeamsRecommendsCanonicalFullClock(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/api-core\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "clock.go"), `package api
+
+import "time"
+
+type Clock interface { Now() time.Time; NewTimer(time.Duration) Timer; NewTicker(time.Duration) Ticker; Sleep(time.Duration) }
+type Timer interface { Stop() bool }
+type Ticker interface { Stop() }
+`)
+
+	findings := findDuplicatedPackageSeams("api-core", Workspace{ID: "api-core", Language: "go", RootPath: root}, fixedNowStr)
+	if len(findings) != 1 {
+		t.Fatalf("expected the local full clock to be diagnosed against its canonical owner: %+v", findings)
+	}
+	if !strings.Contains(findings[0].Remediation, "api-core/schedule.Clock") {
+		t.Fatalf("full clock remediation = %q, want canonical schedule.Clock", findings[0].Remediation)
 	}
 }
 
@@ -60,7 +85,10 @@ func TestFindDuplicatedPackageSeamsAllowsSingleSharedInterface(t *testing.T) {
 
 import "github.com/vrooli/api-core/schedule"
 
-type Service struct { Clock schedule.Clock }
+type Service struct {
+	Clock schedule.Clock
+	Now schedule.NowSource
+}
 `)
 
 	findings := findDuplicatedPackageSeams("api-core", Workspace{ID: "api-core", Language: "go", RootPath: root}, fixedNowStr)

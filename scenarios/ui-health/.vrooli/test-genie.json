@@ -1110,6 +1110,28 @@
         ],
         "clean_requirement": "required"
       },
+      "visual_native_screen_unverified": {
+        "capability_id": "pwa_native_readiness",
+        "local_level_impact": "L5",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
+      "visual_safe_area_not_exercised": {
+        "capability_id": "pwa_native_readiness",
+        "local_level_impact": "L5",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "ui-health"
+        ],
+        "clean_requirement": "advisory"
+      },
       "visual_unsafe_edge_tap_zone": {
         "capability_id": "runtime_render",
         "local_level_impact": "L3",

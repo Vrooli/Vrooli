@@ -283,3 +283,10 @@ _2026-06-17: `SEAMS.md` and `ARCHITECTURE.md` (the deferred hardening files) wer
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3 — localized dynamic-result accessibility behavior in the operator workbench.
+- Evidence: PRD Accessibility requires ARIA labels for status controls. Retained BAS run `86d90c1b-3030-497d-a33c-450feabce9f2` showed the degraded result without an alert/status/live-region role in its accessibility snapshot; owner triage issue `knw-1793196301386971629` records the observation. The focused desired-behavior regression failed before the patch because no `status` role existed; after adding a polite live announcement, all 23 workbench tests and the UI type-check passed.
+- Limit: Source and component-test evidence only. No live service restart or screen-reader session was run; actual assistive-technology announcement remains unverified.
+- Measured: 2026-10-28.

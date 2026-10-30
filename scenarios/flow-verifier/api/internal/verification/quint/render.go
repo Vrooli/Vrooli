@@ -89,8 +89,8 @@ func Render(flow model.Flow) string {
 	}
 
 	body := fmt.Sprintf(`%smodule %s {
-  type Status = %s
-  type Event = %s
+  type Status = | %s
+  type Event = | %s
 
   var status: Status
   var event: Event

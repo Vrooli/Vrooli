@@ -59,6 +59,9 @@ type Command struct {
 	// budgets. Callers own bounded, nonblocking observers that never return an
 	// error; interpretation remains with the framework adapter.
 	StdoutObserver io.Writer
+	// StderrObserver receives stderr independently of its bounded display tail.
+	// The observer must be bounded and must not return errors.
+	StderrObserver io.Writer
 	WorkspaceID    string
 	Name           string
 	// Executable is an absolute or PATH-resolved executable name. Args are
@@ -351,6 +354,9 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	stderr := newTailWriter(maxExcerptBytes)
 	c.Stdout = stdout
 	c.Stderr = stderr
+	if cmd.StderrObserver != nil {
+		c.Stderr = io.MultiWriter(stderr, cmd.StderrObserver)
+	}
 	var captured *boundedCapture
 	if cmd.CaptureStdout {
 		captured = &boundedCapture{max: 8 << 20}

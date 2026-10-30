@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -196,7 +198,7 @@ func TestCaptureDiscardsWarmupAndPersistsOnlyRequestedRuns(t *testing.T) {
 		t.Fatalf("stored samples include warmup or wrong count: %+v", stored)
 	}
 	attempts, err := store.ListAttempts(context.Background(), "hello-desktop", "desktop", "electron-sidecar", "cold", "exp-a")
-	if err != nil || len(attempts) != 2 || !attempts[0].Succeeded || !attempts[1].Succeeded {
+	if err != nil || len(attempts) != 3 || !attempts[0].Warmup || !attempts[0].Succeeded || attempts[1].Warmup || !attempts[1].Succeeded || !attempts[2].Succeeded {
 		t.Fatalf("attempt evidence = %+v, err=%v", attempts, err)
 	}
 }
@@ -315,10 +317,10 @@ func TestReportRPCReturnsJSONAndMarkdownWithCellEvidence(t *testing.T) {
 	if !group.ToggleAttribution.SecureCustomSchemeUI || group.ArtifactDigest != sample.ArtifactDigest || group.Environment.HostFingerprint != sample.HostFingerprint {
 		t.Fatalf("cell attribution/provenance missing: %+v", group)
 	}
-	if group.JourneyParity != "passed: 1 of 1 journey replays" || group.Reliability.Status != "recorded: 1 of 1 launches succeeded" {
+	if group.JourneyParity != "passed: 1 of 1 journey replays" || group.Reliability.Status != "recorded: 1 of 1 measurement operations succeeded" {
 		t.Fatalf("parity/reliability missing: %+v", group)
 	}
-	for _, expected := range []string{"false / true / false / false", "25.000 ms", "passed: 1 of 1 journey replays", "recorded: 1 of 1 launches succeeded", sample.ArtifactDigest, sample.HostFingerprint} {
+	for _, expected := range []string{"false / true / false / false", "25.000 ms", "passed: 1 of 1 journey replays", "recorded: 1 of 1 measurement operations succeeded", sample.ArtifactDigest, sample.HostFingerprint} {
 		if !strings.Contains(response.Msg.GetMarkdown(), expected) {
 			t.Fatalf("Markdown omits %q: %s", expected, response.Msg.GetMarkdown())
 		}
@@ -382,5 +384,157 @@ func TestJourneySummaryKeepsMissingEvidenceExplicit(t *testing.T) {
 	status, receipts := summarizeJourneyEvidence([]Sample{{}, {JourneyEvidence: &JourneyEvidence{JourneyID: "journey", CaptureID: "capture", Disposition: "pass"}}})
 	if status != "incomplete: 1 of 2 launches lack journey evidence" || len(receipts) != 1 {
 		t.Fatalf("status=%q receipts=%+v", status, receipts)
+	}
+}
+
+type launcherFunc func(context.Context, CaptureRequest) (Sample, error)
+
+func (f launcherFunc) Launch(ctx context.Context, request CaptureRequest) (Sample, error) {
+	return f(ctx, request)
+}
+
+func TestCaptureRetainsFailedAndCancelledWarmupsWithoutSamples(t *testing.T) {
+	for _, cancelled := range []bool{false, true} {
+		t.Run(fmt.Sprint(cancelled), func(t *testing.T) {
+			store := testStore(t)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			calls := 0
+			service := NewService(store, launcherFunc(func(ctx context.Context, _ CaptureRequest) (Sample, error) {
+				calls++
+				if cancelled {
+					cancel()
+					return Sample{}, ctx.Err()
+				}
+				return Sample{}, fmt.Errorf("warmup process failed")
+			}), "")
+			samples, err := service.Capture(ctx, CaptureRequest{Scenario: "hello-desktop", Ramp: "desktop", Strategy: "electron-sidecar", Runs: 2, Condition: "cold", Artifact: "/tmp/app", Experiment: "warmup-failure"})
+			if err == nil || calls != 1 || len(samples) != 0 {
+				t.Fatalf("samples=%v calls=%d err=%v", samples, calls, err)
+			}
+			report, err := service.Report(context.Background(), "hello-desktop", "desktop", "electron-sidecar", "cold", "warmup-failure")
+			if err != nil || len(report.Cells) != 1 {
+				t.Fatalf("failed-only cell vanished: %+v %v", report, err)
+			}
+			cell := report.Cells[0]
+			if cell.Samples != 0 || cell.Reliability.Attempts != 0 || cell.WarmupReliability.Attempts != 1 || cell.WarmupReliability.Failed != 1 {
+				t.Fatalf("warmup mixed into measurement statistics: %+v", cell)
+			}
+		})
+	}
+}
+
+func TestCapturePlanAndReliabilityDistinguishSamplesFromProcessWork(t *testing.T) {
+	request := CaptureRequest{Scenario: "hello-desktop", Ramp: "desktop", Strategy: "electron-sidecar", Runs: 2, Condition: "cold", Artifact: "/tmp/app", Experiment: "cost"}
+	plan := request.PlannedWork()
+	if plan.MeasurementSamples != 2 || plan.DiscardedWarmups != 1 || plan.MeasuredLaunchOperations != 3 || plan.NominalProtocolDemoStarts != 6 {
+		t.Fatalf("plan: %+v", plan)
+	}
+	store := testStore(t)
+	service := NewService(store, &fakeLauncher{}, "")
+	if _, err := service.Capture(context.Background(), request); err != nil {
+		t.Fatal(err)
+	}
+	report, err := service.Report(context.Background(), "hello-desktop", "desktop", "electron-sidecar", "cold", "cost")
+	if err != nil || len(report.Cells) != 1 {
+		t.Fatalf("report=%+v err=%v", report, err)
+	}
+	cell := report.Cells[0]
+	if cell.Samples != 2 || cell.Reliability.Attempts != 2 || cell.WarmupReliability.Attempts != 1 {
+		t.Fatalf("cost/reliability conflated: %+v", cell)
+	}
+}
+
+func TestCaptureHTTPReportsNominalPlanAndPreviewCausesNoWork(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		preview bool
+		runs    int
+		status  int
+	}{
+		{"capture", false, 2, http.StatusOK}, {"plan", true, 2, http.StatusOK}, {"invalid plan", true, 0, http.StatusBadGateway},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := testStore(t)
+			launcher := &fakeLauncher{}
+			evidence := filepath.Join(t.TempDir(), "evidence")
+			service := NewService(store, launcher, evidence)
+			path := "/api/v1/packaged/capture"
+			if test.preview {
+				path += "/plan"
+			}
+			body := fmt.Sprintf(`{"scenario":"hello-desktop","ramp":"desktop","strategy":"electron-sidecar","runs":%d,"condition":"cold","artifact_path":"/tmp/app"}`, test.runs)
+			response := httptest.NewRecorder()
+			NewHandler(service).ServeHTTP(response, httptest.NewRequest(http.MethodPost, path, strings.NewReader(body)))
+			if response.Code != test.status {
+				t.Fatalf("status=%d want=%d body=%s", response.Code, test.status, response.Body.String())
+			}
+			if test.preview {
+				attempts, err := store.ListAttempts(context.Background(), "", "", "", "", "")
+				if err != nil {
+					t.Fatal(err)
+				}
+				samples, err := store.List(context.Background(), "", "", "", "", "")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if launcher.calls != 0 || len(samples) != 0 || len(attempts) != 0 {
+					t.Fatalf("HTTP preview performed work: calls=%d samples=%d attempts=%d", launcher.calls, len(samples), len(attempts))
+				}
+				if _, err := os.Stat(evidence); !os.IsNotExist(err) {
+					t.Fatalf("HTTP preview wrote evidence: %v", err)
+				}
+			}
+			if response.Code != http.StatusOK {
+				return
+			}
+			var result struct {
+				Samples     []Sample    `json:"samples"`
+				PlannedWork CaptureWork `json:"planned_work"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			if result.PlannedWork.NominalProtocolDemoStarts != 6 {
+				t.Fatalf("response lost discarded-work cost: %+v", result)
+			}
+			if !test.preview && (len(result.Samples) != 2 || launcher.calls != 3) {
+				t.Fatalf("capture=%+v calls=%d", result, launcher.calls)
+			}
+		})
+	}
+}
+
+func TestCapturePreviewValidatesWithoutExecutionOrWrites(t *testing.T) {
+	store := testStore(t)
+	launcher := &fakeLauncher{}
+	evidence := filepath.Join(t.TempDir(), "evidence")
+	service := NewService(store, launcher, evidence)
+	request := CaptureRequest{PlanOnly: true, Scenario: "hello-desktop", Ramp: "desktop", Strategy: "electron-sidecar", Runs: 2, Condition: "cold", Artifact: "/tmp/app", Experiment: "preview"}
+	if samples, err := service.Capture(context.Background(), request); err != nil || len(samples) != 0 {
+		t.Fatalf("preview=%v %v", samples, err)
+	}
+	request.Runs = 0
+	if _, err := service.Capture(context.Background(), request); err == nil {
+		t.Fatal("preview bypassed run-count validation")
+	}
+	request.Runs = 2
+	request.Strategy = "electron-optimized"
+	if _, err := service.Capture(context.Background(), request); err == nil {
+		t.Fatal("preview bypassed toggle validation")
+	}
+	attempts, err := store.ListAttempts(context.Background(), "", "", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	samples, err := store.List(context.Background(), "", "", "", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if launcher.calls != 0 || len(attempts) != 0 || len(samples) != 0 {
+		t.Fatalf("preview caused work: launcher=%d attempts=%d samples=%d", launcher.calls, len(attempts), len(samples))
+	}
+	if _, err := os.Stat(evidence); !os.IsNotExist(err) {
+		t.Fatalf("preview wrote evidence or unreadable path: %v", err)
 	}
 }

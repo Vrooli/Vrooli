@@ -99,7 +99,22 @@ func (d *failureDiagnostics) observe(line []byte) {
 		return
 	}
 	var event nativeEvent
-	if !utf8.Valid(line) || json.Unmarshal(line, &event) != nil || event.Action == "" || event.Package == "" {
+	if !utf8.Valid(line) || json.Unmarshal(line, &event) != nil || event.Action == "" {
+		d.malformedLines++
+		return
+	}
+	if event.Action == "build-output" || event.Action == "build-fail" {
+		if event.ImportPath == "" || len(event.ImportPath) > maxDiagnosticIdentityBytes || len(event.ImportPath) > maxPendingOutputKeyBytes {
+			d.malformedLines++
+			return
+		}
+		d.validEvents++
+		if event.Action == "build-output" && event.Output != "" {
+			d.rememberOutput(outputKey{packageName: event.ImportPath}, event.Output)
+		}
+		return
+	}
+	if event.Package == "" {
 		d.malformedLines++
 		return
 	}
@@ -128,7 +143,14 @@ func (d *failureDiagnostics) observe(line []byte) {
 }
 
 func diagnosticOutputKey(event nativeEvent) (outputKey, bool) {
-	key := outputKey{packageName: event.Package, testName: event.Test}
+	packageName := event.Package
+	// A package-level build failure may be reported by the importing package
+	// while the compiler output belongs to a dependency package. Join output to
+	// the explicit failed-build identity when the event provides one.
+	if event.Action == "fail" && event.Test == "" && event.FailedBuild != "" && len(event.FailedBuild) <= maxDiagnosticIdentityBytes {
+		packageName = event.FailedBuild
+	}
+	key := outputKey{packageName: packageName, testName: event.Test}
 	if len(key.packageName) > maxDiagnosticIdentityBytes || len(key.testName) > maxDiagnosticIdentityBytes || len(key.packageName)+len(key.testName) > maxPendingOutputKeyBytes {
 		return outputKey{}, false
 	}
@@ -204,6 +226,9 @@ func (d *failureDiagnostics) recordFailure(event nativeEvent, key outputKey, key
 		return
 	}
 	witness := fmt.Sprintf("package=%q", event.Package)
+	if event.FailedBuild != "" && len(event.FailedBuild) <= maxDiagnosticIdentityBytes {
+		witness += fmt.Sprintf(" failed_build=%q", event.FailedBuild)
+	}
 	if event.Test != "" {
 		witness += fmt.Sprintf(" test=%q", event.Test)
 	} else {

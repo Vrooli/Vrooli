@@ -522,6 +522,38 @@ func TestStdoutObserverContinuesAfterStructuredCaptureOverflow(t *testing.T) {
 	}
 }
 
+func TestStderrObserverPreservesCaptureAndFailureDisplaySemantics(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		action     string
+		wantStatus string
+		wantCode   int
+	}{
+		{name: "normal exit", action: "stderr-normal", wantStatus: StatusPassed, wantCode: 0},
+		{name: "test failure", action: "stderr-failure", wantStatus: StatusFailed, wantCode: 3},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := helperCommand(tc.action)
+			cmd.CaptureStdout = true
+			var observed strings.Builder
+			cmd.StderrObserver = &observed
+			result := (Bounded{}).Run(context.Background(), cmd)
+			if result.Status != tc.wantStatus || result.ExitCode != tc.wantCode {
+				t.Fatalf("status=%s exit=%d want=%s/%d", result.Status, result.ExitCode, tc.wantStatus, tc.wantCode)
+			}
+			if got, want := string(result.StdoutEvidence), "{\"Action\":\"output\"}\n"; !result.StdoutEvidenceComplete || got != want {
+				t.Fatalf("exact structured stdout changed: complete=%t got=%q", result.StdoutEvidenceComplete, got)
+			}
+			if !strings.Contains(observed.String(), "stderr-first") || !strings.Contains(observed.String(), "stderr-tail") {
+				t.Fatalf("stderr observer missed original output: %q", observed.String())
+			}
+			if !strings.Contains(result.Stderr, "stderr-tail") || !strings.Contains(result.Stderr, "[truncated]") {
+				t.Fatalf("display stderr tail semantics changed: %q", result.Stderr)
+			}
+		})
+	}
+}
+
 func TestStructuredStdoutCaptureRejectsOverflowWithoutPartialEvidence(t *testing.T) {
 	w := &boundedCapture{max: 4}
 	if n, err := w.Write([]byte("1234")); n != 4 || err != nil {
@@ -564,6 +596,13 @@ func TestExecutorHelperProcess(t *testing.T) {
 		fmt.Fprint(os.Stdout, "hello")
 	case "structured-output":
 		fmt.Fprint(os.Stdout, strings.Repeat("{\"Action\":\"output\"}\n", 1024))
+	case "stderr-normal":
+		fmt.Fprint(os.Stdout, "{\"Action\":\"output\"}\n")
+		fmt.Fprint(os.Stderr, "stderr-first\n", strings.Repeat("x", maxExcerptBytes+100), "stderr-tail")
+	case "stderr-failure":
+		fmt.Fprint(os.Stdout, "{\"Action\":\"output\"}\n")
+		fmt.Fprint(os.Stderr, "stderr-first\n", strings.Repeat("x", maxExcerptBytes+100), "stderr-tail")
+		os.Exit(3)
 	case "structured-overflow":
 		fmt.Fprint(os.Stdout, "early failure\n")
 		chunk := strings.Repeat("later passing output\n", 1024)

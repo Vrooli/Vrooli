@@ -28,9 +28,17 @@ func prepareExecutionEvidence(plan *ExecutionPlan, workspaces []Workspace, runID
 			if ws.ID != command.WorkspaceID || filepath.Clean(ws.RootPath) != filepath.Clean(command.WorkingDirectory) {
 				continue
 			}
+			if analyzer, ok := registry.Resolve(ws.AdapterID, ws.Language, ws.Framework); ok {
+				if diagnostics, ok := analyzer.(adapters.ExecutionDiagnosticsAdapter); ok {
+					command.ExecutionDiagnostics = diagnostics.NewExecutionDiagnostics()
+				}
+				if diagnostics, ok := analyzer.(adapters.StderrExecutionDiagnosticsAdapter); ok {
+					command.StderrDiagnostics = diagnostics.NewStderrExecutionDiagnostics()
+				}
+			}
 			owner, ok := registry.ResolveSource(adapters.Identity{ID: ws.AdapterID, Version: ws.AdapterVersion}, adapters.Match{Language: ws.Language, Framework: ws.Framework})
 			if !ok {
-				continue
+				break
 			}
 			adapter, ok := owner.(adapters.ExecutionEvidenceAdapter)
 			if !ok {
@@ -41,8 +49,10 @@ func prepareExecutionEvidence(plan *ExecutionPlan, workspaces []Workspace, runID
 				continue
 			}
 			command.Args, command.CaptureStdout = args, true
-			if diagnostics, ok := owner.(adapters.ExecutionDiagnosticsAdapter); ok {
-				command.ExecutionDiagnostics = diagnostics.NewExecutionDiagnostics()
+			if command.ExecutionDiagnostics == nil {
+				if diagnostics, ok := owner.(adapters.ExecutionDiagnosticsAdapter); ok {
+					command.ExecutionDiagnostics = diagnostics.NewExecutionDiagnostics()
+				}
 			}
 			command.Command = command.Executable + " " + strings.Join(args, " ")
 			collections = append(collections, executionEvidenceCollection{index: i, workspace: ws.ID, root: ws.RootPath, runID: fmt.Sprintf("%s:command:%d", runID, i), adapter: adapter})

@@ -262,6 +262,7 @@ type ExecutionPlan struct {
 // PlannedCommand is a single command in the execution plan.
 type PlannedCommand struct {
 	ExecutionDiagnostics   adapters.ExecutionDiagnostics `json:"-"`
+	StderrDiagnostics      adapters.ExecutionDiagnostics `json:"-"`
 	CaptureStdout          bool
 	WorkspaceID            string
 	Name                   string
@@ -968,6 +969,14 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 		if observer := plan.Commands[i].ExecutionDiagnostics; observer != nil {
 			diagnostic = observer.Summary()
 		}
+		if observer := plan.Commands[i].StderrDiagnostics; observer != nil {
+			if summary := observer.Summary(); summary != "" {
+				if diagnostic != "" {
+					diagnostic += "\n"
+				}
+				diagnostic += summary
+			}
+		}
 		if f, ok := executionFinding(scenario, r, now, diagnostic); ok {
 			findings = append(findings, f)
 		}
@@ -980,6 +989,7 @@ func buildExecCommands(planned []PlannedCommand) []executor.Command {
 	for _, pc := range planned {
 		cmds = append(cmds, executor.Command{
 			StdoutObserver:  pc.ExecutionDiagnostics,
+			StderrObserver:  pc.StderrDiagnostics,
 			CaptureStdout:   pc.CaptureStdout,
 			WorkspaceID:     pc.WorkspaceID,
 			Name:            pc.Name,

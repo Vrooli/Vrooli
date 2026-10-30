@@ -379,6 +379,93 @@ func TestReadTimelineExtractsVisualArtifactsFromAggregatePreview(t *testing.T) {
 	}
 }
 
+func TestReadTimelinePairsPostTabFocusWithInitialVisualArtifacts(t *testing.T) {
+	visualNode, focusNode := nodeArtifacts, nodeFocusCapture
+	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{
+		{
+			NodeId: &visualNode,
+			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+				"visual_artifacts": objectValue(map[string]*commonpb.JsonValue{
+					"layout": objectValue(map[string]*commonpb.JsonValue{
+						"viewport": objectValue(map[string]*commonpb.JsonValue{"width": intValue(390), "height": intValue(844)}),
+						"elements": listValue([]*commonpb.JsonValue{objectValue(map[string]*commonpb.JsonValue{
+							"nodeKey":      stringValue("html > body > a:nth-of-type(1)"),
+							"nodeIdentity": stringValue("doc-1:1"),
+							"tag":          stringValue("a"),
+							"rect": objectValue(map[string]*commonpb.JsonValue{
+								"x": intValue(8), "y": intValue(-56), "width": intValue(117), "height": intValue(32),
+							}),
+						})}),
+					}),
+				}),
+			}},
+		},
+		{
+			NodeId: &focusNode,
+			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+				"keyboard_focus_artifacts": objectValue(map[string]*commonpb.JsonValue{
+					"keyboardFocus": objectValue(map[string]*commonpb.JsonValue{
+						"focused":      &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
+						"focusVisible": &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
+						"visible":      &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
+						"nodeKey":      stringValue("html > body > a:nth-of-type(1)"),
+						"nodeIdentity": stringValue("doc-1:1"),
+						"rect":         objectValue(map[string]*commonpb.JsonValue{"x": intValue(8), "y": intValue(0), "width": intValue(117), "height": intValue(32)}),
+					}),
+				}),
+			}},
+		},
+	}}
+	result := readTimeline(tl)
+	var layout map[string]any
+	if err := json.Unmarshal([]byte(result.layoutJSON), &layout); err != nil {
+		t.Fatalf("layoutJSON is invalid: %v", err)
+	}
+	focus, ok := layout["keyboardFocus"].(map[string]any)
+	if !ok || focus["nodeKey"] != "html > body > a:nth-of-type(1)" {
+		t.Fatalf("post-Tab evidence was not paired into the retained layout: %#v", layout)
+	}
+}
+
+func TestReadTimelineKeepsOffscreenFindingWhenKeyboardCaptureHasNoTarget(t *testing.T) {
+	visualNode, focusNode := nodeArtifacts, nodeFocusCapture
+	tl := &bastimeline.ExecutionTimeline{Entries: []*bastimeline.TimelineEntry{
+		{
+			NodeId: &visualNode,
+			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+				"visual_artifacts": objectValue(map[string]*commonpb.JsonValue{
+					"layout": objectValue(map[string]*commonpb.JsonValue{
+						"viewport": objectValue(map[string]*commonpb.JsonValue{"width": intValue(390), "height": intValue(844)}),
+						"elements": listValue([]*commonpb.JsonValue{objectValue(map[string]*commonpb.JsonValue{
+							"nodeKey": stringValue("[data-testid=\"layout-shell-skip\"]"),
+							"nodeIdentity": stringValue("doc-1:skip"),
+							"selector": stringValue("a[data-testid=\"layout-shell-skip\"]"),
+							"tag": stringValue("a"),
+							"rect": objectValue(map[string]*commonpb.JsonValue{"x": intValue(8), "y": intValue(-64), "width": intValue(117), "height": intValue(32)}),
+						})}),
+					}),
+				}),
+			}},
+		},
+		{
+			NodeId: &focusNode,
+			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
+				"keyboard_focus_artifacts": objectValue(map[string]*commonpb.JsonValue{
+					"keyboardFocus": objectValue(map[string]*commonpb.JsonValue{"focused": &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: false}}}),
+				}),
+			}},
+		},
+	}}
+	result := readTimeline(tl)
+	finds := applyVisualHealth(&evidence.Evidence{Loaded: true}, result.visualStep("http://scenario/", "mobile"))
+	for _, finding := range finds {
+		if finding.Code == "visual_offscreen_interactive" {
+			return
+		}
+	}
+	t.Fatalf("body/html focus capture must not clear the exact skip-link finding: %+v", finds)
+}
+
 func TestRuntimeArtifactConfigBoundsTimelineCollection(t *testing.T) {
 	cfg := runtimeArtifactConfig()
 	if !cfg.GetCollectConsoleLogs() || !cfg.GetCollectNetworkEvents() || !cfg.GetCollectExtractedData() {

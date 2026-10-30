@@ -8,7 +8,7 @@
         "kind": "dir",
         "class": "data",
         "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "rationale": "Scenario-owned durable data. reconcile_evidence is owner-retained: rows older than 14 days are removed once 3 newer verdicts exist for the same claim key (scenario, kind, page, component, state, claim, viewport); the newest verdicts are kept forever. New databases use auto_vacuum=INCREMENTAL so pruned pages return to the filesystem.",
         "budget": {
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
@@ -25,6 +25,33 @@
           "max_age": "7d",
           "max_bytes": "256MiB",
           "rationale": "The cache measured 25387 bytes on 2026-08-27; seven days and 256 MiB bound iterative rendering."
+        }
+      },
+      "evidence_retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/evidence-retention-receipt.json",
+        "regenerable": true,
+        "rationale": "Last-cycle receipt of reconcile evidence retention: cutoff, policy, candidates, deleted rows, and rows the write-side re-check kept.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Replaced on each cycle."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement receipt for the evidence owner pruner.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Replaced on each cycle."
         }
       }
     },

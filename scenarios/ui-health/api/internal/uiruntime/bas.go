@@ -329,6 +329,11 @@ func readTimeline(tl *bastimeline.ExecutionTimeline) *runResult {
 			if e.GetAggregates().GetExtractedDataPreview() != nil {
 				r.applyVisualArtifactValue(e.GetAggregates().GetExtractedDataPreview())
 			}
+		case nodeFocusCapture:
+			r.applyKeyboardFocusArtifacts(e.GetContext().GetExtractedData())
+			if e.GetAggregates().GetExtractedDataPreview() != nil {
+				r.applyKeyboardFocusArtifactValue(e.GetAggregates().GetExtractedDataPreview())
+			}
 		}
 	}
 	if !handshakeSeen {
@@ -398,6 +403,44 @@ func (r *runResult) applyVisualArtifactValue(raw *commonpb.JsonValue) {
 	}
 	if network, ok := payload["network"].([]any); ok {
 		r.network = append(r.network, networkEntriesFromAny(network)...)
+	}
+}
+
+func (r *runResult) applyKeyboardFocusArtifacts(values map[string]*commonpb.JsonValue) {
+	if r == nil || len(values) == 0 {
+		return
+	}
+	raw := values["keyboard_focus_artifacts"]
+	if raw == nil {
+		raw = values["result"]
+	}
+	r.applyKeyboardFocusArtifactValue(raw)
+}
+
+func (r *runResult) applyKeyboardFocusArtifactValue(raw *commonpb.JsonValue) {
+	if r == nil || raw == nil || strings.TrimSpace(r.layoutJSON) == "" {
+		return
+	}
+	payload, ok := jsonValueToAny(raw).(map[string]any)
+	if !ok {
+		return
+	}
+	if nested, ok := payload["keyboard_focus_artifacts"].(map[string]any); ok {
+		payload = nested
+	} else if nested, ok := payload["result"].(map[string]any); ok {
+		payload = nested
+	}
+	focus, ok := payload["keyboardFocus"].(map[string]any)
+	if !ok {
+		return
+	}
+	var layout map[string]any
+	if err := json.Unmarshal([]byte(r.layoutJSON), &layout); err != nil {
+		return
+	}
+	layout["keyboardFocus"] = focus
+	if raw, err := json.Marshal(layout); err == nil {
+		r.layoutJSON = string(raw)
 	}
 }
 
