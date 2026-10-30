@@ -31,10 +31,12 @@ func main() {
 
 func newApp() (*cliapp.ResourceApp, error) {
 	env := cliapp.StandardResourceEnv("songgen", cliapp.ResourceEnvOptions{})
-	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{Name: "songgen", Version: "0.1.0",
+	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{
+		Name: "songgen", Version: "0.1.0",
 		Description:       "Isolated local song generation and owned model retention",
 		SourceRootEnvVars: env.SourceRootEnvVars, ControlPlaneEnvVars: env.ControlPlaneEnvVars,
-		BuildFingerprint: buildFingerprint, BuildTimestamp: buildTimestamp, BuildSourceRoot: buildSourceRoot})
+		BuildFingerprint: buildFingerprint, BuildTimestamp: buildTimestamp, BuildSourceRoot: buildSourceRoot,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -45,6 +47,12 @@ func newApp() (*cliapp.ResourceApp, error) {
 	app.SetCommandsWithSubgroups(append(app.StandardLifecycleCommands(), cliapp.CommandGroup{
 		Title: "Capacity", Commands: []cliapp.Command{activityedge.Command(edge)},
 	}), []cliapp.SubcommandGroup{
+		{Name: "content", Description: "Generate and retain original local songs", Subcommands: []cliapp.Command{
+			{
+				Name: "compose", Description: "Generate one YuE2 song with optional inline ABC and verified exports",
+				Usage: "resource-songgen content compose --request FILE --out NEW_DIRECTORY --expect-artifact SHA256 [--timeout 32m]", Run: songComposeCommand,
+			},
+		}},
 		companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{Resource: "songgen", Steps: []companion.LifecycleStep{{Label: "isolated", Action: "restart", Description: "Apply the bounded isolated-worker profile"}}}),
 		{Name: "model-cache", Description: "Preview, pin, or apply last-used model retention", Subcommands: []cliapp.Command{
 			{Name: "preview", Description: "Read eligible whole-model bundles; never delete", Run: func(args []string) error { return cacheCommand("preview", args) }},

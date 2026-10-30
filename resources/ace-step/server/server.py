@@ -69,6 +69,8 @@ class ComposeRequest(BaseModel):
     guidance_scale: float | None = Field(default=None, ge=0, le=20)
     shift: float | None = Field(default=None, ge=1, le=5, allow_inf_nan=False)
     expected_variant: Literal["acestep-v15-turbo", "acestep-v15-sft"] | None = None
+    expected_planner: Literal["acestep-5Hz-lm-0.6B", "acestep-5Hz-lm-1.7B"] | None = None
+    vocal_language: Literal["en", "ko"] | None = None
     rewrite_caption: bool = False
     offload_dit_to_cpu: bool | None = None
     expected_rung: str | None = None
@@ -211,6 +213,27 @@ def _sampling_headers(audio: dict, seed: int, steps: int, guidance: float, shift
     return headers
 
 
+def _language_headers(audio: dict, request: ComposeRequest) -> dict[str, str]:
+    if request.vocal_language is None:
+        return {}
+    actual = audio.get("params")
+    if not isinstance(actual, dict) or actual.get("vocal_language") != request.vocal_language:
+        raise RuntimeError("upstream resolved vocal language differs from explicit request")
+    for field in ("use_cot_language", "use_cot_caption", "use_cot_metas"):
+        if actual.get(field) is not False:
+            raise RuntimeError(f"upstream resolved {field} did not disable rewriting")
+    headers = {
+        "X-ACE-Step-Language-Mode": "explicit-v1",
+        "X-ACE-Step-Vocal-Language": actual["vocal_language"],
+        "X-ACE-Step-CoT-Language": "false",
+    }
+    for field in ("caption", "lyrics"):
+        if actual.get(field) != getattr(request, field):
+            raise RuntimeError(f"upstream resolved {field} differs from exact input")
+        headers[f"X-ACE-Step-{field.title()}-SHA256"] = hashlib.sha256(actual[field].encode("utf-8")).hexdigest()
+    return headers
+
+
 @app.get("/health")
 def health(response: Response) -> dict[str, object]:
     loaded = _dit is not None and _llm is not None
@@ -234,6 +257,7 @@ def health(response: Response) -> dict[str, object]:
         "offload_dit_to_cpu": OFFLOAD_DIT,
         "initialization_seconds": _init_seconds,
         "error": _init_error,
+        "explicit_language": {"version": "explicit-v1", "languages": ["en", "ko"], "variant": "acestep-v15-sft", "planner": "acestep-5Hz-lm-1.7B", "rewrite_allowed": False},
     }
 
 
@@ -256,6 +280,13 @@ def compose(request: ComposeRequest) -> FileResponse:
         actual_variant = _loaded_identity[0].rsplit(":", 1)[-1]
         if request.expected_variant is not None and request.expected_variant != actual_variant:
             raise RuntimeError("loaded model variant differs from expected variant; inference refused")
+        if request.expected_planner is not None and request.expected_planner != _loaded_planner:
+            raise RuntimeError("loaded planner differs from expected planner; inference refused")
+        if request.vocal_language is not None:
+            if actual_variant != "acestep-v15-sft" or _loaded_planner != "acestep-5Hz-lm-1.7B":
+                raise RuntimeError("explicit language requires loaded SFT and 1.7B planner; inference refused")
+            if request.rewrite_caption:
+                raise RuntimeError("explicit language forbids caption/metadata rewriting; inference refused")
         if not _generation_lock.acquire(blocking=False):
             raise RuntimeError("generation is busy")
         generation_acquired = True
@@ -279,9 +310,10 @@ def compose(request: ComposeRequest) -> FileResponse:
             guidance_scale=guidance,
             shift=shift,
             seed=request.seed,
-            vocal_language="en",
+            vocal_language=request.vocal_language or "en",
             use_cot_caption=request.rewrite_caption,
             use_cot_metas=request.rewrite_caption,
+            **({"use_cot_language": False} if request.vocal_language is not None else {}),
         )
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         output = OUTPUT_DIR / f"take-{time.time_ns()}"
@@ -303,6 +335,7 @@ def compose(request: ComposeRequest) -> FileResponse:
         if not path or not Path(path).is_file():
             raise RuntimeError("ACE-Step returned no audio file")
         sampling = _sampling_headers(result.audios[0], request.seed, steps, guidance, shift, _loaded_planner)
+        sampling.update(_language_headers(result.audios[0], request))
         response = FileResponse(path, media_type="audio/wav", filename="take.wav")
         response.headers.update(sampling)
         response.headers["X-ACE-Step-Profile-Rung"] = _loaded_identity[1]

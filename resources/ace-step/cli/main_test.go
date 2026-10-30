@@ -67,8 +67,8 @@ func TestPinnedModelInputsHaveOneExecutableCodeAuthority(t *testing.T) {
 	}
 	for key, want := range map[string]string{
 		"data_artifacts": "2d18a2ab98babb4b19f6de49cbca38f08526dbe184e89c3b3d1f69dec083a7e0",
-		"acquisition":    "41a49242b7ea7977481e84a04c32fcaa0d7b4fb1aa297868493d68a0b8513dec",
-		"artifact":       "d9395a07292f9761c38b9c4f01509f25b20980c1ca6d622b9190c62834de77cc",
+		"acquisition":    "cb39e4f59c2f1e66e3227f4725841e58afbe673a653a8d2f400208c1f8e61391",
+		"artifact":       "2a57cb66dfaf71b80cdc2eacffebdabce2d1ec033275d663f70ec6c83cace758",
 	} {
 		canonical, err := json.Marshal(service[key])
 		if err != nil {

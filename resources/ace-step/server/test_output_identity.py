@@ -50,7 +50,7 @@ def compose_fixture(identity):
     namespace = {"ComposeRequest": object, "FileResponse": Response, "_ensure_loaded": lambda: None,
                  "_loaded_identity": identity, "_generation_lock": threading.Lock(), "HTTPException": Refusal, "Path": Path, "time": time,
                  "VARIANT": "acestep-v15-turbo", "PLANNER": "acestep-5Hz-lm-0.6B", "_loaded_planner": "acestep-5Hz-lm-0.6B", "_dit": object(), "_llm": object(), "hashlib": hashlib, "math": math, "re": re}
-    helpers = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in {"_sampling_headers", "_profile_name"}]
+    helpers = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in {"_sampling_headers", "_profile_name", "_language_headers"}]
     exec(compile(ast.Module(body=helpers+[function], type_ignores=[]), "server.py", "exec"), namespace)
     return namespace, Refusal
 
@@ -83,6 +83,7 @@ class OutputIdentityTest(unittest.TestCase):
                 self.assertEqual(body["model_loaded"], dit is not None and llm is not None)
                 self.assertEqual(body["initialization_seconds"], 12.5)
                 self.assertEqual(body["device"], "cuda")
+                self.assertEqual(body["explicit_language"], {"version": "explicit-v1", "languages": ["en", "ko"], "variant": "acestep-v15-sft", "planner": "acestep-5Hz-lm-1.7B", "rewrite_allowed": False})
 
     def test_identity_records_loaded_variant_and_rung_despite_later_desired_change(self):
         source = Path(__file__).with_name("server.py").read_text()
@@ -282,6 +283,91 @@ class OutputIdentityTest(unittest.TestCase):
                 model(caption="authored", shift=shift)
         with self.assertRaises(ValidationError):
             model(caption="authored", expected_variant="unknown")
+
+    def test_explicit_language_request_and_legacy_presence(self):
+        model = request_model()
+        for language in ["", "KO", " ko", "en,ko", "ja", 7, True]:
+            with self.subTest(language=language), self.assertRaises(ValidationError):
+                model(caption="authored", vocal_language=language)
+        for language in [None, "en", "ko"]:
+            self.assertEqual(model(caption="authored", vocal_language=language).vocal_language, language)
+        self.assertIsNone(model(caption="authored").vocal_language)
+        with self.assertRaises(ValidationError):
+            model(caption="authored", expected_planner="unknown")
+
+    def test_explicit_language_early_guards_never_import_inference(self):
+        cases = [
+            ("acestep-v15-turbo", "acestep-5Hz-lm-1.7B", {}, "SFT"),
+            ("acestep-v15-sft", "acestep-5Hz-lm-0.6B", {}, "1.7B"),
+            ("acestep-v15-sft", "acestep-5Hz-lm-1.7B", {"rewrite_caption": True}, "rewriting"),
+            ("acestep-v15-sft", "acestep-5Hz-lm-1.7B", {"expected_planner": "acestep-5Hz-lm-0.6B"}, "expected planner"),
+        ]
+        real_import = __import__
+        for variant, planner, fields, message in cases:
+            with self.subTest(variant=variant, planner=planner, fields=fields):
+                namespace, refusal = compose_fixture(("ACE-Step/Ace-Step1.5:"+variant, "full"))
+                namespace["_loaded_planner"] = planner
+                def guarded(name, *args, **kwargs):
+                    if name == "acestep.inference": self.fail("early refusal imported inference")
+                    return real_import(name, *args, **kwargs)
+                with patch("builtins.__import__", side_effect=guarded), self.assertRaises(refusal) as error:
+                    namespace["compose"](request_model()(caption="authored", vocal_language="ko", **fields))
+                self.assertIn(message, error.exception.detail)
+                self.assertFalse(namespace["_generation_lock"].locked())
+
+    def test_explicit_language_parameters_and_actual_text_witnesses(self):
+        for language in ["en", "ko", None]:
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
+                namespace, refusal = compose_fixture(("ACE-Step/Ace-Step1.5:acestep-v15-sft", "full"))
+                namespace.update(_loaded_planner="acestep-5Hz-lm-1.7B", OUTPUT_DIR=Path(directory)/"outputs")
+                audio = Path(directory)/"fake.wav"; audio.write_bytes(b"no inference")
+                request = request_model()(caption="original scene", lyrics="불이 꺼져도 길은 남아\nKeep one light", seed=7, vocal_language=language)
+                observed = []
+                def generate(dit, llm, **kw):
+                    actual = vars(kw["params"]).copy(); observed.append(actual)
+                    return types.SimpleNamespace(success=True, audios=[{"path": str(audio), "params": actual}])
+                inference = types.ModuleType("acestep.inference")
+                inference.GenerationConfig = types.SimpleNamespace; inference.GenerationParams = types.SimpleNamespace; inference.generate_music = generate
+                with patch.dict(sys.modules, {"acestep.inference": inference}):
+                    response = namespace["compose"](request)
+                self.assertEqual(observed[0]["vocal_language"], language or "en")
+                if language is None:
+                    self.assertNotIn("use_cot_language", observed[0])
+                    self.assertNotIn("X-ACE-Step-Language-Mode", response.headers)
+                else:
+                    for field in ["use_cot_language", "use_cot_caption", "use_cot_metas"]:
+                        self.assertIs(observed[0][field], False)
+                    self.assertEqual(response.headers["X-ACE-Step-Vocal-Language"], language)
+                    self.assertEqual(response.headers["X-ACE-Step-Language-Mode"], "explicit-v1")
+                    self.assertEqual(response.headers["X-ACE-Step-CoT-Language"], "false")
+                    for field in ["caption", "lyrics"]:
+                        self.assertEqual(response.headers[f"X-ACE-Step-{field.title()}-SHA256"], hashlib.sha256(getattr(request,field).encode()).hexdigest())
+                    for field, wrong in [("vocal_language", "unknown"), ("use_cot_language", True), ("use_cot_caption", 0), ("use_cot_metas", None), ("caption", "rewritten"), ("lyrics", "translated")]:
+                        with self.subTest(dishonest_field=field), self.assertRaises(RuntimeError):
+                            namespace["_language_headers"]({"params": {**observed[0], field: wrong}}, request)
+                    with self.assertRaises(RuntimeError): namespace["_language_headers"]({}, request)
+                    for field in ["vocal_language", "caption", "lyrics", "use_cot_language"]:
+                        missing = dict(observed[0]); missing.pop(field)
+                        with self.subTest(missing=field), self.assertRaises(RuntimeError):
+                            namespace["_language_headers"]({"params": missing}, request)
+
+    def test_legacy_null_language_keeps_rewrite_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            namespace, _ = compose_fixture(("ACE-Step/Ace-Step1.5:acestep-v15-turbo", "full"))
+            namespace["OUTPUT_DIR"] = Path(directory)/"outputs"
+            audio = Path(directory)/"fake.wav"; audio.write_bytes(b"no inference")
+            def generate(dit, llm, **kw):
+                params = vars(kw["params"])
+                self.assertEqual(params["vocal_language"], "en")
+                self.assertTrue(params["use_cot_caption"])
+                self.assertTrue(params["use_cot_metas"])
+                self.assertNotIn("use_cot_language", params)
+                return types.SimpleNamespace(success=True, audios=[{"path": str(audio), "params": params}])
+            inference = types.ModuleType("acestep.inference")
+            inference.GenerationConfig = types.SimpleNamespace; inference.GenerationParams = types.SimpleNamespace; inference.generate_music = generate
+            with patch.dict(sys.modules, {"acestep.inference": inference}):
+                response = namespace["compose"](request_model()(caption="authored", rewrite_caption=True, vocal_language=None))
+            self.assertNotIn("X-ACE-Step-Language-Mode", response.headers)
 
     def test_fixed_seed_profile_and_code_witness_are_actual(self):
         for variant, planner, steps, guidance, shift in [

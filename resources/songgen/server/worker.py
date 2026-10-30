@@ -20,7 +20,8 @@ def main():
         raise RuntimeError("supervisor exited before worker initialization")
     artifact, root = Path(job["artifact_root"]), Path(job["data_root"])
     profile, request = job["profile"], job["request"]
-    sys.path.insert(0, str(artifact / profile["wheels"]))
+    if profile.get("wheels"):
+        sys.path.insert(0, str(artifact / profile["wheels"]))
     sys.path.insert(0, str(artifact / "source"))
     if profile.get("source_dir"):
         sys.path.insert(0, str(artifact / profile["source_dir"]))
@@ -30,6 +31,16 @@ def main():
             actual = hashlib.file_digest(stream, "sha256").hexdigest()
         if actual != entry["sha256"]:
             raise RuntimeError("model checksum mismatch: " + entry["path"])
+    if profile["backend"] == "yue2-native":
+        from yue2 import generate_yue2, native_failure
+        try:
+            result = generate_yue2(artifact, root, stage, profile, request)
+        except Exception as exc:
+            raise native_failure(stage, exc) from exc
+        result.update({"model_id": profile["model_id"], "revision": profile["revision"],
+                       "weight_files_verified": len(profile["files"]), "quantization": profile["quantization"]})
+        (stage / "result.json").write_text(json.dumps(result, allow_nan=False, sort_keys=True))
+        return
     import torch
     if not torch.cuda.is_available():
         raise RuntimeError("qualified CUDA backend unavailable; no fallback")

@@ -55,6 +55,20 @@ class RuntimeTests(unittest.TestCase):
                 self.runtime.validate({**self.request, field: value})
         self.assertEqual(self.runtime.validate(self.request), self.profile)
 
+    def test_external_score_is_bounded_inline_abc_and_native_only(self):
+        score = 'X:1\nM:4/4\nK:C\nC4 D4 E4 F4|\n'
+        request = {**self.request, 'score': score}
+        with self.assertRaisesRegex(Refused, 'only by YuE2'):
+            self.runtime.validate(request)
+        self.runtime.profiles['example']['backend'] = 'yue2-native'
+        self.assertEqual(self.runtime.validate(request), self.runtime.profiles['example'])
+        for value in ['', '/etc/passwd', 'https://example.invalid/score.abc', [],
+                      score + '\U0001f3b5'*4096]:
+            with self.subTest(value_type=type(value).__name__), self.assertRaisesRegex(Refused, 'inline ABC'):
+                self.runtime.validate({**request, 'score': value})
+        with self.assertRaises(Refused):
+            self.runtime.validate({**request, 'score_file': '/etc/passwd'})
+
     def test_last_use_age_whole_bundle_and_pin_control_cleanup(self):
         self.usage()
         preview = self.runtime.models({})

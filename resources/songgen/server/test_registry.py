@@ -12,6 +12,9 @@ class RegistryContractTests(unittest.TestCase):
         raw = (resource / "server/profiles.json").read_bytes()
         catalog = json.loads(raw)["profiles"]
         manifest = json.loads((resource / "resource.json").read_text())
+        self.assertEqual(manifest["managed_service"]["environment"]["SONGGEN_COMPOSED_SHA256"],
+                         manifest["managed_service"]["artifact"]["sha256_by_platform"]["linux-amd64"],
+                         "served receipt identity must match the lifecycle's selected artifact")
         registry = json.loads((root / "scenarios/music-tools/api/internal/models/registry.seed.json").read_text())
         declared = {m["runtime"]["profile"]: m for m in registry if m.get("runtime", {}).get("resource") == "songgen"}
         self.assertEqual(set(declared), set(catalog))

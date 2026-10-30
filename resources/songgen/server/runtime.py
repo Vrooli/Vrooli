@@ -12,6 +12,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import socket
@@ -165,11 +166,19 @@ class Runtime:
 
     def validate(self, request):
         fields = {"profile", "prompt", "lyrics", "duration", "seed", "steps", "guidance", "expected_revision", "timeout_seconds"}
-        if not isinstance(request, dict) or set(request) != fields:
-            raise Refused("request requires exactly: " + ", ".join(sorted(fields)))
+        if not isinstance(request, dict) or set(request) - {"score"} != fields:
+            raise Refused("request requires: " + ", ".join(sorted(fields)) + "; optional: score")
         p = self.profiles.get(request["profile"])
         if p is None or request["expected_revision"] != p["revision"]:
             raise Refused("unknown profile or mismatched model revision")
+        if "score" in request:
+            score = request["score"]
+            if p.get("backend") != "yue2-native":
+                raise Refused("external score is supported only by YuE2")
+            if (not isinstance(score, str) or not 1 <= len(score.encode("utf-8")) <= 16384
+                    or not re.search(r"(?m)^X:\s*\d+\s*$", score)
+                    or not re.search(r"(?m)^K:\S+\s*$", score)):
+                raise Refused("score must be inline ABC with X/K headers, at most16384 UTF-8 bytes")
         for name, limit in (("prompt", 12000), ("lyrics", 16000)):
             value = request[name]
             if not isinstance(value, str) or not value.strip() or len(value) > limit:

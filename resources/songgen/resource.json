@@ -92,13 +92,13 @@
     },
     "artifact": {
       "path": "server/songgen",
-      "version": "0.1.0",
+      "version": "0.3.0-yue2-score",
       "layout": "dir",
       "entry_path": "runtime/bin/python",
+      "bundle_artifact": "resource-songgen_${os}_${arch}",
       "sha256_by_platform": {
-        "linux-amd64": "8c5a98a2382b7ea518773871f2f038f4a19af751ec4d57992376fc270adfc571"
-      },
-      "bundle_artifact": "resource-songgen_${os}_${arch}"
+        "linux-amd64": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201"
+      }
     },
     "acquisition": {
       "kind": "composed",
@@ -114,7 +114,6 @@
             "gpu.cuda_compute": ">=8.9"
           },
           "layout": "dir",
-          "artifact_sha256": "8c5a98a2382b7ea518773871f2f038f4a19af751ec4d57992376fc270adfc571",
           "compose": [
             {
               "role": "runtime",
@@ -183,8 +182,31 @@
               "kind": "local",
               "source": "server/profiles.json",
               "dest": "source/profiles.json"
+            },
+            {
+              "role": "audiocpp",
+              "kind": "url",
+              "dest": "upstream/audiocpp",
+              "url": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.3/audio-v0.9.3-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
+              "sha256": "5be3e8d515fb244387de87958668ebb729d9442de6a53df12e4c718ea918419d",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "audiocpp-cudart",
+              "kind": "url",
+              "dest": "upstream/cudart",
+              "url": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.3/audio-v0.9.3-cudart-ubuntu-x64-cuda12.8.tar.gz",
+              "sha256": "2fcbaff8078b9eaed47a4a8e879c10dcf1f12fd31f2d52b29214fc9d45cfa198",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "yue2.py",
+              "kind": "local",
+              "source": "server/yue2.py",
+              "dest": "source/yue2.py"
             }
-          ]
+          ],
+          "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201"
         },
         {
           "when": {
@@ -984,6 +1006,174 @@
         "group": "heartmula-3b",
         "acquisition_mode": "on-demand",
         "size_bytes": 9085657
+      },
+      {
+        "name": "yue2-sidecars-yue2-generation-config-json",
+        "path": "models/yue2-q8/sidecars/yue2-generation-config.json",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 466,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-generation-config.json",
+              "sha256": "203830cebde6e3644eb291925362990d198e66c3b6006cd11f1aaa21904bcc61",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-sidecars-yue2-model-config-json",
+        "path": "models/yue2-q8/sidecars/yue2-model-config.json",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 959,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-model-config.json",
+              "sha256": "ad3477bbef890bf98ae196c1e4b44779494a6231c4ab66f32708eabadf265329",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-sidecars-yue2-qwen-tiktoken",
+        "path": "models/yue2-q8/sidecars/yue2-qwen.tiktoken",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 2561218,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-qwen.tiktoken",
+              "sha256": "b2b1b8dfb5cc5f024bafc373121c6aba3f66f9a5a0269e243470a1de16a33186",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-sidecars-yue2-vae-config-json",
+        "path": "models/yue2-q8/sidecars/yue2-vae-config.json",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 1378,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-vae-config.json",
+              "sha256": "f0191bb9694009956de44e0c361a6f1334760be4c8f848e599bde242a54a0970",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-README-md",
+        "path": "models/yue2-q8/README.md",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 9986,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/README.md",
+              "sha256": "49b1045caa920190b768b5b9c16af6095bae5083b9c76768d31f69221e2043eb",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-LICENSE",
+        "path": "models/yue2-q8/LICENSE",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 20309,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/m-a-p/YuE2-3B/resolve/1a96eca688d6ae5d7f0feb88573fec89920fcd19/LICENSE",
+              "sha256": "060985741d20e70613b4c189c7de106cabd3fb2109fbbfb6d705c9d619417dd0",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-yue2-3b-q8_0-gguf",
+        "path": "models/yue2-q8/yue2-3b-q8_0.gguf",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4264195616,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/yue2-3b-q8_0.gguf",
+              "sha256": "52be345b5155bf9ef0b2411e7df8d1d2b8e13b6d977a2f70c35612ec69b1f591",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-yue2-vae-f16-gguf",
+        "path": "models/yue2-q8/yue2-vae-f16.gguf",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 265218656,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/yue2-vae-f16.gguf",
+              "sha256": "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d",
+              "layout": "file"
+            }
+          ]
+        }
       }
     ],
     "arguments": [
@@ -1002,7 +1192,7 @@
       "SONGGEN_DATA_LOCK_PATH": "${RESOURCE_DATA_LOCK_PATH}",
       "HF_HUB_OFFLINE": "1",
       "TRANSFORMERS_OFFLINE": "1",
-      "SONGGEN_COMPOSED_SHA256": "8c5a98a2382b7ea518773871f2f038f4a19af751ec4d57992376fc270adfc571"
+      "SONGGEN_COMPOSED_SHA256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201"
     },
     "attach_health_path": "/health",
     "shutdown": {

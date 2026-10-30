@@ -98,3 +98,35 @@ across accelerator kernels, versions or platforms. A returned per-audio seed
 alone does not prove equal semantic conditioning: compare the actual code
 hashes when interpreting a controlled experiment. Historical1.1.4 results lack
 this request-boundary planner RNG reset and remain preserved as such.
+
+
+## Explicit primary-language experiment
+
+Optional `vocal_language` accepts exactly `en` or `ko`. Omitted or null retains
+legacy English/default CoT behavior. Explicit mode requires the actually loaded
+SFT and 1.7B planner and refuses `rewrite_caption: true` before inference. It sets
+`use_cot_language`, `use_cot_caption`, and `use_cot_metas` false while preserving
+literal caption/lyrics. Optional `expected_planner` refuses a loaded mismatch.
+`/health.explicit_language` advertises `explicit-v1` and its supported pair;
+clients must check capability before submitting to older wrappers, which may
+ignore unknown fields.
+
+Successful explicit responses require actual returned upstream parameters to
+match language, all three disabled rewrites, caption and lyrics. Headers retain
+`X-ACE-Step-Language-Mode: explicit-v1`, `X-ACE-Step-Vocal-Language`,
+`X-ACE-Step-CoT-Language: false`, `X-ACE-Step-Caption-SHA256`, and
+`X-ACE-Step-Lyrics-SHA256`, alongside existing sampling/model/rung witnesses.
+These are conditioning-parameter witnesses, not detected sung language or
+pronunciation evidence. The pinned high-level inference path does not put this
+parameter into planner user metadata; the direct DiT conditioning is explicit.
+No translation, romanization, performer identity or listening quality is implied.
+
+The endpoint remains synchronous WAV output without a per-request operation
+registry. A normal attributed API consumer may retain a verified WAV, exact
+request, lifecycle readbacks and a clearly labeled client export receipt. It
+must not invent Music jobs/takes or call that client record a server operation
+receipt. Use the public activity edge and canonical identity helper. HTTP
+cancellation does not prove GPU work stopped: a bounded experiment cancels only
+its captured exclusively owned instance through normal resource stop and checks
+actual process/claim closure before another heavy stage. Normal admission,
+artifact verification and lifecycle ownership still apply.

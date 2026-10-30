@@ -298,6 +298,85 @@
         "torchtune",
         "soundfile"
       ]
+    },
+    "yue2-q8": {
+      "backend": "yue2-native",
+      "model_id": "audio-cpp/Yue2-3B-GGUF:yue2-q8",
+      "revision": "cca74d8980c00f30ab8d52248a367c01ad633ec2",
+      "source_revision": "audio.cpp@41c1f8ffa0d13a1b7e366e30ea5fe5ab8d169d48",
+      "native_version": "0.9.3",
+      "model_root": "models/yue2-q8",
+      "model_dir": "models/yue2-q8",
+      "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+      "sung_lyrics": true,
+      "voice_reference": false,
+      "max_duration": 180,
+      "min_steps": 1,
+      "max_steps": 100,
+      "default_steps": 8,
+      "min_guidance": 0.01,
+      "max_guidance": 20,
+      "default_guidance": 1.0,
+      "cpu_threads": 4,
+      "minimum_free_vram_bytes": 9663676416,
+      "max_execution_seconds": 1800,
+      "retention_days": 30,
+      "quantization": {
+        "main": "Q8_0",
+        "vae": "F16",
+        "upstream_model_revision": "1a96eca688d6ae5d7f0feb88573fec89920fcd19",
+        "cot": "full"
+      },
+      "files": [
+        {
+          "path": "models/yue2-q8/sidecars/yue2-generation-config.json",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-generation-config.json",
+          "bytes": 466,
+          "sha256": "203830cebde6e3644eb291925362990d198e66c3b6006cd11f1aaa21904bcc61"
+        },
+        {
+          "path": "models/yue2-q8/sidecars/yue2-model-config.json",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-model-config.json",
+          "bytes": 959,
+          "sha256": "ad3477bbef890bf98ae196c1e4b44779494a6231c4ab66f32708eabadf265329"
+        },
+        {
+          "path": "models/yue2-q8/sidecars/yue2-qwen.tiktoken",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-qwen.tiktoken",
+          "bytes": 2561218,
+          "sha256": "b2b1b8dfb5cc5f024bafc373121c6aba3f66f9a5a0269e243470a1de16a33186"
+        },
+        {
+          "path": "models/yue2-q8/sidecars/yue2-vae-config.json",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-vae-config.json",
+          "bytes": 1378,
+          "sha256": "f0191bb9694009956de44e0c361a6f1334760be4c8f848e599bde242a54a0970"
+        },
+        {
+          "path": "models/yue2-q8/README.md",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/README.md",
+          "bytes": 9986,
+          "sha256": "49b1045caa920190b768b5b9c16af6095bae5083b9c76768d31f69221e2043eb"
+        },
+        {
+          "path": "models/yue2-q8/LICENSE",
+          "url": "https://huggingface.co/m-a-p/YuE2-3B/resolve/1a96eca688d6ae5d7f0feb88573fec89920fcd19/LICENSE",
+          "sha256": "060985741d20e70613b4c189c7de106cabd3fb2109fbbfb6d705c9d619417dd0",
+          "bytes": 20309
+        },
+        {
+          "path": "models/yue2-q8/yue2-3b-q8_0.gguf",
+          "bytes": 4264195616,
+          "sha256": "52be345b5155bf9ef0b2411e7df8d1d2b8e13b6d977a2f70c35612ec69b1f591",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/yue2-3b-q8_0.gguf"
+        },
+        {
+          "path": "models/yue2-q8/yue2-vae-f16.gguf",
+          "bytes": 265218656,
+          "sha256": "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d",
+          "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/yue2-vae-f16.gguf"
+        }
+      ]
     }
   }
 }

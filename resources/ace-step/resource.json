@@ -102,11 +102,11 @@
     },
     "artifact": {
       "path": "server/ace-step",
-      "version": "1.1.5-ca1e85fe",
+      "version": "1.1.6-ca1e85fe-language",
       "layout": "dir",
       "entry_path": "runtime/bin/python",
       "sha256_by_platform": {
-        "linux-amd64": "937961b1bd3b77ba160521eea97dcada2e4b638379ea1cf4d60f557e67d0e2d2"
+        "linux-amd64": "2689830cf1dfc0df75554ba4a146a10905ba169553973240bd3826d3c38f06fc"
       },
       "bundle_artifact": "resource-ace-step_${os}_${arch}"
     },
@@ -124,7 +124,7 @@
             "gpu.cuda_compute": ">=8.9"
           },
           "layout": "dir",
-          "artifact_sha256": "937961b1bd3b77ba160521eea97dcada2e4b638379ea1cf4d60f557e67d0e2d2",
+          "artifact_sha256": "2689830cf1dfc0df75554ba4a146a10905ba169553973240bd3826d3c38f06fc",
           "runtime_env": {
             "ACE_STEP_DEVICE": "cuda",
             "ACE_STEP_VARIANT": "acestep-v15-turbo"
@@ -148,7 +148,7 @@
               "extra_index_url": [
                 "https://pypi.org/simple"
               ],
-              "allow_sdists": true
+              "allow_sdists": false
             },
             {
               "role": "application",
