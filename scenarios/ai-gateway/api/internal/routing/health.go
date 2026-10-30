@@ -112,7 +112,7 @@ func ClassifyProviderFailure(err error) ProviderFailure {
 				observed.Class = FailureMalformedJSON
 			case "exit_error", "command_failed", "provider_failed":
 				observed.Class = FailureExecution
-			case "unsupported_command", "unsupported_provider", "unsupported_kind", "invalid_request":
+			case "unsupported_command", "unsupported_provider", "unsupported_kind", "invalid_request", "context_overflow":
 				observed.Class = FailurePolicyError
 			case "unavailable", "empty_inventory":
 				observed.Class = FailureUnavailable
@@ -122,7 +122,7 @@ func ClassifyProviderFailure(err error) ProviderFailure {
 				observed.Class = FailureRateLimited
 			case "provider_overloaded", "stream_failed":
 				observed.Class = FailureProviderOverloaded
-			case "unreachable":
+			case "unreachable", "unconfigured":
 				observed.Class = FailureUnavailable
 			}
 		}

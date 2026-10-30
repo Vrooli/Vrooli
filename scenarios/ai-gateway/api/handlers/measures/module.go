@@ -57,6 +57,12 @@ var Endpoints = []module.EndpointDescriptor{
 		"Count local routes rejected for insufficient capacity in a window", "count", "int64 (scalar value_field)"),
 	measureEndpoint("measures_route_latency_p95", measuresconnect.MeasuresServiceRouteLatencyP95Procedure,
 		"p95 AI route latency in milliseconds over a window", "latency_ms", "int64 (scalar value_field)"),
+	measureEndpoint("measures_route_cost", measuresconnect.MeasuresServiceRouteCostProcedure,
+		"Total priced AI route cost in USD over a window", "cost_usd", "double (scalar value_field)"),
+	measureEndpoint("measures_route_tokens", measuresconnect.MeasuresServiceRouteTokensProcedure,
+		"Total tokens used by AI routes over a window", "total_tokens", "int64 (scalar value_field)"),
+	measureEndpoint("measures_route_local_share", measuresconnect.MeasuresServiceRouteLocalShareProcedure,
+		"Share of AI routes served locally over a window", "share", "double (scalar value_field)"),
 }
 
 func measureEndpoint(id, path, summary, valueField, valueDesc string) module.EndpointDescriptor {

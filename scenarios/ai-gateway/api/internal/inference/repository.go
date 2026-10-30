@@ -130,6 +130,14 @@ func (r UnavailableRepository) Run(context.Context, ProviderRequest) (ProviderRe
 	return ProviderResult{}, fmt.Errorf("%w: %s", ErrUnavailable, reason)
 }
 
+func (r UnavailableRepository) Decide(context.Context, DecisionRequest, TypedRunner) *inferencev1.DecideResponse {
+	reason := strings.TrimSpace(r.Reason)
+	if reason == "" {
+		reason = "the inference role catalog is not loaded"
+	}
+	return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, reason, "")
+}
+
 // StaticRepository is the phase-one seam implementation. It provides a
 // deterministic, schema-shaped value for contract tests until the resource
 // command repository is wired in a later phase.

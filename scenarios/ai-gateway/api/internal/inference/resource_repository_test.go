@@ -99,8 +99,8 @@ func TestResourceRepositoryRemoteOnlySkipsLocalCandidates(t *testing.T) {
 		}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{
-		{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Runner: runner},
-		{Provider: providers.ProviderOpenRouter, CommandName: "resource-openrouter", Runner: runner},
+		{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner},
+		{Provider: providers.ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote", Runner: runner},
 	})
 	require.NoError(t, err)
 	result, err := repository.Run(context.Background(), ProviderRequest{
@@ -131,7 +131,7 @@ func TestResourceRepositoryProviderCallLimitCountsFailedDispatchAndStopsCandidat
 			{Provider: "ollama", ResourceRole: "chat.two", Reason: "fallback"},
 		}},
 	}}
-	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Runner: runner}})
+	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner}})
 	require.NoError(t, err)
 	result, err := repository.Run(context.Background(), ProviderRequest{
 		Source: "source", SchemaJSON: `{"type":"object"}`, Role: "extract.structured",

@@ -15,6 +15,7 @@ AI Gateway separates concepts that are currently easy to blur:
 | Role mapping | Resource | `chat.default`, `summarize.default`, `embedding.default`. | Resource `model-policy.json` and resource policy CLI. |
 | Routing profile | AI Gateway | `local-first`, `privacy-sensitive`, `cheap-first`. | AI Gateway routing policy. |
 | Typed inference role | AI Gateway | `classify.fast`, `extract.structured`, `write.default`, schema subset, sampling stance, provider fallback order. | `config/inference-role-catalog.json`; candidates resolve through resource policy CLIs. |
+| Decision role | AI Gateway | `decide.fast`, `decide.accurate` (`kind: "decision"`): decision-model candidate order and the choice-only `classify.fast` fallback. No sampling. | `config/inference-role-catalog.json`; `ollaya` candidates resolve through `resource-ollaya policy resolve`, which also owns hosted credentials. See [decisions.md](decisions.md). |
 | Caller request | Scenario caller | "summarize this", "extract JSON", "embed these chunks". | Gateway API/CLI contract. |
 
 AI Gateway should display resource role policies and route through them,

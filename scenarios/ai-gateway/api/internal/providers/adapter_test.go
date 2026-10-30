@@ -162,22 +162,72 @@ func TestAdapterPiiDetectorExecutionCommand(t *testing.T) { // [REQ:AIGW-PROVIDE
 	}
 }
 
-// The entire PII-detection wiring hinges on NewDefaultAdapters including the
-// pii-detector provider; every other adapter test constructs an Adapter{}
-// directly, so a regression that dropped the registration would pass them all.
-func TestNewDefaultAdaptersRegistersPiiDetector(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
-	var found *Adapter
+// Every resource-backed default adapter must be both registered and admitted
+// by ExecRunner's command allow-list; a registered adapter whose command the
+// runner refuses fails every call with unsupported_command, which is how the
+// pii-detector provider shipped unexecutable.
+func TestNewDefaultAdaptersAreExecutableResourceCommands(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	want := map[string]string{
+		ProviderOllama: "resource-ollama", ProviderOpenRouter: "resource-openrouter",
+		ProviderPiiDetector: "resource-pii-detector", ProviderOllaya: "resource-ollaya",
+	}
 	for _, adapter := range NewDefaultAdapters(nil) {
-		if adapter.Provider == ProviderPiiDetector {
-			found = &adapter
-			break
+		if want[adapter.Provider] != adapter.CommandName {
+			t.Fatalf("adapter %s command = %q, want %q", adapter.Provider, adapter.CommandName, want[adapter.Provider])
 		}
+		if !allowedResourceCommand(adapter.CommandName) {
+			t.Fatalf("ExecRunner refuses registered command %q", adapter.CommandName)
+		}
+		delete(want, adapter.Provider)
 	}
-	if found == nil {
-		t.Fatalf("NewDefaultAdapters did not register the %q provider", ProviderPiiDetector)
+	if len(want) != 0 {
+		t.Fatalf("NewDefaultAdapters did not register %v", want)
 	}
-	if found.CommandName != "resource-pii-detector" || found.Locality != "local" {
-		t.Fatalf("pii-detector adapter = %+v, want resource-pii-detector/local", *found)
+}
+
+func TestAdapterOllayaDecisionCommandCarriesBodyOnStdinAndDeadline(t *testing.T) { // [REQ:AIGW-PROVIDER-CLI-ONLY]
+	adapter := Adapter{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local"}
+	body := `{"state":"stop","questions":{"q":{"type":"noul"}}}`
+	command, err := adapter.executionCommand(ExecutionRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_DECISION, Role: "decide.local", InputText: body, Timeout: 30 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if command.String() != "resource-ollaya gateway decide --role decide.local --input-stdin --json --timeout 30s" || command.Stdin != body {
+		t.Fatalf("command = %q stdin = %q", command.String(), command.Stdin)
+	}
+	if command.Timeout <= 30*time.Second {
+		t.Fatalf("runner timeout %s must exceed the resource deadline so the resource reports its own timeout", command.Timeout)
+	}
+	if _, err := adapter.executionCommand(ExecutionRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION, Role: "decide.local", InputText: "x"}); err == nil {
+		t.Fatal("a decision model must refuse a typed-value request")
+	}
+}
+
+// One resource can serve a local role and a hosted role; the per-role
+// declaration wins over the adapter default, for routing and for resolution.
+func TestAdapterHonorsPerRoleLocalityAndStatus(t *testing.T) { // [REQ:AIGW-INVENTORY-ROLES]
+	runner := &fakeRunner{results: map[string]Result{
+		"resource-ollaya policy roles --json":                            {Stdout: `{"roles":[{"role":"decide.local","capabilities":["decide"]},{"role":"decide.jev.edenai","capabilities":["decide"],"locality":"remote","status":"unconfigured"}]}`},
+		"resource-ollaya policy resolve --role decide.jev.edenai --json": {Stdout: `{"role":"decide.jev.edenai","model":"typesafe/jev-latest","locality":"remote"}`},
+		"resource-ollaya policy resolve --role decide.local --json":      {Stdout: `{"role":"decide.local","model":"laya"}`},
+	}}
+	adapter := Adapter{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Runner: runner}
+	inventory, err := adapter.ListRoles(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, role := range inventory.Roles {
+		got[role.Role] = role.Locality + "/" + role.Status
+	}
+	if got["decide.local"] != "local/available" || got["decide.jev.edenai"] != "remote/unconfigured" {
+		t.Fatalf("roles = %v", got)
+	}
+	for role, locality := range map[string]string{"decide.jev.edenai": "remote", "decide.local": "local"} {
+		resolved, err := adapter.ResolveRole(context.Background(), role)
+		if err != nil || resolved.Locality != locality {
+			t.Fatalf("ResolveRole(%s) = %+v, %v; want locality %s", role, resolved, err, locality)
+		}
 	}
 }
 

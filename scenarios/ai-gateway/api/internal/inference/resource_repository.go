@@ -115,6 +115,9 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	if !ok {
 		return ProviderResult{}, fmt.Errorf("%w: inference role %q is not declared", ErrUnavailable, request.Role)
 	}
+	if definition.IsDecision() {
+		return ProviderResult{}, fmt.Errorf("%w: inference role %q is a decision role; use Decide", ErrUnavailable, request.Role)
+	}
 	if err := validateGeometrySpendLimit(request); err != nil {
 		return ProviderResult{}, err
 	}
@@ -127,14 +130,10 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	// "nothing here can sample the way you asked".
 	var samplingRefused bool
 	for _, candidate := range definition.Candidates {
-		provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
-		if request.Profile == sharedv1.Profile_PROFILE_REMOTE_ONLY && provider != providers.ProviderOpenRouter && provider != providers.ProviderMetered {
-			continue
-		}
-		if request.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY && provider != providers.ProviderOllama {
-			continue
-		}
 		adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
+		if ok && !profileAdmits(request.Profile, adapter.Locality) {
+			continue
+		}
 		if !ok {
 			failures = append(failures, candidate.Provider+": adapter unavailable")
 			continue

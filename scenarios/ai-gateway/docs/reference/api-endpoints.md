@@ -152,6 +152,14 @@ returning provider output to the caller.
 | **Persistence** | Fails closed if route evidence cannot be recorded. Evidence stores redaction flags and attachment metadata (count, bytes, hash, dimensions), never raw prompt/response content or image bytes. `sampling_temperature` is nullable so an omitted control stays distinguishable from a deterministic `0`. |
 | **CLI** | `ai-gateway routing execute --role <role> --input <text> [--profile local-first]` — the CLI exposes no sampling flag here; see cli-commands.md. |
 
+`output_text` is the provider adapter's output payload, not a normalized model
+completion. Command-backed adapters return trimmed stdout; it may be a JSON
+envelope (for example Ollama's `response` field). Metered adapters serialize
+their result, and capped OpenRouter responses remove the spend-authorization
+field before returning the remaining envelope. Consumers must use the selected
+provider's contract and validate its payload rather than assume bare text. The
+separate inference API performs its own provider-specific decoding.
+
 #### `POST /vrooli.ai_gateway.v1.routing.RoutingService/ListRouteEvidence`
 
 Lists recent redacted route evidence events, optionally scoped by

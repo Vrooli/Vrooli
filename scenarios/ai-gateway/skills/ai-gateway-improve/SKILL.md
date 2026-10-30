@@ -82,7 +82,7 @@ AI Gateway ships no `evals/` corpus with a floor. The closest fixed instrument i
 | None, or Filing | capacity-rejections above 0 with `local-only` or `privacy-sensitive` callers refused | Descriptive by design; journal the count and the callers; `report-bug` against the capacity owner only when `unknown_capacity` appears with a declared footprint | capacity-rejections |
 | Filing | success-rate below band with failure-rate in band | Routes are ending neither succeeded nor failed: W2 against ai-gateway (outcome codes incomplete on some path) | success-rate |
 | Filing | a scenario bypasses the gateway (`conformance scan`) | `report-bug` against that scenario with the finding; never edit its code from here | route-volume |
-| Filing | external-friction recurring fingerprint | Read the fingerprint's episode; if the command is ai-gateway's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
+| Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); if the command is ai-gateway's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
 
 ### 6. Anti-gaming
 

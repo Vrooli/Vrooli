@@ -22,6 +22,9 @@ const (
 	ProviderOpenRouter  = "openrouter"
 	ProviderMetered     = "lpbs"
 	ProviderPiiDetector = "pii-detector"
+	// ProviderOllaya is the decision-model resource: the local Ollaya daemon
+	// plus the credential-gated hosted System One upstreams it owns.
+	ProviderOllaya = "ollaya"
 )
 
 // Typed provider-limit codes. They are the provider-neutral seam between a
@@ -41,6 +44,13 @@ const (
 	// all. It is an availability condition, not a request fault.
 	CodeUnreachable   = "unreachable"
 	CodeCommandFailed = "command_failed"
+	// CodeUnconfigured is a provider role that cannot serve on this host yet:
+	// its credential is not provisioned or its model is not pulled. The caller
+	// skips the candidate; nothing failed.
+	CodeUnconfigured = "unconfigured"
+	// CodeContextOverflow is a request the provider would have to truncate to
+	// answer; the provider refused rather than answer on partial input.
+	CodeContextOverflow = "context_overflow"
 )
 
 type Adapter struct {
@@ -52,10 +62,13 @@ type Adapter struct {
 }
 
 type Role struct {
-	Provider            string
-	Role                string
-	Capabilities        []string
-	InputModalities     []sharedv1.Modality
+	Provider        string
+	Role            string
+	Capabilities    []string
+	InputModalities []sharedv1.Modality
+	// Locality and Status are the resource's per-role declaration when it
+	// makes one, else the adapter's: one resource may serve local and hosted
+	// roles, and a hosted role may be unconfigured on this host.
 	Locality            string
 	Status              string
 	PolicySchemaVersion string
@@ -120,6 +133,9 @@ type ResolvedRole struct {
 	// ContextWindow is provider policy, not caller metadata. Zero means the
 	// provider did not declare one and the gateway must not invent a refusal.
 	ContextWindow int32
+	// Locality is where the resolved role executes: the resource's per-role
+	// declaration, else the adapter's locality.
+	Locality string
 }
 
 // SamplingSupport states how a resolved role's provider treats an explicit
@@ -180,6 +196,8 @@ type rolePolicyEntry struct {
 	Modalities           struct {
 		Input []string `json:"input"`
 	} `json:"modalities"`
+	Locality string `json:"locality"`
+	Status   string `json:"status"`
 }
 
 func NewDefaultAdapters(runner CommandRunner) []Adapter {
@@ -190,6 +208,7 @@ func NewDefaultAdapters(runner CommandRunner) []Adapter {
 		{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner},
 		{Provider: ProviderOpenRouter, CommandName: "resource-openrouter", Locality: "remote", Runner: runner},
 		{Provider: ProviderPiiDetector, CommandName: "resource-pii-detector", Locality: "local", Runner: runner},
+		{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Runner: runner},
 	}
 }
 
@@ -235,8 +254,8 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 			Role:                roleName,
 			Capabilities:        sortedUnique(capabilities),
 			InputModalities:     parseModalities(entry.Modalities.Input),
-			Locality:            a.Locality,
-			Status:              "available",
+			Locality:            firstNonEmpty(entry.Locality, a.Locality),
+			Status:              firstNonEmpty(entry.Status, "available"),
 			PolicySchemaVersion: strings.TrimSpace(entry.SchemaVersion),
 		})
 	}
@@ -279,6 +298,7 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 			MaxTokens *int32 `json:"max_tokens"`
 		} `json:"request_defaults"`
 		ContextWindow *int32 `json:"context_window"`
+		Locality      string `json:"locality"`
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
 		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
@@ -303,7 +323,17 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		SamplingSupport:      parseSamplingSupport(response.SamplingSupport),
 		MaxOutputTokens:      maxOutputTokens,
 		ContextWindow:        valueOrZero(response.ContextWindow),
+		Locality:             firstNonEmpty(response.Locality, a.Locality),
 	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func valueOrZero(value *int32) int32 {
@@ -460,6 +490,8 @@ func (a Adapter) executionCommand(req ExecutionRequest) (Command, error) {
 		return a.openRouterExecutionCommand(req, role, input, timeout)
 	case ProviderPiiDetector:
 		return a.piiDetectorExecutionCommand(req, role, input, timeout)
+	case ProviderOllaya:
+		return a.ollayaExecutionCommand(req, role, input, timeout)
 	default:
 		return Command{}, &CommandError{Code: "unsupported_provider", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("provider %q does not expose a gateway execution command", a.Provider)}
 	}
@@ -571,6 +603,27 @@ func (a Adapter) piiDetectorExecutionCommand(req ExecutionRequest, _ string, inp
 		Timeout: timeout,
 	}, nil
 }
+
+// ollayaExecutionCommand maps a DECISION request to the decision-model
+// resource. InputText is the System One body ({state, questions}); the resource
+// picks the upstream and model from its role policy and prints a normalized
+// answer set. The deadline is passed down so a slow model load surfaces as the
+// resource's own typed timeout rather than a killed process.
+func (a Adapter) ollayaExecutionCommand(req ExecutionRequest, role string, input string, timeout time.Duration) (Command, error) {
+	if req.Kind != sharedv1.RequestKind_REQUEST_KIND_DECISION {
+		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable by ollaya", req.Kind.String())}
+	}
+	return Command{
+		Name:    a.CommandName,
+		Args:    []string{"gateway", "decide", "--role", role, "--input-stdin", "--json", "--timeout", timeout.String()},
+		Stdin:   input,
+		Timeout: timeout + resourceCommandGrace,
+	}, nil
+}
+
+// resourceCommandGrace lets a resource report its own deadline before the
+// runner kills it.
+const resourceCommandGrace = 2 * time.Second
 
 type multimodalEnvelope struct {
 	Prompt string `json:"prompt"`

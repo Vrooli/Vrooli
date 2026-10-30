@@ -117,6 +117,8 @@ current product-owned command surface is:
 | `validation apply-fix --scenario <scenario>` | `ScenarioValidationService.ApplyFix` | Call the explicit apply path, currently an API no-op until safe migrations exist. |
 | `inference run --role <role> --schema <path> --source <text>` | `InferenceService.Run` | Run one schema-constrained typed inference request. |
 | `inference run-batch --role <role> --schema <path> --items <path>` | `InferenceService.RunBatch` | Run an ordered batch against one prompt and schema. |
+| `inference decide --questions <path> (--state <text> \| --state-json <path>) [--role decide.fast]` | `InferenceService.Decide` | Answer typed choice/score/noul questions with a decision model; prints each distribution and the candidate walk. See [decisions.md](decisions.md). |
+| `inference decide-batch --questions <path> --items <path> [--role decide.fast]` | `InferenceService.DecideBatch` | Answer one question set about up to 256 states in order. |
 
 Common gateway request flags on `gateway validate`, `routing preview`,
 and `routing execute`:

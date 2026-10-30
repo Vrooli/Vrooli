@@ -5,7 +5,20 @@ Policy-driven AI inference gateway for routing scenario AI requests across local
 This scenario is Vrooli's policy-driven AI inference gateway. It exposes
 provider-neutral API, CLI, UI, and Test Genie conformance surfaces while
 delegating concrete provider credentials and model catalogs to the
-`resource-ollama` and `resource-openrouter` scenarios.
+`resource-ollama`, `resource-openrouter`, `resource-pii-detector` and
+`resource-ollaya` resources.
+
+Two inference capabilities share one role catalog and candidate walk:
+
+- **Typed inference** (`inference run`): a generative model produces a value
+  that is validated against a JSON Schema. Use it when the answer needs
+  reasoning, extraction, or prose.
+- **Decide** (`inference decide`): a non-generative decision model answers
+  typed `choice`, `score` and `noul` questions with calibrated probabilities in
+  one forward pass, locally first (Laya via `resources/ollaya`), hosted Jev or
+  Clef when their keys are provisioned, and an enum LLM fallback for
+  choice-only sets. Use it for closed-set judgments at volume. See
+  [`docs/reference/decisions.md`](docs/reference/decisions.md).
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -111,6 +124,7 @@ finer-grained presets.
 | Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
 | Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
 | Understand roles, profiles, and resource policies | [`docs/reference/roles-profiles-policies.md`](docs/reference/roles-profiles-policies.md) |
+| Choose decide vs classify; decision contract and roles | [`docs/reference/decisions.md`](docs/reference/decisions.md) |
 | Understand the AI conformance phase | [`docs/reference/validation-provider.md`](docs/reference/validation-provider.md) |
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |

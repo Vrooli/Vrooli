@@ -176,6 +176,79 @@ func (s *Service) RunBatch(ctx context.Context, requests []ProviderRequest) *inf
 	return response
 }
 
+// Decide answers one decision request. Validation happens here, once, so every
+// candidate sees the same well-formed request; the repository owns the walk and
+// reaches the typed classify path through s.Run for its enum fallback.
+func (s *Service) Decide(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
+	if err := ValidateQuestions(request.Questions); err != nil {
+		return decisionRefusal(err)
+	}
+	return s.decideValidated(ctx, request)
+}
+
+func (s *Service) decideValidated(ctx context.Context, request DecisionRequest) *inferencev1.DecideResponse {
+	if strings.TrimSpace(request.Role) == "" {
+		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
+	}
+	if err := ValidateState(request.State, request.StateJSON); err != nil {
+		return decisionRefusal(err)
+	}
+	repository, ok := s.repository.(DecisionRepository)
+	if !ok {
+		return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, "decision repository is unavailable", "decision")
+	}
+	return repository.Decide(ctx, request, s.Run)
+}
+
+// DecideBatch asks one question set about many states. Results are placed by
+// index, so ordering is independent of completion order; a bad item fails
+// alone while a bad question set fails the batch once.
+func (s *Service) DecideBatch(ctx context.Context, template DecisionRequest, items []DecisionRequest) *inferencev1.DecideBatchResponse {
+	response := &inferencev1.DecideBatchResponse{Usage: &inferencev1.Usage{}}
+	if len(items) == 0 {
+		return response
+	}
+	if len(items) > MaxBatchSize {
+		response.Results = []*inferencev1.DecideResponse{decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}},
+			inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, fmt.Sprintf("batch contains %d items; maximum is %d", len(items), MaxBatchSize), "items")}
+		return response
+	}
+	if err := ValidateQuestions(template.Questions); err != nil {
+		response.Results = []*inferencev1.DecideResponse{decisionRefusal(err)}
+		return response
+	}
+	results := make([]*inferencev1.DecideResponse, len(items))
+	slots := make(chan struct{}, MaxBatchConcurrency)
+	var wait sync.WaitGroup
+	for index, item := range items {
+		wait.Add(1)
+		go func(index int, item DecisionRequest) {
+			defer wait.Done()
+			slots <- struct{}{}
+			defer func() { <-slots }()
+			request := template
+			request.State, request.StateJSON = item.State, item.StateJSON
+			results[index] = s.decideValidated(ctx, request)
+		}(index, item)
+	}
+	wait.Wait()
+	for _, result := range results {
+		addUsage(response.Usage, result.GetUsage())
+	}
+	finalizeUsage(response.Usage)
+	response.Results = results
+	return response
+}
+
+func decisionRefusal(err error) *inferencev1.DecideResponse {
+	construct := ""
+	var decisionErr *DecisionError
+	if errors.As(err, &decisionErr) {
+		construct = decisionErr.Construct
+	}
+	return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), construct)
+}
+
 func (s *Service) Embed(ctx context.Context, role string, texts []string, sampling bool) *inferencev1.EmbedResponse {
 	response := &inferencev1.EmbedResponse{Usage: &inferencev1.Usage{}}
 	if sampling {

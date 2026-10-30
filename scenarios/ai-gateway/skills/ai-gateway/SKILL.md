@@ -1,23 +1,23 @@
 ---
 name: "ai-gateway"
-description: "Use AI Gateway for every model call: pick the role and profile for the need, keep the schema inside the enforceable subset, choose single or batch, choose a program's ai.* helper or the CLI, read cost and usage from the response, respect privacy classes, and record what the call taught in the ai-gateway-usage scope."
+description: "Use AI Gateway for every model call: choose decide (decision models) or typed inference, pick the role and profile for the need, keep the schema inside the enforceable subset, choose single or batch, choose a program's ai.* helper or the CLI, read cost and usage from the response, respect privacy classes, and record what the call taught in the ai-gateway-usage scope."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["ai-gateway", "inference", "typed-inference", "routing", "role", "profile", "privacy", "embedding", "batch", "cost", "learning-spine"]
+  tags: ["ai-gateway", "inference", "typed-inference", "decision-model", "routing", "role", "profile", "privacy", "embedding", "batch", "cost", "learning-spine"]
   icon: "terminal"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-09-02T00:00:00Z"
-  updatedAt: "2026-09-02T20:00:00Z"
+  updatedAt: "2026-10-30T00:00:00Z"
   learning:
     scope: "ai-gateway-usage"
     capture: "every attempt"
   requires:
     scenarios: ["ai-gateway", "program-runtime", "vrooli-memory", "prompt-manager"]
-    commands: ["ai-gateway inference run", "ai-gateway inference run-batch", "ai-gateway inference embed", "ai-gateway routing preview", "ai-gateway routing execute", "ai-gateway routing evidence-list", "ai-gateway routing evidence-show", "ai-gateway routing health", "ai-gateway inventory roles", "ai-gateway inventory smoke", "ai-gateway gateway validate", "ai-gateway conformance scan", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
+    commands: ["ai-gateway inference run", "ai-gateway inference run-batch", "ai-gateway inference embed", "ai-gateway inference decide", "ai-gateway inference decide-batch", "ai-gateway routing preview", "ai-gateway routing execute", "ai-gateway routing evidence-list", "ai-gateway routing evidence-show", "ai-gateway routing health", "ai-gateway inventory roles", "ai-gateway inventory smoke", "ai-gateway gateway validate", "ai-gateway conformance scan", "vrooli-memory recall wake", "vrooli-memory recall recall", "vrooli-memory journal note", "prompt-manager skill read"]
   origin:
     kind: "authored"
 ---
@@ -47,12 +47,15 @@ Required reading:
 I need a model to do something
 │
 ├─ Am I inside a program-runtime program?
-│   └─ yes → closed-set labels: lib.ai_gateway.classify_batch(corpus=..., labels=..., instruction=...) [S3]
+│   └─ yes → closed-set decisions with probabilities: lib.ai_gateway.decide_batch(states=..., questions=...) [S3] (§3.4)
+│            closed-set labels with an LLM: lib.ai_gateway.classify_batch(corpus=..., labels=..., instruction=...) [S3]
 │            Other shapes: ai.extract / ai.judge / ai.write (schema=).
 │            The helper is the same governed route; do not shell out to this CLI from a program.
 │
 ├─ What is the output?
-│   ├─ one label from a closed set        → role classify.fast, --schema {"type":"string","enum":[...]}    (§3.1)
+│   ├─ a choice, a level or a yes/no about a text, with a probability
+│   │                                     → ai-gateway inference decide --questions q.json --state "<t>"   (§3.4)
+│   ├─ one label from a closed set        → decide (§3.4); classify.fast only when the label needs reasoning or long context (§3.1)
 │   ├─ fields the caller reads            → role extract.structured, an object schema                       (§3.1)
 │   ├─ a verdict about a text             → role judge.default, a small enum or boolean schema             (§3.1)
 │   ├─ prose                              → role write.default (write.diverse when variety is the point)   (§3.1)
@@ -67,6 +70,11 @@ I need a model to do something
     ├─ Which privacy class?                                                                                 (§3.3)
     └─ Do I need to know the route before paying for it?  → ai-gateway routing preview --role <r> --profile <p> --privacy <c>  [S1]
 ```
+
+For 1–32 states needing typed decisions (choice, score, noul) with probabilities, run
+`ai-gateway.decide-batch` or import `lib.ai_gateway.decide_batch(states=texts, questions=questions)`;
+`signals.results` keeps each item's answers, method, provider and locality, and
+`signals.candidates` shows which hosted candidates were skipped and why.
 
 For 1–32 texts requiring closed-set labels, run `ai-gateway.classify-batch` or import
 `lib.ai_gateway.classify_batch(corpus=texts, labels=labels, instruction=instruction)`.
@@ -101,6 +109,22 @@ Typed inference
 Cost and usage: `--json` returns `usage.input_tokens`, `usage.output_tokens`, and `usage.cost_micros`; divide by 1,000,000 for USD. A local route reports `0`. The human output prints one `applied=` line; read `temperature_sent` together with `temperature_support`, because a value sent to a provider that declares `ignored` had no effect.
 
 Sampling: `classify.fast`, `extract.structured`, and `judge.default` are deterministic and refuse `--temperature` with `INVALID_REQUEST`; only `write.default` and `write.diverse` accept it. Omit `--temperature` to get the role's declared sampling; `0.0` is a request, not an omission.
+
+#### 3.4 Decide vs classify
+
+A decision model is non-generative: given a state and typed questions it returns one answer per question from a closed set, with calibrated probabilities, in one forward pass. `ai-gateway inference decide` is the surface; role `decide.fast` walks local Laya (via the `ollaya` resource) → hosted Jev through Eden AI → TypeSafe Jev → Cloudflare Clef → the `classify.fast` enum path. Hosted candidates without a provisioned key are skipped and listed under `candidates`, never an error. Contract and limits: `path:scenarios/ai-gateway/docs/reference/decisions.md`.
+
+```
+Closed-set judgment about a text
+├─ Choice of 2–255 labels, a 2–10 level score, or a yes/no?      → decide [S1]
+│   ├─ need the probability or a confidence threshold?           → decide; read answers[].probabilities / confidence / noul
+│   ├─ many texts, same questions?                               → inference decide-batch, or the decide-batch program (≤32 states) [S3]
+│   └─ state is structured (prior turn + reply)?                 → --state-json file instead of --state
+├─ Needs reasoning, arithmetic, counting, or prose back?         → typed inference (§3.1); decision models read instructions literally
+└─ Free-form label set, schema-shaped object, or long document?   → typed inference (§3.1)
+```
+
+Read `method` before trusting numbers: `DECISION_MODEL` answers carry `confidence` and `probabilities`; `LLM_ENUM` (fallback) answers carry the choice only. Read `locality`: `local` means the state never left the host. When it must not leave, call the `Decide` RPC with `profile=PROFILE_LOCAL_ONLY` (the CLI verb carries no profile flag); hosted candidates are then skipped as `locality_forbidden`. Confidence thresholds do not transfer between models; tune per `model`. Laya is weak beyond ~20 options; Winnow (`decide.accurate`) is stronger and opt-in.
 
 #### 3.2 Profile (routing execute, routing preview, gateway validate)
 
@@ -188,3 +212,6 @@ Entry kinds: `role-note` when the lesson is about a role or schema; `provider-no
 | Local route rejected for capacity | Broker verdict `insufficient_capacity` or `advisory_reclaim_unavailable` | `routing evidence-show <id>` `capacity_verdict` | `local-first` falls back remote if the privacy class allows; `local-only` and `privacy-sensitive` fail closed by design |
 | `routing execute` ignores temperature | The routing CLI has no `--temperature` flag | `docs/reference/cli-commands.md` | Use `inference run` for sampled typed output |
 | Measures binding in a program says `proto: syntax error ... unexpected token` | `window` passed as a string | the call | Pass `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` |
+| `decide` answered with `method=LLM_ENUM` | Every decision-model candidate was skipped or failed | `candidates[].reason` | `unreachable`/`unconfigured` on `decide.local`: `vrooli resource status ollaya`, `resource-ollaya models pull`; provision a hosted key for a hosted fallback |
+| `decide` fails `UNAVAILABLE` with `unsupported_question_types` | No decision model served and the enum fallback answers choice questions only | `candidates` | Restore the decision model; score and noul have no honest LLM fallback |
+| `decide` fails `CONTEXT_OVERFLOW` | Every dispatched model would have truncated the state | `candidates[].reason=context_overflow` | Shorten the state; decisions on truncated state are refused, not guessed |

@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"ai-gateway/internal/providers"
 )
 
 // DefaultRoleTimeout applies when a role declares no timeout_ms. It is sized
@@ -24,9 +26,21 @@ type RoleCatalog struct {
 	Roles         map[string]InferenceRole `json:"roles"`
 }
 
+// RoleKindDecision marks a role served by non-generative decision models
+// through Service.Decide. Every other role is a typed-value role served by Run.
+const RoleKindDecision = "decision"
+
+// ProviderGateway names a candidate that is one of AI Gateway's own typed
+// roles rather than a resource. A decision role uses it as its last-resort
+// fallback: the typed classify path answering choice questions as an enum.
+const ProviderGateway = "ai-gateway"
+
 type InferenceRole struct {
-	Description string      `json:"description"`
-	Candidates  []Candidate `json:"candidates"`
+	Description string `json:"description"`
+	// Kind is empty for typed-value roles and RoleKindDecision for roles whose
+	// candidates are decision models.
+	Kind       string      `json:"kind,omitempty"`
+	Candidates []Candidate `json:"candidates"`
 	// TimeoutMS bounds one provider execution for this role. Generation cost
 	// varies by an order of magnitude between a short enum classification and a
 	// large structured extraction, so the bound is per role rather than global.
@@ -58,6 +72,9 @@ const (
 	MinRoleTemperature = 0.0
 	MaxRoleTemperature = 2.0
 )
+
+// IsDecision reports whether the role is served by Service.Decide.
+func (r InferenceRole) IsDecision() bool { return r.Kind == RoleKindDecision }
 
 // Timeout resolves the declared per-role bound, falling back to
 // DefaultRoleTimeout when the catalog leaves it unset.
@@ -102,6 +119,17 @@ func (c RoleCatalog) Validate() error {
 		if err := validateRole(role, definition); err != nil {
 			return err
 		}
+		// A gateway candidate delegates to another catalog role, so it can
+		// only be checked against the whole catalog.
+		for _, candidate := range definition.Candidates {
+			if candidate.Provider != ProviderGateway {
+				continue
+			}
+			target, ok := c.Roles[candidate.ResourceRole]
+			if !ok || target.IsDecision() {
+				return fmt.Errorf("inference role %q fallback %q must name a declared typed role", role, candidate.ResourceRole)
+			}
+		}
 	}
 	return nil
 }
@@ -116,16 +144,30 @@ func validateRole(role string, definition InferenceRole) error {
 	if definition.Timeout() > MaxRoleTimeout {
 		return fmt.Errorf("inference role %q timeout_ms exceeds the %s maximum", role, MaxRoleTimeout)
 	}
+	if definition.Kind != "" && !definition.IsDecision() {
+		return fmt.Errorf("inference role %q kind %q is unsupported", role, definition.Kind)
+	}
+	if definition.IsDecision() && definition.Sampling != nil {
+		return fmt.Errorf("inference role %q is a decision role; decision models take no sampling controls", role)
+	}
 	if sampling := definition.Sampling; sampling != nil && sampling.Temperature != nil {
 		if *sampling.Temperature < MinRoleTemperature || *sampling.Temperature > MaxRoleTemperature {
 			return fmt.Errorf("inference role %q sampling.temperature %.3f is outside [%.1f,%.1f]",
 				role, *sampling.Temperature, MinRoleTemperature, MaxRoleTemperature)
 		}
 	}
-	return validateCandidates(role, definition.Candidates)
+	return validateCandidates(role, definition.IsDecision(), definition.Candidates)
 }
 
-func validateCandidates(role string, candidates []Candidate) error {
+// candidateProviders is the closed set of providers each role kind may name. A
+// decision model cannot answer a typed-value request and a generative model
+// is reached by a decision role only through the gateway's own classify path.
+var candidateProviders = map[bool]map[string]struct{}{
+	false: {providers.ProviderOllama: {}, providers.ProviderOpenRouter: {}, providers.ProviderMetered: {}, providers.ProviderPiiDetector: {}},
+	true:  {providers.ProviderOllaya: {}, ProviderGateway: {}},
+}
+
+func validateCandidates(role string, decision bool, candidates []Candidate) error {
 	seen := map[string]struct{}{}
 	for _, candidate := range candidates {
 		for field, value := range map[string]string{"provider": candidate.Provider, "resource_role": candidate.ResourceRole, "reason": candidate.Reason} {
@@ -134,7 +176,7 @@ func validateCandidates(role string, candidates []Candidate) error {
 			}
 		}
 		provider := strings.ToLower(strings.TrimSpace(candidate.Provider))
-		if provider != "ollama" && provider != "openrouter" && provider != "lpbs" && provider != "pii-detector" {
+		if _, ok := candidateProviders[decision][provider]; !ok {
 			return fmt.Errorf("inference role %q candidate provider %q is unsupported", role, candidate.Provider)
 		}
 		key := provider + ":" + candidate.ResourceRole

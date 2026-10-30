@@ -63,3 +63,30 @@ func (h *connectHandler) Embed(ctx context.Context, req *connect.Request[inferen
 	response := h.service.Embed(ctx, req.Msg.GetRole(), req.Msg.GetTexts(), req.Msg.GetSampling() != nil)
 	return connect.NewResponse(response), nil
 }
+
+func (h *connectHandler) Decide(ctx context.Context, req *connect.Request[inferencev1.DecideRequest]) (*connect.Response[inferencev1.DecideResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
+	}
+	// The enum fallback runs the typed path, which may reach the metered
+	// provider on the caller's behalf.
+	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	return connect.NewResponse(h.service.Decide(ctx, internalinference.DecisionRequest{
+		Role: req.Msg.GetRole(), State: req.Msg.GetState(), StateJSON: req.Msg.GetStateJson(),
+		Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(),
+	})), nil
+}
+
+func (h *connectHandler) DecideBatch(ctx context.Context, req *connect.Request[inferencev1.DecideBatchRequest]) (*connect.Response[inferencev1.DecideBatchResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
+	}
+	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	items := make([]internalinference.DecisionRequest, 0, len(req.Msg.GetItems()))
+	for _, item := range req.Msg.GetItems() {
+		items = append(items, internalinference.DecisionRequest{State: item.GetState(), StateJSON: item.GetStateJson()})
+	}
+	return connect.NewResponse(h.service.DecideBatch(ctx, internalinference.DecisionRequest{
+		Role: req.Msg.GetRole(), Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(),
+	}, items)), nil
+}

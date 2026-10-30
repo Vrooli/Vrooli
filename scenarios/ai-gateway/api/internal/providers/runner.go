@@ -109,9 +109,10 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
+	rawStderr := stderr.String()
 	result := Result{
 		Stdout: redact(stdout.String()),
-		Stderr: redact(stderr.String()),
+		Stderr: redact(rawStderr),
 	}
 	if err == nil {
 		return result, nil
@@ -129,7 +130,11 @@ func (ExecRunner) Run(ctx context.Context, command Command) (Result, error) {
 			cmdErr = &CommandError{Code: "missing_binary", Command: command.String(), ExitCode: -1, Stderr: result.Stderr, Err: err}
 		}
 	}
-	applyProviderErrorMarker(cmdErr, result.Stderr)
+	// The marker is read before redaction: redaction targets free text and
+	// corrupts a marker whose message names a credential variable (an
+	// "unconfigured: needs EDENAI_API_KEY" refusal). Only the code, status and
+	// retry window are taken from it; the retained stderr stays redacted.
+	applyProviderErrorMarker(cmdErr, rawStderr)
 	return result, cmdErr
 }
 
@@ -178,7 +183,7 @@ func applyProviderErrorMarker(cmdErr *CommandError, stderr string) {
 func normalizeProviderErrorCode(code string) string {
 	switch strings.TrimSpace(code) {
 	case CodeInsufficientCredits, CodeRateLimited, CodeProviderOverloaded,
-		CodeProviderFailed, CodeStreamFailed, CodeUnreachable:
+		CodeProviderFailed, CodeStreamFailed, CodeUnreachable, CodeUnconfigured, CodeContextOverflow:
 		return strings.TrimSpace(code)
 	default:
 		return ""
@@ -192,7 +197,7 @@ func (c Command) String() string {
 
 func allowedResourceCommand(name string) bool {
 	switch name {
-	case "resource-ollama", "resource-openrouter":
+	case "resource-ollama", "resource-openrouter", "resource-pii-detector", "resource-ollaya":
 		return true
 	default:
 		return false

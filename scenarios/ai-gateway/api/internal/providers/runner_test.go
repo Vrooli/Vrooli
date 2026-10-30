@@ -41,6 +41,30 @@ func TestExecRunnerRecoversTypedProviderFailureMarker(t *testing.T) {
 	}
 }
 
+// A resource that refuses because a credential is absent names the variable it
+// needs. Redaction must not turn that refusal into a generic failure, and the
+// stderr the gateway keeps must still be redacted.
+func TestExecRunnerReadsMarkerNamingACredentialVariable(t *testing.T) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\n" +
+		"echo 'VROOLI_PROVIDER_ERROR {\"code\":\"unconfigured\",\"message\":\"role decide.jev.edenai needs EDENAI_API_KEY\"}' 1>&2\n" +
+		"echo 'Error: api_key=sk-live-123' 1>&2\n" +
+		"exit 1\n"
+	if err := os.WriteFile(filepath.Join(dir, "resource-ollaya"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	result, err := (ExecRunner{}).Run(context.Background(), Command{Name: "resource-ollaya", Args: []string{"policy", "resolve"}})
+	var cmdErr *CommandError
+	if !errors.As(err, &cmdErr) || cmdErr.Code != CodeUnconfigured {
+		t.Fatalf("error = %v, want code %q", err, CodeUnconfigured)
+	}
+	if strings.Contains(result.Stderr, "sk-live-123") || strings.Contains(cmdErr.Stderr, "sk-live-123") {
+		t.Fatalf("retained stderr must stay redacted: %q", result.Stderr)
+	}
+}
+
 func TestApplyProviderErrorMarkerIgnoresMissingOrMalformedMarker(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -75,6 +99,11 @@ func TestApplyProviderErrorMarkerIgnoresMissingOrMalformedMarker(t *testing.T) {
 func TestNormalizeProviderErrorCodeRejectsUnclaimedCodes(t *testing.T) {
 	if got := normalizeProviderErrorCode("  rate_limited  "); got != CodeRateLimited {
 		t.Fatalf("normalize rate_limited = %q", got)
+	}
+	for _, code := range []string{CodeUnconfigured, CodeContextOverflow} {
+		if got := normalizeProviderErrorCode(code); got != code {
+			t.Fatalf("decision-resource code %q must survive the marker, got %q", code, got)
+		}
 	}
 	if got := normalizeProviderErrorCode("openrouter_magic"); got != "" {
 		t.Fatalf("unclaimed code must be rejected, got %q", got)

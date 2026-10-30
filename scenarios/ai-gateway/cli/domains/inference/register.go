@@ -11,9 +11,11 @@ const GroupName = "inference"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	bindings, err := cliapp.ProtoBindings(core, "vrooli.ai_gateway.v1.inference.InferenceService", cliapp.ProtoBindingOptions{
 		Render: map[string]cliapp.Renderer{
-			"InferenceService.Run":      renderRun,
-			"InferenceService.RunBatch": renderRunBatch,
-			"InferenceService.Embed":    renderEmbed,
+			"InferenceService.Run":         renderRun,
+			"InferenceService.RunBatch":    renderRunBatch,
+			"InferenceService.Embed":       renderEmbed,
+			"InferenceService.Decide":      renderDecide,
+			"InferenceService.DecideBatch": renderDecideBatch,
 		},
 	})
 	if err != nil {

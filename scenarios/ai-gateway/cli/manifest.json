@@ -1154,6 +1154,94 @@
               "network:external"
             ]
           }
+        },
+        {
+          "name": "decide",
+          "description": "Answer typed choice, score and noul questions about one state with a non-generative decision model; prints each answer's distribution and the candidate walk",
+          "flags": [
+            {
+              "name": "role",
+              "description": "Decision role from the inference role catalog",
+              "default": "decide.fast"
+            },
+            {
+              "name": "state",
+              "description": "Plain-text state the questions are about; use --state-json for structured state"
+            },
+            {
+              "name": "state-json",
+              "description": "Path to a JSON object or array used as the state when its structure carries meaning",
+              "bind": {
+                "field": "state_json",
+                "kind": "json_file"
+              }
+            },
+            {
+              "name": "questions",
+              "required": true,
+              "description": "Path to a JSON array of DecisionQuestion objects: {id, type: DECISION_QUESTION_TYPE_CHOICE|SCORE|NOUL, instructions, options[{label, description}] | levels[] | trueDescription/falseDescription}",
+              "bind": {
+                "field": "questions",
+                "kind": "json_file"
+              },
+              "bind_waiver": "questions keeps the explicit json_file decoding required for a path to a JSON array of messages"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InferenceService",
+            "method": "Decide"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "decide-batch",
+          "description": "Answer one decision question set about up to 256 states, in order, with per-item provider, method, usage and candidate walk",
+          "flags": [
+            {
+              "name": "role",
+              "description": "Decision role from the inference role catalog",
+              "default": "decide.fast"
+            },
+            {
+              "name": "questions",
+              "required": true,
+              "description": "Path to a JSON array of DecisionQuestion objects",
+              "bind": {
+                "field": "questions",
+                "kind": "json_file"
+              },
+              "bind_waiver": "questions keeps the explicit json_file decoding required for a path to a JSON array of messages"
+            },
+            {
+              "name": "items",
+              "required": true,
+              "description": "Path to a JSON array of {state} or {stateJson} objects",
+              "bind": {
+                "field": "items",
+                "kind": "json_file"
+              },
+              "bind_waiver": "items keeps the explicit json_file decoding required for a path to a JSON array"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InferenceService",
+            "method": "DecideBatch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:external"
+            ]
+          }
         }
       ]
     }

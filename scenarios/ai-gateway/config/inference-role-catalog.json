@@ -27,6 +27,86 @@
         }
       ]
     },
+    "decide.fast": {
+      "description": "Typed choice/score/noul decisions from non-generative decision models: local Laya first, hosted Jev and Clef when their credentials are provisioned, and the classify.fast enum path for choice-only question sets.",
+      "kind": "decision",
+      "timeout_ms": 30000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "model": "policy-resolved",
+          "reason": "Local Laya answers in milliseconds on the GPU and keeps the state on the host."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.edenai",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev through Eden AI; skipped until vrooli/edenai is provisioned."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.typesafe",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev direct; skipped until vrooli/typesafe is provisioned."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.clef.cloudflare",
+          "model": "policy-resolved",
+          "reason": "Hosted Cloudflare Clef-flash; skipped until vrooli/cloudflare-workers-ai is provisioned."
+        },
+        {
+          "provider": "ai-gateway",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Last resort for choice-only questions: the enum-constrained LLM path, which returns labels without calibrated probabilities."
+        }
+      ]
+    },
+    "decide.accurate": {
+      "description": "Decisions that favour accuracy over latency: local Winnow-E4B when pulled, then hosted Jev and Clef, then local Laya, then the classify.fast enum path for choice-only question sets.",
+      "kind": "decision",
+      "timeout_ms": 120000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.accurate",
+          "model": "policy-resolved",
+          "reason": "Winnow-E4B is the most accurate open decision model; skipped until it is pulled (8 GB, ~9 GB VRAM for GPU)."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.edenai",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev through Eden AI."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.typesafe",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev direct."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.clef.cloudflare",
+          "model": "policy-resolved",
+          "reason": "Hosted Cloudflare Clef-flash."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "model": "policy-resolved",
+          "reason": "Local Laya keeps decisions available when no accurate candidate can serve."
+        },
+        {
+          "provider": "ai-gateway",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Last resort for choice-only questions through the enum-constrained LLM path."
+        }
+      ]
+    },
     "classify.fast": {
       "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
       "timeout_ms": 45000,

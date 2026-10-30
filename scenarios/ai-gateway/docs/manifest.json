@@ -1055,6 +1055,42 @@
           }
         },
         {
+          "path": "reference/decisions.md",
+          "docType": "decide-reference",
+          "title": "Decisions (decide)",
+          "aliases": [
+            "decide",
+            "decision-model",
+            "ollaya",
+            "jev"
+          ],
+          "description": "Typed choice/score/noul decisions from non-generative decision models: when to use decide over classify, the contract, decision roles and candidates, skip reasons, CLI and the decide-batch program",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "decision-models",
+            "decide-contract"
+          ],
+          "maturity": "draft",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "When To Use Decide",
+              "Contract",
+              "Roles And Candidates"
+            ],
+            "forbiddenPlaceholders": [
+              "TODO_PLACEHOLDER"
+            ]
+          }
+        },
+        {
           "path": "reference/roles-profiles-policies.md",
           "docType": "policy-reference",
           "title": "Roles, Profiles, And Policies",

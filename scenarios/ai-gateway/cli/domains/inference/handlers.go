@@ -91,6 +91,86 @@ func renderEmbed(ctx cliapp.RunContext, message proto.Message) error {
 	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{fmt.Sprintf("Embedding completed: vectors=%d dimension=%d.", len(response.GetVectors()), response.GetDimension())}, ResultsHeading: "Embedding", Results: results})
 }
 
+func renderDecide(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*inferencev1.DecideResponse)
+	if !ok {
+		return fmt.Errorf("inference decide renderer received %T", message)
+	}
+	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{decisionSummary(response)}, ResultsHeading: "Decision", Results: decisionLines(response)})
+}
+
+func renderDecideBatch(ctx cliapp.RunContext, message proto.Message) error {
+	response, ok := message.(*inferencev1.DecideBatchResponse)
+	if !ok {
+		return fmt.Errorf("inference decide batch renderer received %T", message)
+	}
+	var results []string
+	answered := 0
+	for index, result := range response.GetResults() {
+		if result.GetError() == nil {
+			answered++
+		}
+		results = append(results, fmt.Sprintf("item=%d %s", index, decisionSummary(result)))
+		for _, line := range decisionLines(result) {
+			results = append(results, "  "+line)
+		}
+	}
+	usage := response.GetUsage()
+	summary := fmt.Sprintf("Decision batch completed: items=%d answered=%d input_tokens=%d cost_micros=%d.", len(response.GetResults()), answered, usage.GetInputTokens(), usage.GetCostMicros())
+	return cliapp.RenderProtoList(ctx, response, cliapp.ListReport{Summary: []string{summary}, ResultsHeading: "Decisions", Results: results})
+}
+
+func decisionSummary(response *inferencev1.DecideResponse) string {
+	if failure := response.GetError(); failure != nil {
+		return fmt.Sprintf("error=%s construct=%s message=%s", failure.GetCode().String(), failure.GetConstruct(), failure.GetMessage())
+	}
+	return fmt.Sprintf("method=%s provider=%s model=%s role=%s locality=%s latency_ms=%d",
+		strings.TrimPrefix(response.GetMethod().String(), "DECISION_METHOD_"), response.GetProvider(), response.GetModel(),
+		response.GetResourceRole(), response.GetLocality(), response.GetLatencyMs())
+}
+
+// decisionLines renders each answer with its full distribution, then the
+// candidate walk, so a reader sees why a hosted candidate was or was not used.
+func decisionLines(response *inferencev1.DecideResponse) []string {
+	var lines []string
+	for _, answer := range response.GetAnswers() {
+		line := answer.GetQuestionId() + " "
+		switch answer.GetType() {
+		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE:
+			line += "choice=" + answer.GetChoice()
+		case inferencev1.DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE:
+			line += "score=" + strconv.FormatFloat(answer.GetScore(), 'f', 4, 64)
+		default:
+			line += "noul=" + strconv.FormatFloat(answer.GetNoul(), 'f', 4, 64)
+		}
+		if answer.Confidence != nil {
+			line += " confidence=" + strconv.FormatFloat(answer.GetConfidence(), 'f', 4, 64)
+		}
+		if len(answer.GetProbabilities()) > 0 {
+			parts := make([]string, 0, len(answer.GetProbabilities()))
+			for _, probability := range answer.GetProbabilities() {
+				parts = append(parts, probability.GetOption()+":"+strconv.FormatFloat(probability.GetProbability(), 'f', 4, 64))
+			}
+			line += " probabilities={" + strings.Join(parts, " ") + "}"
+		}
+		lines = append(lines, line)
+	}
+	if usage := response.GetUsage(); usage != nil && response.GetError() == nil {
+		lines = append(lines, fmt.Sprintf("usage input_tokens=%d output_tokens=%d cost_micros=%d", usage.GetInputTokens(), usage.GetOutputTokens(), usage.GetCostMicros()))
+	}
+	for _, candidate := range response.GetCandidates() {
+		line := fmt.Sprintf("candidate %s/%s status=%s", candidate.GetProvider(), candidate.GetResourceRole(), strings.TrimPrefix(candidate.GetStatus().String(), "DECISION_CANDIDATE_STATUS_"))
+		if candidate.GetReason() != "" {
+			line += " reason=" + candidate.GetReason()
+		}
+		if candidate.GetLatencyMs() > 0 {
+			line += fmt.Sprintf(" latency_ms=%d", candidate.GetLatencyMs())
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	return &handlers{client: inferenceconnect.NewInferenceServiceClient(httpClient, baseURL)}
