@@ -30,6 +30,16 @@ type Service interface {
 	List(ctx context.Context) []Profile
 	Upsert(ctx context.Context, req UpsertRequest) (Profile, error)
 	Delete(ctx context.Context, id string)
+	AgentPreferences(ctx context.Context) (AgentPreferences, error)
+	UpdateAgentPreferences(ctx context.Context, preferences AgentPreferences, expectedRevision uint64) (AgentPreferences, error)
+}
+
+type AgentPreferences struct {
+	ProfileID       string
+	ProfileInstance string
+	OrderedAgentIDs []string
+	HiddenAgentIDs  []string
+	Revision        uint64
 }
 
 // Shortcut is the transport-neutral shortcut shape.

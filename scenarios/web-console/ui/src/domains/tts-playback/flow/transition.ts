@@ -207,17 +207,8 @@ export const transitionPlaybackTransport = (
   return next;
 };
 
-export const isPlaybackPlaying = (state: PlaybackTransportState): boolean => state.status === "playing";
-export const isPlaybackPaused = (state: PlaybackTransportState): boolean => state.status === "paused";
 export const isPlaybackBusy = (state: PlaybackTransportState): boolean =>
   state.status === "loading" || state.status === "playing" || state.status === "paused";
-
-export const hasNextInQueue = (state: PlaybackTransportState): boolean => {
-  if (state.status === "idle" || state.status === "error") {
-    return state.status === "error" ? state.queueIndex + 1 < state.queue.length : false;
-  }
-  return state.queueIndex + 1 < state.queue.length;
-};
 
 export const buildPlayNextEvent = (
   state: PlaybackTransportState,

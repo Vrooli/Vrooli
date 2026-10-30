@@ -5,10 +5,31 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	shortcutsH "web-console/handlers/shortcuts"
 )
+
+func (a *shortcutsAdapter) AgentPreferences(ctx context.Context) (shortcutsH.AgentPreferences, error) {
+	p, err := a.s.shortcuts.AgentPreferences(ctx)
+	return preferencesToTransport(p), err
+}
+
+func (a *shortcutsAdapter) UpdateAgentPreferences(ctx context.Context, p shortcutsH.AgentPreferences, expected uint64) (shortcutsH.AgentPreferences, error) {
+	result, err := a.s.shortcuts.UpdateAgentPreferences(ctx, AgentPreferences{ProfileID: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIDs: p.OrderedAgentIDs, HiddenAgentIDs: p.HiddenAgentIDs}, expected)
+	if errors.Is(err, ErrAgentPreferencesConflict) {
+		return shortcutsH.AgentPreferences{}, fmt.Errorf("%w: effective profile or preferences changed", shortcutsH.ErrConflict)
+	}
+	if errors.Is(err, ErrAgentPreferencesInvalid) {
+		return shortcutsH.AgentPreferences{}, fmt.Errorf("%w: %v", shortcutsH.ErrInvalidArgument, err)
+	}
+	return preferencesToTransport(result), err
+}
+
+func preferencesToTransport(p AgentPreferences) shortcutsH.AgentPreferences {
+	return shortcutsH.AgentPreferences{ProfileID: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIDs: p.OrderedAgentIDs, HiddenAgentIDs: p.HiddenAgentIDs, Revision: p.Revision}
+}
 
 // shortcutsAdapter bridges the in-process ShortcutStore to the
 // transport-neutral Service interface that the Connect handler depends

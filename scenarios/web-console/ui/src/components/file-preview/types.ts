@@ -122,6 +122,22 @@ export interface PreviewRendererProps {
    * markdown reader) turn relative inline image paths into previewable blobs.
    */
   imageSessionId?: string;
+  /** Pick mode: rows carry a checkbox and file rows toggle instead of opening. */
+  selection?: DirectorySelection;
+}
+
+// DirectorySelection turns the folder browser into a picker (attach from the
+// host). Folders still open on tap — their checkbox selects them — while a file
+// row's only action is to toggle, since opening it would leave the picker.
+export interface DirectorySelection {
+  isSelected: (path: string) => boolean;
+  onToggle: (path: string, entry: DirectoryEntry) => void;
+  /** Accessible name for one row's checkbox. */
+  toggleLabel: (name: string) => string;
+  /** Open a file to check it before picking; adds a Preview button to file rows. */
+  onPreview?: (path: string) => void;
+  /** Accessible name for one row's Preview button. */
+  previewLabel?: (name: string) => string;
 }
 
 export type PreviewRenderer = (props: PreviewRendererProps) => JSX.Element;

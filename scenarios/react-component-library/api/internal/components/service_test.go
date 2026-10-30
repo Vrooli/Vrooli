@@ -860,12 +860,78 @@ func TestService_IngestScaffoldsCatalogMetadataContract(t *testing.T) {
 	require.Equal(t, "uncategorized", mf.Category)
 	require.Equal(t, []string{"surface"}, mf.Tags)
 
-	// Both the released baseline and the working draft carry the story stub.
-	for _, version := range []string{"0.1.0", got.DraftVersion} {
-		storyRaw, err := os.ReadFile(filepath.Join(root, "components", "panel", "versions", version, "story.json"))
-		require.NoError(t, err, "story.json missing for version %s", version)
-		require.Contains(t, string(storyRaw), `"id": "default"`)
-	}
+	// A new asset is a draft only; the draft carries the story stub.
+	storyRaw, err := os.ReadFile(filepath.Join(root, "components", "panel", "versions", got.DraftVersion, "story.json"))
+	require.NoError(t, err, "story.json missing for version %s", got.DraftVersion)
+	require.Contains(t, string(storyRaw), `"id": "default"`)
+}
+
+// TestService_IngestNewComponentPublishesItsDraftAsTheFirstRelease is the
+// regression for ingest writing a baseline release beside its draft: the
+// draft then mapped onto the existing release and could never publish, and
+// the baseline had no provenance record. A new asset must start as a draft
+// only, publish to the version ingest named, and record that publish.
+func TestService_IngestNewComponentPublishesItsDraftAsTheFirstRelease(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(context.Context, string, string) ([]byte, error) {
+		return []byte(`export default function Panel({ className }) { return <div className={className}>Panel</div>; }`), nil
+	}))
+
+	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", Version: "1.0.0", Slot: "ui-primitive",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0-draft.1", got.DraftVersion)
+	require.Empty(t, got.Component.LatestVersion)
+	require.Equal(t, got.DraftVersion, got.Component.DraftVersion)
+	entries, err := os.ReadDir(filepath.Join(root, "components", "panel", "versions"))
+	require.NoError(t, err)
+	require.Len(t, entries, 1, "a new asset must not get a release before its draft is published")
+
+	published, err := svc.(components.AuthoringService).PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: got.Component.LibraryID})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0", published.Version.Version)
+	require.Equal(t, "1.0.0", published.Component.LatestVersion)
+	require.Empty(t, published.Component.DraftVersion)
+	ledger, err := os.ReadFile(filepath.Join(root, "release-provenance.json"))
+	require.NoError(t, err)
+	require.Contains(t, string(ledger), `"draftVersion": "1.0.0-draft.1"`)
+
+	// A re-harvest defaults to the next patch, and refuses a version that is
+	// not newer than the release, since that draft could never publish.
+	reharvested, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", Slot: "ui-primitive",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "1.0.1-draft.1", reharvested.DraftVersion)
+}
+
+func TestService_IngestRefusesStaleVersionAndUnknownSlotWithoutWriting(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	components.SetScenarioSourceReader(svc, scenarioSourceReaderFunc(func(context.Context, string, string) ([]byte, error) {
+		return []byte(`export default function Panel({ className }) { return <div className={className}>Panel</div>; }`), nil
+	}))
+
+	_, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", Slot: "data-display.panel",
+	})
+	require.ErrorContains(t, err, "ui-primitive")
+	require.NoDirExists(t, filepath.Join(root, "components", "panel"))
+
+	got, err := svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", Version: "1.0.0",
+	})
+	require.NoError(t, err)
+	_, err = svc.(components.AuthoringService).PublishComponentVersion(context.Background(), components.PublishComponentVersionInput{Component: got.Component.LibraryID})
+	require.NoError(t, err)
+	_, err = svc.IngestComponent(context.Background(), components.IngestComponentInput{
+		Scenario: "web-console", SourceFile: "ui/src/components/Panel.tsx", Slug: "panel", Version: "1.0.0",
+	})
+	require.ErrorContains(t, err, "must be newer")
 }
 
 func TestService_IngestTransfersExplicitExperienceContractIntoReleasedVersion(t *testing.T) {

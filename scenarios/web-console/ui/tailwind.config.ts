@@ -90,7 +90,7 @@ export default {
         "wc-menu-backdrop": "var(--layer-overlay)",
         "wc-menu": "var(--layer-menu)",
         "wc-confirm": "var(--layer-alert)",
-        "wc-toolbar": "var(--layer-menu)",
+        "wc-toolbar": "var(--layer-dropdown)",
         "wc-tooltip": "var(--layer-tooltip)",
       },
     },

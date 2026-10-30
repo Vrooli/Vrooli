@@ -182,3 +182,35 @@ export function matchFileReferenceBlockLines(code: string): string[] | null {
 // Beyond this a block is output being quoted (a listing, a diff, a log), not a
 // path an operator means to click.
 const MAX_FILE_REFERENCE_BLOCK_LINES = 50;
+
+const INLINE_CODE_SPAN = /`([^`\n]+)`/g;
+const MARKDOWN_LINK = /\[[^\]\n]*\]\(([^)\s]+)\)/g;
+
+/**
+ * File and folder paths mentioned across message texts, newest first, deduped
+ * and capped at `limit`. Texts are given oldest → newest (conversation order).
+ * Each text is held to the same bars the message renderer uses to make a path
+ * clickable: authored links, backticked chips, then strict prose paths. A
+ * `:line` suffix and a file:// prefix are dropped — the mention names a file,
+ * not a position in it.
+ */
+export function mentionedFilePaths(texts: readonly string[], limit = 20): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (raw: string) => {
+    const path = raw.trim().replace(/^file:\/\//, "").replace(/:\d+$/, "").replace(/(.)\/+$/, "$1");
+    if (!path || seen.has(path)) return;
+    seen.add(path);
+    out.push(path);
+  };
+  for (let i = texts.length - 1; i >= 0 && out.length < limit; i--) {
+    const text = texts[i] ?? "";
+    const found: string[] = [];
+    for (const m of text.matchAll(MARKDOWN_LINK)) if (m[1] && looksLikeFileReference(m[1])) found.push(m[1]);
+    for (const m of text.matchAll(INLINE_CODE_SPAN)) if (m[1] && looksLikeInlineFileReference(m[1])) found.push(m[1]);
+    const prose = text.replace(MARKDOWN_LINK, " ").replace(INLINE_CODE_SPAN, " ");
+    for (const m of matchProseFilePaths(prose)) found.push(m.path);
+    for (const path of found) if (out.length < limit) add(path);
+  }
+  return out;
+}

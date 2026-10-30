@@ -4,6 +4,7 @@
   "deprecatedVersions": [
     "1.3.3"
   ],
+  "description": "The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.",
   "designStyles": [
     {
       "affinity": "native",
@@ -11,6 +12,7 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "FullPageDrawer",
   "draft": "",
   "evictedVersions": [
     "1.2.12",
@@ -25,6 +27,7 @@
     "1.4.4",
     "1.3.0"
   ],
-  "latest": "1.4.7",
-  "libraryId": "react-component-library:FullPageDrawer"
+  "latest": "1.5.0",
+  "libraryId": "react-component-library:FullPageDrawer",
+  "tags": []
 }

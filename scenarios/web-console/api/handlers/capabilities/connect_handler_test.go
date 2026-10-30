@@ -100,6 +100,53 @@ func TestConnectHandlerGetAndLivenessProjectAllFields(t *testing.T) {
 
 type projectionService struct{ *fakeService }
 
+type updateService struct{ *fakeService }
+
+type usageService struct{ *fakeService }
+
+func (*usageService) AgentUsage(_ context.Context, target, agent string) (AgentUsageResult, error) {
+	return AgentUsageResult{TargetID: target, AgentID: agent, Match: "likely", Reason: "account not confirmed", Source: "provider", ObservedAt: "2026-10-29T12:00:00Z", Windows: []AgentUsageWindow{{Pool: "codex", WindowMinutes: 10080, UsedPercent: 0}}}, nil
+}
+
+func TestConnectHandlerAgentUsagePreservesMatchAndWindows(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &usageService{fakeService: &fakeService{}}})
+	response, err := h.AgentUsage(context.Background(), connect.NewRequest(&capabilitiesv1.AgentUsageRequest{TargetId: "local", AgentId: "codex"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.TargetId != "local" || response.Msg.AgentId != "codex" || response.Msg.Match != "likely" || response.Msg.Reason == "" || len(response.Msg.Windows) != 1 || response.Msg.Windows[0].WindowMinutes != 10080 || response.Msg.Windows[0].UsedPercent != 0 {
+		t.Fatalf("response lost usage evidence: %+v", response.Msg)
+	}
+	h = NewConnectHandler(Deps{Service: &fakeService{}})
+	_, err = h.AgentUsage(context.Background(), connect.NewRequest(&capabilitiesv1.AgentUsageRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("without reader: %v", err)
+	}
+}
+
+func (*updateService) AgentUpdate(_ context.Context, target, agent string) (AgentUpdateResult, error) {
+	return AgentUpdateResult{TargetID: target, AgentID: agent, Installed: "1.0.0", Latest: "1.1.0", Status: "behind", CheckedAt: "2026-10-29T12:00:00Z", ProbeVerified: true}, nil
+}
+
+func TestConnectHandlerAgentUpdateProjectsTargetAndProbeEvidence(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &updateService{fakeService: &fakeService{}}})
+	response, err := h.AgentUpdate(context.Background(), connect.NewRequest(&capabilitiesv1.AgentUpdateRequest{TargetId: "bridge-node:one", AgentId: "codex"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.TargetId != "bridge-node:one" || response.Msg.AgentId != "codex" || response.Msg.Status != "behind" || !response.Msg.ProbeVerified || response.Msg.CheckedAt == "" {
+		t.Fatalf("response lost target or observation evidence: %+v", response.Msg)
+	}
+}
+
+func TestConnectHandlerAgentUpdateUnavailableWithoutReader(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &fakeService{}})
+	_, err := h.AgentUpdate(context.Background(), connect.NewRequest(&capabilitiesv1.AgentUpdateRequest{TargetId: "local", AgentId: "codex"}))
+	if connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("code = %v; want unavailable", connect.CodeOf(err))
+	}
+}
+
 func (p *projectionService) Resolve(context.Context) Snapshot {
 	return Snapshot{Timestamp: "now", DefaultBackend: "standard", Capabilities: []CapabilityState{{ID: "audio", Name: "Audio", Features: []string{"stt"}, Status: "available"}}, BackendOptions: []BackendOption{{ID: "tmux", DisplayName: "tmux", Available: true}}}
 }

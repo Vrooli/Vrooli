@@ -57,6 +57,10 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
       const deprecated = new Set(Array.isArray(manifest.deprecatedVersions) ? manifest.deprecatedVersions : []);
       const evicted = new Set(Array.isArray(manifest.evictedVersions) ? manifest.evictedVersions : []);
       const latest = typeof manifest.latest === "string" ? manifest.latest.trim() : "";
+      const draft = typeof manifest.draft === "string" ? manifest.draft.trim() : "";
+      // A new asset exists as its first draft until that draft is published.
+      // It has nothing to export yet; consumers can only import releases.
+      if (!latest && draft && diskVersions.length === 0) continue;
       if (!latest || !diskVersions.includes(latest)) {
         failures.push(`${relative(manifestRoot, manifestPath)}: latest ${JSON.stringify(latest)} does not name a released version on disk`);
         continue;

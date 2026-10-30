@@ -466,6 +466,16 @@ type InitializeComponentInput struct {
 	// folder when the caller supplies none. Ingest sets it so every harvested
 	// draft carries the examples contract authored components ship with.
 	ScaffoldExamples bool
+	// DraftOnly creates the asset with its first version as a draft
+	// (InitialVersion + "-draft.1") and no release. The first release is then
+	// made by publishing that draft, so it carries a provenance record like
+	// every later release. Ingest uses it: harvested source is unvalidated and
+	// must not become a release just because the asset is new.
+	DraftOnly bool
+	// ParityReport and ExperienceContract travel with a DraftOnly version the
+	// same way they travel with a draft created by CreateComponentVersion.
+	ParityReport       *IngestParityReport
+	ExperienceContract string
 }
 
 type InitializeComponentResult struct {

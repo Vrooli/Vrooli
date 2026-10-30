@@ -289,7 +289,9 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
  * follows the same terminal-derived theme. */
 [data-testid="mobile-toolbar"],
 [data-testid="audio-preview-player"],
-.wc-artifact-preview {
+.wc-artifact-preview,
+.wc-rcl-theme,
+[data-wc-rcl-theme] {
   --color-background: rgb(var(--wc-surface-base));
   --color-foreground: rgb(var(--wc-text-secondary));
   --color-primary: rgb(var(--wc-accent));
@@ -307,6 +309,11 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   --color-info: rgb(var(--wc-accent));
   --color-success: rgb(var(--wc-accent));
   --color-on-primary: rgb(var(--wc-accent-fg));
+}
+
+/* Subtle progress tracks stay distinct from the accent in both palettes. */
+[data-wc-rcl-theme] {
+  --color-border-subtle: rgb(var(--wc-surface-base));
 }
 
 /* Keep the first mobile paint single-column even if the browser applies its

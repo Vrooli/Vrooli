@@ -113,7 +113,7 @@
       "title": "Capability-derived launcher",
       "status": "in_progress",
       "category": "ui",
-      "description": "The launcher derives coding-agent cards from the selected target capability facts, keeps unavailable cards visible with recovery text, and keeps an empty shell available.",
+      "description": "When the operator selects a terminal target, the launcher SHOULD derive coding-agent choices from its capability facts, keep unavailable agents and recovery details accessible in agent management, and keep an empty shell available.",
       "validation": [
         {
           "type": "test",
@@ -134,7 +134,7 @@
       "title": "Governed target capability installation",
       "status": "in_progress",
       "category": "core",
-      "description": "A missing resource-backed capability exposes a target-scoped governed install action on the launcher and machines surfaces, while unsupported platforms return an explicit not_applicable reason.",
+      "description": "When a resource-backed capability is missing, the launcher management and machines surfaces SHOULD expose a target-scoped governed install action; when a platform is unsupported, they SHOULD show its not_applicable reason.",
       "validation": [
         {
           "type": "test",

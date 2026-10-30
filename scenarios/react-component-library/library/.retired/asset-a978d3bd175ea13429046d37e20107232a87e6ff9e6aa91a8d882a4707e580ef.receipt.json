@@ -1,0 +1,18 @@
+{
+  "ComponentID": "0dc67429-29d4-41c9-a7f6-09e56f3cba91",
+  "LibraryID": "react-component-library:IngestProbe",
+  "Preflight": {
+    "Completed": true,
+    "CatalogID": "legacy.ingest-probe",
+    "CatalogPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/catalog/assets/legacy/ingest-probe.json",
+    "RequiredBy": null,
+    "SuggestedBy": null,
+    "SourceReferences": null
+  },
+  "Archive": {
+    "SnapshotPath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-a978d3bd175ea13429046d37e20107232a87e6ff9e6aa91a8d882a4707e580ef.snapshot.json",
+    "SourceArchivePath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-a978d3bd175ea13429046d37e20107232a87e6ff9e6aa91a8d882a4707e580ef"
+  },
+  "CatalogArchivePath": "/home/matthalloran8/Vrooli/scenarios/react-component-library/library/.retired/asset-a978d3bd175ea13429046d37e20107232a87e6ff9e6aa91a8d882a4707e580ef.catalog.json",
+  "Retired": true
+}

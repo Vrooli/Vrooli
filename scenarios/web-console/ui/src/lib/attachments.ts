@@ -20,9 +20,6 @@ const IMAGE_EXTENSIONS = new Set([
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "ogv", "mov", "m4v"]);
 const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "m4a", "aac", "flac", "opus"]);
 
-/** Accept tokens for the "Photos" source: images and videos from the library. */
-export const MEDIA_PICKER_ACCEPT = "image/*,video/*";
-
 /** Accept token for a device-camera capture input. */
 export const CAMERA_PICKER_ACCEPT = "image/*";
 
@@ -62,7 +59,12 @@ export function attachmentKind(file: File): AttachmentKind {
   if (type.startsWith("video/")) return "video";
   if (type.startsWith("audio/")) return "audio";
   // Browsers sometimes omit the type (e.g. SVG, drag-in from some apps).
-  const ext = extensionOf(file.name);
+  return attachmentKindForName(file.name);
+}
+
+/** Classify by file name alone — for host files, which carry no MIME type. */
+export function attachmentKindForName(name: string): AttachmentKind {
+  const ext = extensionOf(name);
   if (IMAGE_EXTENSIONS.has(ext)) return "image";
   if (VIDEO_EXTENSIONS.has(ext)) return "video";
   if (AUDIO_EXTENSIONS.has(ext)) return "audio";
@@ -82,4 +84,73 @@ export function formatFileSize(bytes: number): string {
   }
   const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
   return `${String(rounded)} ${units[unit] ?? ""}`;
+}
+
+// ---------------------------------------------------------------------------
+// Attach sources. The menu chooses the MACHINE a file comes from; the device's
+// own picker chooses camera / photo library / files wherever the OS has one.
+// ---------------------------------------------------------------------------
+
+/**
+ * - device: this device's native picker (its OS offers camera/library/files)
+ * - upload: this device's file dialog (desktop browsers: no source chooser)
+ * - camera: the in-app camera, for devices whose OS has no capture chooser
+ * - host:   browse the machine the session runs on and attach by path
+ */
+export type AttachSourceId = "device" | "upload" | "camera" | "host";
+
+/** Platforms whose file input opens an OS chooser with camera + library + files. */
+export type NativeChooserPlatform = "iphone" | "ipad" | "android";
+
+export interface AttachEnvironment {
+  hostname: string;
+  userAgent: string;
+  maxTouchPoints: number;
+}
+
+export function readAttachEnvironment(): AttachEnvironment {
+  const nav = typeof navigator === "undefined" ? undefined : navigator;
+  return {
+    hostname: typeof location === "undefined" ? "" : location.hostname,
+    userAgent: nav?.userAgent ?? "",
+    maxTouchPoints: nav?.maxTouchPoints ?? 0,
+  };
+}
+
+/**
+ * True when the page is served from this machine itself. Checked in the
+ * browser because the server cannot tell: tunnel traffic reaches it from
+ * loopback too.
+ */
+export function isLoopbackHostname(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return host === "localhost" || host.endsWith(".localhost") || host === "::1" || /^127(?:\.\d{1,3}){3}$/.test(host);
+}
+
+/**
+ * The platform whose OS shows its own source chooser for a plain file input,
+ * or null. This asks about OS behavior, which no feature test reveals, so it
+ * reads the user agent. iPadOS reports itself as a Mac; touch tells them
+ * apart. A miss only costs the desktop menu, which still works.
+ */
+export function nativeChooserPlatform(env: AttachEnvironment): NativeChooserPlatform | null {
+  const ua = env.userAgent;
+  if (/iPhone|iPod/i.test(ua)) return "iphone";
+  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && env.maxTouchPoints > 1)) return "ipad";
+  if (/Android/i.test(ua)) return "android";
+  return null;
+}
+
+/** The ordered sources the attach menu offers in this environment. */
+export function planAttachSources(
+  env: AttachEnvironment,
+  options: { hostAvailable: boolean; cameraAvailable: boolean },
+): AttachSourceId[] {
+  const local: AttachSourceId[] = nativeChooserPlatform(env)
+    ? ["device"]
+    : options.cameraAvailable ? ["upload", "camera"] : ["upload"];
+  if (!options.hostAvailable) return local;
+  // On the host itself both sources reach the same disk; browsing comes first
+  // because it attaches the real path, where the file dialog can only copy.
+  return isLoopbackHostname(env.hostname) ? ["host", ...local] : [...local, "host"];
 }

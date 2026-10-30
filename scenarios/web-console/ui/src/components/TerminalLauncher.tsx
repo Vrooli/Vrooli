@@ -29,6 +29,8 @@ import MachinePicker from "./launcher/MachinePicker";
 import GroupDestinationTrigger from "./launcher/GroupPicker";
 import GroupModePanel, { type GroupCreationRequest } from "./launcher/GroupModePanel";
 import AgentGridSection from "./launcher/AgentGridSection";
+import { useAgentPreferences } from "./launcher/useAgentPreferences";
+import { mergeAgentOrder } from "./launcher/agentGrid";
 
 export type { TerminalTarget } from "../api/targets";
 
@@ -167,10 +169,8 @@ export default function TerminalLauncher({
   const [customCommand, setCustomCommand] = useState("");
   const [workingDir, setWorkingDir] = useState("");
   const [apiShortcuts, setApiShortcuts] = useState<ShortcutEntry[] | null>(null);
-  // Which profile the effective list resolved from. The server names it, so
-  // the dialog can write an edited order back without re-deriving scope
-  // priority for itself.
-  const [effectiveProfile, setEffectiveProfile] = useState<{ id: string; scope: string; name: string }>({ id: "", scope: "", name: "" });
+  const [effectiveProfileId, setEffectiveProfileId] = useState<string | null>(null);
+  const agentPreferences = useAgentPreferences(open && !shortcutsProp && effectiveProfileId !== null, effectiveProfileId);
   const [selectedBackend, setSelectedBackend] = useState<BackendID>(defaultBackend);
   const [selectedPolicyKey, setSelectedPolicyKey] = useState<string>(
     defaultPolicy ? policyKey(defaultPolicy.mode, defaultPolicy.duration) : "never",
@@ -204,23 +204,15 @@ export default function TerminalLauncher({
   useEffect(() => {
     if (!open || shortcutsProp) return;
     let cancelled = false;
+    setEffectiveProfileId(null);
     shortcutsClient.getEffective({})
       .then((resp) => {
         if (cancelled) return;
         setApiShortcuts(decodeShortcuts(resp.shortcuts));
-        // Remember which profile the list came from so a reorder can be
-        // written back to it. An empty id means the server is serving
-        // built-in defaults and no profile exists yet.
-        setEffectiveProfile({
-          id: resp.profileId,
-          scope: resp.scope,
-          // The server sends the profile's own name. Substituting one here
-          // would rename the operator's profile on their first reorder.
-          name: resp.profileName || t(strings.settings.shortcutsSection.defaultProfileName),
-        });
+        setEffectiveProfileId(resp.profileId);
       })
       .catch(() => {
-        if (!cancelled) setApiShortcuts(null);
+        if (!cancelled) { setApiShortcuts(null); setEffectiveProfileId(null); }
       });
     return () => { cancelled = true; };
   }, [open, shortcutsProp, t]);
@@ -270,32 +262,6 @@ export default function TerminalLauncher({
       if (groupId) changeDestination(groupId);
     });
   }, [changeDestination, onCreateGroup]);
-
-  // Persist a reordered agent list back to the profile the effective list
-  // came from. GetEffective names that profile, so the client never has to
-  // re-derive scope priority — a rule the server already owns.
-  const persistOrder = useCallback(async (next: ShortcutEntry[]) => {
-    setApiShortcuts(next);
-    try {
-      await shortcutsClient.upsertProfile({
-        id: effectiveProfile.id || "default",
-        scope: effectiveProfile.scope || "service",
-        name: effectiveProfile.name,
-        shortcuts: next.map((entry) => ({
-          label: entry.label,
-          command: entry.command,
-          description: entry.description ?? "",
-          agentId: entry.agentId ?? "",
-        })),
-      });
-    } catch {
-      // A failed write must not leave the grid showing an order the server
-      // does not have. Re-read rather than guess what survived.
-      shortcutsClient.getEffective({})
-        .then((resp) => { setApiShortcuts(decodeShortcuts(resp.shortcuts)); })
-        .catch(() => { setApiShortcuts(null); });
-    }
-  }, [effectiveProfile]);
 
   // The grid only renders an install affordance when this prop is passed at
   // all (see the onInstall={...} guard below), so the missing-handler branch
@@ -448,13 +414,32 @@ export default function TerminalLauncher({
 
           {mode === "one-session" && (
             <AgentGridSection
+              key={selected.id}
               shortcuts={shortcuts}
               target={selected}
               disabled={isCreating || !selected.available || noBackendAvailable}
               onLaunch={(command) => { onLaunch(buildLaunchOptions(command)); }}
               onInstall={onInstallCapability ? installAgent : undefined}
               onEditShortcuts={onEditShortcuts}
-              onReorder={shortcutsProp ? undefined : persistOrder}
+              updatesEnabled={open}
+              orderedAgentIds={agentPreferences.preferences?.orderedAgentIds}
+              hiddenAgentIds={agentPreferences.preferences?.hiddenAgentIds}
+              preferencesBusy={agentPreferences.busy}
+              preferencesError={agentPreferences.error ? t(strings.launcher.preferencesError) : undefined}
+              onRetryPreferences={shortcutsProp ? undefined : () => {
+                void shortcutsClient.getEffective({}).then((resp) => {
+                  setApiShortcuts(decodeShortcuts(resp.shortcuts));
+                  setEffectiveProfileId(resp.profileId);
+                  if (resp.profileId === effectiveProfileId) void agentPreferences.reload();
+                }).catch(() => { void agentPreferences.reload(); });
+              }}
+              onReorder={agentPreferences.preferences ? (ids) => agentPreferences.update(mergeAgentOrder(agentPreferences.preferences?.orderedAgentIds ?? [], ids), agentPreferences.preferences?.hiddenAgentIds ?? []) : undefined}
+              onVisibilityChange={agentPreferences.preferences ? (id, hidden) => {
+                const current = agentPreferences.preferences;
+                if (!current) return;
+                const next = hidden ? [...current.hiddenAgentIds.filter((item) => item !== id), id] : current.hiddenAgentIds.filter((item) => item !== id);
+                void agentPreferences.update(current.orderedAgentIds, next);
+              } : undefined}
             />
           )}
 

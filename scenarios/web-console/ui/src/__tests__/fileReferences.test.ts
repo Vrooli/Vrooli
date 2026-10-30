@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExternalHref, looksLikeFileReference, looksLikeInlineFileReference, looksLikeInlineUrl, matchFileReferenceBlockLines, matchProseFilePaths } from "../lib/fileReferences";
+import { isExternalHref, looksLikeFileReference, looksLikeInlineFileReference, looksLikeInlineUrl, matchFileReferenceBlockLines, matchProseFilePaths, mentionedFilePaths } from "../lib/fileReferences";
 
 describe("fileReferences", () => {
   it("detects external hrefs", () => {
@@ -169,5 +169,34 @@ describe("matchFileReferenceBlockLines", () => {
     expect(matchFileReferenceBlockLines(many)).toBeNull();
     const fifty = Array.from({ length: 50 }, (_, i) => `docs/file-${String(i)}.md`).join("\n");
     expect(matchFileReferenceBlockLines(fifty)).toHaveLength(50);
+  });
+});
+
+describe("mentionedFilePaths", () => {
+  it("collects links, backticked chips, and prose paths, newest message first", () => {
+    const texts = [
+      "Older: see [the plan](docs/PLAN.md) and `scripts/build.sh`.",
+      "Newer: I edited /home/me/Vrooli/ui/src/App.tsx:42 and `README.md`.",
+    ];
+    expect(mentionedFilePaths(texts)).toEqual([
+      "README.md",
+      "/home/me/Vrooli/ui/src/App.tsx",
+      "docs/PLAN.md",
+      "scripts/build.sh",
+    ]);
+  });
+
+  it("drops line suffixes, file:// prefixes, and trailing slashes, and dedupes", () => {
+    const texts = ["`file:///tmp/a.log:3` then `docs/evidence/` and again /tmp/a.log"];
+    expect(mentionedFilePaths(texts)).toEqual(["/tmp/a.log", "docs/evidence"]);
+  });
+
+  it("ignores URLs and prose that only looks path-ish", () => {
+    expect(mentionedFilePaths(["Use TCP/IP and/or visit [site](https://vrooli.com) or `vrooli.com`."])).toEqual([]);
+  });
+
+  it("caps the list at the limit", () => {
+    const texts = Array.from({ length: 10 }, (_, i) => `\`/tmp/f${String(i)}.txt\``);
+    expect(mentionedFilePaths(texts, 3)).toEqual(["/tmp/f9.txt", "/tmp/f8.txt", "/tmp/f7.txt"]);
   });
 });

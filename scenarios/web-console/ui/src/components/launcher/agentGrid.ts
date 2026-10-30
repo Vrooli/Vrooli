@@ -6,8 +6,8 @@
  *
  *   membership — which agents exist on the selected machine, and in what
  *                state. Only the target's capability readiness knows this.
- *   order      — which agent the operator wants first. Only their shortcut
- *                profile knows this, and it is the one thing they can change.
+ *   order      — shortcut order supplies the initial order; separate profile
+ *                preferences can reorder and hide agents without editing commands.
  *   command    — what to actually run. The shortcut owns it; the built-in
  *                verb is a fallback for an agent the profile has never seen.
  *
@@ -17,8 +17,9 @@
  * editing a command in Settings changed nothing, and the list opened with
  * "agy" because that sorts first.
  *
- * The rule now is one sentence: membership from the probe, order and command
- * from the profile, built-ins only where the profile is silent.
+ * Membership comes from the probe, commands from the shortcut profile, and
+ * built-ins apply only where the profile is silent. The view composes the
+ * separate persisted agent preferences after this initial projection.
  *
  * [REQ:P0-006b] Configurable Shortcut Entries
  * [REQ:P0-014a] Launcher Destination And Appearance Disclosure
@@ -63,8 +64,6 @@ export interface AgentCard {
   detail?: string;
   /** True when this card came from capability facts rather than a shortcut. */
   fromCatalogue: boolean;
-  /** Active billing source, e.g. "subscription" | "metered" | "local" | "unknown". */
-  billingSource?: string;
 }
 
 /** The built-in launch verb per agent, used only when no shortcut supplies one. */
@@ -121,8 +120,6 @@ export interface BuildAgentGridInput {
   shortcuts: readonly ShortcutEntry[];
   /** Capability ids whose install this session started and has not seen finish. */
   installing?: readonly string[];
-  /** Per-agent billing sources, keyed by agent ID. */
-  billingSources?: Record<string, string>;
 }
 
 export interface AgentGrid {
@@ -140,7 +137,7 @@ export interface AgentGrid {
  * command list rather than vanishing. A launcher that renders nothing because
  * a probe is missing is worse than one that renders unverified entries.
  */
-export function buildAgentGrid({ readiness, shortcuts, installing = [], billingSources = {} }: BuildAgentGridInput): AgentGrid {
+export function buildAgentGrid({ readiness, shortcuts, installing = [] }: BuildAgentGridInput): AgentGrid {
   const facts = (readiness ?? []).filter((fact) => fact.key.startsWith(CAPABILITY_PREFIX));
   const factByID = new Map(facts.map((fact) => [fact.key.slice(CAPABILITY_PREFIX.length), fact]));
   const installingSet = new Set(installing);
@@ -200,7 +197,6 @@ export function buildAgentGrid({ readiness, shortcuts, installing = [], billingS
       version: fact?.version || undefined,
       detail: fact?.detail || undefined,
       fromCatalogue: true,
-      billingSource: billingSources[agentID],
     } satisfies AgentCard;
   });
 
@@ -234,45 +230,10 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
   return [...rest.slice(0, clamped), ...moving, ...rest.slice(clamped)];
 }
 
-/**
- * Project a reordered agent list back onto a shortcut profile.
- *
- * Order lives in the profile, so persisting it means rewriting the profile's
- * entries. Two rules keep that lossless:
- *
- *   - An agent with no entry yet gains one, carrying the command the grid was
- *     already launching. Without this, reordering an agent the profile has
- *     never seen would silently drop its position on the next read.
- *   - The operator's own commands keep their relative order and follow the
- *     agents, so reordering agents never reshuffles or deletes custom entries.
- */
-export function applyAgentOrderToShortcuts(
-  shortcuts: readonly ShortcutEntry[],
-  agents: readonly AgentCard[],
-): ShortcutEntry[] {
-  const byAgent = new Map<string, ShortcutEntry>();
-  const others: ShortcutEntry[] = [];
-  const claimed = new Set(agents.map((card) => card.agentID));
-
-  for (const entry of shortcuts) {
-    const agentID = shortcutAgentID(entry);
-    if (agentID && claimed.has(agentID) && !byAgent.has(agentID)) {
-      byAgent.set(agentID, entry);
-      continue;
-    }
-    others.push(entry);
-  }
-
-  const ordered = agents.map((card) => {
-    const existing = byAgent.get(card.agentID);
-    if (existing) return existing;
-    return {
-      label: card.label,
-      command: card.command,
-      description: card.description,
-      agentId: card.agentID,
-    } satisfies ShortcutEntry;
-  });
-
-  return [...ordered, ...others];
+/** Reorder the selected target's agents without dropping agents on other targets. */
+export function mergeAgentOrder(previous: readonly string[], current: readonly string[]): string[] {
+  const present = new Set(current);
+  let next = 0;
+  const merged = previous.map((id) => present.has(id) ? current[next++] : id).filter((id): id is string => id !== undefined);
+  return [...merged, ...current.slice(next)];
 }

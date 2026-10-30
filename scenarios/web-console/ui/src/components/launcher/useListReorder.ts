@@ -136,13 +136,20 @@ export function useListReorder<T>({ source, onCommit, enabled = true }: UseListR
       onCommit(next);
     };
 
+    const onCancel = () => {
+      origin.current = null;
+      setDraggingIndex(null);
+      setActive(false);
+      setTargetIndex(null);
+    };
+
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("pointercancel", onCancel);
     return () => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointercancel", onCancel);
     };
   }, [active, draggingIndex, indexAtPoint, onCommit, source, targetIndex]);
 

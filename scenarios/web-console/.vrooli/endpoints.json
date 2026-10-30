@@ -397,6 +397,22 @@
       "category": "audio_runtime"
     },
     {
+      "id": "capabilities_agent_usage",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/AgentUsage",
+      "method": "POST",
+      "summary": "Get target-specific agent usage",
+      "description": "Returns provider quota readings with their account-match confidence and source.",
+      "category": "capabilities"
+    },
+    {
+      "id": "capabilities_agent_update",
+      "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/AgentUpdate",
+      "method": "POST",
+      "summary": "Get target-specific agent update status",
+      "description": "Checks the installed agent against its resource-owned upstream source. A matching probe does not verify a custom launch command.",
+      "category": "capabilities"
+    },
+    {
       "id": "capabilities_get",
       "path": "/vrooli.web_console.v1.capabilities.CapabilitiesService/Get",
       "method": "POST",
@@ -1649,6 +1665,22 @@
           "description": "prompt-manager binary is not available"
         }
       ]
+    },
+    {
+      "id": "shortcuts_get_agent_preferences",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/GetAgentPreferences",
+      "method": "POST",
+      "summary": "Get effective agent preferences",
+      "description": "Returns the current profile's ordered and hidden agent IDs and revision.",
+      "category": "shortcuts"
+    },
+    {
+      "id": "shortcuts_update_agent_preferences",
+      "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/UpdateAgentPreferences",
+      "method": "POST",
+      "summary": "Update agent preferences",
+      "description": "Updates profile agent preferences if the effective profile and revision still match.",
+      "category": "shortcuts"
     },
     {
       "id": "shortcuts_get_effective",

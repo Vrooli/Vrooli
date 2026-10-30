@@ -11,6 +11,16 @@ import (
 // renaming an RPC in shortcuts.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID: "shortcuts_get_agent_preferences", Path: shortcutsconnect.ShortcutsServiceGetAgentPreferencesProcedure,
+		Method: "POST", Summary: "Get effective agent preferences", Category: "shortcuts",
+		Description: "Returns the current profile's ordered and hidden agent IDs and revision.",
+	},
+	{
+		ID: "shortcuts_update_agent_preferences", Path: shortcutsconnect.ShortcutsServiceUpdateAgentPreferencesProcedure,
+		Method: "POST", Summary: "Update agent preferences", Category: "shortcuts",
+		Description: "Updates profile agent preferences if the effective profile and revision still match.",
+	},
+	{
 		ID:          "shortcuts_get_effective",
 		Path:        shortcutsconnect.ShortcutsServiceGetEffectiveProcedure,
 		Method:      "POST",

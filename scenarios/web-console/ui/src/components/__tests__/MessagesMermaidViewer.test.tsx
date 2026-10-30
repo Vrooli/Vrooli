@@ -60,6 +60,22 @@ describe("MessagesMermaidViewer", () => {
     expect(screen.getByTestId("mermaid-zoom-level")).toHaveTextContent("%");
   });
 
+  it("zooms in, out and back to the starting scale from the toolbar", () => {
+    ready();
+    render(<MessagesMermaidViewer open code={CODE} onClose={vi.fn()} />);
+    const level = () => Number.parseInt(screen.getByTestId("mermaid-zoom-level").textContent ?? "", 10);
+    const start = level();
+    fireEvent.click(screen.getByLabelText("mermaid.zoomIn"));
+    expect(level()).toBeGreaterThan(start);
+    fireEvent.click(screen.getByLabelText("mermaid.zoomOut"));
+    fireEvent.click(screen.getByLabelText("mermaid.zoomOut"));
+    expect(level()).toBeLessThan(start);
+    fireEvent.click(screen.getByLabelText("mermaid.resetZoom"));
+    expect(level()).toBe(100);
+    fireEvent.click(screen.getByLabelText("mermaid.fitToScreen"));
+    expect(screen.getByTestId("mermaid-zoom-level")).toHaveTextContent("%");
+  });
+
   it("toggles to source view and back, hiding zoom controls in source mode", () => {
     ready();
     render(<MessagesMermaidViewer open code={CODE} onClose={vi.fn()} />);

@@ -6,6 +6,7 @@ import { CodeBlock } from "./components/CodeBlock";
 import { InlineCode } from "./components/InlineCode";
 import { MermaidDiagram } from "./components/MermaidDiagram";
 import { ResizableMarkdownTable } from "@vrooli/react-component-library/markdown-renderer/0";
+import { MarkdownTimeMention, TimeMentionProvider, remarkTimeMentions, type TimeAnchorInput } from "@vrooli/react-component-library/TimeMention/1";
 import { isExternalHref } from "../../lib/fileReferences";
 import { resolveFilePreview } from "../../api/filePreview";
 import { splitMarkdownChunks } from "./utils/splitMarkdownChunks";
@@ -83,6 +84,12 @@ interface MarkdownRendererProps {
    * leave off for streaming message bodies, which are small and append live.
    */
   progressive?: boolean;
+  /**
+   * When the text was written — a message's send time. Times without a date
+   * and words like "yesterday" resolve against it; without it they render as
+   * written, while times that carry a full date still convert.
+   */
+  timeAnchor?: TimeAnchorInput;
 }
 
 // Resolve a markdown image `src` to the path handed to the preview backend.
@@ -270,6 +277,8 @@ const markdownComponents = {
   del: ({ children }: { children?: ReactNode }) => (
     <del className="line-through text-wc-text-faint">{children}</del>
   ),
+
+  time: MarkdownTimeMention,
 };
 
 // One parsed slice of the document. Memoized by its text so that, as later
@@ -277,7 +286,7 @@ const markdownComponents = {
 const MarkdownChunk = memo(function MarkdownChunk({ content }: { content: string }) {
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkProsePaths]}
+      remarkPlugins={[remarkGfm, remarkProsePaths, remarkTimeMentions]}
       components={markdownComponents}
       urlTransform={markdownUrlTransform}
     >
@@ -296,6 +305,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   imageSessionId,
   imageBasePath,
   progressive = false,
+  timeAnchor,
 }: MarkdownRendererProps) {
   const callbacks = useMemo(() => ({ onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId, imageBasePath }),
     [onLinkClick, onFileReferenceClick, onMermaidOpen, imageSessionId, imageBasePath]);
@@ -326,9 +336,11 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
   return (
     <MarkdownCallbacksContext.Provider value={callbacks}>
       <MarkdownErrorBoundary content={safeContent}>
-        <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
-          {chunks.slice(0, revealed).map((chunk, index) => <MarkdownChunk key={index} content={chunk} />)}
-        </div>
+        <TimeMentionProvider anchor={timeAnchor}>
+          <div className={`markdown-content min-w-0 max-w-full break-words [overflow-wrap:anywhere] ${className || ""}`}>
+            {chunks.slice(0, revealed).map((chunk, index) => <MarkdownChunk key={index} content={chunk} />)}
+          </div>
+        </TimeMentionProvider>
       </MarkdownErrorBoundary>
     </MarkdownCallbacksContext.Provider>
   );
@@ -342,6 +354,7 @@ export const MarkdownRenderer = memo(function MarkdownRenderer({
     && prevProps.imageSessionId === nextProps.imageSessionId
     && prevProps.imageBasePath === nextProps.imageBasePath
     && prevProps.progressive === nextProps.progressive
+    && prevProps.timeAnchor === nextProps.timeAnchor
   );
 });
 

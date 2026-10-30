@@ -296,6 +296,85 @@ func (s *Server) handleFilePreviewBlob(w http.ResponseWriter, r *http.Request) {
 	servePreviewContent(w, r, entry.Basename, info.ModTime(), file)
 }
 
+// thumbnailSlots bounds concurrent thumbnail decodes so a folder full of
+// photos scrolled into view cannot saturate the host's CPU.
+var thumbnailSlots = make(chan struct{}, 2)
+
+// handleFilePreviewThumbnail serves a small rendition of an image. The preview
+// id stays the capability: for a directory id, `entry` names one child (a bare
+// name — no separators, no dot segments), which is exactly what listing that
+// directory already disclosed; for a file id, `entry` must be empty. Formats
+// the host cannot thumbnail answer 415 so the client keeps its icon.
+func (s *Server) handleFilePreviewThumbnail(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	entry, err := s.filePreviews.Lookup(vars["id"], vars["previewId"])
+	if err != nil || entry.RootID != "" {
+		http.Error(w, "preview not found", http.StatusNotFound)
+		return
+	}
+	target := entry.ResolvedPath
+	name := r.URL.Query().Get("entry")
+	switch {
+	case entry.Kind == filepreview.KindDirectory:
+		if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\\x00") {
+			http.Error(w, "entry must name one child of the directory", http.StatusBadRequest)
+			return
+		}
+		target = filepath.Join(entry.ResolvedPath, name)
+	case name != "":
+		http.Error(w, "entry is only valid for a directory preview", http.StatusBadRequest)
+		return
+	}
+
+	info, statErr := os.Stat(target)
+	if statErr != nil || !info.Mode().IsRegular() {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+	// The thumbnail is a pure function of the file's identity and the size, so
+	// a revalidation is answered without decoding anything.
+	edge := filepreview.ThumbnailDefaultEdge
+	if v := r.URL.Query().Get("size"); v != "" {
+		if _, scanErr := fmt.Sscanf(v, "%d", &edge); scanErr != nil {
+			http.Error(w, "size must be an integer", http.StatusBadRequest)
+			return
+		}
+	}
+	etag := fmt.Sprintf(`"t%x-%x-%d"`, info.ModTime().UnixNano(), info.Size(), edge)
+	h := w.Header()
+	h.Set("Cache-Control", "private, max-age=600")
+	h.Set("ETag", etag)
+	h.Set("X-Content-Type-Options", "nosniff")
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+
+	select {
+	case thumbnailSlots <- struct{}{}:
+		defer func() { <-thumbnailSlots }()
+	case <-r.Context().Done():
+		return
+	}
+	data, contentType, thumbErr := filepreview.Thumbnail(target, edge)
+	if thumbErr != nil {
+		h.Del("ETag")
+		h.Set("Cache-Control", "no-store")
+		if errors.Is(thumbErr, filepreview.ErrThumbnailUnsupported) {
+			http.Error(w, "thumbnail not available for this file", http.StatusUnsupportedMediaType)
+			return
+		}
+		http.Error(w, "failed to read file", http.StatusInternalServerError)
+		return
+	}
+	h.Set("Content-Type", contentType)
+	h.Set("Content-Length", fmt.Sprint(len(data)))
+	if r.Method == http.MethodHead {
+		return
+	}
+	_, _ = w.Write(data)
+}
+
 // handleFilePreviewRuntime serves an HTML preview and the small set of local
 // presentation resources it references. The preview id remains the only
 // capability: the resource path is resolved below the HTML file's directory,

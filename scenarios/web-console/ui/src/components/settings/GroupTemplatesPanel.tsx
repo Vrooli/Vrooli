@@ -121,7 +121,7 @@ export default function GroupTemplatesPanel() {
   }));
 
   return (
-    <SettingsList data-testid="group-templates-panel">
+    <SettingsList layout="aligned" variant="flush" data-testid="group-templates-panel">
       <SettingsIntro
         eyebrow={t(strings.settings.tabTemplates)}
         title={t(strings.groupTemplates.title)}

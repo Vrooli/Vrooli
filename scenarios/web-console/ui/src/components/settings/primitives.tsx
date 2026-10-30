@@ -2,24 +2,11 @@ import { useState } from "react";
 import { Switch } from "@vrooli/react-component-library/Switch";
 import { Slider } from "@vrooli/react-component-library/Slider";
 import { SettingsList, useSettingsRowLabelId, type SettingsListIntroProps } from "@vrooli/react-component-library/SettingsList/1";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { cn } from "../../lib/classnames";
 
-/**
- * A settings tab's opening header. On mobile the drawer title already names
- * the tab, so the eyebrow and title stay only for screen readers and the
- * description is all that shows.
- */
+/** Shared settings introduction, visible at both desktop and phone widths. */
 export function SettingsIntro({ eyebrow, title, description, children }: SettingsListIntroProps) {
-  const isMobile = useMediaQuery("(max-width: 767px)");
-  if (!isMobile) {
-    return <SettingsList.Intro eyebrow={eyebrow} title={title} description={description}>{children}</SettingsList.Intro>;
-  }
-  return (
-    <SettingsList.Intro title={<span className="sr-only">{title}</span>} description={description}>
-      {children}
-    </SettingsList.Intro>
-  );
+  return <SettingsList.Intro eyebrow={eyebrow} title={title} description={description}>{children}</SettingsList.Intro>;
 }
 
 /**

@@ -191,7 +191,7 @@ export default function TtsSettingsSection() {
   }, [loadTtsStatus, refresh, testSpeak, t]);
 
   return (
-    <SettingsList>
+    <SettingsList layout="aligned" variant="flush">
       <SettingsIntro
         eyebrow={t(strings.settings.voiceOutputSection.eyebrow)}
         title={t(strings.settings.voiceOutputSection.title)}

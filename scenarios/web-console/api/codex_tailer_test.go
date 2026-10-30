@@ -56,6 +56,7 @@ func writeRolloutLine(t *testing.T, f *os.File, lineType string, payload interfa
 
 func newCodexTailerTestServer(t *testing.T) (*Server, *session.Session) {
 	t.Helper()
+	useIsolatedSessionState(t)
 	fake := ptyfake.NewFakePTYWithOutput()
 	t.Cleanup(func() { _ = fake.Close() })
 	sm := newSessionManagerWithFactory(ptyfake.Factory(fake))

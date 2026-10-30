@@ -49,7 +49,7 @@ import FullScreenComposer from "./FullScreenComposer";
 import AttachSourceMenu from "./composer/AttachSourceMenu";
 import VoiceMicButton from "./VoiceMicButton";
 import { useComposerDraft } from "../hooks/useComposerDraft";
-import { useComposerAttachments } from "../hooks/useComposerAttachments";
+import { resolveStagedAttachmentPaths, useComposerAttachments, type HostAttachmentPick } from "../hooks/useComposerAttachments";
 import { useComposerHotkey } from "../hooks/useComposerHotkey";
 import { useWindowKeyDown } from "../hooks/useKeyboardListeners";
 import BannerRegion from "./banners/BannerRegion";
@@ -1197,7 +1197,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // IMPORTANT — REGRESSION GUARD: Do NOT remove the `isMobile` check.
   // It has been intentionally added twice before and each time was lost to
   // unrelated refactors. On mobile, terminal focus === keyboard popup.
+  const settingsWasOpenRef = useRef(workspace.settingsModalOpen);
   useEffect(() => {
+    const settingsJustClosed = settingsWasOpenRef.current && !workspace.settingsModalOpen;
+    settingsWasOpenRef.current = workspace.settingsModalOpen;
+    // The drawer restores focus to its opener. A close is not a pane switch.
+    if (settingsJustClosed) return;
     if (!workspace.activePane || isMobile) return;
     // Don't steal focus from open modals or the full-screen composer (which
     // owns focus while open and restores it to the opener on close).
@@ -1599,7 +1604,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [handlePlaybackTransportStopped, isTtsSpeaking]);
 
   // --- Mobile attachment staging ---
-  // The toolbar attach button opens the shared Camera/Photos/Files source menu
+  // The toolbar attach button opens the shared attach source menu
   // in place. Only after a file is actually picked does the composer open for
   // review, so tapping attach never throws up the whole compose dialog first.
   const handleMobileUploadImage = useCallback((position: { x: number; y: number }) => {
@@ -1612,27 +1617,20 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     openComposer();
   }, [composerAttachments, openComposer]);
 
-  // Upload every staged file on send, resolving terminal paths in attachment
-  // order. Rejecting keeps the staged attachments + typed text intact so the
+  const handleToolbarAttachHostPaths = useCallback((picks: HostAttachmentPick[]) => {
+    if (picks.length === 0) return;
+    composerAttachments.addHostPaths(picks);
+    openComposer();
+  }, [composerAttachments, openComposer]);
+
+  // Resolve every staged attachment to a terminal path on send, in attachment
+  // order: uploads are uploaded, host attachments already are their path.
+  // Rejecting keeps the staged attachments + typed text intact so the
   // operator loses nothing; the composer surfaces a retryable error.
   const resolveComposerAttachmentPaths = useCallback(async (): Promise<string[]> => {
     const pane = workspace.activePane;
     if (!pane) throw new Error("no active pane");
-    const staged = composerAttachments.attachments;
-    const paths: string[] = [];
-    try {
-      for (const att of staged) {
-        composerAttachments.setStatus(att.id, "uploading");
-        const path = await uploadFile(pane, att.file);
-        paths.push(path);
-        composerAttachments.setStatus(att.id, "staged");
-      }
-    } catch (err) {
-      // Clear the spinners so the user can retry the whole batch.
-      for (const att of staged) composerAttachments.setStatus(att.id, "staged");
-      throw err;
-    }
-    return paths;
+    return resolveStagedAttachmentPaths(composerAttachments.attachments, (file) => uploadFile(pane, file), composerAttachments.setStatus);
   }, [workspace.activePane, composerAttachments]);
 
   // --- Resize logic ---
@@ -2556,6 +2554,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onEndAgentVoice={handleVoiceStop}
         attachments={composerAttachments.attachments}
         onAttachFiles={composerAttachments.addFiles}
+        hostSessionId={workspace.activePane ?? undefined}
+        onAttachHostPaths={composerAttachments.addHostPaths}
         onRemoveAttachment={composerAttachments.removeFile}
         resolveAttachmentPaths={resolveComposerAttachmentPaths}
         onClearAttachments={composerAttachments.clearAll}
@@ -2607,6 +2607,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onOpenChange={(next) => { if (!next) setToolbarAttachPosition(null); }}
         position={toolbarAttachPosition ?? undefined}
         onFilesPicked={handleToolbarAttachFiles}
+        hostSessionId={workspace.activePane ?? undefined}
+        onHostPathsPicked={handleToolbarAttachHostPaths}
         testIdPrefix="toolbar"
       />
 

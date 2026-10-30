@@ -13,6 +13,7 @@ import { composeComposerPayload } from "../lib/composerPayload";
 import { ENTER_KEY } from "../consts/toolbar-keys";
 import { useSessionActivityStore } from "../stores/useSessionActivityStore";
 import type { ComposerDraft } from "../hooks/useComposerDraft";
+import type { HostAttachmentPick } from "../hooks/useComposerAttachments";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
 import { SnippetPicker } from "./snippets/SnippetPicker";
@@ -59,11 +60,19 @@ interface FullScreenComposerProps {
    * names of files rejected by policy so the composer can surface them.
    */
   onAttachFiles?: (files: File[]) => string[] | undefined;
+  /**
+   * Session whose machine the attach menu's host source browses. With
+   * onAttachHostPaths it offers attaching host files by path.
+   */
+  hostSessionId?: string;
+  /** Stage host files/folders by path (nothing is uploaded). */
+  onAttachHostPaths?: (picks: HostAttachmentPick[]) => void;
   /** Remove a single staged attachment. */
   onRemoveAttachment?: (id: string) => void;
   /**
-   * Upload every staged file and resolve their terminal paths, in attachment
-   * order. Called on send; rejects to keep the attachments + text intact.
+   * Resolve every staged attachment to its terminal path, in attachment order:
+   * uploads are uploaded, host attachments already are a path. Called on send;
+   * rejects to keep the attachments + text intact.
    */
   resolveAttachmentPaths?: () => Promise<string[]>;
   /** Clear the staged attachments after a successful send. */
@@ -98,6 +107,8 @@ export default function FullScreenComposer({
   onEndAgentVoice,
   attachments = [],
   onAttachFiles,
+  hostSessionId,
+  onAttachHostPaths,
   onRemoveAttachment,
   resolveAttachmentPaths,
   onClearAttachments,
@@ -105,8 +116,11 @@ export default function FullScreenComposer({
 }: FullScreenComposerProps) {
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const attachButtonRef = useRef<HTMLButtonElement>(null);
-  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  // The attach menu opens at the button's own position rather than anchored to
+  // it: an anchored desktop ContextMenu is placed below its anchor with no
+  // viewport clamp, and this button sits on the bottom edge. A position is
+  // clamped into view, the same way the toolbar opens this menu.
+  const [attachMenuPosition, setAttachMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [status, setStatus] = useState<ComposerSendStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -168,7 +182,7 @@ export default function FullScreenComposer({
 
   // Never leave the attach menu hanging open behind a closed composer.
   useEffect(() => {
-    if (!open) setAttachMenuOpen(false);
+    if (!open) setAttachMenuPosition(null);
   }, [open]);
 
   // Cancel any dangling settlement subscription on unmount.
@@ -435,6 +449,7 @@ export default function FullScreenComposer({
               viewAriaLabel={(name) => t(strings.composer.viewAttachmentAriaLabel, { name })}
               previewTitle={t(strings.messagesFileViewer.imagePreview)}
               closePreviewLabel={t(strings.messagesFileViewer.closeAriaLabel)}
+              hostBadgeLabel={t(strings.composer.hostAttachmentBadge)}
             />
           </div>
         )}
@@ -447,10 +462,9 @@ export default function FullScreenComposer({
           {onAttachFiles && (
             <>
               <button
-                ref={attachButtonRef}
                 type="button"
                 data-testid="composer-attach"
-                onClick={() => { setAttachMenuOpen(true); }}
+                onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setAttachMenuPosition({ x: rect.left, y: rect.top }); }}
                 disabled={isBusy}
                 className="flex shrink-0 items-center justify-center rounded border border-wc-default bg-wc-surface-input p-2 text-wc-text-secondary transition hover:text-wc-text-primary disabled:opacity-50"
                 title={t(strings.composer.attachTitle)}
@@ -459,10 +473,12 @@ export default function FullScreenComposer({
                 <Paperclip className="h-4 w-4" />
               </button>
               <AttachSourceMenu
-                open={attachMenuOpen}
-                onOpenChange={setAttachMenuOpen}
-                anchorRef={attachButtonRef}
+                open={attachMenuPosition !== null}
+                onOpenChange={(next) => { if (!next) setAttachMenuPosition(null); }}
+                position={attachMenuPosition ?? undefined}
                 onFilesPicked={stageFiles}
+                hostSessionId={hostSessionId}
+                onHostPathsPicked={(picks) => { setAttachError(null); onAttachHostPaths?.(picks); }}
                 active={open}
               />
             </>

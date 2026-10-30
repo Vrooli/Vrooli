@@ -7,6 +7,9 @@ import { setDesktopViewport, setMobileViewport } from "../test-utils/viewport";
 const mockStoreState = {
   settingsModalOpen: true,
   setSettingsModalOpen: vi.fn(),
+  settingsInitialTab: null as string | null,
+  setSettingsInitialTab: vi.fn(),
+  markAudioIntent: vi.fn(),
 };
 
 const mediaQueryState = {
@@ -60,6 +63,9 @@ vi.mock("../components/settings/IntegrationsSection", () => ({
 describe("SettingsModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.removeItem("wc-settings-location-v2");
+    localStorage.removeItem("wc-settings-active-tab");
+    mockStoreState.settingsInitialTab = null;
     mockStoreState.settingsModalOpen = true;
     mediaQueryState.isMobile = false;
     setDesktopViewport();
@@ -116,12 +122,32 @@ describe("SettingsModal", () => {
     expect(panel.contains(document.activeElement)).toBe(true);
   });
 
-  it("renders mobile tabs row on mobile", () => {
+  it("starts on the category list, then remembers a selected page and the list", () => {
     mediaQueryState.isMobile = true;
     setMobileViewport();
-    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
-    expect(screen.getByTestId("settings-tabs-row")).toBeTruthy();
+    const { unmount } = render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-categories")).toBeTruthy();
     expect(screen.queryByTestId("settings-sidebar")).toBeNull();
+    fireEvent.click(screen.getByTestId("settings-tab-sessions"));
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
+    expect(screen.getByTestId("settings-categories-back").closest("header")?.querySelector("h2")?.textContent).toBeTruthy();
+    unmount();
+    const next = render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("settings-categories-back"));
+    expect(screen.getByTestId("settings-categories")).toBeTruthy();
+    next.unmount();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-categories")).toBeTruthy();
+  });
+
+  it("honors a requested settings page on a first mobile visit", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    mockStoreState.settingsInitialTab = "sessions";
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
+    expect(mockStoreState.setSettingsInitialTab).toHaveBeenCalledWith(null);
   });
 
   it("offers a drag handle on mobile and a close button on desktop", () => {
@@ -199,25 +225,14 @@ describe("SettingsModal", () => {
     expect(sheet).toContain("padding-block-end: var(--rcl-safe-bottom, 0px)");
   });
 
-  it("gives the mobile tab strip the full width instead of the content gutter", () => {
-    mediaQueryState.isMobile = true;
-    setMobileViewport();
-    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
-    const subheader = screen.getByTestId("settings-modal.subheader");
-    expect(subheader.contains(screen.getByTestId("settings-tabs-row"))).toBe(true);
-    // The drawer pads its scroll region by default, which would indent the
-    // strip and then indent web-console's own gutter on top of it.
-    const drawer = screen.getByTestId("settings-modal").parentElement;
-    expect(drawer?.getAttribute("data-content-padding")).toBe("none");
-  });
-
-  it("moves between mobile tabs with the arrow keys", () => {
+  it("keeps mobile category navigation keyboard reachable", () => {
     mediaQueryState.isMobile = true;
     setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     const sessions = screen.getByTestId("settings-tab-sessions");
     sessions.focus();
-    fireEvent.keyDown(sessions, { key: "ArrowRight" });
-    expect(screen.getByTestId("settings-tab-workspace").getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(sessions);
+    fireEvent.click(sessions);
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
   });
 });

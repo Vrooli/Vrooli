@@ -81,6 +81,8 @@ describe("useListReorder", () => {
     act(() => { pointer("pointercancel", 10, 60); });
     expect(result.current.draggingIndex).toBeNull();
     expect(result.current.active).toBe(false);
+    expect(result.current.items).toEqual(source);
+    expect(onCommit).not.toHaveBeenCalled();
   });
 
   // A catalog refresh mid-drag moves the ground under a position computed

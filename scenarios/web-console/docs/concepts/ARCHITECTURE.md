@@ -15,6 +15,36 @@ never replayed after reconnect. The stdin lane preserves four source intents:
 the separate control lane, while the other three intents select the appropriate
 PTY or tmux delivery primitive.
 
+## Settings visual direction — operator decision, 2026-10-29
+
+The operator selected the Workspace settings study in `docs/mockups/experience-review-20261029/` for implementation, with desktop category icons retained. The study is a direction, not permission to remove existing settings or behaviors. Aim for a calm, coherent hierarchy with labels and descriptions together, aligned controls and a focused phone composition. Keep every category, deep links, state, accessibility and recovery; verify long content and keyboard behavior in both media. Token and shared-component owners carry reusable styling, with Web Console composing those contracts. This original decision covered settings; the later agent-launcher decision below covers the launcher. The intent is token + shared primitive + layout refinement, not new features. The first implementation adopts the opt-in aligned layout in shared `SettingsList` 1.2.0, retaining icons in desktop navigation and using category drill-in on phones. Live desktop/phone Workspace captures and prior references are linked from `docs/mockups/experience-review-20261029/index.html`. The operator accepted the revised settings appearance on 2026-10-29; whole-settings visual, theme, accessibility and device coverage is not established.
+
+### Settings review amendment — 2026-10-29
+
+The operator requests the mockup's centered mobile drawer title and leading back chevron in a single header, and asks for the settings content to match the visual quality of the selected mockup more closely. A first mobile visit opens the categories; subsequent openings resume the last visited category or category list. Explicit settings deep links still open their requested section. Desktop category icons and all existing settings remain. The existing legacy active-tab key was written automatically, so it is not reliable evidence of a deliberate selection; a new location record only follows actual navigation. Shared drawer and choice components own reusable presentation, with token-derived themes. The operator accepted the revised appearance; whole-settings visual and device review remain open.
+
+### Agent launcher direction — operator decision, 2026-10-29
+
+The operator likes the current New Terminal layout and asks for improved coloring and simpler agent cards, with usage and a separate place for versions, installation, ordering and visibility. The proposed desktop and phone study in `docs/mockups/experience-review-20261029/agent-launcher-study.html` retains the current compact grid, shell, custom commands and group flow. It supersedes the earlier single-column launcher proposal. The operator approved the revised study for implementation on 2026-10-29; screenshots are illustrative and do not establish actual availability of quota or updates. Agent usage identifies its provider window, observation age and account-match confidence; an unknown or stale reading must not masquerade as fresh or zero, especially for remote targets. Order belongs to shortcut profiles; hiding must preserve commands and support recovery. Use shared theme tokens and reusable library primitives where they fit. Preserve installation progress and recovery, unsupported and unknown states, and accessible keyboard and touch reorder.
+
+### Agent launcher implementation target — 2026-10-29
+
+The approved launcher retains the two-column grid, target and group selections, custom commands and empty shell. Its management view owns agent visibility, ordering, installation and recovery, installed and available version details, and quota source, reset and freshness. Returning to the launcher preserves the draft and focus. An observed provider percentage may be shown as verified when its account and target match the actual launch, or as an explicitly estimated account match when evidence makes it the best available candidate. Explain the source, observed time and uncertainty in management. Do not manufacture percentages, select silently between ambiguous accounts, represent stale or missing data as current, or project a local reading onto a remote target. Profile changes preserve commands and detect concurrent edits. Shared library primitives and theme tokens own reusable behavior and presentation. This is the desired target; implementation and evidence are tracked in Plan Manager `web-console-agent-launcher-usage`.
+
+The local launcher currently reads Codex's live app-server and coherent Claude
+statusline samples through Agent Manager. Both are estimates: neither source
+is bound to the account of the future shell command. The Web Console adapter
+discards readings older than 15 minutes or beyond their reset, and reports
+remote targets as unavailable until a target-owned reader exists. The drawer
+refreshes on request; the open launcher also refreshes every five minutes.
+Separate provider pools remain separate, and only provider-supplied five-hour
+and weekly windows are displayed. A verified badge requires an actual account
+and launch binding; the present adapter never issues one.
+
+The existing `vrooli agent launch` resolves the actual executable and child environment, and its best-effort Agent Manager attachment attributes a run but does not capture a provider account identity. Web Console can also submit arbitrary shell commands. A future pane's shell profile and explicit credential-home overrides can differ from a service-side provider read. For Codex, native launch preserves an explicit `CODEX_HOME`; otherwise a Web Console pane can receive a session-specific home with links to shared authentication. Consequently, a provider reading from the service's default environment is an estimate until a launch-owned account observation establishes the same account. Reuse the native launch owner for a future confirmation path; avoid changing shell shortcut semantics or treating a shared host alone as proof.
+
+The existing target contract distinguishes local and remote unknown readiness. The local launcher may attempt a configured command when a probe is unknown; this keeps a valid command reachable if the local probe fails. Remote recognized coding-agent commands are checked by `ensureLaunchCapability` before PTY creation and require a ready fact; missing, unsupported and unknown remote states expose recovery in management instead. Empty shells and non-agent custom commands remain available on a reachable target. This distinction preserves the actual server boundary rather than presenting a remote action that is guaranteed to fail.
+
 ## System Layers
 
 ### Browser launch and viewport ownership

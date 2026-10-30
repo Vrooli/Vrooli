@@ -1159,6 +1159,8 @@ Primary axes of change identified in Phase 8, with current cost assessment and s
 **Files to touch**: `consts/shortcuts.ts` (data), optionally `TerminalLauncher.tsx` (if UI changes needed)
 **Test coverage**: `shortcuts.test.ts` validates structural invariants (uniqueness, non-empty, PRD compliance)
 
+Agent display preferences are stored per effective shortcut profile in `shortcut_agent_preferences`; the empty profile ID denotes the built-in fallback. The ordered and hidden capability IDs are separate from shortcut entries, so existing profile upserts cannot erase them or have their commands overwritten by a reorder. Reads return a revision; writes check both revision and effective profile, reporting an aborted conflict for refresh and retry. New capability IDs are visible unless explicitly hidden. Deleting a profile clears its preference values and retains a revision tombstone, which prevents delayed writes from applying to a recreated profile with the same ID. Selection remains the launcher's responsibility; neither a hidden ID nor a preference record deletes a command.
+
 ### Axis 2: Toolbar Keys & Key Combos (P0-007)
 **What changes**: Adding/removing mobile toolbar keys, escape sequences, or key combos
 **Cost**: Already low — `TOOLBAR_KEYS` in `consts/toolbar-keys.ts` and `KEY_COMBOS` in `consts/key-combos.ts` are declarative arrays

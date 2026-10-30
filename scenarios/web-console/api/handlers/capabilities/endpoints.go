@@ -12,6 +12,16 @@ import (
 // time.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID: "capabilities_agent_usage", Path: capabilitiesconnect.CapabilitiesServiceAgentUsageProcedure,
+		Method: "POST", Summary: "Get target-specific agent usage",
+		Description: "Returns provider quota readings with their account-match confidence and source.", Category: "capabilities",
+	},
+	{
+		ID: "capabilities_agent_update", Path: capabilitiesconnect.CapabilitiesServiceAgentUpdateProcedure,
+		Method: "POST", Summary: "Get target-specific agent update status",
+		Description: "Checks the installed agent against its resource-owned upstream source. A matching probe does not verify a custom launch command.", Category: "capabilities",
+	},
+	{
 		ID:          "capabilities_get",
 		Path:        capabilitiesconnect.CapabilitiesServiceGetProcedure,
 		Method:      "POST",

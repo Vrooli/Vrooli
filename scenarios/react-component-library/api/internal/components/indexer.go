@@ -512,8 +512,15 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	if manifest.DisplayName == "" {
 		manifest.DisplayName = slug
 	}
-	if manifest.LatestVersion == "" {
-		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "required"}
+	// An asset created as a draft has no release until that draft is
+	// published; its draft stands in for the latest version until then.
+	unreleased := manifest.LatestVersion == ""
+	if unreleased && manifest.DraftVersion == "" {
+		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "required unless an initial draft is active"}
+	}
+	currentVersion := manifest.LatestVersion
+	if unreleased {
+		currentVersion = manifest.DraftVersion
 	}
 	versionRoot := filepath.ToSlash(filepath.Join(filepath.Dir(path), "versions"))
 	entries, err := fs.ReadDir(idx.fs, versionRoot)
@@ -734,6 +741,11 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				latestHeaders[k] = v
 			}
 		}
+		if unreleased && version == manifest.DraftVersion {
+			for k, v := range headers {
+				latestHeaders[k] = v
+			}
+		}
 		if version == manifest.DraftVersion {
 			draftFound = true
 			if status != VersionStatusDraft {
@@ -819,11 +831,11 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			}
 		}
 	}
-	if !latestFound {
+	if !latestFound && !unreleased {
 		return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "latest", Reason: "version folder not found"}
 	}
 	for _, indexedVersion := range versions {
-		if indexedVersion.Version == manifest.LatestVersion {
+		if indexedVersion.Version == currentVersion {
 			manifest.Dependencies = append([]AssetDependency(nil), indexedVersion.Dependencies...)
 			break
 		}

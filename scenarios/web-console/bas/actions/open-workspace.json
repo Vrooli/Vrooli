@@ -73,6 +73,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid=\"workspace-top-edge\"]",
+            "mode": "ASSERTION_MODE_EXISTS",
             "failure_message": "Expected the hydrated workspace shell"
           },
           "metadata": {
@@ -86,6 +87,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid=\"terminal-pane\"]",
+            "mode": "ASSERTION_MODE_EXISTS",
             "failure_message": "empty workspace: expected a terminal session"
           },
           "metadata": {

@@ -223,6 +223,15 @@ CREATE TABLE IF NOT EXISTS shortcut_profiles (
 
 CREATE INDEX IF NOT EXISTS idx_shortcut_profiles_scope ON shortcut_profiles(scope);
 
+-- Agent display preferences are independent of legacy whole-profile edits.
+-- Empty profile_id names the built-in fallback when there is no profile.
+CREATE TABLE IF NOT EXISTS shortcut_agent_preferences (
+    profile_id TEXT PRIMARY KEY,
+    ordered_agent_ids TEXT NOT NULL DEFAULT '[]',
+    hidden_agent_ids TEXT NOT NULL DEFAULT '[]',
+    revision INTEGER NOT NULL DEFAULT 0
+);
+
 -- Tab groups for organizing terminal panes
 CREATE TABLE IF NOT EXISTS tab_groups (
     id TEXT PRIMARY KEY,

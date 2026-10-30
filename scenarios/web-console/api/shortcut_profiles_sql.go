@@ -106,12 +106,35 @@ func (s *SQLShortcutStore) Upsert(ctx context.Context, id, scope, name string, s
 
 // Delete removes a shortcut profile by ID. Returns false if not found.
 func (s *SQLShortcutStore) Delete(ctx context.Context, id string) bool {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM shortcut_profiles WHERE id = ?`, id)
+	// The empty preference key belongs to the built-in fallback, not a profile.
+	if id == "" {
+		return false
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `DELETE FROM shortcut_profiles WHERE id = ?`, id)
 	if err != nil {
 		log.Printf("SQLShortcutStore.Delete: exec failed: %v", err)
 		return false
 	}
-	n, _ := result.RowsAffected()
+	n, err := result.RowsAffected()
+	if err != nil {
+		return false
+	}
+	if n > 0 {
+		// Preserve a revision tombstone to reject a delayed mutation even if a
+		// profile is immediately recreated with the same ID and timestamp.
+		_, err = tx.ExecContext(ctx, `INSERT INTO shortcut_agent_preferences (profile_id, ordered_agent_ids, hidden_agent_ids, revision) VALUES (?, '[]', '[]', 1) ON CONFLICT(profile_id) DO UPDATE SET ordered_agent_ids='[]', hidden_agent_ids='[]', revision=shortcut_agent_preferences.revision+1`, id)
+		if err != nil {
+			return false
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return false
+	}
 	return n > 0
 }
 
@@ -127,7 +150,7 @@ func (s *SQLShortcutStore) Effective(ctx context.Context) EffectiveShortcuts {
 			WHEN 'workspace' THEN 2
 			WHEN 'service' THEN 1
 			ELSE 0
-		END DESC
+		END DESC, id ASC
 		LIMIT 1`)
 
 	var id, scope, name, shortcutsJSON string

@@ -1215,6 +1215,16 @@
           "internal": true
         },
         {
+          "path": "mockups/experience-review-20261029/README.md",
+          "docType": "design-mockups",
+          "title": "Settings experience review",
+          "description": "Captured baseline, proposed and live settings comparison with provenance and open review decisions",
+          "audience": ["developers", "agents", "operators"],
+          "maturity": "active",
+          "completion": "optional",
+          "internal": true
+        },
+        {
           "path": "mockups/approvals/README.md",
           "docType": "design-mockups",
           "title": "Approvals inbox mockups",

@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../../consts/shortcuts";
 import type { TargetReadinessFact } from "../../api/targets";
 import {
-  applyAgentOrderToShortcuts,
   buildAgentGrid,
   cardInstalls,
   cardLaunches,
   moveItem,
+  mergeAgentOrder,
 } from "./agentGrid";
 
 const fact = (id: string, over: Partial<TargetReadinessFact> = {}): TargetReadinessFact => ({
@@ -161,57 +161,12 @@ describe("moveItem", () => {
   });
 });
 
-describe("applyAgentOrderToShortcuts", () => {
-  const cards = (ids: string[]) =>
-    ids.map((id) => ({
-      agentID: id,
-      key: id,
-      label: id.toUpperCase(),
-      command: `${id} --go`,
-      state: "ready" as const,
-      fromCatalogue: true,
-    }));
-
-  it("rewrites the profile in the new agent order", () => {
-    const shortcuts: ShortcutEntry[] = [
-      { label: "Claude Code", command: "claude", agentId: "claude" },
-      { label: "Codex", command: "codex --yolo", agentId: "codex" },
-    ];
-    const next = applyAgentOrderToShortcuts(shortcuts, cards(["codex", "claude"]));
-    expect(next.map((entry) => entry.agentId)).toEqual(["codex", "claude"]);
-    // The operator's own command text survives the move untouched.
-    expect(next[0]?.command).toBe("codex --yolo");
+describe("mergeAgentOrder", () => {
+  it("reorders the current target without dropping or reshuffling absent agents", () => {
+    expect(mergeAgentOrder(["claude", "remote-only", "codex"], ["codex", "claude", "new-agent"]))
+      .toEqual(["codex", "remote-only", "claude", "new-agent"]);
   });
-
-  // Without this, reordering an agent the profile has never seen would lose
-  // its position the moment the list was read back.
-  it("materializes an entry for an agent the profile had no row for", () => {
-    const shortcuts: ShortcutEntry[] = [{ label: "Codex", command: "codex --yolo", agentId: "codex" }];
-    const next = applyAgentOrderToShortcuts(shortcuts, cards(["grok", "codex"]));
-    expect(next.map((entry) => entry.agentId)).toEqual(["grok", "codex"]);
-    expect(next[0]).toMatchObject({ command: "grok --go", agentId: "grok" });
-  });
-
-  it("keeps operator commands, in their own order, after the agents", () => {
-    const shortcuts: ShortcutEntry[] = [
-      { label: "Deploy", command: "make deploy" },
-      { label: "Codex", command: "codex --yolo", agentId: "codex" },
-      { label: "Logs", command: "make logs" },
-    ];
-    const next = applyAgentOrderToShortcuts(shortcuts, cards(["codex"]));
-    expect(next.map((entry) => entry.label)).toEqual(["Codex", "Deploy", "Logs"]);
-  });
-
-  it("drops nothing: every input entry survives the projection", () => {
-    const shortcuts: ShortcutEntry[] = [
-      { label: "Claude Code", command: "claude", agentId: "claude" },
-      { label: "Deploy", command: "make deploy" },
-      { label: "Codex", command: "codex --yolo", agentId: "codex" },
-    ];
-    const next = applyAgentOrderToShortcuts(shortcuts, cards(["codex", "claude"]));
-    expect(next).toHaveLength(3);
-    for (const entry of shortcuts) {
-      expect(next.some((item) => item.command === entry.command)).toBe(true);
-    }
+  it("uses the current order when there is no prior preference", () => {
+    expect(mergeAgentOrder([], ["codex", "claude"])).toEqual(["codex", "claude"]);
   });
 });

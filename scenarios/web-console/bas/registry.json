@@ -7,7 +7,7 @@
   "playbooks": [
     {
       "file": "bas/cases/01-foundation/01-terminal/capability-readiness-card-states.json",
-      "description": "Verify the launcher renders target capability facts with the four-state vocabulary, keeps missing capabilities visible and non-launchable, and shows versions for ready agents.",
+      "description": "Verify agent management retains target readiness, keeps missing agents non-launchable with recovery, and shows installed versions for ready agents.",
       "order": "02.01.01",
       "requirements": [
         "REQ-P1-013d",

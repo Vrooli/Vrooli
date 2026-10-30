@@ -28,6 +28,12 @@ func (f fakeShortcutsService) Upsert(context.Context, UpsertRequest) (Profile, e
 	return Profile{ID: "p1", Name: "Global"}, f.err
 }
 func (fakeShortcutsService) Delete(context.Context, string) {}
+func (f fakeShortcutsService) AgentPreferences(context.Context) (AgentPreferences, error) {
+	return AgentPreferences{ProfileID: "p1"}, f.err
+}
+func (f fakeShortcutsService) UpdateAgentPreferences(_ context.Context, p AgentPreferences, _ uint64) (AgentPreferences, error) {
+	return p, f.err
+}
 func TestConnectHandlerShortcuts(t *testing.T) {
 	h := NewConnectHandler(Deps{Service: fakeShortcutsService{}})
 	resp, err := h.GetEffective(context.Background(), connect.NewRequest(&shortcutsv1.GetEffectiveRequest{}))
@@ -61,4 +67,26 @@ func TestConnectHandlerShortcutsErrors(t *testing.T) {
 		}
 	}
 	_ = shortcutsFromProto(nil)
+}
+
+func TestAgentPreferencesConnectContract(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: fakeShortcutsService{}})
+	got, err := h.GetAgentPreferences(context.Background(), connect.NewRequest(&shortcutsv1.GetAgentPreferencesRequest{}))
+	if err != nil || got.Msg.GetPreferences().GetProfileId() != "p1" {
+		t.Fatalf("get preferences: %v %v", got, err)
+	}
+	saved, err := h.UpdateAgentPreferences(context.Background(), connect.NewRequest(&shortcutsv1.UpdateAgentPreferencesRequest{ProfileId: "p1", ExpectedRevision: 7, OrderedAgentIds: []string{"codex"}, HiddenAgentIds: []string{"claude"}}))
+	if err != nil || saved.Msg.GetPreferences().GetHiddenAgentIds()[0] != "claude" {
+		t.Fatalf("save preferences: %v %v", saved, err)
+	}
+	for _, tc := range []struct {
+		failure error
+		code    connect.Code
+	}{{ErrConflict, connect.CodeAborted}, {ErrInvalidArgument, connect.CodeInvalidArgument}, {errors.New("database"), connect.CodeInternal}} {
+		h := NewConnectHandler(Deps{Service: fakeShortcutsService{err: tc.failure}})
+		_, err := h.UpdateAgentPreferences(context.Background(), connect.NewRequest(&shortcutsv1.UpdateAgentPreferencesRequest{}))
+		if connect.CodeOf(err) != tc.code {
+			t.Errorf("%v: got %v, want %v", tc.failure, connect.CodeOf(err), tc.code)
+		}
+	}
 }

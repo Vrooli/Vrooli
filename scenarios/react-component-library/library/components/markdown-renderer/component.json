@@ -9,6 +9,7 @@
     "0.4.0",
     "0.4.1"
   ],
+  "description": "Reusable markdown-renderer component implementation for the React component library.",
   "designStyles": [
     {
       "affinity": "native",
@@ -16,13 +17,16 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "markdown-renderer",
   "draft": "",
   "entry": "markdown-renderer.tsx",
   "evictedVersions": [
     "0.4.3",
     "0.4.4",
-    "0.4.5"
+    "0.4.5",
+    "0.4.6"
   ],
-  "latest": "0.4.6",
-  "libraryId": "react-component-library:markdown-renderer"
+  "latest": "0.5.0",
+  "libraryId": "react-component-library:markdown-renderer",
+  "tags": []
 }

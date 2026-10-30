@@ -48,6 +48,47 @@ type connectHandler struct {
 	deps Deps
 }
 
+type agentUpdateReader interface {
+	AgentUpdate(context.Context, string, string) (AgentUpdateResult, error)
+}
+
+type agentUsageReader interface {
+	AgentUsage(context.Context, string, string) (AgentUsageResult, error)
+}
+
+func (h *connectHandler) AgentUsage(ctx context.Context, req *connect.Request[capabilitiesv1.AgentUsageRequest]) (*connect.Response[capabilitiesv1.AgentUsageResponse], error) {
+	reader, ok := h.deps.Service.(agentUsageReader)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := reader.AgentUsage(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId())
+	if err != nil {
+		return nil, connect.NewError(runActionCode(err), err)
+	}
+	response := &capabilitiesv1.AgentUsageResponse{TargetId: result.TargetID, AgentId: result.AgentID, Match: result.Match, Reason: result.Reason, Source: result.Source, ObservedAt: result.ObservedAt}
+	for _, w := range result.Windows {
+		response.Windows = append(response.Windows, &capabilitiesv1.AgentUsageWindow{Pool: w.Pool, WindowMinutes: w.WindowMinutes, UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt})
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *connectHandler) AgentUpdate(ctx context.Context, req *connect.Request[capabilitiesv1.AgentUpdateRequest]) (*connect.Response[capabilitiesv1.AgentUpdateResponse], error) {
+	reader, ok := h.deps.Service.(agentUpdateReader)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := reader.AgentUpdate(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId())
+	if err != nil {
+		return nil, connect.NewError(runActionCode(err), err)
+	}
+	return connect.NewResponse(&capabilitiesv1.AgentUpdateResponse{
+		TargetId: result.TargetID, AgentId: result.AgentID, Resource: result.Resource,
+		Installed: result.Installed, Pinned: result.Pinned, Latest: result.Latest, Status: result.Status,
+		CheckedAt: result.CheckedAt, SourceKind: result.SourceKind, SourceId: result.SourceID,
+		ProbeVerified: result.ProbeVerified, Note: result.Note,
+	}), nil
+}
+
 // NewConnectHandler constructs the Connect-RPC handler implementing
 // CapabilitiesServiceHandler.
 func NewConnectHandler(d Deps) *connectHandler {

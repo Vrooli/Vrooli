@@ -134,8 +134,9 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 		return Component{}, err
 	}
 	sourcePath := ""
+	current := firstNonEmpty(in.Manifest.LatestVersion, in.Manifest.DraftVersion)
 	for _, v := range in.Versions {
-		if v.Version == in.Manifest.LatestVersion {
+		if v.Version == current {
 			sourcePath = v.SourcePath
 			break
 		}

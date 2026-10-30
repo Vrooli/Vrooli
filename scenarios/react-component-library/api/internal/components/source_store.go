@@ -245,13 +245,19 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 	if err != nil {
 		return "", "", err
 	}
-	// A freshly initialized release is subject to the same immutable dependency
-	// contract as a release promoted from a draft. Generate the lock before the
-	// indexer sees the new version directory; otherwise the global lock gate
-	// rejects the asset after its source files have already been written.
-	files, err = s.freezeReleaseDependencies(Component{LibraryID: libraryID}, version, files)
-	if err != nil {
-		return "", "", err
+	latest, draft := version, ""
+	if in.DraftOnly {
+		version = version + "-draft.1"
+		latest, draft = "", version
+	} else {
+		// A freshly initialized release is subject to the same immutable dependency
+		// contract as a release promoted from a draft. Generate the lock before the
+		// indexer sees the new version directory; otherwise the global lock gate
+		// rejects the asset after its source files have already been written.
+		files, err = s.freezeReleaseDependencies(Component{LibraryID: libraryID}, version, files)
+		if err != nil {
+			return "", "", err
+		}
 	}
 	manifestPath := filepath.ToSlash(filepath.Join("components", slug, "component.json"))
 	sourcePath := filepath.ToSlash(filepath.Join("components", slug, "versions", version, fileName))
@@ -277,7 +283,8 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		Slot:               strings.TrimSpace(in.Slot),
 		Category:           strings.TrimSpace(in.Category),
 		Entry:              fileName,
-		Latest:             version,
+		Latest:             latest,
+		Draft:              draft,
 		DeprecatedVersions: []string{},
 		DesignStyles: []sourceDesignAffinity{{
 			StyleID: "vrooli-default", Affinity: "native", Reason: "token-native operational-console baseline",
@@ -310,9 +317,31 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		// Experience contracts belong to the scenario-level authority. Keep the
 		// legacy scaffold only for isolated fixture roots that have no canonical
 		// experience tree; real library writes must not create a version peer.
-		if repositoryRootFromLibrary(s.root) == "" {
+		// A draft-only asset is a harvest: it carries the origin's contract when
+		// one is supplied and otherwise none, exactly as an ingested draft did.
+		if repositoryRootFromLibrary(s.root) == "" && !in.DraftOnly {
 			if err := scaffoldExperienceContractFile(filepath.Dir(sourceAbs), mf.Kind, libraryID, displayName, version); err != nil {
 				return "", "", err
+			}
+		}
+	}
+	if in.DraftOnly {
+		versionDir := filepath.Dir(sourceAbs)
+		if err := s.formatSourceArtifacts(versionDir); err != nil {
+			return "", "", err
+		}
+		if in.ParityReport != nil && repositoryRootFromLibrary(s.root) == "" {
+			if err := writeParityReport(filepath.Join(versionDir, "parity.json"), *in.ParityReport); err != nil {
+				return "", "", err
+			}
+		}
+		if strings.TrimSpace(in.ExperienceContract) != "" && repositoryRootFromLibrary(s.root) == "" {
+			formatted, formatErr := canonicalJSON([]byte(in.ExperienceContract))
+			if formatErr != nil {
+				return "", "", fmt.Errorf("format experience contract: %w", formatErr)
+			}
+			if err := os.WriteFile(filepath.Join(versionDir, "experience-contract.json"), formatted, 0o600); err != nil {
+				return "", "", fmt.Errorf("write version experience contract: %w", err)
 			}
 		}
 	}
@@ -1045,8 +1074,9 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 		setManifestField(manifest, &order, "tags", cleanTags(c.Tags))
 	}
 	latest := firstNonEmpty(strings.TrimSpace(in.LatestVersion), stringField(manifest, "latest"), c.LatestVersion)
-	if latest == "" {
-		return ErrInvalidHeader{SourcePath: manifestPath, Field: "latest", Reason: "required"}
+	// An asset created as a draft has no release until that draft is published.
+	if latest == "" && strings.TrimSpace(in.DraftVersion) == "" {
+		return ErrInvalidHeader{SourcePath: manifestPath, Field: "latest", Reason: "required unless an initial draft is active"}
 	}
 	retiredMajors := in.RetiredMajorAliases
 	if retiredMajors == nil {

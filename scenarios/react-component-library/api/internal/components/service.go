@@ -704,16 +704,33 @@ func (s *service) InitializeComponent(ctx context.Context, in InitializeComponen
 	} else if !errors.As(err, &ErrComponentNotFound{}) {
 		return InitializeComponentResult{}, err
 	}
+	// The indexer rejects an unknown slot after the files exist, which used to
+	// leave an unindexed asset tree behind and report the asset as not found.
+	if _, err := normalizeComponentSlot(in.Slot); err != nil {
+		return InitializeComponentResult{}, ErrInvalidHeader{SourcePath: "component.json", Field: "slot", Reason: fmt.Sprintf("%v; use %s, %s or %s", err, ComponentSlotUIPrimitive, ComponentSlotUIPattern, ComponentSlotLayoutNav)}
+	}
 	manifestPath, sourcePath, err := s.source.InitializeComponent(ctx, in)
 	if err != nil {
 		return InitializeComponentResult{}, err
 	}
-	if _, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx); err != nil {
-		return InitializeComponentResult{}, err
+	// The asset directory did not exist before this call (the store refuses an
+	// existing manifest), so a failed index removes exactly what was written.
+	abandon := func(cause error) (InitializeComponentResult, error) {
+		_ = os.RemoveAll(filepath.Join(s.source.Root(), filepath.Dir(manifestPath)))
+		return InitializeComponentResult{}, cause
+	}
+	indexed, err := NewIndexer(s.repo, s.source.Root(), nil).Run(ctx)
+	if err != nil {
+		return abandon(err)
 	}
 	c, err := s.repo.GetByLibraryID(ctx, in.LibraryID)
 	if err != nil {
-		return InitializeComponentResult{}, err
+		for _, indexErr := range indexed.Errors {
+			if strings.Contains(indexErr.Error(), filepath.ToSlash(manifestPath)) {
+				return abandon(fmt.Errorf("new asset %s was rejected by the indexer: %w", in.LibraryID, indexErr))
+			}
+		}
+		return abandon(err)
 	}
 	return InitializeComponentResult{Component: c, ManifestPath: manifestPath, SourcePath: sourcePath}, nil
 }

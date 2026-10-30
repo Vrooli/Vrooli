@@ -4,7 +4,7 @@ import { act, fireEvent, screen, renderHook, waitFor } from "@testing-library/re
 import { useState } from "react";
 import FullScreenComposer from "../components/FullScreenComposer";
 import { useComposerDraft } from "../hooks/useComposerDraft";
-import { useComposerAttachments } from "../hooks/useComposerAttachments";
+import { resolveStagedAttachmentPaths, useComposerAttachments, type HostAttachmentPick } from "../hooks/useComposerAttachments";
 import type { GateResult } from "../components/terminal/inputGate";
 
 type SettledCb = (offset: number, ok: boolean) => void;
@@ -42,15 +42,17 @@ interface HarnessProps {
   onInput?: (data: string, source: string) => GateResult;
   subscribe?: (cb: SettledCb) => () => void;
   resolve?: () => Promise<string[]>;
+  hostPicks?: HostAttachmentPick[];
 }
 
-function AttachHarness({ onInput = () => ({ status: "sent", offset: 1 }), subscribe, resolve }: HarnessProps) {
+function AttachHarness({ onInput = () => ({ status: "sent", offset: 1 }), subscribe, resolve, hostPicks = [] }: HarnessProps) {
   const draft = useComposerDraft("sess-att");
   const att = useComposerAttachments();
   const [open, setOpen] = useState(true);
   return (
     <>
       <button data-testid="ext-open" onClick={() => setOpen(true)} />
+      <button data-testid="stage-host" onClick={() => att.addHostPaths(hostPicks)} />
       <FullScreenComposer
         open={open}
         onClose={() => setOpen(false)}
@@ -59,6 +61,8 @@ function AttachHarness({ onInput = () => ({ status: "sent", offset: 1 }), subscr
         subscribeInputSettled={subscribe}
         attachments={att.attachments}
         onAttachFiles={att.addFiles}
+        hostSessionId="sess-att"
+        onAttachHostPaths={att.addHostPaths}
         onRemoveAttachment={att.removeFile}
         resolveAttachmentPaths={resolve ?? (async () => att.attachments.map((_, i) => `/up/${i}.png`))}
         onClearAttachments={att.clearAll}
@@ -92,7 +96,18 @@ describe("useComposerAttachments", () => {
     });
     expect(rejected).toEqual(["evil.exe"]);
     expect(result.current.attachments).toHaveLength(1);
-    expect(result.current.attachments[0]?.file.name).toBe("safe.zip");
+    expect(result.current.attachments[0]?.name).toBe("safe.zip");
+  });
+
+  it("stages host paths as references, once each, without touching the file", () => {
+    const { result } = renderHook(() => useComposerAttachments());
+    act(() => result.current.addHostPaths([
+      { path: "/home/me/Vrooli/PRD.md", isDirectory: false, sizeBytes: 18 },
+      { path: "/home/me/Vrooli/docs", isDirectory: true },
+    ]));
+    act(() => result.current.addHostPaths([{ path: "/home/me/Vrooli/PRD.md", isDirectory: false }]));
+    expect(result.current.attachments.map((a) => [a.source, a.name])).toEqual([["host", "PRD.md"], ["host", "docs"]]);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
   it("removes a single attachment and clears all", () => {
@@ -103,6 +118,27 @@ describe("useComposerAttachments", () => {
     expect(result.current.attachments).toHaveLength(1);
     act(() => result.current.clearAll());
     expect(result.current.attachments).toHaveLength(0);
+  });
+});
+
+describe("resolveStagedAttachmentPaths", () => {
+  it("passes host paths through and uploads only device files, keeping attachment order", async () => {
+    const { result } = renderHook(() => useComposerAttachments());
+    act(() => result.current.addFiles([pngFile("a.png")]));
+    act(() => result.current.addHostPaths([{ path: "/home/me/notes.md", isDirectory: false }]));
+    act(() => result.current.addFiles([pngFile("b.png")]));
+    const upload = vi.fn(async (file: File) => `/uploads/${file.name}`);
+    const paths = await resolveStagedAttachmentPaths(result.current.attachments, upload, vi.fn());
+    expect(paths).toEqual(["/uploads/a.png", "/home/me/notes.md", "/uploads/b.png"]);
+    expect(upload).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears every spinner and rethrows when an upload fails", async () => {
+    const { result } = renderHook(() => useComposerAttachments());
+    act(() => result.current.addFiles([pngFile("a.png")]));
+    const setStatus = vi.fn();
+    await expect(resolveStagedAttachmentPaths(result.current.attachments, async () => { throw new Error("boom"); }, setStatus)).rejects.toThrow("boom");
+    expect(setStatus).toHaveBeenLastCalledWith(result.current.attachments[0]?.id, "staged");
   });
 });
 
@@ -118,21 +154,28 @@ describe("FullScreenComposer — staged attachments", () => {
     (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = vi.fn();
   });
 
-  it("exposes a Camera / Photos / Files source menu", () => {
+  it("offers this device and the host computer from the attach menu", () => {
     render(<AttachHarness />);
     fireEvent.click(screen.getByTestId("composer-attach"));
-    expect(screen.getByTestId("composer-attach-camera")).toBeTruthy();
-    expect(screen.getByTestId("composer-attach-photos")).toBeTruthy();
-    expect(screen.getByTestId("composer-attach-files")).toBeTruthy();
+    expect(screen.getByTestId("composer-attach-upload")).toBeTruthy();
+    expect(screen.getByTestId("composer-attach-host")).toBeTruthy();
   });
 
-  it("routes the Photos source to the media input", () => {
+  it("routes the upload source to the file input", () => {
     render(<AttachHarness />);
     fireEvent.click(screen.getByTestId("composer-attach"));
-    const photos = screen.getByTestId("composer-photos-input") as HTMLInputElement;
-    const clickSpy = vi.spyOn(photos, "click");
-    fireEvent.click(screen.getByTestId("composer-attach-photos"));
+    const files = screen.getByTestId("composer-file-input") as HTMLInputElement;
+    const clickSpy = vi.spyOn(files, "click");
+    fireEvent.click(screen.getByTestId("composer-attach-upload"));
     expect(clickSpy).toHaveBeenCalled();
+  });
+
+  it("shows host attachments with a host badge and their full path in the preview", () => {
+    render(<AttachHarness hostPicks={[{ path: "/home/me/Vrooli/PRD.md", isDirectory: false }]} />);
+    fireEvent.click(screen.getByTestId("stage-host"));
+    expect(screen.getByTestId(/composer-attachment-host-badge-/)).toBeTruthy();
+    fireEvent.click(screen.getByTestId(/composer-attachment-preview-/));
+    expect(screen.getByTestId("composer-attachment-host-path").textContent).toBe("/home/me/Vrooli/PRD.md");
   });
 
   it("stages picked files into the review tray", () => {

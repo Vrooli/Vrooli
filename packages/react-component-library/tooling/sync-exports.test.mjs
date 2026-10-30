@@ -165,6 +165,25 @@ test("a manifest naming a missing latest version fails resolution", async () => 
   }
 });
 
+test("an asset that exists only as its first draft exports nothing and does not fail resolution", async () => {
+  const root = fixture({ latest: "", draft: "1.0.0-draft.1" }, ["1.0.0-draft.1"]);
+  try {
+    const resolved = await resolveCatalogExports({ libraryRoot: root });
+    assert.equal(Object.keys(resolved.resolutions).some((key) => key.startsWith("./Panel")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("an empty latest without a first draft still fails resolution", async () => {
+  const root = fixture({ latest: "" }, ["1.0.0"]);
+  try {
+    await assert.rejects(resolveCatalogExports({ libraryRoot: root }), /latest "" does not name a released version on disk/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a legacy single-module release remains resolvable when its filename predates the asset name", async () => {
   const root = mkdtempSync(join(tmpdir(), "rcl-legacy-entry-"));
   const asset = join(root, "components", "AmbientDisplayShell");

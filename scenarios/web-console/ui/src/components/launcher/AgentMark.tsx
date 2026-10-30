@@ -73,7 +73,7 @@ export default function AgentMark({ mark, muted = false, appearance, className }
     <span
       aria-hidden
       data-testid={`agent-mark-${mark}`}
-      className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-white/[0.07] ${className ?? ""}`}
+      className={`grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-wc-default/60 ${className ?? ""}`}
       style={{ background: look.plate, opacity: muted ? 0.6 : 1 }}
     >
       <svg

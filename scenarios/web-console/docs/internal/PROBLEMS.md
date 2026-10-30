@@ -3785,3 +3785,9 @@ Discovery limitation: prompt-manager was unavailable during this repair;
 Available local debugging/work-ladder guidance and BAS's canonical skill were
 read directly. Program preparation `prog_2681b156-6c22-433c-997d-25050b071cac`
 exhausted its 15-second budget; the BAS skill's direct capture leaf was used.
+
+## Work ladder — settings composition, 2026-10-29
+
+- Rung: W3, scoped implementation; the operator selected the existing settings study and requested desktop category icons and shared-component ownership.
+- Evidence: baseline and live candidate captures in `docs/mockups/experience-review-20261029/`; shared `SettingsList` 1.2.0 supplies an opt-in aligned layout. User review of the running result and complete state/theme/device coverage remain open.
+- Gate: focused settings navigation tests, shared component story checks, scenario unit phase, and desktop/phone browser review; see the current handoff for results and limits. No W0–W2 readiness claim is implied.

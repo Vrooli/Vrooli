@@ -58,6 +58,7 @@ func TestCodexTailer_AttributesMidSessionRolloutToCorrectSession(t *testing.T) {
 		repocontracttest.SkipPlatform(t, "codex tailer relies on Unix path semantics")
 	}
 	t.Setenv("HOME", t.TempDir())
+	useIsolatedSessionState(t)
 
 	srv := &Server{
 		router:        mux.NewRouter(),

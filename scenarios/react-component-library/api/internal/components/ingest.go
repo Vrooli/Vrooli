@@ -47,6 +47,9 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	if in.Slot = strings.TrimSpace(in.Slot); in.Slot == "" {
 		in.Slot = ingestDefaultSlot
 	}
+	if _, err := normalizeComponentSlot(in.Slot); err != nil {
+		return IngestComponentResult{}, ErrInvalidHeader{SourcePath: in.SourceFile, Field: "slot", Reason: fmt.Sprintf("%v; use %s, %s or %s", err, ComponentSlotUIPrimitive, ComponentSlotUIPattern, ComponentSlotLayoutNav)}
+	}
 	if in.Category = strings.TrimSpace(in.Category); in.Category == "" {
 		in.Category = ingestDefaultCategory
 	}
@@ -78,17 +81,32 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		description = fmt.Sprintf("Ingested from %s:%s", in.Scenario, in.SourceFile)
 	}
 	libraryID := "react-component-library:" + in.Slug
+	existing, existingErr := s.repo.GetByLibraryID(ctx, libraryID)
+	if existingErr != nil && !errors.As(existingErr, &ErrComponentNotFound{}) {
+		return IngestComponentResult{}, existingErr
+	}
+	exists := existingErr == nil
+	// The draft publishes as releaseVersion, so it must name a version the
+	// asset has not released yet: a re-harvest defaults to the next patch.
 	releaseVersion := strings.TrimSpace(in.Version)
 	if releaseVersion == "" {
 		releaseVersion = ingestReleaseVersion
+		if exists && existing.LatestVersion != "" {
+			next, err := bumpReleaseVersion(existing.LatestVersion, "patch")
+			if err != nil {
+				return IngestComponentResult{}, err
+			}
+			releaseVersion = next
+		}
 	}
 	if err := validateVersionToken(releaseVersion); err != nil || strings.Contains(releaseVersion, "-") {
 		return IngestComponentResult{}, fmt.Errorf("ingest version must be a released semver-like value")
 	}
+	if exists && existing.LatestVersion != "" && compareSemver(releaseVersion, existing.LatestVersion) <= 0 {
+		return IngestComponentResult{}, ErrInvalidHeader{SourcePath: existing.ManifestPath, Field: "version", Reason: fmt.Sprintf("ingest version %s must be newer than the released %s@%s, or the draft could never publish", releaseVersion, libraryID, existing.LatestVersion)}
+	}
 	draftVersion := releaseVersion + "-draft.1"
 	findings := inspectIngestSource(raw, in.SourceFile)
-	releaseFiles := ingestFilesForVersion(unit, libraryID, displayName, description, releaseVersion, in.Tags, in.Scenario, in.SourceFile)
-	releaseSource := releaseFiles[0].Content
 	// The origin inventory must count behavior that lives in companions the
 	// harvest cannot carry — app-alias imports (`@/`, `~/`) resolve into the
 	// origin scenario, not the flat library unit, so any hook/listener/aria
@@ -99,8 +117,9 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 	if extras := readDroppedOriginCompanions(ctx, s.ingest, in.Scenario, unit); extras != "" {
 		origin += "\n" + extras
 	}
-	findings = append(findings, BehaviorLossFindings(origin, joinIngestUnit(releaseFiles), in.SourceFile)...)
-	report := IngestParityReport{OriginFiles: ingestFilePaths(unit), HarvestedFiles: ingestFilePaths(releaseFiles), Findings: behaviorFindings(findings)}
+	draftFiles := ingestFilesForVersion(unit, libraryID, displayName, description, draftVersion, in.Tags, in.Scenario, in.SourceFile)
+	findings = append(findings, BehaviorLossFindings(origin, joinIngestUnit(draftFiles), in.SourceFile)...)
+	report := IngestParityReport{OriginFiles: ingestFilePaths(unit), HarvestedFiles: ingestFilePaths(draftFiles), Findings: behaviorFindings(findings)}
 	if len(report.Findings) > 0 {
 		if !in.AcceptBehaviorLoss {
 			return IngestComponentResult{}, ErrHarvestBehaviorLoss{Scenario: in.Scenario, SourceFile: in.SourceFile, Findings: report.Findings}
@@ -109,13 +128,8 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		// parity report and it is marked acknowledged as a durable audit trail.
 		report.Acknowledged = true
 	}
-	draftFiles := ingestFilesForVersion(unit, libraryID, displayName, description, draftVersion, in.Tags, in.Scenario, in.SourceFile)
 	draftSource := draftFiles[0].Content
-	existing, existingErr := s.repo.GetByLibraryID(ctx, libraryID)
-	if existingErr != nil && !errors.As(existingErr, &ErrComponentNotFound{}) {
-		return IngestComponentResult{}, existingErr
-	}
-	if existingErr == nil {
+	if exists {
 		draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
 			ComponentID: existing.ID, Version: draftVersion, Intent: VersionIntentDraft,
 			FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report,
@@ -126,25 +140,20 @@ func (s *service) IngestComponent(ctx context.Context, in IngestComponentInput) 
 		}
 		return IngestComponentResult{Component: draft.Component, ManifestPath: existing.ManifestPath, SourcePath: draft.SourcePath, DraftVersion: draftVersion, Findings: findings, ParityReport: report, ChecklistPath: ingestChecklistPath}, nil
 	}
+	// A new asset starts as a draft only. Its first release is made by
+	// publishing that draft, so the release passes the publish checks and gets
+	// a provenance record; an ingested baseline release would have neither.
 	created, err := s.InitializeComponent(ctx, InitializeComponentInput{
 		LibraryID: libraryID, Slug: in.Slug, DisplayName: displayName,
 		Description: description, Tags: in.Tags, Slot: in.Slot, Category: in.Category, InitialVersion: releaseVersion,
-		FileName: releaseFiles[0].Path, InitialSource: releaseSource, InitialFiles: releaseFiles,
-		ScaffoldExamples: true,
-	})
-	if err != nil {
-		return IngestComponentResult{}, err
-	}
-	draft, err := s.CreateComponentVersion(ctx, CreateComponentVersionInput{
-		ComponentID: created.Component.ID, Version: draftVersion, Intent: VersionIntentDraft,
-		FileName: draftFiles[0].Path, Source: draftSource, Files: draftFiles, ParityReport: &report,
-		ScaffoldExamples: true, ExperienceContract: contract,
+		FileName: draftFiles[0].Path, InitialSource: draftSource, InitialFiles: draftFiles,
+		ScaffoldExamples: true, DraftOnly: true, ParityReport: &report, ExperienceContract: contract,
 	})
 	if err != nil {
 		return IngestComponentResult{}, err
 	}
 	return IngestComponentResult{
-		Component: draft.Component, ManifestPath: created.ManifestPath, SourcePath: draft.SourcePath,
+		Component: created.Component, ManifestPath: created.ManifestPath, SourcePath: created.SourcePath,
 		DraftVersion: draftVersion, Findings: findings, ParityReport: report, ChecklistPath: ingestChecklistPath,
 	}, nil
 }

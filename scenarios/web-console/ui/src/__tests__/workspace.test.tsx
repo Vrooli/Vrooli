@@ -602,6 +602,19 @@ describe("Workspace", () => {
     expect(screen.queryByTestId("mock-mobile-toolbar")).toBeNull();
   });
 
+  it("does not refocus the terminal when settings closes", async () => {
+    hookState.panes = [{ session: mockSession }];
+    mockStoreState.panes = [{ sessionId: mockSession.id, name: "/bin/bash", headerColor: "transparent" }];
+    mockStoreState.activePane = mockSession.id;
+    mockStoreState.settingsModalOpen = true;
+    const { rerender } = render(<Workspace />);
+    mockFocusActiveTerminal.mockClear();
+    mockStoreState.settingsModalOpen = false;
+    rerender(<Workspace />);
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 50)); });
+    expect(mockFocusActiveTerminal).not.toHaveBeenCalled();
+  });
+
   it("shows the composer bar in Messages view on a desktop, and gives it the focus the terminal would get", async () => {
     hookState.panes = [{ session: mockSession }];
     mockStoreState.activePane = mockSession.id;
@@ -752,8 +765,12 @@ describe("Workspace", () => {
     expect(notice.textContent).toContain("Waiting for the speech backend");
     // The safe-area strip is tinted by whatever banner is on top, so the notch
     // matches the notice instead of the surface beneath it. On iOS this strip
-    // *is* the status bar, so it is the notch, not a decoration near it.
-    expect(statusFill()).toBe(BANNER_CHROME.warning.statusColor);
+    // *is* the status bar, so it is the notch, not a decoration near it. The
+    // tint is applied by the banner's passive effect, which can land a beat
+    // after the notice is in the DOM when the machine is busy.
+    await waitFor(() => {
+      expect(statusFill()).toBe(BANNER_CHROME.warning.statusColor);
+    });
 
     fireEvent.click(screen.getByTestId("voice-status-banner-dismiss"));
     expect(mockVoiceInputState.dismissFallbackNotice).toHaveBeenCalledTimes(1);

@@ -209,7 +209,7 @@ export default function NotificationsSection({ open }: { open: boolean }) {
   };
 
   return (
-    <SettingsList>
+    <SettingsList layout="aligned" variant="flush">
       <SettingsIntro
         eyebrow={t(strings.settings.notificationsSection.eyebrow)}
         title={t(strings.settings.notificationsSection.title)}

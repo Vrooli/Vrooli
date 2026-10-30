@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.time-mention",
+    "name": "TimeMention",
+    "kind": "component",
+    "surface": "none",
+    "domain": "data-display",
+    "description": "Times, dates and durations written in prose, put into the reader's frame: their local time beside the original, a live countdown for deadlines, and a details card with the moment in every frame. Ships the grammar, resolver and remark plugin markdown renderers adopt.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "overlays.popover",
+        "reason": "The details card is an inline-anchored popover that becomes a sheet on narrow screens."
+      },
+      {
+        "asset": "controls.copy-icon-button",
+        "reason": "The UTC timestamp copies through the shared copy control."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "Every sentence is a translatable string and dates format in the document locale."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "non-color-status",
+    "dark-parity"
+  ],
+  "requiredStates": [
+    "default"
+  ],
+  "rationale": "Agents write times in their own frame — UTC, no date, relative to when they wrote — and readers convert them by hand. Detection is strict and frame-free so one markdown pass serves every renderer; resolution adds the reader's zone, now, and an optional send time, and anything that needs a missing frame falls back to the text as written."
+}

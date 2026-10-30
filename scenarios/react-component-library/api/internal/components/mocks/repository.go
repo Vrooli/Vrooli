@@ -117,7 +117,7 @@ func (f *FakeRepository) UpsertManifest(ctx context.Context, in components.Index
 		v.ComponentID = c.ID
 		v.LibraryID = c.LibraryID
 		f.versions[c.ID][v.Version] = v
-		if v.Version == c.LatestVersion {
+		if v.Version == c.LatestVersion || (c.LatestVersion == "" && v.Version == c.DraftVersion) {
 			c.SourcePath = v.SourcePath
 			f.items[c.ID] = c
 		}

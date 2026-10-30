@@ -28,6 +28,8 @@ interface MessagesFileViewerProps {
    */
   onHandoff?: (resolvedPath: string) => void;
   onRun?: (resolvedPath: string, text: string) => void;
+  /** One more header action from the opening surface (e.g. a picker's Select). */
+  headerAction?: React.ReactNode;
   onClose: () => void;
   onReopen: () => void;
   onRendererError: (message: string) => void;
@@ -54,6 +56,7 @@ export default function MessagesFileViewer({
   state, onArchiveFolder, onArchiveEntry, onArchiveViewChange,
   onHandoff,
   onRun,
+  headerAction,
   onClose,
   onReopen,
   onRendererError,
@@ -129,8 +132,9 @@ export default function MessagesFileViewer({
     </span>
   );
 
-  const headerActions = (canHandoff || canRun) ? (
+  const headerActions = (canHandoff || canRun || headerAction) ? (
     <div className="flex shrink-0 items-center gap-1.5">
+      {headerAction}
       {canHandoff && (
         <button
           type="button"
@@ -292,7 +296,7 @@ function resolutionBasisLabel(basis: string): string {
   }
 }
 
-function PreviewBreadcrumbs({ crumbs, onNavigate }: { crumbs: PathCrumb[]; onNavigate: (path: string) => void }) {
+export function PreviewBreadcrumbs({ crumbs, onNavigate }: { crumbs: PathCrumb[]; onNavigate: (path: string) => void }) {
   const current = useRef<HTMLSpanElement>(null), path = crumbs.at(-1)?.path;
   // This component mounts with the actual portal content, after the drawer is
   // present. A parent effect can run before the portal attaches its children.

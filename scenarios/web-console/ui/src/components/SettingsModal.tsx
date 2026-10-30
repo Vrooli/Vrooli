@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import { useTranslation } from "react-i18next";
+import { ChevronLeft } from "lucide-react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import type { SessionInfo } from "../api/sessions";
 import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import GroupTemplatesPanel from "./settings/GroupTemplatesPanel";
 import HandoffRulesPanel from "./settings/HandoffRulesPanel";
 import IntegrationsSection from "./settings/IntegrationsSection";
@@ -31,6 +33,23 @@ import {
 } from "./settings/tabs";
 
 const TAB_STORAGE_KEY = "wc-settings-active-tab";
+const LOCATION_STORAGE_KEY = "wc-settings-location-v2";
+type SettingsLocation = SettingsTabId | "categories";
+
+function loadLocation(): SettingsLocation {
+  if (typeof window === "undefined") return "categories";
+  try {
+    const raw = window.localStorage.getItem(LOCATION_STORAGE_KEY);
+    if (raw && (SETTINGS_TAB_IDS as readonly string[]).includes(raw)) return raw as SettingsTabId;
+  } catch {
+    // Storage can be unavailable in private browsing.
+  }
+  return "categories";
+}
+
+function storeLocation(location: SettingsLocation) {
+  try { window.localStorage.setItem(LOCATION_STORAGE_KEY, location); } catch { /* Keep the in-memory location. */ }
+}
 
 function loadStoredTab(): SettingsTabId {
   if (typeof window === "undefined") return DEFAULT_SETTINGS_TAB;
@@ -103,12 +122,26 @@ export default function SettingsModal({
   const settingsInitialTab = useWorkspaceStore((state) => state.settingsInitialTab);
   const setSettingsInitialTab = useWorkspaceStore((state) => state.setSettingsInitialTab);
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const [activeTab, setActiveTab] = useState<SettingsTabId>(loadStoredTab);
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(() => {
+    const location = loadLocation();
+    return location === "categories" ? loadStoredTab() : location;
+  });
+  const [showCategories, setShowCategories] = useState(() => loadLocation() === "categories");
+  const categoryNavigation = useRef(false);
   const settingsTabs = useSettingsTabs();
 
   useEffect(() => {
     storeTab(activeTab);
   }, [activeTab]);
+
+  // The previous focused control is removed by drill-in; move focus to the
+  // corresponding destination so keyboard and screen-reader users retain context.
+  useEffect(() => {
+    if (!categoryNavigation.current || !settingsModalOpen || !isMobile) return;
+    const testId = showCategories ? settingsTabTestId(activeTab) : "settings-categories-back";
+    document.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.focus();
+    categoryNavigation.current = false;
+  }, [showCategories, activeTab, settingsModalOpen, isMobile]);
 
   // Opening a voice tab is audio intent: the reader is here to
   // configure the feature, so an unreachable backend is finally
@@ -117,8 +150,8 @@ export default function SettingsModal({
   const markAudioIntent = useWorkspaceStore((state) => state.markAudioIntent);
   useEffect(() => {
     if (!settingsModalOpen) return;
-    if (activeTab === "voice-input" || activeTab === "voice-output") markAudioIntent();
-  }, [settingsModalOpen, activeTab, markAudioIntent]);
+    if ((!isMobile || !showCategories) && (activeTab === "voice-input" || activeTab === "voice-output")) markAudioIntent();
+  }, [settingsModalOpen, activeTab, markAudioIntent, isMobile, showCategories]);
 
   // Consume a one-shot deep-link request (e.g. "Manage defaults" in the
   // appearance modal) — jump to the requested tab, then clear the request.
@@ -126,6 +159,8 @@ export default function SettingsModal({
     if (!settingsInitialTab) return;
     if ((SETTINGS_TAB_IDS as readonly string[]).includes(settingsInitialTab)) {
       setActiveTab(settingsInitialTab as SettingsTabId);
+      setShowCategories(false);
+      storeLocation(settingsInitialTab as SettingsTabId);
     }
     setSettingsInitialTab(null);
   }, [settingsInitialTab, setSettingsInitialTab]);
@@ -136,35 +171,13 @@ export default function SettingsModal({
   );
   const Section = SECTION_COMPONENTS[activeTab];
 
-  // The tab strip is the library's, so overflow, roving focus, arrow-key
-  // navigation, and the selected-tab scroll-into-view come with it rather than
-  // being re-implemented per surface.
-  const tabItems = useMemo(
-    () =>
-      settingsTabs.map((tab) => {
-        const Icon = tab.icon;
-        return {
-          id: tab.id,
-          label: isMobile ? tab.shortLabel : tab.label,
-          icon: <Icon />,
-        };
-      }),
-    [isMobile, settingsTabs],
-  );
-
   const close = () => {
     setSettingsModalOpen(false);
   };
 
-  // The drawer names the surface once. The desktop eyebrow (and the header
-  // description beside it) were extra copies of context the tab strip and the
-  // section body already carry, and the section body drops its own intro on
-  // mobile so the drawer title is the only copy there.
-  const title = (
-    <span className="text-base font-semibold">
-      {activeDefinition?.label ?? t(strings.settings.title)}
-    </span>
-  );
+  const title = !isMobile || showCategories
+    ? t(strings.settings.title)
+    : activeDefinition?.label ?? t(strings.settings.title);
 
   return (
     <FullPageDrawer
@@ -172,43 +185,46 @@ export default function SettingsModal({
       open={settingsModalOpen}
       onClose={close}
       closeLabel={t(strings.settings.closeAriaLabel)}
+      ariaLabel={t(strings.settings.title)}
       title={title}
-      // The tab strip belongs above the scroll region and outside the content
-      // gutter: a band that scrolls away with the content is not navigation,
-      // and a full-bleed strip is what lets seven tabs use the whole width.
-      subheader={
-        isMobile ? (
-          <div data-testid="settings-tabs-row" className="px-1">
-            <Tabs
-              ariaLabel={t(strings.settings.sidebarAria)}
-              items={tabItems}
-              active={activeTab}
-              onChange={(next) => {
-                setActiveTab(next as SettingsTabId);
-              }}
-              itemTestId={settingsTabTestId}
-            />
-          </div>
-        ) : undefined
-      }
+      centerTitle={isMobile}
+      headerLeading={isMobile && !showCategories ? (
+        <IconButton
+          data-testid="settings-categories-back"
+          aria-label={t("settings.backToCategories", { defaultValue: "Back to settings" })}
+          size="lg"
+          onClick={() => { categoryNavigation.current = true; storeLocation("categories"); setShowCategories(true); }}
+        >
+          <ChevronLeft aria-hidden="true" className="rtl:rotate-180" />
+        </IconButton>
+      ) : undefined}
       testId="settings-modal"
     >
       {isMobile ? (
         <div className="px-4 py-4">
-          <Section
+          {showCategories ? (
+            <SettingsList variant="flush" data-testid="settings-categories">
+              <SettingsList.Group>
+                {settingsTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  return <SettingsList.Row key={tab.id} testId={settingsTabTestId(tab.id)} label={tab.label} hint={tab.description} leading={<Icon aria-hidden="true" />} onSelect={() => { categoryNavigation.current = true; storeLocation(tab.id); setActiveTab(tab.id); setShowCategories(false); }} />;
+                })}
+              </SettingsList.Group>
+            </SettingsList>
+          ) : <Section
             sessions={sessions}
             onDeleteSession={onDeleteSession}
             onRequestClose={close}
             open={settingsModalOpen}
             onStartSessionForMachine={onStartSessionForMachine}
             onInstallCapability={onInstallCapability}
-          />
+          />}
         </div>
       ) : (
         <div className="flex h-full min-h-0 overflow-hidden">
           <aside
             data-testid="settings-sidebar"
-            className="w-[260px] shrink-0 overflow-y-auto border-r border-wc-default bg-wc-surface-base/50 p-3"
+            className="w-[220px] shrink-0 overflow-y-auto border-r border-wc-default bg-wc-surface-base/50 p-3"
           >
             <nav className="space-y-1" role="tablist" aria-label={t(strings.settings.sidebarAria)}>
               {settingsTabs.map((tab) => {
@@ -222,20 +238,19 @@ export default function SettingsModal({
                     role="tab"
                     aria-selected={isActive}
                     className={cn(
-                      "flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-start transition-colors",
+                      "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors",
                       isActive
                         ? "bg-wc-surface-input text-wc-text-primary shadow-sm"
                         : "text-wc-text-muted hover:bg-wc-surface-input/60 hover:text-wc-text-secondary",
                     )}
                     onClick={() => {
+                      storeLocation(tab.id);
                       setActiveTab(tab.id);
+                      setShowCategories(false);
                     }}
                   >
                     <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", isActive && "text-wc-accent")} />
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{tab.label}</div>
-                      <div className="text-[11px] text-wc-text-faint">{tab.description}</div>
-                    </div>
+                    <span className="min-w-0 text-sm font-medium">{tab.label}</span>
                   </button>
                 );
               })}

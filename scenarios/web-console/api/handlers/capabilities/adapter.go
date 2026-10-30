@@ -30,12 +30,28 @@ type Adapter struct {
 	ActionTracker   *capreg.ActionTracker
 	CLIPath         string
 	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
+	ReadAgentUpdate func(context.Context, string, string) (AgentUpdateResult, error)
+	ReadAgentUsage  func(context.Context, string, string) (AgentUsageResult, error)
 	// ConfirmInstall asks the target itself whether a capability is now
 	// present, after an install has run. It is the only evidence this package
 	// accepts that an install worked: an exit code reports that a command ran,
 	// which is a different claim. Nil leaves every install unconfirmed rather
 	// than silently promoting it to a success.
 	ConfirmInstall func(ctx context.Context, targetID, capabilityID string) (state, version string)
+}
+
+func (a *Adapter) AgentUsage(ctx context.Context, targetID, agentID string) (AgentUsageResult, error) {
+	if a.ReadAgentUsage == nil {
+		return AgentUsageResult{}, ErrUnavailable
+	}
+	return a.ReadAgentUsage(ctx, targetID, agentID)
+}
+
+func (a *Adapter) AgentUpdate(ctx context.Context, targetID, agentID string) (AgentUpdateResult, error) {
+	if a.ReadAgentUpdate == nil {
+		return AgentUpdateResult{}, ErrUnavailable
+	}
+	return a.ReadAgentUpdate(ctx, targetID, agentID)
 }
 
 // stampInstallOutcome replaces an installer's own verdict with the target's.

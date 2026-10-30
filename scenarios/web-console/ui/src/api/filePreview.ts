@@ -216,6 +216,29 @@ export function previewBlobHref(blobUrl: string): string {
   return `${base}${path}`;
 }
 
+// Extensions the host renders thumbnails for (api: filepreview.Thumbnail).
+// Other images (WebP, HEIC, …) would only answer 415, so rows never ask.
+const THUMBNAIL_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif"]);
+
+/** Whether the host can render a thumbnail for this file name. */
+export function canThumbnail(name: string): boolean {
+  const ext = name.slice(name.lastIndexOf(".") + 1).toLowerCase();
+  return name.includes(".") && THUMBNAIL_EXTENSIONS.has(ext);
+}
+
+/**
+ * Same-origin href of a small rendition of an image. For a directory preview
+ * id, `entry` names one child; for a file preview id it is omitted. `size` is
+ * the longest edge in device pixels.
+ */
+export function previewThumbnailHref(sessionId: string, previewId: string, options: { entry?: string; size?: number } = {}): string {
+  const query = new URLSearchParams();
+  if (options.entry) query.set("entry", options.entry);
+  if (options.size) query.set("size", String(Math.round(options.size)));
+  const qs = query.toString();
+  return previewBlobHref(`/api/v1/sessions/${encodeURIComponent(sessionId)}/file-previews/${encodeURIComponent(previewId)}/thumbnail${qs ? `?${qs}` : ""}`);
+}
+
 export function previewRuntimeHref(blobUrl: string): string {
   if (!blobUrl) return "";
   return previewBlobHref(blobUrl.replace(/\/blob$/, "/runtime/"));

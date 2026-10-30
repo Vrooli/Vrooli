@@ -786,7 +786,7 @@ export default function VoiceInputSection() {
   }, [loadSpeakerStatus]);
 
   return (
-    <SettingsList>
+    <SettingsList layout="aligned" variant="flush">
       <SettingsIntro
         eyebrow={t(strings.settings.voiceInputSection.eyebrow)}
         title={t(strings.settings.voiceInputSection.title)}

@@ -269,7 +269,7 @@ function MessageRowImpl({
             </pre>
           ) : (
             <>
-              <MarkdownRenderer content={preview.markdown} imageSessionId={imageSessionId} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
+              <MarkdownRenderer content={preview.markdown} timeAnchor={event.createdAt} imageSessionId={imageSessionId} onLinkClick={onLinkClick} onFileReferenceClick={onFileReferenceClick} onMermaidOpen={onMermaidOpen} />
               {preview.plainText && <pre className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-mono">{preview.plainText}</pre>}
             </>
           )}

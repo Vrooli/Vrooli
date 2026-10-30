@@ -203,6 +203,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/sessions/{id}/conversation/control/execute", s.handleConversationControlExecute).Methods(http.MethodPost)
 	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")
+	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/thumbnail", s.handleFilePreviewThumbnail).Methods("GET", "HEAD")
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/runtime/", s.handleFilePreviewRuntime).Methods("GET", "HEAD")
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource:.*}", s.handleFilePreviewRuntime).Methods("GET", "HEAD")
 	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)
@@ -215,6 +216,8 @@ func (s *Server) setupRoutes() {
 		BackendRegistry: s.backendRegistry,
 		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
 		RemoteInstall:   s.installCapabilityRemote,
+		ReadAgentUpdate: s.readAgentUpdate,
+		ReadAgentUsage:  s.readAgentUsage,
 		ConfirmInstall:  s.confirmCapabilityInstall,
 		ActionTracker:   capreg.NewActionTracker(),
 	}, nil).Mount(s.router)

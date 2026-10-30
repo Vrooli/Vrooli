@@ -142,4 +142,26 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 413, Code: "content_too_large", Description: "Runtime resource exceeds the bounded size limit"},
 		},
 	},
+	{
+		ID:          "file_preview_thumbnail",
+		Path:        "/api/v1/sessions/{id}/file-previews/{previewId}/thumbnail",
+		Method:      "GET",
+		Summary:     "Serve a small rendition of an image preview",
+		Description: "Renders a JPEG, PNG, or GIF scaled to fit `size` pixels (32-512, default 160), upright per EXIF orientation. For a directory preview id, `entry` names one child (a bare name, no separators or dot segments); for a file preview id it is omitted. Decodes are size-capped and run at most two at a time; responses are private, cacheable for ten minutes, and carry an ETag derived from the file's mtime and size. Formats that cannot be thumbnailed (WebP, HEIC, oversized) answer 415 so the client keeps its icon.",
+		Category:    "file_preview",
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonStreamUpgrade,
+			Note:   "Image bytes consumed directly by native <img> elements in folder rows, like the blob route; Connect cannot back an <img src>. The opaque preview id issued by FilePreviewService.Resolve is the only capability.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
+				Error:    module.RESTPayload{Transport: "none", Conformance: "none"},
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "bad_request", Description: "Missing or malformed entry name, or a non-integer size"},
+			{Status: 404, Code: "not_found", Description: "Unknown/expired preview id, session mismatch, or missing file"},
+			{Status: 415, Code: "unsupported_media_type", Description: "The file's format cannot be thumbnailed"},
+		},
+	},
 }

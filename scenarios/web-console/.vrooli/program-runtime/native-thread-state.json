@@ -14,6 +14,7 @@
     "status": {"enum": ["ok", "partial", "failed"]},
     "signals": {"threads": "Per-thread live owner and goal observations"},
     "errors": {"classes": ["invalid_input", "binding_error"]},
+    "evidence": "The owner binding when the observation was obtained",
     "phase": {"enum": ["validate", "report"]}
   },
   "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16, "output_bytes": 65536},

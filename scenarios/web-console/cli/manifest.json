@@ -2207,6 +2207,26 @@
   ],
   "omitted": [
     {
+      "service": "CapabilitiesService",
+      "method": "AgentUpdate",
+      "reason": "Target-scoped update status is presented in the launcher management view."
+    },
+    {
+      "service": "CapabilitiesService",
+      "method": "AgentUsage",
+      "reason": "Account-match confidence and provider readings are presented in the launcher and its management view."
+    },
+    {
+      "service": "ShortcutsService",
+      "method": "GetAgentPreferences",
+      "reason": "Agent display preferences are managed by the Web Console launcher; shortcut commands remain available through the CLI."
+    },
+    {
+      "service": "ShortcutsService",
+      "method": "UpdateAgentPreferences",
+      "reason": "Profile-revision-checked display preferences are managed by the Web Console launcher."
+    },
+    {
       "service": "TerminalService",
       "method": "AnswerPrompt",
       "reason": "Prompts are answered from the Messages view, which shows the prompt being answered and sends its hash; a CLI answer would type into an agent without that check. Scripts use terminal send-text and send-keys."

@@ -11,6 +11,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "../ui/button";
+import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
@@ -52,21 +53,21 @@ function Segmented<T extends string | number>({
   onChange: (next: T) => void;
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className="flex flex-wrap items-center gap-2">
+    <ButtonGroup label={ariaLabel} variant="segmented" collapse="never">
       {options.map((option) => (
         <Button
           key={String(option.value)}
           data-testid={option.testId}
           aria-pressed={option.value === value}
-          variant={option.value === value ? "default" : "outline"}
-          size="sm"
-          className="h-8 px-3"
+          variant="ghost"
+          shape="square"
+          size="lg"
           onClick={() => { onChange(option.value); }}
         >
           {option.label}
         </Button>
       ))}
-    </div>
+    </ButtonGroup>
   );
 }
 

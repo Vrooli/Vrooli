@@ -22,7 +22,7 @@ export default function NewPaneDefaultsSection() {
   const setPlusButtonBehavior = useWorkspaceStore((state) => state.setPlusButtonBehavior);
 
   return (
-    <SettingsList>
+    <SettingsList layout="aligned" variant="flush">
       <SettingsIntro
         eyebrow={t(strings.settings.newPaneDefaultsSection.eyebrow)}
         title={t(strings.settings.newPaneDefaultsSection.title)}

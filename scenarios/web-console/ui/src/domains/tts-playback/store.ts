@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import type { PlaybackIntent, PlaybackTarget } from "./types";
 
 interface TtsPlaybackIntentState {
@@ -9,21 +9,18 @@ interface TtsPlaybackIntentState {
   setSelectedTarget: (target: PlaybackTarget | null) => void;
 }
 
+// zustand's JSON storage only reads, writes and removes keys, so the fallback
+// implements exactly that. It serves server rendering and browsers that deny
+// storage access, keeping playback controls usable for the session.
 const memoryStorage = new Map<string, string>();
+const memoryStateStorage: StateStorage = {
+  getItem: (key) => memoryStorage.get(key) ?? null,
+  setItem: (key, value) => { memoryStorage.set(key, value); },
+  removeItem: (key) => { memoryStorage.delete(key); },
+};
 
-const getSafeStorage = (): Storage => {
-  if (typeof window === "undefined") {
-    return {
-      get length() {
-        return memoryStorage.size;
-      },
-      clear: () => memoryStorage.clear(),
-      getItem: (key) => memoryStorage.get(key) ?? null,
-      key: (index) => Array.from(memoryStorage.keys())[index] ?? null,
-      removeItem: (key) => { memoryStorage.delete(key); },
-      setItem: (key, value) => { memoryStorage.set(key, value); },
-    };
-  }
+const getSafeStorage = (): StateStorage => {
+  if (typeof window === "undefined") return memoryStateStorage;
   try {
     const storage = window.localStorage;
     const probe = "__wc_tts_playback_probe__";
@@ -31,16 +28,7 @@ const getSafeStorage = (): Storage => {
     storage.removeItem(probe);
     return storage;
   } catch {
-    return {
-      get length() {
-        return memoryStorage.size;
-      },
-      clear: () => memoryStorage.clear(),
-      getItem: (key) => memoryStorage.get(key) ?? null,
-      key: (index) => Array.from(memoryStorage.keys())[index] ?? null,
-      removeItem: (key) => { memoryStorage.delete(key); },
-      setItem: (key, value) => { memoryStorage.set(key, value); },
-    };
+    return memoryStateStorage;
   }
 };
 

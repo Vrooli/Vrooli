@@ -84,7 +84,8 @@ describe("VoiceInputSection", () => {
     const row = toggle.closest("[data-rcl-settings-row]");
     const list = toggle.closest("[data-rcl-settings-list]");
 
-    expect(list).toHaveAttribute("data-variant", "auto");
+    expect(list).toHaveAttribute("data-variant", "flush");
+    expect(list).toHaveAttribute("data-layout", "aligned");
     expect(list).toHaveAttribute("data-density", "comfortable");
     expect(row).toHaveAttribute("data-control", "compact");
     expect(toggle).toHaveAttribute("aria-labelledby", row?.querySelector("[data-rcl-settings-row-label]")?.id);

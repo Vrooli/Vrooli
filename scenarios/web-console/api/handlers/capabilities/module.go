@@ -81,6 +81,26 @@ type ActionResult struct {
 	Snapshot     Snapshot
 }
 
+// AgentUpdateResult is a target-scoped installed-tool observation. A matching
+// probe does not establish what an operator's custom command will execute.
+type AgentUpdateResult struct {
+	TargetID, AgentID, Resource                                              string
+	Installed, Pinned, Latest, Status, CheckedAt, SourceKind, SourceID, Note string
+	ProbeVerified                                                            bool
+}
+
+type AgentUsageWindow struct {
+	Pool          string
+	WindowMinutes int64
+	UsedPercent   float64
+	ResetsAt      string
+}
+
+type AgentUsageResult struct {
+	TargetID, AgentID, Match, Reason, Source, ObservedAt string
+	Windows                                              []AgentUsageWindow
+}
+
 // BackendOption mirrors the proto BackendOption message and the
 // api.BackendDescriptor struct.
 type BackendOption struct {

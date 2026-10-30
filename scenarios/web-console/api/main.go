@@ -103,6 +103,7 @@ type Server struct {
 	agentVoiceControllers map[string]*agentVoiceLease
 	idempotency           *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities          *capabilities.Registry
+	agentUpdates          agentUpdateCache
 	workspace             intworkspace.Store
 	groupTemplates        intgrouptemplates.Store
 	handoffRules          inthandoffrules.Store

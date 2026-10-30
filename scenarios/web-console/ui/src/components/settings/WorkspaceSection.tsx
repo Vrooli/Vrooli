@@ -11,6 +11,7 @@ import ToolbarCustomizer from "./ToolbarCustomizer";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
 import { useSecureContextCapabilities } from "../../hooks/useSecureContextCapabilities";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
+import { ButtonGroup } from "@vrooli/react-component-library/ButtonGroup/1";
 
 const STATUS_HINT_KEYS = {
   active: strings.settings.workspaceSection.wakeLockActive,
@@ -64,14 +65,13 @@ export default function WorkspaceSection() {
     : undefined;
 
   return (
-    <SettingsList>
+    <SettingsList layout="aligned" variant="flush" density="compact" className="max-w-4xl">
       <SettingsIntro
-        eyebrow={t(strings.settings.workspaceSection.eyebrow)}
         title={t(strings.settings.workspaceSection.title)}
         description={t(strings.settings.workspaceSection.description)}
       />
 
-      <SettingsList.Group>
+      <SettingsList.Group label={t(strings.settings.workspaceSection.eyebrow)}>
         {unavailableCapabilities && (
           <p className="text-xs text-wc-text-secondary" role="status" data-testid="secure-context-capabilities">
             Browser capabilities unavailable in this context: {unavailableCapabilities}.
@@ -80,12 +80,13 @@ export default function WorkspaceSection() {
         <SettingsList.Row
           label={t(strings.settings.workspaceSection.paneLayoutLabel)}
           hint={t(strings.settings.workspaceSection.paneLayoutHint)} control="compact">{(
-            <div className="flex items-center gap-2">
+            <ButtonGroup variant="segmented" collapse="never" label={t(strings.settings.workspaceSection.paneLayoutLabel)}>
               <Button
                 data-testid="display-mode-grid"
-                variant={displayMode === "grid" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
+                aria-pressed={displayMode === "grid"}
+                variant="ghost"
+                shape="square"
+                size="lg"
                 onClick={() => setDisplayMode("grid")}
               >
                 <LayoutGrid className="me-1 h-3.5 w-3.5" />
@@ -93,9 +94,10 @@ export default function WorkspaceSection() {
               </Button>
               <Button
                 data-testid="display-mode-tabs"
-                variant={displayMode === "tabs" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
+                aria-pressed={displayMode === "tabs"}
+                variant="ghost"
+                shape="square"
+                size="lg"
                 onClick={() => setDisplayMode("tabs")}
               >
                 <LayoutList className="me-1 h-3.5 w-3.5" />
@@ -103,15 +105,16 @@ export default function WorkspaceSection() {
               </Button>
               <Button
                 data-testid="display-mode-sidebar"
-                variant={displayMode === "sidebar" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
+                aria-pressed={displayMode === "sidebar"}
+                variant="ghost"
+                shape="square"
+                size="lg"
                 onClick={() => setDisplayMode("sidebar")}
               >
                 <PanelLeft className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.workspaceSection.sidebar)}
               </Button>
-            </div>
+            </ButtonGroup>
           )}</SettingsList.Row>
 
         {/* Which edge drawers open from, and therefore which way their
@@ -121,12 +124,12 @@ export default function WorkspaceSection() {
         <SettingsList.Row
           label={t(strings.settings.workspaceSection.handednessLabel)}
           hint={t(strings.settings.workspaceSection.handednessHint)} control="compact">{(
-            <div className="flex gap-1">
+            <ButtonGroup variant="segmented" collapse="never" label={t(strings.settings.workspaceSection.handednessLabel)}>
               <Button
                 data-testid="handedness-inline-start"
-                variant={handedness === "inline-start" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
+                variant="ghost"
+                shape="square"
+                size="lg"
                 aria-pressed={handedness === "inline-start"}
                 onClick={() => { setHandedness("inline-start"); }}
               >
@@ -135,32 +138,25 @@ export default function WorkspaceSection() {
               </Button>
               <Button
                 data-testid="handedness-inline-end"
-                variant={handedness === "inline-end" ? "default" : "outline"}
-                size="sm"
-                className="h-8 px-3"
+                variant="ghost"
+                shape="square"
+                size="lg"
                 aria-pressed={handedness === "inline-end"}
                 onClick={() => { setHandedness("inline-end"); }}
               >
                 <PanelRight className="me-1 h-3.5 w-3.5" />
                 {t(strings.settings.workspaceSection.handednessEnd)}
               </Button>
-            </div>
+            </ButtonGroup>
           )}</SettingsList.Row>
 
-        {/* The toolbar has three independent choices — which controls, how
-            large, how many rows — so it gets a block of its own rather than a
-            SettingsList.Row's single control slot. */}
-        <div className="border-t border-wc-default pt-4">
-          <div>
-            <div className="text-sm font-medium text-wc-text-secondary">
-              {t(strings.settings.workspaceSection.mobileToolbarLabel)}
-            </div>
-            <div className="text-[11px] text-wc-text-muted">
-              {t(strings.settings.workspaceSection.mobileToolbarHint)}
-            </div>
-          </div>
+        <SettingsList.Row
+          label={t(strings.settings.workspaceSection.mobileToolbarLabel)}
+          hint={t(strings.settings.workspaceSection.mobileToolbarHint)}
+          control="block"
+        >
           <ToolbarCustomizer />
-        </div>
+        </SettingsList.Row>
 
         {displayMode === "grid" && (
           <SettingsList.Row
@@ -173,6 +169,8 @@ export default function WorkspaceSection() {
               />
             )}</SettingsList.Row>
         )}
+      </SettingsList.Group>
+      <SettingsList.Group label={t("settings.workspaceSection.appearanceAndScrolling", { defaultValue: "Appearance & scrolling" })}>
         <SettingsList.Row
           label={t(strings.settings.workspaceSection.adaptiveChromeLabel)}
           hint={t(strings.settings.workspaceSection.adaptiveChromeHint)} control="compact">{(
@@ -215,6 +213,8 @@ export default function WorkspaceSection() {
             Reset scroll sensitivities
           </Button>
         </div>
+      </SettingsList.Group>
+      <SettingsList.Group label={t("settings.workspaceSection.additionalOptions", { defaultValue: "Additional options" })}>
         <SettingsList.Row
           label="tmux mouse mode for new persistent panes"
           hint="When enabled, new persistent panes let tmux capture mouse scrolling. Existing panes keep their current setting." control="compact">{(

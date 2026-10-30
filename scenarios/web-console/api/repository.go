@@ -13,4 +13,6 @@ type ShortcutStore interface {
 	Upsert(ctx context.Context, id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile
 	Delete(ctx context.Context, id string) bool
 	Effective(ctx context.Context) EffectiveShortcuts
+	AgentPreferences(ctx context.Context) (AgentPreferences, error)
+	UpdateAgentPreferences(ctx context.Context, preferences AgentPreferences, expectedRevision uint64) (AgentPreferences, error)
 }

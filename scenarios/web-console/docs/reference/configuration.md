@@ -129,17 +129,19 @@ UI configuration is centralized in [CODE: ui/src/consts/config.ts]. These are co
 ## Launcher Shortcuts
 
 The terminal launcher shows one card per coding agent the selected machine
-reports, plus the empty shell and the editor card. Three different facts meet in
-that grid and they come from different owners:
+reports when ready or unknown, plus the empty shell. The Manage agents view
+contains missing and unsupported agents, installed versions, update checks,
+visibility, ordering, installation recovery, and shortcut editing. Facts come
+from different owners:
 
 | Fact | Owner | Where |
 |------|-------|-------|
 | Which agents exist, and their state and version | the machine's capability probe | [CODE: packages/capabilityprobe] via the target catalog |
 | Their display names | the same probe, forwarded intact | `capability:<id>` readiness facts |
-| Their order, and the command each one runs | the operator's shortcut profile | `shortcut_profiles`, served by `GetEffective` |
+| Their initial order and launch commands | the operator's shortcut profile | `shortcut_profiles`, served by `GetEffective` |
+| Explicit order and visibility | profile-scoped agent preferences | `GetAgentPreferences` and revision-checked `UpdateAgentPreferences` |
 
-The rule is one sentence: **membership from the probe, order and command from
-the profile, built-ins only where the profile is silent.** The built-in verbs
+The rule is one sentence: **membership from the probe, commands from the profile, optional order and visibility from profile preferences, and built-ins only where the profile is silent.** The built-in verbs
 live in `FALLBACK_COMMANDS` ([CODE: ui/src/components/launcher/agentGrid.ts])
 and apply only to an agent the profile has never mentioned — they never
 override a command the operator saved.
@@ -162,16 +164,19 @@ entry launches.
 
 ### Reordering
 
-The launcher's **Reorder** control rewrites the effective profile's entry order,
-which is why `GetEffective` returns the profile's id, scope, and name alongside
-the list: a client that edits the effective list has to write it back to the
-profile it actually came from, without re-deriving scope priority for itself.
-Dragging a grip and pressing `Alt` with the arrow keys go through the same move,
-so the two can never disagree.
+The launcher’s **Manage agents** view provides drag handles and `Alt` plus
+arrow-key ordering, as well as hide/show controls. Preferences are stored
+separately from shortcut commands for the effective profile, with a revision
+and profile-instance token. A conflicting write is rejected and the client
+reloads the owner’s state; the operator can retry. Existing shortcut editors
+cannot erase the preferences, and hiding never removes a command. The default
+profile has its own preference record. New or previously unlisted agents remain
+visible unless explicitly hidden. A caller that supplies shortcuts directly
+owns that list and does not expose profile preference changes.
 
 ### Installing an agent
 
-A card for a missing agent offers **Install**, which runs the governed resource
+A missing agent in management offers **Install**, which runs the governed resource
 installer — locally through `LifecycleActionService`, or on a Bridge node
 through the relay ([CODE: api/remote_capability_install.go]).
 

@@ -16,9 +16,11 @@ import (
 	"github.com/vrooli/api-core/nodereach"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/targetmodel"
+	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	"web-console/internal/config"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	bridgeshared "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
 
 // targetConnection keeps only server-side transport credentials beside the
@@ -29,6 +31,10 @@ type targetConnection struct {
 	BaseURLExplicit bool
 	OwnerToken      string
 	ReauthToken     string
+	// Capability observations remain server-side: paths and observation times
+	// are needed to validate a target-specific update check, not to identify a
+	// target to browser clients.
+	Capabilities []capabilityprobe.Observation
 }
 
 // resolveBridgeScenarioURL is the one Web Console → Bridge endpoint resolver.
@@ -161,6 +167,17 @@ func targetFromRegistryNode(base targetConnection, node *registryv1.Node) target
 		target.LastSeenAt = node.GetLastSeenAt().AsTime()
 	}
 	target.Readiness = readinessFactsForNode(node)
+	target.Capabilities = nil
+	for _, item := range node.GetCapabilityInventory() {
+		observation := capabilityprobe.Observation{ID: item.GetId(), Path: item.GetPath(), Version: item.GetVersion()}
+		if item.GetState() == bridgeshared.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY {
+			observation.State = capabilityprobe.Ready
+		}
+		if item.GetProbedAt() != nil {
+			observation.ProbedAt = item.GetProbedAt().AsTime()
+		}
+		target.Capabilities = append(target.Capabilities, observation)
+	}
 	target.Transport = targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: node.GetDispatchable()}
 	target.Available, target.Reason = targetmodel.CanHostSession(target.Target)
 	target.OperationReadiness = targetmodel.EvaluateOperations(target.Target, time.Now().UTC())

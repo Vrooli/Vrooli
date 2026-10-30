@@ -474,7 +474,7 @@ export default function ShortcutProfilesSection() {
   }, [handleDeleteProfile, handleSaveProfile, profileLoading, profiles, section.empty, section.loading, t]);
 
   return (
-    <SettingsList>
+    <SettingsList layout="aligned" variant="flush">
       <SettingsIntro
         eyebrow={t(section.eyebrow)}
         title={t(section.title)}

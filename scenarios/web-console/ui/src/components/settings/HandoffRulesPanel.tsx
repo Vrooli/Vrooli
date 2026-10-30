@@ -87,7 +87,7 @@ export default function HandoffRulesPanel() {
   }, [refresh]);
 
   return (
-    <SettingsList data-testid="handoff-rules-panel">
+    <SettingsList layout="aligned" variant="flush" data-testid="handoff-rules-panel">
       <SettingsIntro
         eyebrow={t(strings.settings.tabHandoffRules)}
         title={t(strings.handoffRules.title)}

@@ -119,7 +119,7 @@ export default function SnippetsPanel() {
   };
 
   return (
-    <SettingsList data-testid="snippets-panel">
+    <SettingsList layout="aligned" variant="flush" data-testid="snippets-panel">
       <SettingsIntro
         eyebrow={t(strings.snippets.settings.eyebrow)}
         title={t(strings.snippets.settings.title)}

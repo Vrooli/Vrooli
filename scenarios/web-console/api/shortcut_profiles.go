@@ -61,8 +61,9 @@ type ShortcutProfile struct {
 
 // ShortcutProfileStore manages shortcut profiles in memory.
 type ShortcutProfileStore struct {
-	mu       sync.RWMutex
-	profiles map[string]*ShortcutProfile
+	mu          sync.RWMutex
+	profiles    map[string]*ShortcutProfile
+	preferences map[string]AgentPreferences
 }
 
 // defaultShortcuts are the built-in shortcuts per PRD (OT-P0-006).
@@ -219,7 +220,8 @@ var legacyDefaultShortcutSets = [][]ShortcutEntry{
 func NewShortcutProfileStore() *ShortcutProfileStore {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	store := &ShortcutProfileStore{
-		profiles: make(map[string]*ShortcutProfile),
+		profiles:    make(map[string]*ShortcutProfile),
+		preferences: make(map[string]AgentPreferences),
 	}
 	store.profiles["default"] = &ShortcutProfile{
 		ID:        "default",
@@ -317,6 +319,9 @@ func (s *ShortcutProfileStore) Delete(_ context.Context, id string) bool {
 		return false
 	}
 	delete(s.profiles, id)
+	// Keep only the revision tombstone: a delayed writer for a deleted profile
+	// must not acquire a newly created profile with the same ID.
+	s.preferences[id] = AgentPreferences{ProfileID: id, Revision: s.preferences[id].Revision + 1}
 	return true
 }
 
@@ -326,12 +331,15 @@ func (s *ShortcutProfileStore) Delete(_ context.Context, id string) bool {
 func (s *ShortcutProfileStore) Effective(_ context.Context) EffectiveShortcuts {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.effectiveLocked()
+}
 
+func (s *ShortcutProfileStore) effectiveLocked() EffectiveShortcuts {
 	var best *ShortcutProfile
 	bestPriority := 0
 	for _, p := range s.profiles {
 		pri := scopePriority[p.Scope]
-		if pri > bestPriority {
+		if pri > bestPriority || (pri == bestPriority && best != nil && p.ID < best.ID) {
 			bestPriority = pri
 			best = p
 		}

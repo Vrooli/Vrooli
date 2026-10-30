@@ -634,8 +634,7 @@ export default function SessionManagementSection({
 
   return (
     <>
-      <SettingsList
-        variant="auto"
+      <SettingsList layout="aligned" variant="flush"
         density={isMobile ? "compact" : "comfortable"}
         style={{
           "--rcl-settings-section-gap": isMobile ? "1.25rem" : undefined,

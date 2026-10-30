@@ -90,6 +90,13 @@ react-component-library versions show "<component-id>" 0.1.0
 react-component-library components ingest web-console ui/src/components/DrawerShell.tsx drawer-shell --slot ui-pattern
 ```
 
+`ingest` creates a new asset as a draft only (`<version>-draft.1`, default
+`0.1.0`), with no release; the first release is made by `draft-publish`, so it
+passes the publish checks and gets a provenance record like any other release.
+Re-harvesting an existing asset drafts the next patch unless `--version` names a
+newer release. `--slot` must be `ui-primitive`, `ui-pattern` or `layout-nav`;
+anything else is refused before files are written.
+
 Use `draft-begin`, edit a temporary copy of its returned draft source path,
 and submit it through `content-set`; `draft-publish` validates and publishes
 that mutable draft. The Git-tracked library is the canonical source; SQLite
