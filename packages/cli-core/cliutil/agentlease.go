@@ -126,3 +126,20 @@ func reportClaimOverlaps(ctx context.Context, request AgentLaunchRequest) []Clai
 	}
 	return holders
 }
+
+// AgentSessionBindingProofVersion versions the control-plane proof shared with
+// Agent Manager. A proof describes a verified host binding, not a credential.
+const AgentSessionBindingProofVersion = 2
+
+// AgentSessionBindingProof distinguishes the attached run's immutable harness
+// anchor from the actual host lease key. They can differ for existing launches.
+type AgentSessionBindingProof struct {
+	ProofVersion        int            `json:"proof_version"`
+	RunID               string         `json:"run_id"`
+	HarnessSessionID    string         `json:"harness_session_id"`
+	LeaseSessionID      string         `json:"lease_session_id"`
+	WebConsoleSessionID string         `json:"web_console_session_id"`
+	HarnessKind         string         `json:"harness_kind"`
+	OwnerKind           string         `json:"owner_kind"`
+	Binding             ProcessBinding `json:"binding"`
+}

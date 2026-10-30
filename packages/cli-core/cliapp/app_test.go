@@ -234,6 +234,8 @@ func TestAppUnknownCommandChecksFreshnessBeforeReportingAbsence(t *testing.T) {
 	var reexecArgs []string
 	stale := &cliutil.StaleChecker{
 		AppName:          "demo",
+		InstallKind:      "scenario",
+		InstallName:      "demo",
 		BuildFingerprint: "installed-old",
 		BuildSourceRoot:  sourceRoot,
 		FingerprintFunc: func(cliutil.FreshnessSpec) (string, error) {
@@ -280,6 +282,8 @@ func TestAppUnknownSubcommandChecksFreshnessBeforeReportingAbsence(t *testing.T)
 	var reexecArgs []string
 	stale := &cliutil.StaleChecker{
 		AppName:          "demo",
+		InstallKind:      "scenario",
+		InstallName:      "demo",
 		BuildFingerprint: "installed-old",
 		BuildSourceRoot:  sourceRoot,
 		FingerprintFunc: func(cliutil.FreshnessSpec) (string, error) {
@@ -325,6 +329,8 @@ func TestAppKnownNonAPISubcommandChecksFreshnessBeforeDispatch(t *testing.T) {
 	var reexecArgs []string
 	stale := &cliutil.StaleChecker{
 		AppName:          "demo",
+		InstallKind:      "resource",
+		InstallName:      "demo",
 		BuildFingerprint: "installed-old",
 		BuildSourceRoot:  sourceRoot,
 		FingerprintFunc: func(cliutil.FreshnessSpec) (string, error) {

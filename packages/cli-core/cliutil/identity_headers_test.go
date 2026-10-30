@@ -35,6 +35,7 @@ func TestInvocationHeadersOmitAbsentIdentity(t *testing.T) {
 }
 
 func TestInvocationHeadersCarryClaudeHarnessObservation(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "")
 	t.Setenv(EnvClaudeCodeSessionID, "claude-session-1")
 	t.Setenv(EnvCodexThreadID, "codex-thread-ignored")
 	headers := InvocationHeaders("plan-manager", "plans create")()

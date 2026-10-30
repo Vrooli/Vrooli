@@ -25,7 +25,7 @@ func testMessageDescriptor(t *testing.T) protoreflect.MessageDescriptor {
 		Name: strptr("test.proto"), Package: strptr("test"), Syntax: strptr("proto3"),
 		MessageType: []*descriptorpb.DescriptorProto{
 			{Name: strptr("Envelope"), Field: []*descriptorpb.FieldDescriptorProto{{Name: strptr("role"), JsonName: strptr("role"), Number: int32ptr(1), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}}},
-			{Name: strptr("Request"), Field: []*descriptorpb.FieldDescriptorProto{{Name: strptr("request"), JsonName: strptr("request"), Number: int32ptr(1), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE), TypeName: strptr(".test.Envelope")}, {Name: strptr("query"), JsonName: strptr("query"), Number: int32ptr(2), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}, {Name: strptr("tags"), JsonName: strptr("tags"), Number: int32ptr(3), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}}},
+			{Name: strptr("Request"), Field: []*descriptorpb.FieldDescriptorProto{{Name: strptr("request"), JsonName: strptr("request"), Number: int32ptr(1), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE), TypeName: strptr(".test.Envelope")}, {Name: strptr("query"), JsonName: strptr("query"), Number: int32ptr(2), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}, {Name: strptr("tags"), JsonName: strptr("tags"), Number: int32ptr(3), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_REPEATED), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_STRING)}, {Name: strptr("require_assertion"), JsonName: strptr("requireAssertion"), Number: int32ptr(4), Label: labelptr(descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL), Type: typeptr(descriptorpb.FieldDescriptorProto_TYPE_BOOL)}}},
 		},
 	}}}
 	files, err := protodesc.NewFiles(set)
@@ -320,5 +320,56 @@ func TestRepeatedFlagHydratesScalarList(t *testing.T) {
 	values := message.Get(field).List()
 	if values.Len() != 2 || values.Get(0).String() != "alpha" || values.Get(1).String() != "beta" {
 		t.Fatalf("repeated values = %v, want alpha,beta", values)
+	}
+}
+
+func TestParsedBooleanFlagsHydrateProtoRequest(t *testing.T) {
+	descriptor := testMessageDescriptor(t)
+	for _, tc := range []struct {
+		name           string
+		args           []string
+		localOnly      bool
+		required       bool
+		want           bool
+		wantParseError bool
+	}{
+		{name: "bare flag", args: []string{"--require-assertion"}, want: true},
+		{name: "omitted flag"},
+		{name: "local-only flag", args: []string{"--require-assertion"}, localOnly: true},
+		{name: "required bare flag", args: []string{"--require-assertion"}, required: true, want: true},
+		{name: "required omitted flag", required: true, wantParseError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			schema := ArgSchema{Flags: []Flag{
+				{Name: "require-assertion", Bool: true, LocalOnly: tc.localOnly, Required: tc.required},
+				{Name: "query"},
+				{Name: "tag", Repeated: true, Bind: FlagBind{Field: "tags"}},
+			}}
+			args := append(append([]string{}, tc.args...), "--query", "public", "--tag", "alpha", "--tag", "beta")
+			ctx, err := parseArgs(schema, args, nil, nil, nil)
+			if tc.wantParseError {
+				if err == nil {
+					t.Fatal("required Boolean flag omission was accepted")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parse arguments: %v", err)
+			}
+			message := dynamicpb.NewMessage(descriptor)
+			if err := hydrateProtoRequest(ctx, descriptor, message, nil); err != nil {
+				t.Fatalf("hydrate parsed arguments: %v", err)
+			}
+			if got := message.Get(descriptor.Fields().ByName("require_assertion")).Bool(); got != tc.want {
+				t.Fatalf("require_assertion = %t, want %t", got, tc.want)
+			}
+			if got := message.Get(descriptor.Fields().ByName("query")).String(); got != "public" {
+				t.Fatalf("query = %q, want public", got)
+			}
+			tags := message.Get(descriptor.Fields().ByName("tags")).List()
+			if tags.Len() != 2 || tags.Get(0).String() != "alpha" || tags.Get(1).String() != "beta" {
+				t.Fatalf("tags = %v, want alpha,beta", tags)
+			}
+		})
 	}
 }

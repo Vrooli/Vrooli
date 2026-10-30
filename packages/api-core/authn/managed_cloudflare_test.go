@@ -5,7 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/cloudflareaccess"
 	"github.com/vrooli/api-core/identity"
@@ -27,6 +29,56 @@ func TestManagedCloudflareResolvesOnlyPresentedProof(t *testing.T) {
 	_, err = p.VerifyRequest(r.Context(), r)
 	if f, ok := identity.FailureFromError(err); !ok || f.Class != identity.FailureUnavailable || calls != 1 {
 		t.Fatalf("binding outage did not fail closed: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestManagedCloudflareConcurrentBindingOutageFailsClosedWithoutSerialRetries(t *testing.T) {
+	p := NewManagedCloudflareProvider("web-console")
+	started := make(chan struct{})
+	release := make(chan struct{})
+	calls := 0
+	p.Resolve = func(context.Context, string) (cloudflareaccess.Config, error) {
+		calls++
+		if calls == 1 {
+			close(started)
+			<-release
+		}
+		return cloudflareaccess.Config{}, errors.New("binding unavailable")
+	}
+	r := httptest.NewRequest(http.MethodPost, "/sessions", nil)
+	r.Header.Set("Cf-Access-Jwt-Assertion", "offered-proof")
+	const requests = 4
+	results := make(chan error, requests)
+	var wg sync.WaitGroup
+	wg.Add(requests)
+	for i := 0; i < requests; i++ {
+		go func() {
+			defer wg.Done()
+			_, err := p.VerifyRequest(r.Context(), r)
+			results <- err
+		}()
+	}
+	<-started
+	close(release)
+	wg.Wait()
+	close(results)
+	for err := range results {
+		if failure, ok := identity.FailureFromError(err); !ok || failure.Class != identity.FailureUnavailable {
+			t.Fatalf("binding outage granted or changed authentication result: %v", err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("concurrent failed binding lookups = %d, want 1", calls)
+	}
+
+	// Retry after the short negative cache expires; an outage must not become
+	// a permanent authentication state.
+	p.mu.Lock()
+	p.retryAfter = time.Now().Add(-time.Second)
+	p.mu.Unlock()
+	_, err := p.VerifyRequest(r.Context(), r)
+	if failure, ok := identity.FailureFromError(err); !ok || failure.Class != identity.FailureUnavailable || calls != 2 {
+		t.Fatalf("binding retry did not fail closed and recheck: calls=%d err=%v", calls, err)
 	}
 }
 

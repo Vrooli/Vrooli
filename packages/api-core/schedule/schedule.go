@@ -21,11 +21,17 @@ type Ticker interface {
 	Reset(time.Duration)
 }
 
+// NowSource is the minimal wall-clock observation seam. Packages that only
+// need timestamps can depend on this contract without requiring timer control.
+type NowSource interface {
+	Now() time.Time
+}
+
 // Clock is the repository-wide in-process time seam. Implementations must
 // return wall-clock timestamps from Now and must preserve monotonic clock
 // readings when they return timestamps suitable for elapsed-time calculation.
 type Clock interface {
-	Now() time.Time
+	NowSource
 	NewTimer(time.Duration) Timer
 	NewTicker(time.Duration) Ticker
 	Sleep(time.Duration)

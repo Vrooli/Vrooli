@@ -350,7 +350,8 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 
 	// The scope is named from the harness session id before attachment, so the
 	// lease and cgroup use a stable name whether or not a run id is minted.
-	scope := agentScopeName("", harnessSessionID(harnessKind))
+	hostSessionID := harnessSessionID(harnessKind)
+	scope := agentScopeName("", hostSessionID)
 	containment, containmentSource := agentContainmentFn()
 	var report containmentReport
 	// Process-bound grants are Linux-only. Other platforms retain their child
@@ -366,7 +367,7 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	if request.RequireNativeIdentity && protectedToken != "" {
 		attach = codingAgentAttachment{token: protectedToken}
 	} else {
-		attach = attachCodingAgent(ctx, request, harnessKind, willExec || command != "")
+		attach = attachCodingAgent(ctx, request, harnessKind, hostSessionID, willExec || command != "")
 	}
 	if request.RequireNativeIdentity {
 		if attach.token == "" {
@@ -397,7 +398,7 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	// agent), so it relies on that expiry alone.
 	launchResult.ClaimOverlaps = reportClaimOverlaps(ctx, request)
 	stopLease, recorded := recordEditorLease(ctx, EditorLeaseRecord{
-		SessionID: sessionIDForLease(attach.runID, harnessKind), Harness: harnessKind, Agent: request.Agent, PID: os.Getpid(),
+		SessionID: hostSessionID, Harness: harnessKind, Agent: request.Agent, PID: os.Getpid(),
 		WorkingDir: launchWorkingDir(request), Scope: scope, Claims: request.Claims,
 	}, !willExec)
 	launchResult.LeaseRecorded = recorded
@@ -542,16 +543,6 @@ func runInheritedSession(ctx context.Context, request AgentLaunchRequest, path, 
 	return result, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 }
 
-// sessionIDForLease is the run id when agent-manager minted one, else the
-// harness session id the launcher already reports; the scope name is derived
-// from the same choice so the lease and the cgroup agree.
-func sessionIDForLease(runID, harnessKind string) string {
-	if id := strings.TrimSpace(runID); id != "" {
-		return id
-	}
-	return harnessSessionID(harnessKind)
-}
-
 // launchWorkingDir is the already-normalized tree the session edits. Launches
 // pass through ResolveLaunchContext before attribution, so an empty value here
 // would be a launcher bug rather than an expected fallback.
@@ -612,7 +603,7 @@ func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
 // process's pid will still be the agent's pid afterwards. Sending it turns
 // agent-manager's liveness check into a single stat of /proc/<pid> instead of a
 // scan of every process environment.
-func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind string, reportPID bool) codingAgentAttachment {
+func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind, sessionID string, reportPID bool) codingAgentAttachment {
 	// An identity already in the environment means something else already owns a
 	// run for this work. agent-manager mints one per run and scrubs inherited
 	// ones precisely so ownership is unambiguous, so the right move here is to
@@ -629,7 +620,6 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 		return codingAgentAttachment{failure: "bad base URL"}
 	}
 
-	sessionID := harnessSessionID(harnessKind)
 	body := map[string]any{
 		"harness_kind":       harnessKind,
 		"harness_session_id": sessionID,

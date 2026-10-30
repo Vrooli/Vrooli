@@ -67,7 +67,11 @@ func WithGoReplaceFreshnessInputs(spec FreshnessSpec) FreshnessSpec {
 	candidates := map[string]bool{}
 	consider := func(path string) {
 		for _, base := range declared {
-			if pathWithin(base, path) || pathWithin(path, base) {
+			if pathWithin(base, path) {
+				return
+			}
+			protoStamp := filepath.Join(contextRoot, filepath.FromSlash(sharedProtoArtifactFreshnessInput))
+			if filepath.Clean(base) == filepath.Clean(protoStamp) && pathWithin(path, base) {
 				return
 			}
 		}
@@ -96,7 +100,14 @@ func WithGoReplaceFreshnessInputs(spec FreshnessSpec) FreshnessSpec {
 				if pkgDir != target {
 					consider(pkgDir)
 				}
-			} else if !representedByDeclared(declared, target) {
+				// A local replacement below ContextRoot (for example a scenario's
+				// sibling API module) is not represented by its imported package
+				// directories. Its go.mod still participates in the module graph, so
+				// retain that metadata without fingerprinting the entire module tree.
+				if target != sourceRoot {
+					consider(filepath.Join(target, "go.mod"))
+				}
+			} else if !representedByDeclared(contextRoot, declared, target) {
 				consider(pkgDir)
 				consider(filepath.Join(target, "go.mod"))
 			}
@@ -275,13 +286,17 @@ func declaredInputBases(contextRoot string, inputs []string) []string {
 	return bases
 }
 
-// representedByDeclared reports whether a declared input lies inside a replace
-// target. That input is the module's chosen representation (the whole module,
-// or the proto artifact stamp for the generated proto tree), so none of the
-// module's packages are added beside it.
-func representedByDeclared(declared []string, target string) bool {
+// representedByDeclared reports whether a declared directory covers a replace
+// target, or the canonical proto stamp represents its generated module. An
+// unrelated explicit file inside a module does not replace the imported Go
+// package closure.
+func representedByDeclared(contextRoot string, declared []string, target string) bool {
 	for _, base := range declared {
-		if pathWithin(target, base) {
+		if pathWithin(base, target) {
+			return true
+		}
+		protoStamp := filepath.Join(contextRoot, filepath.FromSlash(sharedProtoArtifactFreshnessInput))
+		if filepath.Clean(base) == filepath.Clean(protoStamp) && pathWithin(target, base) {
 			return true
 		}
 	}

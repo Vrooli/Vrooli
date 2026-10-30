@@ -1,8 +1,10 @@
 package cliutil
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -108,10 +110,22 @@ func ParkForAwait(in ParkRequest) (*ParkResult, bool, error) {
 		return nil, false, nil
 	}
 
+	// Resolve the current ordinary baseline through the purpose-specific local
+	// broker. The inherited token may have expired while this run was waiting;
+	// the broker can refresh only this same-run baseline and cannot substitute an
+	// operation grant. A broker refusal is returned so callers use their existing
+	// inline-wait fallback rather than attempting a park with stale credentials.
+	identityToken, err := ResolveOrdinaryAgentIdentity(context.Background())
+	if err != nil {
+		return nil, true, fmt.Errorf("park: resolve ordinary run identity: %w", err)
+	}
+	if strings.TrimSpace(identityToken) == "" {
+		return nil, true, fmt.Errorf("park: ordinary run identity is unavailable")
+	}
+
 	// Resolve which run we are (the park endpoint keys off the run id in the
-	// path). The identity token is opaque client-side, so we verify it to recover
-	// the owning run id — this also confirms the token is currently valid.
-	verified, err := id.VerifyIdentity()
+	// path). Verify the exact broker-resolved token that will authorize the park.
+	verified, err := (IdentityEnv{Token: identityToken}).VerifyIdentity()
 	if err != nil {
 		return nil, true, fmt.Errorf("park: resolve run identity: %w", err)
 	}
@@ -137,13 +151,17 @@ func ParkForAwait(in ParkRequest) (*ParkResult, bool, error) {
 	body := map[string]any{
 		"producer":       in.Producer,
 		"key":            in.Key,
-		"identity_token": id.Token,
+		"identity_token": identityToken,
 	}
 	if !in.Deadline.IsZero() {
 		body["deadline_unix"] = in.Deadline.Unix()
 	}
 
-	data, err := client.Do("POST", "/api/v1/runs/"+runID+"/park", nil, body)
+	// Reuse the existing exact-credential transport so the ordinary identity
+	// used above is also the authenticated caller. Ambient operation selection
+	// must not replace it when the HTTP transport sends this self-park request.
+	parkedClient := NewAPIClient(client, nil, nil).WithPinnedAgentCredential(identityToken, ResolveOrdinaryAgentIdentity)
+	data, err := parkedClient.Request("POST", "/api/v1/runs/"+runID+"/park", nil, body)
 	if err != nil {
 		return nil, true, fmt.Errorf("park request: %w", err)
 	}

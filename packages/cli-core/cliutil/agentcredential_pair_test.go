@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -37,6 +38,64 @@ func credentialSocketResponse(t *testing.T, payload any, verifyRequest func(*htt
 	go func() { _ = server.Serve(listener) }()
 	t.Cleanup(func() { _ = server.Close() })
 	return socket
+}
+
+func credentialSocketStatus(t *testing.T, status int, body string) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "clicred-status-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	socket := filepath.Join(dir, "identity.sock")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/credential" || r.URL.Query().Get("purpose") != "local_owner_eligibility" {
+			t.Errorf("local-owner preflight did not use its exact broker purpose: %s %s", r.Method, r.URL.RequestURI())
+		}
+		if r.Header.Get(HeaderAgentIdentityToken) != "" {
+			t.Error("local-owner eligibility preflight sent an inherited identity token")
+		}
+		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
+	})}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+	return socket
+}
+
+func TestConfirmLocalOwnerEligibleRequiresLiveExplicitNoIdentity(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "")
+	for _, tc := range []struct {
+		name   string
+		socket string
+		wantOK bool
+	}{
+		{name: "explicit empty", socket: credentialSocketStatus(t, http.StatusNoContent, ""), wantOK: true},
+		{name: "identified token", socket: credentialSocketStatus(t, http.StatusOK, `{"token":"agent"}`)},
+		{name: "malformed response", socket: credentialSocketStatus(t, http.StatusOK, `{`)},
+		{name: "broker refusal", socket: credentialSocketStatus(t, http.StatusForbidden, `{"code":"refused"}`)},
+		{name: "broker unavailable", socket: filepath.Join(t.TempDir(), "missing", "identity.sock")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := confirmLocalOwnerEligible(context.Background(), tc.socket, "")
+			if tc.wantOK && err != nil {
+				t.Fatalf("explicit no-agent response refused: %v", err)
+			}
+			if !tc.wantOK && err == nil {
+				t.Fatal("absence was inferred without an explicit live no-agent response")
+			}
+			if tc.name == "broker refusal" && strings.Contains(err.Error(), "agent authorization") {
+				t.Fatalf("local-owner classification failure was presented as a grant problem: %v", err)
+			}
+		})
+	}
+	if err := confirmLocalOwnerEligible(context.Background(), credentialSocketStatus(t, http.StatusNoContent, ""), "inherited-agent"); err == nil {
+		t.Fatal("inherited identity token was treated as an ordinary owner shell")
+	}
 }
 
 func TestResolveAgentCredentialsPreservesPairAndLegacyRoles(t *testing.T) {
@@ -81,6 +140,39 @@ func TestResolveAgentCredentialsAcceptsOnlySameRunBaselineRenewal(t *testing.T) 
 	got, err := resolveAgentCredentials(context.Background(), socket, old)
 	if err != nil || got.BaselineToken != current || got.LegacyToken != "" || got.OperationToken != "" {
 		t.Fatalf("same-run ordinary renewal was not adopted as baseline-only (baseline=%t legacy=%t operation=%t) err=%v", got.BaselineToken != "", got.LegacyToken != "", got.OperationToken != "", err)
+	}
+}
+
+func TestSameRunBaselineRenewalAttenuatesExpiredOwnerDelegation(t *testing.T) {
+	now := time.Now().Unix()
+	old := ordinaryIdentityClaims{
+		RunID: "run-one", Subject: "owner-one", Scopes: []string{"prompt-manager:write"},
+		ProfileKey: "codex", IssuedAt: now - 8*60*60, ExpiresAt: now - 4*60*60,
+		Meta: map[string]string{"execution_mode": "attached", "harness_kind": "codex", "harness_session": "same"},
+	}
+	baseline := old
+	baseline.Scopes = []string{}
+	baseline.IssuedAt = now - 60
+	baseline.ExpiresAt = now + 60*60
+	if !isSameRunBaselineRenewal(renewalClientTestToken(old), renewalClientTestToken(baseline)) {
+		t.Fatal("same-run baseline must preserve attribution while dropping expired capabilities")
+	}
+	for name, change := range map[string]func(*ordinaryIdentityClaims){
+		"retained capability": func(c *ordinaryIdentityClaims) { c.Scopes = old.Scopes },
+		"changed owner":       func(c *ordinaryIdentityClaims) { c.Subject = "owner-two" },
+		"removed owner":       func(c *ordinaryIdentityClaims) { c.Subject = "" },
+		"changed task":        func(c *ordinaryIdentityClaims) { c.TaskID = "other" },
+		"changed workspace":   func(c *ordinaryIdentityClaims) { c.WorkspaceID = "other" },
+		"changed scope path":  func(c *ordinaryIdentityClaims) { c.ScopePath = "/other" },
+		"changed profile":     func(c *ordinaryIdentityClaims) { c.ProfileKey = "other" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			replacement := baseline
+			change(&replacement)
+			if isSameRunBaselineRenewal(renewalClientTestToken(old), renewalClientTestToken(replacement)) {
+				t.Fatal("renewal accepted changed attribution or capabilities")
+			}
+		})
 	}
 }
 

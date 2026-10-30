@@ -11,11 +11,12 @@ import (
 
 func TestExtractSemver(t *testing.T) {
 	cases := map[string]string{
-		"1.15.7":                "1.15.7",
-		"v1.17.9":               "1.17.9",
-		"codex-cli 0.131.0":     "0.131.0",
-		"2.1.153 (Claude Code)": "2.1.153",
-		"no version here":       "",
+		"1.15.7":                 "1.15.7",
+		"v1.17.9":                "1.17.9",
+		"codex-cli 0.131.0":      "0.131.0",
+		"codex-cli 0.131.0-rc.1": "0.131.0-rc.1",
+		"2.1.153 (Claude Code)":  "2.1.153",
+		"no version here":        "",
 	}
 	for in, want := range cases {
 		if got := ExtractSemver(in); got != want {
@@ -36,6 +37,10 @@ func TestCompare(t *testing.T) {
 		{"", "1.17.9", StatusUnknown},
 		{"1.17.9", "", StatusUnknown},
 		{"2.1.9", "2.1.153", StatusBehind}, // numeric, not lexical
+		{"1.17.9-rc.1", "1.17.9", StatusUnknown},
+		{"1.17.9", "1.17.9-beta.1", StatusUnknown},
+		{"garbage", "1.17.9", StatusUnknown},
+		{"1.17.9+build.4", "1.17.9", StatusUpToDate},
 	}
 	for _, c := range cases {
 		if got := Compare(c.installed, c.latest); got != c.want {
@@ -78,8 +83,28 @@ func TestCheckJSONBehind(t *testing.T) {
 	if rep.Installed != "1.15.7" || rep.Latest != "1.17.9" || rep.Status != StatusBehind {
 		t.Errorf("unexpected report: %+v", rep)
 	}
+	if rep.CheckedAt.IsZero() || rep.OS == "" || rep.Arch == "" {
+		t.Errorf("missing observation metadata: %+v", rep)
+	}
 	if rep.Source.Kind != "github" || rep.Source.ID != "sst/opencode" {
 		t.Errorf("unexpected source: %+v", rep.Source)
+	}
+}
+
+func TestCheckReportsProbedExecutable(t *testing.T) {
+	h, out, _ := newTestHandlers("", "1.17.9", nil, nil)
+	h.InstalledProbe = func(context.Context, []string) (string, string, string, error) {
+		return "1.15.7", "/example/shims/opencode", "/example/bin/opencode", nil
+	}
+	if err := h.Check([]string{"--json"}); err != nil {
+		t.Fatal(err)
+	}
+	var rep Report
+	if err := json.Unmarshal(out.Bytes(), &rep); err != nil {
+		t.Fatal(err)
+	}
+	if rep.ExecutablePath != "/example/bin/opencode" || rep.CommandPath != "/example/shims/opencode" || rep.Status != StatusBehind {
+		t.Fatalf("unexpected report: %+v", rep)
 	}
 }
 

@@ -81,6 +81,7 @@ func TestDetermineAPIBaseIgnoresGenericBaseEnvInAgentContext(t *testing.T) {
 }
 
 func TestDetermineAPIBaseKeepsGenericBaseEnvOutsideAgentContext(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "")
 	t.Setenv("API_BASE_URL", "http://generic.example")
 
 	base := DetermineAPIBase(APIBaseOptions{
@@ -92,6 +93,7 @@ func TestDetermineAPIBaseKeepsGenericBaseEnvOutsideAgentContext(t *testing.T) {
 }
 
 func TestAPIBaseOverrideWarningNamesDisagreeingGenericVariable(t *testing.T) {
+	t.Setenv(EnvIdentityToken, "")
 	t.Setenv("API_BASE_URL", "http://wrong.example")
 	warning := APIBaseOverrideWarning(APIBaseOptions{
 		EnvVars:      []string{"API_BASE_URL"},

@@ -18,6 +18,7 @@ import { createProxyMiddleware, proxyToApi, proxyWebSocketUpgrade } from './prox
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
+import { APP_NOTIFICATIONS_PREFIX, createAppNotificationsRouter, resolveAppNotifications } from './app-notifications.js'
 import { assertLifecycleManagedUI } from './lifecycle.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
 
@@ -532,6 +533,13 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     })
   })
 
+  // Built-in app notifications (opt-in through notifications.json). Mounted
+  // before the body parser so request bodies reach the hub unchanged.
+  const appNotifications = resolveAppNotifications(options.appNotifications, serviceName)
+  if (appNotifications) {
+    app.use(APP_NOTIFICATIONS_PREFIX, createAppNotificationsRouter(appNotifications))
+  }
+
   // API proxy middleware
   app.use('/api', createProxyMiddleware({
     apiPort: parsedApiPort,
@@ -623,7 +631,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
     // CRITICAL: Skip proxy routes - they should be handled by custom route handlers
     // Proxy routes contain '/proxy' in the path (e.g., /apps/scenario/proxy/*)
-    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/')) {
+    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/') || requestPath.startsWith(`${APP_NOTIFICATIONS_PREFIX}/`)) {
       // Don't serve index.html for proxy routes - let them 404 or be handled by custom routes
       if (verbose) {
         console.log(`[server] Skipping SPA fallback for proxy route: ${requestPath}`)

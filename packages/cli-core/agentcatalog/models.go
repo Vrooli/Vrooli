@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 const ModelDiscoverySchemaVersion = "v1"
@@ -143,32 +145,9 @@ func discoverCodexModels(ctx context.Context) (LiveModelCatalog, error) {
 	return catalog, nil
 }
 
-// resolveRunnerBinary follows the same managed-runner rule used by Agent
-// Manager: a Vrooli shim is a control-plane wrapper, not the executable whose
-// model surface should be measured. Prefer the installed system binary when
-// PATH resolves through .vrooli/shims so discovery and launch observe the
-// same runner.
+// resolveRunnerBinary shares the operator launcher's selected installation.
 func resolveRunnerBinary(command string) (string, error) {
-	path, err := exec.LookPath(command)
-	if err != nil {
-		return "", err
-	}
-	if command != "codex" {
-		return path, nil
-	}
-	parts := strings.Split(filepath.ToSlash(filepath.Clean(path)), "/")
-	for i, part := range parts {
-		if part != ".vrooli" || i+1 >= len(parts) || parts[i+1] != "shims" {
-			continue
-		}
-		for _, candidate := range []string{filepath.Join("/usr/bin", command), filepath.Join("/bin", command)} {
-			if info, statErr := os.Stat(candidate); statErr == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
-				return candidate, nil
-			}
-		}
-		break
-	}
-	return path, nil
+	return cliutil.ResolveAgentBinary(command)
 }
 
 func runnerVersion(ctx context.Context, binary string) string {

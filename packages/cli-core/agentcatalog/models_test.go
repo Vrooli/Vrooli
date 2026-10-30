@@ -120,21 +120,20 @@ func TestResolveRunnerBinaryUsesTheLaunchBinaryBehindAVrooliShim(t *testing.T) {
 	if err := os.WriteFile(shim, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("PATH", shimDir)
-	got, err := resolveRunnerBinary("codex")
-	if err != nil {
+	binDir := filepath.Join(root, ".local", "bin")
+	if err := os.MkdirAll(binDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	want := shim
-	for _, candidate := range []string{"/usr/bin/codex", "/bin/codex"} {
-		if info, statErr := os.Stat(candidate); statErr == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0 {
-			want = candidate
-			break
-		}
+	real := filepath.Join(binDir, "codex")
+	if err := os.WriteFile(real, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
 	}
-	if got != want {
-		t.Fatalf("resolved=%q want=%q", got, want)
+	t.Setenv("PATH", shimDir+string(os.PathListSeparator)+binDir)
+	got, err := resolveRunnerBinary("codex")
+	if err != nil || got != real {
+		t.Fatalf("resolved=%q err=%v want=%q", got, err, real)
 	}
+
 }
 
 func TestDiscoverModelsMarksCompatibilityCacheNonAuthoritative(t *testing.T) {

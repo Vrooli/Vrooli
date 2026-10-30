@@ -28,6 +28,10 @@ type ManagedCloudflareProvider struct {
 	mu       sync.Mutex
 	verifier *cloudflareaccess.Verifier
 	until    time.Time
+	// A failed metadata lookup cannot authorize a caller. Briefly retaining
+	// that failure lets concurrent requests fail closed without each waiting
+	// for another remote lookup while this mutex is held.
+	retryAfter time.Time
 }
 
 func NewManagedCloudflareProvider(resource string) *ManagedCloudflareProvider {
@@ -67,6 +71,7 @@ func (p *ManagedCloudflareProvider) CheckBindingReachable(ctx context.Context) e
 	}
 	p.mu.Lock()
 	p.verifier, p.until = verifier, time.Now().Add(5*time.Minute)
+	p.retryAfter = time.Time{}
 	p.mu.Unlock()
 	return nil
 }
@@ -85,21 +90,28 @@ func (p *ManagedCloudflareProvider) VerifyRequest(ctx context.Context, r *http.R
 	p.mu.Lock()
 	verifier := p.verifier
 	if verifier == nil || !time.Now().Before(p.until) {
+		if time.Now().Before(p.retryAfter) {
+			p.mu.Unlock()
+			return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, p.Source())
+		}
 		resolve := p.Resolve
 		if resolve == nil {
 			resolve = resolveManagedCloudflareBinding
 		}
 		cfg, err := resolve(ctx, p.Resource)
 		if err != nil {
+			p.retryAfter = time.Now().Add(5 * time.Second)
 			p.mu.Unlock()
 			return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, p.Source())
 		}
 		verifier, err = cloudflareaccess.NewVerifier(cfg)
 		if err != nil {
+			p.retryAfter = time.Now().Add(5 * time.Second)
 			p.mu.Unlock()
 			return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, p.Source())
 		}
 		p.verifier, p.until = verifier, time.Now().Add(5*time.Minute)
+		p.retryAfter = time.Time{}
 	}
 	p.mu.Unlock()
 	return verifier.VerifyRequest(ctx, r)

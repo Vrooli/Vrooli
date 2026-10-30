@@ -207,6 +207,13 @@ func (t ForwardingTransport) RoundTrip(request *http.Request) (*http.Response, e
 		return base.RoundTrip(request)
 	}
 	if token == "" {
+		// A CLI client can run through this server-owned transport because the
+		// CLI and API modules both use http.DefaultTransport. Preserve only the
+		// pair cli-core resolved for this exact request; unverified headers keep
+		// the existing stripping behavior below.
+		if cliutil.HasResolvedAgentCredentialPair(request) {
+			return base.RoundTrip(request)
+		}
 		if request.Header.Get(cliutil.HeaderAgentOperationToken) == "" {
 			return base.RoundTrip(request)
 		}
@@ -311,6 +318,24 @@ func (CLIUtilVerifier) Verify(token string) (*cliutil.VerifyResult, error) {
 
 func (CLIUtilVerifier) VerifyPair(ctx context.Context, baselineToken, operationToken string) (*cliutil.VerifyPairResult, error) {
 	return (cliutil.IdentityEnv{Token: baselineToken}).VerifyIdentityPair(ctx, operationToken)
+}
+
+// VerifyOwnWebConsoleSession rechecks the verified inbound token with the
+// authority's optional session-owner proof. Ambient environment is never used.
+func VerifyOwnWebConsoleSession(ctx context.Context) (string, error) {
+	p := FromContext(ctx)
+	token := ForwardedIdentityToken(ctx)
+	if !p.IsVerifiedAgent() || token == "" {
+		return "", nil
+	}
+	result, err := (cliutil.IdentityEnv{Token: token}).VerifyIdentityWithSessionBinding(ctx)
+	if err != nil {
+		return "", err
+	}
+	if result == nil || !result.Valid || result.Claims == nil || result.Claims.RunID != p.RunID {
+		return "", nil
+	}
+	return strings.TrimSpace(result.Claims.Meta["verified_web_console_session_id"]), nil
 }
 
 // OperationProof is a freshly owner-verified supplemental grant. It remains
@@ -420,9 +445,11 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			provenance.ProfileKey = strings.TrimSpace(result.Claims.ProfileKey)
 			provenance.ScopePath = strings.TrimSpace(result.Claims.ScopePath)
 			// Claims.Meta is part of the verified identity response. These optional
-			// execution coordinates are never read from caller-controlled headers.
-			provenance.WorkflowExecutionID = strings.TrimSpace(result.Claims.Meta["workflow_execution_id"])
-			provenance.WorkflowNodeID = strings.TrimSpace(result.Claims.Meta["workflow_node_id"])
+			// execution coordinates use Agent Manager's existing signed metadata keys;
+			// its verifier checks retained workflow membership. Caller headers and
+			// snake-case observation labels cannot establish this ownership.
+			provenance.WorkflowExecutionID = strings.TrimSpace(result.Claims.Meta["workflowExecutionId"])
+			provenance.WorkflowNodeID = strings.TrimSpace(result.Claims.Meta["workflowNodeId"])
 			if raw := strings.TrimSpace(result.Claims.Meta["attempt"]); raw != "" {
 				if attempt, parseErr := strconv.ParseUint(raw, 10, 32); parseErr == nil {
 					provenance.Attempt = uint32(attempt)

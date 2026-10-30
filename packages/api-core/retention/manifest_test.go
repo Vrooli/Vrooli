@@ -188,6 +188,22 @@ func TestParseManifestStorageEntryDesugarsAndRejectsConflicts(t *testing.T) {
 	}
 }
 
+// A token- or home-rooted storage path is outside the class root. The class-root
+// engine must leave it to its owner and storage-manager instead of pruning a
+// literal "$USER_HOME/..." directory under the scenario's data root.
+func TestParseManifestSkipsTokenAndHomeRootedEntryPaths(t *testing.T) {
+	for _, path := range []string{"$USER_HOME/.vrooli/plan-artifacts", "$USER_DATA_DIR/vrooli/x/retired", "~/.vrooli/x"} {
+		manifest := `{"storage":{"entries":{"external":{"rung":"owned","kind":"dir","class":"data","path":"` + path + `","regenerable":false,"budget":{"max_bytes":"60GiB","max_age":"30d"}}}}}`
+		specs, err := ParseManifest([]byte(manifest))
+		if err != nil {
+			t.Fatalf("%s: ParseManifest: %v", path, err)
+		}
+		if len(specs) != 0 {
+			t.Fatalf("%s: class-root engine must not own an external path, got %+v", path, specs)
+		}
+	}
+}
+
 func TestParseManifestCoalescesCompatibleSameNameDeclarations(t *testing.T) {
 	manifest := `{"storage":{"entries":{"phase_cache":{"rung":"owned","kind":"dir","class":"cache","budget":{"max_age":"7d","max_bytes":"2GiB","rationale":"Canonical owner budget."}}}},"retention":{"budgets":{"phase_cache":{"target":{"kind":"directory","class":"cache","path":"."},"max_age":"7d","max_bytes":"2GiB","pruner":"builtin","rationale":"Compatible legacy declaration."}}}}`
 	specs, err := ParseManifest([]byte(manifest))
@@ -352,5 +368,57 @@ func TestConfigureBudgetRequiresPositiveOverrides(t *testing.T) {
 	got, err = ConfigureBudget(initial, "", "")
 	if err != nil || got != initial {
 		t.Fatalf("defaults changed: %+v %v", got, err)
+	}
+}
+
+// A budget on non-regenerable data is an alarm, never a builtin age or byte
+// pruner: deleting the oldest files of a durable data root to meet a ceiling
+// would destroy the state the budget exists to watch.
+func TestParseManifestBudgetOnDurableEntryIsAlarmOnly(t *testing.T) {
+	entry := func(regenerable, reclaim string) string {
+		return `{"storage":{"entries":{"data":{"rung":"owned","kind":"dir","class":"data"` + regenerable + reclaim +
+			`,"budget":{"max_bytes":"5GiB","max_age":"30d"}}}}}`
+	}
+	cases := []struct {
+		name     string
+		manifest string
+		want     []PrunerMode
+	}{
+		{"durable builtin", entry(`,"regenerable":false`, ""), nil},
+		{"durable explicit builtin", entry(`,"regenerable":false`, `,"reclaim":{"pruner":"builtin"}`), nil},
+		{"durable owner operation", entry(`,"regenerable":false`, `,"reclaim":{"operation":"/api/v1/storage/reclaim"}`), nil},
+		{"durable custom", entry(`,"regenerable":false`, `,"reclaim":{"pruner":"custom"}`), []PrunerMode{PrunerCustom}},
+		{"regenerable builtin", entry(`,"regenerable":true`, ""), []PrunerMode{PrunerBuiltin}},
+		{"regenerable custom", entry(`,"regenerable":true`, `,"reclaim":{"pruner":"custom"}`), []PrunerMode{PrunerCustom}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			specs, err := ParseManifest([]byte(tc.manifest))
+			if err != nil {
+				t.Fatalf("ParseManifest: %v", err)
+			}
+			if len(specs) != len(tc.want) {
+				t.Fatalf("specs = %+v, want modes %v", specs, tc.want)
+			}
+			for i, spec := range specs {
+				if spec.Mode != tc.want[i] {
+					t.Fatalf("spec %d mode = %q, want %q", i, spec.Mode, tc.want[i])
+				}
+			}
+		})
+	}
+}
+
+// An explicit retention budget is the owner choosing a pruner; marking the
+// storage entry durable does not silently drop it.
+func TestParseManifestKeepsExplicitBudgetBesideDurableEntry(t *testing.T) {
+	manifest := `{"storage":{"entries":{"events":{"rung":"owned","kind":"dir","class":"data","subpath":"events","regenerable":false,"budget":{"max_bytes":"1GiB"}}}},` +
+		`"retention":{"budgets":{"events":{"target":{"kind":"directory","class":"data","path":"events"},"max_age":"7d"}}}}`
+	specs, err := ParseManifest([]byte(manifest))
+	if err != nil {
+		t.Fatalf("ParseManifest: %v", err)
+	}
+	if len(specs) != 1 || specs[0].Mode != PrunerBuiltin || specs[0].Budget.MaxAge.Hours() != 168 {
+		t.Fatalf("explicit budget lost: %+v", specs)
 	}
 }

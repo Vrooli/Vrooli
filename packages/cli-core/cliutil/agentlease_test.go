@@ -55,55 +55,64 @@ func withLeaseRecorder(t *testing.T, recorder EditorLeaseRecorder) {
 // [REQ:STORM-002] The session's editor lease records the tree and containment
 // scope with the launcher's pid, independently of the narrower attach API.
 func TestLauncherRecordsWorkingDirAndScope(t *testing.T) {
-	t.Setenv(AgentManagerIdentityTokenEnv, "")
-	var attachBody map[string]any
-	var childScope string
-	var mu sync.Mutex
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/v1/runs/attach" {
-			var body map[string]any
-			_ = json.NewDecoder(r.Body).Decode(&body)
+	for _, hostID := range []string{"", "existing-host-session"} {
+		t.Run("host="+hostID, func(t *testing.T) {
+			t.Setenv(EnvCodexThreadID, hostID)
+			t.Setenv("VROOLI_HARNESS_SESSION_ID", "")
+			t.Setenv(AgentManagerIdentityTokenEnv, "")
+			var attachBody map[string]any
+			var childScope string
+			var mu sync.Mutex
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v1/runs/attach" {
+					var body map[string]any
+					_ = json.NewDecoder(r.Body).Decode(&body)
+					mu.Lock()
+					attachBody = body
+					mu.Unlock()
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{"run":{"id":"run-lease-1"},"identity_token":"safe-token"}`))
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+			recorder := &recordingLeaseRecorder{}
+			withLeaseRecorder(t, recorder)
+			dir := t.TempDir()
+			result, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{
+				Agent:      "codex",
+				APIBase:    server.URL,
+				WorkingDir: dir,
+				LookPath:   func(string) (string, error) { return "/safe/fixture/codex", nil },
+				RunChild: func(_ context.Context, _ string, _ []string, environment []string, _ io.Reader, _, _ io.Writer) error {
+					childScope = environmentValue(environment, AgentSessionEnv)
+					return nil
+				},
+				AttachTimeout: time.Second,
+			})
+			if err != nil {
+				t.Fatalf("LaunchCodingAgentResult() error = %v", err)
+			}
 			mu.Lock()
-			attachBody = body
-			mu.Unlock()
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"run":{"id":"run-lease-1"},"identity_token":"safe-token"}`))
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-	recorder := &recordingLeaseRecorder{}
-	withLeaseRecorder(t, recorder)
-	dir := t.TempDir()
-	result, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{
-		Agent:      "codex",
-		APIBase:    server.URL,
-		WorkingDir: dir,
-		LookPath:   func(string) (string, error) { return "/safe/fixture/codex", nil },
-		RunChild: func(_ context.Context, _ string, _ []string, environment []string, _ io.Reader, _, _ io.Writer) error {
-			childScope = environmentValue(environment, AgentSessionEnv)
-			return nil
-		},
-		AttachTimeout: time.Second,
-	})
-	if err != nil {
-		t.Fatalf("LaunchCodingAgentResult() error = %v", err)
-	}
-	mu.Lock()
-	defer mu.Unlock()
-	if len(attachBody) != 2 || attachBody["harness_kind"] != "codex" || attachBody["harness_session_id"] == "" {
-		t.Fatalf("attach body = %v, want only harness identity", attachBody)
-	}
-	if !result.LeaseRecorded || len(recorder.created) != 1 {
-		t.Fatalf("lease not recorded: result=%+v created=%v", result, recorder.created)
-	}
-	lease := recorder.created[0]
-	if lease.SessionID != "run-lease-1" || lease.WorkingDir != dir || lease.PID != os.Getpid() || lease.Scope != childScope || !strings.HasPrefix(lease.Scope, "vrooli-agent-") || lease.Agent != "codex" {
-		t.Fatalf("lease = %+v", lease)
-	}
-	if len(recorder.stopped) != 1 || recorder.stopped[0] != "run-lease-1:session ended" {
-		t.Fatalf("lease stop = %v", recorder.stopped)
+			defer mu.Unlock()
+			if len(attachBody) != 2 || attachBody["harness_kind"] != "codex" || attachBody["harness_session_id"] == "" {
+				t.Fatalf("attach body = %v, want only harness identity", attachBody)
+			}
+			if !result.LeaseRecorded || len(recorder.created) != 1 {
+				t.Fatalf("lease not recorded: result=%+v created=%v", result, recorder.created)
+			}
+			lease := recorder.created[0]
+			if lease.Scope != agentScopeName("", lease.SessionID) {
+				t.Fatalf("lease and scope use different host identities: %+v", lease)
+			}
+			if lease.SessionID != attachBody["harness_session_id"] || lease.WorkingDir != dir || lease.PID != os.Getpid() || lease.Scope != childScope || !strings.HasPrefix(lease.Scope, "vrooli-agent-") || lease.Agent != "codex" {
+				t.Fatalf("lease = %+v", lease)
+			}
+			if len(recorder.stopped) != 1 || recorder.stopped[0] != lease.SessionID+":session ended" {
+				t.Fatalf("lease stop = %v", recorder.stopped)
+			}
+		})
 	}
 }
 

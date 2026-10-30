@@ -404,6 +404,20 @@ export interface HealthOptions {
  * Options for the built-in embedded scenario proxy.
  * When `true`, uses defaults. When an object, allows fine-tuning.
  */
+/** Options for the built-in app notifications (see server/app-notifications.ts) */
+export interface AppNotificationsOptions {
+  /** Force on or off; by default the scenario's notifications.json decides */
+  enabled?: boolean
+  /** Scenario slug the hub sees; defaults to the server's serviceName */
+  scenario?: string
+  /** Path to .vrooli/notifications.json; defaults to ../.vrooli/notifications.json from the UI directory */
+  manifestPath?: string
+  /** Notification Hub API base URL; resolved through the lifecycle when omitted */
+  hubBaseUrl?: string
+  /** Timeout for hub calls in ms (default 15000) */
+  timeoutMs?: number
+}
+
 export interface EmbeddedProxyOptions {
   /** Enable/disable the proxy (default: true when object provided) */
   enabled?: boolean
@@ -481,6 +495,13 @@ export interface ServerTemplateOptions extends LifecycleGuardConfig {
   cacheIndexHtml?: boolean
   /** Enable built-in embedded scenario proxy at /embedded. Pass true for defaults or an options object */
   embeddedProxy?: EmbeddedProxyOptions | boolean
+  /**
+   * Built-in app notifications at /vrooli-notify (shared push worker plus a
+   * route to Notification Hub). On by default when the scenario's
+   * .vrooli/notifications.json sets "appDelivery": true; pass false to turn
+   * it off or an options object to override.
+   */
+  appNotifications?: AppNotificationsOptions | boolean
 }
 
 /**

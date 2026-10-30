@@ -122,9 +122,14 @@ type agentCredentialPin struct {
 	resolvePair    func(context.Context) (AgentCredentials, error)
 }
 type (
-	agentCredentialPinKey      struct{}
-	identityInjectionBypassKey struct{}
-	HTTPClient                 struct {
+	agentCredentialPinKey          struct{}
+	identityInjectionBypassKey     struct{}
+	resolvedAgentCredentialPairKey struct{}
+	resolvedAgentCredentialPair    struct {
+		baselineToken  string
+		operationToken string
+	}
+	HTTPClient struct {
 		// Enabled only on an explicitly protected request-local copy.
 		rejectRedirectResponses bool
 		identityPin             *agentCredentialPin
@@ -183,8 +188,15 @@ func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Respons
 	}
 	clone := req.Clone(req.Context())
 	clone.Header = req.Header.Clone()
-	if err := ApplyAgentIdentity(clone); err != nil {
+	resolvedPair, err := applyAgentIdentity(clone)
+	if err != nil {
 		return nil, err
+	}
+	if resolvedPair {
+		clone = clone.WithContext(context.WithValue(clone.Context(), resolvedAgentCredentialPairKey{}, resolvedAgentCredentialPair{
+			baselineToken:  clone.Header.Get(HeaderAgentIdentityToken),
+			operationToken: clone.Header.Get(HeaderAgentOperationToken),
+		}))
 	}
 	return t.roundTripper().RoundTrip(clone)
 }
@@ -192,26 +204,51 @@ func (t identityForwardingTransport) RoundTrip(req *http.Request) (*http.Respons
 // ApplyAgentIdentity resolves current authority for a direct transport, such
 // as a WebSocket upgrade. It also strips inherited identity on remote hops.
 func ApplyAgentIdentity(req *http.Request) error {
+	_, err := applyAgentIdentity(req)
+	return err
+}
+
+// HasResolvedAgentCredentialPair reports whether this exact trusted-local
+// request carries the pair resolved by the CLI forwarding transport. Header
+// bytes are checked against the private request-local record so forged or
+// subsequently mutated identity cannot use the marker.
+func HasResolvedAgentCredentialPair(req *http.Request) bool {
+	if req == nil || !TrustedIdentityDestination(req) || req.Header == nil {
+		return false
+	}
+	pair, ok := req.Context().Value(resolvedAgentCredentialPairKey{}).(resolvedAgentCredentialPair)
+	if !ok || pair.baselineToken == "" || pair.operationToken == "" {
+		return false
+	}
+	baselineValues := req.Header.Values(HeaderAgentIdentityToken)
+	operationValues := req.Header.Values(HeaderAgentOperationToken)
+	return len(baselineValues) == 1 && baselineValues[0] == pair.baselineToken &&
+		len(operationValues) == 1 && operationValues[0] == pair.operationToken
+}
+
+// applyAgentIdentity returns true only when it successfully resolved and
+// applied the current baseline+operation pair, including an exact pinned pair.
+func applyAgentIdentity(req *http.Request) (bool, error) {
 	if req != nil {
 		if bypass, _ := req.Context().Value(identityInjectionBypassKey{}).(bool); bypass {
 			req.Header.Del(HeaderAgentIdentityToken)
 			req.Header.Del(HeaderAgentOperationToken)
-			return nil
+			return false, nil
 		}
 	}
 	if req != nil {
 		if pin, ok := req.Context().Value(agentCredentialPinKey{}).(*agentCredentialPin); ok {
 			if !TrustedIdentityDestination(req) {
-				return errors.New("pinned native credential requires trusted destination")
+				return false, errors.New("pinned native credential requires trusted destination")
 			}
 			current, err := pin.resolveCredentials(req.Context())
 			if err != nil {
-				return err
+				return false, err
 			}
 			if current.BaselineToken != pin.token || current.OperationToken != pin.operationToken || req.Header.Get(HeaderAgentIdentityToken) != pin.token || req.Header.Get(HeaderAgentOperationToken) != pin.operationToken {
-				return errors.New("native credential changed during exact request")
+				return false, errors.New("native credential changed during exact request")
 			}
-			return nil
+			return pin.token != "" && pin.operationToken != "", nil
 		}
 	}
 	if !TrustedIdentityDestination(req) {
@@ -219,15 +256,15 @@ func ApplyAgentIdentity(req *http.Request) error {
 			req.Header.Del(HeaderAgentIdentityToken)
 			req.Header.Del(HeaderAgentOperationToken)
 		}
-		return nil
+		return false, nil
 	}
 	if supplied := strings.TrimSpace(req.Header.Get(HeaderAgentIdentityToken)); supplied != "" && supplied != strings.TrimSpace(os.Getenv(EnvIdentityToken)) {
 		req.Header.Del(HeaderAgentOperationToken)
-		return nil
+		return false, nil
 	}
 	credentials, err := ResolveAgentCredentials(req.Context())
 	if err != nil {
-		return err
+		return false, err
 	}
 	if req.Header == nil {
 		req.Header = make(http.Header)
@@ -246,7 +283,7 @@ func ApplyAgentIdentity(req *http.Request) error {
 	} else {
 		req.Header.Set(HeaderAgentOperationToken, credentials.OperationToken)
 	}
-	return nil
+	return credentials.BaselineToken != "" && credentials.OperationToken != "", nil
 }
 
 func (pin *agentCredentialPin) resolveCredentials(ctx context.Context) (AgentCredentials, error) {

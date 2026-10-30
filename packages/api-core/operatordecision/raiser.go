@@ -7,20 +7,12 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/schedule"
 )
 
-// Clock is the minimal time seam the Raiser needs: just a Now. It is
-// deliberately narrower than schedule.Clock (which also carries timers/tickers)
-// so a scenario can satisfy it with its existing `now func() time.Time` — the
-// shape agent-manager's Orchestrator already uses — without adopting the full
-// scheduler. A nil Clock defaults to the system wall clock.
-type Clock interface {
-	Now() time.Time
-}
-
-type systemClock struct{}
-
-func (systemClock) Now() time.Time { return time.Now() }
+// Clock preserves the Raiser API while reusing schedule's canonical minimal
+// time-observation contract. A nil Clock defaults to the system wall clock.
+type Clock = schedule.NowSource
 
 // DefaultMaxOutstanding caps how many distinct un-decided asks a single subject
 // may have outstanding at once, bounding the operator's notification exposure to
@@ -80,7 +72,7 @@ func (r Raiser) clock() Clock {
 	if r.Clock != nil {
 		return r.Clock
 	}
-	return systemClock{}
+	return schedule.System()
 }
 
 func (r Raiser) maxOutstanding() int {

@@ -146,12 +146,17 @@ func TestRuntimeStatusFromJSONFallsBackToRuntime(t *testing.T) {
 
 func TestDetectPortFromVrooliFallsBackToBareCommand(t *testing.T) {
 	originalLookPath := lookPathFn
+	originalUserHome := userHomeFn
 	resetPortDetectorCache()
 	originalExec := runVrooliFn
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
+		userHomeFn = originalUserHome
 		runVrooliFn = originalExec
+		resetPortDetectorCache()
 	})
+	t.Setenv(cliinvoke.BinaryEnvVar, "")
+	userHomeFn = func() (string, error) { return t.TempDir(), nil }
 
 	lookPathFn = func(file string) (string, error) {
 		return "", errors.New("executable file not found in $PATH")

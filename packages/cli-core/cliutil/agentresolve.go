@@ -63,6 +63,23 @@ func ResolveAgentBinaryExcluding(binary, selfPath string) (string, error) {
 	return ResolveAgentBinaryExcludingInEnvironment(binary, selfPath, os.Environ())
 }
 
+// ResolveAgentBinary selects the same real executable as the operator shim.
+// Managed launch and discovery skip the shim, without skipping the user-owned
+// installation that the resource installer updates.
+func ResolveAgentBinary(binary string) (string, error) {
+	path, err := exec.LookPath(binary)
+	if err != nil {
+		return "", err
+	}
+	parts := strings.Split(filepath.ToSlash(filepath.Clean(path)), "/")
+	for i, part := range parts {
+		if part == ".vrooli" && i+1 < len(parts) && parts[i+1] == "shims" {
+			return ResolveAgentBinaryExcluding(binary, path)
+		}
+	}
+	return path, nil
+}
+
 // ResolveAgentBinaryExcludingInEnvironment is ResolveAgentBinaryExcluding with
 // an explicit environment. Launchers must use this variant after preparing a
 // child environment; exec.LookPath reads the current process environment and

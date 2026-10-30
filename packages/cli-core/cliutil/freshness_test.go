@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -228,6 +229,96 @@ func TestReplaceExpansionIsIdempotentAndKeepsDeclaredInputs(t *testing.T) {
 	}
 	if again := WithGoReplaceFreshnessInputs(spec); !reflect.DeepEqual(again.Inputs, spec.Inputs) {
 		t.Fatalf("expansion is not idempotent:\n first:  %#v\n second: %#v", spec.Inputs, again.Inputs)
+	}
+}
+
+func TestScenarioFreshnessTracksOnlyImportedAgentManagerAPIPackages(t *testing.T) {
+	repo := t.TempDir()
+	scenarioRoot := filepath.Join(repo, "scenarios", "agent-manager")
+	modulePath := filepath.Join(scenarioRoot, "cli")
+	inputs := []string{"cli/**", ".vrooli/service.json"}
+
+	mustWriteFile(t, filepath.Join(modulePath, "go.mod"), `module agent-manager/cli
+
+go 1.25.0
+
+replace agent-manager => ../api
+replace github.com/vrooli/vrooli => ../../..
+replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+replace github.com/vrooli/cli-core => ../../../packages/cli-core
+`)
+	mustWriteFile(t, filepath.Join(modulePath, "main.go"), `package main
+
+import (
+	"agent-manager/internal/effortdecision"
+	"agent-manager/internal/goalhome"
+	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/shared"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+)
+
+func main() { _, _, _, _, _ = effortdecision.Name, goalhome.Name, cliapp.Name, shared.Name, domain.Name }
+`)
+	mustWriteFile(t, filepath.Join(scenarioRoot, ".vrooli", "service.json"), `{"cli":{"freshness":{"inputs":["cli/**",".vrooli/service.json"]}}}`)
+	mustWriteFile(t, filepath.Join(modulePath, "manifest.json"), "{}\n")
+	mustWriteFile(t, filepath.Join(scenarioRoot, "api", "go.mod"), "module agent-manager\n\ngo 1.25.0\n")
+	mustWriteFile(t, filepath.Join(scenarioRoot, "api", "internal", "goalhome", "park.go"), "package goalhome\n\nimport _ \"github.com/vrooli/vrooli/internal/shared\"\n\nconst Name = \"goalhome\"\n")
+	mustWriteFile(t, filepath.Join(scenarioRoot, "api", "internal", "effortdecision", "decision.go"), "package effortdecision\n\nconst Name = \"effortdecision\"\n")
+	mustWriteFile(t, filepath.Join(scenarioRoot, "api", "internal", "orchestration", "run_creation.go"), "package orchestration\n")
+	mustWriteFile(t, filepath.Join(scenarioRoot, "api", "internal", "orchestration", "run_creation_test.go"), "package orchestration\n")
+	mustWriteFile(t, filepath.Join(repo, "internal", "shared", "shared.go"), "package shared\n\nconst Name = \"shared\"\n")
+	mustWriteFile(t, filepath.Join(repo, "packages", "cli-core", "cliapp", "app.go"), "package cliapp\n\nconst Name = \"cliapp\"\n")
+	mustWriteFile(t, filepath.Join(repo, "packages", "proto", "gen", ".vrooli-proto-artifact.json"), "stamp-1\n")
+	mustWriteFile(t, filepath.Join(repo, "packages", "proto", "gen", "go", "agent-manager", "v1", "domain", "domain.pb.go"), "package domain\n\nconst Name = \"domain\"\n")
+
+	installer := CanonicalScenarioGoModuleFreshnessSpec(scenarioRoot, modulePath, "agent-manager", inputs)
+	if !slices.Contains(installer.Inputs, "api/go.mod") || !slices.Contains(installer.Inputs, "api/internal/goalhome") || !slices.Contains(installer.Inputs, "api/internal/effortdecision") {
+		t.Fatalf("canonical closure omitted Agent Manager API module or imported packages: %#v", installer.Inputs)
+	}
+	for _, input := range installer.Inputs {
+		if input == "api" || input == "api/**" {
+			t.Fatalf("canonical closure retained broad API coverage: %#v", installer.Inputs)
+		}
+	}
+	if expanded := WithGoReplaceFreshnessInputs(installer); !reflect.DeepEqual(expanded.Inputs, installer.Inputs) {
+		t.Fatalf("canonical expansion is not idempotent:\n first:  %#v\n second: %#v", installer.Inputs, expanded.Inputs)
+	}
+	runtime := StaleChecker{SourceContextPath: "..", FreshnessInputs: installer.Inputs}
+	if got := runtime.freshnessSpec(modulePath).Inputs; !reflect.DeepEqual(got, installer.Inputs) {
+		t.Fatalf("runtime inputs differ from installer inputs:\n runtime:   %#v\n installer: %#v", got, installer.Inputs)
+	}
+
+	fingerprint := func() string {
+		t.Helper()
+		fp, err := ComputeFreshnessFingerprint(installer)
+		if err != nil {
+			t.Fatalf("fingerprint: %v", err)
+		}
+		return fp
+	}
+	for _, edit := range []struct {
+		path  string
+		stale bool
+	}{
+		{"scenarios/agent-manager/api/internal/goalhome/park.go", true},
+		{"scenarios/agent-manager/api/internal/effortdecision/decision.go", true},
+		{"scenarios/agent-manager/api/go.mod", true},
+		{"internal/shared/shared.go", true},
+		{"packages/cli-core/cliapp/app.go", true},
+		{"packages/proto/gen/.vrooli-proto-artifact.json", true},
+		{"scenarios/agent-manager/api/internal/orchestration/run_creation.go", false},
+		{"scenarios/agent-manager/api/internal/orchestration/run_creation_test.go", false},
+	} {
+		before := fingerprint()
+		path := filepath.Join(repo, filepath.FromSlash(edit.path))
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mustWriteFile(t, path, string(data)+"// edited\n")
+		if changed := fingerprint() != before; changed != edit.stale {
+			t.Errorf("editing %s: fingerprint changed = %v, want %v", edit.path, changed, edit.stale)
+		}
 	}
 }
 

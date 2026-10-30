@@ -578,19 +578,29 @@ func manifestPaths(repoRoot string) ([]string, error) {
 	// Keep the project manifest in the same sorted input set as scenario
 	// manifests. Derivation order is therefore stable even though the final
 	// catalog is sorted independently for consumers.
+	//
+	// Only the canonical scenarios/<name>/cli/manifest.json is a scenario's
+	// command manifest. A recursive walk also read every node_modules, data
+	// and evidence tree below scenarios/ (minutes on a large checkout, which
+	// held Bridge's startup past its readiness deadline) and admitted stale
+	// manifest copies kept as evidence into the scope catalog.
 	root := filepath.Join(repoRoot, "scenarios")
+	if _, err := os.Stat(root); err != nil {
+		return nil, fmt.Errorf("find CLI manifests: %w", err)
+	}
 	paths := []string{filepath.Join(repoRoot, "cli", "manifest.json")}
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	for _, scenario := range scenarioDirectories(root) {
+		path := filepath.Join(root, scenario, "cli", "manifest.json")
+		info, err := os.Stat(path)
 		if err != nil {
-			return err
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("find CLI manifests: %w", err)
 		}
-		if !entry.IsDir() && entry.Name() == "manifest.json" && filepath.Base(filepath.Dir(path)) == "cli" {
+		if !info.IsDir() {
 			paths = append(paths, path)
 		}
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("find CLI manifests: %w", err)
 	}
 	sort.Strings(paths)
 	return paths, nil

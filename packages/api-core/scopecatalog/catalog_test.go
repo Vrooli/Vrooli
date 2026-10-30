@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -488,4 +489,36 @@ func scenarioFiles(t *testing.T, root string) map[string]os.FileMode {
 		files[path] = info.Mode()
 	}
 	return files
+}
+
+// Only scenarios/<name>/cli/manifest.json is a command manifest. Copies kept in
+// evidence or dependency trees must neither be walked nor catalogued.
+func TestManifestPathsReadsOnlyCanonicalScenarioManifests(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel string) string {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	project := write("cli/manifest.json")
+	canonical := write("scenarios/alpha/cli/manifest.json")
+	write("scenarios/alpha/docs/evidence/prewrite/cli/manifest.json")
+	write("scenarios/alpha/ui/node_modules/pkg/cli/manifest.json")
+	if err := os.MkdirAll(filepath.Join(root, "scenarios", "beta"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	paths, err := manifestPaths(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{project, canonical}
+	sort.Strings(want)
+	if strings.Join(paths, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("manifest paths = %v, want %v", paths, want)
+	}
 }

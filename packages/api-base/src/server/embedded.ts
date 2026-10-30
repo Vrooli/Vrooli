@@ -41,7 +41,7 @@ interface CacheEntry {
  * Results are cached for `cacheTtlMs`. Negative lookups are NOT cached
  * so retries happen immediately when a scenario starts up.
  */
-export function createPortResolver(cacheTtlMs = 30_000) {
+export function createPortResolver(cacheTtlMs = 30_000, portKey = 'UI_PORT') {
   const cache = new Map<string, CacheEntry>()
 
   return (scenarioName: string): string | null => {
@@ -52,7 +52,7 @@ export function createPortResolver(cacheTtlMs = 30_000) {
     }
 
     // Try environment variable first
-    const envVar = `${scenarioName.replace(/-/g, '_').toUpperCase()}_UI_PORT`
+    const envVar = `${scenarioName.replace(/-/g, '_').toUpperCase()}_${portKey}`
     const envPort = process.env[envVar]
     if (envPort) {
       cache.set(scenarioName, { port: envPort, resolvedAt: now })
@@ -61,7 +61,7 @@ export function createPortResolver(cacheTtlMs = 30_000) {
 
     // Fall back to vrooli CLI
     try {
-      const output = execSync(`vrooli scenario port ${scenarioName} UI_PORT`, {
+      const output = execSync(`vrooli scenario port ${scenarioName} ${portKey}`, {
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
       }).trim()

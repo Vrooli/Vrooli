@@ -520,7 +520,9 @@ func hydrateProtoRequest(ctx OperationContext, md protoreflect.MessageDescriptor
 			return err
 		}
 		values := []string{ctx.Flag(f.Name)}
-		if f.Repeated {
+		if f.Bool {
+			values = []string{strconv.FormatBool(ctx.BoolFlag(f.Name))}
+		} else if f.Repeated {
 			values = ctx.FlagValues(f.Name)
 		}
 		for _, value := range values {

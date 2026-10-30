@@ -83,8 +83,12 @@ func TestDynamicCredentialAdoptionAndRefusalDoNotChangeEnvironment(t *testing.T)
 }
 
 func credentialRoleTestToken(meta map[string]string) string {
+	return credentialRoleTestTokenForRun("a7b11e9a-3263-4c93-9e87-3d462d1963b3", meta)
+}
+
+func credentialRoleTestTokenForRun(runID string, meta map[string]string) string {
 	claims, _ := json.Marshal(map[string]any{
-		"run_id": "a7b11e9a-3263-4c93-9e87-3d462d1963b3", "iat": time.Now().Unix(),
+		"run_id": runID, "iat": time.Now().Unix(),
 		"exp": time.Now().Add(time.Hour).Unix(), "meta": meta,
 	})
 	return base64.RawURLEncoding.EncodeToString(claims) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
@@ -164,6 +168,7 @@ func TestCommandSessionContainsWrapperBeforeAttach(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(namespace) })
 	t.Setenv("TMPDIR", namespace)
+	bootstrap := credentialRoleTestTokenForRun("owned-command-fixture", nil)
 	for _, mode := range []string{"contained", "child exit", "containment failure", "no container"} {
 		t.Run(mode, func(t *testing.T) {
 			t.Setenv(AgentSessionEnv, "")
@@ -176,6 +181,7 @@ func TestCommandSessionContainsWrapperBeforeAttach(t *testing.T) {
 			recorder := &recordingLeaseRecorder{}
 			withLeaseRecorder(t, recorder)
 			attached, detached := 0, 0
+			var hostSessionID string
 			client := &http.Client{Transport: credentialRedirectTransport(func(r *http.Request) (*http.Response, error) {
 				switch r.URL.Path {
 				case "/api/v1/runs/attach":
@@ -187,13 +193,17 @@ func TestCommandSessionContainsWrapperBeforeAttach(t *testing.T) {
 					if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 						t.Fatal(err)
 					}
+					hostSessionID, _ = body["harness_session_id"].(string)
+					if hostSessionID == "" {
+						t.Fatal("attachment omitted host session identity")
+					}
 					if len(body) != 3 || body["process_id"] != float64(os.Getpid()) || body["harness_kind"] != "command-session" {
 						t.Fatalf("attachment changed caller identity: %v", body)
 					}
-					return &http.Response{StatusCode: 201, Body: io.NopCloser(strings.NewReader(`{"run":{"id":"owned-command-fixture"},"identity_token":"synthetic-bootstrap"}`))}, nil
+					return &http.Response{StatusCode: 201, Body: io.NopCloser(strings.NewReader(`{"run":{"id":"owned-command-fixture"},"identity_token":"` + bootstrap + `"}`))}, nil
 				case "/api/v1/runs/owned-command-fixture/detach":
 					detached++
-					if r.Header.Get(HeaderAgentIdentityToken) != "synthetic-bootstrap" {
+					if r.Header.Get(HeaderAgentIdentityToken) != bootstrap {
 						t.Error("cleanup lost held attachment identity")
 					}
 					if len(recorder.stopped) != 0 {
@@ -233,11 +243,11 @@ func TestCommandSessionContainsWrapperBeforeAttach(t *testing.T) {
 					t.Fatalf("wrapper ceilings=%+v", container.selfLimits)
 				}
 			}
-			if !result.LeaseRecorded || len(recorder.created) != 1 || len(recorder.stopped) != 1 || recorder.stopped[0] != "owned-command-fixture:session ended" {
+			if !result.LeaseRecorded || len(recorder.created) != 1 || len(recorder.stopped) != 1 || recorder.stopped[0] != hostSessionID+":session ended" {
 				t.Fatalf("lease lifecycle: %+v %+v", result, recorder)
 			}
 			lease := recorder.created[0]
-			if lease.PID != os.Getpid() || lease.SessionID != "owned-command-fixture" || lease.Agent != "command-session" {
+			if lease.PID != os.Getpid() || lease.SessionID != hostSessionID || lease.Agent != "command-session" {
 				t.Fatalf("lease changed caller: %+v", lease)
 			}
 			if mode == "contained" || mode == "child exit" {
@@ -336,10 +346,11 @@ func TestCommandSessionKeepsInheritedCallerBoundary(t *testing.T) {
 	}
 	t.Cleanup(func() { os.RemoveAll(namespace) })
 	t.Setenv("TMPDIR", namespace)
+	inherited := credentialRoleTestTokenForRun("inherited-command-fixture", nil)
 	for _, marker := range []string{"existing-session", ""} {
 		t.Run("marker="+marker, func(t *testing.T) {
 			t.Setenv(AgentSessionEnv, marker)
-			t.Setenv(EnvIdentityToken, "synthetic-existing-custody")
+			t.Setenv(EnvIdentityToken, inherited)
 			container := withFakeContainer(t, false)
 			var stdout bytes.Buffer
 			client := &http.Client{Transport: credentialRedirectTransport(func(r *http.Request) (*http.Response, error) {
@@ -388,5 +399,46 @@ func TestCommandSessionCleanupRefusesChangedCustody(t *testing.T) {
 	err = detachCodingAgent(context.Background(), AgentLaunchRequest{RequireNativeIdentity: true, APIBase: "http://localhost", HTTPClient: client}, "owned-bootstrap-run", "synthetic-held-bootstrap")
 	if err == nil || !strings.Contains(err.Error(), "native credential changed during exact request") || wireCalls != 0 {
 		t.Fatalf("changed custody bypassed cleanup pin: err=%v wire=%d", err, wireCalls)
+	}
+}
+
+func TestIdentityRefreshRefusalPointsToSessionRecovery(t *testing.T) {
+	message := (&AgentAuthorizationError{Code: "identity_refresh_unavailable"}).Error()
+	if !strings.Contains(message, "run/session") || !strings.Contains(message, "owner-proof") || !strings.Contains(message, "retry after it is healthy") || strings.Contains(message, "vrooli agent authorization") {
+		t.Fatalf("identity refresh diagnostic points to the wrong recovery: %s", message)
+	}
+	if message := (&AgentAuthorizationError{Code: "revoked"}).Error(); !strings.Contains(message, "vrooli agent authorization") {
+		t.Fatalf("operation refusal lost its authorization diagnostic: %s", message)
+	}
+}
+
+func TestSlowBrokerIsRetriedSoTheOperationGrantIsKept(t *testing.T) {
+	directory, err := os.MkdirTemp("", "agc-slow-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(directory) })
+	path := filepath.Join(directory, "broker.sock")
+	inherited := credentialRoleTestToken(nil)
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			time.Sleep(200 * time.Millisecond) // busier than the first bound
+		}
+		json.NewEncoder(w).Encode(map[string]string{"baseline_token": inherited, "operation_token": "approved-operation"})
+	})}
+	go server.Serve(listener)
+	t.Cleanup(func() { server.Close() })
+	previous := agentCredentialBrokerTimeouts
+	agentCredentialBrokerTimeouts = []time.Duration{50 * time.Millisecond, 2 * time.Second}
+	t.Cleanup(func() { agentCredentialBrokerTimeouts = previous })
+
+	credentials, err := resolveAgentCredentials(context.Background(), path, inherited)
+	if err != nil || credentials.OperationToken != "approved-operation" || calls.Load() != 2 {
+		t.Fatalf("slow broker dropped the operation grant: %+v err=%v calls=%d", credentials, err, calls.Load())
 	}
 }

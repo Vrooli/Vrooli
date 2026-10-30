@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -30,8 +31,13 @@ import (
 // Service implements the generated routing_v1connect.RoutingServiceHandler
 // by forwarding calls into a *database.RoutedDB.
 type Service struct {
-	db    *database.RoutedDB
-	roots *filerouting.RoutedRoots
+	db          *database.RoutedDB
+	roots       *filerouting.RoutedRoots
+	opMu        sync.Mutex
+	instanceID  string
+	checkpoints map[string]checkpointRef
+	bindings    map[string]context.Context
+	ownerLocks  map[string]checkpointOwnerLock
 }
 
 // FileService implements the routing lease for scenarios that persist only
@@ -43,7 +49,8 @@ type FileService struct {
 
 // NewService returns a Service bound to db.
 func NewService(db *database.RoutedDB, roots ...*filerouting.RoutedRoots) *Service {
-	service := &Service{db: db}
+	instanceID, _ := randomToken()
+	service := &Service{db: db, instanceID: instanceID, checkpoints: make(map[string]checkpointRef), bindings: make(map[string]context.Context), ownerLocks: make(map[string]checkpointOwnerLock)}
 	if len(roots) > 0 {
 		service.roots = roots[0]
 	}
@@ -94,7 +101,26 @@ func (s *FileService) HeartbeatTestPool(_ context.Context, req *connect.Request[
 // the active lease so callers can surface a useful error. Other failures
 // map to CodeInternal.
 func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
 	leaseID := req.Msg.GetLeaseId()
+	release, lockErr := acquireLeaseOperationLock(leaseID)
+	if lockErr != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("another routing operation is in progress"))
+	}
+	defer release()
+	if _, prepared := s.checkpoints[leaseID]; prepared {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("lease is checkpointed for restart"))
+	}
+	if s.roots != nil {
+		checkpointPath, pathErr := checkpointPathForService(s, leaseID)
+		if pathErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoint namespace is unavailable"))
+		}
+		if _, statErr := os.Lstat(checkpointPath); statErr == nil || !os.IsNotExist(statErr) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("lease has a pending restart checkpoint"))
+		}
+	}
 	ttl := time.Duration(req.Msg.GetLeaseTtlMs()) * time.Millisecond
 	if err := s.db.InstallTestPool(ctx, req.Msg.GetDsn(), leaseID, ttl); err != nil {
 		var conflict *database.ErrLeaseConflict
@@ -119,23 +145,94 @@ func (s *Service) InstallTestPool(ctx context.Context, req *connect.Request[rout
 // (test-genie) can detect that the routed run actually exercised the test
 // pool.
 func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routingv1.ClearTestPoolRequest]) (*connect.Response[routingv1.ClearTestPoolResponse], error) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+	leaseID := req.Msg.GetLeaseId()
+	release, lockErr := acquireLeaseOperationLock(leaseID)
+	if lockErr != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("another routing operation is in progress"))
+	}
+	defer release()
+	ref := s.checkpoints[leaseID]
+	var checkpoint *restartCheckpoint
+	if ticket := req.Msg.GetRestartTicket(); ticket != "" {
+		path, pathErr := checkpointPathForService(s, leaseID)
+		if pathErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoint is invalid"))
+		}
+		var loaded restartCheckpoint
+		if err := readCheckpoint(path, ticket, &loaded); err != nil || loaded.LeaseID != leaseID {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoint does not match the lease"))
+		}
+		ref = checkpointRef{ticket: ticket, path: path}
+		checkpoint = &loaded
+	} else if ref.ticket != "" {
+		var loaded restartCheckpoint
+		if err := readCheckpoint(ref.path, ref.ticket, &loaded); err != nil || loaded.LeaseID != leaseID {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoint state is unavailable"))
+		}
+		checkpoint = &loaded
+	}
+	if checkpoint != nil {
+		if checkpoint.Phase != "clearing" {
+			if checkpoint.Phase == "prepared" && checkpointExpired(*checkpoint, time.Now()) {
+				if err := s.validateExpiredPreparedCleanup(*checkpoint); err != nil {
+					return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("expired prepared checkpoint is not safe to clear"))
+				}
+			} else if !s.checkpointBindingMatches(*checkpoint) || (checkpoint.Phase == "prepared" && checkpointExpired(*checkpoint, time.Now())) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart lease binding is not active on this instance"))
+			}
+			checkpoint.Phase = "clearing"
+			if err := writeCheckpoint(ref.path, *checkpoint); err != nil {
+				return nil, connect.NewError(connect.CodeInternal, errors.New("persist restart cleanup intent"))
+			}
+		} else {
+			if err := s.checkpointClearBindings(*checkpoint); err != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart cleanup binding does not match the checkpoint"))
+			}
+			if !s.ownsCheckpointLock(leaseID) && !checkpointOwnerExited(ref.path) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("prepared checkpoint owner process is still active"))
+			}
+		}
+	}
 	snapshot := s.db.LeaseStats()
 	fileSnapshot := filerouting.LeaseStatsSnapshot{}
 	if s.roots != nil {
 		fileSnapshot = s.roots.LeaseStats()
 	}
-	if err := s.db.ClearTestPool(req.Msg.GetLeaseId()); err != nil {
-		var mismatch *database.ErrLeaseMismatch
-		if errors.As(err, &mismatch) {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
-		}
-		return nil, connect.NewError(connect.CodeInternal, err)
-	}
-	if s.roots != nil {
-		if err := s.roots.ClearTestRoots(req.Msg.GetLeaseId()); err != nil {
+	dbActive := s.db.ActiveLeaseID() == leaseID
+	if checkpoint == nil || dbActive {
+		if err := s.db.ClearTestPool(leaseID); err != nil {
+			var mismatch *database.ErrLeaseMismatch
+			if errors.As(err, &mismatch) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
+	if s.roots != nil {
+		if checkpoint == nil || s.roots.ActiveLeaseID() == leaseID {
+			if err := s.roots.ClearTestRoots(leaseID); err != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("leased file roots could not be removed; retry cleanup"))
+			}
+		} else if checkpoint.Phase == "clearing" {
+			if err := s.roots.ClearRetainedTestRoots(checkpoint.Roots, checkpoint.RootsFingerprint); err != nil {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("detached checkpoint roots could not be removed; retry cleanup"))
+			}
+		}
+	}
+	if err := clearCheckpoint(ref.path); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("routing was cleared but its checkpoint record remains; retry cleanup"))
+	}
+	if lock, ok := s.ownerLocks[leaseID]; ok {
+		lock.release()
+		delete(s.ownerLocks, leaseID)
+	}
+	if err := os.Remove(checkpointOwnerLockPath(ref.path)); err != nil && !os.IsNotExist(err) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("routing was cleared but its owner lock remains; retry cleanup"))
+	}
+	delete(s.checkpoints, leaseID)
+	delete(s.bindings, leaseID)
 	return connect.NewResponse(&routingv1.ClearTestPoolResponse{
 		Stats: &routingv1.LeaseStats{
 			TestPoolRequests:                snapshot.TestPoolRequests,
@@ -146,9 +243,98 @@ func (s *Service) ClearTestPool(ctx context.Context, req *connect.Request[routin
 	}), nil
 }
 
+func checkpointExpired(checkpoint restartCheckpoint, now time.Time) bool {
+	return !checkpoint.ExpiresAt.After(now) && !checkpoint.Database.ExpiresAt.After(now) && !checkpoint.Roots.ExpiresAt.After(now)
+}
+
+func (s *Service) validateExpiredPreparedCleanup(checkpoint restartCheckpoint) error {
+	if checkpoint.Phase != "prepared" || checkpoint.PreparedInstance == "" || checkpoint.PreparedInstance == s.instanceID || !checkpointExpired(checkpoint, time.Now()) {
+		return errors.New("checkpoint is live or belongs to this owner")
+	}
+	if !s.ownsCheckpointLock(checkpoint.LeaseID) && !checkpointOwnerExited(checkpointPathForPrepared(s, checkpoint)) {
+		return errors.New("prepared checkpoint owner process is still active")
+	}
+	if s.db.ActiveLeaseID() != "" || s.roots.ActiveLeaseID() != "" || s.bindings[checkpoint.LeaseID] != nil {
+		return errors.New("a database or file lease is still active")
+	}
+	if s.db.PrimaryFingerprint() == "" || s.roots.PrimaryFingerprint() == "" ||
+		checkpoint.PrimaryDBFingerprint != s.db.PrimaryFingerprint() || checkpoint.RootsFingerprint != s.roots.PrimaryFingerprint() ||
+		checkpoint.Database.PrimaryFingerprint != checkpoint.PrimaryDBFingerprint || checkpoint.Roots.PrimaryFingerprint != checkpoint.RootsFingerprint ||
+		checkpoint.TargetFingerprint != targetFingerprint(s.db.PrimaryFingerprint(), s.roots.PrimaryFingerprint()) {
+		return errors.New("checkpoint target identity changed")
+	}
+	return verifyRootMarker(checkpoint.Roots.LeaseRoot, rootMarker{TokenHash: checkpoint.TokenHash, LeaseID: checkpoint.LeaseID, TargetFingerprint: checkpoint.TargetFingerprint})
+}
+
+func checkpointPathForPrepared(s *Service, checkpoint restartCheckpoint) string {
+	if ref := s.checkpoints[checkpoint.LeaseID]; ref.path != "" {
+		return ref.path
+	}
+	path, _ := checkpointPathFor(checkpoint.TargetFingerprint, checkpoint.LeaseID)
+	return path
+}
+
+// checkpointClearBindings permits a clearing retry after either owner has
+// detached its route, while proving every still-active half remains the exact
+// DB/root binding checkpointed before cleanup began.
+func (s *Service) checkpointClearBindings(checkpoint restartCheckpoint) error {
+	leaseID := checkpoint.LeaseID
+	if dbLease := s.db.ActiveLeaseID(); dbLease != "" {
+		if dbLease != leaseID {
+			return errors.New("another database lease is active")
+		}
+		state, err := s.db.TestPoolRestartState(leaseID)
+		if err != nil || state.DSN != checkpoint.Database.DSN || state.PrimaryFingerprint != checkpoint.PrimaryDBFingerprint {
+			return errors.New("active database binding changed")
+		}
+		ctx, ok := s.bindings[leaseID]
+		if !ok {
+			return errors.New("database pin is unavailable")
+		}
+		if _, err := s.db.PinTestPool(ctx, leaseID); err != nil {
+			return errors.New("database generation changed")
+		}
+	}
+	if s.roots == nil {
+		return errors.New("file routing is unavailable")
+	}
+	if rootLease := s.roots.ActiveLeaseID(); rootLease != "" {
+		if rootLease != leaseID {
+			return errors.New("another file lease is active")
+		}
+		state, err := s.roots.TestRootsRestartState(leaseID)
+		if err != nil || state.LeaseRoot != checkpoint.Roots.LeaseRoot || state.PrimaryFingerprint != checkpoint.RootsFingerprint {
+			return errors.New("active file binding changed")
+		}
+		ctx, ok := s.bindings[leaseID]
+		if !ok {
+			return errors.New("file pin is unavailable")
+		}
+		if _, err := s.roots.PinTestRoots(ctx, leaseID); err != nil {
+			return errors.New("file generation changed")
+		}
+	} else {
+		if _, err := os.Lstat(checkpoint.Roots.LeaseRoot); err == nil {
+			if err := verifyRootMarker(checkpoint.Roots.LeaseRoot, rootMarker{TokenHash: checkpoint.TokenHash, LeaseID: leaseID, TargetFingerprint: checkpoint.TargetFingerprint}); err != nil {
+				return errors.New("detached retained file tree marker changed")
+			}
+		} else if !os.IsNotExist(err) {
+			return errors.New("retained file tree state is unavailable")
+		}
+	}
+	return nil
+}
+
 // HeartbeatTestPool extends the active lease's expiry. Lease mismatches
 // map to connect.CodeFailedPrecondition.
 func (s *Service) HeartbeatTestPool(ctx context.Context, req *connect.Request[routingv1.HeartbeatTestPoolRequest]) (*connect.Response[routingv1.HeartbeatTestPoolResponse], error) {
+	s.opMu.Lock()
+	defer s.opMu.Unlock()
+	release, lockErr := acquireLeaseOperationLock(req.Msg.GetLeaseId())
+	if lockErr != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("another routing operation is in progress"))
+	}
+	defer release()
 	expiresAt, err := s.db.HeartbeatTestPool(req.Msg.GetLeaseId(), 0)
 	if err != nil {
 		var mismatch *database.ErrLeaseMismatch
@@ -158,13 +344,48 @@ func (s *Service) HeartbeatTestPool(ctx context.Context, req *connect.Request[ro
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if s.roots != nil {
-		if _, err := s.roots.HeartbeatTestRoots(req.Msg.GetLeaseId(), 0); err != nil {
+		rootExpiry, err := s.roots.HeartbeatTestRoots(req.Msg.GetLeaseId(), 0)
+		if err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		if rootExpiry.Before(expiresAt) {
+			expiresAt = rootExpiry
+		}
+	}
+	if ref := s.checkpoints[req.Msg.GetLeaseId()]; ref.ticket != "" {
+		var checkpoint restartCheckpoint
+		if err := readCheckpoint(ref.path, ref.ticket, &checkpoint); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoint state is unavailable"))
+		}
+		dbState, dbErr := s.db.TestPoolRestartState(req.Msg.GetLeaseId())
+		rootState, rootErr := s.roots.TestRootsRestartState(req.Msg.GetLeaseId())
+		if dbErr != nil || rootErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("paired lease checkpoint could not be refreshed"))
+		}
+		// Keep the original pre-restart counters immutable. Heartbeat only
+		// extends the private binding expiries.
+		dbState.Stats = checkpoint.Database.Stats
+		rootState.Stats = checkpoint.Roots.Stats
+		checkpoint.Database, checkpoint.Roots = dbState, rootState
+		if rootState.ExpiresAt.Before(expiresAt) {
+			expiresAt = rootState.ExpiresAt
+		}
+		checkpoint.ExpiresAt = expiresAt
+		if err := writeCheckpoint(ref.path, checkpoint); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, errors.New("refresh restart checkpoint"))
 		}
 	}
 	return connect.NewResponse(&routingv1.HeartbeatTestPoolResponse{
 		ExpiresAtUnixMs: expiresAt.UnixMilli(),
 	}), nil
+}
+
+func (s *FileService) PrepareTestPoolRestart(context.Context, *connect.Request[routingv1.PrepareTestPoolRestartRequest]) (*connect.Response[routingv1.PrepareTestPoolRestartResponse], error) {
+	return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoints require a paired database and file lease"))
+}
+
+func (s *FileService) ResumeTestPool(context.Context, *connect.Request[routingv1.ResumeTestPoolRequest]) (*connect.Response[routingv1.ResumeTestPoolResponse], error) {
+	return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("restart checkpoints require a paired database and file lease"))
 }
 
 // Mux is the minimal interface satisfied by *http.ServeMux and the

@@ -116,7 +116,10 @@ type rawStorageEntry struct {
 	Kind    string          `json:"kind"`
 	Class   string          `json:"class"`
 	Subpath string          `json:"subpath"`
-	Reclaim *struct {
+	// Regenerable is a pointer so an explicit false is distinguishable from
+	// an omitted flag.
+	Regenerable *bool `json:"regenerable"`
+	Reclaim     *struct {
 		Pruner string `json:"pruner"`
 	} `json:"reclaim"`
 	Budget *struct {
@@ -227,6 +230,23 @@ func parseManifestBudget(name string, raw rawManifest) (Spec, error) {
 				// pruner over scenario-owned run trees.
 				return Spec{}, nil
 			}
+			// A budget on non-regenerable data is an alarm: storage-manager
+			// measures it and asks the owner to reclaim, but nothing deletes
+			// it by age or size. Only an owner-registered custom pruner, which
+			// knows which rows or files are safe, may act on such an entry.
+			// An explicit retention.budgets entry of the same name still
+			// applies: that is the owner choosing a pruner, not a desugared
+			// alarm.
+			durable := entry.Regenerable != nil && !*entry.Regenerable &&
+				(entry.Reclaim == nil || strings.TrimSpace(entry.Reclaim.Pruner) != string(PrunerCustom))
+			if durable {
+				if raw.Retention != nil {
+					if legacy, ok := raw.Retention.Budgets[name]; ok {
+						return parseBudget(name, legacy)
+					}
+				}
+				return Spec{}, nil
+			}
 			if entry.Budget == nil || entry.Kind != "dir" {
 				if raw.Retention != nil {
 					if _, hasLegacy := raw.Retention.Budgets[name]; hasLegacy {
@@ -334,7 +354,12 @@ func parseStorageEntry(name string, raw rawStorageEntry) (Spec, error) {
 	if path == "" {
 		path = "."
 	}
-	if strings.HasPrefix(path, "/") || strings.Contains(path, "..") {
+	// Absolute, escaping, token-rooted ($USER_HOME/…, $USER_DATA_DIR/…) and
+	// home-relative (~/…) paths name locations outside the class root. They are
+	// governed by storage-manager's entry enforcer and their owner's own
+	// pruner; reinterpreting "$USER_HOME/x" as a literal class-relative
+	// directory would point a builtin age/byte pruner at the wrong tree.
+	if strings.HasPrefix(path, "/") || strings.HasPrefix(path, "$") || strings.HasPrefix(path, "~") || strings.Contains(path, "..") {
 		return Spec{}, nil
 	}
 	class := raw.Class

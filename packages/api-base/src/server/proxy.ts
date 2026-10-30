@@ -85,6 +85,14 @@ export async function proxyToApi(
   // Add any additional headers
   Object.assign(proxyHeaders, additionalHeaders)
 
+  // Retain the routed browser authority before Host becomes the loopback
+  // upstream. Derive it here, rather than trusting a caller's forwarding hint.
+  if (req.headers.host) {
+    proxyHeaders['x-forwarded-host'] = req.headers.host
+  } else {
+    delete proxyHeaders['x-forwarded-host']
+  }
+
   // Ensure accept header
   if (!proxyHeaders.accept) {
     proxyHeaders.accept = 'application/json'
@@ -328,6 +336,14 @@ export function proxyWebSocketUpgrade(
     Object.assign(headers, additionalHeaders)
 
     // Override critical headers for proxying
+    // Preserve the browser-facing authority before replacing Host. Consumers
+    // validate WebSocket Origin against this value behind the local gateway;
+    // derive it from the routed request, never a client-supplied forwarding hint.
+    if (req.headers.host) {
+      headers['x-forwarded-host'] = req.headers.host
+    } else {
+      delete headers['x-forwarded-host']
+    }
     headers.host = `${apiHost}:${portNumber}`
     if (!headers.connection) {
       headers.connection = 'Upgrade'

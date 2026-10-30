@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,6 +30,9 @@ func AgentCredentialSocket() string {
 type AgentAuthorizationError struct{ Code string }
 
 func (e *AgentAuthorizationError) Error() string {
+	if e.Code == "identity_refresh_unavailable" {
+		return "agent identity " + e.Code + "; check run/session binding and owner-proof; if the session owner is restarting or unhealthy, retry after it is healthy; otherwise inspect the attached session"
+	}
 	return "agent authorization " + e.Code + "; inspect with vrooli agent authorization <session-or-run>"
 }
 
@@ -65,9 +69,32 @@ func ResolveAgentCredentials(ctx context.Context) (AgentCredentials, error) {
 	return resolveAgentCredentials(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken))
 }
 
+// ConfirmLocalOwnerEligible succeeds only when the live broker proves that this
+// peer is outside every current Agent Manager runner process tree. This is a
+// cooperative CLI preflight; the owner exchange remains responsible for proof.
+func ConfirmLocalOwnerEligible(ctx context.Context) error {
+	return confirmLocalOwnerEligible(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken))
+}
+
+func confirmLocalOwnerEligible(ctx context.Context, socket, inherited string) error {
+	if strings.TrimSpace(inherited) != "" {
+		return errors.New("agent identity is present")
+	}
+	_, confirmedAbsent, err := resolveAgentCredentialsWithNamedPurpose(ctx, socket, inherited, "local_owner_eligibility")
+	if err != nil {
+		return err
+	}
+	if !confirmedAbsent {
+		return errors.New("local owner eligibility was not confirmed")
+	}
+	return nil
+}
+
 // ResolveOrdinaryAgentIdentity asks the local broker only for the ordinary
-// inherited run identity. It is reserved for the identity-reporting command;
-// normal API and child-launch credential selection remains unchanged.
+// inherited run identity. It is used by identity reporting and self-parking
+// callers that must verify and submit the same current baseline. Normal API and
+// child-launch selection remains unchanged; this does not select operation or
+// legacy grant credentials.
 func ResolveOrdinaryAgentIdentity(ctx context.Context) (string, error) {
 	credentials, err := resolveAgentCredentialsWithPurpose(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken), true)
 	if err != nil {
@@ -84,32 +111,58 @@ func resolveAgentCredentials(ctx context.Context, socket, inherited string) (Age
 }
 
 func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited string, ordinaryIdentity bool) (AgentCredentials, error) {
+	purpose := ""
+	if ordinaryIdentity {
+		purpose = "ordinary_identity"
+	}
+	credentials, _, err := resolveAgentCredentialsWithNamedPurpose(ctx, socket, inherited, purpose)
+	return credentials, err
+}
+
+func resolveAgentCredentialsWithNamedPurpose(ctx context.Context, socket, inherited, purpose string) (AgentCredentials, bool, error) {
 	inherited = strings.TrimSpace(inherited)
 	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}
 	defer transport.CloseIdleConnections()
 	endpoint := "http://local-agent-manager/credential"
-	if ordinaryIdentity {
-		endpoint += "?purpose=ordinary_identity"
+	if purpose != "" {
+		endpoint += "?purpose=" + url.QueryEscape(purpose)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
-		return AgentCredentials{}, err
+		return AgentCredentials{}, false, err
 	}
 	if inherited != "" {
 		req.Header.Set(HeaderAgentIdentityToken, inherited)
 	}
-	resp, err := (&http.Client{Transport: transport, Timeout: 5 * time.Second}).Do(req)
-	if err != nil {
-		if _, directoryErr := os.Stat(filepath.Dir(socket)); errors.Is(directoryErr, os.ErrNotExist) {
-			return inheritedBaselineOnUnavailableBroker(inherited)
+	var resp *http.Response
+	for _, timeout := range agentCredentialBrokerTimeouts {
+		resp, err = (&http.Client{Transport: transport, Timeout: timeout}).Do(req)
+		var netErr net.Error
+		if err == nil || !errors.As(err, &netErr) || !netErr.Timeout() {
+			break
 		}
-		return inheritedBaselineOnUnavailableBroker(inherited)
+	}
+	if err != nil {
+		if purpose == "local_owner_eligibility" {
+			return AgentCredentials{}, false, errors.New("local owner identity broker unavailable")
+		}
+		if _, directoryErr := os.Stat(filepath.Dir(socket)); directoryErr == nil && inherited != "" {
+			// The broker exists but did not answer: the request goes out with the
+			// bare run identity, so any approved operation grant is missing from it.
+			// Say so, or a grant-backed refusal reads as "ask for approval".
+			fmt.Fprintf(os.Stderr, "Warning: the Agent Manager identity broker did not answer (%v); continuing without this session's approved operation grant, so grant-backed operations will be refused. Retry when Agent Manager is less busy.\n", err)
+		}
+		credentials, fallbackErr := inheritedBaselineOnUnavailableBroker(inherited)
+		return credentials, false, fallbackErr
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNoContent {
-		return AgentCredentials{BaselineToken: inherited}, nil
+		return AgentCredentials{BaselineToken: inherited}, purpose == "local_owner_eligibility" && inherited == "", nil
+	}
+	if purpose == "local_owner_eligibility" {
+		return AgentCredentials{}, false, fmt.Errorf("local owner eligibility not confirmed (HTTP %d)", resp.StatusCode)
 	}
 	if resp.StatusCode != http.StatusOK {
 		var refusal struct {
@@ -119,7 +172,7 @@ func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited s
 		if refusal.Code == "" {
 			refusal.Code = fmt.Sprintf("refused (HTTP %d)", resp.StatusCode)
 		}
-		return AgentCredentials{}, &AgentAuthorizationError{Code: refusal.Code}
+		return AgentCredentials{}, false, &AgentAuthorizationError{Code: refusal.Code}
 	}
 	var body struct {
 		Token            string `json:"token"`
@@ -129,7 +182,7 @@ func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited s
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 256*1024)).Decode(&body); err != nil || body.Token == "" {
 		if err != nil {
-			return AgentCredentials{}, errors.New("invalid agent credential authority response")
+			return AgentCredentials{}, false, errors.New("invalid agent credential authority response")
 		}
 	}
 	credentials := AgentCredentials{
@@ -140,9 +193,9 @@ func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited s
 		(credentials.LegacyToken != "" && credentials.OperationToken != "") ||
 		(credentials.BaselineToken != "" && inherited == "") ||
 		(credentials.BaselineToken != "" && !isSameRunBaselineRenewal(inherited, credentials.BaselineToken)) {
-		return AgentCredentials{}, errors.New("invalid agent credential authority response")
+		return AgentCredentials{}, false, errors.New("invalid agent credential authority response")
 	}
-	return credentials, nil
+	return credentials, false, nil
 }
 
 type ordinaryIdentityClaims struct {
@@ -172,7 +225,7 @@ func isSameRunBaselineRenewal(previous, replacement string) bool {
 		oldClaims.RunID == "" || oldClaims.RunID != newClaims.RunID ||
 		oldClaims.TaskID != newClaims.TaskID || oldClaims.Subject != newClaims.Subject ||
 		oldClaims.WorkspaceID != newClaims.WorkspaceID || oldClaims.ProfileKey != newClaims.ProfileKey ||
-		oldClaims.ScopePath != newClaims.ScopePath || !sameStringSlice(oldClaims.Scopes, newClaims.Scopes) ||
+		oldClaims.ScopePath != newClaims.ScopePath || len(newClaims.Scopes) != 0 ||
 		!sameStringMap(oldClaims.Meta, newClaims.Meta) || newClaims.IssuedAt <= oldClaims.IssuedAt || newClaims.IssuedAt > now ||
 		newClaims.ExpiresAt <= newClaims.IssuedAt || newClaims.ExpiresAt > newClaims.IssuedAt+int64(defaultAgentIdentityTTL/time.Second) ||
 		newClaims.ExpiresAt <= now {
@@ -212,18 +265,6 @@ func parseOrdinaryIdentityClaims(token string) (ordinaryIdentityClaims, bool) {
 	return claims, true
 }
 
-func sameStringSlice(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func sameStringMap(a, b map[string]string) bool {
 	if len(a) != len(b) {
 		return false
@@ -241,6 +282,11 @@ func sameStringMap(a, b map[string]string) bool {
 // role classifier, not token verification: the receiving API still verifies
 // the signature, expiry and retained run. A grant token must not bypass the
 // broker's current-grant selection or revocation checks.
+// agentCredentialBrokerTimeouts bounds each broker attempt. A busy Agent
+// Manager (many concurrent writes) can take longer than the first bound; one
+// longer retry keeps the operation grant instead of silently dropping it.
+var agentCredentialBrokerTimeouts = []time.Duration{5 * time.Second, 15 * time.Second}
+
 func inheritedBaselineOnUnavailableBroker(inherited string) (AgentCredentials, error) {
 	if inherited == "" {
 		return AgentCredentials{}, nil

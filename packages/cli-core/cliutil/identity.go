@@ -139,10 +139,6 @@ func newInvocationID() string {
 //   - Transport errors (network down, missing config) return a Go error.
 //   - Auth errors (invalid/expired token) return a *VerifyResult with Valid=false.
 func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
-	if env.Token == "" {
-		return nil, fmt.Errorf("no identity token present (env %s is empty)", EnvIdentityToken)
-	}
-
 	baseURL := DetermineAPIBase(APIBaseOptions{
 		EnvVars: []string{
 			"AGENT_MANAGER_API_BASE",
@@ -150,8 +146,32 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 		},
 		PortDetector: detectAgentManagerPort,
 	})
-	if baseURL == "" {
-		return nil, fmt.Errorf("agent-manager base URL not discoverable (run `vrooli scenario status agent-manager` or set --api-base/config for the calling CLI)")
+	return env.verifyIdentityAt(context.Background(), baseURL, false)
+}
+
+// VerifyIdentityWithAPIClient verifies the selected token against the same
+// resolved Agent Manager base as client. The verifier still sends the token as
+// the explicitly selected body credential, without ambient identity injection.
+func (env IdentityEnv) VerifyIdentityWithAPIClient(client *APIClient) (*VerifyResult, error) {
+	if client == nil {
+		return nil, fmt.Errorf("agent-manager API client is unavailable")
+	}
+	return env.verifyIdentityAt(context.Background(), client.BaseURL(), false)
+}
+
+// VerifyIdentityWithSessionBinding requests the authority's optional exact session proof.
+func (env IdentityEnv) VerifyIdentityWithSessionBinding(ctx context.Context) (*VerifyResult, error) {
+	baseURL := DetermineAPIBase(APIBaseOptions{EnvVars: []string{"AGENT_MANAGER_API_BASE", "AGENT_MANAGER_API_URL"}, PortDetector: detectAgentManagerPort})
+	return env.verifyIdentityAt(ctx, baseURL, true)
+}
+
+func (env IdentityEnv) verifyIdentityAt(parent context.Context, baseURL string, sessionBinding bool) (*VerifyResult, error) {
+	if env.Token == "" {
+		return nil, fmt.Errorf("no identity token present (env %s is empty)", EnvIdentityToken)
+	}
+	baseURL, err := ValidateAPIBase(APIBaseOptions{Override: baseURL})
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager base URL not discoverable (run `vrooli scenario status agent-manager` or set --api-base/config for the calling CLI): %w", err)
 	}
 
 	client := NewHTTPClient(HTTPClientOptions{
@@ -161,11 +181,14 @@ func (env IdentityEnv) VerifyIdentity() (*VerifyResult, error) {
 		Timeout: 10 * time.Second,
 	})
 
-	body := map[string]string{"token": env.Token}
+	body := map[string]any{"token": env.Token}
+	if sessionBinding {
+		body["verify_session_binding"] = true
+	}
 	// This endpoint is verifying the explicitly selected body credential. Do
 	// not resolve or attach the caller process's ambient credential as a second
 	// identity proof; the receiver verifies the body token directly.
-	ctx := context.WithValue(context.Background(), identityInjectionBypassKey{}, true)
+	ctx := context.WithValue(parent, identityInjectionBypassKey{}, true)
 	data, err := client.DoWithContext(ctx, "POST", "/api/v1/identity/verify", nil, body)
 	if err != nil {
 		var apiErr *APIError

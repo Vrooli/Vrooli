@@ -58,6 +58,62 @@ func TestUploadFilePostsMultipart(t *testing.T) {
 	}
 }
 
+func TestUploadFileStreamsAndForwardsRoutedTestHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("X-Vrooli-Test-Mode"); got != "1" {
+			t.Errorf("test mode header = %q", got)
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			t.Errorf("FormFile: %v", err)
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(file)
+		if err != nil || string(data) != "streamed" {
+			t.Errorf("data = %q, err = %v", data, err)
+		}
+		_, _ = io.WriteString(w, `{"ok":true}`)
+	}))
+	defer server.Close()
+
+	app := callTestApp(t, server)
+	app.HTTPClient.SetHeaderSource(func() map[string]string { return map[string]string{"X-Vrooli-Test-Mode": "1"} })
+	if _, err := UploadFile(app, "/api/v1/upload", nil, UploadedFile{Reader: strings.NewReader("streamed")}); err != nil {
+		t.Fatalf("UploadFile: %v", err)
+	}
+}
+
+type errorReader struct{}
+
+func (errorReader) Read([]byte) (int, error) { return 0, fmt.Errorf("source read failed") }
+
+func TestUploadFileReturnsSourceReadError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		_, _ = io.WriteString(w, `{}`)
+	}))
+	defer server.Close()
+	app := callTestApp(t, server)
+	_, err := UploadFile(app, "/upload", nil, UploadedFile{Reader: errorReader{}})
+	if err == nil || !strings.Contains(err.Error(), "source read failed") {
+		t.Fatalf("error = %v, want source read failure", err)
+	}
+}
+
+func TestUploadFilePreservesEarlyAPIRejectionWithoutWaitingForLargeBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"code":"not_found","message":"project not found"}`)
+	}))
+	defer server.Close()
+	app := callTestApp(t, server)
+	_, err := UploadFile(app, "/upload", nil, UploadedFile{Reader: bytes.NewReader(bytes.Repeat([]byte("x"), 64<<20))})
+	if err == nil || !strings.Contains(err.Error(), "404") || !strings.Contains(err.Error(), "project not found") {
+		t.Fatalf("error=%v, want typed 404", err)
+	}
+}
+
 func TestUploadFileWrapsAPIError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)

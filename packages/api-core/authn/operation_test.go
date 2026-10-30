@@ -50,6 +50,79 @@ func TestTeamPreparationPolicyDoesNotGrantActivationOrOtherObjects(t *testing.T)
 	}
 }
 
+func TestTeamManagementPolicyIsSeparateAndTargetBound(t *testing.T) {
+	p, ok := InteractivePolicy("team-management")
+	if !ok || len(p.Scopes) != 2 || p.Scopes[0] != "prompt-manager:read" || p.Scopes[1] != "prompt-manager:write" || len(p.Operations) != 1 || p.Operations[0] != "team.manage" || len(p.Domains) != 1 || p.Domains[0] != "prompt-manager" {
+		t.Fatalf("invalid bounded policy: %+v", p)
+	}
+	grant := &identity.OperationGrant{ID: "g", Approver: "owner", Operations: p.Operations, Targets: []string{"prompt-manager:team/scenario-qa"}, ExpiresAt: time.Now().Add(time.Hour)}
+	principal := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: p.Scopes, Grant: grant}
+	ctx := identity.WithPrincipal(context.Background(), principal)
+	if _, err := RequireOperation(ctx, "prompt-manager:write", "team.manage", "prompt-manager:team/scenario-qa"); err != nil {
+		t.Fatalf("exact approved team-management operation refused: %v", err)
+	}
+	for _, pair := range [][2]string{{"team.manage", "prompt-manager:team/other"}, {"team.prepare", "prompt-manager:team/scenario-qa"}, {"team.manage", "agent-manager:run/other"}} {
+		if _, err := RequireOperation(ctx, "prompt-manager:write", pair[0], pair[1]); err == nil {
+			t.Fatalf("team-management grant escaped exact operation/target: %v", pair)
+		}
+	}
+	if _, err := RequireCapability(ctx, "prompt-manager:read"); err != nil {
+		t.Fatalf("team-management policy should preserve ordinary team read capability: %v", err)
+	}
+}
+
+func TestDeliveryManagementPolicyControlsOnlyTheNamedEffort(t *testing.T) {
+	policy, ok := InteractivePolicy("delivery-management")
+	if !ok || len(policy.Operations) != 1 || policy.Operations[0] != "effort.delivery" || len(policy.Domains) != 1 || policy.Domains[0] != "agent-manager" {
+		t.Fatalf("missing bounded delivery policy: %+v", policy)
+	}
+	grant := &identity.OperationGrant{ID: "delivery", Approver: "owner", Operations: policy.Operations, Targets: []string{"agent-manager:effort/hub"}, ExpiresAt: time.Now().Add(time.Hour)}
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "session", Owner: "owner", Verified: true, Scopes: policy.Scopes, Grant: grant})
+	if _, err := RequireOperation(ctx, "agent-manager:write", "effort.delivery", "agent-manager:effort/hub"); err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]string{{"effort.delivery", "agent-manager:effort/other"}, {"effort.reconcile", "agent-manager:effort/hub"}, {"agent.manage", "agent-manager:run/any"}} {
+		if _, err := RequireOperation(ctx, "agent-manager:write", pair[0], pair[1]); err == nil {
+			t.Fatalf("delivery grant escaped operation/object: %v", pair)
+		}
+	}
+	if _, err := RequireIndependentHuman(ctx); err == nil {
+		t.Fatal("delivery execution consent became human approval authority")
+	}
+}
+
+func TestPromptAgentCreationPolicyIsExactAndCreationOnly(t *testing.T) {
+	p, ok := InteractivePolicy("prompt-agent-creation")
+	if !ok || len(p.Operations) != 1 || p.Operations[0] != "agent.create" || len(p.Domains) != 1 || p.Domains[0] != "prompt-manager" {
+		t.Fatalf("invalid bounded policy: %+v", p)
+	}
+	grant := &identity.OperationGrant{
+		ID: "agent-create", Policy: "prompt-agent-creation", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour),
+		Rules: []identity.OperationRule{{Policy: "prompt-agent-creation", Operations: []string{"agent.create"}, Targets: []string{"prompt-manager:agent/new-worker"}}},
+	}
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{
+		Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true,
+		Scopes: p.Scopes, Grant: grant,
+	})
+	if _, err := RequireOperation(ctx, "prompt-manager:write", "agent.create", "prompt-manager:agent/new-worker"); err != nil {
+		t.Fatalf("exact approved creation target refused: %v", err)
+	}
+	for _, pair := range [][2]string{
+		{"agent.create", "prompt-manager:agent/other"},
+		{"team.manage", "prompt-manager:team/team-1"},
+		{"agent.update", "prompt-manager:agent/new-worker"},
+	} {
+		if _, err := RequireOperation(ctx, "prompt-manager:write", pair[0], pair[1]); err == nil {
+			t.Fatalf("agent-creation grant escaped its operation/target: %v", pair)
+		}
+	}
+	grant.Policy = "prompt-agent-creation+team-management"
+	grant.Rules = append(grant.Rules, identity.OperationRule{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/team-1"}})
+	if _, err := RequireOperation(ctx, "prompt-manager:write", "agent.create", "prompt-manager:agent/new-worker"); err != nil {
+		t.Fatalf("unrelated second policy invalidated covered agent creation rule: %v", err)
+	}
+}
+
 func TestMiddlewarePreservesVerifiedAgentWithoutHumanProviders(t *testing.T) {
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run", Subject: "owner", Scopes: []string{"swarm-manager:write"}})
 	request := httptest.NewRequest(http.MethodGet, "/api", nil).WithContext(ctx)
@@ -130,5 +203,23 @@ func TestForwardedOwnerProofCannotExpandAnInteractiveGrant(t *testing.T) {
 				t.Fatal("forwarded proof changed the agent actor")
 			}
 		})).ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodPost, "/", nil).WithContext(ctx))
+	}
+}
+
+func TestRunDeletionPolicyDeletesOnlyCoveredRuns(t *testing.T) {
+	p, ok := InteractivePolicy("run-deletion")
+	if !ok || len(p.Operations) != 1 || p.Operations[0] != "run.delete" || len(p.Domains) != 1 || p.Domains[0] != "agent-manager" {
+		t.Fatalf("invalid bounded policy: %+v", p)
+	}
+	grant := &identity.OperationGrant{ID: "g", Approver: "owner", Operations: p.Operations, Targets: []string{"agent-manager:run/a"}, ExpiresAt: time.Now().Add(time.Hour)}
+	principal := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: p.Scopes, Grant: grant}
+	ctx := identity.WithPrincipal(context.Background(), principal)
+	if _, err := RequireOperation(ctx, "agent-manager:write", "run.delete", "agent-manager:run/a"); err != nil {
+		t.Fatalf("approved run deletion refused: %v", err)
+	}
+	for _, pair := range [][2]string{{"run.delete", "agent-manager:run/b"}, {"agent.manage", "agent-manager:run/a"}, {"run.create", "agent-manager:*"}} {
+		if _, err := RequireOperation(ctx, "agent-manager:write", pair[0], pair[1]); err == nil {
+			t.Fatalf("run-deletion grant escaped exact operation/target: %v", pair)
+		}
 	}
 }

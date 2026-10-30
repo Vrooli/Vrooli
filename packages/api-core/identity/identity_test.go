@@ -80,3 +80,36 @@ func TestOperationGrantRulesNeverCrossPolicies(t *testing.T) {
 		t.Fatal("a single-policy grant changed meaning")
 	}
 }
+
+func TestOperationGrantScopedPrefixWildcard(t *testing.T) {
+	now := time.Now()
+	g := &OperationGrant{
+		ID: "g", Approver: "owner", ExpiresAt: now.Add(time.Hour),
+		Operations: []string{"effort.reconcile"},
+		Targets:    []string{"agent-manager:effort/*"},
+	}
+	// Covers any effort under the prefix.
+	for _, tgt := range []string{
+		"agent-manager:effort/notification-hub-redesign",
+		"agent-manager:effort/bas",
+		"agent-manager:effort/nested/path",
+	} {
+		if !g.Allows("effort.reconcile", tgt, now) {
+			t.Fatalf("effort/* wildcard did not cover %q", tgt)
+		}
+	}
+	// Anchored at the path boundary: must not leak to a sibling prefix or
+	// across domains, and the operation still has to match.
+	for _, tgt := range []string{
+		"agent-manager:effortish/x",      // sibling prefix, not under effort/
+		"agent-manager:run/1",            // different object kind
+		"prompt-manager:effort/anything", // different domain
+	} {
+		if g.Allows("effort.reconcile", tgt, now) {
+			t.Fatalf("effort/* wildcard leaked to %q", tgt)
+		}
+	}
+	if g.Allows("agent.manage", "agent-manager:effort/bas", now) {
+		t.Fatal("prefix wildcard granted an operation it was never scoped to")
+	}
+}

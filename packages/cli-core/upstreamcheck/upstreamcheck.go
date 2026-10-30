@@ -21,9 +21,12 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // SourceKind identifies how the latest upstream version is discovered.
@@ -64,8 +67,12 @@ type Config struct {
 // Handlers carries runtime dependencies; tests inject the seams.
 type Handlers struct {
 	Cfg Config
-	// InstalledRunner returns the raw `--version` output. Defaults to exec.
+	// InstalledRunner is a legacy injected seam returning raw `--version`
+	// output without an executable identity. The default uses InstalledProbe.
 	InstalledRunner func(ctx context.Context, args []string) (string, error)
+	// InstalledProbe also reports the executable used for the version command.
+	// An absent path is unknown, not proof that this is the launch executable.
+	InstalledProbe func(ctx context.Context, args []string) (version, commandPath, executablePath string, err error)
 	// LatestFetcher returns the latest upstream version string. Defaults to
 	// an HTTP lookup against GitHub / the npm registry.
 	LatestFetcher func(ctx context.Context, kind SourceKind, id string) (string, error)
@@ -84,28 +91,41 @@ func Default(cfg Config) *Handlers {
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
 	}
-	h.InstalledRunner = defaultInstalledRunner
+	h.InstalledProbe = defaultInstalledProbe
 	h.LatestFetcher = h.fetchLatest
 	return h
 }
 
-func defaultInstalledRunner(ctx context.Context, args []string) (string, error) {
+func defaultInstalledProbe(ctx context.Context, args []string) (string, string, string, error) {
 	if len(args) == 0 {
-		return "", fmt.Errorf("empty version command")
+		return "", "", "", fmt.Errorf("empty version command")
 	}
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	commandPath, err := exec.LookPath(args[0])
+	if err != nil {
+		return "", "", "", err
+	}
+	binary, err := cliutil.ResolveAgentBinary(args[0])
+	if err != nil {
+		return "", commandPath, "", err
+	}
+	cmd := exec.CommandContext(ctx, binary, args[1:]...)
 	out, err := cmd.Output()
-	return strings.TrimSpace(string(out)), err
+	return strings.TrimSpace(string(out)), commandPath, binary, err
 }
 
 // Report is the structured result emitted by --json.
 type Report struct {
-	Name      string `json:"name"`
-	Installed string `json:"installed"`
-	Pinned    string `json:"pinned"`
-	Latest    string `json:"latest"`
-	Status    Status `json:"status"`
-	Source    struct {
+	Name           string    `json:"name"`
+	Installed      string    `json:"installed"`
+	Pinned         string    `json:"pinned"`
+	Latest         string    `json:"latest"`
+	Status         Status    `json:"status"`
+	ExecutablePath string    `json:"executable_path,omitempty"`
+	CommandPath    string    `json:"command_path,omitempty"`
+	OS             string    `json:"os,omitempty"`
+	Arch           string    `json:"arch,omitempty"`
+	CheckedAt      time.Time `json:"checked_at"`
+	Source         struct {
 		Kind string `json:"kind"`
 		ID   string `json:"id"`
 	} `json:"source"`
@@ -130,14 +150,23 @@ func (h *Handlers) Check(args []string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	rep := Report{Name: h.Cfg.DisplayName, Pinned: strings.TrimSpace(*pinned), Status: StatusUnknown}
+	rep := Report{Name: h.Cfg.DisplayName, Pinned: strings.TrimSpace(*pinned), Status: StatusUnknown, OS: runtime.GOOS, Arch: runtime.GOARCH}
 	rep.Source.Kind = string(h.Cfg.SourceKind)
 	rep.Source.ID = h.Cfg.SourceID
 
 	var notes []string
 
-	if raw, err := h.InstalledRunner(ctx, h.Cfg.InstalledCmd); err != nil {
-		notes = append(notes, fmt.Sprintf("installed version unavailable: %v", err))
+	var raw string
+	var installedErr error
+	if h.InstalledProbe != nil {
+		raw, rep.CommandPath, rep.ExecutablePath, installedErr = h.InstalledProbe(ctx, h.Cfg.InstalledCmd)
+	} else if h.InstalledRunner != nil {
+		raw, installedErr = h.InstalledRunner(ctx, h.Cfg.InstalledCmd)
+	} else {
+		installedErr = fmt.Errorf("installed version probe unavailable")
+	}
+	if installedErr != nil {
+		notes = append(notes, fmt.Sprintf("installed version unavailable: %v", installedErr))
 	} else {
 		rep.Installed = ExtractSemver(raw)
 		if rep.Installed == "" {
@@ -158,6 +187,7 @@ func (h *Handlers) Check(args []string) error {
 
 	rep.Status = Compare(rep.Installed, rep.Latest)
 	rep.Note = strings.Join(notes, "; ")
+	rep.CheckedAt = time.Now().UTC()
 
 	if *asJSON {
 		enc := json.NewEncoder(h.Stdout)
@@ -241,18 +271,33 @@ func getJSON(ctx context.Context, client *http.Client, url string, out any) erro
 	return json.Unmarshal(body, out)
 }
 
-var semverRe = regexp.MustCompile(`\d+\.\d+\.\d+`)
+var semverRe = regexp.MustCompile(`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?`)
+var exactSemverRe = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
 
 // ExtractSemver pulls the first MAJOR.MINOR.PATCH token out of a raw
 // version string (e.g. "codex-cli 0.131.0" → "0.131.0").
 func ExtractSemver(raw string) string {
-	return semverRe.FindString(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "v")))
+	raw = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "v"))
+	index := semverRe.FindStringIndex(raw)
+	if index == nil {
+		return ""
+	}
+	// A malformed suffix must not be silently discarded and made to look
+	// like a stable release.
+	if index[1] < len(raw) && (raw[index[1]] == '-' || raw[index[1]] == '+') {
+		return ""
+	}
+	return raw[index[0]:index[1]]
 }
 
 // Compare returns the relative state of installed vs latest. An empty input
-// yields StatusUnknown.
+// or malformed input yields StatusUnknown. Pre-releases are deliberately
+// unknown until the source's channel semantics are known; dropping their
+// suffix can incorrectly report a pre-release as a stable installation.
 func Compare(installed, latest string) Status {
-	if strings.TrimSpace(installed) == "" || strings.TrimSpace(latest) == "" {
+	installed = strings.TrimPrefix(strings.TrimSpace(installed), "v")
+	latest = strings.TrimPrefix(strings.TrimSpace(latest), "v")
+	if !exactSemverRe.MatchString(installed) || !exactSemverRe.MatchString(latest) || strings.Contains(strings.SplitN(installed, "+", 2)[0], "-") || strings.Contains(strings.SplitN(latest, "+", 2)[0], "-") {
 		return StatusUnknown
 	}
 	switch cmpSemver(installed, latest) {
@@ -268,10 +313,14 @@ func Compare(installed, latest string) Status {
 }
 
 // cmpSemver compares two dotted numeric versions. Returns -1 if a<b, 0 if
-// equal, 1 if a>b. Pre-release/build suffixes are ignored.
+// equal, 1 if a>b. Compare has already rejected ambiguous pre-releases;
+// build metadata does not affect ordering.
 func cmpSemver(a, b string) int {
 	pa := splitVersion(a)
 	pb := splitVersion(b)
+	if len(pa) != 3 || len(pb) != 3 {
+		return 2
+	}
 	n := len(pa)
 	if len(pb) > n {
 		n = len(pb)

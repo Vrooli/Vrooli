@@ -62,6 +62,38 @@ type Option struct {
 	Label string
 }
 
+// CorrelationRaisedByRunID is the well-known Facts.Correlation key a producer
+// sets to the agent-manager run id of the agent that raised the decision, so the
+// resolution can be delivered back to that exact run automatically. The producer
+// obtains the id from the shared agent-provenance layer
+// (provenance.FromContext(ctx) → the verified RunID), which attributes a run id
+// to ANY coding agent — including ones agent-manager did not create — by
+// verifying the agent's identity token against agent-manager. On resolution,
+// agent-manager delivers the operator's answer to that run by its current state
+// (a parked run is woken; a running interactive or terminal run is continued),
+// so the tie-back does NOT require the agent to have parked. A producer that
+// does not set it simply gets no tie-back.
+const CorrelationRaisedByRunID = "raised_by_run_id"
+
+// CorrelationWebConsoleSessionID is the STABLE delivery handle for a
+// web-console-hosted agent. Unlike CorrelationRaisedByRunID (an agent-manager
+// run id reached via the ephemeral identity token, which expires on a
+// long-lived session), a web-console session id does not expire for the life of
+// the session. When set, agent-manager delivers the answer straight to that
+// session via its existing web-console client — used as the fallback when no
+// usable run id is present (e.g. a multi-day interactive session whose env
+// token has aged out). The agent supplies its own WC_WEB_CONSOLE_SESSION_ID.
+const CorrelationWebConsoleSessionID = "web_console_session_id"
+
+// CorrelationAgentAwaitKey is an OPTIONAL companion to CorrelationRaisedByRunID.
+// When an agent chose to park (zero tokens while waiting) it parks on
+// agent-manager producer "operator-decision" with this value as the await key —
+// conventionally the decision's own correlation id. agent-manager uses it to
+// confirm a parked run is parked on THIS decision before waking it (so a run
+// parked on unrelated work is never disturbed). Parking is optional; without it
+// the run is still reached via CorrelationRaisedByRunID while it runs.
+const CorrelationAgentAwaitKey = "agent_await_key"
+
 // Facts limits mirror the notification-hub ask contract, so a decision this
 // package accepts is never refused by the hub. They match goalhome's Decision
 // limits.

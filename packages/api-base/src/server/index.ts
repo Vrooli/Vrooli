@@ -59,6 +59,16 @@ export {
   assertLifecycleManagedUI,
 } from './lifecycle.js'
 
+// Built-in app notifications (/vrooli-notify)
+export {
+  APP_NOTIFICATIONS_PREFIX,
+  APP_SCENARIO_HEADER,
+  appDeliveryDeclared,
+  createAppNotificationsRouter,
+  resolveAppNotifications,
+} from './app-notifications.js'
+export { APP_NOTIFICATIONS_WORKER_SOURCE } from './app-notifications-worker.js'
+
 // Host scenario helpers
 export {
   createScenarioProxyHost,

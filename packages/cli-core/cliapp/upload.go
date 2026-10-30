@@ -1,7 +1,6 @@
 package cliapp
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -9,6 +8,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -41,30 +41,37 @@ func UploadFile(app *ScenarioApp, path string, fields map[string]string, file Up
 		return nil, fmt.Errorf("invalid api base URL %q", base)
 	}
 
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
-	for k, v := range fields {
-		if err := writer.WriteField(k, v); err != nil {
-			return nil, fmt.Errorf("write multipart field %q: %w", k, err)
+	pipeReader, pipeWriter := io.Pipe()
+	writer := multipart.NewWriter(pipeWriter)
+	writeDone := make(chan error, 1)
+	go func() {
+		var sourceErr error
+		for k, v := range fields {
+			if sourceErr = writer.WriteField(k, v); sourceErr != nil {
+				break
+			}
 		}
-	}
-	partHeader := make(textproto.MIMEHeader)
-	partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, escapeMultipartQuote(defaultUploadFileName(file.Name))))
-	partHeader.Set("Content-Type", defaultUploadContentType(file.ContentType))
-	part, err := writer.CreatePart(partHeader)
-	if err != nil {
-		return nil, fmt.Errorf("create multipart file: %w", err)
-	}
-	if _, err := io.Copy(part, file.Reader); err != nil {
-		return nil, fmt.Errorf("write multipart file: %w", err)
-	}
-	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("finish multipart body: %w", err)
-	}
+		if sourceErr == nil {
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, escapeMultipartQuote(defaultUploadFileName(file.Name))))
+			partHeader.Set("Content-Type", defaultUploadContentType(file.ContentType))
+			var part io.Writer
+			part, sourceErr = writer.CreatePart(partHeader)
+			if sourceErr == nil {
+				_, sourceErr = io.Copy(part, file.Reader)
+			}
+		}
+		if closeErr := writer.Close(); sourceErr == nil {
+			sourceErr = closeErr
+		}
+		_ = pipeWriter.CloseWithError(sourceErr)
+		writeDone <- sourceErr
+	}()
 
 	endpoint := base + normalizeAPIPath(path)
-	req, err := http.NewRequest(http.MethodPost, endpoint, &body)
+	req, err := http.NewRequest(http.MethodPost, endpoint, pipeReader)
 	if err != nil {
+		_ = pipeReader.Close()
 		return nil, fmt.Errorf("create upload request: %w", err)
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -79,6 +86,10 @@ func UploadFile(app *ScenarioApp, path string, fields map[string]string, file Up
 	}
 	resp, err := client.Do(req)
 	if err != nil {
+		_ = pipeReader.CloseWithError(err)
+		if sourceErr, complete := waitUploadWriter(writeDone, 250*time.Millisecond); complete && sourceErr != nil {
+			return nil, fmt.Errorf("write multipart file: %w", sourceErr)
+		}
 		return nil, fmt.Errorf("upload request failed: %w", err)
 	}
 	defer resp.Body.Close()
@@ -87,9 +98,25 @@ func UploadFile(app *ScenarioApp, path string, fields map[string]string, file Up
 		return nil, fmt.Errorf("read upload response: %w", err)
 	}
 	if resp.StatusCode >= 400 {
+		_ = pipeReader.CloseWithError(fmt.Errorf("server rejected multipart upload with status %d", resp.StatusCode))
 		return nil, cliutil.ParseAPIError(resp.StatusCode, data)
 	}
+	if sourceErr, complete := waitUploadWriter(writeDone, 5*time.Second); !complete {
+		_ = pipeReader.CloseWithError(fmt.Errorf("upload response arrived before request body finished"))
+		return nil, fmt.Errorf("multipart upload writer did not finish after the server response")
+	} else if sourceErr != nil {
+		return nil, fmt.Errorf("write multipart file: %w", sourceErr)
+	}
 	return data, nil
+}
+
+func waitUploadWriter(done <-chan error, timeout time.Duration) (error, bool) {
+	select {
+	case err := <-done:
+		return err, true
+	case <-time.After(timeout):
+		return nil, false
+	}
 }
 
 func defaultUploadFileName(name string) string {

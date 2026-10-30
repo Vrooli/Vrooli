@@ -169,6 +169,15 @@ func operationTargetAllowed(operations, targets []string, operation, target stri
 		if allowed == target || allowed == domain+":*" {
 			return true
 		}
+		// Scoped prefix wildcard: `domain:prefix/*` covers any target under
+		// that prefix (e.g. `agent-manager:effort/*` covers
+		// `agent-manager:effort/notification-hub-redesign`). The trailing
+		// slash in the retained prefix anchors the match at a path boundary,
+		// so `effort/*` never matches a sibling like `effortish/x`, and the
+		// retained `domain:` segment keeps the match inside one domain.
+		if prefix, ok := strings.CutSuffix(allowed, "/*"); ok && strings.HasPrefix(target, prefix+"/") {
+			return true
+		}
 	}
 	return false
 }

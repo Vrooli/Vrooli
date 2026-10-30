@@ -68,8 +68,10 @@ func TestParkForAwait_Success(t *testing.T) {
 	})
 	defer server.Close()
 
+	baseline := credentialRoleTestToken(map[string]string{})
+	t.Setenv("TMPDIR", t.TempDir())
 	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
-	t.Setenv(EnvIdentityToken, "valid-token")
+	t.Setenv(EnvIdentityToken, baseline)
 
 	result, parked, err := ParkForAwait(ParkRequest{Producer: ParkProducerTestGenie, Key: "demo/R1"})
 	if err != nil {
@@ -87,8 +89,8 @@ func TestParkForAwait_Success(t *testing.T) {
 	if gotBody["key"] != "demo/R1" {
 		t.Errorf("key = %v, want %q", gotBody["key"], "demo/R1")
 	}
-	if gotBody["identity_token"] != "valid-token" {
-		t.Errorf("identity_token = %v, want %q", gotBody["identity_token"], "valid-token")
+	if gotBody["identity_token"] != baseline {
+		t.Errorf("identity_token = %v, want the configured ordinary baseline", gotBody["identity_token"])
 	}
 	if _, present := gotBody["deadline_unix"]; present {
 		t.Errorf("deadline_unix should be omitted for a zero deadline, got %v", gotBody["deadline_unix"])
@@ -102,8 +104,9 @@ func TestParkForAwait_DeclinedIsError(t *testing.T) {
 	})
 	defer server.Close()
 
+	t.Setenv("TMPDIR", t.TempDir())
 	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
-	t.Setenv(EnvIdentityToken, "valid-token")
+	t.Setenv(EnvIdentityToken, credentialRoleTestToken(map[string]string{}))
 
 	_, parked, err := ParkForAwait(ParkRequest{Producer: ParkProducerTestGenie, Key: "demo/R1"})
 	if !parked {
@@ -121,8 +124,9 @@ func TestParkForAwait_ParkEndpointErrorIsInAMRun(t *testing.T) {
 	})
 	defer server.Close()
 
+	t.Setenv("TMPDIR", t.TempDir())
 	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
-	t.Setenv(EnvIdentityToken, "valid-token")
+	t.Setenv(EnvIdentityToken, credentialRoleTestToken(map[string]string{}))
 
 	_, parked, err := ParkForAwait(ParkRequest{Producer: ParkProducerGCT, Key: "web/pre-launch"})
 	if !parked {
@@ -142,8 +146,9 @@ func TestParkForAwait_PassesDeadline(t *testing.T) {
 	})
 	defer server.Close()
 
+	t.Setenv("TMPDIR", t.TempDir())
 	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
-	t.Setenv(EnvIdentityToken, "valid-token")
+	t.Setenv(EnvIdentityToken, credentialRoleTestToken(map[string]string{}))
 
 	deadline := time.Unix(1700000000, 0)
 	_, parked, err := ParkForAwait(ParkRequest{Producer: ParkProducerTestGenie, Key: "demo/R2", Deadline: deadline})

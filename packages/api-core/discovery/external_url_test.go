@@ -117,6 +117,19 @@ func TestResolveExternalURLUsesTheUIPort(t *testing.T) {
 	}
 }
 
+func TestBrowserURLPreservesPrivateLANHost(t *testing.T) {
+	for host, want := range map[string]string{
+		"192.168.1.173:16000": "http://192.168.1.173:22054",
+		"[fd00::173]:16000":   "http://[fd00::173]:22054",
+		"localhost:16000":     "http://localhost:22054",
+		"127.0.0.1:16000":     "http://localhost:22054",
+	} {
+		if got := BrowserURLForHost(host, "nutrition-planner", 22054); got != want {
+			t.Errorf("host %s: got %s, want %s", host, got, want)
+		}
+	}
+}
+
 func TestResolveExternalURLReportsAnUnresolvableScenario(t *testing.T) {
 	resolver := NewResolver(ResolverConfig{
 		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {

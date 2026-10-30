@@ -585,7 +585,8 @@ func TestProtectedCommandSessionAdoptsInheritedCustody(t *testing.T) {
 	}
 	defer os.RemoveAll(namespace)
 	t.Setenv("TMPDIR", namespace)
-	t.Setenv(EnvIdentityToken, "synthetic-inherited-leaf")
+	inherited := credentialRoleTestTokenForRun("inherited-command-fixture", nil)
+	t.Setenv(EnvIdentityToken, inherited)
 	t.Setenv(AgentSessionEnv, "existing-session")
 	calls := 0
 	result, err := LaunchCommandSessionResult(context.Background(), AgentLaunchRequest{
@@ -593,7 +594,7 @@ func TestProtectedCommandSessionAdoptsInheritedCustody(t *testing.T) {
 		LookPath: func(string) (string, error) { return "/synthetic/command", nil },
 		RunChild: func(_ context.Context, _ string, args, environment []string, _ io.Reader, _, _ io.Writer) error {
 			calls++
-			if len(args) != 1 || args[0] != "--help" || environmentValue(environment, EnvIdentityToken) != "synthetic-inherited-leaf" {
+			if len(args) != 1 || args[0] != "--help" || environmentValue(environment, EnvIdentityToken) != inherited {
 				t.Error("inherited command custody/argv")
 			}
 			return nil
@@ -612,6 +613,7 @@ func TestProtectedCommandSessionCleanupRefusesRedirect(t *testing.T) {
 	defer os.RemoveAll(namespace)
 	t.Setenv("TMPDIR", namespace)
 	t.Setenv(EnvIdentityToken, "")
+	cleanupToken := credentialRoleTestTokenForRun("synthetic-owned-id", nil)
 	secondRequests := 0
 	second := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { secondRequests++; w.WriteHeader(200) }))
 	defer second.Close()
@@ -619,13 +621,13 @@ func TestProtectedCommandSessionCleanupRefusesRedirect(t *testing.T) {
 		firstRequests := 0
 		first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			firstRequests++
-			if r.Header.Get(HeaderAgentIdentityToken) != "synthetic-cleanup-leaf" {
+			if r.Header.Get(HeaderAgentIdentityToken) != cleanupToken {
 				t.Error("missing held cleanup identity")
 			}
 			w.Header().Set("Location", second.URL+"/unexpected")
 			w.WriteHeader(status)
 		}))
-		err := detachCodingAgent(context.Background(), AgentLaunchRequest{RequireNativeIdentity: true, APIBase: first.URL}, "synthetic-owned-id", "synthetic-cleanup-leaf")
+		err := detachCodingAgent(context.Background(), AgentLaunchRequest{RequireNativeIdentity: true, APIBase: first.URL}, "synthetic-owned-id", cleanupToken)
 		first.Close()
 		if err == nil || !strings.Contains(err.Error(), "protected cleanup redirect refused") || firstRequests != 1 || secondRequests != 0 {
 			t.Fatal("redirect leaked cleanup", err, firstRequests, secondRequests)

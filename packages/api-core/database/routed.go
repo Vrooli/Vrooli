@@ -2,10 +2,17 @@ package database
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -69,12 +76,13 @@ func SystemClock() Clock { return schedule.System() }
 // substitute the entire seam by passing a different *RoutedDB constructed
 // against in-memory drivers.
 type RoutedDB struct {
-	mu      sync.RWMutex
-	primary *sql.DB
-	test    *sql.DB
-	lease   leaseState
-	cfg     Config
-	clock   Clock
+	mu                 sync.RWMutex
+	primary            *sql.DB
+	test               *sql.DB
+	lease              leaseState
+	cfg                Config
+	primaryFingerprint string
+	clock              Clock
 	// testPoolInitializer prepares each newly installed pool before it becomes
 	// visible to test-mode requests (for example, by applying scenario schemas).
 	// It is deliberately process-owned, not part of the devrouting request.
@@ -91,7 +99,42 @@ type RoutedDB struct {
 type leaseState struct {
 	id        string
 	expiresAt time.Time
+	dsn       string
 }
+
+// TestPoolRestartState is an owner-only snapshot used by devrouting to persist
+// an explicit graceful restart checkpoint. DSN is intentionally available only
+// through this in-process API; devrouting must keep it in its private record.
+type TestPoolRestartState struct {
+	LeaseID            string
+	ExpiresAt          time.Time
+	DSN                string
+	PrimaryFingerprint string
+	Stats              LeaseStatsSnapshot
+}
+
+type testPoolPinKey struct{}
+
+type testPoolPin struct {
+	owner   *RoutedDB
+	leaseID string
+	pool    *sql.DB
+}
+
+var errForeignTestPoolPin = errors.New("database.RoutedDB: test pool pin belongs to another owner")
+
+type foreignPinConnector struct{}
+
+func (foreignPinConnector) Connect(context.Context) (driver.Conn, error) {
+	return nil, errForeignTestPoolPin
+}
+func (foreignPinConnector) Driver() driver.Driver { return foreignPinDriver{} }
+
+type foreignPinDriver struct{}
+
+func (foreignPinDriver) Open(string) (driver.Conn, error) { return nil, errForeignTestPoolPin }
+
+var foreignPinPool = sql.OpenDB(foreignPinConnector{})
 
 // leaseStats is the atomic snapshot of LeaseStats counters.
 type leaseStats struct {
@@ -139,16 +182,24 @@ func (e *ErrLeaseMismatch) Error() string {
 // The returned RoutedDB has no test pool until InstallTestPool is called.
 // Production code paths see exactly the behavior of the underlying *sql.DB.
 func Open(ctx context.Context, cfg Config) (*RoutedDB, error) {
+	cfg, err := resolvePrimaryDSN(cfg)
+	if err != nil {
+		return nil, err
+	}
 	primary, err := Connect(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &RoutedDB{primary: primary, cfg: cfg, clock: schedule.System()}, nil
+	return &RoutedDB{primary: primary, cfg: cfg, primaryFingerprint: primaryFingerprintForConfig(cfg), clock: schedule.System()}, nil
 }
 
 // OpenWithClock is Open with an explicit clock seam. Tests pass a fake
 // clock; production callers use Open.
 func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, error) {
+	cfg, err := resolvePrimaryDSN(cfg)
+	if err != nil {
+		return nil, err
+	}
 	primary, err := Connect(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -156,7 +207,19 @@ func OpenWithClock(ctx context.Context, cfg Config, clock Clock) (*RoutedDB, err
 	if clock == nil {
 		clock = schedule.System()
 	}
-	return &RoutedDB{primary: primary, cfg: cfg, clock: clock}, nil
+	return &RoutedDB{primary: primary, cfg: cfg, primaryFingerprint: primaryFingerprintForConfig(cfg), clock: clock}, nil
+}
+
+func resolvePrimaryDSN(cfg Config) (Config, error) {
+	cfg = withDefaults(cfg)
+	if cfg.DSN == "" {
+		dsn, err := buildDSNFromEnv(cfg)
+		if err != nil {
+			return Config{}, fmt.Errorf("build connection string: %w", err)
+		}
+		cfg.DSN = dsn
+	}
+	return cfg, nil
 }
 
 // NewFromPrimary wraps an already-open *sql.DB as a RoutedDB whose primary pool
@@ -198,11 +261,42 @@ func (r *RoutedDB) SetTestPoolInitializer(initializer func(context.Context, *sql
 	r.mu.Unlock()
 }
 
+// testPoolIsLiveLocked reports whether the installed pool's lease is live.
+// The caller must hold r.mu.
+func (r *RoutedDB) testPoolIsLiveLocked() bool {
+	return r.test != nil && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+}
+
+// hasDifferentLiveLeaseLocked reports whether another unexpired test pool
+// currently owns the router. The caller must hold r.mu.
+func (r *RoutedDB) hasDifferentLiveLeaseLocked(leaseID string) bool {
+	return r.testPoolIsLiveLocked() && r.lease.id != leaseID
+}
+
 // pick returns the pool that should serve a request carrying ctx.
 // It takes a read lock so installs/clears can occur concurrently with
 // in-flight requests without tearing. pick also enforces lease expiry: an
 // expired lease behaves as if no pool were installed.
 func (r *RoutedDB) pick(ctx context.Context) *sql.DB {
+	if pin, ok := ctx.Value(testPoolPinKey{}).(testPoolPin); ok {
+		if pin.owner != r {
+			return foreignPinPool
+		}
+		r.mu.RLock()
+		matches := r.test == pin.pool && r.lease.id == pin.leaseID
+		expired := matches && !r.lease.expiresAt.IsZero() && r.clock.Now().After(r.lease.expiresAt)
+		r.mu.RUnlock()
+		if expired {
+			r.expireLeaseIfStale(pin.leaseID, pin.pool)
+			return pin.pool
+		}
+		if !matches {
+			_ = pin.pool.Close()
+			return pin.pool
+		}
+		r.stats.testPoolRequests.Add(1)
+		return pin.pool
+	}
 	testMode := IsTestMode(ctx)
 
 	r.mu.RLock()
@@ -221,7 +315,7 @@ func (r *RoutedDB) pick(ctx context.Context) *sql.DB {
 
 	// Expired lease — revert to primary and (best-effort) clear once.
 	if !expiresAt.IsZero() && clock.Now().After(expiresAt) {
-		r.expireLeaseIfStale(leaseID)
+		r.expireLeaseIfStale(leaseID, test)
 		if testMode {
 			r.stats.primaryDuringTestModeRequest.Add(1)
 		}
@@ -245,9 +339,9 @@ func (r *RoutedDB) primaryPool() *sql.DB {
 
 // expireLeaseIfStale closes and clears the test pool if it is still owned
 // by leaseID. Idempotent under racing pick() callers.
-func (r *RoutedDB) expireLeaseIfStale(leaseID string) {
+func (r *RoutedDB) expireLeaseIfStale(leaseID string, expected *sql.DB) {
 	r.mu.Lock()
-	if r.test == nil || r.lease.id != leaseID {
+	if r.test == nil || r.test != expected || r.lease.id != leaseID || r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt) {
 		r.mu.Unlock()
 		return
 	}
@@ -276,6 +370,25 @@ func (r *RoutedDB) Primary() *sql.DB {
 // The returned pool can close when its lease ends; callers must propagate that
 // error instead of resolving a replacement pool during the same operation.
 func (r *RoutedDB) PoolForContext(ctx context.Context) (*sql.DB, error) {
+	if ctx != nil {
+		if pin, ok := ctx.Value(testPoolPinKey{}).(testPoolPin); ok {
+			if pin.owner != r {
+				return nil, errForeignTestPoolPin
+			}
+			r.mu.RLock()
+			valid := r.test == pin.pool && r.lease.id == pin.leaseID
+			expired := valid && !r.lease.expiresAt.IsZero() && r.clock.Now().After(r.lease.expiresAt)
+			r.mu.RUnlock()
+			if expired {
+				r.expireLeaseIfStale(pin.leaseID, pin.pool)
+				return nil, fmt.Errorf("test database lease is expired")
+			}
+			if !valid {
+				return nil, &ErrLeaseMismatch{ActiveLeaseID: r.ActiveLeaseID()}
+			}
+			return pin.pool, nil
+		}
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if !IsTestMode(ctx) {
@@ -285,6 +398,44 @@ func (r *RoutedDB) PoolForContext(ctx context.Context) (*sql.DB, error) {
 		return nil, fmt.Errorf("test database lease is missing or expired")
 	}
 	return r.test, nil
+}
+
+// PinTestPool binds subsequent RoutedDB calls made with the returned context
+// to the exact pool installed under expectedLeaseID. If that pool is cleared,
+// replaced (including a same-ID reinstall), or expires, calls fail against the
+// closed pinned pool instead of selecting a new pool or primary storage.
+func (r *RoutedDB) PinTestPool(ctx context.Context, expectedLeaseID string) (context.Context, error) {
+	if r == nil {
+		return nil, &ErrLeaseMismatch{}
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if expectedLeaseID == "" {
+		return nil, &ErrLeaseMismatch{}
+	}
+	if pin, ok := ctx.Value(testPoolPinKey{}).(testPoolPin); ok {
+		if pin.owner != r || pin.leaseID != expectedLeaseID {
+			return nil, &ErrLeaseMismatch{ActiveLeaseID: r.ActiveLeaseID()}
+		}
+		r.mu.RLock()
+		valid := r.test == pin.pool && r.lease.id == pin.leaseID && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+		r.mu.RUnlock()
+		if !valid {
+			return nil, &ErrLeaseMismatch{ActiveLeaseID: r.ActiveLeaseID()}
+		}
+		return ctx, nil
+	}
+	r.mu.RLock()
+	pool := r.test
+	valid := pool != nil && r.lease.id == expectedLeaseID && (r.lease.expiresAt.IsZero() || !r.clock.Now().After(r.lease.expiresAt))
+	activeLeaseID := r.lease.id
+	r.mu.RUnlock()
+	if !valid {
+		return nil, &ErrLeaseMismatch{ActiveLeaseID: activeLeaseID}
+	}
+	ctx = WithTestMode(ctx)
+	return context.WithValue(ctx, testPoolPinKey{}, testPoolPin{owner: r, leaseID: expectedLeaseID, pool: pool}), nil
 }
 
 // HasTestPool reports whether a test pool is currently installed (and not
@@ -310,8 +461,9 @@ func (r *RoutedDB) HasTestPool() bool {
 //     operator tooling).
 //   - Pool installed under same leaseID: idempotent — close the old pool,
 //     install the new one under the same lease, refresh the TTL. Retry-safe.
-//   - Pool installed under a different leaseID: reject with
-//     *ErrLeaseConflict carrying the active lease.
+//   - Pool installed under a different, unexpired leaseID: reject with
+//     *ErrLeaseConflict carrying the active lease. An expired lease can be
+//     replaced without a routing read first.
 //
 // On a successful install the per-lease counters are reset.
 func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl time.Duration) error {
@@ -330,12 +482,11 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 	}
 
 	r.mu.Lock()
-	if r.test != nil && r.lease.id != leaseID {
+	if r.hasDifferentLiveLeaseLocked(leaseID) {
 		active := r.lease.id
 		r.mu.Unlock()
 		return &ErrLeaseConflict{ActiveLeaseID: active}
 	}
-	clock := r.clock
 	r.mu.Unlock()
 
 	testCfg := r.cfg
@@ -358,7 +509,7 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 	r.mu.Lock()
 	// Re-check under exclusive lock — another caller may have installed
 	// between the read above and here.
-	if r.test != nil && r.lease.id != leaseID {
+	if r.hasDifferentLiveLeaseLocked(leaseID) {
 		active := r.lease.id
 		r.mu.Unlock()
 		_ = pool.Close()
@@ -366,7 +517,7 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 	}
 	old := r.test
 	r.test = pool
-	r.lease = leaseState{id: leaseID, expiresAt: clock.Now().Add(ttl)}
+	r.lease = leaseState{id: leaseID, expiresAt: r.clock.Now().Add(ttl), dsn: dsn}
 	r.stats.testPoolRequests.Store(0)
 	r.stats.primaryDuringTestModeRequest.Store(0)
 	r.expiryWarned.Store(false)
@@ -376,6 +527,180 @@ func (r *RoutedDB) InstallTestPool(ctx context.Context, dsn, leaseID string, ttl
 		_ = old.Close()
 	}
 	return nil
+}
+
+// TestPoolRestartState returns the private binding for an active, unexpired
+// test pool. The returned DSN must not be logged or exposed outside the owner.
+func (r *RoutedDB) TestPoolRestartState(leaseID string) (TestPoolRestartState, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.test == nil || r.lease.id != leaseID {
+		return TestPoolRestartState{}, &ErrLeaseMismatch{ActiveLeaseID: r.lease.id}
+	}
+	dsn := r.lease.dsn
+	driver := r.cfg.TestDriver
+	if driver == "" {
+		driver = r.cfg.Driver
+	}
+	if driver == DriverSQLite || driver == DriverSQLiteLegacy {
+		var err error
+		dsn, err = nonCreatingSQLiteDSN(driver, dsn)
+		if err != nil {
+			return TestPoolRestartState{}, err
+		}
+	}
+	fingerprint := r.primaryFingerprint
+	if fingerprint == "" {
+		fingerprint = primaryFingerprintForConfig(r.cfg)
+	}
+	return TestPoolRestartState{LeaseID: leaseID, ExpiresAt: r.lease.expiresAt, DSN: dsn, PrimaryFingerprint: fingerprint, Stats: r.LeaseStats()}, nil
+}
+
+// PrimaryFingerprint identifies the configured primary database target without
+// exposing credentials or DSNs outside the owner.
+func (r *RoutedDB) PrimaryFingerprint() string {
+	if r == nil {
+		return ""
+	}
+	r.mu.RLock()
+	cfg := r.cfg
+	fingerprint := r.primaryFingerprint
+	r.mu.RUnlock()
+	if fingerprint != "" {
+		return fingerprint
+	}
+	return primaryFingerprintForConfig(cfg)
+}
+
+func primaryFingerprintForConfig(cfg Config) string {
+	primaryDSN := cfg.DSN
+	if primaryDSN == "" {
+		var err error
+		primaryDSN, err = buildDSNFromEnv(withDefaults(cfg))
+		if err != nil {
+			return ""
+		}
+	}
+	if cfg.Driver == DriverSQLite || cfg.Driver == DriverSQLiteLegacy {
+		if canonical, err := nonCreatingSQLiteDSN(cfg.Driver, primaryDSN); err == nil {
+			primaryDSN = canonical
+		} else {
+			return ""
+		}
+	}
+	body, _ := json.Marshal([]string{cfg.Driver, cfg.TestDriver, cfg.Scenario, primaryDSN})
+	digest := sha256.Sum256(body)
+	return hex.EncodeToString(digest[:])
+}
+
+// ResumeTestPool reopens the exact owner-retained database binding after a
+// graceful process restart. Callers must obtain state from a private owner
+// checkpoint; this method does not accept state from a public request body.
+func (r *RoutedDB) ResumeTestPool(ctx context.Context, state TestPoolRestartState) error {
+	if state.LeaseID == "" || state.DSN == "" || !state.ExpiresAt.After(r.clock.Now()) {
+		return errors.New("database.RoutedDB: restart binding is invalid or expired")
+	}
+	testDriver := r.cfg.TestDriver
+	if testDriver == "" {
+		testDriver = r.cfg.Driver
+	}
+	if err := validateDSNMatchesDriver(testDriver, state.DSN); err != nil {
+		return errors.New("database.RoutedDB: retained restart binding does not match configured driver")
+	}
+	testCfg := r.cfg
+	testCfg.Driver = testDriver
+	dsn, err := nonCreatingSQLiteDSN(testDriver, state.DSN)
+	if err != nil {
+		return errors.New("database.RoutedDB: retained database file is unavailable")
+	}
+	testCfg.DSN = dsn
+	pool, err := Connect(ctx, testCfg)
+	if err != nil {
+		return fmt.Errorf("resume retained test pool: %w", err)
+	}
+	r.mu.RLock()
+	initializer := r.testPoolInitializer
+	r.mu.RUnlock()
+	if initializer != nil {
+		if err := initializer(ctx, pool); err != nil {
+			_ = pool.Close()
+			return fmt.Errorf("initialize resumed test pool: %w", err)
+		}
+	}
+	r.mu.Lock()
+	if !state.ExpiresAt.After(r.clock.Now()) {
+		r.mu.Unlock()
+		_ = pool.Close()
+		return errors.New("database.RoutedDB: restart binding is invalid or expired")
+	}
+	if r.testPoolIsLiveLocked() {
+		active := r.lease.id
+		r.mu.Unlock()
+		_ = pool.Close()
+		return &ErrLeaseConflict{ActiveLeaseID: active}
+	}
+	old := r.test
+	r.test = pool
+	r.lease = leaseState{id: state.LeaseID, expiresAt: state.ExpiresAt, dsn: state.DSN}
+	r.stats.testPoolRequests.Store(0)
+	r.stats.primaryDuringTestModeRequest.Store(0)
+	r.expiryWarned.Store(false)
+	r.mu.Unlock()
+	if old != nil {
+		_ = old.Close()
+	}
+	return nil
+}
+
+// nonCreatingSQLiteDSN verifies the retained database exists, then forces
+// SQLite's read/write-existing mode so a deleted lease file cannot be silently
+// recreated during resume. Memory databases cannot satisfy persistence proof.
+func nonCreatingSQLiteDSN(driver, dsn string) (string, error) {
+	if driver != DriverSQLite && driver != DriverSQLiteLegacy {
+		return dsn, nil
+	}
+	if dsn == "" || dsn == ":memory:" {
+		return "", errors.New("in-memory database cannot resume")
+	}
+	var path string
+	var query url.Values
+	isURI := strings.HasPrefix(dsn, "file:")
+	if isURI {
+		parsed, err := url.Parse(dsn)
+		if err != nil || parsed.Scheme != "file" || parsed.Host != "" {
+			return "", errors.New("invalid SQLite URI")
+		}
+		path = parsed.Path
+		if parsed.Opaque != "" {
+			path = parsed.Opaque
+		}
+		query = parsed.Query()
+	} else {
+		filePath, rawQuery, found := strings.Cut(dsn, "?")
+		path = filePath
+		query = url.Values{}
+		if found {
+			var err error
+			query, err = url.ParseQuery(rawQuery)
+			if err != nil {
+				return "", err
+			}
+		}
+	}
+	if path == "" || path == ":memory:" || strings.EqualFold(query.Get("mode"), "memory") {
+		return "", errors.New("in-memory database cannot resume")
+	}
+	info, err := os.Stat(filepath.FromSlash(path))
+	if err != nil || !info.Mode().IsRegular() {
+		return "", errors.New("retained SQLite file is unavailable")
+	}
+	query.Set("mode", "rw")
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	parsed := url.URL{Scheme: "file", Path: filepath.ToSlash(abs), RawQuery: query.Encode()}
+	return parsed.String(), nil
 }
 
 // HeartbeatTestPool extends the active lease's expiry by ttl (or by
