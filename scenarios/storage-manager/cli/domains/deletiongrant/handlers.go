@@ -44,8 +44,15 @@ type pending struct {
 
 func (h *handlers) requestCall(ctx cliapp.OperationContext) (pending, error) {
 	paths := ctx.FlagValues("path")
+	if file := strings.TrimSpace(ctx.Flag("paths-file")); file != "" {
+		listed, err := readPathsFile(file)
+		if err != nil {
+			return pending{}, err
+		}
+		paths = append(paths, listed...)
+	}
 	if len(paths) == 0 {
-		return pending{}, fmt.Errorf("--path is required (repeat it for several locations)")
+		return pending{}, fmt.Errorf("--path or --paths-file is required")
 	}
 	reason := strings.TrimSpace(ctx.Flag("reason"))
 	if reason == "" {
@@ -89,11 +96,38 @@ func requestReport(_ cliapp.OperationContext, p pending) cliapp.MutationReport {
 		Result:  []string{fmt.Sprintf("Operator approval requested (decision %s). The deletion is permitted once the operator approves it in the decision inbox; retry it then.", p.DecisionID)},
 		Changes: make([]string, 0, len(p.Paths)),
 	}
-	for _, path := range p.Paths {
+	// A large request names a sample rather than flooding the terminal; the
+	// decision itself lists the paths for the operator.
+	const shown = 10
+	for i, path := range p.Paths {
+		if i == shown && len(p.Paths) > shown+1 {
+			report.Changes = append(report.Changes, fmt.Sprintf("… and %d more", len(p.Paths)-shown))
+			break
+		}
 		report.Changes = append(report.Changes, "requested "+path)
 	}
 	if p.Await.ParkCommand != "" {
 		report.NextCommand = []string{p.Await.ParkCommand}
 	}
 	return report
+}
+
+// readPathsFile reads one absolute path per line. Blank lines and lines starting
+// with # are skipped, and anything after a tab is ignored, so an inventory with
+// a size column can be passed as is.
+func readPathsFile(name string) ([]string, error) {
+	data, err := os.ReadFile(name)
+	if err != nil {
+		return nil, fmt.Errorf("read --paths-file: %w", err)
+	}
+	var paths []string
+	for _, line := range strings.Split(string(data), "\n") {
+		line, _, _ = strings.Cut(line, "\t")
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		paths = append(paths, line)
+	}
+	return paths, nil
 }

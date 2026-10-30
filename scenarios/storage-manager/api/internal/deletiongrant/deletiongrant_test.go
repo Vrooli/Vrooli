@@ -3,6 +3,9 @@ package deletiongrant
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -244,10 +247,10 @@ func TestRequestFlagsOwnerProtectedPathsForTheOperator(t *testing.T) {
 	if err != nil || !raised {
 		t.Fatalf("raised=%v err=%v", raised, err)
 	}
-	note := raiser.facts.Note
-	for _, want := range []string{"WARNING: 1 path(s) are owner-protected", "/home/u/.vrooli/data/app@old (PROTECTED: inside /home/u/.vrooli/data, which repo-contract runtime_home/data protects)", "  - /home/u/.cache/x\n"} {
-		if !strings.Contains(note, want) {
-			t.Errorf("note %q is missing %q", note, want)
+	shown := raiser.facts.BigPicture + raiser.facts.TechnicalDetails
+	for _, want := range []string{"orphaned copy", "WARNING: 1 path(s) are owner-protected", "/home/u/.vrooli/data/app@old (PROTECTED: inside /home/u/.vrooli/data, which repo-contract runtime_home/data protects)", "  - /home/u/.cache/x\n"} {
+		if !strings.Contains(shown, want) {
+			t.Errorf("ask %q is missing %q", shown, want)
 		}
 	}
 	if !strings.Contains(raiser.facts.Question, "owner-protected") {
@@ -262,5 +265,49 @@ func TestRequestRefusesAProtectedRootItself(t *testing.T) {
 	}
 	if raiser.facts.Subject != "" {
 		t.Fatal("a refused request must not reach the operator's inbox")
+	}
+}
+
+func TestLargeRequestStaysReviewableAndValid(t *testing.T) {
+	raiser := &fakeRaiser{store: newStore(t)}
+	paths := make([]string, 4700)
+	for i := range paths {
+		paths[i] = fmt.Sprintf("/home/u/.vrooli/state/sessions/codex/%036d", i)
+	}
+	if _, raised, err := RequestProtected(context.Background(), raiser, nil, paths, "agent", "", "", "fixture cleanup", time.Hour); err != nil || !raised {
+		t.Fatalf("raised=%v err=%v", raised, err)
+	}
+	facts := raiser.facts
+	if err := facts.Validate(); err != nil {
+		t.Fatalf("facts invalid: %v", err)
+	}
+	if !strings.Contains(facts.Question, "4700 paths under /home/u/.vrooli/state/sessions/codex") {
+		t.Errorf("question %q does not say how many paths and where", facts.Question)
+	}
+	for _, want := range []string{"4700 path(s) in 1 directory(ies)", "/home/u/.vrooli/state/sessions/codex/ — 4700", "more not shown"} {
+		if !strings.Contains(facts.TechnicalDetails, want) {
+			t.Errorf("technical details missing %q", want)
+		}
+	}
+	if facts.Subject != "Approve agent deletion of 4700 paths?" {
+		t.Errorf("subject %q is not the short count title", facts.Subject)
+	}
+	if !strings.Contains(facts.BigPicture, "fixture cleanup") {
+		t.Errorf("big picture %q hides the reason", facts.BigPicture)
+	}
+}
+
+func TestRequestHandlerReadsDeclarationsOncePerRequest(t *testing.T) {
+	raiser := &fakeRaiser{store: newStore(t)}
+	loads := 0
+	source := func() (Protection, error) {
+		loads++
+		return dataProtection, nil
+	}
+	body := `{"paths":["/home/u/a","/home/u/b","/home/u/c"],"reason":"r"}`
+	rr := httptest.NewRecorder()
+	RequestHandler(raiser, source).ServeHTTP(rr, httptest.NewRequest(http.MethodPost, RequestPath, strings.NewReader(body)))
+	if rr.Code != http.StatusAccepted || loads != 1 {
+		t.Fatalf("status=%d loads=%d, want 202 and one declaration read", rr.Code, loads)
 	}
 }

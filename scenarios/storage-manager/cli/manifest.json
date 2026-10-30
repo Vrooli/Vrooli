@@ -258,9 +258,12 @@
           "flags": [
             {
               "name": "path",
-              "description": "Absolute path to delete; repeat for several",
-              "required": true,
+              "description": "Absolute path to delete; repeat for several (or use --paths-file)",
               "repeatable": true
+            },
+            {
+              "name": "paths-file",
+              "description": "File listing absolute paths to delete, one per line (text after a tab is ignored); combines with --path"
             },
             {
               "name": "reason",

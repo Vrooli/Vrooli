@@ -397,26 +397,28 @@ func maintainOwnDatabase(ctx context.Context, logger *log.Logger, db *database.R
 	}
 }
 
-// policyGrantSource adapts the deletion-grant store to the policy bridge's
-// GrantSource, so approved, unexpired grants project into the agent-policy
-// snapshot as allow rules without the bridge depending on the store package.
-// declaredProtection reads the host's declarations at request time, so a
+// declaredProtection reads the host's declarations once per request, so a
 // deletion-grant ask shows the operator which paths are owner-protected; when
 // they cannot be read the request is refused rather than asked without that.
-func declaredProtection(repoRoot string) deletiongrant.Protection {
+func declaredProtection(repoRoot string) deletiongrant.ProtectionSource {
 	if repoRoot == "" {
 		return nil
 	}
-	return func(path string) (string, string, bool, error) {
+	return func() (deletiongrant.Protection, error) {
 		rules, _, err := policybridge.Declarations(repoRoot)
 		if err != nil {
-			return "", "", false, err
+			return nil, err
 		}
-		source, root, isRoot := policybridge.ProtectingDeclaration(rules, path)
-		return source, root, isRoot, nil
+		return func(path string) (string, string, bool, error) {
+			source, root, isRoot := policybridge.ProtectingDeclaration(rules, path)
+			return source, root, isRoot, nil
+		}, nil
 	}
 }
 
+// policyGrantSource adapts the deletion-grant store to the policy bridge's
+// GrantSource, so approved, unexpired grants project into the agent-policy
+// snapshot as allow rules without the bridge depending on the store package.
 type policyGrantSource struct{ store *deletiongrant.Store }
 
 func (p policyGrantSource) ActiveGrantRoots(ctx context.Context, now time.Time) ([]policybridge.GrantRule, error) {

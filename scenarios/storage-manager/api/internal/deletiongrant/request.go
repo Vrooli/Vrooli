@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/vrooli/api-core/operatordecision"
 )
@@ -48,6 +49,11 @@ func Request(ctx context.Context, raiser DecisionRaiser, paths []string, request
 // is that protected root itself. An error means protection is unknown, and the
 // request is refused rather than asked without the warning.
 type Protection func(path string) (source, root string, isRoot bool, err error)
+
+// ProtectionSource reads the host's declarations once and answers every path
+// of one request from that read. Reading them per path made a large request
+// take minutes.
+type ProtectionSource func() (Protection, error)
 
 // RequestProtected is Request with the host's declarations consulted: a path
 // inside owner-protected data is flagged in the ask so the operator approves
@@ -128,30 +134,14 @@ func normalizePaths(paths []string) []string {
 }
 
 func buildFacts(askID string, paths []string, protected map[string]string, requestedBy, raisedByRunID, webConsoleSessionID, reason string, ttl time.Duration) operatordecision.Facts {
-	note := strings.Builder{}
-	fmt.Fprintf(&note, "Requesting agent: %s\n", requestedBy)
+	summary := pathSummary(paths)
+	big := strings.Builder{}
 	if strings.TrimSpace(reason) != "" {
-		fmt.Fprintf(&note, "Reason: %s\n", reason)
+		fmt.Fprintf(&big, "%s\n\n", strings.TrimSpace(reason))
 	}
-	fmt.Fprintf(&note, "Grant validity if approved: %s\n", ttl)
+	fmt.Fprintf(&big, "Requesting agent: %s\nGrant validity if approved: %s. The grant opens exactly the %d listed path(s), nothing beside or above them.\n", requestedBy, ttl, len(paths))
 	if len(protected) > 0 {
-		fmt.Fprintf(&note, "WARNING: %d path(s) are owner-protected durable data; approving overrides that protection for these exact paths only.\n", len(protected))
-	}
-	note.WriteString("Paths:\n")
-	for _, p := range paths {
-		if where, ok := protected[p]; ok {
-			fmt.Fprintf(&note, "  - %s (PROTECTED: %s)\n", p, where)
-			continue
-		}
-		fmt.Fprintf(&note, "  - %s\n", p)
-	}
-	noteText := note.String()
-	if len(noteText) > operatordecision.MaxQuestion {
-		noteText = noteText[:operatordecision.MaxQuestion]
-	}
-	summary := fmt.Sprintf("%d path(s)", len(paths))
-	if len(paths) == 1 {
-		summary = paths[0]
+		fmt.Fprintf(&big, "WARNING: %d path(s) are owner-protected durable data; approving overrides that protection for these exact paths only.\n", len(protected))
 	}
 	correlation := map[string]string{
 		correlationAskID: askID,
@@ -178,17 +168,108 @@ func buildFacts(askID string, paths []string, protected map[string]string, reque
 		question = fmt.Sprintf("An agent requests authority to delete %s, including owner-protected data. Approve a time-boxed deletion grant?", summary)
 	}
 	return operatordecision.Facts{
-		Subject:  fmt.Sprintf("Approve agent deletion of %s?", summary),
-		Question: question,
+		Subject:  subjectLine(paths),
+		Question: truncateBytes(question, operatordecision.MaxQuestion),
 		Options: []operatordecision.Option{
 			{Key: "approve", Label: "Approve deletion"},
 			{Key: "deny", Label: "Do not delete"},
 		},
 		// Deletion is irreversible: recommend deny, never auto-apply at a deadline.
-		Recommended: "deny",
-		Reversible:  false,
-		Urgency:     "normal",
-		Note:        noteText,
-		Correlation: correlation,
+		Recommended:      "deny",
+		Reversible:       false,
+		Urgency:          "normal",
+		BigPicture:       truncateRunes(big.String(), operatordecision.MaxBigPictureCodePoints),
+		TechnicalDetails: pathListing(paths, protected, operatordecision.MaxTechnicalDetailsCodePoints),
+		Correlation:      correlation,
 	}
+}
+
+// pathSummary names the request in a few words: the one path, or the count and
+// the deepest directory every path shares, so a large ask reads at a glance.
+func pathSummary(paths []string) string {
+	if len(paths) == 1 {
+		return paths[0]
+	}
+	parent := commonParent(paths)
+	if parent == "" || parent == string(filepath.Separator) {
+		return fmt.Sprintf("%d paths", len(paths))
+	}
+	return fmt.Sprintf("%d paths under %s", len(paths), parent)
+}
+
+// commonParent is the deepest directory that contains every path.
+func commonParent(paths []string) string {
+	parent := filepath.Dir(paths[0])
+	for _, p := range paths[1:] {
+		for parent != string(filepath.Separator) && parent != "." && !strings.HasPrefix(p, parent+string(filepath.Separator)) {
+			parent = filepath.Dir(parent)
+		}
+	}
+	return parent
+}
+
+// pathListing is the reviewer's view of the exact path set within limit code
+// points: one line per containing directory with its count, then every path
+// (protected ones marked) until the budget runs out, then how many are not
+// shown. The full set is stored on the ask; the grant opens only that set.
+func pathListing(paths []string, protected map[string]string, limit int) string {
+	byDir := map[string]int{}
+	for _, p := range paths {
+		byDir[filepath.Dir(p)]++
+	}
+	dirs := make([]string, 0, len(byDir))
+	for dir := range byDir {
+		dirs = append(dirs, dir)
+	}
+	sort.Strings(dirs)
+	out := strings.Builder{}
+	fmt.Fprintf(&out, "%d path(s) in %d directory(ies):\n", len(paths), len(dirs))
+	for _, dir := range dirs {
+		fmt.Fprintf(&out, "  %s/ — %d\n", dir, byDir[dir])
+	}
+	out.WriteString("\nPaths:\n")
+	const reserve = 120 // room for the "not shown" line
+	used := utf8.RuneCountInString(out.String())
+	for i, p := range paths {
+		line := "  - " + p + "\n"
+		if where, ok := protected[p]; ok {
+			line = fmt.Sprintf("  - %s (PROTECTED: %s)\n", p, where)
+		}
+		n := utf8.RuneCountInString(line)
+		if used+n > limit-reserve {
+			fmt.Fprintf(&out, "  … and %d more not shown (%d protected among all paths).\n", len(paths)-i, len(protected))
+			break
+		}
+		out.WriteString(line)
+		used += n
+	}
+	return truncateRunes(out.String(), limit)
+}
+
+func truncateRunes(s string, limit int) string {
+	if utf8.RuneCountInString(s) <= limit {
+		return s
+	}
+	r := []rune(s)
+	return string(r[:limit])
+}
+
+// truncateBytes cuts s to at most limit bytes on a rune boundary.
+func truncateBytes(s string, limit int) string {
+	if len(s) <= limit {
+		return s
+	}
+	for limit > 0 && !utf8.RuneStart(s[limit]) {
+		limit--
+	}
+	return s[:limit]
+}
+
+// subjectLine is the inbox title: the one path, or just the count, since a long
+// location would be cut off there; the question names where the paths are.
+func subjectLine(paths []string) string {
+	if len(paths) == 1 {
+		return fmt.Sprintf("Approve agent deletion of %s?", paths[0])
+	}
+	return fmt.Sprintf("Approve agent deletion of %d paths?", len(paths))
 }

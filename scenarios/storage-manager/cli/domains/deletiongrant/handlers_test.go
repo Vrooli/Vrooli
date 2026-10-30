@@ -3,6 +3,8 @@ package deletiongrant
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -64,5 +66,28 @@ func TestRequestSurfacesTheRefusal(t *testing.T) {
 	_, err := h.requestCall(flagContext{flags: map[string]string{"reason": "r"}, values: map[string][]string{"path": {"/d"}}})
 	if err == nil || !strings.Contains(err.Error(), "declares protected") {
 		t.Fatalf("err = %v, want the API refusal", err)
+	}
+}
+
+func TestRequestReadsPathsFileWithInventoryColumns(t *testing.T) {
+	var got map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"status":"pending","decision_id":"d"}`))
+	}))
+	defer srv.Close()
+	list := filepath.Join(t.TempDir(), "paths.txt")
+	if err := os.WriteFile(list, []byte("# fixtures\n/home/u/a\t24K\n\n/home/u/b \n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h := &handlers{httpClient: srv.Client(), baseURL: srv.URL}
+	ctx := flagContext{flags: map[string]string{"reason": "r", "paths-file": list}, values: map[string][]string{"path": {"/home/u/c"}}}
+	if _, err := h.requestCall(ctx); err != nil {
+		t.Fatal(err)
+	}
+	paths, _ := got["paths"].([]any)
+	if len(paths) != 3 || paths[0] != "/home/u/c" || paths[1] != "/home/u/a" || paths[2] != "/home/u/b" {
+		t.Fatalf("sent paths %v, want --path then the file's paths without columns or comments", paths)
 	}
 }

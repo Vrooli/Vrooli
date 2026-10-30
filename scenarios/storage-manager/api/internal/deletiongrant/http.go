@@ -30,7 +30,7 @@ const webConsoleSessionIDHeader = "X-Wc-Session-Id"
 // web-console inbox) and answers "pending"; it never grants authority — only the
 // operator's approval, delivered to the resolution webhook, does. 202 means the
 // ask is outstanding; 429 means too many are already pending for the caller.
-func RequestHandler(raiser DecisionRaiser, protect Protection) http.Handler {
+func RequestHandler(raiser DecisionRaiser, protection ProtectionSource) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -67,6 +67,15 @@ func RequestHandler(raiser DecisionRaiser, protect Protection) http.Handler {
 		wcSessionID := strings.TrimSpace(body.WebConsoleSessionID)
 		if wcSessionID == "" {
 			wcSessionID = strings.TrimSpace(r.Header.Get(webConsoleSessionIDHeader))
+		}
+		var protect Protection
+		if protection != nil {
+			loaded, err := protection()
+			if err != nil {
+				http.Error(w, "cannot read the host's storage declarations: "+err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			protect = loaded
 		}
 		id, raised, err := RequestProtected(r.Context(), raiser, protect, body.Paths, requestedBy, raisedByRunID, wcSessionID, body.Reason, ttl)
 		switch {
