@@ -29,6 +29,11 @@
         "enabled": false,
         "required": false
       },
+      "ace-step": {
+        "description": "Governed ACE-Step 1.5 local music generation resource",
+        "enabled": true,
+        "required": false
+      },
       "android-sdk": {
         "description": "Android SDK command-line tooling",
         "enabled": false,
@@ -152,6 +157,11 @@
         "required": true,
         "version": "7"
       },
+      "pii-detector": {
+        "description": "Tiered CPU ONNX-Runtime PII detection (regex/checksum + token-classification NER); small + large tiers run real NER end-to-end",
+        "enabled": false,
+        "required": false
+      },
       "reranker": {
         "enabled": true
       },
@@ -167,6 +177,16 @@
       },
       "speaker-verification": {
         "enabled": false
+      },
+      "stable-audio-3": {
+        "description": "Pinned Stable Audio 3 Medium local music generation; explicitly started CUDA pilot",
+        "enabled": false,
+        "required": false
+      },
+      "songgen": {
+        "description": "Explicitly activated local MiniMax Music3 and HeartMuLa song generation",
+        "enabled": false,
+        "required": false
       },
       "twilio": {
         "data_dir": "~/.vrooli/twilio",
@@ -201,11 +221,6 @@
       "name": "capacity-sweep",
       "schedule": "*/5 * * * *",
       "target": "tools/capacity-sweep"
-    },
-    {
-      "name": "resource-upstream-check",
-      "schedule": "@daily",
-      "target": "tools/resource-upstream-check"
     }
   ],
   "hostSafeguards": [
@@ -285,6 +300,15 @@
       ]
     },
     {
+      "name": "graphical_session",
+      "notes": "Reports graphical-session readiness and only configures automatic login after explicit opt-in; automatic login weakens physical security.",
+      "reason": "Make the GUI-session prerequisite for desktop validation observable and managed across reboots",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
       "name": "login_keyring_unlock",
       "notes": "High-risk, opt-in safeguard. On an autologin host, backs up the login keyring and opens the user's keyring prompt to request a blank passphrase. Any process running as the autologin user can then read secrets stored in the keyring.",
       "reason": "Make the login keyring available to an autologin session when the operator explicitly accepts the loss of encryption at rest",
@@ -326,7 +350,7 @@
     },
     {
       "name": "host_hardening",
-      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) — without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
+      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) \u2014 without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
       "reason": "Turn silent hard resets into observable kdump-able panics (sysrq, hung_task/softlockup/NMI/oops panic) and rate-limit journald so UFW BLOCK floods don't drown panic info",
       "required": false,
       "when": [
@@ -372,8 +396,8 @@
     },
     {
       "name": "pstore_ramoops",
-      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
-      "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT \u2014 Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
+      "reason": "RAM-backed pstore fallback for hosts without native pstore \u2014 opt-in only, requires explicit memory-region configuration",
       "required": false,
       "when": [
         "setup"
@@ -400,7 +424,7 @@
     },
     {
       "name": "edac_modules",
-      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h–1Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
+      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h\u20131Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
       "reason": "Load EDAC drivers so memory error counters become readable under /sys/devices/system/edac/ on supported chipsets",
       "required": false,
       "when": [
@@ -775,7 +799,7 @@
         "minimal"
       ],
       "name": "mcelog",
-      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel — that is treated as ExecutionAlreadyPresent, not a failure.",
+      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel \u2014 that is treated as ExecutionAlreadyPresent, not a failure.",
       "platforms": [
         "linux"
       ],

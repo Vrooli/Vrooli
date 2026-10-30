@@ -8,7 +8,11 @@ Deliver Needs you, Updates, History, Delivery detail and Settings/Reach against 
 - Non-goals: Research-process scoring, changing product acceptance by elapsed time, activating this disabled team, or relocating Plan Manager/experiment stores.
 - Constraints: Preserve user data, independent acceptance and real human-only decisions. Native permissions, resource admission and governed dependency/generated-artifact routes apply.
 
-Governing sources: `scenarios/notification-hub/PRD.md`; `docs/internal/delivery-operations/2026-10-12/sources/notification-hub-dossier.md`; `docs/internal/delivery-operations/2026-10-12/sources/notification-hub-atlas.md`; `docs/internal/delivery-operations/2026-10-12/sources/notification-hub-revision/selected-image-manifest.json`; [sources/commissioning-source-map.md](sources/commissioning-source-map.md); [retained product validation targets](archive/v1/TARGETS.md).
+Governing sources: `scenarios/notification-hub/PRD.md`; current design target and amendments in `scenarios/notification-hub/docs/concepts/FLOWS.md` (NH-DESIGN-20261025-01: retain mobile bottom navigation; NH-DESIGN-20261025-02: verified refinements beyond imperfect mockups); `docs/internal/delivery-operations/2026-10-12/sources/notification-hub-dossier.md`; `docs/internal/delivery-operations/2026-10-12/sources/notification-hub-atlas.md`; `docs/internal/delivery-operations/2026-10-12/sources/notification-hub-revision/selected-image-manifest.json`; [sources/commissioning-source-map.md](sources/commissioning-source-map.md); [retained product validation targets](archive/v1/TARGETS.md).
+
+Current target amendments also include NH-DESIGN-20261025-ICONS (suitable icon buttons),
+NH-DESIGN-20261025-SETTINGS-RCL (fitting shared Settings components) and
+NH-DESIGN-20261025-BRAND (Brand Manager identity and header icon) in that same FLOWS document.
 
 The budget is proposed; Agent Manager owns the actual commission. Follow the
 [current work model](../../README.md). Historical product decisions in the

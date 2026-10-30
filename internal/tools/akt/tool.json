@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../.vrooli/schemas/tool.schema.json",
+  "name": "akt",
+  "description": "Pinned Akash CLI for offline SDL validation and separately authorized network operations",
+  "commands": ["akt"],
+  "versionArgs": ["version"],
+  "version": "1.0.4",
+  "handler": "akt",
+  "platforms": ["linux"],
+  "bundling": "host-required",
+  "capability": "developer-utility",
+  "capability_role": "primary",
+  "installHint": "vrooli host install akt delegates pinned source/akt acquisition to Scenario Dependency Analyzer; executable selection is returned by the akt owner",
+  "storage": {
+    "entries": {
+      "installation": {"rung": "owned", "kind": "dir", "regenerable": true, "class": "cache", "subpath": "opt/akt"}
+    },
+    "rationale": "Checksum-verified immutable release tree and receipt, also attributed in the native install ledger. Wallets and contexts belong to the caller's separate custody owner."
+  },
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {"os": "linux", "arch": "amd64"},
+        "url": "https://github.com/akash-network/akt/releases/download/v1.0.4/akt_1.0.4_linux_amd64.zip",
+        "sha256": "3453b3ba29b569a16b9cc89abaf973cbb9123e1bedb16336094a1bcccc441c90",
+        "archive": "zip",
+        "layout": "dir",
+        "bin_path": "akt"
+      },
+      {"when": {"os": "linux", "arch": "arm64"}, "unsupported": "Upstream has an arm64 release, but this pinned owner profile has only qualified Linux amd64."},
+      {"when": {"os": "darwin"}, "unsupported": "This pinned owner profile has not qualified macOS."},
+      {"when": {"os": "windows"}, "unsupported": "This pinned owner profile has not qualified Windows."}
+    ]
+  },
+  "platform_status": {
+    "linux": {"status": "experimental", "evidence": "internal/tools/akt/README.md"},
+    "macos": {"status": "unsupported", "evidence": null},
+    "windows": {"status": "unsupported", "evidence": null}
+  },
+  "notes": "Apache-2.0 upstream. No install script, context, key, wallet, transaction or public deployment is created. Caller must resolve and verify the selected installation before execution; no ambient PATH adoption."
+}

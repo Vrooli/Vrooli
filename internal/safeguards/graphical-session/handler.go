@@ -1,3 +1,6 @@
+// Package graphicalsession inspects and applies persistent graphical login
+// requirements through the control-plane safeguard contract. It delegates host
+// facts and privileged commands to shared owners; it does not own scenario lifecycle.
 package graphicalsession
 
 import (
