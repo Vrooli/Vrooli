@@ -111,6 +111,7 @@ type Metadata struct {
 	LastVerifiedTurnID      string
 	ForkedFromNativeSession string
 	LaunchDescriptorJSON    string
+	BusinessAccountID       string
 }
 
 // AgentInfo is the partial-update payload used when a populator (codex tailer,
@@ -199,11 +200,12 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 			last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 			launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
-			last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint
+			last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint,
+			business_account_id
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?)
+			?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			backend=excluded.backend, shell=excluded.shell, cols=excluded.cols, rows=excluded.rows,
 			policy_mode=excluded.policy_mode, policy_duration=excluded.policy_duration,
@@ -217,7 +219,8 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 			provider_version=excluded.provider_version, native_thread_id=excluded.native_thread_id,
 			last_verified_turn_id=excluded.last_verified_turn_id,
 			forked_from_native_session=excluded.forked_from_native_session,
-			launch_descriptor_json=excluded.launch_descriptor_json, create_fingerprint=CASE WHEN excluded.create_fingerprint='' THEN sessions.create_fingerprint ELSE excluded.create_fingerprint END`,
+			launch_descriptor_json=excluded.launch_descriptor_json, create_fingerprint=CASE WHEN excluded.create_fingerprint='' THEN sessions.create_fingerprint ELSE excluded.create_fingerprint END,
+			business_account_id=excluded.business_account_id`,
 		meta.ID,
 		string(meta.Backend),
 		meta.Shell,
@@ -242,7 +245,7 @@ func (s *SQLStore) Save(ctx context.Context, meta Metadata) error {
 		meta.DisplayLabel,
 		string(meta.LaunchMode), string(meta.ControlMode), meta.NativeOwner,
 		meta.NativeTransport, meta.ProviderVersion, meta.NativeThreadID,
-		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON, meta.CreateFingerprint,
+		meta.LastVerifiedTurnID, meta.ForkedFromNativeSession, meta.LaunchDescriptorJSON, meta.CreateFingerprint, meta.BusinessAccountID,
 	)
 	return err
 }
@@ -252,7 +255,8 @@ const selectColumns = `
 	status, agent_type, launch_command, agent_session_id, cwd, last_rollout_path,
 	last_activity_at, orphaned_at, recovered_into, archived_at, origin, owner, display_label,
 	launch_mode, control_mode, native_owner, native_transport, provider_version, native_thread_id,
-	last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint`
+	last_verified_turn_id, forked_from_native_session, launch_descriptor_json, create_fingerprint,
+	business_account_id`
 
 func (s *SQLStore) Get(ctx context.Context, id string) (Metadata, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+selectColumns+` FROM sessions WHERE id = ?`, id)
@@ -524,7 +528,7 @@ func scanMetadata(row scannable) (Metadata, error) {
 		&origin, &meta.Owner, &meta.DisplayLabel,
 		&launchMode, &controlMode, &meta.NativeOwner, &meta.NativeTransport,
 		&meta.ProviderVersion, &meta.NativeThreadID, &meta.LastVerifiedTurnID,
-		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON, &meta.CreateFingerprint,
+		&meta.ForkedFromNativeSession, &meta.LaunchDescriptorJSON, &meta.CreateFingerprint, &meta.BusinessAccountID,
 	)
 	if err != nil {
 		return meta, fmt.Errorf("scan session metadata: %w", err)

@@ -21,12 +21,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"web-console/session"
+	"web-console/terminal"
 )
+
+// workingPane matches Claude's busy line: a spinner glyph, a gerund with an
+// ellipsis, or the "esc to interrupt" hint (which wraps in narrow panes).
+var workingPane = regexp.MustCompile(`(?m)esc to interrupt|^\s*\S\s+\w+…|\(\d+s\b`)
 
 type tmuxDriver struct {
 	name, transcriptDir string
@@ -69,13 +75,31 @@ func (d *tmuxDriver) Sessions(context.Context) []compactSession {
 func (d *tmuxDriver) Activity(string) (session.Activity, bool) {
 	text := d.capture()
 	state := session.ActivityIdle
-	if strings.Contains(text, "esc to interrupt") {
+	if workingPane.MatchString(text) {
 		state = session.ActivityWorking
 	}
 	return session.Activity{State: state, Confidence: 0.9, LastOutputAt: d.lastChange}, true
 }
 
 func (d *tmuxDriver) ScreenLines(string) []string { return strings.Split(d.capture(), "\n") }
+
+// Composer reads the pane as plain text, which carries no styling, so any text
+// after the prompt marker counts as a draft.
+func (d *tmuxDriver) Composer(string) composerState {
+	lines := strings.Split(d.capture(), "\n")
+	cells := make([][]terminal.Cell, len(lines))
+	for y, line := range lines {
+		for _, r := range line {
+			cells[y] = append(cells[y], terminal.Cell{Rune: r})
+		}
+	}
+	return readComposer(cells)
+}
+
+func (d *tmuxDriver) CurrentCommand(string) (string, error) {
+	out, err := exec.Command("tmux", "display-message", "-t", d.name, "-p", "#{pane_current_command}").Output()
+	return strings.TrimSpace(string(out)), err
+}
 
 func (d *tmuxDriver) TypeText(_, text string) error {
 	d.typed = append(d.typed, text)
@@ -89,7 +113,7 @@ func (d *tmuxDriver) PressEnter(string) error {
 
 func liveWait(t *testing.T, what string, timeout time.Duration, cond func() bool) {
 	t.Helper()
-	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(2 * time.Second) {
+	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(400 * time.Millisecond) {
 		if cond() {
 			return
 		}
@@ -158,7 +182,7 @@ func TestLiveCompactionAgainstRealClaude(t *testing.T) {
 	}
 
 	// Request 2: make the session busy, then try to compact it.
-	tmuxRun(t, "send-keys", "-t", name, "-l", "Write the numbers 1 to 150, one per line, then the word done.")
+	tmuxRun(t, "send-keys", "-t", name, "-l", "Write the numbers 1 to 500, one per line, then the word done.")
 	tmuxRun(t, "send-keys", "-t", name, "Enter")
 	liveWait(t, "session to look busy", 30*time.Second, func() bool {
 		a, _ := driver.Activity(name)

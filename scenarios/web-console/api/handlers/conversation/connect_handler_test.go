@@ -31,6 +31,10 @@ func (f fakeConversationService) GetRange(context.Context, string, int64, int64)
 	return SessionState{SessionID: "s1", Cursor: Cursor{LastListenedSequence: 2}}, f.err
 }
 
+func (f fakeConversationService) ResolveEvents(_ context.Context, _ string, ids []string) (ResolveEventsResult, error) {
+	return ResolveEventsResult{Events: []Event{{ID: "e1", SessionID: "s1", Role: "assistant", Text: "hello", Sequence: 2}}, MissingEventIDs: []string{"gone"}}, f.err
+}
+
 func (f fakeConversationService) UpdateCursor(context.Context, string, CursorPatch) (Cursor, error) {
 	return Cursor{LastSeenSequence: 3}, f.err
 }
@@ -60,6 +64,10 @@ func TestConnectHandlerConversationOperations(t *testing.T) {
 	}
 	if _, err := h.GetRange(ctx, connect.NewRequest(&conversationv1.GetRangeRequest{SessionId: "s1", FromSequence: 1, ToSequence: 2})); err != nil {
 		t.Fatal(err)
+	}
+	resolved, err := h.ResolveEvents(ctx, connect.NewRequest(&conversationv1.ResolveEventsRequest{SessionId: "s1", EventIds: []string{"e1", "gone"}}))
+	if err != nil || len(resolved.Msg.Events) != 1 || resolved.Msg.Events[0].Id != "e1" || len(resolved.Msg.MissingEventIds) != 1 {
+		t.Fatalf("resolve events: %#v %v", resolved, err)
 	}
 	if _, err := h.UpdateCursor(ctx, connect.NewRequest(&conversationv1.UpdateCursorRequest{SessionId: "s1", HasLastSeenSequence: true, LastSeenSequence: 3})); err != nil {
 		t.Fatal(err)

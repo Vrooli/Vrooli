@@ -129,6 +129,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conver
 		WholeWord:     req.Msg.GetWholeWord(),
 		Role:          req.Msg.GetRoleFilter(),
 		Limit:         int(req.Msg.GetLimit()),
+		AfterSequence: req.Msg.GetAfterSequence(),
 	})
 	if err != nil {
 		return nil, h.classify(err, "conversation.Search")
@@ -140,7 +141,7 @@ func (h *connectHandler) Search(ctx context.Context, req *connect.Request[conver
 			Role: match.Role, CreatedAt: match.CreatedAt,
 		})
 	}
-	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: result.Truncated, TotalMatches: result.TotalMatches, Error: result.Error}), nil
+	return connect.NewResponse(&conversationv1.SearchResponse{Matches: out, Truncated: result.Truncated, TotalMatches: result.TotalMatches, Error: result.Error, HasMore: result.HasMore, NextAfterSequence: result.NextAfterSequence}), nil
 }
 
 func (h *connectHandler) SearchArchived(ctx context.Context, req *connect.Request[conversationv1.SearchArchivedRequest]) (*connect.Response[conversationv1.SearchArchivedResponse], error) {
@@ -181,6 +182,20 @@ func (h *connectHandler) GetRange(ctx context.Context, req *connect.Request[conv
 		return nil, h.classify(err, "conversation.GetRange")
 	}
 	return connect.NewResponse(&conversationv1.GetResponse{SessionId: state.SessionID, Events: eventsToProto(state.Events), Cursor: cursorToProto(state.Cursor)}), nil
+}
+
+func (h *connectHandler) ResolveEvents(ctx context.Context, req *connect.Request[conversationv1.ResolveEventsRequest]) (*connect.Response[conversationv1.ResolveEventsResponse], error) {
+	sessionID := strings.TrimSpace(req.Msg.GetSessionId())
+	if sessionID == "" || len(req.Msg.GetEventIds()) == 0 || len(req.Msg.GetEventIds()) > 5000 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id and 1..5000 event_ids are required"))
+	}
+	result, err := h.deps.Service.ResolveEvents(ctx, sessionID, req.Msg.GetEventIds())
+	if err != nil {
+		return nil, h.classify(err, "conversation.ResolveEvents")
+	}
+	return connect.NewResponse(&conversationv1.ResolveEventsResponse{
+		Events: eventsToProto(result.Events), MissingEventIds: result.MissingEventIDs,
+	}), nil
 }
 
 func (h *connectHandler) UpdateCursor(ctx context.Context, req *connect.Request[conversationv1.UpdateCursorRequest]) (*connect.Response[conversationv1.UpdateCursorResponse], error) {

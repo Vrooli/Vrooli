@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -26,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	"web-console/internal/sessionstore"
 	"web-console/session"
+	"web-console/terminal"
 )
 
 // compactMinTokens: below this a summary saves nothing. A variable only so the
@@ -53,7 +53,10 @@ const (
 	skipWaiting    = "waiting for input: the session shows a prompt"
 	skipUnknown    = "activity unknown: the session's state is not certain enough to type into"
 	skipRecent     = "recent terminal activity: someone may be typing"
-	skipDraft      = "the composer holds unsent text"
+	skipDraft      = "the composer holds text that may be unsent (only a dimmed placeholder counts as empty)"
+	skipComposer   = "composer not recognised: it could not be confirmed empty"
+	skipExited     = "the agent has exited to a shell"
+	skipProcess    = "the pane's current process could not be read"
 	skipGoal       = "an active goal: compacting could clear or derail it"
 	skipSmall      = "context too small to gain from a compaction"
 	skipNoReading  = "context size unknown: no transcript usage was found"
@@ -79,6 +82,11 @@ type compactDriver interface {
 	Sessions(ctx context.Context) []compactSession
 	Activity(id string) (session.Activity, bool)
 	ScreenLines(id string) []string
+	// Composer is the prompt box read from the styled screen.
+	Composer(id string) composerState
+	// CurrentCommand is the pane's foreground process now, not what the
+	// session was launched as.
+	CurrentCommand(id string) (string, error)
 	// TypeText types text as keystrokes (never bracketed paste) and Enter submits it.
 	TypeText(id, text string) error
 	PressEnter(id string) error
@@ -343,24 +351,68 @@ func compactionRecorded(path string, offset int64, harness string) bool {
 
 // ---- decisions -------------------------------------------------------------
 
-var composerLine = regexp.MustCompile(`^[\s│|]*[>›❯]\s?(.*?)[\s│|]*$`)
+// composerState is what the prompt box holds. Found is false when no prompt
+// marker is on screen. Text is the operator-visible text after the marker; it
+// is empty only when the box is blank or shows nothing but dimmed placeholder
+// text. Styling is the only evidence that text is a placeholder: wording is
+// never trusted, because an operator's draft can begin with any words.
+type composerState struct {
+	Found bool
+	Text  string
+}
 
-// composerPlaceholder matches the hint text an empty composer shows.
-var composerPlaceholder = regexp.MustCompile(`(?i)^(try ["']|ask codex|improve documentation|write tests|explain |summari[sz]e |find and fix|implement |use /skills|\? for shortcuts|type your)`)
+func isComposerMarker(r rune) bool { return r == '>' || r == '›' || r == '❯' }
 
-// composerDraft returns the unsent text in the composer, or "". The last
-// prompt-marker line on screen is the composer for both harnesses.
-func composerDraft(lines []string) string {
-	for i := len(lines) - 1; i >= 0; i-- {
-		if m := composerLine.FindStringSubmatch(lines[i]); m != nil {
-			text := strings.TrimSpace(m[1])
-			if text == "" || composerPlaceholder.MatchString(text) {
-				return ""
-			}
-			return text
+func isComposerPad(r rune) bool { return r == 0 || r == ' ' || r == '\t' || r == '│' || r == '|' }
+
+// readComposer reads the last prompt-marker row on screen, which is the
+// composer for both harnesses.
+func readComposer(cells [][]terminal.Cell) composerState {
+	for y := len(cells) - 1; y >= 0; y-- {
+		row := cells[y]
+		i := 0
+		for i < len(row) && isComposerPad(row[i].Rune) {
+			i++
 		}
+		if i >= len(row) || !isComposerMarker(row[i].Rune) {
+			continue
+		}
+		start, end := i+1, len(row)
+		for end > start && isComposerPad(row[end-1].Rune) {
+			end--
+		}
+		for start < end && isComposerPad(row[start].Rune) {
+			start++
+		}
+		if start >= end {
+			return composerState{Found: true}
+		}
+		placeholder, first := true, true
+		var text strings.Builder
+		for _, cell := range row[start:end] {
+			if cell.Rune != 0 {
+				text.WriteRune(cell.Rune)
+			}
+			if cell.Rune == 0 || cell.Rune == ' ' {
+				continue
+			}
+			// A block cursor can sit on the placeholder's first character.
+			if !cell.SGR.Faint && !(first && cell.SGR.Inverse) {
+				placeholder = false
+			}
+			first = false
+		}
+		if placeholder {
+			return composerState{Found: true}
+		}
+		return composerState{Found: true, Text: strings.TrimSpace(text.String())}
 	}
-	return ""
+	return composerState{}
+}
+
+var shellCommands = map[string]bool{
+	"bash": true, "zsh": true, "sh": true, "dash": true, "fish": true, "ksh": true, "tcsh": true, "csh": true,
+	"nu": true, "pwsh": true, "login": true, "-bash": true, "-zsh": true, "-sh": true, "-fish": true,
 }
 
 type sessionReading struct {
@@ -368,7 +420,9 @@ type sessionReading struct {
 	conf     float32
 	quiet    bool
 	prompt   bool
-	draft    string
+	composer composerState
+	command  string
+	cmdErr   error
 	tokens   int64
 	found    bool
 	goal     bool
@@ -386,7 +440,8 @@ func (m *compactionManager) inspect(cs compactSession) sessionReading {
 	}
 	reading, err := m.readTranscriptContext(cs)
 	r.readErr, r.tokens, r.found, r.goal = err, reading.Tokens, reading.Found, reading.GoalActive
-	r.draft = composerDraft(m.drv.ScreenLines(cs.ID))
+	r.composer = m.drv.Composer(cs.ID)
+	r.command, r.cmdErr = m.drv.CurrentCommand(cs.ID)
 	return r
 }
 
@@ -398,6 +453,10 @@ func skipReason(r sessionReading) string {
 		return skipHarness
 	case !r.hasState:
 		return skipNoSession
+	case r.cmdErr != nil:
+		return skipProcess
+	case shellCommands[filepath.Base(strings.TrimSpace(r.command))]:
+		return skipExited // the stored agent type is only how the session started
 	case r.goal:
 		return skipGoal
 	case r.readErr != nil || !r.found:
@@ -412,7 +471,9 @@ func skipReason(r sessionReading) string {
 		return skipUnknown
 	case !r.quiet:
 		return skipRecent
-	case r.draft != "":
+	case !r.composer.Found:
+		return skipComposer
+	case r.composer.Text != "":
 		return skipDraft
 	}
 	return ""
@@ -509,6 +570,10 @@ func (m *compactionManager) Compact(ctx context.Context, id, trigger string) com
 	deadline := m.now().Add(compactVerifyTimeout)
 	pressed := 1
 	for m.now().Before(deadline) {
+		if ctx.Err() != nil {
+			event.Outcome, event.Reason = "failed", "the request ended before the compaction was confirmed; check the session"
+			return m.record(id, event)
+		}
 		m.sleep(1500 * time.Millisecond)
 		if compactionRecorded(cs.Transcript, offset, cs.Harness) {
 			event.Outcome = "compacted"
@@ -516,7 +581,7 @@ func (m *compactionManager) Compact(ctx context.Context, id, trigger string) com
 			return m.record(id, event)
 		}
 		// Some narrow panes keep the command in the composer after one Enter.
-		if pressed < 2 && strings.Contains(strings.Join(m.drv.ScreenLines(id), "\n"), "/compact") && composerDraft(m.drv.ScreenLines(id)) == "/compact" {
+		if pressed < 2 && strings.Contains(strings.Join(m.drv.ScreenLines(id), "\n"), "/compact") && m.drv.Composer(id).Text == "/compact" {
 			if err := m.drv.PressEnter(id); err == nil {
 				pressed++
 			}
@@ -544,19 +609,39 @@ func tokensAfter(cs compactSession, offset int64) (int64, bool) {
 	return lastTokensIn(data, cs.Harness)
 }
 
+// compactBulkMax bounds one bulk request. Sessions run in parallel, so the
+// request lasts about one verification wait however many are named, not one
+// wait per session.
+const compactBulkMax = 16
+
 // CompactIdle acts on the named sessions only, each re-checked, and returns one
-// result per session. A busy session or one with an active goal is skipped with
-// the reason stated, never waited for.
+// result per session in the order asked. A busy session or one with an active
+// goal is skipped with the reason stated, never waited for. At most
+// compactBulkMax sessions are taken; the rest are reported as not started.
 func (m *compactionManager) CompactIdle(ctx context.Context, ids []string) []compactResult {
-	results := make([]compactResult, 0, len(ids))
+	var unique []string
 	seen := map[string]bool{}
 	for _, id := range ids {
-		if seen[id] {
+		if !seen[id] {
+			seen[id] = true
+			unique = append(unique, id)
+		}
+	}
+	results := make([]compactResult, len(unique))
+	var wg sync.WaitGroup
+	for i, id := range unique {
+		if i >= compactBulkMax {
+			results[i] = compactResult{SessionID: id, compactEvent: compactEvent{At: m.now(), Trigger: "bulk", Outcome: "skipped",
+				Reason: fmt.Sprintf("not started: at most %d sessions are compacted per request", compactBulkMax)}}
 			continue
 		}
-		seen[id] = true
-		results = append(results, compactResult{SessionID: id, compactEvent: m.Compact(ctx, id, "bulk")})
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			results[i] = compactResult{SessionID: id, compactEvent: m.Compact(ctx, id, "bulk")}
+		}(i, id)
 	}
+	wg.Wait()
 	return results
 }
 
@@ -781,6 +866,31 @@ func (d serverCompactDriver) ScreenLines(id string) []string {
 	return strings.Split(text, "\n")
 }
 
+func (d serverCompactDriver) Composer(id string) composerState {
+	sess, ok := d.s.sessions.Get(id)
+	if !ok || sess == nil {
+		return composerState{}
+	}
+	view, _ := sess.ScreenWithText(false)
+	return readComposer(view.Cells)
+}
+
+// CurrentCommand asks tmux what the pane is running now. Any failure is
+// reported, never guessed: an unknown process is not typed into.
+func (d serverCompactDriver) CurrentCommand(id string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	out, err := tmuxCmdContext(ctx, "display-message", "-t", tmuxSessionPrefix+id, "-p", "#{pane_current_command}").Output()
+	if err != nil {
+		return "", err
+	}
+	command := strings.TrimSpace(string(out))
+	if command == "" {
+		return "", fmt.Errorf("tmux reported no current command")
+	}
+	return command, nil
+}
+
 func (d serverCompactDriver) TypeText(id, text string) error {
 	sess, ok := d.s.sessions.Get(id)
 	if !ok || sess == nil {
@@ -826,8 +936,8 @@ func (s *Server) handleCompactIdle(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		SessionIDs []string `json:"sessionIds"`
 	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil || len(req.SessionIDs) == 0 || len(req.SessionIDs) > 64 {
-		writeUsageModeError(w, http.StatusBadRequest, "name the sessions to compact, taken from the candidate list")
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil || len(req.SessionIDs) == 0 || len(req.SessionIDs) > compactBulkMax {
+		writeUsageModeError(w, http.StatusBadRequest, fmt.Sprintf("name 1 to %d sessions to compact, taken from the candidate list", compactBulkMax))
 		return
 	}
 	writeUsageModeJSON(w, http.StatusOK, map[string]any{"results": s.compactionMgr().CompactIdle(r.Context(), req.SessionIDs)})

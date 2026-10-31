@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,32 +18,91 @@ import (
 	"github.com/vrooli/cli-core/usagemode"
 	"web-console/internal/sessionstore"
 	"web-console/session"
+	"web-console/terminal"
 )
 
 // fakeDriver stands in for live sessions. Typing "/compact" then Enter appends
 // the compaction record the real harness would write.
 type fakeDriver struct {
-	sessions []compactSession
-	activity map[string]session.Activity
-	screen   map[string][]string
-	typed    []string // "<id>:<text>" for every TypeText, "<id>:<enter>" for every Enter
-	onEnter  func(id string)
+	mu        sync.Mutex
+	sessions  []compactSession
+	activity  map[string]session.Activity
+	screen    map[string][]string
+	faint     map[string]bool   // the text after the prompt marker is dimmed (a placeholder)
+	command   map[string]string // the pane's current process; the session's harness when unset
+	typed     []string          // "<id>:<text>" for every TypeText, "<id>:<enter>" for every Enter
+	onEnter   func(id string)
+	enterGate func() // called by PressEnter before it records, to hold a session mid-compaction
+}
+
+// cellsFromLines renders plain lines as a styled screen. faint dims every cell
+// after a line's prompt marker, the way both harnesses draw a placeholder.
+func cellsFromLines(lines []string, faint bool) [][]terminal.Cell {
+	out := make([][]terminal.Cell, len(lines))
+	for y, line := range lines {
+		afterMarker := false
+		for _, r := range line {
+			cell := terminal.Cell{Rune: r}
+			if afterMarker && faint {
+				cell.SGR.Faint = true
+			}
+			if r == '>' || r == '›' || r == '❯' {
+				afterMarker = true
+			}
+			out[y] = append(out[y], cell)
+		}
+	}
+	return out
+}
+
+func (f *fakeDriver) Composer(id string) composerState {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return readComposer(cellsFromLines(f.screen[id], f.faint[id]))
+}
+
+func (f *fakeDriver) CurrentCommand(id string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if c, ok := f.command[id]; ok {
+		return c, nil
+	}
+	for _, cs := range f.sessions {
+		if cs.ID == id {
+			return cs.Harness, nil
+		}
+	}
+	return "", errors.New("no such pane")
 }
 
 func (f *fakeDriver) Sessions(context.Context) []compactSession { return f.sessions }
 func (f *fakeDriver) Activity(id string) (session.Activity, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	a, ok := f.activity[id]
 	return a, ok
 }
-func (f *fakeDriver) ScreenLines(id string) []string { return f.screen[id] }
+func (f *fakeDriver) ScreenLines(id string) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.screen[id]
+}
 func (f *fakeDriver) TypeText(id, text string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.typed = append(f.typed, id+":"+text)
 	return nil
 }
 func (f *fakeDriver) PressEnter(id string) error {
+	if f.enterGate != nil {
+		f.enterGate()
+	}
+	f.mu.Lock()
 	f.typed = append(f.typed, id+":<enter>")
-	if f.onEnter != nil {
-		f.onEnter(id)
+	onEnter := f.onEnter
+	f.mu.Unlock()
+	if onEnter != nil {
+		onEnter(id)
 	}
 	return nil
 }
@@ -82,7 +143,7 @@ type compactionFixture struct {
 
 func newCompactionFixture(t *testing.T) *compactionFixture {
 	t.Helper()
-	drv := &fakeDriver{activity: map[string]session.Activity{}, screen: map[string][]string{}}
+	drv := &fakeDriver{activity: map[string]session.Activity{}, screen: map[string][]string{}, faint: map[string]bool{}, command: map[string]string{}}
 	m := newCompactionManager(drv)
 	m.sleep = func(time.Duration) {}
 	return &compactionFixture{m: m, drv: drv, dir: t.TempDir()}
@@ -151,6 +212,13 @@ func TestBusyWaitingUnknownRecentAndDraftSessionsAreNeverTypedInto(t *testing.T)
 		"unsure":  {session.Activity{State: session.ActivityIdle, Confidence: 0.5, LastOutputAt: time.Now().Add(-time.Hour)}, nil, skipUnknown},
 		"typing":  {idle(2 * time.Second), nil, skipRecent},
 		"draft":   {idle(time.Minute), []string{"", "> refactor the parser to", ""}, skipDraft},
+		// Text that merely begins like a hint is still the operator's draft.
+		"draft starting like a hint": {idle(time.Minute), []string{"", "› explain the failing build to me", ""}, skipDraft},
+		"draft implement":            {idle(time.Minute), []string{"", "› implement retries for the uploader", ""}, skipDraft},
+		"draft write tests":          {idle(time.Minute), []string{"", "› write tests for the parser", ""}, skipDraft},
+		"draft find and fix":         {idle(time.Minute), []string{"", "› find and fix the race", ""}, skipDraft},
+		"draft summarize":            {idle(time.Minute), []string{"", "› summarize the diff", ""}, skipDraft},
+		"no composer on screen":      {idle(time.Minute), []string{"", "user@host:~$ ", ""}, skipComposer},
 	}
 	for name, tc := range cases {
 		if tc.reason == "" {
@@ -356,17 +424,119 @@ func TestContextTokensComeFromTheNewestResponse(t *testing.T) {
 	}
 }
 
-func TestComposerDraftIgnoresPlaceholders(t *testing.T) {
-	for screen, want := range map[string]string{
-		"> ":                           "",
-		`> Try "fix lint errors"`:      "",
-		"│ > hello world     │":        "hello world",
-		"› Ask Codex to do anything":   "",
-		"› rename the helper function": "rename the helper function",
+func TestComposerIsEmptyOnlyWhenBlankOrStyledAsAPlaceholder(t *testing.T) {
+	for _, tc := range []struct {
+		name, screen string
+		faint        bool
+		want         string
+		found        bool
+	}{
+		{"blank", "> ", false, "", true},
+		{"boxed blank", "│ >                │", false, "", true},
+		{"dimmed codex hint", "› Ask Codex to do anything", true, "", true},
+		{"dimmed claude hint", `> Try "fix lint errors"`, true, "", true},
+		{"unstyled text that looks like a hint", `> Try "fix lint errors"`, false, `Try "fix lint errors"`, true},
+		{"draft beginning explain", "› explain the failing build", false, "explain the failing build", true},
+		{"draft beginning implement", "› implement retries", false, "implement retries", true},
+		{"draft beginning write tests", "› write tests for it", false, "write tests for it", true},
+		{"draft beginning find and fix", "› find and fix the race", false, "find and fix the race", true},
+		{"draft beginning summarize", "› summarize the diff", false, "summarize the diff", true},
+		{"typed text in a box", "│ > hello world     │", false, "hello world", true},
+		{"no prompt marker", "user@host:~$ ", false, "", false},
 	} {
-		if got := composerDraft([]string{"output", screen, ""}); got != want {
-			t.Errorf("composerDraft(%q) = %q, want %q", screen, got, want)
+		got := readComposer(cellsFromLines([]string{"output", tc.screen, ""}, tc.faint))
+		if got.Found != tc.found || got.Text != tc.want {
+			t.Errorf("%s: readComposer = %+v, want found=%v text=%q", tc.name, got, tc.found, tc.want)
 		}
+	}
+	// A block cursor may sit on the first character of a dimmed placeholder.
+	cells := cellsFromLines([]string{"> Try it"}, true)
+	cells[0][2].SGR.Faint, cells[0][2].SGR.Inverse = false, true
+	if got := readComposer(cells); got.Text != "" {
+		t.Fatalf("cursor on the placeholder's first character made it a draft: %+v", got)
+	}
+}
+
+func TestSlashCompactIsNeverAppendedToTextThatOnlyLooksLikeAHint(t *testing.T) {
+	f := newCompactionFixture(t)
+	f.add(t, "d1", "codex", idle(time.Minute), codexUsage(150000))
+	f.drv.screen["d1"] = []string{"", "› explain how the cache works", ""}
+	event := f.m.Compact(context.Background(), "d1", "manual")
+	if event.Outcome != "skipped" || event.Reason != skipDraft || len(f.drv.typed) != 0 {
+		t.Fatalf("unsent operator text must block /compact: %+v typed=%v", event, f.drv.typed)
+	}
+	// The same words dimmed are a hint, and the session is compacted.
+	f.drv.faint["d1"] = true
+	if event := f.m.Compact(context.Background(), "d1", "manual"); event.Outcome != "compacted" {
+		t.Fatalf("a dimmed placeholder is an empty composer: %+v", event)
+	}
+}
+
+func TestSessionThatExitedToAShellIsNeverTypedInto(t *testing.T) {
+	f := newCompactionFixture(t)
+	f.add(t, "sh1", "codex", idle(time.Minute), codexUsage(150000))
+	f.drv.command["sh1"] = "zsh" // the session was started as Codex but the pane runs a shell now
+	f.drv.screen["sh1"] = []string{"", "❯ ", ""}
+	event := f.m.Compact(context.Background(), "sh1", "manual")
+	if event.Outcome != "skipped" || event.Reason != skipExited || len(f.drv.typed) != 0 {
+		t.Fatalf("a shell must not receive /compact: %+v typed=%v", event, f.drv.typed)
+	}
+	for _, c := range f.m.Candidates(context.Background()) {
+		if c.SessionID == "sh1" && (c.Eligible || c.SkipReason != skipExited) {
+			t.Fatalf("candidate = %+v, want ineligible: %s", c, skipExited)
+		}
+	}
+	delete(f.drv.command, "sh1")
+	f.drv.command["sh1"] = "codex"
+	if event := f.m.Compact(context.Background(), "sh1", "manual"); event.Outcome != "compacted" {
+		t.Fatalf("the same session running its agent is eligible: %+v", event)
+	}
+}
+
+func TestBulkCompactionRunsSessionsTogetherAndIsBounded(t *testing.T) {
+	f := newCompactionFixture(t)
+	const sessions = compactBulkMax
+	var ids []string
+	for i := 0; i < sessions; i++ {
+		id := fmt.Sprintf("p%02d", i)
+		ids = append(ids, id)
+		f.add(t, id, "codex", idle(time.Minute), codexUsage(150000))
+	}
+	// Every session must be inside its compaction at once. Run one after another,
+	// the first would wait for the rest forever.
+	var arrived sync.WaitGroup
+	arrived.Add(sessions)
+	release := make(chan struct{})
+	go func() { arrived.Wait(); close(release) }()
+	f.drv.enterGate = func() {
+		arrived.Done()
+		select {
+		case <-release:
+		case <-time.After(5 * time.Second):
+		}
+	}
+	done := make(chan []compactResult, 1)
+	go func() { done <- f.m.CompactIdle(context.Background(), append(ids, "p-extra")) }()
+	select {
+	case results := <-done:
+		if len(results) != sessions+1 {
+			t.Fatalf("one result per session, got %d", len(results))
+		}
+		for i, r := range results[:sessions] {
+			if r.Outcome != "compacted" {
+				t.Errorf("%s = %+v", ids[i], r)
+			}
+		}
+		if last := results[sessions]; last.Outcome != "skipped" || !strings.Contains(last.Reason, "not started") {
+			t.Fatalf("a session beyond the bound must be reported as not started: %+v", last)
+		}
+	case <-time.After(15 * time.Second):
+		t.Fatal("bulk compaction ran sessions one at a time")
+	}
+	s, _ := compactionServer(t)
+	body := `{"sessionIds":["` + strings.Join(append(append([]string{}, ids...), "one-too-many"), `","`) + `"]}`
+	if rec := usageModeCall(t, s, http.MethodPost, "/api/v1/context-compaction/compact-idle", body, identity.ActorHuman); rec.Code != http.StatusBadRequest {
+		t.Fatalf("an unbounded request must be refused: %d", rec.Code)
 	}
 }
 
@@ -456,7 +626,7 @@ func TestManagedCodexLaunchCarriesAModeContextLimitForThatLaunchOnly(t *testing.
 	if err := usagemode.Write(usagemode.File{Modes: []usagemode.Mode{mode}}); err != nil {
 		t.Fatal(err)
 	}
-	if args := strings.Join(codexLaunchArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); !strings.Contains(args, "-c model_auto_compact_token_limit=180000") {
+	if args := strings.Join(codexCreateArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); !strings.Contains(args, "-c model_auto_compact_token_limit=180000") {
 		t.Fatalf("mode limit missing: %s", args)
 	}
 }

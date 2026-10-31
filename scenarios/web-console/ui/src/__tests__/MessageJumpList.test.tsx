@@ -36,6 +36,9 @@ function search(overrides: Partial<NavigatorSearch> = {}): NavigatorSearch {
   return {
     hits: [],
     truncated: false,
+    hasMore: false,
+    continuing: false,
+    onContinue: vi.fn(),
     options: { mode: "text", caseSensitive: false, wholeWord: false },
     onOptionsChange: vi.fn(),
     ...overrides,
@@ -175,6 +178,7 @@ describe("MessageJumpList navigator", () => {
     onSelectVisible: vi.fn(),
     onClear: vi.fn(),
     onContinue: vi.fn(),
+    canContinue: true,
   });
 
   it("[REQ:P0-017g] desktop: the search field is the header, focused on open, beside an Export icon; no title text", () => {
@@ -241,6 +245,14 @@ describe("MessageJumpList navigator", () => {
     const events = [makeEvent({ id: "a", sequence: 1, text: "needle" })];
     render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="needle" onQueryChange={vi.fn()} search={search({ hits: [hit(events[0] as ConversationEvent, "needle")], truncated: true })} />);
     expect(screen.getByTestId("msg-jump-truncated")).toBeInTheDocument();
+  });
+
+  it("offers bounded continuation when more search results are available", () => {
+    const onContinue = vi.fn();
+    const events = [makeEvent({ id: "a", sequence: 1, text: "needle" })];
+    render(<MessageJumpList events={events} focusedEventId={null} onSelect={onSelect} onClose={onClose} query="needle" onQueryChange={vi.fn()} search={search({ hits: [hit(events[0] as ConversationEvent, "needle")], truncated: true, hasMore: true, onContinue })} />);
+    fireEvent.click(screen.getByTestId("msg-jump-load-more"));
+    expect(onContinue).toHaveBeenCalledOnce();
   });
 
   it("does not prevent the search input's mousedown default (so clicking focuses it)", () => {
@@ -495,6 +507,7 @@ describe("MessageJumpList export selection", () => {
       onSelectVisible: (ids) => setSelectedIds(new Set(ids)),
       onClear: () => setSelectedIds(new Set()),
       onContinue,
+      canContinue: true,
     };
     // Like MessagesPane, the harness owns the query and answers it the way the
     // server does (whole-history hits with ranges).

@@ -90,6 +90,17 @@ func TestConversationSearch(t *testing.T) {
 		}
 	})
 
+	t.Run("session search continues from the last returned sequence", func(t *testing.T) {
+		first := search(t, ConversationSearchQuery{Query: "oldest-only needle", Limit: 10})
+		if !first.HasMore || first.NextAfterSequence != first.Matches[9].Sequence || len(first.Matches) != 10 {
+			t.Fatalf("first page = %d matches, has_more=%v next=%d", len(first.Matches), first.HasMore, first.NextAfterSequence)
+		}
+		second := search(t, ConversationSearchQuery{Query: "oldest-only needle", Limit: 10, AfterSequence: first.NextAfterSequence})
+		if len(second.Matches) != 10 || second.Matches[0].Sequence <= first.NextAfterSequence || second.Matches[0].Sequence != first.Matches[9].Sequence+1 {
+			t.Fatalf("second page starts at %d after %d; matches=%d", second.Matches[0].Sequence, first.NextAfterSequence, len(second.Matches))
+		}
+	})
+
 	t.Run("text matches word prefixes; whole word keeps whole words", func(t *testing.T) {
 		if got := searchIDs(search(t, ConversationSearchQuery{Query: "loop"}).Matches, "s"); !slices.Equal(got, []string{"whole", "substring", "user-turn"}) {
 			t.Fatalf("text 'loop' = %v, want whole, substring, user-turn", got)

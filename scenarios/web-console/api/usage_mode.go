@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -44,6 +45,15 @@ type usageModeView struct {
 	ExpiresAt string `json:"expiresAt,omitempty"`
 	UntilKind string `json:"untilKind"`
 	StartedBy string `json:"startedBy,omitempty"`
+	// Kind is "save" for a mode that lowers the model, or "learn" for a
+	// controlled comparison, which carries no settings of its own: the model
+	// depends on the arm each launch is assigned.
+	Kind string `json:"kind"`
+	// Role, SplitPercent and SessionsOptIn describe a learn comparison.
+	Role          string `json:"role,omitempty"`
+	SplitPercent  int    `json:"splitPercent,omitempty"`
+	SessionsOptIn bool   `json:"sessionsOptIn,omitempty"`
+	Paused        bool   `json:"paused,omitempty"`
 }
 
 // usageModeAgent is what a new session of one agent will use. Model and
@@ -58,6 +68,10 @@ type usageModeAgent struct {
 	ModeID        string `json:"modeId,omitempty"`
 	Model         string `json:"model,omitempty"`
 	FullPowerArgs string `json:"fullPowerArgs,omitempty"`
+	// LearnModeID is set when a Learn comparison includes this agent's operator
+	// sessions. The session's model then depends on the arm its launch is
+	// assigned, so Model stays empty: the launcher cannot say which model it will use.
+	LearnModeID string `json:"learnModeId,omitempty"`
 }
 
 type usageModeResponse struct {
@@ -150,7 +164,12 @@ func usageModeHigherModel(tiers usagemode.Tiers, fallback string) string {
 func buildUsageModeResponse(now time.Time, canControl bool) usageModeResponse {
 	resp := usageModeResponse{Modes: []usageModeView{}, Agents: []usageModeAgent{}, CanControl: canControl}
 	for _, mode := range usagemode.Read(now) {
-		view := usageModeView{ID: mode.ID, Label: mode.Label, Runner: mode.Scope.Runner, StartedAt: mode.StartedAt.UTC().Format(time.RFC3339), UntilKind: mode.Until.Kind, StartedBy: mode.StartedBy}
+		view := usageModeView{ID: mode.ID, Label: mode.Label, Runner: mode.Scope.Runner, StartedAt: mode.StartedAt.UTC().Format(time.RFC3339), UntilKind: mode.Until.Kind, StartedBy: mode.StartedBy, Kind: "save"}
+		if mode.IsLearn() && mode.Learn != nil {
+			view.Kind, view.Role, view.Paused = usagemode.KindLearn, mode.Scope.Role, mode.Learn.Paused
+			view.SplitPercent = int(mode.Learn.Split()*100 + 0.5)
+			view.SessionsOptIn = mode.Learn.Sessions != nil && mode.Learn.Sessions.OptIn
+		}
 		if mode.ExpiresAt != nil {
 			view.ExpiresAt = mode.ExpiresAt.UTC().Format(time.RFC3339)
 		}
@@ -171,6 +190,9 @@ func buildUsageModeResponse(now time.Time, canControl bool) usageModeResponse {
 					agent.FullPowerArgs = usageModeModelFlg[runner] + " " + usual
 				}
 			}
+		} else if learn, joined := usagemode.ResolveLearnSession(runner, now); joined {
+			// A save mode takes priority over a comparison, so this branch is reached only when none applies.
+			agent.LearnModeID = learn.ID
 		}
 		resp.Agents = append(resp.Agents, agent)
 	}
@@ -189,16 +211,22 @@ func writeUsageModeError(w http.ResponseWriter, status int, message string) {
 }
 
 func (s *Server) handleUsageModeGet(w http.ResponseWriter, r *http.Request) {
-	_, err := authn.RequireHuman(r.Context())
+	_, err := authn.RequireIndependentHuman(r.Context())
 	writeUsageModeJSON(w, http.StatusOK, buildUsageModeResponse(time.Now(), err == nil))
 }
 
-// requireUsageModeOperator admits only a verified human on a same-origin request.
+// requireUsageModeOperator admits only a verified independent human on a
+// same-origin request: the requirement Agent Manager applies to the same
+// operation. A human credential forwarded by an agent (for example the owner
+// delegation inside a Web Console terminal) carries agent provenance and is
+// refused, so loopback alone never makes a caller the operator. The operator's
+// browser reaches here through the Web Console session, which has no agent
+// provenance.
 func requireUsageModeOperator(w http.ResponseWriter, r *http.Request) (string, bool) {
 	if !webConsoleSameOrigin(w, r) {
 		return "", false
 	}
-	principal, err := authn.RequireHuman(r.Context())
+	principal, err := authn.RequireIndependentHuman(r.Context())
 	if err != nil || !principal.IsHuman() {
 		writeUsageModeError(w, http.StatusForbidden, "usage modes can only be changed by the signed-in operator")
 		return "", false
@@ -277,15 +305,19 @@ func (s *Server) handleUsageModeStart(w http.ResponseWriter, r *http.Request) {
 	}
 	usageModeMu.Lock()
 	defer usageModeMu.Unlock()
-	file := usagemode.File{}
-	for _, existing := range usagemode.Read(now) {
-		if usagemode.NormalizeRunner(existing.Scope.Runner) == runner && existing.Scope.Role == "" && existing.Scope.Profile == "" {
-			continue // identical scope: the new mode replaces it
+	err = usagemode.Update(func(file *usagemode.File) error {
+		file.Prune(now)
+		kept := []usagemode.Mode{}
+		for _, existing := range file.Modes {
+			if !existing.IsLearn() && usagemode.NormalizeRunner(existing.Scope.Runner) == runner && existing.Scope.Role == "" && existing.Scope.Profile == "" {
+				continue // identical scope: the new mode replaces it; a comparison is never discarded
+			}
+			kept = append(kept, existing)
 		}
-		file.Modes = append(file.Modes, existing)
-	}
-	file.Modes = append(file.Modes, mode)
-	if err := usagemode.Write(file); err != nil {
+		file.Modes = append(kept, mode)
+		return nil
+	})
+	if err != nil {
 		writeUsageModeError(w, http.StatusInternalServerError, "the usage mode could not be saved")
 		return
 	}
@@ -305,21 +337,33 @@ func (s *Server) handleUsageModeEnd(w http.ResponseWriter, r *http.Request) {
 	}
 	usageModeMu.Lock()
 	defer usageModeMu.Unlock()
-	file, removed := usagemode.File{}, false
-	for _, existing := range usagemode.Read(time.Now()) {
-		if existing.ID == req.ID {
-			removed = true
-			continue
+	removed := false
+	err := usagemode.Update(func(file *usagemode.File) error {
+		now := time.Now()
+		file.Prune(now)
+		kept := []usagemode.Mode{}
+		for _, existing := range file.Modes {
+			if existing.ID == req.ID {
+				removed = true
+				continue
+			}
+			kept = append(kept, existing)
 		}
-		file.Modes = append(file.Modes, existing)
-	}
-	if !removed {
+		if !removed {
+			return errUsageModeNotActive
+		}
+		file.Modes = kept
+		return nil
+	})
+	if errors.Is(err, errUsageModeNotActive) {
 		writeUsageModeError(w, http.StatusNotFound, "that usage mode is not active")
 		return
 	}
-	if err := usagemode.Write(file); err != nil {
+	if err != nil {
 		writeUsageModeError(w, http.StatusInternalServerError, "the usage mode could not be ended")
 		return
 	}
 	writeUsageModeJSON(w, http.StatusOK, buildUsageModeResponse(time.Now(), true))
 }
+
+var errUsageModeNotActive = errors.New("usage mode not active")

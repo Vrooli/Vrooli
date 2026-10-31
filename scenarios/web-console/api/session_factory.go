@@ -74,5 +74,12 @@ func defaultSessionEnv(sessionID string) map[string]string {
 	if token, ok := handlerSessions.TakeSessionRunIdentity(sessionID); ok {
 		env["VROOLI_AGENT_IDENTITY_TOKEN"] = token
 	}
+	if paid, err := activePaidCodingSessions.OpenCodeEnvironment(sessionID); err != nil {
+		log.Printf("paid coding session %s: provider environment unavailable: %v", sessionID, err)
+	} else {
+		for key, value := range paid {
+			env[key] = value
+		}
+	}
 	return env
 }

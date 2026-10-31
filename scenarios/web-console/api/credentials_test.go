@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/api-core/database"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
@@ -131,6 +133,74 @@ func TestCredentialProvisionRejectsCrossOriginBeforeAuthority(t *testing.T) {
 	server.credentialProvisionHandler(rec, req)
 	if rec.Code != http.StatusForbidden || client.provision.Value != "" {
 		t.Fatalf("cross-origin request status=%d provision=%q", rec.Code, client.provision.Value)
+	}
+}
+
+func TestSubscriptionAuthorizationURLUsesConfiguredIssuer(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/auth/subscription/authorization", nil)
+	request.RemoteAddr = "192.0.2.20:1234"
+	request.Host = "console.example"
+	request.Header.Set("Origin", "http://console.example")
+	response := httptest.NewRecorder()
+	(&Server{subscriptionResolver: &credentialclient.ConsumerSessionResolver{LPBSBaseURL: "https://billing.example/"}}).subscriptionAuthorizationURL(response, request)
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || !strings.Contains(response.Body.String(), `"authorization_url":"https://billing.example/auth/login"`) {
+		t.Fatalf("status/body = %d/%q", response.Code, response.Body.String())
+	}
+}
+
+func TestSubscriptionAuthorizationExchangeKeepsRefreshTokenServerSide(t *testing.T) {
+	expiresAt := time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
+	lpbs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/auth/token" {
+			t.Fatalf("LPBS path = %q", r.URL.Path)
+		}
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["code"] != "one-use" || body["code_verifier"] != "verifier" || body["redirect_uri"] != "http://127.0.0.1:3210/" {
+			t.Fatalf("LPBS exchange body = %#v", body)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"access_token": "short-lived", "refresh_token": "durable-secret", "expires_at": expiresAt})
+	}))
+	defer lpbs.Close()
+
+	credentials := &credentialHandlerClient{}
+	resolver := &credentialclient.ConsumerSessionResolver{Credentials: credentials, LPBSBaseURL: lpbs.URL, HTTPClient: lpbs.Client()}
+	server := &Server{subscriptionResolver: resolver}
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/subscription/session/exchange", strings.NewReader(`{"code":"one-use","code_verifier":"verifier","redirect_uri":"http://127.0.0.1:3210/"}`))
+	request.RemoteAddr = "192.0.2.20:1234"
+	request.Host = "console.example"
+	request.Header.Set("Origin", "http://console.example")
+	response := httptest.NewRecorder()
+	server.subscriptionAuthorizationExchange(response, request)
+
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" || strings.Contains(response.Body.String(), "durable-secret") {
+		t.Fatalf("status/body = %d/%q", response.Code, response.Body.String())
+	}
+	if credentials.provision.Identity != credentialclient.SubscriptionIdentity || credentials.provision.Field != credentialclient.SubscriptionField || credentials.provision.Value != "durable-secret" {
+		t.Fatalf("stored subscription credential = %+v", credentials.provision)
+	}
+	if !strings.Contains(response.Body.String(), `"access_token":"short-lived"`) {
+		t.Fatalf("response did not return the short-lived access token: %q", response.Body.String())
+	}
+}
+
+func TestSubscriptionAuthorizationExchangeRejectsCrossOriginBeforeLPBS(t *testing.T) {
+	called := false
+	lpbs := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
+	defer lpbs.Close()
+	credentials := &credentialHandlerClient{}
+	resolver := &credentialclient.ConsumerSessionResolver{Credentials: credentials, LPBSBaseURL: lpbs.URL, HTTPClient: lpbs.Client()}
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/subscription/session/exchange", strings.NewReader(`{"code":"one-use","code_verifier":"verifier","redirect_uri":"http://127.0.0.1:3210/"}`))
+	request.RemoteAddr = "192.0.2.20:1234"
+	request.Host = "console.example"
+	request.Header.Set("Origin", "https://evil.example")
+	response := httptest.NewRecorder()
+	(&Server{subscriptionResolver: resolver}).subscriptionAuthorizationExchange(response, request)
+	if response.Code != http.StatusForbidden || called || credentials.provision.Value != "" {
+		t.Fatalf("cross-origin exchange status=%d called=%v credential=%q", response.Code, called, credentials.provision.Value)
 	}
 }
 

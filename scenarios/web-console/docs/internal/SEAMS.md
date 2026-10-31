@@ -166,11 +166,16 @@ Two existing mechanisms remove the need to invent anything:
 1. **The pending-input queue** (`useStdinStream`). Queued text is visible to the
    operator, discardable, and manually flushable. A handoff enqueues; it does
    not race.
-2. **The pending-map pattern.** `Workspace.tsx` already carried
-   `pendingGroupBySessionRef`, drained by the session-reconcile effect when the
-   pane appears. `pendingHandoffBySessionRef` has the identical shape and is
-   drained in the same effect — a second draining mechanism would be a second
-   place for a message to go missing.
+2. **The per-session pending handoff queue.** `Workspace.tsx` keeps every
+   rejected payload in FIFO order and drains the queue from the existing
+   session-reconcile effect when the pane appears. The queue is scoped to the
+   browser tab's `sessionStorage`, so reloads recover pending payloads without
+   sharing them across tabs. It removes an item only after the input gate
+   accepts it; a rejection preserves that item and every payload behind it.
+   Deleting the session clears its queue. The queue is a transport fallback,
+   not a second visible outbox: accepted-but-not-yet-flushed text remains in
+   the terminal's existing pending-input queue where the operator can inspect,
+   discard or flush it.
 
 `queued` is a first-class result, never collapsed into `sent`. Reporting success
 for text still sitting in a queue is the failure this seam exists to prevent.
@@ -371,6 +376,7 @@ exemption.
 | [CODE: ui/src/api/usageMode.ts] | `GET /api/v1/usage-mode`; `POST /api/v1/usage-mode/start`; `POST /api/v1/usage-mode/end` | `RESTReasonBrowserSurface` | The launcher reads and changes the machine-local usage-mode file through Web Console's own same-origin API (`api/usage_mode.go`). Start and end require a verified human; agents may read. No other scenario is called, so the launcher keeps working without Agent Manager. |
 | [CODE: ui/src/api/notifications.ts] | `GET\|PUT /api/v1/notifications/{catalog,preferences}` | `RESTReasonBrowserSurface` | The browser calls web-console's same-origin facade, which forwards (with the operator's owner Bearer token) to notification-hub's REST notification-preference API. Kept REST to mirror notification-hub's existing operator-config surface and avoid a proto coupling for an opaque-JSON passthrough; the Connect services remain for typed callers. |
 | [CODE: ui/src/api/monetization.ts] | `GET\|POST\|DELETE /api/v1/{auth/subscription/*,credentials/*,integrations/connections,commercial-context}` | `RESTReasonThirdPartyShape` | Commercial-session, credential, and context endpoints bridge LPBS/third-party JSON contracts that are intentionally kept stable for browser and desktop clients. |
+| [CODE: ui/src/lib/auth.ts] | `GET /api/v1/auth/subscription/authorization`; `POST /api/v1/auth/subscription/session/exchange` | `RESTReasonThirdPartyShape` | The same-origin API supplies the configured LPBS login URL and redeems the loopback PKCE code against that same issuer through `ConsumerSessionResolver`. The refresh credential stays in credential authority; only the short-lived access token returns to the initiating browser. |
 
 **Regression guard**: [CODE: ui/src/api/__tests__/no-rest-exceptions.test.ts]
 greps `ui/src/api/*.ts` for the literal token `fetch(` and fails if it

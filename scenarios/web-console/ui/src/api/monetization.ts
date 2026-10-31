@@ -11,6 +11,24 @@ export interface SubscriptionSummary extends SubscriptionSessionStatus {
   not_after?: string;
 }
 
+export interface BusinessAccount {
+  id: string;
+  display_name: string;
+  role: string;
+  created_at: string;
+}
+
+export interface BusinessAccountUsageSummary {
+  business_account_id: string;
+  billing_period: string;
+  tier: string;
+  limits: Record<string, number>;
+  usage: Record<string, number>;
+  reserved: Record<string, number>;
+  remaining: Record<string, number>;
+  display_credits: Record<string, number>;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers({ "Content-Type": "application/json", ...(init?.headers ?? {}) });
   const accessToken = await getAccessToken();
@@ -37,6 +55,11 @@ export const getSubscriptionSummary = async (): Promise<SubscriptionSummary> => 
 };
 export const provisionSubscriptionSession = (refreshToken: string) => request("/api/v1/auth/subscription/session", { method: "POST", body: JSON.stringify({ refresh_token: refreshToken }) });
 export const deleteSubscriptionSession = () => request("/api/v1/auth/subscription/session", { method: "DELETE" });
+export const getBusinessAccounts = () => request<{ accounts: BusinessAccount[] }>("/api/v1/business-accounts");
+export const getBusinessAccountUsage = (businessAccountId: string) => {
+  const query = new URLSearchParams({ business_account_id: businessAccountId });
+  return request<BusinessAccountUsageSummary>(`/api/v1/business-account-usage?${query.toString()}`);
+};
 export const provisionOpenRouterKey = (value: string) => request("/api/v1/credentials/provision", { method: "POST", body: JSON.stringify({ identity: "vrooli/openrouter", field: "api-key", value }) });
 export const removeOpenRouterKey = () => request("/api/v1/credentials/provision", { method: "DELETE", body: JSON.stringify({ identity: "vrooli/openrouter", field: "api-key" }) });
 export const testOpenRouterKey = () => request<{ valid: boolean; source: string; checked_at: string }>("/api/v1/credentials/test", { method: "POST" });

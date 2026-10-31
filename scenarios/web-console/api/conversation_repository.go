@@ -325,11 +325,19 @@ func (r *SQLConversationRepository) PruneEvents(ctx context.Context, before time
 }
 
 func (r *SQLConversationRepository) SearchSession(ctx context.Context, sessionID string, q ConversationSearchQuery) (ConversationSearchResult, error) {
+	where := []string{"e.session_id = ?"}
+	args := []any{sessionID}
+	order := "DESC"
+	if q.AfterSequence > 0 {
+		where = append(where, "e.sequence > ?")
+		args = append(args, q.AfterSequence)
+		order = "ASC"
+	}
 	hits, capped, queryError, err := r.searchEvents(ctx, searchScope{
-		where:     []string{"e.session_id = ?"},
-		args:      []any{sessionID},
-		ftsOrder:  "e.sequence DESC",
-		scanOrder: "e.sequence DESC",
+		where:     where,
+		args:      args,
+		ftsOrder:  "e.sequence " + order,
+		scanOrder: "e.sequence " + order,
 	}, q)
 	if err != nil || queryError != "" {
 		return ConversationSearchResult{Matches: []ConversationSearchMatch{}, Error: queryError}, err
@@ -345,12 +353,16 @@ func sessionSearchResult(hits []searchHit, capped bool, limit int) ConversationS
 		Matches:   make([]ConversationSearchMatch, 0, len(kept)),
 		Truncated: capped || len(hits) > limit,
 		Total:     int64(len(hits)),
+		HasMore:   capped || len(hits) > limit,
 	}
 	for _, hit := range kept {
 		createdAt, _ := time.Parse(time.RFC3339Nano, hit.createdAt)
 		result.Matches = append(result.Matches, ConversationSearchMatch{
 			EventID: hit.id, Sequence: hit.sequence, Role: hit.role, CreatedAt: createdAt, Excerpt: hit.excerpt, Ranges: hit.ranges,
 		})
+	}
+	if len(result.Matches) > 0 && result.HasMore {
+		result.NextAfterSequence = result.Matches[len(result.Matches)-1].Sequence
 	}
 	return result
 }
@@ -809,6 +821,9 @@ func (r *InMemoryConversationRepository) SearchSession(ctx context.Context, sess
 	}
 	var hits []searchHit
 	for _, event := range state.Events {
+		if q.AfterSequence > 0 && event.Sequence <= q.AfterSequence {
+			continue
+		}
 		if q.Role != "" && string(event.Role) != q.Role {
 			continue
 		}

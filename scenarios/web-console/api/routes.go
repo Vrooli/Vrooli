@@ -19,6 +19,7 @@ import (
 	handoffRulesH "web-console/handlers/handoffrules"
 	hooksH "web-console/handlers/hooks"
 	metricsH "web-console/handlers/metrics"
+	modelselectionH "web-console/handlers/modelselection"
 	sessionsH "web-console/handlers/sessions"
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
@@ -69,6 +70,8 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/conversations/catalog", s.handleConversationCatalog).Methods(http.MethodGet, http.MethodPost)
 	continuityH.Module(continuityH.ModuleDeps{Service: s}).Mount(s.router)
 	if session := s.subscriptionSessionModule(); session != nil {
+		s.router.HandleFunc("/api/v1/auth/subscription/authorization", s.subscriptionAuthorizationURL).Methods(http.MethodGet)
+		s.router.HandleFunc("/api/v1/auth/subscription/session/exchange", s.subscriptionAuthorizationExchange).Methods(http.MethodPost)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
 		s.router.HandleFunc("/api/v1/auth/subscription/session", func(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +81,9 @@ func (s *Server) setupRoutes() {
 			}
 		}).Methods(http.MethodDelete)
 		s.router.HandleFunc("/api/v1/auth/subscription/summary", s.subscriptionSummaryHandler).Methods(http.MethodGet)
+		s.router.HandleFunc("/api/v1/business-accounts", s.businessAccountsHandler).Methods(http.MethodGet)
+		s.router.HandleFunc("/api/v1/business-account-usage", s.businessAccountUsageHandler).Methods(http.MethodGet)
+		s.router.HandleFunc("/api/v1/paid-coding/v1/chat/completions", s.paidCodingCompletionsHandler).Methods(http.MethodPost)
 	}
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialProvisionHandler).Methods(http.MethodPost)
 	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialDeleteHandler).Methods(http.MethodDelete)
@@ -131,6 +137,11 @@ func (s *Server) setupRoutes() {
 		LifecycleLedger:   internalContinuity.NewSQLLedger(s.db),
 		ContinuityCatalog: internalContinuity.NewSQLCatalogStore(s.db),
 		Remote:            s,
+	}
+	if s.paidCodingProtocolQualified {
+		sessionAdapter.PaidCodingCredential = newPaidCodingToken
+		sessionAdapter.RegisterPaidCodingSession = activePaidCodingSessions.Register
+		sessionAdapter.RemovePaidCodingSession = activePaidCodingSessions.RemoveSession
 	}
 	s.lifecycleDelete = sessionAdapter.Delete
 	s.desktopCreateSession = sessionAdapter.Create
@@ -210,6 +221,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource:.*}", s.handleFilePreviewRuntime).Methods("GET", "HEAD")
 	settingsH.Module(newSettingsAdapter(s), nil).Mount(s.router)
 	shortcutsH.Module(newShortcutsAdapter(s), nil).Mount(s.router)
+	modelselectionH.Module(s, nil).Mount(s.router)
 	aiH.Module(&aiH.Adapter{Backend: s.ai}, nil).Mount(s.router)
 	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
 	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)

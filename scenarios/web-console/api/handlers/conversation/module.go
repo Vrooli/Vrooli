@@ -27,8 +27,15 @@ type Service interface {
 	Search(ctx context.Context, sessionID string, query SearchQuery) (SearchResult, error)
 	SearchArchived(ctx context.Context, filter ArchivedSearchFilter) (ArchivedSearchResult, error)
 	GetRange(ctx context.Context, sessionID string, from, to int64) (SessionState, error)
+	ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) (ResolveEventsResult, error)
 	UpdateCursor(ctx context.Context, sessionID string, patch CursorPatch) (Cursor, error)
 	SummarizeEvent(ctx context.Context, sessionID, eventID string) (SummarizeResult, error)
+}
+
+// ResolveEventsResult reports complete events and IDs that no longer exist.
+type ResolveEventsResult struct {
+	Events          []Event
+	MissingEventIDs []string
 }
 
 // SearchQuery is one conversation search. Mode is "text" | "regex" | "fuzzy".
@@ -39,6 +46,7 @@ type SearchQuery struct {
 	WholeWord     bool
 	Role          string
 	Limit         int
+	AfterSequence int64
 }
 
 // TextRange is a match inside an excerpt, in UTF-16 code units.
@@ -59,10 +67,12 @@ type SearchMatch struct {
 // SearchResult carries Error for a query that cannot run as asked (an invalid
 // regular expression); that is an answer, not a transport failure.
 type SearchResult struct {
-	Matches      []SearchMatch
-	Truncated    bool
-	TotalMatches int64
-	Error        string
+	Matches           []SearchMatch
+	Truncated         bool
+	TotalMatches      int64
+	Error             string
+	HasMore           bool
+	NextAfterSequence int64
 }
 
 type ArchivedSearchFilter struct {

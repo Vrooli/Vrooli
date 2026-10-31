@@ -138,7 +138,13 @@ function isStyledGlyph(row: RowInfo, col: number): boolean {
   return chars.trim().length > 0 && row.cellStyles[col] === true;
 }
 
-function inlineSpanAtCell(row: RowInfo, col: number, margin: number): string | null {
+interface CellSpan {
+  text: string;
+  start: number;
+  end: number;
+}
+
+function styledSpanAt(row: RowInfo, col: number, margin: number): CellSpan | null {
   let snap = -1;
   for (let distance = 0; distance <= margin && snap < 0; distance++) {
     if (isStyledGlyph(row, col - distance)) snap = col - distance;
@@ -162,7 +168,22 @@ function inlineSpanAtCell(row: RowInfo, col: number, margin: number): string | n
     else break;
   }
 
-  return row.cellChars.slice(start, end + 1).join("").trim();
+  const text = row.cellChars.slice(start, end + 1).join("").trim();
+  return text ? { text, start, end } : null;
+}
+
+function firstNonSpace(row: RowInfo): number {
+  for (let col = 0; col < row.cellChars.length; col++) {
+    if ((row.cellChars[col] ?? "").trim().length > 0) return col;
+  }
+  return -1;
+}
+
+function lastNonSpace(row: RowInfo): number {
+  for (let col = row.cellChars.length - 1; col >= 0; col--) {
+    if ((row.cellChars[col] ?? "").trim().length > 0) return col;
+  }
+  return -1;
 }
 
 function unstyledGlyphs(row: RowInfo, from: number, to: number): number {
@@ -196,6 +217,69 @@ function looksLikeInlineSpan(pivot: RowInfo, next: RowInfo | undefined): boolean
   if (!hasProseBefore(pivot)) return false;
   if (!next) return true;
   return startsWithUnstyledGlyph(next) || hasProseAfter(next);
+}
+
+function seamBetween(term: Terminal, previous: RowInfo, next: RowInfo): string {
+  if (/^\s/.test(next.text)) return " ";
+  const previousText = previous.text.trimEnd();
+  const nextText = next.text.trimStart();
+  const hardWrap = previous.wrapped
+    && previousText.length >= term.cols - WRAP_MARGIN
+    && /[^\s"'`]/.test(previousText.slice(-1))
+    && /[^\s"'`]/.test(nextText.charAt(0));
+  return hardWrap ? "" : " ";
+}
+
+function inlineSpanAcrossRows(term: Terminal, pivot: RowInfo, col: number, margin: number): string | null {
+  const pivotSpan = styledSpanAt(pivot, col, margin);
+  if (!pivotSpan) return null;
+
+  const after: Array<{ row: RowInfo; span: CellSpan }> = [];
+  let row = pivot;
+  let span = pivotSpan;
+  while (span.end >= lastNonSpace(row)) {
+    const next = readRow(term, row.row + 1);
+    const nextFirst = next ? firstNonSpace(next) : -1;
+    if (!next || next.blank || !next.styled || nextFirst < 0 || next.cellStyles[nextFirst] !== true) break;
+    const nextSpan = styledSpanAt(next, nextFirst, 0);
+    if (!nextSpan || nextSpan.start !== nextFirst) break;
+    after.push({ row: next, span: nextSpan });
+    row = next;
+    span = nextSpan;
+  }
+
+  const before: Array<{ row: RowInfo; span: CellSpan }> = [];
+  row = pivot;
+  span = pivotSpan;
+  while (span.start <= firstNonSpace(row)) {
+    const previous = readRow(term, row.row - 1);
+    const previousLast = previous ? lastNonSpace(previous) : -1;
+    if (!previous || previous.blank || !previous.styled || previousLast < 0 || previous.cellStyles[previousLast] !== true) break;
+    const previousSpan = styledSpanAt(previous, previousLast, 0);
+    if (!previousSpan || previousSpan.end !== previousLast) break;
+    before.unshift({ row: previous, span: previousSpan });
+    row = previous;
+    span = previousSpan;
+  }
+
+  let text = pivotSpan.text;
+  let previousRow = pivot;
+  for (const part of after) {
+    text += `${seamBetween(term, previousRow, part.row)}${part.span.text}`;
+    previousRow = part.row;
+  }
+  if (before.length > 0) {
+    let prefix = before[0]?.span.text ?? "";
+    for (let index = 1; index < before.length; index++) {
+      const part = before[index];
+      const prior = before[index - 1];
+      if (!part || !prior) continue;
+      prefix += `${seamBetween(term, prior.row, part.row)}${part.span.text}`;
+    }
+    const lastBefore = before[before.length - 1];
+    if (lastBefore) text = `${prefix}${seamBetween(term, lastBefore.row, pivot)}${text}`;
+  }
+  return text.trim();
 }
 
 function collectRows(term: Terminal, pivot: RowInfo): RowInfo[] {
@@ -368,8 +452,10 @@ export function commandBlockAtCell(term: Terminal, bufferRow: number, col: numbe
   const rows = collectRows(term, pivot);
   if (rows.length === 0) return null;
 
-  if (rows.length === 1) {
-    const span = inlineSpanAtCell(pivot, col, margin);
+  const pivotIndex = rows.findIndex((row) => row.row === pivot.row);
+  const next = pivotIndex >= 0 ? rows[pivotIndex + 1] : undefined;
+  if (rows.length === 1 || looksLikeInlineSpan(pivot, next)) {
+    const span = inlineSpanAcrossRows(term, pivot, col, margin);
     if (!span || !looksLikeCode(span)) return null;
     const value = span.trim();
     if (!value || value.length > MAX_COMMAND_BLOCK_CHARS) return null;

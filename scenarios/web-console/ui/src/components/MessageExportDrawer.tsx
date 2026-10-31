@@ -24,6 +24,7 @@ interface MessageExportDrawerProps {
   open: boolean;
   /** The explicitly selected conversation events (any order; the formatter orders them). */
   events: ConversationEvent[];
+  error?: string;
   onClose: () => void;
 }
 
@@ -36,7 +37,7 @@ type CopyState = "idle" | "copied" | "failed";
  * selector — selection lives in the navigator; this drawer only formats and
  * copies what it is given.
  */
-export default function MessageExportDrawer({ open, events, onClose }: MessageExportDrawerProps) {
+export default function MessageExportDrawer({ open, events, error, onClose }: MessageExportDrawerProps) {
   const { t } = useTranslation();
   const [format, setFormat] = useState<MessageExportFormat>(DEFAULT_MESSAGE_EXPORT_FORMAT);
   const [copyState, setCopyState] = useState<CopyState>("idle");
@@ -88,6 +89,7 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
       }
     >
       <div className="flex h-full min-h-0 flex-col md:flex-row">
+        {error && <div role="alert" data-testid="msg-export-resolution-error" className="absolute inset-x-4 top-16 z-10 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
         {/* Format picker */}
         <div className="shrink-0 border-b border-wc-default/60 p-3 md:w-64 md:border-b-0 md:border-e md:overflow-y-auto">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-wc-text-faint">
@@ -160,7 +162,7 @@ export default function MessageExportDrawer({ open, events, onClose }: MessageEx
               type="button"
               data-testid="msg-export-copy"
               onClick={() => void handleCopy()}
-              disabled={result.text.length === 0}
+              disabled={result.text.length === 0 || !!error || events.length === 0}
               className={cn(
                 "inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold transition",
                 copyState === "copied"

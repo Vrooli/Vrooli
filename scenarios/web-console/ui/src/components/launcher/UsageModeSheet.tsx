@@ -40,7 +40,8 @@ export default function UsageModeSheet({ open, onClose, usageMode }: { open: boo
     return usage.windows.filter((window) => window.resetsAt && Date.parse(window.resetsAt) > Date.now() &&
       usage.windows.filter((other) => other.windowMinutes === window.windowMinutes).length === 1);
   }, [usage]);
-  const active = state.modes;
+  const active = state.modes.filter((mode) => mode.kind !== "learn");
+  const comparisons = state.modes.filter((mode) => mode.kind === "learn");
   const untilText = (mode: { untilKind: string; expiresAt?: string }) =>
     mode.untilKind === "off" || !mode.expiresAt ? t(strings.launcher.usageModeUntilOffShort) : t(strings.launcher.usageModeUntil, { time: clockTime(mode.expiresAt, i18n.resolvedLanguage) });
 
@@ -74,6 +75,15 @@ export default function UsageModeSheet({ open, onClose, usageMode }: { open: boo
             <div key={mode.id} data-testid={`usage-mode-active-${mode.id}`} className="flex items-center gap-3 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2">
               <span className="min-w-0 flex-1 text-sm text-wc-text-primary">{agents.find((agent) => agent.runner === mode.runner)?.label ?? mode.runner}<span className="block text-xs text-wc-text-muted">{untilText(mode)}</span></span>
               {state.canControl && <Button type="button" variant="secondary" size="md" data-testid="usage-mode-end" disabled={busy} className="min-h-11" onClick={() => { void usageMode.end(mode.id); }}>{t(strings.launcher.usageModeEnd)}</Button>}
+            </div>))}
+        </section>}
+        {comparisons.length > 0 && <section aria-label={t(strings.launcher.learnComparisons)} className="space-y-2" data-testid="usage-mode-learn">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted">{t(strings.launcher.learnComparisons)}</h3>
+          {comparisons.map((mode) => (
+            <div key={mode.id} data-testid={`usage-mode-learn-${mode.id}`} className="space-y-1 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-sm text-wc-text-primary">
+              <p>{t(strings.launcher.learnComparisonLine, { role: mode.role || mode.label, percent: mode.splitPercent ?? 50 })}</p>
+              <p className="text-xs text-wc-text-muted">{mode.sessionsOptIn ? t(strings.launcher.learnComparisonSessions) : t(strings.launcher.learnComparisonManagedOnly)} {mode.paused ? t(strings.launcher.learnComparisonPaused) : ""} {untilText(mode)}</p>
+              <p className="text-xs text-wc-text-faint">{t(strings.launcher.learnComparisonEndHint)}</p>
             </div>))}
         </section>}
         {state.canControl && selected && <section className="space-y-3">

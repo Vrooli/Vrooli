@@ -217,6 +217,7 @@ type CreateInput struct {
 	TmuxMouseMode        bool
 	LaunchMode           string
 	LaunchDescriptorJSON string
+	BusinessAccountID    string
 	// HumanOwnerSubject is the verified human on whose behalf a service caller
 	// (agent-manager) is opening this session, carried on the X-Human-Owner-Subject
 	// request header. It is a creator-identity LABEL only — web-console never

@@ -54,7 +54,10 @@ describe("TerminalLauncher", () => {
     fireEvent.change(screen.getByTestId("launcher-backend-select"), { target: { value: "persistent" } });
     fireEvent.change(screen.getByTestId("launcher-timeout-select"), { target: { value: "preset:1h" } });
     fireEvent.click(screen.getByTestId("launcher-empty-shell"));
+    expect(onLaunch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "persistent", workingDir: "/tmp" }));
+    fireEvent.click(screen.getByTestId("launcher-clear-selection"));
     fireEvent.change(screen.getByTestId("launcher-custom-input"), { target: { value: "echo hi" } });
     fireEvent.keyDown(screen.getByTestId("launcher-custom-input"), { key: "Enter" });
     fireEvent.click(screen.getByTestId("launcher-shortcut-list-files"));

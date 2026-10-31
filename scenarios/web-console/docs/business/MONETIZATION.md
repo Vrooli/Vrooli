@@ -49,6 +49,39 @@ universal cheapest-path guarantee.
 - Native browser agent voice is a separate Codex/version/live-session capability.
   Dictation uses Audio Tools. Text-to-speech has its own service/browser paths.
   Voice selection is not proof that all optional dependencies are running.
+- The coding-agent launcher's model choices come from the harness resource
+  policy. The policy labels a configured billing source, but the chooser reports
+  availability as unknown and does not verify credentials, account binding,
+  entitlement, or execution. A listed native subscription, BYOK provider, or
+  local model is not a Vrooli-funded coding-agent route. The API has an
+  application-owned fixed `vrooli/coding` choice behind the qualification flag;
+  the flag remains off, so production does not advertise that source.
+- Account-bound coding execution is partially wired but not qualified. Web Console's browser
+  sign-in now requests an S256 PKCE challenge and returns through a one-use
+  loopback code. The login URL comes from the API's configured LPBS issuer, and
+  Web Console exchanges the code through its same-origin API against that same
+  issuer; the refresh credential stays in credential authority. The launcher
+  now requires an explicit business-account selection and current LPBS usage
+  facts before a qualified paid-source submission, then passes the account ID
+  into session creation. The session adapter stores that binding and installs a
+  session-scoped credential for the local OpenCode proxy. These paths have
+  focused tests. An OpenCode 1.19.4 fixture completes a tool round trip through
+  the Web Console proxy to an LPBS HTTP fixture; this is not yet one joined run
+  through the real LPBS reservation service.
+  The operator selected measured partial-stream usage as the failure policy.
+  LPBS now has separate business-account usage, reservation, and event tables;
+  each event retains the authenticated actor separately from its billed account.
+  Measured provider token counts settle at the configured model rate, unmeasured
+  failed streams release their hold, and failed settlement retains the hold for
+  reconciliation. Focused fixtures cover account isolation, actor attribution,
+  measured partial settlement, and idempotency. Account binding, fixed-model
+  tool execution, cancellation, reservation, and settlement still need a joined
+  cross-owner fixture before production qualification. Offer Desk lists the
+  Business Bundle, Tier 1, and `ai_credits` as ideas, so there is no approved
+  customer-facing offer or rate to show. Keep Vrooli-funded coding unavailable
+  until both the joined accounting journey and operator-owned offer facts are
+  established.
+  No live account, paid coding-agent request, or charge was used for this work.
 - `.vrooli/monetization.json` declares the routed inference meter. The shared meter
   inventory assigns `voice_minutes` to Audio Tools; Aquila does not duplicate it.
 - Aquila does not enforce plan rank locally. Signed-out local terminal capability

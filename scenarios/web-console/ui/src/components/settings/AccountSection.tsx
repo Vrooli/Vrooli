@@ -13,6 +13,7 @@ import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { PasswordInput } from "@vrooli/react-component-library/PasswordInput/2";
 import { StatusBadge, type StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { PendingSyncBadge, PlanBadge } from "@vrooli/react-component-library/MonetizationAccount/2";
+import BusinessAccountUsageCard from "./BusinessAccountUsageCard";
 import {
   deleteSubscriptionSession,
   getSubscriptionSession,
@@ -176,6 +177,8 @@ export default function AccountSection() {
           </ButtonGroup>
         </CardContent>
       </Card>
+
+      <BusinessAccountUsageCard enabled={configured} />
 
       <Card data-testid="account-free-access-card"><CardHeader className="p-5"><CardTitle as="h3" className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-wc-accent" aria-hidden="true" />Always available without an account</CardTitle><CardDescription className="mt-1">An account adds convenience; it never takes away the local-first experience.</CardDescription></CardHeader><CardContent className="grid gap-3 p-5 pt-0 sm:grid-cols-2">{["Full terminal workspace", "Local Ollama generation", "Your own OpenRouter key", "Local voice features", "Your own connected machines"].map((item) => <div key={item} className="flex items-center gap-2 text-sm text-wc-text-secondary"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-emerald-400/10 text-emerald-300"><Check className="h-3 w-3" aria-hidden="true" /></span>{item}</div>)}</CardContent></Card>
 

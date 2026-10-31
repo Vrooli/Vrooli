@@ -50,6 +50,8 @@ export interface MessageExportSelection {
   onClear: () => void;
   /** Proceed to the export drawer with the current selection. */
   onContinue: () => void;
+  canContinue: boolean;
+  error?: string;
 }
 
 /** How the server reads a query; role narrows it to one speaker. */
@@ -65,6 +67,9 @@ export interface NavigatorSearch {
   /** Server hits in sequence order; null while a search is in flight. */
   hits: ConversationSearchMatch[] | null;
   truncated: boolean;
+  hasMore: boolean;
+  continuing: boolean;
+  onContinue: () => void;
   /** The server's reason a query could not run (e.g. an invalid regex). */
   error?: string;
   options: SearchOptionsState;
@@ -927,8 +932,13 @@ export default function MessageJumpList({
       )}
 
       {q && search?.truncated && (
-        <div data-testid="msg-jump-truncated" className="shrink-0 border-t border-wc-default/60 px-3 py-1 text-[10px] text-wc-text-faint">
-          {t(strings.messageJumpList.truncated)}
+        <div data-testid="msg-jump-truncated" className="flex shrink-0 items-center justify-between gap-2 border-t border-wc-default/60 px-3 py-1 text-[10px] text-wc-text-faint">
+          <span>{t(strings.messageJumpList.truncated)}</span>
+          {search.hasMore && (
+            <button type="button" data-testid="msg-jump-load-more" onClick={search.onContinue} disabled={search.continuing} className="min-h-9 shrink-0 rounded-md px-2 text-wc-accent hover:bg-wc-surface-input disabled:opacity-50">
+              {search.continuing ? "…" : t(strings.messageJumpList.loadMore)}
+            </button>
+          )}
         </div>
       )}
 
@@ -989,12 +999,13 @@ export default function MessageJumpList({
               type="button"
               data-testid="msg-export-continue"
               onClick={exportSelection.onContinue}
-              disabled={(selectedIds?.size ?? 0) === 0}
+                disabled={(selectedIds?.size ?? 0) === 0 || !exportSelection.canContinue}
               className="min-h-[36px] rounded-lg bg-wc-accent/25 px-3 py-1.5 text-xs font-semibold text-wc-text-primary transition hover:bg-wc-accent/35 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t(strings.messageExport.continueAction)}
             </button>
           </div>
+          {exportSelection.error && <div role="alert" data-testid="msg-export-selection-error" className="pb-2 text-[11px] text-red-400">{exportSelection.error}</div>}
         </div>
       )}
     </>

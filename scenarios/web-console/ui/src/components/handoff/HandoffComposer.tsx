@@ -1,7 +1,7 @@
 import { useActivityTime, useConversationNavigation } from "../../hooks/useConversationNavigation";
 import { handoffTargetSections } from "../../hooks/useHandoff";
 import { buildSessionActivity } from "../../lib/workspaceNavigation";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Loader2, Plus, Search, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
@@ -85,13 +85,31 @@ export default function HandoffComposer({
   const [messageSource, setMessageSource] = useState<{ snippet: SnippetDTO; rendered: string } | null>(null);
   const [filter, setFilter] = useState("");
   const flatTargets = useMemo(() => targets.flatMap((section) => section.targets), [targets]);
+  // Workspace activity refreshes replace target objects even when the set of
+  // destinations is unchanged. Resetting the composer on object identity loses
+  // a checked target (and its edited message) while the operator is composing.
+  const targetKeys = flatTargets.map(targetKey);
+  const targetKeysSignature = JSON.stringify(targetKeys);
+  const initialSelectionSignature = JSON.stringify(initialSelection ?? null);
+  const wasOpen = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      wasOpen.current = false;
+      return;
+    }
+    const keys = JSON.parse(targetKeysSignature) as string[];
+    if (wasOpen.current) {
+      // New sessions can appear while the composer is open. Keep the operator's
+      // choices and edits, dropping only a destination that actually vanished.
+      setSelected((previous) => previous.filter((key) => keys.includes(key)));
+      return;
+    }
+    wasOpen.current = true;
+    const initialKeys = JSON.parse(initialSelectionSignature) as string[] | null;
     // Default to the only target when there is exactly one: the common case
     // should not cost a selection click.
-    const only = flatTargets.length === 1 ? flatTargets[0] : undefined;
-    const preset = initialSelection ?? (only ? [targetKey(only)] : []);
+    const preset = initialKeys ?? (keys.length === 1 ? keys : []);
     setSelected(preset);
     setEdited({});
     setResults(null);
@@ -99,7 +117,7 @@ export default function HandoffComposer({
     setMessageSource(null);
     setSnippetPickerOpen(false);
     setFilter("");
-  }, [open, initialSelection, flatTargets]);
+  }, [open, initialSelectionSignature, targetKeysSignature]);
 
   const query = filter.trim().toLocaleLowerCase();
   const visibleSections = useMemo(() => targets

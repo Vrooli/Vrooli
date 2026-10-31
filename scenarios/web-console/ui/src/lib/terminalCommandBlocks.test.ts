@@ -59,6 +59,30 @@ describe("commandBlockAtCell", () => {
     expect(commandBlockAtCell(term, 5, 6)?.value).toBe(COMMAND);
   });
 
+  it("does not merge separate inline code spans from adjacent bullet rows", () => {
+    const rows = [
+      "- Your exact case: tap green pnpm run build",
+      "  inside - pnpm run build passed.",
+      "- Inline code inside prose, e.g. Run pnpm",
+      "  run build before continuing.",
+    ].map((text) => {
+      const start = text.indexOf("pnpm");
+      return { text, colored: [[start, start + "pnpm run build".length]] as Array<[number, number]> };
+    });
+    const term = fakeTerminal(rows);
+    expect(commandBlockAtCell(term, 1, (rows[1]?.text.indexOf("pnpm") ?? 0) + 2)?.value).toBe("pnpm run build");
+    expect(commandBlockAtCell(term, 0, (rows[0]?.text.indexOf("pnpm") ?? 0) + 2)?.value).toBe("pnpm run build");
+  });
+
+  it("stitches an inline code span that wraps across rows", () => {
+    const term = fakeTerminal([
+      { text: "- Inline code example: Run pnpm", colored: [[27, 31]] },
+      { text: "  run build before continuing.", colored: [[2, 11]] },
+    ]);
+    expect(commandBlockAtCell(term, 0, 29)?.value).toBe("pnpm run build");
+    expect(commandBlockAtCell(term, 1, 4)?.value).toBe("pnpm run build");
+  });
+
   it("extracts an inline code span from a colored bullet and leaves the prose behind", () => {
     const text = "- pnpm run build passed.";
     const term = fakeTerminal([{ text, colored: [[2, 16]] }]);

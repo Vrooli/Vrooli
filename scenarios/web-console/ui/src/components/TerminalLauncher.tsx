@@ -35,11 +35,28 @@ import { useUsageMode } from "./launcher/useUsageMode";
 import { CONTEXT_LIMIT_CHOICES, withContextLimit, type ContextLimitChoice } from "./launcher/contextLimit";
 import { useContextCompactionStore } from "../stores/useContextCompactionStore";
 import UsageModeSheet, { clockTime } from "./launcher/UsageModeSheet";
+import { modelSelectionClient } from "../api/modelSelection";
+import { getBusinessAccountUsage, getBusinessAccounts, type BusinessAccount, type BusinessAccountUsageSummary } from "../api/monetization";
+import type { GetRoleModelChoicesResponse, RoleModelChoice } from "@vrooli/proto-types/web-console/v1/modelselection/model_selection_pb";
+import { withModelArgs } from "./launcher/AgentGridSection";
 
 export type { TerminalTarget } from "../api/targets";
 
 /** One session at a time, or a whole group in one trip through the dialog. */
 type LauncherMode = "one-session" | "group";
+type SelectedLaunch = { kind: "agent"; agentId: string; label: string; command: string; fullPowerModel?: string } | { kind: "shell" };
+const LAUNCHER_DEFAULT_CHOICE = "__launcher_default__";
+const VROOLI_CREDITS_SOURCE = "vrooli-credits";
+
+function formatCredits(value: number | undefined): string {
+  if (value === undefined) return "Unknown";
+  if (value < 0) return "Unlimited";
+  return new Intl.NumberFormat().format(value);
+}
+
+function roleChoiceKey(choice: RoleModelChoice): string {
+  return JSON.stringify([choice.source, choice.model]);
+}
 
 // [REQ:P0-006a] Terminal Launch Flow UI
 // [REQ:P0-006b] Configurable Shortcut Entries
@@ -52,6 +69,7 @@ export interface LaunchOptions {
   policy?: { mode: PolicyMode; duration?: string };
   target?: TerminalTarget;
   workingDir?: string;
+  businessAccountId?: string;
 }
 
 interface TerminalLauncherProps {
@@ -187,6 +205,19 @@ export default function TerminalLauncher({
   const [destinationGroupId, setDestinationGroupId] = useState<string | null>(pendingGroupId);
   const [mode, setMode] = useState<LauncherMode>("one-session");
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [selectedLaunch, setSelectedLaunch] = useState<SelectedLaunch | null>(null);
+  const [modelPolicy, setModelPolicy] = useState<GetRoleModelChoicesResponse | null>(null);
+  const [modelPolicyLoading, setModelPolicyLoading] = useState(false);
+  const [modelPolicyError, setModelPolicyError] = useState(false);
+  const [selectedModelKey, setSelectedModelKey] = useState("");
+  const [modelOverrideExplicit, setModelOverrideExplicit] = useState(false);
+  const [businessAccounts, setBusinessAccounts] = useState<BusinessAccount[]>([]);
+  const [businessAccountsLoading, setBusinessAccountsLoading] = useState(false);
+  const [businessAccountsError, setBusinessAccountsError] = useState(false);
+  const [selectedBusinessAccountId, setSelectedBusinessAccountId] = useState("");
+  const [businessAccountUsage, setBusinessAccountUsage] = useState<BusinessAccountUsageSummary | null>(null);
+  const [businessAccountUsageLoading, setBusinessAccountUsageLoading] = useState(false);
+  const [businessAccountUsageError, setBusinessAccountUsageError] = useState(false);
 
   // Reseed the destination each time the dialog opens, so opening it from a
   // different group header shows that group rather than the last one.
@@ -194,6 +225,15 @@ export default function TerminalLauncher({
     if (open) {
       setDestinationGroupId(pendingGroupId);
       setSelectedTarget(initialTarget?.id ?? "local");
+      setSelectedLaunch(null);
+      setModelPolicy(null);
+      setSelectedModelKey("");
+      setModelOverrideExplicit(false);
+      setBusinessAccounts([]);
+      setBusinessAccountsError(false);
+      setSelectedBusinessAccountId("");
+      setBusinessAccountUsage(null);
+      setBusinessAccountUsageError(false);
       // Always reopen on the single-session mode: it is the common case, and
       // landing in group mode because the last trip used it would surprise.
       setMode("one-session");
@@ -231,12 +271,99 @@ export default function TerminalLauncher({
     return [local, ...catalogWithInitial.filter((target) => target.id !== "local")];
   }, [catalogTargets, initialTarget]);
   const selected = targets.find((target) => target.id === selectedTarget) ?? targets[0] ?? localFallback;
+
+  useEffect(() => {
+    if (!open || selectedLaunch?.kind !== "agent" || !selectedLaunch.agentId) {
+      setModelPolicy(null);
+      setModelPolicyLoading(false);
+      setModelPolicyError(false);
+      setSelectedModelKey("");
+      setModelOverrideExplicit(false);
+      return;
+    }
+    let cancelled = false;
+    setModelPolicy(null);
+    setModelPolicyLoading(true);
+    setModelPolicyError(false);
+    setSelectedModelKey("");
+    setModelOverrideExplicit(false);
+    modelSelectionClient.getRoleModelChoices({ agentId: selectedLaunch.agentId, targetId: selected.id })
+      .then((response) => { if (!cancelled) setModelPolicy(response); })
+      .catch(() => { if (!cancelled) setModelPolicyError(true); })
+      .finally(() => { if (!cancelled) setModelPolicyLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, selected.id, selectedLaunch?.kind, selectedLaunch?.kind === "agent" ? selectedLaunch.agentId : undefined]);
+
+  const modelChoices = modelPolicy?.choices ?? [];
+  const modelSources = [...new Set(modelChoices.map((choice) => choice.source))];
+  const defaultModelChoice = modelChoices.find((choice) => choice.isDefault) ?? modelChoices[0];
+  const selectedChoice = modelOverrideExplicit
+    ? modelChoices.find((choice) => roleChoiceKey(choice) === selectedModelKey)
+    : defaultModelChoice;
+  const selectedSource = selectedChoice?.source ?? modelSources[0] ?? "";
+  const sourceChoices = modelChoices.filter((choice) => choice.source === selectedSource);
+  const usesVrooliCredits = selectedLaunch?.kind === "agent" && selectedChoice?.source === VROOLI_CREDITS_SOURCE;
+  useEffect(() => {
+    if (!open || !usesVrooliCredits) {
+      setBusinessAccounts([]);
+      setBusinessAccountsLoading(false);
+      setBusinessAccountsError(false);
+      setSelectedBusinessAccountId("");
+      return;
+    }
+    let cancelled = false;
+    setBusinessAccountsLoading(true);
+    setBusinessAccountsError(false);
+    setSelectedBusinessAccountId("");
+    void getBusinessAccounts().then(({ accounts }) => {
+      if (cancelled) return;
+      setBusinessAccounts(accounts ?? []);
+      setSelectedBusinessAccountId(accounts?.[0]?.id ?? "");
+    }).catch(() => {
+      if (!cancelled) {
+        setBusinessAccounts([]);
+        setBusinessAccountsError(true);
+      }
+    }).finally(() => { if (!cancelled) setBusinessAccountsLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, usesVrooliCredits]);
+  useEffect(() => {
+    if (!open || !usesVrooliCredits || !selectedBusinessAccountId) {
+      setBusinessAccountUsage(null);
+      setBusinessAccountUsageLoading(false);
+      setBusinessAccountUsageError(false);
+      return;
+    }
+    let cancelled = false;
+    setBusinessAccountUsage(null);
+    setBusinessAccountUsageLoading(true);
+    setBusinessAccountUsageError(false);
+    void getBusinessAccountUsage(selectedBusinessAccountId).then((usage) => {
+      if (cancelled) return;
+      if (usage.business_account_id !== selectedBusinessAccountId) {
+        setBusinessAccountUsageError(true);
+        return;
+      }
+      setBusinessAccountUsage(usage);
+    }).catch(() => {
+      if (!cancelled) setBusinessAccountUsageError(true);
+    }).finally(() => { if (!cancelled) setBusinessAccountUsageLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, selectedBusinessAccountId, usesVrooliCredits]);
+  useEffect(() => {
+    if (modelPolicy?.policyStatus !== "ready" || modelChoices.length === 0) return;
+    setSelectedModelKey((current) => modelChoices.some((choice) => roleChoiceKey(choice) === current)
+      ? current
+      : roleChoiceKey(defaultModelChoice!));
+  }, [defaultModelChoice, modelChoices, modelPolicy?.policyStatus]);
+
   // The mode file belongs to this machine, so it is only shown for local launches.
   const usageMode = useUsageMode(open && selected.kind === "local");
   const [usageSheetOpen, setUsageSheetOpen] = useState(false);
   // Per launch only: never stored, so it cannot be left on for the next session.
   const [contextLimit, setContextLimit] = useState<ContextLimitChoice>("standard");
-  const activeMode = usageMode.state.modes[0];
+  // Only a Save mode lowers the model; a Learn comparison has no settings and is shown in the sheet.
+  const activeMode = usageMode.state.modes.find((item) => item.kind !== "learn");
   const statusLabels: Record<TerminalTargetState, string> = {
     dispatchable: t(strings.terminalLauncher.dispatchable),
     offline: t(strings.terminalLauncher.offline),
@@ -281,6 +408,17 @@ export default function TerminalLauncher({
     return onInstallCapability(agentID, selected);
   }, [onInstallCapability, selected]);
 
+  const selectAgent = useCallback((command: string, agentId: string) => {
+    const shortcut = shortcuts.find((entry) => entry.agentId === agentId);
+    setModelOverrideExplicit(false);
+    setSelectedLaunch({ kind: "agent", agentId, label: shortcut?.label ?? agentId, command });
+  }, [shortcuts]);
+  const selectAgentFullPower = useCallback((command: string, agentId: string, model: string, args: string) => {
+    const shortcut = shortcuts.find((entry) => entry.agentId === agentId);
+    setModelOverrideExplicit(false);
+    setSelectedLaunch({ kind: "agent", agentId, label: shortcut?.label ?? agentId, command: withModelArgs(command, args), fullPowerModel: model });
+  }, [shortcuts]);
+
   const buildLaunchOptions = useCallback((command?: string): LaunchOptions => {
     const parsed = parsePolicySelection(selectedPolicyKey);
     return {
@@ -289,8 +427,18 @@ export default function TerminalLauncher({
       workingDir: workingDir.trim() || undefined,
       backend: selectedBackend !== defaultBackend ? selectedBackend : undefined,
       policy: parsed ?? undefined,
+      businessAccountId: usesVrooliCredits ? selectedBusinessAccountId || undefined : undefined,
     };
-  }, [defaultBackend, selected, selectedBackend, selectedPolicyKey, workingDir]);
+  }, [defaultBackend, selected, selectedBackend, selectedPolicyKey, selectedBusinessAccountId, usesVrooliCredits, workingDir]);
+
+  const submitSelectedLaunch = useCallback(() => {
+    if (!selectedLaunch) return;
+    let command = selectedLaunch.kind === "agent" ? selectedLaunch.command : undefined;
+    if (command && selectedLaunch.kind === "agent" && !selectedLaunch.fullPowerModel && modelOverrideExplicit && modelPolicy?.policyStatus === "ready" && selectedChoice && modelPolicy.modelFlag) {
+      command = withModelArgs(command, `${modelPolicy.modelFlag} ${selectedChoice.launchModel}`);
+    }
+    onLaunch(buildLaunchOptions(command === undefined ? undefined : withContextLimit(command, contextLimit)));
+  }, [buildLaunchOptions, contextLimit, modelOverrideExplicit, modelPolicy, onLaunch, selectedChoice, selectedLaunch]);
 
   const handleLaunchCustom = useCallback(() => {
     if (!customCommand.trim() || !selected.available || noBackendAvailable) return;
@@ -460,6 +608,12 @@ export default function TerminalLauncher({
               target={selected}
               usageAgents={selected.kind === "local" ? usageMode.state.agents : undefined}
               usageModes={usageMode.state.modes}
+              selectionMode
+              selectedAgentId={selectedLaunch?.kind === "agent" ? selectedLaunch.agentId : null}
+              selectedShell={selectedLaunch?.kind === "shell"}
+              onSelect={selectAgent}
+              onSelectFullPower={selectAgentFullPower}
+              onSelectShell={() => { setSelectedLaunch({ kind: "shell" }); }}
               disabled={isCreating || !selected.available || noBackendAvailable}
               onLaunch={(command) => { onLaunch(buildLaunchOptions(command === undefined ? command : withContextLimit(command, contextLimit))); }}
               onInstall={onInstallCapability ? installAgent : undefined}
@@ -486,7 +640,104 @@ export default function TerminalLauncher({
             />
           )}
 
-          {mode === "one-session" && (
+          {mode === "one-session" && selectedLaunch && (
+            <section data-testid="launcher-selected-launch" aria-label={t(strings.terminalLauncher.selectedLaunch)} className="space-y-3 rounded-xl border border-wc-accent/40 bg-wc-accent/5 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-wc-text-primary">
+                  {selectedLaunch.kind === "shell" ? t(strings.terminalLauncher.emptyShell) : selectedLaunch.label}
+                </h3>
+                <button type="button" data-testid="launcher-clear-selection" onClick={() => { setSelectedLaunch(null); }}
+                  className="min-h-11 rounded-lg px-3 text-xs font-semibold text-wc-accent hover:bg-wc-surface-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent">
+                  {t(strings.terminalLauncher.clearLaunchSelection)}
+                </button>
+              </div>
+              {selectedLaunch.kind === "agent" && (
+                <div data-testid="launcher-model-selection" className="space-y-2">
+                  {modelPolicyLoading ? (
+                    <p role="status" className="text-xs text-wc-text-muted">{t(strings.terminalLauncher.modelChoicesLoading)}</p>
+                  ) : modelPolicyError || !modelPolicy || modelPolicy.policyStatus === "unknown" ? (
+                    <p role="status" className="text-xs text-wc-text-muted">{t(strings.terminalLauncher.modelChoicesUnknown)}</p>
+                  ) : modelPolicy.policyStatus === "unsupported" ? (
+                    <p role="status" className="text-xs text-wc-text-muted">{modelPolicy.detail || t(strings.terminalLauncher.modelChoicesUnsupported)}</p>
+                  ) : modelPolicy.policyStatus === "stale" ? (
+                    <p role="status" className="text-xs text-amber-200">{t(strings.terminalLauncher.modelChoicesStale)}</p>
+                  ) : (
+                    <>
+                      {selectedLaunch.fullPowerModel && <p role="status" className="text-xs text-wc-text-secondary">{t(strings.terminalLauncher.usageModeFullPowerSelected, { model: selectedLaunch.fullPowerModel })}</p>}
+                      {!selectedLaunch.fullPowerModel && modelSources.length > 1 ? (
+                        <label className="flex min-h-11 flex-col gap-1 text-xs font-medium text-wc-text-secondary">
+                          {t(strings.terminalLauncher.modelSource)}
+                          <select data-testid="launcher-model-source" aria-label={t(strings.terminalLauncher.modelSource)} value={modelOverrideExplicit ? selectedSource : LAUNCHER_DEFAULT_CHOICE}
+                            onChange={(event) => {
+                              if (event.target.value === LAUNCHER_DEFAULT_CHOICE) { setModelOverrideExplicit(false); return; }
+                              const next = modelChoices.find((choice) => choice.source === event.target.value);
+                              if (next) { setSelectedModelKey(roleChoiceKey(next)); setModelOverrideExplicit(true); }
+                            }}
+                            className="min-h-11 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent">
+                            <option value={LAUNCHER_DEFAULT_CHOICE}>{t(strings.terminalLauncher.useCurrentLauncherDefault)}</option>
+                            {modelSources.map((source) => {
+                              const choice = modelChoices.find((item) => item.source === source);
+                              return <option key={source} value={source}>{choice?.sourceLabel || source} ({source})</option>;
+                            })}
+                          </select>
+                        </label>
+                      ) : !selectedLaunch.fullPowerModel && selectedChoice ? (
+                        <p data-testid="launcher-model-source" className="text-xs text-wc-text-secondary">{t(strings.terminalLauncher.modelSource)}: {selectedChoice.sourceLabel || selectedChoice.source} ({selectedChoice.source})</p>
+                      ) : null}
+                      {!selectedLaunch.fullPowerModel && <label className="flex min-h-11 flex-col gap-1 text-xs font-medium text-wc-text-secondary">
+                        {t(strings.terminalLauncher.modelChoice)}
+                        <select data-testid="launcher-model-choice" aria-label={t(strings.terminalLauncher.modelChoice)} value={modelOverrideExplicit && selectedChoice ? roleChoiceKey(selectedChoice) : LAUNCHER_DEFAULT_CHOICE}
+                          onChange={(event) => {
+                            if (event.target.value === LAUNCHER_DEFAULT_CHOICE) { setModelOverrideExplicit(false); return; }
+                            setSelectedModelKey(event.target.value); setModelOverrideExplicit(true);
+                          }}
+                          className="min-h-11 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent">
+                          <option value={LAUNCHER_DEFAULT_CHOICE}>{t(strings.terminalLauncher.useCurrentLauncherDefault)}</option>
+                          {sourceChoices.map((choice) => <option key={roleChoiceKey(choice)} value={roleChoiceKey(choice)}>{choice.model}</option>)}
+                        </select>
+                      </label>}
+                      {usesVrooliCredits && (
+                        <label className="flex min-h-11 flex-col gap-1 text-xs font-medium text-wc-text-secondary">
+                          Billing account
+                          {businessAccountsLoading ? (
+                            <span role="status" data-testid="launcher-business-account-loading" className="min-h-11 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-3 text-sm text-wc-text-muted">Loading business accounts…</span>
+                          ) : businessAccountsError ? (
+                            <span role="alert" data-testid="launcher-business-account-error" className="min-h-11 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-3 text-sm text-rose-200">Business accounts are unavailable. Try selecting the Vrooli credits source again.</span>
+                          ) : businessAccounts.length === 0 ? (
+                            <span role="status" data-testid="launcher-business-account-empty" className="min-h-11 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-3 text-sm text-wc-text-muted">No business accounts are available for this subscription.</span>
+                          ) : (
+                            <select data-testid="launcher-business-account" aria-label="Billing account" value={selectedBusinessAccountId}
+                              onChange={(event) => { setSelectedBusinessAccountId(event.target.value); }}
+                              className="min-h-11 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent">
+                              {businessAccounts.map((account) => <option key={account.id} value={account.id}>{account.display_name}</option>)}
+                            </select>
+                          )}
+                          {businessAccountsLoading || businessAccountsError || businessAccounts.length === 0 ? null : businessAccountUsageLoading ? (
+                            <span role="status" data-testid="launcher-business-account-usage-loading" className="text-xs font-normal text-wc-text-muted">Loading current AI credit usage…</span>
+                          ) : businessAccountUsageError || !businessAccountUsage || businessAccountUsage.business_account_id !== selectedBusinessAccountId ? (
+                            <span role="alert" data-testid="launcher-business-account-usage-error" className="text-xs font-normal text-rose-200">Current account usage is unavailable. Paid launch is disabled until it can be checked.</span>
+                          ) : (
+                            <span data-testid="launcher-business-account-usage" className="text-xs font-normal text-wc-text-muted">
+                              {formatCredits(businessAccountUsage.remaining.ai_credits)} AI credits remaining · {formatCredits(businessAccountUsage.reserved.ai_credits)} reserved
+                            </span>
+                          )}
+                        </label>
+                      )}
+                      <p className="text-[11px] text-wc-text-muted">{t(strings.terminalLauncher.modelAvailabilityUnknown)}</p>
+                      {modelPolicy.provenance && <p className="break-words text-[11px] text-wc-text-faint">{t(strings.terminalLauncher.modelPolicyProvenance, { date: modelPolicy.observedAt || t(strings.terminalLauncher.unavailable), source: modelPolicy.provenance })}</p>}
+                    </>
+                  )}
+                </div>
+              )}
+              <button type="button" data-testid="launcher-submit-selection" disabled={isCreating || !selected.available || noBackendAvailable || usesVrooliCredits && (businessAccountsLoading || businessAccountsError || !selectedBusinessAccountId || businessAccountUsageLoading || businessAccountUsageError || !businessAccountUsage || businessAccountUsage.business_account_id !== selectedBusinessAccountId || typeof businessAccountUsage.remaining.ai_credits !== "number" || businessAccountUsage.remaining.ai_credits === 0)}
+                onClick={submitSelectedLaunch}
+                className="min-h-11 w-full rounded-lg bg-wc-accent px-4 text-sm font-semibold text-wc-surface-base hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent disabled:opacity-50">
+                {selectedLaunch.kind === "shell" ? t(strings.terminalLauncher.launchSelectedShell) : t(strings.terminalLauncher.launchSelectedAgent, { name: selectedLaunch.label })}
+              </button>
+            </section>
+          )}
+
+          {mode === "one-session" && !selectedLaunch && (
           <section className="space-y-2" aria-label={t(strings.terminalLauncher.customCommand)}>
             {/* The prompt marker and the launch control both live inside the
                 field's own border, so the row reads as one command bar. The

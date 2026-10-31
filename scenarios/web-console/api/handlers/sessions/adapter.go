@@ -105,9 +105,12 @@ type Adapter struct {
 	// session id is known and before the PTY environment is built. rawCredential
 	// is request-local and never persisted here. Best-effort: it must never fail
 	// or block session creation. A nil minter leaves behavior unchanged.
-	DelegationMinter  DelegationMinter
-	LifecycleLedger   continuity.Ledger
-	ContinuityCatalog interface {
+	DelegationMinter          DelegationMinter
+	PaidCodingCredential      func() (string, error)
+	RegisterPaidCodingSession func(sessionID, accountID, token string)
+	RemovePaidCodingSession   func(sessionID string)
+	LifecycleLedger           continuity.Ledger
+	ContinuityCatalog         interface {
 		EnqueueTombstone(context.Context, string) error
 		List(context.Context, string, int) ([]continuity.CatalogRecord, bool, error)
 		ListAll(context.Context, string) ([]continuity.CatalogRecord, error)
@@ -334,6 +337,33 @@ func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
 // -----------------------------------------------------------------------------
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
+	in.BusinessAccountID = strings.TrimSpace(in.BusinessAccountID)
+	var paidBindingSessionID string
+	paidBindingCommitted := false
+	if in.BusinessAccountID != "" {
+		if intsessions.NormalizeAgentType(in.AgentType) != sessionstore.AgentOpenCode || !in.ExecuteLaunchCommand || in.TargetID != "" && in.TargetID != "local" || in.RequestedSessionID != "" || in.LaunchMode != "" {
+			return Session{}, fmt.Errorf("%w: account-bound paid inference requires a local OpenCode launcher session", ErrFailedPrecondition)
+		}
+		if a.PaidCodingCredential == nil || a.RegisterPaidCodingSession == nil || a.RemovePaidCodingSession == nil {
+			return Session{}, fmt.Errorf("%w: account-bound paid inference is unavailable", ErrFailedPrecondition)
+		}
+		token, err := a.PaidCodingCredential()
+		if err != nil {
+			return Session{}, fmt.Errorf("prepare account-bound OpenCode session: %v: %w", err, ErrInternal)
+		}
+		ctx = session.ChainPreSpawnHook(ctx, func(sessionID string) {
+			if sessionID == "" {
+				return
+			}
+			a.RegisterPaidCodingSession(sessionID, in.BusinessAccountID, token)
+			paidBindingSessionID = sessionID
+		})
+		defer func() {
+			if !paidBindingCommitted && paidBindingSessionID != "" {
+				a.RemovePaidCodingSession(paidBindingSessionID)
+			}
+		}()
+	}
 	verifiedCaller := false
 	if principal, ok := identity.PrincipalFromContext(ctx); ok {
 		in.Owner = principal.OwnerSubject()
@@ -528,6 +558,7 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 			Detached:          sess.Backend == backend.Persistent,
 			CWD:               in.WorkingDir,
 			CreateFingerprint: fingerprint,
+			BusinessAccountID: in.BusinessAccountID,
 			Origin:            intsessions.NormalizeOrigin(in.Origin), Owner: in.Owner, DisplayLabel: in.DisplayLabel,
 		}); err != nil {
 			return a.failCreateAfterPersistenceError(ctx, sess.ID, err)
@@ -597,6 +628,7 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	}
 	created := responseToHandlerSession(resp)
 	created.CreateFingerprint = fingerprint
+	paidBindingCommitted = true
 	return created, nil
 }
 
@@ -1134,6 +1166,9 @@ func (a *Adapter) Delete(ctx context.Context, id string) error {
 			}
 			a.Metrics.ActiveSessions.Add(-1)
 		}
+		if a.RemovePaidCodingSession != nil {
+			a.RemovePaidCodingSession(id)
+		}
 		if a.Conversations != nil {
 			if err := a.Conversations.DeleteSession(ctx, id); err != nil {
 				return fmt.Errorf("delete conversation evidence for %q: %v: %w", sanitizeID(id), err, ErrInternal)
@@ -1211,6 +1246,9 @@ func (a *Adapter) Archive(ctx context.Context, id string) error {
 				operationErr = fmt.Errorf("stop archived session %q: %v: %w", sanitizeID(id), err, ErrInternal)
 			} else {
 				a.Metrics.ActiveSessions.Add(-1)
+				if a.RemovePaidCodingSession != nil {
+					a.RemovePaidCodingSession(id)
+				}
 			}
 		}
 	}
@@ -1732,6 +1770,7 @@ func createFingerprint(in CreateInput) string {
 		TmuxMouseMode          bool
 		LaunchMode             string
 		LaunchDescriptorJSON   string
+		BusinessAccountID      string
 		AgentRunIdentityDigest string
 	}{
 		Shell: in.Shell, Cols: in.Cols, Rows: in.Rows, Backend: in.Backend,
@@ -1740,6 +1779,7 @@ func createFingerprint(in CreateInput) string {
 		Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel,
 		TargetID: in.TargetID, WorkingDir: in.WorkingDir, TmuxMouseMode: in.TmuxMouseMode,
 		LaunchMode: in.LaunchMode, LaunchDescriptorJSON: in.LaunchDescriptorJSON,
+		BusinessAccountID: in.BusinessAccountID,
 		AgentRunIdentityDigest: func() string {
 			digest := sha256.Sum256([]byte(in.AgentRunIdentityToken))
 			return hex.EncodeToString(digest[:])

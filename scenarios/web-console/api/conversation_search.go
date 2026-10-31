@@ -33,7 +33,7 @@ const (
 )
 
 // searchScanCap bounds a scan the index cannot narrow — a regex with no usable
-// literal, or a query that is only punctuation. The newest rows are scanned and
+// literal, or a query that is only punctuation. The scoped order is scanned and
 // the result is marked truncated. A variable so tests can shrink it.
 var searchScanCap = 20_000
 
@@ -45,6 +45,7 @@ type ConversationSearchQuery struct {
 	WholeWord     bool
 	Role          string // "user" | "assistant" | "" for both
 	Limit         int
+	AfterSequence int64
 }
 
 // TextRange is a match inside an excerpt, in UTF-16 code units (what browser
@@ -57,10 +58,12 @@ type TextRange struct {
 // ConversationSearchResult is a session search's answer. Error carries a
 // query that cannot run as asked (an invalid regex); it is not a failure.
 type ConversationSearchResult struct {
-	Matches   []ConversationSearchMatch
-	Truncated bool
-	Total     int64
-	Error     string
+	Matches           []ConversationSearchMatch
+	Truncated         bool
+	Total             int64
+	Error             string
+	HasMore           bool
+	NextAfterSequence int64
 }
 
 // ArchivedConversationSearchResult is an archive search's answer.

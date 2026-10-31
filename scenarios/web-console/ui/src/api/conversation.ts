@@ -241,6 +241,8 @@ export interface ConversationSearchResponse {
   matches: ConversationSearchMatch[];
   truncated: boolean;
   totalMatches: number;
+  hasMore: boolean;
+  nextAfterSequence: number;
   /** Set when the query cannot run as asked (an invalid regular expression). */
   error?: string;
 }
@@ -254,6 +256,7 @@ export interface ConversationSearchOptions {
   /** "user" | "assistant"; omitted for both. */
   role?: "user" | "assistant";
   limit?: number;
+  afterSequence?: number;
 }
 
 const SEARCH_MODES: Readonly<Record<ConversationSearchModeName, ConversationSearchMode>> = {
@@ -272,6 +275,7 @@ export async function searchConversation(sessionId: string, query: string, optio
     caseSensitive: options.caseSensitive ?? false,
     wholeWord: options.wholeWord ?? false,
     roleFilter: options.role ?? "",
+    afterSequence: options.afterSequence ? BigInt(options.afterSequence) : 0n,
   });
   return {
     matches: response.matches.map((match) => ({
@@ -284,6 +288,8 @@ export async function searchConversation(sessionId: string, query: string, optio
     })),
     truncated: response.truncated,
     totalMatches: Number(response.totalMatches),
+    hasMore: response.hasMore ?? false,
+    nextAfterSequence: Number(response.nextAfterSequence ?? 0n),
     ...(response.error ? { error: response.error } : {}),
   };
 }
@@ -345,6 +351,47 @@ export async function getConversationRange(sessionId: string, fromSequence: numb
     cursor: decodeConversationCursor(response.cursor),
     capture: decodeCaptureStatus(response.capture),
   };
+}
+
+export interface ResolveConversationEventsResponse {
+  events: ConversationEvent[];
+  missingEventIds: string[];
+}
+
+/** Resolves stable IDs to complete event records, reporting deleted IDs explicitly. */
+export async function resolveConversationEvents(sessionId: string, eventIds: string[]): Promise<ResolveConversationEventsResponse> {
+  const events: ConversationEvent[] = [];
+  const missingEventIds: string[] = [];
+  for (let offset = 0; offset < eventIds.length; offset += 5000) {
+    const response = await conversationClient.resolveEvents({ sessionId, eventIds: eventIds.slice(offset, offset + 5000) });
+    events.push(...response.events.map(decodeConversationEvent));
+    missingEventIds.push(...response.missingEventIds);
+  }
+  return { events, missingEventIds };
+}
+
+/** Reads every page by the server's sequence cursor; gaps and large histories are supported. */
+export async function getAllConversationEvents(sessionId: string): Promise<ConversationEvent[]> {
+  const events: ConversationEvent[] = [];
+  let beforeSequence = 0;
+  const seen = new Set<string>();
+  for (;;) {
+    const page = await getConversationSession(sessionId, { limit: 500, ...(beforeSequence > 0 ? { beforeSequence } : {}) });
+    const fresh = page.events.filter((event) => !seen.has(event.id));
+    if (fresh.length === 0) {
+      if (page.hasMore) throw new Error("Conversation history stopped advancing while loading all messages.");
+      break;
+    }
+    fresh.forEach((event) => seen.add(event.id));
+    events.push(...fresh);
+    if (!page.hasMore) break;
+    const nextBefore = page.oldestSequence ?? Math.min(...fresh.map((event) => event.sequence));
+    if (nextBefore <= 0 || (beforeSequence > 0 && nextBefore >= beforeSequence)) {
+      throw new Error("Conversation history returned an invalid continuation cursor.");
+    }
+    beforeSequence = nextBefore;
+  }
+  return events.sort((left, right) => left.sequence - right.sequence);
 }
 
 export interface SummarizeEventResponse {

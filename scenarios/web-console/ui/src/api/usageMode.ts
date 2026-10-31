@@ -14,6 +14,12 @@ export interface UsageModeView {
   expiresAt?: string;
   untilKind: "time" | "window_reset" | "off" | string;
   startedBy?: string;
+  /** "save" lowers the model; "learn" is a comparison with no settings, whose model depends on the arm. */
+  kind: "save" | "learn";
+  role?: string;
+  splitPercent?: number;
+  sessionsOptIn?: boolean;
+  paused?: boolean;
 }
 
 /** What a new session of one agent will use. `model` is empty when no mode applies. */
@@ -27,6 +33,8 @@ export interface UsageModeAgent {
   model?: string;
   /** Arguments that pin the normal default for one launch; absent when pointless. */
   fullPowerArgs?: string;
+  /** Set when a Learn comparison includes this agent's sessions: the model depends on the arm, so none is named. */
+  learnModeId?: string;
 }
 
 export interface UsageModeState {
@@ -48,7 +56,7 @@ async function request(path: string, init?: RequestInit): Promise<UsageModeState
   const res = await fetch(buildApiUrl(path, { baseUrl: API_BASE }), { ...init, headers, cache: "no-store" });
   if (!res.ok) throw makeApiError("usage_mode_error", `usage mode request failed (${String(res.status)})`, res.status);
   const body = (await res.json()) as Partial<UsageModeState>;
-  return { modes: body.modes ?? [], agents: body.agents ?? [], canControl: Boolean(body.canControl) };
+  return { modes: (body.modes ?? []).map((mode) => ({ ...mode, kind: mode.kind === "learn" ? "learn" as const : "save" as const })), agents: body.agents ?? [], canControl: Boolean(body.canControl) };
 }
 
 export const getUsageMode = (signal?: AbortSignal) => request("/api/v1/usage-mode", { method: "GET", signal });

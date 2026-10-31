@@ -14,7 +14,7 @@ vi.mock("./useAgentUsage", () => ({ useAgentUsage: () => ({ usages: { codex: { a
 
 const codex: UsageModeAgent = { agentId: "codex", label: "Codex", runner: "codex", lowerModel: "gpt-6-luna", usualModel: "gpt-6.1-terra" };
 const inMode: UsageModeAgent = { ...codex, modeId: "um-1", model: "gpt-6-luna", fullPowerArgs: "-m gpt-6.1-terra" };
-const mode: UsageModeView = { id: "um-1", label: "Save usage", runner: "codex", startedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 3_600_000).toISOString(), untilKind: "time" };
+const mode: UsageModeView = { id: "um-1", label: "Save usage", runner: "codex", startedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 3_600_000).toISOString(), untilKind: "time", kind: "save" };
 const target = { id: "local", kind: "local" as const, label: "This machine", available: true, state: "dispatchable" as const, readiness: [{ key: "capability:codex", label: "Codex", passed: true, state: "ready" as const, detail: "" }] };
 const shortcuts = [{ agentId: "codex", label: "Codex", command: "codex --yolo" }];
 
@@ -63,6 +63,18 @@ function Sheet() {
 }
 const state = (over: Partial<UsageModeState>): UsageModeState => ({ modes: [], agents: [codex], canControl: true, ...over });
 
+const learn: UsageModeView = { id: "um-learn", label: "Learn: code.default", runner: "codex", startedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86_400_000).toISOString(), untilKind: "time", kind: "learn", role: "code.default", splitPercent: 50, sessionsOptIn: true };
+
+describe("a Learn comparison in the launcher", () => {
+  it("claims no model when the session's model depends on its arm", () => {
+    render(<AgentGridSection shortcuts={shortcuts} target={target} usageAgents={[{ ...codex, learnModeId: "um-learn" }]} usageModes={[learn]} disabled={false} onLaunch={vi.fn()} />);
+    const note = screen.getByTestId("launcher-mode-note-codex");
+    expect(note).toHaveTextContent("launcher.usageModeLearnArm");
+    expect(note).not.toHaveTextContent("launcher.usageModeWillUse");
+    expect(screen.queryByTestId("launcher-full-power-codex")).toBeNull();
+  });
+});
+
 describe("usage mode sheet", () => {
   beforeEach(() => { vi.resetAllMocks(); usage.windows = []; setDesktopViewport(); });
 
@@ -110,6 +122,16 @@ describe("usage mode sheet", () => {
     render(<Sheet />);
     await waitFor(() => { expect(api.getUsageMode).toHaveBeenCalled(); });
     expect(screen.queryByTestId("usage-mode-start")).toBeNull();
+    expect(screen.queryByTestId("usage-mode-end")).toBeNull();
+  });
+
+  it("lists a Learn comparison as a comparison with no End button, apart from Save modes", async () => {
+    api.getUsageMode.mockResolvedValue(state({ modes: [learn] }));
+    render(<Sheet />);
+    const card = await screen.findByTestId("usage-mode-learn-um-learn");
+    expect(card).toHaveTextContent("launcher.learnComparisonLine");
+    expect(card).toHaveTextContent("launcher.learnComparisonSessions");
+    expect(screen.queryByTestId("usage-mode-active-um-learn")).toBeNull();
     expect(screen.queryByTestId("usage-mode-end")).toBeNull();
   });
 });

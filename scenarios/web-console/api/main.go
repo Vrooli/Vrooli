@@ -89,36 +89,37 @@ type Server struct {
 	sessionStore    sessionstore.Store
 	// lifecycleDelete is installed from the sessions transport adapter so
 	// retention cleanup cannot bypass the canonical lifecycle owner.
-	lifecycleDelete       func(context.Context, string) error
-	desktopCreateSession  func(context.Context, sessionsH.CreateInput) (sessionsH.Session, error)
-	aiChain               *intai.Chain
-	shortcuts             ShortcutStore
-	aiConfig              intai.ConfigStore
-	ai                    *intai.Service
-	sweeper               *session.ExpirationSweeper
-	conversationRetention *conversationRetentionSweeper
-	conversationControlMu sync.Mutex
-	conversationControl   *conversationControlState
-	managedCodex          *managedCodexRegistry
-	agentVoiceMu          sync.Mutex
-	agentVoiceControllers map[string]*agentVoiceLease
-	idempotency           *intsessions.IdempotencyCache // replay-safe session creation
-	capabilities          *capabilities.Registry
-	agentUpdates          agentUpdateCache
-	workspace             intworkspace.Store
-	groupTemplates        intgrouptemplates.Store
-	handoffRules          inthandoffrules.Store
-	snippets              intsnippets.Store
-	hookAuthToken         string
-	credentialClient      credentialclient.Client
-	integrationHubURL     string
-	subscriptionResolver  *credentialclient.ConsumerSessionResolver
-	entitlements          *entitlementclient.Client
-	codexTailer           *CodexTailer
-	claudeTailer          *ClaudeTailer
-	grokTailer            *GrokTailer
-	opencodeWatcher       *OpenCodeWatcher
-	agentCheckpointStore  AgentTranscriptCheckpointStore
+	lifecycleDelete             func(context.Context, string) error
+	desktopCreateSession        func(context.Context, sessionsH.CreateInput) (sessionsH.Session, error)
+	aiChain                     *intai.Chain
+	shortcuts                   ShortcutStore
+	aiConfig                    intai.ConfigStore
+	ai                          *intai.Service
+	sweeper                     *session.ExpirationSweeper
+	conversationRetention       *conversationRetentionSweeper
+	conversationControlMu       sync.Mutex
+	conversationControl         *conversationControlState
+	managedCodex                *managedCodexRegistry
+	agentVoiceMu                sync.Mutex
+	agentVoiceControllers       map[string]*agentVoiceLease
+	idempotency                 *intsessions.IdempotencyCache // replay-safe session creation
+	capabilities                *capabilities.Registry
+	agentUpdates                agentUpdateCache
+	workspace                   intworkspace.Store
+	groupTemplates              intgrouptemplates.Store
+	handoffRules                inthandoffrules.Store
+	snippets                    intsnippets.Store
+	hookAuthToken               string
+	credentialClient            credentialclient.Client
+	integrationHubURL           string
+	subscriptionResolver        *credentialclient.ConsumerSessionResolver
+	paidCodingProtocolQualified bool
+	entitlements                *entitlementclient.Client
+	codexTailer                 *CodexTailer
+	claudeTailer                *ClaudeTailer
+	grokTailer                  *GrokTailer
+	opencodeWatcher             *OpenCodeWatcher
+	agentCheckpointStore        AgentTranscriptCheckpointStore
 	// usageModeQuota overrides the quota reading used to resolve a reset time (tests).
 	usageModeQuota func(context.Context, string) (capsH.AgentUsageResult, error)
 	// compaction compacts idle sessions and watches context size (context_compaction.go).

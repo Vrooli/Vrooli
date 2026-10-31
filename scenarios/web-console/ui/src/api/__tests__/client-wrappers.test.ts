@@ -39,16 +39,34 @@ describe("Connect client wrappers", () => {
     const event = { id: "e1", sessionId: "s1", source: "agent", role: "assistant", text: "hi", speechParagraphs: ["hi"], originalSpeechParagraphs: [], summarized: false, createdAt: "now", sequence: 2n, deliveryState: "complete", ttsState: "none", consumptionState: "new" };
     vi.spyOn(conversation.conversationClient, "get").mockResolvedValue({ sessionId: "s1", events: [event], cursor: { lastSeenSequence: 1n, lastListenedSequence: 0n }, hasMore: true, oldestSequence: 1n, newestSequence: 2n, totalCount: 2n } as never);
     vi.spyOn(conversation.conversationClient, "updateCursor").mockResolvedValue({ cursor: { lastSeenSequence: 2n, lastListenedSequence: 1n } } as never);
-    vi.spyOn(conversation.conversationClient, "search").mockResolvedValue({ matches: [{ eventId: "e1", sequence: 2n, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1n, error: "" } as never);
+    const search = vi.spyOn(conversation.conversationClient, "search").mockResolvedValue({ matches: [{ eventId: "e1", sequence: 2n, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1n, error: "", hasMore: false, nextAfterSequence: 0n } as never);
     vi.spyOn(conversation.conversationClient, "searchArchived").mockResolvedValue({ matches: [], truncated: false, totalMatches: 0n, distinctSessions: 0n } as never);
     vi.spyOn(conversation.conversationClient, "getRange").mockResolvedValue({ sessionId: "s1", events: [], cursor: undefined } as never);
+    vi.spyOn(conversation.conversationClient, "resolveEvents").mockResolvedValue({ events: [event], missingEventIds: ["gone"] } as never);
     vi.spyOn(conversation.conversationClient, "summarizeEvent").mockResolvedValue({ summarized: true, speechParagraphs: ["short"], error: "" } as never);
     await expect(conversation.getConversationSession("s1", { sinceSequence: 1, beforeSequence: 3 })).resolves.toMatchObject({ events: [{ sequence: 2, originalSpeechParagraphs: undefined }], cursor: { lastSeenSequence: 1 } });
     await expect(conversation.updateConversationCursor("s1", { lastSeenSequence: 2 })).resolves.toEqual({ lastSeenSequence: 2, lastListenedSequence: 1 });
-    await expect(conversation.searchConversation("s1", "hi")).resolves.toEqual({ matches: [{ eventId: "e1", sequence: 2, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1 });
+    await expect(conversation.searchConversation("s1", "hi")).resolves.toEqual({ matches: [{ eventId: "e1", sequence: 2, excerpt: "hi", ranges: [{ start: 0, end: 2 }], role: "user", createdAt: "now" }], truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0 });
+    search.mockResolvedValueOnce({ matches: [], truncated: true, totalMatches: 0n, error: "", hasMore: true, nextAfterSequence: 10n } as never);
+    await expect(conversation.searchConversation("s1", "hi", { afterSequence: 5 })).resolves.toMatchObject({ hasMore: true, nextAfterSequence: 10 });
+    expect(search).toHaveBeenLastCalledWith(expect.objectContaining({ afterSequence: 5n }));
+    await expect(conversation.resolveConversationEvents("s1", ["e1", "gone"])).resolves.toMatchObject({ events: [{ id: "e1", sequence: 2 }], missingEventIds: ["gone"] });
     await expect(conversation.searchArchivedConversations("x")).resolves.toMatchObject({ totalMatches: 0 });
     await expect(conversation.getConversationRange("s1", 1, 2)).resolves.toMatchObject({ sessionId: "s1", cursor: { lastSeenSequence: 0 } });
     await expect(conversation.summarizeEvent("s1", "e1")).resolves.toEqual({ summarized: true, speechParagraphs: ["short"], error: undefined });
+  });
+
+  it("walks conversation pages by returned cursors across sequence gaps", async () => {
+    const event = (id: string, sequence: bigint) => ({ id, sessionId: "s1", source: "agent", role: "assistant", text: id, speechParagraphs: [], originalSpeechParagraphs: [], summarized: false, createdAt: "now", sequence, deliveryState: "", ttsState: "", consumptionState: "" });
+    const get = vi.spyOn(conversation.conversationClient, "get").mockResolvedValueOnce({
+      sessionId: "s1", events: [event("e8", 8n), event("e10", 10n)], cursor: undefined, hasMore: true, oldestSequence: 8n,
+    } as never).mockResolvedValueOnce({
+      sessionId: "s1", events: [event("e2", 2n), event("e5", 5n)], cursor: undefined, hasMore: false, oldestSequence: 2n,
+    } as never);
+    await expect(conversation.getAllConversationEvents("s1")).resolves.toMatchObject([
+      { id: "e2", sequence: 2 }, { id: "e5", sequence: 5 }, { id: "e8", sequence: 8 }, { id: "e10", sequence: 10 },
+    ]);
+    expect(get).toHaveBeenNthCalledWith(2, expect.objectContaining({ beforeSequence: 8n }));
   });
 
   it("maps workspace requests and responses", async () => {
@@ -109,6 +127,8 @@ describe("Connect client wrappers", () => {
     const create = vi.spyOn(sessions.sessionsClient, "create").mockResolvedValue({ session: { id: "s", shell: "", cols: 0, rows: 0, createdAt: "", backend: "", survivesRestart: false, policy: undefined } } as never);
     await sessions.createSession();
     expect(create.mock.calls[0]?.[0]).toMatchObject({ shell: "", cols: 0, rows: 0, backend: "", executeLaunchCommand: false, origin: SessionOrigin.UI });
+    await sessions.createSession({ agent_type: "opencode", business_account_id: "acct-selected" });
+    expect(create.mock.calls[1]?.[0]).toMatchObject({ agentType: "opencode", businessAccountId: "acct-selected" });
     vi.spyOn(sessions.sessionsClient, "getArchiveRetention").mockResolvedValue({ policy: undefined, stats: undefined } as never);
     await expect(sessions.getArchiveRetention()).resolves.toEqual({ policy: { message_less_age_days: 0, agent_home_age_days: 0, max_bytes: 0 }, stats: { entry_count: 0, message_count: 0, transcript_bytes: 0, agent_home_bytes: 0, total_bytes: 0 } });
     vi.spyOn(sessions.sessionsClient, "recover").mockResolvedValue({ oldSessionId: "", newSessionId: "", agentType: "", commandSent: "", codexHomeCopied: false } as never);

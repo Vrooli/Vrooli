@@ -379,6 +379,7 @@ export function useSessionManager() {
     policy?: { mode: PolicyMode; duration?: string };
 	 target?: TerminalTarget;
 	workingDir?: string;
+	businessAccountId?: string;
 	 tmuxMouseMode?: boolean;
     ephemeral?: boolean;
   }) => {
@@ -401,6 +402,7 @@ export function useSessionManager() {
         agent_type: agentTypeFromCommand(command),
 			target_id: opts?.target && opts.target.kind !== "local" ? opts.target.id : undefined,
 			working_dir: opts?.workingDir,
+			business_account_id: opts?.businessAccountId,
 			tmux_mouse_mode: opts?.tmuxMouseMode ?? useWorkspaceStore.getState().tmuxMouseMode,
 			owner: opts?.target && opts.target.kind !== "local" ? `target:${opts.target.id}` : undefined,
 			display_label: opts?.target?.label,

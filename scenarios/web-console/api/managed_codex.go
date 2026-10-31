@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -41,6 +42,9 @@ func newManagedCodexRegistry(store sessionstore.Store) *managedCodexRegistry {
 	}}
 }
 
+// codexLaunchArgs are the app-server arguments a descriptor states, and nothing
+// more. It never consults the usage mode: Recover uses it, and a recovered
+// thread keeps the settings it was created with.
 func codexLaunchArgs(d sessionstore.LaunchDescriptor) []string {
 	args := []string{"app-server", "--stdio"}
 	config := func(key, value string) {
@@ -48,28 +52,45 @@ func codexLaunchArgs(d sessionstore.LaunchDescriptor) []string {
 			args = append(args, "-c", key+"=\""+strings.ReplaceAll(value, "\"", "\\\"")+"\"")
 		}
 	}
-	model := d.Model
-	if strings.TrimSpace(model) == "" {
-		// A mode only fills an empty model; an explicit choice always wins.
-		if mode, ok := usagemode.Resolve(usagemode.Query{Runner: "codex", Now: time.Now()}); ok {
-			if settings, has := mode.SettingsFor("codex"); has {
-				model = settings.SessionModel
-			}
-		}
-	}
-	config("model", model)
-	// A mode's context limit applies to this launch only; the descriptor has no
-	// limit of its own, so there is no explicit choice for it to override.
-	if mode, ok := usagemode.Resolve(usagemode.Query{Runner: "codex", Now: time.Now()}); ok {
-		if settings, has := mode.SettingsFor("codex"); has && settings.ContextLimitTokens > 0 {
-			args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", settings.ContextLimitTokens))
-		}
-	}
+	config("model", d.Model)
 	config("profile", d.Profile)
 	config("approval_policy", d.ApprovalPolicy)
 	config("sandbox_mode", d.Sandbox)
 	if strings.TrimSpace(d.ApprovalPolicy) == "" {
 		args = append(args, "-c", `approval_policy="never"`)
+	}
+	return args
+}
+
+// codexModeSettings are the active mode's Codex settings, if one applies.
+func codexModeSettings() (usagemode.RunnerSettings, bool) {
+	mode, ok := usagemode.Resolve(usagemode.Query{Runner: "codex", Now: time.Now()})
+	if !ok {
+		return usagemode.RunnerSettings{}, false
+	}
+	return mode.SettingsFor("codex")
+}
+
+// codexCreateDescriptor is the descriptor a new session launches with. An
+// active mode fills an empty model (an explicit choice always wins) and only
+// when it would lower the harness's own default. Create stores this descriptor,
+// so a later Recover replays exactly what the thread started on.
+func codexCreateDescriptor(d sessionstore.LaunchDescriptor) sessionstore.LaunchDescriptor {
+	if strings.TrimSpace(d.Model) != "" {
+		return d
+	}
+	if settings, ok := codexModeSettings(); ok && usagemode.SessionModelAllowed("codex", settings) {
+		d.Model = settings.SessionModel
+	}
+	return d
+}
+
+// codexCreateArgs are the arguments for a brand-new session: the descriptor
+// with the mode's model, plus the mode's context limit for this launch.
+func codexCreateArgs(d sessionstore.LaunchDescriptor) []string {
+	args := codexLaunchArgs(codexCreateDescriptor(d))
+	if settings, ok := codexModeSettings(); ok && settings.ContextLimitTokens > 0 {
+		args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", settings.ContextLimitTokens))
 	}
 	return args
 }
@@ -169,7 +190,14 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 	if start == nil {
 		return sessionsH.Session{}, fmt.Errorf("managed Codex owner starter is not configured")
 	}
-	owner, err := start(ctx, executable, ownerID, "web-console", "1.0.0", cwd, codexLaunchEnv(d), codexLaunchArgs(d))
+	// Only a new session takes the current mode; the effective model is stored so
+	// recovery replays it.
+	if launch := codexCreateDescriptor(d); launch.Model != d.Model {
+		if stored, marshalErr := json.Marshal(launch); marshalErr == nil {
+			raw = string(stored)
+		}
+	}
+	owner, err := start(ctx, executable, ownerID, "web-console", "1.0.0", cwd, codexLaunchEnv(d), codexCreateArgs(d))
 	if err != nil {
 		return sessionsH.Session{}, fmt.Errorf("start managed Codex: %w", err)
 	}

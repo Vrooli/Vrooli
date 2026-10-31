@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   _resetCommercialContextCache,
   deleteSubscriptionSession,
+  getBusinessAccountUsage,
+  getBusinessAccounts,
   getCommercialContext,
   getConnections,
   getSubscriptionSession,
@@ -187,5 +189,18 @@ describe("subscription and credential REST wrappers", () => {
   it("lists managed integration connections", async () => {
     stubFetch(() => new Response(JSON.stringify({ connections: [{ id: "c1", provider: "google", connection_name: "Gmail", status: "connected" }] }), { status: 200 }));
     await expect(getConnections()).resolves.toMatchObject({ connections: [{ id: "c1", status: "connected" }] });
+  });
+
+  it("loads member accounts and usage for the explicitly selected account", async () => {
+    signIn("account-session-token");
+    const mock = stubFetch((path) => path.startsWith("/api/v1/business-account-usage?")
+      ? new Response(JSON.stringify({ business_account_id: "acct:one", tier: "pro", usage: { ai_credits: 20 }, reserved: { ai_credits: 10 } }), { status: 200 })
+      : new Response(JSON.stringify({ accounts: [{ id: "acct:one", display_name: "Studio", role: "owner", created_at: "now" }] }), { status: 200 }));
+
+    await expect(getBusinessAccounts()).resolves.toMatchObject({ accounts: [{ id: "acct:one", display_name: "Studio" }] });
+    await expect(getBusinessAccountUsage("acct:one")).resolves.toMatchObject({ business_account_id: "acct:one", reserved: { ai_credits: 10 } });
+    expect(mock).toHaveBeenLastCalledWith("/api/v1/business-account-usage?business_account_id=acct%3Aone", expect.anything());
+    const headers = mock.mock.calls[1]![1]!.headers as Headers;
+    expect(headers.get("Authorization")).toBe("Bearer account-session-token");
   });
 });

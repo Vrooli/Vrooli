@@ -430,6 +430,31 @@ func (s *ConversationStore) GetEvent(ctx context.Context, sessionID, eventID str
 	return event, ok
 }
 
+// ResolveEvents returns complete records for stable IDs and explicitly lists
+// IDs that no longer exist. Unlike GetEvent's legacy convenience wrapper, it
+// preserves repository errors so bulk export cannot silently become partial.
+func (s *ConversationStore) ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) ([]ConversationEvent, []string, error) {
+	events := make([]ConversationEvent, 0, len(eventIDs))
+	missing := make([]string, 0)
+	seen := make(map[string]struct{}, len(eventIDs))
+	for _, id := range eventIDs {
+		if _, duplicate := seen[id]; duplicate {
+			continue
+		}
+		seen[id] = struct{}{}
+		event, found, err := s.repository.GetEvent(ctx, sessionID, id)
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve conversation event %q: %w", sanitizeID(id), err)
+		}
+		if !found {
+			missing = append(missing, id)
+			continue
+		}
+		events = append(events, event)
+	}
+	return events, missing, nil
+}
+
 func (s *ConversationStore) ListSession(ctx context.Context, sessionID string) ConversationSessionState {
 	state, err := s.repository.ListSession(ctx, sessionID)
 	if err != nil {

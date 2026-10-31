@@ -6,7 +6,7 @@ import { strings } from "../consts/strings";
 import { useConversationStore, createConversationSessionState } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useMessagesViewStore } from "../stores/useMessagesViewStore";
-import type { ConversationEvent } from "../api/conversation";
+import { searchConversation, type ConversationEvent } from "../api/conversation";
 import { makeConversationEvents } from "./fixtures/conversationFixture";
 
 const { mockLoadOlderConversationPage, mockLoadConversationPageContaining, mockRefreshConversationSession } = vi.hoisted(() => ({
@@ -21,9 +21,11 @@ vi.mock("../hooks/useConversationSession", () => ({
   loadConversationPageContaining: mockLoadConversationPageContaining,
 }));
 
-const { mockResolveFilePreview, mockGetFilePreviewText } = vi.hoisted(() => ({
+const { mockResolveFilePreview, mockGetFilePreviewText, mockGetAllConversationEvents, mockResolveConversationEvents } = vi.hoisted(() => ({
   mockResolveFilePreview: vi.fn(),
   mockGetFilePreviewText: vi.fn(),
+  mockGetAllConversationEvents: vi.fn().mockResolvedValue([]),
+  mockResolveConversationEvents: vi.fn().mockResolvedValue({ events: [], missingEventIds: [] }),
 }));
 
 vi.mock("../api/filePreview", async (importOriginal) => {
@@ -64,6 +66,8 @@ vi.mock("../api/conversation", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/conversation")>();
   return {
     ...actual,
+    getAllConversationEvents: mockGetAllConversationEvents,
+    resolveConversationEvents: mockResolveConversationEvents,
     searchConversation: vi.fn((_sessionId: string, query: string) => Promise.resolve(
       query === "Hello"
         ? { matches: [{ eventId: "e1", sequence: 1, excerpt: "Hello world", ranges: [{ start: 0, end: 5 }], role: "assistant" as const, createdAt: "2026-09-11T08:00:00Z" }], truncated: false, totalMatches: 1 }
@@ -157,6 +161,8 @@ function overflowAction(eventId: string, testId: string): HTMLElement {
 describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetAllConversationEvents.mockResolvedValue([]);
+    mockResolveConversationEvents.mockResolvedValue({ events: [], missingEventIds: [] });
     mockLoadOlderConversationPage.mockResolvedValue(false);
     mockLoadConversationPageContaining.mockResolvedValue(false);
     useConversationStore.setState({ sessions: {} });
@@ -406,6 +412,22 @@ describe("MessagesPane", () => {
 
     const mdEl = screen.getByTestId("mock-markdown");
     expect(mdEl.getAttribute("data-search-query")).toBeNull();
+  });
+
+  it("appends bounded search pages using the server continuation cursor", async () => {
+    const first = makeEvent({ id: "first-hit", sequence: 1, text: "needle first" });
+    const second = makeEvent({ id: "second-hit", sequence: 8, text: "needle second" });
+    seedEvents([first, second]);
+    vi.mocked(searchConversation)
+      .mockResolvedValueOnce({ matches: [{ eventId: first.id, sequence: first.sequence, excerpt: first.text, ranges: [{ start: 0, end: 6 }], role: "assistant", createdAt: first.createdAt }], truncated: true, totalMatches: 2, hasMore: true, nextAfterSequence: 1 })
+      .mockResolvedValueOnce({ matches: [{ eventId: second.id, sequence: second.sequence, excerpt: second.text, ranges: [{ start: 0, end: 6 }], role: "assistant", createdAt: second.createdAt }], truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0 });
+    render(<MessagesPane {...defaultProps} />);
+    fireEvent.click(screen.getByTestId("messages-search-field"));
+    fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "needle" } });
+    expect(await screen.findByTestId("msg-jump-item-first-hit")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("msg-jump-load-more"));
+    expect(await screen.findByTestId("msg-jump-item-second-hit")).toBeInTheDocument();
+    expect(searchConversation).toHaveBeenLastCalledWith("sess-1", "needle", expect.objectContaining({ afterSequence: 1 }));
   });
 
   it("opens the file viewer when clicking a file-like markdown link", async () => {
@@ -921,15 +943,17 @@ describe("MessagesPane", () => {
       expect(screen.getByTestId("msg-export-preview").textContent).toContain("keep me");
     });
 
-    it("drops selected IDs that no longer exist after a conversation refresh", () => {
-      seedEvents([
+    it("keeps complete selected events when the loaded window changes", async () => {
+      const selected = [
         makeEvent({ id: "e1", sequence: 1, text: "stays" }),
         makeEvent({ id: "e2", sequence: 2, text: "goes away" }),
-      ]);
+      ];
+      seedEvents(selected);
+      mockGetAllConversationEvents.mockResolvedValue(selected);
       render(<MessagesPane {...defaultProps} />);
       openExportSelection();
       fireEvent.click(screen.getByTestId("msg-export-select-all"));
-      expect(screen.getByTestId("msg-jump-item-e2").getAttribute("aria-checked")).toBe("true");
+      await waitFor(() => expect(screen.getByTestId("msg-jump-item-e2").getAttribute("aria-checked")).toBe("true"));
 
       act(() => {
         seedEvents([makeEvent({ id: "e1", sequence: 1, text: "stays" })]);
@@ -937,7 +961,25 @@ describe("MessagesPane", () => {
       fireEvent.click(screen.getByTestId("msg-export-continue"));
       const preview = screen.getByTestId("msg-export-preview").textContent ?? "";
       expect(preview).toContain("stays");
-      expect(preview).not.toContain("goes away");
+      expect(preview).toContain("goes away");
+    });
+
+    it("keeps unresolved search selections explicit and blocks an incomplete export", async () => {
+      seedEvents([makeEvent({ id: "loaded", sequence: 1, text: "loaded message" })]);
+      vi.mocked(searchConversation).mockResolvedValueOnce({
+        matches: [{ eventId: "outside", sequence: 99, excerpt: "needle outside", ranges: [{ start: 0, end: 6 }], role: "assistant", createdAt: "now" }],
+        truncated: false, totalMatches: 1, hasMore: false, nextAfterSequence: 0,
+      });
+      mockResolveConversationEvents.mockResolvedValueOnce({ events: [], missingEventIds: ["outside"] });
+      render(<MessagesPane {...defaultProps} />);
+      fireEvent.click(screen.getByTestId("messages-search-field"));
+      fireEvent.change(screen.getByTestId("msg-nav-search"), { target: { value: "needle" } });
+      expect(await screen.findByTestId("msg-jump-item-outside")).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId("msg-export-enter"));
+      fireEvent.click(screen.getByTestId("msg-jump-item-outside"));
+      expect(await screen.findByTestId("msg-export-selection-error")).toHaveTextContent("no longer exist");
+      expect(screen.getByTestId("msg-export-continue")).toBeDisabled();
+      expect(screen.queryByTestId("msg-export-drawer")).toBeNull();
     });
 
     it("existing jump behavior is preserved alongside the export entry point", () => {

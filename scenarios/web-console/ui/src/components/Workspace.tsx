@@ -86,6 +86,7 @@ import RoleMenu from "./RoleMenu";
 import { useGroupActions } from "../hooks/useGroupActions";
 import { useRoleActions } from "../hooks/useRoleActions";
 import { sendHandoff, type HandoffTarget } from "../hooks/useHandoff";
+import { PendingHandoffQueue } from "../hooks/pendingHandoffQueue";
 import type { GroupCreationRequest } from "./launcher/GroupModePanel";
 import { listGroupTemplates, upsertGroupTemplate } from "../api/grouptemplates";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
@@ -295,7 +296,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Mirrors pendingGroupBySessionRef exactly, and is drained by the same
   // session-reconcile effect — a second draining mechanism would be a second
   // place for a handoff to go missing.
-  const pendingHandoffBySessionRef = useRef<Map<string, string>>(new Map());
+  const pendingHandoffBySessionRef = useRef(new PendingHandoffQueue());
   // The role a just-started session belongs to, attached when its pane lands.
   const pendingRoleBySessionRef = useRef<Map<string, string>>(new Map());
   const clearConversationSession = useConversationStore(state => state.clearSession);
@@ -706,11 +707,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         // Deliver any handoff text held for this session. The terminal is
         // still mounting, so this goes through the same pending-input queue
         // the operator can see, discard, and flush — never dropped silently.
-        const pendingText = pendingHandoffBySessionRef.current.get(sp.session.id);
-        if (pendingText) {
-          pendingHandoffBySessionRef.current.delete(sp.session.id);
-          submitToActiveTerminal(pendingText, "bulk_text", sp.session.id);
-        }
+        pendingHandoffBySessionRef.current.flush(
+          sp.session.id,
+          (pendingText) => submitToActiveTerminal(pendingText, "bulk_text", sp.session.id),
+        );
       } else {
         // The pane arrived before its launch intent did (see
         // pendingIntentTick). Everything the add path does with an intent is
@@ -732,17 +732,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           pendingRoleBySessionRef.current.delete(sp.session.id);
           setRoleSession(lateRoleId, sp.session.id);
         }
-        const lateText = pendingHandoffBySessionRef.current.get(sp.session.id);
-        if (lateText) {
-          pendingHandoffBySessionRef.current.delete(sp.session.id);
-          submitToActiveTerminal(lateText, "bulk_text", sp.session.id);
-        }
+        pendingHandoffBySessionRef.current.flush(
+          sp.session.id,
+          (pendingText) => submitToActiveTerminal(pendingText, "bulk_text", sp.session.id),
+        );
       }
     }
     // Remove deleted sessions from store (only after hydration)
     if (isHydrated) {
       for (const sid of storeIds) {
         if (!sessionIds.has(sid)) {
+          pendingHandoffBySessionRef.current.removeSession(sid);
           // Remember the group BEFORE the pane goes, so the auto-close check
           // below knows which group to reconsider. Reading it afterwards
           // would always find nothing.
@@ -855,7 +855,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           // reconcile effect delivers it the moment the pane appears.
           const immediate = submitToActiveTerminal(text, "bulk_text", sessionId);
           if (immediate.status === "rejected") {
-            pendingHandoffBySessionRef.current.set(sessionId, text);
+            pendingHandoffBySessionRef.current.enqueue(sessionId, text);
             markPendingIntents();
           }
         },

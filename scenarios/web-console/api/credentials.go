@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -336,6 +337,61 @@ func (s *Server) subscriptionSessionModule() *monetization.SessionModule {
 		return monetization.NewSessionModule(nil, webConsoleSubscriptionIdentity, webConsoleSubscriptionField)
 	}
 	return monetization.NewSessionModule(s.credentialClient, webConsoleSubscriptionIdentity, webConsoleSubscriptionField)
+}
+
+// subscriptionAuthorizationURL gives the browser the same LPBS issuer that
+// the server-side code exchange uses. This prevents hosted/local issuer drift.
+func (s *Server) subscriptionAuthorizationURL(w http.ResponseWriter, r *http.Request) {
+	if !webConsoleSameOrigin(w, r) {
+		return
+	}
+	if s == nil || s.subscriptionResolver == nil {
+		http.Error(w, "subscription authority unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	authority, err := url.Parse(strings.TrimRight(strings.TrimSpace(s.subscriptionResolver.LPBSBaseURL), "/"))
+	if err != nil || authority.Host == "" || authority.User != nil || (authority.Scheme != "http" && authority.Scheme != "https") {
+		http.Error(w, "subscription authority unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	authority.Path = strings.TrimRight(authority.Path, "/") + "/auth/login"
+	authority.RawQuery = ""
+	authority.Fragment = ""
+	w.Header().Set("Cache-Control", "no-store")
+	writeCredentialJSON(w, http.StatusOK, map[string]any{"authorization_url": authority.String()})
+}
+
+// subscriptionAuthorizationExchange completes the LPBS PKCE callback on the
+// server side. The refresh token is persisted by ConsumerSessionResolver in
+// credential authority and never crosses back through the browser.
+func (s *Server) subscriptionAuthorizationExchange(w http.ResponseWriter, r *http.Request) {
+	if !webConsoleSameOrigin(w, r) {
+		return
+	}
+	if s == nil || s.subscriptionResolver == nil {
+		http.Error(w, "subscription authority unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	var request struct {
+		Code         string `json:"code"`
+		CodeVerifier string `json:"code_verifier"`
+		RedirectURI  string `json:"redirect_uri"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&request); err != nil || strings.TrimSpace(request.Code) == "" || strings.TrimSpace(request.CodeVerifier) == "" || strings.TrimSpace(request.RedirectURI) == "" {
+		http.Error(w, "authorization code, verifier, and redirect URI are required", http.StatusBadRequest)
+		return
+	}
+	access, err := s.subscriptionResolver.CompleteAuthorizationCode(r.Context(), s.subscriptionResolver.LPBSBaseURL, "web-console", request.RedirectURI, request.Code, credentialclient.PKCEChallenge{Verifier: request.CodeVerifier})
+	if err != nil {
+		status := http.StatusBadGateway
+		if errors.Is(err, credentialclient.ErrSubscriptionUnauthorized) {
+			status = http.StatusUnauthorized
+		}
+		http.Error(w, "subscription authorization could not be completed", status)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	writeCredentialJSON(w, http.StatusOK, map[string]any{"access_token": access.AccessToken, "expires_at": access.ExpiresAt.UTC().Format(time.RFC3339)})
 }
 
 func (s *Server) subscriptionSummaryHandler(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,7 +15,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/usagemode"
+	"web-console/backends/codex"
 	capsH "web-console/handlers/capabilities"
 	"web-console/internal/sessionstore"
 )
@@ -23,6 +27,8 @@ import (
 func usageModeFixture(t *testing.T) *Server {
 	t.Helper()
 	t.Setenv("VROOLI_HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", t.TempDir()) // no configured default: the mode may fill the model
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	root := t.TempDir()
 	for _, resource := range []string{"codex", "claude-code"} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "..", "resources", resource, "model-policy.json"))
@@ -106,10 +112,10 @@ func TestUsageModeStartShowsModelEndsAndFullPowerIsOnePerLaunch(t *testing.T) {
 		t.Fatalf("codex = %+v", codex)
 	}
 	// Managed Codex fills an empty model from the mode but never overrides one.
-	if args := strings.Join(codexLaunchArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); !strings.Contains(args, `model="gpt-6-luna"`) {
+	if args := strings.Join(codexCreateArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); !strings.Contains(args, `model="gpt-6-luna"`) {
 		t.Fatalf("empty model not filled: %s", args)
 	}
-	if args := strings.Join(codexLaunchArgs(sessionstore.LaunchDescriptor{Agent: "codex", Model: "gpt-6.1-terra"}), " "); !strings.Contains(args, `model="gpt-6.1-terra"`) || strings.Contains(args, "luna") {
+	if args := strings.Join(codexCreateArgs(sessionstore.LaunchDescriptor{Agent: "codex", Model: "gpt-6.1-terra"}), " "); !strings.Contains(args, `model="gpt-6.1-terra"`) || strings.Contains(args, "luna") {
 		t.Fatalf("explicit model overridden: %s", args)
 	}
 	// Full power is a per-launch argument: the mode is still there afterwards.
@@ -193,5 +199,164 @@ func TestUsageModeHigherModelIsTheTierAboveTheMode(t *testing.T) {
 	}
 	if got := usageModeHigherModel(usagemode.Tiers{SessionModel: "x"}, "fallback"); got != "fallback" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+// recoverStore is the slice of the session store Recover uses.
+type recoverStore struct {
+	sessionstore.Store
+	rows []sessionstore.Metadata
+}
+
+func (r recoverStore) List(context.Context) ([]sessionstore.Metadata, error) { return r.rows, nil }
+func (r recoverStore) UpdateAgentInfo(context.Context, string, sessionstore.AgentInfo) error {
+	return nil
+}
+
+func writeCodexSaveMode(t *testing.T) {
+	t.Helper()
+	expires := time.Now().Add(time.Hour)
+	mode := usagemode.Mode{ID: "um-recover", StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
+		Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "gpt-6-luna", ContextLimitTokens: 180000}}}
+	if err := usagemode.Write(usagemode.File{Modes: []usagemode.Mode{mode}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRecoverKeepsTheOriginalSettingsAndNeverAppliesTheCurrentMode(t *testing.T) {
+	usageModeFixture(t)
+	writeCodexSaveMode(t)
+	descriptor := `{"agent":"codex","launchMode":"codex_app_server","model":"gpt-6.1-terra"}`
+	var got []string
+	r := &managedCodexRegistry{
+		store:   recoverStore{rows: []sessionstore.Metadata{{ID: "s1", LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thr", LaunchDescriptorJSON: descriptor}}},
+		entries: map[string]managedCodexEntry{},
+		resume: func(_ context.Context, _, _, _, _, _, _ string, _ []string, args []string) (*codex.ManagedOwner, error) {
+			got = args
+			return nil, errors.New("stop here")
+		},
+	}
+	if err := r.Recover(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(got, " ")
+	if !strings.Contains(joined, `model="gpt-6.1-terra"`) || strings.Contains(joined, "luna") || strings.Contains(joined, "auto_compact") {
+		t.Fatalf("a recovered thread must keep its original settings, not take the current mode: %s", joined)
+	}
+	// A descriptor with no model stays without one: recovery never fills it from a mode.
+	if args := strings.Join(codexLaunchArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); strings.Contains(args, "model=") || strings.Contains(args, "auto_compact") {
+		t.Fatalf("launch args consulted the mode: %s", args)
+	}
+}
+
+func TestCreateStoresTheEffectiveModelSoRecoveryReplaysIt(t *testing.T) {
+	usageModeFixture(t)
+	writeCodexSaveMode(t)
+	d := codexCreateDescriptor(sessionstore.LaunchDescriptor{Agent: "codex", LaunchMode: "codex_app_server"})
+	if d.Model != "gpt-6-luna" {
+		t.Fatalf("create must fill the model from the mode, got %q", d.Model)
+	}
+	if args := strings.Join(codexCreateArgs(sessionstore.LaunchDescriptor{Agent: "codex"}), " "); !strings.Contains(args, "model_auto_compact_token_limit=180000") {
+		t.Fatalf("create must carry the mode's limit: %s", args)
+	}
+}
+
+func TestUsageModeRefusesAnAgentForwardingAHumanCredential(t *testing.T) {
+	s := usageModeFixture(t)
+	post := func(withAgent bool, origin string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/usage-mode/start", strings.NewReader(`{"agentId":"codex","kind":"minutes","minutes":30}`))
+		req.RemoteAddr = "127.0.0.1:4000"
+		if origin != "" {
+			req.Header.Set("Origin", origin)
+		}
+		ctx := identity.WithPrincipal(req.Context(), identity.Principal{Kind: identity.ActorHuman, Subject: "op@example.com", Verified: true, ExpiresAt: time.Now().Add(time.Hour)})
+		if withAgent {
+			ctx = provenance.NewContext(ctx, provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
+		}
+		rec := httptest.NewRecorder()
+		s.router.ServeHTTP(rec, req.WithContext(ctx))
+		return rec
+	}
+	if rec := post(true, ""); rec.Code != http.StatusForbidden {
+		t.Fatalf("an agent carrying a human credential on loopback started a mode: %d", rec.Code)
+	}
+	if modes := usagemode.Read(time.Now()); len(modes) != 0 {
+		t.Fatalf("refused request wrote a mode: %+v", modes)
+	}
+	if rec := post(false, ""); rec.Code != http.StatusOK {
+		t.Fatalf("the operator's own loopback request must keep working: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := post(false, "http://evil.example"); rec.Code != http.StatusForbidden {
+		t.Fatalf("a foreign Origin must stay refused: %d", rec.Code)
+	}
+}
+
+func TestConcurrentConsoleAndExternalWritersLoseNoMode(t *testing.T) {
+	s := usageModeFixture(t)
+	expires := time.Now().Add(time.Hour)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 10; i++ {
+			_ = usagemode.Update(func(f *usagemode.File) error { // another process, e.g. Agent Manager
+				f.Modes = append(f.Modes, usagemode.Mode{ID: fmt.Sprintf("um-ext-%d", i), StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
+					Scope: usagemode.Scope{Role: fmt.Sprintf("role-%d", i)}, Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "x"}}})
+				return nil
+			})
+		}
+	}()
+	for i := 0; i < 5; i++ {
+		usageModeCall(t, s, http.MethodPost, "/api/v1/usage-mode/start", `{"agentId":"codex","kind":"minutes","minutes":30}`, identity.ActorHuman)
+	}
+	<-done
+	if got := len(usagemode.Read(time.Now())); got != 11 {
+		t.Fatalf("a console write dropped another writer's mode: %d modes, want 11", got)
+	}
+}
+
+// A Learn comparison is listed as one, not as a Save mode with no settings, and
+// the launcher is never told which model a session will use while the arm decides.
+func TestUsageModeListsALearnComparisonAsSuchAndClaimsNoModel(t *testing.T) {
+	s := usageModeFixture(t)
+	now := time.Now()
+	expires := now.Add(24 * time.Hour)
+	addLearn := func(id string, sessions bool) {
+		t.Helper()
+		learn := &usagemode.Learn{SplitPercent: 50, Runners: map[string]usagemode.RunnerSettings{"codex": {ModelMap: map[string]string{"gpt-6.1-terra": "gpt-6-luna"}, SessionModel: "gpt-6-luna"}}}
+		if sessions {
+			learn.Sessions = &usagemode.SessionBlocks{OptIn: true}
+		}
+		err := usagemode.Update(func(file *usagemode.File) error {
+			file.Modes = append(file.Modes, usagemode.Mode{ID: id, Label: "Learn: code.default", Kind: usagemode.KindLearn, Scope: usagemode.Scope{Runner: "codex", Role: "code.default"},
+				StartedAt: now.Add(-time.Hour), ExpiresAt: &expires, Until: usagemode.Until{Kind: usagemode.UntilTime}, Runners: map[string]usagemode.RunnerSettings{}, Learn: learn})
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	addLearn("um-learn-managed", false)
+	got := decodeUsageMode(t, usageModeCall(t, s, http.MethodGet, "/api/v1/usage-mode", "", ""))
+	if len(got.Modes) != 1 || got.Modes[0].Kind != "learn" || got.Modes[0].Role != "code.default" || got.Modes[0].SplitPercent != 50 || got.Modes[0].SessionsOptIn {
+		t.Fatalf("managed-only comparison: %+v", got.Modes)
+	}
+	if agent := usageModeAgentFor(t, got, "codex"); agent.Model != "" || agent.LearnModeID != "" {
+		t.Fatalf("sessions are not in the comparison, so nothing is claimed or flagged: %+v", agent)
+	}
+	addLearn("um-learn-sessions", true)
+	got = decodeUsageMode(t, usageModeCall(t, s, http.MethodGet, "/api/v1/usage-mode", "", ""))
+	if agent := usageModeAgentFor(t, got, "codex"); agent.Model != "" || agent.FullPowerArgs != "" || agent.LearnModeID != "um-learn-sessions" {
+		t.Fatalf("a session in a comparison depends on its arm: %+v", agent)
+	}
+	// A Save mode that applies takes priority over the comparison and may state its model.
+	start := usageModeCall(t, s, http.MethodPost, "/api/v1/usage-mode/start", `{"agentId":"codex","kind":"minutes","minutes":60}`, identity.ActorHuman)
+	saved := usageModeAgentFor(t, decodeUsageMode(t, start), "codex")
+	if saved.Model != "gpt-6-luna" || saved.LearnModeID != "" {
+		t.Fatalf("save outranks learn: %+v", saved)
+	}
+	for _, mode := range decodeUsageMode(t, start).Modes {
+		if mode.Kind == "save" && (mode.Role != "" || mode.SplitPercent != 0) {
+			t.Fatalf("a save mode carries no comparison fields: %+v", mode)
+		}
 	}
 }

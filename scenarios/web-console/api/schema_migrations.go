@@ -246,6 +246,7 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		`ALTER TABLE sessions ADD COLUMN forked_from_native_session TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN launch_descriptor_json TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE sessions ADD COLUMN create_fingerprint TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE sessions ADD COLUMN business_account_id TEXT NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_agent ON sessions(agent_type, agent_session_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_sessions_origin ON sessions(origin)`,

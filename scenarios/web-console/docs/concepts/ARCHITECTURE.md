@@ -37,6 +37,41 @@ The operator accepted the direction of the revised context and launcher study at
 
 Preserve the compact two-column grid, machine and group controls, usage context, management and recovery, shell and custom-command capabilities. This amendment changes the earlier immediate-launch interaction; it does not approve the study's example pricing or provider availability claims. Verify selection, clear, keyboard and touch interaction, model availability, and explicit launch on desktop and phone. The study is a visual direction rather than proof of implemented behavior; detailed handoff and subscription states still need design and verification. Implementation is tracked by Plan Manager `web-console-context-handoff-model-routing` and must be coordinated with `web-console-agent-launcher-usage` and `usage-modes-cost-per-outcome`.
 
+The launcher now keeps card selection separate from submission. Agent choices
+load model choices from the typed `ModelSelectionService` endpoint, which reads
+the resource-owned role policy and returns its provenance. Overrides are limited
+to the selected harness's supported native model argument; remote targets remain
+unsupported until they have a target-owned policy. A policy choice is not a
+connectivity or billing check: availability is reported as unknown, stale policy
+disables overrides, and unsupported runners show an explicit state. The current
+launcher default remains in effect until the user chooses an override, including
+when usage mode has supplied a default. Empty Shell has no model controls, and
+agent and shell cards launch only after the separate submit action. These choices
+do not qualify a Vrooli-paid coding-agent route or alter credential ownership.
+
+LPBS now supports the fixture-tested `code.default` tool-call stream and
+measured partial-usage settlement. Web Console's account-bound OpenCode bridge
+also has session, cancellation, and tool-call proxy fixtures, but its
+qualification gate remains off in production. The launcher now consumes the
+application-owned fixed `vrooli/coding` choice only when the API advertises it;
+that path requires an explicit business-account selection and passes the ID
+through session creation. The API advertises the choice only when its
+qualification gate is enabled, which remains false in production. The joined
+OpenCode-to-Web-Console-to-LPBS HTTP-fixture journey does not yet prove the real
+LPBS account reservation service end to end. Offer Desk currently lists the
+Business Bundle, Tier 1, and `ai_credits` as ideas, so no approved customer
+offer or rate is available to present. The chosen measured-partial-usage policy
+does not establish those commercial terms. Failed
+streams charge provider-reported usage at the configured model rate; when no
+usage is reported, the reservation is released without estimating from partial
+text. If measured settlement fails, LPBS retains the reservation for
+reconciliation. OpenCode 1.19.4 has completed a read-tool round trip through
+the Web Console proxy to an LPBS HTTP fixture, which verified the persisted
+selected account and `code.default` role. LPBS separately fixture-tests account
+reservation and measured settlement with a fake provider. These fixtures make
+no live provider calls; a single joined execution through the real LPBS
+reservation service remains unqualified.
+
 The local launcher currently reads Codex's live app-server and coherent Claude
 statusline samples through Agent Manager. Both are estimates: neither source
 is bound to the account of the future shell command. The Web Console adapter

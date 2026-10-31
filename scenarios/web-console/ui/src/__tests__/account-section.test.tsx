@@ -1,9 +1,11 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders as render } from "../test-utils";
 
 vi.mock("../api/monetization", () => ({
   deleteSubscriptionSession: vi.fn(),
+  getBusinessAccountUsage: vi.fn(),
+  getBusinessAccounts: vi.fn(),
   getSubscriptionSession: vi.fn(),
   getSubscriptionSummary: vi.fn(),
   provisionOpenRouterKey: vi.fn(),
@@ -23,6 +25,8 @@ vi.mock("../stores/authStore", () => ({
 
 import {
   deleteSubscriptionSession,
+  getBusinessAccountUsage,
+  getBusinessAccounts,
   getSubscriptionSession,
   getSubscriptionSummary,
   provisionOpenRouterKey,
@@ -40,6 +44,8 @@ const testKeyMock = vi.mocked(testOpenRouterKey);
 const removeKeyMock = vi.mocked(removeOpenRouterKey);
 const deleteSessionMock = vi.mocked(deleteSubscriptionSession);
 const provisionSessionMock = vi.mocked(provisionSubscriptionSession);
+const businessAccountsMock = vi.mocked(getBusinessAccounts);
+const businessAccountUsageMock = vi.mocked(getBusinessAccountUsage);
 const authStoreMock = vi.mocked(useAuthStore);
 
 describe("AccountSection", () => {
@@ -47,6 +53,8 @@ describe("AccountSection", () => {
     vi.clearAllMocks();
     sessionMock.mockResolvedValue({ configured: false });
     summaryMock.mockResolvedValue({ configured: false, plan_tier: "free", pending_sync: 0 });
+    businessAccountsMock.mockResolvedValue({ accounts: [] });
+    businessAccountUsageMock.mockResolvedValue({ business_account_id: "", billing_period: "", tier: "free", limits: {}, usage: {}, reserved: {}, remaining: {}, display_credits: {} });
     authStoreMock.mockReturnValue({
       error: null,
       initialize: vi.fn().mockResolvedValue(undefined),
@@ -63,6 +71,29 @@ describe("AccountSection", () => {
     expect(screen.getByLabelText("Optional refresh token")).toBeInTheDocument();
     expect(screen.getByText("Local Ollama generation")).toBeInTheDocument();
     expect(screen.getByText(/Aquila remains fully useful without an account/)).toBeInTheDocument();
+  });
+
+  it("shows usage facts for the selected business account", async () => {
+    sessionMock.mockResolvedValue({ configured: true, provider_state: "available" });
+    summaryMock.mockResolvedValue({ configured: true, status: "active", plan_tier: "pro", credits: 20 });
+    businessAccountsMock.mockResolvedValue({ accounts: [
+      { id: "acct-one", display_name: "Studio", role: "owner", created_at: "now" },
+      { id: "acct-two", display_name: "Research", role: "member", created_at: "now" },
+    ] });
+    businessAccountUsageMock.mockImplementation(async (accountID) => ({
+      business_account_id: accountID, billing_period: "2026-10", tier: "pro", limits: { ai_credits: 100 },
+      usage: { ai_credits: accountID === "acct-one" ? 20 : 5 }, reserved: { ai_credits: 10 },
+      remaining: { ai_credits: accountID === "acct-one" ? 70 : 85 }, display_credits: {},
+    }));
+
+    render(<AccountSection />);
+    await screen.findByTestId("business-account-usage-summary");
+    expect(within(screen.getByTestId("business-account-usage-summary")).getByText("Studio")).toBeInTheDocument();
+    expect(businessAccountUsageMock).toHaveBeenCalledWith("acct-one");
+
+    fireEvent.change(screen.getByTestId("business-account-select"), { target: { value: "acct-two" } });
+    await waitFor(() => expect(businessAccountUsageMock).toHaveBeenLastCalledWith("acct-two"));
+    await waitFor(() => expect(within(screen.getByTestId("business-account-usage-summary")).getByText("Research")).toBeInTheDocument());
   });
 
   it("renders connected plan, credits, and pending sync details", async () => {

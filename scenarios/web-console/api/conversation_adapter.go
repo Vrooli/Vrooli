@@ -95,7 +95,7 @@ func (a *conversationAdapter) Get(ctx context.Context, sessionID string, sinceSe
 func repoSearchQuery(q conversationH.SearchQuery) ConversationSearchQuery {
 	return ConversationSearchQuery{
 		Query: q.Query, Mode: ConversationSearchMode(q.Mode), CaseSensitive: q.CaseSensitive,
-		WholeWord: q.WholeWord, Role: q.Role, Limit: q.Limit,
+		WholeWord: q.WholeWord, Role: q.Role, Limit: q.Limit, AfterSequence: q.AfterSequence,
 	}
 }
 
@@ -115,7 +115,7 @@ func (a *conversationAdapter) Search(ctx context.Context, sessionID string, quer
 	if err != nil {
 		return conversationH.SearchResult{}, err
 	}
-	out := conversationH.SearchResult{Truncated: result.Truncated, TotalMatches: result.Total, Error: result.Error, Matches: make([]conversationH.SearchMatch, 0, len(result.Matches))}
+	out := conversationH.SearchResult{Truncated: result.Truncated, TotalMatches: result.Total, Error: result.Error, HasMore: result.HasMore, NextAfterSequence: result.NextAfterSequence, Matches: make([]conversationH.SearchMatch, 0, len(result.Matches))}
 	for _, match := range result.Matches {
 		out.Matches = append(out.Matches, conversationH.SearchMatch{
 			EventID: match.EventID, Sequence: match.Sequence, Role: match.Role,
@@ -161,6 +161,18 @@ func (a *conversationAdapter) GetRange(ctx context.Context, sessionID string, fr
 	}
 	state := a.srv.conversations.ListSession(ctx, sessionID)
 	return conversationH.SessionState{SessionID: sessionID, Events: transportEvents(events), Cursor: conversationH.Cursor{LastSeenSequence: state.Cursor.LastSeenSequence, LastListenedSequence: state.Cursor.LastListenedSequence}}, nil
+}
+
+func (a *conversationAdapter) ResolveEvents(ctx context.Context, sessionID string, eventIDs []string) (conversationH.ResolveEventsResult, error) {
+	if !a.canReadSession(ctx, sessionID) {
+		return conversationH.ResolveEventsResult{}, fmt.Errorf("session %q: %w", sanitizeID(sessionID), conversationH.ErrSessionNotFound)
+	}
+	events, missing, err := a.srv.conversations.ResolveEvents(ctx, sessionID, eventIDs)
+	if err != nil {
+		return conversationH.ResolveEventsResult{}, err
+	}
+	result := conversationH.ResolveEventsResult{Events: transportEvents(events), MissingEventIDs: missing}
+	return result, nil
 }
 
 func (a *conversationAdapter) UpdateCursor(ctx context.Context, sessionID string, patch conversationH.CursorPatch) (conversationH.Cursor, error) {

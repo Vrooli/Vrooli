@@ -133,6 +133,42 @@ describe("HandoffComposer", () => {
     expect(screen.getByTestId("handoff-send")).not.toBeDisabled();
   });
 
+  it("keeps a selected target and its edited message when activity refreshes target metadata", () => {
+    const props = {
+      open: true,
+      onClose,
+      sourceLabel: "planner",
+      payload: "plan.md",
+      initialSelection: [] as string[],
+      onSend: vi.fn(),
+    };
+    const { rerender } = render(
+      <HandoffComposer
+        {...props}
+        targets={sections(session("s2", "builder"), session("s3", "critic"))}
+      />,
+    );
+
+    fireEvent.click(within(screen.getByTestId("handoff-target-s2")).getByRole("checkbox"));
+    fireEvent.change(screen.getByTestId("handoff-message"), { target: { value: "Keep this edit" } });
+
+    rerender(
+      <HandoffComposer
+        {...props}
+        targets={sections(
+          described("s2", "builder", { activityAt: 1, activityLabel: "recent", unreadCount: 1 }),
+          session("s3", "critic"),
+          session("s4", "reviewer"),
+        )}
+      />,
+    );
+
+    expect(within(screen.getByTestId("handoff-target-s2")).getByRole("checkbox")).toBeChecked();
+    expect(screen.getByTestId("handoff-target-s4")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-message")).toHaveValue("Keep this edit");
+    expect(screen.getByTestId("handoff-send")).not.toBeDisabled();
+  });
+
   it("sends the edited text to the selected target", async () => {
     const onSend = vi.fn().mockResolvedValue([{ targetId: "s2", label: "builder", status: "sent" }]);
     render(

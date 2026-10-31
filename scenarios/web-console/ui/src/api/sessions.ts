@@ -315,7 +315,8 @@ export async function createSession(opts?: {
 	target_id?: string;
 	working_dir?: string;
 	tmux_mouse_mode?: boolean;
-	idempotency_key?: string;
+  business_account_id?: string;
+  idempotency_key?: string;
 }): Promise<SessionInfo> {
   const resp = await sessionsClient.create({
     shell: opts?.shell ?? "",
@@ -329,7 +330,8 @@ export async function createSession(opts?: {
     displayLabel: opts?.display_label ?? "",
 	targetId: opts?.target_id ?? "",
 	workingDir: opts?.working_dir ?? "",
-	tmuxMouseMode: opts?.tmux_mouse_mode ?? false,
+    businessAccountId: opts?.business_account_id ?? "",
+    tmuxMouseMode: opts?.tmux_mouse_mode ?? false,
     // First-party UI client: tag provenance explicitly so an origin-less
     // create (which the server normalizes to programmatic) can only come from
     // a non-UI caller.

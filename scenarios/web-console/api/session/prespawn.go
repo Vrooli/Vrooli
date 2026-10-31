@@ -26,6 +26,22 @@ func WithPreSpawnHook(ctx context.Context, fn PreSpawnFunc) context.Context {
 	return context.WithValue(ctx, preSpawnHookKey{}, fn)
 }
 
+// ChainPreSpawnHook appends a create-scoped action while preserving any hook
+// installed by the caller. Hooks run in insertion order before the PTY
+// environment is assembled.
+func ChainPreSpawnHook(ctx context.Context, fn PreSpawnFunc) context.Context {
+	if fn == nil {
+		return ctx
+	}
+	previous, _ := preSpawnHookFromContext(ctx)
+	return context.WithValue(ctx, preSpawnHookKey{}, PreSpawnFunc(func(sessionID string) {
+		if previous != nil {
+			previous(sessionID)
+		}
+		fn(sessionID)
+	}))
+}
+
 // preSpawnHookFromContext returns the create-scoped pre-spawn hook when one is
 // present.
 func preSpawnHookFromContext(ctx context.Context) (PreSpawnFunc, bool) {

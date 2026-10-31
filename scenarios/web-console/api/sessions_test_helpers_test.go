@@ -38,6 +38,9 @@ func newSessionsConnectHandlerForServer(srv *Server) sessionsConnectIface {
 	return sessionsH.NewConnectHandler(sessionsH.Deps{Service: &sessionsH.Adapter{
 		Manager:             srv.sessions,
 		Store:               srv.sessionStore,
+		PaidCodingCredential: newPaidCodingToken,
+		RegisterPaidCodingSession: activePaidCodingSessions.Register,
+		RemovePaidCodingSession: activePaidCodingSessions.RemoveSession,
 		Idempotency:         srv.idempotency,
 		Events:              srv.events,
 		Metrics:             srv.metrics,

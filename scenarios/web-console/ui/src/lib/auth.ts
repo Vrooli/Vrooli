@@ -1,8 +1,9 @@
 import { AuthClient } from "@vrooli/react-component-library/AuthClient/1.0.0";
-import { LANDING_PAGE_URL } from "../shared/upgradeDestination";
 
 const ACCESS_TOKEN_KEY = "vrooli.web.access-token";
 const AUTH_STATE_KEY = "vrooli.web.auth-state";
+const AUTH_VERIFIER_KEY = "vrooli.web.auth-verifier";
+const AUTH_REDIRECT_KEY = "vrooli.web.auth-redirect";
 
 interface StoredAccessToken {
   accessToken: string;
@@ -48,31 +49,50 @@ export async function getAccessToken(): Promise<string | null> {
 
 export async function completeWebAuthCallback(): Promise<boolean> {
   if (window.desktop?.auth) return false;
-  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : "";
-  const params = new URLSearchParams(hash);
-  const accessToken = params.get("access_token");
-  const refreshToken = params.get("refresh_token");
-  const expiresAt = params.get("expires_at");
-  if (!accessToken && !refreshToken && !expiresAt) return false;
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  const receivedState = params.get("state");
+  if (!code && !receivedState) return false;
 
   const expectedState = sessionStorage.getItem(AUTH_STATE_KEY);
-  const receivedState = params.get("state");
+  const verifier = sessionStorage.getItem(AUTH_VERIFIER_KEY);
+  const redirectURI = sessionStorage.getItem(AUTH_REDIRECT_KEY);
   sessionStorage.removeItem(AUTH_STATE_KEY);
-  window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+  sessionStorage.removeItem(AUTH_VERIFIER_KEY);
+  sessionStorage.removeItem(AUTH_REDIRECT_KEY);
+  params.delete("code");
+  params.delete("state");
+  const remainingSearch = params.toString();
+  window.history.replaceState({}, document.title, `${window.location.pathname}${remainingSearch ? `?${remainingSearch}` : ""}`);
   if (!expectedState || expectedState !== receivedState) {
     throw new Error("Authentication callback state validation failed");
   }
-  if (!accessToken || !refreshToken || !expiresAt || Number.isNaN(new Date(expiresAt).getTime()) || Date.now() >= new Date(expiresAt).getTime()) {
+  if (!code || !verifier || !redirectURI) {
     throw new Error("Authentication callback was incomplete or expired");
   }
 
-  await authClient.request("/api/v1/auth/subscription/session", {
+  const result = await authClient.request<{ access_token?: string; expires_at?: string }>("/api/v1/auth/subscription/session/exchange", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
+    body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirectURI }),
   });
+  const accessToken = result?.access_token;
+  const expiresAt = result?.expires_at;
+  if (!accessToken || !expiresAt || Number.isNaN(new Date(expiresAt).getTime()) || Date.now() >= new Date(expiresAt).getTime()) {
+    throw new Error("Authentication callback was incomplete or expired");
+  }
   sessionStorage.setItem(ACCESS_TOKEN_KEY, JSON.stringify({ accessToken, expiresAt } satisfies StoredAccessToken));
   return true;
+}
+
+function toBase64URL(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function isLoopbackCallback(url: URL): boolean {
+  return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]", "::1"].includes(url.hostname) && Boolean(url.port);
 }
 
 export async function startSignIn(): Promise<void> {
@@ -81,12 +101,30 @@ export async function startSignIn(): Promise<void> {
     sessionStorage.setItem(AUTH_STATE_KEY, result.state);
     return;
   }
+  const callback = new URL(window.location.href);
+  callback.hash = "";
+  if (!isLoopbackCallback(callback)) {
+    throw new Error("Web Console account sign-in requires a local loopback address");
+  }
+  const redirectURI = callback.toString();
   const state = crypto.randomUUID();
+  const verifier = toBase64URL(crypto.getRandomValues(new Uint8Array(32)));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  const challenge = toBase64URL(new Uint8Array(digest));
+  const authority = await authClient.request<{ authorization_url?: string }>("/api/v1/auth/subscription/authorization");
+  if (!authority?.authorization_url) throw new Error("Subscription authority is unavailable");
+  const authURL = new URL(authority.authorization_url);
+  if (!["http:", "https:"].includes(authURL.protocol) || !authURL.pathname.endsWith("/auth/login")) {
+    throw new Error("Subscription authority returned an invalid sign-in address");
+  }
   sessionStorage.setItem(AUTH_STATE_KEY, state);
-  const authURL = new URL("/auth/login", LANDING_PAGE_URL);
-  authURL.searchParams.set("redirect_uri", window.location.href);
+  sessionStorage.setItem(AUTH_VERIFIER_KEY, verifier);
+  sessionStorage.setItem(AUTH_REDIRECT_KEY, redirectURI);
+  authURL.searchParams.set("redirect_uri", redirectURI);
   authURL.searchParams.set("app", "Aquila");
   authURL.searchParams.set("state", state);
+  authURL.searchParams.set("code_challenge", challenge);
+  authURL.searchParams.set("code_challenge_method", "S256");
   window.location.assign(authURL.toString());
 }
 

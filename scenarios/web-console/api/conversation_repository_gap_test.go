@@ -118,6 +118,10 @@ func TestConversationStoreDelegatesRepositoryOperations(t *testing.T) {
 	if got, ok := store.GetEvent(ctx, "store-session", event.ID); !ok || got.ID != event.ID {
 		t.Fatalf("store event=%+v ok=%v", got, ok)
 	}
+	resolved, missing, err := store.ResolveEvents(ctx, "store-session", []string{event.ID, event.ID, "removed"})
+	if err != nil || len(resolved) != 1 || resolved[0].Text != event.Text || len(missing) != 1 || missing[0] != "removed" {
+		t.Fatalf("resolve events=%+v missing=%+v err=%v", resolved, missing, err)
+	}
 	if store.CountSessionEvents(ctx, "store-session") != 1 || store.SessionStorageBytes(ctx, "store-session") <= 0 {
 		t.Fatal("store count or storage size not delegated")
 	}

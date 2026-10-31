@@ -11,7 +11,7 @@ import { useTrailingThrottle } from "../hooks/useTrailingThrottle";
 import { captureTopPosition } from "./messages/scrollPosition";
 import { useLiveStreamNotice } from "../hooks/useLiveStreamNotice";
 import { writeText } from "../lib/clipboard";
-import { executeConversationControl, getConversationRange, preflightConversationControl, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
+import { executeConversationControl, getAllConversationEvents, preflightConversationControl, resolveConversationEvents, searchConversation, type ConversationControlPreflight, type ConversationEvent, type ConversationSearchMatch } from "../api/conversation";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { looksLikeFileReference } from "../lib/fileReferences";
@@ -173,7 +173,13 @@ export default function MessagesPane({
   const [serverSearchMatches, setServerSearchMatches] = useState<ConversationSearchMatch[]>([]);
   const [serverSearchReady, setServerSearchReady] = useState(false);
   const [searchTruncated, setSearchTruncated] = useState(false);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchNextAfterSequence, setSearchNextAfterSequence] = useState(0);
+  const [searchContinueLoading, setSearchContinueLoading] = useState(false);
+  const searchRequestId = useRef(0);
   const [searchError, setSearchError] = useState<string | undefined>(undefined);
+  const [exportResolutionError, setExportResolutionError] = useState<string | undefined>(undefined);
+  const exportResolutionRequest = useRef(0);
   const [searchOptions, setSearchOptions] = useState<SearchOptionsState>({ mode: "text", caseSensitive: false, wholeWord: false });
 
   // --- Navigator panel ---
@@ -362,6 +368,10 @@ export default function MessagesPane({
     scrollElementRef: scrollContainerRef,
     enabled: events.length > 40,
   });
+  const isMeasuredRef = useRef(isMeasured);
+  isMeasuredRef.current = isMeasured;
+  const scrollToIndexRef = useRef(scrollToIndex);
+  scrollToIndexRef.current = scrollToIndex;
 
   useEffect(() => {
     const el = scrollContainerRef.current;
@@ -424,32 +434,66 @@ export default function MessagesPane({
       setServerSearchMatches([]);
       setServerSearchReady(false);
       setSearchTruncated(false);
+      setSearchHasMore(false);
+      setSearchNextAfterSequence(0);
       setSearchError(undefined);
       return;
     }
+    setServerSearchReady(false);
+    setSearchError(undefined);
+    setSearchHasMore(false);
+    setSearchNextAfterSequence(0);
+    const requestId = ++searchRequestId.current;
     let cancelled = false;
     const timer = window.setTimeout(() => {
       void searchConversation(sessionId, query, searchOptions).then((response) => {
-        if (!cancelled) {
+        if (!cancelled && requestId === searchRequestId.current) {
           setServerSearchMatches(response.matches);
           setSearchTruncated(response.truncated);
+          setSearchHasMore(response.hasMore ?? false);
+          setSearchNextAfterSequence(response.nextAfterSequence ?? 0);
           setSearchError(response.error);
           setServerSearchReady(true);
         }
       }).catch(() => {
-        if (!cancelled) {
+        if (!cancelled && requestId === searchRequestId.current) {
           setServerSearchMatches([]);
           setSearchTruncated(false);
-          setSearchError(undefined);
-          setServerSearchReady(false);
+          setSearchError("Search couldn't reach the conversation history. Check the connection and try again.");
+          setServerSearchReady(true);
         }
       });
     }, 200);
     return () => {
       cancelled = true;
+      searchRequestId.current += 1;
       window.clearTimeout(timer);
     };
   }, [searchQuery, searchOptions, sessionId]);
+
+  const continueSearch = useCallback(async () => {
+    const query = searchQuery.trim();
+    if (!query || !searchHasMore || searchNextAfterSequence <= 0 || searchContinueLoading) return;
+    const requestId = ++searchRequestId.current;
+    setSearchContinueLoading(true);
+    setSearchError(undefined);
+    try {
+      const response = await searchConversation(sessionId, query, { ...searchOptions, afterSequence: searchNextAfterSequence });
+      if (requestId !== searchRequestId.current) return;
+      setServerSearchMatches((previous) => {
+        const known = new Set(previous.map((match) => match.eventId));
+        return [...previous, ...response.matches.filter((match) => !known.has(match.eventId))];
+      });
+      setSearchTruncated(response.truncated);
+      const nextAfterSequence = response.nextAfterSequence ?? 0;
+      setSearchHasMore((response.hasMore ?? false) && nextAfterSequence > searchNextAfterSequence);
+      setSearchNextAfterSequence(nextAfterSequence);
+    } catch {
+      if (requestId === searchRequestId.current) setSearchError("More search results couldn't be loaded. Check the connection and try again.");
+    } finally {
+      if (requestId === searchRequestId.current) setSearchContinueLoading(false);
+    }
+  }, [searchContinueLoading, searchHasMore, searchNextAfterSequence, searchOptions, searchQuery, sessionId]);
 
   const searchMatchIds = useMemo(() => {
     // One search path: the server's hits. Nothing is matched client-side.
@@ -556,58 +600,59 @@ export default function MessagesPane({
   }, [events, eventIndexById, totalSize, stateSlotKey, echoes.length, runProgrammaticScroll]);
 
   const scrollToEvent = useCallback(async (eventId: string) => {
-    const index = eventIndexById.get(eventId);
+    const fail = (message: string) => {
+      setSearchError(message);
+      setNavInitialFocus("list");
+      setNavOpen(true);
+    };
+    let index = eventIndexById.get(eventId);
     if (index == null) {
       const match = searchMatchById.get(eventId);
-      if (!match || !await loadConversationPageContaining(sessionId, match.sequence)) return;
-      requestAnimationFrame(() => {
-        const loadedIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
-        if (loadedIndex >= 0) runProgrammaticScroll(() => { scrollToIndex(loadedIndex, "auto", "center"); });
-      });
-      setFollow(false);
+      if (!match) {
+        fail("That message is no longer in the search results. Search again to refresh them.");
+        return;
+      }
+      if (!await loadConversationPageContaining(sessionId, match.sequence)) {
+        fail("That message couldn't be loaded. Check the connection and try again.");
+        return;
+      }
+      index = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
+      if (index < 0) {
+        fail("The selected message disappeared while loading. Search again to refresh the results.");
+        return;
+      }
+    }
+    setFollow(false);
+    runProgrammaticScroll(() => { scrollToIndexRef.current(index!, "auto", "center"); });
+    // First scroll uses estimated geometry to mount the target. Once the row
+    // is rendered (and its size measured by the virtual list), align it again.
+    for (let frame = 0; frame < 12; frame += 1) {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const row = scrollContainerRef.current?.querySelector<HTMLElement>(`[data-testid="msg-card-${eventId}"]`);
+      if (!row) continue;
+      const currentIndex = useConversationStore.getState().sessions[sessionId]?.events.findIndex((event) => event.id === eventId) ?? -1;
+      if (currentIndex < 0 || (events.length > 40 && !isMeasuredRef.current(currentIndex))) continue;
+      if (currentIndex >= 0) runProgrammaticScroll(() => { scrollToIndexRef.current(currentIndex, "auto", "center"); });
       return;
     }
-    // Jumping to a message is the user choosing where to read: stop following.
-    setFollow(false);
-    runProgrammaticScroll(() => { scrollToIndex(index, "smooth", "center"); });
-  }, [eventIndexById, runProgrammaticScroll, scrollToIndex, searchMatchById, sessionId, setFollow]);
+    fail("The message loaded, but the list couldn't finish positioning it. Try selecting it again.");
+  }, [eventIndexById, events.length, runProgrammaticScroll, searchMatchById, sessionId, setFollow]);
 
-  // Normalize the export selection whenever the conversation refreshes so it
-  // never references events that no longer exist in the session.
+  // Resolve selected stable IDs independently of the loaded window. Each new
+  // selection invalidates older requests so a slow response cannot overwrite it.
   useEffect(() => {
-    setExportSelectedIds((prev) => {
-      if (prev.size === 0) return prev;
-      const next = new Set<string>();
-      for (const id of prev) {
-        if (eventIndexById.has(id)) next.add(id);
-      }
-      return next.size === prev.size ? prev : next;
+    const ids = [...exportSelectedIds].filter((id) => !exportEventsById.has(id) && !eventIndexById.has(id));
+    if (!ids.length) return;
+    const requestId = ++exportResolutionRequest.current;
+    void resolveConversationEvents(sessionId, ids).then((result) => {
+      if (requestId !== exportResolutionRequest.current) return;
+      setExportEventsById((prev) => new Map([...prev, ...result.events.map((event) => [event.id, event] as const)]));
+      setExportResolutionError(result.missingEventIds.length ? `${result.missingEventIds.length} selected message(s) no longer exist. Clear the selection and choose again.` : undefined);
+    }).catch(() => {
+      if (requestId === exportResolutionRequest.current) setExportResolutionError("Selected messages couldn't be loaded. Check the connection and try again.");
     });
-  }, [eventIndexById]);
-
-  const exportSelection = useMemo<MessageExportSelection>(
-    () => ({
-      selectedIds: exportSelectedIds,
-      onToggle: (eventId) =>
-        { setExportSelectedIds((prev) => {
-          const next = new Set(prev);
-          if (next.has(eventId)) next.delete(eventId);
-          else next.add(eventId);
-          return next;
-        }); },
-      onSelectAll: () => {
-        setExportSelectedIds(new Set(eventIds));
-        void getConversationRange(sessionId, 1, totalCount).then((response) => {
-          setExportSelectedIds(new Set(response.events.map((event) => event.id)));
-          setExportEventsById(new Map(response.events.map((event) => [event.id, event])));
-        }).catch(() => undefined);
-      },
-      onSelectVisible: (visibleIds) => { setExportSelectedIds(new Set(visibleIds)); },
-      onClear: () => { setExportSelectedIds(new Set()); },
-      onContinue: () => { setExportDrawerOpen(true); },
-    }),
-    [exportSelectedIds, eventIds, sessionId, totalCount],
-  );
+    return () => { exportResolutionRequest.current += 1; };
+  }, [eventIndexById, exportEventsById, exportSelectedIds, sessionId]);
 
   // Selected events in conversation order for the drawer/formatter.
   const exportEvents = useMemo(() => {
@@ -617,6 +662,36 @@ export default function MessagesPane({
       .filter((event): event is ConversationEvent => event !== undefined)
       .sort((left, right) => left.sequence - right.sequence);
   }, [events, exportEventsById, exportSelectedIds]);
+
+  const exportSelection = useMemo<MessageExportSelection>(
+    () => ({
+      selectedIds: exportSelectedIds,
+      onToggle: (eventId) =>
+        { setExportResolutionError(undefined); setExportSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(eventId)) next.delete(eventId);
+          else next.add(eventId);
+          return next;
+        }); },
+      onSelectAll: () => {
+        const requestId = ++exportResolutionRequest.current;
+        setExportResolutionError(undefined);
+        void getAllConversationEvents(sessionId).then((allEvents) => {
+          if (requestId !== exportResolutionRequest.current) return;
+          setExportEventsById(new Map(allEvents.map((event) => [event.id, event])));
+          setExportSelectedIds(new Set(allEvents.map((event) => event.id)));
+        }).catch(() => {
+          if (requestId === exportResolutionRequest.current) setExportResolutionError("Conversation history couldn't be fully loaded. Check the connection and try again.");
+        });
+      },
+      onSelectVisible: (visibleIds) => { setExportSelectedIds(new Set(visibleIds)); },
+      onClear: () => { exportResolutionRequest.current += 1; setExportResolutionError(undefined); setExportSelectedIds(new Set()); },
+      onContinue: () => { setExportDrawerOpen(true); },
+      canContinue: exportEvents.length === exportSelectedIds.size && !exportResolutionError,
+      ...(exportResolutionError ? { error: exportResolutionError } : {}),
+    }),
+    [exportSelectedIds, sessionId, exportEvents, exportResolutionError],
+  );
 
   const focusAndScroll = useCallback((eventId: string) => {
     setFocusedEventId(eventId);
@@ -867,6 +942,9 @@ export default function MessagesPane({
           search={{
             hits: serverSearchReady ? serverSearchMatches : null,
             truncated: searchTruncated,
+            hasMore: searchHasMore,
+            continuing: searchContinueLoading,
+            onContinue: continueSearch,
             ...(searchError ? { error: searchError } : {}),
             options: searchOptions,
             onOptionsChange: setSearchOptions,
@@ -878,6 +956,7 @@ export default function MessagesPane({
       <MessageExportDrawer
         open={exportDrawerOpen}
         events={exportEvents}
+        error={exportResolutionError}
         onClose={() => { setExportDrawerOpen(false); }}
       />
 

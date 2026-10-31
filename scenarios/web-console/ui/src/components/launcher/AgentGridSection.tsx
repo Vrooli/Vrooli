@@ -86,6 +86,13 @@ export interface AgentGridSectionProps {
   /** True when nothing in the grid may be pressed (creating, offline, …). */
   disabled: boolean;
   onLaunch: (command?: string) => void;
+  /** Selection-only mode defers launches until the parent submits the choice. */
+  selectionMode?: boolean;
+  selectedAgentId?: string | null;
+  selectedShell?: boolean;
+  onSelect?: (command: string, agentId: string) => void;
+  onSelectFullPower?: (command: string, agentId: string, model: string, args: string) => void;
+  onSelectShell?: () => void;
   /**
    * Runs the governed installer and resolves with the machine's own verdict.
    * The card never infers success from the call resolving: "the installer ran"
@@ -112,6 +119,12 @@ export default function AgentGridSection({
   usageModes,
   disabled,
   onLaunch,
+  selectionMode = false,
+  selectedAgentId = null,
+  selectedShell = false,
+  onSelect,
+  onSelectFullPower,
+  onSelectShell,
   onInstall,
   onEditShortcuts,
   onReorder,
@@ -342,7 +355,8 @@ export default function AgentGridSection({
           <div className="min-w-0 flex-1 py-2">
             <button type="button" data-testid={`launcher-agent-${slugify(card.label)}`}
               data-capability-id={card.agentID || undefined} data-capability-state={card.state} data-capability-version={card.version}
-              disabled={disabled || reordering || !launches} onClick={() => { if (launches) onLaunch(card.command); }}
+              disabled={disabled || reordering || !launches} aria-pressed={selectionMode ? selectedAgentId === card.agentID : undefined}
+              onClick={() => { if (!launches) return; if (selectionMode && onSelect && card.agentID) onSelect(card.command, card.agentID); else onLaunch(card.command); }}
               className="block max-w-full truncate text-start text-sm font-semibold text-wc-text-primary disabled:cursor-default">{card.label}</button>
             <p className="mt-0.5 break-words text-xs text-wc-text-muted">{statusLine(card)}</p>
             {(card.state === "ready" || card.state === "unknown") && <div className="mt-2"><AgentUsage agent={card.label} usage={usageState.usages[card.agentID]} loading={usageState.loading} detailed /></div>}
@@ -374,6 +388,13 @@ export default function AgentGridSection({
    */
   const renderModeNote = (card: AgentCard, canLaunch: boolean) => {
     const info = usageAgents?.find((agent) => agent.agentId === card.agentID);
+    if (info?.learnModeId && !info.model) {
+      return (
+        <div className="px-2.5 pb-2" data-testid={`launcher-mode-note-${slugify(card.key)}`}>
+          <p className="break-words text-[11px] text-wc-text-muted">{t(strings.launcher.usageModeLearnArm)}</p>
+        </div>
+      );
+    }
     if (!info?.model) return null;
     const mode = usageModes?.find((item) => item.id === info.modeId);
     const until = !mode || mode.untilKind === "off" || !mode.expiresAt ? t(strings.launcher.usageModeUntilOffShort) : t(strings.launcher.usageModeUntil, { time: clockTime(mode.expiresAt, i18n.resolvedLanguage) });
@@ -384,7 +405,12 @@ export default function AgentGridSection({
         {info.fullPowerArgs && !explicit && (
           <Button type="button" variant="secondary" size="md" data-testid={`launcher-full-power-${slugify(card.key)}`} disabled={disabled || !canLaunch}
             title={t(strings.launcher.usageModeFullPowerHint, { model: info.usualModel })} className="min-h-11 w-full"
-            onClick={() => { onLaunch(withModelArgs(card.command, info.fullPowerArgs ?? "")); }}>
+            onClick={() => {
+              if (selectionMode) {
+                if (onSelectFullPower) onSelectFullPower(card.command, card.agentID, info.usualModel, info.fullPowerArgs ?? "");
+                else if (onSelect) onSelect(card.command, card.agentID);
+              } else onLaunch(withModelArgs(card.command, info.fullPowerArgs ?? ""));
+            }}>
             {t(strings.launcher.usageModeFullPower)}
           </Button>
         )}
@@ -411,8 +437,9 @@ export default function AgentGridSection({
             <div key={card.key} className={cn(CARD_SHELL, "hover:border-wc-accent")}>
               <button type="button" data-testid={`launcher-agent-${slugify(card.label)}`}
                 data-capability-id={card.agentID} data-capability-state={card.state} data-capability-version={card.version}
-                disabled={disabled || !canLaunch} onClick={() => { onLaunch(card.command); }} title={card.command}
-                className={cn(CARD_BODY, "focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent disabled:opacity-60")}>
+                disabled={disabled || !canLaunch} aria-pressed={selectionMode ? selectedAgentId === card.agentID : undefined}
+                onClick={() => { if (selectionMode && onSelect) onSelect(card.command, card.agentID); else onLaunch(card.command); }} title={card.command}
+                className={cn(CARD_BODY, "focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent disabled:opacity-60", selectionMode && selectedAgentId === card.agentID && "border-wc-accent bg-wc-accent/10")}>
                 <span className="flex min-w-0 items-center gap-2"><AgentMark mark={card.agentID} />
                   <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-wc-text-primary">{card.label}</span>
                   {updateState.updates[card.agentID]?.probeVerified && updateState.updates[card.agentID]?.status === "behind" &&
@@ -423,8 +450,9 @@ export default function AgentGridSection({
             </div>
           );
         })}
-        <button type="button" data-testid="launcher-empty-shell" onClick={() => { onLaunch(); }} disabled={disabled}
-          className={cn(CARD_SHELL, CARD_BODY, "hover:border-wc-accent disabled:opacity-50")}>
+        <button type="button" data-testid="launcher-empty-shell" aria-pressed={selectionMode ? selectedShell : undefined}
+          onClick={() => { if (selectionMode && onSelectShell) onSelectShell(); else onLaunch(); }} disabled={disabled}
+          className={cn(CARD_SHELL, CARD_BODY, "hover:border-wc-accent disabled:opacity-50", selectionMode && selectedShell && "border-wc-accent bg-wc-accent/10")}>
           <span className="flex min-w-0 items-center gap-2"><AgentMark mark="shell" />
             <span className="min-w-0 truncate text-[13.5px] font-semibold text-wc-text-primary">{t(strings.terminalLauncher.emptyShell)}</span></span>
           <span className="text-[11px] text-wc-text-muted">{t(strings.launcher.emptyShellStatus)}</span>

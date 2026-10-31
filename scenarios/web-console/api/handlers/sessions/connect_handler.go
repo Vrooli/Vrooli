@@ -137,6 +137,7 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 		IdempotencyKey:        req.Header().Get(idempotencyHeader),
 		HumanOwnerSubject:     strings.TrimSpace(req.Header().Get(humanOwnerSubjectHeader)),
 		AgentRunIdentityToken: req.Msg.GetAgentRunIdentityToken(),
+		BusinessAccountID:     strings.TrimSpace(req.Msg.GetBusinessAccountId()),
 	}
 	// Carry the operator's candidate human credentials down into the create flow
 	// so a session-scoped human-owner delegation can be minted BEFORE the PTY
