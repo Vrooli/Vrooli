@@ -597,6 +597,7 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 		RepoRoot:      repoRoot,
 		ScopePath:     scope,
 		IdentityToken: e.identityToken,
+		Config:        e.run.ResolvedConfig,
 	})
 	for key, value := range e.sessionEnv {
 		if env == nil {

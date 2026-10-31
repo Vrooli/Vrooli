@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"agent-manager/internal/domain"
@@ -314,4 +315,27 @@ func validateCanonicalEffortField(data []byte) error {
 	}
 	_, err = d.Token()
 	return err
+}
+
+// PolicyFile returns the model-policy file the runner's resource reports as its
+// catalog. The path is the resource's own policy_path (the one run creation
+// stamps into a candidate), so Agent Manager never guesses where a resource
+// keeps its catalog; a resource whose policy CLI cannot answer is unavailable.
+func (r *ResourceRoleResolver) PolicyFile(ctx context.Context, runner domain.RunnerType) ([]byte, error) {
+	resolved, err := r.Resolve(ctx, runner, "code.default")
+	if err != nil {
+		return nil, err
+	}
+	path := strings.TrimSpace(resolved.PolicyPath)
+	if path == "" {
+		return nil, fmt.Errorf("%w: %s reported no policy_path", ErrInvalidResourceResponse, resourceCommand(runner))
+	}
+	if !filepath.IsAbs(path) {
+		root := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
+		if root == "" {
+			root = strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
+		}
+		path = filepath.Join(root, path)
+	}
+	return os.ReadFile(path)
 }

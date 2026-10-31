@@ -29,9 +29,12 @@
 package phases
 
 import (
+	"strconv"
+
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/usagemode"
 )
 
 const (
@@ -87,6 +90,8 @@ func IdentityEnvVars(token string) map[string]string {
 // MergeEnvInput bundles the inputs to MergeEnvVars — the three sources of
 // environment variables that flow into a runner process.
 type MergeEnvInput struct {
+	// Runner holds runner-native settings; every other source overrides it.
+	Runner   map[string]string
 	Custom   map[string]string
 	Sandbox  map[string]string
 	Identity map[string]string
@@ -114,6 +119,25 @@ type AssembleRunEnvInput struct {
 	// IdentityToken is the plaintext identity token for this turn. Empty when
 	// identity is disabled; the continue/wake path must regenerate it first.
 	IdentityToken string
+
+	// Config supplies runner-native settings that are env on this runner (the
+	// context limit on Claude). Nil adds nothing.
+	Config *domain.RunConfig
+}
+
+// ClaudeAutoCompactEnv is the Claude Code variable that sets its auto-compact
+// window, the only way to apply a context limit to a headless Claude turn.
+const ClaudeAutoCompactEnv = "CLAUDE_CODE_AUTO_COMPACT_WINDOW"
+
+// ContextLimitEnv is the env a run's recorded context limit needs: Claude's
+// auto-compact window, never lower than the 100k Claude honours. Codex takes
+// its limit as a launch argument, so it adds nothing here.
+func ContextLimitEnv(cfg *domain.RunConfig) map[string]string {
+	if cfg == nil || cfg.ContextLimitTokens <= 0 || cfg.RunnerType != domain.RunnerTypeClaudeCode {
+		return nil
+	}
+	limit, _ := usagemode.ClaudeContextLimit(cfg.ContextLimitTokens)
+	return map[string]string{ClaudeAutoCompactEnv: strconv.Itoa(limit)}
 }
 
 // AssembleRunEnv merges custom, sandbox, and identity env with system vars
@@ -122,6 +146,7 @@ type AssembleRunEnvInput struct {
 func AssembleRunEnv(in AssembleRunEnvInput) map[string]string {
 	return MergeEnvVars(MergeEnvInput{
 		Custom: in.Custom,
+		Runner: ContextLimitEnv(in.Config),
 		Sandbox: SandboxEnvVars(SandboxEnvInput{
 			RunMode:   in.RunMode,
 			SandboxID: in.SandboxID,
@@ -137,10 +162,13 @@ func AssembleRunEnv(in AssembleRunEnvInput) map[string]string {
 // taking precedence on key conflicts. Returns nil when nothing was supplied
 // so callers can short-circuit.
 func MergeEnvVars(in MergeEnvInput) map[string]string {
-	if len(in.Custom) == 0 && len(in.Sandbox) == 0 && len(in.Identity) == 0 {
+	if len(in.Runner) == 0 && len(in.Custom) == 0 && len(in.Sandbox) == 0 && len(in.Identity) == 0 {
 		return nil
 	}
-	merged := make(map[string]string, len(in.Custom)+len(in.Sandbox)+len(in.Identity))
+	merged := make(map[string]string, len(in.Runner)+len(in.Custom)+len(in.Sandbox)+len(in.Identity))
+	for k, v := range in.Runner {
+		merged[k] = v
+	}
 	for k, v := range in.Custom {
 		merged[k] = v
 	}

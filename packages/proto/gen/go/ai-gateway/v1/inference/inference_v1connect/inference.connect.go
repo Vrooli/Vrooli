@@ -40,6 +40,11 @@ const (
 	InferenceServiceRunBatchProcedure = "/vrooli.ai_gateway.v1.inference.InferenceService/RunBatch"
 	// InferenceServiceEmbedProcedure is the fully-qualified name of the InferenceService's Embed RPC.
 	InferenceServiceEmbedProcedure = "/vrooli.ai_gateway.v1.inference.InferenceService/Embed"
+	// InferenceServiceDecideProcedure is the fully-qualified name of the InferenceService's Decide RPC.
+	InferenceServiceDecideProcedure = "/vrooli.ai_gateway.v1.inference.InferenceService/Decide"
+	// InferenceServiceDecideBatchProcedure is the fully-qualified name of the InferenceService's
+	// DecideBatch RPC.
+	InferenceServiceDecideBatchProcedure = "/vrooli.ai_gateway.v1.inference.InferenceService/DecideBatch"
 )
 
 // InferenceServiceClient is a client for the vrooli.ai_gateway.v1.inference.InferenceService
@@ -48,6 +53,9 @@ type InferenceServiceClient interface {
 	Run(context.Context, *connect.Request[inference.RunRequest]) (*connect.Response[inference.RunResponse], error)
 	RunBatch(context.Context, *connect.Request[inference.RunBatchRequest]) (*connect.Response[inference.RunBatchResponse], error)
 	Embed(context.Context, *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error)
+	// Decide answers typed choice, score and noul questions about one state.
+	Decide(context.Context, *connect.Request[inference.DecideRequest]) (*connect.Response[inference.DecideResponse], error)
+	DecideBatch(context.Context, *connect.Request[inference.DecideBatchRequest]) (*connect.Response[inference.DecideBatchResponse], error)
 }
 
 // NewInferenceServiceClient constructs a client for the
@@ -80,14 +88,28 @@ func NewInferenceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(inferenceServiceMethods.ByName("Embed")),
 			connect.WithClientOptions(opts...),
 		),
+		decide: connect.NewClient[inference.DecideRequest, inference.DecideResponse](
+			httpClient,
+			baseURL+InferenceServiceDecideProcedure,
+			connect.WithSchema(inferenceServiceMethods.ByName("Decide")),
+			connect.WithClientOptions(opts...),
+		),
+		decideBatch: connect.NewClient[inference.DecideBatchRequest, inference.DecideBatchResponse](
+			httpClient,
+			baseURL+InferenceServiceDecideBatchProcedure,
+			connect.WithSchema(inferenceServiceMethods.ByName("DecideBatch")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // inferenceServiceClient implements InferenceServiceClient.
 type inferenceServiceClient struct {
-	run      *connect.Client[inference.RunRequest, inference.RunResponse]
-	runBatch *connect.Client[inference.RunBatchRequest, inference.RunBatchResponse]
-	embed    *connect.Client[inference.EmbedRequest, inference.EmbedResponse]
+	run         *connect.Client[inference.RunRequest, inference.RunResponse]
+	runBatch    *connect.Client[inference.RunBatchRequest, inference.RunBatchResponse]
+	embed       *connect.Client[inference.EmbedRequest, inference.EmbedResponse]
+	decide      *connect.Client[inference.DecideRequest, inference.DecideResponse]
+	decideBatch *connect.Client[inference.DecideBatchRequest, inference.DecideBatchResponse]
 }
 
 // Run calls vrooli.ai_gateway.v1.inference.InferenceService.Run.
@@ -105,12 +127,25 @@ func (c *inferenceServiceClient) Embed(ctx context.Context, req *connect.Request
 	return c.embed.CallUnary(ctx, req)
 }
 
+// Decide calls vrooli.ai_gateway.v1.inference.InferenceService.Decide.
+func (c *inferenceServiceClient) Decide(ctx context.Context, req *connect.Request[inference.DecideRequest]) (*connect.Response[inference.DecideResponse], error) {
+	return c.decide.CallUnary(ctx, req)
+}
+
+// DecideBatch calls vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch.
+func (c *inferenceServiceClient) DecideBatch(ctx context.Context, req *connect.Request[inference.DecideBatchRequest]) (*connect.Response[inference.DecideBatchResponse], error) {
+	return c.decideBatch.CallUnary(ctx, req)
+}
+
 // InferenceServiceHandler is an implementation of the
 // vrooli.ai_gateway.v1.inference.InferenceService service.
 type InferenceServiceHandler interface {
 	Run(context.Context, *connect.Request[inference.RunRequest]) (*connect.Response[inference.RunResponse], error)
 	RunBatch(context.Context, *connect.Request[inference.RunBatchRequest]) (*connect.Response[inference.RunBatchResponse], error)
 	Embed(context.Context, *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error)
+	// Decide answers typed choice, score and noul questions about one state.
+	Decide(context.Context, *connect.Request[inference.DecideRequest]) (*connect.Response[inference.DecideResponse], error)
+	DecideBatch(context.Context, *connect.Request[inference.DecideBatchRequest]) (*connect.Response[inference.DecideBatchResponse], error)
 }
 
 // NewInferenceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -138,6 +173,18 @@ func NewInferenceServiceHandler(svc InferenceServiceHandler, opts ...connect.Han
 		connect.WithSchema(inferenceServiceMethods.ByName("Embed")),
 		connect.WithHandlerOptions(opts...),
 	)
+	inferenceServiceDecideHandler := connect.NewUnaryHandler(
+		InferenceServiceDecideProcedure,
+		svc.Decide,
+		connect.WithSchema(inferenceServiceMethods.ByName("Decide")),
+		connect.WithHandlerOptions(opts...),
+	)
+	inferenceServiceDecideBatchHandler := connect.NewUnaryHandler(
+		InferenceServiceDecideBatchProcedure,
+		svc.DecideBatch,
+		connect.WithSchema(inferenceServiceMethods.ByName("DecideBatch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.ai_gateway.v1.inference.InferenceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InferenceServiceRunProcedure:
@@ -146,6 +193,10 @@ func NewInferenceServiceHandler(svc InferenceServiceHandler, opts ...connect.Han
 			inferenceServiceRunBatchHandler.ServeHTTP(w, r)
 		case InferenceServiceEmbedProcedure:
 			inferenceServiceEmbedHandler.ServeHTTP(w, r)
+		case InferenceServiceDecideProcedure:
+			inferenceServiceDecideHandler.ServeHTTP(w, r)
+		case InferenceServiceDecideBatchProcedure:
+			inferenceServiceDecideBatchHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -165,4 +216,12 @@ func (UnimplementedInferenceServiceHandler) RunBatch(context.Context, *connect.R
 
 func (UnimplementedInferenceServiceHandler) Embed(context.Context, *connect.Request[inference.EmbedRequest]) (*connect.Response[inference.EmbedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.inference.InferenceService.Embed is not implemented"))
+}
+
+func (UnimplementedInferenceServiceHandler) Decide(context.Context, *connect.Request[inference.DecideRequest]) (*connect.Response[inference.DecideResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.inference.InferenceService.Decide is not implemented"))
+}
+
+func (UnimplementedInferenceServiceHandler) DecideBatch(context.Context, *connect.Request[inference.DecideBatchRequest]) (*connect.Response[inference.DecideBatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch is not implemented"))
 }

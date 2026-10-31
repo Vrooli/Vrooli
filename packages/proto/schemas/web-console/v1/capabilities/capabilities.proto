@@ -28,6 +28,57 @@ service CapabilitiesService {
   rpc Get(GetRequest) returns (GetResponse);
   rpc Liveness(LivenessRequest) returns (LivenessResponse);
   rpc RunAction(RunActionRequest) returns (RunActionResponse);
+  // A bounded target-specific upstream observation; it never installs.
+  rpc AgentUpdate(AgentUpdateRequest) returns (AgentUpdateResponse);
+  // Live provider readings, associated with a target and explicitly graded.
+  rpc AgentUsage(AgentUsageRequest) returns (AgentUsageResponse);
+}
+
+message AgentUsageRequest {
+  string target_id = 1;
+  string agent_id = 2;
+}
+
+message AgentUsageWindow {
+  string pool = 1;
+  int64 window_minutes = 2;
+  double used_percent = 3;
+  string resets_at = 4;
+}
+
+message AgentUsageResponse {
+  string target_id = 1;
+  string agent_id = 2;
+  // verified, likely, or unavailable; likely does not prove the launch account.
+  string match = 3;
+  string reason = 4;
+  string source = 5;
+  string observed_at = 6;
+  repeated AgentUsageWindow windows = 7;
+}
+
+message AgentUpdateRequest {
+  string target_id = 1;
+  string agent_id = 2;
+}
+
+message AgentUpdateResponse {
+  string target_id = 1;
+  string agent_id = 2;
+  string resource = 3;
+  string installed = 4;
+  string pinned = 5;
+  string latest = 6;
+  // up-to-date, behind, ahead or unknown. Latest is upstream and may not be
+  // the version the governed installer installs.
+  string status = 7;
+  string checked_at = 8;
+  string source_kind = 9;
+  string source_id = 10;
+  // The resource check matched a fresh capability probe on the target. This
+  // does not prove that an arbitrary custom launch command uses that binary.
+  bool probe_verified = 11;
+  string note = 12;
 }
 
 // CapabilityState is the runtime view of a single capability. Mirrors

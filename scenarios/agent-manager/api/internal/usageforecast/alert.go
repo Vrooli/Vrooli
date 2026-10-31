@@ -27,6 +27,11 @@ const (
 	NotificationCategoryRecovery = "usage-back-on-track"
 	NotificationCategoryAtRisk   = "usage-at-risk"
 	NotificationCategoryDigest   = "usage-digest"
+	// Usage mode categories; the lifecycle (usagemodes.Notifier) publishes them.
+	NotificationCategoryModeEnded       = "usage-mode-ended"
+	NotificationCategoryModeUnreachable = "usage-mode-unreachable"
+	NotificationCategoryModeStarted     = "usage-mode-started"
+	NotificationCategoryModeEvidence    = "usage-mode-evidence"
 	// ResendShift is how much earlier the projected exhaustion must move
 	// before a window is notified again (SPEC §4 Alert).
 	ResendShift = 12 * time.Hour
@@ -81,6 +86,33 @@ type Publisher interface {
 	PublishDomainEvent(context.Context, eventbus.DomainEvent) error
 }
 
+// EndedMode is a usage mode that ended and has not been announced yet.
+type EndedMode struct {
+	ID string
+	// Line is the sentence that says which mode ended and why.
+	Line string
+}
+
+// ModeLifecycle joins usage modes to the usage notifications. usagemodes.Notifier
+// satisfies it; the alerter calls it at fixed points of every evaluation so a
+// mode's end and a window's recovery arrive as one notification.
+type ModeLifecycle interface {
+	// Observe records which modes are active, after any early end.
+	Observe(ctx context.Context, now time.Time)
+	// WillExhaust offers to start a mode for a window whose run-out warning
+	// has just been sent.
+	WillExhaust(ctx context.Context, f Forecast, projected, now time.Time) error
+	// EndedFor lists the unannounced ended modes that covered the provider.
+	EndedFor(provider string) []EndedMode
+	// Announced marks ended modes as told, so they are not announced again.
+	Announced(ids []string)
+	// Flush publishes everything else that is due: remaining ended notices,
+	// ending-soon and reminder decisions, and the reach warning.
+	Flush(ctx context.Context, forecasts []Forecast, now time.Time) []error
+	// DigestNote is one line about the active modes for the daily digest, or "".
+	DigestNote(now time.Time) string
+}
+
 // Action is one recommended change and its weekly saving in window points.
 type Action struct {
 	Text string
@@ -114,12 +146,18 @@ type Alerter struct {
 	Interval time.Duration
 	// OnError receives evaluation failures; nil drops them.
 	OnError func(error)
+	// OnForecasts, when set, sees every evaluation's current forecasts. Usage
+	// modes use it to end a window-reset mode once its window has rolled.
+	OnForecasts func(ctx context.Context, forecasts []Forecast, now time.Time)
+	// Modes, when set, adds the usage mode decisions and notices.
+	Modes ModeLifecycle
 }
 
 // Start evaluates now and then on every interval until ctx ends. A nil
-// alerter, or one without readings, store or publisher, does nothing.
+// alerter, or one without readings, does nothing; without a store and
+// publisher it only reports forecasts to OnForecasts.
 func (a *Alerter) Start(ctx context.Context) {
-	if a == nil || a.Readings == nil || a.Store == nil || a.Publisher == nil {
+	if a == nil || a.Readings == nil || (!a.notifies() && a.OnForecasts == nil) {
 		return
 	}
 	interval := a.Interval
@@ -142,6 +180,8 @@ func (a *Alerter) Start(ctx context.Context) {
 	}()
 }
 
+func (a *Alerter) notifies() bool { return a.Store != nil && a.Publisher != nil }
+
 // Evaluate forecasts the current windows and notifies: each will_exhaust
 // window that was not notified (or whose projection moved earlier by more than
 // ResendShift); each previously warned window that is on track, idle or reset;
@@ -158,6 +198,15 @@ func (a *Alerter) Evaluate(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("read quota readings: %w", err)
 	}
 	forecasts := CurrentWithActivity(ctx, spans, now, a.Activity)
+	if a.OnForecasts != nil {
+		a.OnForecasts(ctx, forecasts, now)
+	}
+	if !a.notifies() {
+		return 0, nil
+	}
+	if a.Modes != nil {
+		a.Modes.Observe(ctx, now)
+	}
 	var failures []error
 	if err := a.Store.PruneAlerts(ctx, now.Add(-AlertRetention)); err != nil {
 		failures = append(failures, fmt.Errorf("prune alert state: %w", err))
@@ -167,6 +216,9 @@ func (a *Alerter) Evaluate(ctx context.Context) (int, error) {
 		n, errs := step(ctx, forecasts, now)
 		sent += n
 		failures = append(failures, errs...)
+	}
+	if a.Modes != nil {
+		failures = append(failures, a.Modes.Flush(ctx, forecasts, now)...)
 	}
 	return sent, errors.Join(failures...)
 }
@@ -215,6 +267,11 @@ func (a *Alerter) warn(ctx context.Context, forecasts []Forecast, now time.Time)
 		}
 		if err := a.Store.DeleteAlert(ctx, withdrawnKeyPrefix+key); err != nil {
 			failures = append(failures, fmt.Errorf("clear withdrawn state %s: %w", key, err))
+		}
+		if a.Modes != nil {
+			if err := a.Modes.WillExhaust(ctx, forecast, projected, now); err != nil {
+				failures = append(failures, fmt.Errorf("usage mode offer %s: %w", key, err))
+			}
 		}
 		sent++
 	}
@@ -268,9 +325,32 @@ func (a *Alerter) withdraw(ctx context.Context, forecasts []Forecast, now time.T
 			event.facts["title"] = label + " is back on track"
 			event.facts["body"] = backOnTrackBody(f, reset)
 			event.facts["dedupe_key"] = "back-on-track|" + key + "|" + record.NotifiedAt.UTC().Format(time.RFC3339)
+			// A mode that ended for this provider is announced in this same
+			// notification, so one arrives instead of two.
+			var ended []EndedMode
+			if a.Modes != nil {
+				ended = a.Modes.EndedFor(f.Window.Provider)
+			}
+			if len(ended) > 0 {
+				lines := make([]string, len(ended))
+				for i, mode := range ended {
+					lines[i] = mode.Line
+				}
+				event.facts["category"] = NotificationCategoryModeEnded
+				event.facts["title"] = "Usage mode ended; " + label + " is back on track"
+				event.facts["body"] = strings.Join(lines, " ") + " " + backOnTrackBody(f, reset)
+				event.facts["dedupe_key"] = "mode-ended|" + key + "|" + record.NotifiedAt.UTC().Format(time.RFC3339)
+			}
 			if err := a.Publisher.PublishDomainEvent(ctx, event.domain(now)); err != nil {
 				failures = append(failures, fmt.Errorf("back-on-track notification %s: %w", key, err))
 				continue
+			}
+			if len(ended) > 0 {
+				ids := make([]string, len(ended))
+				for i, mode := range ended {
+					ids[i] = mode.ID
+				}
+				a.Modes.Announced(ids)
 			}
 			sent++
 			if !reset {
@@ -350,6 +430,11 @@ func (a *Alerter) digest(ctx context.Context, forecasts []Forecast, now time.Tim
 			line += " — " + actionText(top[0])
 		}
 		lines = append(lines, line)
+	}
+	if a.Modes != nil {
+		if note := a.Modes.DigestNote(now); note != "" {
+			lines = append(lines, note)
+		}
 	}
 	body := strings.Join(lines, "\n")
 	event := notification{facts: map[string]any{
@@ -515,6 +600,9 @@ func digestLine(f Forecast) string {
 }
 
 func stamp(t time.Time) string { return t.UTC().Format("Mon Jan 2 15:04 UTC") }
+
+// Stamp formats a time the way every usage notification does.
+func Stamp(t time.Time) string { return stamp(t) }
 
 // SQLiteAlertStore keeps alert dedupe state in usage_forecast_alerts.
 type SQLiteAlertStore struct{ db sqlcompat.DB }

@@ -70,6 +70,9 @@ func codexControlArgs(cfg *domain.RunConfig) ([]string, error) {
 			}
 			args = append(args, "-c", "model_reasoning_effort="+string(cfg.Effort))
 		}
+		if cfg.ContextLimitTokens > 0 {
+			args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", cfg.ContextLimitTokens))
+		}
 	}
 	return args, nil
 }

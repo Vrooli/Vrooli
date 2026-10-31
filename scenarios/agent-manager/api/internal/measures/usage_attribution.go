@@ -379,20 +379,21 @@ func (h *Handler) UsageCompare(ctx context.Context, req *connect.Request[measure
 	response := &measurepb.UsageCompareResponse{Left: protoCompareSide(left), Right: protoCompareSide(right), ChangeBinding: req.Msg.GetChangeBinding(), DefinitionId: definitionID(UsageCompare)}
 	response.Caveats = []string{
 		"Points are each run's attributed share of the observed window increase (estimates); runs outside any window with readings are unpriced.",
-		"Cohorts are observational: compare comparable workloads, and read the success counts before the ratio.",
+		"Accepted is an outcome estimate per work unit with its source in `usage outcomes`; a completed run or an imported session whose transcript ended is not accepted. Units with an unknown outcome stay out of the ratio.",
+		"Cohorts are observational: compare comparable workloads, and read the accepted counts before the ratio.",
 	}
-	sample := int64(min(left.Succeeded, right.Succeeded))
+	sample := int64(min(left.Accepted, right.Accepted))
 	response.Validity = h.validityForSample(sample)
 	switch {
-	case left.Succeeded < 5 || right.Succeeded < 5 || left.PointsPerSuccess() == 0:
+	case left.Accepted < 5 || right.Accepted < 5 || left.PointsPerAccepted() == 0:
 		response.Verdict = "insufficient"
-		response.Caveats = append(response.Caveats, "each side needs at least five successful runs with priced usage")
+		response.Caveats = append(response.Caveats, "each side needs at least five accepted work units with priced usage")
 	default:
-		response.PointsPerSuccessChange = right.PointsPerSuccess()/left.PointsPerSuccess() - 1
+		response.PointsPerAcceptedChange = right.PointsPerAccepted()/left.PointsPerAccepted() - 1
 		switch {
-		case response.PointsPerSuccessChange <= -0.1:
+		case response.PointsPerAcceptedChange <= -0.1:
 			response.Verdict = "improved"
-		case response.PointsPerSuccessChange >= 0.1:
+		case response.PointsPerAcceptedChange >= 0.1:
 			response.Verdict = "regressed"
 		default:
 			response.Verdict = "unchanged"
@@ -428,14 +429,11 @@ func (h *Handler) compareSide(ctx context.Context, service usageattribution.Serv
 
 func protoCompareSide(s usageattribution.Side) *measurepb.UsageCompareSide {
 	out := &measurepb.UsageCompareSide{
-		Runs: int64(s.Runs), SuccessfulRuns: int64(s.Succeeded), PricedRuns: int64(s.Priced), Tokens: protoTokens(s.Tokens),
-		WeightedTokens: s.Weighted, Points: s.Points, PointsPerSuccess: s.PointsPerSuccess(), WindowStart: rfc3339(s.From), WindowEnd: rfc3339(s.To),
+		Runs: int64(s.Runs), AcceptedUnits: int64(s.Accepted), UnknownUnits: int64(s.UnknownUnits), CompletedRuns: int64(s.Completed), PricedRuns: int64(s.Priced), Tokens: protoTokens(s.Tokens),
+		WeightedTokens: s.Weighted, Points: s.Points, PointsPerAccepted: s.PointsPerAccepted(), WindowStart: rfc3339(s.From), WindowEnd: rfc3339(s.To),
 	}
-	if s.Succeeded > 0 {
-		out.TokensPerSuccess = float64(s.Tokens.Total()) / float64(s.Succeeded)
-	}
-	if s.Runs > 0 {
-		out.SuccessRate = float64(s.Succeeded) / float64(s.Runs)
+	if s.Accepted > 0 {
+		out.TokensPerAccepted = float64(s.Tokens.Total()) / float64(s.Accepted)
 	}
 	return out
 }

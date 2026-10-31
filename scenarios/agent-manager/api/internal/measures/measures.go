@@ -13,10 +13,12 @@ import (
 	"agent-manager/internal/availability"
 	"agent-manager/internal/conversationsearch"
 	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
 	"agent-manager/internal/usageforecast"
+	"agent-manager/internal/usagemodes"
 
 	"connectrpc.com/connect"
 	measurelib "github.com/vrooli/measures-go"
@@ -131,7 +133,7 @@ type Definition struct {
 
 func definitionFor(name string) Definition {
 	definitions := map[string]Definition{
-		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "successful executed terminal runs", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
+		RunSuccessRate:                       {ID: RunSuccessRate, Counts: "executed terminal runs", Numerator: "executed terminal runs that completed", Denominator: "all executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "completed is a lifecycle fact, not acceptance; imported and attached runs never count, whatever the scope. For acceptance read usage.outcomes"},
 		RunCycleTime:                         {ID: RunCycleTime, Counts: "completed executed terminal runs", Numerator: "duration milliseconds", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
 		"throughput.run_duration_statistics": {ID: "throughput.run_duration_statistics", Counts: "completed executed terminal runs", Numerator: "duration percentiles and range", Denominator: "completed executed terminal runs", SourceTable: "invocation_read_model_runs", Limitation: "by default only runs Agent Manager executed count; choose a scope for operator sessions"},
 		RunCost:                              {ID: RunCost, Counts: "transcript requests observed in the window", Numerator: "token totals; dollars for per-token billed runs only", Denominator: "runs with requests in the window", SourceTable: "transcript_usage", Limitation: "subscription work has no dollar cost; its spend is quota points. A request copied into several harness homes counts once"},
@@ -158,8 +160,12 @@ func definitionFor(name string) Definition {
 		UsageRecommendations:                 {ID: UsageRecommendations, Counts: "owner-level actions from quota levers, tool friction findings, opportunities and gate-proven operator interventions", Numerator: "each action's effect in its own unit, scored in quota points a week by the stated conversions", Denominator: "none", SourceTable: "transcript_usage, invocation_read_model_runs, invocation_read_model_facts, operator_interventions, program-runtime library", Limitation: "deterministic rules; finished sessions say what they would have saved and only running ones are projected; calls and interventions are priced by stated assumptions; actions under the materiality floor are counted, not listed"},
 		UsageFriction:                        {ID: UsageFriction, Counts: "owner-level tool findings from the tool profiles of the window, and operator messages the intervention classifier put in a category that passed the accuracy gate", Numerator: "each finding's cost in the unit of its harm (calls, command time, context tax); operator interventions per category and per agent-hour", Denominator: "the window's total of each kind of harm the finding holds (one named base per kind)", SourceTable: "invocation_read_model_facts, operator_interventions, transcript_usage, friction_problem_status", Limitation: "findings need three or more calls; an empty list is read beside the coverage sentence; no operator intervention category is shown until it passes the accuracy gate, and the section then states coverage and why instead of reading as no friction"},
 		UsageCoverage:                        {ID: UsageCoverage, Counts: "transcript files on disk modified in the period", Numerator: "captured bytes and files", Denominator: "bytes and files on disk", SourceTable: "transcript_files", Limitation: "walks the configured roots at request time; a file still being written counts as partially indexed"},
-		UsageCompare:                         {ID: UsageCompare, Counts: "runs of two selected cohorts", Numerator: "attributed quota points", Denominator: "successful runs", SourceTable: "transcript_usage, quota_observations, runs", Limitation: "unreliable below five successful runs per side; cohorts are observational, not randomized"},
+		UsageCompare:                         {ID: UsageCompare, Counts: "runs of two selected cohorts", Numerator: "attributed quota points", Denominator: "work units with an accepted outcome estimate", SourceTable: "transcript_usage, quota_observations, run_ledger_facts", Limitation: "unreliable below five accepted units per side; unknown outcomes stay out; a completed run is not accepted; cohorts are observational, not randomized"},
+		UsageParity:                          {ID: UsageParity, Counts: "runs active in the window, by start path and harness", Numerator: "runs or commands with each measure", Denominator: "runs or commands it applies to", SourceTable: "run_ledger_facts, transcript_files", Limitation: "window is by transcript activity, not import time; attached helper rows and duplicates stay out of denominators; the ledger lags changed runs by up to a few minutes"},
+		UsageOutcomes:                        {ID: UsageOutcomes, Counts: "work units active in the window", Numerator: "attributed quota points of units with a known outcome", Denominator: "work units with an accepted outcome estimate", SourceTable: "run_ledger_facts, transcript_usage, quota_observations", Limitation: "outcomes are estimates with a stated source; observational unless randomized; unknown outcomes are excluded and reported; rows below 5 accepted outcomes read not enough data; weights behind break-even are usually priors"},
+		UsageExperiment:                      {ID: UsageExperiment, Counts: "work units a Learn comparison assigned to an arm by chance", Numerator: "attributed quota points of units with a known outcome, per assigned arm", Denominator: "accepted outcomes per arm", SourceTable: "run_ledger_facts, transcript_usage, quota_observations, usage_mode_periods", Limitation: "analysis is by assigned arm (intention to treat), so sessions that ran at full power stay in their arm; unknown outcomes stay out and are counted; no verdict until each arm has the stated minimum of accepted outcomes; the permutation test uses a fixed seed; only large cost differences are detectable at this volume"},
 		UsageInterventions:                   interventionsDefinition,
+		UsageOperatorSignals:                 operatorSignalsDefinition,
 		UsageOpportunities:                   opportunitiesDefinition,
 		UsageForecastBacktest:                {ID: UsageForecastBacktest, Counts: "completed windows with an observed outcome", Numerator: "absolute error of the projected final percent at 25% and 50% of each window", Denominator: "scored windows", SourceTable: "quota_observations", Limitation: "windows whose newest reading is more than 6 hours before their end are not scored"},
 	}
@@ -169,7 +175,7 @@ func definitionFor(name string) Definition {
 func allDefinitions() []Definition {
 	seen := make(map[string]struct{})
 	definitions := make([]Definition, 0, 24)
-	for _, name := range []string{RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ToolFriction, ToolProfiles, ErrorSignatures, ConversationSearchQuality, FallbackInsights, "select_cohort", "cohort_report", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare, UsageInterventions} {
+	for _, name := range []string{RunSuccessRate, RunCycleTime, "throughput.run_duration_statistics", RunCost, RunVolume, RunStatusDistribution, RunnerBreakdown, ModelBreakdown, ProfileBreakdown, WorkloadBreakdown, WorkloadEfficiency, TerminalRunTrend, ToolUsage, TokenAttribution, "friction.tool_command_breakdown", ToolFriction, ToolProfiles, ErrorSignatures, ConversationSearchQuality, FallbackInsights, "select_cohort", "cohort_report", UsageForecast, UsageForecastBacktest, UsageBurners, UsageRecommendations, UsageFriction, UsageCoverage, UsageCompare, UsageParity, UsageOutcomes, UsageExperiment, UsageInterventions, UsageOperatorSignals} {
 		if _, ok := seen[name]; ok {
 			continue
 		}
@@ -245,7 +251,7 @@ func declarations() []struct {
 		questions                           []string
 		kind                                metricKind
 	}{
-		{RunSuccessRate, "RunSuccessRate", "Share of executed terminal runs that completed successfully; imported and interactive runs are separate.", "share", "{value} run success rate ({window})", []string{"what is the agent run success rate this week", "how often do agent runs complete successfully"}, runSuccessRate},
+		{RunSuccessRate, "RunSuccessRate", "Share of executed terminal runs that completed. Completed is a lifecycle fact, not acceptance (see usage.outcomes); imported and attached runs never count.", "share", "{value} of runs completed ({window})", []string{"what share of agent runs complete this week", "how often do agent runs complete"}, runSuccessRate},
 		{RunCycleTime, "RunCycleTime", "Average cycle time in milliseconds of completed runs Agent Manager executed.", "milliseconds", "{value} average run cycle time ({window})", []string{"what is the average agent run cycle time", "how long do completed agent runs take"}, runCycleTime},
 		{RunCost, "RunCost", "Per-token billed cost in USD of the requests made in the window; subscription work is quota points, not dollars.", "usd", "{value} per-token billed cost ({window})", []string{"what did per-token billed runs cost this week", "show total agent run cost"}, runCost},
 		{RunVolume, "RunVolume", "Number of executed terminal run summaries in the window.", "runs", "{value} agent run volume ({window})", []string{"how many agent runs completed this week", "show agent run volume"}, runVolume},
@@ -369,8 +375,14 @@ type Handler struct {
 	usagePricer         *usageattribution.PriceBook
 	coverage            transcriptindex.CoverageReader
 	interventions       InterventionSource
+	signals             SignalSource
 	programs            ProgramLibrarySource
 	tools               usageattribution.ToolCallStore
+	usageModes          *usagemodes.Service
+	ledger              outcomeledger.Reader
+	runRebaser          RunRebaser
+	roleProposer        RoleProposer
+	signalControl       SignalControl
 }
 
 func (h *Handler) SetConversationSearchQuality(service *conversationsearch.Service, indexer *conversationsearch.Indexer) {
@@ -1095,6 +1107,9 @@ func (h *Handler) Registry() (*measurelib.Registry, error) {
 		return nil, err
 	}
 	if err := h.registerInterventions(registry); err != nil {
+		return nil, err
+	}
+	if err := h.registerOperatorSignals(registry); err != nil {
 		return nil, err
 	}
 	if err := h.registerOpportunities(registry); err != nil {

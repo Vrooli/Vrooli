@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/runsignal"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
@@ -200,6 +201,8 @@ type usageRunRow struct {
 	WorkloadKey      string `db:"workload_key"`
 	Status           string `db:"status"`
 	Phase            string `db:"phase"`
+	UnitOutcome      string `db:"unit_outcome"`
+	WorkUnit         string `db:"work_unit"`
 	ParentRunID      string `db:"parent_run_id"`
 	RunWebConsole    string `db:"run_web_console"`
 	Runner           string `db:"runner"`
@@ -227,6 +230,7 @@ func (r *UsageAttributionRepository) UsageRuns(ctx context.Context, runIDs []str
 			COALESCE(r.agent_profile_id, '') AS profile_id, COALESCE(p.name, '') AS profile_name,
 			COALESCE(r.workload_kind, '') AS workload_kind, COALESCE(r.workload_key, '') AS workload_key,
 			COALESCE(r.status, '') AS status, COALESCE(r.phase, '') AS phase,
+			COALESCE(l.unit_outcome, '') AS unit_outcome, COALESCE(NULLIF(l.work_unit_id, ''), r.id) AS work_unit,
 			COALESCE(r.parent_run_id, '') AS parent_run_id, COALESCE(r.web_console_session_id, '') AS run_web_console,
 			COALESCE(json_extract(r.resolved_config, '$.runnerType'), r.harness_kind, '') AS runner,
 			COALESCE(f.web_console_session_id, '') AS file_web_console, COALESCE(f.session_id, '') AS file_session,
@@ -236,6 +240,7 @@ func (r *UsageAttributionRepository) UsageRuns(ctx context.Context, runIDs []str
 			f.file_key IS NOT NULL AS indexed, COALESCE(r.started_at, r.created_at, '') AS started_at
 			FROM runs r LEFT JOIN agent_profiles p ON p.id = r.agent_profile_id
 			LEFT JOIN transcript_files f ON f.run_id = r.id AND f.owner = 'indexer'
+			LEFT JOIN run_ledger_facts l ON l.run_id = r.id
 			WHERE r.id IN (?` + strings.Repeat(",?", len(chunk)-1) + `)`
 		args := make([]any, len(chunk))
 		for i, id := range chunk {
@@ -286,7 +291,8 @@ func genericSessionLabel(label string) bool {
 func usageRun(row usageRunRow) usageattribution.Run {
 	run := usageattribution.Run{
 		ID: row.ID, Label: strings.TrimSpace(row.Label), Runner: row.Runner, ProfileID: row.ProfileID, ProfileName: row.ProfileName,
-		Status: row.Status, Succeeded: row.Status == string(domain.RunStatusComplete), ParentRunID: row.ParentRunID,
+		Status: row.Status, Completed: row.Status == string(domain.RunStatusComplete), Accepted: row.UnitOutcome == outcomeledger.OutcomeAccepted,
+		OutcomeUnknown: row.UnitOutcome == "" || row.UnitOutcome == outcomeledger.OutcomeUnknown, WorkUnit: row.WorkUnit, ParentRunID: row.ParentRunID,
 	}
 	if row.HasIndexedSource || row.Mode == "imported" {
 		run.Source = usageattribution.SourceIndexed
@@ -325,7 +331,7 @@ type usageOutcomeRow struct {
 	ProfileID    string `db:"profile_id"`
 	WorkloadKind string `db:"workload_kind"`
 	WorkloadKey  string `db:"workload_key"`
-	Status       string `db:"status"`
+	UnitOutcome  string `db:"unit_outcome"`
 	EndedAt      string `db:"ended_at"`
 	Input        int    `db:"input_tokens"`
 	Output       int    `db:"output_tokens"`
@@ -337,8 +343,9 @@ type usageOutcomeRow struct {
 // [from, to] from the invocation read model.
 func (r *UsageAttributionRepository) UsageOutcomes(ctx context.Context, from, to time.Time) ([]usageattribution.Outcome, error) {
 	var rows []usageOutcomeRow
-	if err := r.db.SelectContext(ctx, &rows, `SELECT run_id, runner_type, model, profile_id, workload_kind, workload_key, status, COALESCE(ended_at, occurred_at) AS ended_at,
-		input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens FROM invocation_read_model_runs WHERE workload_key <> '' AND COALESCE(ended_at, occurred_at) >= ? AND COALESCE(ended_at, occurred_at) <= ?`,
+	if err := r.db.SelectContext(ctx, &rows, `SELECT m.run_id, m.runner_type, m.model, m.profile_id, m.workload_kind, m.workload_key, COALESCE(l.unit_outcome, '') AS unit_outcome, COALESCE(m.ended_at, m.occurred_at) AS ended_at,
+		m.input_tokens, m.output_tokens, m.cache_read_tokens, m.cache_creation_tokens FROM invocation_read_model_runs m LEFT JOIN run_ledger_facts l ON l.run_id = m.run_id
+		WHERE m.workload_key <> '' AND COALESCE(m.ended_at, m.occurred_at) >= ? AND COALESCE(m.ended_at, m.occurred_at) <= ?`,
 		from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano)); err != nil {
 		return nil, wrapDBError("usage_outcomes", "Run", "", err)
 	}
@@ -346,7 +353,7 @@ func (r *UsageAttributionRepository) UsageOutcomes(ctx context.Context, from, to
 	for _, row := range rows {
 		at, _ := parseEventTime(row.EndedAt)
 		out = append(out, usageattribution.Outcome{
-			RunID: row.RunID, Runner: row.Runner, Model: row.Model, ProfileID: row.ProfileID, Workload: row.WorkloadKind + ":" + row.WorkloadKey, Succeeded: row.Status == string(domain.RunStatusComplete), At: at,
+			RunID: row.RunID, Runner: row.Runner, Model: row.Model, ProfileID: row.ProfileID, Workload: row.WorkloadKind + ":" + row.WorkloadKey, Accepted: row.UnitOutcome == outcomeledger.OutcomeAccepted, At: at,
 			Tokens: domain.UsageCounters{InputTokens: row.Input, OutputTokens: row.Output, CacheReadTokens: row.CacheRead, CacheCreationTokens: row.CacheWrite},
 		})
 	}

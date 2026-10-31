@@ -207,6 +207,8 @@ type SearchRequest struct {
 	Mode          ConversationSearchMode `protobuf:"varint,5,opt,name=mode,proto3,enum=vrooli.web_console.v1.conversation.ConversationSearchMode" json:"mode,omitempty"`
 	CaseSensitive bool                   `protobuf:"varint,6,opt,name=case_sensitive,json=caseSensitive,proto3" json:"case_sensitive,omitempty"`
 	WholeWord     bool                   `protobuf:"varint,7,opt,name=whole_word,json=wholeWord,proto3" json:"whole_word,omitempty"`
+	// Continue a session search after this event sequence.
+	AfterSequence int64 `protobuf:"varint,8,opt,name=after_sequence,json=afterSequence,proto3" json:"after_sequence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -288,6 +290,13 @@ func (x *SearchRequest) GetWholeWord() bool {
 		return x.WholeWord
 	}
 	return false
+}
+
+func (x *SearchRequest) GetAfterSequence() int64 {
+	if x != nil {
+		return x.AfterSequence
+	}
+	return 0
 }
 
 type SearchMatch struct {
@@ -384,9 +393,11 @@ type SearchResponse struct {
 	TotalMatches int64                  `protobuf:"varint,3,opt,name=total_matches,json=totalMatches,proto3" json:"total_matches,omitempty"`
 	// Set instead of a transport error when the query cannot be run as asked
 	// (an invalid or oversized regular expression).
-	Error         string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Error             string `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	HasMore           bool   `protobuf:"varint,5,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
+	NextAfterSequence int64  `protobuf:"varint,6,opt,name=next_after_sequence,json=nextAfterSequence,proto3" json:"next_after_sequence,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SearchResponse) Reset() {
@@ -445,6 +456,20 @@ func (x *SearchResponse) GetError() string {
 		return x.Error
 	}
 	return ""
+}
+
+func (x *SearchResponse) GetHasMore() bool {
+	if x != nil {
+		return x.HasMore
+	}
+	return false
+}
+
+func (x *SearchResponse) GetNextAfterSequence() int64 {
+	if x != nil {
+		return x.NextAfterSequence
+	}
+	return 0
 }
 
 type SearchArchivedRequest struct {
@@ -775,6 +800,113 @@ func (x *GetRangeRequest) GetToSequence() int64 {
 	return 0
 }
 
+// ResolveEvents returns complete authoritative records for stable event IDs.
+// Missing IDs are reported explicitly so callers never mistake a partial
+// selection for a complete one.
+type ResolveEventsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	EventIds      []string               `protobuf:"bytes,2,rep,name=event_ids,json=eventIds,proto3" json:"event_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolveEventsRequest) Reset() {
+	*x = ResolveEventsRequest{}
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveEventsRequest) ProtoMessage() {}
+
+func (x *ResolveEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveEventsRequest.ProtoReflect.Descriptor instead.
+func (*ResolveEventsRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ResolveEventsRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *ResolveEventsRequest) GetEventIds() []string {
+	if x != nil {
+		return x.EventIds
+	}
+	return nil
+}
+
+type ResolveEventsResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Events          []*ConversationEvent   `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	MissingEventIds []string               `protobuf:"bytes,2,rep,name=missing_event_ids,json=missingEventIds,proto3" json:"missing_event_ids,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ResolveEventsResponse) Reset() {
+	*x = ResolveEventsResponse{}
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolveEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolveEventsResponse) ProtoMessage() {}
+
+func (x *ResolveEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolveEventsResponse.ProtoReflect.Descriptor instead.
+func (*ResolveEventsResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ResolveEventsResponse) GetEvents() []*ConversationEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *ResolveEventsResponse) GetMissingEventIds() []string {
+	if x != nil {
+		return x.MissingEventIds
+	}
+	return nil
+}
+
 // ConversationEvent is one stored entry in a session's transcript. Mirrors the
 // legacy JSON shape exactly so the WS forwarder doesn't have to fork wire types.
 type ConversationEvent struct {
@@ -802,7 +934,7 @@ type ConversationEvent struct {
 
 func (x *ConversationEvent) Reset() {
 	*x = ConversationEvent{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[8]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -814,7 +946,7 @@ func (x *ConversationEvent) String() string {
 func (*ConversationEvent) ProtoMessage() {}
 
 func (x *ConversationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[8]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -827,7 +959,7 @@ func (x *ConversationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationEvent.ProtoReflect.Descriptor instead.
 func (*ConversationEvent) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{8}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ConversationEvent) GetId() string {
@@ -942,7 +1074,7 @@ type NativeProvenance struct {
 
 func (x *NativeProvenance) Reset() {
 	*x = NativeProvenance{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[9]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -954,7 +1086,7 @@ func (x *NativeProvenance) String() string {
 func (*NativeProvenance) ProtoMessage() {}
 
 func (x *NativeProvenance) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[9]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -967,7 +1099,7 @@ func (x *NativeProvenance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NativeProvenance.ProtoReflect.Descriptor instead.
 func (*NativeProvenance) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{9}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *NativeProvenance) GetProvider() string {
@@ -1022,7 +1154,7 @@ type ConversationCursor struct {
 
 func (x *ConversationCursor) Reset() {
 	*x = ConversationCursor{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[10]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1034,7 +1166,7 @@ func (x *ConversationCursor) String() string {
 func (*ConversationCursor) ProtoMessage() {}
 
 func (x *ConversationCursor) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[10]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1047,7 +1179,7 @@ func (x *ConversationCursor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConversationCursor.ProtoReflect.Descriptor instead.
 func (*ConversationCursor) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{10}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ConversationCursor) GetLastSeenSequence() int64 {
@@ -1081,7 +1213,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[11]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1093,7 +1225,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[11]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1106,7 +1238,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{11}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetRequest) GetSessionId() string {
@@ -1157,7 +1289,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[12]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1169,7 +1301,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[12]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1182,7 +1314,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{12}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetResponse) GetSessionId() string {
@@ -1267,7 +1399,7 @@ type MessageCaptureStatus struct {
 
 func (x *MessageCaptureStatus) Reset() {
 	*x = MessageCaptureStatus{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[13]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1279,7 +1411,7 @@ func (x *MessageCaptureStatus) String() string {
 func (*MessageCaptureStatus) ProtoMessage() {}
 
 func (x *MessageCaptureStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[13]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1292,7 +1424,7 @@ func (x *MessageCaptureStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MessageCaptureStatus.ProtoReflect.Descriptor instead.
 func (*MessageCaptureStatus) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{13}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MessageCaptureStatus) GetState() MessageCaptureState {
@@ -1359,7 +1491,7 @@ type UpdateCursorRequest struct {
 
 func (x *UpdateCursorRequest) Reset() {
 	*x = UpdateCursorRequest{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[14]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1371,7 +1503,7 @@ func (x *UpdateCursorRequest) String() string {
 func (*UpdateCursorRequest) ProtoMessage() {}
 
 func (x *UpdateCursorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[14]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1384,7 +1516,7 @@ func (x *UpdateCursorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCursorRequest.ProtoReflect.Descriptor instead.
 func (*UpdateCursorRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{14}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateCursorRequest) GetSessionId() string {
@@ -1431,7 +1563,7 @@ type UpdateCursorResponse struct {
 
 func (x *UpdateCursorResponse) Reset() {
 	*x = UpdateCursorResponse{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[15]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1443,7 +1575,7 @@ func (x *UpdateCursorResponse) String() string {
 func (*UpdateCursorResponse) ProtoMessage() {}
 
 func (x *UpdateCursorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[15]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1456,7 +1588,7 @@ func (x *UpdateCursorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateCursorResponse.ProtoReflect.Descriptor instead.
 func (*UpdateCursorResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{15}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UpdateCursorResponse) GetCursor() *ConversationCursor {
@@ -1478,7 +1610,7 @@ type SummarizeEventRequest struct {
 
 func (x *SummarizeEventRequest) Reset() {
 	*x = SummarizeEventRequest{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[16]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1490,7 +1622,7 @@ func (x *SummarizeEventRequest) String() string {
 func (*SummarizeEventRequest) ProtoMessage() {}
 
 func (x *SummarizeEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[16]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1503,7 +1635,7 @@ func (x *SummarizeEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SummarizeEventRequest.ProtoReflect.Descriptor instead.
 func (*SummarizeEventRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{16}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SummarizeEventRequest) GetSessionId() string {
@@ -1535,7 +1667,7 @@ type SummarizeEventResponse struct {
 
 func (x *SummarizeEventResponse) Reset() {
 	*x = SummarizeEventResponse{}
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[17]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +1679,7 @@ func (x *SummarizeEventResponse) String() string {
 func (*SummarizeEventResponse) ProtoMessage() {}
 
 func (x *SummarizeEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[17]
+	mi := &file_web_console_v1_conversation_conversation_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +1692,7 @@ func (x *SummarizeEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SummarizeEventResponse.ProtoReflect.Descriptor instead.
 func (*SummarizeEventResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{17}
+	return file_web_console_v1_conversation_conversation_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SummarizeEventResponse) GetSummarized() bool {
@@ -1591,7 +1723,7 @@ const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
 	".web-console/v1/conversation/conversation.proto\x12\"vrooli.web_console.v1.conversation\"3\n" +
 	"\tTextRange\x12\x14\n" +
 	"\x05start\x18\x01 \x01(\x05R\x05start\x12\x10\n" +
-	"\x03end\x18\x02 \x01(\x05R\x03end\"\x91\x02\n" +
+	"\x03end\x18\x02 \x01(\x05R\x03end\"\xb8\x02\n" +
 	"\rSearchRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x14\n" +
@@ -1602,7 +1734,8 @@ const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
 	"\x04mode\x18\x05 \x01(\x0e2:.vrooli.web_console.v1.conversation.ConversationSearchModeR\x04mode\x12%\n" +
 	"\x0ecase_sensitive\x18\x06 \x01(\bR\rcaseSensitive\x12\x1d\n" +
 	"\n" +
-	"whole_word\x18\a \x01(\bR\twholeWord\"\xd8\x01\n" +
+	"whole_word\x18\a \x01(\bR\twholeWord\x12%\n" +
+	"\x0eafter_sequence\x18\b \x01(\x03R\rafterSequence\"\xd8\x01\n" +
 	"\vSearchMatch\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1a\n" +
 	"\bsequence\x18\x02 \x01(\x03R\bsequence\x12\x18\n" +
@@ -1610,12 +1743,14 @@ const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
 	"\x06ranges\x18\x04 \x03(\v2-.vrooli.web_console.v1.conversation.TextRangeR\x06ranges\x12\x12\n" +
 	"\x04role\x18\x05 \x01(\tR\x04role\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x06 \x01(\tR\tcreatedAt\"\xb4\x01\n" +
+	"created_at\x18\x06 \x01(\tR\tcreatedAt\"\xff\x01\n" +
 	"\x0eSearchResponse\x12I\n" +
 	"\amatches\x18\x01 \x03(\v2/.vrooli.web_console.v1.conversation.SearchMatchR\amatches\x12\x1c\n" +
 	"\ttruncated\x18\x02 \x01(\bR\ttruncated\x12#\n" +
 	"\rtotal_matches\x18\x03 \x01(\x03R\ftotalMatches\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error\"\xb1\x02\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12\x19\n" +
+	"\bhas_more\x18\x05 \x01(\bR\ahasMore\x12.\n" +
+	"\x13next_after_sequence\x18\x06 \x01(\x03R\x11nextAfterSequence\"\xb1\x02\n" +
 	"\x15SearchArchivedRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12\x1d\n" +
@@ -1648,7 +1783,14 @@ const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12#\n" +
 	"\rfrom_sequence\x18\x02 \x01(\x03R\ffromSequence\x12\x1f\n" +
 	"\vto_sequence\x18\x03 \x01(\x03R\n" +
-	"toSequence\"\x9c\x04\n" +
+	"toSequence\"R\n" +
+	"\x14ResolveEventsRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\tevent_ids\x18\x02 \x03(\tR\beventIds\"\x92\x01\n" +
+	"\x15ResolveEventsResponse\x12M\n" +
+	"\x06events\x18\x01 \x03(\v25.vrooli.web_console.v1.conversation.ConversationEventR\x06events\x12*\n" +
+	"\x11missing_event_ids\x18\x02 \x03(\tR\x0fmissingEventIds\"\x9c\x04\n" +
 	"\x11ConversationEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
 	"\n" +
@@ -1737,12 +1879,13 @@ const file_web_console_v1_conversation_conversation_proto_rawDesc = "" +
 	"\x1fMESSAGE_CAPTURE_STATE_CAPTURING\x10\x01\x12(\n" +
 	"$MESSAGE_CAPTURE_STATE_NOT_APPLICABLE\x10\x02\x12!\n" +
 	"\x1dMESSAGE_CAPTURE_STATE_PENDING\x10\x03\x12%\n" +
-	"!MESSAGE_CAPTURE_STATE_UNAVAILABLE\x10\x042\xf8\x05\n" +
+	"!MESSAGE_CAPTURE_STATE_UNAVAILABLE\x10\x042\xff\x06\n" +
 	"\x13ConversationService\x12f\n" +
 	"\x03Get\x12..vrooli.web_console.v1.conversation.GetRequest\x1a/.vrooli.web_console.v1.conversation.GetResponse\x12o\n" +
 	"\x06Search\x121.vrooli.web_console.v1.conversation.SearchRequest\x1a2.vrooli.web_console.v1.conversation.SearchResponse\x12\x87\x01\n" +
 	"\x0eSearchArchived\x129.vrooli.web_console.v1.conversation.SearchArchivedRequest\x1a:.vrooli.web_console.v1.conversation.SearchArchivedResponse\x12p\n" +
-	"\bGetRange\x123.vrooli.web_console.v1.conversation.GetRangeRequest\x1a/.vrooli.web_console.v1.conversation.GetResponse\x12\x81\x01\n" +
+	"\bGetRange\x123.vrooli.web_console.v1.conversation.GetRangeRequest\x1a/.vrooli.web_console.v1.conversation.GetResponse\x12\x84\x01\n" +
+	"\rResolveEvents\x128.vrooli.web_console.v1.conversation.ResolveEventsRequest\x1a9.vrooli.web_console.v1.conversation.ResolveEventsResponse\x12\x81\x01\n" +
 	"\fUpdateCursor\x127.vrooli.web_console.v1.conversation.UpdateCursorRequest\x1a8.vrooli.web_console.v1.conversation.UpdateCursorResponse\x12\x87\x01\n" +
 	"\x0eSummarizeEvent\x129.vrooli.web_console.v1.conversation.SummarizeEventRequest\x1a:.vrooli.web_console.v1.conversation.SummarizeEventResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/conversation;conversation_v1b\x06proto3"
 
@@ -1759,7 +1902,7 @@ func file_web_console_v1_conversation_conversation_proto_rawDescGZIP() []byte {
 }
 
 var file_web_console_v1_conversation_conversation_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_web_console_v1_conversation_conversation_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_web_console_v1_conversation_conversation_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_web_console_v1_conversation_conversation_proto_goTypes = []any{
 	(ConversationSearchMode)(0),    // 0: vrooli.web_console.v1.conversation.ConversationSearchMode
 	(MessageCaptureState)(0),       // 1: vrooli.web_console.v1.conversation.MessageCaptureState
@@ -1771,16 +1914,18 @@ var file_web_console_v1_conversation_conversation_proto_goTypes = []any{
 	(*ArchivedSearchMatch)(nil),    // 7: vrooli.web_console.v1.conversation.ArchivedSearchMatch
 	(*SearchArchivedResponse)(nil), // 8: vrooli.web_console.v1.conversation.SearchArchivedResponse
 	(*GetRangeRequest)(nil),        // 9: vrooli.web_console.v1.conversation.GetRangeRequest
-	(*ConversationEvent)(nil),      // 10: vrooli.web_console.v1.conversation.ConversationEvent
-	(*NativeProvenance)(nil),       // 11: vrooli.web_console.v1.conversation.NativeProvenance
-	(*ConversationCursor)(nil),     // 12: vrooli.web_console.v1.conversation.ConversationCursor
-	(*GetRequest)(nil),             // 13: vrooli.web_console.v1.conversation.GetRequest
-	(*GetResponse)(nil),            // 14: vrooli.web_console.v1.conversation.GetResponse
-	(*MessageCaptureStatus)(nil),   // 15: vrooli.web_console.v1.conversation.MessageCaptureStatus
-	(*UpdateCursorRequest)(nil),    // 16: vrooli.web_console.v1.conversation.UpdateCursorRequest
-	(*UpdateCursorResponse)(nil),   // 17: vrooli.web_console.v1.conversation.UpdateCursorResponse
-	(*SummarizeEventRequest)(nil),  // 18: vrooli.web_console.v1.conversation.SummarizeEventRequest
-	(*SummarizeEventResponse)(nil), // 19: vrooli.web_console.v1.conversation.SummarizeEventResponse
+	(*ResolveEventsRequest)(nil),   // 10: vrooli.web_console.v1.conversation.ResolveEventsRequest
+	(*ResolveEventsResponse)(nil),  // 11: vrooli.web_console.v1.conversation.ResolveEventsResponse
+	(*ConversationEvent)(nil),      // 12: vrooli.web_console.v1.conversation.ConversationEvent
+	(*NativeProvenance)(nil),       // 13: vrooli.web_console.v1.conversation.NativeProvenance
+	(*ConversationCursor)(nil),     // 14: vrooli.web_console.v1.conversation.ConversationCursor
+	(*GetRequest)(nil),             // 15: vrooli.web_console.v1.conversation.GetRequest
+	(*GetResponse)(nil),            // 16: vrooli.web_console.v1.conversation.GetResponse
+	(*MessageCaptureStatus)(nil),   // 17: vrooli.web_console.v1.conversation.MessageCaptureStatus
+	(*UpdateCursorRequest)(nil),    // 18: vrooli.web_console.v1.conversation.UpdateCursorRequest
+	(*UpdateCursorResponse)(nil),   // 19: vrooli.web_console.v1.conversation.UpdateCursorResponse
+	(*SummarizeEventRequest)(nil),  // 20: vrooli.web_console.v1.conversation.SummarizeEventRequest
+	(*SummarizeEventResponse)(nil), // 21: vrooli.web_console.v1.conversation.SummarizeEventResponse
 }
 var file_web_console_v1_conversation_conversation_proto_depIdxs = []int32{
 	0,  // 0: vrooli.web_console.v1.conversation.SearchRequest.mode:type_name -> vrooli.web_console.v1.conversation.ConversationSearchMode
@@ -1789,29 +1934,32 @@ var file_web_console_v1_conversation_conversation_proto_depIdxs = []int32{
 	0,  // 3: vrooli.web_console.v1.conversation.SearchArchivedRequest.mode:type_name -> vrooli.web_console.v1.conversation.ConversationSearchMode
 	2,  // 4: vrooli.web_console.v1.conversation.ArchivedSearchMatch.ranges:type_name -> vrooli.web_console.v1.conversation.TextRange
 	7,  // 5: vrooli.web_console.v1.conversation.SearchArchivedResponse.matches:type_name -> vrooli.web_console.v1.conversation.ArchivedSearchMatch
-	11, // 6: vrooli.web_console.v1.conversation.ConversationEvent.native_provenance:type_name -> vrooli.web_console.v1.conversation.NativeProvenance
-	10, // 7: vrooli.web_console.v1.conversation.GetResponse.events:type_name -> vrooli.web_console.v1.conversation.ConversationEvent
-	12, // 8: vrooli.web_console.v1.conversation.GetResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
-	15, // 9: vrooli.web_console.v1.conversation.GetResponse.capture:type_name -> vrooli.web_console.v1.conversation.MessageCaptureStatus
-	1,  // 10: vrooli.web_console.v1.conversation.MessageCaptureStatus.state:type_name -> vrooli.web_console.v1.conversation.MessageCaptureState
-	12, // 11: vrooli.web_console.v1.conversation.UpdateCursorResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
-	13, // 12: vrooli.web_console.v1.conversation.ConversationService.Get:input_type -> vrooli.web_console.v1.conversation.GetRequest
-	3,  // 13: vrooli.web_console.v1.conversation.ConversationService.Search:input_type -> vrooli.web_console.v1.conversation.SearchRequest
-	6,  // 14: vrooli.web_console.v1.conversation.ConversationService.SearchArchived:input_type -> vrooli.web_console.v1.conversation.SearchArchivedRequest
-	9,  // 15: vrooli.web_console.v1.conversation.ConversationService.GetRange:input_type -> vrooli.web_console.v1.conversation.GetRangeRequest
-	16, // 16: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:input_type -> vrooli.web_console.v1.conversation.UpdateCursorRequest
-	18, // 17: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:input_type -> vrooli.web_console.v1.conversation.SummarizeEventRequest
-	14, // 18: vrooli.web_console.v1.conversation.ConversationService.Get:output_type -> vrooli.web_console.v1.conversation.GetResponse
-	5,  // 19: vrooli.web_console.v1.conversation.ConversationService.Search:output_type -> vrooli.web_console.v1.conversation.SearchResponse
-	8,  // 20: vrooli.web_console.v1.conversation.ConversationService.SearchArchived:output_type -> vrooli.web_console.v1.conversation.SearchArchivedResponse
-	14, // 21: vrooli.web_console.v1.conversation.ConversationService.GetRange:output_type -> vrooli.web_console.v1.conversation.GetResponse
-	17, // 22: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:output_type -> vrooli.web_console.v1.conversation.UpdateCursorResponse
-	19, // 23: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:output_type -> vrooli.web_console.v1.conversation.SummarizeEventResponse
-	18, // [18:24] is the sub-list for method output_type
-	12, // [12:18] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	12, // 6: vrooli.web_console.v1.conversation.ResolveEventsResponse.events:type_name -> vrooli.web_console.v1.conversation.ConversationEvent
+	13, // 7: vrooli.web_console.v1.conversation.ConversationEvent.native_provenance:type_name -> vrooli.web_console.v1.conversation.NativeProvenance
+	12, // 8: vrooli.web_console.v1.conversation.GetResponse.events:type_name -> vrooli.web_console.v1.conversation.ConversationEvent
+	14, // 9: vrooli.web_console.v1.conversation.GetResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
+	17, // 10: vrooli.web_console.v1.conversation.GetResponse.capture:type_name -> vrooli.web_console.v1.conversation.MessageCaptureStatus
+	1,  // 11: vrooli.web_console.v1.conversation.MessageCaptureStatus.state:type_name -> vrooli.web_console.v1.conversation.MessageCaptureState
+	14, // 12: vrooli.web_console.v1.conversation.UpdateCursorResponse.cursor:type_name -> vrooli.web_console.v1.conversation.ConversationCursor
+	15, // 13: vrooli.web_console.v1.conversation.ConversationService.Get:input_type -> vrooli.web_console.v1.conversation.GetRequest
+	3,  // 14: vrooli.web_console.v1.conversation.ConversationService.Search:input_type -> vrooli.web_console.v1.conversation.SearchRequest
+	6,  // 15: vrooli.web_console.v1.conversation.ConversationService.SearchArchived:input_type -> vrooli.web_console.v1.conversation.SearchArchivedRequest
+	9,  // 16: vrooli.web_console.v1.conversation.ConversationService.GetRange:input_type -> vrooli.web_console.v1.conversation.GetRangeRequest
+	10, // 17: vrooli.web_console.v1.conversation.ConversationService.ResolveEvents:input_type -> vrooli.web_console.v1.conversation.ResolveEventsRequest
+	18, // 18: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:input_type -> vrooli.web_console.v1.conversation.UpdateCursorRequest
+	20, // 19: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:input_type -> vrooli.web_console.v1.conversation.SummarizeEventRequest
+	16, // 20: vrooli.web_console.v1.conversation.ConversationService.Get:output_type -> vrooli.web_console.v1.conversation.GetResponse
+	5,  // 21: vrooli.web_console.v1.conversation.ConversationService.Search:output_type -> vrooli.web_console.v1.conversation.SearchResponse
+	8,  // 22: vrooli.web_console.v1.conversation.ConversationService.SearchArchived:output_type -> vrooli.web_console.v1.conversation.SearchArchivedResponse
+	16, // 23: vrooli.web_console.v1.conversation.ConversationService.GetRange:output_type -> vrooli.web_console.v1.conversation.GetResponse
+	11, // 24: vrooli.web_console.v1.conversation.ConversationService.ResolveEvents:output_type -> vrooli.web_console.v1.conversation.ResolveEventsResponse
+	19, // 25: vrooli.web_console.v1.conversation.ConversationService.UpdateCursor:output_type -> vrooli.web_console.v1.conversation.UpdateCursorResponse
+	21, // 26: vrooli.web_console.v1.conversation.ConversationService.SummarizeEvent:output_type -> vrooli.web_console.v1.conversation.SummarizeEventResponse
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_conversation_conversation_proto_init() }
@@ -1825,7 +1973,7 @@ func file_web_console_v1_conversation_conversation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_conversation_conversation_proto_rawDesc), len(file_web_console_v1_conversation_conversation_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

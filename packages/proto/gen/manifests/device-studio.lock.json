@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "device-studio",
-  "input_digest": "sha256:1beccfaeac4a22171a688f8de20cdd61eee76acf5127650d9f6caa7f9466c246",
+  "input_digest": "sha256:d0947d5376fb76780c57094ee418406f43a8cc5745a1c7a5e171c27262f2c169",
   "input_files": [
     "schemas/ai-gateway/v1/inference/inference.proto",
     "schemas/ai-gateway/v1/shared/gateway.proto",

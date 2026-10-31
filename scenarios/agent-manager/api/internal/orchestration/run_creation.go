@@ -353,6 +353,7 @@ func (f *createRunFlow) resolveConfiguration(ctx context.Context) error {
 			return err
 		}
 	}
+	req.usageModeEligible = recovery == nil
 	resolvedConfig, profile, err := o.resolveRunConfig(ctx, *req)
 	if err != nil {
 		return err
@@ -499,6 +500,9 @@ func (f *createRunFlow) validateAdmission() error {
 	if err := validateSandboxConfig(f.sandboxConfig); err != nil {
 		return err
 	}
+	if err := validateResolvedRunMode(f.runMode, f.sandboxConfig); err != nil {
+		return err
+	}
 	if err := validateExecutionContainment(f.req.ExecutionMode, f.sandboxConfig.Mode, f.resolvedConfig); err != nil {
 		return err
 	}
@@ -526,6 +530,15 @@ func (f *createRunFlow) validateAdmission() error {
 	}
 
 	return f.o.validateScopePath(f.task, f.runMode, f.req.ExistingSandboxID, false)
+}
+
+// A protected launcher requires an actual sandbox. Reject a contradictory
+// caller override before creating a run instead of failing after dispatch.
+func validateResolvedRunMode(mode domain.RunMode, cfg *domain.SandboxConfig) error {
+	if mode == domain.RunModeInPlace && cfg != nil && cfg.Mode.Effective() == domain.SandboxModeProtected {
+		return domain.NewValidationErrorWithHint("runMode", "protected sandbox mode requires a sandboxed run", "omit the in-place override or select a profile with sandbox mode off")
+	}
+	return nil
 }
 
 // resolveExistingSandbox validates a reused sandbox against the task and finds

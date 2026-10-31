@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/shortcuts/shortcuts.proto.
  */
 export const file_web_console_v1_shortcuts_shortcuts: GenFile = /*@__PURE__*/
-  fileDesc("Cih3ZWItY29uc29sZS92MS9zaG9ydGN1dHMvc2hvcnRjdXRzLnByb3RvEh92cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzIlEKCFNob3J0Y3V0Eg0KBWxhYmVsGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIYWdlbnRfaWQYBCABKAkimAEKB1Byb2ZpbGUSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCSIVChNHZXRFZmZlY3RpdmVSZXF1ZXN0Io0BChRHZXRFZmZlY3RpdmVSZXNwb25zZRI8CglzaG9ydGN1dHMYASADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCnByb2ZpbGVfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkSFAoMcHJvZmlsZV9uYW1lGAQgASgJIhUKE0xpc3RQcm9maWxlc1JlcXVlc3QiUgoUTGlzdFByb2ZpbGVzUmVzcG9uc2USOgoIcHJvZmlsZXMYASADKAsyKC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlByb2ZpbGUifQoUVXBzZXJ0UHJvZmlsZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0IlIKFVVwc2VydFByb2ZpbGVSZXNwb25zZRI5Cgdwcm9maWxlGAEgASgLMigudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5Qcm9maWxlIiIKFERlbGV0ZVByb2ZpbGVSZXF1ZXN0EgoKAmlkGAEgASgJIhcKFURlbGV0ZVByb2ZpbGVSZXNwb25zZTKMBAoQU2hvcnRjdXRzU2VydmljZRJ7CgxHZXRFZmZlY3RpdmUSNC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkdldEVmZmVjdGl2ZVJlcXVlc3QaNS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkdldEVmZmVjdGl2ZVJlc3BvbnNlEnsKDExpc3RQcm9maWxlcxI0LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuTGlzdFByb2ZpbGVzUmVxdWVzdBo1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuTGlzdFByb2ZpbGVzUmVzcG9uc2USfgoNVXBzZXJ0UHJvZmlsZRI1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuVXBzZXJ0UHJvZmlsZVJlcXVlc3QaNi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlVwc2VydFByb2ZpbGVSZXNwb25zZRJ+Cg1EZWxldGVQcm9maWxlEjUudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5EZWxldGVQcm9maWxlUmVxdWVzdBo2LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuRGVsZXRlUHJvZmlsZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2hvcnRjdXRzO3Nob3J0Y3V0c192MWIGcHJvdG8z");
+  fileDesc("Cih3ZWItY29uc29sZS92MS9zaG9ydGN1dHMvc2hvcnRjdXRzLnByb3RvEh92cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzIlEKCFNob3J0Y3V0Eg0KBWxhYmVsGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIYWdlbnRfaWQYBCABKAkimAEKB1Byb2ZpbGUSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCSIVChNHZXRFZmZlY3RpdmVSZXF1ZXN0Io0BChRHZXRFZmZlY3RpdmVSZXNwb25zZRI8CglzaG9ydGN1dHMYASADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCnByb2ZpbGVfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkSFAoMcHJvZmlsZV9uYW1lGAQgASgJIhUKE0xpc3RQcm9maWxlc1JlcXVlc3QiUgoUTGlzdFByb2ZpbGVzUmVzcG9uc2USOgoIcHJvZmlsZXMYASADKAsyKC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlByb2ZpbGUifQoUVXBzZXJ0UHJvZmlsZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0IlIKFVVwc2VydFByb2ZpbGVSZXNwb25zZRI5Cgdwcm9maWxlGAEgASgLMigudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5Qcm9maWxlIiIKFERlbGV0ZVByb2ZpbGVSZXF1ZXN0EgoKAmlkGAEgASgJIhcKFURlbGV0ZVByb2ZpbGVSZXNwb25zZSKHAQoQQWdlbnRQcmVmZXJlbmNlcxISCgpwcm9maWxlX2lkGAEgASgJEhkKEW9yZGVyZWRfYWdlbnRfaWRzGAIgAygJEhgKEGhpZGRlbl9hZ2VudF9pZHMYAyADKAkSEAoIcmV2aXNpb24YBCABKAQSGAoQcHJvZmlsZV9pbnN0YW5jZRgFIAEoCSIcChpHZXRBZ2VudFByZWZlcmVuY2VzUmVxdWVzdCJlChtHZXRBZ2VudFByZWZlcmVuY2VzUmVzcG9uc2USRgoLcHJlZmVyZW5jZXMYASABKAsyMS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkFnZW50UHJlZmVyZW5jZXMinQEKHVVwZGF0ZUFnZW50UHJlZmVyZW5jZXNSZXF1ZXN0EhIKCnByb2ZpbGVfaWQYASABKAkSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAQSGQoRb3JkZXJlZF9hZ2VudF9pZHMYAyADKAkSGAoQaGlkZGVuX2FnZW50X2lkcxgEIAMoCRIYChBwcm9maWxlX2luc3RhbmNlGAUgASgJImgKHlVwZGF0ZUFnZW50UHJlZmVyZW5jZXNSZXNwb25zZRJGCgtwcmVmZXJlbmNlcxgBIAEoCzIxLnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuQWdlbnRQcmVmZXJlbmNlczK7BgoQU2hvcnRjdXRzU2VydmljZRJ7CgxHZXRFZmZlY3RpdmUSNC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkdldEVmZmVjdGl2ZVJlcXVlc3QaNS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkdldEVmZmVjdGl2ZVJlc3BvbnNlEnsKDExpc3RQcm9maWxlcxI0LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuTGlzdFByb2ZpbGVzUmVxdWVzdBo1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuTGlzdFByb2ZpbGVzUmVzcG9uc2USfgoNVXBzZXJ0UHJvZmlsZRI1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuVXBzZXJ0UHJvZmlsZVJlcXVlc3QaNi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlVwc2VydFByb2ZpbGVSZXNwb25zZRJ+Cg1EZWxldGVQcm9maWxlEjUudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5EZWxldGVQcm9maWxlUmVxdWVzdBo2LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuRGVsZXRlUHJvZmlsZVJlc3BvbnNlEpABChNHZXRBZ2VudFByZWZlcmVuY2VzEjsudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5HZXRBZ2VudFByZWZlcmVuY2VzUmVxdWVzdBo8LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuR2V0QWdlbnRQcmVmZXJlbmNlc1Jlc3BvbnNlEpkBChZVcGRhdGVBZ2VudFByZWZlcmVuY2VzEj4udnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5VcGRhdGVBZ2VudFByZWZlcmVuY2VzUmVxdWVzdBo/LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuVXBkYXRlQWdlbnRQcmVmZXJlbmNlc1Jlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2hvcnRjdXRzO3Nob3J0Y3V0c192MWIGcHJvdG8z");
 
 /**
  * Shortcut is a single launch shortcut: a labelled command line.
@@ -271,6 +271,136 @@ export const DeleteProfileResponseSchema: GenMessage<DeleteProfileResponse> = /*
   messageDesc(file_web_console_v1_shortcuts_shortcuts, 9);
 
 /**
+ * Agent preferences are stored separately from shortcut commands so an older
+ * profile editor cannot erase them. An empty profile_id identifies the
+ * built-in fallback when no profile exists. New agents default to visible.
+ *
+ * @generated from message vrooli.web_console.v1.shortcuts.AgentPreferences
+ */
+export type AgentPreferences = Message<"vrooli.web_console.v1.shortcuts.AgentPreferences"> & {
+  /**
+   * @generated from field: string profile_id = 1;
+   */
+  profileId: string;
+
+  /**
+   * @generated from field: repeated string ordered_agent_ids = 2;
+   */
+  orderedAgentIds: string[];
+
+  /**
+   * @generated from field: repeated string hidden_agent_ids = 3;
+   */
+  hiddenAgentIds: string[];
+
+  /**
+   * @generated from field: uint64 revision = 4;
+   */
+  revision: bigint;
+
+  /**
+   * Opaque identity of this profile instance; empty for the built-in fallback.
+   *
+   * @generated from field: string profile_instance = 5;
+   */
+  profileInstance: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.shortcuts.AgentPreferences.
+ * Use `create(AgentPreferencesSchema)` to create a new message.
+ */
+export const AgentPreferencesSchema: GenMessage<AgentPreferences> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_shortcuts_shortcuts, 10);
+
+/**
+ * @generated from message vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest
+ */
+export type GetAgentPreferencesRequest = Message<"vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest.
+ * Use `create(GetAgentPreferencesRequestSchema)` to create a new message.
+ */
+export const GetAgentPreferencesRequestSchema: GenMessage<GetAgentPreferencesRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_shortcuts_shortcuts, 11);
+
+/**
+ * @generated from message vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse
+ */
+export type GetAgentPreferencesResponse = Message<"vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse"> & {
+  /**
+   * @generated from field: vrooli.web_console.v1.shortcuts.AgentPreferences preferences = 1;
+   */
+  preferences?: AgentPreferences | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse.
+ * Use `create(GetAgentPreferencesResponseSchema)` to create a new message.
+ */
+export const GetAgentPreferencesResponseSchema: GenMessage<GetAgentPreferencesResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_shortcuts_shortcuts, 12);
+
+/**
+ * The current effective profile and revision must still match the values read
+ * by the caller. A conflict returns ABORTED; refresh and let the user retry.
+ *
+ * @generated from message vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest
+ */
+export type UpdateAgentPreferencesRequest = Message<"vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest"> & {
+  /**
+   * @generated from field: string profile_id = 1;
+   */
+  profileId: string;
+
+  /**
+   * @generated from field: uint64 expected_revision = 2;
+   */
+  expectedRevision: bigint;
+
+  /**
+   * @generated from field: repeated string ordered_agent_ids = 3;
+   */
+  orderedAgentIds: string[];
+
+  /**
+   * @generated from field: repeated string hidden_agent_ids = 4;
+   */
+  hiddenAgentIds: string[];
+
+  /**
+   * @generated from field: string profile_instance = 5;
+   */
+  profileInstance: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest.
+ * Use `create(UpdateAgentPreferencesRequestSchema)` to create a new message.
+ */
+export const UpdateAgentPreferencesRequestSchema: GenMessage<UpdateAgentPreferencesRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_shortcuts_shortcuts, 13);
+
+/**
+ * @generated from message vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse
+ */
+export type UpdateAgentPreferencesResponse = Message<"vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse"> & {
+  /**
+   * @generated from field: vrooli.web_console.v1.shortcuts.AgentPreferences preferences = 1;
+   */
+  preferences?: AgentPreferences | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse.
+ * Use `create(UpdateAgentPreferencesResponseSchema)` to create a new message.
+ */
+export const UpdateAgentPreferencesResponseSchema: GenMessage<UpdateAgentPreferencesResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_shortcuts_shortcuts, 14);
+
+/**
  * @generated from service vrooli.web_console.v1.shortcuts.ShortcutsService
  */
 export const ShortcutsService: GenService<{
@@ -305,6 +435,22 @@ export const ShortcutsService: GenService<{
     methodKind: "unary";
     input: typeof DeleteProfileRequestSchema;
     output: typeof DeleteProfileResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences
+   */
+  getAgentPreferences: {
+    methodKind: "unary";
+    input: typeof GetAgentPreferencesRequestSchema;
+    output: typeof GetAgentPreferencesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences
+   */
+  updateAgentPreferences: {
+    methodKind: "unary";
+    input: typeof UpdateAgentPreferencesRequestSchema;
+    output: typeof UpdateAgentPreferencesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_shortcuts_shortcuts, 0);

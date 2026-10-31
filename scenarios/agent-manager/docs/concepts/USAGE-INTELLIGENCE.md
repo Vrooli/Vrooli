@@ -13,7 +13,7 @@ with the transcripts on disk:
    weekly quota saving, confidence, evidence and a concrete action.
 4. **Can I trust this?** Capture coverage against the on-disk truth, with every
    uncaptured source named.
-5. **Did the change work?** Quota per successful unit of work, before and after
+5. **Did the change work?** Quota per accepted unit of work, before and after
    a change, on comparable work.
 
 Product target: `OT-P0-016` in [PRD.md](../../PRD.md). Requirements:
@@ -616,7 +616,13 @@ the most over all segments is chosen, priced at the run's points per token.
 - **R-context:** one action per runner (owner: `<runner> session context`, the
   auto-compact threshold) summing the sessions' best-cap savings, with the share
   of session quota at prompts above 200k (Anthropic's long-context price
-  threshold), the compactions already done and the median cap. A still-running
+  threshold), the compactions already done and the median cap. The advice is a
+  **token threshold the harness can be given**, not only a request count: the
+  median request size at the cap, rounded to 10k and never under 40k, with the
+  setting to use (`CLAUDE_CODE_AUTO_COMPACT_WINDOW` for Claude,
+  `model_auto_compact_token_limit` for Codex, or a usage mode's context limit).
+  Claude ignores limits under 100k, so a smaller threshold is raised to 100k and
+  the text says so. A still-running
   session that has **never compacted** also gets its own action: restarting now
   makes each of its R expected remaining requests `last − floor` cheaper, less
   one rebuild (both regrow alike). A session that compacts is never told to
@@ -1093,6 +1099,25 @@ copy, are never counted as runs.
   | `usage-back-on-track` | on | A window with a standing will-exhaust warning has been `on_track` or `idle` for 30 minutes, or has reset (at once). Sent once per warning (its dedupe key names the warning's time); it says the earlier warning no longer applies. After a withdrawal the window is not warned again in the same period unless the projection moves 12 h earlier than the warned one. |
   | `usage-at-risk` | off | A window becomes `at_risk`; once per window period. |
   | `usage-digest` | off | Once per day from 08:00 local (a restart later than 12:00 skips that day; the zone is `AGENT_MANAGER_TIMEZONE`, then `TZ`, then the host's `literal:/etc/localtime`): up to 3 live windows, most urgent status first, each with its top action and what it could still save before the reset. |
+  | `usage-mode-ended` | on | A usage mode ended. When the same evaluation also withdraws a will-exhaust warning for the mode's provider, one merged notification replaces the separate mode-ended and back-on-track messages. |
+  | `usage-mode-unreachable` | on | Once per mode, at least 30 minutes after it started: 40% or more of the observed burn since the start (and at least 2 points) came from work the mode cannot change. Checked at most hourly. |
+  | `usage-mode-started` | off | A mode appeared that no tapped decision started. Never sent for a mode started from a decision. |
+  | `usage-mode-evidence` | off | Once per mode when its evidence view has a result: a Learn comparison whose verdict is anything but not enough data, or a save mode whose model comparison reached a verdict inside its own period. Read from the same analysis as the Evidence tab (`ReadyEvidence`), checked hourly. The category is off at the hub until you turn it on. |
+  | `usage-mode-quality-drop` | off | At least an hour into a mode, checked hourly, once per mode: the operator's failure and correction reports (the proven `explicit_negative` operator signal, 2026-10-30 gate, precision 0.80 on the hold-out) are a larger share of their messages under the mode than in their own preceding period of the same length, on the same model, with the 95% range of the difference above zero and at least 20 classified messages on each side. The body gives both shares, the counts and the classifier's measured precision, says it can be wrong and the mode may not be the cause, and carries no message text. Off by default; nothing is sent when operator signals are switched off. |
+
+  The daily digest adds one line, `Usage mode on: <label> until <time>`, while a mode is active.
+
+  Usage mode **decisions** use the operator-decision contract
+  (`agent_manager.usage_mode.decision_requested.v1`, always `Reversible`, never
+  a default answer) and are asks, not categories, so they have no per-category
+  preference: run-out offer (Start until reset, Not now, Remind me in 30 min;
+  raised with the will-exhaust warning, once per window period, a "Not now" or
+  no answer is not asked again before the window resets), ending soon 15
+  minutes ahead (Extend, Let it end), and an until-off reminder after 24 hours
+  and daily (Keep it on, Turn off). Starting, extending and turning off need an
+  answer carrying a verified human (`answered_by`), which becomes
+  `started_by`; any other answer changes nothing. A redelivered answer is a
+  no-op. State lives in `notifier.json` beside the mode file.
 
   Every window alert's `context_url` is `/usage?window=<provider>/<pool>/<window>`.
   Dedupe state lives in `usage_forecast_alerts`, saved only after a publish
@@ -1113,8 +1138,8 @@ copy, are never counted as runs.
   weekly · secondary"). `burners --by <dimension> [--since] [--run]`,
   `recommendations [--run] [--pool P --window W]`, `friction [--status]`, `coverage [--since]` and `compare
   --left-*/--right-*` (the `measures` cohort selector: cohort, run ids,
-  filter, window). `compare` reports attributed points per successful run on
-  each side and is `insufficient` below five successful runs per side.
+  filter, window). `compare` reports attributed points per accepted work unit on
+  each side and is `insufficient` below five accepted work units per side.
   A run's weighted non-cache tokens (and its direct children's) or its redacted
   invocation facts are `run report <id> [--children] [--weights] [--facts]`;
   `usage reindex [<run-id>] [filters] [--full]` rebuilds durable invocation
@@ -1126,6 +1151,18 @@ copy, are never counted as runs.
   footprint by capability is `measures get token-attribution`, a different
   question). The command and measure reference is
   [operational-stats.md](../reference/operational-stats.md).
+- **Usage modes:** `agent-manager usage mode start|status|end` (RPCs
+  `StartUsageMode`, `ListUsageModes`, `EndUsageMode` on MeasuresService; policy in
+  [usage-modes.md](../../../../docs/configuration/usage-modes.md)). Start and end
+  require a verified operator (`requireModeOperator`, the standing-grant gate, and
+  the middleware refuses agents on those two procedures); `started_by` is the
+  verified subject. Status is agent-readable. The server resolves tiers from each
+  resource's `model-policy.json` found through the resource's own `policy_path`,
+  computes `*-reset` expiry from the latest quota readings (refused with a clear
+  error when none exists; Codex has only the weekly window), and the usage alerter
+  ends a `window_reset` mode early when a newer reading shows the window rolled.
+  Run creation applies the mode after role resolution and before an explicit model
+  (`orchestration/usage_mode_overlay.go`).
 - The REST statistics layer (`/api/v1/stats/summary` and its drill-down routes)
   is removed; Measures is the only analytics contract.
 

@@ -101,8 +101,8 @@ func (h *Handler) usageMeasures() []usageMeasure {
 			},
 		},
 		{
-			UsageCompare, "UsageCompare", "Quota points per successful run of two cohorts.",
-			[]string{"did this change reduce quota per success"},
+			UsageCompare, "UsageCompare", "Quota points per accepted work unit of two cohorts; a completed run is not accepted.",
+			[]string{"did this change reduce quota per accepted outcome"},
 			[]string{"provider", "left_cohort", "right_cohort", "left_run_ids", "right_run_ids", "change_binding"},
 			"sides", "side", "points",
 			func(ctx context.Context, p map[string]string) (proto.Message, error) {
@@ -113,6 +113,24 @@ func (h *Handler) usageMeasures() []usageMeasure {
 					Provider: p["provider"], ChangeBinding: p["change_binding"],
 					Left: selector(p["left_cohort"], p["left_run_ids"]), Right: selector(p["right_cohort"], p["right_run_ids"]),
 				})))
+			},
+		},
+		{
+			UsageParity, "UsageParity", "Coverage of usage, tool facts, tool outcomes, message signals, model, mode and outcome estimates per start path and harness, with a reason wherever it is below 90%.",
+			[]string{"do all sessions get the same measures", "which sessions are missing usage or tool facts"},
+			[]string{"window"},
+			"rows.measures", "name", "share",
+			func(ctx context.Context, p map[string]string) (proto.Message, error) {
+				return msg(h.UsageParity(ctx, connect.NewRequest(&measurepb.UsageParityRequest{Window: tokenWindow(p["window"])})))
+			},
+		},
+		{
+			UsageOutcomes, "UsageOutcomes", "Estimated points per accepted outcome, consumption per run, run length, rework, unknown rate and break-even by model, role or usage mode, with ranges.",
+			[]string{"which model is cheapest per accepted outcome", "what does a cheaper model really cost", "how much rework does each model cause"},
+			[]string{"window", "by", "baseline"},
+			"rows", "key", "points",
+			func(ctx context.Context, p map[string]string) (proto.Message, error) {
+				return msg(h.UsageOutcomes(ctx, connect.NewRequest(&measurepb.UsageOutcomesRequest{Window: tokenWindow(p["window"]), By: p["by"], Baseline: p["baseline"]})))
 			},
 		},
 	}

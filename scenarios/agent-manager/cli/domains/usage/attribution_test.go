@@ -25,6 +25,7 @@ type attributionFixture struct {
 	recs     *measurepb.UsageRecommendationsRequest
 	coverage *measurepb.UsageCoverageRequest
 	compare  *measurepb.UsageCompareRequest
+	outcomes *measurepb.UsageOutcomesRequest
 	friction *measurepb.UsageFrictionRequest
 	// interventions is the operator interventions section the friction fixture serves.
 	interventions *measurepb.UsageInterventions
@@ -129,10 +130,31 @@ func TestCoverageShareDoesNotPresentEmptyDenominatorAsComplete(t *testing.T) {
 func (f *attributionFixture) UsageCompare(_ context.Context, req *connect.Request[measurepb.UsageCompareRequest]) (*connect.Response[measurepb.UsageCompareResponse], error) {
 	f.compare = req.Msg
 	return connect.NewResponse(&measurepb.UsageCompareResponse{
-		Verdict: "improved", PointsPerSuccessChange: -0.4,
-		Left:    &measurepb.UsageCompareSide{Runs: 10, SuccessfulRuns: 8, PricedRuns: 10, Points: 4, PointsPerSuccess: 0.5, SuccessRate: 0.8},
-		Right:   &measurepb.UsageCompareSide{Runs: 10, SuccessfulRuns: 10, PricedRuns: 10, Points: 3, PointsPerSuccess: 0.3, SuccessRate: 1},
+		Verdict: "improved", PointsPerAcceptedChange: -0.4,
+		Left:    &measurepb.UsageCompareSide{Runs: 10, CompletedRuns: 10, AcceptedUnits: 8, UnknownUnits: 2, PricedRuns: 10, Points: 4, PointsPerAccepted: 0.5},
+		Right:   &measurepb.UsageCompareSide{Runs: 10, CompletedRuns: 10, AcceptedUnits: 10, PricedRuns: 10, Points: 3, PointsPerAccepted: 0.3},
 		Caveats: []string{"Cohorts are observational."},
+	}), nil
+}
+
+func (f *attributionFixture) UsageParity(context.Context, *connect.Request[measurepb.UsageParityRequest]) (*connect.Response[measurepb.UsageParityResponse], error) {
+	return connect.NewResponse(&measurepb.UsageParityResponse{BackfillRuns: 7, LedgerPending: 2,
+		Rows: []*measurepb.UsageParityRow{{Path: "imported", Harness: "codex", Runs: 10, EligibleRuns: 8, NoRequests: 2, Excluded: []*measurepb.UsageParityCount{{Name: "helper", Count: 1}},
+			Measures: []*measurepb.UsageParityMeasure{{Name: "tool_facts", Numerator: 4, Denominator: 8, Share: 0.5, NotApplicable: 2, Reason: "left recall"}}}},
+		Gaps: []*measurepb.UsageParityGap{{Subject: "grok transcripts", Status: "open", Count: 3, Reason: "no reader"}},
+	}), nil
+}
+
+func (f *attributionFixture) UsageOutcomes(_ context.Context, req *connect.Request[measurepb.UsageOutcomesRequest]) (*connect.Response[measurepb.UsageOutcomesResponse], error) {
+	f.outcomes = req.Msg
+	return connect.NewResponse(&measurepb.UsageOutcomesResponse{By: req.Msg.GetBy(), Units: 10, UnknownUnits: 5, Evidence: []*measurepb.UsageEvidenceCount{{Source: "validation", Units: 5}},
+		Rows: []*measurepb.UsageOutcomeRow{
+			{Key: "luna", Runner: "codex", Verdict: "cheaper", Baseline: "terra", Units: 5, Accepted: 5, BreakEvenRatio: 5, PriceSource: "tier_prior",
+				CheaperBy:         &measurepb.UsageRange{Available: true, Value: 1.67, Low: 1.5, High: 1.8},
+				PointsPerAccepted: &measurepb.UsageRange{Available: true, Value: 3, Low: 2, High: 4}},
+			{Key: "rare", Runner: "codex", Verdict: "not_enough_data", StatusReason: "2 accepted outcomes; need 5", Units: 2, Accepted: 2},
+		},
+		Refit: []*measurepb.UsageRefitRow{{Runner: "codex", Model: "luna", Status: "insufficient", Reason: "2 blocks dominated"}},
 	}), nil
 }
 
@@ -247,7 +269,18 @@ func TestUsageCoverageAndCompareRender(t *testing.T) {
 	if c := fixture.compare; len(c.GetLeft().GetRunIds()) != 1 || c.GetRight().GetCohort() != "after" || c.GetChangeBinding() != "luna-move" {
 		t.Fatalf("compare request = %v", c)
 	}
-	assertContains(t, out, "Verdict: improved (points per successful run -40%)", "left  10 runs, 8 successful (80%), 10 priced · ≈4.00 pts · ≈0.500 pts per success")
+	assertContains(t, out, "Verdict: improved (points per accepted unit -40%)", "left  10 runs (10 completed), 8 accepted units, 2 unknown, 10 priced · ≈4.00 pts · ≈0.500 pts per accepted")
+}
+
+func TestUsageParityAndOutcomesPrintTheirEvidence(t *testing.T) {
+	fixture := &attributionFixture{}
+	out := runUsageCommand(t, fixture, parityCommand, "--window", "last_7d")
+	assertContains(t, out, "imported / codex: 10 runs, 8 in denominators, 2 with no requests, 1 helper", "tool_facts       4/8 (50.0%), 2 not applicable: left recall", "[open] grok transcripts: 3. no reader", "7 old sessions imported in this window are excluded")
+	out = runUsageCommand(t, fixture, outcomesCommand, "--by", "role")
+	if fixture.outcomes.GetBy() != "role" {
+		t.Fatalf("outcomes request = %v", fixture.outcomes)
+	}
+	assertContains(t, out, "codex / luna: cheaper", "cheaper by 1.67x (1.50x to 1.80x)", "break-even 5.00x (tier_prior)", "codex / rare: not_enough_data: 2 accepted outcomes; need 5", "5 unknown (50%)", "codex/luna: insufficient. 2 blocks dominated")
 }
 
 func TestUsageFrictionListsPlainProblemsWithOwnerCostAndStatus(t *testing.T) {

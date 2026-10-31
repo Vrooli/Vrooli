@@ -96,6 +96,9 @@ type CreateRunRequest struct {
 	// admission enriches the request (for example, by inheriting parent refs).
 	// It is carried only to the persisted admission snapshot and is never wire data.
 	requestDigest string
+	// usageModeEligible marks a new run (not a recovery) whose creation may be
+	// lowered by an active usage mode; it is never wire data.
+	usageModeEligible bool
 	// Only the private workflow launcher supplies this pre-dispatch receipt.
 	workflowIdentity *domain.WorkflowRunIdentity
 

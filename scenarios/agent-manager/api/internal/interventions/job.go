@@ -65,6 +65,10 @@ type Job struct {
 	Now        func() time.Time
 	Log        *slog.Logger
 
+	// Signals, when set, classifies the same operator messages for reported
+	// failure, correction, frustration and satisfaction (SignalJob).
+	Signals *SignalJob
+
 	Interval, Window, Slice, PassBudget, Rewalk time.Duration
 	PageSize, PassMessages                      int
 
@@ -87,6 +91,9 @@ func (j *Job) Start(ctx context.Context) {
 	}
 	j.defaults()
 	go func() {
+		if j.Signals != nil {
+			j.Signals.Start(ctx)
+		}
 		if pruned, err := j.Store.PruneVersions(ctx, ClassifierVersion); err != nil {
 			j.Log.Warn("pruning old intervention classifications failed", "error", err.Error())
 		} else if pruned > 0 {
@@ -194,7 +201,7 @@ type runTurns struct {
 // need, which is all a message's classification and its repeat check read.
 // Only the events after those already held are read, and at most need minus
 // the last sequence held of them: sequences are unique in a run.
-func (j *Job) turnsThrough(ctx context.Context, runs passRuns, id uuid.UUID, need int64) (*runTurns, error) {
+func turnsThrough(ctx context.Context, source EventSource, runs passRuns, id uuid.UUID, need int64) (*runTurns, error) {
 	run := runs[id.String()]
 	if run == nil {
 		run = &runTurns{through: -1}
@@ -203,7 +210,7 @@ func (j *Job) turnsThrough(ctx context.Context, runs passRuns, id uuid.UUID, nee
 	if run.turns != nil && run.through >= need {
 		return run, nil
 	}
-	events, err := j.Events.Get(ctx, id, event.GetOptions{AfterSequence: run.through, Limit: int(need - run.through), EventTypes: []domain.RunEventType{domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeMetric, domain.EventTypeStatus}})
+	events, err := source.Get(ctx, id, event.GetOptions{AfterSequence: run.through, Limit: int(need - run.through), EventTypes: []domain.RunEventType{domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeMetric, domain.EventTypeStatus}})
 	if err != nil {
 		return nil, err
 	}
@@ -273,7 +280,7 @@ func (j *Job) processRun(ctx context.Context, runID string, candidates []Candida
 	for _, c := range candidates {
 		need = max(need, c.Sequence)
 	}
-	run, err := j.turnsThrough(ctx, runs, id, need)
+	run, err := turnsThrough(ctx, j.Events, runs, id, need)
 	if err != nil {
 		return nil, err
 	}

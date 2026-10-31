@@ -132,3 +132,22 @@ Independent, untuned set: do NOT use for training, cue mining or prompt tuning; 
   first 60), labelled blind. Observed agreement 54/60 = 0.90, Cohen kappa 0.870; friction-vs-not (first six categories vs
   scope_change/approval_or_info) agreement 0.933, kappa 0.864. Hold-out contains cue-selected rows (45% friction here), so
   kappa is not a prevalence-matched estimate. Details and boundary proposals in `p4-w4-interventions.md` "Validation sample".
+
+## Operator-signal corpus (`signal-turns.jsonl`), 2026-10-30
+Separate from the intervention categories above: five broad labels on operator messages, judged with the agent's preceding
+text (`reported_failure`, `correction`, `frustration`, `satisfaction`, `neutral`; priority in that order when several apply;
+definitions in `docs/reference/operational-stats.md` "Operator signals"). Used by `signal_benchmark_test.go`.
+- Pool: Codex rollouts of both roots (realpath-deduped) whose session id is in neither `operator-messages.jsonl` nor
+  `validation-random.jsonl` (fresh sessions); user.text only, sub-agent/guardian threads, injected/`<...>` blocks and provenance-tagged
+  messages dropped; 60-char-prefix templates (>= 4 occurrences) and fork replays removed; a preceding agent text is required.
+  5,847 messages / 2,066 sessions. Draw: `random.Random(20261031)` shuffle, at most 2 messages per session, first 270 (244 sessions).
+- Split: by session (sha1 of the session id, `% 100 < 50` -> holdout), so no session is in both: 133 train / 137 holdout.
+- Fields: `label` (first labeller, the building agent, from message + preceding agent text), `label_b` (independent second
+  labeller: a fresh read-only `claude -p --model sonnet` run given only the label definitions and the blind messages; it saw no
+  other label). `text` <= 2000 chars, `preceding_agent_text` <= 1500 chars. Messages are not redacted beyond what the rollouts
+  hold: do not publish this file.
+- Agreement on all 270: 254/270 = 0.941, Cohen kappa 0.894 (explicit-negative vs rest, i.e. reported_failure+correction: kappa 0.903).
+  Disagreements are not adjudicated; `label` is the gold used for scoring.
+- Counts (gold): neutral 172, reported_failure 45, correction 32, satisfaction 18, frustration 3. Frustration is too rare
+  in this operator's messages for any accuracy claim.
+- Tune on train only. The hold-out is scored once per model. Do not add rows after scoring and re-score.

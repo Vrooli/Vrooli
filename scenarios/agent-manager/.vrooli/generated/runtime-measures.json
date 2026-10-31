@@ -2,7 +2,7 @@
   "version": 1,
   "scenario": "agent-manager",
   "source_digests": {
-    "api/internal/measures/measures.go": "sha256:eb042b8fa555722f97235bfd9781b5d0e7173a4c773ca3ac199212a4f7dd54ec"
+    "api/internal/measures/measures.go": "sha256:46d2b8bff9ecc59b2301cde6d4a0a457b7cddbc2676f12053ce7b32f4b2f1441"
   },
   "bindings": [
     {

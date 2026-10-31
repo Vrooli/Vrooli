@@ -41,6 +41,12 @@ const (
 	// CapabilitiesServiceRunActionProcedure is the fully-qualified name of the CapabilitiesService's
 	// RunAction RPC.
 	CapabilitiesServiceRunActionProcedure = "/vrooli.web_console.v1.capabilities.CapabilitiesService/RunAction"
+	// CapabilitiesServiceAgentUpdateProcedure is the fully-qualified name of the CapabilitiesService's
+	// AgentUpdate RPC.
+	CapabilitiesServiceAgentUpdateProcedure = "/vrooli.web_console.v1.capabilities.CapabilitiesService/AgentUpdate"
+	// CapabilitiesServiceAgentUsageProcedure is the fully-qualified name of the CapabilitiesService's
+	// AgentUsage RPC.
+	CapabilitiesServiceAgentUsageProcedure = "/vrooli.web_console.v1.capabilities.CapabilitiesService/AgentUsage"
 )
 
 // CapabilitiesServiceClient is a client for the
@@ -49,6 +55,10 @@ type CapabilitiesServiceClient interface {
 	Get(context.Context, *connect.Request[capabilities.GetRequest]) (*connect.Response[capabilities.GetResponse], error)
 	Liveness(context.Context, *connect.Request[capabilities.LivenessRequest]) (*connect.Response[capabilities.LivenessResponse], error)
 	RunAction(context.Context, *connect.Request[capabilities.RunActionRequest]) (*connect.Response[capabilities.RunActionResponse], error)
+	// A bounded target-specific upstream observation; it never installs.
+	AgentUpdate(context.Context, *connect.Request[capabilities.AgentUpdateRequest]) (*connect.Response[capabilities.AgentUpdateResponse], error)
+	// Live provider readings, associated with a target and explicitly graded.
+	AgentUsage(context.Context, *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error)
 }
 
 // NewCapabilitiesServiceClient constructs a client for the
@@ -81,14 +91,28 @@ func NewCapabilitiesServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(capabilitiesServiceMethods.ByName("RunAction")),
 			connect.WithClientOptions(opts...),
 		),
+		agentUpdate: connect.NewClient[capabilities.AgentUpdateRequest, capabilities.AgentUpdateResponse](
+			httpClient,
+			baseURL+CapabilitiesServiceAgentUpdateProcedure,
+			connect.WithSchema(capabilitiesServiceMethods.ByName("AgentUpdate")),
+			connect.WithClientOptions(opts...),
+		),
+		agentUsage: connect.NewClient[capabilities.AgentUsageRequest, capabilities.AgentUsageResponse](
+			httpClient,
+			baseURL+CapabilitiesServiceAgentUsageProcedure,
+			connect.WithSchema(capabilitiesServiceMethods.ByName("AgentUsage")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // capabilitiesServiceClient implements CapabilitiesServiceClient.
 type capabilitiesServiceClient struct {
-	get       *connect.Client[capabilities.GetRequest, capabilities.GetResponse]
-	liveness  *connect.Client[capabilities.LivenessRequest, capabilities.LivenessResponse]
-	runAction *connect.Client[capabilities.RunActionRequest, capabilities.RunActionResponse]
+	get         *connect.Client[capabilities.GetRequest, capabilities.GetResponse]
+	liveness    *connect.Client[capabilities.LivenessRequest, capabilities.LivenessResponse]
+	runAction   *connect.Client[capabilities.RunActionRequest, capabilities.RunActionResponse]
+	agentUpdate *connect.Client[capabilities.AgentUpdateRequest, capabilities.AgentUpdateResponse]
+	agentUsage  *connect.Client[capabilities.AgentUsageRequest, capabilities.AgentUsageResponse]
 }
 
 // Get calls vrooli.web_console.v1.capabilities.CapabilitiesService.Get.
@@ -106,12 +130,26 @@ func (c *capabilitiesServiceClient) RunAction(ctx context.Context, req *connect.
 	return c.runAction.CallUnary(ctx, req)
 }
 
+// AgentUpdate calls vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate.
+func (c *capabilitiesServiceClient) AgentUpdate(ctx context.Context, req *connect.Request[capabilities.AgentUpdateRequest]) (*connect.Response[capabilities.AgentUpdateResponse], error) {
+	return c.agentUpdate.CallUnary(ctx, req)
+}
+
+// AgentUsage calls vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage.
+func (c *capabilitiesServiceClient) AgentUsage(ctx context.Context, req *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error) {
+	return c.agentUsage.CallUnary(ctx, req)
+}
+
 // CapabilitiesServiceHandler is an implementation of the
 // vrooli.web_console.v1.capabilities.CapabilitiesService service.
 type CapabilitiesServiceHandler interface {
 	Get(context.Context, *connect.Request[capabilities.GetRequest]) (*connect.Response[capabilities.GetResponse], error)
 	Liveness(context.Context, *connect.Request[capabilities.LivenessRequest]) (*connect.Response[capabilities.LivenessResponse], error)
 	RunAction(context.Context, *connect.Request[capabilities.RunActionRequest]) (*connect.Response[capabilities.RunActionResponse], error)
+	// A bounded target-specific upstream observation; it never installs.
+	AgentUpdate(context.Context, *connect.Request[capabilities.AgentUpdateRequest]) (*connect.Response[capabilities.AgentUpdateResponse], error)
+	// Live provider readings, associated with a target and explicitly graded.
+	AgentUsage(context.Context, *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error)
 }
 
 // NewCapabilitiesServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -139,6 +177,18 @@ func NewCapabilitiesServiceHandler(svc CapabilitiesServiceHandler, opts ...conne
 		connect.WithSchema(capabilitiesServiceMethods.ByName("RunAction")),
 		connect.WithHandlerOptions(opts...),
 	)
+	capabilitiesServiceAgentUpdateHandler := connect.NewUnaryHandler(
+		CapabilitiesServiceAgentUpdateProcedure,
+		svc.AgentUpdate,
+		connect.WithSchema(capabilitiesServiceMethods.ByName("AgentUpdate")),
+		connect.WithHandlerOptions(opts...),
+	)
+	capabilitiesServiceAgentUsageHandler := connect.NewUnaryHandler(
+		CapabilitiesServiceAgentUsageProcedure,
+		svc.AgentUsage,
+		connect.WithSchema(capabilitiesServiceMethods.ByName("AgentUsage")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.capabilities.CapabilitiesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CapabilitiesServiceGetProcedure:
@@ -147,6 +197,10 @@ func NewCapabilitiesServiceHandler(svc CapabilitiesServiceHandler, opts ...conne
 			capabilitiesServiceLivenessHandler.ServeHTTP(w, r)
 		case CapabilitiesServiceRunActionProcedure:
 			capabilitiesServiceRunActionHandler.ServeHTTP(w, r)
+		case CapabilitiesServiceAgentUpdateProcedure:
+			capabilitiesServiceAgentUpdateHandler.ServeHTTP(w, r)
+		case CapabilitiesServiceAgentUsageProcedure:
+			capabilitiesServiceAgentUsageHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -166,4 +220,12 @@ func (UnimplementedCapabilitiesServiceHandler) Liveness(context.Context, *connec
 
 func (UnimplementedCapabilitiesServiceHandler) RunAction(context.Context, *connect.Request[capabilities.RunActionRequest]) (*connect.Response[capabilities.RunActionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction is not implemented"))
+}
+
+func (UnimplementedCapabilitiesServiceHandler) AgentUpdate(context.Context, *connect.Request[capabilities.AgentUpdateRequest]) (*connect.Response[capabilities.AgentUpdateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate is not implemented"))
+}
+
+func (UnimplementedCapabilitiesServiceHandler) AgentUsage(context.Context, *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage is not implemented"))
 }

@@ -80,6 +80,16 @@ model, fallbacks, policy provenance, and native permission posture; Agent
 Manager consumes that response at run creation but does not duplicate the
 inventory or write OpenCode configuration.
 
+For a role's explicit choices, `resource-opencode policy choices --role
+code.default --json` returns the resource-declared model/source pairs,
+provenance, and policy digest. `resource-opencode policy select --role
+code.default --model <model> --source <source> --json` resolves one exact
+choice. Unknown choices fail; when the declared source is ambiguous, the caller
+must choose it explicitly. These commands report policy evidence only: they do
+not claim that a credential is present, that a provider account is bound to a
+launch, or that a paid route is qualified. Managed run creation continues to
+use `policy resolve` and its immutable default-role evidence.
+
 ## Permissions
 
 Manage the bash patterns OpenCode is allowed (or denied) to run via the

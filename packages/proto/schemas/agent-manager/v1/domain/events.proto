@@ -318,6 +318,11 @@ message MessageEventData {
   // earlier assistant message without duplicating its content.
   bool evidence_only = 13;
   string evidence_for_event_id = 14;
+
+  // Who authored a user-role message: operator, injected_context, notification,
+  // teammate, goal_continuation, wake, hook, tool_output or unknown. Empty on
+  // events stored before the field existed; read it through domain.MessageSource.
+  string source = 15;
 }
 
 // MessageAttachmentInfo stores metadata about an attachment included with a message.

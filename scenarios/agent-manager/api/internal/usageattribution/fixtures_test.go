@@ -124,10 +124,10 @@ func newWeekFixture() weekFixture {
 		run := fixtureRun(fmt.Sprintf("draft-terra-%d", i), fmt.Sprintf("draft-terra-%d", i), false)
 		run.Workload = "workflow_node:draft"
 		add(usageSpec{run: run, model: modelTerra, every: time.Hour, reports: 2, prompt: 30_000, output: 1500, from: time.Duration(i) * 30 * time.Hour, until: time.Duration(i)*30*time.Hour + 6*time.Hour})
-		f.outcomes = append(f.outcomes, Outcome{RunID: run.ID, Runner: codex, Model: modelTerra, Workload: run.Workload, Succeeded: i != 3, Tokens: draftRunTokens})
+		f.outcomes = append(f.outcomes, Outcome{RunID: run.ID, Runner: codex, Model: modelTerra, Workload: run.Workload, Accepted: i != 3, Tokens: draftRunTokens})
 	}
 	for i := 0; i < 6; i++ {
-		f.outcomes = append(f.outcomes, Outcome{RunID: fmt.Sprintf("draft-luna-%d", i), Runner: codex, Model: modelLuna, Workload: "workflow_node:draft", Succeeded: true, Tokens: draftRunTokens})
+		f.outcomes = append(f.outcomes, Outcome{RunID: fmt.Sprintf("draft-luna-%d", i), Runner: codex, Model: modelLuna, Workload: "workflow_node:draft", Accepted: true, Tokens: draftRunTokens})
 	}
 	// True quota: terra 0.4 points per USD, luna 0.6 (luna is a little dearer
 	// per USD than its list price), plus 0.02 pts/h of off-disk use.

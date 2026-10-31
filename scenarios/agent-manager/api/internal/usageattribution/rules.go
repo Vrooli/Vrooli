@@ -649,6 +649,7 @@ func ruleGrowth(in Inputs, primary []*Result, sessions map[*Result][]*sessionSta
 			var drill []Drill
 			var evidence []Ref
 			var priced []string
+			var prompts []float64
 			for _, c := range a.cands {
 				tokens := netAtCap(c.segs, c.rebuild, k)
 				value := c.use.saving(min(tokens*c.rs.pointsPerToken(), c.rs.points))
@@ -656,6 +657,7 @@ func ruleGrowth(in Inputs, primary []*Result, sessions map[*Result][]*sessionSta
 					continue
 				}
 				priced = append(priced, c.rs.id)
+				prompts = append(prompts, promptAtRequest(c.rs, k))
 				saved += value
 				points := c.use.recoverable(tokens * c.rs.pointsPerToken())
 				recoverable += points
@@ -683,9 +685,10 @@ func ruleGrowth(in Inputs, primary []*Result, sessions map[*Result][]*sessionSta
 				row.Text = fmt.Sprintf("Restart %s sub-agents after about %d requests instead of letting their context grow", runner, k)
 				row.Rationale = fmt.Sprintf("%d of %d sub-agents still save at that cap; %.0f%% of sub-agent quota was requests after #%d and %.0f%% at prompts above %dk. The cap is the median of each worker's best cap under the growth model; the saving re-prices every worker at that one cap, net of the floor rebuild and %d re-orientation requests.", len(priced), len(a.members), 100*share(after, a.points), k, 100*highShare, highPrompt/1000, orientRequests)
 			} else {
-				row.Title = fmt.Sprintf("Compact %s sessions after ~%d requests of growth", runner, k)
-				row.Text = fmt.Sprintf("Compact %s sessions about every %d requests (lower the auto-compact threshold) instead of letting context grow", runner, k)
-				row.Rationale = fmt.Sprintf("%.0f%% of %s session quota was requests above %dk tokens. %d sessions still save at that cap; %d compactions already happened and each session is priced on its own regrowth after them. The cap is the median best cap under the growth model; the saving re-prices every session at that one cap, net of rebuilding the floor and %d re-orientation requests.", 100*highShare, runner, highPrompt/1000, len(priced), a.compactions, orientRequests)
+				threshold, knob := ContextThreshold(runner, prompts)
+				row.Title = fmt.Sprintf("Compact %s sessions at about %dk tokens", runner, threshold/1000)
+				row.Text = fmt.Sprintf("Compact %s sessions when their context reaches about %dk tokens (roughly request %d of growth) instead of letting it grow: %s", runner, threshold/1000, k, knob)
+				row.Rationale = fmt.Sprintf("%.0f%% of %s session quota was requests above %dk tokens. %d sessions still save at a cap of %d requests, which is a context of about %dk tokens; %d compactions already happened and each session is priced on its own regrowth after them. The cap is the median best cap under the growth model; the saving re-prices every session at that one cap, net of rebuilding the floor and %d re-orientation requests.", 100*highShare, runner, highPrompt/1000, len(priced), k, threshold/1000, a.compactions, orientRequests)
 			}
 			row.Evidence, row.Drilldown = evidence, topDrill(drill, "")
 			row.Verify = compareVerify(result, runnerFilter(runner), evidence, len(priced))
@@ -703,6 +706,51 @@ func ruleGrowth(in Inputs, primary []*Result, sessions map[*Result][]*sessionSta
 		status.Reason = fmt.Sprintf("no %s grew past its own first request by more than a restart or compaction costs (caps of %d+ requests) in the current window", role(child), minCap)
 	}
 	return out, status
+}
+
+// promptAtRequest is the request size, in tokens, the run reached at its k-th
+// request (the last turn's mean request size when it made fewer).
+func promptAtRequest(rs *runStat, k int) float64 {
+	var seen int
+	var prompt float64
+	for _, p := range rs.series {
+		prompt = p.prompt
+		seen += p.reports
+		if seen >= k {
+			break
+		}
+	}
+	return prompt
+}
+
+// minContextThreshold is the smallest threshold worth setting: below it a
+// compaction costs about as much as the context it removes.
+const minContextThreshold = 40_000
+
+// claudeMinContextThreshold is the smallest auto-compact window Claude Code
+// honours; a lower request is raised to it.
+const claudeMinContextThreshold = 100_000
+
+// ContextThreshold turns a request cap into the token threshold a harness is
+// told: the median request size at the cap, rounded to 10k and never below
+// minContextThreshold. Claude honours nothing under 100k, so its threshold is
+// raised to that and the sentence says so. The knob names the per-harness
+// setting an operator can use without persisting anything.
+func ContextThreshold(runner string, prompts []float64) (int64, string) {
+	tokens := int64(math.Round(median(append([]float64(nil), prompts...))/10_000) * 10_000)
+	tokens = max(tokens, minContextThreshold)
+	switch runner {
+	case "claude", "claude-code":
+		note := ""
+		if tokens < claudeMinContextThreshold {
+			tokens = claudeMinContextThreshold
+			note = " (Claude ignores limits under 100k, so this is raised to 100k)"
+		}
+		return tokens, fmt.Sprintf("set CLAUDE_CODE_AUTO_COMPACT_WINDOW=%d for the harness%s, or use a usage mode's context limit", tokens, note)
+	case "codex":
+		return tokens, fmt.Sprintf("set model_auto_compact_token_limit=%d for the harness, or use a usage mode's context limit", tokens)
+	}
+	return tokens, "lower the harness's auto-compact threshold to that size"
 }
 
 // pointsAfter is the run's points in requests after its first k.
@@ -1105,8 +1153,8 @@ func ruleModel(in Inputs, primary []*Result, _ map[*Result][]*sessionStats) ([]A
 			byWorkload[outcome.Workload] = append(byWorkload[outcome.Workload], outcome.Model)
 		}
 		t.runs++
-		if outcome.Succeeded {
-			t.succeeded++
+		if outcome.Accepted {
+			t.accepted++
 		}
 		t.cost += in.Prices(outcome.Runner, outcome.Model).normalized().cost(outcome.Tokens)
 		t.runIDs = append(t.runIDs, outcome.RunID)
@@ -1153,8 +1201,8 @@ func ruleModel(in Inputs, primary []*Result, _ map[*Result][]*sessionStats) ([]A
 				row.Confidence = "medium"
 			}
 			row.Title = shorten(fmt.Sprintf("Move %s to %s", workloadLabel(workload, workload), best), titleRunes)
-			row.Text = fmt.Sprintf("Move %s from %s to %s (success %.0f%% on %d runs vs %.0f%% on %d)", workload, expensive, best, rate(low)*100, low.runs, rate(high)*100, high.runs)
-			row.Rationale = fmt.Sprintf("Over the last %d days the workload succeeded on %s at least as often (within %.0f points) as on %s, at %.0f%% of its price per token; %s's runs cost ≈%.1f points a week at this window's calibration.", int(Lookback.Hours()/24), best, modelSuccessSlack*100, expensive, bestRatio*100, expensive, weekly)
+			row.Text = fmt.Sprintf("Move %s from %s to %s (accepted estimate %.0f%% on %d runs vs %.0f%% on %d)", workload, expensive, best, rate(low)*100, low.runs, rate(high)*100, high.runs)
+			row.Rationale = fmt.Sprintf("Over the last %d days the workload's outcome estimate was accepted on %s at least as often (within %.0f points) as on %s, at %.0f%% of its price per token; %s's runs cost ≈%.1f points a week at this window's calibration.", int(Lookback.Hours()/24), best, modelSuccessSlack*100, expensive, bestRatio*100, expensive, weekly)
 			if prior {
 				row.Rationale += " The price ratio is a prior (a model has no price-book entry), so the saving is an upper estimate."
 			}
@@ -1167,22 +1215,22 @@ func ruleModel(in Inputs, primary []*Result, _ map[*Result][]*sessionStats) ([]A
 		}
 	}
 	if len(out) == 0 {
-		status.Reason = fmt.Sprintf("no workload in the last %d days ran on a cheaper model with %d+ runs and a success rate within %.0f points of its pricier model (%d workloads ran on 2+ models)", int(Lookback.Hours()/24), modelMinRuns, modelSuccessSlack*100, status.Candidates)
+		status.Reason = fmt.Sprintf("no workload in the last %d days ran on a cheaper model with %d+ runs and an accepted-estimate rate within %.0f points of its pricier model (%d workloads ran on 2+ models)", int(Lookback.Hours()/24), modelMinRuns, modelSuccessSlack*100, status.Candidates)
 	}
 	return out, status
 }
 
 type tally struct {
-	runs, succeeded int
-	cost            float64
-	runIDs          []string
+	runs, accepted int
+	cost           float64
+	runIDs         []string
 }
 
 func rate(t *tally) float64 {
 	if t.runs == 0 {
 		return 0
 	}
-	return float64(t.succeeded) / float64(t.runs)
+	return float64(t.accepted) / float64(t.runs)
 }
 
 // Lookback is how far back R-model reads run outcomes.

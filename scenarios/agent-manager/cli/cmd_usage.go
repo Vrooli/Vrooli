@@ -93,7 +93,7 @@ func (a *App) weightedTokens(ids []string, weights map[string]float64) (*tokenRe
 func (a *App) usageCommands() []cliapp.Command {
 	reindex := support.Command("reindex", "Rebuild durable invocation evidence for one run or a filtered corpus [--full] [--json]", a.usageReindex)
 	reindex.Usage = "agent-manager usage reindex [<run-id>] [--from RFC3339] [--to RFC3339] [--status s] [--profile-id UUID] [--tag-prefix p] [--limit n] [--full] [--json]"
-	return []cliapp.Command{reindex}
+	return []cliapp.Command{reindex, a.usageModeCommand(), a.usageExperimentCommand(), a.usageSignalsCommand()}
 }
 
 // printSpend prints the weighted non-cache token spend rows `run report` shows.

@@ -293,6 +293,21 @@ func ForwardedOperationToken(ctx context.Context) string {
 	return identity.operationToken
 }
 
+// CarryVerifiedIdentity copies only middleware-verified agent credentials to a
+// server-owned context. It does not carry request cancellation or other request
+// values. The receiver must reverify the credentials at each later boundary;
+// this snapshot is not evidence that a credential remains active.
+func CarryVerifiedIdentity(dst, src context.Context) context.Context {
+	if src == nil || ForwardedIdentityToken(src) == "" {
+		return dst
+	}
+	identity, ok := src.Value(contextKey{}).(requestIdentity)
+	if !ok {
+		return dst
+	}
+	return context.WithValue(dst, contextKey{}, identity)
+}
+
 // Verifier is the narrow Agent Manager verification seam. It keeps Agent
 // Manager as token authority and makes all server behavior testable.
 type Verifier interface {

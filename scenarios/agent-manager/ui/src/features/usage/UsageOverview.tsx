@@ -1,12 +1,17 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card } from "@vrooli/react-component-library/Card/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
-import type { UsageWindowForecast, UsageWindowOutcome } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
+import type { UsageAction, UsageWindowForecast, UsageWindowOutcome } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { formatPoints, MISSING } from "../../lib/format";
-import { useUsageForecast, useUsageRecommendations } from "./api";
+import { useUsageForecast, useUsageModes, useUsageRecommendations } from "./api";
 import { formatAt, formatRate, usageStatus, windowKey, windowTitle } from "./format";
 import { consequence, isAtRisk, pickWindow } from "./usageFocus";
 import { UsageActions } from "./UsageActions";
+import { effectOfAction, runnerForProvider, type EffectRange, type ModeRunner } from "./modes";
+import { UsageModeBanners } from "./UsageModeBanner";
+import { UsageModeSheet } from "./UsageModeSheet";
 import { UsageBurners } from "./UsageBurners";
 import { UsageWindows, WindowDetail } from "./UsageWindows";
 
@@ -49,6 +54,8 @@ function FocusBand({ forecast, siblings, outcome }: { forecast: UsageWindowForec
 export function UsageOverview() {
   const [params, setParams] = useSearchParams();
   const forecast = useUsageForecast();
+  const modes = useUsageModes();
+  const [sheet, setSheet] = useState<{ runner: ModeRunner | ""; windowName: string; windowMinutes?: number; effect?: EffectRange } | null>(null);
   const windows = forecast.data?.windows ?? [];
   const selected = pickWindow(windows, params.get("window") ?? "");
   const key = selected ? windowKey(selected) : "";
@@ -61,8 +68,32 @@ export function UsageOverview() {
     updated.set("window", next);
     return updated;
   }, { replace: true });
+  const startFromAction = (action: UsageAction) => setSheet({ runner: runnerForProvider(action.provider), windowName: windowTitle(action, windows), windowMinutes: Number.parseInt(action.window, 10) || undefined, effect: effectOfAction(action) });
+  const startFromWindow = () => selected && setSheet({
+    runner: runnerForProvider(selected.provider),
+    windowName: windowTitle(selected, windows),
+    windowMinutes: Number(selected.windowMinutes),
+    effect: recommendations.data?.outcome && recommendations.data.outcome.recoverablePoints > 0 ? { highPoints: recommendations.data.outcome.recoverablePoints } : undefined,
+  });
   return (
     <div className="flex flex-col gap-4">
+      <UsageModeBanners modes={modes.data} windows={windows} />
+      {selected && (modes.data?.modes.length ?? 0) === 0 ? (
+        <div className="flex justify-end"><Button variant="secondary" onClick={startFromWindow} data-testid="mode-open-sheet">Save usage for a while</Button></div>
+      ) : null}
+      {sheet ? (
+        <UsageModeSheet
+          open
+          onClose={() => setSheet(null)}
+          runner={sheet.runner}
+          windowName={sheet.windowName}
+          windowMinutes={sheet.windowMinutes}
+          effect={sheet.effect}
+          windows={windows}
+          reach={modes.data?.reach ?? []}
+          reachNotes={modes.data?.reachNotes ?? []}
+        />
+      ) : null}
       <UsageWindows windows={windows} loading={forecast.isLoading} error={forecast.error} onRetry={() => void forecast.refetch()} selected={key} onSelect={select} />
       {selected ? (
         <>
@@ -81,6 +112,7 @@ export function UsageOverview() {
                 below={Number(recommendations.data?.belowMateriality ?? 0n)}
                 materiality={recommendations.data?.materialityScore ?? 0}
                 notes={notes}
+                onStartMode={startFromAction}
               />
             </Card>
             <Card className="p-4 sm:p-5" data-testid="usage-section-burners"><UsageBurners selected={key} rules={recommendations.data?.rules ?? []} /></Card>

@@ -154,6 +154,178 @@ func (InferenceErrorCode) EnumDescriptor() ([]byte, []int) {
 	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{1}
 }
 
+// DecisionQuestionType is the closed set of decision question shapes. A
+// decision model answers every question with one value from its declared set
+// and never generates text.
+type DecisionQuestionType int32
+
+const (
+	DecisionQuestionType_DECISION_QUESTION_TYPE_UNSPECIFIED DecisionQuestionType = 0
+	// CHOICE picks one of 2-255 labelled options.
+	DecisionQuestionType_DECISION_QUESTION_TYPE_CHOICE DecisionQuestionType = 1
+	// SCORE places the state on 2-10 ordered levels, level 0 first.
+	DecisionQuestionType_DECISION_QUESTION_TYPE_SCORE DecisionQuestionType = 2
+	// NOUL is the probability that a statement holds (yes/no).
+	DecisionQuestionType_DECISION_QUESTION_TYPE_NOUL DecisionQuestionType = 3
+)
+
+// Enum value maps for DecisionQuestionType.
+var (
+	DecisionQuestionType_name = map[int32]string{
+		0: "DECISION_QUESTION_TYPE_UNSPECIFIED",
+		1: "DECISION_QUESTION_TYPE_CHOICE",
+		2: "DECISION_QUESTION_TYPE_SCORE",
+		3: "DECISION_QUESTION_TYPE_NOUL",
+	}
+	DecisionQuestionType_value = map[string]int32{
+		"DECISION_QUESTION_TYPE_UNSPECIFIED": 0,
+		"DECISION_QUESTION_TYPE_CHOICE":      1,
+		"DECISION_QUESTION_TYPE_SCORE":       2,
+		"DECISION_QUESTION_TYPE_NOUL":        3,
+	}
+)
+
+func (x DecisionQuestionType) Enum() *DecisionQuestionType {
+	p := new(DecisionQuestionType)
+	*p = x
+	return p
+}
+
+func (x DecisionQuestionType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DecisionQuestionType) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_inference_inference_proto_enumTypes[2].Descriptor()
+}
+
+func (DecisionQuestionType) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_inference_inference_proto_enumTypes[2]
+}
+
+func (x DecisionQuestionType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DecisionQuestionType.Descriptor instead.
+func (DecisionQuestionType) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{2}
+}
+
+type DecisionMethod int32
+
+const (
+	DecisionMethod_DECISION_METHOD_UNSPECIFIED DecisionMethod = 0
+	// DECISION_MODEL answers come from a non-generative decision model and carry
+	// calibrated probabilities.
+	DecisionMethod_DECISION_METHOD_DECISION_MODEL DecisionMethod = 1
+	// LLM_ENUM answers come from a generative model constrained to an enum by
+	// the typed classify path. They carry the choice only: no confidence and no
+	// probabilities, because an LLM label is not a calibrated distribution.
+	DecisionMethod_DECISION_METHOD_LLM_ENUM DecisionMethod = 2
+)
+
+// Enum value maps for DecisionMethod.
+var (
+	DecisionMethod_name = map[int32]string{
+		0: "DECISION_METHOD_UNSPECIFIED",
+		1: "DECISION_METHOD_DECISION_MODEL",
+		2: "DECISION_METHOD_LLM_ENUM",
+	}
+	DecisionMethod_value = map[string]int32{
+		"DECISION_METHOD_UNSPECIFIED":    0,
+		"DECISION_METHOD_DECISION_MODEL": 1,
+		"DECISION_METHOD_LLM_ENUM":       2,
+	}
+)
+
+func (x DecisionMethod) Enum() *DecisionMethod {
+	p := new(DecisionMethod)
+	*p = x
+	return p
+}
+
+func (x DecisionMethod) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DecisionMethod) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_inference_inference_proto_enumTypes[3].Descriptor()
+}
+
+func (DecisionMethod) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_inference_inference_proto_enumTypes[3]
+}
+
+func (x DecisionMethod) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DecisionMethod.Descriptor instead.
+func (DecisionMethod) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{3}
+}
+
+type DecisionCandidateStatus int32
+
+const (
+	DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_UNSPECIFIED DecisionCandidateStatus = 0
+	DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_ANSWERED    DecisionCandidateStatus = 1
+	// SKIPPED candidates were not dispatched: unconfigured credentials, an
+	// unpulled model, a forbidden locality, or a fallback that cannot express
+	// the question types.
+	DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_SKIPPED DecisionCandidateStatus = 2
+	// FAILED candidates were dispatched and did not return a valid answer set.
+	DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_FAILED DecisionCandidateStatus = 3
+	// NOT_ATTEMPTED candidates follow the one that answered.
+	DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED DecisionCandidateStatus = 4
+)
+
+// Enum value maps for DecisionCandidateStatus.
+var (
+	DecisionCandidateStatus_name = map[int32]string{
+		0: "DECISION_CANDIDATE_STATUS_UNSPECIFIED",
+		1: "DECISION_CANDIDATE_STATUS_ANSWERED",
+		2: "DECISION_CANDIDATE_STATUS_SKIPPED",
+		3: "DECISION_CANDIDATE_STATUS_FAILED",
+		4: "DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED",
+	}
+	DecisionCandidateStatus_value = map[string]int32{
+		"DECISION_CANDIDATE_STATUS_UNSPECIFIED":   0,
+		"DECISION_CANDIDATE_STATUS_ANSWERED":      1,
+		"DECISION_CANDIDATE_STATUS_SKIPPED":       2,
+		"DECISION_CANDIDATE_STATUS_FAILED":        3,
+		"DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED": 4,
+	}
+)
+
+func (x DecisionCandidateStatus) Enum() *DecisionCandidateStatus {
+	p := new(DecisionCandidateStatus)
+	*p = x
+	return p
+}
+
+func (x DecisionCandidateStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DecisionCandidateStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_gateway_v1_inference_inference_proto_enumTypes[4].Descriptor()
+}
+
+func (DecisionCandidateStatus) Type() protoreflect.EnumType {
+	return &file_ai_gateway_v1_inference_inference_proto_enumTypes[4]
+}
+
+func (x DecisionCandidateStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DecisionCandidateStatus.Descriptor instead.
+func (DecisionCandidateStatus) EnumDescriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{4}
+}
+
 type Usage struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	InputTokens  int64                  `protobuf:"varint,1,opt,name=input_tokens,json=inputTokens,proto3" json:"input_tokens,omitempty"`
@@ -1243,6 +1415,796 @@ func (x *EmbeddingVector) GetValues() []float64 {
 	return nil
 }
 
+type DecisionOption struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// label is the value returned when this option is chosen.
+	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// description says what the option means; the model reads it.
+	Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecisionOption) Reset() {
+	*x = DecisionOption{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecisionOption) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecisionOption) ProtoMessage() {}
+
+func (x *DecisionOption) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecisionOption.ProtoReflect.Descriptor instead.
+func (*DecisionOption) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DecisionOption) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *DecisionOption) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type DecisionQuestion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id names the answer. Unique within a request; letters, digits, '_', '.'
+	// and '-', at most 100 characters.
+	Id   string               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type DecisionQuestionType `protobuf:"varint,2,opt,name=type,proto3,enum=vrooli.ai_gateway.v1.inference.DecisionQuestionType" json:"type,omitempty"`
+	// instructions say what to decide. Absent, decision models read the id.
+	Instructions string `protobuf:"bytes,3,opt,name=instructions,proto3" json:"instructions,omitempty"`
+	// options are the CHOICE labels, 2-255 distinct, in caller order.
+	Options []*DecisionOption `protobuf:"bytes,4,rep,name=options,proto3" json:"options,omitempty"`
+	// levels are the SCORE level descriptions, 2-10, level 0 first.
+	Levels []string `protobuf:"bytes,5,rep,name=levels,proto3" json:"levels,omitempty"`
+	// true_description and false_description optionally define a NOUL answer.
+	TrueDescription  string `protobuf:"bytes,6,opt,name=true_description,json=trueDescription,proto3" json:"true_description,omitempty"`
+	FalseDescription string `protobuf:"bytes,7,opt,name=false_description,json=falseDescription,proto3" json:"false_description,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DecisionQuestion) Reset() {
+	*x = DecisionQuestion{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecisionQuestion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecisionQuestion) ProtoMessage() {}
+
+func (x *DecisionQuestion) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecisionQuestion.ProtoReflect.Descriptor instead.
+func (*DecisionQuestion) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DecisionQuestion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DecisionQuestion) GetType() DecisionQuestionType {
+	if x != nil {
+		return x.Type
+	}
+	return DecisionQuestionType_DECISION_QUESTION_TYPE_UNSPECIFIED
+}
+
+func (x *DecisionQuestion) GetInstructions() string {
+	if x != nil {
+		return x.Instructions
+	}
+	return ""
+}
+
+func (x *DecisionQuestion) GetOptions() []*DecisionOption {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *DecisionQuestion) GetLevels() []string {
+	if x != nil {
+		return x.Levels
+	}
+	return nil
+}
+
+func (x *DecisionQuestion) GetTrueDescription() string {
+	if x != nil {
+		return x.TrueDescription
+	}
+	return ""
+}
+
+func (x *DecisionQuestion) GetFalseDescription() string {
+	if x != nil {
+		return x.FalseDescription
+	}
+	return ""
+}
+
+// DecideRequest asks typed questions about one state. The gateway owns the
+// candidate walk: a role's decision models first, then the role's declared
+// fallback. Callers never name a provider, model or credential.
+type DecideRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// role is a decision role from the inference role catalog, such as
+	// decide.fast.
+	Role string `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	// state is plain text. Exactly one of state and state_json is set.
+	State string `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
+	// state_json is a JSON object or array whose structure carries meaning.
+	StateJson string `protobuf:"bytes,3,opt,name=state_json,json=stateJson,proto3" json:"state_json,omitempty"`
+	// questions are answered together over the same state, 1-64 per request.
+	Questions []*DecisionQuestion `protobuf:"bytes,4,rep,name=questions,proto3" json:"questions,omitempty"`
+	// profile carries the caller's locality stance; LOCAL_ONLY never leaves the
+	// host and REMOTE_ONLY never runs a local candidate.
+	Profile       shared.Profile `protobuf:"varint,5,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideRequest) Reset() {
+	*x = DecideRequest{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideRequest) ProtoMessage() {}
+
+func (x *DecideRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideRequest.ProtoReflect.Descriptor instead.
+func (*DecideRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DecideRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *DecideRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *DecideRequest) GetStateJson() string {
+	if x != nil {
+		return x.StateJson
+	}
+	return ""
+}
+
+func (x *DecideRequest) GetQuestions() []*DecisionQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *DecideRequest) GetProfile() shared.Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return shared.Profile(0)
+}
+
+type DecisionProbability struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// option is the CHOICE label, or the SCORE level index ("0", "1", ...).
+	Option        string  `protobuf:"bytes,1,opt,name=option,proto3" json:"option,omitempty"`
+	Probability   float64 `protobuf:"fixed64,2,opt,name=probability,proto3" json:"probability,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecisionProbability) Reset() {
+	*x = DecisionProbability{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecisionProbability) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecisionProbability) ProtoMessage() {}
+
+func (x *DecisionProbability) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecisionProbability.ProtoReflect.Descriptor instead.
+func (*DecisionProbability) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DecisionProbability) GetOption() string {
+	if x != nil {
+		return x.Option
+	}
+	return ""
+}
+
+func (x *DecisionProbability) GetProbability() float64 {
+	if x != nil {
+		return x.Probability
+	}
+	return 0
+}
+
+type DecisionAnswer struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	QuestionId string                 `protobuf:"bytes,1,opt,name=question_id,json=questionId,proto3" json:"question_id,omitempty"`
+	Type       DecisionQuestionType   `protobuf:"varint,2,opt,name=type,proto3,enum=vrooli.ai_gateway.v1.inference.DecisionQuestionType" json:"type,omitempty"`
+	// choice is the chosen CHOICE label.
+	Choice string `protobuf:"bytes,3,opt,name=choice,proto3" json:"choice,omitempty"`
+	// score is the expected SCORE level, sum of i * p_i; it can fall between
+	// levels.
+	Score *float64 `protobuf:"fixed64,4,opt,name=score,proto3,oneof" json:"score,omitempty"`
+	// noul is the probability that the NOUL statement holds.
+	Noul *float64 `protobuf:"fixed64,5,opt,name=noul,proto3,oneof" json:"noul,omitempty"`
+	// confidence is the normalized top probability (K * p_max - 1) / (K - 1)
+	// for CHOICE and SCORE. Absent for NOUL, and when the answering method
+	// reports no distribution.
+	Confidence *float64 `protobuf:"fixed64,6,opt,name=confidence,proto3,oneof" json:"confidence,omitempty"`
+	// probabilities cover every CHOICE label or SCORE level in declared order.
+	// Empty when the answering method reports no distribution.
+	Probabilities []*DecisionProbability `protobuf:"bytes,7,rep,name=probabilities,proto3" json:"probabilities,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecisionAnswer) Reset() {
+	*x = DecisionAnswer{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecisionAnswer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecisionAnswer) ProtoMessage() {}
+
+func (x *DecisionAnswer) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecisionAnswer.ProtoReflect.Descriptor instead.
+func (*DecisionAnswer) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *DecisionAnswer) GetQuestionId() string {
+	if x != nil {
+		return x.QuestionId
+	}
+	return ""
+}
+
+func (x *DecisionAnswer) GetType() DecisionQuestionType {
+	if x != nil {
+		return x.Type
+	}
+	return DecisionQuestionType_DECISION_QUESTION_TYPE_UNSPECIFIED
+}
+
+func (x *DecisionAnswer) GetChoice() string {
+	if x != nil {
+		return x.Choice
+	}
+	return ""
+}
+
+func (x *DecisionAnswer) GetScore() float64 {
+	if x != nil && x.Score != nil {
+		return *x.Score
+	}
+	return 0
+}
+
+func (x *DecisionAnswer) GetNoul() float64 {
+	if x != nil && x.Noul != nil {
+		return *x.Noul
+	}
+	return 0
+}
+
+func (x *DecisionAnswer) GetConfidence() float64 {
+	if x != nil && x.Confidence != nil {
+		return *x.Confidence
+	}
+	return 0
+}
+
+func (x *DecisionAnswer) GetProbabilities() []*DecisionProbability {
+	if x != nil {
+		return x.Probabilities
+	}
+	return nil
+}
+
+// DecisionCandidate is one row of the walk the gateway performed, in catalog
+// order, so a caller can see why a hosted candidate was not used.
+type DecisionCandidate struct {
+	state        protoimpl.MessageState  `protogen:"open.v1"`
+	Provider     string                  `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	ResourceRole string                  `protobuf:"bytes,2,opt,name=resource_role,json=resourceRole,proto3" json:"resource_role,omitempty"`
+	Locality     string                  `protobuf:"bytes,3,opt,name=locality,proto3" json:"locality,omitempty"`
+	Status       DecisionCandidateStatus `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.ai_gateway.v1.inference.DecisionCandidateStatus" json:"status,omitempty"`
+	// reason is a stable code: unconfigured, unreachable, missing_binary,
+	// locality_forbidden, unsupported_question_types, invalid_answers,
+	// context_overflow, rate_limited, provider_overloaded, timeout or
+	// provider_failed. Empty for ANSWERED and NOT_ATTEMPTED rows.
+	Reason string `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Detail string `protobuf:"bytes,6,opt,name=detail,proto3" json:"detail,omitempty"`
+	// @unit milliseconds
+	LatencyMs     int64 `protobuf:"varint,7,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecisionCandidate) Reset() {
+	*x = DecisionCandidate{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecisionCandidate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecisionCandidate) ProtoMessage() {}
+
+func (x *DecisionCandidate) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecisionCandidate.ProtoReflect.Descriptor instead.
+func (*DecisionCandidate) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *DecisionCandidate) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *DecisionCandidate) GetResourceRole() string {
+	if x != nil {
+		return x.ResourceRole
+	}
+	return ""
+}
+
+func (x *DecisionCandidate) GetLocality() string {
+	if x != nil {
+		return x.Locality
+	}
+	return ""
+}
+
+func (x *DecisionCandidate) GetStatus() DecisionCandidateStatus {
+	if x != nil {
+		return x.Status
+	}
+	return DecisionCandidateStatus_DECISION_CANDIDATE_STATUS_UNSPECIFIED
+}
+
+func (x *DecisionCandidate) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *DecisionCandidate) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *DecisionCandidate) GetLatencyMs() int64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+type DecideResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// answers follow the request's question order.
+	Answers  []*DecisionAnswer `protobuf:"bytes,1,rep,name=answers,proto3" json:"answers,omitempty"`
+	Provider string            `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Model    string            `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	Method   DecisionMethod    `protobuf:"varint,4,opt,name=method,proto3,enum=vrooli.ai_gateway.v1.inference.DecisionMethod" json:"method,omitempty"`
+	Usage    *Usage            `protobuf:"bytes,5,opt,name=usage,proto3" json:"usage,omitempty"`
+	Error    *InferenceError   `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	// latency_ms is the answering candidate's execution time measured by the
+	// gateway, model load included.
+	// @unit milliseconds
+	LatencyMs  int64                `protobuf:"varint,7,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	Candidates []*DecisionCandidate `protobuf:"bytes,8,rep,name=candidates,proto3" json:"candidates,omitempty"`
+	// resource_role is the answering candidate's role, which names the upstream
+	// (for example decide.local or decide.jev.edenai).
+	ResourceRole string `protobuf:"bytes,9,opt,name=resource_role,json=resourceRole,proto3" json:"resource_role,omitempty"`
+	// locality is where the answering candidate ran: local means the state never
+	// left the host. Empty for the LLM enum fallback, whose own walk owns it.
+	Locality      string `protobuf:"bytes,10,opt,name=locality,proto3" json:"locality,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideResponse) Reset() {
+	*x = DecideResponse{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideResponse) ProtoMessage() {}
+
+func (x *DecideResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideResponse.ProtoReflect.Descriptor instead.
+func (*DecideResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DecideResponse) GetAnswers() []*DecisionAnswer {
+	if x != nil {
+		return x.Answers
+	}
+	return nil
+}
+
+func (x *DecideResponse) GetProvider() string {
+	if x != nil {
+		return x.Provider
+	}
+	return ""
+}
+
+func (x *DecideResponse) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *DecideResponse) GetMethod() DecisionMethod {
+	if x != nil {
+		return x.Method
+	}
+	return DecisionMethod_DECISION_METHOD_UNSPECIFIED
+}
+
+func (x *DecideResponse) GetUsage() *Usage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
+func (x *DecideResponse) GetError() *InferenceError {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
+func (x *DecideResponse) GetLatencyMs() int64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
+func (x *DecideResponse) GetCandidates() []*DecisionCandidate {
+	if x != nil {
+		return x.Candidates
+	}
+	return nil
+}
+
+func (x *DecideResponse) GetResourceRole() string {
+	if x != nil {
+		return x.ResourceRole
+	}
+	return ""
+}
+
+func (x *DecideResponse) GetLocality() string {
+	if x != nil {
+		return x.Locality
+	}
+	return ""
+}
+
+type DecideBatchItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	State         string                 `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	StateJson     string                 `protobuf:"bytes,2,opt,name=state_json,json=stateJson,proto3" json:"state_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideBatchItem) Reset() {
+	*x = DecideBatchItem{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideBatchItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideBatchItem) ProtoMessage() {}
+
+func (x *DecideBatchItem) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideBatchItem.ProtoReflect.Descriptor instead.
+func (*DecideBatchItem) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DecideBatchItem) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *DecideBatchItem) GetStateJson() string {
+	if x != nil {
+		return x.StateJson
+	}
+	return ""
+}
+
+// DecideBatchRequest asks the same questions about up to 256 states.
+type DecideBatchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          string                 `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	Questions     []*DecisionQuestion    `protobuf:"bytes,2,rep,name=questions,proto3" json:"questions,omitempty"`
+	Items         []*DecideBatchItem     `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
+	Profile       shared.Profile         `protobuf:"varint,4,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideBatchRequest) Reset() {
+	*x = DecideBatchRequest{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideBatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideBatchRequest) ProtoMessage() {}
+
+func (x *DecideBatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideBatchRequest.ProtoReflect.Descriptor instead.
+func (*DecideBatchRequest) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *DecideBatchRequest) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+func (x *DecideBatchRequest) GetQuestions() []*DecisionQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *DecideBatchRequest) GetItems() []*DecideBatchItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *DecideBatchRequest) GetProfile() shared.Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return shared.Profile(0)
+}
+
+type DecideBatchResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// results preserve the exact order of the request items, failed items
+	// included; each carries its own provider, method, usage and walk.
+	Results       []*DecideResponse `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	Usage         *Usage            `protobuf:"bytes,2,opt,name=usage,proto3" json:"usage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DecideBatchResponse) Reset() {
+	*x = DecideBatchResponse{}
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DecideBatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DecideBatchResponse) ProtoMessage() {}
+
+func (x *DecideBatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_gateway_v1_inference_inference_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DecideBatchResponse.ProtoReflect.Descriptor instead.
+func (*DecideBatchResponse) Descriptor() ([]byte, []int) {
+	return file_ai_gateway_v1_inference_inference_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DecideBatchResponse) GetResults() []*DecideResponse {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
+func (x *DecideBatchResponse) GetUsage() *Usage {
+	if x != nil {
+		return x.Usage
+	}
+	return nil
+}
+
 var File_ai_gateway_v1_inference_inference_proto protoreflect.FileDescriptor
 
 const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
@@ -1344,7 +2306,78 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x05usage\x18\x05 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage\x12D\n" +
 	"\x05error\x18\x06 \x01(\v2..vrooli.ai_gateway.v1.inference.InferenceErrorR\x05error\")\n" +
 	"\x0fEmbeddingVector\x12\x16\n" +
-	"\x06values\x18\x01 \x03(\x01R\x06values*\xbc\x01\n" +
+	"\x06values\x18\x01 \x03(\x01R\x06values\"H\n" +
+	"\x0eDecisionOption\x12\x14\n" +
+	"\x05label\x18\x01 \x01(\tR\x05label\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xca\x02\n" +
+	"\x10DecisionQuestion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12H\n" +
+	"\x04type\x18\x02 \x01(\x0e24.vrooli.ai_gateway.v1.inference.DecisionQuestionTypeR\x04type\x12\"\n" +
+	"\finstructions\x18\x03 \x01(\tR\finstructions\x12H\n" +
+	"\aoptions\x18\x04 \x03(\v2..vrooli.ai_gateway.v1.inference.DecisionOptionR\aoptions\x12\x16\n" +
+	"\x06levels\x18\x05 \x03(\tR\x06levels\x12)\n" +
+	"\x10true_description\x18\x06 \x01(\tR\x0ftrueDescription\x12+\n" +
+	"\x11false_description\x18\a \x01(\tR\x10falseDescription\"\xe8\x01\n" +
+	"\rDecideRequest\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12\x14\n" +
+	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n" +
+	"\n" +
+	"state_json\x18\x03 \x01(\tR\tstateJson\x12N\n" +
+	"\tquestions\x18\x04 \x03(\v20.vrooli.ai_gateway.v1.inference.DecisionQuestionR\tquestions\x12>\n" +
+	"\aprofile\x18\x05 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\"O\n" +
+	"\x13DecisionProbability\x12\x16\n" +
+	"\x06option\x18\x01 \x01(\tR\x06option\x12 \n" +
+	"\vprobability\x18\x02 \x01(\x01R\vprobability\"\xe9\x02\n" +
+	"\x0eDecisionAnswer\x12\x1f\n" +
+	"\vquestion_id\x18\x01 \x01(\tR\n" +
+	"questionId\x12H\n" +
+	"\x04type\x18\x02 \x01(\x0e24.vrooli.ai_gateway.v1.inference.DecisionQuestionTypeR\x04type\x12\x16\n" +
+	"\x06choice\x18\x03 \x01(\tR\x06choice\x12\x19\n" +
+	"\x05score\x18\x04 \x01(\x01H\x00R\x05score\x88\x01\x01\x12\x17\n" +
+	"\x04noul\x18\x05 \x01(\x01H\x01R\x04noul\x88\x01\x01\x12#\n" +
+	"\n" +
+	"confidence\x18\x06 \x01(\x01H\x02R\n" +
+	"confidence\x88\x01\x01\x12Y\n" +
+	"\rprobabilities\x18\a \x03(\v23.vrooli.ai_gateway.v1.inference.DecisionProbabilityR\rprobabilitiesB\b\n" +
+	"\x06_scoreB\a\n" +
+	"\x05_noulB\r\n" +
+	"\v_confidence\"\x90\x02\n" +
+	"\x11DecisionCandidate\x12\x1a\n" +
+	"\bprovider\x18\x01 \x01(\tR\bprovider\x12#\n" +
+	"\rresource_role\x18\x02 \x01(\tR\fresourceRole\x12\x1a\n" +
+	"\blocality\x18\x03 \x01(\tR\blocality\x12O\n" +
+	"\x06status\x18\x04 \x01(\x0e27.vrooli.ai_gateway.v1.inference.DecisionCandidateStatusR\x06status\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12\x16\n" +
+	"\x06detail\x18\x06 \x01(\tR\x06detail\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\a \x01(\x03R\tlatencyMs\"\x8a\x04\n" +
+	"\x0eDecideResponse\x12H\n" +
+	"\aanswers\x18\x01 \x03(\v2..vrooli.ai_gateway.v1.inference.DecisionAnswerR\aanswers\x12\x1a\n" +
+	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
+	"\x05model\x18\x03 \x01(\tR\x05model\x12F\n" +
+	"\x06method\x18\x04 \x01(\x0e2..vrooli.ai_gateway.v1.inference.DecisionMethodR\x06method\x12;\n" +
+	"\x05usage\x18\x05 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage\x12D\n" +
+	"\x05error\x18\x06 \x01(\v2..vrooli.ai_gateway.v1.inference.InferenceErrorR\x05error\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\a \x01(\x03R\tlatencyMs\x12Q\n" +
+	"\n" +
+	"candidates\x18\b \x03(\v21.vrooli.ai_gateway.v1.inference.DecisionCandidateR\n" +
+	"candidates\x12#\n" +
+	"\rresource_role\x18\t \x01(\tR\fresourceRole\x12\x1a\n" +
+	"\blocality\x18\n" +
+	" \x01(\tR\blocality\"F\n" +
+	"\x0fDecideBatchItem\x12\x14\n" +
+	"\x05state\x18\x01 \x01(\tR\x05state\x12\x1d\n" +
+	"\n" +
+	"state_json\x18\x02 \x01(\tR\tstateJson\"\xff\x01\n" +
+	"\x12DecideBatchRequest\x12\x12\n" +
+	"\x04role\x18\x01 \x01(\tR\x04role\x12N\n" +
+	"\tquestions\x18\x02 \x03(\v20.vrooli.ai_gateway.v1.inference.DecisionQuestionR\tquestions\x12E\n" +
+	"\x05items\x18\x03 \x03(\v2/.vrooli.ai_gateway.v1.inference.DecideBatchItemR\x05items\x12>\n" +
+	"\aprofile\x18\x04 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\"\x9c\x01\n" +
+	"\x13DecideBatchResponse\x12H\n" +
+	"\aresults\x18\x01 \x03(\v2..vrooli.ai_gateway.v1.inference.DecideResponseR\aresults\x12;\n" +
+	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\xbc\x01\n" +
 	"\x0fUsageProvenance\x12 \n" +
 	"\x1cUSAGE_PROVENANCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18USAGE_PROVENANCE_UNKNOWN\x10\x01\x12&\n" +
@@ -1359,11 +2392,28 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"&INFERENCE_ERROR_CODE_VALIDATION_FAILED\x10\x04\x12(\n" +
 	"$INFERENCE_ERROR_CODE_PROVIDER_FAILED\x10\x05\x12-\n" +
 	")INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING\x10\x06\x12)\n" +
-	"%INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW\x10\a2\xc7\x02\n" +
+	"%INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW\x10\a*\xa4\x01\n" +
+	"\x14DecisionQuestionType\x12&\n" +
+	"\"DECISION_QUESTION_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dDECISION_QUESTION_TYPE_CHOICE\x10\x01\x12 \n" +
+	"\x1cDECISION_QUESTION_TYPE_SCORE\x10\x02\x12\x1f\n" +
+	"\x1bDECISION_QUESTION_TYPE_NOUL\x10\x03*s\n" +
+	"\x0eDecisionMethod\x12\x1f\n" +
+	"\x1bDECISION_METHOD_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eDECISION_METHOD_DECISION_MODEL\x10\x01\x12\x1c\n" +
+	"\x18DECISION_METHOD_LLM_ENUM\x10\x02*\xe6\x01\n" +
+	"\x17DecisionCandidateStatus\x12)\n" +
+	"%DECISION_CANDIDATE_STATUS_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"DECISION_CANDIDATE_STATUS_ANSWERED\x10\x01\x12%\n" +
+	"!DECISION_CANDIDATE_STATUS_SKIPPED\x10\x02\x12$\n" +
+	" DECISION_CANDIDATE_STATUS_FAILED\x10\x03\x12+\n" +
+	"'DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED\x10\x042\xa8\x04\n" +
 	"\x10InferenceService\x12^\n" +
 	"\x03Run\x12*.vrooli.ai_gateway.v1.inference.RunRequest\x1a+.vrooli.ai_gateway.v1.inference.RunResponse\x12m\n" +
 	"\bRunBatch\x12/.vrooli.ai_gateway.v1.inference.RunBatchRequest\x1a0.vrooli.ai_gateway.v1.inference.RunBatchResponse\x12d\n" +
-	"\x05Embed\x12,.vrooli.ai_gateway.v1.inference.EmbedRequest\x1a-.vrooli.ai_gateway.v1.inference.EmbedResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1b\x06proto3"
+	"\x05Embed\x12,.vrooli.ai_gateway.v1.inference.EmbedRequest\x1a-.vrooli.ai_gateway.v1.inference.EmbedResponse\x12g\n" +
+	"\x06Decide\x12-.vrooli.ai_gateway.v1.inference.DecideRequest\x1a..vrooli.ai_gateway.v1.inference.DecideResponse\x12v\n" +
+	"\vDecideBatch\x122.vrooli.ai_gateway.v1.inference.DecideBatchRequest\x1a3.vrooli.ai_gateway.v1.inference.DecideBatchResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1b\x06proto3"
 
 var (
 	file_ai_gateway_v1_inference_inference_proto_rawDescOnce sync.Once
@@ -1377,62 +2427,96 @@ func file_ai_gateway_v1_inference_inference_proto_rawDescGZIP() []byte {
 	return file_ai_gateway_v1_inference_inference_proto_rawDescData
 }
 
-var file_ai_gateway_v1_inference_inference_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ai_gateway_v1_inference_inference_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_ai_gateway_v1_inference_inference_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_ai_gateway_v1_inference_inference_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_ai_gateway_v1_inference_inference_proto_goTypes = []any{
 	(UsageProvenance)(0),            // 0: vrooli.ai_gateway.v1.inference.UsageProvenance
 	(InferenceErrorCode)(0),         // 1: vrooli.ai_gateway.v1.inference.InferenceErrorCode
-	(*Usage)(nil),                   // 2: vrooli.ai_gateway.v1.inference.Usage
-	(*InferenceError)(nil),          // 3: vrooli.ai_gateway.v1.inference.InferenceError
-	(*Turn)(nil),                    // 4: vrooli.ai_gateway.v1.inference.Turn
-	(*SpendLimit)(nil),              // 5: vrooli.ai_gateway.v1.inference.SpendLimit
-	(*SpendAuthorization)(nil),      // 6: vrooli.ai_gateway.v1.inference.SpendAuthorization
-	(*RunRequest)(nil),              // 7: vrooli.ai_gateway.v1.inference.RunRequest
-	(*RunResponse)(nil),             // 8: vrooli.ai_gateway.v1.inference.RunResponse
-	(*RunBatchItem)(nil),            // 9: vrooli.ai_gateway.v1.inference.RunBatchItem
-	(*RunBatchRequest)(nil),         // 10: vrooli.ai_gateway.v1.inference.RunBatchRequest
-	(*RunBatchResponse)(nil),        // 11: vrooli.ai_gateway.v1.inference.RunBatchResponse
-	(*EmbedRequest)(nil),            // 12: vrooli.ai_gateway.v1.inference.EmbedRequest
-	(*EmbedResponse)(nil),           // 13: vrooli.ai_gateway.v1.inference.EmbedResponse
-	(*EmbeddingVector)(nil),         // 14: vrooli.ai_gateway.v1.inference.EmbeddingVector
-	(*shared.Attachment)(nil),       // 15: vrooli.ai_gateway.v1.shared.Attachment
-	(shared.Profile)(0),             // 16: vrooli.ai_gateway.v1.shared.Profile
-	(*shared.SamplingControls)(nil), // 17: vrooli.ai_gateway.v1.shared.SamplingControls
-	(*shared.AppliedSettings)(nil),  // 18: vrooli.ai_gateway.v1.shared.AppliedSettings
+	(DecisionQuestionType)(0),       // 2: vrooli.ai_gateway.v1.inference.DecisionQuestionType
+	(DecisionMethod)(0),             // 3: vrooli.ai_gateway.v1.inference.DecisionMethod
+	(DecisionCandidateStatus)(0),    // 4: vrooli.ai_gateway.v1.inference.DecisionCandidateStatus
+	(*Usage)(nil),                   // 5: vrooli.ai_gateway.v1.inference.Usage
+	(*InferenceError)(nil),          // 6: vrooli.ai_gateway.v1.inference.InferenceError
+	(*Turn)(nil),                    // 7: vrooli.ai_gateway.v1.inference.Turn
+	(*SpendLimit)(nil),              // 8: vrooli.ai_gateway.v1.inference.SpendLimit
+	(*SpendAuthorization)(nil),      // 9: vrooli.ai_gateway.v1.inference.SpendAuthorization
+	(*RunRequest)(nil),              // 10: vrooli.ai_gateway.v1.inference.RunRequest
+	(*RunResponse)(nil),             // 11: vrooli.ai_gateway.v1.inference.RunResponse
+	(*RunBatchItem)(nil),            // 12: vrooli.ai_gateway.v1.inference.RunBatchItem
+	(*RunBatchRequest)(nil),         // 13: vrooli.ai_gateway.v1.inference.RunBatchRequest
+	(*RunBatchResponse)(nil),        // 14: vrooli.ai_gateway.v1.inference.RunBatchResponse
+	(*EmbedRequest)(nil),            // 15: vrooli.ai_gateway.v1.inference.EmbedRequest
+	(*EmbedResponse)(nil),           // 16: vrooli.ai_gateway.v1.inference.EmbedResponse
+	(*EmbeddingVector)(nil),         // 17: vrooli.ai_gateway.v1.inference.EmbeddingVector
+	(*DecisionOption)(nil),          // 18: vrooli.ai_gateway.v1.inference.DecisionOption
+	(*DecisionQuestion)(nil),        // 19: vrooli.ai_gateway.v1.inference.DecisionQuestion
+	(*DecideRequest)(nil),           // 20: vrooli.ai_gateway.v1.inference.DecideRequest
+	(*DecisionProbability)(nil),     // 21: vrooli.ai_gateway.v1.inference.DecisionProbability
+	(*DecisionAnswer)(nil),          // 22: vrooli.ai_gateway.v1.inference.DecisionAnswer
+	(*DecisionCandidate)(nil),       // 23: vrooli.ai_gateway.v1.inference.DecisionCandidate
+	(*DecideResponse)(nil),          // 24: vrooli.ai_gateway.v1.inference.DecideResponse
+	(*DecideBatchItem)(nil),         // 25: vrooli.ai_gateway.v1.inference.DecideBatchItem
+	(*DecideBatchRequest)(nil),      // 26: vrooli.ai_gateway.v1.inference.DecideBatchRequest
+	(*DecideBatchResponse)(nil),     // 27: vrooli.ai_gateway.v1.inference.DecideBatchResponse
+	(*shared.Attachment)(nil),       // 28: vrooli.ai_gateway.v1.shared.Attachment
+	(shared.Profile)(0),             // 29: vrooli.ai_gateway.v1.shared.Profile
+	(*shared.SamplingControls)(nil), // 30: vrooli.ai_gateway.v1.shared.SamplingControls
+	(*shared.AppliedSettings)(nil),  // 31: vrooli.ai_gateway.v1.shared.AppliedSettings
 }
 var file_ai_gateway_v1_inference_inference_proto_depIdxs = []int32{
 	0,  // 0: vrooli.ai_gateway.v1.inference.Usage.input_tokens_provenance:type_name -> vrooli.ai_gateway.v1.inference.UsageProvenance
 	0,  // 1: vrooli.ai_gateway.v1.inference.Usage.output_tokens_provenance:type_name -> vrooli.ai_gateway.v1.inference.UsageProvenance
 	0,  // 2: vrooli.ai_gateway.v1.inference.Usage.cost_provenance:type_name -> vrooli.ai_gateway.v1.inference.UsageProvenance
 	1,  // 3: vrooli.ai_gateway.v1.inference.InferenceError.code:type_name -> vrooli.ai_gateway.v1.inference.InferenceErrorCode
-	15, // 4: vrooli.ai_gateway.v1.inference.Turn.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
-	4,  // 5: vrooli.ai_gateway.v1.inference.RunRequest.turns:type_name -> vrooli.ai_gateway.v1.inference.Turn
-	15, // 6: vrooli.ai_gateway.v1.inference.RunRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
-	16, // 7: vrooli.ai_gateway.v1.inference.RunRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	17, // 8: vrooli.ai_gateway.v1.inference.RunRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
-	5,  // 9: vrooli.ai_gateway.v1.inference.RunRequest.spend_limit:type_name -> vrooli.ai_gateway.v1.inference.SpendLimit
-	2,  // 10: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	3,  // 11: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	18, // 12: vrooli.ai_gateway.v1.inference.RunResponse.applied:type_name -> vrooli.ai_gateway.v1.shared.AppliedSettings
-	6,  // 13: vrooli.ai_gateway.v1.inference.RunResponse.spend_authorization:type_name -> vrooli.ai_gateway.v1.inference.SpendAuthorization
-	9,  // 14: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
-	8,  // 15: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
-	2,  // 16: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	17, // 17: vrooli.ai_gateway.v1.inference.EmbedRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
-	14, // 18: vrooli.ai_gateway.v1.inference.EmbedResponse.vectors:type_name -> vrooli.ai_gateway.v1.inference.EmbeddingVector
-	2,  // 19: vrooli.ai_gateway.v1.inference.EmbedResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	3,  // 20: vrooli.ai_gateway.v1.inference.EmbedResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	7,  // 21: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
-	10, // 22: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
-	12, // 23: vrooli.ai_gateway.v1.inference.InferenceService.Embed:input_type -> vrooli.ai_gateway.v1.inference.EmbedRequest
-	8,  // 24: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
-	11, // 25: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
-	13, // 26: vrooli.ai_gateway.v1.inference.InferenceService.Embed:output_type -> vrooli.ai_gateway.v1.inference.EmbedResponse
-	24, // [24:27] is the sub-list for method output_type
-	21, // [21:24] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	28, // 4: vrooli.ai_gateway.v1.inference.Turn.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
+	7,  // 5: vrooli.ai_gateway.v1.inference.RunRequest.turns:type_name -> vrooli.ai_gateway.v1.inference.Turn
+	28, // 6: vrooli.ai_gateway.v1.inference.RunRequest.attachments:type_name -> vrooli.ai_gateway.v1.shared.Attachment
+	29, // 7: vrooli.ai_gateway.v1.inference.RunRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	30, // 8: vrooli.ai_gateway.v1.inference.RunRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
+	8,  // 9: vrooli.ai_gateway.v1.inference.RunRequest.spend_limit:type_name -> vrooli.ai_gateway.v1.inference.SpendLimit
+	5,  // 10: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	6,  // 11: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	31, // 12: vrooli.ai_gateway.v1.inference.RunResponse.applied:type_name -> vrooli.ai_gateway.v1.shared.AppliedSettings
+	9,  // 13: vrooli.ai_gateway.v1.inference.RunResponse.spend_authorization:type_name -> vrooli.ai_gateway.v1.inference.SpendAuthorization
+	12, // 14: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
+	11, // 15: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
+	5,  // 16: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	30, // 17: vrooli.ai_gateway.v1.inference.EmbedRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
+	17, // 18: vrooli.ai_gateway.v1.inference.EmbedResponse.vectors:type_name -> vrooli.ai_gateway.v1.inference.EmbeddingVector
+	5,  // 19: vrooli.ai_gateway.v1.inference.EmbedResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	6,  // 20: vrooli.ai_gateway.v1.inference.EmbedResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	2,  // 21: vrooli.ai_gateway.v1.inference.DecisionQuestion.type:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestionType
+	18, // 22: vrooli.ai_gateway.v1.inference.DecisionQuestion.options:type_name -> vrooli.ai_gateway.v1.inference.DecisionOption
+	19, // 23: vrooli.ai_gateway.v1.inference.DecideRequest.questions:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestion
+	29, // 24: vrooli.ai_gateway.v1.inference.DecideRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	2,  // 25: vrooli.ai_gateway.v1.inference.DecisionAnswer.type:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestionType
+	21, // 26: vrooli.ai_gateway.v1.inference.DecisionAnswer.probabilities:type_name -> vrooli.ai_gateway.v1.inference.DecisionProbability
+	4,  // 27: vrooli.ai_gateway.v1.inference.DecisionCandidate.status:type_name -> vrooli.ai_gateway.v1.inference.DecisionCandidateStatus
+	22, // 28: vrooli.ai_gateway.v1.inference.DecideResponse.answers:type_name -> vrooli.ai_gateway.v1.inference.DecisionAnswer
+	3,  // 29: vrooli.ai_gateway.v1.inference.DecideResponse.method:type_name -> vrooli.ai_gateway.v1.inference.DecisionMethod
+	5,  // 30: vrooli.ai_gateway.v1.inference.DecideResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	6,  // 31: vrooli.ai_gateway.v1.inference.DecideResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	23, // 32: vrooli.ai_gateway.v1.inference.DecideResponse.candidates:type_name -> vrooli.ai_gateway.v1.inference.DecisionCandidate
+	19, // 33: vrooli.ai_gateway.v1.inference.DecideBatchRequest.questions:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestion
+	25, // 34: vrooli.ai_gateway.v1.inference.DecideBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.DecideBatchItem
+	29, // 35: vrooli.ai_gateway.v1.inference.DecideBatchRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	24, // 36: vrooli.ai_gateway.v1.inference.DecideBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.DecideResponse
+	5,  // 37: vrooli.ai_gateway.v1.inference.DecideBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	10, // 38: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
+	13, // 39: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
+	15, // 40: vrooli.ai_gateway.v1.inference.InferenceService.Embed:input_type -> vrooli.ai_gateway.v1.inference.EmbedRequest
+	20, // 41: vrooli.ai_gateway.v1.inference.InferenceService.Decide:input_type -> vrooli.ai_gateway.v1.inference.DecideRequest
+	26, // 42: vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch:input_type -> vrooli.ai_gateway.v1.inference.DecideBatchRequest
+	11, // 43: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
+	14, // 44: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
+	16, // 45: vrooli.ai_gateway.v1.inference.InferenceService.Embed:output_type -> vrooli.ai_gateway.v1.inference.EmbedResponse
+	24, // 46: vrooli.ai_gateway.v1.inference.InferenceService.Decide:output_type -> vrooli.ai_gateway.v1.inference.DecideResponse
+	27, // 47: vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch:output_type -> vrooli.ai_gateway.v1.inference.DecideBatchResponse
+	43, // [43:48] is the sub-list for method output_type
+	38, // [38:43] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_inference_inference_proto_init() }
@@ -1441,13 +2525,14 @@ func file_ai_gateway_v1_inference_inference_proto_init() {
 		return
 	}
 	file_ai_gateway_v1_inference_inference_proto_msgTypes[0].OneofWrappers = []any{}
+	file_ai_gateway_v1_inference_inference_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_gateway_v1_inference_inference_proto_rawDesc), len(file_ai_gateway_v1_inference_inference_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   13,
+			NumEnums:      5,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -43,6 +43,10 @@ const (
 	// callers express intent and policy here, while a PII-detection capability
 	// (the pii-detector resource) owns the regex/checksum + NER span semantics.
 	RequestKind_REQUEST_KIND_DETECT_PII RequestKind = 6
+	// REQUEST_KIND_DECISION asks a non-generative decision model typed choice,
+	// score and noul questions about a state. The decision-model resource owns
+	// the System One wire format; callers reach it through InferenceService.Decide.
+	RequestKind_REQUEST_KIND_DECISION RequestKind = 7
 )
 
 // Enum value maps for RequestKind.
@@ -55,6 +59,7 @@ var (
 		4: "REQUEST_KIND_IMAGE_GENERATION",
 		5: "REQUEST_KIND_VIDEO_GENERATION",
 		6: "REQUEST_KIND_DETECT_PII",
+		7: "REQUEST_KIND_DECISION",
 	}
 	RequestKind_value = map[string]int32{
 		"REQUEST_KIND_UNSPECIFIED":           0,
@@ -64,6 +69,7 @@ var (
 		"REQUEST_KIND_IMAGE_GENERATION":      4,
 		"REQUEST_KIND_VIDEO_GENERATION":      5,
 		"REQUEST_KIND_DETECT_PII":            6,
+		"REQUEST_KIND_DECISION":              7,
 	}
 )
 
@@ -935,7 +941,7 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\x0fValidationIssue\x12\x14\n" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\xf9\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*\x94\x02\n" +
 	"\vRequestKind\x12\x1c\n" +
 	"\x18REQUEST_KIND_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cREQUEST_KIND_TEXT_GENERATION\x10\x01\x12\x1f\n" +
@@ -943,7 +949,8 @@ const file_ai_gateway_v1_shared_gateway_proto_rawDesc = "" +
 	"\"REQUEST_KIND_STRUCTURED_EXTRACTION\x10\x03\x12!\n" +
 	"\x1dREQUEST_KIND_IMAGE_GENERATION\x10\x04\x12!\n" +
 	"\x1dREQUEST_KIND_VIDEO_GENERATION\x10\x05\x12\x1b\n" +
-	"\x17REQUEST_KIND_DETECT_PII\x10\x06*\x9d\x01\n" +
+	"\x17REQUEST_KIND_DETECT_PII\x10\x06\x12\x19\n" +
+	"\x15REQUEST_KIND_DECISION\x10\a*\x9d\x01\n" +
 	"\fPrivacyClass\x12\x1d\n" +
 	"\x19PRIVACY_CLASS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14PRIVACY_CLASS_PUBLIC\x10\x01\x12\x1a\n" +

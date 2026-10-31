@@ -9,11 +9,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manage
 // MeasuresService exposes one typed, read-only analytical question per RPC.
 // Each method is backed by Agent Manager's durable invocation read model.
 service MeasuresService {
-  rpc ExternalToolShare(ExternalToolShareRequest) returns (ExternalToolShareResponse);
-  rpc RetryRate(RetryRateRequest) returns (RetryRateResponse);
-  rpc HelpRecoveryRate(HelpRecoveryRateRequest) returns (HelpRecoveryRateResponse);
-  rpc RepeatedWorkRate(RepeatedWorkRateRequest) returns (RepeatedWorkRateResponse);
-  rpc ToolFailureRate(ToolFailureRateRequest) returns (ToolFailureRateResponse);
   rpc RunSuccessRate(RunSuccessRateRequest) returns (RunSuccessRateResponse);
   rpc RunCycleTime(RunCycleTimeRequest) returns (RunCycleTimeResponse);
   rpc RunDurationStatistics(RunDurationStatisticsRequest) returns (RunDurationStatisticsResponse);
@@ -29,13 +24,15 @@ service MeasuresService {
   rpc ToolUsage(ToolUsageRequest) returns (ToolUsageResponse);
   rpc ToolCommandBreakdown(ToolCommandBreakdownRequest) returns (ToolCommandBreakdownResponse);
   rpc TokenAttribution(TokenAttributionRequest) returns (TokenAttributionResponse);
-  rpc ErrorPatterns(ErrorPatternsRequest) returns (ErrorPatternsResponse);
-  rpc FileRereadRate(FileRereadRateRequest) returns (FileRereadRateResponse);
-  rpc FindingRecurrenceRate(FindingRecurrenceRateRequest) returns (FindingRecurrenceRateResponse);
-  rpc EpisodeCohort(EpisodeCohortRequest) returns (EpisodeCohortResponse);
-  rpc CapabilityUsage(CapabilityUsageRequest) returns (CapabilityUsageResponse);
-  rpc CapabilityEfficacy(CapabilityEfficacyRequest) returns (CapabilityEfficacyResponse);
   rpc ConversationSearchQuality(ConversationSearchQualityRequest) returns (ConversationSearchQualityResponse);
+  // ToolFriction profiles every command path agents ran in a window from the
+  // invocation facts: calls, failure rate and error-signature clusters,
+  // shape-guessing, output weight and context tax, latency, polling and
+  // bypasses of a scenario's CLI. Its summary carries the window's rates.
+  rpc ToolFriction(ToolFrictionRequest) returns (ToolFrictionResponse);
+  // FallbackInsights counts runner and model fallbacks and policy-candidate
+  // outcomes in a window (Health: why runs moved off their first choice).
+  rpc FallbackInsights(FallbackInsightsRequest) returns (FallbackInsightsResponse);
   rpc AllMeasureDefinitions(AllMeasureDefinitionsRequest) returns (AllMeasureDefinitionsResponse);
   // SelectCohort is the non-aggregate companion to the measures: it exposes
   // the run ids behind the exact same durable filter used by an aggregate.
@@ -43,9 +40,6 @@ service MeasuresService {
   // CohortReport folds the run reports of one selected cohort: ranked
   // friction signals, time accounting, evidence validity and goal progression.
   rpc CohortReport(CohortReportRequest) returns (CohortReportResponse);
-  // CompareEpisodeCohorts compares friction-episode fingerprints between two
-  // selected cohorts, for example before and after a change.
-  rpc CompareEpisodeCohorts(CompareEpisodeCohortsRequest) returns (CompareEpisodeCohortsResponse);
   // UsageForecast projects, from the provider's own quota readings, whether
   // each subscription window runs out before its reset.
   rpc UsageForecast(UsageForecastRequest) returns (UsageForecastResponse);
@@ -56,15 +50,68 @@ service MeasuresService {
   // consumers (session, run, profile, workload, model, runner, modality or
   // tool kind) with an explicit unattributed remainder.
   rpc UsageBurners(UsageBurnersRequest) returns (UsageBurnersResponse);
-  // UsageRecommendations ranks deterministic rule findings by the weekly
-  // quota they would save.
+  // ListUsageModes reads the active usage modes (expiring operator policies
+  // that lower what new work runs on) with burn since start and the reach
+  // table. Agents may read it.
+  rpc ListUsageModes(ListUsageModesRequest) returns (ListUsageModesResponse);
+  // StartUsageMode starts a usage mode. It requires verified operator
+  // authority; agent identities are refused. Starting replaces a mode with
+  // an identical scope.
+  rpc StartUsageMode(StartUsageModeRequest) returns (StartUsageModeResponse);
+  // EndUsageMode ends modes by id, or all of them. It requires verified
+  // operator authority.
+  rpc EndUsageMode(EndUsageModeRequest) returns (EndUsageModeResponse);
+  // ExtendUsageMode moves one active mode's end and keeps its id, start,
+  // starter and settings, so its burn since start stays continuous. It
+  // requires verified operator authority; agents are refused.
+  rpc ExtendUsageMode(ExtendUsageModeRequest) returns (ExtendUsageModeResponse);
+  // RebaseUsageModeRuns is the explicit "also switch running work" step. For a
+  // managed run it records a model change that the next resume applies; an
+  // interactive session reports that the mode applies on its next launch. With
+  // dry_run it only reports what would happen and the estimated re-read cost.
+  // It requires verified operator authority; agents are refused.
+  rpc RebaseUsageModeRuns(RebaseUsageModeRunsRequest) returns (RebaseUsageModeRunsResponse);
+  // UsageRecommendations is one ranked, owner-level list of what to change:
+  // quota levers, tool friction, opportunities and gated operator
+  // interventions, each with owner, action, evidence, effect in its own unit,
+  // a common score and a verifying measure.
   rpc UsageRecommendations(UsageRecommendationsRequest) returns (UsageRecommendationsResponse);
+  // UsageFriction lists the window's owner-level tool findings (from the tool
+  // friction profiles) with their owner, counts, cost, evidence and durable
+  // status (open, reported, dismissed), and the classified operator
+  // interventions the accuracy gate admits, beside the coverage that says what
+  // was seen.
+  rpc UsageFriction(UsageFrictionRequest) returns (UsageFrictionResponse);
   // UsageCoverage compares the transcripts on disk with what the Transcript
   // Indexer captured, per root, naming every uncaptured file.
   rpc UsageCoverage(UsageCoverageRequest) returns (UsageCoverageResponse);
   // UsageCompare compares quota per successful workload unit between two
   // selected cohorts (for example before and after a change).
   rpc UsageCompare(UsageCompareRequest) returns (UsageCompareResponse);
+  // UsageParity reports, per start path and harness, how much of each measure
+  // exists, with a stated reason wherever coverage is below 90%.
+  rpc UsageParity(UsageParityRequest) returns (UsageParityResponse);
+  // UsageOutcomes estimates points per accepted outcome, consumption per run,
+  // run length, rework, unknown rate and break-even, by model, role or usage mode.
+  rpc UsageOutcomes(UsageOutcomesRequest) returns (UsageOutcomesResponse);
+  // UsageExperiment reports each Learn comparison: its randomization, the
+  // arms, the permutation test, intervals, the verdict (or the data still
+  // needed) and the role recommendation that follows from it.
+  rpc UsageExperiment(UsageExperimentRequest) returns (UsageExperimentResponse);
+  // PlanUsageExperiment gives the expected time to a verdict before a
+  // comparison starts, from the role's own recent variance and pace.
+  rpc PlanUsageExperiment(PlanUsageExperimentRequest) returns (PlanUsageExperimentResponse);
+  // StartUsageExperiment starts a Learn comparison. It requires verified
+  // operator authority; agent identities get 403.
+  rpc StartUsageExperiment(StartUsageExperimentRequest) returns (StartUsageExperimentResponse);
+  // ProposeRoleDefault raises a decision to change a role's default model to
+  // the challenger. Verified operator only. It applies nothing.
+  rpc ProposeRoleDefault(ProposeRoleDefaultRequest) returns (ProposeRoleDefaultResponse);
+  // UsageSignalsStatus reads the operator-signal switch and what is stored.
+  rpc UsageSignalsStatus(UsageSignalsStatusRequest) returns (UsageSignalsStatusResponse);
+  // SetUsageSignals switches operator signals off or on, or purges stored
+  // signals. Verified operator only.
+  rpc SetUsageSignals(SetUsageSignalsRequest) returns (SetUsageSignalsResponse);
 }
 
 // InvocationFilter is shared by all friction measures. Empty dimensions mean
@@ -82,15 +129,25 @@ message InvocationFilter {
   string tag_prefix = 9;
   string run_status = 10;
   string tool_name = 11;
-  string episode_pattern = 12;
-  string episode_cause_scope = 13;
-  string episode_fingerprint = 14;
-  string self_report_rule_id = 15;
-  string self_report_cause_scope = 16;
+  reserved 12, 13, 14, 15, 16;
   string target_scenario = 17;
   string operation = 18;
   string workload_key = 19;
-  string error_code = 20;
+  reserved 20;
+  // scope selects which runs a statistic counts. Unspecified: run statistics
+  // (success rate, throughput, run time) count only runs Agent Manager
+  // executed, and token totals count every transcript request.
+  RunScope scope = 21;
+}
+
+// RunScope is the origin filter for Details (P2-D8). Agent Manager runs are
+// those Agent Manager executed itself; operator sessions are imported,
+// attached and interactive sessions; all is both.
+enum RunScope {
+  RUN_SCOPE_UNSPECIFIED = 0;
+  RUN_SCOPE_AGENT_MANAGER = 1;
+  RUN_SCOPE_OPERATOR_SESSIONS = 2;
+  RUN_SCOPE_ALL = 3;
 }
 
 message MeasureValidity {
@@ -174,72 +231,151 @@ message ConversationSearchQualityResponse {
   string definition_id = 102;
 }
 
-message ExternalToolShareRequest {
+message ToolFrictionRequest {
+  // Default this_week.
   vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message ExternalToolShareResponse {
-  double share = 1;
-  int64 external_calls = 2;
-  int64 resolved_calls = 3;
-  int64 unknown_calls = 4;
-  string executed_query = 5 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
+  // Profiles of this owner only: a scenario, "vrooli" (the control plane) or
+  // "external". Empty: every owner.
+  string owner = 2;
+  // Profiles and clusters returned, each ranked by cost; default 50.
+  int32 limit = 3;
 }
 
-message RetryRateRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message RetryRateResponse {
-  double rate = 1;
-  int64 retry_calls = 2;
-  int64 total_calls = 3;
-  string executed_query = 4 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
-message HelpRecoveryRateRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message HelpRecoveryRateResponse {
-  double rate = 1;
-  int64 help_recoveries = 2;
-  int64 total_calls = 3;
-  string executed_query = 4 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
+// ToolFrictionCoverage is how much of the window the profiles can see. An
+// empty finding list means nothing only beside it.
+message ToolFrictionCoverage {
+  int64 commands = 1;
+  int64 outcome_known = 2;
+  double outcome_known_share = 3;
+  int64 vrooli_commands = 4;
+  int64 vrooli_outcome_known = 5;
+  // "N commands, outcome known for X% (…)".
+  string sentence = 6;
+  // Commands of runs an older transcript parser read: outcomes there may be
+  // missing, not absent.
+  int64 older_parser_commands = 7;
+  // Commands of runs with no transcript record, whose parser is unknown.
+  int64 no_transcript_commands = 11;
+  // Runs whose facts are at an older invocation fact version, awaiting
+  // re-derivation, and their command calls: no finding reads them.
+  int64 stale_runs = 8;
+  int64 stale_calls = 9;
+  // Commands whose result tokens are unknown (counted as 0 tokens).
+  int64 unknown_token_commands = 10;
 }
 
-message RepeatedWorkRateRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message RepeatedWorkRateResponse {
-  double rate = 1;
-  int64 repeated_calls = 2;
-  int64 total_calls = 3;
-  string executed_query = 4 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
+// ToolFrictionSummary is the window's rates over every command call.
+message ToolFrictionSummary {
+  ToolFrictionCoverage coverage = 1;
+  int64 calls = 2;
+  int64 failed_calls = 3;
+  // Failed calls of Vrooli CLIs over those that succeeded or failed:
+  // no-match, refusals, verify verdicts, interrupts and unknown outcomes are
+  // left out.
+  double vrooli_failure_rate = 4;
+  // Calls that hit an unknown command, flag or missing argument, or looked up
+  // help and retried; the rate is over Vrooli CLI calls.
+  int64 shape_guesses = 5;
+  double shape_guess_rate = 6;
+  // Calls in a series of one normalised command run three or more times
+  // within ten minutes; the share is over all calls.
+  int64 polled_calls = 7;
+  double polled_share = 8;
+  // Calls that reached a scenario's database, port or state directory
+  // around its CLI.
+  int64 bypass_calls = 9;
+  // Result tokens times the requests that re-read them before compaction.
+  int64 context_tax_tokens = 10;
+  int64 duration_ms = 11;
+  // Share of calls whose output was piped through head, grep, jq or similar.
+  double filtered_share = 12;
+  int64 profiles = 13;
 }
 
-message ToolFailureRateRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
+// ToolProfile is one command path in the window.
+message ToolProfile {
+  string command_path = 1;
+  string owner = 2;
+  // scenario | control-plane | external
+  string owner_kind = 3;
+  int64 calls = 4;
+  int64 runs = 5;
+  // decided = succeeded or failed; failure_rate = failed / decided.
+  int64 decided = 6;
+  int64 failed = 7;
+  int64 no_match = 8;
+  int64 refused = 9;
+  int64 unknown = 10;
+  double failure_rate = 11;
+  int64 shape_guesses = 12;
+  int64 median_result_tokens = 13;
+  int64 p90_result_tokens = 14;
+  int64 max_result_tokens = 15;
+  double truncated_share = 16;
+  int64 context_tax_tokens = 17;
+  double filtered_share = 18;
+  // jq paths read after --json, most frequent first.
+  repeated string json_paths = 19;
+  int64 total_duration_ms = 20;
+  int64 p90_duration_ms = 21;
+  int64 polled_calls = 22;
+  int64 wrapped_polls = 23;
+  // The profile's largest share of the window's failed calls, command time or
+  // context tax; profiles rank by it.
+  double cost_share = 24;
 }
-message ToolFailureRateResponse {
-  double rate = 1;
-  int64 failed_calls = 2;
-  int64 total_calls = 3;
-  string executed_query = 4 [deprecated = true];
+
+// ToolErrorCluster is every failure (or degradation notice) of Vrooli CLIs
+// whose first meaningful line normalises to one signature.
+message ToolErrorCluster {
+  string signature = 1;
+  // failure | degraded
+  string kind = 2;
+  // The CLI the line names, else the one CLI it was seen in, else the control
+  // plane the CLIs share.
+  string owner = 3;
+  string owner_kind = 4;
+  repeated string command_paths = 5;
+  int64 calls = 6;
+  int64 runs = 7;
+  int64 duration_ms = 8;
+  // One occurrence of the line, redacted.
+  string line = 9;
+  repeated string example_commands = 10;
+  repeated string run_ids = 11;
+  // The dependency whose broker or refresh the rolled-up lines share; empty
+  // for a single line. It, not the dominant line, identifies the cluster.
+  string root_cause = 12;
+  // Each line of a rolled-up cluster, most frequent first.
+  repeated UsageToolSub subs = 13;
+}
+
+// UsageToolSub is one error or notice line inside a rolled-up root cause.
+message UsageToolSub {
+  // failure | degraded
+  string kind = 1;
+  string signature = 2;
+  string line = 3;
+  int64 calls = 4;
+}
+
+// UsageToolGuess is a command, flag or subcommand agents tried that does not
+// exist, and what the CLI suggested: the alias to add or the help to fix.
+message UsageToolGuess {
+  string token = 1;
+  string suggestion = 2;
+  int64 calls = 3;
+}
+
+message ToolFrictionResponse {
+  ToolFrictionSummary summary = 1;
+  repeated ToolProfile profiles = 2;
+  repeated ToolErrorCluster clusters = 3;
+  string window_start = 4;
+  string window_end = 5;
+  // The owner-level findings of the window (as usage friction lists them),
+  // ranked by cost share, with their durable status.
+  repeated UsageToolFinding findings = 6;
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
@@ -267,6 +403,8 @@ message RunCycleTimeResponse {
   double average_duration_ms = 1;
   int64 completed_duration_runs = 2;
   string executed_query = 3 [deprecated = true];
+  double p50_duration_ms = 4;
+  double p90_duration_ms = 5;
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
@@ -289,6 +427,7 @@ message RunDurationStatisticsResponse {
   int64 max_duration_ms = 6;
   int64 count = 7;
   string executed_query = 8 [deprecated = true];
+  double p90_duration_ms = 9;
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
@@ -299,13 +438,6 @@ message RunCostRequest {
   InvocationFilter filter = 2;
   bool allocate_subscription = 3;
   string allocation_basis = 4;
-}
-message ChargeByBasis {
-  string basis = 1;
-  int64 run_count = 2;
-  int64 charge_micro_usd = 3;
-  int64 token_count = 4;
-  string charge_reason = 5;
 }
 
 // RunTokenBucket is one run-count bucket in the per-run token distribution.
@@ -332,9 +464,9 @@ message RunCostResponse {
   double output_cost_usd = 11;
   double cache_read_cost_usd = 12;
   double cache_creation_cost_usd = 13;
-  repeated ChargeByBasis charge_by_basis = 17;
   int64 total_charge_micro_usd = 18;
-  int64 unpriced_token_count = 19;
+  // Requests (transcript usage reports) behind the token totals.
+  int64 requests = 33;
   // Per-run token and cost distribution over runs with observed token usage.
   // Percentiles use nearest-rank over the filtered population. The sample
   // size and unobserved count make the excluded denominator explicit.
@@ -350,10 +482,9 @@ message RunCostResponse {
   double max_cost_usd = 29;
   repeated RunTokenBucket token_buckets = 30;
   int64 distribution_sample_size = 31;
-  int64 distribution_unobserved_runs = 32;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
-  reserved 14 to 16;
+  reserved 14 to 17, 19, 32;
 }
 
 message RunVolumeRequest {
@@ -493,7 +624,7 @@ message TerminalRunTrendRow {
   int64 completed_runs = 3;
   int64 failed_runs = 4;
   int64 cancelled_runs = 5;
-  double total_cost_usd = 6;
+  reserved 6;
   double average_duration_ms = 7;
 }
 message TerminalRunTrendResponse {
@@ -583,99 +714,6 @@ message TokenAttributionResponse {
   string definition_id = 102;
 }
 
-message CapabilityUsageRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-
-message CapabilityUsageRow {
-  string target_scenario = 1;
-  string operation = 2;
-  int64 call_count = 3;
-  int64 success_count = 4;
-  int64 failed_count = 5;
-  uint64 total_duration_ms = 6;
-  int64 total_tokens = 7;
-  double estimated_token_share = 8;
-}
-
-message CapabilityUsageResponse {
-  repeated CapabilityUsageRow rows = 1;
-  string executed_query = 2 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
-message CapabilityEfficacyRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-
-message CapabilityEfficacyRow {
-  string target_scenario = 1;
-  string operation = 2;
-  int64 call_count = 3;
-  int64 success_count = 4;
-  int64 fallback_after_count = 5;
-  int64 abandoned_count = 6;
-}
-
-message CapabilityEfficacyResponse {
-  repeated CapabilityEfficacyRow rows = 1;
-  string executed_query = 2 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
-message ErrorPatternsRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message ErrorPatternRow {
-  string error_code = 1;
-  int64 count = 2;
-  string last_seen = 3;
-  string sample_run_id = 4;
-}
-message ErrorPatternsResponse {
-  repeated ErrorPatternRow rows = 1;
-  string executed_query = 2 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
-message FileRereadRateRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message FileRereadRateResponse {
-  double rate = 1;
-  int64 files_read_more_than_once = 2;
-  int64 read_calls = 3;
-  string executed_query = 4 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
-message FindingRecurrenceRateRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-}
-message FindingRecurrenceRateResponse {
-  double rate = 1;
-  int64 recurring_findings = 2;
-  int64 total_findings = 3;
-  int64 recurring_fingerprints = 4;
-  string executed_query = 5 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
 // Every cohort request selects its runs the same way. Set at most one of:
 //   cohort  - a named durable cohort; its stored filter is the population and
 //             window narrows it only when given;
@@ -722,34 +760,6 @@ message SelectCohortResponse {
   string definition_id = 102;
 }
 
-// EpisodeCohort folds deterministic friction episodes over the same bounded
-// durable run predicate used by SelectCohort. It is an episode investigation
-// surface, not a generic invocation aggregate.
-message EpisodeCohortRequest {
-  vrooli.measures.v1.TimeWindow window = 1;
-  InvocationFilter filter = 2;
-  int32 limit = 3;
-  string cohort = 4;
-  repeated string run_ids = 5;
-}
-message EpisodeCohortSignal {
-  string fingerprint = 1;
-  int64 occurrences = 2;
-  int64 distinct_runs = 3;
-  int64 summed_cost_ms = 4;
-  string confidence = 5;
-  repeated string representative_run_ids = 6;
-}
-message EpisodeCohortResponse {
-  string availability_state = 1;
-  string availability_reason = 2;
-  repeated EpisodeCohortSignal signals = 3;
-  string executed_query = 4 [deprecated = true];
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
 // CohortReportRequest carries the CohortSelector fields inline. limit bounds
 // the runs a named cohort or filter selects (default 100, at most 100).
 message CohortReportRequest {
@@ -792,7 +802,9 @@ message CohortGoalProgression {
   double average_time_to_first_met_ms = 5;
   double average_tokens_to_first_met = 6;
   int64 interventions_before_met = 7;
-  int64 handoffs_before_met = 8;
+  // 8 was handoffs_before_met: handoff-continuation never fires in goal runs, so it was always 0.
+  reserved 8;
+  reserved "handoffs_before_met";
   int64 regressions = 9;
   int64 restatements = 10;
 }
@@ -811,41 +823,12 @@ message CohortReportResponse {
   string definition_id = 102;
 }
 
-message CompareEpisodeCohortsRequest {
-  CohortSelector left = 1;
-  CohortSelector right = 2;
-  // change_binding labels the change between the populations (a plan slug,
-  // commit range or release); it is echoed, never interpreted.
-  string change_binding = 3;
-  int32 limit = 4;
-}
-message EpisodeComparisonSignal {
-  string fingerprint = 1;
-  int64 left_occurrences = 2;
-  int64 right_occurrences = 3;
-  int64 left_distinct_runs = 4;
-  int64 right_distinct_runs = 5;
-  int64 left_cost_ms = 6;
-  int64 right_cost_ms = 7;
-  int64 occurrence_delta = 8;
-  int64 cost_delta_ms = 9;
-}
-message CompareEpisodeCohortsResponse {
-  string classifier_version = 1;
-  string change_binding = 2;
-  int64 left_population = 3;
-  int64 right_population = 4;
-  string availability_state = 5;
-  string availability_reason = 6;
-  repeated EpisodeComparisonSignal signals = 7;
-  MeasureValidity validity = 100;
-  MeasureProvenance provenance = 101;
-  string definition_id = 102;
-}
-
 // UsageForecastRequest selects provider windows. An empty provider reads all.
 message UsageForecastRequest {
   string provider = 1;
+  // Empty selects legacy unscoped evidence. A nonempty opaque scope selects
+  // exactly one account; callers must independently verify its association.
+  string account_scope = 2;
 }
 
 // UsageBurnRate is the observed burn over one trailing horizon ending at the
@@ -915,6 +898,17 @@ message UsageWindowForecast {
   // than three windows calibrate it (calibration_windows).
   double calibration_factor = 27;
   int64 calibration_windows = 28;
+  // True when the newest reading predates the window's current period (its
+  // reset passed, or its period began after the reading): nothing is known
+  // about the period in progress. A window with no reading is not dormant.
+  bool dormant = 29;
+  // True for the longest window of its provider pool: the window the
+  // recommendations evaluate and the quota tile shows.
+  bool primary = 30;
+  // True for the most urgent window with a reading in its period (will run
+  // out soonest, then may run out soonest, then most used): the window the
+  // focus band shows unless another is requested.
+  bool focus = 31;
 }
 
 message UsageForecastResponse {
@@ -926,6 +920,8 @@ message UsageForecastResponse {
 
 message UsageForecastBacktestRequest {
   string provider = 1;
+  // Empty selects legacy unscoped evidence; otherwise selects one account.
+  string account_scope = 2;
 }
 
 // UsageBacktestCheckpoint compares one projection, made at a fraction of the
@@ -1053,7 +1049,8 @@ message UsageBurner {
   // The group value: session id, run id, profile id, workload key, model,
   // runner, modality or tool kind.
   string key = 1;
-  // Human label: run label, profile name, workload key, or the key.
+  // Human label: run label, profile name, workload in words, or the key;
+  // never a raw UUID.
   string label = 2;
   double points = 3;
   // points / observed_increase_points of the window.
@@ -1063,7 +1060,8 @@ message UsageBurner {
   double weighted_tokens = 6;
   int64 sessions = 7;
   int64 runs = 8;
-  int64 turns = 9;
+  // Provider requests (one per model call), not conversational turns.
+  int64 requests = 9;
   // Up to 10 run ids behind the row, largest first, for drill-in.
   repeated string run_ids = 10;
   // Set when every turn in the row shares the value; empty when mixed.
@@ -1108,7 +1106,7 @@ message UsageCalibration {
   // blocks, usage explains every block it ran in; none: no usage.
   string method = 1;
   repeated UsageModelWeight weights = 2;
-  // Uncentered fit quality over the blocks (0..1); 0 when not fitted.
+  // Uncentered fit quality over the blocks (0..1); meaningful only when method is fitted (0 otherwise means no R², not a zero fit).
   double r_squared = 3;
   // Blocks: consecutive one-point steps merged to at least 3 points.
   int64 slices = 4;
@@ -1152,6 +1150,8 @@ message UsageWindowAttribution {
   double unattributed_points = 12;
   string group_by = 13;
   repeated UsageBurner burners = 14;
+  // Rows folded into one "N smaller items" row: those past the limit and
+  // those under fold_below_points.
   int64 other_burners = 15;
   double other_points = 16;
   UsageCalibration calibration = 17;
@@ -1160,6 +1160,8 @@ message UsageWindowAttribution {
   repeated UsageMeteredLine metered_lines = 19;
   // Runner whose transcripts explain this provider (codex, claude-code).
   string runner = 20;
+  // Rows under this many points fold into other_burners/other_points.
+  double fold_below_points = 21;
 }
 
 message UsageBurnersResponse {
@@ -1172,53 +1174,101 @@ message UsageBurnersResponse {
 
 message UsageRecommendationsRequest {
   string provider = 1;
-  // Keeps only recommendations whose evidence names this run.
+  // Keeps only actions whose evidence or drill-down names this run or session.
   string run_id = 2;
-  // Default 20.
+  // Actions to return. Default 20.
   int32 limit = 3;
+  // pool and window (both set) evaluate the quota levers for that one window
+  // alone. Empty evaluates each provider's longest window.
+  string pool = 4;
+  string window = 5;
 }
 
 message UsageEvidenceRef {
-  // run | session | file | episode | image | profile | workload
+  // run | session | workload
   string kind = 1;
   string id = 2;
   string label = 3;
 }
 
-message UsageEvidenceMetric {
-  string name = 1;
-  double value = 2;
-  // points | tokens | turns | calls | runs | ratio | hours | images
+// UsageActionEffect is what an action changes, in the unit of its harm.
+message UsageActionEffect {
+  double value = 1;
+  // For a range (basis "range"): the top; value is the bottom.
+  double upper = 2;
+  // points | calls | ms | tokens | interventions
   string unit = 3;
+  // would have saved | projected | range | per 10k tokens trimmed | observed
+  string basis = 4;
 }
 
-// UsageRecommendation is one deterministic rule finding.
-message UsageRecommendation {
+// UsageActionDrill is one session's part of an aggregate action: evidence,
+// not a recommendation of its own.
+message UsageActionDrill {
+  string kind = 1;
+  string id = 2;
+  string label = 3;
+  // "would have saved ≈1.2 pts (finished)", "projected to save … (still running)".
+  string detail = 4;
+  double value = 5;
+  bool still_running = 6;
+}
+
+// UsageAction is one owner-level change: who can make it, what to do, the
+// evidence, its effect in its own unit, a score on the common scale and the
+// measure that verifies it.
+message UsageAction {
   int32 rank = 1;
-  // R-model | R-context | R-fanout | R-friction | R-idle | R-image
-  string rule = 2;
-  // model | context | fanout | friction | idle | image
-  string lever = 3;
-  // session | run | profile | workload | image
-  string target_kind = 4;
-  string target_id = 5;
-  string target_label = 6;
-  string provider = 7;
-  string pool = 8;
-  string window = 9;
-  // Estimated quota saved per week, in points of the named window.
-  double est_weekly_quota_points_saved = 10;
-  // high | medium | low
-  string confidence = 11;
-  string action = 12;
-  string rationale = 13;
-  // The target's attributed points in the current window.
-  double consumer_points = 14;
-  repeated UsageEvidenceRef evidence_refs = 15;
-  repeated UsageEvidenceMetric metrics = 16;
+  // lever | tool | opportunity | intervention
+  string source = 2;
+  // R-context, R-lifetime, R-model, R-model-mix, R-floor, R-idle, R-image,
+  // R-skill; failure, degraded, shape-guessing, output-weight, polling, slow;
+  // sequence, bypass; an intervention category.
+  string kind = 3;
+  // skill | scenario | command | program | harness | session | workload
+  string owner_kind = 4;
+  string owner = 5;
+  // At most 60 characters.
+  string title = 6;
+  string action = 7;
+  string rationale = 8;
+  UsageActionEffect effect = 9;
+  // Share (0-1) of its own kind of harm the action removes: quota levers of
+  // their window's observed points; tool findings of the window's failed
+  // calls, shape guesses, polled calls, wall-clock or context tax;
+  // opportunities of hand-run Vrooli CLI calls or bypass calls; operator
+  // corrections of operator messages. Actions rank by it; kinds weigh equally.
+  double score = 10;
+  // "40.0% of the window's 46 failed calls".
+  string score_basis = 11;
+  // Part of a quota lever's saving still to be had before its window resets.
+  double recoverable_points = 12;
+  // high | medium | low | unproven
+  string confidence = 13;
+  repeated UsageEvidenceRef evidence_refs = 14;
+  repeated UsageActionDrill drilldown = 15;
+  // The command or measure that shows the change worked.
+  string verify = 16;
+  reserved 17;
+  reserved "fingerprint";
+  // The tool findings the action states (several when a bypass and a tool
+  // finding merged): report or dismiss them with `usage friction`.
+  repeated string fingerprints = 25;
+  // Quota levers: the window they are stated in.
+  string provider = 18;
+  string pool = 19;
+  string window = 20;
+  // Tool and bypass actions: the largest single run's share (0-1) of the
+  // action's uncapped cost; near 1 means it is one run's loop.
+  double top_run_share = 21;
+  // A root-cause roll-up: the root and every line it covers.
+  string root_cause = 22;
+  repeated UsageToolSub subs = 23;
+  // Shape-guessing: what agents tried and what the CLI suggested.
+  repeated UsageToolGuess guesses = 24;
 }
 
-// UsageRuleStatus reports whether a rule family fired and, when it did not,
+// UsageRuleStatus reports whether a lever family fired and, when it did not,
 // why, from the data.
 message UsageRuleStatus {
   string rule = 1;
@@ -1229,13 +1279,218 @@ message UsageRuleStatus {
 }
 
 message UsageRecommendationsResponse {
-  // Ranked by est_weekly_quota_points_saved, largest first.
-  repeated UsageRecommendation recommendations = 1;
+  reserved 1, 4, 5, 6, 7;
+  // Ranked by score, highest first.
+  repeated UsageAction actions = 8;
   repeated UsageRuleStatus rules = 2;
   string generated_at = 3;
-  // The session key with the most attributed points across current windows.
-  string dominant_consumer = 4;
-  string dominant_consumer_label = 5;
+  // Actions scoring under materiality_score are counted, not listed; the
+  // friction list applies the same floor to the same score.
+  int64 below_materiality = 9;
+  double materiality_score = 10;
+  // How actions of different kinds share one score, with its assumptions.
+  repeated string scoring = 11;
+  // What each source could see: a short list is bounded silence.
+  repeated string coverage = 12;
+  // The named window's projection with its quota levers applied; set only
+  // when the request names a window.
+  UsageWindowOutcome outcome = 13;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// UsageWindowOutcome is one window's forecast with its listed quota levers
+// taken out of the remaining burn, so every surface shows one figure.
+message UsageWindowOutcome {
+  // What the window's quota levers can still recover before the reset,
+  // combined: a run that several levers act on counts once, at the largest
+  // of their recoverable points for it.
+  double recoverable_points = 1;
+  // Quota levers that recover something.
+  int32 levers = 2;
+  // False when the window is not at risk, has no projected burn or no time
+  // left; the projection fields below are then unset.
+  bool projected = 3;
+  // Used percent projected at the reset with the levers applied.
+  double end_percent = 4;
+  bool reaches_reset = 5;
+  // RFC 3339 run-out with the levers applied, when it still comes before
+  // the reset.
+  string run_out_at = 6;
+  // How long before the reset that run-out is.
+  int64 shortfall_seconds = 7;
+  // Share of the current burn (the last-24 h rate, else the central burn)
+  // that has to go to last until the reset, 0-1; unset when it already lasts.
+  optional double cut_needed = 8;
+}
+
+message UsageFrictionRequest {
+  reserved 1;
+  // open | reported | dismissed. Empty returns every status.
+  string status = 2;
+  // Default 20, for tool findings and intervention examples each.
+  int32 limit = 3;
+  // RFC 3339 start of the friction window; empty means 7 days ago.
+  string since = 4;
+}
+
+// UsageToolFinding is one owner-level problem from the tool profiles: who can
+// fix it, what it is, what it cost in the unit of its harm, and evidence.
+message UsageToolFinding {
+  string fingerprint = 1;
+  // failure | degraded | shape-guessing | output-weight | polling | slow | bypass
+  string kind = 2;
+  string owner = 3;
+  // scenario | control-plane
+  string owner_kind = 4;
+  // The one command path it concerns; empty when it spans several.
+  string command_path = 5;
+  string description = 6;
+  int64 calls = 7;
+  int64 runs = 8;
+  // calls | ms | tokens
+  string cost_unit = 9;
+  int64 cost = 10;
+  // The largest of shares: findings rank by it.
+  double cost_share = 11;
+  // The normalised error line or notice, or the bypass method.
+  string signature = 12;
+  // Redacted example commands.
+  repeated string example_commands = 13;
+  repeated UsageEvidenceRef evidence_refs = 14;
+  // open | reported | dismissed
+  string status = 15;
+  string bug_id = 16;
+  string status_at = 17;
+  // The largest single run's share (0-1) of the uncapped cost: near 1 means
+  // the finding is one run's loop. cost counts each run at most 10x the
+  // median run.
+  double top_run_share = 18;
+  // Failure and degraded findings rolled up by a shared root cause: the root
+  // and every line under it. Empty for a single line.
+  string root_cause = 19;
+  repeated UsageToolSub subs = 20;
+  // Shape-guessing: what agents tried and what the CLI suggested.
+  repeated UsageToolGuess guesses = 21;
+  // Output weight: tokens the largest call printed (estimated from bytes)
+  // and the tokens the harness showed the model of it.
+  int64 printed_tokens = 22;
+  int64 read_tokens = 23;
+  // The cost of each kind of harm the finding holds over that kind's total,
+  // largest first: one for most findings, one per kind for a root-cause
+  // roll-up of failures and notices.
+  repeated UsageToolShare shares = 24;
+  // √(cost_share × the share of the window's runs that show it): the score
+  // that ranks findings and actions and decides which are listed.
+  double score = 25;
+}
+
+// UsageToolShare is a finding's cost of one kind of harm over the window's
+// total of that kind, with the total named.
+message UsageToolShare {
+  // failure | degraded | shape-guessing | output-weight | polling | slow |
+  // bypass, or wall-clock: the time spent in a degradation's calls.
+  string kind = 1;
+  // calls | ms | tokens
+  string unit = 2;
+  int64 cost = 3;
+  // cost over the kind's total (0-1).
+  double share = 4;
+  // The total in words: "the window's 812 Vrooli CLI failed calls".
+  string base = 5;
+  // "failure 101 calls = 12.4% of the window's 812 Vrooli CLI failed calls".
+  string sentence = 6;
+}
+
+// UsageInterventionCategory is one category of classified operator messages the
+// accuracy gate admits.
+message UsageInterventionCategory {
+  // A proven category, or "operator_friction" for the pooled bucket.
+  string category = 1;
+  // The skill or doc that can remove the recurring cause.
+  string owner = 2;
+  // Messages the gate admits in the window.
+  int64 interventions = 3;
+  // interventions per agent-hour of the window; 0 when the window has none.
+  double per_agent_hour = 4;
+  // Shown quality_miss reports that repeat an earlier report of the same symptom.
+  int64 repeats = 5;
+  // Agent work between the previous operator message of each run and the
+  // admitted messages: provider requests, tool calls and tokens.
+  int64 work_requests = 6;
+  int64 work_tool_calls = 7;
+  int64 work_tokens = 8;
+  // True for "operator friction (category unproven)": friction by probability
+  // mass in no proven category. Its counts are real; the category of each
+  // message is not proven, so hints are labelled unproven and are not counts
+  // of a category.
+  bool pooled = 9;
+  repeated UsageInterventionHint hints = 10;
+}
+
+// UsageInterventionHint is the number of pooled messages whose most likely
+// friction category is category (unproven), with that category's owner.
+message UsageInterventionHint {
+  string category = 1;
+  string owner = 2;
+  int64 count = 3;
+}
+
+// UsageInterventionExample is one admitted operator message.
+message UsageInterventionExample {
+  string event_id = 1;
+  string run_id = 2;
+  string occurred_at = 3;
+  string category = 4;
+  double probability = 5;
+  string owner = 6;
+  // Redacted and shortened.
+  string text = 7;
+  int64 work_requests = 8;
+  int64 work_tool_calls = 9;
+  int64 work_tokens = 10;
+  // The earlier report this one repeats.
+  string repeat_of_event_id = 11;
+  // The message is in the pooled bucket; category is then an unproven hint.
+  bool pooled = 12;
+}
+
+// UsageInterventions are the operator messages classified as agent friction in
+// the window, under the accuracy gate. When categories is empty, unshown_reason
+// says why; an empty list is never "no friction".
+message UsageInterventions {
+  repeated UsageInterventionCategory categories = 1;
+  repeated UsageInterventionExample examples = 2;
+  // Operator messages recorded in the window and the share the model classified.
+  int64 operator_messages = 3;
+  int64 classified = 4;
+  double coverage = 5;
+  double agent_hours = 6;
+  string unshown_reason = 7;
+  // Messages shown across the categories (the pooled bucket included).
+  int64 shown = 8;
+}
+
+message UsageFrictionResponse {
+  reserved 1, 6, 7;
+  // Operator interventions classified as friction, under the accuracy gate.
+  UsageInterventions interventions = 11;
+  // Owner-level tool problems from the tool profiles of the requested status
+  // whose score reaches the materiality floor, ranked by score, up to limit.
+  repeated UsageToolFinding tool_findings = 8;
+  // Findings of the requested status under the materiality floor (counted,
+  // not listed), and those over it past limit.
+  int64 below_floor = 12;
+  int64 beyond_limit = 13;
+  double materiality_score = 14;
+  // What the tool profiles could see in their window.
+  ToolFrictionCoverage coverage = 9;
+  string window_start = 10;
+  int64 open = 2;
+  int64 reported = 3;
+  int64 dismissed = 4;
+  string generated_at = 5;
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
@@ -1296,33 +1551,687 @@ message UsageCompareRequest {
   string provider = 4;
 }
 
-// UsageCompareSide is one cohort's quota per successful workload unit.
+// UsageCompareSide is one cohort's quota per accepted work unit. Completed
+// counts lifecycle completion only and is never evidence of acceptance.
 message UsageCompareSide {
   int64 runs = 1;
-  int64 successful_runs = 2;
+  // Work units with an accepted outcome estimate.
+  int64 accepted_units = 2;
   // Runs with usage priced by a calibrated window.
   int64 priced_runs = 3;
   UsageTokens tokens = 4;
   double weighted_tokens = 5;
   // Estimated quota points (approximate).
   double points = 6;
-  double points_per_success = 7;
-  double tokens_per_success = 8;
-  double success_rate = 9;
+  double points_per_accepted = 7;
+  double tokens_per_accepted = 8;
+  // Runs whose lifecycle finished; includes every imported session whose transcript ended.
+  int64 completed_runs = 9;
   string window_start = 10;
   string window_end = 11;
+  // Work units whose outcome estimate is unknown; excluded from the ratio.
+  int64 unknown_units = 12;
 }
 
 message UsageCompareResponse {
   UsageCompareSide left = 1;
   UsageCompareSide right = 2;
   string change_binding = 3;
-  // right.points_per_success / left.points_per_success - 1; negative is better.
-  double points_per_success_change = 4;
+  // right.points_per_accepted / left.points_per_accepted - 1; negative is better.
+  double points_per_accepted_change = 4;
   // improved | regressed | unchanged | insufficient
   string verdict = 5;
   repeated string caveats = 6;
   MeasureValidity validity = 100;
   MeasureProvenance provenance = 101;
   string definition_id = 102;
+}
+
+// FallbackInsights summarizes fallback events in the window. Runner and model
+// fallbacks are counted per attempt; exhausted means no candidate remained.
+message FallbackInsightsRequest {
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+message FallbackPairRow {
+  string from = 1;
+  string to = 2;
+  string reason = 3;
+  int64 count = 4;
+}
+message FallbackCountRow {
+  string key = 1;
+  int64 count = 2;
+}
+message FallbackInsightsResponse {
+  int64 runner_attempts = 1;
+  int64 runner_exhausted = 2;
+  int64 model_attempts = 3;
+  int64 model_exhausted = 4;
+  repeated FallbackPairRow runner_pairs = 5;
+  repeated FallbackPairRow model_pairs = 6;
+  repeated FallbackCountRow runner_reasons = 7;
+  repeated FallbackCountRow model_reasons = 8;
+  int64 policy_candidate_events = 9;
+  repeated FallbackCountRow policy_outcomes = 10;
+  repeated FallbackCountRow policy_failure_classes = 11;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// UsageModeScope narrows a mode; empty fields match everything.
+message UsageModeScope {
+  string runner = 1;
+  string role = 2;
+  string profile = 3;
+}
+
+// UsageModeSettings are the concrete values one runner gets under a mode.
+message UsageModeSettings {
+  string runner = 1;
+  map<string, string> model_map = 2;
+  string session_model = 3;
+  string effort = 4;
+  int64 context_limit_tokens = 5;
+}
+
+// UsageMode is one mode as stored in the shared mode file.
+message UsageMode {
+  string id = 1;
+  string label = 2;
+  string kind = 3;
+  UsageModeScope scope = 4;
+  string started_at = 5;
+  // The verified operator subject that started the mode.
+  string started_by = 6;
+  string source = 7;
+  // window_reset | time | off
+  string until_kind = 8;
+  string until_provider = 9;
+  int64 until_window_minutes = 10;
+  // Empty for an off mode.
+  string expires_at = 11;
+  repeated string exempt_roles = 12;
+  repeated UsageModeSettings settings = 13;
+  // Set for kind learn.
+  UsageModeLearn learn = 14;
+}
+
+// UsageModeLearn is the comparison part of a learn-kind mode.
+message UsageModeLearn {
+  // Challenger share of work, 1 to 99.
+  int32 split_percent = 1;
+  // The challenger's settings per runner (kept apart from settings so a
+  // reader that does not know Learn applies nothing).
+  repeated UsageModeSettings challenger = 2;
+  bool sessions_opt_in = 3;
+  int32 block_days = 4;
+  bool paused = 5;
+  string paused_reason = 6;
+}
+
+// UsageModeBurn is the observed quota increase of one window since the mode
+// started. It is an observation of use, not a saving.
+message UsageModeBurn {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  double observed_increase_points = 4;
+  double attributed_points = 5;
+  double unattributed_points = 6;
+}
+
+message UsageModeStatus {
+  UsageMode mode = 1;
+  // Zero for an off mode.
+  int64 seconds_left = 2;
+  repeated UsageModeBurn burn = 3;
+}
+
+// UsageModeReachRow classifies one current window's observed increase by who
+// can be changed: operator sessions (no profile), profile runs and the
+// unattributed remainder. Points are estimates.
+message UsageModeReachRow {
+  string provider = 1;
+  string pool = 2;
+  string window = 3;
+  string resets_at = 4;
+  double observed_increase_points = 5;
+  double operator_points = 6;
+  double profile_points = 7;
+  double unattributed_points = 8;
+  double operator_share = 9;
+  double profile_share = 10;
+  double unattributed_share = 11;
+}
+
+message ListUsageModesRequest {}
+
+message ListUsageModesResponse {
+  string generated_at = 1;
+  repeated UsageModeStatus modes = 2;
+  repeated UsageModeReachRow reach = 3;
+  // What each class of consumer can and cannot be changed by.
+  repeated string reach_notes = 4;
+  string mode_file = 5;
+  // Every recorded mode period of the last 35 days, ended ones included, oldest
+  // first: what the window charts shade.
+  repeated UsageModePeriod periods = 6;
+}
+
+message StartUsageModeRequest {
+  // one-tier-down maps each model to the next tier the resource declares.
+  string preset = 1;
+  // Overrides every mapped target and the session model; needs runner.
+  string model = 2;
+  string effort = 3;
+  int64 context_limit_tokens = 4;
+  string runner = 5;
+  string role = 6;
+  string profile = 7;
+  // 5h-reset | weekly-reset | off | RFC 3339 time | duration such as 72h.
+  string until = 8;
+  string label = 9;
+}
+
+message StartUsageModeResponse {
+  UsageMode mode = 1;
+  // Modes with the identical scope that this start replaced.
+  repeated string replaced_ids = 2;
+  repeated string notes = 3;
+}
+
+message EndUsageModeRequest {
+  repeated string ids = 1;
+  bool all = 2;
+}
+
+message EndUsageModeResponse {
+  repeated string ended_ids = 1;
+  repeated string not_found_ids = 2;
+}
+
+message ExtendUsageModeRequest {
+  string id = 1;
+  // weekly-reset | off | a positive duration such as 2h added to the later of
+  // now and the current end.
+  string to = 2;
+}
+
+message ExtendUsageModeResponse {
+  UsageMode mode = 1;
+}
+
+message RebaseUsageModeRunsRequest {
+  string mode_id = 1;
+  // Empty considers every non-terminal run.
+  repeated string run_ids = 2;
+  bool dry_run = 3;
+}
+
+// UsageModeRebaseResult is one run's outcome.
+message UsageModeRebaseResult {
+  string run_id = 1;
+  // switched_at_next_resume | applies_on_next_launch | unable
+  string status = 2;
+  // Why the run cannot switch, or what the switch means for it.
+  string reason = 3;
+  string from_model = 4;
+  string to_model = 5;
+  // Retained context the next resume re-sends on the new model; 0 when unknown.
+  int64 estimated_reread_tokens = 6;
+}
+
+message RebaseUsageModeRunsResponse {
+  bool dry_run = 1;
+  repeated UsageModeRebaseResult results = 2;
+}
+
+message UsageParityRequest {
+  // Default last_7d.
+  vrooli.measures.v1.TimeWindow window = 1;
+}
+
+// UsageParityMeasure is one measure's coverage on one path and harness.
+message UsageParityMeasure {
+  // usage | tool_facts | tool_outcomes | message_signals | model | mode | outcome
+  string name = 1;
+  int64 numerator = 2;
+  int64 denominator = 3;
+  double share = 4;
+  // Items this measure does not apply to, such as runs with no commands.
+  int64 not_applicable = 5;
+  // Why the share is below 90%; empty otherwise.
+  string reason = 6;
+}
+
+message UsageParityRow {
+  // imported | imported_web_console | am_interactive | am_headless | attached
+  string path = 1;
+  string harness = 2;
+  int64 runs = 3;
+  // Runs that enter the denominators.
+  int64 eligible_runs = 4;
+  int64 no_requests = 5;
+  // Classes of attached rows left out of denominators (class=count).
+  repeated UsageParityCount excluded = 6;
+  repeated UsageParityMeasure measures = 7;
+}
+
+message UsageParityCount {
+  string name = 1;
+  int64 count = 2;
+}
+
+// UsageParityGap is one known difference between paths and why it remains.
+message UsageParityGap {
+  string subject = 1;
+  // closed | open | transient | explained
+  string status = 2;
+  int64 count = 3;
+  string reason = 4;
+}
+
+message UsageParityResponse {
+  string generated_at = 1;
+  string window_start = 2;
+  string window_end = 3;
+  repeated UsageParityRow rows = 4;
+  repeated UsageParityGap gaps = 5;
+  // Old sessions first imported in this window, excluded because their activity is earlier.
+  int64 backfill_runs = 6;
+  // Runs changed since the ledger last read them; numbers lag by this many runs.
+  int64 ledger_pending = 7;
+  repeated UsageCoverageRoot transcript_roots = 8;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message UsageOutcomesRequest {
+  // Default last_7d.
+  vrooli.measures.v1.TimeWindow window = 1;
+  // model | role | mode | arm. Default model. arm groups learn-comparison work by
+  // its assigned arm and reports design randomized.
+  string by = 2;
+  // Row key every row of its runner is compared with; default the priciest row with enough data.
+  string baseline = 3;
+}
+
+// UsageRange is a statistic with its bootstrap range. Available is false when
+// the sample cannot support the statistic.
+message UsageRange {
+  bool available = 1;
+  double value = 2;
+  double low = 3;
+  double high = 4;
+  int64 samples = 5;
+}
+
+message UsageEvidenceCount {
+  // outcome estimate source, such as run_status or operator_correction
+  string source = 1;
+  int64 units = 2;
+}
+
+message UsageOutcomeRow {
+  string key = 1;
+  string runner = 2;
+  // enough | not_enough_data
+  string status = 3;
+  string status_reason = 4;
+  int64 units = 5;
+  int64 runs = 6;
+  int64 accepted = 7;
+  int64 corrected = 8;
+  int64 failed = 9;
+  int64 abandoned = 10;
+  int64 unknown = 11;
+  double unknown_rate = 12;
+  UsageRange rework_rate = 13;
+  // Attributed points of every unit, and of units with a known outcome.
+  double points_total = 14;
+  double points_known = 15;
+  UsageRange points_per_accepted = 16;
+  UsageRange consumption_per_accepted = 17;
+  UsageRange points_per_run = 18;
+  UsageRange consumption_per_run = 19;
+  UsageRange active_minutes_per_run = 20;
+  double wall_hours_mean = 21;
+  double wall_hours_median = 22;
+  int64 runs_over_24h = 23;
+  double idle_share = 24;
+  // Compared with the runner's baseline row.
+  string baseline = 25;
+  // cheaper | more_expensive | about_same (the range sits inside the margin) |
+  // inconclusive (it does not) | baseline | not_enough_data
+  string verdict = 26;
+  UsageRange cheaper_by = 27;
+  UsageRange consumption_ratio = 28;
+  UsageRange run_length_ratio = 29;
+  // Baseline over this row's realized points per reference token, on the same
+  // known units and the same fixed token weights as consumption_ratio, so
+  // cheaper_by.value = break_even_ratio / consumption_ratio.value exactly.
+  double break_even_ratio = 30;
+  // price_book | tier_prior | fallback | mixed: what the pair's points inherit.
+  string price_source = 31;
+  repeated UsageEvidenceCount evidence = 32;
+  // headless | operator. Rows never pool the two: an operator can mark only an
+  // operator-path unit corrected.
+  string stratum = 33;
+  // Units that finished with no evidence of acceptance. Never counted as accepted.
+  int64 completed = 34;
+  // The weaker unit: all known points over accepted plus completed units.
+  UsageRange points_per_completed = 35;
+  string completed_baseline = 36;
+  // Same words as verdict, for the weaker unit only. Never a verdict.
+  string completed_reading = 37;
+  UsageRange cheaper_by_completed = 38;
+  // Baseline over this model's price at one fixed token mix of the runner:
+  // the model's price apart from the mix it realized. Zero when unpriced.
+  double model_price_ratio = 39;
+  // price_book | tier_prior | fallback | mixed: where model_price_ratio comes from.
+  string model_price_source = 40;
+}
+
+// UsageRefitRow reports whether quota blocks one model dominated could improve
+// that model's weight.
+message UsageRefitRow {
+  string runner = 1;
+  string model = 2;
+  string price_source = 3;
+  // Quota blocks of the window in which this model was 90% or more of priced use.
+  int64 dominant_blocks = 4;
+  // Of those, blocks inside a recorded usage mode period.
+  int64 mode_blocks = 5;
+  // Points per million consumption units implied by those blocks.
+  UsageRange implied_points_per_million = 6;
+  // Same statistic the current weights imply.
+  double prior_points_per_million = 7;
+  // usable | insufficient
+  string status = 8;
+  string reason = 9;
+}
+
+// UsageModePeriod is one recorded usage mode, for shading the burn chart. An
+// empty ended_at with an empty expires_at is still open.
+message UsageModePeriod {
+  string id = 1;
+  string label = 2;
+  string runner = 3;
+  string started_at = 4;
+  string ended_at = 5;
+  string expires_at = 6;
+}
+
+// UsageSeriesBucket is the attributed points of runs that started in one day.
+message UsageSeriesBucket {
+  string at = 1;
+  double points = 2;
+  int64 runs = 3;
+}
+
+// UsageModelSeries is one model's attributed points per day of the window.
+message UsageModelSeries {
+  string model = 1;
+  string runner = 2;
+  repeated UsageSeriesBucket buckets = 3;
+}
+
+message UsageOutcomesResponse {
+  string generated_at = 1;
+  string window_start = 2;
+  string window_end = 3;
+  string by = 4;
+  repeated UsageOutcomeRow rows = 5;
+  // Work units across rows by evidence and by start path.
+  repeated UsageEvidenceCount evidence = 6;
+  repeated UsageEvidenceCount paths = 7;
+  int64 units = 8;
+  int64 unknown_units = 9;
+  // Mean link confidence of multi-run units.
+  double link_confidence = 10;
+  int64 linked_units = 11;
+  repeated string notes = 12;
+  repeated UsageRefitRow refit = 13;
+  // Field numbers 20 and up leave 14 to 19 free for concurrent additions.
+  // Every recorded mode period that overlaps the window, oldest first.
+  repeated UsageModePeriod mode_periods = 20;
+  // Attributed points per day for each model in the window (by=model only).
+  repeated UsageModelSeries series = 21;
+  // observational | randomized | day_block_randomized: how the compared work
+  // was assigned, read from each unit's recorded assignment basis.
+  string design = 22;
+  // Units that finished with no evidence of acceptance.
+  int64 completed_units = 23;
+  // by=arm only: units whose runs fell in different arms, excluded from rows.
+  int64 spanning_units = 24;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+// UsageExperimentArm is one arm of a Learn comparison, by assignment.
+message UsageExperimentArm {
+  // incumbent | challenger
+  string arm = 1;
+  int64 units = 2;
+  // Units with a known outcome; unknown ones stay out.
+  int64 known = 3;
+  int64 accepted = 4;
+  // Sessions that did not run on the arm's model (full power, explicit model)
+  // but stay in the arm.
+  int64 exceptions = 5;
+  UsageRange points_per_accepted = 6;
+  UsageRange rework_rate = 7;
+  // Units that finished with no evidence of acceptance.
+  int64 completed = 20;
+  int64 unknown = 21;
+  // Every unit's points in the look's sample, and the unknown units' share of them.
+  double total_points = 22;
+  double unknown_points = 23;
+  UsageRange points_per_completed = 24;
+  // Independent units the arm's analysis reads: a whole day block counts once.
+  int64 clusters = 25;
+  // Of accepted, the units whose only evidence is the agent's own complete
+  // verdict (no approval or validation): acceptance that is partly assumed.
+  int64 assumed_accepted = 26;
+}
+
+// UsageExperimentHorizon is the expected time to the planned look. reached is
+// false when the look cannot be reached at this pace or, for same, when the look
+// is unlikely to read that way.
+message UsageExperimentHorizon {
+  bool reached = 1;
+  double days = 2;
+  double low_days = 3;
+  double high_days = 4;
+  int64 per_arm = 5;
+}
+
+// UsageExperimentPlan is the expected time to a verdict.
+message UsageExperimentPlan {
+  double units_per_day = 1;
+  double cost_cv = 2;
+  // True when the role had too little finished work to measure its variance.
+  bool variance_assumed = 3;
+  int64 pilot_units = 4;
+  // The true cost reduction the detect horizon targets.
+  double effect = 5;
+  UsageExperimentHorizon detect = 6;
+  UsageExperimentHorizon same = 7;
+  // The smallest cost reduction detectable in 90 days; zero means none up to 90%.
+  double detectable_in_90_days = 8;
+  double power = 9;
+  repeated string notes = 10;
+  int64 min_accepted_per_arm = 11;
+  double min_effect = 12;
+  double rework_margin = 13;
+  // Share of known units with evidence of acceptance, and of those plus
+  // lifecycle-only completions.
+  double accepted_share = 14;
+  double completed_share = 15;
+  // Chance a true cost reduction of effect reads cheaper at the planned look.
+  double power_at_look = 16;
+  // Chance no true difference reads about the same at the planned look.
+  double same_at_look = 17;
+  // Time to the look if lifecycle completion stood in for acceptance: a weaker
+  // reading, never a verdict.
+  UsageExperimentHorizon completed_only = 18;
+  double completed_only_power = 19;
+  // Family-wise level split over the cost and rework tests.
+  double alpha_per_test = 20;
+}
+
+// UsageRoleRecommendation is the role-default change a verdict supports. It is
+// an ask: nothing is applied, and policy_ops is the exact change for the operator.
+message UsageRoleRecommendation {
+  bool available = 1;
+  string role = 2;
+  string runner = 3;
+  string from_model = 4;
+  string to_model = 5;
+  string verdict = 6;
+  string evidence = 7;
+  string policy_file = 8;
+  repeated string policy_ops = 9;
+  string policy_note = 10;
+  string decision_id = 11;
+  // pending | approved | rejected | empty when not yet proposed
+  string decision_state = 12;
+  string decision_note = 13;
+  // Always false: Agent Manager has no governed way to edit resource files.
+  bool applied = 14;
+}
+
+message UsageExperiment {
+  string mode_id = 1;
+  string label = 2;
+  string role = 3;
+  string runner = 4;
+  string incumbent_model = 5;
+  string challenger_model = 6;
+  // randomized | day_block_randomized | observational, from the assignment basis.
+  string design = 7;
+  int32 split_percent = 8;
+  bool sessions_opt_in = 9;
+  int32 block_days = 10;
+  bool active = 11;
+  bool paused = 12;
+  string paused_reason = 13;
+  string started_at = 14;
+  string ends_at = 15;
+  UsageExperimentArm incumbent = 16;
+  UsageExperimentArm challenger = 17;
+  // Challenger over incumbent points per accepted outcome.
+  UsageRange cost_ratio = 18;
+  double cost_p_value = 19;
+  UsageRange rework_difference = 20;
+  double rework_p_value = 21;
+  // cheaper_looks_better | about_the_same | higher_looks_better | inconclusive |
+  // withheld | not_enough_data
+  string verdict = 22;
+  string reason = 23;
+  int64 need_accepted = 24;
+  UsageExperimentPlan plan = 25;
+  UsageRoleRecommendation recommendation = 26;
+  // The single planned look: reached once both arms hold planned_accepted.
+  bool look_reached = 27;
+  int64 planned_accepted = 28;
+  string look_at = 29;
+  // Alpha over 2 tests and comparisons learn comparisons started by the look.
+  double alpha_per_test = 30;
+  int64 comparisons = 31;
+  // Units flagged as spanning arms and excluded.
+  int64 spanning_units = 32;
+  // Units started after the look, which can no longer move the verdict.
+  int64 units_after_look = 33;
+  // The larger gap between the arms' unknown and acceptance-unknown rates.
+  double unknown_rate_difference = 34;
+  // Challenger over incumbent cost if every unknown outcome went the best and
+  // the worst way, on total spend including unknown units.
+  UsageRange cost_bound = 35;
+  // cost_ratio at the corrected level the verdict reads; decision_level names it.
+  UsageRange decision_range = 36;
+  double decision_level = 37;
+}
+
+message UsageExperimentRequest {
+  // Empty reads every recorded learn comparison.
+  string mode_id = 1;
+}
+
+message UsageExperimentResponse {
+  string generated_at = 1;
+  repeated UsageExperiment experiments = 2;
+  MeasureValidity validity = 100;
+  MeasureProvenance provenance = 101;
+  string definition_id = 102;
+}
+
+message PlanUsageExperimentRequest {
+  string runner = 1;
+  string role = 2;
+  // Challenger share, 1 to 99; zero is 50.
+  int32 split_percent = 3;
+  // True cost reduction to target; zero uses 0.5.
+  double effect = 4;
+}
+
+message PlanUsageExperimentResponse {
+  UsageExperimentPlan plan = 1;
+  // Set when the role cannot be compared, with the reason.
+  string refusal = 2;
+}
+
+message StartUsageExperimentRequest {
+  string runner = 1;
+  string role = 2;
+  string profile = 3;
+  // Overrides the challenger the resource's usage_tiers name.
+  string model = 4;
+  // 5h-reset | weekly-reset | off | RFC 3339 time | duration such as 72h or 90d.
+  string until = 5;
+  string label = 6;
+  int32 split_percent = 7;
+  // Opt operator sessions in as randomized day blocks.
+  bool sessions = 8;
+  int32 block_days = 9;
+}
+
+message StartUsageExperimentResponse {
+  UsageMode mode = 1;
+  UsageExperimentPlan plan = 2;
+  repeated string notes = 3;
+}
+
+message ProposeRoleDefaultRequest {
+  string mode_id = 1;
+}
+
+message ProposeRoleDefaultResponse {
+  UsageRoleRecommendation recommendation = 1;
+}
+
+message UsageSignalsStatusRequest {}
+
+message UsageSignalsStatusResponse {
+  bool enabled = 1;
+  // environment | operator | default: what decides the state.
+  string source = 2;
+  string changed_at = 3;
+  string changed_by = 4;
+  // Stored signal rows.
+  int64 stored = 5;
+  string note = 6;
+}
+
+message SetUsageSignalsRequest {
+  // off | on | purge
+  string action = 1;
+}
+
+message SetUsageSignalsResponse {
+  UsageSignalsStatusResponse status = 1;
+  int64 purged = 2;
 }

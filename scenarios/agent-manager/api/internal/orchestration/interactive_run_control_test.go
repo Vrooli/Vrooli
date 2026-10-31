@@ -1442,3 +1442,26 @@ func TestStopInteractiveRunRevocationFailurePreventsSessionRetirement(t *testing
 		t.Fatalf("run state after failed revocation = %+v, err=%v", stored, getErr)
 	}
 }
+
+func TestResolvedRunModeRejectsProtectedInPlace(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		mode      domain.RunMode
+		cfg       *domain.SandboxConfig
+		wantError bool
+	}{
+		{"protected in place", domain.RunModeInPlace, &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, true},
+		{"default protected in place", domain.RunModeInPlace, &domain.SandboxConfig{}, true},
+		{"protected sandbox", domain.RunModeSandboxed, &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, false},
+		{"off in place", domain.RunModeInPlace, &domain.SandboxConfig{Mode: domain.SandboxModeOff}, false},
+		{"tracking in place", domain.RunModeInPlace, &domain.SandboxConfig{Mode: domain.SandboxModeTracking}, false},
+		{"no config", domain.RunModeInPlace, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateResolvedRunMode(tc.mode, tc.cfg)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("validateResolvedRunMode() = %v; want error %v", err, tc.wantError)
+			}
+		})
+	}
+}

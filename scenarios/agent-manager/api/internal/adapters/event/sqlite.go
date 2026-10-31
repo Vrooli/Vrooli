@@ -389,7 +389,7 @@ func (s *SQLiteStore) append(ctx context.Context, runID uuid.UUID, requireEmpty 
 		var storedTime sqliteTime
 		existingErr := conn.QueryRowContext(ctx, `SELECT run_id,sequence,event_type,schema_version,data,timestamp FROM run_events WHERE id=?`, evt.ID).Scan(&storedRun, &storedSeq, &storedType, &storedSchema, &storedData, &storedTime)
 		if existingErr == nil {
-			if storedRun != runID.String() || storedType != string(evt.EventType) || storedSchema != schemaVersion || !bytes.Equal(storedData, data) {
+			if storedRun != runID.String() || (!evt.KeepStoredOnReplay && (storedType != string(evt.EventType) || storedSchema != schemaVersion || !bytes.Equal(storedData, data))) {
 				return &domain.DatabaseError{Operation: "replay_event_conflict", EntityType: "RunEvent", EntityID: evt.ID.String(), Cause: fmt.Errorf("event identity reused with different immutable evidence")}
 			}
 			evt.PersistenceReplay = true

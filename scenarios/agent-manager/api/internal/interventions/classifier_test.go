@@ -16,6 +16,7 @@ import (
 	"connectrpc.com/connect"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 type decodedState struct {
@@ -221,5 +222,29 @@ func TestClassifierCallsGatewayOverConnect(t *testing.T) {
 	}
 	if answers[2].Category != FalseInability || answers[2].Provider != "ollaya" || answers[2].ResourceRole != "decide.local" {
 		t.Fatalf("answer = %+v", answers[2])
+	}
+}
+
+// Message text must never reach a hosted decision model: every category
+// request, including the shrunk retry, carries the local-only profile.
+func TestCategoryClassificationRequestsAreLocalOnly(t *testing.T) {
+	first := true
+	gateway := &fakeGateway{answer: func(decodedState) *inferencev1.DecideResponse {
+		if first {
+			first = false
+			return &inferencev1.DecideResponse{Error: &inferencev1.InferenceError{Code: inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW}}
+		}
+		return decisionModel(ApprovalOrInfo, 0.9)
+	}}
+	if _, err := (&Classifier{Client: gateway}).Classify(context.Background(), messages(1, "please approve")); err != nil {
+		t.Fatal(err)
+	}
+	if len(gateway.requests) < 2 {
+		t.Fatalf("requests = %d, want the first and the shrunk retry", len(gateway.requests))
+	}
+	for i, request := range gateway.requests {
+		if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY {
+			t.Fatalf("request %d profile = %v, want local-only", i, request.GetProfile())
+		}
 	}
 }

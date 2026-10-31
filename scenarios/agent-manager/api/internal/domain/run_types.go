@@ -551,6 +551,19 @@ const (
 	ApprovalStateRejected          ApprovalState = "rejected"
 )
 
+// ModelRebase records one explicit usage-mode move of a run's retained model.
+// Reason is "usage_mode_rebase:<mode id>". The next resume re-reads the whole
+// conversation on the new model, so ContextTokens estimates that cost.
+type ModelRebase struct {
+	ModeID        string     `json:"modeId"`
+	Reason        string     `json:"reason"`
+	FromModel     string     `json:"fromModel"`
+	ToModel       string     `json:"toModel"`
+	ContextTokens int64      `json:"contextTokens,omitempty"`
+	RequestedAt   time.Time  `json:"requestedAt"`
+	AppliedAt     *time.Time `json:"appliedAt,omitempty"`
+}
+
 // RunSummary contains the structured summary from an agent run.
 type RunSummary struct {
 	Description   string   `json:"description,omitempty"`
@@ -826,6 +839,18 @@ type RunConfig struct {
 	MaxToolCalls int           `json:"maxToolCalls,omitempty"`
 	Timeout      time.Duration `json:"timeout,omitempty"`
 	Effort       Effort        `json:"effort,omitempty"`
+	// ContextLimitTokens is the auto-compact limit applied from a usage mode at
+	// run creation (Claude: CLAUDE_CODE_AUTO_COMPACT_WINDOW; Codex:
+	// model_auto_compact_token_limit). Zero means the harness default. For
+	// Claude it is already raised to Claude's 100k minimum.
+	ContextLimitTokens int `json:"contextLimitTokens,omitempty"`
+	// PendingModelRebase is an operator's explicit request to move the retained
+	// model to a mode's lower model at the next resume. The resume applies it,
+	// clears it and appends to ModelRebases; PolicySnapshot is never rewritten,
+	// so it keeps recording what the run was created with.
+	PendingModelRebase *ModelRebase `json:"pendingModelRebase,omitempty"`
+	// ModelRebases is the truthful history of applied rebases, oldest first.
+	ModelRebases []ModelRebase `json:"modelRebases,omitempty"`
 	// MaxWeightedTokens is the effective weighted-token cap (DL-8): the
 	// profile cap, lowered by a run override. Zero means none.
 	MaxWeightedTokens int64 `json:"maxWeightedTokens,omitempty"`

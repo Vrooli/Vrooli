@@ -33,12 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// EpisodesServiceGetEpisodesProcedure is the fully-qualified name of the EpisodesService's
-	// GetEpisodes RPC.
-	EpisodesServiceGetEpisodesProcedure = "/agent_manager.v1.EpisodesService/GetEpisodes"
-	// EpisodesServiceGetSelfReportSpansProcedure is the fully-qualified name of the EpisodesService's
-	// GetSelfReportSpans RPC.
-	EpisodesServiceGetSelfReportSpansProcedure = "/agent_manager.v1.EpisodesService/GetSelfReportSpans"
 	// EpisodesServiceGetCrossScenarioLedgerProcedure is the fully-qualified name of the
 	// EpisodesService's GetCrossScenarioLedger RPC.
 	EpisodesServiceGetCrossScenarioLedgerProcedure = "/agent_manager.v1.EpisodesService/GetCrossScenarioLedger"
@@ -49,8 +43,6 @@ const (
 
 // EpisodesServiceClient is a client for the agent_manager.v1.EpisodesService service.
 type EpisodesServiceClient interface {
-	GetEpisodes(context.Context, *connect.Request[domain.GetEpisodesRequest]) (*connect.Response[domain.GetEpisodesResponse], error)
-	GetSelfReportSpans(context.Context, *connect.Request[domain.GetSelfReportSpansRequest]) (*connect.Response[domain.GetSelfReportSpansResponse], error)
 	GetCrossScenarioLedger(context.Context, *connect.Request[domain.GetCrossScenarioLedgerRequest]) (*connect.Response[domain.GetCrossScenarioLedgerResponse], error)
 	ImportTranscript(context.Context, *connect.Request[domain.ImportTranscriptRequest]) (*connect.Response[domain.ImportTranscriptResponse], error)
 }
@@ -66,18 +58,6 @@ func NewEpisodesServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	episodesServiceMethods := domain.File_agent_manager_v1_domain_episode_proto.Services().ByName("EpisodesService").Methods()
 	return &episodesServiceClient{
-		getEpisodes: connect.NewClient[domain.GetEpisodesRequest, domain.GetEpisodesResponse](
-			httpClient,
-			baseURL+EpisodesServiceGetEpisodesProcedure,
-			connect.WithSchema(episodesServiceMethods.ByName("GetEpisodes")),
-			connect.WithClientOptions(opts...),
-		),
-		getSelfReportSpans: connect.NewClient[domain.GetSelfReportSpansRequest, domain.GetSelfReportSpansResponse](
-			httpClient,
-			baseURL+EpisodesServiceGetSelfReportSpansProcedure,
-			connect.WithSchema(episodesServiceMethods.ByName("GetSelfReportSpans")),
-			connect.WithClientOptions(opts...),
-		),
 		getCrossScenarioLedger: connect.NewClient[domain.GetCrossScenarioLedgerRequest, domain.GetCrossScenarioLedgerResponse](
 			httpClient,
 			baseURL+EpisodesServiceGetCrossScenarioLedgerProcedure,
@@ -95,20 +75,8 @@ func NewEpisodesServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // episodesServiceClient implements EpisodesServiceClient.
 type episodesServiceClient struct {
-	getEpisodes            *connect.Client[domain.GetEpisodesRequest, domain.GetEpisodesResponse]
-	getSelfReportSpans     *connect.Client[domain.GetSelfReportSpansRequest, domain.GetSelfReportSpansResponse]
 	getCrossScenarioLedger *connect.Client[domain.GetCrossScenarioLedgerRequest, domain.GetCrossScenarioLedgerResponse]
 	importTranscript       *connect.Client[domain.ImportTranscriptRequest, domain.ImportTranscriptResponse]
-}
-
-// GetEpisodes calls agent_manager.v1.EpisodesService.GetEpisodes.
-func (c *episodesServiceClient) GetEpisodes(ctx context.Context, req *connect.Request[domain.GetEpisodesRequest]) (*connect.Response[domain.GetEpisodesResponse], error) {
-	return c.getEpisodes.CallUnary(ctx, req)
-}
-
-// GetSelfReportSpans calls agent_manager.v1.EpisodesService.GetSelfReportSpans.
-func (c *episodesServiceClient) GetSelfReportSpans(ctx context.Context, req *connect.Request[domain.GetSelfReportSpansRequest]) (*connect.Response[domain.GetSelfReportSpansResponse], error) {
-	return c.getSelfReportSpans.CallUnary(ctx, req)
 }
 
 // GetCrossScenarioLedger calls agent_manager.v1.EpisodesService.GetCrossScenarioLedger.
@@ -123,8 +91,6 @@ func (c *episodesServiceClient) ImportTranscript(ctx context.Context, req *conne
 
 // EpisodesServiceHandler is an implementation of the agent_manager.v1.EpisodesService service.
 type EpisodesServiceHandler interface {
-	GetEpisodes(context.Context, *connect.Request[domain.GetEpisodesRequest]) (*connect.Response[domain.GetEpisodesResponse], error)
-	GetSelfReportSpans(context.Context, *connect.Request[domain.GetSelfReportSpansRequest]) (*connect.Response[domain.GetSelfReportSpansResponse], error)
 	GetCrossScenarioLedger(context.Context, *connect.Request[domain.GetCrossScenarioLedgerRequest]) (*connect.Response[domain.GetCrossScenarioLedgerResponse], error)
 	ImportTranscript(context.Context, *connect.Request[domain.ImportTranscriptRequest]) (*connect.Response[domain.ImportTranscriptResponse], error)
 }
@@ -136,18 +102,6 @@ type EpisodesServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewEpisodesServiceHandler(svc EpisodesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	episodesServiceMethods := domain.File_agent_manager_v1_domain_episode_proto.Services().ByName("EpisodesService").Methods()
-	episodesServiceGetEpisodesHandler := connect.NewUnaryHandler(
-		EpisodesServiceGetEpisodesProcedure,
-		svc.GetEpisodes,
-		connect.WithSchema(episodesServiceMethods.ByName("GetEpisodes")),
-		connect.WithHandlerOptions(opts...),
-	)
-	episodesServiceGetSelfReportSpansHandler := connect.NewUnaryHandler(
-		EpisodesServiceGetSelfReportSpansProcedure,
-		svc.GetSelfReportSpans,
-		connect.WithSchema(episodesServiceMethods.ByName("GetSelfReportSpans")),
-		connect.WithHandlerOptions(opts...),
-	)
 	episodesServiceGetCrossScenarioLedgerHandler := connect.NewUnaryHandler(
 		EpisodesServiceGetCrossScenarioLedgerProcedure,
 		svc.GetCrossScenarioLedger,
@@ -162,10 +116,6 @@ func NewEpisodesServiceHandler(svc EpisodesServiceHandler, opts ...connect.Handl
 	)
 	return "/agent_manager.v1.EpisodesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case EpisodesServiceGetEpisodesProcedure:
-			episodesServiceGetEpisodesHandler.ServeHTTP(w, r)
-		case EpisodesServiceGetSelfReportSpansProcedure:
-			episodesServiceGetSelfReportSpansHandler.ServeHTTP(w, r)
 		case EpisodesServiceGetCrossScenarioLedgerProcedure:
 			episodesServiceGetCrossScenarioLedgerHandler.ServeHTTP(w, r)
 		case EpisodesServiceImportTranscriptProcedure:
@@ -178,14 +128,6 @@ func NewEpisodesServiceHandler(svc EpisodesServiceHandler, opts ...connect.Handl
 
 // UnimplementedEpisodesServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedEpisodesServiceHandler struct{}
-
-func (UnimplementedEpisodesServiceHandler) GetEpisodes(context.Context, *connect.Request[domain.GetEpisodesRequest]) (*connect.Response[domain.GetEpisodesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.EpisodesService.GetEpisodes is not implemented"))
-}
-
-func (UnimplementedEpisodesServiceHandler) GetSelfReportSpans(context.Context, *connect.Request[domain.GetSelfReportSpansRequest]) (*connect.Response[domain.GetSelfReportSpansResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.EpisodesService.GetSelfReportSpans is not implemented"))
-}
 
 func (UnimplementedEpisodesServiceHandler) GetCrossScenarioLedger(context.Context, *connect.Request[domain.GetCrossScenarioLedgerRequest]) (*connect.Response[domain.GetCrossScenarioLedgerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.EpisodesService.GetCrossScenarioLedger is not implemented"))

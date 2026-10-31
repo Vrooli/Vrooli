@@ -355,4 +355,9 @@ message WatchSubjectState {
  bool terminal = 3;
  bool friction_unavailable = 4;
  google.protobuf.Timestamp friction_through = 5;
+ // Share of the run's projected command calls that failed, guessed a command
+ // shape or polled (toolfriction.RunFriction); the friction_score trigger reads it.
+ double friction_score = 6;
+ // Command calls the score was read from; 0 means it cannot tell.
+ int64 friction_commands = 7;
 }

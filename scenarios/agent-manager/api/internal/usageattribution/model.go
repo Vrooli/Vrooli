@@ -61,9 +61,16 @@ type Run struct {
 	SessionLabel string
 	ParentRunID  string
 	// Child marks a sub-agent sidechain, fork or child run.
-	Child     bool
-	Status    string
-	Succeeded bool
+	Child  bool
+	Status string
+	// Completed is the lifecycle fact: for an imported run it only means the
+	// transcript ended. It never counts as success.
+	Completed bool
+	// Accepted and OutcomeUnknown read the run's work unit outcome estimate;
+	// WorkUnit names that unit.
+	Accepted       bool
+	OutcomeUnknown bool
+	WorkUnit       string
 }
 
 // Outcome is one finished Agent Manager run, for R-model comparisons.
@@ -73,8 +80,9 @@ type Outcome struct {
 	Model     string
 	ProfileID string
 	Workload  string
-	Succeeded bool
-	At        time.Time
+	// Accepted reads the run's work unit outcome estimate.
+	Accepted bool
+	At       time.Time
 	// Tokens is the run's total from the one accounting function.
 	Tokens domain.UsageCounters
 }
@@ -176,4 +184,15 @@ const estimatedImageTokens = 1300
 // EstimatedImageTokens estimates the input tokens images contributed.
 func EstimatedImageTokens(facts transcriptindex.TurnFacts) int64 {
 	return int64(facts.ImagesIn) * estimatedImageTokens
+}
+
+// ProviderFor is the quota provider a runner draws on; RunnerFor's inverse.
+func ProviderFor(runner string) string {
+	switch runner {
+	case "codex":
+		return "openai"
+	case "claude", string(domain.RunnerTypeClaudeCode):
+		return "anthropic"
+	}
+	return ""
 }

@@ -301,6 +301,10 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// its own authority: the handler raises an operator decision and Agent
 		// Manager applies exactly the previewed prune once the operator approves.
 		return true
+	case "/api/v1/usage/modes/ask":
+		// Only raises an operator decision; a mode starts when a verified
+		// human answers it, never on the caller's authority.
+		return true
 	case "/api/v1/runs/wake-by-key":
 		// The handler applies the single-run wake lineage rule to every
 		// parked run on the key (a worker waking its orchestrator).
@@ -432,15 +436,25 @@ var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
 // the measures-go registry executes the same compute functions over HTTP.
 var readOnlyMeasureRoutes = []string{"/measures/execute"}
 
-// withReadOnlyServiceRoutes admits every procedure of Agent Manager's
+// OperatorOnlyMeasureMethods are the MeasuresService procedures that change
+// state. They are the only exceptions to the service's read-only contract: the
+// middleware does not admit agents to them, and the handlers require a verified
+// operator again.
+var OperatorOnlyMeasureMethods = map[string]bool{"StartUsageMode": true, "EndUsageMode": true, "ExtendUsageMode": true, "RebaseUsageModeRuns": true, "StartUsageExperiment": true, "ProposeRoleDefault": true, "SetUsageSignals": true}
+
+// withReadOnlyServiceRoutes admits every read procedure of Agent Manager's
 // MeasuresService. The service is read-only by contract (measures.proto: "one
 // typed, read-only analytical question per RPC"), so its generated descriptor
 // is the declaration: a new measure is agent-readable without another list
-// edit, and a non-measure RPC can never ride this rule.
+// edit, and a non-measure RPC can never ride this rule. The usage mode writes
+// in OperatorOnlyMeasureMethods are not admitted.
 func withReadOnlyServiceRoutes(routes map[string]bool) map[string]bool {
 	service := measurepb.File_agent_manager_v1_measures_measures_proto.Services().ByName("MeasuresService")
 	methods := service.Methods()
 	for i := 0; i < methods.Len(); i++ {
+		if OperatorOnlyMeasureMethods[string(methods.Get(i).Name())] {
+			continue
+		}
 		routes["/"+string(service.FullName())+"/"+string(methods.Get(i).Name())] = true
 	}
 	for _, route := range readOnlyMeasureRoutes {

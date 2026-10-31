@@ -648,15 +648,19 @@ class ListSupervisionOutcomesResponse(_message.Message):
     def __init__(self, outcomes: _Optional[_Iterable[_Union[SupervisionOutcomeRecord, _Mapping]]] = ..., coverage: _Optional[_Union[SupervisionEvidenceCoverage, _Mapping]] = ..., truncated: _Optional[bool] = ...) -> None: ...
 
 class WatchSubjectState(_message.Message):
-    __slots__ = ("run_id", "status", "terminal", "friction_unavailable", "friction_through")
+    __slots__ = ("run_id", "status", "terminal", "friction_unavailable", "friction_through", "friction_score", "friction_commands")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     TERMINAL_FIELD_NUMBER: _ClassVar[int]
     FRICTION_UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
     FRICTION_THROUGH_FIELD_NUMBER: _ClassVar[int]
+    FRICTION_SCORE_FIELD_NUMBER: _ClassVar[int]
+    FRICTION_COMMANDS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     terminal: bool
     friction_unavailable: bool
     friction_through: _timestamp_pb2.Timestamp
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., terminal: _Optional[bool] = ..., friction_unavailable: _Optional[bool] = ..., friction_through: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    friction_score: float
+    friction_commands: int
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., terminal: _Optional[bool] = ..., friction_unavailable: _Optional[bool] = ..., friction_through: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., friction_score: _Optional[float] = ..., friction_commands: _Optional[int] = ...) -> None: ...

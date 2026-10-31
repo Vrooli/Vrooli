@@ -137,6 +137,10 @@ func TestContextLeverCountsCompactionsAndNeverProjectsFinishedSessions(t *testin
 	if aggregate == nil || aggregate.Owner != "claude-code session context" || aggregate.Effect.Basis != BasisProjected {
 		t.Fatalf("aggregate = %+v, want one projected claude-code harness action", aggregate)
 	}
+	// The advice is a token threshold the harness can be given, not only a request count.
+	if !strings.Contains(aggregate.Text, "tokens") || !strings.Contains(aggregate.Text, "CLAUDE_CODE_AUTO_COMPACT_WINDOW=") {
+		t.Errorf("R-context text %q must state a token threshold and the harness setting", aggregate.Text)
+	}
 	if _, ok := sessions["compactor"]; ok {
 		t.Error("a session that compacts was told to compact or restart")
 	}
@@ -843,5 +847,23 @@ func TestOpportunityActionsStateWhatTheirNumberCounts(t *testing.T) {
 	rows := opportunityActions(report, toolfriction.Totals{BypassCalls: 100}, 50)
 	if len(rows) != 1 || !strings.Contains(rows[0].Rationale, "37 occurrences in 7 sessions; calls replaced = direct reads; 22 of 37 counted") {
 		t.Fatalf("rows = %+v", rows)
+	}
+}
+
+func TestContextThresholdStatesTokensAndClaudeMinimum(t *testing.T) {
+	tokens, knob := ContextThreshold("claude-code", []float64{60_000, 64_000, 70_000})
+	if tokens != 100_000 || !strings.Contains(knob, "CLAUDE_CODE_AUTO_COMPACT_WINDOW=100000") || !strings.Contains(knob, "raised to 100k") {
+		t.Errorf("claude below its minimum = %d %q, want 100000 and the raise stated", tokens, knob)
+	}
+	tokens, knob = ContextThreshold("claude-code", []float64{180_000, 190_000, 200_000})
+	if tokens != 190_000 || strings.Contains(knob, "raised") {
+		t.Errorf("claude above its minimum = %d %q, want 190000 untouched", tokens, knob)
+	}
+	tokens, knob = ContextThreshold("codex", []float64{120_000, 130_000, 140_000})
+	if tokens != 130_000 || !strings.Contains(knob, "model_auto_compact_token_limit=130000") {
+		t.Errorf("codex = %d %q", tokens, knob)
+	}
+	if tokens, _ = ContextThreshold("codex", []float64{1_000}); tokens != minContextThreshold {
+		t.Errorf("tiny contexts must not get a useless threshold: %d", tokens)
 	}
 }

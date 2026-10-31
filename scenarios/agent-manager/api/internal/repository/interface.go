@@ -356,6 +356,14 @@ type RunSubjectUpdater interface {
 	UpdateRunSubject(ctx context.Context, id uuid.UUID, subject []string) error
 }
 
+// RunConfigUpdater rewrites only a run's resolved config, and only while the
+// run still has the expected status. A usage-mode rebase uses it so a pending
+// model change never rewrites the whole row, including live state a concurrent
+// executor owns.
+type RunConfigUpdater interface {
+	UpdateResolvedConfig(ctx context.Context, id uuid.UUID, cfg *domain.RunConfig, expectedStatus domain.RunStatus) (bool, error)
+}
+
 // -----------------------------------------------------------------------------
 // PolicyRepository - Policy persistence
 // -----------------------------------------------------------------------------

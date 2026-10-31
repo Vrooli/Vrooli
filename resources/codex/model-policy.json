@@ -33,6 +33,18 @@
       }
     ]
   },
+  "usage_tiers": {
+    "model_map": {
+      "gpt-6.1-terra": "gpt-6-luna"
+    },
+    "session_model": "gpt-6-luna",
+    "exempt_roles": [
+      "code.fallback",
+      "code.review",
+      "judgment.supervision",
+      "code.judgment"
+    ]
+  },
   "model_aliases": {
     "gpt-6-luna": {
       "canonical_model": "codex/gpt-6-luna",

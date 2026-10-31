@@ -33,21 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// MeasuresServiceExternalToolShareProcedure is the fully-qualified name of the MeasuresService's
-	// ExternalToolShare RPC.
-	MeasuresServiceExternalToolShareProcedure = "/agent_manager.v1.measures.MeasuresService/ExternalToolShare"
-	// MeasuresServiceRetryRateProcedure is the fully-qualified name of the MeasuresService's RetryRate
-	// RPC.
-	MeasuresServiceRetryRateProcedure = "/agent_manager.v1.measures.MeasuresService/RetryRate"
-	// MeasuresServiceHelpRecoveryRateProcedure is the fully-qualified name of the MeasuresService's
-	// HelpRecoveryRate RPC.
-	MeasuresServiceHelpRecoveryRateProcedure = "/agent_manager.v1.measures.MeasuresService/HelpRecoveryRate"
-	// MeasuresServiceRepeatedWorkRateProcedure is the fully-qualified name of the MeasuresService's
-	// RepeatedWorkRate RPC.
-	MeasuresServiceRepeatedWorkRateProcedure = "/agent_manager.v1.measures.MeasuresService/RepeatedWorkRate"
-	// MeasuresServiceToolFailureRateProcedure is the fully-qualified name of the MeasuresService's
-	// ToolFailureRate RPC.
-	MeasuresServiceToolFailureRateProcedure = "/agent_manager.v1.measures.MeasuresService/ToolFailureRate"
 	// MeasuresServiceRunSuccessRateProcedure is the fully-qualified name of the MeasuresService's
 	// RunSuccessRate RPC.
 	MeasuresServiceRunSuccessRateProcedure = "/agent_manager.v1.measures.MeasuresService/RunSuccessRate"
@@ -92,27 +77,15 @@ const (
 	// MeasuresServiceTokenAttributionProcedure is the fully-qualified name of the MeasuresService's
 	// TokenAttribution RPC.
 	MeasuresServiceTokenAttributionProcedure = "/agent_manager.v1.measures.MeasuresService/TokenAttribution"
-	// MeasuresServiceErrorPatternsProcedure is the fully-qualified name of the MeasuresService's
-	// ErrorPatterns RPC.
-	MeasuresServiceErrorPatternsProcedure = "/agent_manager.v1.measures.MeasuresService/ErrorPatterns"
-	// MeasuresServiceFileRereadRateProcedure is the fully-qualified name of the MeasuresService's
-	// FileRereadRate RPC.
-	MeasuresServiceFileRereadRateProcedure = "/agent_manager.v1.measures.MeasuresService/FileRereadRate"
-	// MeasuresServiceFindingRecurrenceRateProcedure is the fully-qualified name of the
-	// MeasuresService's FindingRecurrenceRate RPC.
-	MeasuresServiceFindingRecurrenceRateProcedure = "/agent_manager.v1.measures.MeasuresService/FindingRecurrenceRate"
-	// MeasuresServiceEpisodeCohortProcedure is the fully-qualified name of the MeasuresService's
-	// EpisodeCohort RPC.
-	MeasuresServiceEpisodeCohortProcedure = "/agent_manager.v1.measures.MeasuresService/EpisodeCohort"
-	// MeasuresServiceCapabilityUsageProcedure is the fully-qualified name of the MeasuresService's
-	// CapabilityUsage RPC.
-	MeasuresServiceCapabilityUsageProcedure = "/agent_manager.v1.measures.MeasuresService/CapabilityUsage"
-	// MeasuresServiceCapabilityEfficacyProcedure is the fully-qualified name of the MeasuresService's
-	// CapabilityEfficacy RPC.
-	MeasuresServiceCapabilityEfficacyProcedure = "/agent_manager.v1.measures.MeasuresService/CapabilityEfficacy"
 	// MeasuresServiceConversationSearchQualityProcedure is the fully-qualified name of the
 	// MeasuresService's ConversationSearchQuality RPC.
 	MeasuresServiceConversationSearchQualityProcedure = "/agent_manager.v1.measures.MeasuresService/ConversationSearchQuality"
+	// MeasuresServiceToolFrictionProcedure is the fully-qualified name of the MeasuresService's
+	// ToolFriction RPC.
+	MeasuresServiceToolFrictionProcedure = "/agent_manager.v1.measures.MeasuresService/ToolFriction"
+	// MeasuresServiceFallbackInsightsProcedure is the fully-qualified name of the MeasuresService's
+	// FallbackInsights RPC.
+	MeasuresServiceFallbackInsightsProcedure = "/agent_manager.v1.measures.MeasuresService/FallbackInsights"
 	// MeasuresServiceAllMeasureDefinitionsProcedure is the fully-qualified name of the
 	// MeasuresService's AllMeasureDefinitions RPC.
 	MeasuresServiceAllMeasureDefinitionsProcedure = "/agent_manager.v1.measures.MeasuresService/AllMeasureDefinitions"
@@ -122,9 +95,6 @@ const (
 	// MeasuresServiceCohortReportProcedure is the fully-qualified name of the MeasuresService's
 	// CohortReport RPC.
 	MeasuresServiceCohortReportProcedure = "/agent_manager.v1.measures.MeasuresService/CohortReport"
-	// MeasuresServiceCompareEpisodeCohortsProcedure is the fully-qualified name of the
-	// MeasuresService's CompareEpisodeCohorts RPC.
-	MeasuresServiceCompareEpisodeCohortsProcedure = "/agent_manager.v1.measures.MeasuresService/CompareEpisodeCohorts"
 	// MeasuresServiceUsageForecastProcedure is the fully-qualified name of the MeasuresService's
 	// UsageForecast RPC.
 	MeasuresServiceUsageForecastProcedure = "/agent_manager.v1.measures.MeasuresService/UsageForecast"
@@ -134,24 +104,61 @@ const (
 	// MeasuresServiceUsageBurnersProcedure is the fully-qualified name of the MeasuresService's
 	// UsageBurners RPC.
 	MeasuresServiceUsageBurnersProcedure = "/agent_manager.v1.measures.MeasuresService/UsageBurners"
+	// MeasuresServiceListUsageModesProcedure is the fully-qualified name of the MeasuresService's
+	// ListUsageModes RPC.
+	MeasuresServiceListUsageModesProcedure = "/agent_manager.v1.measures.MeasuresService/ListUsageModes"
+	// MeasuresServiceStartUsageModeProcedure is the fully-qualified name of the MeasuresService's
+	// StartUsageMode RPC.
+	MeasuresServiceStartUsageModeProcedure = "/agent_manager.v1.measures.MeasuresService/StartUsageMode"
+	// MeasuresServiceEndUsageModeProcedure is the fully-qualified name of the MeasuresService's
+	// EndUsageMode RPC.
+	MeasuresServiceEndUsageModeProcedure = "/agent_manager.v1.measures.MeasuresService/EndUsageMode"
+	// MeasuresServiceExtendUsageModeProcedure is the fully-qualified name of the MeasuresService's
+	// ExtendUsageMode RPC.
+	MeasuresServiceExtendUsageModeProcedure = "/agent_manager.v1.measures.MeasuresService/ExtendUsageMode"
+	// MeasuresServiceRebaseUsageModeRunsProcedure is the fully-qualified name of the MeasuresService's
+	// RebaseUsageModeRuns RPC.
+	MeasuresServiceRebaseUsageModeRunsProcedure = "/agent_manager.v1.measures.MeasuresService/RebaseUsageModeRuns"
 	// MeasuresServiceUsageRecommendationsProcedure is the fully-qualified name of the MeasuresService's
 	// UsageRecommendations RPC.
 	MeasuresServiceUsageRecommendationsProcedure = "/agent_manager.v1.measures.MeasuresService/UsageRecommendations"
+	// MeasuresServiceUsageFrictionProcedure is the fully-qualified name of the MeasuresService's
+	// UsageFriction RPC.
+	MeasuresServiceUsageFrictionProcedure = "/agent_manager.v1.measures.MeasuresService/UsageFriction"
 	// MeasuresServiceUsageCoverageProcedure is the fully-qualified name of the MeasuresService's
 	// UsageCoverage RPC.
 	MeasuresServiceUsageCoverageProcedure = "/agent_manager.v1.measures.MeasuresService/UsageCoverage"
 	// MeasuresServiceUsageCompareProcedure is the fully-qualified name of the MeasuresService's
 	// UsageCompare RPC.
 	MeasuresServiceUsageCompareProcedure = "/agent_manager.v1.measures.MeasuresService/UsageCompare"
+	// MeasuresServiceUsageParityProcedure is the fully-qualified name of the MeasuresService's
+	// UsageParity RPC.
+	MeasuresServiceUsageParityProcedure = "/agent_manager.v1.measures.MeasuresService/UsageParity"
+	// MeasuresServiceUsageOutcomesProcedure is the fully-qualified name of the MeasuresService's
+	// UsageOutcomes RPC.
+	MeasuresServiceUsageOutcomesProcedure = "/agent_manager.v1.measures.MeasuresService/UsageOutcomes"
+	// MeasuresServiceUsageExperimentProcedure is the fully-qualified name of the MeasuresService's
+	// UsageExperiment RPC.
+	MeasuresServiceUsageExperimentProcedure = "/agent_manager.v1.measures.MeasuresService/UsageExperiment"
+	// MeasuresServicePlanUsageExperimentProcedure is the fully-qualified name of the MeasuresService's
+	// PlanUsageExperiment RPC.
+	MeasuresServicePlanUsageExperimentProcedure = "/agent_manager.v1.measures.MeasuresService/PlanUsageExperiment"
+	// MeasuresServiceStartUsageExperimentProcedure is the fully-qualified name of the MeasuresService's
+	// StartUsageExperiment RPC.
+	MeasuresServiceStartUsageExperimentProcedure = "/agent_manager.v1.measures.MeasuresService/StartUsageExperiment"
+	// MeasuresServiceProposeRoleDefaultProcedure is the fully-qualified name of the MeasuresService's
+	// ProposeRoleDefault RPC.
+	MeasuresServiceProposeRoleDefaultProcedure = "/agent_manager.v1.measures.MeasuresService/ProposeRoleDefault"
+	// MeasuresServiceUsageSignalsStatusProcedure is the fully-qualified name of the MeasuresService's
+	// UsageSignalsStatus RPC.
+	MeasuresServiceUsageSignalsStatusProcedure = "/agent_manager.v1.measures.MeasuresService/UsageSignalsStatus"
+	// MeasuresServiceSetUsageSignalsProcedure is the fully-qualified name of the MeasuresService's
+	// SetUsageSignals RPC.
+	MeasuresServiceSetUsageSignalsProcedure = "/agent_manager.v1.measures.MeasuresService/SetUsageSignals"
 )
 
 // MeasuresServiceClient is a client for the agent_manager.v1.measures.MeasuresService service.
 type MeasuresServiceClient interface {
-	ExternalToolShare(context.Context, *connect.Request[measures.ExternalToolShareRequest]) (*connect.Response[measures.ExternalToolShareResponse], error)
-	RetryRate(context.Context, *connect.Request[measures.RetryRateRequest]) (*connect.Response[measures.RetryRateResponse], error)
-	HelpRecoveryRate(context.Context, *connect.Request[measures.HelpRecoveryRateRequest]) (*connect.Response[measures.HelpRecoveryRateResponse], error)
-	RepeatedWorkRate(context.Context, *connect.Request[measures.RepeatedWorkRateRequest]) (*connect.Response[measures.RepeatedWorkRateResponse], error)
-	ToolFailureRate(context.Context, *connect.Request[measures.ToolFailureRateRequest]) (*connect.Response[measures.ToolFailureRateResponse], error)
 	RunSuccessRate(context.Context, *connect.Request[measures.RunSuccessRateRequest]) (*connect.Response[measures.RunSuccessRateResponse], error)
 	RunCycleTime(context.Context, *connect.Request[measures.RunCycleTimeRequest]) (*connect.Response[measures.RunCycleTimeResponse], error)
 	RunDurationStatistics(context.Context, *connect.Request[measures.RunDurationStatisticsRequest]) (*connect.Response[measures.RunDurationStatisticsResponse], error)
@@ -167,13 +174,15 @@ type MeasuresServiceClient interface {
 	ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error)
 	ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error)
 	TokenAttribution(context.Context, *connect.Request[measures.TokenAttributionRequest]) (*connect.Response[measures.TokenAttributionResponse], error)
-	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
-	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
-	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
-	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
-	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
-	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
 	ConversationSearchQuality(context.Context, *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error)
+	// ToolFriction profiles every command path agents ran in a window from the
+	// invocation facts: calls, failure rate and error-signature clusters,
+	// shape-guessing, output weight and context tax, latency, polling and
+	// bypasses of a scenario's CLI. Its summary carries the window's rates.
+	ToolFriction(context.Context, *connect.Request[measures.ToolFrictionRequest]) (*connect.Response[measures.ToolFrictionResponse], error)
+	// FallbackInsights counts runner and model fallbacks and policy-candidate
+	// outcomes in a window (Health: why runs moved off their first choice).
+	FallbackInsights(context.Context, *connect.Request[measures.FallbackInsightsRequest]) (*connect.Response[measures.FallbackInsightsResponse], error)
 	AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
@@ -181,9 +190,6 @@ type MeasuresServiceClient interface {
 	// CohortReport folds the run reports of one selected cohort: ranked
 	// friction signals, time accounting, evidence validity and goal progression.
 	CohortReport(context.Context, *connect.Request[measures.CohortReportRequest]) (*connect.Response[measures.CohortReportResponse], error)
-	// CompareEpisodeCohorts compares friction-episode fingerprints between two
-	// selected cohorts, for example before and after a change.
-	CompareEpisodeCohorts(context.Context, *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error)
 	// UsageForecast projects, from the provider's own quota readings, whether
 	// each subscription window runs out before its reset.
 	UsageForecast(context.Context, *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error)
@@ -194,15 +200,68 @@ type MeasuresServiceClient interface {
 	// consumers (session, run, profile, workload, model, runner, modality or
 	// tool kind) with an explicit unattributed remainder.
 	UsageBurners(context.Context, *connect.Request[measures.UsageBurnersRequest]) (*connect.Response[measures.UsageBurnersResponse], error)
-	// UsageRecommendations ranks deterministic rule findings by the weekly
-	// quota they would save.
+	// ListUsageModes reads the active usage modes (expiring operator policies
+	// that lower what new work runs on) with burn since start and the reach
+	// table. Agents may read it.
+	ListUsageModes(context.Context, *connect.Request[measures.ListUsageModesRequest]) (*connect.Response[measures.ListUsageModesResponse], error)
+	// StartUsageMode starts a usage mode. It requires verified operator
+	// authority; agent identities are refused. Starting replaces a mode with
+	// an identical scope.
+	StartUsageMode(context.Context, *connect.Request[measures.StartUsageModeRequest]) (*connect.Response[measures.StartUsageModeResponse], error)
+	// EndUsageMode ends modes by id, or all of them. It requires verified
+	// operator authority.
+	EndUsageMode(context.Context, *connect.Request[measures.EndUsageModeRequest]) (*connect.Response[measures.EndUsageModeResponse], error)
+	// ExtendUsageMode moves one active mode's end and keeps its id, start,
+	// starter and settings, so its burn since start stays continuous. It
+	// requires verified operator authority; agents are refused.
+	ExtendUsageMode(context.Context, *connect.Request[measures.ExtendUsageModeRequest]) (*connect.Response[measures.ExtendUsageModeResponse], error)
+	// RebaseUsageModeRuns is the explicit "also switch running work" step. For a
+	// managed run it records a model change that the next resume applies; an
+	// interactive session reports that the mode applies on its next launch. With
+	// dry_run it only reports what would happen and the estimated re-read cost.
+	// It requires verified operator authority; agents are refused.
+	RebaseUsageModeRuns(context.Context, *connect.Request[measures.RebaseUsageModeRunsRequest]) (*connect.Response[measures.RebaseUsageModeRunsResponse], error)
+	// UsageRecommendations is one ranked, owner-level list of what to change:
+	// quota levers, tool friction, opportunities and gated operator
+	// interventions, each with owner, action, evidence, effect in its own unit,
+	// a common score and a verifying measure.
 	UsageRecommendations(context.Context, *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error)
+	// UsageFriction lists the window's owner-level tool findings (from the tool
+	// friction profiles) with their owner, counts, cost, evidence and durable
+	// status (open, reported, dismissed), and the classified operator
+	// interventions the accuracy gate admits, beside the coverage that says what
+	// was seen.
+	UsageFriction(context.Context, *connect.Request[measures.UsageFrictionRequest]) (*connect.Response[measures.UsageFrictionResponse], error)
 	// UsageCoverage compares the transcripts on disk with what the Transcript
 	// Indexer captured, per root, naming every uncaptured file.
 	UsageCoverage(context.Context, *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error)
 	// UsageCompare compares quota per successful workload unit between two
 	// selected cohorts (for example before and after a change).
 	UsageCompare(context.Context, *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error)
+	// UsageParity reports, per start path and harness, how much of each measure
+	// exists, with a stated reason wherever coverage is below 90%.
+	UsageParity(context.Context, *connect.Request[measures.UsageParityRequest]) (*connect.Response[measures.UsageParityResponse], error)
+	// UsageOutcomes estimates points per accepted outcome, consumption per run,
+	// run length, rework, unknown rate and break-even, by model, role or usage mode.
+	UsageOutcomes(context.Context, *connect.Request[measures.UsageOutcomesRequest]) (*connect.Response[measures.UsageOutcomesResponse], error)
+	// UsageExperiment reports each Learn comparison: its randomization, the
+	// arms, the permutation test, intervals, the verdict (or the data still
+	// needed) and the role recommendation that follows from it.
+	UsageExperiment(context.Context, *connect.Request[measures.UsageExperimentRequest]) (*connect.Response[measures.UsageExperimentResponse], error)
+	// PlanUsageExperiment gives the expected time to a verdict before a
+	// comparison starts, from the role's own recent variance and pace.
+	PlanUsageExperiment(context.Context, *connect.Request[measures.PlanUsageExperimentRequest]) (*connect.Response[measures.PlanUsageExperimentResponse], error)
+	// StartUsageExperiment starts a Learn comparison. It requires verified
+	// operator authority; agent identities get 403.
+	StartUsageExperiment(context.Context, *connect.Request[measures.StartUsageExperimentRequest]) (*connect.Response[measures.StartUsageExperimentResponse], error)
+	// ProposeRoleDefault raises a decision to change a role's default model to
+	// the challenger. Verified operator only. It applies nothing.
+	ProposeRoleDefault(context.Context, *connect.Request[measures.ProposeRoleDefaultRequest]) (*connect.Response[measures.ProposeRoleDefaultResponse], error)
+	// UsageSignalsStatus reads the operator-signal switch and what is stored.
+	UsageSignalsStatus(context.Context, *connect.Request[measures.UsageSignalsStatusRequest]) (*connect.Response[measures.UsageSignalsStatusResponse], error)
+	// SetUsageSignals switches operator signals off or on, or purges stored
+	// signals. Verified operator only.
+	SetUsageSignals(context.Context, *connect.Request[measures.SetUsageSignalsRequest]) (*connect.Response[measures.SetUsageSignalsResponse], error)
 }
 
 // NewMeasuresServiceClient constructs a client for the agent_manager.v1.measures.MeasuresService
@@ -216,36 +275,6 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	measuresServiceMethods := measures.File_agent_manager_v1_measures_measures_proto.Services().ByName("MeasuresService").Methods()
 	return &measuresServiceClient{
-		externalToolShare: connect.NewClient[measures.ExternalToolShareRequest, measures.ExternalToolShareResponse](
-			httpClient,
-			baseURL+MeasuresServiceExternalToolShareProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("ExternalToolShare")),
-			connect.WithClientOptions(opts...),
-		),
-		retryRate: connect.NewClient[measures.RetryRateRequest, measures.RetryRateResponse](
-			httpClient,
-			baseURL+MeasuresServiceRetryRateProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("RetryRate")),
-			connect.WithClientOptions(opts...),
-		),
-		helpRecoveryRate: connect.NewClient[measures.HelpRecoveryRateRequest, measures.HelpRecoveryRateResponse](
-			httpClient,
-			baseURL+MeasuresServiceHelpRecoveryRateProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("HelpRecoveryRate")),
-			connect.WithClientOptions(opts...),
-		),
-		repeatedWorkRate: connect.NewClient[measures.RepeatedWorkRateRequest, measures.RepeatedWorkRateResponse](
-			httpClient,
-			baseURL+MeasuresServiceRepeatedWorkRateProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("RepeatedWorkRate")),
-			connect.WithClientOptions(opts...),
-		),
-		toolFailureRate: connect.NewClient[measures.ToolFailureRateRequest, measures.ToolFailureRateResponse](
-			httpClient,
-			baseURL+MeasuresServiceToolFailureRateProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("ToolFailureRate")),
-			connect.WithClientOptions(opts...),
-		),
 		runSuccessRate: connect.NewClient[measures.RunSuccessRateRequest, measures.RunSuccessRateResponse](
 			httpClient,
 			baseURL+MeasuresServiceRunSuccessRateProcedure,
@@ -336,46 +365,22 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("TokenAttribution")),
 			connect.WithClientOptions(opts...),
 		),
-		errorPatterns: connect.NewClient[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse](
-			httpClient,
-			baseURL+MeasuresServiceErrorPatternsProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("ErrorPatterns")),
-			connect.WithClientOptions(opts...),
-		),
-		fileRereadRate: connect.NewClient[measures.FileRereadRateRequest, measures.FileRereadRateResponse](
-			httpClient,
-			baseURL+MeasuresServiceFileRereadRateProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("FileRereadRate")),
-			connect.WithClientOptions(opts...),
-		),
-		findingRecurrenceRate: connect.NewClient[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse](
-			httpClient,
-			baseURL+MeasuresServiceFindingRecurrenceRateProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("FindingRecurrenceRate")),
-			connect.WithClientOptions(opts...),
-		),
-		episodeCohort: connect.NewClient[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse](
-			httpClient,
-			baseURL+MeasuresServiceEpisodeCohortProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("EpisodeCohort")),
-			connect.WithClientOptions(opts...),
-		),
-		capabilityUsage: connect.NewClient[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse](
-			httpClient,
-			baseURL+MeasuresServiceCapabilityUsageProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("CapabilityUsage")),
-			connect.WithClientOptions(opts...),
-		),
-		capabilityEfficacy: connect.NewClient[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse](
-			httpClient,
-			baseURL+MeasuresServiceCapabilityEfficacyProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
-			connect.WithClientOptions(opts...),
-		),
 		conversationSearchQuality: connect.NewClient[measures.ConversationSearchQualityRequest, measures.ConversationSearchQualityResponse](
 			httpClient,
 			baseURL+MeasuresServiceConversationSearchQualityProcedure,
 			connect.WithSchema(measuresServiceMethods.ByName("ConversationSearchQuality")),
+			connect.WithClientOptions(opts...),
+		),
+		toolFriction: connect.NewClient[measures.ToolFrictionRequest, measures.ToolFrictionResponse](
+			httpClient,
+			baseURL+MeasuresServiceToolFrictionProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ToolFriction")),
+			connect.WithClientOptions(opts...),
+		),
+		fallbackInsights: connect.NewClient[measures.FallbackInsightsRequest, measures.FallbackInsightsResponse](
+			httpClient,
+			baseURL+MeasuresServiceFallbackInsightsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("FallbackInsights")),
 			connect.WithClientOptions(opts...),
 		),
 		allMeasureDefinitions: connect.NewClient[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse](
@@ -396,12 +401,6 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("CohortReport")),
 			connect.WithClientOptions(opts...),
 		),
-		compareEpisodeCohorts: connect.NewClient[measures.CompareEpisodeCohortsRequest, measures.CompareEpisodeCohortsResponse](
-			httpClient,
-			baseURL+MeasuresServiceCompareEpisodeCohortsProcedure,
-			connect.WithSchema(measuresServiceMethods.ByName("CompareEpisodeCohorts")),
-			connect.WithClientOptions(opts...),
-		),
 		usageForecast: connect.NewClient[measures.UsageForecastRequest, measures.UsageForecastResponse](
 			httpClient,
 			baseURL+MeasuresServiceUsageForecastProcedure,
@@ -420,10 +419,46 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("UsageBurners")),
 			connect.WithClientOptions(opts...),
 		),
+		listUsageModes: connect.NewClient[measures.ListUsageModesRequest, measures.ListUsageModesResponse](
+			httpClient,
+			baseURL+MeasuresServiceListUsageModesProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ListUsageModes")),
+			connect.WithClientOptions(opts...),
+		),
+		startUsageMode: connect.NewClient[measures.StartUsageModeRequest, measures.StartUsageModeResponse](
+			httpClient,
+			baseURL+MeasuresServiceStartUsageModeProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("StartUsageMode")),
+			connect.WithClientOptions(opts...),
+		),
+		endUsageMode: connect.NewClient[measures.EndUsageModeRequest, measures.EndUsageModeResponse](
+			httpClient,
+			baseURL+MeasuresServiceEndUsageModeProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("EndUsageMode")),
+			connect.WithClientOptions(opts...),
+		),
+		extendUsageMode: connect.NewClient[measures.ExtendUsageModeRequest, measures.ExtendUsageModeResponse](
+			httpClient,
+			baseURL+MeasuresServiceExtendUsageModeProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ExtendUsageMode")),
+			connect.WithClientOptions(opts...),
+		),
+		rebaseUsageModeRuns: connect.NewClient[measures.RebaseUsageModeRunsRequest, measures.RebaseUsageModeRunsResponse](
+			httpClient,
+			baseURL+MeasuresServiceRebaseUsageModeRunsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("RebaseUsageModeRuns")),
+			connect.WithClientOptions(opts...),
+		),
 		usageRecommendations: connect.NewClient[measures.UsageRecommendationsRequest, measures.UsageRecommendationsResponse](
 			httpClient,
 			baseURL+MeasuresServiceUsageRecommendationsProcedure,
 			connect.WithSchema(measuresServiceMethods.ByName("UsageRecommendations")),
+			connect.WithClientOptions(opts...),
+		),
+		usageFriction: connect.NewClient[measures.UsageFrictionRequest, measures.UsageFrictionResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageFrictionProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageFriction")),
 			connect.WithClientOptions(opts...),
 		),
 		usageCoverage: connect.NewClient[measures.UsageCoverageRequest, measures.UsageCoverageResponse](
@@ -438,16 +473,59 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("UsageCompare")),
 			connect.WithClientOptions(opts...),
 		),
+		usageParity: connect.NewClient[measures.UsageParityRequest, measures.UsageParityResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageParityProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageParity")),
+			connect.WithClientOptions(opts...),
+		),
+		usageOutcomes: connect.NewClient[measures.UsageOutcomesRequest, measures.UsageOutcomesResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageOutcomesProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageOutcomes")),
+			connect.WithClientOptions(opts...),
+		),
+		usageExperiment: connect.NewClient[measures.UsageExperimentRequest, measures.UsageExperimentResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageExperimentProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageExperiment")),
+			connect.WithClientOptions(opts...),
+		),
+		planUsageExperiment: connect.NewClient[measures.PlanUsageExperimentRequest, measures.PlanUsageExperimentResponse](
+			httpClient,
+			baseURL+MeasuresServicePlanUsageExperimentProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("PlanUsageExperiment")),
+			connect.WithClientOptions(opts...),
+		),
+		startUsageExperiment: connect.NewClient[measures.StartUsageExperimentRequest, measures.StartUsageExperimentResponse](
+			httpClient,
+			baseURL+MeasuresServiceStartUsageExperimentProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("StartUsageExperiment")),
+			connect.WithClientOptions(opts...),
+		),
+		proposeRoleDefault: connect.NewClient[measures.ProposeRoleDefaultRequest, measures.ProposeRoleDefaultResponse](
+			httpClient,
+			baseURL+MeasuresServiceProposeRoleDefaultProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("ProposeRoleDefault")),
+			connect.WithClientOptions(opts...),
+		),
+		usageSignalsStatus: connect.NewClient[measures.UsageSignalsStatusRequest, measures.UsageSignalsStatusResponse](
+			httpClient,
+			baseURL+MeasuresServiceUsageSignalsStatusProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("UsageSignalsStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		setUsageSignals: connect.NewClient[measures.SetUsageSignalsRequest, measures.SetUsageSignalsResponse](
+			httpClient,
+			baseURL+MeasuresServiceSetUsageSignalsProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("SetUsageSignals")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // measuresServiceClient implements MeasuresServiceClient.
 type measuresServiceClient struct {
-	externalToolShare         *connect.Client[measures.ExternalToolShareRequest, measures.ExternalToolShareResponse]
-	retryRate                 *connect.Client[measures.RetryRateRequest, measures.RetryRateResponse]
-	helpRecoveryRate          *connect.Client[measures.HelpRecoveryRateRequest, measures.HelpRecoveryRateResponse]
-	repeatedWorkRate          *connect.Client[measures.RepeatedWorkRateRequest, measures.RepeatedWorkRateResponse]
-	toolFailureRate           *connect.Client[measures.ToolFailureRateRequest, measures.ToolFailureRateResponse]
 	runSuccessRate            *connect.Client[measures.RunSuccessRateRequest, measures.RunSuccessRateResponse]
 	runCycleTime              *connect.Client[measures.RunCycleTimeRequest, measures.RunCycleTimeResponse]
 	runDurationStatistics     *connect.Client[measures.RunDurationStatisticsRequest, measures.RunDurationStatisticsResponse]
@@ -463,48 +541,32 @@ type measuresServiceClient struct {
 	toolUsage                 *connect.Client[measures.ToolUsageRequest, measures.ToolUsageResponse]
 	toolCommandBreakdown      *connect.Client[measures.ToolCommandBreakdownRequest, measures.ToolCommandBreakdownResponse]
 	tokenAttribution          *connect.Client[measures.TokenAttributionRequest, measures.TokenAttributionResponse]
-	errorPatterns             *connect.Client[measures.ErrorPatternsRequest, measures.ErrorPatternsResponse]
-	fileRereadRate            *connect.Client[measures.FileRereadRateRequest, measures.FileRereadRateResponse]
-	findingRecurrenceRate     *connect.Client[measures.FindingRecurrenceRateRequest, measures.FindingRecurrenceRateResponse]
-	episodeCohort             *connect.Client[measures.EpisodeCohortRequest, measures.EpisodeCohortResponse]
-	capabilityUsage           *connect.Client[measures.CapabilityUsageRequest, measures.CapabilityUsageResponse]
-	capabilityEfficacy        *connect.Client[measures.CapabilityEfficacyRequest, measures.CapabilityEfficacyResponse]
 	conversationSearchQuality *connect.Client[measures.ConversationSearchQualityRequest, measures.ConversationSearchQualityResponse]
+	toolFriction              *connect.Client[measures.ToolFrictionRequest, measures.ToolFrictionResponse]
+	fallbackInsights          *connect.Client[measures.FallbackInsightsRequest, measures.FallbackInsightsResponse]
 	allMeasureDefinitions     *connect.Client[measures.AllMeasureDefinitionsRequest, measures.AllMeasureDefinitionsResponse]
 	selectCohort              *connect.Client[measures.SelectCohortRequest, measures.SelectCohortResponse]
 	cohortReport              *connect.Client[measures.CohortReportRequest, measures.CohortReportResponse]
-	compareEpisodeCohorts     *connect.Client[measures.CompareEpisodeCohortsRequest, measures.CompareEpisodeCohortsResponse]
 	usageForecast             *connect.Client[measures.UsageForecastRequest, measures.UsageForecastResponse]
 	usageForecastBacktest     *connect.Client[measures.UsageForecastBacktestRequest, measures.UsageForecastBacktestResponse]
 	usageBurners              *connect.Client[measures.UsageBurnersRequest, measures.UsageBurnersResponse]
+	listUsageModes            *connect.Client[measures.ListUsageModesRequest, measures.ListUsageModesResponse]
+	startUsageMode            *connect.Client[measures.StartUsageModeRequest, measures.StartUsageModeResponse]
+	endUsageMode              *connect.Client[measures.EndUsageModeRequest, measures.EndUsageModeResponse]
+	extendUsageMode           *connect.Client[measures.ExtendUsageModeRequest, measures.ExtendUsageModeResponse]
+	rebaseUsageModeRuns       *connect.Client[measures.RebaseUsageModeRunsRequest, measures.RebaseUsageModeRunsResponse]
 	usageRecommendations      *connect.Client[measures.UsageRecommendationsRequest, measures.UsageRecommendationsResponse]
+	usageFriction             *connect.Client[measures.UsageFrictionRequest, measures.UsageFrictionResponse]
 	usageCoverage             *connect.Client[measures.UsageCoverageRequest, measures.UsageCoverageResponse]
 	usageCompare              *connect.Client[measures.UsageCompareRequest, measures.UsageCompareResponse]
-}
-
-// ExternalToolShare calls agent_manager.v1.measures.MeasuresService.ExternalToolShare.
-func (c *measuresServiceClient) ExternalToolShare(ctx context.Context, req *connect.Request[measures.ExternalToolShareRequest]) (*connect.Response[measures.ExternalToolShareResponse], error) {
-	return c.externalToolShare.CallUnary(ctx, req)
-}
-
-// RetryRate calls agent_manager.v1.measures.MeasuresService.RetryRate.
-func (c *measuresServiceClient) RetryRate(ctx context.Context, req *connect.Request[measures.RetryRateRequest]) (*connect.Response[measures.RetryRateResponse], error) {
-	return c.retryRate.CallUnary(ctx, req)
-}
-
-// HelpRecoveryRate calls agent_manager.v1.measures.MeasuresService.HelpRecoveryRate.
-func (c *measuresServiceClient) HelpRecoveryRate(ctx context.Context, req *connect.Request[measures.HelpRecoveryRateRequest]) (*connect.Response[measures.HelpRecoveryRateResponse], error) {
-	return c.helpRecoveryRate.CallUnary(ctx, req)
-}
-
-// RepeatedWorkRate calls agent_manager.v1.measures.MeasuresService.RepeatedWorkRate.
-func (c *measuresServiceClient) RepeatedWorkRate(ctx context.Context, req *connect.Request[measures.RepeatedWorkRateRequest]) (*connect.Response[measures.RepeatedWorkRateResponse], error) {
-	return c.repeatedWorkRate.CallUnary(ctx, req)
-}
-
-// ToolFailureRate calls agent_manager.v1.measures.MeasuresService.ToolFailureRate.
-func (c *measuresServiceClient) ToolFailureRate(ctx context.Context, req *connect.Request[measures.ToolFailureRateRequest]) (*connect.Response[measures.ToolFailureRateResponse], error) {
-	return c.toolFailureRate.CallUnary(ctx, req)
+	usageParity               *connect.Client[measures.UsageParityRequest, measures.UsageParityResponse]
+	usageOutcomes             *connect.Client[measures.UsageOutcomesRequest, measures.UsageOutcomesResponse]
+	usageExperiment           *connect.Client[measures.UsageExperimentRequest, measures.UsageExperimentResponse]
+	planUsageExperiment       *connect.Client[measures.PlanUsageExperimentRequest, measures.PlanUsageExperimentResponse]
+	startUsageExperiment      *connect.Client[measures.StartUsageExperimentRequest, measures.StartUsageExperimentResponse]
+	proposeRoleDefault        *connect.Client[measures.ProposeRoleDefaultRequest, measures.ProposeRoleDefaultResponse]
+	usageSignalsStatus        *connect.Client[measures.UsageSignalsStatusRequest, measures.UsageSignalsStatusResponse]
+	setUsageSignals           *connect.Client[measures.SetUsageSignalsRequest, measures.SetUsageSignalsResponse]
 }
 
 // RunSuccessRate calls agent_manager.v1.measures.MeasuresService.RunSuccessRate.
@@ -582,40 +644,20 @@ func (c *measuresServiceClient) TokenAttribution(ctx context.Context, req *conne
 	return c.tokenAttribution.CallUnary(ctx, req)
 }
 
-// ErrorPatterns calls agent_manager.v1.measures.MeasuresService.ErrorPatterns.
-func (c *measuresServiceClient) ErrorPatterns(ctx context.Context, req *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error) {
-	return c.errorPatterns.CallUnary(ctx, req)
-}
-
-// FileRereadRate calls agent_manager.v1.measures.MeasuresService.FileRereadRate.
-func (c *measuresServiceClient) FileRereadRate(ctx context.Context, req *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error) {
-	return c.fileRereadRate.CallUnary(ctx, req)
-}
-
-// FindingRecurrenceRate calls agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate.
-func (c *measuresServiceClient) FindingRecurrenceRate(ctx context.Context, req *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error) {
-	return c.findingRecurrenceRate.CallUnary(ctx, req)
-}
-
-// EpisodeCohort calls agent_manager.v1.measures.MeasuresService.EpisodeCohort.
-func (c *measuresServiceClient) EpisodeCohort(ctx context.Context, req *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error) {
-	return c.episodeCohort.CallUnary(ctx, req)
-}
-
-// CapabilityUsage calls agent_manager.v1.measures.MeasuresService.CapabilityUsage.
-func (c *measuresServiceClient) CapabilityUsage(ctx context.Context, req *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error) {
-	return c.capabilityUsage.CallUnary(ctx, req)
-}
-
-// CapabilityEfficacy calls agent_manager.v1.measures.MeasuresService.CapabilityEfficacy.
-func (c *measuresServiceClient) CapabilityEfficacy(ctx context.Context, req *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error) {
-	return c.capabilityEfficacy.CallUnary(ctx, req)
-}
-
 // ConversationSearchQuality calls
 // agent_manager.v1.measures.MeasuresService.ConversationSearchQuality.
 func (c *measuresServiceClient) ConversationSearchQuality(ctx context.Context, req *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error) {
 	return c.conversationSearchQuality.CallUnary(ctx, req)
+}
+
+// ToolFriction calls agent_manager.v1.measures.MeasuresService.ToolFriction.
+func (c *measuresServiceClient) ToolFriction(ctx context.Context, req *connect.Request[measures.ToolFrictionRequest]) (*connect.Response[measures.ToolFrictionResponse], error) {
+	return c.toolFriction.CallUnary(ctx, req)
+}
+
+// FallbackInsights calls agent_manager.v1.measures.MeasuresService.FallbackInsights.
+func (c *measuresServiceClient) FallbackInsights(ctx context.Context, req *connect.Request[measures.FallbackInsightsRequest]) (*connect.Response[measures.FallbackInsightsResponse], error) {
+	return c.fallbackInsights.CallUnary(ctx, req)
 }
 
 // AllMeasureDefinitions calls agent_manager.v1.measures.MeasuresService.AllMeasureDefinitions.
@@ -633,11 +675,6 @@ func (c *measuresServiceClient) CohortReport(ctx context.Context, req *connect.R
 	return c.cohortReport.CallUnary(ctx, req)
 }
 
-// CompareEpisodeCohorts calls agent_manager.v1.measures.MeasuresService.CompareEpisodeCohorts.
-func (c *measuresServiceClient) CompareEpisodeCohorts(ctx context.Context, req *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error) {
-	return c.compareEpisodeCohorts.CallUnary(ctx, req)
-}
-
 // UsageForecast calls agent_manager.v1.measures.MeasuresService.UsageForecast.
 func (c *measuresServiceClient) UsageForecast(ctx context.Context, req *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error) {
 	return c.usageForecast.CallUnary(ctx, req)
@@ -653,9 +690,39 @@ func (c *measuresServiceClient) UsageBurners(ctx context.Context, req *connect.R
 	return c.usageBurners.CallUnary(ctx, req)
 }
 
+// ListUsageModes calls agent_manager.v1.measures.MeasuresService.ListUsageModes.
+func (c *measuresServiceClient) ListUsageModes(ctx context.Context, req *connect.Request[measures.ListUsageModesRequest]) (*connect.Response[measures.ListUsageModesResponse], error) {
+	return c.listUsageModes.CallUnary(ctx, req)
+}
+
+// StartUsageMode calls agent_manager.v1.measures.MeasuresService.StartUsageMode.
+func (c *measuresServiceClient) StartUsageMode(ctx context.Context, req *connect.Request[measures.StartUsageModeRequest]) (*connect.Response[measures.StartUsageModeResponse], error) {
+	return c.startUsageMode.CallUnary(ctx, req)
+}
+
+// EndUsageMode calls agent_manager.v1.measures.MeasuresService.EndUsageMode.
+func (c *measuresServiceClient) EndUsageMode(ctx context.Context, req *connect.Request[measures.EndUsageModeRequest]) (*connect.Response[measures.EndUsageModeResponse], error) {
+	return c.endUsageMode.CallUnary(ctx, req)
+}
+
+// ExtendUsageMode calls agent_manager.v1.measures.MeasuresService.ExtendUsageMode.
+func (c *measuresServiceClient) ExtendUsageMode(ctx context.Context, req *connect.Request[measures.ExtendUsageModeRequest]) (*connect.Response[measures.ExtendUsageModeResponse], error) {
+	return c.extendUsageMode.CallUnary(ctx, req)
+}
+
+// RebaseUsageModeRuns calls agent_manager.v1.measures.MeasuresService.RebaseUsageModeRuns.
+func (c *measuresServiceClient) RebaseUsageModeRuns(ctx context.Context, req *connect.Request[measures.RebaseUsageModeRunsRequest]) (*connect.Response[measures.RebaseUsageModeRunsResponse], error) {
+	return c.rebaseUsageModeRuns.CallUnary(ctx, req)
+}
+
 // UsageRecommendations calls agent_manager.v1.measures.MeasuresService.UsageRecommendations.
 func (c *measuresServiceClient) UsageRecommendations(ctx context.Context, req *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error) {
 	return c.usageRecommendations.CallUnary(ctx, req)
+}
+
+// UsageFriction calls agent_manager.v1.measures.MeasuresService.UsageFriction.
+func (c *measuresServiceClient) UsageFriction(ctx context.Context, req *connect.Request[measures.UsageFrictionRequest]) (*connect.Response[measures.UsageFrictionResponse], error) {
+	return c.usageFriction.CallUnary(ctx, req)
 }
 
 // UsageCoverage calls agent_manager.v1.measures.MeasuresService.UsageCoverage.
@@ -668,14 +735,49 @@ func (c *measuresServiceClient) UsageCompare(ctx context.Context, req *connect.R
 	return c.usageCompare.CallUnary(ctx, req)
 }
 
+// UsageParity calls agent_manager.v1.measures.MeasuresService.UsageParity.
+func (c *measuresServiceClient) UsageParity(ctx context.Context, req *connect.Request[measures.UsageParityRequest]) (*connect.Response[measures.UsageParityResponse], error) {
+	return c.usageParity.CallUnary(ctx, req)
+}
+
+// UsageOutcomes calls agent_manager.v1.measures.MeasuresService.UsageOutcomes.
+func (c *measuresServiceClient) UsageOutcomes(ctx context.Context, req *connect.Request[measures.UsageOutcomesRequest]) (*connect.Response[measures.UsageOutcomesResponse], error) {
+	return c.usageOutcomes.CallUnary(ctx, req)
+}
+
+// UsageExperiment calls agent_manager.v1.measures.MeasuresService.UsageExperiment.
+func (c *measuresServiceClient) UsageExperiment(ctx context.Context, req *connect.Request[measures.UsageExperimentRequest]) (*connect.Response[measures.UsageExperimentResponse], error) {
+	return c.usageExperiment.CallUnary(ctx, req)
+}
+
+// PlanUsageExperiment calls agent_manager.v1.measures.MeasuresService.PlanUsageExperiment.
+func (c *measuresServiceClient) PlanUsageExperiment(ctx context.Context, req *connect.Request[measures.PlanUsageExperimentRequest]) (*connect.Response[measures.PlanUsageExperimentResponse], error) {
+	return c.planUsageExperiment.CallUnary(ctx, req)
+}
+
+// StartUsageExperiment calls agent_manager.v1.measures.MeasuresService.StartUsageExperiment.
+func (c *measuresServiceClient) StartUsageExperiment(ctx context.Context, req *connect.Request[measures.StartUsageExperimentRequest]) (*connect.Response[measures.StartUsageExperimentResponse], error) {
+	return c.startUsageExperiment.CallUnary(ctx, req)
+}
+
+// ProposeRoleDefault calls agent_manager.v1.measures.MeasuresService.ProposeRoleDefault.
+func (c *measuresServiceClient) ProposeRoleDefault(ctx context.Context, req *connect.Request[measures.ProposeRoleDefaultRequest]) (*connect.Response[measures.ProposeRoleDefaultResponse], error) {
+	return c.proposeRoleDefault.CallUnary(ctx, req)
+}
+
+// UsageSignalsStatus calls agent_manager.v1.measures.MeasuresService.UsageSignalsStatus.
+func (c *measuresServiceClient) UsageSignalsStatus(ctx context.Context, req *connect.Request[measures.UsageSignalsStatusRequest]) (*connect.Response[measures.UsageSignalsStatusResponse], error) {
+	return c.usageSignalsStatus.CallUnary(ctx, req)
+}
+
+// SetUsageSignals calls agent_manager.v1.measures.MeasuresService.SetUsageSignals.
+func (c *measuresServiceClient) SetUsageSignals(ctx context.Context, req *connect.Request[measures.SetUsageSignalsRequest]) (*connect.Response[measures.SetUsageSignalsResponse], error) {
+	return c.setUsageSignals.CallUnary(ctx, req)
+}
+
 // MeasuresServiceHandler is an implementation of the agent_manager.v1.measures.MeasuresService
 // service.
 type MeasuresServiceHandler interface {
-	ExternalToolShare(context.Context, *connect.Request[measures.ExternalToolShareRequest]) (*connect.Response[measures.ExternalToolShareResponse], error)
-	RetryRate(context.Context, *connect.Request[measures.RetryRateRequest]) (*connect.Response[measures.RetryRateResponse], error)
-	HelpRecoveryRate(context.Context, *connect.Request[measures.HelpRecoveryRateRequest]) (*connect.Response[measures.HelpRecoveryRateResponse], error)
-	RepeatedWorkRate(context.Context, *connect.Request[measures.RepeatedWorkRateRequest]) (*connect.Response[measures.RepeatedWorkRateResponse], error)
-	ToolFailureRate(context.Context, *connect.Request[measures.ToolFailureRateRequest]) (*connect.Response[measures.ToolFailureRateResponse], error)
 	RunSuccessRate(context.Context, *connect.Request[measures.RunSuccessRateRequest]) (*connect.Response[measures.RunSuccessRateResponse], error)
 	RunCycleTime(context.Context, *connect.Request[measures.RunCycleTimeRequest]) (*connect.Response[measures.RunCycleTimeResponse], error)
 	RunDurationStatistics(context.Context, *connect.Request[measures.RunDurationStatisticsRequest]) (*connect.Response[measures.RunDurationStatisticsResponse], error)
@@ -691,13 +793,15 @@ type MeasuresServiceHandler interface {
 	ToolUsage(context.Context, *connect.Request[measures.ToolUsageRequest]) (*connect.Response[measures.ToolUsageResponse], error)
 	ToolCommandBreakdown(context.Context, *connect.Request[measures.ToolCommandBreakdownRequest]) (*connect.Response[measures.ToolCommandBreakdownResponse], error)
 	TokenAttribution(context.Context, *connect.Request[measures.TokenAttributionRequest]) (*connect.Response[measures.TokenAttributionResponse], error)
-	ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error)
-	FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error)
-	FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error)
-	EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error)
-	CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error)
-	CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error)
 	ConversationSearchQuality(context.Context, *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error)
+	// ToolFriction profiles every command path agents ran in a window from the
+	// invocation facts: calls, failure rate and error-signature clusters,
+	// shape-guessing, output weight and context tax, latency, polling and
+	// bypasses of a scenario's CLI. Its summary carries the window's rates.
+	ToolFriction(context.Context, *connect.Request[measures.ToolFrictionRequest]) (*connect.Response[measures.ToolFrictionResponse], error)
+	// FallbackInsights counts runner and model fallbacks and policy-candidate
+	// outcomes in a window (Health: why runs moved off their first choice).
+	FallbackInsights(context.Context, *connect.Request[measures.FallbackInsightsRequest]) (*connect.Response[measures.FallbackInsightsResponse], error)
 	AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error)
 	// SelectCohort is the non-aggregate companion to the measures: it exposes
 	// the run ids behind the exact same durable filter used by an aggregate.
@@ -705,9 +809,6 @@ type MeasuresServiceHandler interface {
 	// CohortReport folds the run reports of one selected cohort: ranked
 	// friction signals, time accounting, evidence validity and goal progression.
 	CohortReport(context.Context, *connect.Request[measures.CohortReportRequest]) (*connect.Response[measures.CohortReportResponse], error)
-	// CompareEpisodeCohorts compares friction-episode fingerprints between two
-	// selected cohorts, for example before and after a change.
-	CompareEpisodeCohorts(context.Context, *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error)
 	// UsageForecast projects, from the provider's own quota readings, whether
 	// each subscription window runs out before its reset.
 	UsageForecast(context.Context, *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error)
@@ -718,15 +819,68 @@ type MeasuresServiceHandler interface {
 	// consumers (session, run, profile, workload, model, runner, modality or
 	// tool kind) with an explicit unattributed remainder.
 	UsageBurners(context.Context, *connect.Request[measures.UsageBurnersRequest]) (*connect.Response[measures.UsageBurnersResponse], error)
-	// UsageRecommendations ranks deterministic rule findings by the weekly
-	// quota they would save.
+	// ListUsageModes reads the active usage modes (expiring operator policies
+	// that lower what new work runs on) with burn since start and the reach
+	// table. Agents may read it.
+	ListUsageModes(context.Context, *connect.Request[measures.ListUsageModesRequest]) (*connect.Response[measures.ListUsageModesResponse], error)
+	// StartUsageMode starts a usage mode. It requires verified operator
+	// authority; agent identities are refused. Starting replaces a mode with
+	// an identical scope.
+	StartUsageMode(context.Context, *connect.Request[measures.StartUsageModeRequest]) (*connect.Response[measures.StartUsageModeResponse], error)
+	// EndUsageMode ends modes by id, or all of them. It requires verified
+	// operator authority.
+	EndUsageMode(context.Context, *connect.Request[measures.EndUsageModeRequest]) (*connect.Response[measures.EndUsageModeResponse], error)
+	// ExtendUsageMode moves one active mode's end and keeps its id, start,
+	// starter and settings, so its burn since start stays continuous. It
+	// requires verified operator authority; agents are refused.
+	ExtendUsageMode(context.Context, *connect.Request[measures.ExtendUsageModeRequest]) (*connect.Response[measures.ExtendUsageModeResponse], error)
+	// RebaseUsageModeRuns is the explicit "also switch running work" step. For a
+	// managed run it records a model change that the next resume applies; an
+	// interactive session reports that the mode applies on its next launch. With
+	// dry_run it only reports what would happen and the estimated re-read cost.
+	// It requires verified operator authority; agents are refused.
+	RebaseUsageModeRuns(context.Context, *connect.Request[measures.RebaseUsageModeRunsRequest]) (*connect.Response[measures.RebaseUsageModeRunsResponse], error)
+	// UsageRecommendations is one ranked, owner-level list of what to change:
+	// quota levers, tool friction, opportunities and gated operator
+	// interventions, each with owner, action, evidence, effect in its own unit,
+	// a common score and a verifying measure.
 	UsageRecommendations(context.Context, *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error)
+	// UsageFriction lists the window's owner-level tool findings (from the tool
+	// friction profiles) with their owner, counts, cost, evidence and durable
+	// status (open, reported, dismissed), and the classified operator
+	// interventions the accuracy gate admits, beside the coverage that says what
+	// was seen.
+	UsageFriction(context.Context, *connect.Request[measures.UsageFrictionRequest]) (*connect.Response[measures.UsageFrictionResponse], error)
 	// UsageCoverage compares the transcripts on disk with what the Transcript
 	// Indexer captured, per root, naming every uncaptured file.
 	UsageCoverage(context.Context, *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error)
 	// UsageCompare compares quota per successful workload unit between two
 	// selected cohorts (for example before and after a change).
 	UsageCompare(context.Context, *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error)
+	// UsageParity reports, per start path and harness, how much of each measure
+	// exists, with a stated reason wherever coverage is below 90%.
+	UsageParity(context.Context, *connect.Request[measures.UsageParityRequest]) (*connect.Response[measures.UsageParityResponse], error)
+	// UsageOutcomes estimates points per accepted outcome, consumption per run,
+	// run length, rework, unknown rate and break-even, by model, role or usage mode.
+	UsageOutcomes(context.Context, *connect.Request[measures.UsageOutcomesRequest]) (*connect.Response[measures.UsageOutcomesResponse], error)
+	// UsageExperiment reports each Learn comparison: its randomization, the
+	// arms, the permutation test, intervals, the verdict (or the data still
+	// needed) and the role recommendation that follows from it.
+	UsageExperiment(context.Context, *connect.Request[measures.UsageExperimentRequest]) (*connect.Response[measures.UsageExperimentResponse], error)
+	// PlanUsageExperiment gives the expected time to a verdict before a
+	// comparison starts, from the role's own recent variance and pace.
+	PlanUsageExperiment(context.Context, *connect.Request[measures.PlanUsageExperimentRequest]) (*connect.Response[measures.PlanUsageExperimentResponse], error)
+	// StartUsageExperiment starts a Learn comparison. It requires verified
+	// operator authority; agent identities get 403.
+	StartUsageExperiment(context.Context, *connect.Request[measures.StartUsageExperimentRequest]) (*connect.Response[measures.StartUsageExperimentResponse], error)
+	// ProposeRoleDefault raises a decision to change a role's default model to
+	// the challenger. Verified operator only. It applies nothing.
+	ProposeRoleDefault(context.Context, *connect.Request[measures.ProposeRoleDefaultRequest]) (*connect.Response[measures.ProposeRoleDefaultResponse], error)
+	// UsageSignalsStatus reads the operator-signal switch and what is stored.
+	UsageSignalsStatus(context.Context, *connect.Request[measures.UsageSignalsStatusRequest]) (*connect.Response[measures.UsageSignalsStatusResponse], error)
+	// SetUsageSignals switches operator signals off or on, or purges stored
+	// signals. Verified operator only.
+	SetUsageSignals(context.Context, *connect.Request[measures.SetUsageSignalsRequest]) (*connect.Response[measures.SetUsageSignalsResponse], error)
 }
 
 // NewMeasuresServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -736,36 +890,6 @@ type MeasuresServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	measuresServiceMethods := measures.File_agent_manager_v1_measures_measures_proto.Services().ByName("MeasuresService").Methods()
-	measuresServiceExternalToolShareHandler := connect.NewUnaryHandler(
-		MeasuresServiceExternalToolShareProcedure,
-		svc.ExternalToolShare,
-		connect.WithSchema(measuresServiceMethods.ByName("ExternalToolShare")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceRetryRateHandler := connect.NewUnaryHandler(
-		MeasuresServiceRetryRateProcedure,
-		svc.RetryRate,
-		connect.WithSchema(measuresServiceMethods.ByName("RetryRate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceHelpRecoveryRateHandler := connect.NewUnaryHandler(
-		MeasuresServiceHelpRecoveryRateProcedure,
-		svc.HelpRecoveryRate,
-		connect.WithSchema(measuresServiceMethods.ByName("HelpRecoveryRate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceRepeatedWorkRateHandler := connect.NewUnaryHandler(
-		MeasuresServiceRepeatedWorkRateProcedure,
-		svc.RepeatedWorkRate,
-		connect.WithSchema(measuresServiceMethods.ByName("RepeatedWorkRate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceToolFailureRateHandler := connect.NewUnaryHandler(
-		MeasuresServiceToolFailureRateProcedure,
-		svc.ToolFailureRate,
-		connect.WithSchema(measuresServiceMethods.ByName("ToolFailureRate")),
-		connect.WithHandlerOptions(opts...),
-	)
 	measuresServiceRunSuccessRateHandler := connect.NewUnaryHandler(
 		MeasuresServiceRunSuccessRateProcedure,
 		svc.RunSuccessRate,
@@ -856,46 +980,22 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("TokenAttribution")),
 		connect.WithHandlerOptions(opts...),
 	)
-	measuresServiceErrorPatternsHandler := connect.NewUnaryHandler(
-		MeasuresServiceErrorPatternsProcedure,
-		svc.ErrorPatterns,
-		connect.WithSchema(measuresServiceMethods.ByName("ErrorPatterns")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceFileRereadRateHandler := connect.NewUnaryHandler(
-		MeasuresServiceFileRereadRateProcedure,
-		svc.FileRereadRate,
-		connect.WithSchema(measuresServiceMethods.ByName("FileRereadRate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceFindingRecurrenceRateHandler := connect.NewUnaryHandler(
-		MeasuresServiceFindingRecurrenceRateProcedure,
-		svc.FindingRecurrenceRate,
-		connect.WithSchema(measuresServiceMethods.ByName("FindingRecurrenceRate")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceEpisodeCohortHandler := connect.NewUnaryHandler(
-		MeasuresServiceEpisodeCohortProcedure,
-		svc.EpisodeCohort,
-		connect.WithSchema(measuresServiceMethods.ByName("EpisodeCohort")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceCapabilityUsageHandler := connect.NewUnaryHandler(
-		MeasuresServiceCapabilityUsageProcedure,
-		svc.CapabilityUsage,
-		connect.WithSchema(measuresServiceMethods.ByName("CapabilityUsage")),
-		connect.WithHandlerOptions(opts...),
-	)
-	measuresServiceCapabilityEfficacyHandler := connect.NewUnaryHandler(
-		MeasuresServiceCapabilityEfficacyProcedure,
-		svc.CapabilityEfficacy,
-		connect.WithSchema(measuresServiceMethods.ByName("CapabilityEfficacy")),
-		connect.WithHandlerOptions(opts...),
-	)
 	measuresServiceConversationSearchQualityHandler := connect.NewUnaryHandler(
 		MeasuresServiceConversationSearchQualityProcedure,
 		svc.ConversationSearchQuality,
 		connect.WithSchema(measuresServiceMethods.ByName("ConversationSearchQuality")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceToolFrictionHandler := connect.NewUnaryHandler(
+		MeasuresServiceToolFrictionProcedure,
+		svc.ToolFriction,
+		connect.WithSchema(measuresServiceMethods.ByName("ToolFriction")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceFallbackInsightsHandler := connect.NewUnaryHandler(
+		MeasuresServiceFallbackInsightsProcedure,
+		svc.FallbackInsights,
+		connect.WithSchema(measuresServiceMethods.ByName("FallbackInsights")),
 		connect.WithHandlerOptions(opts...),
 	)
 	measuresServiceAllMeasureDefinitionsHandler := connect.NewUnaryHandler(
@@ -916,12 +1016,6 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("CohortReport")),
 		connect.WithHandlerOptions(opts...),
 	)
-	measuresServiceCompareEpisodeCohortsHandler := connect.NewUnaryHandler(
-		MeasuresServiceCompareEpisodeCohortsProcedure,
-		svc.CompareEpisodeCohorts,
-		connect.WithSchema(measuresServiceMethods.ByName("CompareEpisodeCohorts")),
-		connect.WithHandlerOptions(opts...),
-	)
 	measuresServiceUsageForecastHandler := connect.NewUnaryHandler(
 		MeasuresServiceUsageForecastProcedure,
 		svc.UsageForecast,
@@ -940,10 +1034,46 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("UsageBurners")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceListUsageModesHandler := connect.NewUnaryHandler(
+		MeasuresServiceListUsageModesProcedure,
+		svc.ListUsageModes,
+		connect.WithSchema(measuresServiceMethods.ByName("ListUsageModes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceStartUsageModeHandler := connect.NewUnaryHandler(
+		MeasuresServiceStartUsageModeProcedure,
+		svc.StartUsageMode,
+		connect.WithSchema(measuresServiceMethods.ByName("StartUsageMode")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceEndUsageModeHandler := connect.NewUnaryHandler(
+		MeasuresServiceEndUsageModeProcedure,
+		svc.EndUsageMode,
+		connect.WithSchema(measuresServiceMethods.ByName("EndUsageMode")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceExtendUsageModeHandler := connect.NewUnaryHandler(
+		MeasuresServiceExtendUsageModeProcedure,
+		svc.ExtendUsageMode,
+		connect.WithSchema(measuresServiceMethods.ByName("ExtendUsageMode")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceRebaseUsageModeRunsHandler := connect.NewUnaryHandler(
+		MeasuresServiceRebaseUsageModeRunsProcedure,
+		svc.RebaseUsageModeRuns,
+		connect.WithSchema(measuresServiceMethods.ByName("RebaseUsageModeRuns")),
+		connect.WithHandlerOptions(opts...),
+	)
 	measuresServiceUsageRecommendationsHandler := connect.NewUnaryHandler(
 		MeasuresServiceUsageRecommendationsProcedure,
 		svc.UsageRecommendations,
 		connect.WithSchema(measuresServiceMethods.ByName("UsageRecommendations")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageFrictionHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageFrictionProcedure,
+		svc.UsageFriction,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageFriction")),
 		connect.WithHandlerOptions(opts...),
 	)
 	measuresServiceUsageCoverageHandler := connect.NewUnaryHandler(
@@ -958,18 +1088,56 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("UsageCompare")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceUsageParityHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageParityProcedure,
+		svc.UsageParity,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageParity")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageOutcomesHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageOutcomesProcedure,
+		svc.UsageOutcomes,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageOutcomes")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageExperimentHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageExperimentProcedure,
+		svc.UsageExperiment,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageExperiment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServicePlanUsageExperimentHandler := connect.NewUnaryHandler(
+		MeasuresServicePlanUsageExperimentProcedure,
+		svc.PlanUsageExperiment,
+		connect.WithSchema(measuresServiceMethods.ByName("PlanUsageExperiment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceStartUsageExperimentHandler := connect.NewUnaryHandler(
+		MeasuresServiceStartUsageExperimentProcedure,
+		svc.StartUsageExperiment,
+		connect.WithSchema(measuresServiceMethods.ByName("StartUsageExperiment")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceProposeRoleDefaultHandler := connect.NewUnaryHandler(
+		MeasuresServiceProposeRoleDefaultProcedure,
+		svc.ProposeRoleDefault,
+		connect.WithSchema(measuresServiceMethods.ByName("ProposeRoleDefault")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceUsageSignalsStatusHandler := connect.NewUnaryHandler(
+		MeasuresServiceUsageSignalsStatusProcedure,
+		svc.UsageSignalsStatus,
+		connect.WithSchema(measuresServiceMethods.ByName("UsageSignalsStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	measuresServiceSetUsageSignalsHandler := connect.NewUnaryHandler(
+		MeasuresServiceSetUsageSignalsProcedure,
+		svc.SetUsageSignals,
+		connect.WithSchema(measuresServiceMethods.ByName("SetUsageSignals")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/agent_manager.v1.measures.MeasuresService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case MeasuresServiceExternalToolShareProcedure:
-			measuresServiceExternalToolShareHandler.ServeHTTP(w, r)
-		case MeasuresServiceRetryRateProcedure:
-			measuresServiceRetryRateHandler.ServeHTTP(w, r)
-		case MeasuresServiceHelpRecoveryRateProcedure:
-			measuresServiceHelpRecoveryRateHandler.ServeHTTP(w, r)
-		case MeasuresServiceRepeatedWorkRateProcedure:
-			measuresServiceRepeatedWorkRateHandler.ServeHTTP(w, r)
-		case MeasuresServiceToolFailureRateProcedure:
-			measuresServiceToolFailureRateHandler.ServeHTTP(w, r)
 		case MeasuresServiceRunSuccessRateProcedure:
 			measuresServiceRunSuccessRateHandler.ServeHTTP(w, r)
 		case MeasuresServiceRunCycleTimeProcedure:
@@ -1000,40 +1168,58 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceToolCommandBreakdownHandler.ServeHTTP(w, r)
 		case MeasuresServiceTokenAttributionProcedure:
 			measuresServiceTokenAttributionHandler.ServeHTTP(w, r)
-		case MeasuresServiceErrorPatternsProcedure:
-			measuresServiceErrorPatternsHandler.ServeHTTP(w, r)
-		case MeasuresServiceFileRereadRateProcedure:
-			measuresServiceFileRereadRateHandler.ServeHTTP(w, r)
-		case MeasuresServiceFindingRecurrenceRateProcedure:
-			measuresServiceFindingRecurrenceRateHandler.ServeHTTP(w, r)
-		case MeasuresServiceEpisodeCohortProcedure:
-			measuresServiceEpisodeCohortHandler.ServeHTTP(w, r)
-		case MeasuresServiceCapabilityUsageProcedure:
-			measuresServiceCapabilityUsageHandler.ServeHTTP(w, r)
-		case MeasuresServiceCapabilityEfficacyProcedure:
-			measuresServiceCapabilityEfficacyHandler.ServeHTTP(w, r)
 		case MeasuresServiceConversationSearchQualityProcedure:
 			measuresServiceConversationSearchQualityHandler.ServeHTTP(w, r)
+		case MeasuresServiceToolFrictionProcedure:
+			measuresServiceToolFrictionHandler.ServeHTTP(w, r)
+		case MeasuresServiceFallbackInsightsProcedure:
+			measuresServiceFallbackInsightsHandler.ServeHTTP(w, r)
 		case MeasuresServiceAllMeasureDefinitionsProcedure:
 			measuresServiceAllMeasureDefinitionsHandler.ServeHTTP(w, r)
 		case MeasuresServiceSelectCohortProcedure:
 			measuresServiceSelectCohortHandler.ServeHTTP(w, r)
 		case MeasuresServiceCohortReportProcedure:
 			measuresServiceCohortReportHandler.ServeHTTP(w, r)
-		case MeasuresServiceCompareEpisodeCohortsProcedure:
-			measuresServiceCompareEpisodeCohortsHandler.ServeHTTP(w, r)
 		case MeasuresServiceUsageForecastProcedure:
 			measuresServiceUsageForecastHandler.ServeHTTP(w, r)
 		case MeasuresServiceUsageForecastBacktestProcedure:
 			measuresServiceUsageForecastBacktestHandler.ServeHTTP(w, r)
 		case MeasuresServiceUsageBurnersProcedure:
 			measuresServiceUsageBurnersHandler.ServeHTTP(w, r)
+		case MeasuresServiceListUsageModesProcedure:
+			measuresServiceListUsageModesHandler.ServeHTTP(w, r)
+		case MeasuresServiceStartUsageModeProcedure:
+			measuresServiceStartUsageModeHandler.ServeHTTP(w, r)
+		case MeasuresServiceEndUsageModeProcedure:
+			measuresServiceEndUsageModeHandler.ServeHTTP(w, r)
+		case MeasuresServiceExtendUsageModeProcedure:
+			measuresServiceExtendUsageModeHandler.ServeHTTP(w, r)
+		case MeasuresServiceRebaseUsageModeRunsProcedure:
+			measuresServiceRebaseUsageModeRunsHandler.ServeHTTP(w, r)
 		case MeasuresServiceUsageRecommendationsProcedure:
 			measuresServiceUsageRecommendationsHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageFrictionProcedure:
+			measuresServiceUsageFrictionHandler.ServeHTTP(w, r)
 		case MeasuresServiceUsageCoverageProcedure:
 			measuresServiceUsageCoverageHandler.ServeHTTP(w, r)
 		case MeasuresServiceUsageCompareProcedure:
 			measuresServiceUsageCompareHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageParityProcedure:
+			measuresServiceUsageParityHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageOutcomesProcedure:
+			measuresServiceUsageOutcomesHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageExperimentProcedure:
+			measuresServiceUsageExperimentHandler.ServeHTTP(w, r)
+		case MeasuresServicePlanUsageExperimentProcedure:
+			measuresServicePlanUsageExperimentHandler.ServeHTTP(w, r)
+		case MeasuresServiceStartUsageExperimentProcedure:
+			measuresServiceStartUsageExperimentHandler.ServeHTTP(w, r)
+		case MeasuresServiceProposeRoleDefaultProcedure:
+			measuresServiceProposeRoleDefaultHandler.ServeHTTP(w, r)
+		case MeasuresServiceUsageSignalsStatusProcedure:
+			measuresServiceUsageSignalsStatusHandler.ServeHTTP(w, r)
+		case MeasuresServiceSetUsageSignalsProcedure:
+			measuresServiceSetUsageSignalsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1042,26 +1228,6 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 
 // UnimplementedMeasuresServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMeasuresServiceHandler struct{}
-
-func (UnimplementedMeasuresServiceHandler) ExternalToolShare(context.Context, *connect.Request[measures.ExternalToolShareRequest]) (*connect.Response[measures.ExternalToolShareResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ExternalToolShare is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) RetryRate(context.Context, *connect.Request[measures.RetryRateRequest]) (*connect.Response[measures.RetryRateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.RetryRate is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) HelpRecoveryRate(context.Context, *connect.Request[measures.HelpRecoveryRateRequest]) (*connect.Response[measures.HelpRecoveryRateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.HelpRecoveryRate is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) RepeatedWorkRate(context.Context, *connect.Request[measures.RepeatedWorkRateRequest]) (*connect.Response[measures.RepeatedWorkRateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.RepeatedWorkRate is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) ToolFailureRate(context.Context, *connect.Request[measures.ToolFailureRateRequest]) (*connect.Response[measures.ToolFailureRateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ToolFailureRate is not implemented"))
-}
 
 func (UnimplementedMeasuresServiceHandler) RunSuccessRate(context.Context, *connect.Request[measures.RunSuccessRateRequest]) (*connect.Response[measures.RunSuccessRateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.RunSuccessRate is not implemented"))
@@ -1123,32 +1289,16 @@ func (UnimplementedMeasuresServiceHandler) TokenAttribution(context.Context, *co
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.TokenAttribution is not implemented"))
 }
 
-func (UnimplementedMeasuresServiceHandler) ErrorPatterns(context.Context, *connect.Request[measures.ErrorPatternsRequest]) (*connect.Response[measures.ErrorPatternsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ErrorPatterns is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) FileRereadRate(context.Context, *connect.Request[measures.FileRereadRateRequest]) (*connect.Response[measures.FileRereadRateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.FileRereadRate is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) FindingRecurrenceRate(context.Context, *connect.Request[measures.FindingRecurrenceRateRequest]) (*connect.Response[measures.FindingRecurrenceRateResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.FindingRecurrenceRate is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) EpisodeCohort(context.Context, *connect.Request[measures.EpisodeCohortRequest]) (*connect.Response[measures.EpisodeCohortResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.EpisodeCohort is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) CapabilityUsage(context.Context, *connect.Request[measures.CapabilityUsageRequest]) (*connect.Response[measures.CapabilityUsageResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CapabilityUsage is not implemented"))
-}
-
-func (UnimplementedMeasuresServiceHandler) CapabilityEfficacy(context.Context, *connect.Request[measures.CapabilityEfficacyRequest]) (*connect.Response[measures.CapabilityEfficacyResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CapabilityEfficacy is not implemented"))
-}
-
 func (UnimplementedMeasuresServiceHandler) ConversationSearchQuality(context.Context, *connect.Request[measures.ConversationSearchQualityRequest]) (*connect.Response[measures.ConversationSearchQualityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ConversationSearchQuality is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ToolFriction(context.Context, *connect.Request[measures.ToolFrictionRequest]) (*connect.Response[measures.ToolFrictionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ToolFriction is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) FallbackInsights(context.Context, *connect.Request[measures.FallbackInsightsRequest]) (*connect.Response[measures.FallbackInsightsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.FallbackInsights is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) AllMeasureDefinitions(context.Context, *connect.Request[measures.AllMeasureDefinitionsRequest]) (*connect.Response[measures.AllMeasureDefinitionsResponse], error) {
@@ -1163,10 +1313,6 @@ func (UnimplementedMeasuresServiceHandler) CohortReport(context.Context, *connec
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CohortReport is not implemented"))
 }
 
-func (UnimplementedMeasuresServiceHandler) CompareEpisodeCohorts(context.Context, *connect.Request[measures.CompareEpisodeCohortsRequest]) (*connect.Response[measures.CompareEpisodeCohortsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.CompareEpisodeCohorts is not implemented"))
-}
-
 func (UnimplementedMeasuresServiceHandler) UsageForecast(context.Context, *connect.Request[measures.UsageForecastRequest]) (*connect.Response[measures.UsageForecastResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageForecast is not implemented"))
 }
@@ -1179,8 +1325,32 @@ func (UnimplementedMeasuresServiceHandler) UsageBurners(context.Context, *connec
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageBurners is not implemented"))
 }
 
+func (UnimplementedMeasuresServiceHandler) ListUsageModes(context.Context, *connect.Request[measures.ListUsageModesRequest]) (*connect.Response[measures.ListUsageModesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ListUsageModes is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) StartUsageMode(context.Context, *connect.Request[measures.StartUsageModeRequest]) (*connect.Response[measures.StartUsageModeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.StartUsageMode is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) EndUsageMode(context.Context, *connect.Request[measures.EndUsageModeRequest]) (*connect.Response[measures.EndUsageModeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.EndUsageMode is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ExtendUsageMode(context.Context, *connect.Request[measures.ExtendUsageModeRequest]) (*connect.Response[measures.ExtendUsageModeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ExtendUsageMode is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) RebaseUsageModeRuns(context.Context, *connect.Request[measures.RebaseUsageModeRunsRequest]) (*connect.Response[measures.RebaseUsageModeRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.RebaseUsageModeRuns is not implemented"))
+}
+
 func (UnimplementedMeasuresServiceHandler) UsageRecommendations(context.Context, *connect.Request[measures.UsageRecommendationsRequest]) (*connect.Response[measures.UsageRecommendationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageRecommendations is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageFriction(context.Context, *connect.Request[measures.UsageFrictionRequest]) (*connect.Response[measures.UsageFrictionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageFriction is not implemented"))
 }
 
 func (UnimplementedMeasuresServiceHandler) UsageCoverage(context.Context, *connect.Request[measures.UsageCoverageRequest]) (*connect.Response[measures.UsageCoverageResponse], error) {
@@ -1189,4 +1359,36 @@ func (UnimplementedMeasuresServiceHandler) UsageCoverage(context.Context, *conne
 
 func (UnimplementedMeasuresServiceHandler) UsageCompare(context.Context, *connect.Request[measures.UsageCompareRequest]) (*connect.Response[measures.UsageCompareResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageCompare is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageParity(context.Context, *connect.Request[measures.UsageParityRequest]) (*connect.Response[measures.UsageParityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageParity is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageOutcomes(context.Context, *connect.Request[measures.UsageOutcomesRequest]) (*connect.Response[measures.UsageOutcomesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageOutcomes is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageExperiment(context.Context, *connect.Request[measures.UsageExperimentRequest]) (*connect.Response[measures.UsageExperimentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageExperiment is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) PlanUsageExperiment(context.Context, *connect.Request[measures.PlanUsageExperimentRequest]) (*connect.Response[measures.PlanUsageExperimentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.PlanUsageExperiment is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) StartUsageExperiment(context.Context, *connect.Request[measures.StartUsageExperimentRequest]) (*connect.Response[measures.StartUsageExperimentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.StartUsageExperiment is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) ProposeRoleDefault(context.Context, *connect.Request[measures.ProposeRoleDefaultRequest]) (*connect.Response[measures.ProposeRoleDefaultResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.ProposeRoleDefault is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) UsageSignalsStatus(context.Context, *connect.Request[measures.UsageSignalsStatusRequest]) (*connect.Response[measures.UsageSignalsStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.UsageSignalsStatus is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) SetUsageSignals(context.Context, *connect.Request[measures.SetUsageSignalsRequest]) (*connect.Response[measures.SetUsageSignalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.measures.MeasuresService.SetUsageSignals is not implemented"))
 }

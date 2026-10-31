@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/usagemodes"
 
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/capabilities"
@@ -82,6 +83,8 @@ type RouteDependencies struct {
 	ExactVerifier            *supervision.ExactVerifier
 	InvocationReadModel      invocationreadmodel.Store
 	ModelPolicyDrift         *modelpolicydrift.Scheduler
+	UsageModes               *usagemodes.Service
+	UsageModeNotifier        *usagemodes.Notifier
 	TranscriptImporter       *orchestration.TranscriptIndex
 	ConversationSearch       *conversationsearch.Service
 	ConversationIndexer      *conversationsearch.Indexer
@@ -335,6 +338,15 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		if readings, ok := deps.PricingRepository.(pricing.QuotaReadingSource); ok {
 			measureHandler.SetUsageForecast(readings)
 		}
+		if deps.UsageModes != nil {
+			measureHandler.SetUsageModes(deps.UsageModes)
+		}
+		if deps.Orchestrator != nil {
+			measureHandler.SetRunRebaser(usageModeRunRebaser{orch: deps.Orchestrator})
+		}
+		if deps.UsageModeNotifier != nil {
+			measureHandler.SetRoleProposer(deps.UsageModeNotifier)
+		}
 		if deps.DB != nil {
 			var coverage transcriptindex.CoverageReader
 			if deps.TranscriptImporter != nil {
@@ -342,8 +354,17 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			}
 			measureHandler.SetUsageActivity(database.NewUsageActivityRepository(deps.DB))
 			measureHandler.SetInterventions(interventions.NewStore(deps.DB))
+			measureHandler.SetSignals(interventions.NewStore(deps.DB))
+			measureHandler.SetSignalControl(interventions.SignalControl{Store: interventions.NewStore(deps.DB)})
 			measureHandler.SetProgramLibrary(programlibrary.New())
 			measureHandler.SetUsageAttribution(usageStore, deps.PricingService, coverage, findings.NewFrictionStatusStore(deps.DB))
+			if deps.Orchestrator != nil {
+				measureHandler.SetOutcomeLedger(database.NewRunLedgerRepository(deps.DB, deps.Orchestrator.TranscriptParserVersion))
+				if deps.UsageModeNotifier != nil {
+					// The evidence-ready notice reads the same analysis the evidence view shows.
+					deps.UsageModeNotifier.SetEvidence(usagemodes.EvidenceFunc(measureHandler.ReadyEvidence))
+				}
+			}
 		}
 		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
 			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())

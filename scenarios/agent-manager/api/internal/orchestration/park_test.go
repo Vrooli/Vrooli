@@ -12,9 +12,11 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/maintenance"
+	"agent-manager/internal/modules"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
@@ -22,6 +24,9 @@ import (
 	"agent-manager/internal/rolepolicy"
 
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
+	coredb "github.com/vrooli/api-core/database"
 	eventdomain "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
@@ -235,6 +240,93 @@ func TestReviewTimerParksAndContinuesAtChosenTime(t *testing.T) {
 		current, err := svc.GetRun(ctx, run.ID)
 		return err == nil && current.Status == domain.RunStatusComplete && current.AwaitHandle == nil
 	}, "timer continuation did not complete and clear its await handle")
+}
+
+// Rebuild the orchestration and await registry around the same persisted owner
+// records after a timer expires. This exercises recovery without restarting a
+// live Agent Manager or launching a model.
+func TestReviewTimerRecoveryContinuesPersistedRunOnce(t *testing.T) {
+	ctx := context.Background()
+	dsn := "file:" + filepath.Join(t.TempDir(), "recovery.db") + "?_pragma=foreign_keys(ON)&_pragma=busy_timeout(10000)"
+	openOwnerStore := func() (*database.DB, *database.Repositories, event.Store) {
+		raw, err := sqlx.Connect("sqlite", dsn)
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw.SetMaxOpenConns(1)
+		if err := coredb.EnsureSchemas(ctx, raw, modules.AllSchemas()...); err != nil {
+			raw.Close()
+			t.Fatal(err)
+		}
+		log := logrus.New()
+		log.SetLevel(logrus.WarnLevel)
+		db := database.NewDB(raw, log)
+		return db, database.NewRepositories(db, log), event.NewSQLiteStore(db, log)
+	}
+	db, repos, eventStore := openOwnerStore()
+	t.Cleanup(func() { _ = db.Close() })
+	mockRunner, captured, captureMu, done := newContinuationRunner(t)
+	runners := runner.NewRegistry()
+	if err := runners.Register(mockRunner); err != nil {
+		t.Fatal(err)
+	}
+	stateRoot := t.TempDir()
+	secret := []byte("review-timer-recovery-secret-0123456789")
+	newOwner := func() *orchestration.Orchestrator {
+		return orchestration.New(repos.Profiles, repos.Tasks, repos.Runs, orchestration.WithEvents(eventStore), orchestration.WithRunners(runners), orchestration.WithIdentitySecret(secret), orchestration.WithRunStateRoot(stateRoot), newTestRolePolicyOption(t))
+	}
+	oldOwner := newOwner()
+	oldRegistry := orchestration.NewAwaitRegistry(oldOwner, orchestration.NewReviewTimerWaiter())
+	oldOwner.SetAwaitRegistry(oldRegistry)
+	run := newParkableRun(t, ctx, oldOwner, repos)
+	at := time.Now().Add(orchestration.DefaultParkTurnEndGrace + time.Second)
+	if _, err := oldOwner.ParkRun(ctx, orchestration.ParkRunInput{RunID: run.ID, Producer: orchestration.ProducerReviewTimer, Key: at.UTC().Format(time.RFC3339Nano)}); err != nil {
+		oldRegistry.Stop()
+		t.Fatal(err)
+	}
+	oldRegistry.Stop()
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if delay := time.Until(at); delay > 0 {
+		time.Sleep(delay + 20*time.Millisecond)
+	}
+	select {
+	case <-done:
+		t.Fatal("stopped owner continued the run")
+	default:
+	}
+	db, repos, eventStore = openOwnerStore()
+	newOwnerInstance := newOwner()
+	newRegistry := orchestration.NewAwaitRegistry(newOwnerInstance, orchestration.NewReviewTimerWaiter())
+	newOwnerInstance.SetAwaitRegistry(newRegistry)
+	defer newRegistry.Stop()
+	count, err := newRegistry.RecoverParkedRuns(ctx)
+	if err != nil || count != 1 {
+		t.Fatalf("recover = %d, %v", count, err)
+	}
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("recovered timer did not continue")
+	}
+	captureMu.Lock()
+	prompt, token := captured.Prompt, captured.Environment["VROOLI_AGENT_IDENTITY_TOKEN"]
+	captureMu.Unlock()
+	if !strings.Contains(prompt, "does not establish worker health or completion") {
+		t.Fatalf("continuation = %q", prompt)
+	}
+	identity, err := newOwnerInstance.VerifyIdentityToken(ctx, token)
+	if err != nil || !identity.Valid || identity.Claims == nil || identity.Claims.RunID != run.ID {
+		t.Fatalf("recovered continuation identity = %+v, %v", identity, err)
+	}
+	eventually(t, func() bool {
+		current, err := newOwnerInstance.GetRun(ctx, run.ID)
+		return err == nil && current.Status == domain.RunStatusComplete && current.AwaitHandle == nil
+	}, "recovered run did not complete and clear its handle")
+	if count, err := newRegistry.RecoverParkedRuns(ctx); err != nil || count != 0 {
+		t.Fatalf("completed run was recovered again: %d, %v", count, err)
+	}
 }
 
 func TestParkRunWithoutRegistryRetainsIsolatedSeam(t *testing.T) {

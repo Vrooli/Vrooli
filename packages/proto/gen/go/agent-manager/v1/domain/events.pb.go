@@ -1378,8 +1378,12 @@ type MessageEventData struct {
 	// earlier assistant message without duplicating its content.
 	EvidenceOnly       bool   `protobuf:"varint,13,opt,name=evidence_only,json=evidenceOnly,proto3" json:"evidence_only,omitempty"`
 	EvidenceForEventId string `protobuf:"bytes,14,opt,name=evidence_for_event_id,json=evidenceForEventId,proto3" json:"evidence_for_event_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Who authored a user-role message: operator, injected_context, notification,
+	// teammate, goal_continuation, wake, hook, tool_output or unknown. Empty on
+	// events stored before the field existed; read it through domain.MessageSource.
+	Source        string `protobuf:"bytes,15,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MessageEventData) Reset() {
@@ -1506,6 +1510,13 @@ func (x *MessageEventData) GetEvidenceOnly() bool {
 func (x *MessageEventData) GetEvidenceForEventId() string {
 	if x != nil {
 		return x.EvidenceForEventId
+	}
+	return ""
+}
+
+func (x *MessageEventData) GetSource() string {
+	if x != nil {
+		return x.Source
 	}
 	return ""
 }
@@ -2812,7 +2823,7 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\">\n" +
 	"\fLogEventData\x12\x14\n" +
 	"\x05level\x18\x01 \x01(\tR\x05level\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\xbc\x04\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xd4\x04\n" +
 	"\x10MessageEventData\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12I\n" +
@@ -2829,7 +2840,8 @@ const file_agent_manager_v1_domain_events_proto_rawDesc = "" +
 	"\x13provider_event_type\x18\v \x01(\tR\x11providerEventType\x12(\n" +
 	"\x10raw_evidence_ref\x18\f \x01(\tR\x0erawEvidenceRef\x12#\n" +
 	"\revidence_only\x18\r \x01(\bR\fevidenceOnly\x121\n" +
-	"\x15evidence_for_event_id\x18\x0e \x01(\tR\x12evidenceForEventId\"y\n" +
+	"\x15evidence_for_event_id\x18\x0e \x01(\tR\x12evidenceForEventId\x12\x16\n" +
+	"\x06source\x18\x0f \x01(\tR\x06source\"y\n" +
 	"\x15MessageAttachmentInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tfile_name\x18\x02 \x01(\tR\bfileName\x12!\n" +

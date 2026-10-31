@@ -21,6 +21,13 @@ const CodingRolePolicySchemaVersion = "v1"
 // plane commands that expose a mutating policy operation.
 const OverrideFlag = "--i-was-explicitly-authorized"
 
+// UsageTiers is a resource's usage-mode tier declaration.
+type UsageTiers struct {
+	ModelMap     map[string]string `json:"model_map"`
+	SessionModel string            `json:"session_model"`
+	ExemptRoles  []string          `json:"exempt_roles,omitempty"`
+}
+
 type CodingRoleCatalog struct {
 	SchemaVersion string                `json:"schema_version"`
 	Runner        string                `json:"runner"`
@@ -38,10 +45,14 @@ type CodingRoleCatalog struct {
 	// model vocabulary to the canonical identity used by pricing providers.
 	// Agent Manager consumes this through the resource CLI; it never owns this
 	// vocabulary.
-	ModelAliases        map[string]ModelAlias `json:"model_aliases,omitempty"`
-	Provenance          CatalogProvenance     `json:"provenance"`
-	Billing             *Billing              `json:"billing,omitempty"`
-	StalenessBudgetDays int                   `json:"staleness_budget_days,omitempty"`
+	ModelAliases map[string]ModelAlias `json:"model_aliases,omitempty"`
+	// UsageTiers declares the lower-cost tier mapping used by usage modes
+	// (docs/configuration/usage-modes.md). The resource owns concrete models;
+	// package usagemode validates and applies it.
+	UsageTiers          *UsageTiers       `json:"usage_tiers,omitempty"`
+	Provenance          CatalogProvenance `json:"provenance"`
+	Billing             *Billing          `json:"billing,omitempty"`
+	StalenessBudgetDays int               `json:"staleness_budget_days,omitempty"`
 	// LiveCatalogMode is "curated" when a provider exposes a large dynamic
 	// marketplace that is intentionally broader than the fleet's policy.
 	// In that mode role mappings remain validated, while every marketplace

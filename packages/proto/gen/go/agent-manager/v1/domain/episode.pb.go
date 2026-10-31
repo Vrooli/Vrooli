@@ -22,478 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type FrictionEpisode struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	EpisodeId              string                 `protobuf:"bytes,1,opt,name=episode_id,json=episodeId,proto3" json:"episode_id,omitempty"`
-	RunId                  string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	ClassifierVersion      string                 `protobuf:"bytes,3,opt,name=classifier_version,json=classifierVersion,proto3" json:"classifier_version,omitempty"`
-	Pattern                string                 `protobuf:"bytes,4,opt,name=pattern,proto3" json:"pattern,omitempty"`
-	CauseScope             string                 `protobuf:"bytes,5,opt,name=cause_scope,json=causeScope,proto3" json:"cause_scope,omitempty"`
-	Severity               string                 `protobuf:"bytes,6,opt,name=severity,proto3" json:"severity,omitempty"`
-	HonestyFlags           []string               `protobuf:"bytes,7,rep,name=honesty_flags,json=honestyFlags,proto3" json:"honesty_flags,omitempty"`
-	StartEventId           string                 `protobuf:"bytes,8,opt,name=start_event_id,json=startEventId,proto3" json:"start_event_id,omitempty"`
-	EndEventId             string                 `protobuf:"bytes,9,opt,name=end_event_id,json=endEventId,proto3" json:"end_event_id,omitempty"`
-	EvidenceEventIds       []string               `protobuf:"bytes,10,rep,name=evidence_event_ids,json=evidenceEventIds,proto3" json:"evidence_event_ids,omitempty"`
-	Turns                  int64                  `protobuf:"varint,11,opt,name=turns,proto3" json:"turns,omitempty"`
-	Tokens                 int64                  `protobuf:"varint,12,opt,name=tokens,proto3" json:"tokens,omitempty"`
-	WallClockMs            int64                  `protobuf:"varint,13,opt,name=wall_clock_ms,json=wallClockMs,proto3" json:"wall_clock_ms,omitempty"`
-	SuspectedOwnerScenario string                 `protobuf:"bytes,14,opt,name=suspected_owner_scenario,json=suspectedOwnerScenario,proto3" json:"suspected_owner_scenario,omitempty"`
-	SuspectedOwnerCommand  string                 `protobuf:"bytes,15,opt,name=suspected_owner_command,json=suspectedOwnerCommand,proto3" json:"suspected_owner_command,omitempty"`
-	OwnerConfidence        string                 `protobuf:"bytes,16,opt,name=owner_confidence,json=ownerConfidence,proto3" json:"owner_confidence,omitempty"`
-	Fingerprint            string                 `protobuf:"bytes,17,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`
-	CycleCount             int64                  `protobuf:"varint,18,opt,name=cycle_count,json=cycleCount,proto3" json:"cycle_count,omitempty"`
-	RepeatedElement        string                 `protobuf:"bytes,19,opt,name=repeated_element,json=repeatedElement,proto3" json:"repeated_element,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
-}
-
-func (x *FrictionEpisode) Reset() {
-	*x = FrictionEpisode{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FrictionEpisode) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FrictionEpisode) ProtoMessage() {}
-
-func (x *FrictionEpisode) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FrictionEpisode.ProtoReflect.Descriptor instead.
-func (*FrictionEpisode) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *FrictionEpisode) GetEpisodeId() string {
-	if x != nil {
-		return x.EpisodeId
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetRunId() string {
-	if x != nil {
-		return x.RunId
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetClassifierVersion() string {
-	if x != nil {
-		return x.ClassifierVersion
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetPattern() string {
-	if x != nil {
-		return x.Pattern
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetCauseScope() string {
-	if x != nil {
-		return x.CauseScope
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetSeverity() string {
-	if x != nil {
-		return x.Severity
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetHonestyFlags() []string {
-	if x != nil {
-		return x.HonestyFlags
-	}
-	return nil
-}
-
-func (x *FrictionEpisode) GetStartEventId() string {
-	if x != nil {
-		return x.StartEventId
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetEndEventId() string {
-	if x != nil {
-		return x.EndEventId
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetEvidenceEventIds() []string {
-	if x != nil {
-		return x.EvidenceEventIds
-	}
-	return nil
-}
-
-func (x *FrictionEpisode) GetTurns() int64 {
-	if x != nil {
-		return x.Turns
-	}
-	return 0
-}
-
-func (x *FrictionEpisode) GetTokens() int64 {
-	if x != nil {
-		return x.Tokens
-	}
-	return 0
-}
-
-func (x *FrictionEpisode) GetWallClockMs() int64 {
-	if x != nil {
-		return x.WallClockMs
-	}
-	return 0
-}
-
-func (x *FrictionEpisode) GetSuspectedOwnerScenario() string {
-	if x != nil {
-		return x.SuspectedOwnerScenario
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetSuspectedOwnerCommand() string {
-	if x != nil {
-		return x.SuspectedOwnerCommand
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetOwnerConfidence() string {
-	if x != nil {
-		return x.OwnerConfidence
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetFingerprint() string {
-	if x != nil {
-		return x.Fingerprint
-	}
-	return ""
-}
-
-func (x *FrictionEpisode) GetCycleCount() int64 {
-	if x != nil {
-		return x.CycleCount
-	}
-	return 0
-}
-
-func (x *FrictionEpisode) GetRepeatedElement() string {
-	if x != nil {
-		return x.RepeatedElement
-	}
-	return ""
-}
-
-type GetEpisodesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetEpisodesRequest) Reset() {
-	*x = GetEpisodesRequest{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetEpisodesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetEpisodesRequest) ProtoMessage() {}
-
-func (x *GetEpisodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetEpisodesRequest.ProtoReflect.Descriptor instead.
-func (*GetEpisodesRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *GetEpisodesRequest) GetRunId() string {
-	if x != nil {
-		return x.RunId
-	}
-	return ""
-}
-
-type GetEpisodesResponse struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	ClassifierVersion string                 `protobuf:"bytes,1,opt,name=classifier_version,json=classifierVersion,proto3" json:"classifier_version,omitempty"`
-	Episodes          []*FrictionEpisode     `protobuf:"bytes,2,rep,name=episodes,proto3" json:"episodes,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *GetEpisodesResponse) Reset() {
-	*x = GetEpisodesResponse{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetEpisodesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetEpisodesResponse) ProtoMessage() {}
-
-func (x *GetEpisodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetEpisodesResponse.ProtoReflect.Descriptor instead.
-func (*GetEpisodesResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *GetEpisodesResponse) GetClassifierVersion() string {
-	if x != nil {
-		return x.ClassifierVersion
-	}
-	return ""
-}
-
-func (x *GetEpisodesResponse) GetEpisodes() []*FrictionEpisode {
-	if x != nil {
-		return x.Episodes
-	}
-	return nil
-}
-
-type GetSelfReportSpansRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RunId         string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetSelfReportSpansRequest) Reset() {
-	*x = GetSelfReportSpansRequest{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetSelfReportSpansRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetSelfReportSpansRequest) ProtoMessage() {}
-
-func (x *GetSelfReportSpansRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetSelfReportSpansRequest.ProtoReflect.Descriptor instead.
-func (*GetSelfReportSpansRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *GetSelfReportSpansRequest) GetRunId() string {
-	if x != nil {
-		return x.RunId
-	}
-	return ""
-}
-
-type SelfReportSpan struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	ClassifierVersion string                 `protobuf:"bytes,1,opt,name=classifier_version,json=classifierVersion,proto3" json:"classifier_version,omitempty"`
-	EventId           string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	RuleId            string                 `protobuf:"bytes,3,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
-	CauseScope        string                 `protobuf:"bytes,4,opt,name=cause_scope,json=causeScope,proto3" json:"cause_scope,omitempty"`
-	StartOffset       int64                  `protobuf:"varint,5,opt,name=start_offset,json=startOffset,proto3" json:"start_offset,omitempty"`
-	EndOffset         int64                  `protobuf:"varint,6,opt,name=end_offset,json=endOffset,proto3" json:"end_offset,omitempty"`
-	Text              string                 `protobuf:"bytes,7,opt,name=text,proto3" json:"text,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *SelfReportSpan) Reset() {
-	*x = SelfReportSpan{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SelfReportSpan) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SelfReportSpan) ProtoMessage() {}
-
-func (x *SelfReportSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SelfReportSpan.ProtoReflect.Descriptor instead.
-func (*SelfReportSpan) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SelfReportSpan) GetClassifierVersion() string {
-	if x != nil {
-		return x.ClassifierVersion
-	}
-	return ""
-}
-
-func (x *SelfReportSpan) GetEventId() string {
-	if x != nil {
-		return x.EventId
-	}
-	return ""
-}
-
-func (x *SelfReportSpan) GetRuleId() string {
-	if x != nil {
-		return x.RuleId
-	}
-	return ""
-}
-
-func (x *SelfReportSpan) GetCauseScope() string {
-	if x != nil {
-		return x.CauseScope
-	}
-	return ""
-}
-
-func (x *SelfReportSpan) GetStartOffset() int64 {
-	if x != nil {
-		return x.StartOffset
-	}
-	return 0
-}
-
-func (x *SelfReportSpan) GetEndOffset() int64 {
-	if x != nil {
-		return x.EndOffset
-	}
-	return 0
-}
-
-func (x *SelfReportSpan) GetText() string {
-	if x != nil {
-		return x.Text
-	}
-	return ""
-}
-
-type GetSelfReportSpansResponse struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	ClassifierVersion string                 `protobuf:"bytes,1,opt,name=classifier_version,json=classifierVersion,proto3" json:"classifier_version,omitempty"`
-	Spans             []*SelfReportSpan      `protobuf:"bytes,2,rep,name=spans,proto3" json:"spans,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *GetSelfReportSpansResponse) Reset() {
-	*x = GetSelfReportSpansResponse{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetSelfReportSpansResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetSelfReportSpansResponse) ProtoMessage() {}
-
-func (x *GetSelfReportSpansResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetSelfReportSpansResponse.ProtoReflect.Descriptor instead.
-func (*GetSelfReportSpansResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GetSelfReportSpansResponse) GetClassifierVersion() string {
-	if x != nil {
-		return x.ClassifierVersion
-	}
-	return ""
-}
-
-func (x *GetSelfReportSpansResponse) GetSpans() []*SelfReportSpan {
-	if x != nil {
-		return x.Spans
-	}
-	return nil
-}
-
 type GetCrossScenarioLedgerRequest struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	RunId           string                 `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
@@ -504,7 +32,7 @@ type GetCrossScenarioLedgerRequest struct {
 
 func (x *GetCrossScenarioLedgerRequest) Reset() {
 	*x = GetCrossScenarioLedgerRequest{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -516,7 +44,7 @@ func (x *GetCrossScenarioLedgerRequest) String() string {
 func (*GetCrossScenarioLedgerRequest) ProtoMessage() {}
 
 func (x *GetCrossScenarioLedgerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[6]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -529,7 +57,7 @@ func (x *GetCrossScenarioLedgerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCrossScenarioLedgerRequest.ProtoReflect.Descriptor instead.
 func (*GetCrossScenarioLedgerRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{6}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GetCrossScenarioLedgerRequest) GetRunId() string {
@@ -556,7 +84,7 @@ type Availability struct {
 
 func (x *Availability) Reset() {
 	*x = Availability{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +96,7 @@ func (x *Availability) String() string {
 func (*Availability) ProtoMessage() {}
 
 func (x *Availability) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[7]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +109,7 @@ func (x *Availability) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Availability.ProtoReflect.Descriptor instead.
 func (*Availability) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{7}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Availability) GetState() string {
@@ -617,7 +145,7 @@ type CrossScenarioCall struct {
 
 func (x *CrossScenarioCall) Reset() {
 	*x = CrossScenarioCall{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -629,7 +157,7 @@ func (x *CrossScenarioCall) String() string {
 func (*CrossScenarioCall) ProtoMessage() {}
 
 func (x *CrossScenarioCall) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[8]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -642,7 +170,7 @@ func (x *CrossScenarioCall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CrossScenarioCall.ProtoReflect.Descriptor instead.
 func (*CrossScenarioCall) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{8}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CrossScenarioCall) GetOccurredAt() string {
@@ -735,7 +263,7 @@ type LedgerTargetRollup struct {
 
 func (x *LedgerTargetRollup) Reset() {
 	*x = LedgerTargetRollup{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -747,7 +275,7 @@ func (x *LedgerTargetRollup) String() string {
 func (*LedgerTargetRollup) ProtoMessage() {}
 
 func (x *LedgerTargetRollup) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[9]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -760,7 +288,7 @@ func (x *LedgerTargetRollup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LedgerTargetRollup.ProtoReflect.Descriptor instead.
 func (*LedgerTargetRollup) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{9}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *LedgerTargetRollup) GetTargetScenario() string {
@@ -810,7 +338,7 @@ type GetCrossScenarioLedgerResponse struct {
 
 func (x *GetCrossScenarioLedgerResponse) Reset() {
 	*x = GetCrossScenarioLedgerResponse{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -822,7 +350,7 @@ func (x *GetCrossScenarioLedgerResponse) String() string {
 func (*GetCrossScenarioLedgerResponse) ProtoMessage() {}
 
 func (x *GetCrossScenarioLedgerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[10]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -835,7 +363,7 @@ func (x *GetCrossScenarioLedgerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCrossScenarioLedgerResponse.ProtoReflect.Descriptor instead.
 func (*GetCrossScenarioLedgerResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{10}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetCrossScenarioLedgerResponse) GetLedgerAvailability() *Availability {
@@ -881,7 +409,7 @@ type ImportTranscriptRequest struct {
 
 func (x *ImportTranscriptRequest) Reset() {
 	*x = ImportTranscriptRequest{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +421,7 @@ func (x *ImportTranscriptRequest) String() string {
 func (*ImportTranscriptRequest) ProtoMessage() {}
 
 func (x *ImportTranscriptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[11]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +434,7 @@ func (x *ImportTranscriptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportTranscriptRequest.ProtoReflect.Descriptor instead.
 func (*ImportTranscriptRequest) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{11}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ImportTranscriptRequest) GetPath() string {
@@ -955,7 +483,7 @@ type ImportTranscriptResponse struct {
 
 func (x *ImportTranscriptResponse) Reset() {
 	*x = ImportTranscriptResponse{}
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -967,7 +495,7 @@ func (x *ImportTranscriptResponse) String() string {
 func (*ImportTranscriptResponse) ProtoMessage() {}
 
 func (x *ImportTranscriptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[12]
+	mi := &file_agent_manager_v1_domain_episode_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -980,7 +508,7 @@ func (x *ImportTranscriptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportTranscriptResponse.ProtoReflect.Descriptor instead.
 func (*ImportTranscriptResponse) Descriptor() ([]byte, []int) {
-	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{12}
+	return file_agent_manager_v1_domain_episode_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ImportTranscriptResponse) GetRunId() string {
@@ -1008,52 +536,7 @@ var File_agent_manager_v1_domain_episode_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_episode_proto_rawDesc = "" +
 	"\n" +
-	"%agent-manager/v1/domain/episode.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\"\xc5\x05\n" +
-	"\x0fFrictionEpisode\x12\x1d\n" +
-	"\n" +
-	"episode_id\x18\x01 \x01(\tR\tepisodeId\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12-\n" +
-	"\x12classifier_version\x18\x03 \x01(\tR\x11classifierVersion\x12\x18\n" +
-	"\apattern\x18\x04 \x01(\tR\apattern\x12\x1f\n" +
-	"\vcause_scope\x18\x05 \x01(\tR\n" +
-	"causeScope\x12\x1a\n" +
-	"\bseverity\x18\x06 \x01(\tR\bseverity\x12#\n" +
-	"\rhonesty_flags\x18\a \x03(\tR\fhonestyFlags\x12$\n" +
-	"\x0estart_event_id\x18\b \x01(\tR\fstartEventId\x12 \n" +
-	"\fend_event_id\x18\t \x01(\tR\n" +
-	"endEventId\x12,\n" +
-	"\x12evidence_event_ids\x18\n" +
-	" \x03(\tR\x10evidenceEventIds\x12\x14\n" +
-	"\x05turns\x18\v \x01(\x03R\x05turns\x12\x16\n" +
-	"\x06tokens\x18\f \x01(\x03R\x06tokens\x12\"\n" +
-	"\rwall_clock_ms\x18\r \x01(\x03R\vwallClockMs\x128\n" +
-	"\x18suspected_owner_scenario\x18\x0e \x01(\tR\x16suspectedOwnerScenario\x126\n" +
-	"\x17suspected_owner_command\x18\x0f \x01(\tR\x15suspectedOwnerCommand\x12)\n" +
-	"\x10owner_confidence\x18\x10 \x01(\tR\x0fownerConfidence\x12 \n" +
-	"\vfingerprint\x18\x11 \x01(\tR\vfingerprint\x12\x1f\n" +
-	"\vcycle_count\x18\x12 \x01(\x03R\n" +
-	"cycleCount\x12)\n" +
-	"\x10repeated_element\x18\x13 \x01(\tR\x0frepeatedElement\"+\n" +
-	"\x12GetEpisodesRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\"\x83\x01\n" +
-	"\x13GetEpisodesResponse\x12-\n" +
-	"\x12classifier_version\x18\x01 \x01(\tR\x11classifierVersion\x12=\n" +
-	"\bepisodes\x18\x02 \x03(\v2!.agent_manager.v1.FrictionEpisodeR\bepisodes\"2\n" +
-	"\x19GetSelfReportSpansRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\"\xea\x01\n" +
-	"\x0eSelfReportSpan\x12-\n" +
-	"\x12classifier_version\x18\x01 \x01(\tR\x11classifierVersion\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x17\n" +
-	"\arule_id\x18\x03 \x01(\tR\x06ruleId\x12\x1f\n" +
-	"\vcause_scope\x18\x04 \x01(\tR\n" +
-	"causeScope\x12!\n" +
-	"\fstart_offset\x18\x05 \x01(\x03R\vstartOffset\x12\x1d\n" +
-	"\n" +
-	"end_offset\x18\x06 \x01(\x03R\tendOffset\x12\x12\n" +
-	"\x04text\x18\a \x01(\tR\x04text\"\x83\x01\n" +
-	"\x1aGetSelfReportSpansResponse\x12-\n" +
-	"\x12classifier_version\x18\x01 \x01(\tR\x11classifierVersion\x126\n" +
-	"\x05spans\x18\x02 \x03(\v2 .agent_manager.v1.SelfReportSpanR\x05spans\"a\n" +
+	"%agent-manager/v1/domain/episode.proto\x12\x10agent_manager.v1\x1a\x1cgoogle/protobuf/struct.proto\"a\n" +
 	"\x1dGetCrossScenarioLedgerRequest\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12)\n" +
 	"\x10with_projections\x18\x02 \x01(\bR\x0fwithProjections\"<\n" +
@@ -1099,10 +582,8 @@ const file_agent_manager_v1_domain_episode_proto_rawDesc = "" +
 	"\x18ImportTranscriptResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12%\n" +
-	"\x0eexecution_mode\x18\x03 \x01(\tR\rexecutionMode2\xc6\x03\n" +
-	"\x0fEpisodesService\x12Z\n" +
-	"\vGetEpisodes\x12$.agent_manager.v1.GetEpisodesRequest\x1a%.agent_manager.v1.GetEpisodesResponse\x12o\n" +
-	"\x12GetSelfReportSpans\x12+.agent_manager.v1.GetSelfReportSpansRequest\x1a,.agent_manager.v1.GetSelfReportSpansResponse\x12{\n" +
+	"\x0eexecution_mode\x18\x03 \x01(\tR\rexecutionMode2\xf9\x01\n" +
+	"\x0fEpisodesService\x12{\n" +
 	"\x16GetCrossScenarioLedger\x12/.agent_manager.v1.GetCrossScenarioLedgerRequest\x1a0.agent_manager.v1.GetCrossScenarioLedgerResponse\x12i\n" +
 	"\x10ImportTranscript\x12).agent_manager.v1.ImportTranscriptRequest\x1a*.agent_manager.v1.ImportTranscriptResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domainb\x06proto3"
 
@@ -1118,44 +599,32 @@ func file_agent_manager_v1_domain_episode_proto_rawDescGZIP() []byte {
 	return file_agent_manager_v1_domain_episode_proto_rawDescData
 }
 
-var file_agent_manager_v1_domain_episode_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_agent_manager_v1_domain_episode_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_agent_manager_v1_domain_episode_proto_goTypes = []any{
-	(*FrictionEpisode)(nil),                // 0: agent_manager.v1.FrictionEpisode
-	(*GetEpisodesRequest)(nil),             // 1: agent_manager.v1.GetEpisodesRequest
-	(*GetEpisodesResponse)(nil),            // 2: agent_manager.v1.GetEpisodesResponse
-	(*GetSelfReportSpansRequest)(nil),      // 3: agent_manager.v1.GetSelfReportSpansRequest
-	(*SelfReportSpan)(nil),                 // 4: agent_manager.v1.SelfReportSpan
-	(*GetSelfReportSpansResponse)(nil),     // 5: agent_manager.v1.GetSelfReportSpansResponse
-	(*GetCrossScenarioLedgerRequest)(nil),  // 6: agent_manager.v1.GetCrossScenarioLedgerRequest
-	(*Availability)(nil),                   // 7: agent_manager.v1.Availability
-	(*CrossScenarioCall)(nil),              // 8: agent_manager.v1.CrossScenarioCall
-	(*LedgerTargetRollup)(nil),             // 9: agent_manager.v1.LedgerTargetRollup
-	(*GetCrossScenarioLedgerResponse)(nil), // 10: agent_manager.v1.GetCrossScenarioLedgerResponse
-	(*ImportTranscriptRequest)(nil),        // 11: agent_manager.v1.ImportTranscriptRequest
-	(*ImportTranscriptResponse)(nil),       // 12: agent_manager.v1.ImportTranscriptResponse
-	(*structpb.Struct)(nil),                // 13: google.protobuf.Struct
+	(*GetCrossScenarioLedgerRequest)(nil),  // 0: agent_manager.v1.GetCrossScenarioLedgerRequest
+	(*Availability)(nil),                   // 1: agent_manager.v1.Availability
+	(*CrossScenarioCall)(nil),              // 2: agent_manager.v1.CrossScenarioCall
+	(*LedgerTargetRollup)(nil),             // 3: agent_manager.v1.LedgerTargetRollup
+	(*GetCrossScenarioLedgerResponse)(nil), // 4: agent_manager.v1.GetCrossScenarioLedgerResponse
+	(*ImportTranscriptRequest)(nil),        // 5: agent_manager.v1.ImportTranscriptRequest
+	(*ImportTranscriptResponse)(nil),       // 6: agent_manager.v1.ImportTranscriptResponse
+	(*structpb.Struct)(nil),                // 7: google.protobuf.Struct
 }
 var file_agent_manager_v1_domain_episode_proto_depIdxs = []int32{
-	0,  // 0: agent_manager.v1.GetEpisodesResponse.episodes:type_name -> agent_manager.v1.FrictionEpisode
-	4,  // 1: agent_manager.v1.GetSelfReportSpansResponse.spans:type_name -> agent_manager.v1.SelfReportSpan
-	13, // 2: agent_manager.v1.CrossScenarioCall.projection:type_name -> google.protobuf.Struct
-	7,  // 3: agent_manager.v1.GetCrossScenarioLedgerResponse.ledger_availability:type_name -> agent_manager.v1.Availability
-	7,  // 4: agent_manager.v1.GetCrossScenarioLedgerResponse.projection_availability:type_name -> agent_manager.v1.Availability
-	9,  // 5: agent_manager.v1.GetCrossScenarioLedgerResponse.target_rollups:type_name -> agent_manager.v1.LedgerTargetRollup
-	8,  // 6: agent_manager.v1.GetCrossScenarioLedgerResponse.calls:type_name -> agent_manager.v1.CrossScenarioCall
-	1,  // 7: agent_manager.v1.EpisodesService.GetEpisodes:input_type -> agent_manager.v1.GetEpisodesRequest
-	3,  // 8: agent_manager.v1.EpisodesService.GetSelfReportSpans:input_type -> agent_manager.v1.GetSelfReportSpansRequest
-	6,  // 9: agent_manager.v1.EpisodesService.GetCrossScenarioLedger:input_type -> agent_manager.v1.GetCrossScenarioLedgerRequest
-	11, // 10: agent_manager.v1.EpisodesService.ImportTranscript:input_type -> agent_manager.v1.ImportTranscriptRequest
-	2,  // 11: agent_manager.v1.EpisodesService.GetEpisodes:output_type -> agent_manager.v1.GetEpisodesResponse
-	5,  // 12: agent_manager.v1.EpisodesService.GetSelfReportSpans:output_type -> agent_manager.v1.GetSelfReportSpansResponse
-	10, // 13: agent_manager.v1.EpisodesService.GetCrossScenarioLedger:output_type -> agent_manager.v1.GetCrossScenarioLedgerResponse
-	12, // 14: agent_manager.v1.EpisodesService.ImportTranscript:output_type -> agent_manager.v1.ImportTranscriptResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	7, // 0: agent_manager.v1.CrossScenarioCall.projection:type_name -> google.protobuf.Struct
+	1, // 1: agent_manager.v1.GetCrossScenarioLedgerResponse.ledger_availability:type_name -> agent_manager.v1.Availability
+	1, // 2: agent_manager.v1.GetCrossScenarioLedgerResponse.projection_availability:type_name -> agent_manager.v1.Availability
+	3, // 3: agent_manager.v1.GetCrossScenarioLedgerResponse.target_rollups:type_name -> agent_manager.v1.LedgerTargetRollup
+	2, // 4: agent_manager.v1.GetCrossScenarioLedgerResponse.calls:type_name -> agent_manager.v1.CrossScenarioCall
+	0, // 5: agent_manager.v1.EpisodesService.GetCrossScenarioLedger:input_type -> agent_manager.v1.GetCrossScenarioLedgerRequest
+	5, // 6: agent_manager.v1.EpisodesService.ImportTranscript:input_type -> agent_manager.v1.ImportTranscriptRequest
+	4, // 7: agent_manager.v1.EpisodesService.GetCrossScenarioLedger:output_type -> agent_manager.v1.GetCrossScenarioLedgerResponse
+	6, // 8: agent_manager.v1.EpisodesService.ImportTranscript:output_type -> agent_manager.v1.ImportTranscriptResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_agent_manager_v1_domain_episode_proto_init() }
@@ -1169,7 +638,7 @@ func file_agent_manager_v1_domain_episode_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_manager_v1_domain_episode_proto_rawDesc), len(file_agent_manager_v1_domain_episode_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

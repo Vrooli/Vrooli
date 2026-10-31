@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/interventions"
+	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/modelhealth"
@@ -62,5 +63,6 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(supervision.Schema),
 		database.SchemaProviderFunc(maintenance.Schema),
 		database.SchemaProviderFunc(interventions.Schema),
+		database.SchemaProviderFunc(outcomeledger.Schema),
 	}
 }

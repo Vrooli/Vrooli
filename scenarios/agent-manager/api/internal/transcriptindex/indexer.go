@@ -253,7 +253,7 @@ func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 		return true
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
-		return false // a source or budget conflict requires explicit reconciliation
+		return retriesInterruptedCapture(row) // anything else requires explicit reconciliation
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, sourceReconcilePrefix) {
 		return false
@@ -267,6 +267,22 @@ func (ix *Indexer) changed(candidate Candidate, t *tick) bool {
 	return row.Size != candidate.Size || row.MtimeUnixNano != candidate.MtimeUnixNano || row.Path != candidate.Path || row.Status == StatusPending ||
 		(row.Status == StatusUnreadable && TransientStoreFailure(row.Error)) || // marked unreadable by database contention before 2026-10-29
 		ix.stale(row, t)
+}
+
+// legacyInterruptedCapture is the state an interrupted capture was left in until
+// 2026-10-30: unreadable until an operator acted. Such a row retries once.
+const legacyInterruptedCapture = uncertainRecordPrefix + "source changed or cannot be verified; manual reconciliation required"
+
+// retriesInterruptedCapture reports an unreadable row left by those older rules:
+// also one whose retry met an event store that refused a payload a resumed parser
+// derived differently, which the store now resolves for transcript events.
+func retriesInterruptedCapture(row *FileRow) bool {
+	return row.Error == legacyInterruptedCapture || (strings.HasPrefix(row.Error, uncertainRecordPrefix) && strings.Contains(row.Error, "replay_event_conflict"))
+}
+
+// interruptedCapture reports a capture that did not reach its commit.
+func interruptedCapture(row *FileRow) bool {
+	return (row.Status == StatusPending && strings.HasPrefix(row.Error, uncertainRecordPrefix)) || retriesInterruptedCapture(row)
 }
 
 // recalls reports whether a file's full events belong in the recall layer.
@@ -335,7 +351,7 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) er
 		}
 		t.byKey[row.Key] = row
 	}
-	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
+	if row.Status == StatusUnreadable && !retriesInterruptedCapture(row) && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
 		return errors.New(row.Error)
 	}
 	if row.Status == StatusUnreadable && strings.HasPrefix(row.Error, sourceReconcilePrefix) {
@@ -344,28 +360,39 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) er
 	if row.Error == ReplacementEffectsPending {
 		return errors.New(row.Error)
 	}
-	if row.Status == StatusPending && strings.HasPrefix(row.Error, uncertainRecordPrefix) {
-		// Neither metadata nor a short head hash proves the bytes used in the
-		// ambiguous recording. Never replay without that evidence.
-		intent := row.Error
-		row.Status = StatusUnreadable
-		row.Error = uncertainRecordPrefix + "source changed or cannot be verified; manual reconciliation required"
-		delete(ix.tails, row.Key)
-		owner, ok := ix.store.(interface {
-			FailTranscriptCapture(context.Context, string, string, string, string) error
-		})
-		if !ok {
-			return errors.New("atomic transcript failure marker unavailable")
-		}
-		if err := owner.FailTranscriptCapture(ctx, row.Key, intent, row.Status, row.Error); err != nil {
-			return err
-		}
-		return errors.New(row.Error)
-	}
 	checkpoint := *row
 	var expected *FileRow
 	if existed {
 		expected = &checkpoint
+	}
+	retrying := false
+	if interruptedCapture(row) {
+		// The checkpoint did not move: its commit is atomic and consumes the
+		// intent. A prefix of events may be stored, but events have stable ids
+		// and the event store refuses changed evidence, so reading again from
+		// the cursor cannot double count or rewrite anything; a parser resumed
+		// mid-file is the normal restart path. An API restart during any tick
+		// lands here, so live sessions must not need an operator. Only a source
+		// that no longer matches the cursor stops.
+		intent := row.Error
+		if row.Offset > candidate.Size || (row.Offset > 0 && HeadHash(candidate.Path, row.Offset) != row.HeadHash) {
+			row.Status = StatusUnreadable
+			row.Error = uncertainRecordPrefix + "source no longer matches the checkpoint; manual reconciliation required"
+			delete(ix.tails, row.Key)
+			owner, ok := ix.store.(interface {
+				FailTranscriptCapture(context.Context, string, string, string, string) error
+			})
+			if !ok {
+				return errors.New("atomic transcript failure marker unavailable")
+			}
+			if err := owner.FailTranscriptCapture(ctx, row.Key, intent, row.Status, row.Error); err != nil {
+				return err
+			}
+			return errors.New(row.Error)
+		}
+		delete(ix.tails, row.Key)
+		row.Error, row.Status = "", StatusPending
+		retrying = true
 	}
 	t.byPath[candidate.Path] = row
 	row.Path, row.Size, row.MtimeUnixNano = candidate.Path, candidate.Size, candidate.MtimeUnixNano
@@ -409,7 +436,7 @@ func (ix *Indexer) process(ctx context.Context, t *tick, candidate Candidate) er
 				return err
 			}
 		}
-	} else if ix.stale(row, t) {
+	} else if !retrying && ix.stale(row, t) {
 		if checkpoint.Owner == OwnerIndexer && checkpoint.Offset > 0 {
 			*row = checkpoint
 			if t.reimport <= 0 {

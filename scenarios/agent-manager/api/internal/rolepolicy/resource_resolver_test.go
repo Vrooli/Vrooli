@@ -3,6 +3,9 @@ package rolepolicy
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -134,4 +137,21 @@ func TestResourceRoleResolverRejectsUnknownResponseFields(t *testing.T) {
 func validResponse(replacement string) []byte {
 	response := `{"schema_version":"v1","runner":"codex","role":"code.default","model":"gpt-5.4","description":"Balanced coding","capabilities":["code"],"provenance":{"source":"catalog","observed_at":"2026-07-10"},"enforcement":{"permissions":"intent_only"},"policy_path":"/catalog","policy_digest":"digest"}`
 	return []byte(strings.Replace(response, `"runner":"codex"`, replacement, 1))
+}
+
+func TestResourceRoleResolverReadsThePolicyFileTheResourceReports(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "model-policy.json")
+	if err := os.WriteFile(path, []byte(`{"runner":"codex"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	response := fmt.Sprintf(`{"schema_version":"v1","runner":"codex","role":"code.default","model":"m","description":"d","capabilities":["code"],"provenance":{"source":"s","observed_at":"2026-07-10"},"enforcement":{"permissions":"intent_only"},"policy_path":%q,"policy_digest":"d"}`, path)
+	executor := &fakeCommandExecutor{output: []byte(response)}
+	raw, err := NewResourceRoleResolver(executor).PolicyFile(context.Background(), domain.RunnerTypeCodex)
+	if err != nil || string(raw) != `{"runner":"codex"}` {
+		t.Fatalf("PolicyFile = %q, %v", raw, err)
+	}
+	failing := &fakeCommandExecutor{output: []byte("parse error"), err: errors.New("exit 1")}
+	if _, err := NewResourceRoleResolver(failing).PolicyFile(context.Background(), domain.RunnerTypeCodex); !errors.Is(err, ErrResourceUnavailable) {
+		t.Fatalf("an unavailable resource must not fall back to a guessed path: %v", err)
+	}
 }

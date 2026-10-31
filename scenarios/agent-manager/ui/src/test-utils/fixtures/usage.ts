@@ -13,6 +13,14 @@ import {
   ModelBreakdownResponseSchema,
   ProfileBreakdownResponseSchema,
   UsageForecastResponseSchema,
+  UsageOutcomesResponseSchema,
+  UsageParityResponseSchema,
+  UsageCompareResponseSchema,
+  type UsageOutcomesResponse,
+  UsageExperimentResponseSchema,
+  type UsageExperimentResponse,
+  ListUsageModesResponseSchema,
+  type ListUsageModesResponse,
   UsageRecommendationsResponseSchema,
   type UsageBurnersResponse,
   type UsageCoverageResponse,
@@ -215,5 +223,103 @@ export function makePooledInterventions() {
     operatorMessages: 120n, classified: 108n, coverage: 0.9, agentHours: 40, shown: 18n,
     categories: [{ category: "operator_friction", pooled: true, interventions: 18n, perAgentHour: 0.45, workRequests: 40n, workToolCalls: 22n, workTokens: 500_000n, hints: [{ category: "quality_miss", owner: "scientific-debugging", count: 11n }, { category: "early_stop", owner: "harness-goal-authoring", count: 4n }] }],
     examples: [{ eventId: "evt-9", runId: "run-9", category: "quality_miss", pooled: true, text: "It is not fixed" }],
+  });
+}
+
+/** One active Codex mode ending at the Codex window reset, with burn since it started. */
+export function makeUsageModes(active = true, periods: Array<{ id: string; label: string; runner: string; startedAt: string; endedAt?: string; expiresAt?: string }> = []): ListUsageModesResponse {
+  return create(ListUsageModesResponseSchema, {
+    generatedAt: at(0),
+    periods: periods.map((period) => ({ endedAt: "", expiresAt: "", ...period })),
+    modes: active ? [{
+      mode: {
+        id: "um-test-1", label: "Lower tier for codex", kind: "save", scope: { runner: "codex" }, startedAt: at(-1), startedBy: "operator@example.com", source: "agent-manager",
+        untilKind: "window_reset", untilProvider: "openai", untilWindowMinutes: 10080n, expiresAt: at(6 * 24),
+      },
+      secondsLeft: BigInt(6 * 24 * 3600),
+      burn: [{ provider: "openai", pool: "primary", window: "10080m", observedIncreasePoints: 2.4 }],
+    }] : [],
+    reach: [{ provider: "openai", pool: "primary", window: "10080m", resetsAt: at(6 * 24), observedIncreasePoints: 10, operatorPoints: 5, profilePoints: 3, unattributedPoints: 2, operatorShare: 0.5, profileShare: 0.3, unattributedShare: 0.2 }],
+    reachNotes: ["Desktop apps and harnesses started outside the shim cannot be reached."],
+  });
+}
+
+const range = (value: number, low: number, high: number, samples = 20n) => ({ available: true, value, low, high, samples });
+
+function outcomeRow(key: string, extra: Record<string, unknown> = {}) {
+  return { key, runner: "codex", stratum: "operator", status: "enough", units: 40n, runs: 60n, accepted: 30n, completed: 0n, corrected: 4n, unknown: 6n, unknownRate: 0.28, verdict: "baseline", priceSource: "tier_prior", ...extra };
+}
+
+export type OutcomesKind = "none" | "early" | "observational" | "randomized" | "inconclusive";
+
+/** `usage outcomes` as the API reports it, in the states the evidence view tells apart. */
+export function makeUsageOutcomes(kind: OutcomesKind, by = "model"): UsageOutcomesResponse {
+  const day = (offset: number) => new Date(Date.UTC(2026, 9, 1 + offset)).toISOString();
+  const base = { generatedAt: "2026-10-30T12:00:00Z", windowStart: "2026-10-01T00:00:00Z", windowEnd: "2026-10-30T00:00:00Z", by, units: 97n, unknownUnits: 27n, completedUnits: 12n, design: kind === "randomized" ? "randomized" : "observational" };
+  const mode = { id: "um-test-1", label: "Save usage", runner: "codex", startedAt: day(10), endedAt: day(14) };
+  if (by === "mode") {
+    return create(UsageOutcomesResponseSchema, { ...base, modePeriods: kind === "none" ? [] : [mode], rows: [
+      outcomeRow("no_mode", { reworkRate: range(0.14, 0.09, 0.2) }),
+      ...(kind === "none" ? [] : [outcomeRow("um-test-1", { reworkRate: range(0.18, 0.1, 0.27), corrected: 6n, units: 36n })]),
+    ] });
+  }
+  const series = [
+    { model: "terra", runner: "codex", buckets: [0, 1, 2, 3, 12, 13].map((d, i) => ({ at: day(d), points: 2 + i, runs: 3n })) },
+    { model: "luna", runner: "codex", buckets: [10, 11, 12, 13].map((d, i) => ({ at: day(d), points: 0.5 + i / 2, runs: 4n })) },
+  ];
+  if (kind === "none") return create(UsageOutcomesResponseSchema, { ...base, rows: [outcomeRow("terra", { status: "not_enough_data", accepted: 2n, verdict: "not_enough_data" })], series });
+  if (kind === "early") return create(UsageOutcomesResponseSchema, { ...base, modePeriods: [mode], rows: [outcomeRow("terra", { status: "not_enough_data", accepted: 3n, verdict: "not_enough_data" }), outcomeRow("luna", { status: "not_enough_data", accepted: 1n, verdict: "not_enough_data" })], series });
+  return create(UsageOutcomesResponseSchema, {
+    ...base, modePeriods: [mode], series,
+    rows: [
+      outcomeRow("terra", { pointsPerAccepted: range(9, 7, 11), reworkRate: range(0.14, 0.09, 0.2), activeMinutesPerRun: range(12, 9, 15) }),
+      outcomeRow("luna", { verdict: kind === "inconclusive" ? "inconclusive" : "cheaper", baseline: "terra", pointsPerAccepted: range(2.5, 2, 3.4), cheaperBy: kind === "inconclusive" ? range(0.97, 0.13, 49.5) : range(3.6, 2.6, 4.5), consumptionRatio: range(1.4, 1.1, 1.9), breakEvenRatio: 5, modelPriceRatio: 4, modelPriceSource: kind === "randomized" ? "price_book" : "tier_prior", priceSource: kind === "randomized" ? "price_book" : "tier_prior", reworkRate: range(0.18, 0.1, 0.27), activeMinutesPerRun: range(9, 6, 12), pointsPerCompleted: range(1.8, 1.4, 2.2) }),
+    ],
+  });
+}
+
+export function makeUsageParity() {
+  const measures = (denominator: number, usage: number, outcome: number) => [
+    { name: "usage", numerator: BigInt(usage), denominator: BigInt(denominator), share: usage / denominator },
+    { name: "outcome", numerator: BigInt(outcome), denominator: BigInt(denominator), share: outcome / denominator },
+  ];
+  return create(UsageParityResponseSchema, { generatedAt: "2026-10-30T12:00:00Z", rows: [
+    { path: "am_headless", harness: "codex", runs: 100n, eligibleRuns: 100n, measures: measures(100, 92, 80) },
+    { path: "am_interactive", harness: "codex", runs: 50n, eligibleRuns: 50n, measures: measures(50, 25, 20) },
+    { path: "imported", harness: "claude", runs: 20n, eligibleRuns: 20n, measures: measures(20, 7, 2) },
+  ] });
+}
+
+export function makeUsageCompare() {
+  return create(UsageCompareResponseSchema, {
+    left: { runs: 30n, acceptedUnits: 10n, pointsPerAccepted: 6, unknownUnits: 3n },
+    right: { runs: 20n, acceptedUnits: 8n, pointsPerAccepted: 3, unknownUnits: 2n },
+    pointsPerAcceptedChange: -0.5, verdict: "improved", caveats: ["Unknown outcomes are left out of the ratio."],
+  });
+}
+
+const rng = (value: number, low: number, high: number) => ({ available: true, value, low, high, samples: 90n });
+
+/** One Learn comparison as `usage experiment status` reports it. */
+export function makeUsageExperiment(verdict: "cheaper_looks_better" | "not_enough_data" | "about_the_same" | "inconclusive" | "withheld" = "cheaper_looks_better", extra: Record<string, unknown> = {}): UsageExperimentResponse {
+  const decided = verdict !== "not_enough_data" && verdict !== "inconclusive" && verdict !== "withheld";
+  return create(UsageExperimentResponseSchema, {
+    generatedAt: "2026-10-30T12:00:00Z",
+    experiments: [{
+      modeId: "um-learn-1", label: "Learn: code.default", role: "code.default", runner: "codex", incumbentModel: "gpt-6.1-terra", challengerModel: "gpt-6-luna", design: "randomized",
+      splitPercent: 50, active: true, startedAt: "2026-10-01T00:00:00Z",
+      incumbent: { arm: "incumbent", units: 130n, known: 120n, accepted: 100n, pointsPerAccepted: rng(10, 8, 12), reworkRate: rng(0.2, 0.1, 0.3) },
+      challenger: { arm: "challenger", units: 128n, known: 118n, accepted: 99n, exceptions: 2n, pointsPerAccepted: rng(decided ? 5 : 9, decided ? 4 : 5, decided ? 6 : 14), reworkRate: rng(0.2, 0.1, 0.3) },
+      costRatio: decided ? rng(0.5, 0.42, 0.6) : { available: false }, costPValue: decided ? 0.001 : 1, reworkDifference: rng(0, -0.08, 0.08), reworkPValue: 0.9,
+      verdict, reason: decided ? "the challenger cost 50% less per accepted outcome" : "12 accepted outcomes on the incumbent and 9 on the challenger; each arm needs 75.",
+      needAccepted: decided ? 0n : 66n,
+      plan: { unitsPerDay: 0.2, costCv: 1.84, varianceAssumed: true, pilotUnits: 6n, effect: 0.5, power: 0.8, minAcceptedPerArm: 75n, minEffect: 0.3, reworkMargin: 0.2,
+        detect: { reached: true, days: 1200, lowDays: 460, highDays: 3300, perArm: 120n }, same: { reached: false } },
+      recommendation: {
+        available: decided, role: "code.default", runner: "codex", fromModel: "gpt-6.1-terra", toModel: "gpt-6-luna", verdict, evidence: "the challenger cost 50% less per accepted outcome",
+        policyFile: "resources/codex/model-policy.json", policyOps: ['replace /roles/code.default/model: "gpt-6.1-terra" -> "gpt-6-luna"'], decisionId: "decision-1",
+      },
+      ...extra,
+    }],
   });
 }

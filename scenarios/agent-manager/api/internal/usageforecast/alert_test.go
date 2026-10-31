@@ -482,3 +482,53 @@ func TestAResetWithdrawsImmediatelyAndOldAuxiliaryRowsArePruned(t *testing.T) {
 		t.Error("a recent digest row must be kept")
 	}
 }
+
+// fakeModes is a ModeLifecycle with one ended mode to announce.
+type fakeModes struct {
+	offers, announced, flushes int
+	ended                      []EndedMode
+}
+
+func (f *fakeModes) Observe(context.Context, time.Time) {}
+func (f *fakeModes) WillExhaust(context.Context, Forecast, time.Time, time.Time) error {
+	f.offers++
+	return nil
+}
+func (f *fakeModes) EndedFor(string) []EndedMode { return f.ended }
+func (f *fakeModes) Announced(ids []string)      { f.announced += len(ids); f.ended = nil }
+func (f *fakeModes) Flush(context.Context, []Forecast, time.Time) []error {
+	f.flushes++
+	return nil
+}
+func (f *fakeModes) DigestNote(time.Time) string { return "" }
+
+func TestOfferFollowsTheRunOutWarningAndAnEndedModeMergesIntoBackOnTrack(t *testing.T) {
+	ctx := context.Background()
+	publisher := &recordingPublisher{}
+	readings := &staticReadings{spans: spans(oct28Shape())}
+	now := at("2026-10-29T04:40:00Z")
+	modes := &fakeModes{}
+	alerter := &Alerter{Readings: readings, Store: sqliteAlertStore(t), Publisher: publisher, Modes: modes, Now: func() time.Time { return now }, Location: time.UTC}
+	if _, err := alerter.Evaluate(ctx); err != nil || modes.offers != 1 {
+		t.Fatalf("offers=%d err=%v: the offer must follow the run-out warning", modes.offers, err)
+	}
+	modes.ended = []EndedMode{{ID: "um-1", Line: "Lower tier for codex ended: it reached its end time."}}
+	nextReset := at("2026-11-05T05:00:00Z")
+	now = at("2026-10-30T05:30:00Z")
+	readings.spans = append(readings.spans, spans(codexWindow(nextReset, now, ramp(at("2026-10-29T05:10:00Z"), now, 0, 2)))...)
+	if _, err := alerter.Evaluate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	last := publisher.events[len(publisher.events)-1].Payload
+	if last["category"] != NotificationCategoryModeEnded || !strings.Contains(last["body"].(string), "reached its end time") || !strings.Contains(last["body"].(string), "window reset") {
+		t.Fatalf("merged notice = %v", last)
+	}
+	if modes.announced != 1 || modes.flushes != 2 {
+		t.Fatalf("announced=%d flushes=%d", modes.announced, modes.flushes)
+	}
+	for _, e := range publisher.events {
+		if e.Payload["category"] == NotificationCategoryRecovery {
+			t.Fatal("a separate back-on-track arrived next to the merged notice")
+		}
+	}
+}

@@ -37,6 +37,63 @@ func TestCodingPolicyCommandsResolveAndReportPosture(t *testing.T) {
 	}
 }
 
+func TestCodingPolicyChoicesAndSelectExposeExactResourceDeclaredEvidence(t *testing.T) {
+	path := writeCodingCatalog(t, "opencode")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catalog map[string]any
+	if err := json.Unmarshal(data, &catalog); err != nil {
+		t.Fatal(err)
+	}
+	roles := catalog["roles"].(map[string]any)
+	defaultRole := roles["code.default"].(map[string]any)
+	defaultRole["models"] = []any{
+		map[string]any{"model": "test-default", "source": "subscription"},
+		map[string]any{"model": "vendor/test-default", "source": "openrouter"},
+	}
+	modelAliases := catalog["model_aliases"].(map[string]any)
+	modelAliases["vendor/test-default"] = map[string]string{"canonical_model": "vendor/test-default", "provider": "openrouter"}
+	data, err = json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout bytes.Buffer
+	group := CodingPolicyCommands(CodingPolicyConfig{Runner: "opencode", CatalogPath: path, Stdout: &stdout})
+	if err := command(group, "choices").Run([]string{"--role", "code.default", "--json"}); err != nil {
+		t.Fatalf("choices: %v", err)
+	}
+	var choices codingRoleChoicesResponse
+	if err := json.Unmarshal(stdout.Bytes(), &choices); err != nil {
+		t.Fatalf("decode choices: %v", err)
+	}
+	if choices.Runner != "opencode" || choices.Role != "code.default" || choices.DefaultModel != "test-default" || len(choices.Choices) != 2 || choices.PolicyDigest == "" {
+		t.Fatalf("choices = %#v", choices)
+	}
+
+	stdout.Reset()
+	if err := command(group, "select").Run([]string{"--role", "code.default", "--model", "vendor/test-default", "--source", "openrouter", "--json"}); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	var selected codingRoleSelectionResponse
+	if err := json.Unmarshal(stdout.Bytes(), &selected); err != nil {
+		t.Fatalf("decode selection: %v", err)
+	}
+	if selected.Selection.Model != "vendor/test-default" || selected.Selection.Source != "openrouter" || selected.Selection.Provider != "openrouter" || selected.Selection.SourceStatus != "declared" || selected.PolicyDigest == "" {
+		t.Fatalf("selection = %#v", selected)
+	}
+
+	stdout.Reset()
+	if err := command(group, "select").Run([]string{"--role", "code.default", "--model", "future-model", "--json"}); !errors.Is(err, agentcatalog.ErrUnsupportedModel) {
+		t.Fatalf("unknown explicit model error = %v, want unsupported model", err)
+	}
+}
+
 func TestCodingPolicyValidateDoesNotTreatFallbackCatalogAsLive(t *testing.T) {
 	path := writeCodingCatalog(t, "codex")
 	var stdout, stderr bytes.Buffer

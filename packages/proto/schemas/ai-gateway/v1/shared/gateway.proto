@@ -25,6 +25,10 @@ enum RequestKind {
   // callers express intent and policy here, while a PII-detection capability
   // (the pii-detector resource) owns the regex/checksum + NER span semantics.
   REQUEST_KIND_DETECT_PII = 6;
+  // REQUEST_KIND_DECISION asks a non-generative decision model typed choice,
+  // score and noul questions about a state. The decision-model resource owns
+  // the System One wire format; callers reach it through InferenceService.Decide.
+  REQUEST_KIND_DECISION = 7;
 }
 
 // PrivacyClass tells the gateway how sensitive the request metadata is.

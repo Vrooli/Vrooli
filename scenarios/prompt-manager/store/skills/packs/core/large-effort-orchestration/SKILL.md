@@ -97,7 +97,13 @@ outcome progress through existing run/friction evidence before changing strategy
 When an estimate is exceeded, improve the approach and revise the forecast while the
 worker completes its admitted outcome and required proof. Do not freeze edits, force a
 partial return, stop workers or reject acceptance solely for exceeding an estimate.
-Unchanged outcomes require strategy review, not automatic abandonment. Preserve actual
+Unchanged outcomes require strategy review, not automatic abandonment.
+Worker lifetime is a quota lever, not a duration penalty: every request re-reads the
+worker's whole context, so a worker's cost grows with the square of its length. Give
+each admitted outcome a fresh worker and hand off through the effort files instead of
+resuming one long-lived worker across outcomes; when an outcome splits at a meaningful
+boundary, start the next part fresh. `agent-manager usage recommendations` shows where
+long workers cost the most. Preserve actual
 authority/safety limits, explicit product requirements and native commission HARD STOP.
 
 Assign one owner the complete user journey, including necessary shared shell, theme,
@@ -121,7 +127,11 @@ needs a strategy change, not more of the same. Detailed sensors belong to the
 
 Keep one orchestrator. Select an existing permitted profile for the outcome's reasoning,
 visual and integration needs. Native role policy owns model/reasoning limits; a skill
-must not hard-code a second model policy. Record the effective selection and, after
+must not hard-code a second model policy. Choose the cheapest permitted role or agent
+definition that fits the outcome kind, as their descriptions state: read-only research,
+inspection and evidence gathering use the Luna roles (`code.research`, `code.inspection`,
+`code.cheap`) or the Claude `lookup`, `researcher` and `reviewer` definitions in
+`.claude/agents/`; implementation uses an implementation role or `implementer`. Record the effective selection and, after
 repeated misses of the intended composition, compare a changed strategy or permitted
 capability setting on the same complete outcome. Elapsed time and token totals do not
 establish a capability failure or authorize a broader model policy. The orchestrator

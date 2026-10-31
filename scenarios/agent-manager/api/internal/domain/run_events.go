@@ -17,14 +17,18 @@ import (
 // registered for which event types.
 type RunEvent struct {
 	// PersistenceReplay is an append receipt, never durable evidence or a public field.
-	PersistenceReplay bool         `json:"-"`
-	ID                uuid.UUID    `json:"id" db:"id"`
-	RunID             uuid.UUID    `json:"runId" db:"run_id"`
-	Sequence          int64        `json:"sequence" db:"sequence"`
-	EventType         RunEventType `json:"eventType" db:"event_type"`
-	Timestamp         time.Time    `json:"timestamp" db:"timestamp"`
-	SchemaVersion     int          `json:"schemaVersion,omitempty" db:"schema_version"`
-	Data              EventPayload `json:"data" db:"data"`
+	PersistenceReplay bool `json:"-"`
+	// KeepStoredOnReplay marks a transcript event: its id names one source line,
+	// so a stored event of that id is that line. A parser resumed mid-file can
+	// derive a different payload for it; the first record stays.
+	KeepStoredOnReplay bool         `json:"-"`
+	ID                 uuid.UUID    `json:"id" db:"id"`
+	RunID              uuid.UUID    `json:"runId" db:"run_id"`
+	Sequence           int64        `json:"sequence" db:"sequence"`
+	EventType          RunEventType `json:"eventType" db:"event_type"`
+	Timestamp          time.Time    `json:"timestamp" db:"timestamp"`
+	SchemaVersion      int          `json:"schemaVersion,omitempty" db:"schema_version"`
+	Data               EventPayload `json:"data" db:"data"`
 }
 
 // RunEventType categorizes the event.

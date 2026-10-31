@@ -440,8 +440,17 @@ func TestEveryMeasuresProcedureIsAgentReadable(t *testing.T) {
 		t.Fatal("MeasuresService descriptor declares no procedures")
 	}
 	procedures := []string{measureconnect.MeasuresServiceRunStatusDistributionProcedure, measureconnect.MeasuresServiceRunCostProcedure, "/measures/execute"}
+	var operatorOnly []string
 	for i := 0; i < methods.Len(); i++ {
-		procedures = append(procedures, "/"+string(service.FullName())+"/"+string(methods.Get(i).Name()))
+		route := "/" + string(service.FullName()) + "/" + string(methods.Get(i).Name())
+		if OperatorOnlyMeasureMethods[string(methods.Get(i).Name())] {
+			operatorOnly = append(operatorOnly, route)
+			continue
+		}
+		procedures = append(procedures, route)
+	}
+	if len(operatorOnly) != len(OperatorOnlyMeasureMethods) {
+		t.Fatalf("operator-only measure methods %v are not all MeasuresService procedures", OperatorOnlyMeasureMethods)
 	}
 	agent := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: []string{"agent-manager:read"}}
 	for _, procedure := range procedures {
@@ -451,6 +460,17 @@ func TestEveryMeasuresProcedureIsAgentReadable(t *testing.T) {
 		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
 		if rec.Code != http.StatusNoContent {
 			t.Errorf("%s: status=%d want agent read admission; body=%s", procedure, rec.Code, rec.Body.String())
+		}
+	}
+
+	// Usage mode writes are operator-only: an agent is refused at the middleware.
+	for _, route := range operatorOnly {
+		req := httptest.NewRequest(http.MethodPost, route, nil)
+		req = req.WithContext(identity.WithPrincipal(req.Context(), agent))
+		rec := httptest.NewRecorder()
+		AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })).ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("%s: agent status=%d want 403", route, rec.Code)
 		}
 	}
 

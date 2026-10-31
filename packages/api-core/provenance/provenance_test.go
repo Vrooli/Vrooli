@@ -15,6 +15,21 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+func TestCarryVerifiedIdentityDoesNotCarryUnverifiedClaimsOrRequestValues(t *testing.T) {
+	type requestKey struct{}
+	dst := context.Background()
+	for _, src := range []context.Context{
+		context.WithValue(context.Background(), requestKey{}, "request-only"),
+		NewContext(context.Background(), Provenance{Actor: ActorAgent, VerificationStatus: VerificationVerified, RunID: "forged"}),
+		context.WithValue(context.Background(), contextKey{}, requestIdentity{provenance: Provenance{Actor: ActorAgent, VerificationStatus: VerificationInvalid}, token: "invalid"}),
+	} {
+		carried := CarryVerifiedIdentity(dst, src)
+		if ForwardedIdentityToken(carried) != "" || FromContext(carried).IsVerifiedAgent() || carried.Value(requestKey{}) != nil {
+			t.Fatal("unverified credentials or unrelated request values crossed the boundary")
+		}
+	}
+}
+
 func TestCLIResolvedOperationPairSurvivesDefaultForwardingTransport(t *testing.T) {
 	const baseline = "broker-baseline"
 	const operation = "broker-operation"

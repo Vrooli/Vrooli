@@ -156,6 +156,7 @@ type sqlExecutor interface {
 var runProjectionTables = []string{
 	"invocation_read_model_facts", "invocation_read_model_self_report_spans", "invocation_read_model_runs",
 	"invocation_read_model_time_accounting", "invocation_read_model_watermarks", "invocation_read_model_pending",
+	"run_ledger_facts",
 }
 
 // deleteRunProjectionsTx removes everything the read model derived from runIDs
@@ -417,11 +418,16 @@ func (r *invocationReadModelRepository) SelfReportSpansForRun(ctx context.Contex
 	return out, rows.Err()
 }
 
+// executedRunSQL excludes runs whose "complete" records no execution result:
+// an imported run is complete when its transcript ends and an attached row when
+// its process exits. They never enter a completion rate, whatever the scope.
+const executedRunSQL = `tag <> 'agent-manager-imported' AND substr(tag, 1, 9) <> 'attached-'`
+
 func (r *invocationReadModelRepository) RunMetrics(ctx context.Context, filter invocationreadmodel.Filter) (invocationreadmodel.RunMetrics, error) {
 	where, args := invocationReadModelRunWhere(filter)
 	query := `SELECT COUNT(*),
-		SUM(CASE WHEN status IN ('complete','failed','cancelled') THEN 1 ELSE 0 END),
-		SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN status IN ('complete','failed','cancelled') AND `+executedRunSQL+` THEN 1 ELSE 0 END),
+		SUM(CASE WHEN status = 'complete' AND `+executedRunSQL+` THEN 1 ELSE 0 END),
 		SUM(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN 1 ELSE 0 END),
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0)
 		FROM invocation_read_model_runs` + where

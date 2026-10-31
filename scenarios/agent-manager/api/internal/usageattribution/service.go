@@ -333,20 +333,23 @@ func (s Service) DismissFriction(ctx context.Context, fingerprint string, since,
 	return s.Statuses.SetFrictionStatus(ctx, ProblemStatus{Fingerprint: fingerprint, Status: StatusDismissed, BugID: item.BugID, At: now})
 }
 
-// Side is one cohort's quota per successful workload unit.
+// Side is one cohort's quota per accepted work unit. Completed counts lifecycle
+// completion only; an imported run is complete when its transcript ends.
 type Side struct {
-	Runs, Succeeded, Priced int
-	Tokens                  domain.UsageCounters
-	Weighted, Points        float64
-	From, To                time.Time
+	Runs, Completed, Priced int
+	// Accepted and UnknownUnits count distinct work units by outcome estimate.
+	Accepted, UnknownUnits int
+	Tokens                 domain.UsageCounters
+	Weighted, Points       float64
+	From, To               time.Time
 }
 
-// PointsPerSuccess is the cohort's attributed points per successful run.
-func (s Side) PointsPerSuccess() float64 {
-	if s.Succeeded == 0 {
+// PointsPerAccepted is the cohort's attributed points per accepted work unit.
+func (s Side) PointsPerAccepted() float64 {
+	if s.Accepted == 0 {
 		return 0
 	}
-	return s.Points / float64(s.Succeeded)
+	return s.Points / float64(s.Accepted)
 }
 
 // Compare prices runIDs' usage in [from, to] with the calibration of every
@@ -358,49 +361,140 @@ func (s Service) Compare(ctx context.Context, provider string, runIDs []string, 
 	if err != nil {
 		return side, err
 	}
-	members := map[string]bool{}
+	accepted, unknown := map[string]bool{}, map[string]bool{}
 	for _, id := range runIDs {
-		members[id] = true
-		if runs[id].Succeeded {
-			side.Succeeded++
+		run := runs[id]
+		if run.Completed {
+			side.Completed++
+		}
+		unit := run.WorkUnit
+		if unit == "" {
+			unit = id
+		}
+		switch {
+		case run.Accepted:
+			accepted[unit] = true
+		case run.OutcomeUnknown:
+			unknown[unit] = true
 		}
 	}
+	side.Accepted, side.UnknownUnits = len(accepted), len(unknown)
+	period, err := s.PeriodUse(ctx, provider, from, to)
+	if err != nil {
+		return side, err
+	}
+	for _, id := range runIDs {
+		priced := false
+		for _, use := range period.Runs[id] {
+			side.Points += use.Points
+			side.Weighted += use.Weighted
+			side.Tokens = addCounters(side.Tokens, use.Tokens)
+			priced = priced || use.Priced
+		}
+		if priced {
+			side.Priced++
+		}
+	}
+	return side, nil
+}
+
+// ModelUse is one run's use on one model in a period.
+type ModelUse struct {
+	Points, Weighted float64
+	Tokens           domain.UsageCounters
+	// Priced reports usage a calibrated window explained.
+	Priced bool
+}
+
+// PeriodUse is every run's use in a period, per model, with the calibration of
+// the windows that priced it.
+type PeriodUse struct {
+	Runs    map[string]map[string]ModelUse
+	Sources map[string]string
+	Windows []Window
+	Turns   []Turn
+	Prices  Prices
+}
+
+// PeriodUse attributes the turns in [from, to] across every window of at least
+// a day that overlaps it. Windows of one provider can overlap (a model pool
+// beside the account pool), so a turn's points are its largest attribution, not
+// their sum.
+func (s Service) PeriodUse(ctx context.Context, provider string, from, to time.Time) (PeriodUse, error) {
+	out := PeriodUse{Runs: map[string]map[string]ModelUse{}, Sources: map[string]string{}}
 	// A window that began up to its length before from still prices usage in
 	// the period.
 	spans, err := s.Readings.QuotaReadingSpans(ctx, provider, from.Add(-8*24*time.Hour))
 	if err != nil {
-		return side, err
+		return out, err
 	}
 	turns, err := s.Store.UsageTurns(ctx, from, to)
 	if err != nil {
-		return side, err
+		return out, err
 	}
-	priced := map[string]bool{}
 	prices := s.Pricer.prices(ctx, turns, nil)
+	out.Turns, out.Prices = turns, prices
+	type turnKey struct {
+		run, model string
+		at         time.Time
+	}
+	best := map[turnKey][2]float64{}
 	for _, window := range usageforecast.Windows(spans) {
 		if !window.HasPercent || window.LastAt.Before(from) || window.Start.After(to) || window.WindowMinutes < 24*60 {
+			continue
+		}
+		if provider != "" && window.Provider != provider {
 			continue
 		}
 		start := window.Start
 		if from.After(start) {
 			start = from
 		}
-		result := Attribute(FromForecast(window), start, turns, prices)
+		w := FromForecast(window)
+		result := Attribute(w, start, turns, prices)
+		out.Windows = append(out.Windows, w)
+		for _, weight := range result.Calibration.Weights {
+			if weight.Source != "" {
+				out.Sources[weight.Model] = weight.Source
+			}
+		}
 		for i, turn := range result.Turns {
-			if members[turn.RunID] && !turn.At.After(to) {
-				side.Points += result.Points[i]
-				side.Weighted += result.Weighted[i]
-				priced[turn.RunID] = true
+			if turn.At.After(to) {
+				continue
+			}
+			key := turnKey{turn.RunID, turn.Model, turn.At}
+			if current := best[key]; result.Points[i] > current[0] {
+				best[key] = [2]float64{result.Points[i], result.Weighted[i]}
+			} else if _, seen := best[key]; !seen {
+				best[key] = [2]float64{result.Points[i], result.Weighted[i]}
 			}
 		}
 	}
 	for _, turn := range turns {
-		if members[turn.RunID] {
-			side.Tokens = addCounters(side.Tokens, turn.Tokens)
+		if turn.At.Before(from) || turn.At.After(to) {
+			continue
 		}
+		models := out.Runs[turn.RunID]
+		if models == nil {
+			models = map[string]ModelUse{}
+			out.Runs[turn.RunID] = models
+		}
+		use := models[turn.Model]
+		use.Tokens = addCounters(use.Tokens, turn.Tokens)
+		if attributed, ok := best[turnKey{turn.RunID, turn.Model, turn.At}]; ok {
+			use.Points += attributed[0]
+			use.Weighted += attributed[1]
+			use.Priced = true
+		}
+		models[turn.Model] = use
 	}
-	side.Priced = len(priced)
-	return side, nil
+	return out, nil
+}
+
+// Consumption is price-independent use: tokens at fixed category weights, so a
+// cheaper model's extra work reads as more consumption rather than less cost.
+func Consumption(tokens domain.UsageCounters) float64 {
+	return float64(tokens.InputTokens) + 0.1*float64(tokens.CacheReadTokens) + 1.25*float64(tokens.CacheCreationTokens) + 5*float64(tokens.OutputTokens)
 }
 
 func keys(set map[string]bool) []string {

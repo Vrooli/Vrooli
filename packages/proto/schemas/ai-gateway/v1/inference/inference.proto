@@ -193,8 +193,172 @@ message EmbeddingVector {
   repeated double values = 1;
 }
 
+// DecisionQuestionType is the closed set of decision question shapes. A
+// decision model answers every question with one value from its declared set
+// and never generates text.
+enum DecisionQuestionType {
+  DECISION_QUESTION_TYPE_UNSPECIFIED = 0;
+  // CHOICE picks one of 2-255 labelled options.
+  DECISION_QUESTION_TYPE_CHOICE = 1;
+  // SCORE places the state on 2-10 ordered levels, level 0 first.
+  DECISION_QUESTION_TYPE_SCORE = 2;
+  // NOUL is the probability that a statement holds (yes/no).
+  DECISION_QUESTION_TYPE_NOUL = 3;
+}
+
+message DecisionOption {
+  // label is the value returned when this option is chosen.
+  string label = 1;
+  // description says what the option means; the model reads it.
+  string description = 2;
+}
+
+message DecisionQuestion {
+  // id names the answer. Unique within a request; letters, digits, '_', '.'
+  // and '-', at most 100 characters.
+  string id = 1;
+  DecisionQuestionType type = 2;
+  // instructions say what to decide. Absent, decision models read the id.
+  string instructions = 3;
+  // options are the CHOICE labels, 2-255 distinct, in caller order.
+  repeated DecisionOption options = 4;
+  // levels are the SCORE level descriptions, 2-10, level 0 first.
+  repeated string levels = 5;
+  // true_description and false_description optionally define a NOUL answer.
+  string true_description = 6;
+  string false_description = 7;
+}
+
+// DecideRequest asks typed questions about one state. The gateway owns the
+// candidate walk: a role's decision models first, then the role's declared
+// fallback. Callers never name a provider, model or credential.
+message DecideRequest {
+  // role is a decision role from the inference role catalog, such as
+  // decide.fast.
+  string role = 1;
+  // state is plain text. Exactly one of state and state_json is set.
+  string state = 2;
+  // state_json is a JSON object or array whose structure carries meaning.
+  string state_json = 3;
+  // questions are answered together over the same state, 1-64 per request.
+  repeated DecisionQuestion questions = 4;
+  // profile carries the caller's locality stance; LOCAL_ONLY never leaves the
+  // host and REMOTE_ONLY never runs a local candidate.
+  vrooli.ai_gateway.v1.shared.Profile profile = 5;
+}
+
+message DecisionProbability {
+  // option is the CHOICE label, or the SCORE level index ("0", "1", ...).
+  string option = 1;
+  double probability = 2;
+}
+
+message DecisionAnswer {
+  string question_id = 1;
+  DecisionQuestionType type = 2;
+  // choice is the chosen CHOICE label.
+  string choice = 3;
+  // score is the expected SCORE level, sum of i * p_i; it can fall between
+  // levels.
+  optional double score = 4;
+  // noul is the probability that the NOUL statement holds.
+  optional double noul = 5;
+  // confidence is the normalized top probability (K * p_max - 1) / (K - 1)
+  // for CHOICE and SCORE. Absent for NOUL, and when the answering method
+  // reports no distribution.
+  optional double confidence = 6;
+  // probabilities cover every CHOICE label or SCORE level in declared order.
+  // Empty when the answering method reports no distribution.
+  repeated DecisionProbability probabilities = 7;
+}
+
+enum DecisionMethod {
+  DECISION_METHOD_UNSPECIFIED = 0;
+  // DECISION_MODEL answers come from a non-generative decision model and carry
+  // calibrated probabilities.
+  DECISION_METHOD_DECISION_MODEL = 1;
+  // LLM_ENUM answers come from a generative model constrained to an enum by
+  // the typed classify path. They carry the choice only: no confidence and no
+  // probabilities, because an LLM label is not a calibrated distribution.
+  DECISION_METHOD_LLM_ENUM = 2;
+}
+
+enum DecisionCandidateStatus {
+  DECISION_CANDIDATE_STATUS_UNSPECIFIED = 0;
+  DECISION_CANDIDATE_STATUS_ANSWERED = 1;
+  // SKIPPED candidates were not dispatched: unconfigured credentials, an
+  // unpulled model, a forbidden locality, or a fallback that cannot express
+  // the question types.
+  DECISION_CANDIDATE_STATUS_SKIPPED = 2;
+  // FAILED candidates were dispatched and did not return a valid answer set.
+  DECISION_CANDIDATE_STATUS_FAILED = 3;
+  // NOT_ATTEMPTED candidates follow the one that answered.
+  DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED = 4;
+}
+
+// DecisionCandidate is one row of the walk the gateway performed, in catalog
+// order, so a caller can see why a hosted candidate was not used.
+message DecisionCandidate {
+  string provider = 1;
+  string resource_role = 2;
+  string locality = 3;
+  DecisionCandidateStatus status = 4;
+  // reason is a stable code: unconfigured, unreachable, missing_binary,
+  // locality_forbidden, unsupported_question_types, invalid_answers,
+  // context_overflow, rate_limited, provider_overloaded, timeout or
+  // provider_failed. Empty for ANSWERED and NOT_ATTEMPTED rows.
+  string reason = 5;
+  string detail = 6;
+  // @unit milliseconds
+  int64 latency_ms = 7;
+}
+
+message DecideResponse {
+  // answers follow the request's question order.
+  repeated DecisionAnswer answers = 1;
+  string provider = 2;
+  string model = 3;
+  DecisionMethod method = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+  // latency_ms is the answering candidate's execution time measured by the
+  // gateway, model load included.
+  // @unit milliseconds
+  int64 latency_ms = 7;
+  repeated DecisionCandidate candidates = 8;
+  // resource_role is the answering candidate's role, which names the upstream
+  // (for example decide.local or decide.jev.edenai).
+  string resource_role = 9;
+  // locality is where the answering candidate ran: local means the state never
+  // left the host. Empty for the LLM enum fallback, whose own walk owns it.
+  string locality = 10;
+}
+
+message DecideBatchItem {
+  string state = 1;
+  string state_json = 2;
+}
+
+// DecideBatchRequest asks the same questions about up to 256 states.
+message DecideBatchRequest {
+  string role = 1;
+  repeated DecisionQuestion questions = 2;
+  repeated DecideBatchItem items = 3;
+  vrooli.ai_gateway.v1.shared.Profile profile = 4;
+}
+
+message DecideBatchResponse {
+  // results preserve the exact order of the request items, failed items
+  // included; each carries its own provider, method, usage and walk.
+  repeated DecideResponse results = 1;
+  Usage usage = 2;
+}
+
 service InferenceService {
 	rpc Run(RunRequest) returns (RunResponse);
 	rpc RunBatch(RunBatchRequest) returns (RunBatchResponse);
 	rpc Embed(EmbedRequest) returns (EmbedResponse);
+	// Decide answers typed choice, score and noul questions about one state.
+	rpc Decide(DecideRequest) returns (DecideResponse);
+	rpc DecideBatch(DecideBatchRequest) returns (DecideBatchResponse);
 }

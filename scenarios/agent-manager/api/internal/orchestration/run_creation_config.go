@@ -191,6 +191,7 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	if err := o.resolveExecutionPolicy(ctx, cfg); err != nil {
 		return nil, nil, err
 	}
+	o.applyUsageMode(ctx, cfg, profile, req)
 	if err := o.applyModelOverride(ctx, cfg, req.Model); err != nil {
 		return nil, nil, err
 	}

@@ -155,6 +155,18 @@ const (
 	// The process that owned execution stopped before recording a terminal result.
 	// Downstream effects may have occurred; automatic replay is unsafe.
 	FailureCause_FAILURE_CAUSE_RUNTIME_INTERRUPTED FailureCause = 15
+	// An owner operation may have taken effect but its outcome is not known.
+	// Inspect the owner before deciding whether any retry is safe.
+	FailureCause_FAILURE_CAUSE_EFFECT_UNCERTAIN FailureCause = 16
+	// The requested operation requires a verified authority path that this
+	// session or host cannot currently provide.
+	FailureCause_FAILURE_CAUSE_AUTHORITY_UNAVAILABLE FailureCause = 17
+	// The executed declared program returned output that does not satisfy its
+	// pinned output schema. Earlier owner effects may still have occurred.
+	FailureCause_FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH FailureCause = 18
+	// Captured output exceeded the declared output limit and is incomplete.
+	// Owner effects may still have occurred.
+	FailureCause_FAILURE_CAUSE_OUTPUT_TRUNCATED FailureCause = 19
 )
 
 // Enum value maps for FailureCause.
@@ -176,6 +188,10 @@ var (
 		13: "FAILURE_CAUSE_UNCLASSIFIED",
 		14: "FAILURE_CAUSE_PROTECTED_NAME_MISUSE",
 		15: "FAILURE_CAUSE_RUNTIME_INTERRUPTED",
+		16: "FAILURE_CAUSE_EFFECT_UNCERTAIN",
+		17: "FAILURE_CAUSE_AUTHORITY_UNAVAILABLE",
+		18: "FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH",
+		19: "FAILURE_CAUSE_OUTPUT_TRUNCATED",
 	}
 	FailureCause_value = map[string]int32{
 		"FAILURE_CAUSE_UNSPECIFIED":                  0,
@@ -194,6 +210,10 @@ var (
 		"FAILURE_CAUSE_UNCLASSIFIED":                 13,
 		"FAILURE_CAUSE_PROTECTED_NAME_MISUSE":        14,
 		"FAILURE_CAUSE_RUNTIME_INTERRUPTED":          15,
+		"FAILURE_CAUSE_EFFECT_UNCERTAIN":             16,
+		"FAILURE_CAUSE_AUTHORITY_UNAVAILABLE":        17,
+		"FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH":       18,
+		"FAILURE_CAUSE_OUTPUT_TRUNCATED":             19,
 	}
 )
 
@@ -3401,7 +3421,7 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x16PROGRAM_STATUS_RUNNING\x10\x02\x12\x1c\n" +
 	"\x18PROGRAM_STATUS_SUCCEEDED\x10\x03\x12\x19\n" +
 	"\x15PROGRAM_STATUS_FAILED\x10\x04\x12\x1c\n" +
-	"\x18PROGRAM_STATUS_CANCELLED\x10\x05*\xe7\x04\n" +
+	"\x18PROGRAM_STATUS_CANCELLED\x10\x05*\x82\x06\n" +
 	"\fFailureCause\x12\x1d\n" +
 	"\x19FAILURE_CAUSE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dFAILURE_CAUSE_UNRESOLVED_NAME\x10\x01\x12\x1f\n" +
@@ -3419,7 +3439,11 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x1eFAILURE_CAUSE_BRIDGE_TRANSPORT\x10\f\x12\x1e\n" +
 	"\x1aFAILURE_CAUSE_UNCLASSIFIED\x10\r\x12'\n" +
 	"#FAILURE_CAUSE_PROTECTED_NAME_MISUSE\x10\x0e\x12%\n" +
-	"!FAILURE_CAUSE_RUNTIME_INTERRUPTED\x10\x0f2\x9f\r\n" +
+	"!FAILURE_CAUSE_RUNTIME_INTERRUPTED\x10\x0f\x12\"\n" +
+	"\x1eFAILURE_CAUSE_EFFECT_UNCERTAIN\x10\x10\x12'\n" +
+	"#FAILURE_CAUSE_AUTHORITY_UNAVAILABLE\x10\x11\x12(\n" +
+	"$FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH\x10\x12\x12\"\n" +
+	"\x1eFAILURE_CAUSE_OUTPUT_TRUNCATED\x10\x132\x9f\r\n" +
 	"\x0eProgramService\x12\x84\x01\n" +
 	"\rSubmitProgram\x128.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a9.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n" +
 	"\n" +

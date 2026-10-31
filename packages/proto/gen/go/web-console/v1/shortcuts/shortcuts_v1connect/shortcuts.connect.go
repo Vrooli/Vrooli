@@ -45,6 +45,12 @@ const (
 	// ShortcutsServiceDeleteProfileProcedure is the fully-qualified name of the ShortcutsService's
 	// DeleteProfile RPC.
 	ShortcutsServiceDeleteProfileProcedure = "/vrooli.web_console.v1.shortcuts.ShortcutsService/DeleteProfile"
+	// ShortcutsServiceGetAgentPreferencesProcedure is the fully-qualified name of the
+	// ShortcutsService's GetAgentPreferences RPC.
+	ShortcutsServiceGetAgentPreferencesProcedure = "/vrooli.web_console.v1.shortcuts.ShortcutsService/GetAgentPreferences"
+	// ShortcutsServiceUpdateAgentPreferencesProcedure is the fully-qualified name of the
+	// ShortcutsService's UpdateAgentPreferences RPC.
+	ShortcutsServiceUpdateAgentPreferencesProcedure = "/vrooli.web_console.v1.shortcuts.ShortcutsService/UpdateAgentPreferences"
 )
 
 // ShortcutsServiceClient is a client for the vrooli.web_console.v1.shortcuts.ShortcutsService
@@ -54,6 +60,8 @@ type ShortcutsServiceClient interface {
 	ListProfiles(context.Context, *connect.Request[shortcuts.ListProfilesRequest]) (*connect.Response[shortcuts.ListProfilesResponse], error)
 	UpsertProfile(context.Context, *connect.Request[shortcuts.UpsertProfileRequest]) (*connect.Response[shortcuts.UpsertProfileResponse], error)
 	DeleteProfile(context.Context, *connect.Request[shortcuts.DeleteProfileRequest]) (*connect.Response[shortcuts.DeleteProfileResponse], error)
+	GetAgentPreferences(context.Context, *connect.Request[shortcuts.GetAgentPreferencesRequest]) (*connect.Response[shortcuts.GetAgentPreferencesResponse], error)
+	UpdateAgentPreferences(context.Context, *connect.Request[shortcuts.UpdateAgentPreferencesRequest]) (*connect.Response[shortcuts.UpdateAgentPreferencesResponse], error)
 }
 
 // NewShortcutsServiceClient constructs a client for the
@@ -92,15 +100,29 @@ func NewShortcutsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(shortcutsServiceMethods.ByName("DeleteProfile")),
 			connect.WithClientOptions(opts...),
 		),
+		getAgentPreferences: connect.NewClient[shortcuts.GetAgentPreferencesRequest, shortcuts.GetAgentPreferencesResponse](
+			httpClient,
+			baseURL+ShortcutsServiceGetAgentPreferencesProcedure,
+			connect.WithSchema(shortcutsServiceMethods.ByName("GetAgentPreferences")),
+			connect.WithClientOptions(opts...),
+		),
+		updateAgentPreferences: connect.NewClient[shortcuts.UpdateAgentPreferencesRequest, shortcuts.UpdateAgentPreferencesResponse](
+			httpClient,
+			baseURL+ShortcutsServiceUpdateAgentPreferencesProcedure,
+			connect.WithSchema(shortcutsServiceMethods.ByName("UpdateAgentPreferences")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // shortcutsServiceClient implements ShortcutsServiceClient.
 type shortcutsServiceClient struct {
-	getEffective  *connect.Client[shortcuts.GetEffectiveRequest, shortcuts.GetEffectiveResponse]
-	listProfiles  *connect.Client[shortcuts.ListProfilesRequest, shortcuts.ListProfilesResponse]
-	upsertProfile *connect.Client[shortcuts.UpsertProfileRequest, shortcuts.UpsertProfileResponse]
-	deleteProfile *connect.Client[shortcuts.DeleteProfileRequest, shortcuts.DeleteProfileResponse]
+	getEffective           *connect.Client[shortcuts.GetEffectiveRequest, shortcuts.GetEffectiveResponse]
+	listProfiles           *connect.Client[shortcuts.ListProfilesRequest, shortcuts.ListProfilesResponse]
+	upsertProfile          *connect.Client[shortcuts.UpsertProfileRequest, shortcuts.UpsertProfileResponse]
+	deleteProfile          *connect.Client[shortcuts.DeleteProfileRequest, shortcuts.DeleteProfileResponse]
+	getAgentPreferences    *connect.Client[shortcuts.GetAgentPreferencesRequest, shortcuts.GetAgentPreferencesResponse]
+	updateAgentPreferences *connect.Client[shortcuts.UpdateAgentPreferencesRequest, shortcuts.UpdateAgentPreferencesResponse]
 }
 
 // GetEffective calls vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective.
@@ -123,6 +145,17 @@ func (c *shortcutsServiceClient) DeleteProfile(ctx context.Context, req *connect
 	return c.deleteProfile.CallUnary(ctx, req)
 }
 
+// GetAgentPreferences calls vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences.
+func (c *shortcutsServiceClient) GetAgentPreferences(ctx context.Context, req *connect.Request[shortcuts.GetAgentPreferencesRequest]) (*connect.Response[shortcuts.GetAgentPreferencesResponse], error) {
+	return c.getAgentPreferences.CallUnary(ctx, req)
+}
+
+// UpdateAgentPreferences calls
+// vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences.
+func (c *shortcutsServiceClient) UpdateAgentPreferences(ctx context.Context, req *connect.Request[shortcuts.UpdateAgentPreferencesRequest]) (*connect.Response[shortcuts.UpdateAgentPreferencesResponse], error) {
+	return c.updateAgentPreferences.CallUnary(ctx, req)
+}
+
 // ShortcutsServiceHandler is an implementation of the
 // vrooli.web_console.v1.shortcuts.ShortcutsService service.
 type ShortcutsServiceHandler interface {
@@ -130,6 +163,8 @@ type ShortcutsServiceHandler interface {
 	ListProfiles(context.Context, *connect.Request[shortcuts.ListProfilesRequest]) (*connect.Response[shortcuts.ListProfilesResponse], error)
 	UpsertProfile(context.Context, *connect.Request[shortcuts.UpsertProfileRequest]) (*connect.Response[shortcuts.UpsertProfileResponse], error)
 	DeleteProfile(context.Context, *connect.Request[shortcuts.DeleteProfileRequest]) (*connect.Response[shortcuts.DeleteProfileResponse], error)
+	GetAgentPreferences(context.Context, *connect.Request[shortcuts.GetAgentPreferencesRequest]) (*connect.Response[shortcuts.GetAgentPreferencesResponse], error)
+	UpdateAgentPreferences(context.Context, *connect.Request[shortcuts.UpdateAgentPreferencesRequest]) (*connect.Response[shortcuts.UpdateAgentPreferencesResponse], error)
 }
 
 // NewShortcutsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -163,6 +198,18 @@ func NewShortcutsServiceHandler(svc ShortcutsServiceHandler, opts ...connect.Han
 		connect.WithSchema(shortcutsServiceMethods.ByName("DeleteProfile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	shortcutsServiceGetAgentPreferencesHandler := connect.NewUnaryHandler(
+		ShortcutsServiceGetAgentPreferencesProcedure,
+		svc.GetAgentPreferences,
+		connect.WithSchema(shortcutsServiceMethods.ByName("GetAgentPreferences")),
+		connect.WithHandlerOptions(opts...),
+	)
+	shortcutsServiceUpdateAgentPreferencesHandler := connect.NewUnaryHandler(
+		ShortcutsServiceUpdateAgentPreferencesProcedure,
+		svc.UpdateAgentPreferences,
+		connect.WithSchema(shortcutsServiceMethods.ByName("UpdateAgentPreferences")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.shortcuts.ShortcutsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ShortcutsServiceGetEffectiveProcedure:
@@ -173,6 +220,10 @@ func NewShortcutsServiceHandler(svc ShortcutsServiceHandler, opts ...connect.Han
 			shortcutsServiceUpsertProfileHandler.ServeHTTP(w, r)
 		case ShortcutsServiceDeleteProfileProcedure:
 			shortcutsServiceDeleteProfileHandler.ServeHTTP(w, r)
+		case ShortcutsServiceGetAgentPreferencesProcedure:
+			shortcutsServiceGetAgentPreferencesHandler.ServeHTTP(w, r)
+		case ShortcutsServiceUpdateAgentPreferencesProcedure:
+			shortcutsServiceUpdateAgentPreferencesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -196,4 +247,12 @@ func (UnimplementedShortcutsServiceHandler) UpsertProfile(context.Context, *conn
 
 func (UnimplementedShortcutsServiceHandler) DeleteProfile(context.Context, *connect.Request[shortcuts.DeleteProfileRequest]) (*connect.Response[shortcuts.DeleteProfileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile is not implemented"))
+}
+
+func (UnimplementedShortcutsServiceHandler) GetAgentPreferences(context.Context, *connect.Request[shortcuts.GetAgentPreferencesRequest]) (*connect.Response[shortcuts.GetAgentPreferencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences is not implemented"))
+}
+
+func (UnimplementedShortcutsServiceHandler) UpdateAgentPreferences(context.Context, *connect.Request[shortcuts.UpdateAgentPreferencesRequest]) (*connect.Response[shortcuts.UpdateAgentPreferencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences is not implemented"))
 }

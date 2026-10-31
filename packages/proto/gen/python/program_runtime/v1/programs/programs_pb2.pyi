@@ -42,6 +42,10 @@ class FailureCause(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FAILURE_CAUSE_UNCLASSIFIED: _ClassVar[FailureCause]
     FAILURE_CAUSE_PROTECTED_NAME_MISUSE: _ClassVar[FailureCause]
     FAILURE_CAUSE_RUNTIME_INTERRUPTED: _ClassVar[FailureCause]
+    FAILURE_CAUSE_EFFECT_UNCERTAIN: _ClassVar[FailureCause]
+    FAILURE_CAUSE_AUTHORITY_UNAVAILABLE: _ClassVar[FailureCause]
+    FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH: _ClassVar[FailureCause]
+    FAILURE_CAUSE_OUTPUT_TRUNCATED: _ClassVar[FailureCause]
 PROVENANCE_UNSPECIFIED: Provenance
 PROVENANCE_AGENT: Provenance
 PROVENANCE_OPERATOR: Provenance
@@ -69,6 +73,10 @@ FAILURE_CAUSE_BRIDGE_TRANSPORT: FailureCause
 FAILURE_CAUSE_UNCLASSIFIED: FailureCause
 FAILURE_CAUSE_PROTECTED_NAME_MISUSE: FailureCause
 FAILURE_CAUSE_RUNTIME_INTERRUPTED: FailureCause
+FAILURE_CAUSE_EFFECT_UNCERTAIN: FailureCause
+FAILURE_CAUSE_AUTHORITY_UNAVAILABLE: FailureCause
+FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH: FailureCause
+FAILURE_CAUSE_OUTPUT_TRUNCATED: FailureCause
 
 class Caller(_message.Message):
     __slots__ = ("run_id", "agent_profile", "skill_id", "harness")

@@ -357,7 +357,10 @@ type Run struct {
 	ProviderActivityAt *timestamppb.Timestamp `protobuf:"bytes,60,opt,name=provider_activity_at,json=providerActivityAt,proto3,oneof" json:"provider_activity_at,omitempty"`
 	// Persisted parent run that admitted this child; absent on root runs.
 	// @format uuid
-	ParentRunId   *string `protobuf:"bytes,61,opt,name=parent_run_id,json=parentRunId,proto3,oneof" json:"parent_run_id,omitempty"`
+	ParentRunId *string `protobuf:"bytes,61,opt,name=parent_run_id,json=parentRunId,proto3,oneof" json:"parent_run_id,omitempty"`
+	// Direct sub-agent runs of this run. Filled by run listings only (one query
+	// for the whole page); zero everywhere else.
+	SubAgentCount int32 `protobuf:"varint,62,opt,name=sub_agent_count,json=subAgentCount,proto3" json:"sub_agent_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -803,6 +806,13 @@ func (x *Run) GetParentRunId() string {
 		return *x.ParentRunId
 	}
 	return ""
+}
+
+func (x *Run) GetSubAgentCount() int32 {
+	if x != nil {
+		return x.SubAgentCount
+	}
+	return 0
 }
 
 // FinalOutputCandidate is one assistant message considered by the resolver.
@@ -4017,7 +4027,7 @@ var File_agent_manager_v1_domain_run_proto protoreflect.FileDescriptor
 
 const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\n" +
-	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x18\n" +
+	"!agent-manager/v1/domain/run.proto\x12\x10agent_manager.v1\x1a%agent-manager/v1/domain/profile.proto\x1a#agent-manager/v1/domain/types.proto\x1a&vrooli-events/v1/domain/envelope.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x96\x19\n" +
 	"\x03Run\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\atask_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06taskId\x12-\n" +
@@ -4089,7 +4099,8 @@ const file_agent_manager_v1_domain_run_proto_rawDesc = "" +
 	"\x14observed_goal_status\x18: \x01(\tR\x12observedGoalStatus\x12I\n" +
 	"\x10observed_goal_at\x18; \x01(\v2\x1a.google.protobuf.TimestampH\x0eR\x0eobservedGoalAt\x88\x01\x01\x12Q\n" +
 	"\x14provider_activity_at\x18< \x01(\v2\x1a.google.protobuf.TimestampH\x0fR\x12providerActivityAt\x88\x01\x01\x121\n" +
-	"\rparent_run_id\x18= \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x10R\vparentRunId\x88\x01\x01B\x13\n" +
+	"\rparent_run_id\x18= \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x10R\vparentRunId\x88\x01\x01\x12&\n" +
+	"\x0fsub_agent_count\x18> \x01(\x05R\rsubAgentCountB\x13\n" +
 	"\x11_agent_profile_idB\r\n" +
 	"\v_sandbox_idB\r\n" +
 	"\v_started_atB\v\n" +

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ai-gateway/v1/inference/inference.proto.
  */
 export const file_ai_gateway_v1_inference_inference: GenFile = /*@__PURE__*/
-  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSKFAwoFVXNhZ2USFAoMaW5wdXRfdG9rZW5zGAEgASgDEhUKDW91dHB1dF90b2tlbnMYAiABKAMSEwoLY29zdF9taWNyb3MYAyABKAMSUAoXaW5wdXRfdG9rZW5zX3Byb3ZlbmFuY2UYBCABKA4yLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2VQcm92ZW5hbmNlElEKGG91dHB1dF90b2tlbnNfcHJvdmVuYW5jZRgFIAEoDjIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZVByb3ZlbmFuY2USSAoPY29zdF9wcm92ZW5hbmNlGAYgASgOMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlUHJvdmVuYW5jZRIcCg9jcmVkaXRzX2NoYXJnZWQYByABKANIAIgBARIZChFhY2NvdW50aW5nX3N0YXR1cxgIIAEoCUISChBfY3JlZGl0c19jaGFyZ2VkInYKDkluZmVyZW5jZUVycm9yEkAKBGNvZGUYASABKA4yMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEQoJY29uc3RydWN0GAMgASgJImAKBFR1cm4SDAoEcm9sZRgBIAEoCRIMCgR0ZXh0GAIgASgJEjwKC2F0dGFjaG1lbnRzGAMgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQinAEKClNwZW5kTGltaXQSFwoPbWF4X2Nvc3RfbWljcm9zGAEgASgDEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIZChFpbnB1dF9maW5nZXJwcmludBgDIAEoCRIYChByZWZlcmVuY2Vfc2hhMjU2GAQgAygJEhMKC2ltYWdlX2NvdW50GAUgASgFEhUKDWZ1bmRpbmdfcm91dGUYBiABKAkiiQMKElNwZW5kQXV0aG9yaXphdGlvbhIYChBhdXRob3JpemF0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIXCg9tYXhfY29zdF9taWNyb3MYAyABKAMSGgoSaW5wdXRfdG9rZW5zX2JvdW5kGAQgASgFEhsKE291dHB1dF90b2tlbnNfYm91bmQYBSABKAUSEwoLaW1hZ2VfY291bnQYBiABKAUSFgoOY29udGV4dF9zb3VyY2UYByABKAkSFAoMb3BlcmF0aW9uX2lkGAggASgJEhkKEWlucHV0X2ZpbmdlcnByaW50GAkgASgJEhgKEHJlZmVyZW5jZV9zaGEyNTYYCiADKAkSFQoNZnVuZGluZ19yb3V0ZRgLIAEoCRIYChBhY2NvdW50X2lkZW50aXR5GAwgASgJEg0KBW1vZGVsGA0gASgJEiAKGHByb3ZpZGVyX2NvbnRyb2xzX3NoYTI1NhgOIAEoCRIdChVjb250ZXh0X3dpbmRvd190b2tlbnMYDyABKAUitwMKClJ1blJlcXVlc3QSDgoGc291cmNlGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgJEhMKC2luc3RydWN0aW9uGAMgASgJEgwKBHJvbGUYBCABKAkSMwoFdHVybnMYBSADKAsyJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVHVybhI8CgthdHRhY2htZW50cxgGIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50EjUKB3Byb2ZpbGUYByABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZRI/CghzYW1wbGluZxgIIAEoCzItLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5TYW1wbGluZ0NvbnRyb2xzEhkKEW1heF9vdXRwdXRfdG9rZW5zGAkgASgFEhoKEm1heF9wcm92aWRlcl9jYWxscxgKIAEoBRI/CgtzcGVuZF9saW1pdBgLIAEoCzIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5TcGVuZExpbWl0IvcCCgtSdW5SZXNwb25zZRISCgp2YWx1ZV9qc29uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCXZhbGlkYXRlZBgEIAEoCBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvchI9CgdhcHBsaWVkGAcgASgLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkFwcGxpZWRTZXR0aW5ncxIbChNwcm92aWRlcl9jYWxsc19tYWRlGAggASgFEk8KE3NwZW5kX2F1dGhvcml6YXRpb24YCSABKAsyMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuU3BlbmRBdXRob3JpemF0aW9uIh4KDFJ1bkJhdGNoSXRlbRIOCgZzb3VyY2UYASABKAkihgEKD1J1bkJhdGNoUmVxdWVzdBI7CgVpdGVtcxgBIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaEl0ZW0SEwoLc2NoZW1hX2pzb24YAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSDAoEcm9sZRgEIAEoCSKGAQoQUnVuQmF0Y2hSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlImwKDEVtYmVkUmVxdWVzdBINCgV0ZXh0cxgBIAMoCRIMCgRyb2xlGAIgASgJEj8KCHNhbXBsaW5nGAMgASgLMi0udnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlNhbXBsaW5nQ29udHJvbHMi+gEKDUVtYmVkUmVzcG9uc2USQAoHdmVjdG9ycxgBIAMoCzIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZGRpbmdWZWN0b3ISEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEQoJZGltZW5zaW9uGAQgASgFEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yIiEKD0VtYmVkZGluZ1ZlY3RvchIOCgZ2YWx1ZXMYASADKAEqvAEKD1VzYWdlUHJvdmVuYW5jZRIgChxVU0FHRV9QUk9WRU5BTkNFX1VOU1BFQ0lGSUVEEAASHAoYVVNBR0VfUFJPVkVOQU5DRV9VTktOT1dOEAESJgoiVVNBR0VfUFJPVkVOQU5DRV9QUk9WSURFUl9SRVBPUlRFRBACEiUKIVVTQUdFX1BST1ZFTkFOQ0VfR0FURVdBWV9FU1RJTUFURRADEhoKFlVTQUdFX1BST1ZFTkFOQ0VfTUlYRUQQBCrnAgoSSW5mZXJlbmNlRXJyb3JDb2RlEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1BFQ0lGSUVEEAASJAogSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5BVkFJTEFCTEUQARIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9JTlZBTElEX1JFUVVFU1QQAhIrCidJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQ0hFTUEQAxIqCiZJTkZFUkVOQ0VfRVJST1JfQ09ERV9WQUxJREFUSU9OX0ZBSUxFRBAEEigKJElORkVSRU5DRV9FUlJPUl9DT0RFX1BST1ZJREVSX0ZBSUxFRBAFEi0KKUlORkVSRU5DRV9FUlJPUl9DT0RFX1VOU1VQUE9SVEVEX1NBTVBMSU5HEAYSKQolSU5GRVJFTkNFX0VSUk9SX0NPREVfQ09OVEVYVF9PVkVSRkxPVxAHMscCChBJbmZlcmVuY2VTZXJ2aWNlEl4KA1J1bhIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5SZXF1ZXN0GisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEm0KCFJ1bkJhdGNoEi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVxdWVzdBowLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaFJlc3BvbnNlEmQKBUVtYmVkEiwudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkUmVxdWVzdBotLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZFJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWktZ2F0ZXdheS92MS9pbmZlcmVuY2U7aW5mZXJlbmNlX3YxYgZwcm90bzM", [file_ai_gateway_v1_shared_gateway]);
+  fileDesc("CidhaS1nYXRld2F5L3YxL2luZmVyZW5jZS9pbmZlcmVuY2UucHJvdG8SHnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZSKFAwoFVXNhZ2USFAoMaW5wdXRfdG9rZW5zGAEgASgDEhUKDW91dHB1dF90b2tlbnMYAiABKAMSEwoLY29zdF9taWNyb3MYAyABKAMSUAoXaW5wdXRfdG9rZW5zX3Byb3ZlbmFuY2UYBCABKA4yLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVXNhZ2VQcm92ZW5hbmNlElEKGG91dHB1dF90b2tlbnNfcHJvdmVuYW5jZRgFIAEoDjIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZVByb3ZlbmFuY2USSAoPY29zdF9wcm92ZW5hbmNlGAYgASgOMi8udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlUHJvdmVuYW5jZRIcCg9jcmVkaXRzX2NoYXJnZWQYByABKANIAIgBARIZChFhY2NvdW50aW5nX3N0YXR1cxgIIAEoCUISChBfY3JlZGl0c19jaGFyZ2VkInYKDkluZmVyZW5jZUVycm9yEkAKBGNvZGUYASABKA4yMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuSW5mZXJlbmNlRXJyb3JDb2RlEg8KB21lc3NhZ2UYAiABKAkSEQoJY29uc3RydWN0GAMgASgJImAKBFR1cm4SDAoEcm9sZRgBIAEoCRIMCgR0ZXh0GAIgASgJEjwKC2F0dGFjaG1lbnRzGAMgAygLMicudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkF0dGFjaG1lbnQinAEKClNwZW5kTGltaXQSFwoPbWF4X2Nvc3RfbWljcm9zGAEgASgDEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIZChFpbnB1dF9maW5nZXJwcmludBgDIAEoCRIYChByZWZlcmVuY2Vfc2hhMjU2GAQgAygJEhMKC2ltYWdlX2NvdW50GAUgASgFEhUKDWZ1bmRpbmdfcm91dGUYBiABKAkiiQMKElNwZW5kQXV0aG9yaXphdGlvbhIYChBhdXRob3JpemF0aW9uX2lkGAEgASgJEg4KBnN0YXR1cxgCIAEoCRIXCg9tYXhfY29zdF9taWNyb3MYAyABKAMSGgoSaW5wdXRfdG9rZW5zX2JvdW5kGAQgASgFEhsKE291dHB1dF90b2tlbnNfYm91bmQYBSABKAUSEwoLaW1hZ2VfY291bnQYBiABKAUSFgoOY29udGV4dF9zb3VyY2UYByABKAkSFAoMb3BlcmF0aW9uX2lkGAggASgJEhkKEWlucHV0X2ZpbmdlcnByaW50GAkgASgJEhgKEHJlZmVyZW5jZV9zaGEyNTYYCiADKAkSFQoNZnVuZGluZ19yb3V0ZRgLIAEoCRIYChBhY2NvdW50X2lkZW50aXR5GAwgASgJEg0KBW1vZGVsGA0gASgJEiAKGHByb3ZpZGVyX2NvbnRyb2xzX3NoYTI1NhgOIAEoCRIdChVjb250ZXh0X3dpbmRvd190b2tlbnMYDyABKAUitwMKClJ1blJlcXVlc3QSDgoGc291cmNlGAEgASgJEhMKC3NjaGVtYV9qc29uGAIgASgJEhMKC2luc3RydWN0aW9uGAMgASgJEgwKBHJvbGUYBCABKAkSMwoFdHVybnMYBSADKAsyJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuVHVybhI8CgthdHRhY2htZW50cxgGIAMoCzInLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5BdHRhY2htZW50EjUKB3Byb2ZpbGUYByABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZRI/CghzYW1wbGluZxgIIAEoCzItLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5TYW1wbGluZ0NvbnRyb2xzEhkKEW1heF9vdXRwdXRfdG9rZW5zGAkgASgFEhoKEm1heF9wcm92aWRlcl9jYWxscxgKIAEoBRI/CgtzcGVuZF9saW1pdBgLIAEoCzIqLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5TcGVuZExpbWl0IvcCCgtSdW5SZXNwb25zZRISCgp2YWx1ZV9qc29uGAEgASgJEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEhEKCXZhbGlkYXRlZBgEIAEoCBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvchI9CgdhcHBsaWVkGAcgASgLMiwudnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLkFwcGxpZWRTZXR0aW5ncxIbChNwcm92aWRlcl9jYWxsc19tYWRlGAggASgFEk8KE3NwZW5kX2F1dGhvcml6YXRpb24YCSABKAsyMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuU3BlbmRBdXRob3JpemF0aW9uIh4KDFJ1bkJhdGNoSXRlbRIOCgZzb3VyY2UYASABKAkihgEKD1J1bkJhdGNoUmVxdWVzdBI7CgVpdGVtcxgBIAMoCzIsLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5SdW5CYXRjaEl0ZW0SEwoLc2NoZW1hX2pzb24YAiABKAkSEwoLaW5zdHJ1Y3Rpb24YAyABKAkSDAoEcm9sZRgEIAEoCSKGAQoQUnVuQmF0Y2hSZXNwb25zZRI8CgdyZXN1bHRzGAEgAygLMisudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlImwKDEVtYmVkUmVxdWVzdBINCgV0ZXh0cxgBIAMoCRIMCgRyb2xlGAIgASgJEj8KCHNhbXBsaW5nGAMgASgLMi0udnJvb2xpLmFpX2dhdGV3YXkudjEuc2hhcmVkLlNhbXBsaW5nQ29udHJvbHMi+gEKDUVtYmVkUmVzcG9uc2USQAoHdmVjdG9ycxgBIAMoCzIvLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5FbWJlZGRpbmdWZWN0b3ISEAoIcHJvdmlkZXIYAiABKAkSDQoFbW9kZWwYAyABKAkSEQoJZGltZW5zaW9uGAQgASgFEjQKBXVzYWdlGAUgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlEj0KBWVycm9yGAYgASgLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkluZmVyZW5jZUVycm9yIiEKD0VtYmVkZGluZ1ZlY3RvchIOCgZ2YWx1ZXMYASADKAEiNAoORGVjaXNpb25PcHRpb24SDQoFbGFiZWwYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAki/gEKEERlY2lzaW9uUXVlc3Rpb24SCgoCaWQYASABKAkSQgoEdHlwZRgCIAEoDjI0LnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvblF1ZXN0aW9uVHlwZRIUCgxpbnN0cnVjdGlvbnMYAyABKAkSPwoHb3B0aW9ucxgEIAMoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvbk9wdGlvbhIOCgZsZXZlbHMYBSADKAkSGAoQdHJ1ZV9kZXNjcmlwdGlvbhgGIAEoCRIZChFmYWxzZV9kZXNjcmlwdGlvbhgHIAEoCSK8AQoNRGVjaWRlUmVxdWVzdBIMCgRyb2xlGAEgASgJEg0KBXN0YXRlGAIgASgJEhIKCnN0YXRlX2pzb24YAyABKAkSQwoJcXVlc3Rpb25zGAQgAygLMjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb24SNQoHcHJvZmlsZRgFIAEoDjIkLnZyb29saS5haV9nYXRld2F5LnYxLnNoYXJlZC5Qcm9maWxlIjoKE0RlY2lzaW9uUHJvYmFiaWxpdHkSDgoGb3B0aW9uGAEgASgJEhMKC3Byb2JhYmlsaXR5GAIgASgBIqcCCg5EZWNpc2lvbkFuc3dlchITCgtxdWVzdGlvbl9pZBgBIAEoCRJCCgR0eXBlGAIgASgOMjQudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb25UeXBlEg4KBmNob2ljZRgDIAEoCRISCgVzY29yZRgEIAEoAUgAiAEBEhEKBG5vdWwYBSABKAFIAYgBARIXCgpjb25maWRlbmNlGAYgASgBSAKIAQESSgoNcHJvYmFiaWxpdGllcxgHIAMoCzIzLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvblByb2JhYmlsaXR5QggKBl9zY29yZUIHCgVfbm91bEINCgtfY29uZmlkZW5jZSLLAQoRRGVjaXNpb25DYW5kaWRhdGUSEAoIcHJvdmlkZXIYASABKAkSFQoNcmVzb3VyY2Vfcm9sZRgCIAEoCRIQCghsb2NhbGl0eRgDIAEoCRJHCgZzdGF0dXMYBCABKA4yNy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25DYW5kaWRhdGVTdGF0dXMSDgoGcmVhc29uGAUgASgJEg4KBmRldGFpbBgGIAEoCRISCgpsYXRlbmN5X21zGAcgASgDIqsDCg5EZWNpZGVSZXNwb25zZRI/CgdhbnN3ZXJzGAEgAygLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uQW5zd2VyEhAKCHByb3ZpZGVyGAIgASgJEg0KBW1vZGVsGAMgASgJEj4KBm1ldGhvZBgEIAEoDjIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5EZWNpc2lvbk1ldGhvZBI0CgV1c2FnZRgFIAEoCzIlLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5Vc2FnZRI9CgVlcnJvchgGIAEoCzIuLnZyb29saS5haV9nYXRld2F5LnYxLmluZmVyZW5jZS5JbmZlcmVuY2VFcnJvchISCgpsYXRlbmN5X21zGAcgASgDEkUKCmNhbmRpZGF0ZXMYCCADKAsyMS52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaXNpb25DYW5kaWRhdGUSFQoNcmVzb3VyY2Vfcm9sZRgJIAEoCRIQCghsb2NhbGl0eRgKIAEoCSI0Cg9EZWNpZGVCYXRjaEl0ZW0SDQoFc3RhdGUYASABKAkSEgoKc3RhdGVfanNvbhgCIAEoCSLeAQoSRGVjaWRlQmF0Y2hSZXF1ZXN0EgwKBHJvbGUYASABKAkSQwoJcXVlc3Rpb25zGAIgAygLMjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lzaW9uUXVlc3Rpb24SPgoFaXRlbXMYAyADKAsyLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlQmF0Y2hJdGVtEjUKB3Byb2ZpbGUYBCABKA4yJC52cm9vbGkuYWlfZ2F0ZXdheS52MS5zaGFyZWQuUHJvZmlsZSKMAQoTRGVjaWRlQmF0Y2hSZXNwb25zZRI/CgdyZXN1bHRzGAEgAygLMi4udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lkZVJlc3BvbnNlEjQKBXVzYWdlGAIgASgLMiUudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlVzYWdlKrwBCg9Vc2FnZVByb3ZlbmFuY2USIAocVVNBR0VfUFJPVkVOQU5DRV9VTlNQRUNJRklFRBAAEhwKGFVTQUdFX1BST1ZFTkFOQ0VfVU5LTk9XThABEiYKIlVTQUdFX1BST1ZFTkFOQ0VfUFJPVklERVJfUkVQT1JURUQQAhIlCiFVU0FHRV9QUk9WRU5BTkNFX0dBVEVXQVlfRVNUSU1BVEUQAxIaChZVU0FHRV9QUk9WRU5BTkNFX01JWEVEEAQq5wIKEkluZmVyZW5jZUVycm9yQ29kZRIkCiBJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNQRUNJRklFRBAAEiQKIElORkVSRU5DRV9FUlJPUl9DT0RFX1VOQVZBSUxBQkxFEAESKAokSU5GRVJFTkNFX0VSUk9SX0NPREVfSU5WQUxJRF9SRVFVRVNUEAISKwonSU5GRVJFTkNFX0VSUk9SX0NPREVfVU5TVVBQT1JURURfU0NIRU1BEAMSKgomSU5GRVJFTkNFX0VSUk9SX0NPREVfVkFMSURBVElPTl9GQUlMRUQQBBIoCiRJTkZFUkVOQ0VfRVJST1JfQ09ERV9QUk9WSURFUl9GQUlMRUQQBRItCilJTkZFUkVOQ0VfRVJST1JfQ09ERV9VTlNVUFBPUlRFRF9TQU1QTElORxAGEikKJUlORkVSRU5DRV9FUlJPUl9DT0RFX0NPTlRFWFRfT1ZFUkZMT1cQByqkAQoURGVjaXNpb25RdWVzdGlvblR5cGUSJgoiREVDSVNJT05fUVVFU1RJT05fVFlQRV9VTlNQRUNJRklFRBAAEiEKHURFQ0lTSU9OX1FVRVNUSU9OX1RZUEVfQ0hPSUNFEAESIAocREVDSVNJT05fUVVFU1RJT05fVFlQRV9TQ09SRRACEh8KG0RFQ0lTSU9OX1FVRVNUSU9OX1RZUEVfTk9VTBADKnMKDkRlY2lzaW9uTWV0aG9kEh8KG0RFQ0lTSU9OX01FVEhPRF9VTlNQRUNJRklFRBAAEiIKHkRFQ0lTSU9OX01FVEhPRF9ERUNJU0lPTl9NT0RFTBABEhwKGERFQ0lTSU9OX01FVEhPRF9MTE1fRU5VTRACKuYBChdEZWNpc2lvbkNhbmRpZGF0ZVN0YXR1cxIpCiVERUNJU0lPTl9DQU5ESURBVEVfU1RBVFVTX1VOU1BFQ0lGSUVEEAASJgoiREVDSVNJT05fQ0FORElEQVRFX1NUQVRVU19BTlNXRVJFRBABEiUKIURFQ0lTSU9OX0NBTkRJREFURV9TVEFUVVNfU0tJUFBFRBACEiQKIERFQ0lTSU9OX0NBTkRJREFURV9TVEFUVVNfRkFJTEVEEAMSKwonREVDSVNJT05fQ0FORElEQVRFX1NUQVRVU19OT1RfQVRURU1QVEVEEAQyqAQKEEluZmVyZW5jZVNlcnZpY2USXgoDUnVuEioudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1blJlcXVlc3QaKy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuUmVzcG9uc2USbQoIUnVuQmF0Y2gSLy52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuUnVuQmF0Y2hSZXF1ZXN0GjAudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLlJ1bkJhdGNoUmVzcG9uc2USZAoFRW1iZWQSLC52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRW1iZWRSZXF1ZXN0Gi0udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkVtYmVkUmVzcG9uc2USZwoGRGVjaWRlEi0udnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lkZVJlcXVlc3QaLi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlUmVzcG9uc2USdgoLRGVjaWRlQmF0Y2gSMi52cm9vbGkuYWlfZ2F0ZXdheS52MS5pbmZlcmVuY2UuRGVjaWRlQmF0Y2hSZXF1ZXN0GjMudnJvb2xpLmFpX2dhdGV3YXkudjEuaW5mZXJlbmNlLkRlY2lkZUJhdGNoUmVzcG9uc2VCVVpTZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9haS1nYXRld2F5L3YxL2luZmVyZW5jZTtpbmZlcmVuY2VfdjFiBnByb3RvMw", [file_ai_gateway_v1_shared_gateway]);
 
 /**
  * @generated from message vrooli.ai_gateway.v1.inference.Usage
@@ -593,6 +593,440 @@ export const EmbeddingVectorSchema: GenMessage<EmbeddingVector> = /*@__PURE__*/
   messageDesc(file_ai_gateway_v1_inference_inference, 12);
 
 /**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecisionOption
+ */
+export type DecisionOption = Message<"vrooli.ai_gateway.v1.inference.DecisionOption"> & {
+  /**
+   * label is the value returned when this option is chosen.
+   *
+   * @generated from field: string label = 1;
+   */
+  label: string;
+
+  /**
+   * description says what the option means; the model reads it.
+   *
+   * @generated from field: string description = 2;
+   */
+  description: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecisionOption.
+ * Use `create(DecisionOptionSchema)` to create a new message.
+ */
+export const DecisionOptionSchema: GenMessage<DecisionOption> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 13);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecisionQuestion
+ */
+export type DecisionQuestion = Message<"vrooli.ai_gateway.v1.inference.DecisionQuestion"> & {
+  /**
+   * id names the answer. Unique within a request; letters, digits, '_', '.'
+   * and '-', at most 100 characters.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.DecisionQuestionType type = 2;
+   */
+  type: DecisionQuestionType;
+
+  /**
+   * instructions say what to decide. Absent, decision models read the id.
+   *
+   * @generated from field: string instructions = 3;
+   */
+  instructions: string;
+
+  /**
+   * options are the CHOICE labels, 2-255 distinct, in caller order.
+   *
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecisionOption options = 4;
+   */
+  options: DecisionOption[];
+
+  /**
+   * levels are the SCORE level descriptions, 2-10, level 0 first.
+   *
+   * @generated from field: repeated string levels = 5;
+   */
+  levels: string[];
+
+  /**
+   * true_description and false_description optionally define a NOUL answer.
+   *
+   * @generated from field: string true_description = 6;
+   */
+  trueDescription: string;
+
+  /**
+   * @generated from field: string false_description = 7;
+   */
+  falseDescription: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecisionQuestion.
+ * Use `create(DecisionQuestionSchema)` to create a new message.
+ */
+export const DecisionQuestionSchema: GenMessage<DecisionQuestion> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 14);
+
+/**
+ * DecideRequest asks typed questions about one state. The gateway owns the
+ * candidate walk: a role's decision models first, then the role's declared
+ * fallback. Callers never name a provider, model or credential.
+ *
+ * @generated from message vrooli.ai_gateway.v1.inference.DecideRequest
+ */
+export type DecideRequest = Message<"vrooli.ai_gateway.v1.inference.DecideRequest"> & {
+  /**
+   * role is a decision role from the inference role catalog, such as
+   * decide.fast.
+   *
+   * @generated from field: string role = 1;
+   */
+  role: string;
+
+  /**
+   * state is plain text. Exactly one of state and state_json is set.
+   *
+   * @generated from field: string state = 2;
+   */
+  state: string;
+
+  /**
+   * state_json is a JSON object or array whose structure carries meaning.
+   *
+   * @generated from field: string state_json = 3;
+   */
+  stateJson: string;
+
+  /**
+   * questions are answered together over the same state, 1-64 per request.
+   *
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecisionQuestion questions = 4;
+   */
+  questions: DecisionQuestion[];
+
+  /**
+   * profile carries the caller's locality stance; LOCAL_ONLY never leaves the
+   * host and REMOTE_ONLY never runs a local candidate.
+   *
+   * @generated from field: vrooli.ai_gateway.v1.shared.Profile profile = 5;
+   */
+  profile: Profile;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecideRequest.
+ * Use `create(DecideRequestSchema)` to create a new message.
+ */
+export const DecideRequestSchema: GenMessage<DecideRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 15);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecisionProbability
+ */
+export type DecisionProbability = Message<"vrooli.ai_gateway.v1.inference.DecisionProbability"> & {
+  /**
+   * option is the CHOICE label, or the SCORE level index ("0", "1", ...).
+   *
+   * @generated from field: string option = 1;
+   */
+  option: string;
+
+  /**
+   * @generated from field: double probability = 2;
+   */
+  probability: number;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecisionProbability.
+ * Use `create(DecisionProbabilitySchema)` to create a new message.
+ */
+export const DecisionProbabilitySchema: GenMessage<DecisionProbability> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 16);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecisionAnswer
+ */
+export type DecisionAnswer = Message<"vrooli.ai_gateway.v1.inference.DecisionAnswer"> & {
+  /**
+   * @generated from field: string question_id = 1;
+   */
+  questionId: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.DecisionQuestionType type = 2;
+   */
+  type: DecisionQuestionType;
+
+  /**
+   * choice is the chosen CHOICE label.
+   *
+   * @generated from field: string choice = 3;
+   */
+  choice: string;
+
+  /**
+   * score is the expected SCORE level, sum of i * p_i; it can fall between
+   * levels.
+   *
+   * @generated from field: optional double score = 4;
+   */
+  score?: number | undefined;
+
+  /**
+   * noul is the probability that the NOUL statement holds.
+   *
+   * @generated from field: optional double noul = 5;
+   */
+  noul?: number | undefined;
+
+  /**
+   * confidence is the normalized top probability (K * p_max - 1) / (K - 1)
+   * for CHOICE and SCORE. Absent for NOUL, and when the answering method
+   * reports no distribution.
+   *
+   * @generated from field: optional double confidence = 6;
+   */
+  confidence?: number | undefined;
+
+  /**
+   * probabilities cover every CHOICE label or SCORE level in declared order.
+   * Empty when the answering method reports no distribution.
+   *
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecisionProbability probabilities = 7;
+   */
+  probabilities: DecisionProbability[];
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecisionAnswer.
+ * Use `create(DecisionAnswerSchema)` to create a new message.
+ */
+export const DecisionAnswerSchema: GenMessage<DecisionAnswer> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 17);
+
+/**
+ * DecisionCandidate is one row of the walk the gateway performed, in catalog
+ * order, so a caller can see why a hosted candidate was not used.
+ *
+ * @generated from message vrooli.ai_gateway.v1.inference.DecisionCandidate
+ */
+export type DecisionCandidate = Message<"vrooli.ai_gateway.v1.inference.DecisionCandidate"> & {
+  /**
+   * @generated from field: string provider = 1;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string resource_role = 2;
+   */
+  resourceRole: string;
+
+  /**
+   * @generated from field: string locality = 3;
+   */
+  locality: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.DecisionCandidateStatus status = 4;
+   */
+  status: DecisionCandidateStatus;
+
+  /**
+   * reason is a stable code: unconfigured, unreachable, missing_binary,
+   * locality_forbidden, unsupported_question_types, invalid_answers,
+   * context_overflow, rate_limited, provider_overloaded, timeout or
+   * provider_failed. Empty for ANSWERED and NOT_ATTEMPTED rows.
+   *
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string detail = 6;
+   */
+  detail: string;
+
+  /**
+   * @unit milliseconds
+   *
+   * @generated from field: int64 latency_ms = 7;
+   */
+  latencyMs: bigint;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecisionCandidate.
+ * Use `create(DecisionCandidateSchema)` to create a new message.
+ */
+export const DecisionCandidateSchema: GenMessage<DecisionCandidate> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 18);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecideResponse
+ */
+export type DecideResponse = Message<"vrooli.ai_gateway.v1.inference.DecideResponse"> & {
+  /**
+   * answers follow the request's question order.
+   *
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecisionAnswer answers = 1;
+   */
+  answers: DecisionAnswer[];
+
+  /**
+   * @generated from field: string provider = 2;
+   */
+  provider: string;
+
+  /**
+   * @generated from field: string model = 3;
+   */
+  model: string;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.DecisionMethod method = 4;
+   */
+  method: DecisionMethod;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.Usage usage = 5;
+   */
+  usage?: Usage | undefined;
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.InferenceError error = 6;
+   */
+  error?: InferenceError | undefined;
+
+  /**
+   * latency_ms is the answering candidate's execution time measured by the
+   * gateway, model load included.
+   * @unit milliseconds
+   *
+   * @generated from field: int64 latency_ms = 7;
+   */
+  latencyMs: bigint;
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecisionCandidate candidates = 8;
+   */
+  candidates: DecisionCandidate[];
+
+  /**
+   * resource_role is the answering candidate's role, which names the upstream
+   * (for example decide.local or decide.jev.edenai).
+   *
+   * @generated from field: string resource_role = 9;
+   */
+  resourceRole: string;
+
+  /**
+   * locality is where the answering candidate ran: local means the state never
+   * left the host. Empty for the LLM enum fallback, whose own walk owns it.
+   *
+   * @generated from field: string locality = 10;
+   */
+  locality: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecideResponse.
+ * Use `create(DecideResponseSchema)` to create a new message.
+ */
+export const DecideResponseSchema: GenMessage<DecideResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 19);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecideBatchItem
+ */
+export type DecideBatchItem = Message<"vrooli.ai_gateway.v1.inference.DecideBatchItem"> & {
+  /**
+   * @generated from field: string state = 1;
+   */
+  state: string;
+
+  /**
+   * @generated from field: string state_json = 2;
+   */
+  stateJson: string;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecideBatchItem.
+ * Use `create(DecideBatchItemSchema)` to create a new message.
+ */
+export const DecideBatchItemSchema: GenMessage<DecideBatchItem> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 20);
+
+/**
+ * DecideBatchRequest asks the same questions about up to 256 states.
+ *
+ * @generated from message vrooli.ai_gateway.v1.inference.DecideBatchRequest
+ */
+export type DecideBatchRequest = Message<"vrooli.ai_gateway.v1.inference.DecideBatchRequest"> & {
+  /**
+   * @generated from field: string role = 1;
+   */
+  role: string;
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecisionQuestion questions = 2;
+   */
+  questions: DecisionQuestion[];
+
+  /**
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecideBatchItem items = 3;
+   */
+  items: DecideBatchItem[];
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.shared.Profile profile = 4;
+   */
+  profile: Profile;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecideBatchRequest.
+ * Use `create(DecideBatchRequestSchema)` to create a new message.
+ */
+export const DecideBatchRequestSchema: GenMessage<DecideBatchRequest> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 21);
+
+/**
+ * @generated from message vrooli.ai_gateway.v1.inference.DecideBatchResponse
+ */
+export type DecideBatchResponse = Message<"vrooli.ai_gateway.v1.inference.DecideBatchResponse"> & {
+  /**
+   * results preserve the exact order of the request items, failed items
+   * included; each carries its own provider, method, usage and walk.
+   *
+   * @generated from field: repeated vrooli.ai_gateway.v1.inference.DecideResponse results = 1;
+   */
+  results: DecideResponse[];
+
+  /**
+   * @generated from field: vrooli.ai_gateway.v1.inference.Usage usage = 2;
+   */
+  usage?: Usage | undefined;
+};
+
+/**
+ * Describes the message vrooli.ai_gateway.v1.inference.DecideBatchResponse.
+ * Use `create(DecideBatchResponseSchema)` to create a new message.
+ */
+export const DecideBatchResponseSchema: GenMessage<DecideBatchResponse> = /*@__PURE__*/
+  messageDesc(file_ai_gateway_v1_inference_inference, 22);
+
+/**
  * Usage preserves legacy numeric accounting and states where each value came
  * from. A zero is an observed zero only with PROVIDER_REPORTED provenance.
  *
@@ -696,6 +1130,124 @@ export const InferenceErrorCodeSchema: GenEnum<InferenceErrorCode> = /*@__PURE__
   enumDesc(file_ai_gateway_v1_inference_inference, 1);
 
 /**
+ * DecisionQuestionType is the closed set of decision question shapes. A
+ * decision model answers every question with one value from its declared set
+ * and never generates text.
+ *
+ * @generated from enum vrooli.ai_gateway.v1.inference.DecisionQuestionType
+ */
+export enum DecisionQuestionType {
+  /**
+   * @generated from enum value: DECISION_QUESTION_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * CHOICE picks one of 2-255 labelled options.
+   *
+   * @generated from enum value: DECISION_QUESTION_TYPE_CHOICE = 1;
+   */
+  CHOICE = 1,
+
+  /**
+   * SCORE places the state on 2-10 ordered levels, level 0 first.
+   *
+   * @generated from enum value: DECISION_QUESTION_TYPE_SCORE = 2;
+   */
+  SCORE = 2,
+
+  /**
+   * NOUL is the probability that a statement holds (yes/no).
+   *
+   * @generated from enum value: DECISION_QUESTION_TYPE_NOUL = 3;
+   */
+  NOUL = 3,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.inference.DecisionQuestionType.
+ */
+export const DecisionQuestionTypeSchema: GenEnum<DecisionQuestionType> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_inference_inference, 2);
+
+/**
+ * @generated from enum vrooli.ai_gateway.v1.inference.DecisionMethod
+ */
+export enum DecisionMethod {
+  /**
+   * @generated from enum value: DECISION_METHOD_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * DECISION_MODEL answers come from a non-generative decision model and carry
+   * calibrated probabilities.
+   *
+   * @generated from enum value: DECISION_METHOD_DECISION_MODEL = 1;
+   */
+  DECISION_MODEL = 1,
+
+  /**
+   * LLM_ENUM answers come from a generative model constrained to an enum by
+   * the typed classify path. They carry the choice only: no confidence and no
+   * probabilities, because an LLM label is not a calibrated distribution.
+   *
+   * @generated from enum value: DECISION_METHOD_LLM_ENUM = 2;
+   */
+  LLM_ENUM = 2,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.inference.DecisionMethod.
+ */
+export const DecisionMethodSchema: GenEnum<DecisionMethod> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_inference_inference, 3);
+
+/**
+ * @generated from enum vrooli.ai_gateway.v1.inference.DecisionCandidateStatus
+ */
+export enum DecisionCandidateStatus {
+  /**
+   * @generated from enum value: DECISION_CANDIDATE_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DECISION_CANDIDATE_STATUS_ANSWERED = 1;
+   */
+  ANSWERED = 1,
+
+  /**
+   * SKIPPED candidates were not dispatched: unconfigured credentials, an
+   * unpulled model, a forbidden locality, or a fallback that cannot express
+   * the question types.
+   *
+   * @generated from enum value: DECISION_CANDIDATE_STATUS_SKIPPED = 2;
+   */
+  SKIPPED = 2,
+
+  /**
+   * FAILED candidates were dispatched and did not return a valid answer set.
+   *
+   * @generated from enum value: DECISION_CANDIDATE_STATUS_FAILED = 3;
+   */
+  FAILED = 3,
+
+  /**
+   * NOT_ATTEMPTED candidates follow the one that answered.
+   *
+   * @generated from enum value: DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED = 4;
+   */
+  NOT_ATTEMPTED = 4,
+}
+
+/**
+ * Describes the enum vrooli.ai_gateway.v1.inference.DecisionCandidateStatus.
+ */
+export const DecisionCandidateStatusSchema: GenEnum<DecisionCandidateStatus> = /*@__PURE__*/
+  enumDesc(file_ai_gateway_v1_inference_inference, 4);
+
+/**
  * @generated from service vrooli.ai_gateway.v1.inference.InferenceService
  */
 export const InferenceService: GenService<{
@@ -722,6 +1274,24 @@ export const InferenceService: GenService<{
     methodKind: "unary";
     input: typeof EmbedRequestSchema;
     output: typeof EmbedResponseSchema;
+  },
+  /**
+   * Decide answers typed choice, score and noul questions about one state.
+   *
+   * @generated from rpc vrooli.ai_gateway.v1.inference.InferenceService.Decide
+   */
+  decide: {
+    methodKind: "unary";
+    input: typeof DecideRequestSchema;
+    output: typeof DecideResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch
+   */
+  decideBatch: {
+    methodKind: "unary";
+    input: typeof DecideBatchRequestSchema;
+    output: typeof DecideBatchResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ai_gateway_v1_inference_inference, 0);

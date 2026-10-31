@@ -215,7 +215,7 @@ func (r *invocationReadModelRepository) RunBreakdown(ctx context.Context, filter
 	rowsByKey := map[string]*invocationreadmodel.RunBreakdownRow{}
 	where, args := invocationReadModelRunWhere(filter)
 	runRows, err := r.db.QueryxContext(ctx, fmt.Sprintf(`SELECT %s, %s, COUNT(*),
-		SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END), SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END),
+		SUM(CASE WHEN status = 'complete' AND `+executedRunSQL+` THEN 1 ELSE 0 END), SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END),
 		COALESCE(AVG(CASE WHEN started_at IS NOT NULL AND ended_at IS NOT NULL THEN duration_ms END), 0)
 		FROM invocation_read_model_runs%s GROUP BY %s`, dim.runValue, dim.runKey, where, dim.runKey), args...)
 	if err != nil {

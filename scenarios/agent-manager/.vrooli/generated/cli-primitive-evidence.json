@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "29bf3f4d31a996ca3a55c344541e664bc6d562ea53253599842dfcdd512098c1",
+  "manifest_hash": "ee059762b9eae9188f29fbbd0d6e7438adbccd92e4d6f34cf524af378e1d6e95",
   "commands": [
     {
       "path": "conversation context",
@@ -478,7 +478,8 @@
     {
       "path": "run import-identity",
       "group": "run",
-      "command": "import-identity"
+      "command": "import-identity",
+      "binding": "."
     },
     {
       "path": "run import-session-corpus",
@@ -766,6 +767,12 @@
       "observed_primitive": "proto_list"
     },
     {
+      "path": "usage experiment",
+      "group": "usage",
+      "command": "experiment",
+      "binding": "."
+    },
+    {
       "path": "usage forecast",
       "group": "usage",
       "command": "forecast",
@@ -794,9 +801,30 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "usage mode",
+      "group": "usage",
+      "command": "mode",
+      "binding": "."
+    },
+    {
       "path": "usage opportunities",
       "group": "usage",
-      "command": "opportunities"
+      "command": "opportunities",
+      "binding": "."
+    },
+    {
+      "path": "usage outcomes",
+      "group": "usage",
+      "command": "outcomes",
+      "binding": "MeasuresService.UsageOutcomes",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage parity",
+      "group": "usage",
+      "command": "parity",
+      "binding": "MeasuresService.UsageParity",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "usage recommendations",
@@ -809,6 +837,12 @@
       "path": "usage reindex",
       "group": "usage",
       "command": "reindex",
+      "binding": "."
+    },
+    {
+      "path": "usage signals",
+      "group": "usage",
+      "command": "signals",
       "binding": "."
     },
     {

@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 const (
@@ -127,6 +128,14 @@ func (c *Classifier) Classify(ctx context.Context, messages []Message) ([]Answer
 		}
 		return answers, fmt.Errorf("%w: %v", ErrGatewayUnavailable, err)
 	}
+	return answers, c.runBatches(len(messages), MaxBatch, func(start, end int) error {
+		return c.classifyBatch(ctx, client, messages[start:end], answers[start:end])
+	})
+}
+
+// runBatches calls fn for each size-sized range of n items, at most
+// Concurrency at a time, and returns the first error.
+func (c *Classifier) runBatches(n, size int, fn func(start, end int) error) error {
 	concurrency := c.Concurrency
 	if concurrency <= 0 {
 		concurrency = DefaultConcurrency
@@ -137,14 +146,13 @@ func (c *Classifier) Classify(ctx context.Context, messages []Message) ([]Answer
 		firstErr error
 		slots    = make(chan struct{}, concurrency)
 	)
-	for start := 0; start < len(messages); start += MaxBatch {
-		end := min(start+MaxBatch, len(messages))
+	for start := 0; start < n; start += size {
+		end := min(start+size, n)
 		wg.Add(1)
 		slots <- struct{}{}
 		go func(start, end int) {
 			defer func() { <-slots; wg.Done() }()
-			err := c.classifyBatch(ctx, client, messages[start:end], answers[start:end])
-			if err != nil {
+			if err := fn(start, end); err != nil {
 				mu.Lock()
 				if firstErr == nil {
 					firstErr = err
@@ -154,7 +162,7 @@ func (c *Classifier) Classify(ctx context.Context, messages []Message) ([]Answer
 		}(start, end)
 	}
 	wg.Wait()
-	return answers, firstErr
+	return firstErr
 }
 
 // classifyBatch fills out with one answer per message. States the primary
@@ -194,21 +202,32 @@ func (c *Classifier) classifyBatch(ctx context.Context, client DecideClient, mes
 }
 
 func (c *Classifier) decide(ctx context.Context, client DecideClient, messages []Message, scale float64) ([]*inferencev1.DecideResponse, error) {
-	items := make([]*inferencev1.DecideBatchItem, len(messages))
+	states := make([]string, len(messages))
 	for i, message := range messages {
-		items[i] = &inferencev1.DecideBatchItem{StateJson: stateJSON(message, scale)}
+		states[i] = stateJSON(message, scale)
+	}
+	// Message text never leaves the machine: the local-only profile keeps the
+	// role's walk to local decision models, as ClassifySignals does.
+	return c.decideStates(ctx, client, questions(), sharedv1.Profile_PROFILE_LOCAL_ONLY, states)
+}
+
+// decideStates sends one DecideBatch call: the same questions about each state.
+func (c *Classifier) decideStates(ctx context.Context, client DecideClient, qs []*inferencev1.DecisionQuestion, profile sharedv1.Profile, states []string) ([]*inferencev1.DecideResponse, error) {
+	items := make([]*inferencev1.DecideBatchItem, len(states))
+	for i, state := range states {
+		items[i] = &inferencev1.DecideBatchItem{StateJson: state}
 	}
 	role := c.Role
 	if role == "" {
 		role = DefaultRole
 	}
-	response, err := client.DecideBatch(ctx, connect.NewRequest(&inferencev1.DecideBatchRequest{Role: role, Questions: questions(), Items: items}))
+	response, err := client.DecideBatch(ctx, connect.NewRequest(&inferencev1.DecideBatchRequest{Role: role, Questions: qs, Items: items, Profile: profile}))
 	if err != nil {
 		return nil, fmt.Errorf("%w: decide-batch: %v", ErrGatewayUnavailable, err)
 	}
 	results := response.Msg.GetResults()
-	if len(results) != len(messages) {
-		return nil, fmt.Errorf("%w: decide-batch returned %d results for %d states", ErrGatewayUnavailable, len(results), len(messages))
+	if len(results) != len(states) {
+		return nil, fmt.Errorf("%w: decide-batch returned %d results for %d states", ErrGatewayUnavailable, len(results), len(states))
 	}
 	return results, nil
 }

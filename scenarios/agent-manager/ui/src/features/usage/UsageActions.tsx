@@ -10,6 +10,7 @@ import { formatCount, formatPoints, formatTokens } from "../../lib/format";
 import { DataState } from "../../components/feedback/DataState";
 import { FrictionDetail } from "./UsageFriction";
 import { evidenceText, formatServerText } from "./format";
+import { runnerForProvider } from "./modes";
 
 const BUTTON = "inline-flex min-h-11 items-center justify-center rounded-md border border-border px-3 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8";
 
@@ -51,7 +52,7 @@ function EvidenceRow({ evidence }: { evidence: UsageEvidenceRef }) {
   );
 }
 
-function ActionCard({ action }: { action: UsageAction }) {
+function ActionCard({ action, onStartMode }: { action: UsageAction; onStartMode?: (action: UsageAction) => void }) {
   const [open, setOpen] = useState(false);
   const firstRun = action.evidenceRefs.find((ref) => ref.kind === "run");
   return (
@@ -76,6 +77,9 @@ function ActionCard({ action }: { action: UsageAction }) {
       <FrictionDetail rootCause={action.rootCause} subs={action.subs} guesses={action.guesses} />
       {action.recoverablePoints > 0 ? <p className="text-xs text-muted-foreground">≈ {formatPoints(action.recoverablePoints)} of it still recoverable before the window resets</p> : null}
       <div className="flex flex-wrap gap-2">
+        {onStartMode && action.source === "lever" && runnerForProvider(action.provider) ? (
+          <button type="button" onClick={() => onStartMode(action)} className={`${BUTTON} border-primary text-primary`} data-testid="usage-action-start-mode">Start a mode</button>
+        ) : null}
         {firstRun ? <Link to={`/runs/${encodeURIComponent(firstRun.id)}?tab=usage`} className={BUTTON}>Open a run</Link> : null}
         <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)} className={BUTTON}>
           {open ? "Hide evidence" : "Show evidence"}
@@ -104,7 +108,7 @@ function actionGroup(action: UsageAction): string {
 }
 
 /** Cards for ranked actions, headed per scoring group as the API orders them. */
-export function ActionList({ actions }: { actions: UsageAction[] }) {
+export function ActionList({ actions, onStartMode }: { actions: UsageAction[]; onStartMode?: (action: UsageAction) => void }) {
   return (
     <div className="flex flex-col gap-3">
       {actions.map((action, index) => {
@@ -112,7 +116,7 @@ export function ActionList({ actions }: { actions: UsageAction[] }) {
         return (
           <Fragment key={`${action.source}/${action.kind}/${action.owner}/${action.fingerprints.join(",")}`}>
             {!previous || actionGroup(previous) !== actionGroup(action) ? <h4 className="text-xs font-medium text-muted-foreground" data-testid="usage-action-group">{actionGroup(action)}</h4> : null}
-            <ActionCard action={action} />
+            <ActionCard action={action} onStartMode={onStartMode} />
           </Fragment>
         );
       })}
@@ -141,10 +145,12 @@ interface UsageActionsProps {
   materiality: number;
   /** What each source could see, and how effects are scored. */
   notes: string[];
+  /** Quota-lever cards offer to start a usage mode when this is given. */
+  onStartMode?: (action: UsageAction) => void;
 }
 
 /** "Do this first": the ranked owner-level actions, the rest one click away, with the coverage that bounds the list. */
-export function UsageActions({ actions, loading, error, onRetry, below, materiality, notes }: UsageActionsProps) {
+export function UsageActions({ actions, loading, error, onRetry, below, materiality, notes, onStartMode }: UsageActionsProps) {
   const [showAll, setShowAll] = useState(false);
   const rest = actions.slice(SHOWN_ACTIONS);
   return (
@@ -159,7 +165,7 @@ export function UsageActions({ actions, loading, error, onRetry, below, material
       empty={<EmptyState density="compact" icon={<Lightbulb aria-hidden="true" />} title="No actions" description="Recommendations need provider readings, indexed usage and projected tool calls." />}
     >
       {actions.length === 0 ? <p className="pb-2 text-sm text-muted-foreground">No action is above the materiality floor; the coverage below says what was seen.</p> : null}
-      <ActionList actions={actions.slice(0, SHOWN_ACTIONS)} />
+      <ActionList actions={actions.slice(0, SHOWN_ACTIONS)} onStartMode={onStartMode} />
       {rest.length > 0 || below > 0 ? (
         <div className="mt-3 space-y-3">
           <p className="text-sm text-muted-foreground">
@@ -168,7 +174,7 @@ export function UsageActions({ actions, loading, error, onRetry, below, material
             {below > 0 ? `${below} scoring under ${Math.round(materiality * 100)}%` : ""}
             {rest.length > 0 ? <button type="button" aria-expanded={showAll} onClick={() => setShowAll((value) => !value)} className="ml-2 inline-flex min-h-11 min-w-11 items-center justify-center text-primary hover:underline sm:min-h-8">{showAll ? "Hide" : "Show"}</button> : null}
           </p>
-          {showAll ? <ActionList actions={rest} /> : null}
+          {showAll ? <ActionList actions={rest} onStartMode={onStartMode} /> : null}
         </div>
       ) : null}
       {notes.length > 0 ? (

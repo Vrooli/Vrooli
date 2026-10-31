@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/cli-core/usagemode"
 	"github.com/vrooli/envkit-go"
 )
 
@@ -321,6 +322,12 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 		return runUngovernedProbe(ctx, request, path, binary, environment)
 	}
 
+	// An active usage mode lowers what this new session runs on. Fail open:
+	// no mode, or any problem reading it, leaves args and environment as-is.
+	if command == "" {
+		request.Args, environment = ApplyUsageMode(request.Agent, request.Args, environment)
+	}
+
 	// A later launcher stage inherits the session the first one opened. It
 	// must not open a second: one session is one lease, one scope and one run
 	// row, whichever stage of the chain the operator's command entered at.
@@ -515,6 +522,33 @@ func runUngovernedProbe(ctx context.Context, request AgentLaunchRequest, path, b
 
 // environmentValue reads one key from an environment slice; an empty result
 // means absent, which is what an unmarked environment looks like.
+// ApplyUsageMode returns args and environment with the active usage mode
+// applied; with none they are returned unchanged.
+func ApplyUsageMode(runner string, args, environment []string) (outArgs, outEnvironment []string) {
+	defer func() {
+		if recover() != nil {
+			outArgs, outEnvironment = args, environment
+		}
+	}()
+	now := time.Now()
+	plan := usagemode.LaunchPlan(runner, args, environment, now)
+	if !plan.Applied {
+		return args, environment
+	}
+	if plan.Arm != "" {
+		// A randomized operator-session day: say so where the operator can see
+		// it, and leave the marker the ledger reads the arm and exception from.
+		fmt.Fprintln(os.Stderr, plan.Label)
+		usagemode.RecordLaunch(usagemode.LaunchMarker{At: now.UTC(), ModeID: plan.ModeID, Runner: usagemode.NormalizeRunner(runner), Arm: plan.Arm, Exception: plan.Exception})
+	}
+	for _, entry := range plan.Env {
+		if key, value, ok := strings.Cut(entry, "="); ok {
+			environment = withEnvironmentValue(environment, key, value)
+		}
+	}
+	return plan.Args, environment
+}
+
 func environmentValue(environment []string, key string) string {
 	for _, entry := range environment {
 		name, value, ok := strings.Cut(entry, "=")

@@ -3,11 +3,13 @@ import { Card } from "@vrooli/react-component-library/Card/1";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { Progress } from "@vrooli/react-component-library/Progress/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
-import type { UsageWindowForecast } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
+import type { ListUsageModesResponse, UsageWindowForecast } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { MISSING } from "../../lib/format";
 import { DataState } from "../../components/feedback/DataState";
 import { dormantWindowLine, formatAgo, formatAt, formatRate, formatServerText, isStale, usageStatus, windowKey, windowTitle } from "./format";
-import { UsageWindowChart } from "./UsageWindowChart";
+import { useUsageModes } from "./api";
+import { runnerForProvider } from "./modes";
+import { UsageWindowChart, type ModeSpan } from "./UsageWindowChart";
 
 const HORIZONS = ["1h", "6h", "24h"] as const;
 const PROGRESS_TONES = { danger: "danger", warning: "warning", success: "success" } as const;
@@ -63,11 +65,32 @@ function WindowTile({ forecast, siblings, selected, onSelect }: { forecast: Usag
   );
 }
 
+/**
+ * Every mode that reaches this provider, ended ones included: the recorded
+ * periods (an ended period carries the time it ended) plus the active modes,
+ * which win for the same id because their expiry is the live one.
+ */
+export function modeSpans(modes: ListUsageModesResponse | undefined, runner: string): ModeSpan[] {
+  const spans = new Map<string, ModeSpan>();
+  for (const period of modes?.periods ?? []) {
+    if (period.runner && period.runner !== runner) continue;
+    spans.set(period.id, { id: period.id, label: period.label || "A usage mode", startedAt: period.startedAt, endsAt: period.endedAt || period.expiresAt });
+  }
+  for (const status of modes?.modes ?? []) {
+    const mode = status.mode;
+    if (!mode || (mode.scope?.runner && mode.scope.runner !== runner)) continue;
+    spans.set(mode.id, { id: mode.id, label: mode.label || "A usage mode", startedAt: mode.startedAt, endsAt: mode.expiresAt });
+  }
+  return [...spans.values()];
+}
+
 /** The selected window in full: projection, chart, burn per horizon and the notes that qualify them. */
 export function WindowDetail({ forecast, siblings }: { forecast: UsageWindowForecast; siblings: UsageWindowForecast[] }) {
+  const modes = useUsageModes();
   if (!hasReading(forecast)) return null;
   const stale = isStale(forecast.observedAt);
   const rates = new Map(forecast.burn.map((rate) => [rate.horizon, rate]));
+  const spans = modeSpans(modes.data, runnerForProvider(forecast.provider));
   return (
     <Card data-testid="usage-window-detail" className="flex min-w-0 flex-col gap-3 p-4 sm:p-5">
       <h3 className="text-base font-semibold">{windowTitle(forecast, siblings)} · projection</h3>
@@ -75,7 +98,7 @@ export function WindowDetail({ forecast, siblings }: { forecast: UsageWindowFore
         <strong>{projectionSentence(forecast)}</strong>
         {forecast.hasPercent && forecast.lastingPercentPerHour > 0 && forecast.status !== "on_track" && forecast.status !== "idle" ? ` To last until the reset, burn at most ${formatRate(forecast.lastingPercentPerHour)}.` : ""}
       </p>
-      <UsageWindowChart forecast={forecast} />
+      <UsageWindowChart forecast={forecast} modes={spans} />
       <dl className="grid grid-cols-2 gap-3 border-t border-border pt-3 sm:grid-cols-4">
         {HORIZONS.map((horizon) => {
           const rate = rates.get(horizon);

@@ -26,6 +26,27 @@ class InferenceErrorCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     INFERENCE_ERROR_CODE_PROVIDER_FAILED: _ClassVar[InferenceErrorCode]
     INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING: _ClassVar[InferenceErrorCode]
     INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW: _ClassVar[InferenceErrorCode]
+
+class DecisionQuestionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DECISION_QUESTION_TYPE_UNSPECIFIED: _ClassVar[DecisionQuestionType]
+    DECISION_QUESTION_TYPE_CHOICE: _ClassVar[DecisionQuestionType]
+    DECISION_QUESTION_TYPE_SCORE: _ClassVar[DecisionQuestionType]
+    DECISION_QUESTION_TYPE_NOUL: _ClassVar[DecisionQuestionType]
+
+class DecisionMethod(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DECISION_METHOD_UNSPECIFIED: _ClassVar[DecisionMethod]
+    DECISION_METHOD_DECISION_MODEL: _ClassVar[DecisionMethod]
+    DECISION_METHOD_LLM_ENUM: _ClassVar[DecisionMethod]
+
+class DecisionCandidateStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    DECISION_CANDIDATE_STATUS_UNSPECIFIED: _ClassVar[DecisionCandidateStatus]
+    DECISION_CANDIDATE_STATUS_ANSWERED: _ClassVar[DecisionCandidateStatus]
+    DECISION_CANDIDATE_STATUS_SKIPPED: _ClassVar[DecisionCandidateStatus]
+    DECISION_CANDIDATE_STATUS_FAILED: _ClassVar[DecisionCandidateStatus]
+    DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED: _ClassVar[DecisionCandidateStatus]
 USAGE_PROVENANCE_UNSPECIFIED: UsageProvenance
 USAGE_PROVENANCE_UNKNOWN: UsageProvenance
 USAGE_PROVENANCE_PROVIDER_REPORTED: UsageProvenance
@@ -39,6 +60,18 @@ INFERENCE_ERROR_CODE_VALIDATION_FAILED: InferenceErrorCode
 INFERENCE_ERROR_CODE_PROVIDER_FAILED: InferenceErrorCode
 INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING: InferenceErrorCode
 INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW: InferenceErrorCode
+DECISION_QUESTION_TYPE_UNSPECIFIED: DecisionQuestionType
+DECISION_QUESTION_TYPE_CHOICE: DecisionQuestionType
+DECISION_QUESTION_TYPE_SCORE: DecisionQuestionType
+DECISION_QUESTION_TYPE_NOUL: DecisionQuestionType
+DECISION_METHOD_UNSPECIFIED: DecisionMethod
+DECISION_METHOD_DECISION_MODEL: DecisionMethod
+DECISION_METHOD_LLM_ENUM: DecisionMethod
+DECISION_CANDIDATE_STATUS_UNSPECIFIED: DecisionCandidateStatus
+DECISION_CANDIDATE_STATUS_ANSWERED: DecisionCandidateStatus
+DECISION_CANDIDATE_STATUS_SKIPPED: DecisionCandidateStatus
+DECISION_CANDIDATE_STATUS_FAILED: DecisionCandidateStatus
+DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED: DecisionCandidateStatus
 
 class Usage(_message.Message):
     __slots__ = ("input_tokens", "output_tokens", "cost_micros", "input_tokens_provenance", "output_tokens_provenance", "cost_provenance", "credits_charged", "accounting_status")
@@ -235,3 +268,139 @@ class EmbeddingVector(_message.Message):
     VALUES_FIELD_NUMBER: _ClassVar[int]
     values: _containers.RepeatedScalarFieldContainer[float]
     def __init__(self, values: _Optional[_Iterable[float]] = ...) -> None: ...
+
+class DecisionOption(_message.Message):
+    __slots__ = ("label", "description")
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    description: str
+    def __init__(self, label: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
+
+class DecisionQuestion(_message.Message):
+    __slots__ = ("id", "type", "instructions", "options", "levels", "true_description", "false_description")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    INSTRUCTIONS_FIELD_NUMBER: _ClassVar[int]
+    OPTIONS_FIELD_NUMBER: _ClassVar[int]
+    LEVELS_FIELD_NUMBER: _ClassVar[int]
+    TRUE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    FALSE_DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    type: DecisionQuestionType
+    instructions: str
+    options: _containers.RepeatedCompositeFieldContainer[DecisionOption]
+    levels: _containers.RepeatedScalarFieldContainer[str]
+    true_description: str
+    false_description: str
+    def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[DecisionQuestionType, str]] = ..., instructions: _Optional[str] = ..., options: _Optional[_Iterable[_Union[DecisionOption, _Mapping]]] = ..., levels: _Optional[_Iterable[str]] = ..., true_description: _Optional[str] = ..., false_description: _Optional[str] = ...) -> None: ...
+
+class DecideRequest(_message.Message):
+    __slots__ = ("role", "state", "state_json", "questions", "profile")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    STATE_JSON_FIELD_NUMBER: _ClassVar[int]
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    state: str
+    state_json: str
+    questions: _containers.RepeatedCompositeFieldContainer[DecisionQuestion]
+    profile: _gateway_pb2.Profile
+    def __init__(self, role: _Optional[str] = ..., state: _Optional[str] = ..., state_json: _Optional[str] = ..., questions: _Optional[_Iterable[_Union[DecisionQuestion, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ...) -> None: ...
+
+class DecisionProbability(_message.Message):
+    __slots__ = ("option", "probability")
+    OPTION_FIELD_NUMBER: _ClassVar[int]
+    PROBABILITY_FIELD_NUMBER: _ClassVar[int]
+    option: str
+    probability: float
+    def __init__(self, option: _Optional[str] = ..., probability: _Optional[float] = ...) -> None: ...
+
+class DecisionAnswer(_message.Message):
+    __slots__ = ("question_id", "type", "choice", "score", "noul", "confidence", "probabilities")
+    QUESTION_ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    CHOICE_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    NOUL_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    PROBABILITIES_FIELD_NUMBER: _ClassVar[int]
+    question_id: str
+    type: DecisionQuestionType
+    choice: str
+    score: float
+    noul: float
+    confidence: float
+    probabilities: _containers.RepeatedCompositeFieldContainer[DecisionProbability]
+    def __init__(self, question_id: _Optional[str] = ..., type: _Optional[_Union[DecisionQuestionType, str]] = ..., choice: _Optional[str] = ..., score: _Optional[float] = ..., noul: _Optional[float] = ..., confidence: _Optional[float] = ..., probabilities: _Optional[_Iterable[_Union[DecisionProbability, _Mapping]]] = ...) -> None: ...
+
+class DecisionCandidate(_message.Message):
+    __slots__ = ("provider", "resource_role", "locality", "status", "reason", "detail", "latency_ms")
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_ROLE_FIELD_NUMBER: _ClassVar[int]
+    LOCALITY_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    provider: str
+    resource_role: str
+    locality: str
+    status: DecisionCandidateStatus
+    reason: str
+    detail: str
+    latency_ms: int
+    def __init__(self, provider: _Optional[str] = ..., resource_role: _Optional[str] = ..., locality: _Optional[str] = ..., status: _Optional[_Union[DecisionCandidateStatus, str]] = ..., reason: _Optional[str] = ..., detail: _Optional[str] = ..., latency_ms: _Optional[int] = ...) -> None: ...
+
+class DecideResponse(_message.Message):
+    __slots__ = ("answers", "provider", "model", "method", "usage", "error", "latency_ms", "candidates", "resource_role", "locality")
+    ANSWERS_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_FIELD_NUMBER: _ClassVar[int]
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    USAGE_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_ROLE_FIELD_NUMBER: _ClassVar[int]
+    LOCALITY_FIELD_NUMBER: _ClassVar[int]
+    answers: _containers.RepeatedCompositeFieldContainer[DecisionAnswer]
+    provider: str
+    model: str
+    method: DecisionMethod
+    usage: Usage
+    error: InferenceError
+    latency_ms: int
+    candidates: _containers.RepeatedCompositeFieldContainer[DecisionCandidate]
+    resource_role: str
+    locality: str
+    def __init__(self, answers: _Optional[_Iterable[_Union[DecisionAnswer, _Mapping]]] = ..., provider: _Optional[str] = ..., model: _Optional[str] = ..., method: _Optional[_Union[DecisionMethod, str]] = ..., usage: _Optional[_Union[Usage, _Mapping]] = ..., error: _Optional[_Union[InferenceError, _Mapping]] = ..., latency_ms: _Optional[int] = ..., candidates: _Optional[_Iterable[_Union[DecisionCandidate, _Mapping]]] = ..., resource_role: _Optional[str] = ..., locality: _Optional[str] = ...) -> None: ...
+
+class DecideBatchItem(_message.Message):
+    __slots__ = ("state", "state_json")
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    STATE_JSON_FIELD_NUMBER: _ClassVar[int]
+    state: str
+    state_json: str
+    def __init__(self, state: _Optional[str] = ..., state_json: _Optional[str] = ...) -> None: ...
+
+class DecideBatchRequest(_message.Message):
+    __slots__ = ("role", "questions", "items", "profile")
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    QUESTIONS_FIELD_NUMBER: _ClassVar[int]
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    role: str
+    questions: _containers.RepeatedCompositeFieldContainer[DecisionQuestion]
+    items: _containers.RepeatedCompositeFieldContainer[DecideBatchItem]
+    profile: _gateway_pb2.Profile
+    def __init__(self, role: _Optional[str] = ..., questions: _Optional[_Iterable[_Union[DecisionQuestion, _Mapping]]] = ..., items: _Optional[_Iterable[_Union[DecideBatchItem, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ...) -> None: ...
+
+class DecideBatchResponse(_message.Message):
+    __slots__ = ("results", "usage")
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    USAGE_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[DecideResponse]
+    usage: Usage
+    def __init__(self, results: _Optional[_Iterable[_Union[DecideResponse, _Mapping]]] = ..., usage: _Optional[_Union[Usage, _Mapping]] = ...) -> None: ...

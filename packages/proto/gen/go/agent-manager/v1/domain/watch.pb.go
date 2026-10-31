@@ -3322,8 +3322,13 @@ type WatchSubjectState struct {
 	Terminal            bool                   `protobuf:"varint,3,opt,name=terminal,proto3" json:"terminal,omitempty"`
 	FrictionUnavailable bool                   `protobuf:"varint,4,opt,name=friction_unavailable,json=frictionUnavailable,proto3" json:"friction_unavailable,omitempty"`
 	FrictionThrough     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=friction_through,json=frictionThrough,proto3" json:"friction_through,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Share of the run's projected command calls that failed, guessed a command
+	// shape or polled (toolfriction.RunFriction); the friction_score trigger reads it.
+	FrictionScore float64 `protobuf:"fixed64,6,opt,name=friction_score,json=frictionScore,proto3" json:"friction_score,omitempty"`
+	// Command calls the score was read from; 0 means it cannot tell.
+	FrictionCommands int64 `protobuf:"varint,7,opt,name=friction_commands,json=frictionCommands,proto3" json:"friction_commands,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *WatchSubjectState) Reset() {
@@ -3389,6 +3394,20 @@ func (x *WatchSubjectState) GetFrictionThrough() *timestamppb.Timestamp {
 		return x.FrictionThrough
 	}
 	return nil
+}
+
+func (x *WatchSubjectState) GetFrictionScore() float64 {
+	if x != nil {
+		return x.FrictionScore
+	}
+	return 0
+}
+
+func (x *WatchSubjectState) GetFrictionCommands() int64 {
+	if x != nil {
+		return x.FrictionCommands
+	}
+	return 0
 }
 
 var File_agent_manager_v1_domain_watch_proto protoreflect.FileDescriptor
@@ -3675,13 +3694,15 @@ const file_agent_manager_v1_domain_watch_proto_rawDesc = "" +
 	"\x1fListSupervisionOutcomesResponse\x12F\n" +
 	"\boutcomes\x18\x01 \x03(\v2*.agent_manager.v1.SupervisionOutcomeRecordR\boutcomes\x12I\n" +
 	"\bcoverage\x18\x02 \x01(\v2-.agent_manager.v1.SupervisionEvidenceCoverageR\bcoverage\x12\x1c\n" +
-	"\ttruncated\x18\x03 \x01(\bR\ttruncated\"\xd8\x01\n" +
+	"\ttruncated\x18\x03 \x01(\bR\ttruncated\"\xac\x02\n" +
 	"\x11WatchSubjectState\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x1a\n" +
 	"\bterminal\x18\x03 \x01(\bR\bterminal\x121\n" +
 	"\x14friction_unavailable\x18\x04 \x01(\bR\x13frictionUnavailable\x12E\n" +
-	"\x10friction_through\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x0ffrictionThrough*\x93\x01\n" +
+	"\x10friction_through\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x0ffrictionThrough\x12%\n" +
+	"\x0efriction_score\x18\x06 \x01(\x01R\rfrictionScore\x12+\n" +
+	"\x11friction_commands\x18\a \x01(\x03R\x10frictionCommands*\x93\x01\n" +
 	"\vWatchStatus\x12\x1c\n" +
 	"\x18WATCH_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13WATCH_STATUS_ACTIVE\x10\x01\x12\x19\n" +

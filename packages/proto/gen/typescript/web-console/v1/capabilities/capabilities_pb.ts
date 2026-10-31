@@ -10,7 +10,210 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/capabilities/capabilities.proto.
  */
 export const file_web_console_v1_capabilities_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzIqkICg9DYXBhYmlsaXR5U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIXCg9kZXBlbmRlbmN5X2tpbmQYBCABKAkSFwoPZGVwZW5kZW5jeV9zbHVnGAUgASgJEhAKCGZlYXR1cmVzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIPCgdtZXNzYWdlGAggASgJEhIKCmNoZWNrZWRfYXQYCSABKAkSEwoLcmVhc29uX2NvZGUYCiABKAkSEwoLYWN0aW9uX2tpbmQYCyABKAkSFAoMYWN0aW9uX2xhYmVsGAwgASgJEhgKEG9wZXJhdG9yX2NvbW1hbmQYDSABKAkSXgoOZmVhdHVyZV9zdGF0dXMYDiADKAsyRi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5GZWF0dXJlU3RhdHVzRW50cnkSXgoOZmVhdHVyZV9yZWFzb24YDyADKAsyRi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5GZWF0dXJlUmVhc29uRW50cnkScQoYZmVhdHVyZV9vcGVyYXRvcl9jb21tYW5kGBAgAygLMk8udnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUuRmVhdHVyZU9wZXJhdG9yQ29tbWFuZEVudHJ5EmAKD3Byb3ZpZGVyX3N0YXR1cxgRIAMoCzJHLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlLlByb3ZpZGVyU3RhdHVzRW50cnkSZAoRcHJvdmlkZXJfZmVhdHVyZXMYEiADKAsySS52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5Qcm92aWRlckZlYXR1cmVzRW50cnkaNAoSRmVhdHVyZVN0YXR1c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNAoSRmVhdHVyZVJlYXNvbkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaPQobRmVhdHVyZU9wZXJhdG9yQ29tbWFuZEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNQoTUHJvdmlkZXJTdGF0dXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGjcKFVByb3ZpZGVyRmVhdHVyZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoMBCg1CYWNrZW5kT3B0aW9uEgoKAmlkGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIYChBzdXJ2aXZlc19yZXN0YXJ0GAQgASgIEhEKCWF2YWlsYWJsZRgFIAEoCBIOCgZyZWFzb24YBiABKAkiDAoKR2V0UmVxdWVzdCLRAQoLR2V0UmVzcG9uc2USSQoMY2FwYWJpbGl0aWVzGAEgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAIgASgJEksKEHNlc3Npb25fYmFja2VuZHMYAyADKAsyMS52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkJhY2tlbmRPcHRpb24SFwoPZGVmYXVsdF9iYWNrZW5kGAQgASgJIhEKD0xpdmVuZXNzUmVxdWVzdCJwChBMaXZlbmVzc1Jlc3BvbnNlEkkKDGNhcGFiaWxpdGllcxgBIAMoCzIzLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlEhEKCXRpbWVzdGFtcBgCIAEoCSJRChBSdW5BY3Rpb25SZXF1ZXN0EhUKDWNhcGFiaWxpdHlfaWQYASABKAkSEwoLYWN0aW9uX2tpbmQYAiABKAkSEQoJdGFyZ2V0X2lkGAMgASgJIuUBChFSdW5BY3Rpb25SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg4KBnN0YXR1cxgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhUKDWNhcGFiaWxpdHlfaWQYBCABKAkSEwoLYWN0aW9uX2tpbmQYBSABKAkSSQoMY2FwYWJpbGl0aWVzGAYgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAcgASgJEhQKDG9wZXJhdGlvbl9pZBgIIAEoCTLuAgoTQ2FwYWJpbGl0aWVzU2VydmljZRJmCgNHZXQSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlc3BvbnNlEnUKCExpdmVuZXNzEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5MaXZlbmVzc1JlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkxpdmVuZXNzUmVzcG9uc2USeAoJUnVuQWN0aW9uEjQudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXF1ZXN0GjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NhcGFiaWxpdGllcztjYXBhYmlsaXRpZXNfdjFiBnByb3RvMw");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzIjgKEUFnZW50VXNhZ2VSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIQCghhZ2VudF9pZBgCIAEoCSJhChBBZ2VudFVzYWdlV2luZG93EgwKBHBvb2wYASABKAkSFgoOd2luZG93X21pbnV0ZXMYAiABKAMSFAoMdXNlZF9wZXJjZW50GAMgASgBEhEKCXJlc2V0c19hdBgEIAEoCSLEAQoSQWdlbnRVc2FnZVJlc3BvbnNlEhEKCXRhcmdldF9pZBgBIAEoCRIQCghhZ2VudF9pZBgCIAEoCRINCgVtYXRjaBgDIAEoCRIOCgZyZWFzb24YBCABKAkSDgoGc291cmNlGAUgASgJEhMKC29ic2VydmVkX2F0GAYgASgJEkUKB3dpbmRvd3MYByADKAsyNC52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkFnZW50VXNhZ2VXaW5kb3ciOQoSQWdlbnRVcGRhdGVSZXF1ZXN0EhEKCXRhcmdldF9pZBgBIAEoCRIQCghhZ2VudF9pZBgCIAEoCSLxAQoTQWdlbnRVcGRhdGVSZXNwb25zZRIRCgl0YXJnZXRfaWQYASABKAkSEAoIYWdlbnRfaWQYAiABKAkSEAoIcmVzb3VyY2UYAyABKAkSEQoJaW5zdGFsbGVkGAQgASgJEg4KBnBpbm5lZBgFIAEoCRIOCgZsYXRlc3QYBiABKAkSDgoGc3RhdHVzGAcgASgJEhIKCmNoZWNrZWRfYXQYCCABKAkSEwoLc291cmNlX2tpbmQYCSABKAkSEQoJc291cmNlX2lkGAogASgJEhYKDnByb2JlX3ZlcmlmaWVkGAsgASgIEgwKBG5vdGUYDCABKAkiqQgKD0NhcGFiaWxpdHlTdGF0ZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhcKD2RlcGVuZGVuY3lfa2luZBgEIAEoCRIXCg9kZXBlbmRlbmN5X3NsdWcYBSABKAkSEAoIZmVhdHVyZXMYBiADKAkSDgoGc3RhdHVzGAcgASgJEg8KB21lc3NhZ2UYCCABKAkSEgoKY2hlY2tlZF9hdBgJIAEoCRITCgtyZWFzb25fY29kZRgKIAEoCRITCgthY3Rpb25fa2luZBgLIAEoCRIUCgxhY3Rpb25fbGFiZWwYDCABKAkSGAoQb3BlcmF0b3JfY29tbWFuZBgNIAEoCRJeCg5mZWF0dXJlX3N0YXR1cxgOIAMoCzJGLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlLkZlYXR1cmVTdGF0dXNFbnRyeRJeCg5mZWF0dXJlX3JlYXNvbhgPIAMoCzJGLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlLkZlYXR1cmVSZWFzb25FbnRyeRJxChhmZWF0dXJlX29wZXJhdG9yX2NvbW1hbmQYECADKAsyTy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5GZWF0dXJlT3BlcmF0b3JDb21tYW5kRW50cnkSYAoPcHJvdmlkZXJfc3RhdHVzGBEgAygLMkcudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUuUHJvdmlkZXJTdGF0dXNFbnRyeRJkChFwcm92aWRlcl9mZWF0dXJlcxgSIAMoCzJJLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlLlByb3ZpZGVyRmVhdHVyZXNFbnRyeRo0ChJGZWF0dXJlU3RhdHVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARo0ChJGZWF0dXJlUmVhc29uRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARo9ChtGZWF0dXJlT3BlcmF0b3JDb21tYW5kRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARo1ChNQcm92aWRlclN0YXR1c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNwoVUHJvdmlkZXJGZWF0dXJlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEigwEKDUJhY2tlbmRPcHRpb24SCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYBCABKAgSEQoJYXZhaWxhYmxlGAUgASgIEg4KBnJlYXNvbhgGIAEoCSIMCgpHZXRSZXF1ZXN0ItEBCgtHZXRSZXNwb25zZRJJCgxjYXBhYmlsaXRpZXMYASADKAsyMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRIRCgl0aW1lc3RhbXAYAiABKAkSSwoQc2Vzc2lvbl9iYWNrZW5kcxgDIAMoCzIxLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQmFja2VuZE9wdGlvbhIXCg9kZWZhdWx0X2JhY2tlbmQYBCABKAkiEQoPTGl2ZW5lc3NSZXF1ZXN0InAKEExpdmVuZXNzUmVzcG9uc2USSQoMY2FwYWJpbGl0aWVzGAEgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAIgASgJIlEKEFJ1bkFjdGlvblJlcXVlc3QSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRITCgthY3Rpb25fa2luZBgCIAEoCRIRCgl0YXJnZXRfaWQYAyABKAki5QEKEVJ1bkFjdGlvblJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDgoGc3RhdHVzGAIgASgJEg8KB21lc3NhZ2UYAyABKAkSFQoNY2FwYWJpbGl0eV9pZBgEIAEoCRITCgthY3Rpb25fa2luZBgFIAEoCRJJCgxjYXBhYmlsaXRpZXMYBiADKAsyMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRIRCgl0aW1lc3RhbXAYByABKAkSFAoMb3BlcmF0aW9uX2lkGAggASgJMusEChNDYXBhYmlsaXRpZXNTZXJ2aWNlEmYKA0dldBIuLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuR2V0UmVxdWVzdBovLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuR2V0UmVzcG9uc2USdQoITGl2ZW5lc3MSMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkxpdmVuZXNzUmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuTGl2ZW5lc3NSZXNwb25zZRJ4CglSdW5BY3Rpb24SNC52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLlJ1bkFjdGlvblJlcXVlc3QaNS52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLlJ1bkFjdGlvblJlc3BvbnNlEn4KC0FnZW50VXBkYXRlEjYudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5BZ2VudFVwZGF0ZVJlcXVlc3QaNy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkFnZW50VXBkYXRlUmVzcG9uc2USewoKQWdlbnRVc2FnZRI1LnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQWdlbnRVc2FnZVJlcXVlc3QaNi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkFnZW50VXNhZ2VSZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NhcGFiaWxpdGllcztjYXBhYmlsaXRpZXNfdjFiBnByb3RvMw");
+
+/**
+ * @generated from message vrooli.web_console.v1.capabilities.AgentUsageRequest
+ */
+export type AgentUsageRequest = Message<"vrooli.web_console.v1.capabilities.AgentUsageRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string agent_id = 2;
+   */
+  agentId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.AgentUsageRequest.
+ * Use `create(AgentUsageRequestSchema)` to create a new message.
+ */
+export const AgentUsageRequestSchema: GenMessage<AgentUsageRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 0);
+
+/**
+ * @generated from message vrooli.web_console.v1.capabilities.AgentUsageWindow
+ */
+export type AgentUsageWindow = Message<"vrooli.web_console.v1.capabilities.AgentUsageWindow"> & {
+  /**
+   * @generated from field: string pool = 1;
+   */
+  pool: string;
+
+  /**
+   * @generated from field: int64 window_minutes = 2;
+   */
+  windowMinutes: bigint;
+
+  /**
+   * @generated from field: double used_percent = 3;
+   */
+  usedPercent: number;
+
+  /**
+   * @generated from field: string resets_at = 4;
+   */
+  resetsAt: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.AgentUsageWindow.
+ * Use `create(AgentUsageWindowSchema)` to create a new message.
+ */
+export const AgentUsageWindowSchema: GenMessage<AgentUsageWindow> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 1);
+
+/**
+ * @generated from message vrooli.web_console.v1.capabilities.AgentUsageResponse
+ */
+export type AgentUsageResponse = Message<"vrooli.web_console.v1.capabilities.AgentUsageResponse"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string agent_id = 2;
+   */
+  agentId: string;
+
+  /**
+   * verified, likely, or unavailable; likely does not prove the launch account.
+   *
+   * @generated from field: string match = 3;
+   */
+  match: string;
+
+  /**
+   * @generated from field: string reason = 4;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string source = 5;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string observed_at = 6;
+   */
+  observedAt: string;
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.capabilities.AgentUsageWindow windows = 7;
+   */
+  windows: AgentUsageWindow[];
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.AgentUsageResponse.
+ * Use `create(AgentUsageResponseSchema)` to create a new message.
+ */
+export const AgentUsageResponseSchema: GenMessage<AgentUsageResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 2);
+
+/**
+ * @generated from message vrooli.web_console.v1.capabilities.AgentUpdateRequest
+ */
+export type AgentUpdateRequest = Message<"vrooli.web_console.v1.capabilities.AgentUpdateRequest"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string agent_id = 2;
+   */
+  agentId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.AgentUpdateRequest.
+ * Use `create(AgentUpdateRequestSchema)` to create a new message.
+ */
+export const AgentUpdateRequestSchema: GenMessage<AgentUpdateRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 3);
+
+/**
+ * @generated from message vrooli.web_console.v1.capabilities.AgentUpdateResponse
+ */
+export type AgentUpdateResponse = Message<"vrooli.web_console.v1.capabilities.AgentUpdateResponse"> & {
+  /**
+   * @generated from field: string target_id = 1;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string agent_id = 2;
+   */
+  agentId: string;
+
+  /**
+   * @generated from field: string resource = 3;
+   */
+  resource: string;
+
+  /**
+   * @generated from field: string installed = 4;
+   */
+  installed: string;
+
+  /**
+   * @generated from field: string pinned = 5;
+   */
+  pinned: string;
+
+  /**
+   * @generated from field: string latest = 6;
+   */
+  latest: string;
+
+  /**
+   * up-to-date, behind, ahead or unknown. Latest is upstream and may not be
+   * the version the governed installer installs.
+   *
+   * @generated from field: string status = 7;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string checked_at = 8;
+   */
+  checkedAt: string;
+
+  /**
+   * @generated from field: string source_kind = 9;
+   */
+  sourceKind: string;
+
+  /**
+   * @generated from field: string source_id = 10;
+   */
+  sourceId: string;
+
+  /**
+   * The resource check matched a fresh capability probe on the target. This
+   * does not prove that an arbitrary custom launch command uses that binary.
+   *
+   * @generated from field: bool probe_verified = 11;
+   */
+  probeVerified: boolean;
+
+  /**
+   * @generated from field: string note = 12;
+   */
+  note: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.capabilities.AgentUpdateResponse.
+ * Use `create(AgentUpdateResponseSchema)` to create a new message.
+ */
+export const AgentUpdateResponseSchema: GenMessage<AgentUpdateResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_capabilities_capabilities, 4);
 
 /**
  * CapabilityState is the runtime view of a single capability. Mirrors
@@ -128,7 +331,7 @@ export type CapabilityState = Message<"vrooli.web_console.v1.capabilities.Capabi
  * Use `create(CapabilityStateSchema)` to create a new message.
  */
 export const CapabilityStateSchema: GenMessage<CapabilityState> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 0);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 5);
 
 /**
  * BackendOption mirrors the api.BackendDescriptor struct. Surfaced on
@@ -174,7 +377,7 @@ export type BackendOption = Message<"vrooli.web_console.v1.capabilities.BackendO
  * Use `create(BackendOptionSchema)` to create a new message.
  */
 export const BackendOptionSchema: GenMessage<BackendOption> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 1);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 6);
 
 /**
  * @generated from message vrooli.web_console.v1.capabilities.GetRequest
@@ -187,7 +390,7 @@ export type GetRequest = Message<"vrooli.web_console.v1.capabilities.GetRequest"
  * Use `create(GetRequestSchema)` to create a new message.
  */
 export const GetRequestSchema: GenMessage<GetRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 2);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 7);
 
 /**
  * @generated from message vrooli.web_console.v1.capabilities.GetResponse
@@ -219,7 +422,7 @@ export type GetResponse = Message<"vrooli.web_console.v1.capabilities.GetRespons
  * Use `create(GetResponseSchema)` to create a new message.
  */
 export const GetResponseSchema: GenMessage<GetResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 3);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 8);
 
 /**
  * @generated from message vrooli.web_console.v1.capabilities.LivenessRequest
@@ -232,7 +435,7 @@ export type LivenessRequest = Message<"vrooli.web_console.v1.capabilities.Livene
  * Use `create(LivenessRequestSchema)` to create a new message.
  */
 export const LivenessRequestSchema: GenMessage<LivenessRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 4);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 9);
 
 /**
  * @generated from message vrooli.web_console.v1.capabilities.LivenessResponse
@@ -254,7 +457,7 @@ export type LivenessResponse = Message<"vrooli.web_console.v1.capabilities.Liven
  * Use `create(LivenessResponseSchema)` to create a new message.
  */
 export const LivenessResponseSchema: GenMessage<LivenessResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 5);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 10);
 
 /**
  * @generated from message vrooli.web_console.v1.capabilities.RunActionRequest
@@ -281,7 +484,7 @@ export type RunActionRequest = Message<"vrooli.web_console.v1.capabilities.RunAc
  * Use `create(RunActionRequestSchema)` to create a new message.
  */
 export const RunActionRequestSchema: GenMessage<RunActionRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 6);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 11);
 
 /**
  * @generated from message vrooli.web_console.v1.capabilities.RunActionResponse
@@ -335,7 +538,7 @@ export type RunActionResponse = Message<"vrooli.web_console.v1.capabilities.RunA
  * Use `create(RunActionResponseSchema)` to create a new message.
  */
 export const RunActionResponseSchema: GenMessage<RunActionResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_capabilities_capabilities, 7);
+  messageDesc(file_web_console_v1_capabilities_capabilities, 12);
 
 /**
  * @generated from service vrooli.web_console.v1.capabilities.CapabilitiesService
@@ -364,6 +567,26 @@ export const CapabilitiesService: GenService<{
     methodKind: "unary";
     input: typeof RunActionRequestSchema;
     output: typeof RunActionResponseSchema;
+  },
+  /**
+   * A bounded target-specific upstream observation; it never installs.
+   *
+   * @generated from rpc vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate
+   */
+  agentUpdate: {
+    methodKind: "unary";
+    input: typeof AgentUpdateRequestSchema;
+    output: typeof AgentUpdateResponseSchema;
+  },
+  /**
+   * Live provider readings, associated with a target and explicitly graded.
+   *
+   * @generated from rpc vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage
+   */
+  agentUsage: {
+    methodKind: "unary";
+    input: typeof AgentUsageRequestSchema;
+    output: typeof AgentUsageResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_capabilities_capabilities, 0);

@@ -126,7 +126,14 @@
           "architecture": {
             "primitive": "proto_list"
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["agent-manager investigation get"]}}
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "replaces": [
+                "agent-manager investigation get"
+              ]
+            }
+          }
         },
         {
           "name": "cancel",
@@ -294,7 +301,14 @@
           "architecture": {
             "primitive": "proto_list"
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["agent-manager watch get"]}}
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "replaces": [
+                "agent-manager watch get"
+              ]
+            }
+          }
         },
         {
           "name": "cancel",
@@ -1403,20 +1417,6 @@
         {
           "name": "events",
           "description": "Typed operational event queries",
-          "binding": {
-            "kind": "local"
-          },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": [
-              "network:internal"
-            ]
-          }
-        },
-        {
-          "name": "findings",
-          "description": "Recurring investigation findings",
           "binding": {
             "kind": "local"
           },
@@ -3005,16 +3005,19 @@
             {
               "name": "children",
               "bool": true,
-              "description": "Include the run's direct child runs in the token spend"
+              "description": "Include the run's direct child runs in the token spend",
+              "local_only": true
             },
             {
               "name": "weights",
-              "description": "Tier weights by model-name substring for the token spend, e.g. sol=10,luna=1"
+              "description": "Tier weights by model-name substring for the token spend, e.g. sol=10,luna=1",
+              "local_only": true
             },
             {
               "name": "facts",
               "bool": true,
-              "description": "Print the run's redacted normalized invocation facts instead of the report"
+              "description": "Print the run's redacted normalized invocation facts instead of the report",
+              "local_only": true
             }
           ]
         },
@@ -3376,7 +3379,16 @@
           "architecture": {
             "primitive": "operational"
           },
-          "semantics": {"kind": "query", "blocks": {"flag": "--follow", "replaces": ["agent-manager run get", "agent-manager run events"]}}
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "flag": "--follow",
+              "replaces": [
+                "agent-manager run get",
+                "agent-manager run events"
+              ]
+            }
+          }
         },
         {
           "name": "apply-investigation",
@@ -3727,6 +3739,34 @@
               "bool": true,
               "description": "Print the typed or command result as JSON",
               "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "import-identity",
+          "description": "Resolve imported harness session provenance",
+          "flags": [
+            {
+              "name": "harness",
+              "local_only": true,
+              "required": true,
+              "description": "Harness kind"
+            },
+            {
+              "name": "session-id",
+              "local_only": true,
+              "required": true,
+              "description": "Harness session id"
             }
           ],
           "binding": {
@@ -4928,6 +4968,66 @@
           }
         },
         {
+          "name": "parity",
+          "description": "Does every session get the same measures, however it started? Coverage by start path and harness",
+          "flags": [
+            {
+              "name": "window",
+              "local_only": true,
+              "description": "last_7d (default), last_30d, this_week, this_month, last_month, this_quarter"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageParity"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "outcomes",
+          "description": "What does an accepted outcome cost? Estimates by model, role or mode, with ranges",
+          "flags": [
+            {
+              "name": "window",
+              "local_only": true,
+              "description": "last_7d (default), last_30d, this_week, this_month, last_month, this_quarter"
+            },
+            {
+              "name": "by",
+              "description": "model (default), role or mode"
+            },
+            {
+              "name": "baseline",
+              "description": "Row key to compare with; default the priciest row with enough data"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "UsageOutcomes"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "reindex",
           "description": "Rebuild durable invocation evidence from retained events for one run or a filtered corpus (refresh by default; --full rebuilds)",
           "positionals": [
@@ -4973,6 +5073,214 @@
           },
           "governance": {
             "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "mode",
+          "description": "Lower what new work runs on so quota lasts: `mode start|status|end|extend|rebase` (all but status need verified operator authority)",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "start, status, end, extend or rebase"
+            },
+            {
+              "name": "id",
+              "required": false,
+              "description": "Mode id for end, extend or rebase"
+            }
+          ],
+          "flags": [
+            {
+              "name": "preset",
+              "description": "start: one-tier-down maps each model to the next tier the resource declares"
+            },
+            {
+              "name": "model",
+              "description": "start: send every mapped model to this one (needs --runner)"
+            },
+            {
+              "name": "effort",
+              "description": "start: lower reasoning effort (low, medium, high, xhigh, max)"
+            },
+            {
+              "name": "context-limit",
+              "description": "start: context limit in tokens (shim launches only; Claude minimum 100000)"
+            },
+            {
+              "name": "runner",
+              "description": "start: claude or codex; empty covers both"
+            },
+            {
+              "name": "role",
+              "description": "start: role the mode applies to"
+            },
+            {
+              "name": "profile",
+              "description": "start: profile key the mode applies to"
+            },
+            {
+              "name": "until",
+              "description": "start: 5h-reset, weekly-reset, off, an RFC 3339 time or a duration such as 72h; extend: weekly-reset, off or a duration such as 2h"
+            },
+            {
+              "name": "label",
+              "description": "start: operator label"
+            },
+            {
+              "name": "all",
+              "bool": true,
+              "description": "end: end every active mode"
+            },
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "rebase: switch the runs; without it only shows what would switch"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Accepted for symmetry; the local operator exchange is automatic outside an agent run"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "experiment",
+          "description": "Compare a lower model against a role's default at random: `experiment plan|start|status|end|propose` (start, end and propose need verified operator authority)",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "plan, start, status, end or propose"
+            },
+            {
+              "name": "id",
+              "required": false,
+              "description": "Comparison id for status, end and propose"
+            }
+          ],
+          "flags": [
+            {
+              "name": "runner",
+              "description": "plan, start: claude or codex"
+            },
+            {
+              "name": "role",
+              "description": "plan, start: the role to compare"
+            },
+            {
+              "name": "profile",
+              "description": "start: profile key to narrow to"
+            },
+            {
+              "name": "model",
+              "description": "start: challenger model (default: the resource's lower tier)"
+            },
+            {
+              "name": "until",
+              "description": "start: a duration such as 90d, off, or an RFC 3339 time"
+            },
+            {
+              "name": "label",
+              "description": "start: operator label"
+            },
+            {
+              "name": "split",
+              "description": "plan, start: challenger share, 1 to 99 (default 50)"
+            },
+            {
+              "name": "sessions",
+              "bool": true,
+              "description": "start: also opt operator sessions in as randomized day blocks"
+            },
+            {
+              "name": "block-days",
+              "description": "start: days per session block (default 1)"
+            },
+            {
+              "name": "confirm",
+              "bool": true,
+              "description": "start: start after reading the expected time to a verdict"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Accepted for symmetry; the local operator exchange is automatic outside an agent run"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "signals",
+          "description": "Operator-signal switch and stored labels: `signals status|off|on|purge` (off, on and purge need verified operator authority)",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "status, off, on or purge"
+            }
+          ],
+          "flags": [
+            {
+              "name": "yes",
+              "bool": true,
+              "description": "purge: confirm deleting every stored label"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "description": "Accepted for symmetry; the local operator exchange is automatic outside an agent run"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "opportunities",
+          "description": "What should become a program, CLI command, flag or smaller skill?",
+          "flags": [
+            {
+              "name": "since",
+              "local_only": true,
+              "description": "RFC3339 or YYYY-MM-DD"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
             "run_eligible": true,
             "permissions": [
               "network:internal"
@@ -5412,6 +5720,66 @@
       "service": "MeasuresService",
       "method": "TokenAttribution",
       "reason": "Served by `measures get` through the measure registry, not a per-measure command."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ListUsageModes",
+      "reason": "Read by `usage mode status`, which renders modes, burn since start and the reach table."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "StartUsageMode",
+      "reason": "Called by `usage mode start` with the local operator exchange; the API requires verified operator authority."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "EndUsageMode",
+      "reason": "Called by `usage mode end` with the local operator exchange; the API requires verified operator authority."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ExtendUsageMode",
+      "reason": "Called by `usage mode extend` with the local operator exchange; the API requires verified operator authority."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "RebaseUsageModeRuns",
+      "reason": "Called by `usage mode rebase` with the local operator exchange; the API requires verified operator authority. Dry run unless --confirm."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "UsageExperiment",
+      "reason": "Read by `usage experiment status`, which renders each comparison's arms, verdict and recommendation."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "PlanUsageExperiment",
+      "reason": "Called by `usage experiment plan` and before `usage experiment start`, which print the expected time to a verdict."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "StartUsageExperiment",
+      "reason": "Called by `usage experiment start --confirm` with the local operator exchange; the API requires verified operator authority."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ProposeRoleDefault",
+      "reason": "Called by `usage experiment propose` with the local operator exchange; the API requires verified operator authority and applies nothing."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "UsageSignalsStatus",
+      "reason": "Read by `usage signals status`."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "SetUsageSignals",
+      "reason": "Called by `usage signals off|on|purge` with the local operator exchange; the API requires verified operator authority."
+    },
+    {
+      "service": "MeasuresService",
+      "method": "ToolFriction",
+      "reason": "UI drill-down over every command path; operators read the classified owner-level problems through `usage friction` and the Stats page."
     }
   ],
   "measures": {

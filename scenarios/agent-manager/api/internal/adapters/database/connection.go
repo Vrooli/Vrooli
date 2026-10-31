@@ -449,6 +449,26 @@ var additiveColumnMigrations = []struct {
 	{"workflow_executions", workflowExecutionColumnMigrations},
 	{"workflow_node_attempts", workflowNodeAttemptColumnMigrations},
 	{"transcript_files", transcriptFileColumnMigrations},
+	{"run_ledger_facts", runLedgerArmColumnMigrations},
+	{"usage_mode_periods", usageModePeriodLearnColumnMigrations},
+}
+
+// runLedgerArmColumnMigrations record a run's place in a Learn comparison.
+var runLedgerArmColumnMigrations = []columnMigration{
+	{column: "canary_arm", ddl: "ALTER TABLE run_ledger_facts ADD COLUMN canary_arm TEXT NOT NULL DEFAULT ''"},
+	{column: "arm", ddl: "ALTER TABLE run_ledger_facts ADD COLUMN arm TEXT NOT NULL DEFAULT ''"},
+	{column: "arm_mode", ddl: "ALTER TABLE run_ledger_facts ADD COLUMN arm_mode TEXT NOT NULL DEFAULT ''"},
+	{column: "arm_basis", ddl: "ALTER TABLE run_ledger_facts ADD COLUMN arm_basis TEXT NOT NULL DEFAULT ''"},
+	{column: "arm_exception", ddl: "ALTER TABLE run_ledger_facts ADD COLUMN arm_exception TEXT NOT NULL DEFAULT ''"},
+}
+
+// usageModePeriodLearnColumnMigrations record how a learn period randomizes.
+var usageModePeriodLearnColumnMigrations = []columnMigration{
+	{column: "kind", ddl: "ALTER TABLE usage_mode_periods ADD COLUMN kind TEXT NOT NULL DEFAULT ''"},
+	{column: "label", ddl: "ALTER TABLE usage_mode_periods ADD COLUMN label TEXT NOT NULL DEFAULT ''"},
+	{column: "split", ddl: "ALTER TABLE usage_mode_periods ADD COLUMN split REAL NOT NULL DEFAULT 0"},
+	{column: "session_opt_in", ddl: "ALTER TABLE usage_mode_periods ADD COLUMN session_opt_in INTEGER NOT NULL DEFAULT 0"},
+	{column: "block_days", ddl: "ALTER TABLE usage_mode_periods ADD COLUMN block_days INTEGER NOT NULL DEFAULT 0"},
 }
 
 var agentProfileColumnMigrations = []columnMigration{

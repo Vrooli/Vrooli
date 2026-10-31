@@ -718,12 +718,38 @@ func TestCheckpointSaveFailureCannotMarkImportedRunComplete(t *testing.T) {
 	if after := r.row(path); after.Status != transcriptindex.StatusPending || !strings.Contains(after.Error, "outcome uncertain") {
 		t.Fatalf("missing durable capture intent: %+v", after)
 	}
+	// A restart reads again from the cursor: the failed commit left it in place.
+	store.fail = false
 	index = orchestration.NewTranscriptIndex(r.svc, store, transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: r.home}, RecallMaxBytes: r.recall, Now: func() time.Time { return r.now }})
-	if summary, err := index.RunOnce(context.Background()); err != nil || len(summary.Failures) == 0 {
-		t.Fatalf("uncertain checkpoint was retried: %+v %v", summary, err)
+	if summary, err := index.RunOnce(context.Background()); err != nil || len(summary.Failures) != 0 {
+		t.Fatalf("interrupted capture did not retry: %+v %v", summary, err)
 	}
-	if after := r.row(path); after.Status != transcriptindex.StatusUnreadable || after.Offset != before.Offset {
-		t.Fatalf("uncertain checkpoint not retained for reconciliation: %+v", after)
+	if after := r.row(path); after.Status != transcriptindex.StatusIndexed || after.Offset <= before.Offset || after.UsageReports != before.UsageReports+1 {
+		t.Fatalf("interrupted capture was not read exactly once: before=%+v after=%+v", before, after)
+	}
+}
+
+// An API restart mid-capture left files unreadable until an operator acted,
+// including the live sessions whose usage then stopped. Rows left in that state
+// before the fix retry once, and their usage is not double counted.
+func TestLegacyInterruptedCaptureRowRetriesOnce(t *testing.T) {
+	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
+	path := codexPath(r, "rollout-2026-10-28T10-00-00-"+parentID+".jsonl")
+	write(t, path, sessionMeta(parentID), turnContext(), tokenCount(1000, 0, 100, 1000, 0, 100, 1))
+	r.tick()
+	row := r.row(path)
+	reports := row.UsageReports
+	row.Status = transcriptindex.StatusUnreadable
+	row.Error = "event recording outcome uncertain; cursor preserved: source changed or cannot be verified; manual reconciliation required"
+	if err := r.repos.TranscriptIndex.SaveTranscriptFile(context.Background(), row, nil); err != nil {
+		t.Fatal(err)
+	}
+	appendLines(t, path, tokenCount(3000, 0, 300, 2000, 0, 200, 3))
+	r.now = r.now.Add(time.Hour)
+	r.tick()
+	after := r.row(path)
+	if after.Status != transcriptindex.StatusIndexed || after.Error != "" || after.UsageReports != reports+1 {
+		t.Fatalf("legacy interrupted capture: %+v", after)
 	}
 }
 
@@ -1077,7 +1103,7 @@ func TestUncertainReplayOfChangedSourceIsVisibleAsUnreadable(t *testing.T) {
 		t.Fatal("changed source was replayed")
 	}
 	row := r.row(path)
-	if row.Offset != before.Offset || row.Status != transcriptindex.StatusUnreadable || !strings.Contains(row.Error, "source changed") {
+	if row.Offset != before.Offset || row.Status != transcriptindex.StatusUnreadable || !strings.Contains(row.Error, "no longer matches") {
 		t.Fatalf("missing unresolved source evidence: %+v", row)
 	}
 	appendLines(t, path, imageToolOutput())
@@ -1093,7 +1119,7 @@ func TestUncertainReplayOfChangedSourceIsVisibleAsUnreadable(t *testing.T) {
 	}
 	for _, root := range coverage.Roots {
 		for _, issue := range root.Issues {
-			if issue.Path == path && strings.Contains(issue.Reason, "source changed") {
+			if issue.Path == path && strings.Contains(issue.Reason, "no longer matches") {
 				return
 			}
 		}
@@ -1218,7 +1244,7 @@ func TestIndexerRetainsCursorWhenEventRecordingFails(t *testing.T) {
 	}
 }
 
-func TestInitialRecordingFailureRequiresReconciliation(t *testing.T) {
+func TestInitialRecordingFailureRetriesFromTheCursor(t *testing.T) {
 	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
 	host := &failingRecordHost{events: map[uuid.UUID]string{}, fail: true}
 	index := transcriptindex.New(r.repos.TranscriptIndex, host, transcriptindex.Config{
@@ -1234,11 +1260,11 @@ func TestInitialRecordingFailureRequiresReconciliation(t *testing.T) {
 		t.Fatalf("initial cursor: %+v", row)
 	}
 	host.fail = false
-	if summary, err := index.RunOnce(context.Background()); err != nil || len(summary.Failures) == 0 {
-		t.Fatalf("initial uncertainty not reported: %+v %v", summary, err)
+	if summary, err := index.RunOnce(context.Background()); err != nil || len(summary.Failures) != 0 {
+		t.Fatalf("initial failure did not retry: %+v %v", summary, err)
 	}
-	if row := r.row(path); row.Offset != 0 || row.Status != transcriptindex.StatusUnreadable {
-		t.Fatalf("initial uncertainty replayed: %+v", row)
+	if row := r.row(path); row.Offset == 0 || row.Status != transcriptindex.StatusIndexed || row.UsageReports != 1 {
+		t.Fatalf("initial retry: %+v", row)
 	}
 }
 
@@ -1272,7 +1298,7 @@ func TestParseFailureAfterEventFlushRequiresReconciliation(t *testing.T) {
 	}
 }
 
-func TestUncertainReplayBeyondTickBudgetStaysVisible(t *testing.T) {
+func TestInterruptedCaptureBeyondTickBudgetStillReads(t *testing.T) {
 	r := newRig(t, transcriptindex.DefaultRecallMaxBytes)
 	host := &failingRecordHost{events: map[uuid.UUID]string{}, fail: true}
 	cfg := transcriptindex.Config{Roots: transcriptindex.RootConfig{Home: r.home}, RecallMaxBytes: r.recall, Now: func() time.Time { return r.now }}
@@ -1285,16 +1311,13 @@ func TestUncertainReplayBeyondTickBudgetStaysVisible(t *testing.T) {
 	host.fail = false
 	cfg.TickBytes = 32
 	index = transcriptindex.New(r.repos.TranscriptIndex, host, cfg)
-	if summary, _ := index.RunOnce(context.Background()); len(summary.Failures) == 0 {
-		t.Fatal("oversize replay was not reported")
+	for i := 0; i < 8; i++ {
+		if summary, err := index.RunOnce(context.Background()); err != nil || len(summary.Failures) != 0 {
+			t.Fatalf("retry tick %d: %+v %v", i, summary, err)
+		}
 	}
-	row := r.row(path)
-	if row.Offset != 0 || row.Status != transcriptindex.StatusUnreadable || !strings.Contains(row.Error, "reconciliation required") {
-		t.Fatalf("oversize replay: %+v", row)
-	}
-	appendLines(t, path, imageToolOutput())
-	if summary, err := index.RunOnce(context.Background()); err != nil || summary.Read != 0 {
-		t.Fatalf("unresolved replay retried: %+v %v", summary, err)
+	if row := r.row(path); row.Status != transcriptindex.StatusIndexed || row.UsageReports != 1 {
+		t.Fatalf("budgeted retry: %+v", row)
 	}
 }
 

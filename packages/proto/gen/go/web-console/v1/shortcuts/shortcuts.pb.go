@@ -573,6 +573,288 @@ func (*DeleteProfileResponse) Descriptor() ([]byte, []int) {
 	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{9}
 }
 
+// Agent preferences are stored separately from shortcut commands so an older
+// profile editor cannot erase them. An empty profile_id identifies the
+// built-in fallback when no profile exists. New agents default to visible.
+type AgentPreferences struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId       string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	OrderedAgentIds []string               `protobuf:"bytes,2,rep,name=ordered_agent_ids,json=orderedAgentIds,proto3" json:"ordered_agent_ids,omitempty"`
+	HiddenAgentIds  []string               `protobuf:"bytes,3,rep,name=hidden_agent_ids,json=hiddenAgentIds,proto3" json:"hidden_agent_ids,omitempty"`
+	Revision        uint64                 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Opaque identity of this profile instance; empty for the built-in fallback.
+	ProfileInstance string `protobuf:"bytes,5,opt,name=profile_instance,json=profileInstance,proto3" json:"profile_instance,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *AgentPreferences) Reset() {
+	*x = AgentPreferences{}
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentPreferences) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentPreferences) ProtoMessage() {}
+
+func (x *AgentPreferences) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentPreferences.ProtoReflect.Descriptor instead.
+func (*AgentPreferences) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AgentPreferences) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *AgentPreferences) GetOrderedAgentIds() []string {
+	if x != nil {
+		return x.OrderedAgentIds
+	}
+	return nil
+}
+
+func (x *AgentPreferences) GetHiddenAgentIds() []string {
+	if x != nil {
+		return x.HiddenAgentIds
+	}
+	return nil
+}
+
+func (x *AgentPreferences) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *AgentPreferences) GetProfileInstance() string {
+	if x != nil {
+		return x.ProfileInstance
+	}
+	return ""
+}
+
+type GetAgentPreferencesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentPreferencesRequest) Reset() {
+	*x = GetAgentPreferencesRequest{}
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentPreferencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentPreferencesRequest) ProtoMessage() {}
+
+func (x *GetAgentPreferencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentPreferencesRequest.ProtoReflect.Descriptor instead.
+func (*GetAgentPreferencesRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{11}
+}
+
+type GetAgentPreferencesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preferences   *AgentPreferences      `protobuf:"bytes,1,opt,name=preferences,proto3" json:"preferences,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAgentPreferencesResponse) Reset() {
+	*x = GetAgentPreferencesResponse{}
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAgentPreferencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAgentPreferencesResponse) ProtoMessage() {}
+
+func (x *GetAgentPreferencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAgentPreferencesResponse.ProtoReflect.Descriptor instead.
+func (*GetAgentPreferencesResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetAgentPreferencesResponse) GetPreferences() *AgentPreferences {
+	if x != nil {
+		return x.Preferences
+	}
+	return nil
+}
+
+// The current effective profile and revision must still match the values read
+// by the caller. A conflict returns ABORTED; refresh and let the user retry.
+type UpdateAgentPreferencesRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId        string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	OrderedAgentIds  []string               `protobuf:"bytes,3,rep,name=ordered_agent_ids,json=orderedAgentIds,proto3" json:"ordered_agent_ids,omitempty"`
+	HiddenAgentIds   []string               `protobuf:"bytes,4,rep,name=hidden_agent_ids,json=hiddenAgentIds,proto3" json:"hidden_agent_ids,omitempty"`
+	ProfileInstance  string                 `protobuf:"bytes,5,opt,name=profile_instance,json=profileInstance,proto3" json:"profile_instance,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpdateAgentPreferencesRequest) Reset() {
+	*x = UpdateAgentPreferencesRequest{}
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAgentPreferencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAgentPreferencesRequest) ProtoMessage() {}
+
+func (x *UpdateAgentPreferencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAgentPreferencesRequest.ProtoReflect.Descriptor instead.
+func (*UpdateAgentPreferencesRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UpdateAgentPreferencesRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *UpdateAgentPreferencesRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *UpdateAgentPreferencesRequest) GetOrderedAgentIds() []string {
+	if x != nil {
+		return x.OrderedAgentIds
+	}
+	return nil
+}
+
+func (x *UpdateAgentPreferencesRequest) GetHiddenAgentIds() []string {
+	if x != nil {
+		return x.HiddenAgentIds
+	}
+	return nil
+}
+
+func (x *UpdateAgentPreferencesRequest) GetProfileInstance() string {
+	if x != nil {
+		return x.ProfileInstance
+	}
+	return ""
+}
+
+type UpdateAgentPreferencesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Preferences   *AgentPreferences      `protobuf:"bytes,1,opt,name=preferences,proto3" json:"preferences,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateAgentPreferencesResponse) Reset() {
+	*x = UpdateAgentPreferencesResponse{}
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateAgentPreferencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateAgentPreferencesResponse) ProtoMessage() {}
+
+func (x *UpdateAgentPreferencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_shortcuts_shortcuts_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateAgentPreferencesResponse.ProtoReflect.Descriptor instead.
+func (*UpdateAgentPreferencesResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *UpdateAgentPreferencesResponse) GetPreferences() *AgentPreferences {
+	if x != nil {
+		return x.Preferences
+	}
+	return nil
+}
+
 var File_web_console_v1_shortcuts_shortcuts_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_shortcuts_shortcuts_proto_rawDesc = "" +
@@ -611,12 +893,33 @@ const file_web_console_v1_shortcuts_shortcuts_proto_rawDesc = "" +
 	"\aprofile\x18\x01 \x01(\v2(.vrooli.web_console.v1.shortcuts.ProfileR\aprofile\"&\n" +
 	"\x14DeleteProfileRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
-	"\x15DeleteProfileResponse2\x8c\x04\n" +
+	"\x15DeleteProfileResponse\"\xce\x01\n" +
+	"\x10AgentPreferences\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12*\n" +
+	"\x11ordered_agent_ids\x18\x02 \x03(\tR\x0forderedAgentIds\x12(\n" +
+	"\x10hidden_agent_ids\x18\x03 \x03(\tR\x0ehiddenAgentIds\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\x04R\brevision\x12)\n" +
+	"\x10profile_instance\x18\x05 \x01(\tR\x0fprofileInstance\"\x1c\n" +
+	"\x1aGetAgentPreferencesRequest\"r\n" +
+	"\x1bGetAgentPreferencesResponse\x12S\n" +
+	"\vpreferences\x18\x01 \x01(\v21.vrooli.web_console.v1.shortcuts.AgentPreferencesR\vpreferences\"\xec\x01\n" +
+	"\x1dUpdateAgentPreferencesRequest\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12*\n" +
+	"\x11ordered_agent_ids\x18\x03 \x03(\tR\x0forderedAgentIds\x12(\n" +
+	"\x10hidden_agent_ids\x18\x04 \x03(\tR\x0ehiddenAgentIds\x12)\n" +
+	"\x10profile_instance\x18\x05 \x01(\tR\x0fprofileInstance\"u\n" +
+	"\x1eUpdateAgentPreferencesResponse\x12S\n" +
+	"\vpreferences\x18\x01 \x01(\v21.vrooli.web_console.v1.shortcuts.AgentPreferencesR\vpreferences2\xbb\x06\n" +
 	"\x10ShortcutsService\x12{\n" +
 	"\fGetEffective\x124.vrooli.web_console.v1.shortcuts.GetEffectiveRequest\x1a5.vrooli.web_console.v1.shortcuts.GetEffectiveResponse\x12{\n" +
 	"\fListProfiles\x124.vrooli.web_console.v1.shortcuts.ListProfilesRequest\x1a5.vrooli.web_console.v1.shortcuts.ListProfilesResponse\x12~\n" +
 	"\rUpsertProfile\x125.vrooli.web_console.v1.shortcuts.UpsertProfileRequest\x1a6.vrooli.web_console.v1.shortcuts.UpsertProfileResponse\x12~\n" +
-	"\rDeleteProfile\x125.vrooli.web_console.v1.shortcuts.DeleteProfileRequest\x1a6.vrooli.web_console.v1.shortcuts.DeleteProfileResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts;shortcuts_v1b\x06proto3"
+	"\rDeleteProfile\x125.vrooli.web_console.v1.shortcuts.DeleteProfileRequest\x1a6.vrooli.web_console.v1.shortcuts.DeleteProfileResponse\x12\x90\x01\n" +
+	"\x13GetAgentPreferences\x12;.vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest\x1a<.vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse\x12\x99\x01\n" +
+	"\x16UpdateAgentPreferences\x12>.vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest\x1a?.vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts;shortcuts_v1b\x06proto3"
 
 var (
 	file_web_console_v1_shortcuts_shortcuts_proto_rawDescOnce sync.Once
@@ -630,38 +933,49 @@ func file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescData
 }
 
-var file_web_console_v1_shortcuts_shortcuts_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_web_console_v1_shortcuts_shortcuts_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_web_console_v1_shortcuts_shortcuts_proto_goTypes = []any{
-	(*Shortcut)(nil),              // 0: vrooli.web_console.v1.shortcuts.Shortcut
-	(*Profile)(nil),               // 1: vrooli.web_console.v1.shortcuts.Profile
-	(*GetEffectiveRequest)(nil),   // 2: vrooli.web_console.v1.shortcuts.GetEffectiveRequest
-	(*GetEffectiveResponse)(nil),  // 3: vrooli.web_console.v1.shortcuts.GetEffectiveResponse
-	(*ListProfilesRequest)(nil),   // 4: vrooli.web_console.v1.shortcuts.ListProfilesRequest
-	(*ListProfilesResponse)(nil),  // 5: vrooli.web_console.v1.shortcuts.ListProfilesResponse
-	(*UpsertProfileRequest)(nil),  // 6: vrooli.web_console.v1.shortcuts.UpsertProfileRequest
-	(*UpsertProfileResponse)(nil), // 7: vrooli.web_console.v1.shortcuts.UpsertProfileResponse
-	(*DeleteProfileRequest)(nil),  // 8: vrooli.web_console.v1.shortcuts.DeleteProfileRequest
-	(*DeleteProfileResponse)(nil), // 9: vrooli.web_console.v1.shortcuts.DeleteProfileResponse
+	(*Shortcut)(nil),                       // 0: vrooli.web_console.v1.shortcuts.Shortcut
+	(*Profile)(nil),                        // 1: vrooli.web_console.v1.shortcuts.Profile
+	(*GetEffectiveRequest)(nil),            // 2: vrooli.web_console.v1.shortcuts.GetEffectiveRequest
+	(*GetEffectiveResponse)(nil),           // 3: vrooli.web_console.v1.shortcuts.GetEffectiveResponse
+	(*ListProfilesRequest)(nil),            // 4: vrooli.web_console.v1.shortcuts.ListProfilesRequest
+	(*ListProfilesResponse)(nil),           // 5: vrooli.web_console.v1.shortcuts.ListProfilesResponse
+	(*UpsertProfileRequest)(nil),           // 6: vrooli.web_console.v1.shortcuts.UpsertProfileRequest
+	(*UpsertProfileResponse)(nil),          // 7: vrooli.web_console.v1.shortcuts.UpsertProfileResponse
+	(*DeleteProfileRequest)(nil),           // 8: vrooli.web_console.v1.shortcuts.DeleteProfileRequest
+	(*DeleteProfileResponse)(nil),          // 9: vrooli.web_console.v1.shortcuts.DeleteProfileResponse
+	(*AgentPreferences)(nil),               // 10: vrooli.web_console.v1.shortcuts.AgentPreferences
+	(*GetAgentPreferencesRequest)(nil),     // 11: vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest
+	(*GetAgentPreferencesResponse)(nil),    // 12: vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse
+	(*UpdateAgentPreferencesRequest)(nil),  // 13: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest
+	(*UpdateAgentPreferencesResponse)(nil), // 14: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse
 }
 var file_web_console_v1_shortcuts_shortcuts_proto_depIdxs = []int32{
-	0, // 0: vrooli.web_console.v1.shortcuts.Profile.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
-	0, // 1: vrooli.web_console.v1.shortcuts.GetEffectiveResponse.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
-	1, // 2: vrooli.web_console.v1.shortcuts.ListProfilesResponse.profiles:type_name -> vrooli.web_console.v1.shortcuts.Profile
-	0, // 3: vrooli.web_console.v1.shortcuts.UpsertProfileRequest.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
-	1, // 4: vrooli.web_console.v1.shortcuts.UpsertProfileResponse.profile:type_name -> vrooli.web_console.v1.shortcuts.Profile
-	2, // 5: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:input_type -> vrooli.web_console.v1.shortcuts.GetEffectiveRequest
-	4, // 6: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:input_type -> vrooli.web_console.v1.shortcuts.ListProfilesRequest
-	6, // 7: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:input_type -> vrooli.web_console.v1.shortcuts.UpsertProfileRequest
-	8, // 8: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:input_type -> vrooli.web_console.v1.shortcuts.DeleteProfileRequest
-	3, // 9: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:output_type -> vrooli.web_console.v1.shortcuts.GetEffectiveResponse
-	5, // 10: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:output_type -> vrooli.web_console.v1.shortcuts.ListProfilesResponse
-	7, // 11: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:output_type -> vrooli.web_console.v1.shortcuts.UpsertProfileResponse
-	9, // 12: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:output_type -> vrooli.web_console.v1.shortcuts.DeleteProfileResponse
-	9, // [9:13] is the sub-list for method output_type
-	5, // [5:9] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0,  // 0: vrooli.web_console.v1.shortcuts.Profile.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
+	0,  // 1: vrooli.web_console.v1.shortcuts.GetEffectiveResponse.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
+	1,  // 2: vrooli.web_console.v1.shortcuts.ListProfilesResponse.profiles:type_name -> vrooli.web_console.v1.shortcuts.Profile
+	0,  // 3: vrooli.web_console.v1.shortcuts.UpsertProfileRequest.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
+	1,  // 4: vrooli.web_console.v1.shortcuts.UpsertProfileResponse.profile:type_name -> vrooli.web_console.v1.shortcuts.Profile
+	10, // 5: vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse.preferences:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences
+	10, // 6: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse.preferences:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences
+	2,  // 7: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:input_type -> vrooli.web_console.v1.shortcuts.GetEffectiveRequest
+	4,  // 8: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:input_type -> vrooli.web_console.v1.shortcuts.ListProfilesRequest
+	6,  // 9: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:input_type -> vrooli.web_console.v1.shortcuts.UpsertProfileRequest
+	8,  // 10: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:input_type -> vrooli.web_console.v1.shortcuts.DeleteProfileRequest
+	11, // 11: vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences:input_type -> vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest
+	13, // 12: vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences:input_type -> vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest
+	3,  // 13: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:output_type -> vrooli.web_console.v1.shortcuts.GetEffectiveResponse
+	5,  // 14: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:output_type -> vrooli.web_console.v1.shortcuts.ListProfilesResponse
+	7,  // 15: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:output_type -> vrooli.web_console.v1.shortcuts.UpsertProfileResponse
+	9,  // 16: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:output_type -> vrooli.web_console.v1.shortcuts.DeleteProfileResponse
+	12, // 17: vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences:output_type -> vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse
+	14, // 18: vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences:output_type -> vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse
+	13, // [13:19] is the sub-list for method output_type
+	7,  // [7:13] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_shortcuts_shortcuts_proto_init() }
@@ -675,7 +989,7 @@ func file_web_console_v1_shortcuts_shortcuts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_shortcuts_shortcuts_proto_rawDesc), len(file_web_console_v1_shortcuts_shortcuts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

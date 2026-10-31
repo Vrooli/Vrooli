@@ -30,6 +30,7 @@ import (
 	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/repository"
@@ -37,6 +38,7 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageforecast"
+	"agent-manager/internal/usagemodes"
 	"agent-manager/internal/wiring"
 
 	gorillaHandlers "github.com/gorilla/handlers"
@@ -101,7 +103,10 @@ type Server struct {
 	transcriptImporter       *orchestration.TranscriptIndex
 	claudeQuotaFeed          *pricing.ClaudeStatuslineReader
 	usageAlerts              *usageforecast.Alerter
+	usageModes               *usagemodes.Service
+	usageModeNotifier        *usagemodes.Notifier
 	interventions            *interventions.Job
+	outcomeLedger            *outcomeledger.Job
 	modelHealthProbe         *healthstore.Probe
 	modelPolicyDrift         *modelpolicydrift.Scheduler
 	rolePolicyState          *rolepolicy.State
@@ -273,7 +278,7 @@ func NewServer() (*Server, error) {
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
 		statsRepo: deps.StatsRepository, pricingService: deps.PricingService, pricingRepository: deps.PricingRepository,
-		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts, interventions: deps.Interventions,
+		wsHub: wsHub, reconciler: deps.Reconciler, awaitRegistry: deps.AwaitRegistry, workflowNudger: deps.WorkflowNudger, transcriptImporter: deps.TranscriptImporter, claudeQuotaFeed: deps.ClaudeQuotaFeed, usageAlerts: deps.UsageAlerts, usageModes: deps.UsageModes, usageModeNotifier: deps.UsageModeNotifier, interventions: deps.Interventions, outcomeLedger: deps.OutcomeLedger,
 		modelHealthProbe: deps.ModelHealthProbe, modelPolicyDrift: deps.ModelPolicyDrift, rolePolicyState: deps.RolePolicyState, permissionPolicyState: deps.PermissionPolicyState,
 		permissionPolicy: deps.PermissionPolicy, storage: uploadStorage,
 		healthStore: deps.HealthStore, eventRepo: deps.EventRepository, supervisionService: deps.SupervisionService, supervisionScheduler: deps.SupervisionScheduler, watchActionAuthorizer: deps.WatchActionAuthorizer, invocationReadModel: deps.InvocationReadModel,
@@ -469,6 +474,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		s.claudeQuotaFeed.Start(ctx)
 		s.usageAlerts.Start(ctx)
 		s.interventions.Start(ctx)
+		s.outcomeLedger.Start(ctx)
 		startQuotaCompaction(ctx, s.pricingRepository)
 		// Scans every run's events, so it runs here, never in schema init. An
 		// interrupted pass leaves no marker and repeats on the next start.
@@ -499,7 +505,7 @@ func (s *Server) setupRoutes() {
 		PricingService: s.pricingService, PricingRepository: s.pricingRepository, WebSocketHub: s.wsHub, RolePolicyState: s.rolePolicyState,
 		PermissionPolicyState: s.permissionPolicyState, PermissionPolicy: s.permissionPolicy, Storage: s.storage,
 		HealthStore: s.healthStore, EventRepository: s.eventRepo, SupervisionService: s.supervisionService, WatchActionAuthorizer: s.watchActionAuthorizer, InvocationReadModel: s.invocationReadModel,
-		ModelPolicyDrift: s.modelPolicyDrift, TranscriptImporter: s.transcriptImporter,
+		ModelPolicyDrift: s.modelPolicyDrift, UsageModes: s.usageModes, UsageModeNotifier: s.usageModeNotifier, TranscriptImporter: s.transcriptImporter,
 		WorkspaceSandbox:         s.workspaceSandbox,
 		ConversationSearch:       s.conversationSearch,
 		ConversationIndexer:      s.conversationIndexer,
@@ -511,6 +517,8 @@ func (s *Server) setupRoutes() {
 		LifecycleService:         s.lifecycleService,
 		DecisionEffects:          s.decisionEffects(),
 	})
+	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAsk).Methods(http.MethodPost)
+	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAskState).Methods(http.MethodGet)
 	s.registerEvidenceRetentionRoutes(s.router, s.evidenceRetention, s.evidenceApprovals)
 }
 

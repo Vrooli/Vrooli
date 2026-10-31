@@ -293,6 +293,7 @@ func (h *transcriptIndexHost) Record(ctx context.Context, runID string, events [
 		if redact {
 			event, _ = h.o.piiMasker.MaskEvent(ctx, event)
 		}
+		event.KeepStoredOnReplay = true
 		masked = append(masked, event)
 	}
 	if err := h.o.events.Append(ctx, id, masked...); err != nil {

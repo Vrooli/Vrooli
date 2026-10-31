@@ -12,12 +12,24 @@
       {"id": "openrouter", "label": "OpenRouter", "billing_mode": "metered", "credential_key": "OPENROUTER_API_KEY", "endpoint": "https://openrouter.ai/api/v1"}
     ]
   },
+  "usage_tiers": {
+    "model_map": {
+      "fable": "opus",
+      "opus": "sonnet",
+      "claude-fable-5-1": "claude-opus-5",
+      "claude-fable-5": "claude-opus-5",
+      "claude-opus-5": "claude-sonnet-5"
+    },
+    "session_model": "sonnet",
+    "exempt_roles": ["code.judgment", "code.review", "code.fallback", "judgment.supervision"]
+  },
   "model_aliases": {
     "sonnet": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "anthropic"},
     "claude-sonnet-5": {"canonical_model": "anthropic/claude-sonnet-5", "provider": "anthropic"},
     "opus": {"canonical_model": "anthropic/claude-opus-5", "provider": "anthropic"},
     "claude-opus-5": {"canonical_model": "anthropic/claude-opus-5", "provider": "anthropic"},
-    "haiku": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "anthropic"},
+    "haiku": {"canonical_model": "anthropic/claude-haiku-5-5", "provider": "anthropic"},
+    "claude-haiku-5-5": {"canonical_model": "anthropic/claude-haiku-5-5", "provider": "anthropic"},
     "claude-haiku-4-5-20251001": {"canonical_model": "anthropic/claude-haiku-4-5-20251001", "provider": "anthropic"},
     "fable": {"canonical_model": "anthropic/claude-fable-5-1", "provider": "anthropic"},
     "claude-fable-5-1": {"canonical_model": "anthropic/claude-fable-5-1", "provider": "anthropic"},
@@ -71,8 +83,8 @@
         {"model": "openrouter/deepseek/deepseek-v4.1-flash", "source": "openrouter", "effort": null}
       ],
       "model": "haiku",
-      "canonical_model": "anthropic/claude-haiku-4-5-20251001",
-      "fallbacks": ["claude-haiku-4-5-20251001"],
+      "canonical_model": "anthropic/claude-haiku-5-5",
+      "fallbacks": ["claude-haiku-5-5"],
       "description": "Cost-conscious Claude Code tasks with multi-source fallback chain.",
       "capabilities": ["code", "tools"]
     },

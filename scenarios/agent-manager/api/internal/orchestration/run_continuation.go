@@ -463,6 +463,9 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 	if err := validateExecutionModel(run.ResolvedConfig); err != nil {
 		return nil, err
 	}
+	// An operator's explicit usage-mode rebase takes effect here, before the
+	// runner argv is built from the retained config.
+	o.applyPendingModelRebase(ctx, run)
 
 	// Get the runner
 	if o.runners == nil {
@@ -678,6 +681,7 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		RepoRoot:      repoRoot,
 		ScopePath:     scopePath,
 		IdentityToken: identityToken,
+		Config:        run.ResolvedConfig,
 	})
 	if run.ResolvedConfig == nil {
 		return env, nil

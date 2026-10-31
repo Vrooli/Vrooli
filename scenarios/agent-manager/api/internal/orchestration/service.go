@@ -46,6 +46,8 @@ import (
 
 // Orchestrator coordinates agent execution using injected dependencies.
 type Orchestrator struct {
+	// usageModes lets run creation consult the operator usage mode file.
+	usageModes            bool
 	authorizations        domain.AuthorizationRepository
 	standingGrants        domain.StandingGrantRepository
 	pendingAuthorizations domain.PendingAuthorizationRepository

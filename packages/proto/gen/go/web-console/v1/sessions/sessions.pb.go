@@ -1290,8 +1290,11 @@ type CreateRequest struct {
 	RequestedSessionId   string `protobuf:"bytes,18,opt,name=requested_session_id,json=requestedSessionId,proto3" json:"requested_session_id,omitempty"` // optional preallocated UUID; replay requires identical request
 	// Sensitive Agent Manager child identity credential. Accepted only on the verified local reserved-session path; never returned or persisted in plaintext.
 	AgentRunIdentityToken string `protobuf:"bytes,19,opt,name=agent_run_identity_token,json=agentRunIdentityToken,proto3" json:"agent_run_identity_token,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// LPBS business-account audience selected for account-bound paid inference.
+	// It is server-validated and persisted as session attribution; it is not a credential.
+	BusinessAccountId string `protobuf:"bytes,20,opt,name=business_account_id,json=businessAccountId,proto3" json:"business_account_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateRequest) Reset() {
@@ -1453,6 +1456,13 @@ func (x *CreateRequest) GetRequestedSessionId() string {
 func (x *CreateRequest) GetAgentRunIdentityToken() string {
 	if x != nil {
 		return x.AgentRunIdentityToken
+	}
+	return ""
+}
+
+func (x *CreateRequest) GetBusinessAccountId() string {
+	if x != nil {
+		return x.BusinessAccountId
 	}
 	return ""
 }
@@ -3925,7 +3935,7 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x10provider_version\x18\x17 \x01(\tR\x0fproviderVersion\x12(\n" +
 	"\x10native_thread_id\x18\x18 \x01(\tR\x0enativeThreadId\x121\n" +
 	"\x15last_verified_turn_id\x18\x19 \x01(\tR\x12lastVerifiedTurnId\x12;\n" +
-	"\x1aforked_from_native_session\x18\x1a \x01(\tR\x17forkedFromNativeSession\"\xf6\x05\n" +
+	"\x1aforked_from_native_session\x18\x1a \x01(\tR\x17forkedFromNativeSession\"\xa6\x06\n" +
 	"\rCreateRequest\x12\x14\n" +
 	"\x05shell\x18\x01 \x01(\tR\x05shell\x12\x12\n" +
 	"\x04cols\x18\x02 \x01(\x05R\x04cols\x12\x12\n" +
@@ -3950,7 +3960,8 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"launchMode\x124\n" +
 	"\x16launch_descriptor_json\x18\x11 \x01(\tR\x14launchDescriptorJson\x120\n" +
 	"\x14requested_session_id\x18\x12 \x01(\tR\x12requestedSessionId\x127\n" +
-	"\x18agent_run_identity_token\x18\x13 \x01(\tR\x15agentRunIdentityToken\"S\n" +
+	"\x18agent_run_identity_token\x18\x13 \x01(\tR\x15agentRunIdentityToken\x12.\n" +
+	"\x13business_account_id\x18\x14 \x01(\tR\x11businessAccountId\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
 	"\vListRequest\"\x96\x02\n" +

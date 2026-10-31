@@ -9,10 +9,10 @@ import { create } from "@bufbuild/protobuf";
 import { UsageWindowForecastSchema } from "@vrooli/proto-types/agent-manager/v1/measures/measures_pb";
 import { UsagePage } from "./UsagePage.js";
 import { renderWithProviders } from "../../test-utils/index.js";
-import { BURNER_RUN_ID, CLAUDE_SCOPE, CODEX_SCOPE, FRICTION_FINGERPRINT, makeAdmittedInterventions, makeDetailsMeasures, makePooledInterventions, makeUsageBurners, makeUsageCoverage, makeUsageForecast, makeUsageFriction, makeUsageRecommendations, USAGE_NOW } from "../../test-utils/fixtures/usage.js";
+import { BURNER_RUN_ID, CLAUDE_SCOPE, CODEX_SCOPE, FRICTION_FINGERPRINT, makeAdmittedInterventions, makeDetailsMeasures, makePooledInterventions, makeUsageBurners, makeUsageCoverage, makeUsageForecast, makeUsageFriction, makeUsageModes, makeUsageRecommendations, USAGE_NOW } from "../../test-utils/fixtures/usage.js";
 
 const measures = vi.hoisted(() => ({
-  usageForecast: vi.fn(), usageBurners: vi.fn(), usageRecommendations: vi.fn(), usageCoverage: vi.fn(), usageFriction: vi.fn(),
+  usageForecast: vi.fn(), usageBurners: vi.fn(), usageRecommendations: vi.fn(), usageCoverage: vi.fn(), usageFriction: vi.fn(), listUsageModes: vi.fn(), startUsageMode: vi.fn(), endUsageMode: vi.fn(),
   runSuccessRate: vi.fn(), runCost: vi.fn(), runCycleTime: vi.fn(), runStatusDistribution: vi.fn(), modelBreakdown: vi.fn(), profileBreakdown: vi.fn(),
 }));
 vi.mock("./measuresClient.js", () => ({ measuresClient: measures }));
@@ -24,6 +24,7 @@ function serveFixtures() {
   measures.usageRecommendations.mockResolvedValue(makeUsageRecommendations());
   measures.usageCoverage.mockResolvedValue(makeUsageCoverage());
   measures.usageFriction.mockResolvedValue(makeUsageFriction());
+  measures.listUsageModes.mockResolvedValue(makeUsageModes(false));
   const details = makeDetailsMeasures();
   for (const [name, answer] of Object.entries(details)) measures[name as keyof typeof details].mockResolvedValue(answer);
 }

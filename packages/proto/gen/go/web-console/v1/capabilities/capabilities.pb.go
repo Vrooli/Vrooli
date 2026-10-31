@@ -21,6 +21,407 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type AgentUsageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetId      string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	AgentId       string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUsageRequest) Reset() {
+	*x = AgentUsageRequest{}
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUsageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUsageRequest) ProtoMessage() {}
+
+func (x *AgentUsageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUsageRequest.ProtoReflect.Descriptor instead.
+func (*AgentUsageRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *AgentUsageRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AgentUsageRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+type AgentUsageWindow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Pool          string                 `protobuf:"bytes,1,opt,name=pool,proto3" json:"pool,omitempty"`
+	WindowMinutes int64                  `protobuf:"varint,2,opt,name=window_minutes,json=windowMinutes,proto3" json:"window_minutes,omitempty"`
+	UsedPercent   float64                `protobuf:"fixed64,3,opt,name=used_percent,json=usedPercent,proto3" json:"used_percent,omitempty"`
+	ResetsAt      string                 `protobuf:"bytes,4,opt,name=resets_at,json=resetsAt,proto3" json:"resets_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUsageWindow) Reset() {
+	*x = AgentUsageWindow{}
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUsageWindow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUsageWindow) ProtoMessage() {}
+
+func (x *AgentUsageWindow) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUsageWindow.ProtoReflect.Descriptor instead.
+func (*AgentUsageWindow) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *AgentUsageWindow) GetPool() string {
+	if x != nil {
+		return x.Pool
+	}
+	return ""
+}
+
+func (x *AgentUsageWindow) GetWindowMinutes() int64 {
+	if x != nil {
+		return x.WindowMinutes
+	}
+	return 0
+}
+
+func (x *AgentUsageWindow) GetUsedPercent() float64 {
+	if x != nil {
+		return x.UsedPercent
+	}
+	return 0
+}
+
+func (x *AgentUsageWindow) GetResetsAt() string {
+	if x != nil {
+		return x.ResetsAt
+	}
+	return ""
+}
+
+type AgentUsageResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	TargetId string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	AgentId  string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	// verified, likely, or unavailable; likely does not prove the launch account.
+	Match         string              `protobuf:"bytes,3,opt,name=match,proto3" json:"match,omitempty"`
+	Reason        string              `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	Source        string              `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	ObservedAt    string              `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	Windows       []*AgentUsageWindow `protobuf:"bytes,7,rep,name=windows,proto3" json:"windows,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUsageResponse) Reset() {
+	*x = AgentUsageResponse{}
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUsageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUsageResponse) ProtoMessage() {}
+
+func (x *AgentUsageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUsageResponse.ProtoReflect.Descriptor instead.
+func (*AgentUsageResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AgentUsageResponse) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AgentUsageResponse) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *AgentUsageResponse) GetMatch() string {
+	if x != nil {
+		return x.Match
+	}
+	return ""
+}
+
+func (x *AgentUsageResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *AgentUsageResponse) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *AgentUsageResponse) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *AgentUsageResponse) GetWindows() []*AgentUsageWindow {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+type AgentUpdateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TargetId      string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	AgentId       string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUpdateRequest) Reset() {
+	*x = AgentUpdateRequest{}
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateRequest) ProtoMessage() {}
+
+func (x *AgentUpdateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateRequest.ProtoReflect.Descriptor instead.
+func (*AgentUpdateRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AgentUpdateRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AgentUpdateRequest) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+type AgentUpdateResponse struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	TargetId  string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	AgentId   string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Resource  string                 `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`
+	Installed string                 `protobuf:"bytes,4,opt,name=installed,proto3" json:"installed,omitempty"`
+	Pinned    string                 `protobuf:"bytes,5,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	Latest    string                 `protobuf:"bytes,6,opt,name=latest,proto3" json:"latest,omitempty"`
+	// up-to-date, behind, ahead or unknown. Latest is upstream and may not be
+	// the version the governed installer installs.
+	Status     string `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	CheckedAt  string `protobuf:"bytes,8,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	SourceKind string `protobuf:"bytes,9,opt,name=source_kind,json=sourceKind,proto3" json:"source_kind,omitempty"`
+	SourceId   string `protobuf:"bytes,10,opt,name=source_id,json=sourceId,proto3" json:"source_id,omitempty"`
+	// The resource check matched a fresh capability probe on the target. This
+	// does not prove that an arbitrary custom launch command uses that binary.
+	ProbeVerified bool   `protobuf:"varint,11,opt,name=probe_verified,json=probeVerified,proto3" json:"probe_verified,omitempty"`
+	Note          string `protobuf:"bytes,12,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentUpdateResponse) Reset() {
+	*x = AgentUpdateResponse{}
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentUpdateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentUpdateResponse) ProtoMessage() {}
+
+func (x *AgentUpdateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentUpdateResponse.ProtoReflect.Descriptor instead.
+func (*AgentUpdateResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AgentUpdateResponse) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetInstalled() string {
+	if x != nil {
+		return x.Installed
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetPinned() string {
+	if x != nil {
+		return x.Pinned
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetLatest() string {
+	if x != nil {
+		return x.Latest
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetCheckedAt() string {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetSourceKind() string {
+	if x != nil {
+		return x.SourceKind
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetSourceId() string {
+	if x != nil {
+		return x.SourceId
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetProbeVerified() bool {
+	if x != nil {
+		return x.ProbeVerified
+	}
+	return false
+}
+
+func (x *AgentUpdateResponse) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
 // CapabilityState is the runtime view of a single capability. Mirrors
 // the Go CapabilityState struct field-for-field.
 type CapabilityState struct {
@@ -57,7 +458,7 @@ type CapabilityState struct {
 
 func (x *CapabilityState) Reset() {
 	*x = CapabilityState{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[0]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -69,7 +470,7 @@ func (x *CapabilityState) String() string {
 func (*CapabilityState) ProtoMessage() {}
 
 func (x *CapabilityState) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[0]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -82,7 +483,7 @@ func (x *CapabilityState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityState.ProtoReflect.Descriptor instead.
 func (*CapabilityState) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{0}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CapabilityState) GetId() string {
@@ -228,7 +629,7 @@ type BackendOption struct {
 
 func (x *BackendOption) Reset() {
 	*x = BackendOption{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[1]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -240,7 +641,7 @@ func (x *BackendOption) String() string {
 func (*BackendOption) ProtoMessage() {}
 
 func (x *BackendOption) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[1]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -253,7 +654,7 @@ func (x *BackendOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BackendOption.ProtoReflect.Descriptor instead.
 func (*BackendOption) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{1}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *BackendOption) GetId() string {
@@ -306,7 +707,7 @@ type GetRequest struct {
 
 func (x *GetRequest) Reset() {
 	*x = GetRequest{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[2]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -318,7 +719,7 @@ func (x *GetRequest) String() string {
 func (*GetRequest) ProtoMessage() {}
 
 func (x *GetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[2]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -331,7 +732,7 @@ func (x *GetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRequest.ProtoReflect.Descriptor instead.
 func (*GetRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{2}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{7}
 }
 
 type GetResponse struct {
@@ -346,7 +747,7 @@ type GetResponse struct {
 
 func (x *GetResponse) Reset() {
 	*x = GetResponse{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[3]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -358,7 +759,7 @@ func (x *GetResponse) String() string {
 func (*GetResponse) ProtoMessage() {}
 
 func (x *GetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[3]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -371,7 +772,7 @@ func (x *GetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetResponse.ProtoReflect.Descriptor instead.
 func (*GetResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{3}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetResponse) GetCapabilities() []*CapabilityState {
@@ -410,7 +811,7 @@ type LivenessRequest struct {
 
 func (x *LivenessRequest) Reset() {
 	*x = LivenessRequest{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[4]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -422,7 +823,7 @@ func (x *LivenessRequest) String() string {
 func (*LivenessRequest) ProtoMessage() {}
 
 func (x *LivenessRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[4]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -435,7 +836,7 @@ func (x *LivenessRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LivenessRequest.ProtoReflect.Descriptor instead.
 func (*LivenessRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{4}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{9}
 }
 
 type LivenessResponse struct {
@@ -448,7 +849,7 @@ type LivenessResponse struct {
 
 func (x *LivenessResponse) Reset() {
 	*x = LivenessResponse{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[5]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -460,7 +861,7 @@ func (x *LivenessResponse) String() string {
 func (*LivenessResponse) ProtoMessage() {}
 
 func (x *LivenessResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[5]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,7 +874,7 @@ func (x *LivenessResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LivenessResponse.ProtoReflect.Descriptor instead.
 func (*LivenessResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{5}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LivenessResponse) GetCapabilities() []*CapabilityState {
@@ -501,7 +902,7 @@ type RunActionRequest struct {
 
 func (x *RunActionRequest) Reset() {
 	*x = RunActionRequest{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[6]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +914,7 @@ func (x *RunActionRequest) String() string {
 func (*RunActionRequest) ProtoMessage() {}
 
 func (x *RunActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[6]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +927,7 @@ func (x *RunActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunActionRequest.ProtoReflect.Descriptor instead.
 func (*RunActionRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{6}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RunActionRequest) GetCapabilityId() string {
@@ -567,7 +968,7 @@ type RunActionResponse struct {
 
 func (x *RunActionResponse) Reset() {
 	*x = RunActionResponse{}
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[7]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +980,7 @@ func (x *RunActionResponse) String() string {
 func (*RunActionResponse) ProtoMessage() {}
 
 func (x *RunActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[7]
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +993,7 @@ func (x *RunActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunActionResponse.ProtoReflect.Descriptor instead.
 func (*RunActionResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{7}
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RunActionResponse) GetSuccess() bool {
@@ -655,7 +1056,43 @@ var File_web_console_v1_capabilities_capabilities_proto protoreflect.FileDescrip
 
 const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\n" +
-	".web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"\xd1\n" +
+	".web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"K\n" +
+	"\x11AgentUsageRequest\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\"\x8d\x01\n" +
+	"\x10AgentUsageWindow\x12\x12\n" +
+	"\x04pool\x18\x01 \x01(\tR\x04pool\x12%\n" +
+	"\x0ewindow_minutes\x18\x02 \x01(\x03R\rwindowMinutes\x12!\n" +
+	"\fused_percent\x18\x03 \x01(\x01R\vusedPercent\x12\x1b\n" +
+	"\tresets_at\x18\x04 \x01(\tR\bresetsAt\"\x83\x02\n" +
+	"\x12AgentUsageResponse\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x14\n" +
+	"\x05match\x18\x03 \x01(\tR\x05match\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06source\x12\x1f\n" +
+	"\vobserved_at\x18\x06 \x01(\tR\n" +
+	"observedAt\x12N\n" +
+	"\awindows\x18\a \x03(\v24.vrooli.web_console.v1.capabilities.AgentUsageWindowR\awindows\"L\n" +
+	"\x12AgentUpdateRequest\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\"\xe7\x02\n" +
+	"\x13AgentUpdateResponse\x12\x1b\n" +
+	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x1a\n" +
+	"\bresource\x18\x03 \x01(\tR\bresource\x12\x1c\n" +
+	"\tinstalled\x18\x04 \x01(\tR\tinstalled\x12\x16\n" +
+	"\x06pinned\x18\x05 \x01(\tR\x06pinned\x12\x16\n" +
+	"\x06latest\x18\x06 \x01(\tR\x06latest\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"checked_at\x18\b \x01(\tR\tcheckedAt\x12\x1f\n" +
+	"\vsource_kind\x18\t \x01(\tR\n" +
+	"sourceKind\x12\x1b\n" +
+	"\tsource_id\x18\n" +
+	" \x01(\tR\bsourceId\x12%\n" +
+	"\x0eprobe_verified\x18\v \x01(\bR\rprobeVerified\x12\x12\n" +
+	"\x04note\x18\f \x01(\tR\x04note\"\xd1\n" +
 	"\n" +
 	"\x0fCapabilityState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
@@ -727,11 +1164,14 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"actionKind\x12W\n" +
 	"\fcapabilities\x18\x06 \x03(\v23.vrooli.web_console.v1.capabilities.CapabilityStateR\fcapabilities\x12\x1c\n" +
 	"\ttimestamp\x18\a \x01(\tR\ttimestamp\x12!\n" +
-	"\foperation_id\x18\b \x01(\tR\voperationId2\xee\x02\n" +
+	"\foperation_id\x18\b \x01(\tR\voperationId2\xeb\x04\n" +
 	"\x13CapabilitiesService\x12f\n" +
 	"\x03Get\x12..vrooli.web_console.v1.capabilities.GetRequest\x1a/.vrooli.web_console.v1.capabilities.GetResponse\x12u\n" +
 	"\bLiveness\x123.vrooli.web_console.v1.capabilities.LivenessRequest\x1a4.vrooli.web_console.v1.capabilities.LivenessResponse\x12x\n" +
-	"\tRunAction\x124.vrooli.web_console.v1.capabilities.RunActionRequest\x1a5.vrooli.web_console.v1.capabilities.RunActionResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1b\x06proto3"
+	"\tRunAction\x124.vrooli.web_console.v1.capabilities.RunActionRequest\x1a5.vrooli.web_console.v1.capabilities.RunActionResponse\x12~\n" +
+	"\vAgentUpdate\x126.vrooli.web_console.v1.capabilities.AgentUpdateRequest\x1a7.vrooli.web_console.v1.capabilities.AgentUpdateResponse\x12{\n" +
+	"\n" +
+	"AgentUsage\x125.vrooli.web_console.v1.capabilities.AgentUsageRequest\x1a6.vrooli.web_console.v1.capabilities.AgentUsageResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1b\x06proto3"
 
 var (
 	file_web_console_v1_capabilities_capabilities_proto_rawDescOnce sync.Once
@@ -745,43 +1185,53 @@ func file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_capabilities_capabilities_proto_rawDescData
 }
 
-var file_web_console_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_web_console_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_web_console_v1_capabilities_capabilities_proto_goTypes = []any{
-	(*CapabilityState)(nil),   // 0: vrooli.web_console.v1.capabilities.CapabilityState
-	(*BackendOption)(nil),     // 1: vrooli.web_console.v1.capabilities.BackendOption
-	(*GetRequest)(nil),        // 2: vrooli.web_console.v1.capabilities.GetRequest
-	(*GetResponse)(nil),       // 3: vrooli.web_console.v1.capabilities.GetResponse
-	(*LivenessRequest)(nil),   // 4: vrooli.web_console.v1.capabilities.LivenessRequest
-	(*LivenessResponse)(nil),  // 5: vrooli.web_console.v1.capabilities.LivenessResponse
-	(*RunActionRequest)(nil),  // 6: vrooli.web_console.v1.capabilities.RunActionRequest
-	(*RunActionResponse)(nil), // 7: vrooli.web_console.v1.capabilities.RunActionResponse
-	nil,                       // 8: vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
-	nil,                       // 9: vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
-	nil,                       // 10: vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
-	nil,                       // 11: vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
-	nil,                       // 12: vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
+	(*AgentUsageRequest)(nil),   // 0: vrooli.web_console.v1.capabilities.AgentUsageRequest
+	(*AgentUsageWindow)(nil),    // 1: vrooli.web_console.v1.capabilities.AgentUsageWindow
+	(*AgentUsageResponse)(nil),  // 2: vrooli.web_console.v1.capabilities.AgentUsageResponse
+	(*AgentUpdateRequest)(nil),  // 3: vrooli.web_console.v1.capabilities.AgentUpdateRequest
+	(*AgentUpdateResponse)(nil), // 4: vrooli.web_console.v1.capabilities.AgentUpdateResponse
+	(*CapabilityState)(nil),     // 5: vrooli.web_console.v1.capabilities.CapabilityState
+	(*BackendOption)(nil),       // 6: vrooli.web_console.v1.capabilities.BackendOption
+	(*GetRequest)(nil),          // 7: vrooli.web_console.v1.capabilities.GetRequest
+	(*GetResponse)(nil),         // 8: vrooli.web_console.v1.capabilities.GetResponse
+	(*LivenessRequest)(nil),     // 9: vrooli.web_console.v1.capabilities.LivenessRequest
+	(*LivenessResponse)(nil),    // 10: vrooli.web_console.v1.capabilities.LivenessResponse
+	(*RunActionRequest)(nil),    // 11: vrooli.web_console.v1.capabilities.RunActionRequest
+	(*RunActionResponse)(nil),   // 12: vrooli.web_console.v1.capabilities.RunActionResponse
+	nil,                         // 13: vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
+	nil,                         // 14: vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
+	nil,                         // 15: vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
+	nil,                         // 16: vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
+	nil,                         // 17: vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
 }
 var file_web_console_v1_capabilities_capabilities_proto_depIdxs = []int32{
-	8,  // 0: vrooli.web_console.v1.capabilities.CapabilityState.feature_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
-	9,  // 1: vrooli.web_console.v1.capabilities.CapabilityState.feature_reason:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
-	10, // 2: vrooli.web_console.v1.capabilities.CapabilityState.feature_operator_command:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
-	11, // 3: vrooli.web_console.v1.capabilities.CapabilityState.provider_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
-	12, // 4: vrooli.web_console.v1.capabilities.CapabilityState.provider_features:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
-	0,  // 5: vrooli.web_console.v1.capabilities.GetResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	1,  // 6: vrooli.web_console.v1.capabilities.GetResponse.session_backends:type_name -> vrooli.web_console.v1.capabilities.BackendOption
-	0,  // 7: vrooli.web_console.v1.capabilities.LivenessResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	0,  // 8: vrooli.web_console.v1.capabilities.RunActionResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	2,  // 9: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:input_type -> vrooli.web_console.v1.capabilities.GetRequest
-	4,  // 10: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:input_type -> vrooli.web_console.v1.capabilities.LivenessRequest
-	6,  // 11: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:input_type -> vrooli.web_console.v1.capabilities.RunActionRequest
-	3,  // 12: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:output_type -> vrooli.web_console.v1.capabilities.GetResponse
-	5,  // 13: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:output_type -> vrooli.web_console.v1.capabilities.LivenessResponse
-	7,  // 14: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:output_type -> vrooli.web_console.v1.capabilities.RunActionResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	1,  // 0: vrooli.web_console.v1.capabilities.AgentUsageResponse.windows:type_name -> vrooli.web_console.v1.capabilities.AgentUsageWindow
+	13, // 1: vrooli.web_console.v1.capabilities.CapabilityState.feature_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
+	14, // 2: vrooli.web_console.v1.capabilities.CapabilityState.feature_reason:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
+	15, // 3: vrooli.web_console.v1.capabilities.CapabilityState.feature_operator_command:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
+	16, // 4: vrooli.web_console.v1.capabilities.CapabilityState.provider_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
+	17, // 5: vrooli.web_console.v1.capabilities.CapabilityState.provider_features:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
+	5,  // 6: vrooli.web_console.v1.capabilities.GetResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	6,  // 7: vrooli.web_console.v1.capabilities.GetResponse.session_backends:type_name -> vrooli.web_console.v1.capabilities.BackendOption
+	5,  // 8: vrooli.web_console.v1.capabilities.LivenessResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	5,  // 9: vrooli.web_console.v1.capabilities.RunActionResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	7,  // 10: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:input_type -> vrooli.web_console.v1.capabilities.GetRequest
+	9,  // 11: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:input_type -> vrooli.web_console.v1.capabilities.LivenessRequest
+	11, // 12: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:input_type -> vrooli.web_console.v1.capabilities.RunActionRequest
+	3,  // 13: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate:input_type -> vrooli.web_console.v1.capabilities.AgentUpdateRequest
+	0,  // 14: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage:input_type -> vrooli.web_console.v1.capabilities.AgentUsageRequest
+	8,  // 15: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:output_type -> vrooli.web_console.v1.capabilities.GetResponse
+	10, // 16: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:output_type -> vrooli.web_console.v1.capabilities.LivenessResponse
+	12, // 17: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:output_type -> vrooli.web_console.v1.capabilities.RunActionResponse
+	4,  // 18: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate:output_type -> vrooli.web_console.v1.capabilities.AgentUpdateResponse
+	2,  // 19: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage:output_type -> vrooli.web_console.v1.capabilities.AgentUsageResponse
+	15, // [15:20] is the sub-list for method output_type
+	10, // [10:15] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_capabilities_capabilities_proto_init() }
@@ -795,7 +1245,7 @@ func file_web_console_v1_capabilities_capabilities_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_capabilities_capabilities_proto_rawDesc), len(file_web_console_v1_capabilities_capabilities_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

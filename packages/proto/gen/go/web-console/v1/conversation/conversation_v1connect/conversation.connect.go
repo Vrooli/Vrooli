@@ -44,6 +44,9 @@ const (
 	// ConversationServiceGetRangeProcedure is the fully-qualified name of the ConversationService's
 	// GetRange RPC.
 	ConversationServiceGetRangeProcedure = "/vrooli.web_console.v1.conversation.ConversationService/GetRange"
+	// ConversationServiceResolveEventsProcedure is the fully-qualified name of the
+	// ConversationService's ResolveEvents RPC.
+	ConversationServiceResolveEventsProcedure = "/vrooli.web_console.v1.conversation.ConversationService/ResolveEvents"
 	// ConversationServiceUpdateCursorProcedure is the fully-qualified name of the ConversationService's
 	// UpdateCursor RPC.
 	ConversationServiceUpdateCursorProcedure = "/vrooli.web_console.v1.conversation.ConversationService/UpdateCursor"
@@ -59,6 +62,7 @@ type ConversationServiceClient interface {
 	Search(context.Context, *connect.Request[conversation.SearchRequest]) (*connect.Response[conversation.SearchResponse], error)
 	SearchArchived(context.Context, *connect.Request[conversation.SearchArchivedRequest]) (*connect.Response[conversation.SearchArchivedResponse], error)
 	GetRange(context.Context, *connect.Request[conversation.GetRangeRequest]) (*connect.Response[conversation.GetResponse], error)
+	ResolveEvents(context.Context, *connect.Request[conversation.ResolveEventsRequest]) (*connect.Response[conversation.ResolveEventsResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error)
 }
@@ -99,6 +103,12 @@ func NewConversationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(conversationServiceMethods.ByName("GetRange")),
 			connect.WithClientOptions(opts...),
 		),
+		resolveEvents: connect.NewClient[conversation.ResolveEventsRequest, conversation.ResolveEventsResponse](
+			httpClient,
+			baseURL+ConversationServiceResolveEventsProcedure,
+			connect.WithSchema(conversationServiceMethods.ByName("ResolveEvents")),
+			connect.WithClientOptions(opts...),
+		),
 		updateCursor: connect.NewClient[conversation.UpdateCursorRequest, conversation.UpdateCursorResponse](
 			httpClient,
 			baseURL+ConversationServiceUpdateCursorProcedure,
@@ -120,6 +130,7 @@ type conversationServiceClient struct {
 	search         *connect.Client[conversation.SearchRequest, conversation.SearchResponse]
 	searchArchived *connect.Client[conversation.SearchArchivedRequest, conversation.SearchArchivedResponse]
 	getRange       *connect.Client[conversation.GetRangeRequest, conversation.GetResponse]
+	resolveEvents  *connect.Client[conversation.ResolveEventsRequest, conversation.ResolveEventsResponse]
 	updateCursor   *connect.Client[conversation.UpdateCursorRequest, conversation.UpdateCursorResponse]
 	summarizeEvent *connect.Client[conversation.SummarizeEventRequest, conversation.SummarizeEventResponse]
 }
@@ -144,6 +155,11 @@ func (c *conversationServiceClient) GetRange(ctx context.Context, req *connect.R
 	return c.getRange.CallUnary(ctx, req)
 }
 
+// ResolveEvents calls vrooli.web_console.v1.conversation.ConversationService.ResolveEvents.
+func (c *conversationServiceClient) ResolveEvents(ctx context.Context, req *connect.Request[conversation.ResolveEventsRequest]) (*connect.Response[conversation.ResolveEventsResponse], error) {
+	return c.resolveEvents.CallUnary(ctx, req)
+}
+
 // UpdateCursor calls vrooli.web_console.v1.conversation.ConversationService.UpdateCursor.
 func (c *conversationServiceClient) UpdateCursor(ctx context.Context, req *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error) {
 	return c.updateCursor.CallUnary(ctx, req)
@@ -161,6 +177,7 @@ type ConversationServiceHandler interface {
 	Search(context.Context, *connect.Request[conversation.SearchRequest]) (*connect.Response[conversation.SearchResponse], error)
 	SearchArchived(context.Context, *connect.Request[conversation.SearchArchivedRequest]) (*connect.Response[conversation.SearchArchivedResponse], error)
 	GetRange(context.Context, *connect.Request[conversation.GetRangeRequest]) (*connect.Response[conversation.GetResponse], error)
+	ResolveEvents(context.Context, *connect.Request[conversation.ResolveEventsRequest]) (*connect.Response[conversation.ResolveEventsResponse], error)
 	UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error)
 	SummarizeEvent(context.Context, *connect.Request[conversation.SummarizeEventRequest]) (*connect.Response[conversation.SummarizeEventResponse], error)
 }
@@ -196,6 +213,12 @@ func NewConversationServiceHandler(svc ConversationServiceHandler, opts ...conne
 		connect.WithSchema(conversationServiceMethods.ByName("GetRange")),
 		connect.WithHandlerOptions(opts...),
 	)
+	conversationServiceResolveEventsHandler := connect.NewUnaryHandler(
+		ConversationServiceResolveEventsProcedure,
+		svc.ResolveEvents,
+		connect.WithSchema(conversationServiceMethods.ByName("ResolveEvents")),
+		connect.WithHandlerOptions(opts...),
+	)
 	conversationServiceUpdateCursorHandler := connect.NewUnaryHandler(
 		ConversationServiceUpdateCursorProcedure,
 		svc.UpdateCursor,
@@ -218,6 +241,8 @@ func NewConversationServiceHandler(svc ConversationServiceHandler, opts ...conne
 			conversationServiceSearchArchivedHandler.ServeHTTP(w, r)
 		case ConversationServiceGetRangeProcedure:
 			conversationServiceGetRangeHandler.ServeHTTP(w, r)
+		case ConversationServiceResolveEventsProcedure:
+			conversationServiceResolveEventsHandler.ServeHTTP(w, r)
 		case ConversationServiceUpdateCursorProcedure:
 			conversationServiceUpdateCursorHandler.ServeHTTP(w, r)
 		case ConversationServiceSummarizeEventProcedure:
@@ -245,6 +270,10 @@ func (UnimplementedConversationServiceHandler) SearchArchived(context.Context, *
 
 func (UnimplementedConversationServiceHandler) GetRange(context.Context, *connect.Request[conversation.GetRangeRequest]) (*connect.Response[conversation.GetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.GetRange is not implemented"))
+}
+
+func (UnimplementedConversationServiceHandler) ResolveEvents(context.Context, *connect.Request[conversation.ResolveEventsRequest]) (*connect.Response[conversation.ResolveEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.conversation.ConversationService.ResolveEvents is not implemented"))
 }
 
 func (UnimplementedConversationServiceHandler) UpdateCursor(context.Context, *connect.Request[conversation.UpdateCursorRequest]) (*connect.Response[conversation.UpdateCursorResponse], error) {

@@ -11,239 +11,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file agent-manager/v1/domain/episode.proto.
  */
 export const file_agent_manager_v1_domain_episode: GenFile = /*@__PURE__*/
-  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9lcGlzb2RlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIsEDCg9GcmljdGlvbkVwaXNvZGUSEgoKZXBpc29kZV9pZBgBIAEoCRIOCgZydW5faWQYAiABKAkSGgoSY2xhc3NpZmllcl92ZXJzaW9uGAMgASgJEg8KB3BhdHRlcm4YBCABKAkSEwoLY2F1c2Vfc2NvcGUYBSABKAkSEAoIc2V2ZXJpdHkYBiABKAkSFQoNaG9uZXN0eV9mbGFncxgHIAMoCRIWCg5zdGFydF9ldmVudF9pZBgIIAEoCRIUCgxlbmRfZXZlbnRfaWQYCSABKAkSGgoSZXZpZGVuY2VfZXZlbnRfaWRzGAogAygJEg0KBXR1cm5zGAsgASgDEg4KBnRva2VucxgMIAEoAxIVCg13YWxsX2Nsb2NrX21zGA0gASgDEiAKGHN1c3BlY3RlZF9vd25lcl9zY2VuYXJpbxgOIAEoCRIfChdzdXNwZWN0ZWRfb3duZXJfY29tbWFuZBgPIAEoCRIYChBvd25lcl9jb25maWRlbmNlGBAgASgJEhMKC2ZpbmdlcnByaW50GBEgASgJEhMKC2N5Y2xlX2NvdW50GBIgASgDEhgKEHJlcGVhdGVkX2VsZW1lbnQYEyABKAkiJAoSR2V0RXBpc29kZXNSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCSJmChNHZXRFcGlzb2Rlc1Jlc3BvbnNlEhoKEmNsYXNzaWZpZXJfdmVyc2lvbhgBIAEoCRIzCghlcGlzb2RlcxgCIAMoCzIhLmFnZW50X21hbmFnZXIudjEuRnJpY3Rpb25FcGlzb2RlIisKGUdldFNlbGZSZXBvcnRTcGFuc1JlcXVlc3QSDgoGcnVuX2lkGAEgASgJIpwBCg5TZWxmUmVwb3J0U3BhbhIaChJjbGFzc2lmaWVyX3ZlcnNpb24YASABKAkSEAoIZXZlbnRfaWQYAiABKAkSDwoHcnVsZV9pZBgDIAEoCRITCgtjYXVzZV9zY29wZRgEIAEoCRIUCgxzdGFydF9vZmZzZXQYBSABKAMSEgoKZW5kX29mZnNldBgGIAEoAxIMCgR0ZXh0GAcgASgJImkKGkdldFNlbGZSZXBvcnRTcGFuc1Jlc3BvbnNlEhoKEmNsYXNzaWZpZXJfdmVyc2lvbhgBIAEoCRIvCgVzcGFucxgCIAMoCzIgLmFnZW50X21hbmFnZXIudjEuU2VsZlJlcG9ydFNwYW4iSQodR2V0Q3Jvc3NTY2VuYXJpb0xlZGdlclJlcXVlc3QSDgoGcnVuX2lkGAEgASgJEhgKEHdpdGhfcHJvamVjdGlvbnMYAiABKAgiLQoMQXZhaWxhYmlsaXR5Eg0KBXN0YXRlGAEgASgJEg4KBnJlYXNvbhgCIAEoCSKfAgoRQ3Jvc3NTY2VuYXJpb0NhbGwSEwoLb2NjdXJyZWRfYXQYASABKAkSFwoPdGFyZ2V0X3NjZW5hcmlvGAIgASgJEhEKCW9wZXJhdGlvbhgDIAEoCRIPCgdvdXRjb21lGAQgASgJEhMKC3N0YXR1c19jb2RlGAUgASgNEhMKC2R1cmF0aW9uX21zGAYgASgEEhgKEHJlY2VpcHRfZXZlbnRfaWQYByABKAkSEAoIdmVyaWZpZWQYCCABKAgSKwoKcHJvamVjdGlvbhgJIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSHQoVcHJvamVjdGlvbl9kcm9wX2NvdW50GAogASgDEhYKDnBvbGljeV92ZXJzaW9uGAsgASgJIoUBChJMZWRnZXJUYXJnZXRSb2xsdXASFwoPdGFyZ2V0X3NjZW5hcmlvGAEgASgJEg0KBWNhbGxzGAIgASgDEhAKCGZhaWx1cmVzGAMgASgDEhkKEXRvdGFsX2R1cmF0aW9uX21zGAQgASgEEhoKEm1lZGlhbl9kdXJhdGlvbl9tcxgFIAEoBCKQAgoeR2V0Q3Jvc3NTY2VuYXJpb0xlZGdlclJlc3BvbnNlEjsKE2xlZGdlcl9hdmFpbGFiaWxpdHkYASABKAsyHi5hZ2VudF9tYW5hZ2VyLnYxLkF2YWlsYWJpbGl0eRI/Chdwcm9qZWN0aW9uX2F2YWlsYWJpbGl0eRgCIAEoCzIeLmFnZW50X21hbmFnZXIudjEuQXZhaWxhYmlsaXR5EjwKDnRhcmdldF9yb2xsdXBzGAMgAygLMiQuYWdlbnRfbWFuYWdlci52MS5MZWRnZXJUYXJnZXRSb2xsdXASMgoFY2FsbHMYBCADKAsyIy5hZ2VudF9tYW5hZ2VyLnYxLkNyb3NzU2NlbmFyaW9DYWxsIn4KF0ltcG9ydFRyYW5zY3JpcHRSZXF1ZXN0EgwKBHBhdGgYASABKAkSEwoLcnVubmVyX3R5cGUYAiABKAkSDQoFbGFiZWwYAyABKAkSFgoOc291cmNlX2hhcm5lc3MYBCABKAkSGQoRc291cmNlX3Nlc3Npb25faWQYBSABKAkiUgoYSW1wb3J0VHJhbnNjcmlwdFJlc3BvbnNlEg4KBnJ1bl9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFgoOZXhlY3V0aW9uX21vZGUYAyABKAkyxgMKD0VwaXNvZGVzU2VydmljZRJaCgtHZXRFcGlzb2RlcxIkLmFnZW50X21hbmFnZXIudjEuR2V0RXBpc29kZXNSZXF1ZXN0GiUuYWdlbnRfbWFuYWdlci52MS5HZXRFcGlzb2Rlc1Jlc3BvbnNlEm8KEkdldFNlbGZSZXBvcnRTcGFucxIrLmFnZW50X21hbmFnZXIudjEuR2V0U2VsZlJlcG9ydFNwYW5zUmVxdWVzdBosLmFnZW50X21hbmFnZXIudjEuR2V0U2VsZlJlcG9ydFNwYW5zUmVzcG9uc2USewoWR2V0Q3Jvc3NTY2VuYXJpb0xlZGdlchIvLmFnZW50X21hbmFnZXIudjEuR2V0Q3Jvc3NTY2VuYXJpb0xlZGdlclJlcXVlc3QaMC5hZ2VudF9tYW5hZ2VyLnYxLkdldENyb3NzU2NlbmFyaW9MZWRnZXJSZXNwb25zZRJpChBJbXBvcnRUcmFuc2NyaXB0EikuYWdlbnRfbWFuYWdlci52MS5JbXBvcnRUcmFuc2NyaXB0UmVxdWVzdBoqLmFnZW50X21hbmFnZXIudjEuSW1wb3J0VHJhbnNjcmlwdFJlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_google_protobuf_struct]);
-
-/**
- * @generated from message agent_manager.v1.FrictionEpisode
- */
-export type FrictionEpisode = Message<"agent_manager.v1.FrictionEpisode"> & {
-  /**
-   * @generated from field: string episode_id = 1;
-   */
-  episodeId: string;
-
-  /**
-   * @generated from field: string run_id = 2;
-   */
-  runId: string;
-
-  /**
-   * @generated from field: string classifier_version = 3;
-   */
-  classifierVersion: string;
-
-  /**
-   * @generated from field: string pattern = 4;
-   */
-  pattern: string;
-
-  /**
-   * @generated from field: string cause_scope = 5;
-   */
-  causeScope: string;
-
-  /**
-   * @generated from field: string severity = 6;
-   */
-  severity: string;
-
-  /**
-   * @generated from field: repeated string honesty_flags = 7;
-   */
-  honestyFlags: string[];
-
-  /**
-   * @generated from field: string start_event_id = 8;
-   */
-  startEventId: string;
-
-  /**
-   * @generated from field: string end_event_id = 9;
-   */
-  endEventId: string;
-
-  /**
-   * @generated from field: repeated string evidence_event_ids = 10;
-   */
-  evidenceEventIds: string[];
-
-  /**
-   * @generated from field: int64 turns = 11;
-   */
-  turns: bigint;
-
-  /**
-   * @generated from field: int64 tokens = 12;
-   */
-  tokens: bigint;
-
-  /**
-   * @generated from field: int64 wall_clock_ms = 13;
-   */
-  wallClockMs: bigint;
-
-  /**
-   * @generated from field: string suspected_owner_scenario = 14;
-   */
-  suspectedOwnerScenario: string;
-
-  /**
-   * @generated from field: string suspected_owner_command = 15;
-   */
-  suspectedOwnerCommand: string;
-
-  /**
-   * @generated from field: string owner_confidence = 16;
-   */
-  ownerConfidence: string;
-
-  /**
-   * @generated from field: string fingerprint = 17;
-   */
-  fingerprint: string;
-
-  /**
-   * @generated from field: int64 cycle_count = 18;
-   */
-  cycleCount: bigint;
-
-  /**
-   * @generated from field: string repeated_element = 19;
-   */
-  repeatedElement: string;
-};
-
-/**
- * Describes the message agent_manager.v1.FrictionEpisode.
- * Use `create(FrictionEpisodeSchema)` to create a new message.
- */
-export const FrictionEpisodeSchema: GenMessage<FrictionEpisode> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 0);
-
-/**
- * @generated from message agent_manager.v1.GetEpisodesRequest
- */
-export type GetEpisodesRequest = Message<"agent_manager.v1.GetEpisodesRequest"> & {
-  /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-};
-
-/**
- * Describes the message agent_manager.v1.GetEpisodesRequest.
- * Use `create(GetEpisodesRequestSchema)` to create a new message.
- */
-export const GetEpisodesRequestSchema: GenMessage<GetEpisodesRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 1);
-
-/**
- * @generated from message agent_manager.v1.GetEpisodesResponse
- */
-export type GetEpisodesResponse = Message<"agent_manager.v1.GetEpisodesResponse"> & {
-  /**
-   * @generated from field: string classifier_version = 1;
-   */
-  classifierVersion: string;
-
-  /**
-   * @generated from field: repeated agent_manager.v1.FrictionEpisode episodes = 2;
-   */
-  episodes: FrictionEpisode[];
-};
-
-/**
- * Describes the message agent_manager.v1.GetEpisodesResponse.
- * Use `create(GetEpisodesResponseSchema)` to create a new message.
- */
-export const GetEpisodesResponseSchema: GenMessage<GetEpisodesResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 2);
-
-/**
- * @generated from message agent_manager.v1.GetSelfReportSpansRequest
- */
-export type GetSelfReportSpansRequest = Message<"agent_manager.v1.GetSelfReportSpansRequest"> & {
-  /**
-   * @generated from field: string run_id = 1;
-   */
-  runId: string;
-};
-
-/**
- * Describes the message agent_manager.v1.GetSelfReportSpansRequest.
- * Use `create(GetSelfReportSpansRequestSchema)` to create a new message.
- */
-export const GetSelfReportSpansRequestSchema: GenMessage<GetSelfReportSpansRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 3);
-
-/**
- * @generated from message agent_manager.v1.SelfReportSpan
- */
-export type SelfReportSpan = Message<"agent_manager.v1.SelfReportSpan"> & {
-  /**
-   * @generated from field: string classifier_version = 1;
-   */
-  classifierVersion: string;
-
-  /**
-   * @generated from field: string event_id = 2;
-   */
-  eventId: string;
-
-  /**
-   * @generated from field: string rule_id = 3;
-   */
-  ruleId: string;
-
-  /**
-   * @generated from field: string cause_scope = 4;
-   */
-  causeScope: string;
-
-  /**
-   * @generated from field: int64 start_offset = 5;
-   */
-  startOffset: bigint;
-
-  /**
-   * @generated from field: int64 end_offset = 6;
-   */
-  endOffset: bigint;
-
-  /**
-   * @generated from field: string text = 7;
-   */
-  text: string;
-};
-
-/**
- * Describes the message agent_manager.v1.SelfReportSpan.
- * Use `create(SelfReportSpanSchema)` to create a new message.
- */
-export const SelfReportSpanSchema: GenMessage<SelfReportSpan> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 4);
-
-/**
- * @generated from message agent_manager.v1.GetSelfReportSpansResponse
- */
-export type GetSelfReportSpansResponse = Message<"agent_manager.v1.GetSelfReportSpansResponse"> & {
-  /**
-   * @generated from field: string classifier_version = 1;
-   */
-  classifierVersion: string;
-
-  /**
-   * @generated from field: repeated agent_manager.v1.SelfReportSpan spans = 2;
-   */
-  spans: SelfReportSpan[];
-};
-
-/**
- * Describes the message agent_manager.v1.GetSelfReportSpansResponse.
- * Use `create(GetSelfReportSpansResponseSchema)` to create a new message.
- */
-export const GetSelfReportSpansResponseSchema: GenMessage<GetSelfReportSpansResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 5);
+  fileDesc("CiVhZ2VudC1tYW5hZ2VyL3YxL2RvbWFpbi9lcGlzb2RlLnByb3RvEhBhZ2VudF9tYW5hZ2VyLnYxIkkKHUdldENyb3NzU2NlbmFyaW9MZWRnZXJSZXF1ZXN0Eg4KBnJ1bl9pZBgBIAEoCRIYChB3aXRoX3Byb2plY3Rpb25zGAIgASgIIi0KDEF2YWlsYWJpbGl0eRINCgVzdGF0ZRgBIAEoCRIOCgZyZWFzb24YAiABKAkinwIKEUNyb3NzU2NlbmFyaW9DYWxsEhMKC29jY3VycmVkX2F0GAEgASgJEhcKD3RhcmdldF9zY2VuYXJpbxgCIAEoCRIRCglvcGVyYXRpb24YAyABKAkSDwoHb3V0Y29tZRgEIAEoCRITCgtzdGF0dXNfY29kZRgFIAEoDRITCgtkdXJhdGlvbl9tcxgGIAEoBBIYChByZWNlaXB0X2V2ZW50X2lkGAcgASgJEhAKCHZlcmlmaWVkGAggASgIEisKCnByb2plY3Rpb24YCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Eh0KFXByb2plY3Rpb25fZHJvcF9jb3VudBgKIAEoAxIWCg5wb2xpY3lfdmVyc2lvbhgLIAEoCSKFAQoSTGVkZ2VyVGFyZ2V0Um9sbHVwEhcKD3RhcmdldF9zY2VuYXJpbxgBIAEoCRINCgVjYWxscxgCIAEoAxIQCghmYWlsdXJlcxgDIAEoAxIZChF0b3RhbF9kdXJhdGlvbl9tcxgEIAEoBBIaChJtZWRpYW5fZHVyYXRpb25fbXMYBSABKAQikAIKHkdldENyb3NzU2NlbmFyaW9MZWRnZXJSZXNwb25zZRI7ChNsZWRnZXJfYXZhaWxhYmlsaXR5GAEgASgLMh4uYWdlbnRfbWFuYWdlci52MS5BdmFpbGFiaWxpdHkSPwoXcHJvamVjdGlvbl9hdmFpbGFiaWxpdHkYAiABKAsyHi5hZ2VudF9tYW5hZ2VyLnYxLkF2YWlsYWJpbGl0eRI8Cg50YXJnZXRfcm9sbHVwcxgDIAMoCzIkLmFnZW50X21hbmFnZXIudjEuTGVkZ2VyVGFyZ2V0Um9sbHVwEjIKBWNhbGxzGAQgAygLMiMuYWdlbnRfbWFuYWdlci52MS5Dcm9zc1NjZW5hcmlvQ2FsbCJ+ChdJbXBvcnRUcmFuc2NyaXB0UmVxdWVzdBIMCgRwYXRoGAEgASgJEhMKC3J1bm5lcl90eXBlGAIgASgJEg0KBWxhYmVsGAMgASgJEhYKDnNvdXJjZV9oYXJuZXNzGAQgASgJEhkKEXNvdXJjZV9zZXNzaW9uX2lkGAUgASgJIlIKGEltcG9ydFRyYW5zY3JpcHRSZXNwb25zZRIOCgZydW5faWQYASABKAkSDgoGc3RhdHVzGAIgASgJEhYKDmV4ZWN1dGlvbl9tb2RlGAMgASgJMvkBCg9FcGlzb2Rlc1NlcnZpY2USewoWR2V0Q3Jvc3NTY2VuYXJpb0xlZGdlchIvLmFnZW50X21hbmFnZXIudjEuR2V0Q3Jvc3NTY2VuYXJpb0xlZGdlclJlcXVlc3QaMC5hZ2VudF9tYW5hZ2VyLnYxLkdldENyb3NzU2NlbmFyaW9MZWRnZXJSZXNwb25zZRJpChBJbXBvcnRUcmFuc2NyaXB0EikuYWdlbnRfbWFuYWdlci52MS5JbXBvcnRUcmFuc2NyaXB0UmVxdWVzdBoqLmFnZW50X21hbmFnZXIudjEuSW1wb3J0VHJhbnNjcmlwdFJlc3BvbnNlQk9aTWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYWdlbnQtbWFuYWdlci92MS9kb21haW47ZG9tYWluYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
  * @generated from message agent_manager.v1.GetCrossScenarioLedgerRequest
@@ -265,7 +33,7 @@ export type GetCrossScenarioLedgerRequest = Message<"agent_manager.v1.GetCrossSc
  * Use `create(GetCrossScenarioLedgerRequestSchema)` to create a new message.
  */
 export const GetCrossScenarioLedgerRequestSchema: GenMessage<GetCrossScenarioLedgerRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 6);
+  messageDesc(file_agent_manager_v1_domain_episode, 0);
 
 /**
  * @generated from message agent_manager.v1.Availability
@@ -287,7 +55,7 @@ export type Availability = Message<"agent_manager.v1.Availability"> & {
  * Use `create(AvailabilitySchema)` to create a new message.
  */
 export const AvailabilitySchema: GenMessage<Availability> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 7);
+  messageDesc(file_agent_manager_v1_domain_episode, 1);
 
 /**
  * @generated from message agent_manager.v1.CrossScenarioCall
@@ -354,7 +122,7 @@ export type CrossScenarioCall = Message<"agent_manager.v1.CrossScenarioCall"> & 
  * Use `create(CrossScenarioCallSchema)` to create a new message.
  */
 export const CrossScenarioCallSchema: GenMessage<CrossScenarioCall> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 8);
+  messageDesc(file_agent_manager_v1_domain_episode, 2);
 
 /**
  * @generated from message agent_manager.v1.LedgerTargetRollup
@@ -391,7 +159,7 @@ export type LedgerTargetRollup = Message<"agent_manager.v1.LedgerTargetRollup"> 
  * Use `create(LedgerTargetRollupSchema)` to create a new message.
  */
 export const LedgerTargetRollupSchema: GenMessage<LedgerTargetRollup> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 9);
+  messageDesc(file_agent_manager_v1_domain_episode, 3);
 
 /**
  * @generated from message agent_manager.v1.GetCrossScenarioLedgerResponse
@@ -423,7 +191,7 @@ export type GetCrossScenarioLedgerResponse = Message<"agent_manager.v1.GetCrossS
  * Use `create(GetCrossScenarioLedgerResponseSchema)` to create a new message.
  */
 export const GetCrossScenarioLedgerResponseSchema: GenMessage<GetCrossScenarioLedgerResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 10);
+  messageDesc(file_agent_manager_v1_domain_episode, 4);
 
 /**
  * @generated from message agent_manager.v1.ImportTranscriptRequest
@@ -463,7 +231,7 @@ export type ImportTranscriptRequest = Message<"agent_manager.v1.ImportTranscript
  * Use `create(ImportTranscriptRequestSchema)` to create a new message.
  */
 export const ImportTranscriptRequestSchema: GenMessage<ImportTranscriptRequest> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 11);
+  messageDesc(file_agent_manager_v1_domain_episode, 5);
 
 /**
  * @generated from message agent_manager.v1.ImportTranscriptResponse
@@ -490,30 +258,16 @@ export type ImportTranscriptResponse = Message<"agent_manager.v1.ImportTranscrip
  * Use `create(ImportTranscriptResponseSchema)` to create a new message.
  */
 export const ImportTranscriptResponseSchema: GenMessage<ImportTranscriptResponse> = /*@__PURE__*/
-  messageDesc(file_agent_manager_v1_domain_episode, 12);
+  messageDesc(file_agent_manager_v1_domain_episode, 6);
 
 /**
- * EpisodesService exposes bounded, deterministic friction evidence for one run.
+ * EpisodesService exposes a run's cross-scenario ledger and transcript import.
+ * The name predates its current surface and is kept so generated client paths
+ * stay stable.
  *
  * @generated from service agent_manager.v1.EpisodesService
  */
 export const EpisodesService: GenService<{
-  /**
-   * @generated from rpc agent_manager.v1.EpisodesService.GetEpisodes
-   */
-  getEpisodes: {
-    methodKind: "unary";
-    input: typeof GetEpisodesRequestSchema;
-    output: typeof GetEpisodesResponseSchema;
-  },
-  /**
-   * @generated from rpc agent_manager.v1.EpisodesService.GetSelfReportSpans
-   */
-  getSelfReportSpans: {
-    methodKind: "unary";
-    input: typeof GetSelfReportSpansRequestSchema;
-    output: typeof GetSelfReportSpansResponseSchema;
-  },
   /**
    * @generated from rpc agent_manager.v1.EpisodesService.GetCrossScenarioLedger
    */

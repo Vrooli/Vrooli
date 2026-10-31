@@ -23,6 +23,7 @@ const WorkflowsPage = lazy(async () => ({ default: (await import("./pages/Workfl
 const WatchesPage = lazy(async () => ({ default: (await import("./pages/WatchesPage")).WatchesPage }));
 const EffortsPage = lazy(async () => ({ default: (await import("./pages/EffortsPage")).EffortsPage }));
 const UsagePage = lazy(async () => ({ default: (await import("./features/usage")).UsagePage }));
+const LearnSetupPage = lazy(async () => ({ default: (await import("./features/usage")).LearnSetupPage }));
 const HealthPage = lazy(async () => ({ default: (await import("./features/health")).HealthPage }));
 const InvestigationsPage = lazy(async () => ({ default: (await import("./pages/InvestigationsPage")).InvestigationsPage }));
 const StatusDialog = lazy(async () => ({ default: (await import("./components/dialogs/StatusDialog")).StatusDialog }));
@@ -449,6 +450,18 @@ export function App() {
                   <ErrorBoundary section="Usage">
                     <ProfiledPage id="UsagePage">
                       <UsagePage />
+                    </ProfiledPage>
+                  </ErrorBoundary>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/usage/learn"
+              element={
+                <Suspense fallback={pageFallback}>
+                  <ErrorBoundary section="Usage">
+                    <ProfiledPage id="LearnSetupPage">
+                      <LearnSetupPage />
                     </ProfiledPage>
                   </ErrorBoundary>
                 </Suspense>

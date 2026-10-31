@@ -26,10 +26,12 @@ import (
 	"agent-manager/internal/interventions"
 	"agent-manager/internal/invocationreadmodel"
 	investigationlearning "agent-manager/internal/learning"
+	analyticsmeasures "agent-manager/internal/measures"
 	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/spawn"
+	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/piimask"
 	"agent-manager/internal/pricing"
@@ -43,6 +45,7 @@ import (
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageattribution"
 	"agent-manager/internal/usageforecast"
+	"agent-manager/internal/usagemodes"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -51,6 +54,7 @@ import (
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/cli-core/usagemode"
 )
 
 // OrchestratorDependencies is the runtime service graph assembled by the
@@ -68,7 +72,10 @@ type OrchestratorDependencies struct {
 	TranscriptImporter    *orchestration.TranscriptIndex
 	ClaudeQuotaFeed       *pricing.ClaudeStatuslineReader // statusline samples -> quota_observations
 	UsageAlerts           *usageforecast.Alerter          // will_exhaust -> notification-hub
+	UsageModes            *usagemodes.Service             // operator usage modes; ended early when a window rolls
+	UsageModeNotifier     *usagemodes.Notifier            // mode decisions and notices; also the resolver of mode decisions
 	Interventions         *interventions.Job              // operator messages -> ai-gateway decisions
+	OutcomeLedger         *outcomeledger.Job              // per-run facts, work units and outcome estimates
 	ModelHealthProbe      *healthstore.Probe
 	ModelPolicyDrift      *modelpolicydrift.Scheduler
 	RolePolicyState       *rolepolicy.State
@@ -183,6 +190,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 		// Weighted-token caps (DL-8) stay off unless AGENT_MANAGER_TOKEN_CAP_MODE
 		// selects report or enforce.
 		orchestration.WithTokenCapPolicy(orchestration.TokenCapPolicyFromEnv()),
+		orchestration.WithUsageModes(),
 	}
 	if interactiveSessions != nil {
 		opts = append(opts, orchestration.WithInteractiveSessions(interactiveSessions))
@@ -242,9 +250,37 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	usageAlerts := newUsageAlerts(db, usageAttributionStore(db, orch), pricingRepository, pricingService, receiptsClient)
-	interventionJob := &interventions.Job{Store: interventions.NewStore(db), Events: eventStore, Classifier: interventions.NewClassifier(), Log: obs.Component("interventions")}
+	usageModes := &usagemodes.Service{Tiers: usagemodes.ResourceTiers{Files: roleResolver}, Readings: usageAlerts.Readings}
+	usageAlerts.OnForecasts = func(_ context.Context, forecasts []usageforecast.Forecast, now time.Time) {
+		ended, err := usageModes.EndRolledWindows(forecasts, now)
+		if err != nil {
+			obs.Component("usage-modes").Warn("end rolled usage modes failed", obs.KeyError, err.Error())
+		}
+		for _, id := range ended {
+			obs.Component("usage-modes").Info("usage mode ended early: its quota window reset", "mode", id)
+		}
+		// Learn pauses while a window is forecast to run out; Save takes priority.
+		paused, resumed, err := usageModes.ApplyForecasts(forecasts, now)
+		if err != nil {
+			obs.Component("usage-modes").Warn("pausing learn comparisons failed", obs.KeyError, err.Error())
+		}
+		for _, id := range paused {
+			obs.Component("usage-modes").Info("learn comparison paused: a quota window is forecast to run out", "mode", id)
+		}
+		for _, id := range resumed {
+			obs.Component("usage-modes").Info("learn comparison resumed: no window is forecast to run out", "mode", id)
+		}
+	}
+	usageModeNotifier := &usagemodes.Notifier{Modes: usageModes, Publisher: usageAlerts.Publisher, UsageURL: usagePageURL, Reach: usageModeReach{service: usageattribution.Service{Store: usageAttributionStore(db, orch), Tools: usageAttributionStore(db, orch), Readings: usageAlerts.Readings, Pricer: usageattribution.NewPriceBook(pricingService)}}}
+	if usageAlerts.Publisher != nil {
+		usageAlerts.Modes = usageModeNotifier
+	}
+	interventionStore, interventionClassifier := interventions.NewStore(db), interventions.NewClassifier()
+	usageModeNotifier.Quality = interventions.ModeQuality{Store: interventionStore, Gate: interventions.ProvenSignalGate, Measured: interventions.SignalHoldout}
+	interventionJob := &interventions.Job{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Log: obs.Component("interventions"),
+		Signals: &interventions.SignalJob{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Enabled: interventions.SignalsEnabled, Log: obs.Component("operator-signals")}}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
-	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, Interventions: interventionJob, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
+	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
 
 // usagePageURL links a will-exhaust notification to the Agent Manager Usage
@@ -537,4 +573,54 @@ func newReceiptsClient(bootLog *slog.Logger) (eventbus.Client, orchestration.Rec
 	}
 	receiptReader := newReceiptSummaryReader(receiptsClient, receiptTargets, productionReceiptRuntimeReader)
 	return receiptsClient, receiptReader
+}
+
+// usageModeReach measures how much of a mode's burn since it started came from
+// work the mode cannot change (the unattributed share of the attribution).
+type usageModeReach struct{ service usageattribution.Service }
+
+func (r usageModeReach) Unreached(ctx context.Context, mode usagemode.Mode, now time.Time) (float64, float64, error) {
+	attribution, err := r.service.Current(ctx, "", mode.StartedAt, now)
+	if err != nil {
+		return 0, 0, err
+	}
+	covered := map[string]bool{}
+	for runner := range mode.Runners {
+		covered[usageattribution.ProviderFor(usagemode.NormalizeRunner(runner))] = true
+	}
+	var observed, unattributed float64
+	for _, result := range attribution.Results {
+		if covered[result.Window.Provider] {
+			observed += result.Observed
+			unattributed += result.Unattributed
+		}
+	}
+	if observed <= 0 {
+		return 0, 0, nil
+	}
+	return unattributed / observed, observed, nil
+}
+
+// usageModeRunRebaser adapts the orchestrator's explicit rebase to the
+// measures handler, which does not import orchestration.
+type usageModeRunRebaser struct{ orch *orchestration.Orchestrator }
+
+func (r usageModeRunRebaser) RebaseRuns(ctx context.Context, modeID string, runIDs []string, dryRun bool) ([]analyticsmeasures.RebaseResult, error) {
+	ids := make([]uuid.UUID, 0, len(runIDs))
+	for _, raw := range runIDs {
+		id, err := uuid.Parse(strings.TrimSpace(raw))
+		if err != nil {
+			return nil, domain.NewValidationError("runIds", fmt.Sprintf("%q is not a run id", raw))
+		}
+		ids = append(ids, id)
+	}
+	results, err := r.orch.RebaseRunsToUsageMode(ctx, modeID, ids, dryRun)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]analyticsmeasures.RebaseResult, 0, len(results))
+	for _, result := range results {
+		out = append(out, analyticsmeasures.RebaseResult{RunID: result.RunID.String(), Status: result.Status, Reason: result.Reason, FromModel: result.FromModel, ToModel: result.ToModel, EstimatedRereadTokens: result.EstimatedRereadTokens})
+	}
+	return out, nil
 }

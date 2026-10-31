@@ -800,6 +800,25 @@ func (r *runRepository) UpdateRunSubject(ctx context.Context, id uuid.UUID, subj
 	return nil
 }
 
+// UpdateResolvedConfig rewrites only resolved_config, and only while the run
+// still has expectedStatus, so it cannot clobber a transition that raced it.
+func (r *runRepository) UpdateResolvedConfig(ctx context.Context, id uuid.UUID, cfg *domain.RunConfig, expectedStatus domain.RunStatus) (bool, error) {
+	value, err := NullableRunConfig{V: cfg}.Value()
+	if err != nil {
+		return false, fmt.Errorf("marshal resolved config: %w", err)
+	}
+	result, err := r.db.ExecContext(ctx, `UPDATE runs SET resolved_config = ?, updated_at = ? WHERE id = ? AND status = ?`,
+		value, SQLiteTime(time.Now()), id, string(expectedStatus))
+	if err != nil {
+		return false, wrapDBError("update_resolved_config", "Run", id.String(), err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows == 1, nil
+}
+
 // TouchHeartbeat atomically updates only last_heartbeat (and updated_at) and
 // only while the run is still actively executing (running or starting). The
 // status guard in the WHERE clause means a heartbeat that races a park/stop

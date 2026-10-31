@@ -249,6 +249,10 @@ message Run {
   // Persisted parent run that admitted this child; absent on root runs.
   // @format uuid
   optional string parent_run_id = 61 [(buf.validate.field).string.uuid = true];
+
+  // Direct sub-agent runs of this run. Filled by run listings only (one query
+  // for the whole page); zero everywhere else.
+  int32 sub_agent_count = 62;
 }
 
 // FinalOutputSelectionStatus describes whether provider evidence identifies a

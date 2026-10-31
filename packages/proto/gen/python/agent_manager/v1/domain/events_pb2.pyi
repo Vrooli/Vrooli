@@ -217,7 +217,7 @@ class LogEventData(_message.Message):
     def __init__(self, level: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class MessageEventData(_message.Message):
-    __slots__ = ("role", "content", "attachments", "message_id", "conversation_id", "turn_id", "provider_origin", "completion_reason", "terminal", "parent_message_id", "provider_event_type", "raw_evidence_ref", "evidence_only", "evidence_for_event_id")
+    __slots__ = ("role", "content", "attachments", "message_id", "conversation_id", "turn_id", "provider_origin", "completion_reason", "terminal", "parent_message_id", "provider_event_type", "raw_evidence_ref", "evidence_only", "evidence_for_event_id", "source")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     CONTENT_FIELD_NUMBER: _ClassVar[int]
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
@@ -232,6 +232,7 @@ class MessageEventData(_message.Message):
     RAW_EVIDENCE_REF_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_ONLY_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FOR_EVENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
     role: str
     content: str
     attachments: _containers.RepeatedCompositeFieldContainer[MessageAttachmentInfo]
@@ -246,7 +247,8 @@ class MessageEventData(_message.Message):
     raw_evidence_ref: str
     evidence_only: bool
     evidence_for_event_id: str
-    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[MessageAttachmentInfo, _Mapping]]] = ..., message_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., provider_origin: _Optional[str] = ..., completion_reason: _Optional[str] = ..., terminal: _Optional[bool] = ..., parent_message_id: _Optional[str] = ..., provider_event_type: _Optional[str] = ..., raw_evidence_ref: _Optional[str] = ..., evidence_only: _Optional[bool] = ..., evidence_for_event_id: _Optional[str] = ...) -> None: ...
+    source: str
+    def __init__(self, role: _Optional[str] = ..., content: _Optional[str] = ..., attachments: _Optional[_Iterable[_Union[MessageAttachmentInfo, _Mapping]]] = ..., message_id: _Optional[str] = ..., conversation_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., provider_origin: _Optional[str] = ..., completion_reason: _Optional[str] = ..., terminal: _Optional[bool] = ..., parent_message_id: _Optional[str] = ..., provider_event_type: _Optional[str] = ..., raw_evidence_ref: _Optional[str] = ..., evidence_only: _Optional[bool] = ..., evidence_for_event_id: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
 
 class MessageAttachmentInfo(_message.Message):
     __slots__ = ("id", "file_name", "content_type", "url")

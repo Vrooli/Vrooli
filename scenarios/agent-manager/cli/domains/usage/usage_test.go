@@ -151,8 +151,8 @@ func TestRegisterDeclaresTheUsageGroup(t *testing.T) {
 		}
 	}
 	// SPEC §4 and P2-D1: usage forecast|burners|recommendations|friction (with
-	// its report and dismiss actions)|opportunities|coverage|compare.
-	if group.Name != "usage" || strings.Join(names, ",") != "forecast,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare" {
+	// its report and dismiss actions)|opportunities|coverage|compare|parity|outcomes.
+	if group.Name != "usage" || strings.Join(names, ",") != "forecast,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare,parity,outcomes" {
 		t.Fatalf("group %q declares %v", group.Name, names)
 	}
 }
@@ -172,6 +172,18 @@ func TestWindowTitlesMatchTheUIAndDisambiguateCollisions(t *testing.T) {
 	for i := range want {
 		if titles[i] != want[i] {
 			t.Errorf("title %d = %q, want %q", i, titles[i], want[i])
+		}
+	}
+}
+
+// A model on both paths prints two rows that say which path they are, and a
+// completed unit is shown beside accepted so the two are never read as one.
+func TestOutcomeRowNamesItsPathAndShowsCompletedApartFromAccepted(t *testing.T) {
+	row := &measurepb.UsageOutcomeRow{Runner: "codex", Key: "gpt-6.1-terra", Stratum: "headless", Units: 48, Accepted: 0, Completed: 47, Corrected: 1, Verdict: "not_enough_data"}
+	lines := strings.Join(outcomeRowLines(row), "\n")
+	for _, want := range []string{"codex / gpt-6.1-terra [headless path]", "accepted 0, completed 47", "never a verdict"} {
+		if !strings.Contains(lines, want) {
+			t.Errorf("missing %q in:\n%s", want, lines)
 		}
 	}
 }

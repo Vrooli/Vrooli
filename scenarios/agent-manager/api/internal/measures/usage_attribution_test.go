@@ -46,7 +46,7 @@ func (u usageFacts) UsageTurns(_ context.Context, from, to time.Time) ([]usageat
 func (usageFacts) UsageRuns(_ context.Context, ids []string) (map[string]usageattribution.Run, error) {
 	out := map[string]usageattribution.Run{}
 	for _, id := range ids {
-		out[id] = usageattribution.Run{ID: id, Label: id, Session: id, SessionLabel: id, Runner: "codex", Source: usageattribution.SourceAgentManager, Succeeded: true}
+		out[id] = usageattribution.Run{ID: id, Label: id, Session: id, SessionLabel: id, Runner: "codex", Source: usageattribution.SourceAgentManager, Completed: true, Accepted: true, WorkUnit: id}
 	}
 	return out, nil
 }
@@ -357,7 +357,7 @@ func TestUsageCompareNeedsFiveSuccessesPerSide(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetVerdict() != "insufficient" || response.Msg.GetLeft().GetRuns() != 1 || response.Msg.GetLeft().GetSuccessfulRuns() != 1 || len(response.Msg.GetCaveats()) < 3 {
+	if response.Msg.GetVerdict() != "insufficient" || response.Msg.GetLeft().GetRuns() != 1 || response.Msg.GetLeft().GetAcceptedUnits() != 1 || len(response.Msg.GetCaveats()) < 3 {
 		t.Fatalf("compare = %v", response.Msg)
 	}
 }

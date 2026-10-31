@@ -76,6 +76,9 @@ func (s *Server) decisionEffects() []operatordecision.DomainEffect {
 	if s.evidenceApprovals != nil {
 		effects = append(effects, s.evidenceApprovals)
 	}
+	if s.usageModeNotifier != nil {
+		effects = append(effects, s.usageModeNotifier)
+	}
 	return effects
 }
 

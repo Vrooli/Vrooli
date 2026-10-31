@@ -42,7 +42,7 @@ unknown usage remains unknown and does not terminate admitted work.
 | Audit | An orchestrator's trigger after every 3rd acceptance | Audit that epoch (§4). |
 | Step-back | An orchestrator's trigger after a `STEP_BACK` or park/switch/shrink entry in `STATUS.md` | Audit it (§4). |
 | Repeated workaround | The same `STATUS.md` failure logged twice, or by two goals | Repair it (§3). |
-| Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause; steer or repair. |
+| Spend spike | A goal's weighted tokens per day above twice its 7-day median | Find the cause (`agent-manager usage recommendations --run <run ID>` lists the owner-level levers that name it); steer or repair. |
 | Planning finding | An orchestrator's trigger after a planning finding in the `STATUS.md` Forecast | Audit the plan (§4). |
 
 Event wakes arrive through the existing trigger routes. After the trusted
@@ -122,7 +122,7 @@ For each selected goal home:
    use `agent-manager run events <id> --stats --json` for retained event counts
    without payloads. Otherwise reuse the dated assessment and record a concise
    disposition; never treat unknown evidence as unchanged.
-2. Read `agent-manager usage run <orchestrator run ID> --json` for daily
+2. Read `agent-manager run report <orchestrator run ID> --json` (its `usage_spend`) for daily
    coordinator-only usage. `--children --json` reports the orchestrator and its
    direct children only; it is not recursive. Read it after a material worker/output
    change or when a due efficiency/audit decision needs direct-child accounting;

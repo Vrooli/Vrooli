@@ -33,6 +33,25 @@ type codingRoleResponse struct {
 	Challenger     *agentcatalog.Challenger       `json:"challenger,omitempty"`
 }
 
+type codingRoleChoicesResponse struct {
+	SchemaVersion string                         `json:"schema_version"`
+	Runner        string                         `json:"runner"`
+	Role          string                         `json:"role"`
+	DefaultModel  string                         `json:"default_model"`
+	Choices       []agentcatalog.RoleModelChoice `json:"choices"`
+	Provenance    agentcatalog.CatalogProvenance `json:"provenance"`
+	PolicyPath    string                         `json:"policy_path"`
+	PolicyDigest  string                         `json:"policy_digest"`
+}
+
+type codingRoleSelectionResponse struct {
+	SchemaVersion string                             `json:"schema_version"`
+	Selection     agentcatalog.ResolvedRoleSelection `json:"selection"`
+	Provenance    agentcatalog.CatalogProvenance     `json:"provenance"`
+	PolicyPath    string                             `json:"policy_path"`
+	PolicyDigest  string                             `json:"policy_digest"`
+}
+
 // CodingPolicyCommands supplies a uniform, machine-readable protocol while
 // each resource supplies its catalog path, runner identity, and enforcement.
 func CodingPolicyCommands(cfg CodingPolicyConfig) cliapp.SubcommandGroup {
@@ -45,8 +64,94 @@ func CodingPolicyCommands(cfg CodingPolicyConfig) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "policy", Description: "Inspect this resource's coding-role policy", Subcommands: []cliapp.Command{
 		{Name: "validate", Description: "Validate the resource-owned policy catalog", Run: func(args []string) error { return codingPolicyValidate(cfg, args) }},
 		{Name: "roles", Description: "List semantic coding roles", Run: func(args []string) error { return codingPolicyRoles(cfg, args) }},
+		{Name: "choices", Description: "List declared model and source choices for a semantic role", Run: func(args []string) error { return codingPolicyChoices(cfg, args) }},
+		{Name: "select", Description: "Resolve an exact model and source choice for a semantic role", Run: func(args []string) error { return codingPolicySelect(cfg, args) }},
 		{Name: "resolve", Description: "Resolve one semantic coding role", Run: func(args []string) error { return codingPolicyResolve(cfg, args) }},
 	}}
+}
+
+func codingPolicyChoices(cfg CodingPolicyConfig, args []string) error {
+	fs := policyFlagSet("policy choices", cfg.Stderr)
+	role := fs.String("role", "", "Semantic coding role, e.g. code.default")
+	jsonOut := fs.Bool("json", false, "Emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	roleName := strings.TrimSpace(*role)
+	if roleName == "" {
+		return errors.New("--role is required")
+	}
+	catalog, data, err := agentcatalog.LoadCodingRoleCatalog(cfg.Runner, cfg.CatalogPath)
+	if err != nil {
+		return err
+	}
+	choices, err := agentcatalog.RoleModelChoices(catalog, roleName)
+	if err != nil {
+		return err
+	}
+	rolePolicy := catalog.Roles[roleName]
+	response := codingRoleChoicesResponse{
+		SchemaVersion: CodingRolePolicySchemaVersion,
+		Runner:        catalog.Runner,
+		Role:          roleName,
+		DefaultModel:  rolePolicy.Model,
+		Choices:       choices,
+		Provenance:    catalog.Provenance,
+		PolicyPath:    cfg.CatalogPath,
+		PolicyDigest:  digest(data),
+	}
+	if *jsonOut {
+		return writeJSON(cfg.Stdout, response)
+	}
+	for _, choice := range choices {
+		source := choice.Source
+		if source == "" {
+			source = "source unknown"
+		}
+		fmt.Fprintf(cfg.Stdout, "%s -> %s (%s)\n", roleName, choice.Model, source)
+	}
+	return nil
+}
+
+func codingPolicySelect(cfg CodingPolicyConfig, args []string) error {
+	fs := policyFlagSet("policy select", cfg.Stderr)
+	role := fs.String("role", "", "Semantic coding role, e.g. code.default")
+	model := fs.String("model", "", "Explicit model override")
+	source := fs.String("source", "", "Explicit resource-declared source")
+	jsonOut := fs.Bool("json", false, "Emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	roleName := strings.TrimSpace(*role)
+	if roleName == "" {
+		return errors.New("--role is required")
+	}
+	catalog, data, err := agentcatalog.LoadCodingRoleCatalog(cfg.Runner, cfg.CatalogPath)
+	if err != nil {
+		return err
+	}
+	selection, err := agentcatalog.ResolveRoleSelection(catalog, agentcatalog.RoleSelectionIntent{
+		Role: roleName, Model: *model, Source: *source,
+	})
+	if err != nil {
+		return err
+	}
+	response := codingRoleSelectionResponse{
+		SchemaVersion: CodingRolePolicySchemaVersion,
+		Selection:     selection,
+		Provenance:    catalog.Provenance,
+		PolicyPath:    cfg.CatalogPath,
+		PolicyDigest:  digest(data),
+	}
+	if *jsonOut {
+		return writeJSON(cfg.Stdout, response)
+	}
+	resolvedSource := selection.Source
+	if resolvedSource == "" {
+		resolvedSource = selection.SourceStatus
+	}
+	fmt.Fprintf(cfg.Stdout, "%s -> %s (%s)\n", selection.Role, selection.Model, resolvedSource)
+	return nil
 }
 
 func codingPolicyValidate(cfg CodingPolicyConfig, args []string) error {

@@ -282,8 +282,8 @@ func coverageShare(root *measurepb.UsageCoverageRoot) string {
 func compareCommand(newClient clientFor) cliapp.Command {
 	flags := append(measures.SelectorFlags("left-"), measures.SelectorFlags("right-")...)
 	flags = append(flags, providerFlag, cliapp.Flag{Name: "change-binding", Description: "Label of the change between the cohorts (echoed)"})
-	return usageCommand("compare", "Did the change work? Quota per successful run between two cohorts [--left-* --right-*] [--json]",
-		"Prices each cohort's usage as its attributed share of the observed window increase and compares points per successful run. Select each side with --left-/--right- cohort, run-ids, filter-json and window, the same selector as `measures`.",
+	return usageCommand("compare", "Did the change work? Quota per accepted work unit between two cohorts [--left-* --right-*] [--json]",
+		"Prices each cohort's usage as its attributed share of the observed window increase and compares points per accepted work unit. Accepted is an outcome estimate with a stated source; a completed run, or an imported session whose transcript ended, is not accepted, and unknown outcomes stay out of the ratio. Select each side with --left-/--right- cohort, run-ids, filter-json and window, the same selector as `measures`.",
 		flags,
 		func(op cliapp.OperationContext) (proto.Message, error) {
 			left, err := measures.ReadSelector(op, "left-")
@@ -304,14 +304,14 @@ func compareCommand(newClient clientFor) cliapp.Command {
 			r := response.(*measurepb.UsageCompareResponse)
 			report := cliapp.ListReport{ResultsHeading: "Cohorts", Summary: []string{"Verdict: " + r.GetVerdict()}}
 			if r.GetVerdict() != "insufficient" {
-				report.Summary[0] += fmt.Sprintf(" (points per successful run %+.0f%%)", r.GetPointsPerSuccessChange()*100)
+				report.Summary[0] += fmt.Sprintf(" (points per accepted unit %+.0f%%)", r.GetPointsPerAcceptedChange()*100)
 			}
 			for _, side := range []struct {
 				name string
 				s    *measurepb.UsageCompareSide
 			}{{"left", r.GetLeft()}, {"right", r.GetRight()}} {
-				report.Results = append(report.Results, fmt.Sprintf("%-5s %d runs, %d successful (%.0f%%), %d priced · ≈%.2f pts · ≈%.3f pts per success · %s tokens per success · %s → %s",
-					side.name, side.s.GetRuns(), side.s.GetSuccessfulRuns(), side.s.GetSuccessRate()*100, side.s.GetPricedRuns(), side.s.GetPoints(), side.s.GetPointsPerSuccess(), compact(int64(side.s.GetTokensPerSuccess())), stamp(side.s.GetWindowStart()), stamp(side.s.GetWindowEnd())))
+				report.Results = append(report.Results, fmt.Sprintf("%-5s %d runs (%d completed), %d accepted units, %d unknown, %d priced · ≈%.2f pts · ≈%.3f pts per accepted · %s tokens per accepted · %s → %s",
+					side.name, side.s.GetRuns(), side.s.GetCompletedRuns(), side.s.GetAcceptedUnits(), side.s.GetUnknownUnits(), side.s.GetPricedRuns(), side.s.GetPoints(), side.s.GetPointsPerAccepted(), compact(int64(side.s.GetTokensPerAccepted())), stamp(side.s.GetWindowStart()), stamp(side.s.GetWindowEnd())))
 			}
 			report.Results = append(report.Results, r.GetCaveats()...)
 			return report

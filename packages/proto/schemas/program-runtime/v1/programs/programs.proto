@@ -40,6 +40,18 @@ enum FailureCause {
   // The process that owned execution stopped before recording a terminal result.
   // Downstream effects may have occurred; automatic replay is unsafe.
   FAILURE_CAUSE_RUNTIME_INTERRUPTED = 15;
+  // An owner operation may have taken effect but its outcome is not known.
+  // Inspect the owner before deciding whether any retry is safe.
+  FAILURE_CAUSE_EFFECT_UNCERTAIN = 16;
+  // The requested operation requires a verified authority path that this
+  // session or host cannot currently provide.
+  FAILURE_CAUSE_AUTHORITY_UNAVAILABLE = 17;
+  // The executed declared program returned output that does not satisfy its
+  // pinned output schema. Earlier owner effects may still have occurred.
+  FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH = 18;
+  // Captured output exceeded the declared output limit and is incomplete.
+  // Owner effects may still have occurred.
+  FAILURE_CAUSE_OUTPUT_TRUNCATED = 19;
 }
 
 // Caller is optional metadata supplied by the caller. It is never inferred

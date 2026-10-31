@@ -87,3 +87,40 @@ func TestCreateRunRejectsIncompatibleExplicitSpawnBeforeAdmission(t *testing.T) 
 		t.Fatalf("incompatible explicit spawn was refused only after creating runs: got %d", len(runs))
 	}
 }
+
+func TestCreateRunRejectsProtectedInPlaceBeforeCreatingRun(t *testing.T) {
+	ctx := context.Background()
+	repos, events, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	registry := runner.NewRegistry()
+	mock := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mock.SetAvailable(true, "fixture runner")
+	if err := registry.Register(mock); err != nil {
+		t.Fatal(err)
+	}
+	svc := orchestration.New(repos.Profiles, repos.Tasks, repos.Runs,
+		orchestration.WithEvents(events), orchestration.WithRunners(registry),
+		orchestration.WithCheckpoints(repos.Checkpoints), orchestration.WithIdempotency(repos.Idempotency),
+		fixtureOwnerIdentityOption(), newTestRolePolicyOption(t))
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		ID: uuid.New(), Name: "protected-profile", RoleRef: "code.default",
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected},
+		CreatedAt:     time.Now(), UpdatedAt: time.Now(),
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		ID: uuid.New(), Title: "Protected profile in place", ScopePath: ".", Status: domain.TaskStatusQueued,
+		CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	})
+	mode := domain.RunModeInPlace
+	_, err := svc.CreateRun(ctx, authenticatedCreateRunFixture(orchestration.CreateRunRequest{
+		TaskID: task.ID, AgentProfileID: &profile.ID, Prompt: "refuse before admission", RunMode: &mode,
+	}))
+	var validationErr *domain.ValidationError
+	if !errors.As(err, &validationErr) || validationErr.Field != "runMode" {
+		t.Fatalf("expected runMode validation refusal, got %T: %v", err, err)
+	}
+	runs, err := svc.ListRuns(ctx, orchestration.RunListOptions{})
+	if err != nil || len(runs) != 0 {
+		t.Fatalf("runs after refused admission = %d, err=%v", len(runs), err)
+	}
+}

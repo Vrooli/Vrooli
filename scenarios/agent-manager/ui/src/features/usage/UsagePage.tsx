@@ -4,13 +4,14 @@ import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { ManualImport } from "./ManualImport";
 import { CoverageChip, UsageCoverage } from "./UsageCoverage";
 import { UsageDetails } from "./UsageDetails";
+import { UsageEvidence } from "./UsageEvidence";
 import { UsageFriction } from "./UsageFriction";
 import { UsageOverview } from "./UsageOverview";
 
-export const USAGE_TABS = ["overview", "friction", "details", "coverage"] as const;
+export const USAGE_TABS = ["overview", "evidence", "friction", "details", "coverage"] as const;
 export type UsageTab = (typeof USAGE_TABS)[number];
 
-const TAB_LABELS: Record<UsageTab, string> = { overview: "Overview", friction: "Friction", details: "Details", coverage: "Coverage" };
+const TAB_LABELS: Record<UsageTab, string> = { overview: "Overview", evidence: "Evidence", friction: "Friction", details: "Details", coverage: "Coverage" };
 
 function isUsageTab(value: string | null): value is UsageTab {
   return USAGE_TABS.includes(value as UsageTab);
@@ -42,6 +43,7 @@ export function UsagePage() {
         testId="usage-tabs"
         panels={{
           overview: <div className="pt-4"><UsageOverview /></div>,
+          evidence: <div className="pt-4"><UsageEvidence /></div>,
           friction: <div className="pt-4"><UsageFriction /></div>,
           details: <div className="pt-4"><UsageDetails /></div>,
           coverage: (

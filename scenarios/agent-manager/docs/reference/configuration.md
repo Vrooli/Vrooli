@@ -308,6 +308,12 @@ Rules the indexer applies:
 | `ScanRoots` | none | Additional transcript directories, each an absolute path (leading `~` expands to the home dir). Read in addition to the built-in roots; a root inside a built-in root is ignored so no file is read twice. Env: `AGENT_MANAGER_TRANSCRIPT_IMPORT_SCAN_ROOTS` (comma-separated paths). |
 | `Storage.ImportedCorpusMaxBytes` | 4 GiB | Recall budget: full events and search documents of indexed runs, measured on those rows alone. Recall is written only for files modified in the last 30 days. Over budget, the least recently active files lose recall; usage summaries and quota observations stay. `0` keeps summaries only. Env: `AGENT_MANAGER_STORAGE_IMPORTED_CORPUS_MAX_BYTES`. |
 
+## Operator signals
+
+| Variable | Default | Effect |
+|---|---|---|
+| `AGENT_MANAGER_OPERATOR_SIGNALS` | on | `off`, `0`, `false`, `no` or `disabled` is the off switch for operator-signal classification (reported failure, correction, frustration, satisfaction). The job reads no run events and sends nothing to a model; `usage.operator_signals` answers "switched off"; the outcome ledger stops reading new labels. Read on every pass, set in the environment of the API process and restart to apply. Stored labels (no message text) stay until purged. Privacy and limits: [Operator signals](operational-stats.md#operator-signals-usageoperator_signals). |
+
 ## Scanner
 
 Buffer ceilings for stdout and transcript readers. Higher = handles bigger lines without truncation, more memory.

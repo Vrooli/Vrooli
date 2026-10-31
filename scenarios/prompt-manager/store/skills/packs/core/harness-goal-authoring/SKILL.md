@@ -129,6 +129,14 @@ task or investigation goal. It receives a plan-backed goal only when it owns a
 separate plan-shaped change boundary. Do not
 author a child plan merely to make a worker's handoff look formal.
 
+Every sub-agent assignment also names its **model and lifetime**. Pick the
+cheapest agent definition or role that fits the work (`.claude/agents/` `lookup`,
+`researcher`, `reviewer`, `implementer`; Codex Luna roles for read-only work, as
+the role descriptions state); name Opus or a high-effort role only for design or
+hard debugging. One assignment is one outcome for one fresh worker: do not reuse
+a long-lived worker for the next outcome, because each request re-reads its whole
+context.
+
 **A. Plan-backed goal.** The route or phase order matters, or several sessions
 will touch the work. Receiving skill: `implementation-plan-execution`. A
 convergence loop has no phase order and is never this shape (§6).
@@ -271,6 +279,7 @@ receiving skill's doctrine from inside a goal.
 | A feeling-word destination ("clean", "solid") | The goal never clears or clears falsely | Name a state a command can show |
 | "Validated" with no command | The evaluator guesses; the agent stops early | Name the check and require its output |
 | The same tolerance preamble retyped every dispatch | Drift between copies; long goals | Move the rule into the receiving skill; the goal selects a posture |
+| A sub-agent with no model named | It inherits the parent's most expensive model | Name the agent definition or role (§5) |
 | A plan for every sub-assignment | 100k–200k tokens of authoring per worker | Choose the cheapest shape (§5) |
 | A goal that explains the design | Lossy, stale on arrival | Write the design into the docs; point the goal at it |
 | Completion by self-report | Harness "met" with no evidence | Proof in transcript; independent review for material outcomes |

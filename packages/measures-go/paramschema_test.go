@@ -55,8 +55,8 @@ func TestDescriptorRoundTrip(t *testing.T) {
 	if limit.Min == nil || *limit.Min != 1 {
 		t.Errorf("limit.Min = %v, want 1", limit.Min)
 	}
-	if limit.Max == nil || *limit.Max != 100 {
-		t.Errorf("limit.Max = %v, want 100", limit.Max)
+	if limit.Max == nil || *limit.Max != 5000 {
+		t.Errorf("limit.Max = %v, want 5000 (ListProfilesRequest.limit lte)", limit.Max)
 	}
 	if !strings.Contains(limit.Description, "Pagination limit") {
 		t.Errorf("limit.Description = %q, want it to contain leading comment %q", limit.Description, "Pagination limit")
@@ -70,7 +70,13 @@ func TestDescriptorRoundTrip(t *testing.T) {
 		t.Errorf("offset.Min = %v, want 0", offset.Min)
 	}
 
-	runnerType, ok := byName(params, "runner_type")
+	// ProbeRunnerRequest.runner_type carries defined_only + not_in[0]: the enum
+	// membership case the descriptor must preserve.
+	probe, err := r.RequestParams("agent_manager.v1.AgentManagerService", "ProbeRunner")
+	if err != nil {
+		t.Fatalf("RequestParams(ProbeRunner): %v", err)
+	}
+	runnerType, ok := byName(probe, "runner_type")
 	if !ok {
 		t.Fatalf("runner_type param not found")
 	}

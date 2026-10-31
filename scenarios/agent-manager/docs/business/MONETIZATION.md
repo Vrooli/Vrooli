@@ -53,7 +53,23 @@ agent workflows." A potential saving is a hypothesis until measured. Do not
 promise guaranteed savings, autonomous universal optimization, complete subscription
 quota visibility, or complete observation of external coding agents.
 
-A provider limits/reset dashboard may be worth exploring with Aquila. It is
-future discovery here; this documentation update does not implement, price or
-advertise it as available. Commercial activation and meter ownership remain with
-Offer Desk, the funding/credential authorities and the current product contracts.
+## Usage controls: what can and cannot be claimed
+
+Agent Manager forecasts provider limits for Claude Code and Codex from observed
+readings, and [usage modes](../../../../docs/configuration/usage-modes.md) let an
+operator lower what new work runs on for a chosen period. Packaging and price remain
+undecided.
+
+Acceptable claim: "see when a limit will run out, what is using it, and change what
+new work runs on in one action, with what the change could not reach reported."
+
+Not yet supported by evidence:
+
+- A percentage saved. Estimates rest on unfitted price ratios and modelled levers;
+  acceptance A11 in the usage-intelligence effort has not been measured.
+- That a cheaper model costs less per outcome. Headless runs record no independent
+  acceptance evidence, so Learn mode cannot currently reach a verdict from them.
+- Anything about what buyers pay for. All measurements so far come from one operator.
+
+Commercial activation and meter ownership remain with Offer Desk, the
+funding/credential authorities and the current product contracts.
