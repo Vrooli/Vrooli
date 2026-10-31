@@ -2,16 +2,57 @@ package programs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
+
+func TestVerifiedPersistentTaskErrorIdentifiesUnavailableAuthority(t *testing.T) {
+	var calls atomic.Int32
+	owner := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		_, _ = w.Write([]byte(`{"state":"prepared"}`))
+	}))
+	defer owner.Close()
+	verify := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: token == "synthetic-proof", Claims: &cliutil.VerifiedClaims{RunID: "owner"}}, nil
+	})
+	var verified context.Context
+	provenance.Middleware(verify)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { verified = r.Context() })).ServeHTTP(httptest.NewRecorder(), func() *http.Request {
+		r := httptest.NewRequest(http.MethodPost, "/", nil)
+		r.Header.Set(cliutil.HeaderAgentIdentityToken, "synthetic-proof")
+		return r
+	}())
+	kernel, err := filepath.Abs("../../../kernel/host/engine.py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := NewSubprocessRunnerWithBindings(kernel, nil, owner.URL+"/internal/program-runtime/bindings/execute")
+	defer runner.Close()
+	_, err = runner.ExecuteWithMetadataAndLimitsAndCaller(verified, "persistent", "first", "PROVENANCE_AGENT", `tasks.get(attempt_id="attempt")`, Caller{}, false, ExecutionLimits{})
+	if err == nil || !strings.Contains(err.Error(), "TaskAuthorityUnavailable") || !strings.Contains(err.Error(), "persistent Runtime sessions") {
+		t.Fatalf("expected actionable authority diagnostic, got %v", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatal("unavailable verified authority must not call owner anonymously")
+	}
+	_, err = runner.ExecuteWithMetadataAndLimitsAndCaller(context.Background(), "persistent", "second", "PROVENANCE_OPERATOR", `tasks.get(attempt_id="attempt")`, Caller{}, false, ExecutionLimits{})
+	if err != nil || calls.Load() != 1 {
+		t.Fatalf("diagnostic leaked into next submission: calls=%d err=%v", calls.Load(), err)
+	}
+}
 
 func writeTestKernel(t *testing.T) string {
 	t.Helper()
@@ -131,6 +172,63 @@ func TestSubprocessRunnerSerializesConcurrentSessionSubmissions(t *testing.T) {
 	}
 	if err := <-results; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSubprocessRunnerQueuedSubmissionRespectsDeadline(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "queued-kernel.py")
+	source := `import json, sys, time
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("source") == "hold":
+        print(json.dumps({"type": "progress", "ok": True}), flush=True)
+        time.sleep(0.5)
+    print(json.dumps({"ok": True, "stdout": "done"}), flush=True)
+`
+	if err := os.WriteFile(path, []byte(source), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewSubprocessRunner(path)
+	defer runner.Close()
+	started := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		_, err := runner.ExecuteWithMetadataAndLimitsAndProgress(context.Background(), "queued", "first", "test", "hold", false, ExecutionLimits{}, func(Result) { close(started) })
+		first <- err
+	}()
+	<-started
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	begin := time.Now()
+	_, err := runner.Execute(ctx, "queued", "second", false)
+	if !errors.Is(err, context.DeadlineExceeded) || time.Since(begin) > 250*time.Millisecond {
+		t.Errorf("queued execution returned %v after %s; want deadline before active submission finishes", err, time.Since(begin))
+	}
+	if err := <-first; err != nil {
+		t.Fatalf("cancelling the queued submission interrupted the active one: %v", err)
+	}
+}
+
+func TestSubprocessRunnerCarriesPerSubmissionHelperContract(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "helper-kernel.py")
+	source := `import json, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    print(json.dumps({"ok": True, "stdout": json.dumps(request.get("declared_helper_contract"))}), flush=True)
+`
+	if err := os.WriteFile(path, []byte(source), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runner := NewSubprocessRunner(path)
+	defer runner.Close()
+	limits := ExecutionLimits{DeclaredContract: &HelperContract{Version: "2", Outputs: json.RawMessage(`{"errors":{"classes":["invalid_response"]}}`)}}
+	result, err := runner.ExecuteWithMetadataAndLimits(context.Background(), "helper", "declared", "test", "source", false, limits)
+	if err != nil || !strings.Contains(result.Stdout, "invalid_response") || !strings.Contains(result.Stdout, `"version": "2"`) {
+		t.Fatalf("declared contract did not reach kernel: result=%+v err=%v", result, err)
+	}
+	result, err = runner.Execute(context.Background(), "helper", "source", false)
+	if err != nil || result.Stdout != "null" {
+		t.Fatalf("ad-hoc submission inherited declared contract: result=%+v err=%v", result, err)
 	}
 }
 

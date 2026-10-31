@@ -1,6 +1,7 @@
 package programs
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
 
@@ -29,6 +31,135 @@ func (f failTerminalProgramWrite) ExecContext(ctx context.Context, query string,
 type admissionRunner struct {
 	calls atomic.Int32
 	err   error
+}
+
+func TestDeclaredOutputSchemaValidatesWithoutErasingEvidence(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	require.NoError(t, compiler.AddResource("output.json", bytes.NewBufferString(`{"type":"object","required":["status","signals"],"properties":{"status":{"enum":["ok","partial"]},"signals":{"type":"object","properties":{"count":{"type":"integer","maximum":9007199254740992}}}},"additionalProperties":true}`)))
+	schema, err := compiler.Compile("output.json")
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name, output string
+		valid        bool
+	}{
+		{"partial_with_extension", `{"status":"partial","signals":{"count":3},"extension":"retained"}`, true},
+		{"bad_nested_type", `{"status":"ok","signals":{"count":"bad"}}`, false},
+		{"precise_large_integer", `{"status":"ok","signals":{"count":9007199254740993}}`, false},
+		{"not_json", `not json`, false},
+		{"multiple_envelopes", `{"status":"ok","signals":{}} {}`, false},
+		{"duplicate_top_level", `{"status":"failed","status":"ok","signals":{}}`, false},
+		{"duplicate_nested", `{"status":"ok","signals":{"count":"bad","count":3}}`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := newProgramsTestDB(t)
+			service := NewService(Options{Store: db, Runner: fakeRunner{result: Result{Stdout: tc.output}}})
+			program, _, err := service.SubmitDeclared(context.Background(), "session", "print(1)", programsv1.Provenance_PROVENANCE_TEST, false, false, Identity{ProgramName: "demo.test", OutputSchema: schema}, Caller{})
+			require.NoError(t, err)
+			require.Equal(t, tc.output, program.GetStdout())
+			if tc.valid {
+				require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, program.GetStatus())
+			} else {
+				require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, program.GetStatus())
+				require.Equal(t, "output_schema_mismatch", program.GetFailureShape())
+				require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH, program.GetFailureCause())
+				stored, err := NewRepository(db).Get(context.Background(), program.GetId())
+				require.NoError(t, err)
+				require.Equal(t, tc.output, stored.GetStdout())
+				require.Equal(t, program.GetFailureCause(), stored.GetFailureCause())
+			}
+		})
+	}
+}
+
+func TestSchemaBackedOutputDistinguishesTruncation(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	require.NoError(t, compiler.AddResource("output.json", bytes.NewBufferString(`{"type":"object","required":["status"]}`)))
+	schema, err := compiler.Compile("output.json")
+	require.NoError(t, err)
+	base := `{"status":"ok","padding":"`
+	end := `"}`
+	exact := base + strings.Repeat("x", 4096-len(base)-len(end)) + end
+	for _, tc := range []struct {
+		name      string
+		result    Result
+		truncated bool
+	}{
+		{"exact_limit", Result{Stdout: exact, ContextBytes: 4096, AgentBytes: 4096, OutputLimitBytes: 4096}, false},
+		{"kernel_truncated", Result{Stdout: exact, ContextBytes: 4100, AgentBytes: 4096, OutputLimitBytes: 4096}, true},
+		{"owner_truncated", Result{Stdout: exact + "x"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			service := NewService(Options{Runner: fakeRunner{result: tc.result}})
+			program, _, err := service.SubmitDeclared(context.Background(), "session", "print(1)", programsv1.Provenance_PROVENANCE_TEST, false, false, Identity{ProgramName: "demo.test", OutputSchema: schema}, Caller{})
+			require.NoError(t, err)
+			if tc.truncated {
+				require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, program.GetStatus())
+				require.Equal(t, "output_truncated", program.GetFailureShape())
+				require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_TRUNCATED, program.GetFailureCause())
+			} else {
+				require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, program.GetStatus())
+			}
+		})
+	}
+}
+
+type delayedSchemaRunner struct{ release chan struct{} }
+
+func (r *delayedSchemaRunner) Execute(ctx context.Context, _ string, _ string, _ bool) (Result, error) {
+	select {
+	case <-r.release:
+		return Result{Stdout: `{"status":"ok","count":"wrong"}`}, nil
+	case <-ctx.Done():
+		return Result{}, ctx.Err()
+	}
+}
+
+func TestAsyncDeclaredOutputSchemaIsCheckedBeforeTerminalSuccess(t *testing.T) {
+	compiler := jsonschema.NewCompiler()
+	require.NoError(t, compiler.AddResource("output.json", bytes.NewBufferString(`{"type":"object","properties":{"count":{"type":"integer"}}}`)))
+	schema, err := compiler.Compile("output.json")
+	require.NoError(t, err)
+	runner := &delayedSchemaRunner{release: make(chan struct{})}
+	service := NewService(Options{Runner: runner})
+	program, _, err := service.SubmitDeclared(context.Background(), "session", "print(1)", programsv1.Provenance_PROVENANCE_TEST, false, false, Identity{ProgramName: "demo.test", OutputSchema: schema}, Caller{}, true)
+	require.NoError(t, err)
+	close(runner.release)
+	finished, terminal, err := service.Wait(context.Background(), program.GetId(), 5*time.Second)
+	require.NoError(t, err)
+	require.True(t, terminal)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, finished.GetStatus())
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH, finished.GetFailureCause())
+	require.Equal(t, `{"status":"ok","count":"wrong"}`, finished.GetStdout())
+}
+
+func TestEffectUncertaintyHasTypedCauseAndSurvivesStorage(t *testing.T) {
+	db := newProgramsTestDB(t)
+	runner := &admissionRunner{err: errors.Join(errors.New("deadline exceeded while checking grant"), ErrAuthorityEffectUncertain)}
+	service := NewService(Options{Store: db, Runner: runner})
+	program, err := service.Submit(context.Background(), "session", "print(1)", programsv1.Provenance_PROVENANCE_TEST, false)
+	require.NoError(t, err)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, program.GetStatus())
+	require.Equal(t, "effect_uncertain", program.GetFailureShape())
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_EFFECT_UNCERTAIN, program.GetFailureCause())
+	stored, err := NewRepository(db).Get(context.Background(), program.GetId())
+	require.NoError(t, err)
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_EFFECT_UNCERTAIN, stored.GetFailureCause())
+	require.Equal(t, "effect_uncertain", stored.GetFailureShape())
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_EFFECT_UNCERTAIN, parseFailureCause("effect_uncertain"))
+}
+
+func TestTaskAuthorityUnavailableHasTypedCause(t *testing.T) {
+	db := newProgramsTestDB(t)
+	runner := &admissionRunner{err: errors.New("TaskAuthorityUnavailable: verified agent task calls are unavailable in persistent Runtime sessions")}
+	service := NewService(Options{Store: db, Runner: runner})
+	program, err := service.Submit(context.Background(), "session", "print(1)", programsv1.Provenance_PROVENANCE_TEST, false)
+	require.NoError(t, err)
+	require.Equal(t, "authority_unavailable", program.GetFailureShape())
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_AUTHORITY_UNAVAILABLE, program.GetFailureCause())
+	stored, err := NewRepository(db).Get(context.Background(), program.GetId())
+	require.NoError(t, err)
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_AUTHORITY_UNAVAILABLE, stored.GetFailureCause())
+	require.Equal(t, programsv1.FailureCause_FAILURE_CAUSE_AUTHORITY_UNAVAILABLE, parseFailureCause("authority_unavailable"))
 }
 
 func (r *admissionRunner) Execute(context.Context, string, string, bool) (Result, error) {
@@ -347,7 +478,7 @@ func TestSuccessfulAgentProgramIsRetained(t *testing.T) {
 
 func TestAsyncSubmissionReturnsAcceptedAndPublishesTerminalState(t *testing.T) {
 	runner := &blockingRunner{started: make(chan struct{}), release: make(chan struct{})}
-	s := NewService(Options{Runner: runner, ValidateSession: func(string) bool { return true }})
+	s := NewService(Options{Runner: runner, ValidateSession: func(string) bool { return true }, AuthorizeSession: func(context.Context, string) (bool, error) { return false, nil }})
 	p, err := s.Submit(context.Background(), "s1", "print('done')", programsv1.Provenance_PROVENANCE_AGENT, false, true)
 	if err != nil || p.Status != programsv1.ProgramStatus_PROGRAM_STATUS_ACCEPTED {
 		t.Fatalf("accepted program=%v err=%v", p, err)

@@ -17,7 +17,7 @@ envelope = {
     "status": "failed", "phase": "validate", "inputs": {},
     "signals": {
         "requested": 0, "found": 0, "running": 0, "healthy": 0,
-        "attention": [], "truncated": False,
+        "attention": [], "truncated": False, "source_truncated": False,
     },
     "errors": [], "evidence": [],
 }
@@ -64,8 +64,11 @@ def step_collect():  # COLLECT · one governed fleet read
         envelope["errors"].append({"class": klass, "detail": str(exc)[:200], "where": "collect"})
         envelope["status"] = status if status in ("unavailable", "refused", "failed") else "unavailable"
         return "report"
-    # Bounded materialize: the fleet is a small, fixed set; we read name/status/health only.
-    for row in rows.materialize(256):
+    # Filter the complete handle before materializing, so unrelated fleet rows
+    # cannot hide a requested scenario beyond an arbitrary prefix.
+    selected = rows.filter(lambda row: row.get("name") in requested)
+    envelope["signals"]["source_truncated"] = selected.count() > MAX_SCENARIOS
+    for row in selected.materialize(MAX_SCENARIOS):
         name = row.get("name")
         if not name:
             continue
@@ -86,7 +89,8 @@ def step_classify():  # CLASSIFY · deterministic labels, no inference
     for slug in requested:
         entry = fleet.get(slug)
         if entry is None:
-            attention.append({"name": slug, "status": "absent", "health": "unknown"})
+            status = "unknown" if envelope["signals"]["source_truncated"] else "absent"
+            attention.append({"name": slug, "status": status, "health": "unknown"})
             continue
         found += 1
         is_running = entry["status"] == "running"
@@ -107,7 +111,8 @@ def step_classify():  # CLASSIFY · deterministic labels, no inference
     envelope["signals"]["attention"] = attention[:MAX_SCENARIOS]
     # ok when every supervised scenario was present; partial when a slug is absent
     # from the fleet list (a real supervision signal, not a transport failure).
-    envelope["status"] = "ok" if found == len(requested) else "partial"
+    incomplete = envelope["signals"]["truncated"] or envelope["signals"]["source_truncated"]
+    envelope["status"] = "ok" if found == len(requested) and not incomplete else "partial"
     return "report"
 
 

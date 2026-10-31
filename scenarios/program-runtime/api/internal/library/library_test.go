@@ -3,9 +3,10 @@ package library
 import (
 	"context"
 	"path/filepath"
-	"program-runtime/internal/contracts"
 	"testing"
 	"time"
+
+	"program-runtime/internal/contracts"
 
 	internalbindings "program-runtime/internal/bindings"
 	"program-runtime/internal/programs"
@@ -47,6 +48,7 @@ func TestPromoteDerivesOnlySuccessfulInvocations(t *testing.T) {
 	got, err := repo.PromoteByID(context.Background(), "prog_invocations", "invocation-proof", "", "operator", "verified", "", nil, nil, now)
 	require.NoError(t, err)
 	require.Equal(t, []string{"demo/ops/read"}, got.GetCalledBindingIds())
+	require.Empty(t, got.GetDeclaredInputs(), "promotion must not invent session_id as an input")
 }
 
 func TestListCallableExcludesUnselectedVersionsAndListPaginates(t *testing.T) {
@@ -96,4 +98,24 @@ func TestDeclaredArtifactSurvivesSourceChangeAndRepositoryRestart(t *testing.T) 
 	require.Error(t, repo.RetainDeclared(ctx, corrupt))
 	_, err = restarted.GetDeclaredArtifact(ctx, "wrong-owner.program", original.Digest)
 	require.Error(t, err)
+}
+
+func TestPromotionReadsLiteralMarkersAndRejectsResumeAuthority(t *testing.T) {
+	ctx := t.Context()
+	db := dbtest.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(ctx, db, apidb.SchemaProviderFunc(programs.Schema), apidb.SchemaProviderFunc(internalbindings.Schema), apidb.SchemaProviderFunc(Schema)))
+	corpus := programs.NewRepository(db)
+	now := time.Now().UTC()
+	literal := "print('prt_sealed_v1_hello')"
+	for _, entry := range []struct{ id, source string }{{"plain", literal}, {"secret", "print('prt_resume_v1_abc')"}} {
+		require.NoError(t, corpus.Save(ctx, &programsv1.Program{Id: entry.id, SessionId: "s", Source: entry.source, Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, CreatedAt: now.Format(time.RFC3339Nano)}))
+	}
+	repo := NewRepository(db)
+	got, err := repo.PromoteByID(ctx, "plain", "literal", "", "", "", "", nil, nil, now)
+	require.NoError(t, err)
+	require.Equal(t, literal, got.Source)
+	_, err = repo.PromoteByID(ctx, "secret", "secret", "", "", "", "", nil, nil, now)
+	require.ErrorIs(t, err, ErrSourceProtected)
+	_, err = repo.Promote(ctx, &programsv1.Program{Id: "secret", Source: "prt_resume_v1_abc", Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED}, "unsafe", "", "", "", "", nil, nil, now)
+	require.ErrorIs(t, err, ErrSourceProtected)
 }

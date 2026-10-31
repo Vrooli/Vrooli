@@ -75,12 +75,6 @@
       "id": "program-runtime/programs/portfolio",
       "effect": "read",
       "note": "Windowed declared-program execution, health, adoption denominator, and never_executed metadata."
-    },
-    {
-      "id": "program-runtime/library/portfolio-audit",
-      "effect": "read",
-      "via": "lib",
-      "note": "Nested declared maturity score; unavailable child output remains unavailable here."
     }
   ],
   "verbs": [

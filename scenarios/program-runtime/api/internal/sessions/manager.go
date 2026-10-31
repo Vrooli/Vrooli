@@ -21,6 +21,7 @@ var (
 	ErrReclaimed     = errors.New("session reclaimed")
 	ErrLimitExceeded = errors.New("session limit exceeded")
 	ErrKernelStart   = errors.New("kernel failed to start")
+	ErrOneShotSealed = errors.New("one-shot session is sealed")
 )
 
 const (
@@ -118,7 +119,14 @@ type Manager struct {
 	repo                Repository
 	kernels             map[string]Kernel
 	uncertainAccounting map[string]struct{}
+	oneShotCapabilities map[string]*oneShotCapability
 }
+
+// A nonzero private value prevents zero-sized pointer identity coalescing.
+type (
+	oneShotCapability struct{ marker byte }
+	oneShotContextKey struct{}
+)
 
 func NewManager(options Options) *Manager {
 	if options.Clock == nil {
@@ -143,7 +151,7 @@ func NewManager(options Options) *Manager {
 	if options.WorkspaceResolver == nil {
 		options.WorkspaceResolver = &localWorkspaceResolver{}
 	}
-	return &Manager{options: options, repo: repo, kernels: make(map[string]Kernel), uncertainAccounting: make(map[string]struct{})}
+	return &Manager{options: options, repo: repo, kernels: make(map[string]Kernel), uncertainAccounting: make(map[string]struct{}), oneShotCapabilities: make(map[string]*oneShotCapability)}
 }
 
 func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []string) (*Session, error) {
@@ -155,6 +163,59 @@ func (m *Manager) CreateWithBudgets(ctx context.Context, name, sandbox string, g
 }
 
 func (m *Manager) CreateWithExecutionBudgets(ctx context.Context, name, sandbox string, grants []string, inferenceCeilingMicros, delegationCeilingMicros, wallBudgetMillis, cpuBudgetMillis int64) (*Session, error) {
+	return m.create(ctx, name, sandbox, grants, inferenceCeilingMicros, delegationCeilingMicros, wallBudgetMillis, cpuBudgetMillis, false)
+}
+
+// CreateOneShot seals a fresh session before it becomes visible. The returned
+// context carries an in-process owner capability, not a user-provided secret.
+// After a restart the durable seal remains but the capability does not.
+func (m *Manager) CreateOneShot(ctx context.Context, name, sandbox string, grants []string, inferenceCeilingMicros, delegationCeilingMicros, wallBudgetMillis, cpuBudgetMillis int64) (*Session, context.Context, error) {
+	s, err := m.create(ctx, name, sandbox, grants, inferenceCeilingMicros, delegationCeilingMicros, wallBudgetMillis, cpuBudgetMillis, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	capability := &oneShotCapability{marker: 1}
+	m.mu.Lock()
+	sealed, sealErr := m.repo.OneShot(ctx, s.ID)
+	if sealErr != nil || !sealed {
+		m.mu.Unlock()
+		_, _ = m.Delete(context.Background(), s.ID, "one-shot admission unavailable")
+		if sealErr != nil {
+			return nil, nil, sealErr
+		}
+		return nil, nil, ErrOneShotSealed
+	}
+	m.oneShotCapabilities[s.ID] = capability
+	m.mu.Unlock()
+	return s, context.WithValue(ctx, oneShotContextKey{}, capability), nil
+}
+
+// AuthorizeSubmission permits ordinary sessions and consumes the private
+// capability for a sealed one-shot session exactly once.
+func (m *Manager) AuthorizeSubmission(ctx context.Context, id string) (bool, error) {
+	sealed, err := m.repo.OneShot(ctx, id)
+	if err != nil || !sealed {
+		return false, err
+	}
+	capability, _ := ctx.Value(oneShotContextKey{}).(*oneShotCapability)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if capability == nil || m.oneShotCapabilities[id] != capability {
+		return false, ErrOneShotSealed
+	}
+	// Even on an uncertain store error, do not allow the capability to retry.
+	delete(m.oneShotCapabilities, id)
+	consumed, err := m.repo.ConsumeOneShot(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if !consumed {
+		return false, ErrOneShotSealed
+	}
+	return true, nil
+}
+
+func (m *Manager) create(ctx context.Context, name, sandbox string, grants []string, inferenceCeilingMicros, delegationCeilingMicros, wallBudgetMillis, cpuBudgetMillis int64, sealed bool) (*Session, error) {
 	if m.options.MaxSessions > 0 {
 		current, err := m.repo.List(ctx)
 		if err != nil {
@@ -198,9 +259,15 @@ func (m *Manager) CreateWithExecutionBudgets(ctx context.Context, name, sandbox 
 		m.kernels[id] = kernel
 		m.mu.Unlock()
 	}
-	if err := m.repo.Create(ctx, s); err != nil {
+	var createErr error
+	if sealed {
+		createErr = m.repo.CreateOneShot(ctx, s)
+	} else {
+		createErr = m.repo.Create(ctx, s)
+	}
+	if createErr != nil {
 		m.closeKernel(id)
-		return nil, err
+		return nil, createErr
 	}
 	if workspace != "" && m.options.OnWorkspaceResolved != nil {
 		m.options.OnWorkspaceResolved(id, workspace)
@@ -340,6 +407,9 @@ func (m *Manager) Delete(ctx context.Context, id, reason string) (*Session, erro
 	// session — measured at 26 surviving kernels holding 625 MB after one
 	// validation sweep, all parented to the running API.
 	m.closeKernel(id)
+	m.mu.Lock()
+	delete(m.oneShotCapabilities, id)
+	m.mu.Unlock()
 	if m.options.OnReclaimed != nil {
 		m.options.OnReclaimed(id)
 	}
@@ -446,6 +516,9 @@ func (m *Manager) reclaim(ctx context.Context, id, reason string) error {
 		return err
 	}
 	m.closeKernel(id)
+	m.mu.Lock()
+	delete(m.oneShotCapabilities, id)
+	m.mu.Unlock()
 	if m.options.OnReclaimed != nil {
 		m.options.OnReclaimed(id)
 	}

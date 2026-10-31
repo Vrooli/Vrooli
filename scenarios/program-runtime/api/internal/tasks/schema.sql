@@ -14,7 +14,34 @@ CREATE TABLE IF NOT EXISTS learning_tasks (
   UNIQUE(task_id, attempt_number, step_path)
 );
 CREATE INDEX IF NOT EXISTS learning_tasks_pending ON learning_tasks(delivery,next_attempt_at);
+CREATE INDEX IF NOT EXISTS learning_tasks_pending_chronological ON learning_tasks(
+  delivery,
+  (substr(next_attempt_at,1,19)||'.'||substr(replace(substr(next_attempt_at,21),'Z','')||'000000000',1,9)||'Z'),
+  attempt_id
+);
 CREATE INDEX IF NOT EXISTS learning_tasks_program ON learning_tasks(program_id);
+CREATE TABLE IF NOT EXISTS learning_task_outbox_scan (
+  singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+  cutoff TEXT NOT NULL DEFAULT '',
+  cursor_at TEXT NOT NULL DEFAULT '',
+  cursor_id TEXT NOT NULL DEFAULT '',
+  watermark_at TEXT NOT NULL DEFAULT '',
+  watermark_id TEXT NOT NULL DEFAULT '',
+  watermark_rowid INTEGER NOT NULL DEFAULT 0,
+  last_warning TEXT NOT NULL DEFAULT '',
+  unavailable_observed INTEGER NOT NULL DEFAULT 0,
+  cycle_unavailable INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS learning_task_requeue_scan (
+  singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+  digest TEXT NOT NULL DEFAULT '',
+  cursor_id TEXT NOT NULL DEFAULT '',
+  watermark_id TEXT NOT NULL DEFAULT '',
+  watermark_rowid INTEGER NOT NULL DEFAULT 0,
+  unresolved INTEGER NOT NULL DEFAULT 0,
+  cycle_unresolved INTEGER NOT NULL DEFAULT 0,
+  last_attempt TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS learning_fragments (
   step_key TEXT NOT NULL,
   fragment_hash TEXT NOT NULL,

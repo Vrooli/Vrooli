@@ -3,6 +3,7 @@
 package tasks
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -13,7 +14,19 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"program-runtime/internal/receipts"
 )
+
+// DomainResult preserves JSON numbers exactly across checkpoint storage and
+// replay. Other task fields retain their existing decoding semantics.
+type DomainResult map[string]any
+
+func (r *DomainResult) UnmarshalJSON(data []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	return dec.Decode((*map[string]any)(r))
+}
 
 //go:embed schema.sql
 var schema string
@@ -61,40 +74,42 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 
 // Record is a bounded execution receipt, not a second memory journal.
 type Record struct {
-	ResumeHash       string         `json:"resume_hash"`
-	InputHash        string         `json:"input_hash"`
-	TaskID           string         `json:"task_id"`
-	AttemptID        string         `json:"attempt_id"`
-	AttemptNumber    int            `json:"attempt_number"`
-	SessionID        string         `json:"session_id"`
-	ProgramID        string         `json:"program_id"`
-	Operation        string         `json:"operation"`
-	Digest           string         `json:"digest"`
-	Scope            string         `json:"scope"`
-	ContextKey       string         `json:"context_key"`
-	Provenance       string         `json:"provenance"`
-	TaskStartedAt    string         `json:"task_started_at"`
-	StartedAt        string         `json:"started_at"`
-	FinishedAt       string         `json:"finished_at,omitempty"`
-	State            string         `json:"state"`
-	Delivery         string         `json:"delivery"`
-	Outcome          string         `json:"outcome"`
-	Prepare          map[string]any `json:"prepare,omitempty"`
-	Result           map[string]any `json:"result,omitempty"`
-	FinishInputs     map[string]any `json:"finish_inputs,omitempty"`
-	FinishDigest     string         `json:"finish_digest"`
-	ParentAttemptID  string         `json:"parent_attempt_id,omitempty"`
-	StepName         string         `json:"step_name,omitempty"`
-	StepPath         string         `json:"step_path,omitempty"`
-	DeliveryResult   map[string]any `json:"delivery_result,omitempty"`
-	LastError        string         `json:"last_error,omitempty"`
-	DeliveryAttempts int            `json:"delivery_attempts"`
-	NextAttemptAt    string         `json:"next_attempt_at"`
+	receiptUnavailable bool
+	ResumeHash         string         `json:"resume_hash"`
+	InputHash          string         `json:"input_hash"`
+	TaskID             string         `json:"task_id"`
+	AttemptID          string         `json:"attempt_id"`
+	AttemptNumber      int            `json:"attempt_number"`
+	SessionID          string         `json:"session_id"`
+	ProgramID          string         `json:"program_id"`
+	Operation          string         `json:"operation"`
+	Digest             string         `json:"digest"`
+	Scope              string         `json:"scope"`
+	ContextKey         string         `json:"context_key"`
+	Provenance         string         `json:"provenance"`
+	TaskStartedAt      string         `json:"task_started_at"`
+	StartedAt          string         `json:"started_at"`
+	FinishedAt         string         `json:"finished_at,omitempty"`
+	State              string         `json:"state"`
+	Delivery           string         `json:"delivery"`
+	Outcome            string         `json:"outcome"`
+	Prepare            map[string]any `json:"prepare,omitempty"`
+	Result             DomainResult   `json:"result,omitempty"`
+	FinishInputs       map[string]any `json:"finish_inputs,omitempty"`
+	FinishDigest       string         `json:"finish_digest"`
+	ParentAttemptID    string         `json:"parent_attempt_id,omitempty"`
+	StepName           string         `json:"step_name,omitempty"`
+	StepPath           string         `json:"step_path,omitempty"`
+	DeliveryResult     map[string]any `json:"delivery_result,omitempty"`
+	LastError          string         `json:"last_error,omitempty"`
+	DeliveryAttempts   int            `json:"delivery_attempts"`
+	NextAttemptAt      string         `json:"next_attempt_at"`
 }
 
 type Store struct {
-	db *sql.DB
-	mu sync.Mutex
+	db       *sql.DB
+	mu       sync.Mutex
+	receipts receipts.Sealer
 }
 
 type SQLExecutor interface {
@@ -285,7 +300,7 @@ func (s *Store) AgedBlocked(ctx context.Context, before time.Time) (int, error) 
 			return 0, err
 		}
 		var record Record
-		if err := json.Unmarshal([]byte(body), &record); err != nil {
+		if err := s.decode(body, &record); err != nil {
 			return 0, err
 		}
 		stamp, err := time.Parse(time.RFC3339Nano, record.FinishedAt)
@@ -296,17 +311,35 @@ func (s *Store) AgedBlocked(ctx context.Context, before time.Time) (int, error) 
 	return count, rows.Err()
 }
 
-func NewStore(db *sql.DB) *Store { return &Store{db: db} }
+func NewStore(db *sql.DB) *Store { return &Store{db: db, receipts: receipts.New()} }
 func (s *Store) Get(ctx context.Context, id string) (*Record, error) {
 	var body string
 	if err := s.db.QueryRowContext(ctx, "SELECT record FROM learning_tasks WHERE attempt_id=?", id).Scan(&body); err != nil {
 		return nil, err
 	}
 	var r Record
-	if err := json.Unmarshal([]byte(body), &r); err != nil {
+	if err := s.decode(body, &r); err != nil {
 		return nil, err
 	}
 	return &r, nil
+}
+
+func (s *Store) decode(body string, r *Record) error {
+	var header struct {
+		Sealed int `json:"_runtime_receipt_sealing"`
+	}
+	if err := json.Unmarshal([]byte(body), &header); err != nil {
+		return err
+	}
+	opened, unavailable := body, false
+	if header.Sealed == 1 {
+		opened, unavailable = s.receipts.OpenStatus(body)
+	}
+	if err := json.Unmarshal([]byte(opened), r); err != nil {
+		return err
+	}
+	r.receiptUnavailable = unavailable
+	return nil
 }
 
 // Begin atomically allocates the ordinal. Reusing an attempt ID is inspection,
@@ -333,7 +366,7 @@ func (s *Store) Begin(ctx context.Context, r Record) (*Record, bool, error) {
 	r.TaskStartedAt = r.StartedAt
 	if err == nil {
 		var last Record
-		if err = json.Unmarshal([]byte(lastBody), &last); err != nil {
+		if err = s.decode(lastBody, &last); err != nil {
 			return nil, false, err
 		}
 		if last.Scope != r.Scope || last.ContextKey != r.ContextKey || last.Operation != r.Operation || last.Provenance != r.Provenance || last.ResumeHash != r.ResumeHash {
@@ -351,7 +384,7 @@ func (s *Store) Begin(ctx context.Context, r Record) (*Record, bool, error) {
 	r.Delivery = "waiting"
 	r.Outcome = "unknown"
 	r.NextAttemptAt = r.StartedAt
-	body, err := encode(r)
+	body, err := s.encode(r)
 	if err != nil {
 		return nil, false, err
 	}
@@ -398,7 +431,7 @@ func (s *Store) InsertChildren(ctx context.Context, parent *Record, nodes []map[
 		outcome, _ := node["outcome"].(string)
 		provenance, _ := node["provenance"].(string)
 		child := Record{ResumeHash: parent.ResumeHash, InputHash: parent.InputHash, TaskID: parent.TaskID, AttemptID: id, AttemptNumber: parent.AttemptNumber, SessionID: parent.SessionID, ProgramID: parent.ProgramID, Operation: operation, Digest: parent.Digest, Scope: parent.Scope, ContextKey: contextKey, Provenance: provenance, TaskStartedAt: taskStarted, StartedAt: started, FinishedAt: finished, State: "completed", Delivery: "delivered", Outcome: outcome, FinishDigest: parent.FinishDigest, ParentAttemptID: parent.AttemptID, StepName: stepName, StepPath: fmt.Sprintf("%s:%d", stepName, index), NextAttemptAt: finished}
-		body, err := encode(child)
+		body, err := s.encode(child)
 		if err != nil {
 			return err
 		}
@@ -410,7 +443,7 @@ func (s *Store) InsertChildren(ctx context.Context, parent *Record, nodes []map[
 	return tx.Commit()
 }
 
-func encode(r Record) (string, error) {
+func (s *Store) encode(r Record) (string, error) {
 	b, err := json.Marshal(r)
 	if err != nil {
 		return "", err
@@ -418,7 +451,18 @@ func encode(r Record) (string, error) {
 	if len(b) > 256*1024 {
 		return "", errors.New("task receipt exceeds 256 KiB")
 	}
-	return string(b), nil
+	// Literal sealed-prefix text is JSON-escaped before inserting real sealed
+	// tokens, so it cannot be mistaken for ciphertext on a later read.
+	encoded := strings.ReplaceAll(string(b), "prt_sealed_v1_", `\u0070rt_sealed_v1_`)
+	encoded = strings.TrimSuffix(encoded, "}") + `,"_runtime_receipt_sealing":1}`
+	sealed, err := s.receipts.Seal(encoded)
+	if err != nil {
+		return "", err
+	}
+	if len(sealed) > 256*1024 {
+		return "", errors.New("sealed task receipt exceeds 256 KiB")
+	}
+	return sealed, nil
 }
 
 func (s *Store) Update(ctx context.Context, id string, mutate func(*Record) error) (*Record, error) {
@@ -428,10 +472,13 @@ func (s *Store) Update(ctx context.Context, id string, mutate func(*Record) erro
 	if err != nil {
 		return nil, err
 	}
+	if r.receiptUnavailable {
+		return nil, errors.New("task record contains a receipt unavailable after restart; owner reconciliation required")
+	}
 	if err = mutate(r); err != nil {
 		return nil, err
 	}
-	body, err := encode(*r)
+	body, err := s.encode(*r)
 	if err != nil {
 		return nil, err
 	}
@@ -439,8 +486,25 @@ func (s *Store) Update(ctx context.Context, id string, mutate func(*Record) erro
 	return r, err
 }
 
+// The owner writes UTC RFC3339Nano, including legacy whole seconds without a
+// fraction. Normalize its fractional width before comparing or sorting: raw
+// RFC3339Nano text does not sort chronologically across those two forms.
+const dueOrderSQL = `(substr(next_attempt_at,1,19)||'.'||substr(replace(substr(next_attempt_at,21),'Z','')||'000000000',1,9)||'Z')`
+
+// Task owners persist UTC timestamps. Ignore and report malformed or non-UTC
+// legacy values instead of treating an invalid lexical key as due work.
+const dueUTCGuardSQL = `(length(next_attempt_at) BETWEEN 20 AND 30 AND substr(next_attempt_at,-1)='Z' AND substr(next_attempt_at,1,19) GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]' AND date(substr(next_attempt_at,1,10),'+0 days')=substr(next_attempt_at,1,10) AND CAST(substr(next_attempt_at,12,2) AS INTEGER)<24 AND CAST(substr(next_attempt_at,15,2) AS INTEGER)<60 AND CAST(substr(next_attempt_at,18,2) AS INTEGER)<60 AND (length(next_attempt_at)=20 OR (substr(next_attempt_at,20,1)='.' AND length(next_attempt_at)>=22 AND substr(next_attempt_at,21,length(next_attempt_at)-21) NOT GLOB '*[^0-9]*')))`
+const dueTimeFormat = "2006-01-02T15:04:05.000000000Z"
+
+func (s *Store) malformedPendingCount(ctx context.Context) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM learning_tasks WHERE delivery='pending' AND COALESCE("+dueUTCGuardSQL+",0)=0").Scan(&count)
+	return count, err
+}
+
 func (s *Store) Pending(ctx context.Context, now time.Time) ([]Record, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT record FROM learning_tasks WHERE delivery='pending' AND next_attempt_at<=? ORDER BY next_attempt_at LIMIT 20", now.UTC().Format(time.RFC3339Nano))
+	query := "SELECT record FROM learning_tasks WHERE delivery='pending' AND " + dueUTCGuardSQL + " AND " + dueOrderSQL + "<=? ORDER BY " + dueOrderSQL + ", attempt_id LIMIT 20"
+	rows, err := s.db.QueryContext(ctx, query, now.UTC().Format(dueTimeFormat))
 	if err != nil {
 		return nil, err
 	}
@@ -452,10 +516,142 @@ func (s *Store) Pending(ctx context.Context, now time.Time) ([]Record, error) {
 			return nil, err
 		}
 		var r Record
-		if err = json.Unmarshal([]byte(b), &r); err != nil {
+		if err = s.decode(b, &r); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+type outboxCursor struct {
+	at, id   string
+	maxRowID int64
+}
+type outboxRow struct {
+	cursor outboxCursor
+	record Record
+}
+
+type outboxScanState struct {
+	cutoff                                string
+	cursor, watermark                     *outboxCursor
+	lastWarning                           time.Time
+	unavailableObserved, cycleUnavailable bool
+}
+
+func (s *Store) loadOutboxScan(ctx context.Context) (outboxScanState, error) {
+	var state outboxScanState
+	var cursorAt, cursorID, watermarkAt, watermarkID, warning string
+	var rowid int64
+	var observed, cycle int
+	err := s.db.QueryRowContext(ctx, "SELECT cutoff,cursor_at,cursor_id,watermark_at,watermark_id,watermark_rowid,last_warning,unavailable_observed,cycle_unavailable FROM learning_task_outbox_scan WHERE singleton=1").Scan(&state.cutoff, &cursorAt, &cursorID, &watermarkAt, &watermarkID, &rowid, &warning, &observed, &cycle)
+	if errors.Is(err, sql.ErrNoRows) {
+		return state, nil
+	}
+	if err != nil {
+		return state, err
+	}
+	if (observed != 0 && observed != 1) || (cycle != 0 && cycle != 1) {
+		return state, errors.New("invalid outbox observation checkpoint")
+	}
+	state.unavailableObserved, state.cycleUnavailable = observed == 1, cycle == 1
+	if warning != "" {
+		state.lastWarning, err = time.Parse(time.RFC3339Nano, warning)
+		if err != nil {
+			return state, fmt.Errorf("invalid outbox warning checkpoint: %w", err)
+		}
+	}
+	if watermarkAt != "" || watermarkID != "" || rowid != 0 || state.cutoff != "" {
+		if watermarkAt == "" || watermarkID == "" || rowid <= 0 || state.cutoff == "" {
+			return state, errors.New("incomplete outbox scan checkpoint")
+		}
+		if _, err := time.Parse(dueTimeFormat, state.cutoff); err != nil {
+			return state, errors.New("invalid outbox scan cutoff")
+		}
+		if _, err := time.Parse(dueTimeFormat, watermarkAt); err != nil {
+			return state, errors.New("invalid outbox scan watermark")
+		}
+		if watermarkAt > state.cutoff {
+			return state, errors.New("outbox scan watermark exceeds cutoff")
+		}
+		state.watermark = &outboxCursor{at: watermarkAt, id: watermarkID, maxRowID: rowid}
+	}
+	if cursorAt != "" || cursorID != "" {
+		if cursorAt == "" || cursorID == "" || state.watermark == nil {
+			return state, errors.New("incomplete outbox scan cursor")
+		}
+		if _, err := time.Parse(dueTimeFormat, cursorAt); err != nil {
+			return state, errors.New("invalid outbox scan cursor")
+		}
+		if cursorAt > state.watermark.at || (cursorAt == state.watermark.at && cursorID > state.watermark.id) {
+			return state, errors.New("outbox scan cursor exceeds watermark")
+		}
+		state.cursor = &outboxCursor{at: cursorAt, id: cursorID}
+	}
+	return state, nil
+}
+
+func (s *Store) saveOutboxScan(ctx context.Context, state outboxScanState) error {
+	var cursorAt, cursorID, watermarkAt, watermarkID, warning string
+	var rowid int64
+	if state.cursor != nil {
+		cursorAt, cursorID = state.cursor.at, state.cursor.id
+	}
+	if state.watermark != nil {
+		watermarkAt, watermarkID, rowid = state.watermark.at, state.watermark.id, state.watermark.maxRowID
+	}
+	if !state.lastWarning.IsZero() {
+		warning = state.lastWarning.UTC().Format(time.RFC3339Nano)
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO learning_task_outbox_scan(singleton,cutoff,cursor_at,cursor_id,watermark_at,watermark_id,watermark_rowid,last_warning,unavailable_observed,cycle_unavailable) VALUES(1,?,?,?,?,?,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET cutoff=excluded.cutoff,cursor_at=excluded.cursor_at,cursor_id=excluded.cursor_id,watermark_at=excluded.watermark_at,watermark_id=excluded.watermark_id,watermark_rowid=excluded.watermark_rowid,last_warning=excluded.last_warning,unavailable_observed=excluded.unavailable_observed,cycle_unavailable=excluded.cycle_unavailable`, state.cutoff, cursorAt, cursorID, watermarkAt, watermarkID, rowid, warning, state.unavailableObserved, state.cycleUnavailable)
+	return err
+}
+
+// outboxWatermark fixes a finite upper bound for a scan cycle. New arrivals
+// cannot indefinitely postpone wrapping to rows inserted behind the cursor.
+func (s *Store) outboxWatermark(ctx context.Context, cutoff string) (*outboxCursor, error) {
+	var cursor outboxCursor
+	if err := s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(rowid),0) FROM learning_tasks WHERE delivery='pending' AND "+dueUTCGuardSQL+" AND "+dueOrderSQL+"<=?", cutoff).Scan(&cursor.maxRowID); err != nil {
+		return nil, err
+	}
+	err := s.db.QueryRowContext(ctx, "SELECT "+dueOrderSQL+", attempt_id FROM learning_tasks WHERE delivery='pending' AND "+dueUTCGuardSQL+" AND "+dueOrderSQL+"<=? AND rowid<=? ORDER BY "+dueOrderSQL+" DESC, attempt_id DESC LIMIT 1", cutoff, cursor.maxRowID).Scan(&cursor.at, &cursor.id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &cursor, nil
+}
+
+func (s *Store) outboxPage(ctx context.Context, cutoff string, after, through *outboxCursor) ([]outboxRow, error) {
+	if through == nil {
+		return nil, nil
+	}
+	query := "SELECT " + dueOrderSQL + ", attempt_id, record FROM learning_tasks WHERE delivery='pending' AND " + dueUTCGuardSQL + " AND " + dueOrderSQL + "<=? AND rowid<=? AND (" + dueOrderSQL + "<? OR (" + dueOrderSQL + "=? AND attempt_id<=?))"
+	args := []any{cutoff, through.maxRowID, through.at, through.at, through.id}
+	if after != nil {
+		query += " AND (" + dueOrderSQL + ">? OR (" + dueOrderSQL + "=? AND attempt_id>?))"
+		args = append(args, after.at, after.at, after.id)
+	}
+	query += " ORDER BY " + dueOrderSQL + ", attempt_id LIMIT 20"
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []outboxRow
+	for rows.Next() {
+		var item outboxRow
+		var body string
+		if err = rows.Scan(&item.cursor.at, &item.cursor.id, &body); err != nil {
+			return nil, err
+		}
+		if err = s.decode(body, &item.record); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
 	}
 	return out, rows.Err()
 }
@@ -487,6 +683,7 @@ func (s *Store) Recover(ctx context.Context, programID string) error {
 	if err != nil {
 		return err
 	}
+	var failures error
 	for _, id := range ids {
 		_, err = s.Update(ctx, id, func(r *Record) error {
 			if r.State == "prepared" || r.State == "running" {
@@ -498,10 +695,10 @@ func (s *Store) Recover(ctx context.Context, programID string) error {
 			return nil
 		})
 		if err != nil {
-			return fmt.Errorf("recover task %s: %w", id, err)
+			failures = errors.Join(failures, fmt.Errorf("recover task %s: %w", id, err))
 		}
 	}
-	return nil
+	return failures
 }
 
 // fragmentEvidence separates input diversity and verification freshness from cache reads.

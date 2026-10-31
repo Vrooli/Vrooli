@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -31,6 +32,8 @@ import (
 type captureRunner struct {
 	source       chan string
 	materialized bool
+	helper       *programs.HelperContract
+	stdout       string
 }
 
 type heldRunner struct{ release chan struct{} }
@@ -57,7 +60,7 @@ func TestGetDeclaredExecutionIsReadOnlyAndPreservesOriginalReceipt(t *testing.T)
 	require.True(t, ok)
 	manager := sessions.NewManager(sessions.Options{})
 	runner := &countedDeclaredRunner{}
-	service := programs.NewService(programs.Options{Runner: runner})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
 	h := &handler{contracts: index, sessions: manager, programs: service}
 	query := &programsv1.GetDeclaredExecutionRequest{Name: contract.ID, IdempotencyKey: "observe-original"}
 	missing, err := h.GetDeclaredExecution(t.Context(), connect.NewRequest(query))
@@ -96,7 +99,7 @@ func TestVerifiedDeclaredExecutionReplayAndGetRequireSameOwner(t *testing.T) {
 	require.True(t, ok)
 	manager := sessions.NewManager(sessions.Options{})
 	runner := &countedDeclaredRunner{}
-	service := programs.NewService(programs.Options{Runner: runner})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
 	h := &handler{contracts: index, sessions: manager, programs: service}
 	owner := provenance.NewContext(t.Context(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "owner-run", ProfileKey: "codex"})
 	other := provenance.NewContext(t.Context(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "other-run", ProfileKey: "codex"})
@@ -138,7 +141,7 @@ func TestCloseDeclaredAdmissionPreservesAlreadyRunningExecution(t *testing.T) {
 	runner := &countedDeclaredRunner{release: make(chan struct{})}
 	var once sync.Once
 	t.Cleanup(func() { once.Do(func() { close(runner.release) }) })
-	service := programs.NewService(programs.Options{Runner: runner})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
 	h := &handler{contracts: index, programs: service, sessions: manager}
 	req := &programsv1.RunDeclaredProgramRequest{Name: contract.ID, ExpectedDigest: contract.Digest, IdempotencyKey: "already-running", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), Provenance: programspb.Provenance_PROVENANCE_TEST, Async: true}
 	admitted, err := h.RunDeclaredProgram(t.Context(), connect.NewRequest(req))
@@ -190,7 +193,7 @@ func TestDeclaredKeyConcurrentHandlersReclaimOnlyUnusedSessions(t *testing.T) {
 	var once, preflightOnce sync.Once
 	t.Cleanup(func() { preflightOnce.Do(func() { close(release) }); once.Do(func() { close(runner.release) }) })
 	manager := sessions.NewManager(sessions.Options{})
-	service := programs.NewService(programs.Options{Runner: runner, Preflight: func(string) []*programspb.Diagnostic { ready <- struct{}{}; <-release; return nil }})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission, Preflight: func(string) []*programspb.Diagnostic { ready <- struct{}{}; <-release; return nil }})
 	h := &handler{contracts: index, sessions: manager, programs: service}
 	request := &programsv1.RunDeclaredProgramRequest{Name: contract.ID, ExpectedDigest: contract.Digest, IdempotencyKey: "concurrent-handler", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), Provenance: programspb.Provenance_PROVENANCE_TEST, Async: true}
 	type result struct {
@@ -243,7 +246,7 @@ func TestDeclaredKeyInvalidTransportIsRejectedWithoutSessions(t *testing.T) {
 	require.True(t, ok)
 	manager := sessions.NewManager(sessions.Options{})
 	runner := &countedDeclaredRunner{}
-	h := &handler{contracts: index, sessions: manager, programs: programs.NewService(programs.Options{Runner: runner})}
+	h := &handler{contracts: index, sessions: manager, programs: programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})}
 	for _, missing := range []string{"digest", "deadline", "key"} {
 		r := &programsv1.RunDeclaredProgramRequest{Name: contract.ID, ExpectedDigest: contract.Digest, IdempotencyKey: "key", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), Provenance: programspb.Provenance_PROVENANCE_TEST}
 		switch missing {
@@ -272,7 +275,8 @@ func TestDeclaredRequestKeyReattachesAfterOwnerRestartWithoutRepeatingEffects(t 
 	require.NoError(t, apidb.EnsureSchemas(t.Context(), db, apidb.SchemaProviderFunc(programs.Schema)))
 	runner := &countedDeclaredRunner{}
 	newHandler := func() *handler {
-		return &handler{contracts: index, sessions: sessions.NewManager(sessions.Options{}), programs: programs.NewService(programs.Options{Store: db, Runner: runner})}
+		manager := sessions.NewManager(sessions.Options{})
+		return &handler{contracts: index, sessions: manager, programs: programs.NewService(programs.Options{Store: db, Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})}
 	}
 	request := &programsv1.RunDeclaredProgramRequest{Name: contract.ID, ExpectedDigest: contract.Digest, IdempotencyKey: "qualification-attempt-1", AdmissionDeadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), Provenance: programspb.Provenance_PROVENANCE_TEST}
 	first, err := newHandler().RunDeclaredProgram(t.Context(), connect.NewRequest(request))
@@ -296,7 +300,7 @@ func TestDeclaredAsyncAcceptanceSurvivesObserverCancellation(t *testing.T) { // 
 	require.NoError(t, index.Load(root))
 	manager := sessions.NewManager(sessions.Options{})
 	runner := &heldRunner{release: make(chan struct{})}
-	service := programs.NewService(programs.Options{Runner: runner})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
 	h := &handler{contracts: index, sessions: manager, programs: service}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -319,7 +323,57 @@ func TestDeclaredAsyncAcceptanceSurvivesObserverCancellation(t *testing.T) { // 
 func (r *captureRunner) Execute(_ context.Context, _ string, source string, materialized bool) (programs.Result, error) {
 	r.materialized = materialized
 	r.source <- source
+	if r.stdout != "" {
+		return programs.Result{Stdout: r.stdout}, nil
+	}
 	return programs.Result{Stdout: "{'status': 'ok'}\n"}, nil
+}
+
+func (r *captureRunner) ExecuteWithMetadataAndLimitsAndCaller(ctx context.Context, sessionID, _, _, source string, _ programs.Caller, materialized bool, limits programs.ExecutionLimits) (programs.Result, error) {
+	r.helper = limits.DeclaredContract
+	return r.Execute(ctx, sessionID, source, materialized)
+}
+
+func TestDeclaredRunCarriesPinnedHelperContractToRealKernel(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	require.NoError(t, err)
+	index := contracts.NewIndex()
+	require.NoError(t, index.Load(root))
+	child, ok := index.Get("web-console", "native-thread-state")
+	require.True(t, ok)
+	engine := filepath.Join(root, "scenarios", "program-runtime", "kernel", "host", "engine.py")
+	runner := programs.NewSubprocessRunner(engine)
+	defer runner.Close()
+	runner.SetLibraryProvider(func() []programs.LibrarySpec {
+		return []programs.LibrarySpec{{
+			Name: child.Name, Scenario: child.Scenario, Contract: true, Current: true, Version: 1,
+			Declaration: child.Declaration, Digest: child.Digest,
+			Source: `import json
+print(json.dumps({"program":"web-console.native-thread-state","version":"1","status":"ok","phase":"report","inputs":{},"signals":{"threads":[]},"errors":[],"evidence":[]}))`,
+		}}
+	})
+	manager := sessions.NewManager(sessions.Options{})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission, ValidateSession: func(id string) bool {
+		_, err := manager.Get(context.Background(), id)
+		return err == nil
+	}})
+	h := &handler{contracts: index, sessions: manager, programs: service}
+	inputs, err := structpb.NewStruct(map[string]any{"session_id": "session", "threads": []any{"thread"}})
+	require.NoError(t, err)
+	result, err := h.RunDeclaredProgram(t.Context(), connect.NewRequest(&programsv1.RunDeclaredProgramRequest{
+		Name: "program-runtime.research-supervision-read", Inputs: inputs, Provenance: programspb.Provenance_PROVENANCE_TEST,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, programspb.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, result.Msg.GetProgram().GetStatus(), result.Msg.GetProgram().GetFailureDetail())
+	var envelope struct {
+		Signals struct {
+			Sources map[string]struct {
+				Status string `json:"status"`
+			} `json:"sources"`
+		} `json:"signals"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(result.Msg.GetProgram().GetStdout()), &envelope))
+	require.Equal(t, "ok", envelope.Signals.Sources["native_state"].Status)
 }
 
 func TestListLibraryWithoutQueryIncludesDeclaredContractRows(t *testing.T) {
@@ -446,12 +500,13 @@ func TestRunDeclaredProgramResolvesDefaultsWaitsAndReclaimsSession(t *testing.T)
 	require.NoError(t, index.Load(root))
 
 	manager := sessions.NewManager(sessions.Options{})
-	runner := &captureRunner{source: make(chan string, 1)}
+	runner := &captureRunner{source: make(chan string, 1), stdout: `{"program":"agent-manager.supervision-evaluate","version":"1","status":"ok","phase":"report","inputs":{},"signals":{"disposition":"quiet","classification":"quiet","confidence":null,"abstained":false,"recommended_action":"observe","next_cursor":null,"cursor_reset":false,"wake_condition":{"kind":"immediate","after_seconds":0},"policy_version":"fixture-v1","inference_calls":0,"event_count":0,"friction_count":0,"run_count":0},"errors":[],"evidence":[]}`}
 	store := dbtest.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), store, apidb.SchemaProviderFunc(programs.Schema)))
 	service := programs.NewService(programs.Options{
-		Store:  store,
-		Runner: runner,
+		Store:            store,
+		Runner:           runner,
+		AuthorizeSession: manager.AuthorizeSubmission,
 		UsageReceipt: func(ctx context.Context, id string) (programs.UsageReceipt, error) {
 			session, err := manager.Get(ctx, id)
 			if err != nil {
@@ -498,6 +553,10 @@ func TestRunDeclaredProgramResolvesDefaultsWaitsAndReclaimsSession(t *testing.T)
 	_, driftErr := h.RunDeclaredProgram(context.Background(), connect.NewRequest(&programsv1.RunDeclaredProgramRequest{Name: "agent-manager.supervision-evaluate", ExpectedDigest: strings.Repeat("0", 64), Inputs: input, Provenance: programspb.Provenance_PROVENANCE_TEST}))
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(driftErr))
 	source := <-runner.source
+	require.NotNil(t, runner.helper, "declared execution must carry its pinned helper contract")
+	var outputs map[string]any
+	require.NoError(t, json.Unmarshal(runner.helper.Outputs, &outputs))
+	require.Contains(t, outputs, "status")
 	require.Contains(t, source, `\"allow_inference\":false`)
 	require.Contains(t, source, `\"events\":[]`)
 	require.True(t, strings.Contains(source, "json.loads(") && strings.Contains(source, "supervision-evaluate"))
@@ -518,7 +577,7 @@ func TestDeclaredBriefingSelectsExpandedOutputTier(t *testing.T) {
 	require.NoError(t, index.Load(root))
 	manager := sessions.NewManager(sessions.Options{})
 	runner := &captureRunner{source: make(chan string, 1)}
-	service := programs.NewService(programs.Options{Runner: runner})
+	service := programs.NewService(programs.Options{Runner: runner, AuthorizeSession: manager.AuthorizeSubmission})
 	h := &handler{contracts: index, repoRoot: root, sessions: manager, programs: service}
 	result, err := h.RunDeclaredProgram(context.Background(), connect.NewRequest(&programsv1.RunDeclaredProgramRequest{Name: "command-center.vision-walk-prep", Provenance: programspb.Provenance_PROVENANCE_TEST}))
 	require.NoError(t, err)

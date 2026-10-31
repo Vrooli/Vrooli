@@ -216,6 +216,16 @@ func Load(repoRoot string) (*Registry, error) {
 			}
 		}
 		manifestPaths = append(manifestPaths, path)
+		if target.Kind == repocontract.TargetKindScenario {
+			// A scenario may publish an owner-generated typed measure surface
+			// independently of its interactive CLI commands.
+			projectionPath := filepath.Join(repoRoot, "scenarios", target.ID, ".vrooli", "generated", "runtime-measures.json")
+			if _, statErr := os.Stat(projectionPath); statErr == nil {
+				manifestPaths = append(manifestPaths, projectionPath, filepath.Join(repoRoot, "scenarios", target.ID, "api", "internal", "measures", "measures.go"))
+			} else if !errors.Is(statErr, os.ErrNotExist) {
+				return nil, fmt.Errorf("inspect owner measure projection %s: %w", projectionPath, statErr)
+			}
+		}
 	}
 	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath, ManifestPaths: manifestPaths})
 	if err != nil {
@@ -311,6 +321,15 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		return true
 	})
 
+	cliPaths := make([]string, 0, len(manifestPaths))
+	measurePaths := make([]string, 0)
+	for _, path := range manifestPaths {
+		if filepath.Base(path) == "runtime-measures.json" && filepath.Base(filepath.Dir(path)) == "generated" {
+			measurePaths = append(measurePaths, path)
+		} else if filepath.ToSlash(path) != filepath.ToSlash(filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(filepath.Dir(path)))), "api", "internal", "measures", "measures.go")) {
+			cliPaths = append(cliPaths, path)
+		}
+	}
 	r := &Registry{
 		methods:           methods,
 		required:          make(map[string]map[string]bool),
@@ -319,7 +338,7 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 		operation:         make(map[string][]*bindingsv1.Binding),
 		semantic:          make(map[string]semanticCounts),
 		resolver:          ResolveTargetURLDefault,
-		totalScenarios:    len(manifestPaths),
+		totalScenarios:    len(cliPaths),
 		reachabilityCache: make(map[string]reachabilityStatus),
 		reachabilityAt:    make(map[string]time.Time),
 		now:               time.Now,
@@ -329,7 +348,7 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 	if info, statErr := os.Stat(descriptorPath); statErr == nil {
 		r.generationMtime = info.ModTime()
 	}
-	for _, path := range manifestPaths {
+	for _, path := range cliPaths {
 		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
 			r.manifestCount++
 			scenario := manifestScenarioPath(descriptorPath, path)
@@ -344,7 +363,7 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 	}
 	r.artifactMtime = snapshot.ArtifactMTime
 	r.shared = sharedContractPrefixes(filepath.Clean(filepath.Join(filepath.Dir(descriptorPath), "../../../..")))
-	for _, path := range manifestPaths {
+	for _, path := range cliPaths {
 		skipped, err := r.addManifest(path, serviceMethods, r.shared)
 		if err != nil {
 			return nil, err
@@ -358,7 +377,14 @@ func buildRegistry(descriptorPath string, manifestPaths []string, snapshot *desc
 			})
 		}
 	}
-	for _, path := range manifestPaths {
+	for _, path := range measurePaths {
+		if err := r.addRuntimeMeasureProjection(path, serviceMethods); err != nil {
+			scenario := runtimeMeasureOwner(path)
+			r.skipped = append(r.skipped, &bindingsv1.SkippedManifest{Path: path, Scenario: scenario, ParseError: err.Error()})
+			r.addUnbound(&bindingsv1.UnboundCapability{Scenario: scenario, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_MALFORMED_MANIFEST, Detail: "owner measure projection unavailable: " + err.Error()})
+		}
+	}
+	for _, path := range cliPaths {
 		if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 			name := manifestScenarioPath(descriptorPath, path)
 			r.addUnbound(&bindingsv1.UnboundCapability{Scenario: name, Reason: bindingsv1.UnboundReason_UNBOUND_REASON_NO_MANIFEST, Detail: "scenario has no CLI manifest"})

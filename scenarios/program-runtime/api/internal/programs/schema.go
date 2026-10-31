@@ -22,7 +22,7 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		return fmt.Errorf("inspect programs schema: %w", err)
 	}
 	defer rows.Close()
-	verifiedColumn := false
+	columns := make(map[string]bool)
 	for rows.Next() {
 		var cid, notNull, primaryKey int
 		var name, columnType string
@@ -30,16 +30,16 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
 			return fmt.Errorf("scan programs schema: %w", err)
 		}
-		if name == "caller_identity_verified" {
-			verifiedColumn = true
-		}
+		columns[name] = true
 	}
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("iterate programs schema: %w", err)
 	}
-	if !verifiedColumn {
-		if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN caller_identity_verified INTEGER NOT NULL DEFAULT 0"); err != nil {
-			return fmt.Errorf("add caller_identity_verified to programs: %w", err)
+	for _, name := range []string{"caller_identity_verified", "source_receipt_format", "stdout_receipt_format", "failure_detail_receipt_format"} {
+		if !columns[name] {
+			if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN "+name+" INTEGER NOT NULL DEFAULT 0"); err != nil {
+				return fmt.Errorf("add %s to programs: %w", name, err)
+			}
 		}
 	}
 	return nil

@@ -21,6 +21,9 @@ type SQLExecutor interface {
 
 type Repository interface {
 	Create(context.Context, *Session) error
+	CreateOneShot(context.Context, *Session) error
+	OneShot(context.Context, string) (bool, error)
+	ConsumeOneShot(context.Context, string) (bool, error)
 	Get(context.Context, string) (*Session, error)
 	List(context.Context) ([]*Session, error)
 	Delete(context.Context, string, string, time.Time) (*Session, error)
@@ -61,18 +64,54 @@ type sqliteRepository struct{ db SQLExecutor }
 func NewRepository(db SQLExecutor) Repository { return &sqliteRepository{db: db} }
 
 func (r *sqliteRepository) Create(ctx context.Context, s *Session) error {
-	_, err := r.db.ExecContext(ctx, `INSERT INTO sessions
+	return r.create(ctx, s, false)
+}
+
+func (r *sqliteRepository) CreateOneShot(ctx context.Context, s *Session) error {
+	return r.create(ctx, s, true)
+}
+
+func (r *sqliteRepository) create(ctx context.Context, s *Session, sealed bool) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `INSERT INTO sessions
 	 (id, name, state, created_at, last_activity_at, sandbox_workspace, memory_bytes, reclaimed_reason, inference_cost_micros, inference_tokens, inference_charge_unknown, delegation_cost_micros, inference_ceiling_micros, delegation_ceiling_micros, delegation_spend_measured, delegation_usage_observed, delegation_spend_note, wall_budget_millis, wall_consumed_millis, cpu_budget_millis, cpu_consumed_millis)
 	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, s.ID, s.Name, s.State, formatTime(s.CreatedAt), formatTime(s.LastActivityAt), s.SandboxWorkspace, s.MemoryBytes, s.ReclaimedReason, s.InferenceCostMicros, s.InferenceTokens, boolInt(s.InferenceChargeUnknown), s.DelegationCostMicros, s.InferenceCeilingMicros, s.DelegationCeilingMicros, boolInt(s.DelegationSpendMeasured), boolInt(s.DelegationUsageObserved), s.DelegationSpendNote, durationMillis(s.WallBudget), durationMillis(s.WallConsumed), durationMillis(s.CPUBudget), durationMillis(s.CPUConsumed))
 	if err != nil {
 		return fmt.Errorf("create session %q: %w", s.ID, err)
 	}
+	if sealed {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO session_one_shot (session_id) VALUES (?)`, s.ID); err != nil {
+			return fmt.Errorf("seal session %q: %w", s.ID, err)
+		}
+	}
 	for grant := range s.Grants {
-		if _, err := r.db.ExecContext(ctx, `INSERT INTO session_grants (session_id, grant_name) VALUES (?, ?)`, s.ID, grant); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO session_grants (session_id, grant_name) VALUES (?, ?)`, s.ID, grant); err != nil {
 			return fmt.Errorf("create session grant %q: %w", grant, err)
 		}
 	}
-	return nil
+	return tx.Commit()
+}
+
+func (r *sqliteRepository) OneShot(ctx context.Context, id string) (bool, error) {
+	var found int
+	err := r.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM session_one_shot WHERE session_id = sessions.id) FROM sessions WHERE id = ?`, id).Scan(&found)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, ErrNotFound
+	}
+	return found == 1, err
+}
+
+func (r *sqliteRepository) ConsumeOneShot(ctx context.Context, id string) (bool, error) {
+	result, err := r.db.ExecContext(ctx, `UPDATE session_one_shot SET consumed = 1 WHERE session_id = ? AND consumed = 0 AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND state = 'running')`, id, id)
+	if err != nil {
+		return false, err
+	}
+	count, err := result.RowsAffected()
+	return count == 1, err
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*Session, error) {
@@ -134,6 +173,13 @@ func (r *sqliteRepository) Delete(ctx context.Context, id, reason string, now ti
 }
 
 func (r *sqliteRepository) Grant(ctx context.Context, id string, grants []string, now time.Time) (*Session, error) {
+	sealed, err := r.OneShot(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if sealed {
+		return nil, ErrOneShotSealed
+	}
 	if _, err := r.Get(ctx, id); err != nil {
 		return nil, err
 	}
@@ -437,10 +483,11 @@ type memoryRepository struct {
 	sessions    map[string]*Session
 	reasons     []string
 	delegations map[string]*Delegation
+	oneShot     map[string]bool // map membership seals; value records consumption
 }
 
 func newMemoryRepository() *memoryRepository {
-	return &memoryRepository{sessions: make(map[string]*Session), delegations: make(map[string]*Delegation)}
+	return &memoryRepository{sessions: make(map[string]*Session), delegations: make(map[string]*Delegation), oneShot: make(map[string]bool)}
 }
 
 func (r *memoryRepository) Create(_ context.Context, s *Session) error {
@@ -448,6 +495,35 @@ func (r *memoryRepository) Create(_ context.Context, s *Session) error {
 	defer r.mu.Unlock()
 	r.sessions[s.ID] = clone(s)
 	return nil
+}
+
+func (r *memoryRepository) CreateOneShot(_ context.Context, s *Session) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sessions[s.ID] = clone(s)
+	r.oneShot[s.ID] = false
+	return nil
+}
+
+func (r *memoryRepository) OneShot(_ context.Context, id string) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if _, exists := r.sessions[id]; !exists {
+		return false, ErrNotFound
+	}
+	_, ok := r.oneShot[id]
+	return ok, nil
+}
+
+func (r *memoryRepository) ConsumeOneShot(_ context.Context, id string) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	consumed, ok := r.oneShot[id]
+	if !ok || consumed || r.sessions[id] == nil || r.sessions[id].State != "running" {
+		return false, nil
+	}
+	r.oneShot[id] = true
+	return true, nil
 }
 
 func (r *memoryRepository) RecordInferenceUsage(_ context.Context, id string, costMicros, tokens int64) error {
@@ -642,6 +718,9 @@ func (r *memoryRepository) Delete(ctx context.Context, id, reason string, now ti
 func (r *memoryRepository) Grant(ctx context.Context, id string, grants []string, now time.Time) (*Session, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, sealed := r.oneShot[id]; sealed {
+		return nil, ErrOneShotSealed
+	}
 	s, ok := r.sessions[id]
 	if !ok {
 		return nil, ErrNotFound
@@ -695,6 +774,7 @@ func (r *memoryRepository) Reclaim(_ context.Context, id, reason string, _ time.
 		return ErrNotFound
 	}
 	delete(r.sessions, id)
+	delete(r.oneShot, id)
 	r.reasons = append(r.reasons, id+":"+reason)
 	return nil
 }

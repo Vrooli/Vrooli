@@ -24,6 +24,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON sessions(last_activity_at);
 
+-- A one-shot lease is sealed in the same transaction as session creation.
+-- The private admission capability exists only in the creating manager's
+-- memory; this durable marker continues to deny reuse after a restart.
+CREATE TABLE IF NOT EXISTS session_one_shot (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  consumed INTEGER NOT NULL DEFAULT 0 CHECK (consumed IN (0, 1))
+);
+
 CREATE TABLE IF NOT EXISTS session_grants (
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   grant_name TEXT NOT NULL,

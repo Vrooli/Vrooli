@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.research-supervision-read",
+  "version": "1",
+  "helpers": {"program": "2"},
+  "purpose": "Collect explicitly selected native goal state and Agent Manager run evidence for a research supervisor without inferring task success.",
+  "inputs": {
+    "session_id": {"type": "string", "default": "", "description": "Authorized Web Console session; required when threads are selected, at most 256 characters."},
+    "threads": {"type": "array", "default": [], "description": "Up to 16 explicit native thread IDs."},
+    "run_ids": {"type": "array", "default": [], "description": "Up to 8 explicit Agent Manager run IDs; no identity mapping is inferred."},
+    "event_cursors": {"type": "object", "default": {}, "description": "Optional selected run IDs mapped to an exclusive sequence, or null to start at the beginning. One bounded page per run."}
+  },
+  "assumptions": ["Caller owns selection and identity mapping.", "The parent must assess source freshness and all returned statuses."],
+  "invariants": ["Read only; no inference, dispatch, retries or mutations.", "Each selected source is read once; missing sources remain not_requested or unknown.", "Event summaries contain retained-page counts and cursors, not payloads; has_more means the cursor has not caught up and an empty page does not prove coverage or freshness.", "No thread/run identity join, task success, wakeup, cleanup or deadline enforcement is inferred.", "One bounded JSON envelope is returned."],
+  "bindings": [
+    {"id": "web-console/session/native-thread-state", "effect": "read"},
+    {"id": "agent-manager/run/report", "effect": "read"},
+    {"id": "agent-manager/run/event-page", "effect": "read"}
+  ],
+  "verbs": ["lib"],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {"sources": "Per-source statuses, signals and errors; event pages include counts, exclusive next cursor and has_more; not_requested is not complete coverage. An omitted_due_to_output_limit source is unknown and must be inspected separately.", "attention": "Explicit blocked, budget-limited or failed native goals, failed or cancelled runs, and event backlogs, with source and subject; an empty list does not prove health or complete coverage.", "decision": "Always review_required; no conclusion about work success.", "output_truncated": "True when combined output exceeds its declared tier; unaffected sources are retained when possible."},
+    "errors": {"classes": ["invalid_input", "source_unavailable", "invalid_response", "output_limit", "kernel_runtime"]},
+    "evidence": "Child program names and available artifact identities."
+  },
+  "budget": {"wall_ms": 120000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16, "output_bytes": 65536},
+  "fixtures": [
+    {"id": "empty-subjects", "inputs": {}, "expect": {"status": ["failed"]}, "requires": []},
+    {"id": "missing-session", "inputs": {"threads": ["fixture"]}, "expect": {"status": ["failed"]}, "requires": []}
+  ],
+  "rung": "S3",
+  "owner_skill": "research-coordination"
+}

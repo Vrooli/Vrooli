@@ -291,7 +291,19 @@ func (h *handler) prepareDeclared(ctx context.Context, req *connect.Request[libr
 	if value := req.Msg.GetCaller(); value != nil {
 		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}
 	}
-	identity := internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest, IdempotencyKey: req.Msg.GetIdempotencyKey(), AdmissionDeadline: req.Msg.GetAdmissionDeadline()}
+	identity := internalprograms.Identity{ProgramName: contract.ID, ProgramDigest: contract.Digest, IdempotencyKey: req.Msg.GetIdempotencyKey(), AdmissionDeadline: req.Msg.GetAdmissionDeadline(), OutputSchema: contract.OutputSchema}
+	// The kernel receives the pinned declaration via the private execution
+	// protocol, not as a source preamble that a program could forge.
+	var helperDeclaration struct {
+		Helpers struct {
+			Program string `json:"program"`
+		} `json:"helpers"`
+		Outputs json.RawMessage `json:"outputs"`
+	}
+	if err := json.Unmarshal(contract.Declaration, &helperDeclaration); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("decode declared helper contract: %w", err))
+	}
+	identity.HelperContract = &internalprograms.HelperContract{Version: helperDeclaration.Helpers.Program, Outputs: append(json.RawMessage(nil), helperDeclaration.Outputs...)}
 	grants, err := declaredGrants(contract, req.Msg.GetGrants())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -333,7 +345,7 @@ func (h *handler) CloseDeclaredAdmission(ctx context.Context, req *connect.Reque
 }
 
 func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[libraryv1.RunDeclaredProgramRequest]) (*connect.Response[libraryv1.RunDeclaredProgramResponse], error) {
-	if h.sessions == nil {
+	if h.sessions == nil || h.programs == nil || !h.programs.HasSessionAuthorizer() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("declared program sessions are unavailable"))
 	}
 	prepared, err := h.prepareDeclared(ctx, req)
@@ -350,11 +362,11 @@ func (h *handler) RunDeclaredProgram(ctx context.Context, req *connect.Request[l
 	} else if replay != nil {
 		return h.awaitDeclared(ctx, replay, req.Msg.GetAsync(), wait)
 	}
-	session, err := h.sessions.CreateWithExecutionBudgets(ctx, "declared-program:"+contract.ID, "", identity.Grants, 0, 0, contract.WallMS, 0)
+	session, admissionCtx, err := h.sessions.CreateOneShot(ctx, "declared-program:"+contract.ID, "", identity.Grants, 0, 0, contract.WallMS, 0)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeResourceExhausted, fmt.Errorf("create declared program session: %w", err))
 	}
-	program, _, err := h.programs.SubmitDeclared(ctx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, identity, caller, true)
+	program, _, err := h.programs.SubmitDeclared(admissionCtx, session.ID, source, req.Msg.GetProvenance(), contract.OutputBytes == 65536, false, identity, caller, true)
 	if err != nil {
 		_, _ = h.sessions.Delete(context.Background(), session.ID, "declared program submission failed")
 		return nil, declaredAdmissionError(err)

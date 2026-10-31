@@ -9,6 +9,8 @@ import (
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	internalbindings "program-runtime/internal/bindings"
+	"program-runtime/internal/corpuscodec"
+	"program-runtime/internal/receipts"
 
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
@@ -19,7 +21,7 @@ func newShapeDB(t *testing.T) *sql.DB {
 	t.Helper()
 	d := dbtest.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(internalbindings.Schema), apidb.SchemaProviderFunc(Schema)))
-	_, err := d.Exec(`CREATE TABLE programs (id TEXT PRIMARY KEY, session_id TEXT, source TEXT, provenance TEXT, status TEXT, created_at TEXT)`)
+	_, err := d.Exec(`CREATE TABLE programs (id TEXT PRIMARY KEY, session_id TEXT, source TEXT, provenance TEXT, status TEXT, created_at TEXT, source_receipt_format INTEGER NOT NULL DEFAULT 0)`)
 	require.NoError(t, err)
 	return d
 }
@@ -142,4 +144,24 @@ func TestCoverageMissRequiresRecurrenceThreshold(t *testing.T) {
 	_, err = repo.ResolveCoverage(context.Background(), shapeCoverage{value: "demo.contract"})
 	require.NoError(t, err)
 	require.Empty(t, events.events)
+}
+
+func TestObserveUsesDecodedSourceSizeForExemplar(t *testing.T) {
+	d := newShapeDB(t)
+	seedShapeProgram(t, d, "long", "abcdefgh")
+	seedShapeProgram(t, d, "short", "x")
+	encoded, err := corpuscodec.Encode(receipts.New(), "x")
+	require.NoError(t, err)
+	_, err = d.Exec(`UPDATE programs SET source=?,source_receipt_format=1 WHERE id='short'`, encoded)
+	require.NoError(t, err)
+	repo := NewRepository(d)
+	_, err = repo.Observe(t.Context(), "long", "s", programsv1.Provenance_PROVENANCE_AGENT, time.Now())
+	require.NoError(t, err)
+	_, err = repo.Observe(t.Context(), "short", "s", programsv1.Provenance_PROVENANCE_AGENT, time.Now())
+	require.NoError(t, err)
+	var id string
+	var size int
+	require.NoError(t, d.QueryRow(`SELECT exemplar_program_id,exemplar_bytes FROM program_shapes`).Scan(&id, &size))
+	require.Equal(t, "short", id)
+	require.Equal(t, 1, size)
 }

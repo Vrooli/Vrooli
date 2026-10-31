@@ -41,10 +41,6 @@
     {
       "id": "agent-manager/run/report",
       "effect": "read"
-    },
-    {
-      "id": "agent-manager/run/episodes",
-      "effect": "read"
     }
   ],
   "verbs": [

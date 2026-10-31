@@ -83,7 +83,7 @@ const interruptedDetail = "runtime restarted before execution recorded a termina
 // InterruptUnfinished is called once before this process accepts work. Execution
 // belongs to one API process; kernels and goroutines cannot be resumed after it dies.
 func (r *sqliteRepository) InterruptUnfinished(ctx context.Context, at string) (int64, error) {
-	result, err := r.db.ExecContext(ctx, `UPDATE programs SET status='failed', completed_at=?, failure_shape='runtime_interrupted', failure_cause=?, failure_detail=? WHERE status IN ('accepted', 'running')`,
+	result, err := r.db.ExecContext(ctx, `UPDATE programs SET status='failed', completed_at=?, failure_shape='runtime_interrupted', failure_cause=?, failure_detail=?, failure_detail_receipt_format=0 WHERE status IN ('accepted', 'running')`,
 		at, programsv1.FailureCause_FAILURE_CAUSE_RUNTIME_INTERRUPTED.String(), interruptedDetail)
 	if err != nil {
 		return 0, fmt.Errorf("reconcile interrupted programs: %w", err)
@@ -124,21 +124,26 @@ func (r *sqliteRepository) Create(ctx context.Context, p *programsv1.Program) (b
 func (r *sqliteRepository) store(ctx context.Context, p *programsv1.Program, createOnly bool) (bool, error) {
 	p = clone(p)
 	p.LearningJson = persistedLearningJSON(p.GetLearningJson())
+	safeDetail, err := r.receipts.seal(p.GetFailureDetail())
+	if err != nil {
+		return false, fmt.Errorf("seal runtime resume receipt: %w", err)
+	}
+	location := failureLocation(safeDetail)
 	for _, field := range []*string{&p.Source, &p.Stdout, &p.FailureDetail} {
-		sealed, err := r.receipts.seal(*field)
+		sealed, err := r.receipts.encode(*field)
 		if err != nil {
 			return false, fmt.Errorf("seal runtime resume receipt: %w", err)
 		}
 		*field = sealed
 	}
-	conflict := ` ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json, usage_tokens=excluded.usage_tokens, usage_charge_micros=excluded.usage_charge_micros, usage_accounting_complete=excluded.usage_accounting_complete, usage_charge_measured=excluded.usage_charge_measured, usage_basis=excluded.usage_basis, caller_identity_verified=excluded.caller_identity_verified`
+	conflict := ` ON CONFLICT(id) DO UPDATE SET status=excluded.status, completed_at=excluded.completed_at, stdout=excluded.stdout, context_bytes=excluded.context_bytes, agent_bytes=excluded.agent_bytes, output_limit_bytes=excluded.output_limit_bytes, failure_detail=excluded.failure_detail, failure_shape=excluded.failure_shape, failure_location=excluded.failure_location, wall_time_millis=excluded.wall_time_millis, cpu_time_millis=excluded.cpu_time_millis, library_version=excluded.library_version, failure_cause=excluded.failure_cause, program_name=excluded.program_name, program_digest=excluded.program_digest, caller_run_id=excluded.caller_run_id, caller_agent_profile=excluded.caller_agent_profile, caller_skill_id=excluded.caller_skill_id, caller_harness=excluded.caller_harness, learning_json=excluded.learning_json, usage_tokens=excluded.usage_tokens, usage_charge_micros=excluded.usage_charge_micros, usage_accounting_complete=excluded.usage_accounting_complete, usage_charge_measured=excluded.usage_charge_measured, usage_basis=excluded.usage_basis, caller_identity_verified=excluded.caller_identity_verified, stdout_receipt_format=excluded.stdout_receipt_format, failure_detail_receipt_format=excluded.failure_detail_receipt_format`
 	if createOnly {
 		conflict = ` ON CONFLICT(id) DO NOTHING`
 	}
 	result, err := r.db.ExecContext(ctx, `INSERT INTO programs
-	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified)
-	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`+conflict,
-		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), failureLocation(p.GetFailureDetail()), p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson(), p.GetRequestDigest(), p.GetUsageTokens(), p.GetUsageChargeMicros(), boolToInt(p.GetUsageAccountingComplete()), boolToInt(p.GetUsageChargeMeasured()), p.GetUsageBasis(), boolToInt(p.GetCallerIdentityVerified()))
+	 (id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, failure_location, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified, source_receipt_format, stdout_receipt_format, failure_detail_receipt_format)
+	 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 1)`+conflict,
+		p.GetId(), p.GetSessionId(), p.GetSource(), strconv.Itoa(int(p.GetProvenance())), statusName(p.GetStatus()), p.GetCreatedAt(), p.GetCompletedAt(), p.GetStdout(), p.GetContextBytes(), p.GetAgentBytes(), p.GetOutputLimitBytes(), p.GetFailureDetail(), p.GetFailureShape(), location, p.GetWallTimeMillis(), p.GetCpuTimeMillis(), p.GetLibraryVersion(), p.GetFailureCause().String(), p.GetProgramName(), p.GetProgramDigest(), p.GetCallerRunId(), p.GetCallerAgentProfile(), p.GetCallerSkillId(), p.GetCallerHarness(), p.GetLearningJson(), p.GetRequestDigest(), p.GetUsageTokens(), p.GetUsageChargeMicros(), boolToInt(p.GetUsageAccountingComplete()), boolToInt(p.GetUsageChargeMeasured()), p.GetUsageBasis(), boolToInt(p.GetCallerIdentityVerified()))
 	if err != nil {
 		return false, fmt.Errorf("save program %q: %w", p.GetId(), err)
 	}
@@ -147,7 +152,7 @@ func (r *sqliteRepository) store(ctx context.Context, p *programsv1.Program, cre
 }
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (*programsv1.Program, error) {
-	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified FROM programs WHERE id = ?`, id))
+	p, err := r.scan(r.db.QueryRowContext(ctx, `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified, source_receipt_format, stdout_receipt_format, failure_detail_receipt_format FROM programs WHERE id = ?`, id))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrProgramNotFound
 	}
@@ -162,7 +167,7 @@ func (r *sqliteRepository) List(ctx context.Context, sessionID string, includeOp
 }
 
 func (r *sqliteRepository) ListFiltered(ctx context.Context, filter ListFilter) ([]*programsv1.Program, error) {
-	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified FROM programs WHERE 1=1`
+	query := `SELECT id, session_id, source, provenance, status, created_at, completed_at, stdout, context_bytes, agent_bytes, output_limit_bytes, failure_detail, failure_shape, wall_time_millis, cpu_time_millis, library_version, failure_cause, program_name, program_digest, caller_run_id, caller_agent_profile, caller_skill_id, caller_harness, learning_json, request_digest, usage_tokens, usage_charge_micros, usage_accounting_complete, usage_charge_measured, usage_basis, caller_identity_verified, source_receipt_format, stdout_receipt_format, failure_detail_receipt_format FROM programs WHERE 1=1`
 	args := make([]any, 0, 8)
 	if filter.SessionID != "" {
 		query += ` AND session_id = ?`
@@ -465,7 +470,8 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 	var status, completedAt string
 	var failureCause string
 	var accountingComplete, chargeMeasured, callerIdentityVerified int
-	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson, &p.RequestDigest, &p.UsageTokens, &p.UsageChargeMicros, &accountingComplete, &chargeMeasured, &p.UsageBasis, &callerIdentityVerified); err != nil {
+	var sourceFormat, stdoutFormat, detailFormat int
+	if err := row.Scan(&p.Id, &p.SessionId, &p.Source, &provenance, &status, &p.CreatedAt, &completedAt, &p.Stdout, &p.ContextBytes, &p.AgentBytes, &p.OutputLimitBytes, &p.FailureDetail, &p.FailureShape, &p.WallTimeMillis, &p.CpuTimeMillis, &p.LibraryVersion, &failureCause, &p.ProgramName, &p.ProgramDigest, &p.CallerRunId, &p.CallerAgentProfile, &p.CallerSkillId, &p.CallerHarness, &p.LearningJson, &p.RequestDigest, &p.UsageTokens, &p.UsageChargeMicros, &accountingComplete, &chargeMeasured, &p.UsageBasis, &callerIdentityVerified, &sourceFormat, &stdoutFormat, &detailFormat); err != nil {
 		return nil, err
 	}
 	p.UsageAccountingComplete = accountingComplete != 0
@@ -479,9 +485,16 @@ func (r *sqliteRepository) scan(row rowScanner) (*programsv1.Program, error) {
 		return nil, fmt.Errorf("parse program provenance: %w", err)
 	}
 	p.Provenance = programsv1.Provenance(value)
-	p.Source = r.receipts.open(p.Source)
-	p.Stdout = r.receipts.open(p.Stdout)
-	p.FailureDetail = r.receipts.open(p.FailureDetail)
+	for _, field := range []struct {
+		value  *string
+		format int
+	}{{&p.Source, sourceFormat}, {&p.Stdout, stdoutFormat}, {&p.FailureDetail, detailFormat}} {
+		value, err := r.receipts.decode(*field.value, field.format)
+		if err != nil {
+			return nil, fmt.Errorf("decode program receipt: %w", err)
+		}
+		*field.value = value
+	}
 	return &p, nil
 }
 
@@ -578,6 +591,14 @@ func parseFailureCause(value string) programsv1.FailureCause {
 		return programsv1.FailureCause_FAILURE_CAUSE_KERNEL_RUNTIME
 	case "failure_cause_bridge_transport", "bridge_transport":
 		return programsv1.FailureCause_FAILURE_CAUSE_BRIDGE_TRANSPORT
+	case "failure_cause_effect_uncertain", "effect_uncertain":
+		return programsv1.FailureCause_FAILURE_CAUSE_EFFECT_UNCERTAIN
+	case "failure_cause_authority_unavailable", "authority_unavailable":
+		return programsv1.FailureCause_FAILURE_CAUSE_AUTHORITY_UNAVAILABLE
+	case "failure_cause_output_schema_mismatch", "output_schema_mismatch":
+		return programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH
+	case "failure_cause_output_truncated", "output_truncated":
+		return programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_TRUNCATED
 	case "failure_cause_unclassified", "unclassified":
 		return programsv1.FailureCause_FAILURE_CAUSE_UNCLASSIFIED
 	case "failure_cause_protected_name_misuse", "protected_name_misuse":

@@ -13,6 +13,120 @@ import (
 
 var testContext = context.Background()
 
+func TestOneShotSessionHasPrivateSingleUseAdmissionAndDurableSeal(t *testing.T) {
+	db := newSessionTestDB(t)
+	m := NewManager(Options{Store: db})
+	s, owner, err := m.CreateOneShot(testContext, "one-shot", "", []string{"read:fixture"}, 0, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Grant(testContext, s.ID, []string{"later"}); !errors.Is(err, ErrOneShotSealed) {
+		t.Fatalf("sealed grant = %v", err)
+	}
+	if ok, err := m.AuthorizeSubmission(testContext, s.ID); ok || !errors.Is(err, ErrOneShotSealed) {
+		t.Fatalf("public submission = %v, %v", ok, err)
+	}
+	// The durable seal survives a new owner, but its private capability does not.
+	restarted := NewManager(Options{Store: db})
+	if ok, err := restarted.AuthorizeSubmission(owner, s.ID); ok || !errors.Is(err, ErrOneShotSealed) {
+		t.Fatalf("restart submission = %v, %v", ok, err)
+	}
+	if _, err := restarted.Grant(testContext, s.ID, nil); !errors.Is(err, ErrOneShotSealed) {
+		t.Fatalf("restart grant = %v", err)
+	}
+	const workers = 12
+	var wg sync.WaitGroup
+	results := make(chan bool, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ok, _ := m.AuthorizeSubmission(owner, s.ID)
+			results <- ok
+		}()
+	}
+	wg.Wait()
+	close(results)
+	accepted := 0
+	for ok := range results {
+		if ok {
+			accepted++
+		}
+	}
+	if accepted != 1 {
+		t.Fatalf("accepted submissions = %d, want 1", accepted)
+	}
+	if ok, err := m.AuthorizeSubmission(owner, s.ID); ok || !errors.Is(err, ErrOneShotSealed) {
+		t.Fatalf("replay = %v, %v", ok, err)
+	}
+	ordinary, err := m.Create(testContext, "ordinary", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := m.AuthorizeSubmission(testContext, ordinary.ID); ok || err != nil {
+		t.Fatalf("ordinary admission = %v, %v", ok, err)
+	}
+	if _, err := m.Grant(testContext, ordinary.ID, []string{"later"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOneShotSealIsAtomicWithSessionAndGrants(t *testing.T) {
+	db := newSessionTestDB(t)
+	if _, err := db.ExecContext(testContext, `CREATE TRIGGER reject_seal BEFORE INSERT ON session_one_shot BEGIN SELECT RAISE(FAIL, 'seal unavailable'); END`); err != nil {
+		t.Fatal(err)
+	}
+	m := NewManager(Options{Store: db})
+	if s, _, err := m.CreateOneShot(testContext, "failed", "", []string{"read:fixture"}, 0, 0, 0, 0); err == nil || s != nil {
+		t.Fatalf("failed seal created visible session: %v, %v", s, err)
+	}
+	var count int
+	if err := db.QueryRowContext(testContext, `SELECT COUNT(*) FROM sessions`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("sessions after failed seal = %d, %v", count, err)
+	}
+}
+
+func TestOneShotCapabilityCannotAuthorizeAnotherSession(t *testing.T) {
+	m := NewManager(Options{})
+	first, firstOwner, err := m.CreateOneShot(testContext, "first", "", nil, 0, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, secondOwner, err := m.CreateOneShot(testContext, "second", "", nil, 0, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := m.AuthorizeSubmission(firstOwner, second.ID); ok || !errors.Is(err, ErrOneShotSealed) {
+		t.Fatalf("cross-session admission = %v, %v", ok, err)
+	}
+	if ok, err := m.AuthorizeSubmission(secondOwner, second.ID); !ok || err != nil {
+		t.Fatalf("owner admission = %v, %v", ok, err)
+	}
+	if ok, err := m.AuthorizeSubmission(firstOwner, first.ID); !ok || err != nil {
+		t.Fatalf("first owner admission = %v, %v", ok, err)
+	}
+}
+
+func TestReclaimedOneShotCannotBeAdmitted(t *testing.T) {
+	for _, store := range []bool{false, true} {
+		options := Options{}
+		if store {
+			options.Store = newSessionTestDB(t)
+		}
+		m := NewManager(options)
+		s, owner, err := m.CreateOneShot(testContext, "reclaimed", "", nil, 0, 0, 0, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := m.Delete(testContext, s.ID, "cancelled"); err != nil {
+			t.Fatal(err)
+		}
+		if ok, err := m.AuthorizeSubmission(owner, s.ID); ok || (!errors.Is(err, ErrOneShotSealed) && !errors.Is(err, ErrNotFound)) {
+			t.Fatalf("reclaimed admission = %v, %v", ok, err)
+		}
+	}
+}
+
 type fakeClock struct{ now time.Time }
 
 func (c *fakeClock) Now() time.Time { return c.now }

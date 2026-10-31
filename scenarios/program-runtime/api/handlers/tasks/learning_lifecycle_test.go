@@ -89,7 +89,7 @@ else:
 		}
 	})
 	manager := sessions.NewManager(sessions.Options{OnReclaimed: runner.KillSession})
-	service := programs.NewService(programs.Options{Store: db, Runner: runner, OnTerminal: store.Recover})
+	service := programs.NewService(programs.Options{Store: db, Runner: runner, OnTerminal: store.Recover, AuthorizeSession: manager.AuthorizeSubmission})
 	bridge := &Bridge{Store: store, Contracts: index, Library: repo, Sessions: manager, Programs: service}
 	var resultDeliveryUnavailable atomic.Bool
 	var fragmentReadsUnavailable atomic.Bool

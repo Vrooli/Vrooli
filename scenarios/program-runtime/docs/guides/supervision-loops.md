@@ -1,15 +1,16 @@
 # Supervision loops → programs (standing capability)
 
 Supervisors and delivery-team agents run the same read loops over and over (health
-checks, validation checks, "why is this scenario unhealthy", investigation). Each is a
-long governed-read loop — the shape a Program Runtime program exists to replace. This
-guide is the standing front door: the loop → the one program call that replaces it.
+checks, validation checks, "why is this scenario unhealthy", investigation). A bounded
+program can combine repeated governed reads when its contract fits the review. The
+supervisor still selects subjects, evaluates evidence, and uses available owner reads
+when a program or dependency is unavailable.
 
 It exists because the program corpus is healthy in supply but under-consumed (a 2026-10
-portfolio-audit scored `exercised` ≈ 38%). Calling these programs instead of hand-running
-CLI loops is what raises adoption. Branch only on the envelope `status`
-(`ok`/`partial`/`unavailable`/`failed`) and `errors[0].class`. **`unavailable` is unknown,
-never zero.**
+portfolio-audit scored `exercised` ≈ 38%). Reuse is worthwhile when it improves the
+outcome and its overhead is justified. Inspect the envelope `status`, per-source signals,
+errors and evidence before deciding; successful program execution is not a successful
+supervision decision. **`unavailable` is unknown, never zero.**
 
 ## The supervision set (program-runtime-owned)
 
@@ -22,6 +23,8 @@ never zero.**
 | Retained delivery-effort obligations | `agent-manager.supervision-observation-read` | One bounded effort-board page; follow its continuation token and preserve partial, stale, and unknown states. It does not dispatch work or prove completion. |
 | Runtime measure summaries / failure shapes / reachable bindings | `program-runtime.fleet-fanout`, `program-runtime.failure-triage`, `program-runtime.registry-sweep` | |
 | Agent run efficiency / setpoint / one-subject diagnosis | `agent-manager.efficiency-report`, `agent-manager.setpoint-read`, `agent-manager.investigate` + `investigation-evidence` | agent-manager-owned; reuse, don't re-author. |
+| Selected research threads, runs and changed event counts | `program-runtime.research-supervision-read` | Caller supplies exact identities. Optional per-run cursors select one page of counts without payloads; `has_more` means more pages remain. Missing receipts, stale imports and missing sources are not proof of health. |
+| Research workspace navigation signals | `program-runtime.research-workspace-review` | Pass an authorized absolute research root. Bounded missing-file and size signals are prompts to inspect, not judgments of research quality. |
 
 ## The supervision cycle
 
@@ -33,6 +36,21 @@ program-runtime library run program-runtime.scenario-triage --input scenario=<sl
 ```
 
 Weekly, keep the layer honest: `portfolio-audit` + `usage-triage`.
+
+For research, `prompt-manager skill read research-coordination` owns the adaptive
+review cadence and response to uncertainty. For example, after resolving a run ID:
+
+```bash
+program-runtime library run program-runtime.research-supervision-read \
+  --input 'run_ids=["<run-id>"]' --input 'event_cursors={"<run-id>":null}'
+program-runtime library run program-runtime.research-workspace-review \
+  --input research_root=/absolute/authorized/research/root
+```
+
+For the next bounded event page, pass the returned `next_cursor` for that same run.
+Inspect `has_more`, coverage and errors before accepting any observation. Event counts
+do not establish live import freshness, event significance, or absence of unobserved
+receipts. No program here wakes a supervisor or enforces a research cutoff.
 
 ## Deliberately NOT a program (honest boundaries)
 
@@ -50,4 +68,5 @@ Weekly, keep the layer honest: `portfolio-audit` + `usage-triage`.
 These programs make **0 inference calls** (read-only). The envelope reports wall/cpu time
 and `usage_accounting_complete`, but not token/dollar cost. State the honest, measurable
 win — CLI round-trips collapsed (e.g. supervision-sweep: 8 `scenario status` calls → 1
-program + 1 read, ~5s) — never an invented token number.
+program + 1 read in one example) — never an invented token number or a general claim of
+faster or cheaper supervision. Compare full worker and supervisor usage and outcomes.

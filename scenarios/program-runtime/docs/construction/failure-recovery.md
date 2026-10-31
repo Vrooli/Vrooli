@@ -24,7 +24,9 @@ enum mirror of the same value:
 Fix the named cause and submit a new program:
 
 - `unknown_field` — the error lists the candidate proto fields.
-- `ambiguous_response` — pass `rows="<field>"`.
+- `ambiguous_response` — choose `rows="<field>"` before invocation. Older
+  Runtime versions could report ambiguity after the owner ran; reconcile owner
+  state before retrying any operation that may have effects.
 - `unreachable_scenario` — start the owner through the lifecycle.
 - `refused_no_grant` — request the exact session grant. Never retry a refused
   destructive call without it.

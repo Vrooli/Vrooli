@@ -78,6 +78,9 @@ func (h *handler) RunDiscoveryEval(ctx context.Context, req *connect.Request[pro
 }
 
 func (h *handler) SubmitProgram(ctx context.Context, req *connect.Request[programsv1.SubmitProgramRequest]) (*connect.Response[programsv1.SubmitProgramResponse], error) {
+	if h.service == nil || !h.service.HasSessionAuthorizer() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("session admission authorization is unavailable"))
+	}
 	caller := internalprograms.Caller{}
 	if value := req.Msg.GetCaller(); value != nil {
 		caller = internalprograms.Caller{RunID: value.GetRunId(), AgentProfile: value.GetAgentProfile(), SkillID: value.GetSkillId(), Harness: value.GetHarness()}

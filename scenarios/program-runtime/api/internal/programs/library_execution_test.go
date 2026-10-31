@@ -17,7 +17,65 @@ import (
 	"time"
 
 	"program-runtime/internal/contracts"
+
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
+
+type bridgePairVerifier struct{ allowed *atomic.Bool }
+
+func (v bridgePairVerifier) Verify(token string) (*cliutil.VerifyResult, error) {
+	return &cliutil.VerifyResult{Valid: token == "baseline", Claims: &cliutil.VerifiedClaims{RunID: "fixture-run"}}, nil
+}
+
+func (v bridgePairVerifier) VerifyPair(_ context.Context, baseline, operation string) (*cliutil.VerifyPairResult, error) {
+	grant := fmt.Sprintf(`{"id":"fixture-grant","approver":"owner","expires_at":%q}`, time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
+	return &cliutil.VerifyPairResult{Valid: v.allowed.Load() && baseline == "baseline" && operation == "operation", Operation: &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{Meta: map[string]string{"operation_grant": grant}}}}, nil
+}
+
+func TestKernelDoesNotCarryVerifiedCredentialsIntoSubmittedPythonOrOwnerCalls(t *testing.T) {
+	var valid atomic.Bool
+	valid.Store(true)
+	verifier := bridgePairVerifier{allowed: &valid}
+	var incoming context.Context
+	admission := provenance.Middleware(verifier)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { incoming = r.Context() }))
+	req := httptest.NewRequest(http.MethodPost, "/run", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "baseline")
+	req.Header.Set(cliutil.HeaderAgentOperationToken, "operation")
+	admission.ServeHTTP(httptest.NewRecorder(), req)
+	if provenance.ForwardedOperationToken(incoming) != "operation" {
+		t.Fatal("fixture pair was not verified at admission")
+	}
+	type observation struct {
+		identity, operation string
+		verified            bool
+	}
+	observed := make(chan observation, 4)
+	owner := httptest.NewServer(provenance.Middleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := provenance.FromContext(r.Context())
+		observed <- observation{r.Header.Get(cliutil.HeaderAgentIdentityToken), r.Header.Get(cliutil.HeaderAgentOperationToken), p.OperationGrant != nil}
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"execution_id":"fixture"}`)
+	})))
+	defer owner.Close()
+	runner := libraryTestRunner(t, nil, nil, owner.URL+"/execute")
+	call := func(ctx context.Context) observation {
+		t.Helper()
+		result, err := runner.ExecuteWithMetadata(ctx, "session-fixture", "program-fixture", "test", `import bridge_transport as transport
+print(getattr(transport, "AGENT_IDENTITY", "missing"))
+print(getattr(transport, "AGENT_OPERATION", "missing"))
+agent.start(owner="fixture", workflow_key="fixture")`, false)
+		if err != nil || strings.Contains(result.Stdout, "operation") || strings.Contains(result.Stdout, "baseline") {
+			t.Fatalf("execution error or proof disclosed: %v %+v", err, result)
+		}
+		return <-observed
+	}
+	for _, ctx := range []context.Context{incoming, context.Background()} {
+		if got := call(ctx); got != (observation{"", "", false}) {
+			t.Fatalf("credential crossed into Python owner call: %+v", got)
+		}
+	}
+}
 
 func declaredLibrary(name, source, inputs string) LibrarySpec {
 	return LibrarySpec{
@@ -422,9 +480,7 @@ func TestImprovementEvidenceComposesOwnerPrograms(t *testing.T) {
 				case "visited-tracker/attention/preview":
 					fmt.Fprint(w, `{"candidates":[{"fileId":"file","path":"consumer.py","revision":"abc","score":10}],"observedAt":"2026-09-06T12:00:00Z","campaignRevision":"1"}`)
 				case "agent-manager/run/report":
-					fmt.Fprint(w, `{"status":"failed","exitCode":1,"eventsAvailability":"complete","receiptsAvailability":"complete"}`)
-				case "agent-manager/run/episodes":
-					fmt.Fprint(w, `{"episodes":[{"episodeId":"episode","pattern":"binding_failure","ownerConfidence":"manifest-derived"}]}`)
+					fmt.Fprint(w, `{"status":"failed","exitCode":1,"eventsAvailability":{"state":"available"},"receiptsAvailability":{"state":"available"},"tools":[],"workReferences":[]}`)
 				default:
 					http.Error(w, "unexpected binding", 400)
 				}
@@ -432,8 +488,7 @@ func TestImprovementEvidenceComposesOwnerPrograms(t *testing.T) {
 			defer server.Close()
 			runner := libraryTestRunner(t, specs, []BindingSpec{
 				{ID: "visited-tracker/attention/preview", Scenario: "visited-tracker", Group: "attention", Command: "preview", Effect: "read", Reachable: true, RowsField: "candidates"},
-				{ID: "agent-manager/run/report", Scenario: "agent-manager", Group: "run", Command: "report", Effect: "read", Reachable: true},
-				{ID: "agent-manager/run/episodes", Scenario: "agent-manager", Group: "run", Command: "episodes", Effect: "read", Reachable: true, RowsField: "episodes"},
+				{ID: "agent-manager/run/report", Scenario: "agent-manager", Group: "run", Command: "report", Effect: "read", Reachable: true, MetaFields: []string{"status", "exitCode", "eventsAvailability", "receiptsAvailability"}, RowFieldCandidates: []string{"tools", "workReferences"}},
 			}, server.URL+"/execute")
 			expected := "ok"
 			if mode != "success" {

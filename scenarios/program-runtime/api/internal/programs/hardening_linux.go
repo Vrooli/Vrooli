@@ -35,4 +35,4 @@ func applyProcessLimits(pid int, executionLimits ExecutionLimits) error {
 	return nil
 }
 
-func killProcessGroup(pid int) { _ = syscall.Kill(-pid, syscall.SIGKILL) }
+func terminateKernelProcess(pid int) { _ = syscall.Kill(-pid, syscall.SIGKILL) }

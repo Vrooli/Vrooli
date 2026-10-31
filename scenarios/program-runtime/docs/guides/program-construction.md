@@ -194,10 +194,17 @@ result = lib.concurrent_fanout()
 print(result.head(3))
 ~~~
 
-Use lib.list() first, then call the exact promoted name with the arguments
-shown by its entry. If no suitable entry exists, author the smallest new
-program and keep its output bounded. Start a new session after a library
-version is promoted or its current version changes.
+Use `lib.list()` first, then call the exact promoted name without arguments.
+Promoted entries currently reject named and positional arguments; their
+`declared_inputs` metadata is not an executable argument contract. Older
+promotions may list `session_id` by default even when the source never reads it.
+For a workspace-dependent entry, create the session with the authorized
+workspace before invoking it: a session identifier passed to the function
+cannot select its working directory. Inspect the source and returned handle;
+older entries that only print may not return their printed value as a handle.
+If no suitable entry exists, author the smallest new program and keep its output
+bounded. Start a new session after a library version is promoted or its current
+version changes.
 
 ## Compose scenario-owned workflows
 
@@ -401,7 +408,7 @@ vocabulary is:
 |---|---|
 | `unresolved_name` | Fix the name; the message names the nearest match. |
 | `unknown_field` | The argument matches no proto field; the message lists the candidates. |
-| `ambiguous_response` | Pass `rows="<field>"`. |
+| `ambiguous_response` | Choose `rows="<field>"` before invocation. For an earlier attempt, reconcile any possible owner effects before retrying. |
 | `unreachable_scenario` | The owning scenario is not running. Start it through the lifecycle. |
 | `refused_no_grant` | A destructive binding needs an explicit session grant. Request it; do not retry. |
 | `refused_not_run_eligible` | The manifest declares the command ineligible. There is no override. |
@@ -409,10 +416,18 @@ vocabulary is:
 | `deadline_exceeded` | The 120-second supervisor deadline fired and the kernel restarted; live variables were lost. |
 | `kernel_syntax` | The program did not parse. |
 | `kernel_runtime` | An uncaught Python exception. Read `failure_detail`. |
-| `bridge_transport` | The call did not reach the owning scenario. |
+| `bridge_transport` | Transport failed. If the request may have been dispatched, inspect the owner before retrying. |
+| `effect_uncertain` | An owner operation may have taken effect. Inspect owner state before deciding whether to retry. |
+| `authority_unavailable` | This session cannot provide the verified authority required by the task. Use a supported owner path or eligible one-shot session, after reconciling any earlier effects. |
+| `output_schema_mismatch` | The declared program's captured output does not match its pinned schema. Inspect the output and any possible owner effects before retrying. |
+| `output_truncated` | Schema-backed declared output exceeded its capture limit. Inspect any owner effects before deciding whether to change the output or retry. |
+| `runtime_interrupted` | The Runtime owner stopped before recording a terminal result. Reconcile possible owner effects before retrying. |
+| `protected_name_misuse` | A protected Runtime name was reassigned; rename the variable. |
 | `unclassified` | No cause was derivable — reported honestly rather than guessed. |
 
-`failure_cause` is the typed enum mirror of the same value.
+`failure_cause` is the typed classification; some more specific shapes share the
+`unclassified` enum. `effect_uncertain` and `authority_unavailable` have their
+own enum values.
 
 ## Finding the operation and its contract
 
@@ -610,14 +625,26 @@ postcondition and root outcome succeed; schema-only answers remain unverified.
 
 Run `program-runtime.fragment-promote` with `step_key`, `operation`,
 `reviewed_by`, `evidence`, and curated `fixtures`. The default prepares a candidate.
-Inspect it, then use `publish=true` with the current `expected_digest` to update
-one existing program declaration. Publication requires operator provenance,
-sufficient verified observations, at least two input contexts, matching source,
-and an unchanged declaration. The original `learn.act` call remains in source.
+Inspect it before updating one existing program declaration. The Python kernel
+cannot carry an independent human credential, so `publish=true` from a program
+is refused. An
+independently verified human can submit the prepared baseline to the owner task
+bridge directly: POST `/internal/program-runtime/tasks/fragment_publish` with
+the active operator-provenance `session_id` and `program_id`, `operation`,
+`digest`, `step_key`, `step_name`, `min_verified`, and the reviewed `baseline`
+object. Authenticate that direct request with an owner credential accepted by
+Program Runtime; an agent identity or a reviewer string is not human approval.
+The `reviewed_by` value is a reviewer-provided label, not a verified identity
+claim; this baseline format does not retain the authenticated principal.
+Publication also requires sufficient verified observations, at least two input
+contexts, matching source, and an unchanged declaration. The original
+`learn.act` call remains in source.
 
 Fixtures contain `inputs`, independently expected `expected`, and optional
 ordered `calls` with `binding_id`, `arguments`, `rows`, and optional `metadata`.
-Publication replays these recorded responses without calling live domain tools.
+The owner independently replays these recorded responses in a fresh bounded
+Runtime kernel without calling live domain tools, and rejects an unavailable or
+failed replay.
 It rejects mismatches and known private or machine-specific material. Review
 must also check secrets, permissions, environment assumptions, and verifier
 quality; a content digest is integrity, not proof of safety. Runtime attempts,
@@ -793,3 +820,16 @@ not automatically commit or publish private task data.
 Permanently refused feedback remains in the private journal for inspection and
 returns `refused`; it leaves the retry queue so it cannot block unrelated reuse.
 Transient delivery failures remain pending and return `partial`.
+
+Owner-governed measure bindings can be declared independently of interactive
+CLI commands. Agent Manager publishes a generated typed projection; Runtime
+checks its owner, allowed read effect and permission, descriptor and response
+shape before exposing it. An invalid projection is skipped as a whole and
+reported by binding doctor, leaving other bindings available. Runtime also
+checks the declared digest of the owner's `measures.go` when rebuilding the
+registry and watches that file in a source checkout. A missing source file
+(including a source-free installed layout) leaves this measure projection
+unavailable with a doctor finding. This digest covers that one file only, not
+transitive inputs or descriptors; the owner's generated-artifact verifier is
+still required to establish source freshness. Newly introduced projection
+files require a Runtime restart to enter the watch set.

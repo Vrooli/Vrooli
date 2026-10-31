@@ -16,10 +16,13 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
 	scenariomanifest "github.com/vrooli/vrooli/packages/scenario-manifest"
 	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
@@ -36,57 +39,83 @@ type Bridge struct {
 	Sessions      *sessions.Manager
 	Programs      *programs.Service
 	RepoRoot      string
+	// ReplayKernelPath is the owner-configured Runtime kernel, never a request path.
+	ReplayKernelPath string
 }
+
+// replayPublication independently reruns the canonical promotion verifier in
+// a fresh Runtime session. It receives only bounded reviewed assets,
+// no credentials or live bindings, and fails closed on any missing evidence.
+func (b *Bridge) replayPublication(ctx context.Context, source, step string, baseline map[string]any) error {
+	if strings.TrimSpace(b.ReplayKernelPath) == "" {
+		return errors.New("owner fixture replay unavailable")
+	}
+	payload, err := json.Marshal(map[string]any{"source": source, "step": step, "baseline": baseline})
+	if err != nil || len(payload) > 1024*1024 {
+		return errors.New("owner fixture replay input exceeds limit")
+	}
+	code := "import json\nfrom promotion import promote_source\np = json.loads(" + strconv.Quote(string(payload)) + ")\nb = p['baseline']\nr = promote_source(p['source'], p['step'], b['fragment'], {}, None, compatibility=b['compatibility'], reviewed_by=b['reviewed_by'], evidence=b['evidence'], fixtures=b['fixtures'])\nif not r['promoted'] or r['candidate'].get('baseline') != b:\n    raise ValueError('reviewed baseline does not match replay')\nprint('fixture-replay-verified')\n"
+	runner := programs.NewSubprocessRunner(b.ReplayKernelPath)
+	defer runner.Close()
+	replayCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	result, err := runner.Execute(replayCtx, "publication-"+uuid.NewString(), code, false)
+	if err != nil || strings.TrimSpace(result.Stdout) != "fixture-replay-verified" {
+		return errors.New("owner fixture replay failed")
+	}
+	return nil
+}
+
 type request struct {
-	ClaimRef            string         `json:"claim_ref"`
-	FeedbackRef         string         `json:"feedback_ref"`
-	StepAttemptID       string         `json:"step_attempt_id"`
-	Verb                string         `json:"verb"`
-	Name                string         `json:"name"`
-	Artifact            map[string]any `json:"artifact"`
-	FragmentHash        string         `json:"fragment_hash"`
-	CompatibilityDigest string         `json:"compatibility_digest"`
-	ObservationID       string         `json:"observation_id"`
-	Disposition         string         `json:"disposition"`
-	Dimension           string         `json:"dimension"`
-	Correction          string         `json:"correction"`
-	Owner               string         `json:"owner"`
-	FindingID           string         `json:"finding_id"`
-	ExpectedState       string         `json:"expected_state"`
-	NextState           string         `json:"next_state"`
-	MinContexts         int            `json:"min_contexts"`
-	MaxAgeDays          float64        `json:"max_age_days"`
-	CacheHit            bool           `json:"cache_hit"`
-	Baseline            map[string]any `json:"baseline"`
-	ContextKey          string         `json:"context_key"`
-	InputDigest         string         `json:"input_digest"`
-	Compatibility       map[string]any `json:"compatibility"`
-	Evidence            []string       `json:"evidence"`
-	ResumeToken         string         `json:"resume_token"`
-	SessionID           string         `json:"session_id"`
-	ProgramID           string         `json:"program_id"`
-	Operation           string         `json:"operation"`
-	Scope               string         `json:"scope"`
-	Digest              string         `json:"digest"`
-	TaskID              string         `json:"task_id"`
-	AttemptID           string         `json:"attempt_id"`
-	Inputs              map[string]any `json:"inputs"`
-	Prepare             map[string]any `json:"prepare"`
-	Result              map[string]any `json:"result"`
-	FinishInputs        map[string]any `json:"finish_inputs"`
-	FinishDigest        string         `json:"finish_digest"`
-	Outcome             string         `json:"outcome"`
-	StepKey             string         `json:"step_key"`
-	Fragment            string         `json:"fragment"`
-	VerifiedDelta       int            `json:"verified_delta"`
-	ContradictedDelta   int            `json:"contradicted_delta"`
-	Source              string         `json:"source"`
-	SourceProgramID     string         `json:"source_program_id"`
-	StepName            string         `json:"step_name"`
-	TraceInputs         map[string]any `json:"trace_inputs"`
-	TraceOutput         map[string]any `json:"trace_output"`
-	MinVerified         int            `json:"min_verified"`
-	PromoteName         string         `json:"promote_name"`
+	ClaimRef            string             `json:"claim_ref"`
+	FeedbackRef         string             `json:"feedback_ref"`
+	StepAttemptID       string             `json:"step_attempt_id"`
+	Verb                string             `json:"verb"`
+	Name                string             `json:"name"`
+	Artifact            map[string]any     `json:"artifact"`
+	FragmentHash        string             `json:"fragment_hash"`
+	CompatibilityDigest string             `json:"compatibility_digest"`
+	ObservationID       string             `json:"observation_id"`
+	Disposition         string             `json:"disposition"`
+	Dimension           string             `json:"dimension"`
+	Correction          string             `json:"correction"`
+	Owner               string             `json:"owner"`
+	FindingID           string             `json:"finding_id"`
+	ExpectedState       string             `json:"expected_state"`
+	NextState           string             `json:"next_state"`
+	MinContexts         int                `json:"min_contexts"`
+	MaxAgeDays          float64            `json:"max_age_days"`
+	CacheHit            bool               `json:"cache_hit"`
+	Baseline            map[string]any     `json:"baseline"`
+	ContextKey          string             `json:"context_key"`
+	InputDigest         string             `json:"input_digest"`
+	Compatibility       map[string]any     `json:"compatibility"`
+	Evidence            []string           `json:"evidence"`
+	ResumeToken         string             `json:"resume_token"`
+	SessionID           string             `json:"session_id"`
+	ProgramID           string             `json:"program_id"`
+	Operation           string             `json:"operation"`
+	Scope               string             `json:"scope"`
+	Digest              string             `json:"digest"`
+	TaskID              string             `json:"task_id"`
+	AttemptID           string             `json:"attempt_id"`
+	Inputs              map[string]any     `json:"inputs"`
+	Prepare             map[string]any     `json:"prepare"`
+	Result              tasks.DomainResult `json:"result"`
+	FinishInputs        map[string]any     `json:"finish_inputs"`
+	FinishDigest        string             `json:"finish_digest"`
+	Outcome             string             `json:"outcome"`
+	StepKey             string             `json:"step_key"`
+	Fragment            string             `json:"fragment"`
+	VerifiedDelta       int                `json:"verified_delta"`
+	ContradictedDelta   int                `json:"contradicted_delta"`
+	Source              string             `json:"source"`
+	SourceProgramID     string             `json:"source_program_id"`
+	StepName            string             `json:"step_name"`
+	TraceInputs         map[string]any     `json:"trace_inputs"`
+	TraceOutput         map[string]any     `json:"trace_output"`
+	MinVerified         int                `json:"min_verified"`
+	PromoteName         string             `json:"promote_name"`
 }
 
 func taskScope(c contracts.Contract, requested string) (string, error) {
@@ -114,7 +143,10 @@ func taskScope(c contracts.Contract, requested string) (string, error) {
 	return "", fmt.Errorf("foreign learning scope %q requires a declared write binding", requested)
 }
 
-var validReceipt = regexp.MustCompile(`^prt_resume_v1_[A-Za-z0-9_-]{43}$`)
+var (
+	validReceipt              = regexp.MustCompile(`^prt_resume_v1_[A-Za-z0-9_-]{43}$`)
+	errOperationNotRegistered = errors.New("operation is not registered")
+)
 
 func (b *Bridge) resolve(ctx context.Context, name, digest string) (contracts.Contract, error) {
 	parts := strings.SplitN(name, ".", 2)
@@ -124,7 +156,7 @@ func (b *Bridge) resolve(ctx context.Context, name, digest string) (contracts.Co
 	c, ok := b.Contracts.Get(parts[0], parts[1])
 	if !ok || (digest != "" && c.Digest != digest) {
 		if digest == "" {
-			return c, errors.New("operation is not registered")
+			return c, errOperationNotRegistered
 		}
 		var err error
 		c, err = b.Library.GetDeclaredArtifact(ctx, name, digest)
@@ -349,8 +381,9 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if action == "fragment_publish" {
-		if p.GetProvenance().String() != "PROVENANCE_OPERATOR" {
-			writeError(w, http.StatusForbidden, errors.New("baseline publication requires operator review"))
+		principal, humanErr := authn.RequireIndependentHuman(r.Context())
+		if humanErr != nil || !principal.IsVerified() || p.GetProvenance().String() != "PROVENANCE_OPERATOR" {
+			writeError(w, http.StatusForbidden, errors.New("baseline publication requires independently verified human review"))
 			return
 		}
 		b.publicationMu.Lock()
@@ -383,6 +416,10 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		if fixtures, ok := req.Baseline["fixtures"].([]any); !ok || len(fixtures) == 0 || len(fixtures) > 16 {
 			writeError(w, 400, errors.New("curated fixtures required"))
+			return
+		}
+		if err := b.replayPublication(r.Context(), c.Source, req.StepName, req.Baseline); err != nil {
+			writeError(w, http.StatusConflict, err)
 			return
 		}
 		asset, assetErr := json.Marshal(req.Baseline)
@@ -468,6 +505,12 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if action == "resolve" {
 		c, err := b.resolve(r.Context(), req.Operation, req.Digest)
 		if err != nil {
+			if errors.Is(err, errOperationNotRegistered) {
+				// This branch occurs before RetainDeclared or any other task write.
+				w.WriteHeader(http.StatusConflict)
+				_ = json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "reason": "operation_not_registered", "effect": "none"})
+				return
+			}
 			writeError(w, 409, err)
 			return
 		}
@@ -712,12 +755,17 @@ func receiptHash(token string) string {
 func publicRecord(r *tasks.Record) map[string]any {
 	raw, _ := json.Marshal(r)
 	var out map[string]any
-	_ = json.Unmarshal(raw, &out)
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	_ = dec.Decode(&out)
 	delete(out, "resume_hash")
 	return out
 }
 
 func valueAt(v any, path string) any {
+	if result, ok := v.(tasks.DomainResult); ok {
+		v = map[string]any(result)
+	}
 	for _, part := range strings.Split(path, ".") {
 		m, ok := v.(map[string]any)
 		if !ok {

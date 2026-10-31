@@ -38,7 +38,7 @@ active program/session identity and is bounded by the task store.
 | `fragment_list` | Read bounded fragment telemetry for the improve board. |
 | `delivery_metrics` | Read aged blocked capture deliveries. |
 | `fragment_put` | Record a verified or contradicted fragment candidate with source, input-digest diversity, compatibility, and idempotent attempt evidence. |
-| `fragment_publish` | Publish one reviewed baseline into an unchanged declared program under operator provenance; retain the adaptive source. |
+| `fragment_publish` | An independently authenticated human submits a reviewed baseline for owner-side fixture replay and publication into an unchanged declared program; retain the adaptive source. Program-kernel requests cannot forward human credentials. |
 
 The improve-cycle actuator is the declared program
 `program-runtime.fragment-promote`, run with `program-runtime library run`.

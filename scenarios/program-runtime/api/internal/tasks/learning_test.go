@@ -182,6 +182,46 @@ func TestFeedbackProjectionSurvivesRestartAndUsesOriginalScope(t *testing.T) {
 	require.Equal(t, 1, calls)
 }
 
+func TestFeedbackDueTimesOrderWholeAndFractionalSeconds(t *testing.T) {
+	ctx := context.Background()
+	db := taskDB(t, filepath.Join(t.TempDir(), "feedback-time.db"))
+	s := NewStore(db)
+	root := seedRecord()
+	_, _, err := s.Begin(ctx, root)
+	require.NoError(t, err)
+	_, err = s.Update(ctx, root.AttemptID, func(r *Record) error {
+		r.State = "completed"
+		r.FinishInputs = map[string]any{"scope": "fixture"}
+		return nil
+	})
+	require.NoError(t, err)
+	for _, item := range []struct{ id, ref, due string }{
+		{"whole", "prt_feedback_v1_" + strings.Repeat("e", 43), "2026-10-30T12:00:00Z"},
+		{"fraction", "prt_feedback_v1_" + strings.Repeat("f", 43), "2026-10-30T12:00:00.5Z"},
+	} {
+		require.NoError(t, s.PutLearningResult(ctx, LearningResult{FeedbackRef: item.ref, AttemptID: root.AttemptID, Scope: "fixture", Provenance: "test"}))
+		_, err = s.ApplyFeedback(ctx, Feedback{ObservationID: item.id, FeedbackRef: item.ref, Disposition: "contradicted", Dimension: "verification", Evidence: []string{"test://evidence"}}, "test")
+		require.NoError(t, err)
+		_, err = db.ExecContext(ctx, "UPDATE learning_feedback_delivery SET next_attempt_at=? WHERE observation_id=?", item.due, item.id)
+		require.NoError(t, err)
+	}
+	base := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	calls := 0
+	deliver := func(context.Context, Record) (map[string]any, error) {
+		calls++
+		return map[string]any{"status": "ok", "signals": map[string]any{"capture_status": "complete"}}, nil
+	}
+	require.NoError(t, s.DrainFeedback(ctx, base.Add(100*time.Millisecond), deliver))
+	require.Equal(t, 1, calls)
+	require.NoError(t, s.DrainFeedback(ctx, base.Add(600*time.Millisecond), deliver))
+	require.Equal(t, 2, calls)
+	_, err = db.ExecContext(ctx, "UPDATE learning_feedback_delivery SET state='pending',next_attempt_at='not-a-timestamp' WHERE observation_id='fraction'")
+	require.NoError(t, err)
+	drainer := &Drainer{Store: s, Deliver: deliver}
+	require.ErrorContains(t, drainer.DrainOnce(ctx, base.Add(time.Second)), "1 feedback item(s) have invalid or non-UTC due times")
+	require.Equal(t, 2, calls)
+}
+
 func TestOlderContradictionCannotBeHiddenByBoundedDetails(t *testing.T) {
 	ctx := context.Background()
 	s := NewStore(taskDB(t, filepath.Join(t.TempDir(), "learning.db")))

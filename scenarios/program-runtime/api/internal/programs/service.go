@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 	"sort"
 	"strconv"
@@ -18,21 +19,59 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/santhosh-tekuri/jsonschema/v5"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 	"program-runtime/internal/contracts"
+	"program-runtime/internal/jsoncheck"
 	"program-runtime/internal/shapes"
 )
 
 var ErrProgramNotFound = errors.New("program not found")
 
+// ErrOutputSchemaMismatch means execution produced output outside the pinned
+// declared contract. It says nothing about any effects that already occurred.
+var (
+	ErrOutputSchemaMismatch    = errors.New("declared output does not match the pinned output schema; inspect output and owner effects before retry")
+	ErrDeclaredOutputTruncated = errors.New("declared output exceeded its capture limit; inspect output and owner effects before retry")
+)
+
+// ValidateOutputSchema checks one captured JSON object without rounding JSON
+// numbers or accepting duplicate keys. The caller owns capture-size limits.
+func ValidateOutputSchema(schema *jsonschema.Schema, captured string) error {
+	if schema == nil {
+		return nil
+	}
+	var envelope map[string]any
+	decoder := json.NewDecoder(strings.NewReader(captured))
+	decoder.UseNumber()
+	decodeErr := decoder.Decode(&envelope)
+	var extra any
+	endErr := decoder.Decode(&extra)
+	if decodeErr != nil || envelope == nil || endErr != io.EOF || jsoncheck.UniqueKeys([]byte(captured)) != nil || schema.Validate(envelope) != nil {
+		return ErrOutputSchemaMismatch
+	}
+	return nil
+}
+
 type Runner interface {
 	Execute(context.Context, string, string, bool) (Result, error)
 }
 
+// oneShotContextKey is set only after the owner consumes a sealed session admission.
+type oneShotContextKey struct{}
+
 type ExecutionLimits struct {
 	Wall time.Duration
 	CPU  time.Duration
+	// DeclaredContract is supplied by the owner from the pinned declaration,
+	// never by ad-hoc source. It configures the kernel helper for this call.
+	DeclaredContract *HelperContract
+}
+
+type HelperContract struct {
+	Version string          `json:"version"`
+	Outputs json.RawMessage `json:"outputs"`
 }
 
 type BudgetedRunner interface {
@@ -98,11 +137,14 @@ type Options struct {
 	Clock           func() time.Time
 	Runner          Runner
 	ValidateSession func(string) bool
-	Store           SQLExecutor
-	RecordMemory    func(string, int64)
-	ExecutionBudget func(string) (ExecutionLimits, error)
-	ChargeExecution func(string, time.Duration, time.Duration) error
-	UsageReceipt    func(context.Context, string) (UsageReceipt, error)
+	// AuthorizeSession consumes an owner-private single-execution admission and
+	// returns true only for a sealed fresh session.
+	AuthorizeSession func(context.Context, string) (bool, error)
+	Store            SQLExecutor
+	RecordMemory     func(string, int64)
+	ExecutionBudget  func(string) (ExecutionLimits, error)
+	ChargeExecution  func(string, time.Duration, time.Duration) error
+	UsageReceipt     func(context.Context, string) (UsageReceipt, error)
 	// LibraryVersion is captured at submission time so a running session never
 	// silently hot-swaps its program-library view.
 	LibraryVersion func(string) string
@@ -117,16 +159,17 @@ type Options struct {
 }
 
 type Service struct {
-	onTerminal      func(context.Context, string) error
-	clock           func() time.Time
-	runner          Runner
-	validateSession func(string) bool
-	recordMemory    func(string, int64)
-	executionBudget func(string) (ExecutionLimits, error)
-	chargeExecution func(string, time.Duration, time.Duration) error
-	usageReceipt    func(context.Context, string) (UsageReceipt, error)
-	libraryVersion  func(string) string
-	events          interface {
+	onTerminal       func(context.Context, string) error
+	clock            func() time.Time
+	runner           Runner
+	validateSession  func(string) bool
+	authorizeSession func(context.Context, string) (bool, error)
+	recordMemory     func(string, int64)
+	executionBudget  func(string) (ExecutionLimits, error)
+	chargeExecution  func(string, time.Duration, time.Duration) error
+	usageReceipt     func(context.Context, string) (UsageReceipt, error)
+	libraryVersion   func(string) string
+	events           interface {
 		Append(*telemetryv1.ProgramEvent)
 	}
 	preflight        func(string) []*programsv1.Diagnostic
@@ -145,6 +188,9 @@ type Service struct {
 	terminalWaiters map[string][]chan struct{}
 }
 
+// HasSessionAuthorizer indicates whether sealed sessions can be admitted safely.
+func (s *Service) HasSessionAuthorizer() bool { return s != nil && s.authorizeSession != nil }
+
 // Identity names the exact declared contract that produced an execution.
 // Ad-hoc submissions intentionally leave these fields empty.
 type Identity struct {
@@ -153,6 +199,8 @@ type Identity struct {
 	IdempotencyKey    string
 	AdmissionDeadline string
 	Grants            []string
+	HelperContract    *HelperContract
+	OutputSchema      *jsonschema.Schema
 }
 
 // Caller identifies the actor and harness that explicitly requested a run.
@@ -173,7 +221,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, usageReceipt: options.UsageReceipt, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, repo: repo}
+	return &Service{onTerminal: options.OnTerminal, clock: clock, runner: options.Runner, validateSession: options.ValidateSession, authorizeSession: options.AuthorizeSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, usageReceipt: options.UsageReceipt, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, shapeSink: options.ShapeSink, contractIndex: options.ContractIndex, repo: repo}
 }
 
 // RecoverInterrupted must run before registering handlers or accepting submissions.
@@ -198,6 +246,18 @@ func (s *Service) SubmitDeclared(ctx context.Context, sessionID, source string, 
 	}
 	if s.validateSession != nil && !s.validateSession(sessionID) {
 		return nil, nil, errors.New("session not found or reclaimed")
+	}
+	if s.validateSession != nil && s.authorizeSession == nil {
+		return nil, nil, errors.New("session admission authorization is unavailable")
+	}
+	if s.authorizeSession != nil {
+		oneShot, err := s.authorizeSession(ctx, sessionID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if oneShot {
+			ctx = context.WithValue(ctx, oneShotContextKey{}, true)
+		}
 	}
 	if strings.TrimSpace(source) == "" {
 		return nil, nil, errors.New("source is required")
@@ -294,7 +354,7 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 		// progress; sharing p here would create a data race and expose partial
 		// state across the RPC boundary.
 		execution := clone(p)
-		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized)
+		go s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema)
 		return clone(p), nil, nil
 	}
 	// A synchronous submission is bounded well inside the HTTP write deadline.
@@ -311,7 +371,7 @@ func (s *Service) submit(ctx context.Context, sessionID, source string, provenan
 	execution := clone(p)
 	go func() {
 		defer close(done)
-		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized)
+		s.execute(context.WithoutCancel(ctx), execution, includeMaterialized, identity.HelperContract, identity.OutputSchema)
 	}()
 	select {
 	case <-done:
@@ -355,7 +415,7 @@ func hasDiagnosticErrors(diagnostics []*programsv1.Diagnostic) bool {
 	return false
 }
 
-func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool) {
+func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMaterialized bool, helperContract *HelperContract, outputSchema *jsonschema.Schema) {
 	defer func() {
 		if s.onTerminal != nil {
 			_ = s.onTerminal(context.Background(), p.Id)
@@ -374,6 +434,7 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 			limits = value
 		}
 	}
+	limits.DeclaredContract = helperContract
 	if limits.Wall > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, limits.Wall)
@@ -407,6 +468,13 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 	}
 	p.Stdout, p.ContextBytes, p.AgentBytes = result.Stdout, result.ContextBytes, result.AgentBytes
 	p.Stdout = boundedText(p.Stdout, int(p.OutputLimitBytes))
+	if runErr == nil && outputSchema != nil {
+		if len(result.Stdout) > int(p.OutputLimitBytes) || (result.OutputLimitBytes > 0 && result.ContextBytes > result.AgentBytes) {
+			runErr = ErrDeclaredOutputTruncated
+		} else {
+			runErr = ValidateOutputSchema(outputSchema, p.Stdout)
+		}
+	}
 	p.LearningJson = result.LearningJSON
 	p.WallTimeMillis = time.Since(started).Milliseconds()
 	if s.usageReceipt != nil {
@@ -434,8 +502,15 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 			}
 		}
 	}
+	// The relay has already been closed by the runner. Reclaim the one-shot
+	// kernel only after its CPU and memory samples have been captured.
+	if oneShot, _ := ctx.Value(oneShotContextKey{}).(bool); oneShot {
+		if reclaimer, ok := s.runner.(interface{ KillSession(string) }); ok {
+			reclaimer.KillSession(p.SessionId)
+		}
+	}
 	if runErr != nil {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) && limits.Wall > 0 {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) && limits.Wall > 0 && !errors.Is(runErr, ErrAuthorityEffectUncertain) {
 			runErr = fmt.Errorf("wall-clock budget exhausted: ceiling=%s consumed=%s", limits.Wall, time.Duration(p.WallTimeMillis)*time.Millisecond)
 		}
 		s.fail(p, runErr)
@@ -466,7 +541,16 @@ func (s *Service) fail(p *programsv1.Program, runErr error) {
 	p.CompletedAt = s.clock().UTC().Format(time.RFC3339Nano)
 	p.FailureDetail = runErr.Error()
 	var deadlineErr *DeadlineExceededError
-	if errors.As(runErr, &deadlineErr) {
+	if errors.Is(runErr, ErrAuthorityEffectUncertain) {
+		p.FailureShape = "effect_uncertain"
+		p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_EFFECT_UNCERTAIN
+	} else if errors.Is(runErr, ErrOutputSchemaMismatch) {
+		p.FailureShape = "output_schema_mismatch"
+		p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_SCHEMA_MISMATCH
+	} else if errors.Is(runErr, ErrDeclaredOutputTruncated) {
+		p.FailureShape = "output_truncated"
+		p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_OUTPUT_TRUNCATED
+	} else if errors.As(runErr, &deadlineErr) {
 		p.FailureShape = "deadline_exceeded"
 		p.FailureCause = programsv1.FailureCause_FAILURE_CAUSE_DEADLINE_EXCEEDED
 	} else {
@@ -786,6 +870,7 @@ func failureShape(detail string) (string, programsv1.FailureCause) {
 		name   string
 		cause  programsv1.FailureCause
 	}{
+		{"taskauthorityunavailable", "authority_unavailable", programsv1.FailureCause_FAILURE_CAUSE_AUTHORITY_UNAVAILABLE},
 		{"does not resolve", "unresolved_name", programsv1.FailureCause_FAILURE_CAUSE_UNRESOLVED_NAME},
 		{"unknown field", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},
 		{"accepts named proto fields", "unknown_field", programsv1.FailureCause_FAILURE_CAUSE_UNKNOWN_FIELD},

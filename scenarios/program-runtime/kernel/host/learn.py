@@ -1069,6 +1069,9 @@ class Learn:
                 outcome=self._outcome, resume_token=self.resume_token)
             result["learning"] = {**learning_receipt, **{key: completed.get(key) for key in
                 ("task_id", "attempt_id", "attempt_number", "outcome", "delivery", "last_error", "resume_token")}}
+            # The owner stores only the receipt hash and cannot echo its secret.
+            # Preserve the token held by this live caller for later inspection.
+            result["learning"]["resume_token"] = self.resume_token
         else:
             result["learning"] = {"task_id": self.task_id, "attempt_id": self.attempt_id,
                 "attempt_number": 1, "outcome": self._outcome, "delivery": "delivered",

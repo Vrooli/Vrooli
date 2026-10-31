@@ -22,6 +22,28 @@ from contracts import resolve_inputs, _json_copy
 ACTIVE_TASK = contextvars.ContextVar("program_runtime_task", default=None)
 
 
+class TaskAuthorityUnavailable(RuntimeError):
+    """Diagnostic for a verified caller whose persistent kernel has no proof relay."""
+
+
+def library_result_metadata(spec):
+    """Describe the selected child artifact without claiming schema validation."""
+    declaration = spec.get("declaration") or {}
+    name = str(spec.get("name", ""))
+    identity = name if "." in name or not spec.get("scenario") else f"{spec['scenario']}.{name}"
+    outputs = declaration.get("outputs") or {}
+    contract = {key: outputs.get(key) or {} for key in ("status", "phase", "errors")}
+    if not spec.get("digest"):
+        schema = {"state": "unknown", "reason": "artifact_digest_unavailable"}
+    elif declaration.get("output_schema"):
+        schema = {"state": "unavailable", "reason": "nested_schema_validation_unavailable"}
+    else:
+        schema = {"state": "not_declared"}
+    return {"program": declaration.get("name", identity), "version": declaration.get("version", ""),
+            "digest": spec.get("digest", ""), "output_contract": _json_copy(contract),
+            "output_schema_validation": schema}
+
+
 def path_value(value, path):
     for key in path.split("."):
         if not isinstance(value, dict):
@@ -38,10 +60,12 @@ class Tasks:
         self.timeout = timeout
 
     def _bridge(self, action, **kwargs):
+        context = self.invocation_context.get()
+        if context.get("persistent_task_authority_unavailable"):
+            raise TaskAuthorityUnavailable("verified agent task calls are unavailable in persistent Runtime sessions; use a supported owner-side path or an eligible one-shot declared program")
         if not self.owner._bridge_url:
             raise RuntimeError("task checkpoint bridge unavailable; domain not admitted")
         endpoint = self.owner._bridge_url.rsplit("/bindings/", 1)[0] + "/tasks/" + action
-        context = self.invocation_context.get()
         payload = dict(kwargs, session_id=self.owner._session_id, program_id=context.get("program_id", ""))
         data = json.dumps(payload, allow_nan=False).encode()
         if len(data) > 256 * 1024:
@@ -260,20 +284,25 @@ class Tasks:
                                   attempt_id=attempt_id, resume_token=resume_token, expected_digest=expected_digest).head(1)[0]
             if record["state"] != "running" or not ACTIVE_TASK.get():
                 if record.get("result") is not None:
-                    return self._result(record)
+                    return self._result(record, spec)
                 raise RuntimeError("attempt already exists; inspect tasks.get before any new domain action")
             try:
-                result = self.owner._execute_library_source(spec, (), inputs).head(1)[0]
+                # Preserve the actual result for the legacy checkpoint. A final
+                # size error here would discard it after domain effects; nested
+                # calls still enforce their own limits. The separately bounded
+                # receipt/result contract remains an open migration issue.
+                result = self.owner._execute_library_source(spec, (), inputs, _task_root=True).head(1)[0]
             except Exception as exc:
                 # An exception cannot establish whether an effect occurred.
                 result = {"status": "failed", "signals": {"outcome": "unknown"},
                           "errors": [{"class": "domain_interrupted", "detail": str(exc)[:240]}], "evidence": []}
-            completed = self.finish(attempt_id=record["attempt_id"], result=result).head(1)[0]
-            return self._result(completed)
+            completed = self.finish(attempt_id=record["attempt_id"], result=result,
+                                    resume_token=record.get("resume_token", "")).head(1)[0]
+            return self._result(completed, spec)
         finally:
             ACTIVE_TASK.reset(token)
 
-    def _result(self, record):
+    def _result(self, record, spec=None):
         result = _json_copy(record["result"])
         # Domain envelope/status stay intact. Delivery is a separate namespace.
         result["learning"] = {key: record.get(key) for key in (
@@ -292,4 +321,10 @@ class Tasks:
             advice_decisions=[{key: decision.get(key) for key in ("entry_id", "decision", "verdict")}
                               for decision in decisions[:3]],
             guidance="Retrieved suggestions do not imply adoption. Inspect this attempt for full advice; use explicit decisions and evidence when applying it.")
-        return self.handle([result], "tasks.run")
+        if spec is not None and spec.get("digest") and record.get("digest") == spec.get("digest"):
+            metadata = library_result_metadata(spec)
+        else:
+            # A missing or mismatched artifact cannot establish which contract
+            # governed a retained result. Never borrow the current declaration.
+            metadata = {"output_schema_validation": {"state": "unknown", "reason": "artifact_unavailable_or_mismatched"}}
+        return self.handle([result], "tasks.run", metadata=metadata)

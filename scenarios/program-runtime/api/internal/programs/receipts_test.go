@@ -62,3 +62,53 @@ func TestTaskResumeReceiptIsLiveButNeverPlaintextInCorpus(t *testing.T) {
 		require.Equal(t, partial, sealer.open(sealed))
 	}
 }
+
+func TestCorpusLiteralSealedMarkersAndProtectedReceiptsRoundTrip(t *testing.T) {
+	ctx := t.Context()
+	db := newProgramsTestDB(t)
+	repo := NewRepository(db)
+	token := "prt_resume_v1_" + strings.Repeat("b", 43)
+	marker := "prt_sealed_v1_literal_marker"
+	p := &programsv1.Program{Id: "markers", SessionId: "s", CreatedAt: "2026-01-01T00:00:00Z", Status: programsv1.ProgramStatus_PROGRAM_STATUS_RUNNING, Source: marker + " " + token, Stdout: marker + " " + token, FailureDetail: marker + " " + token}
+	require.NoError(t, repo.Save(ctx, p))
+	got, err := repo.Get(ctx, p.Id)
+	require.NoError(t, err)
+	require.Equal(t, p.Source, got.Source)
+	require.Equal(t, p.Stdout, got.Stdout)
+	require.Equal(t, p.FailureDetail, got.FailureDetail)
+	var source, stdout, detail string
+	require.NoError(t, db.QueryRowContext(ctx, "SELECT source,stdout,failure_detail FROM programs WHERE id=?", p.Id).Scan(&source, &stdout, &detail))
+	for _, value := range []string{source, stdout, detail} {
+		require.NotContains(t, value, token)
+	}
+	restarted, err := NewRepository(db).Get(ctx, p.Id)
+	require.NoError(t, err)
+	for _, value := range []string{restarted.Source, restarted.Stdout, restarted.FailureDetail} {
+		require.Contains(t, value, marker)
+		require.Contains(t, value, "unavailable after restart")
+		require.NotContains(t, value, token)
+	}
+	_, err = repo.InterruptUnfinished(ctx, "2026-01-01T01:00:00Z")
+	require.NoError(t, err)
+	interrupted, err := repo.Get(ctx, p.Id)
+	require.NoError(t, err)
+	require.Equal(t, interruptedDetail, interrupted.FailureDetail)
+	require.Equal(t, p.Stdout, interrupted.Stdout)
+}
+
+func TestLegacySourceFormatSurvivesMutableUpsert(t *testing.T) {
+	ctx := t.Context()
+	db := newProgramsTestDB(t)
+	_, err := db.ExecContext(ctx, `INSERT INTO programs (id,session_id,source,provenance,status,created_at) VALUES ('legacy','s','legacy source','1','running','2026-01-01')`)
+	require.NoError(t, err)
+	repo := NewRepository(db)
+	p, err := repo.Get(ctx, "legacy")
+	require.NoError(t, err)
+	p.Source = "ignored replacement"
+	p.Stdout = "literal prt_sealed_v1_abc"
+	require.NoError(t, repo.Save(ctx, p))
+	got, err := repo.Get(ctx, "legacy")
+	require.NoError(t, err)
+	require.Equal(t, "legacy source", got.Source)
+	require.Equal(t, p.Stdout, got.Stdout)
+}

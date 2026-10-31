@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"program-runtime/internal/corpuscodec"
+
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 )
@@ -106,8 +108,16 @@ func (r *Repository) Observe(ctx context.Context, programID, sessionID string, p
 	}
 	encoded, _ := json.Marshal(ids)
 	var source string
-	if err := r.db.QueryRowContext(ctx, `SELECT source FROM programs WHERE id=?`, programID).Scan(&source); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var format int
+	if err := r.db.QueryRowContext(ctx, `SELECT source,source_receipt_format FROM programs WHERE id=?`, programID).Scan(&source, &format); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
+	}
+	if source != "" {
+		decoded, _, err := corpuscodec.Decode(nil, source, format)
+		if err != nil {
+			return "", fmt.Errorf("decode exemplar source: %w", err)
+		}
+		source = decoded
 	}
 	nowText := now.UTC().Format(time.RFC3339Nano)
 	_, err = r.db.ExecContext(ctx, `INSERT INTO program_shapes (shape_key,binding_ids,binding_count,occurrences,agent_runs,operator_runs,test_runs,replay_runs,sessions,first_seen,last_seen,exemplar_program_id,exemplar_bytes) VALUES (?,?,?,1,?,?,?,?,0,?,?,?,?) ON CONFLICT(shape_key) DO UPDATE SET occurrences=program_shapes.occurrences+1, agent_runs=program_shapes.agent_runs+excluded.agent_runs, operator_runs=program_shapes.operator_runs+excluded.operator_runs, test_runs=program_shapes.test_runs+excluded.test_runs, replay_runs=program_shapes.replay_runs+excluded.replay_runs, last_seen=excluded.last_seen, exemplar_program_id=CASE WHEN program_shapes.exemplar_bytes=0 OR excluded.exemplar_bytes < program_shapes.exemplar_bytes THEN excluded.exemplar_program_id ELSE program_shapes.exemplar_program_id END, exemplar_bytes=CASE WHEN program_shapes.exemplar_bytes=0 OR excluded.exemplar_bytes < program_shapes.exemplar_bytes THEN excluded.exemplar_bytes ELSE program_shapes.exemplar_bytes END`, key, string(encoded), len(ids), provenanceCount(provenance, programsv1.Provenance_PROVENANCE_AGENT), provenanceCount(provenance, programsv1.Provenance_PROVENANCE_OPERATOR), provenanceCount(provenance, programsv1.Provenance_PROVENANCE_TEST), provenanceCount(provenance, programsv1.Provenance_PROVENANCE_REPLAY), nowText, nowText, programID, len(source))

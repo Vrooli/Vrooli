@@ -94,6 +94,30 @@ func TestProgramLibraryAndLearnUsesAreDependencies(t *testing.T) {
 	}
 }
 
+func TestProjectControlPlaneBindingIsNotAScenarioDependency(t *testing.T) {
+	declared := []struct {
+		ID     string `json:"id"`
+		Effect string `json:"effect"`
+	}{{ID: "vrooli/scenario/list", Effect: "read"}}
+	if findings := programDependencyFindings("demo", "fleet", "", declared, nil, map[string]struct{}{}); len(findings) != 0 {
+		t.Fatalf("control-plane binding must not require a fictional vrooli scenario dependency: %v", findings)
+	}
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := bindings.Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := registry.Binding("vrooli/scenario/list"); !ok {
+		t.Fatal("control-plane binding absent from registry")
+	}
+	if findings := programDependencyFindings("demo", "fleet", "", declared, registry, map[string]struct{}{}); len(findings) != 0 {
+		t.Fatalf("registered control-plane binding must not require a fictional scenario dependency: %v", findings)
+	}
+}
+
 func TestValidationResponseRetainsNativeFailureEvidence(t *testing.T) {
 	root, err := filepath.Abs("../../../../..")
 	if err != nil {
@@ -219,6 +243,23 @@ func TestPortfolioFindingsCoverMaturityGaps(t *testing.T) { // [REQ:PRT-P0-009]
 	}
 }
 
+func TestBudgetFindingExplainsHistoricalNameAggregation(t *testing.T) {
+	contract := contracts.Contract{ID: "demo.example", WallMS: 100, Digest: "current-digest"}
+	response := &programsv1.PortfolioStatsResponse{
+		WindowStart: "2026-10-01T00:00:00Z", WindowEnd: "2026-10-30T00:00:00Z",
+		Rows: []*programsv1.ProgramPortfolioRow{{Name: contract.ID, P95Millis: 150, Runs: 4}},
+	}
+	var details []any
+	findings := portfolioFindings([]contracts.Contract{contract}, response, &details)
+	if !hasFinding(findings, "programs.budget_exceeded") || len(details) != 1 {
+		t.Fatalf("missing budget finding and explanation: %v %+v", findings, details)
+	}
+	detail, ok := details[0].(map[string]any)
+	if !ok || detail["program"] != contract.ID || detail["current_digest"] != contract.Digest || detail["runs"] != int64(4) || detail["p95_millis"] != int64(150) || !strings.Contains(detail["message"].(string), "across all digests") {
+		t.Fatalf("misleading budget diagnostic: %+v", details[0])
+	}
+}
+
 func containsString(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
@@ -233,6 +274,32 @@ type fixtureTestRunner struct{ calls int }
 type historicalBudgetPortfolio struct{}
 
 type warningOnlyPortfolio struct{}
+
+type unavailablePortfolio struct{ nilResponse bool }
+
+func (p unavailablePortfolio) PortfolioStats(context.Context, *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error) {
+	if p.nilResponse {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("portfolio offline")
+}
+
+func TestUnavailablePortfolioCannotProduceCleanValidation(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, nilResponse := range []bool{false, true} {
+		h := &handler{repoRoot: root, portfolio: unavailablePortfolio{nilResponse: nilResponse}}
+		response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "program-runtime"}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED || !containsString(response.Msg.GetAssessment().GetLocal().GetBlockingFindingCodes(), "programs.portfolio_unavailable") {
+			t.Fatalf("unavailable portfolio produced clean result: %v", response.Msg)
+		}
+	}
+}
 
 func (warningOnlyPortfolio) PortfolioStats(context.Context, *programsv1.PortfolioStatsRequest) (*programsv1.PortfolioStatsResponse, error) {
 	return &programsv1.PortfolioStatsResponse{NeverExecuted: []string{"tech-tree-designer.setpoint-read"}}, nil

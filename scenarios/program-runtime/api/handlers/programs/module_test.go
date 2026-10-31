@@ -1,10 +1,14 @@
 package programs
 
 import (
-	"connectrpc.com/connect"
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"testing"
+
+	"connectrpc.com/connect"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/provenance"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
@@ -12,8 +16,6 @@ import (
 	_ "modernc.org/sqlite"
 	internalprograms "program-runtime/internal/programs"
 	"program-runtime/internal/tasks"
-	"strings"
-	"testing"
 )
 
 func TestEndpointsAreDeclared(t *testing.T) {
@@ -63,7 +65,7 @@ func TestDiscoveryEvalEndpointIsDeclared(t *testing.T) {
 }
 
 func TestSubmitProgramUsesVerifiedCallerAttribution(t *testing.T) {
-	h := &handler{service: internalprograms.NewService(internalprograms.Options{})}
+	h := &handler{service: internalprograms.NewService(internalprograms.Options{AuthorizeSession: func(context.Context, string) (bool, error) { return false, nil }})}
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "verified-run", ProfileKey: "codex"})
 	response, err := h.SubmitProgram(ctx, connect.NewRequest(&programsv1.SubmitProgramRequest{
 		SessionId: "session", Source: "x = 1", Provenance: programsv1.Provenance_PROVENANCE_AGENT, Async: true,
@@ -75,6 +77,12 @@ func TestSubmitProgramUsesVerifiedCallerAttribution(t *testing.T) {
 	require.Equal(t, "skill", response.Msg.Program.CallerSkillId)
 	require.Equal(t, "cli", response.Msg.Program.CallerHarness)
 	require.True(t, response.Msg.Program.CallerIdentityVerified)
+}
+
+func TestSubmitProgramRefusesMissingSessionAuthorizer(t *testing.T) {
+	h := &handler{service: internalprograms.NewService(internalprograms.Options{})}
+	_, err := h.SubmitProgram(context.Background(), connect.NewRequest(&programsv1.SubmitProgramRequest{SessionId: "session", Source: "print(1)", Provenance: programsv1.Provenance_PROVENANCE_AGENT}))
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 }
 
 func TestProgramReadRoutesEnforceVerifiedOwner(t *testing.T) {

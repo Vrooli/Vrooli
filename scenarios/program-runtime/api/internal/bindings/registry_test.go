@@ -660,3 +660,108 @@ func TestRepeatedBindingArgumentExplainsArrayRequirement(t *testing.T) {
 	require.ErrorContains(t, err, `argument "threads" expects an array`)
 	require.NoError(t, r.ValidateArguments("web-console/session/native-usage", map[string]any{"threads": []any{"thread-1"}}))
 }
+
+func TestOwnerMeasureProjectionValidation(t *testing.T) {
+	root := repoRoot(t)
+	descriptor := filepath.Join(root, "packages/proto/gen/descriptor/image.binpb")
+	artifact, err := os.ReadFile(filepath.Join(root, "scenarios/agent-manager/.vrooli/generated/runtime-measures.json"))
+	require.NoError(t, err)
+	source, err := os.ReadFile(filepath.Join(root, "scenarios/agent-manager/api/internal/measures/measures.go"))
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		name   string
+		mutate func(string) string
+		want   string
+	}{
+		{"valid", func(s string) string { return s }, ""},
+		{"unknown field", func(s string) string { return strings.Replace(s, `"version": 1`, `"version": 1, "unknown": true`, 1) }, "unknown field"},
+		{"duplicate key", func(s string) string { return strings.Replace(s, `"version": 1`, `"version": 1, "version": 1`, 1) }, "duplicate"},
+		{"wrong owner", func(s string) string {
+			return strings.Replace(s, `"scenario": "agent-manager"`, `"scenario": "other"`, 1)
+		}, "owner"},
+		{"invalid permission", func(s string) string { return strings.Replace(s, `"network:internal"`, `"network:external"`, 1) }, "invalid governed"},
+		{"unknown method", func(s string) string {
+			return strings.Replace(s, `"method": "ToolFriction"`, `"method": "DoesNotExist"`, 1)
+		}, "resolve"},
+		{"invalid field", func(s string) string {
+			return strings.Replace(s, `"primary_field": "summary"`, `"primary_field": "not_a_field"`, 1)
+		}, "primary field"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "agent-manager")
+			projection := filepath.Join(dir, ".vrooli/generated/runtime-measures.json")
+			sourcePath := filepath.Join(dir, "api/internal/measures/measures.go")
+			require.NoError(t, os.MkdirAll(filepath.Dir(projection), 0o755))
+			require.NoError(t, os.MkdirAll(filepath.Dir(sourcePath), 0o755))
+			require.NoError(t, os.WriteFile(projection, []byte(tc.mutate(string(artifact))), 0o644))
+			require.NoError(t, os.WriteFile(sourcePath, source, 0o644))
+			r, err := LoadFiles(descriptor, []string{projection})
+			require.NoError(t, err)
+			binding, ok := r.Binding("agent-manager/measures/tool-friction")
+			if tc.want == "" {
+				require.True(t, ok)
+				require.Equal(t, []string{"network:internal"}, binding.Permissions)
+				require.Equal(t, "ToolFriction", binding.Method)
+				require.Zero(t, r.SkippedManifestCount())
+			} else {
+				require.False(t, ok)
+				require.Equal(t, 1, r.SkippedManifestCount())
+				require.Contains(t, r.skipped[0].ParseError, tc.want)
+			}
+		})
+	}
+}
+
+func TestOwnerMeasureProjectionSourceDrift(t *testing.T) {
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "agent-manager")
+	projection := filepath.Join(dir, ".vrooli/generated/runtime-measures.json")
+	sourcePath := filepath.Join(dir, "api/internal/measures/measures.go")
+	require.NoError(t, os.MkdirAll(filepath.Dir(projection), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(sourcePath), 0o755))
+	artifact, err := os.ReadFile(filepath.Join(root, "scenarios/agent-manager/.vrooli/generated/runtime-measures.json"))
+	require.NoError(t, err)
+	source, err := os.ReadFile(filepath.Join(root, "scenarios/agent-manager/api/internal/measures/measures.go"))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(projection, artifact, 0o644))
+	require.NoError(t, os.WriteFile(sourcePath, source, 0o644))
+	descriptor := filepath.Join(root, "packages/proto/gen/descriptor/image.binpb")
+	watcher, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptor, ManifestPaths: []string{projection, sourcePath}})
+	require.NoError(t, err)
+	r, err := LoadFromSource(watcher)
+	require.NoError(t, err)
+	_, ok := r.Binding("agent-manager/measures/tool-friction")
+	require.True(t, ok)
+	require.NoError(t, os.WriteFile(sourcePath, append(source, '\n'), 0o644))
+	_, ok = r.Binding("agent-manager/measures/tool-friction")
+	require.False(t, ok)
+	require.Contains(t, r.Doctor("agent-manager").SkippedManifests[0].ParseError, "stale")
+	require.NoError(t, os.Remove(sourcePath))
+	require.Contains(t, r.Doctor("agent-manager").SkippedManifests[0].ParseError, "unavailable")
+}
+
+func TestOwnerMeasureProjectionCollisionPreservesCLIBinding(t *testing.T) {
+	root := repoRoot(t)
+	dir := filepath.Join(t.TempDir(), "agent-manager")
+	projection := filepath.Join(dir, ".vrooli/generated/runtime-measures.json")
+	sourcePath := filepath.Join(dir, "api/internal/measures/measures.go")
+	manifest := filepath.Join(dir, "cli/manifest.json")
+	for _, path := range []string{projection, sourcePath, manifest} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	}
+	for _, pair := range [][2]string{{"scenarios/agent-manager/.vrooli/generated/runtime-measures.json", projection}, {"scenarios/agent-manager/api/internal/measures/measures.go", sourcePath}} {
+		data, err := os.ReadFile(filepath.Join(root, pair[0]))
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(pair[1], data, 0o644))
+	}
+	data := `{"name":"agent-manager","groups":[{"name":"measures","commands":[{"name":"tool-friction","binding":{"kind":"connect-rpc","service":"agent_manager.v1.measures.MeasuresService","method":"ToolFriction"},"governance":{"effect":"read","run_eligible":true}}]}]}`
+	require.NoError(t, os.WriteFile(manifest, []byte(data), 0o644))
+	r, err := LoadFiles(filepath.Join(root, "packages/proto/gen/descriptor/image.binpb"), []string{manifest, projection})
+	require.NoError(t, err)
+	_, ok := r.Binding("agent-manager/measures/tool-friction")
+	require.True(t, ok)
+	require.Equal(t, 1, r.SkippedManifestCount())
+	require.Contains(t, r.skipped[0].ParseError, "conflicts")
+	_, ok = r.Binding("agent-manager/measures/run-volume")
+	require.False(t, ok)
+}

@@ -82,7 +82,7 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	// suppress the fresh evidence needed to assess a repair. Only the current
 	// static contract gates fixture execution.
 	executable := len(findings) == 0
-	findings = append(findings, h.portfolioFindings(ctx, scenario)...)
+	findings = append(findings, h.portfolioFindings(ctx, scenario, &diagnostics)...)
 	if executable && req.Msg.GetIncludeExecution() {
 		findings = append(findings, h.executeFixtures(ctx, scenario)...)
 	}
@@ -164,7 +164,7 @@ func validationAssessmentForFindings(repoRoot, scenario string, codes []string, 
 	return assessmentValue, maturityassessment.DeriveValidationStatus(assessmentValue), nil
 }
 
-func (h *handler) portfolioFindings(ctx context.Context, scenario string) []string {
+func (h *handler) portfolioFindings(ctx context.Context, scenario string, details ...*[]any) []string {
 	if h.portfolio == nil {
 		return nil
 	}
@@ -173,8 +173,11 @@ func (h *handler) portfolioFindings(ctx context.Context, scenario string) []stri
 		return nil
 	}
 	response, err := h.portfolio.PortfolioStats(ctx, &programsv1.PortfolioStatsRequest{WindowDays: 30, Scenario: scenario})
-	if err != nil {
-		return nil
+	if err != nil || response == nil {
+		if len(details) > 0 && details[0] != nil {
+			*details[0] = append(*details[0], map[string]any{"kind": "portfolio_unavailable", "message": "portfolio history could not be assessed"})
+		}
+		return []string{"programs.portfolio_unavailable"}
 	}
 	contractsForScenario := make([]contracts.Contract, 0)
 	for _, contract := range index.List() {
@@ -182,10 +185,10 @@ func (h *handler) portfolioFindings(ctx context.Context, scenario string) []stri
 			contractsForScenario = append(contractsForScenario, contract)
 		}
 	}
-	return portfolioFindings(contractsForScenario, response)
+	return portfolioFindings(contractsForScenario, response, details...)
 }
 
-func portfolioFindings(contractList []contracts.Contract, response *programsv1.PortfolioStatsResponse) []string {
+func portfolioFindings(contractList []contracts.Contract, response *programsv1.PortfolioStatsResponse, details ...*[]any) []string {
 	if response == nil {
 		return nil
 	}
@@ -223,6 +226,15 @@ func portfolioFindings(contractList []contracts.Contract, response *programsv1.P
 		}
 		if row := rows[contract.ID]; row != nil && contract.WallMS > 0 && row.GetP95Millis() > contract.WallMS {
 			findings = append(findings, "programs.budget_exceeded")
+			if len(details) > 0 && details[0] != nil {
+				*details[0] = append(*details[0], map[string]any{
+					"kind": "budget_history", "program": contract.ID,
+					"p95_millis": row.GetP95Millis(), "declared_wall_millis": contract.WallMS,
+					"runs": row.GetRuns(), "window_start": response.GetWindowStart(), "window_end": response.GetWindowEnd(),
+					"current_digest": contract.Digest, "latest_digest_drifted": row.GetDigestDrifted(),
+					"message": "p95 covers runs for this program name across all digests in the window; it does not prove the current digest exceeded its budget",
+				})
+			}
 		}
 		if _, ok := neverExecuted[contract.ID]; ok {
 			findings = append(findings, "programs.never_exercised")
@@ -393,8 +405,10 @@ func validateScenario(repoRoot, scenario string, registry *bindings.Registry, in
 	return uniqueStrings(findings)
 }
 
-var programLibraryTargetPattern = regexp.MustCompile(`\blib\.([a-z0-9_]+)\.([a-z0-9_]+(?:\.[a-z0-9_]+)*)`)
-var untypedLearningSchemaPattern = regexp.MustCompile(`learn\.(?:infer|act)\s*\([^)]*schema\s*=\s*["']str["']`)
+var (
+	programLibraryTargetPattern  = regexp.MustCompile(`\blib\.([a-z0-9_]+)\.([a-z0-9_]+(?:\.[a-z0-9_]+)*)`)
+	untypedLearningSchemaPattern = regexp.MustCompile(`learn\.(?:infer|act)\s*\([^)]*schema\s*=\s*["']str["']`)
+)
 
 func untypedLearningSchema(source string) bool {
 	return untypedLearningSchemaPattern.MatchString(source)
@@ -408,7 +422,9 @@ func programDependencyFindings(scenario, program, source string, declaredBinding
 	targets := make(map[string][]string)
 	add := func(target, bindingOrCall string) {
 		target = normalizeScenarioName(target)
-		if target == "" || target == normalizeScenarioName(scenario) || target == "program-runtime" {
+		// The vrooli namespace is the control plane, not a scenario whose
+		// service manifest can be declared as a scenario dependency.
+		if target == "" || target == "vrooli" || target == normalizeScenarioName(scenario) || target == "program-runtime" {
 			return
 		}
 		targets[target] = append(targets[target], bindingOrCall)

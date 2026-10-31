@@ -66,6 +66,27 @@ their caller fields were not sourced from server verification; they retain
 their prior operator/key observation behavior. Skill and harness fields remain
 caller-supplied metadata.
 
+The Python kernel does not receive agent identity or supplemental operation
+credentials. Submitted Python can import kernel modules, so credentials in the
+kernel process would be readable by source and could be printed into outputs.
+For verified-agent declared programs, the owner allocates a fresh sealed
+single-execution session. On Linux with peer-PID and pidfd support, its private
+owner relay forwards identity for task `resolve`, `begin`, `start`, and
+`complete`, two Web Console native reads, and agent `start` and `collect`.
+Agent calls also forward any verified supplemental operation proof; receiving
+owners reverify authority for each request. The socket path is
+not a bearer proof. Before reporting success, the owner drains in-flight
+effectful calls. A timeout, transport failure or unproven error leaves the
+effect uncertain and requires owner inspection before retry; only the typed
+missing-operation response is proven to precede any write. On unsupported or
+degraded hosts, those checkpoint calls
+fail closed while unrelated reads can continue. Existing persistent sessions do
+not use this relay and verified task checkpoints through them remain unavailable.
+Other learning actions and bindings that require verified
+identity or supplemental operation authority are not covered by the relay.
+Direct supported owner-side operations retain their own policy. Ordinary
+caller metadata fields are not verified identity or operation authority.
+
 Replay returns the retained execution, including failure or `runtime_interrupted`;
 it does not repeat effects. After the admission deadline, a retained execution
 remains readable, but a missing execution is refused. Evidence retention keeps
@@ -143,6 +164,12 @@ finding are:
 | `exercised` | Zero contracts are absent from the execution window | `programs.never_exercised` |
 | `learning` | Every S4 contract declares `memory` | No direct finding; the ratio is reported by the audit |
 | `typed_output` | Contracts with more than eight signals carry `output_schema`; advisory | No direct finding; the ratio is reported by the audit |
+
+The portfolio p95 aggregates executions by program name across digests in its
+selected window. The validation finding preserves that historical signal and
+its diagnostics name the program, sample count, window, current budget and
+current digest. It does not establish that the current digest exceeded the
+budget; inspect digest-scoped execution receipts before making that claim.
 
 `binding_resilience` is a fleet ratio, not a claim that every named contract is
 wrong: whether a dependency can really be absent remains an owner judgment.
@@ -335,6 +362,7 @@ scaffolding every program used to carry as a verbatim copy, owned once:
 | `program.inputs()` | The inputs injected by `library run`, a caller's `inputs = {...}` preamble, or a nested `lib` call; `{}` when none were supplied |
 | `program.envelope(name, version)` | Builds the envelope below with `inputs` filled and remembers it for `fail`, `run` and `report` |
 | `program.attach(envelope)` | Adopts an envelope the program built itself |
+| `program.child_envelope(handle, invalid_class="invalid_response", where="collect")` | Reads one nested library result, validates its outer field shapes and the child contract's declared status/phase/error enums, and returns a bounded normalized envelope on protocol failure |
 | `program.fail(status, klass, detail, where)` | Records one bad path and returns `"report"` |
 | `program.guarded(call)` | Wraps one read so a `gather` over several returns the exception instead of raising |
 | `program.classify(exc)` | Maps a caught exception to `(status, class)`; re-raises `NameError` and `AttributeError` |
@@ -345,6 +373,38 @@ scaffolding every program used to carry as a verbatim copy, owned once:
 Preflight validates `program.<member>` by name, so a misspelled member is
 refused with the nearest match before the program runs. `program` is a
 protected runtime name: a module-level `program = ...` is a preflight error.
+
+Programs that use `program.child_envelope` declare `helpers.program: "2"`;
+version 1 remains supported for existing contracts. The helper reads child
+contract metadata from the nested `Handle`. Valid child statuses and typed
+signals/errors/evidence pass through unchanged; the helper does not promote a
+child status into the parent's status. A malformed child becomes `failed` with
+the caller's declared `invalid_response` error class, while well-typed sibling
+signals and evidence remain available. The parent still owns the consequence
+of `partial`, `refused`, `failed`, or `unavailable`.
+
+This helper validates the common envelope and the child's declared status,
+phase, and error-class enums. Declared top-level executions also validate a
+declared `output_schema` against the pinned schema before reporting execution
+success; the captured output remains available when validation fails. A valid
+`partial` envelope remains partial: the execution's `succeeded` status means
+the execution and schema check passed, not that its envelope reports `ok`.
+Historical idempotent replays return their original receipts and are not
+retroactively validated. Schema failure can follow program effects, so inspect
+the owner before retrying. Nested calls do not yet enforce arbitrary
+`output_schema`; use the helper there and executed fixtures for richer nested
+validation.
+
+For a nested declared call, `handle.meta()` includes the child digest and
+`output_contract` enums when the artifact is known. Its
+`output_schema_validation.state` is `unavailable` when that child declares a
+schema, `not_declared` when it does not, or `unknown` when the relevant artifact
+cannot be established. `unavailable` is not a schema mismatch or a validation
+pass: it means this nested path has not checked the schema. `tasks.run` carries
+the same metadata on completion and replay only when the retained attempt's
+digest matches the selected artifact; it does not borrow the current contract
+for a missing or mismatched artifact. Inspect the retained result and its
+evidence separately from this metadata.
 
 ### Typed bridge exceptions
 
@@ -631,7 +691,7 @@ The runtime allocates durable task and attempt identities before invoking
 once. A completion checkpoint freezes the domain result and exact inputs for
 the shared `vrooli-memory.finish-attempt` program. A verified success requires
 both the declared outcome signal and evidence. Recall candidates without an
-explicit adoption decision are recorded as rejected with an unknown verdict.
+explicit adoption decision are recorded as unassessed with an unknown verdict.
 Failure fingerprints include operation, context, error class and location;
 volatile error detail does not change the fingerprint.
 
@@ -644,6 +704,10 @@ recovery never dispatches its domain code again.
 
 The returned domain envelope includes a `learning` receipt with `task_id`,
 `attempt_id`, `attempt_number`, `outcome`, `delivery`, and `resume_token`.
+The legacy `tasks.run` wrapper replaces any domain-owned top-level `learning`
+field with this receipt. Its receipt is appended after the domain envelope's
+output budget is checked, so that budget does not bound the complete returned
+task envelope; callers should account for the receipt separately.
 It also exposes `recall_status`, up to three `advice_candidates` with 240-byte
 UTF-8 excerpts, a count of omitted candidates, and bounded decision/verdict
 pairs. These suggestions inform the caller's next choice without implying
@@ -662,6 +726,24 @@ output and failure text seal token occurrences before SQLite persistence with
 an API-process-only key. Live responses expose the original token; after an API
 restart the historical program corpus cannot recover it. `tasks.current()`
 returns task identity and preparation evidence without resume authority.
+Task records also seal receipt occurrences inside nested results, preparation
+and finish intents with a task-owner process key. The current owner can reopen
+them for authorized reads. After that key is lost, a nested receipt is reported
+unavailable; the owner does not overwrite the affected record or deliver a
+finish intent with a substituted receipt, and reports that reconciliation is
+required. This protection does not make nested receipts durable across restart.
+The outbox scans due records in bounded pages with a persisted cycle watermark
+and cursor, so a restarted owner resumes past previously inspected unavailable
+records. Drainers within one Runtime process serialize through the owner; the
+lifecycle must prevent concurrent owner processes for the same database. The
+separate unpinned-finish requeue checkpoints its bounded scan and selected
+finish digest, so a replacement owner continues that cycle with the same digest
+even when the current resolver is unavailable. Its one-minute attempt interval
+is also checkpointed, so restarts do not bypass retry throttling. Independent finding-routing or
+requeue errors are reported without suppressing other due outbox deliveries.
+Task and feedback due-time comparisons handle UTC timestamps with or without
+fractional seconds; malformed or non-UTC pending timestamps are reported for
+owner reconciliation and are not delivered.
 Memory accepts operator, test, and agent provenance. Other provenance keeps its
 completed domain result and an explicit blocked capture reason; provenance is
 caller-declared and not authentication. Learning comparison cohorts retain

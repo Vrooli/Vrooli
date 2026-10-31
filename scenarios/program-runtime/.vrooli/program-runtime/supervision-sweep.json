@@ -20,7 +20,7 @@
   "invariants": [
     "no binding with effect write or destructive is called",
     "exactly one governed read (vrooli/scenario/list) is issued; no per-scenario fan-out",
-    "no row set is materialized beyond the requested scenario slugs",
+    "filter the fleet handle by requested scenario slugs before materializing at most 32 matching rows; report incomplete coverage when matches exceed the bound",
     "the envelope is printed exactly once, on every path",
     "at most 32 requested scenarios are reported; the request is truncated with truncated=true"
   ],
@@ -54,7 +54,8 @@
       "running": "count of requested scenarios whose lifecycle status is running",
       "healthy": "count of requested scenarios whose health is healthy",
       "attention": "list of {name, status, health} for requested scenarios that are not running or not healthy, plus any requested slug absent from the fleet list",
-      "truncated": "true when more than 32 slugs were requested"
+      "truncated": "true when more than 32 slugs were requested",
+      "source_truncated": "true when matching fleet rows exceed the bounded materialization"
     },
     "errors": {
       "classes": [

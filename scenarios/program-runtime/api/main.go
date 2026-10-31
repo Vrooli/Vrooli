@@ -29,12 +29,14 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/demand"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/provenance"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -71,6 +73,20 @@ func scenarioStorageRoots() (storage.Paths, error) {
 		return storage.Paths{}, fmt.Errorf("resolve program-runtime storage namespace: %w", err)
 	}
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
+}
+
+func verifiedAgentBridge(handler http.Handler, verifier provenance.Verifier) http.Handler {
+	return provenance.Middleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if provenance.ForwardedIdentityToken(r.Context()) == "" {
+			http.Error(w, "verified agent identity is required", http.StatusUnauthorized)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
+}
+
+func taskBridgeWithProvenance(handler http.Handler, verifier provenance.Verifier) http.Handler {
+	return provenance.Middleware(verifier)(handler)
 }
 
 // fileRootPath is the template's mandatory file-store seam. Domain stores
@@ -274,7 +290,7 @@ func main() {
 		return programs.ExecutionLimits{Wall: budget.WallBudget - budget.WallConsumed, CPU: budget.CPUBudget - budget.CPUConsumed}, nil
 	}, UsageReceipt: declaredUsageReceipt(sessionManager), ChargeExecution: func(id string, wall, cpu time.Duration) error {
 		return sessionManager.ChargeExecution(context.Background(), id, wall, cpu)
-	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, LibraryVersion: func(string) string { return libraryRepository.CurrentStamp(context.Background()) }, Events: telemetryStore})
+	}, ValidateSession: func(id string) bool { _, err := sessionManager.Get(context.Background(), id); return err == nil }, AuthorizeSession: sessionManager.AuthorizeSubmission, LibraryVersion: func(string) string { return libraryRepository.CurrentStamp(context.Background()) }, Events: telemetryStore})
 	if recovered, err := programService.RecoverInterrupted(context.Background()); err != nil {
 		log.Fatalf("reconcile interrupted program execution: %v", err)
 	} else if recovered > 0 {
@@ -384,9 +400,13 @@ func main() {
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
-	rootMux.Handle("/internal/program-runtime/tasks/", &tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService, RepoRoot: repoRoot})
+	// This route is mounted outside srv.Handler's middleware. Verify any
+	// forwarded agent identity here so task ownership is evaluated against the
+	// actual caller rather than an absent context. The task owner retains its
+	// existing policy for callers without agent identity.
+	rootMux.Handle("/internal/program-runtime/tasks/", taskBridgeWithProvenance(&tasksH.Bridge{Store: taskStore, Contracts: contractIndex, Library: libraryRepository, Sessions: sessionManager, Programs: programService, RepoRoot: repoRoot, ReplayKernelPath: filepath.Join(repoRoot, "scenarios", "program-runtime", "kernel", "host", "engine.py")}, provenance.CLIUtilVerifier{}))
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-	rootMux.Handle("/internal/program-runtime/bindings/execute", bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository))
+	rootMux.Handle("/internal/program-runtime/bindings/execute", provenance.Middleware(provenance.CLIUtilVerifier{})(bindingsH.Bridge(bindingRegistry, sessionManager, refusalRepository)))
 	rootMux.Handle("/internal/program-runtime/bindings/describe", bindingsH.DescribeBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/reachability", bindingsH.ReachabilityBridge(bindingRegistry, sessionManager))
 	rootMux.Handle("/internal/program-runtime/bindings/unresolved", bindingsH.UnresolvedBridge(sessionManager, unresolvedRecorder))
@@ -405,9 +425,13 @@ func main() {
 		return programService.UsageByName(ctx, 30)
 	}, usageTTL).Read
 	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandlerWithUsage(libraryRepository, contractIndex, portfolioUsage, repoRoot))
-	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
-	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
-	rootMux.Handle("/internal/program-runtime/agent/collect", bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
+	// These private bridge paths bypass srv.Handler's provenance middleware.
+	// Reverify forwarded caller proof here before the delegator's transport may
+	// pass it to Agent Manager; unverified headers never become authority.
+	verifier := provenance.CLIUtilVerifier{}
+	rootMux.Handle("/internal/program-runtime/agent/execute", verifiedAgentBridge(bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)), verifier))
+	rootMux.Handle("/internal/program-runtime/agent/start", verifiedAgentBridge(bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)), verifier))
+	rootMux.Handle("/internal/program-runtime/agent/collect", verifiedAgentBridge(bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)), verifier))
 
 	// /measures is the measures-go serve substrate consumed by measures-health.
 	// Declarations and execution stay typed and owned by this scenario.
@@ -454,10 +478,16 @@ func main() {
 	// capped every synchronous call in a scenario whose sessions advertise a
 	// four-hour wall budget; the ladder and its startup assertion live in
 	// internal/budgets.
+	authConfig, authErr := authn.FromEnvironment(os.Getenv)
+	if authErr != nil {
+		log.Fatalf("authentication configuration failed: %v", authErr)
+	}
+	authConfig = authConfig.WithScenarioAuthenticator("program-runtime").WithManagedCloudflare("program-runtime")
 	if err := apiserver.Run(apiserver.Config{
-		Handler:      handler,
-		ReadTimeout:  budgets.ServerRead,
-		WriteTimeout: budgets.ServerWrite,
+		Handler:        handler,
+		Authentication: &authConfig,
+		ReadTimeout:    budgets.ServerRead,
+		WriteTimeout:   budgets.ServerWrite,
 		Cleanup: func(ctx context.Context) error {
 			stopTaskDelivery()
 			<-taskDeliveryDone

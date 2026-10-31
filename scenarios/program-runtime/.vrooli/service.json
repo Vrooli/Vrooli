@@ -185,6 +185,27 @@
         "description": "Optional outcome-linked learning store for the learn.* verbs, task capture delivery, and the improve setpoint's memory rows.",
         "degraded_behavior": "Programs run; recall reports unavailable, capture receipts queue for later delivery, and learn.feedback reports failed with the reason.",
         "bundle_policy": "either"
+      },
+      "web-console": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "The research supervision read reports native thread state as unavailable or partial and preserves other selected evidence.",
+        "versionRange": ">=0.0.1",
+        "description": "Native thread and goal state for explicitly selected research subjects."
+      },
+      "visited-tracker": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "The improvement evidence program preserves the unavailable attention child as partial evidence and does not authorize a claim.",
+        "versionRange": ">=1.0.0",
+        "description": "Revision-aware attention candidates for the improvement evidence program."
+      },
+      "prompt-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Program preparation exposes missing or unavailable owning skill content instead of presenting it as a complete read.",
+        "versionRange": ">=1.0.0",
+        "description": "Owning skill content for preparing a selected reusable program."
       }
     }
   },

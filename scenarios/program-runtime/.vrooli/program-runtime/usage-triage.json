@@ -27,7 +27,8 @@
     "program-runtime is running and exposes caller identity on new declared program rows when the caller supplies it",
     "agent-manager run/list prompt previews are a bounded transcript-match lower bound and never a complete transcript",
     "ai-gateway serves the classify.fast role through its governed batch binding",
-    "the caller treats transcript_match and every capped reading as a lower bound"
+    "the caller treats transcript_match and every capped reading as a lower bound",
+    "Programs-phase fixtures exercise live dependencies without injecting faults or synthetic data; deterministic source tests in kernel/tests/usage_triage_fixture_test.py cover outage and synthetic candidate behavior."
   ],
   "invariants": [
     "The envelope is printed exactly once on every execution path.",
@@ -53,12 +54,6 @@
       "effect": "read",
       "optional": true,
       "note": "Prompt previews provide only a lower-bound transcript match when caller identity is absent."
-    },
-    {
-      "id": "agent-manager/run/episodes",
-      "effect": "read",
-      "optional": true,
-      "note": "Governed episode availability is recorded for the run cohort; episode bodies are never materialized."
     },
     {
       "id": "agent-manager/conversation/search",
@@ -153,88 +148,6 @@
       },
       "requires": [
         "program-runtime"
-      ]
-    },
-    {
-      "id": "fought-it-candidate",
-      "inputs": {
-        "window_days": 30,
-        "max_pairs": 32
-      },
-      "expect": {
-        "status": [
-          "ok",
-          "partial"
-        ],
-        "signals": {
-          "labels": [
-            "fought_it"
-          ]
-        }
-      },
-      "requires": [
-        "agent-manager",
-        "ai-gateway"
-      ]
-    },
-    {
-      "id": "classifier-unavailable",
-      "inputs": {
-        "window_days": 30,
-        "max_pairs": 4
-      },
-      "expect": {
-        "status": [
-          "partial",
-          "unavailable"
-        ],
-        "signals": {
-          "pairs_classified": 0,
-          "cohorts": []
-        }
-      },
-      "requires": [
-        "agent-manager"
-      ]
-    },
-    {
-      "id": "agent-manager-unavailable",
-      "inputs": {
-        "window_days": 30,
-        "max_pairs": 4
-      },
-      "expect": {
-        "status": [
-          "ok",
-          "partial"
-        ],
-        "signals": {
-          "attribution_basis": [
-            "transcript_match"
-          ]
-        }
-      },
-      "requires": [
-        "ai-gateway"
-      ]
-    },
-    {
-      "id": "candidate-cap",
-      "inputs": {
-        "window_days": 30,
-        "max_pairs": 2
-      },
-      "expect": {
-        "status": [
-          "ok",
-          "partial"
-        ],
-        "signals": {
-          "candidates_capped": true
-        }
-      },
-      "requires": [
-        "ai-gateway"
       ]
     }
   ],

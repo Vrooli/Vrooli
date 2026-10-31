@@ -95,10 +95,8 @@ except ImportError:  # launched by absolute path without the host dir on sys.pat
     from safebuiltins import SAFE_BUILTIN_NAMES as _SAFE_BUILTIN_NAMES, SAFE_BUILTINS as _SAFE_BUILTINS
 
 try:
-    from .bridge_transport import AGENT_IDENTITY as _AGENT_IDENTITY
     from .bridge_transport import open_bridge_request as _open_bridge_request
 except ImportError:  # The kernel also imports host modules as top-level modules.
-    from bridge_transport import AGENT_IDENTITY as _AGENT_IDENTITY
     from bridge_transport import open_bridge_request as _open_bridge_request
 
 # `open` is re-bound to the workspace-guarded wrapper installed above, so a
@@ -110,6 +108,7 @@ _SAFE_BUILTINS["open"] = _guarded_open
 from contracts import resolve_inputs
 from program_helper import (
     HELPER_VERSION,
+    SUPPORTED_HELPER_VERSIONS,
     AmbiguousResponse,
     BindingError,
     InvalidInput,
@@ -117,7 +116,7 @@ from program_helper import (
     ScenarioUnreachable,
     bridge_error,
 )
-from tasks import Tasks, ACTIVE_TASK
+from tasks import Tasks, ACTIVE_TASK, library_result_metadata
 from learn import Learn
 
 
@@ -704,7 +703,7 @@ class Namespace:
         metadata.update({key: value for key, value in result.items() if key != rows_field})
         return Handle(rows, verb, metadata=metadata, raw=result)
 
-    def _execute_library_source(self, spec: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]) -> Handle:
+    def _execute_library_source(self, spec: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any], *, _task_root=False) -> Handle:
         """Execute one library snapshot with the governed public runtime surface."""
         if args:
             raise TypeError("library programs accept named inputs")
@@ -719,10 +718,17 @@ class Namespace:
         free_text_inputs = [key for key, value in (spec.get("declaration", {}).get("inputs") or {}).items() if isinstance(value, dict) and value.get("free_text") is True]
         note_kinds = (spec.get("declaration", {}).get("learning", {}) or {}).get("note_kinds", {})
         bindings = spec.get("declaration", {}).get("bindings", [])
-        environment = _program_globals(self, self._project, source_name, free_text_inputs, note_kinds, bindings, (spec.get("declaration", {}).get("learning") or {}).get("baselines", {}))
-        declared_helper = str((spec.get("declaration", {}).get("helpers") or {}).get("program", "")).strip()
-        if declared_helper and declared_helper != HELPER_VERSION:
-            raise ValueError(f"declared program requires program helper version {declared_helper!r}; this kernel provides {HELPER_VERSION!r}")
+        declaration = spec.get("declaration", {})
+        declared_helper = str((declaration.get("helpers") or {}).get("program", "")).strip() or HELPER_VERSION
+        if declared_helper not in SUPPORTED_HELPER_VERSIONS:
+            supported = ", ".join(sorted(SUPPORTED_HELPER_VERSIONS))
+            raise ValueError(f"declared program requires program helper version {declared_helper!r}; this kernel supports {supported}")
+        environment = _program_globals(
+            self, self._project, source_name, free_text_inputs, note_kinds, bindings,
+            (declaration.get("learning") or {}).get("baselines", {}),
+            helper_version=declared_helper,
+            output_contract=declaration.get("outputs") or {},
+        )
         if spec.get("contract", False):
             environment["inputs"] = resolve_inputs(spec.get("declaration", {}), kwargs)
         elif kwargs:
@@ -737,10 +743,18 @@ class Namespace:
         if spec.get("contract", False):
             # Contract programs print one envelope. Capture that value locally:
             # nested reads must not leak stdout or consume the parent's budget.
+            def unique_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+                obj: dict[str, Any] = {}
+                for key, value in pairs:
+                    if key in obj:
+                        raise ValueError("declared contract envelope contains duplicate JSON keys")
+                    obj[key] = value
+                return obj
+
             def capture_envelope(*values: Any, **options: Any) -> None:
                 if options or len(values) != 1 or printed:
                     raise ValueError("declared contract must print exactly one envelope")
-                envelope = json.loads(values[0]) if isinstance(values[0], str) else values[0]
+                envelope = json.loads(values[0], object_pairs_hook=unique_pairs) if isinstance(values[0], str) else values[0]
                 if not isinstance(envelope, dict):
                     raise ValueError("declared contract must print exactly one envelope")
                 encoded = json.dumps(envelope, allow_nan=False)
@@ -782,11 +796,18 @@ class Namespace:
             learn = environment.get("learn")
             if isinstance(learn, Learn):
                 value = learn.finalize(value)
-            return Handle([value], f"lib.{identity}", metadata={
-                "program": spec.get("declaration", {}).get("name", identity),
-                "version": spec.get("declaration", {}).get("version", ""),
-                "digest": spec.get("digest", ""),
-            })
+            # Finalization may attach learning evidence; enforce the same
+            # declared budget on the actual value delivered to the caller.
+            # A started learning finalizer may already have committed its
+            # checkpoint and attached the only resume receipt. Do not turn that
+            # result into an exception that discards both after the effect.
+            # Legacy task roots likewise need the actual result for completion.
+            if not _task_root and not (isinstance(learn, Learn) and learn.started):
+                encoded = json.dumps(value, allow_nan=False)
+                limit = spec.get("declaration", {}).get("budget", {}).get("output_bytes", 4096)
+                if len(encoded.encode("utf-8")) > limit:
+                    raise ValueError(f"declared contract envelope exceeds {limit} bytes after finalization")
+            return Handle([value], f"lib.{identity}", metadata=library_result_metadata(spec))
         value = environment.get("result")
         if isinstance(value, Handle):
             return value
@@ -1144,6 +1165,7 @@ class _DelegationSurface:
     def start(self, **kwargs: Any) -> Handle:
         request = dict(kwargs)
         request["session_id"] = self._session_id
+        request["program_id"] = _INVOCATION_CONTEXT.get({}).get("program_id", "")
         payload = self._request(self._bridge_url.rsplit("/", 1)[0] + "/start", request, 15)
         self._invocations.append({"binding_id": "agent/start", "effect": "write"})
         return Handle([payload], "agent/start")
@@ -1156,6 +1178,7 @@ class _DelegationSurface:
             raise ValueError("agent.collect requires a Handle returned by agent.start")
         seconds = max(0, min(int(wait_seconds), 300))
         request = {"session_id": self._session_id, "execution_id": rows[0]["execution_id"], "owner": rows[0].get("owner", ""), "workflow_key": rows[0].get("workflow_key", ""), "idempotency_key": rows[0].get("idempotency_key", ""), "wait_seconds": seconds}
+        request["program_id"] = _INVOCATION_CONTEXT.get({}).get("program_id", "")
         payload = self._request(self._bridge_url.rsplit("/", 1)[0] + "/collect", request, max(15, seconds + 15))
         self._invocations.append({"binding_id": "agent/collect", "effect": "read"})
         return Handle([payload], "agent/collect")
@@ -1219,6 +1242,9 @@ class BridgeBinding:
             if rows_override not in self.row_field_candidates:
                 candidates = ", ".join(self.row_field_candidates) or "<none>"
                 raise AmbiguousResponse(f"binding {self.binding_id} rows must be one of: {candidates}", binding_id=self.binding_id)
+        elif self.row_field_candidates:
+            candidates = ", ".join(self.row_field_candidates)
+            raise AmbiguousResponse(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}", binding_id=self.binding_id)
         if not self.bridge_url:
             raise ScenarioUnreachable("program-runtime binding bridge is unavailable", binding_id=self.binding_id)
         if self.reachability_url and not self.demand_start:
@@ -1271,9 +1297,6 @@ class BridgeBinding:
         self.invocations.append({"binding_id": self.binding_id, "effect": self.effect})
         if not isinstance(payload, dict):
             raise BindingError(f"binding {self.binding_id} returned a non-object response", binding_id=self.binding_id)
-        if self.row_field_candidates and not rows_override:
-            candidates = ", ".join(self.row_field_candidates)
-            raise AmbiguousResponse(f"binding {self.binding_id} has no determinable primary response field; candidate repeated fields: {candidates}", binding_id=self.binding_id)
         selected_rows_field = rows_override or self.rows_field
         if selected_rows_field == "$response":
             # A declared scalar primary field means the aggregate response
@@ -1302,7 +1325,7 @@ class _ProgressBuffer(io.StringIO):
         return written
 
 
-def _program_globals(root: Namespace, project: _ProjectNamespace, name: str, free_text_inputs=(), note_kinds=None, bindings=(), baselines=None) -> ProgramGlobals:
+def _program_globals(root: Namespace, project: _ProjectNamespace, name: str, free_text_inputs=(), note_kinds=None, bindings=(), baselines=None, *, helper_version: str = HELPER_VERSION, output_contract: dict[str, Any] | None = None) -> ProgramGlobals:
     """Build one public surface for both session and library execution."""
     builtin_surface: dict[str, Any] = {
         "discover": root.discover,
@@ -1324,7 +1347,7 @@ def _program_globals(root: Namespace, project: _ProjectNamespace, name: str, fre
         # The scaffolding every program used to copy: envelope, fail, guarded,
         # classify, run, report. One instance per environment; bound below
         # once the globals exist so `program.inputs()` reads the injected value.
-        "program": ProgramHelper(),
+        "program": ProgramHelper(helper_version, output_contract),
         "learn": None,
     }
     # The surface must cover exactly the declared verbs. A verb added to
@@ -1408,10 +1431,12 @@ class SessionKernel:
         root._binding_contract_specs = binding_contract_specs
         self.globals = _program_globals(root, project, "program_runtime_session")
 
-    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None, agent_identity_token: str = "", test_mode: bool = False) -> dict[str, Any]:
+    def execute(self, source: str, include_materialized: bool = False, program_id: str = "", provenance: str = "", caller: dict[str, str] | None = None, progress=None, test_mode: bool = False, declared_helper_contract: dict[str, Any] | None = None, persistent_task_authority_unavailable: bool = False) -> dict[str, Any]:
         output = _ProgressBuffer(progress)
         self.invocations.clear()
         context = {"program_id": program_id, "provenance": provenance, "source": source}
+        if persistent_task_authority_unavailable:
+            context["persistent_task_authority_unavailable"] = True
         if test_mode:
             context["test_mode"] = "1"
         for key in ("run_id", "agent_profile", "skill_id", "harness"):
@@ -1419,16 +1444,24 @@ class SessionKernel:
             if value:
                 context[key] = value
         context_token = _INVOCATION_CONTEXT.set(context)
-        identity_token = _AGENT_IDENTITY.set(agent_identity_token)
         task_token = ACTIVE_TASK.set(None)
-        helper = dict.get(self.globals, "program")
-        if isinstance(helper, ProgramHelper):
-            helper._reset()
+        # Only the owner-provided private pipe may configure this helper. A
+        # fresh instance per submission prevents a declared contract from
+        # leaking into the next ad-hoc execution in a persistent session.
+        declared = declared_helper_contract if isinstance(declared_helper_contract, dict) else {}
+        helper_version = str(declared.get("version") or HELPER_VERSION)
+        helper_outputs = declared.get("outputs") if isinstance(declared.get("outputs"), dict) else {}
+        helper = ProgramHelper(helper_version, helper_outputs)
+        helper._bind(self.globals)
+        dict.__setitem__(self.globals, "program", helper)
         learn = dict.get(self.globals, "learn")
         if isinstance(learn, Learn):
             learn.reset(program_id or "")
         learning_receipt = None
         try:
+            if helper_version not in SUPPORTED_HELPER_VERSIONS:
+                supported = ", ".join(sorted(SUPPORTED_HELPER_VERSIONS))
+                raise ValueError(f"declared program requires program helper version {helper_version!r}; this kernel supports {supported}")
             with contextlib.redirect_stdout(output):
                 tree = ast.parse(source, "<program>", "exec")
                 last_expression = None
@@ -1467,7 +1500,6 @@ class SessionKernel:
                 response["learning"] = learning_receipt
             return response
         finally:
-            _AGENT_IDENTITY.reset(identity_token)
             _INVOCATION_CONTEXT.reset(context_token)
             ACTIVE_TASK.reset(task_token)
 
@@ -1553,7 +1585,7 @@ def serve() -> None:
             result: dict[str, Any] = {}
 
             def run() -> None:
-                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress, str(request.get("agent_identity_token", "")), bool(request.get("test_mode", False))))
+                result.update(kernel.execute(str(request.get("source", "")), include_materialized, str(request.get("program_id", "")), str(request.get("provenance", "")), request.get("caller") or {}, progress, bool(request.get("test_mode", False)), request.get("declared_helper_contract"), bool(request.get("persistent_task_authority_unavailable", False))))
 
             worker = threading.Thread(target=run, name="program-runtime-kernel", daemon=True)
             worker.start()

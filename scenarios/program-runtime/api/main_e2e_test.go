@@ -116,10 +116,11 @@ func TestProductionDeclaredUsageReceiptFailsClosedWhenBothInferenceWritesFail(t 
 	require.Zero(t, receipt.ChargeMicros)
 
 	service := runtimeprograms.NewService(runtimeprograms.Options{
-		Store:           db,
-		Runner:          inferenceFailureRunner{manager: manager, sessionID: session.ID},
-		UsageReceipt:    declaredUsageReceipt(manager),
-		ValidateSession: func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+		Store:            db,
+		Runner:           inferenceFailureRunner{manager: manager, sessionID: session.ID},
+		UsageReceipt:     declaredUsageReceipt(manager),
+		ValidateSession:  func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+		AuthorizeSession: manager.AuthorizeSubmission,
 	})
 	program, err := service.Submit(ctx, session.ID, "pass", programsv1.Provenance_PROVENANCE_AGENT, false)
 	require.NoError(t, err)
@@ -163,7 +164,8 @@ func TestProductionDeclaredUsageReceiptFailsClosedAfterDelegationPersistenceFail
 			runner := &delegationCatchRunner{handler: handler, body: requestBody}
 			service := runtimeprograms.NewService(runtimeprograms.Options{
 				Store: db, Runner: runner, UsageReceipt: declaredUsageReceipt(manager),
-				ValidateSession: func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+				ValidateSession:  func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+				AuthorizeSession: manager.AuthorizeSubmission,
 			})
 			program, err := service.Submit(ctx, session.ID, "pass", programsv1.Provenance_PROVENANCE_AGENT, false)
 			require.NoError(t, err)
@@ -195,9 +197,11 @@ type fixedDelegationResult struct{}
 func (fixedDelegationResult) Delegate(context.Context, runtimeprograms.DelegationRequest) (map[string]any, error) {
 	return map[string]any{"execution_id": "exec-shared", "status": "succeeded", "owner": "owner", "workflow_key": "owner/workflow", "idempotency_key": "same-key", "cost_micros": float64(5)}, nil
 }
+
 func (fixedDelegationResult) Start(context.Context, runtimeprograms.DelegationRequest) (map[string]any, error) {
 	return map[string]any{"execution_id": "exec-shared", "status": "succeeded", "owner": "owner", "workflow_key": "owner/workflow", "idempotency_key": "same-key", "cost_micros": float64(5)}, nil
 }
+
 func (fixedDelegationResult) Collect(context.Context, string, string, int) (map[string]any, error) {
 	return nil, nil
 }

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"program-runtime/internal/contracts"
+	"program-runtime/internal/corpuscodec"
+	"program-runtime/internal/receipts"
 	"program-runtime/internal/sessions"
 	"program-runtime/internal/shapes"
 
@@ -30,6 +32,7 @@ type SQLExecutor = sessions.SQLExecutor
 
 var (
 	ErrNotFound        = errors.New("library program not found")
+	ErrSourceProtected = errors.New("program source contains protected resume authority")
 	ErrSourceFailed    = errors.New("only a succeeded program may be promoted")
 	ErrNameRequired    = errors.New("library name is required")
 	ErrVersionRequired = errors.New("library version is required")
@@ -176,6 +179,9 @@ func (r *Repository) Promote(ctx context.Context, program *programsv1.Program, n
 	if program == nil || program.GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
 		return nil, ErrSourceFailed
 	}
+	if receipts.PlaintextPattern.MatchString(program.GetSource()) {
+		return nil, ErrSourceProtected
+	}
 	var version int64
 	if err := r.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version),0)+1 FROM library_programs WHERE name=?`, name).Scan(&version); err != nil {
 		return nil, fmt.Errorf("next library version: %w", err)
@@ -185,8 +191,10 @@ func (r *Repository) Promote(ctx context.Context, program *programsv1.Program, n
 		return nil, fmt.Errorf("derive successful bindings: %w", err)
 	}
 	ids, _ := json.Marshal(calledIDs)
-	if len(declaredInputs) == 0 {
-		declaredInputs = []string{"session_id"}
+	// An omitted input list is empty, not a session_id input. The execution
+	// session is selected by the caller and is not a library-program argument.
+	if declaredInputs == nil {
+		declaredInputs = []string{}
 	}
 	if len(declaredOutputs) == 0 {
 		declaredOutputs = []string{"bounded projection"}
@@ -205,11 +213,19 @@ func (r *Repository) Promote(ctx context.Context, program *programsv1.Program, n
 
 func (r *Repository) PromoteByID(ctx context.Context, programID, name, description, promotedBy, reason, coverage string, declaredInputs, declaredOutputs []string, now time.Time) (*sharedv1.LibraryProgram, error) {
 	var source, status string
-	if err := r.db.QueryRowContext(ctx, `SELECT source,status FROM programs WHERE id=?`, strings.TrimSpace(programID)).Scan(&source, &status); err != nil {
+	var format int
+	if err := r.db.QueryRowContext(ctx, `SELECT source,status,source_receipt_format FROM programs WHERE id=?`, strings.TrimSpace(programID)).Scan(&source, &status, &format); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("read source program: %w", err)
+	}
+	source, protected, err := corpuscodec.Decode(nil, source, format)
+	if err != nil {
+		return nil, fmt.Errorf("decode source program: %w", err)
+	}
+	if protected {
+		return nil, ErrSourceProtected
 	}
 	program := &programsv1.Program{Id: programID, Source: source, Status: parseProgramStatus(status)}
 	return r.Promote(ctx, program, name, description, promotedBy, reason, coverage, declaredInputs, declaredOutputs, now)
@@ -299,6 +315,7 @@ func (r *Repository) RetainDeclared(ctx context.Context, c contracts.Contract) e
 	_, err = r.db.ExecContext(ctx, `INSERT INTO declared_program_artifacts(name,digest,artifact_json,created_at) VALUES (?,?,?,?) ON CONFLICT(name,digest) DO NOTHING`, c.ID, c.Digest, string(raw), time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
+
 func (r *Repository) GetDeclaredArtifact(ctx context.Context, name, digest string) (contracts.Contract, error) {
 	var raw string
 	var c contracts.Contract

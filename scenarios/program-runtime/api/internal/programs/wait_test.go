@@ -26,8 +26,9 @@ func (r *slowRunner) Execute(ctx context.Context, _ string, _ string, _ bool) (R
 
 func newWaitService(runner Runner) *Service {
 	return NewService(Options{
-		Runner:          runner,
-		ValidateSession: func(string) bool { return true },
+		Runner:           runner,
+		ValidateSession:  func(string) bool { return true },
+		AuthorizeSession: func(context.Context, string) (bool, error) { return false, nil },
 	})
 }
 

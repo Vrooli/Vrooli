@@ -1,7 +1,9 @@
 import copy
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 from host.engine import Handle, SessionKernel
@@ -111,3 +113,114 @@ def test_learning_result_exposes_bounded_advice_without_implying_adoption():
         assert candidate["text_truncated"] is True
     assert learning["advice_decisions"] == decisions[:3]
     assert "do not imply adoption" in learning["guidance"]
+
+
+def test_task_root_checkpoints_finalized_result_and_replays_without_dispatch(monkeypatch):
+    saved = {}
+    calls = []
+    receipt = "prt_resume_v1_" + "A" * 43
+
+    def prepare(self, **kwargs):
+        if saved:
+            return Handle([copy.deepcopy(saved)])
+        record = {"state": "running", "task_id": "task", "attempt_id": "attempt", "attempt_number": 1,
+                  "resume_token": receipt, "prepare": {"signals": {}}}
+        ACTIVE_TASK.set(record)
+        return Handle([record])
+
+    def finish(self, *, attempt_id, result, resume_token):
+        assert resume_token == receipt
+        calls.append(copy.deepcopy(result))
+        saved.update(state="completed", task_id="task", attempt_id=attempt_id, attempt_number=1, digest="digest",
+                     resume_token=receipt, outcome="unknown", delivery="pending", result=copy.deepcopy(result))
+        return Handle([copy.deepcopy(saved)])
+
+    monkeypatch.setattr(Tasks, "prepare", prepare)
+    monkeypatch.setattr(Tasks, "finish", finish)
+    monkeypatch.setattr("host.engine.Learn.finalize", lambda self, value: {**value, "extra": "x" * 200})
+    spec = {"name": "fixture.operation", "scenario": "fixture", "contract": True, "current": True,
+            "digest": "digest", "declaration": {"budget": {"output_bytes": 120}, "learning_task": {"outcome": {}},
+                "output_schema": "output.json", "outputs": {"status": {"enum": ["partial"]},
+                "phase": {"enum": ["report"]}, "errors": {"classes": ["child_error"]}}},
+            "source": "print({'status':'partial','signals':{},'errors':[],'evidence':['committed']})"}
+    kernel = SessionKernel(libraries=[spec])
+    source = "import json\nh = tasks.run(operation='fixture.operation', inputs={})\nprint(json.dumps({'value':h.head(1)[0], 'meta':h.meta()}))"
+    first = kernel.execute(source)
+    assert first["ok"], first
+    first_result = json.loads(first["stdout"])
+    first_value = first_result["value"]
+    assert len(json.dumps(calls[0]).encode()) > 120
+    assert first_value["evidence"] == ["committed"]
+    assert first_value["extra"] == "x" * 200
+    assert first_value["learning"]["resume_token"] == receipt
+    assert first_result["meta"]["digest"] == "digest"
+    assert first_result["meta"]["output_contract"]["status"]["enum"] == ["partial"]
+    assert first_result["meta"]["output_schema_validation"] == {
+        "state": "unavailable", "reason": "nested_schema_validation_unavailable"}
+    replay = kernel.execute(source)
+    assert replay["ok"], replay
+    assert json.loads(replay["stdout"]) == first_result
+    assert len(calls) == 1
+
+
+def test_task_result_never_borrows_metadata_from_missing_or_mismatched_artifact():
+    record = {"digest": "original", "result": {"status": "partial", "evidence": ["observed"]}}
+    task = Tasks(None, None, Handle, 1)
+    for spec in (None, {"digest": "different", "declaration": {"output_schema": "other.json"}},
+                 {"declaration": {"output_schema": "other.json"}}):
+        handle = task._result(record, spec)
+        assert handle.head(1)[0]["evidence"] == ["observed"]
+        assert handle.meta()["output_schema_validation"]["state"] == "unknown"
+        assert "output_contract" not in handle.meta()
+
+
+def test_task_missing_artifact_does_not_dispatch_or_invent_metadata(monkeypatch):
+    task = Tasks(None, None, Handle, 1)
+    def unavailable(*_args, **_kwargs):
+        raise RuntimeError("pinned artifact unavailable")
+    monkeypatch.setattr(task, "_spec", unavailable)
+    with pytest.raises(RuntimeError, match="pinned artifact unavailable"):
+        task.run(operation="fixture.operation", inputs={}, expected_digest="missing")
+
+
+def test_task_root_does_not_exempt_nested_child_from_finalized_limit(monkeypatch):
+    saved = {}
+
+    def prepare(self, **kwargs):
+        record = {"state": "running", "task_id": "task", "attempt_id": "attempt", "attempt_number": 1,
+                  "resume_token": "receipt", "prepare": {"signals": {}}}
+        ACTIVE_TASK.set(record)
+        return Handle([record])
+
+    def finish(self, *, attempt_id, result, resume_token):
+        assert resume_token == "receipt"
+        saved.update(state="completed", task_id="task", attempt_id=attempt_id, attempt_number=1,
+                     resume_token="receipt", outcome="unknown", delivery="pending", result=copy.deepcopy(result))
+        return Handle([copy.deepcopy(saved)])
+
+    monkeypatch.setattr(Tasks, "prepare", prepare)
+    monkeypatch.setattr(Tasks, "finish", finish)
+    monkeypatch.setattr("host.engine.Learn.finalize", lambda self, value: {**value, "extra": "x" * 200})
+    root = {"name": "fixture.operation", "scenario": "fixture", "contract": True, "current": True,
+            "digest": "digest", "declaration": {"budget": {"output_bytes": 120}, "learning_task": {"outcome": {}}},
+            "source": "lib.fixture.child()\nprint({'status':'ok'})"}
+    child = {"name": "fixture.child", "scenario": "fixture", "contract": True, "current": True,
+             "declaration": {"budget": {"output_bytes": 120}}, "source": "print({'status':'ok'})"}
+    result = SessionKernel(libraries=[root, child]).execute("tasks.run(operation='fixture.operation', inputs={})")
+    assert result["ok"], result
+    assert saved["result"]["signals"]["outcome"] == "unknown"
+    assert "exceeds 120 bytes after finalization" in saved["result"]["errors"][0]["detail"]
+
+
+def test_nested_started_learning_keeps_its_finalized_receipt():
+    child = {"name": "fixture.child", "scenario": "fixture", "contract": True, "current": True,
+             "declaration": {"budget": {"output_bytes": 120}},
+             "source": "learn.task(scope='fixture', operation='fixture.child')\nprint({'status':'partial','evidence':['committed']})"}
+    result = SessionKernel(libraries=[child]).execute(
+        "import json\nprint(json.dumps(lib.fixture.child().head(1)[0]))")
+    assert result["ok"], result
+    value = json.loads(result["stdout"])
+    assert len(json.dumps(value).encode()) > 120
+    assert value["evidence"] == ["committed"]
+    assert value["learning"]["attempt_id"]
+    assert value["learning"]["resume_token"].startswith("prt_resume_v1_")

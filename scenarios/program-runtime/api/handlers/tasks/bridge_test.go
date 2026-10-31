@@ -3,6 +3,8 @@ package tasks
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/authn"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
@@ -29,6 +32,22 @@ import (
 	"program-runtime/internal/sessions"
 	taskstore "program-runtime/internal/tasks"
 )
+
+func TestTaskRequestPreservesDomainResultNumbers(t *testing.T) {
+	var req request
+	dec := json.NewDecoder(strings.NewReader(`{"result":{"signals":{"count":9007199254740993}},"finish_inputs":{"attempt":{"attempt_number":1}}}`))
+	dec.DisallowUnknownFields()
+	require.NoError(t, dec.Decode(&req))
+	encoded, err := json.Marshal(req.Result)
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"count":9007199254740993`)
+	require.Equal(t, float64(1), req.FinishInputs["attempt"].(map[string]any)["attempt_number"])
+	require.Equal(t, json.Number("9007199254740993"), valueAt(req.Result, "signals.count"))
+	encoded, err = json.Marshal(publicRecord(&taskstore.Record{Result: req.Result, ResumeHash: "secret"}))
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"count":9007199254740993`)
+	require.NotContains(t, string(encoded), "secret")
+}
 
 func TestTaskBridgeRequiresTheOwningVerifiedRun(t *testing.T) {
 	ctx := context.Background()
@@ -130,7 +149,8 @@ print(json.dumps({"attempt_id": identity["attempt_id"], "task_id": identity["tas
 	})
 	programService := programs.NewService(programs.Options{
 		Store: db, Runner: runner,
-		ValidateSession: func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+		AuthorizeSession: manager.AuthorizeSubmission,
+		ValidateSession:  func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
 	})
 	bridge := &Bridge{Store: store, Contracts: contracts.NewIndex(), Library: repo, Sessions: manager, Programs: programService}
 	mux.Handle("/internal/program-runtime/tasks/", provenance.Middleware(verify)(bridge))
@@ -309,6 +329,33 @@ print(children[0].head(1)[0])`, declaration)
 	generic := archivedFixture(t, repo, "fixture.generic", `learn.task(operation="fixture.generic")
 print({"status":"ok","evidence":["generic-envelope"]})`, genericDeclaration)
 	add(generic)
+	// Exercise the legacy root checkpoint with deterministic learning-finalizer
+	// growth after a real domain effect. The fixture monkeypatch isolates that
+	// boundary; the task bridge and SQLite checkpoint remain real.
+	largeDeclaration := bytes.Replace(declaration, []byte("fixture.parent"), []byte("fixture.large"), 1)
+	largeDeclaration = bytes.Replace(largeDeclaration, []byte(`"learning_task"`), []byte(`"outputs":{"status":{"enum":["ok","partial"]},"phase":{"enum":["report"]},"errors":{"classes":["child_error"]}},"learning_task"`), 1)
+	large := archivedFixture(t, repo, "fixture.large", `import learn as learn_module
+def grow(self, value):
+    value.setdefault('signals', {})['finalized_padding'] = 'x' * 1200
+    return value
+learn_module.Learn.finalize = grow
+result = fixture.effects.run().head(1)[0]
+result['signals']['domain_padding'] = 'x' * 3200
+print(result)`, largeDeclaration)
+	add(large)
+	naturalDeclaration := []byte(`{"name":"fixture.natural","version":"1","inputs":{},"budget":{"output_bytes":4096}}`)
+	natural := archivedFixture(t, repo, "fixture.natural", `learn.task(operation="fixture.natural")
+result = fixture.effects.run().head(1)[0]
+result['signals']['domain_padding'] = 'x' * 3600
+print(result)`, naturalDeclaration)
+	add(natural)
+	smallDeclaration := []byte(`{"name":"fixture.natural-small","version":"1","inputs":{},"budget":{"output_bytes":4096}}`)
+	small := archivedFixture(t, repo, "fixture.natural-small", `learn.task(operation="fixture.natural-small")
+print(fixture.effects.run().head(1)[0])`, smallDeclaration)
+	add(small)
+	compositionDeclaration := bytes.Replace(declaration, []byte("fixture.parent"), []byte("fixture.composition"), 1)
+	composition := archivedFixture(t, repo, "fixture.composition", `print(lib.fixture.natural_small().head(1)[0])`, compositionDeclaration)
+	add(composition)
 	var domainCalls, recordCalls atomic.Int32
 	var failCapture atomic.Bool
 	failCapture.Store(true)
@@ -348,7 +395,7 @@ print({"status":"ok","evidence":["generic-envelope"]})`, genericDeclaration)
 	defer runner.Close()
 	runner.SetLibraryProvider(func() []programs.LibrarySpec { return specs })
 	manager := sessions.NewManager(sessions.Options{OnReclaimed: runner.KillSession})
-	service := programs.NewService(programs.Options{Store: db, Runner: runner, OnTerminal: store.Recover})
+	service := programs.NewService(programs.Options{Store: db, Runner: runner, OnTerminal: store.Recover, AuthorizeSession: manager.AuthorizeSubmission})
 	bridge := &Bridge{Store: store, Contracts: index, Library: repo, Sessions: manager, Programs: service}
 	mux.Handle("/internal/program-runtime/tasks/", bridge)
 	declared := libraryH.DeclaredRunner(nil, index, libraryH.RunDependencies{Repository: repo, Sessions: manager, Programs: service})
@@ -430,6 +477,127 @@ print({"status":"ok","evidence":["generic-envelope"]})`, genericDeclaration)
 	genericResponse, err := declared.RunDeclaredProgram(ctx, connect.NewRequest(&libraryv1.RunDeclaredProgramRequest{Name: generic.ID, ExpectedDigest: generic.Digest, Inputs: inputs, Provenance: programsv1.Provenance_PROVENANCE_AGENT}))
 	require.NoError(t, err)
 	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, genericResponse.Msg.Program.Status, genericResponse.Msg.Program.FailureDetail)
+
+	largeSession, err := manager.Create(ctx, "large-replay", "", nil)
+	require.NoError(t, err)
+	largeToken := "prt_resume_v1_" + strings.Repeat("A", 43)
+	source := fmt.Sprintf(`import json
+h = tasks.run(operation="fixture.large", inputs={}, task_id="large-task", attempt_id="large-attempt", resume_token=%q)
+r = h.head(1)[0]
+print(json.dumps({"status":r["status"],"evidence":r["evidence"],"errors":r["errors"],"size":len(json.dumps(r).encode()),"resume_token":r["learning"]["resume_token"],"meta":h.meta()}))`, largeToken)
+	before := domainCalls.Load()
+	for i := 0; i < 2; i++ {
+		p, err := service.Submit(ctx, largeSession.ID, source, programsv1.Provenance_PROVENANCE_TEST, false)
+		require.NoError(t, err)
+		require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, p.Status, p.FailureDetail)
+		var observed struct {
+			Status      string   `json:"status"`
+			Evidence    []string `json:"evidence"`
+			Size        int      `json:"size"`
+			ResumeToken string   `json:"resume_token"`
+			Meta        struct {
+				Digest                 string `json:"digest"`
+				OutputSchemaValidation struct {
+					State string `json:"state"`
+				} `json:"output_schema_validation"`
+				OutputContract struct {
+					Status struct {
+						Enum []string `json:"enum"`
+					} `json:"status"`
+				} `json:"output_contract"`
+			} `json:"meta"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(p.Stdout), &observed))
+		require.Equal(t, "ok", observed.Status, p.Stdout)
+		require.Equal(t, []string{"artifact:verified"}, observed.Evidence)
+		require.Greater(t, observed.Size, 4096)
+		require.Equal(t, largeToken, observed.ResumeToken)
+		require.Equal(t, large.Digest, observed.Meta.Digest)
+		require.Equal(t, "not_declared", observed.Meta.OutputSchemaValidation.State)
+		require.Equal(t, []string{"ok", "partial"}, observed.Meta.OutputContract.Status.Enum)
+	}
+	require.EqualValues(t, before+1, domainCalls.Load(), "replay must not repeat the domain effect")
+	stored, err := store.Get(ctx, "large-attempt")
+	require.NoError(t, err)
+	require.Equal(t, "completed", stored.State)
+	require.Equal(t, []any{"artifact:verified"}, stored.Result["evidence"])
+	signals, ok := stored.Result["signals"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, strings.Repeat("x", 3200), signals["domain_padding"])
+	require.Equal(t, strings.Repeat("x", 1200), signals["finalized_padding"])
+
+	naturalSession, err := manager.Create(ctx, "natural-learning", "", nil)
+	require.NoError(t, err)
+	before = domainCalls.Load()
+	naturalSource := `import json
+r = lib.fixture.natural().head(1)[0]
+print(json.dumps({"status":r["status"],"evidence":r["evidence"],"size":len(json.dumps(r).encode()),"learning":r["learning"]}))`
+	learned, err := service.Submit(ctx, naturalSession.ID, naturalSource, programsv1.Provenance_PROVENANCE_TEST, false)
+	require.NoError(t, err)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, learned.Status, learned.FailureDetail)
+	var naturalResult struct {
+		Status   string         `json:"status"`
+		Evidence []string       `json:"evidence"`
+		Size     int            `json:"size"`
+		Learning map[string]any `json:"learning"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(learned.Stdout), &naturalResult))
+	require.Equal(t, "ok", naturalResult.Status)
+	require.Equal(t, []string{"artifact:verified"}, naturalResult.Evidence)
+	require.Greater(t, naturalResult.Size, 4096)
+	naturalAttempt, ok := naturalResult.Learning["attempt_id"].(string)
+	require.True(t, ok)
+	naturalToken, ok := naturalResult.Learning["resume_token"].(string)
+	require.True(t, ok, "a live learning result must retain recovery authority")
+	require.True(t, validReceipt.MatchString(naturalToken))
+	require.NoError(t, db.QueryRow("SELECT stdout FROM programs WHERE id=?", learned.Id).Scan(&persisted))
+	require.NotContains(t, persisted, naturalToken)
+	recoverySession, err := manager.Create(ctx, "natural-recovery", "", nil)
+	require.NoError(t, err)
+	denied, err := service.Submit(ctx, recoverySession.ID,
+		fmt.Sprintf("tasks.get(attempt_id=%q)", naturalAttempt), programsv1.Provenance_PROVENANCE_TEST, false)
+	require.NoError(t, err)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, denied.Status)
+	recovered, err := service.Submit(ctx, recoverySession.ID,
+		fmt.Sprintf("import json\nr = tasks.get(attempt_id=%q, resume_token=%q).head(1)[0]\nprint(json.dumps({'state':r['state'],'evidence':r['result']['evidence']}))", naturalAttempt, naturalToken),
+		programsv1.Provenance_PROVENANCE_TEST, false)
+	require.NoError(t, err)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, recovered.Status, recovered.FailureDetail)
+	require.Contains(t, recovered.Stdout, `"state": "completed"`)
+	require.Contains(t, recovered.Stdout, `"artifact:verified"`)
+	require.EqualValues(t, before+1, domainCalls.Load(), "inspection must not repeat the domain effect")
+
+	nestedSession, err := manager.Create(ctx, "nested-learning", "", nil)
+	require.NoError(t, err)
+	rootToken := "prt_resume_v1_" + strings.Repeat("B", 43)
+	nestedSource := fmt.Sprintf(`import json
+r = tasks.run(operation="fixture.composition", inputs={}, task_id="outer-task", attempt_id="outer-attempt", resume_token=%q).head(1)[0]
+print(json.dumps({"status":r["status"], "evidence":r["evidence"], "resume_token":r["learning"]["resume_token"]}))`, rootToken)
+	nested, err := service.Submit(ctx, nestedSession.ID, nestedSource, programsv1.Provenance_PROVENANCE_TEST, false)
+	require.NoError(t, err)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, nested.Status, nested.FailureDetail)
+	var nestedResult struct {
+		Status      string   `json:"status"`
+		Evidence    []string `json:"evidence"`
+		ResumeToken string   `json:"resume_token"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(nested.Stdout), &nestedResult))
+	require.Equal(t, "ok", nestedResult.Status, nested.Stdout)
+	require.Equal(t, []string{"artifact:verified"}, nestedResult.Evidence)
+	require.Equal(t, rootToken, nestedResult.ResumeToken, "nested learning must not replace the outer recovery receipt")
+	require.NoError(t, db.QueryRow("SELECT stdout FROM programs WHERE id=?", nested.Id).Scan(&persisted))
+	require.NotContains(t, persisted, rootToken)
+	rootRecord, err := store.Get(ctx, "outer-attempt")
+	require.NoError(t, err)
+	childLearning, ok := rootRecord.Result["learning"].(map[string]any)
+	require.True(t, ok)
+	childToken, ok := childLearning["resume_token"].(string)
+	require.True(t, ok)
+	require.True(t, validReceipt.MatchString(childToken))
+	var rawRecord string
+	require.NoError(t, db.QueryRow("SELECT record FROM learning_tasks WHERE attempt_id=?", "outer-attempt").Scan(&rawRecord))
+	require.NotContains(t, rawRecord, childToken, "nested recovery receipts must not be persisted in plaintext")
+	require.NotContains(t, rawRecord, rootToken)
 }
 
 func TestValidateCompletionAcceptsParentFirstLearningTree(t *testing.T) {
@@ -472,7 +640,7 @@ func TestPortableLearningAcrossFreshKernelsWithoutOptionalServices(t *testing.T)
 		return []programs.LibrarySpec{{Name: contract.Name, Scenario: contract.Scenario, Contract: true, Current: true, Source: contract.Source, Declaration: contract.Declaration, Digest: contract.Digest}}
 	})
 	manager := sessions.NewManager(sessions.Options{OnReclaimed: runner.KillSession})
-	service := programs.NewService(programs.Options{Store: db, Runner: runner, OnTerminal: store.Recover})
+	service := programs.NewService(programs.Options{Store: db, Runner: runner, OnTerminal: store.Recover, AuthorizeSession: manager.AuthorizeSubmission})
 	bridge := &Bridge{Store: store, Contracts: index, Library: repo, Sessions: manager, Programs: service}
 	mux.Handle("/internal/program-runtime/tasks/", bridge)
 	declared := libraryH.DeclaredRunner(nil, index, libraryH.RunDependencies{Repository: repo, Sessions: manager, Programs: service})
@@ -561,23 +729,64 @@ func TestBaselinePublicationPreservesSourceAndRequiresCurrentOperatorReview(t *t
 	session, err := manager.Create(ctx, "publication", "", nil)
 	require.NoError(t, err)
 	service := programs.NewService(programs.Options{})
-	bridge := &Bridge{Store: store, Contracts: contracts.NewIndex(), Library: repo, Sessions: manager, Programs: service, RepoRoot: root}
+	kernel, err := filepath.Abs("../../../kernel/host/engine.py")
+	require.NoError(t, err)
+	bridge := &Bridge{Store: store, Contracts: contracts.NewIndex(), Library: repo, Sessions: manager, Programs: service, RepoRoot: root, ReplayKernelPath: kernel}
 	body := map[string]any{"session_id": session.ID, "operation": c.ID, "digest": c.Digest, "step_key": f.StepKey, "step_name": f.StepName, "min_verified": 5, "baseline": baseline}
-	post := func(provenance programsv1.Provenance, want int) {
-		program, err := service.Submit(ctx, session.ID, "print(1)", provenance, false)
+	verify := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: token == "agent-token", Claims: &cliutil.VerifiedClaims{RunID: "agent-run"}}, nil
+	})
+	ingress := provenance.Middleware(verify)(authn.Middleware(authn.Config{Providers: []authn.Provider{authn.NewPersonalLocalProviderWithSessionToken("human-test-token")}})(bridge))
+	post := func(human, agent bool, claimed programsv1.Provenance, want int) {
+		program, err := service.Submit(ctx, session.ID, "print(1)", claimed, false)
 		require.NoError(t, err)
 		body["program_id"] = program.Id
 		raw, err := json.Marshal(body)
 		require.NoError(t, err)
 		response := httptest.NewRecorder()
-		bridge.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/internal/program-runtime/tasks/fragment_publish", bytes.NewReader(raw)))
+		request := httptest.NewRequest(http.MethodPost, "/internal/program-runtime/tasks/fragment_publish", bytes.NewReader(raw))
+		request.RemoteAddr = "127.0.0.1:12345"
+		if human {
+			request.Header.Set("Authorization", "Bearer human-test-token")
+		}
+		if agent {
+			request.Header.Set(cliutil.HeaderAgentIdentityToken, "agent-token")
+		}
+		ingress.ServeHTTP(response, request)
 		require.Equal(t, want, response.Code, response.Body.String())
 	}
-	post(programsv1.Provenance_PROVENANCE_AGENT, http.StatusForbidden)
+	post(false, false, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusForbidden)
+	post(false, true, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusForbidden)
+	post(true, true, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusForbidden)
+	post(true, false, programsv1.Provenance_PROVENANCE_AGENT, http.StatusForbidden)
 	unchanged, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, declaration, unchanged)
-	post(programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusOK)
+	// Even an independently verified human cannot bypass owner fixture replay
+	// by posting a reviewed-looking artifact directly to the bridge.
+	malformed := make(map[string]any, len(baseline))
+	for key, value := range baseline {
+		malformed[key] = value
+	}
+	malformed["fixtures"] = []any{map[string]any{"inputs": map[string]any{"value": "alpha"}, "expected": map[string]any{"value": "incorrect"}}}
+	delete(malformed, "digest")
+	canonical, err := json.Marshal(malformed)
+	require.NoError(t, err)
+	digest := sha256.Sum256(canonical)
+	malformed["digest"] = hex.EncodeToString(digest[:])
+	body["baseline"] = malformed
+	post(true, false, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusConflict)
+	body["baseline"] = baseline
+	unchanged, err = os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, declaration, unchanged)
+	bridge.ReplayKernelPath = ""
+	post(true, false, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusConflict)
+	bridge.ReplayKernelPath = kernel
+	unchanged, err = os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, declaration, unchanged)
+	post(true, false, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusOK)
 	published, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var result map[string]any
@@ -586,7 +795,7 @@ func TestBaselinePublicationPreservesSourceAndRequiresCurrentOperatorReview(t *t
 	unchanged, err = os.ReadFile(filepath.Join(root, "example.py"))
 	require.NoError(t, err)
 	require.Equal(t, source, unchanged)
-	post(programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusConflict)
+	post(true, false, programsv1.Provenance_PROVENANCE_OPERATOR, http.StatusConflict)
 }
 
 // A promoted fragment must stop counting as a promotion candidate, or the setpoint row that

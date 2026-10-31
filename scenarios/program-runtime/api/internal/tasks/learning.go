@@ -446,11 +446,20 @@ func (s *Store) RouteFindings(ctx context.Context) error {
 
 // DrainFeedback projects feedback into the original task's Memory scope. The
 // runtime eligibility transaction is authoritative even while Memory is down.
+func (s *Store) malformedFeedbackCount(ctx context.Context) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM learning_feedback_delivery WHERE state='pending' AND COALESCE("+dueUTCGuardSQL+",0)=0").Scan(&count)
+	return count, err
+}
+
 func (s *Store) DrainFeedback(ctx context.Context, now time.Time, deliver Deliver) error {
 	if deliver == nil {
 		return nil
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT f.observation_id,f.record,f.created_at,r.record,d.attempts FROM learning_feedback_delivery d JOIN learning_feedback f ON f.observation_id=d.observation_id JOIN learning_results r ON r.feedback_ref=f.feedback_ref WHERE d.state='pending' AND d.next_attempt_at<=? ORDER BY d.next_attempt_at LIMIT 32`, now.UTC().Format(time.RFC3339Nano))
+	due := strings.ReplaceAll(dueOrderSQL, "next_attempt_at", "d.next_attempt_at")
+	guard := strings.ReplaceAll(dueUTCGuardSQL, "next_attempt_at", "d.next_attempt_at")
+	query := `SELECT f.observation_id,f.record,f.created_at,r.record,d.attempts FROM learning_feedback_delivery d JOIN learning_feedback f ON f.observation_id=d.observation_id JOIN learning_results r ON r.feedback_ref=f.feedback_ref WHERE d.state='pending' AND ` + guard + ` AND ` + due + `<=? ORDER BY ` + due + `, d.observation_id LIMIT 32`
+	rows, err := s.db.QueryContext(ctx, query, now.UTC().Format(dueTimeFormat))
 	if err != nil {
 		return err
 	}
@@ -482,6 +491,9 @@ func (s *Store) DrainFeedback(ctx context.Context, now time.Time, deliver Delive
 			return err
 		}
 		record, deliveryErr := s.Get(ctx, result.AttemptID)
+		if deliveryErr == nil && record.receiptUnavailable {
+			deliveryErr = errors.New("original task receipt unavailable after restart; owner reconciliation required")
+		}
 		if deliveryErr == nil && (record.State != "completed" || record.FinishInputs == nil || record.FinishDigest == "") {
 			deliveryErr = errors.New("original task capture or Memory contract unavailable")
 		}
@@ -572,12 +584,158 @@ func (s *Store) FeedbackDeliveryMetrics(ctx context.Context) (map[string]any, er
 // RequeueUnpinned adopts a finish contract only for captures admitted before
 // Memory was installed. Previously pinned implementations are never replaced.
 func (s *Store) RequeueUnpinned(ctx context.Context, digest string) error {
+	_, err := s.requeueUnpinnedPage(ctx, digest, "")
+	return err
+}
+
+// requeueScan is a bounded owner checkpoint; it contains no result or receipt.
+// The selected finish digest is fixed for the entire scan across restarts.
+type requeueScan struct {
+	digest, cursor, watermark   string
+	rowid                       int64
+	unresolved, cycleUnresolved bool
+	lastAttempt                 time.Time
+}
+
+const requeueEligible = `delivery='blocked' AND COALESCE(parent_attempt_id,'')='' AND CASE WHEN json_valid(record) THEN json_extract(record,'$.finish_digest')='' AND json_extract(record,'$.last_error')='memory_not_installed' AND json_type(record,'$.finish_inputs')='object' ELSE 0 END`
+
+func (s *Store) loadRequeueScan(ctx context.Context) (requeueScan, error) {
+	var state requeueScan
+	var unresolved, cycle int
+	var lastAttempt string
+	err := s.db.QueryRowContext(ctx, `SELECT digest,cursor_id,watermark_id,watermark_rowid,unresolved,cycle_unresolved,last_attempt FROM learning_task_requeue_scan WHERE singleton=1`).Scan(&state.digest, &state.cursor, &state.watermark, &state.rowid, &unresolved, &cycle, &lastAttempt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return state, nil
+	}
+	if err != nil {
+		return state, err
+	}
+	if (unresolved != 0 && unresolved != 1) || (cycle != 0 && cycle != 1) {
+		return state, errors.New("invalid requeue observation checkpoint")
+	}
+	state.unresolved, state.cycleUnresolved = unresolved == 1, cycle == 1
+	if lastAttempt != "" {
+		state.lastAttempt, err = time.Parse(time.RFC3339Nano, lastAttempt)
+		if err != nil {
+			return state, errors.New("invalid requeue attempt checkpoint")
+		}
+	}
+	if state.digest == "" {
+		if state.cursor != "" || state.watermark != "" || state.rowid != 0 || state.cycleUnresolved {
+			return state, errors.New("incomplete requeue checkpoint")
+		}
+	} else if len(state.digest) > 256 || state.watermark == "" || state.rowid <= 0 || state.cursor > state.watermark {
+		return state, errors.New("invalid requeue scan checkpoint")
+	}
+	return state, nil
+}
+
+func (s *Store) saveRequeueScan(ctx context.Context, state requeueScan) error {
+	lastAttempt := ""
+	if !state.lastAttempt.IsZero() {
+		lastAttempt = state.lastAttempt.UTC().Format(time.RFC3339Nano)
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO learning_task_requeue_scan(singleton,digest,cursor_id,watermark_id,watermark_rowid,unresolved,cycle_unresolved,last_attempt) VALUES(1,?,?,?,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET digest=excluded.digest,cursor_id=excluded.cursor_id,watermark_id=excluded.watermark_id,watermark_rowid=excluded.watermark_rowid,unresolved=excluded.unresolved,cycle_unresolved=excluded.cycle_unresolved,last_attempt=excluded.last_attempt`, state.digest, state.cursor, state.watermark, state.rowid, state.unresolved, state.cycleUnresolved, lastAttempt)
+	return err
+}
+
+func (s *Store) requeueOne(ctx context.Context, id, digest string) error {
+	_, err := s.Update(ctx, id, func(r *Record) error {
+		if r.FinishDigest != "" || r.LastError != "memory_not_installed" {
+			return nil
+		}
+		r.FinishDigest, r.LastError, r.Delivery = digest, "", "pending"
+		r.NextAttemptAt = time.Now().UTC().Format(time.RFC3339Nano)
+		return nil
+	})
+	return err
+}
+
+// requeueDurable advances at most one page, including failures, and checkpoints
+// each inspected ID. It must run under the Runtime process's drainer gate.
+func (s *Store) requeueDurable(ctx context.Context, digest string) error {
 	if digest == "" || len(digest) > 256 {
 		return errors.New("bounded finish digest required")
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT record FROM learning_tasks WHERE delivery='blocked' AND COALESCE(parent_attempt_id,'')='' AND json_extract(record,'$.finish_digest')='' AND json_extract(record,'$.last_error')='memory_not_installed' LIMIT 100")
+	state, err := s.loadRequeueScan(ctx)
 	if err != nil {
 		return err
+	}
+	var malformed int
+	if err = s.db.QueryRowContext(ctx, `SELECT count(*) FROM learning_tasks WHERE delivery='blocked' AND NOT json_valid(record)`).Scan(&malformed); err != nil {
+		return err
+	}
+	if state.digest == "" {
+		state.cycleUnresolved = false
+		if err = s.db.QueryRowContext(ctx, "SELECT COALESCE(MAX(attempt_id),''),COALESCE(MAX(rowid),0) FROM learning_tasks WHERE "+requeueEligible).Scan(&state.watermark, &state.rowid); err != nil {
+			return err
+		}
+		if state.watermark == "" {
+			state.rowid, state.unresolved = 0, false
+			if err = s.saveRequeueScan(ctx, state); err != nil {
+				return err
+			}
+			if malformed > 0 {
+				return errors.New("blocked task records contain malformed JSON; owner reconciliation required")
+			}
+			return nil
+		}
+		state.digest = digest
+		if err = s.saveRequeueScan(ctx, state); err != nil {
+			return err
+		}
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT attempt_id FROM learning_tasks WHERE "+requeueEligible+" AND rowid<=? AND attempt_id>? AND attempt_id<=? ORDER BY attempt_id LIMIT 100", state.rowid, state.cursor, state.watermark)
+	if err != nil {
+		return err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			rows.Close()
+			return err
+		}
+		ids = append(ids, id)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		updateErr := s.requeueOne(ctx, id, state.digest)
+		if updateErr != nil {
+			state.unresolved, state.cycleUnresolved = true, true
+		}
+		state.cursor = id
+		if err = s.saveRequeueScan(ctx, state); err != nil {
+			return err
+		}
+	}
+	if len(ids) < 100 {
+		state.unresolved = state.cycleUnresolved
+		state.digest, state.cursor, state.watermark, state.rowid, state.cycleUnresolved = "", "", "", 0, false
+		if err = s.saveRequeueScan(ctx, state); err != nil {
+			return err
+		}
+	}
+	if state.unresolved || malformed > 0 {
+		return errors.New("blocked task requeue has unresolved or malformed records; owner reconciliation required")
+	}
+	return nil
+}
+
+func (s *Store) requeueUnpinnedPage(ctx context.Context, digest, after string) (string, error) {
+	if digest == "" || len(digest) > 256 {
+		return after, errors.New("bounded finish digest required")
+	}
+	rows, err := s.db.QueryContext(ctx, "SELECT record FROM learning_tasks WHERE delivery='blocked' AND COALESCE(parent_attempt_id,'')='' AND json_extract(record,'$.finish_digest')='' AND json_extract(record,'$.last_error')='memory_not_installed' AND json_type(record,'$.finish_inputs')='object' AND attempt_id>? ORDER BY attempt_id LIMIT 100", after)
+	if err != nil {
+		return after, err
 	}
 	ids := []string{}
 	for rows.Next() {
@@ -585,11 +743,11 @@ func (s *Store) RequeueUnpinned(ctx context.Context, digest string) error {
 		var r Record
 		if err = rows.Scan(&body); err != nil {
 			rows.Close()
-			return err
+			return after, err
 		}
 		if err = json.Unmarshal([]byte(body), &r); err != nil {
 			rows.Close()
-			return err
+			return after, err
 		}
 		if r.FinishDigest == "" && r.LastError == "memory_not_installed" && r.FinishInputs != nil {
 			ids = append(ids, r.AttemptID)
@@ -601,22 +759,21 @@ func (s *Store) RequeueUnpinned(ctx context.Context, digest string) error {
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
-		return err
+		return after, err
 	}
+	var failures error
 	for _, id := range ids {
-		_, err = s.Update(ctx, id, func(r *Record) error {
-			if r.FinishDigest != "" || r.LastError != "memory_not_installed" {
-				return nil
-			}
-			r.FinishDigest = digest
-			r.LastError = ""
-			r.Delivery = "pending"
-			r.NextAttemptAt = time.Now().UTC().Format(time.RFC3339Nano)
-			return nil
-		})
-		if err != nil {
-			return err
+		if err := ctx.Err(); err != nil {
+			return after, errors.Join(failures, err)
 		}
+		err = s.requeueOne(ctx, id, digest)
+		if err != nil {
+			failures = errors.Join(failures, fmt.Errorf("requeue task %s: %w", id, err))
+		}
+		after = id
 	}
-	return nil
+	if len(ids) < 100 {
+		after = ""
+	}
+	return after, failures
 }

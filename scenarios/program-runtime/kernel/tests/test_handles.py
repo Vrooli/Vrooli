@@ -111,15 +111,16 @@ def test_binding_response_refuses_ambiguous_repeated_fields_with_candidates():
             "scenario": "fixture",
             "group": "query",
             "command": "run",
-            "effect": "read",
+            "effect": "write",
             "row_field_candidates": ["first", "second"],
         }
     ], session_id="phase-1", bridge_url="http://bridge/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]):
+    with patch("host.engine.urllib.request.urlopen", side_effect=[ReachabilityResponse(), Response()]) as invoke:
         result = kernel.execute("fixture.query.run()")
     assert not result["ok"]
     assert "fixture/query/run" in result["error"]
     assert "first, second" in result["error"]
+    invoke.assert_not_called()
 
 
 def test_binding_response_accepts_explicit_rows_projection():
@@ -495,6 +496,37 @@ def test_nested_contract_returns_envelope_without_leaking_stdout():
     assert result["stdout"].strip() == "{'parent': 'observed'}"
 
 
+def test_nested_contract_handle_carries_declared_output_enums():
+    outputs = {
+        "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+        "phase": {"enum": ["collect", "report"]},
+        "errors": {"classes": ["child_error", "no_grant"]},
+    }
+    kernel = SessionKernel(libraries=[{
+        "name": "demo.child", "scenario": "demo", "contract": True,
+        "input_names": [], "current": True,
+        "declaration": {"outputs": outputs},
+        "source": "print({'status':'ok','phase':'report','signals':{},'errors':[],'evidence':[]})",
+    }])
+    result = kernel.execute("print(lib.demo.child().meta()['output_contract'])")
+    assert result["ok"]
+    assert "'child_error'" in result["stdout"]
+
+
+def test_nested_schema_metadata_does_not_claim_enforcement():
+    spec = {"name": "demo.child", "scenario": "demo", "contract": True,
+            "current": True, "digest": "pinned", "declaration": {"output_schema": "schema.json"},
+            "source": "print({'status':'partial','signals':{'value':7}})"}
+    kernel = SessionKernel(libraries=[spec])
+    result = kernel.execute("import json\nh = lib.demo.child()\nprint(json.dumps({'meta':h.meta(), 'value':h.head(1)[0]}))")
+    assert result["ok"]
+    import json
+    value = json.loads(result["stdout"])
+    assert value["value"]["signals"]["value"] == 7
+    assert value["meta"]["output_schema_validation"] == {
+        "state": "unavailable", "reason": "nested_schema_validation_unavailable"}
+
+
 def test_nested_contract_rejects_multiple_output_envelopes():
     kernel = SessionKernel(libraries=[{
         "name": "demo.child", "scenario": "demo", "contract": True,
@@ -516,3 +548,36 @@ def test_nested_contract_accepts_serialized_json_object_only():
         assert result["ok"] is accepted
         if accepted:
             assert result["stdout"].strip() == "partial"
+
+
+def test_nested_contract_rejects_duplicate_json_keys_at_any_depth():
+    for text in ('{"status":"ok","status":"failed"}',
+                 '{"status":"partial","signals":{"x":1,"x":2}}'):
+        kernel = SessionKernel(libraries=[{
+            "name": "demo.child", "scenario": "demo", "contract": True,
+            "input_names": [], "current": True, "source": f"print({text!r})",
+        }])
+        result = kernel.execute("lib.demo.child()")
+        assert not result["ok"]
+        assert "duplicate JSON keys" in result["error"]
+
+
+def test_nested_contract_checks_finalized_size_and_preserves_partial():
+    kernel = SessionKernel(libraries=[{
+        "name": "demo.child", "scenario": "demo", "contract": True,
+        "input_names": [], "current": True,
+        "declaration": {"budget": {"output_bytes": 180}},
+        "source": "print({'status':'partial','signals':{'value':7},'errors':[],'evidence':['observed']})",
+    }])
+    with patch("host.engine.Learn.finalize", side_effect=lambda value: {**value, "learning": {"note": "x" * 200}}):
+        result = kernel.execute("lib.demo.child()")
+    assert not result["ok"]
+    assert "exceeds 180 bytes after finalization" in result["error"]
+
+    with patch("host.engine.Learn.finalize", side_effect=lambda value: {**value, "learning": {"note": "ok"}}):
+        result = kernel.execute("print(lib.demo.child().head(1)[0])")
+    assert result["ok"]
+    assert "'status': 'partial'" in result["stdout"]
+    assert "'value': 7" in result["stdout"]
+    assert "'observed'" in result["stdout"]
+    assert "'learning': {'note': 'ok'}" in result["stdout"]

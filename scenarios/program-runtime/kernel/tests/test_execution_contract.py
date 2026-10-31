@@ -74,7 +74,8 @@ def test_demand_managed_binding_reaches_go_bridge_without_preflight():
     kernel = SessionKernel([
         {"id": "memory/recall/run", "scenario": "memory", "group": "recall", "command": "run", "effect": "read", "reachable": False, "reachability_reason": "scenario API is not running", "demand_start": True},
     ], bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", side_effect=urlopen):
+    with patch("host.engine.urllib.request.build_opener") as opener:
+        opener.return_value.open.side_effect = urlopen
         result = kernel.execute("print(memory.recall.run().head(1)[0])")
     assert result["ok"]
     assert calls == ["http://127.0.0.1:1/internal/program-runtime/bindings/execute"]
@@ -130,7 +131,8 @@ def test_describe_reads_live_binding_contract_from_registry_bridge():
             return b'{"arguments":[{"name":"scenario","protoPath":"scenario","kind":"raw_string","required":true}]}'
 
     kernel = SessionKernel(session_id="session-1", bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", return_value=Response()):
+    with patch("host.engine.urllib.request.build_opener") as opener:
+        opener.return_value.open.return_value = Response()
         result = kernel.execute('print(describe("test-genie/runs/list").head(1))')
     assert result["ok"]
     assert "scenario" in result["stdout"]
@@ -147,7 +149,8 @@ def test_describe_surfaces_named_registry_error():
         {},
         io.BytesIO(b'{"error":"binding \\\"missing\\\" is not governed"}'),
     )
-    with patch("host.engine.urllib.request.urlopen", side_effect=error):
+    with patch("host.engine.urllib.request.build_opener") as opener:
+        opener.return_value.open.side_effect = error
         result = kernel.execute('describe("missing")')
     assert not result["ok"]
     assert "missing" in result["error"]
@@ -357,10 +360,11 @@ def test_describe_accepts_binding_id_alias():
             return b'{"arguments":[{"name":"scenario"}]}'
 
     namespace = Namespace(session_id="session", bridge_url="http://127.0.0.1:1/internal/program-runtime/bindings/execute")
-    with patch("host.engine.urllib.request.urlopen", return_value=Response()) as open_url:
+    with patch("host.engine.urllib.request.build_opener") as opener:
+        opener.return_value.open.return_value = Response()
         result = namespace.describe(binding_id="test-genie/runs/list")
     assert result.head(1)[0]["name"] == "scenario"
-    assert open_url.call_args.args[0].data == b'{"session_id": "session", "binding": "test-genie/runs/list"}'
+    assert opener.return_value.open.call_args.args[0].data == b'{"session_id": "session", "binding": "test-genie/runs/list"}'
 
     with pytest.raises(TypeError, match=r"binding=.*binding_id=|binding_id=.*binding="):
         namespace.describe(binding="canonical", binding_id="alias")

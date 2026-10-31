@@ -30,7 +30,10 @@ CREATE TABLE IF NOT EXISTS programs (
   usage_accounting_complete INTEGER NOT NULL DEFAULT 0,
   usage_charge_measured INTEGER NOT NULL DEFAULT 0,
   usage_basis TEXT NOT NULL DEFAULT '',
-  caller_identity_verified INTEGER NOT NULL DEFAULT 0
+  caller_identity_verified INTEGER NOT NULL DEFAULT 0,
+  source_receipt_format INTEGER NOT NULL DEFAULT 0,
+  stdout_receipt_format INTEGER NOT NULL DEFAULT 0,
+  failure_detail_receipt_format INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_programs_session ON programs(session_id);

@@ -105,7 +105,7 @@ A run below floor is a stop: no other route runs until the corpus route (§5) ha
 | Filing | uncovered-recurring-shapes with a covered recurring shape | File a discovery finding against program-runtime. Name the failed intent query and the covering contract. | uncovered-recurring-shapes |
 | Filing | promotable-fragments above 0 | Run the fragment-promotion route for each verified candidate; promotion remains a curation decision and must preserve a fixture. | promotable-fragments |
 | Filing | attribution pending | `report-bug` against agent-manager: subscribe to program-runtime and ai-gateway events; carry `program_id` on invocation facts when the executable is `program-runtime` | attribution |
-| Filing | external-friction recurring fingerprint | Read the fingerprint's episode; if the command is program-runtime's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
+| Filing | external-friction recurring fingerprint | Read the fingerprint's finding (`agent-manager usage friction`); if the command is program-runtime's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
 | Filing | fleet-improve-coverage below band | For each scenario missing a role, file one `skill-set-authoring` run against its owner with the invocation count as the reason; never author into that scenario from here | fleet-improve-coverage |
 
 ### Durable learning owner queue

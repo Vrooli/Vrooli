@@ -121,7 +121,7 @@
         "agent-manager",
         "ai-gateway"
       ],
-      "note": "Expects the status the program should produce. On 2026-09-02 the delegation bridge is broken: agent.start returned NOT_FOUND_WORKFLOWREVISION for development-toolchain-validator/skill-experiment-audit (the smoke workflow is no longer declared) and, before that, schema_mismatch on the workflow input; the live run therefore ends failed/workflow_rejected until the bridge route lands (program-runtime-improve §5 delegation-live). A fixture never pins that broken outcome."
+      "note": "Expects successful delegation and classification. On 2026-10-30 the workflow was active, but a Test Genie delegation fixture lacked verified caller identity and was rejected before starting a child. Exercise with an appropriately authorized verified caller; do not treat a rejected start as success."
     },
     {
       "id": "empty-requests",

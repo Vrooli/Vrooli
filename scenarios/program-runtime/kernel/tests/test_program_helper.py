@@ -157,7 +157,8 @@ def test_bridge_binding_raises_typed_exception_from_structured_body():
         "try:\n    demo.work.run()\nexcept program.RemoteError as exc:\n"
         "    print(json.dumps({'k': exc.klass, 's': exc.status, 'h': exc.http_status, 'b': exc.binding_id}))\n"
     )
-    with patch("host.engine.urllib.request.urlopen", side_effect=failing_execute(error)):
+    with patch("host.engine.urllib.request.build_opener") as opener:
+        opener.return_value.open.side_effect = failing_execute(error)
         result = kernel.execute("import json\n" + source)
     assert result["ok"], result
     assert json.loads(result["stdout"]) == {"k": "remote_error", "s": "failed", "h": 500, "b": "demo/work/run"}
@@ -165,7 +166,8 @@ def test_bridge_binding_raises_typed_exception_from_structured_body():
 
 def test_bridge_binding_transport_failure_is_scenario_unreachable():
     kernel = SessionKernel(BINDINGS, "sess", BRIDGE, "", "", [])
-    with patch("host.engine.urllib.request.urlopen", side_effect=failing_execute(urllib.error.URLError("connection refused"))):
+    with patch("host.engine.urllib.request.build_opener") as opener:
+        opener.return_value.open.side_effect = failing_execute(urllib.error.URLError("connection refused"))
         result = kernel.execute("try:\n    demo.work.run()\nexcept program.ScenarioUnreachable as exc:\n    print(program.classify(exc))")
     assert result["ok"], result
     assert "('unavailable', 'scenario_unreachable')" in result["stdout"]
@@ -211,6 +213,99 @@ def test_classify_never_relabels_a_missing_kernel_name():
         helper.classify(AttributeError("x"))
     assert helper.classify(RuntimeError("binding x is unreachable")) == ("unavailable", "scenario_unreachable")
     assert helper.classify(KeyError("rate")) == ("failed", "binding_error")
+
+
+class ChildHandle:
+    def __init__(self, rows, output_contract=None):
+        self.rows = rows
+        self.output_contract = output_contract
+
+    def count(self):
+        return len(self.rows)
+
+    def head(self, count):
+        return self.rows[:count]
+
+    def meta(self):
+        result = {"program": "demo.child", "version": "1"}
+        if self.output_contract is not None:
+            result["output_contract"] = self.output_contract
+        return result
+
+
+PARENT_OUTPUTS = {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["collect", "report"]},
+    "errors": {"classes": ["invalid_response", "child_error"]},
+}
+CHILD_OUTPUTS = {
+    "status": {"enum": ["ok", "partial", "unavailable", "refused", "failed"]},
+    "phase": {"enum": ["collect", "report"]},
+    "errors": {"classes": ["child_error", "no_grant"]},
+}
+
+
+def test_child_envelope_preserves_valid_status_and_domain_payload_without_mutating_parent():
+    helper = ProgramHelper("2", PARENT_OUTPUTS)
+    parent = {"program": "demo.parent", "version": "1", "status": "ok", "phase": "report", "signals": {}, "errors": [], "evidence": []}
+    helper.attach(parent)
+    child = {"program": "demo.child", "version": "1", "status": "partial", "phase": "report",
+             "signals": {"local_candidates": ["owned-1"], "sibling_count": 2},
+             "errors": [{"class": "child_error", "detail": "one leg failed", "where": "collect"}],
+             "evidence": ["owner:record-1"]}
+    actual = helper.child_envelope(ChildHandle([child], CHILD_OUTPUTS), where="collect")
+    assert actual == child
+    assert parent["status"] == "ok"
+    assert actual["signals"]["local_candidates"] == ["owned-1"]
+    assert actual["evidence"] == ["owner:record-1"]
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda row: row.pop("status"),
+    lambda row: row.update(status="unknown"),
+    lambda row: row.update(signals="bad"),
+    lambda row: row.update(errors="bad"),
+    lambda row: row.update(evidence="bad"),
+    lambda row: row.update(errors=[{"class": "undeclared", "detail": "bad", "where": "collect"}]),
+])
+def test_child_envelope_normalizes_invalid_child_shape_and_preserves_valid_siblings(mutate):
+    helper = ProgramHelper("2", PARENT_OUTPUTS)
+    child = {"program": "demo.child", "version": "1", "status": "failed", "phase": "report",
+             "signals": {"local_candidates": ["owned-1"]},
+             "errors": [{"class": "child_error", "detail": "retained", "where": "collect"}],
+             "evidence": ["owner:record-1"]}
+    mutate(child)
+    actual = helper.child_envelope(ChildHandle([child], CHILD_OUTPUTS), where="act")
+    assert actual["status"] == "failed"
+    assert actual["errors"][-1]["class"] == "invalid_response"
+    assert actual["signals"] == (child.get("signals") if isinstance(child.get("signals"), dict) else {})
+    assert actual["evidence"] == (child.get("evidence") if isinstance(child.get("evidence"), list) else [])
+
+
+def test_child_envelope_requires_parent_declared_protocol_error_and_v2():
+    helper = ProgramHelper("2", {**PARENT_OUTPUTS, "errors": {"classes": ["child_error"]}})
+    child = {"program": "demo.child", "version": "1", "status": "ok", "phase": "report", "signals": {}, "errors": [], "evidence": []}
+    with pytest.raises(ValueError, match="parent errors.classes"):
+        helper.child_envelope(ChildHandle([child], CHILD_OUTPUTS))
+    with pytest.raises(RuntimeError, match="version 2"):
+        ProgramHelper("1", PARENT_OUTPUTS).child_envelope(ChildHandle([child], CHILD_OUTPUTS))
+
+
+def test_child_envelope_requires_parent_failed_status_for_protocol_normalization():
+    parent = {**PARENT_OUTPUTS, "status": {"enum": ["ok", "partial", "refused"]}}
+    child = {"program": "demo.child", "version": "1", "status": "ok", "phase": "report", "signals": {}, "errors": [], "evidence": []}
+    with pytest.raises(ValueError, match="parent status.enum must declare 'failed'"):
+        ProgramHelper("2", parent).child_envelope(ChildHandle([child], CHILD_OUTPUTS))
+
+
+def test_child_envelope_without_child_output_metadata_reports_validation_unavailable():
+    helper = ProgramHelper("2", PARENT_OUTPUTS)
+    child = {"program": "demo.child", "version": "1", "status": "confused", "phase": "mystery", "signals": {}, "errors": [], "evidence": []}
+    actual = helper.child_envelope(ChildHandle([child]), where="collect")
+    detail = actual["errors"][-1]["detail"]
+    assert actual["status"] == "failed"
+    assert "child output contract metadata is missing declared status, phase, or error enums" in detail
+    assert "outside its declared enum" not in detail
 
 
 def test_select_field_prefers_first_present_nonempty_across_name_variants():
@@ -347,3 +442,26 @@ def test_library_child_report_is_captured_and_helper_version_is_checked():
     kernel = SessionKernel(BINDINGS, "sess", "", "", "", [stale])
     result = kernel.execute("lib.demo.read()")
     assert not result["ok"] and "program helper version '99'" in result["error"]
+
+
+def test_root_declared_helper_uses_owner_contract_and_does_not_leak_to_raw_submission():
+    child = {
+        "name": "read", "scenario": "demo", "contract": True,
+        "declaration": {"name": "demo.read", "version": "1", "inputs": {}, "budget": {"output_bytes": 4096},
+                        "outputs": CHILD_OUTPUTS},
+        "source": "import json\nprint(json.dumps({'program':'demo.read','version':'1','status':'ok','phase':'report','signals':{},'errors':[],'evidence':[]}))",
+    }
+    kernel = SessionKernel(BINDINGS, "sess", "", "", "", [child])
+    source = "print(program.VERSION, program.child_envelope(lib.demo.read())['status'])"
+    declared = kernel.execute(source, declared_helper_contract={"version": "2", "outputs": PARENT_OUTPUTS})
+    assert declared["ok"] and declared["stdout"].strip() == "2 ok", declared
+
+    raw = kernel.execute(source)
+    assert not raw["ok"] and "must be declared" in raw["error"], raw
+
+    old = kernel.execute(source, declared_helper_contract={"version": "1", "outputs": PARENT_OUTPUTS})
+    assert not old["ok"] and "requires helpers.program version 2" in old["error"], old
+
+    unsupported = kernel.execute("print('should not run')", declared_helper_contract={"version": "99", "outputs": PARENT_OUTPUTS})
+    assert not unsupported["ok"] and "program helper version '99'" in unsupported["error"], unsupported
+    assert unsupported["stdout"] == ""

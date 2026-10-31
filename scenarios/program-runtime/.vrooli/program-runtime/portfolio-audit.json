@@ -91,23 +91,6 @@
       "requires": [
         "program-runtime"
       ]
-    },
-    {
-      "id": "portfolio-unavailable",
-      "inputs": {
-        "min_rung": "S4",
-        "window_days": 1
-      },
-      "expect": {
-        "status": [
-          "partial",
-          "unavailable"
-        ]
-      },
-      "note": "The optional portfolio read must never turn unavailable measurement into a zero score.",
-      "requires": [
-        "program-runtime"
-      ]
     }
   ],
   "outputs": {
@@ -155,7 +138,8 @@
   "assumptions": [
     "The library response is the authoritative parsed contract index for this audit.",
     "Portfolio rows measure the requested window and may be unavailable during a dependency outage.",
-    "A missing measurement is unknown and never a fabricated zero."
+    "A missing measurement is unknown and never a fabricated zero.",
+    "Programs-phase fixtures exercise live dependencies without injecting faults or synthetic data; deterministic source tests in kernel/tests/usage_triage_fixture_test.py cover outage and synthetic candidate behavior."
   ],
   "invariants": [
     "The envelope is printed exactly once, on every path.",

@@ -253,6 +253,8 @@ implementation, the others do not.
 
 1. `library search "<intent>"` first; a promoted hit ends the authoring.
 2. Compose a matching scenario-owned workflow with `lib.<scenario>.<name>(...)`; inspect its status, failures, and artifact metadata before using results. Keep caller judgment in inputs. When no workflow fits, copy the shape of `scenarios/program-runtime/.vrooli/program-runtime/setpoint-read.py`: `envelope = program.envelope(name, version)` first, labeled phase functions that branch on `program.classify(exc)`, `program.run(STATES, "validate")` last, and `program.report()` in the report phase. Do not define `classify_transport`, `fail`, `guarded` or a driver loop locally; the kernel binds them as `program.*` (table in program-contracts.md) and the `programs` phase reports a local copy as `programs.duplicated_helper`.
+
+Programs that consume nested child envelopes can declare `helpers.program: "2"` and call `program.child_envelope(handle)`. It validates the child's declared status, phase, error-class enums, and common field shapes. On protocol failure it returns `failed` with the caller's declared `invalid_response` class while retaining well-typed signals and evidence. It never promotes child status into parent status; callers still choose whether `partial`, `refused`, or `failed` blocks selection, action, or learning. Optional `output_schema` remains fixture-validated rather than automatically enforced at runtime.
 3. Probe every binding's row keys and argument names in a scratch session before the contract names them (`describe("<id>")`, `print(h.head(1)[0].keys())`); `bindings describe <id> --json` for the CLI view.
 4. Write the contract beside the source; validate it against `scenarios/program-runtime/schemas/program-contract.schema.json`.
 5. `programs submit --explain` in a fresh session until `diagnostics` is null.
@@ -276,7 +278,7 @@ A read that can fail on its own (one scenario down among five) is wrapped so the
 
 | Symptom | Setting move | Journal |
 |---|---|---|
-| Program ends `deadline_exceeded` | Resubmit with `--async --wait-timeout 300s` in a new session | the program id and the wall time |
+| Program ends `deadline_exceeded` | Reconcile any possible owner effects before deciding whether a new session and longer wait are safe | the program id, wall time and owner evidence |
 | Program ends `inference_spend_exceeded` | New session with a higher `--inference-ceiling-micros`, only if the contract's `budget.inference_calls` justifies it | old and new ceiling, the contract name |
 | Program ends `refused_no_grant` | `sessions grant <id> --grants <exact grant>` after an operator confirms; destructive calls also need confirmation in the request | the grant string and who confirmed |
 | CLI answers about a stale port after an API restart | Inspect authoritative endpoints with `vrooli scenario status program-runtime`; repair disagreement in the shared discovery owner rather than scraping process environments | the authoritative endpoint and the failing discovery path |
@@ -286,11 +288,14 @@ A read that can fail on its own (one scenario down among five) is wrapped so the
 
 1. `program-runtime programs get <id>`: read `failure_shape` (closed vocabulary) before `failure_detail`.
 2. `unresolved_name` or `unknown_field`: the detail lists the candidates; fix the name, resubmit in a new session.
-3. `ambiguous_response`: pass `rows="<field>"`; the detail lists the repeated fields.
-4. `unreachable_scenario` or `bridge_transport`: `vrooli scenario status <scenario>`, then `bindings condition --scenario <scenario>`. Do not start the scenario from inside a program.
-5. `refused_*`: `programs mine-refusals`; request the grant through the session path or stop.
-6. `kernel_runtime` naming `vrooli`: there is no `vrooli` module and `vrooli.` is never a scenario prefix; every runtime name is already bound.
-7. `unclassified`: journal it with the program id; it is a missing failure cause and an improve row.
+3. `ambiguous_response`: choose `rows="<field>"` before invocation; the detail lists the repeated fields. Before retrying an earlier attempt that may have effects, reconcile owner state: older Runtime versions could detect ambiguity after the target ran.
+4. `effect_uncertain`: inspect the owning operation and reconcile any possible effect before deciding whether to retry. A transport failure or deadline can also follow dispatch; inspect the owner if effects are possible.
+5. `authority_unavailable`: use a supported owner path or an eligible sealed declared-program session. Persistent verified-agent task calls do not have a safe authority relay; ordinary caller metadata cannot substitute for identity.
+6. `output_schema_mismatch` or `output_truncated`: inspect the captured output and pinned schema or declared output limit. Execution may already have produced effects; reconcile those before retrying.
+7. `unreachable_scenario` or `bridge_transport`: `vrooli scenario status <scenario>`, then `bindings condition --scenario <scenario>`. Do not start the scenario from inside a program.
+8. `refused_*`: `programs mine-refusals`; request the grant through the session path or stop.
+9. `kernel_runtime` naming `vrooli`: there is no `vrooli` module and `vrooli.` is never a scenario prefix; every runtime name is already bound.
+10. `unclassified`: journal it with the program id; it is a missing failure cause and an improve row.
 
 ### Governance rules
 

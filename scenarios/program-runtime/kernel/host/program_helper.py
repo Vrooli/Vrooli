@@ -29,7 +29,8 @@ import json
 import re
 from typing import Any, Callable, Iterable
 
-HELPER_VERSION = "1"
+HELPER_VERSION = "2"
+SUPPORTED_HELPER_VERSIONS = {"1", "2"}
 
 # The public surface of the bound `program` object. The Go preflight validates
 # `program.<member>` attribute paths against this exact tuple (see
@@ -38,6 +39,7 @@ HELPER_VERSION = "1"
 PUBLIC_MEMBERS = (
     "VERSION",
     "inputs",
+    "child_envelope",
     "envelope",
     "attach",
     "current",
@@ -241,7 +243,6 @@ class ProgramHelper:
     so a child's envelope and report state never leak into the parent.
     """
 
-    VERSION = HELPER_VERSION
     BindingError = BindingError
     ScenarioUnreachable = ScenarioUnreachable
     Refused = Refused
@@ -251,7 +252,13 @@ class ProgramHelper:
     RemoteError = RemoteError
     NoGovernedBinding = NoGovernedBinding
 
-    def __init__(self) -> None:
+    @property
+    def VERSION(self) -> str:
+        return self._version
+
+    def __init__(self, version: str = HELPER_VERSION, output_contract: dict[str, Any] | None = None) -> None:
+        self._version = version
+        self._output_contract = dict(output_contract or {})
         self._environment: dict[str, Any] | None = None
         self._envelope: dict[str, Any] | None = None
         self._reported = False
@@ -273,6 +280,110 @@ class ProgramHelper:
         if isinstance(value, dict):
             return value
         return dict(default or {})
+
+    def child_envelope(self, handle: Any, *, invalid_class: str = "invalid_response", where: str = "collect") -> dict[str, Any]:
+        """Read and validate one nested contract envelope without choosing parent policy."""
+        if self.VERSION != "2":
+            raise RuntimeError("program.child_envelope requires helpers.program version 2")
+
+        parent_errors = self._enum(self._output_contract, "errors", "classes")
+        if invalid_class not in parent_errors:
+            raise ValueError(f"{invalid_class!r} must be declared in the parent errors.classes")
+        parent_statuses = self._enum(self._output_contract, "status", "enum")
+        if "failed" not in parent_statuses:
+            raise ValueError("parent status.enum must declare 'failed' to normalize an invalid child envelope")
+
+        raw: Any = None
+        issues: list[str] = []
+        try:
+            count = handle.count() if callable(getattr(handle, "count", None)) else None
+            rows = handle.head(1)
+            if count is not None and count != 1:
+                issues.append("nested result must contain exactly one envelope")
+            if not isinstance(rows, list) or len(rows) != 1:
+                issues.append("nested result must contain exactly one envelope")
+            else:
+                raw = rows[0]
+        except Exception as exc:  # malformed handles are protocol failures
+            issues.append(f"could not read nested result: {type(exc).__name__}")
+
+        metadata: dict[str, Any] = {}
+        try:
+            value = handle.meta()
+            if isinstance(value, dict):
+                metadata = value
+        except Exception:
+            pass
+        child_contract = metadata.get("output_contract") if isinstance(metadata.get("output_contract"), dict) else {}
+        child_statuses = self._enum(child_contract, "status", "enum")
+        child_phases = self._enum(child_contract, "phase", "enum")
+        child_errors = set(self._enum(child_contract, "errors", "classes"))
+        if not child_statuses or not child_phases or not child_errors:
+            issues.append("child output contract metadata is missing declared status, phase, or error enums")
+
+        if not isinstance(raw, dict):
+            issues.append("child envelope must be an object")
+            raw = {}
+        if not isinstance(raw.get("status"), str) or (child_statuses and raw.get("status") not in child_statuses):
+            issues.append("child status is missing or outside its declared enum")
+        if not isinstance(raw.get("phase"), str) or (child_phases and raw.get("phase") not in child_phases):
+            issues.append("child phase is missing or outside its declared enum")
+        signals = raw.get("signals")
+        if not isinstance(signals, dict):
+            issues.append("child signals must be an object")
+            signals = {}
+        raw_errors = raw.get("errors")
+        if not isinstance(raw_errors, list):
+            issues.append("child errors must be an array")
+            raw_errors = []
+        clean_errors: list[dict[str, Any]] = []
+        for item in raw_errors:
+            if not isinstance(item, dict) or not isinstance(item.get("class"), str):
+                issues.append("child error item must declare a string class")
+                continue
+            if child_errors and item["class"] not in child_errors:
+                issues.append("child error class is outside its declared enum")
+                continue
+            if any(key in item and not isinstance(item[key], str) for key in ("detail", "where")):
+                issues.append("child error detail and where must be strings")
+                continue
+            clean_errors.append(dict(item))
+        evidence = raw.get("evidence")
+        if not isinstance(evidence, list):
+            issues.append("child evidence must be an array")
+            evidence = []
+
+        if not issues:
+            return dict(raw)
+
+        parent_statuses = self._enum(self._output_contract, "status", "enum")
+        failure_status = "failed"
+        child_program = raw.get("program") if isinstance(raw.get("program"), str) else metadata.get("program", "program-runtime.child")
+        child_version = raw.get("version") if isinstance(raw.get("version"), str) else metadata.get("version", "1")
+        child_phase = raw.get("phase") if isinstance(raw.get("phase"), str) and (not child_phases or raw.get("phase") in child_phases) else "report"
+        normalized = {
+            "program": child_program,
+            "version": child_version,
+            "status": failure_status,
+            "phase": child_phase,
+            "inputs": raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {},
+            "signals": signals,
+            "errors": clean_errors[:4] + [{
+                "class": invalid_class,
+                "detail": "; ".join(dict.fromkeys(issues))[:ERROR_DETAIL_LIMIT],
+                "where": str(where)[:80],
+            }],
+            "evidence": evidence[:10],
+        }
+        return normalized
+
+    @staticmethod
+    def _enum(contract: dict[str, Any], section: str, field: str) -> list[str]:
+        value = contract.get(section)
+        if not isinstance(value, dict):
+            return []
+        choices = value.get(field)
+        return [item for item in choices if isinstance(item, str)] if isinstance(choices, list) else []
 
     def envelope(self, program: str, version: str = "1", *, phase: str = "validate", inputs: dict[str, Any] | None = None) -> dict[str, Any]:
         """Create the envelope for this run and remember it for `fail`, `run` and `report`."""

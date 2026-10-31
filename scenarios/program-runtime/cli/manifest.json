@@ -1077,7 +1077,8 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["program-runtime programs get"]}}
         },
         {
           "name": "list",

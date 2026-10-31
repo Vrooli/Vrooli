@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -121,11 +122,12 @@ type SubprocessRunner struct {
 	workspaces      map[string]string
 	mu              sync.Mutex
 	processes       map[string]*kernelProcess
-	locks           map[string]*sync.Mutex
+	locks           map[string]chan struct{}
 	sessionLimits   map[string]ExecutionLimits
 	bindingProvider func() []BindingSpec
 	libraries       []LibrarySpec
 	libraryProvider func() []LibrarySpec
+	relayFactory    func(context.Context, string, string, string) (*authorityRelay, error)
 }
 
 // DeadlineExceededError is retained for callers that still classify legacy
@@ -156,7 +158,7 @@ func NewSubprocessRunnerWithBindings(path string, bindings []BindingSpec, bridge
 	if scratchRoot == "" {
 		scratchRoot = os.TempDir()
 	}
-	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]*sync.Mutex), workspaces: make(map[string]string), sessionLimits: make(map[string]ExecutionLimits)}
+	return &SubprocessRunner{path: path, bindings: append([]BindingSpec(nil), bindings...), bridgeURL: strings.TrimSpace(bridgeURL), agentBridgeURL: agentURL, scratchRoot: scratchRoot, processes: make(map[string]*kernelProcess), locks: make(map[string]chan struct{}), workspaces: make(map[string]string), sessionLimits: make(map[string]ExecutionLimits)}
 }
 
 // SetBindings replaces the binding projection used by kernels created after
@@ -206,18 +208,18 @@ func (r *SubprocessRunner) ClearSessionWorkspace(sessionID string) {
 	delete(r.workspaces, sessionID)
 }
 
-func (r *SubprocessRunner) lockFor(sessionID string) *sync.Mutex {
+func (r *SubprocessRunner) lockFor(sessionID string) chan struct{} {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if lock := r.locks[sessionID]; lock != nil {
 		return lock
 	}
-	lock := &sync.Mutex{}
+	lock := make(chan struct{}, 1)
 	r.locks[sessionID] = lock
 	return lock
 }
 
-func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
+func (r *SubprocessRunner) process(sessionID, relayPath string, relayUnavailable bool) (*kernelProcess, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if p := r.processes[sessionID]; p != nil {
@@ -247,6 +249,12 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 	}
 	cmd.Dir = workingDir
 	cmd.Env = allowlistedEnvironment()
+	if relayPath != "" {
+		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_AUTHORITY_RELAY="+relayPath)
+	}
+	if relayUnavailable {
+		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_AUTHORITY_RELAY_UNAVAILABLE=1")
+	}
 	if err := configureProcessGroup(cmd); err != nil {
 		return nil, err
 	}
@@ -312,23 +320,20 @@ func (r *SubprocessRunner) process(sessionID string) (*kernelProcess, error) {
 		if libraryPath != "" {
 			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_LIBRARIES_FILE="+libraryPath)
 		}
-		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_SESSION_ID="+sessionID)
-		if r.bridgeURL != "" {
-			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BRIDGE_URL="+r.bridgeURL)
-		}
-		if r.agentBridgeURL != "" {
-			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_AGENT_BRIDGE_URL="+r.agentBridgeURL)
-		}
-		if r.discoveryURL != "" {
-			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_DISCOVERY_URL="+r.discoveryURL)
-		}
-		// The kernel's client-side timeouts are handed down rather than
-		// declared in Python. Two independent lists of the same numbers is how
-		// `discover` came to allow 10s for a call the bridge is allowed 90s to
-		// make; internal/budgets is now the only definition.
-		if encoded, err := json.Marshal(budgets.Kernel()); err == nil {
-			cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BUDGETS="+string(encoded))
-		}
+	}
+	cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_SESSION_ID="+sessionID)
+	if r.bridgeURL != "" {
+		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BRIDGE_URL="+r.bridgeURL)
+	}
+	if r.agentBridgeURL != "" {
+		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_AGENT_BRIDGE_URL="+r.agentBridgeURL)
+	}
+	if r.discoveryURL != "" {
+		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_DISCOVERY_URL="+r.discoveryURL)
+	}
+	// Kernel budgets and bridges apply even when no projections are loaded.
+	if encoded, err := json.Marshal(budgets.Kernel()); err == nil {
+		cmd.Env = append(cmd.Env, "PROGRAM_RUNTIME_BUDGETS="+string(encoded))
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -383,10 +388,7 @@ func (r *SubprocessRunner) ExecuteWithMetadataAndLimitsAndProgress(ctx context.C
 }
 
 func (r *SubprocessRunner) executeWithProgressAndCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits ExecutionLimits, progress func(Result)) (Result, error) {
-	r.mu.Lock()
-	r.sessionLimits[sessionID] = limits
-	r.mu.Unlock()
-	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, progress)
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, caller, includeMaterialized, &limits, progress)
 }
 
 func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool) (Result, error) {
@@ -394,16 +396,73 @@ func (r *SubprocessRunner) execute(ctx context.Context, sessionID, programID, pr
 }
 
 func (r *SubprocessRunner) executeWithProgress(ctx context.Context, sessionID, programID, provenance, source string, includeMaterialized bool, progress func(Result)) (Result, error) {
-	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, progress)
+	return r.executeKernelWithCaller(ctx, sessionID, programID, provenance, source, Caller{}, includeMaterialized, nil, progress)
 }
 
-func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, progress func(Result)) (Result, error) {
+func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionID, programID, provenance, source string, caller Caller, includeMaterialized bool, limits *ExecutionLimits, progress func(Result)) (out Result, returnErr error) {
 	lock := r.lockFor(sessionID)
-	lock.Lock()
-	defer lock.Unlock()
-	p, err := r.process(sessionID)
+	// A queued execution owns its deadline but does not own the active kernel.
+	// Waiting must be cancellable without killing another submission's process.
+	select {
+	case lock <- struct{}{}:
+		defer func() { <-lock }()
+	case <-ctx.Done():
+		return Result{}, ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+	if limits != nil {
+		// Do not let a queued submission replace the limits used while the active
+		// submission is starting its kernel.
+		r.mu.Lock()
+		r.sessionLimits[sessionID] = *limits
+		r.mu.Unlock()
+	}
+	oneShot, _ := ctx.Value(oneShotContextKey{}).(bool)
+	var relay *authorityRelay
+	relayUnavailable := false
+	if oneShot && requestprovenance.ForwardedIdentityToken(ctx) != "" {
+		// A sealed execution must never reuse a process that may contain code
+		// left by a previous caller.
+		r.mu.Lock()
+		existing := r.processes[sessionID]
+		r.mu.Unlock()
+		if existing != nil {
+			return Result{}, errors.New("sealed execution cannot reuse a kernel")
+		}
+		var err error
+		factory := r.relayFactory
+		if factory == nil {
+			factory = newAuthorityRelay
+		}
+		relay, err = factory(ctx, r.bridgeURL, sessionID, programID)
+		if err != nil {
+			// Unrelated reads remain usable, but task checkpoints cannot fall
+			// back to an unverified operator-like request.
+			relayUnavailable = true
+		} else {
+			defer func() {
+				if err := relay.close(); err != nil {
+					returnErr = errors.Join(returnErr, err)
+				}
+			}()
+		}
+	}
+	relayPath := ""
+	if relay != nil {
+		relayPath = relay.path
+	}
+	p, err := r.process(sessionID, relayPath, relayUnavailable)
 	if err != nil {
 		return Result{}, err
+	}
+	if relay != nil {
+		if err := relay.start(p.command.Process.Pid); err != nil {
+			// The kernel holds only a path, not proof; a closed socket causes
+			// checkpoint calls to fail while unrelated work may continue.
+			_ = relay.close()
+		}
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -411,10 +470,13 @@ func (r *SubprocessRunner) executeKernelWithCaller(ctx context.Context, sessionI
 		return Result{}, err
 	}
 	request := map[string]any{"source": source, "include_materialized": includeMaterialized, "program_id": programID, "provenance": provenance, "caller": map[string]string{"run_id": caller.RunID, "agent_profile": caller.AgentProfile, "skill_id": caller.SkillID, "harness": caller.Harness}, "test_mode": database.IsTestMode(ctx)}
-	if token := requestprovenance.ForwardedIdentityToken(ctx); token != "" {
-		// Carry verified agent proof only over the private execution pipe.
-		// It is absent from program source, receipts, caller fields and storage.
-		request["agent_identity_token"] = token
+	// Diagnostic only. The owner still verifies every task request; this flag
+	// never carries proof or authorizes an operation in the Python process.
+	if !oneShot && requestprovenance.ForwardedIdentityToken(ctx) != "" {
+		request["persistent_task_authority_unavailable"] = true
+	}
+	if limits != nil && limits.DeclaredContract != nil {
+		request["declared_helper_contract"] = limits.DeclaredContract
 	}
 	if err := json.NewEncoder(p.stdin).Encode(request); err != nil {
 		r.killProcess(sessionID, p)
@@ -495,9 +557,11 @@ func (r *SubprocessRunner) KillSession(sessionID string) {
 
 func (r *SubprocessRunner) killProcess(sessionID string, p *kernelProcess) {
 	r.mu.Lock()
-	if current := r.processes[sessionID]; current == p {
-		delete(r.processes, sessionID)
+	if current := r.processes[sessionID]; current != p {
+		r.mu.Unlock()
+		return
 	}
+	delete(r.processes, sessionID)
 	delete(r.sessionLimits, sessionID)
 	r.mu.Unlock()
 	if p.bindingPath != "" {
@@ -510,7 +574,7 @@ func (r *SubprocessRunner) killProcess(sessionID string, p *kernelProcess) {
 		_ = os.RemoveAll(p.workingDir)
 	}
 	if p.command.Process != nil {
-		killProcessGroup(p.command.Process.Pid)
+		terminateKernelProcess(p.command.Process.Pid)
 		_ = p.command.Wait()
 	}
 }
@@ -628,7 +692,7 @@ func (r *SubprocessRunner) Close() error {
 	var first error
 	for id, p := range r.processes {
 		if p.command.Process != nil {
-			killProcessGroup(p.command.Process.Pid)
+			terminateKernelProcess(p.command.Process.Pid)
 			_ = p.command.Wait()
 		}
 		if p.bindingPath != "" {

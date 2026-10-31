@@ -183,7 +183,7 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| Concurrent submissions within one session | Serializing per session is the safe default, but a program that blocks on a long delegated run holds its session idle. Parallelism inside one namespace risks non-deterministic mutation. | Measure how often it actually blocks before designing around it. If it matters, prefer additional sessions over concurrency inside one namespace. |
+| Concurrent submissions within one session | Submissions serialize to protect the shared namespace. A waiting submission observes its own cancellation or deadline and does not interrupt the active submission. Parallelism inside one namespace risks non-deterministic mutation. | Measure how often work waits before designing around it. If it matters, prefer additional sessions over concurrency inside one namespace. |
 | Kernel state recovery after crash | A crashed kernel loses its namespace. Recovery is deliberately not attempted; the risk is that callers assume durability the design never offered. | None planned. Documented in `DATA.md` §"Why kernel state is not persisted". Revisit only with a measured need, and as a distinct capability. |
 | Identity propagation across the sidecar | In-program inference calls reach ai-gateway without agent identity, so those events cannot be attributed to the originating agent. | Deferred by decision. See `INTEGRATIONS.md` §"Identity Propagation — Known Gap". Not a launch blocker; blocks treating in-program inference telemetry as evidence. |
 
