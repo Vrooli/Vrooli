@@ -71,6 +71,9 @@ func (s *WorkflowService) ValidateResumable(ctx context.Context, executionID uui
 	if checkpoint.LastStepIndex < 0 {
 		return ErrNoCheckpointAvailable
 	}
+	if checkpoint.WorkflowVersion <= 0 {
+		return fmt.Errorf("%w: admission metadata has no workflow revision", ErrExecutionNotResumable)
+	}
 
 	// 4. Verify workflow still exists
 	workflow, err := s.repo.GetWorkflow(ctx, execution.WorkflowID)
@@ -83,7 +86,7 @@ func (s *WorkflowService) ValidateResumable(ctx context.Context, executionID uui
 
 	// 5. Check workflow version hasn't changed (user-confirmed design decision)
 	// This prevents step index mismatches when workflow structure changed
-	if checkpoint.WorkflowVersion > 0 && workflow.Version != checkpoint.WorkflowVersion {
+	if workflow.Version != checkpoint.WorkflowVersion {
 		return fmt.Errorf("%w: execution used version %d, current version is %d",
 			ErrWorkflowChanged, checkpoint.WorkflowVersion, workflow.Version)
 	}

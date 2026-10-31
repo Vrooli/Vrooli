@@ -13,25 +13,25 @@ import (
 
 // DefaultService is the standard implementation of the telemetry Service.
 type DefaultService struct {
-	vrooliRoot string
-	mu         sync.Mutex
+	dir string
+	mu  sync.Mutex
 }
 
 // NewService creates a new telemetry service.
-func NewService(vrooliRoot string) *DefaultService {
+func NewService(telemetryDir string) *DefaultService {
 	return &DefaultService{
-		vrooliRoot: vrooliRoot,
+		dir: telemetryDir,
 	}
 }
 
 // GetFilePath returns the path to the telemetry file for a scenario.
 func (s *DefaultService) GetFilePath(scenario string) string {
-	return filepath.Join(s.vrooliRoot, ".vrooli", "deployment", "telemetry", fmt.Sprintf("%s.jsonl", scenario))
+	return filepath.Join(s.dir, fmt.Sprintf("%s.jsonl", scenario))
 }
 
 // telemetryDir returns the telemetry directory path.
 func (s *DefaultService) telemetryDir() string {
-	return filepath.Join(s.vrooliRoot, ".vrooli", "deployment", "telemetry")
+	return s.dir
 }
 
 // IngestEvents ingests telemetry events for a scenario.

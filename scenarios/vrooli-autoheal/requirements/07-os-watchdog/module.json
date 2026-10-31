@@ -1,128 +1,366 @@
 {
-  "module": "os-watchdog",
-  "description": "OS-level service installation to keep autoheal running",
-  "prd_refs": [
-    "OT-P0-008"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-09-02T09:47:16-04:00"
+  },
   "requirements": [
     {
       "id": "WATCH-DETECT-001",
       "title": "Detect existing watchdog",
-      "description": "Check if OS-level watchdog is already installed and correctly configured",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Check if OS-level watchdog is already installed and correctly configured",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go watchdog tests (api/internal/watchdog). Evidence tier: host-verified on Linux (/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt); fixture-verified plus build-verified on macOS and Windows; no macOS or Windows host execution is claimed."
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-LINUX-001",
-      "title": "Linux systemd service",
-      "description": "Generate and install vrooli-autoheal.service with Restart=always and enable on boot",
+      "title": "Linux systemd unit is installed by the control plane and verified by the scenario",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "While the host runs systemd, the control plane (vrooli setup, runtime-supervisor and autoheal-watchdog safeguards) shall install vrooli-autoheal.service in the user scope with Restart=always and enable it at boot; vrooli-autoheal shall verify the installed unit against the rendered definition and report drift, and shall not install or rewrite the unit itself (OT-P0-008).",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario side: verification of the installed unit. Evidence tier: host-verified, see the manual entry."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/watchdog_test.go::TestOsWatchdogOffersNoInstallActions",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario side, tagged [REQ:BOOT-RECOVERY-001] (landed by phase 10 during this phase): the API observes boot protection and never offers install, enable, linger or uninstall actions; those belong to `vrooli setup`."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/autoheal-watchdog/handler_test.go::TestInspectStaleDefinitionIsNotApplied",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Control-plane side: a unit whose content drifted from the rendered definition is reported not-applied and re-installed."
+        },
+        {
+          "type": "manual",
+          "ref": "/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Evidence tier: host-verified on swarminator (Linux, systemd 255, user scope) 2026-09-02. Installed unit copied at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/installed/vrooli-autoheal.service; unit state (ActiveState=active, UnitFileState=enabled, NRestarts=0) at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/unit-state.txt; readiness after setup at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/readiness-after-setup.json; loop ticked 19s after a unit restart at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p03/proof/step1-restart-tick.txt. The plan text cites p06/verify.txt and p07/readiness.json; the files on disk are named verify-installed.txt and readiness-after-setup.json, cited here by their real names."
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-LINUX-002",
       "title": "Linux systemd verification",
-      "description": "Verify service has correct ExecStart pointing to vrooli-autoheal loop",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "While the host runs systemd, vrooli-autoheal shall verify that the installed unit's ExecStart resolves to the current vrooli-autoheal loop binary and argv, and shall report a stale ExecStart as drift.",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario side. Evidence tier: host-verified, see the manual entry."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestRuntimeSupervisorSafeguardDetectsStaleExecStart",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Control-plane side: an ExecStart carrying a retired global is detected as stale."
+        },
+        {
+          "type": "manual",
+          "ref": "/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Evidence tier: host-verified on swarminator (Linux, systemd 255, user scope) 2026-09-02. All five installed units verified against their rendered definitions (/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/verify-installed.txt); rendered copies at /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p06/rendered/. The plan text cites p06/verify.txt and p07/readiness.json; the files on disk are named verify-installed.txt and readiness-after-setup.json, cited here by their real names."
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-WIN-001",
-      "title": "Windows service/scheduled task",
-      "description": "Install Windows Task Scheduler job or service that runs vrooli-autoheal loop on boot",
+      "title": "Windows scheduled task (fixture-verified)",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Where the host is Windows, the control plane shall render and register a Task Scheduler task under the invoking user's principal that runs the vrooli-autoheal loop at logon, and vrooli-autoheal shall verify it is registered. Evidence tier: fixture-verified.",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "../../packages/platform-go/servicedef_test.go::TestDarwinAndWindowsRenderersMatchFixtures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence tier: fixture-verified. Fixture: packages/platform-go/testdata/servicedef/windows.vrooli-autoheal.xml. Fixture provenance (packages/platform-go/servicedef_test.go): derived 2026-09-02 on swarminator (Linux, systemd 255) from platformgo.RenderLaunchd / RenderWindowsTaskXML; the fixture pins the rendered shape so a renderer change is a visible diff. It is not proof that launchd or Task Scheduler accepts the file. No macOS or Windows host execution is claimed."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario-side verification logic; build-verified for windows, not host-executed."
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-MAC-001",
-      "title": "macOS launchd plist",
-      "description": "Generate and install LaunchAgent plist with KeepAlive=true",
+      "title": "macOS launchd plist (fixture-verified)",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Where the host is macOS, the control plane shall render and install a LaunchAgent plist with KeepAlive=true that runs the vrooli-autoheal loop, and vrooli-autoheal shall verify it is loaded. Evidence tier: fixture-verified.",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "../../packages/platform-go/servicedef_test.go::TestDarwinAndWindowsRenderersMatchFixtures",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Evidence tier: fixture-verified. Fixture: packages/platform-go/testdata/servicedef/darwin.com.vrooli.autoheal.plist. Fixture provenance (packages/platform-go/servicedef_test.go): derived 2026-09-02 on swarminator (Linux, systemd 255) from platformgo.RenderLaunchd / RenderWindowsTaskXML; the fixture pins the rendered shape so a renderer change is a visible diff. It is not proof that launchd or Task Scheduler accepts the file. No macOS or Windows host execution is claimed."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario-side verification logic; build-verified for darwin, not host-executed."
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-IDEMPOTENT-001",
       "title": "Idempotent installation",
-      "description": "Running watchdog installation multiple times produces identical configuration",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Running watchdog installation multiple times produces identical configuration",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "WATCH-GRACEFUL-001",
       "title": "Graceful failure on unsupported platforms",
-      "description": "Log warning and continue if watchdog installation not supported on platform",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
+      "description": "Log warning and continue if watchdog installation not supported on platform",
       "validation": [
         {
           "type": "test",
-          "phase": "cli",
-          "status": "planned",
-          "ref": "cli/vrooli-autoheal.bats",
-          "notes": "CLI tests pending implementation"
+          "ref": "api/internal/watchdog/watchdog_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Covered by Go watchdog tests (api/internal/watchdog)"
         }
-      ],
-      "status": "pending"
+      ]
+    },
+    {
+      "id": "BOOT-RECOVERY-001",
+      "title": "Supervisor units are installed correctly, drift is repaired, crash loops are reported",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "When vrooli setup runs the runtime-supervisor, autoheal-watchdog and emergency-watchdog safeguards, the control plane shall install a unit only from a render that validates, shall report a unit whose ExecStart carries a retired global or whose content drifted as not-applied and restart it after re-rendering, shall report an enabled-but-inactive or crash-looping unit as pending, and shall render the same watchdog argv on every platform.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/vrooli/watchdog_test.go::TestOsWatchdogOffersNoInstallActions",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Scenario side, tagged [REQ:BOOT-RECOVERY-001] (landed by phase 10 during this phase): the API observes boot protection and never offers install, enable, linger or uninstall actions; those belong to `vrooli setup`."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestRuntimeSupervisorSafeguardDetectsStaleExecStart",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Control-plane tests (`go test ./internal/safeguards/... ./internal/runtimesupervisor/`), all passing 2026-09-02. test-genie's scenario suite does not run them, so sync cannot earn this status. Phase 10/11 of the boot-recovery plan."
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestInspectReportsAppliedWhenUnitMatchesAndIsActive",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestApplyRestartsWhenContentChangedAndReverifies",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestApplyRefusesRejectedRender",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/runtime-supervisor/handler_test.go::TestInspectReportsCrashLoopingUnit",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/autoheal-watchdog/handler_test.go::TestInspectStaleDefinitionIsNotApplied",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/safeguards/emergency-watchdog/handler_test.go::TestEveryPlatformRendersTheSameWatchdogArgv",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "manual",
+          "ref": "/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/unit-state.txt",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Evidence tier: host-verified on swarminator (Linux, systemd 255, user scope) 2026-09-02. Unit state after `vrooli setup`: vrooli-autoheal.service, vrooli-runtime-supervisor.service active+enabled, NRestarts=0; emergency-watchdog timer active+enabled (/home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/unit-state.txt). Readiness after setup: /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/readiness-after-setup.json."
+        }
+      ]
+    },
+    {
+      "id": "BOOT-RECOVERY-002",
+      "title": "A dead predecessor's live lease does not block supervisor start",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "If the runtime supervisor starts while a predecessor process that is no longer alive still holds an unexpired lease, then the supervisor shall retire the dead predecessor's lease and start, instead of waiting for the lease to expire.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "../../internal/runtimesupervisor/service_test.go::TestServiceEnsureStartedRetiresDeadPredecessorWithLiveLease",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registered from the id the code actually cites. The plan's phase-11 text describes BOOT-RECOVERY-002 as the nightly boot rehearsal; no test cites it with that meaning yet, so the rehearsal needs its own id when phase 11 lands. Failing-before capture: /home/matthalloran8/.vrooli/plan-artifacts/boot-recovery-readiness/evidence/p07/failing-before-TestServiceEnsureStartedRetiresDeadPredecessorWithLiveLease.txt. Control-plane tests (`go test ./internal/safeguards/... ./internal/runtimesupervisor/`), all passing 2026-09-02. test-genie's scenario suite does not run them, so sync cannot earn this status. Phase 10/11 of the boot-recovery plan."
+        }
+      ]
+    },
+    {
+      "id": "STORM-001",
+      "title": "A pressure breach becomes critical only after the authored sustain",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "description": "When a host-pressure reading crosses a setpoint bar, vrooli-autoheal shall report a warning until the bar's authored sustain has elapsed, then critical; a reading under the bar shall reset the window.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/system_test.go::TestHostPressureCheckUsesAuthoredSustain",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Sustain comes from internal/setpoint (one reader); failing-before capture: /home/matthalloran8/.vrooli/plan-artifacts/polite-host/evidence/p06/failing-before.txt"
+        },
+        {
+          "type": "test",
+          "ref": "../../cmd/vrooli-watchdog/main_test.go::TestWatchdogUsesAuthoredSustain",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The watchdog's file-backed window; the pre-2026-09-02 reset defect is guarded here"
+        }
+      ]
+    },
+    {
+      "id": "STORM-002",
+      "title": "A sustained fork storm attributed to an agent session scope is frozen, recorded, and reversible",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "description": "When the emergency watchdog's last report carries a sustained fork-rate or cpu-pressure finding whose top parent runs in a scope under vrooli-agents.slice, vrooli-autoheal shall freeze that scope through the runtime recovery gate, record a runtime_recovery_decisions row keyed <epoch>/<scope>/contain-storm, and name the thaw command on the incident; it shall refuse any scope that is not an agent session scope, refuse when recovery coordination is unreadable, and `vrooli agent thaw <scope>` shall reverse the freeze.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/storm_authority_test.go::TestContainStormRefusesPidOutsideAgentSlice",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Supervisor and resource scopes refused on the cgroup path, never the name"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/storm_authority_test.go::TestContainStormRefusesWhenGateClosed",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Unreadable runtime registry = closed gate; a refusal still leaves a decision row"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/storm_authority_test.go::TestContainStormFreezesScopeAndRecordsDecision",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Freeze, idempotency key, working directory and thaw command on the next run's finding"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/storm_authority_test.go::TestContainStormRequiresSustainedFinding",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Attribution without a listed (sustained) finding is not a target"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/storm_authority_test.go::TestThawReversesAndResolvesIncident",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A thawed scope drops out of containment and can be contained again"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/system/storm_authority_test.go::TestProposeOnlyModeNeverFreezes",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "containStorm=propose_only marks the action Dangerous so auto-heal never selects it"
+        },
+        {
+          "type": "test",
+          "ref": "../../internal/cli/vroolicli/agent_thaw_test.go::TestAgentThawResolvesOnlyAgentScopes",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The thaw command resolves unit names through the user manager and refuses non-agent scopes"
+        }
+      ]
+    },
+    {
+      "id": "STORM-003",
+      "title": "A critical incident counts as reached only when a delivery attempt was delivered",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-017",
+      "criticality": "P0",
+      "description": "When coverage-delivery-reach evaluates open critical incidents, vrooli-autoheal shall count an incident as reached only when notification-hub recorded a delivered attempt for it, and shall list undelivered incidents with their last attempt outcome.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/checks/coverage/reach_test.go::TestReachCountsDeliveredAttemptsOnly",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "unroutable and failed attempts are intake evidence, not reach"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/checks/coverage/reach_test.go::TestReachReadsRealDeliveryProjection",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The reader joins incidents to notification-hub's /api/v1/integrations/deliveries projection by dedupe key"
+        }
+      ]
     }
   ]
 }

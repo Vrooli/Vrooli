@@ -1,0 +1,2 @@
+# Build output and oversized files should not be committed.
+/api/verify-database-isolation

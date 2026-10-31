@@ -1,5 +1,5 @@
 /** Matches commit messages ending with ` p<N>`, e.g. "web-console TTS p10" */
-const PN_PATTERN = /^(.+)\s+p(\d+)$/;
+const PN_PATTERN = /^(.+)\s+[pP](\d+)$/;
 
 /**
  * Parse a commit message's continuation group.

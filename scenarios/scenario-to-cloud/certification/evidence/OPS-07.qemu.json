@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "case_id": "OPS-07",
+  "verdict": "unavailable",
+  "lane": "qemu",
+  "requirement_refs": [
+    "STC-P0-043"
+  ],
+  "candidate": {
+    "release_digest": "sha256:package-lane-fixture",
+    "configuration_digest": "",
+    "closure_digest": ""
+  },
+  "target": {
+    "machine_id": "local-qemu:unprovisioned",
+    "architecture": "amd64 and arm64",
+    "os": "ubuntu-24.04"
+  },
+  "operation_refs": [],
+  "validation_receipt_ref": "GET /api/v1/instances/readiness (2026-09-09): state unavailable; go test ./instance/ -run TestReadinessNamesSetupWhenToolsAreAbsent PASS",
+  "artifact_refs": [
+    "certification/lanes/qemu.json#cells[OPS-07]",
+    "api/instance/readiness_test.go#TestReadinessNamesSetupWhenToolsAreAbsent",
+    ".vrooli/program-runtime/cloud-qemu-qualification.json"
+  ],
+  "assertions": [],
+  "observed_at": "2026-09-09T18:00:00Z",
+  "limitations": [
+    "host tools absent (EXT-06): qemu-system-x86_64, qemu-img and cloud-localds are declared in .vrooli/service.json hostTools but not installed; install only through vrooli setup",
+    "arm64 needs TCG (qemu-system-aarch64) or an arm64 host (EXT-05); the arm64 cell stays unavailable and certification remains incomplete for that architecture (P20-A06)",
+    "planned fixture stateless-web, no fault; architectures amd64 and arm64",
+    "candidate release digest is the deterministic-lane placeholder used by certification-report-2026-09-09.json; this receipt binds to no real release and can never satisfy the cell"
+  ]
+}

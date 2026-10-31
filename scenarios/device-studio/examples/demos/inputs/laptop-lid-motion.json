@@ -1,0 +1,41 @@
+{
+  "candidate": {
+    "version": "motion-candidate/v1",
+    "motionId": "laptop-lid-vflip-reviewed-10s-v1",
+    "timebaseTicksPerSecond": {
+      "num": "24",
+      "den": "1"
+    },
+    "durationTicks": "240",
+    "tracks": [
+      {
+        "target": {
+          "jointId": "laptop_lid_hinge"
+        },
+        "interpolation": "linear",
+        "keys": [
+          {
+            "tick": "0",
+            "angleRad": 0.0
+          },
+          {
+            "tick": "120",
+            "angleRad": 0.9595
+          },
+          {
+            "tick": "235",
+            "angleRad": 1.919
+          },
+          {
+            "tick": "240",
+            "angleRad": 1.919
+          }
+        ]
+      }
+    ],
+    "requiredCapabilities": [
+      "laptop_lid_hinge_review"
+    ]
+  },
+  "expectedHead": 0
+}

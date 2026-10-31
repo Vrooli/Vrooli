@@ -1,11 +1,43 @@
 package env
 
 import (
+	"path/filepath"
+	"sort"
 	"testing"
 
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
+
+func TestBundledEnvironmentAllowlistHasReasonForEveryEntry(t *testing.T) {
+	previous := ""
+	for _, key := range BundledEnvironmentAllowlist {
+		if reason := BundledEnvironmentReasons[key]; reason == "" {
+			t.Errorf("allowlisted environment %q has no reason", key)
+		}
+		if previous != "" && previous >= key {
+			t.Errorf("allowlist is not sorted: %q before %q", previous, key)
+		}
+		previous = key
+	}
+	keys := make([]string, 0, len(BundledEnvironmentReasons))
+	for key := range BundledEnvironmentReasons {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	if len(keys) != len(BundledEnvironmentAllowlist) {
+		t.Fatalf("allowlist and reasons diverge")
+	}
+}
+
+func TestBundledVrooliBinUsesShimStagingPath(t *testing.T) {
+	if got := bundledVrooliBin("/bundle", "linux"); got != "/bundle/bin/vrooli" {
+		t.Fatalf("Linux shim path = %q", got)
+	}
+	if got := bundledVrooliBin(`C:\\bundle`, "windows"); got != filepath.Join(`C:\\bundle`, "bin", "vrooli.exe") {
+		t.Fatalf("Windows shim path = %q", got)
+	}
+}
 
 // mockEnvReader implements infra.EnvReader for testing.
 type mockEnvReader struct {
@@ -57,11 +89,14 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		key  string
 		want string
 	}{
-		// Inherited environment
-		{"EXISTING_VAR", "existing_value"},
+		// Allowlisted inherited environment is retained only when present.
 		// Standard bundle hints
 		{"APP_DATA_DIR", "/app/data"},
 		{"BUNDLE_ROOT", "/bundle/root"},
+		{"VROOLI_BIN", "/bundle/root/bin/vrooli"},
+		{"VROOLI_DATA", "/app/data"},
+		{"VROOLI_DESKTOP_MODE", "true"},
+		{"VROOLI_LIFECYCLE_MANAGED", "true"},
 		{"VROOLI_STORAGE_ROOT", "/app/data/storage"},
 		// Service environment with template expansion
 		{"SERVICE_VAR", "service_value"},
@@ -75,6 +110,24 @@ func TestRenderer_RenderEnvMap(t *testing.T) {
 		if env[tt.key] != tt.want {
 			t.Errorf("env[%q] = %q, want %q", tt.key, env[tt.key], tt.want)
 		}
+	}
+
+	if _, ok := env["VROOLI_ROOT"]; ok {
+		t.Fatal("bundled environment must not inherit VROOLI_ROOT")
+	}
+	if _, ok := env["SCENARIO_ROOT"]; ok {
+		t.Fatal("bundled environment must not inherit SCENARIO_ROOT")
+	}
+}
+
+func TestRendererVrooliBinIsRuntimeOwnedAfterDeclaredOverrides(t *testing.T) {
+	renderer := NewRenderer("/app/data", "/bundle/root", testutil.NewMockPortAllocator(), mockEnvReader{})
+	env, err := renderer.RenderEnvMap(manifest.Service{ID: "api", Env: map[string]string{"VROOLI_BIN": "/host/vrooli"}}, manifest.Binary{Env: map[string]string{"VROOLI_BIN": "/other/vrooli"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := env["VROOLI_BIN"]; got != "/bundle/root/bin/vrooli" {
+		t.Fatalf("VROOLI_BIN = %q, want bundled shim", got)
 	}
 }
 
@@ -98,7 +151,10 @@ func TestRenderer_RenderArgs(t *testing.T) {
 		"no-template",
 	}
 
-	got := r.RenderArgs(args)
+	got, err := r.RenderArgs(args)
+	if err != nil {
+		t.Fatalf("RenderArgs() error = %v", err)
+	}
 
 	want := []string{
 		"--config",
@@ -142,14 +198,23 @@ func TestRenderer_RenderValue(t *testing.T) {
 		{"nested port lookup", "${database.postgres}", "5432"},
 		{"mixed template", "${data}/logs/${bundle}/file.log", "/home/user/.config/myapp/logs//opt/myapp/file.log"},
 		{"no template", "plain-string", "plain-string"},
-		{"unknown variable", "${unknown}", "${unknown}"},
-		{"unknown port", "${nonexistent.port}", "${nonexistent.port}"},
+		{"unknown variable", "${unknown}", ""},
+		{"unknown port", "${nonexistent.port}", ""},
 		{"empty string", "", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := r.RenderValue(tt.input)
+			got, err := r.RenderValue(tt.input)
+			if tt.name == "unknown variable" || tt.name == "unknown port" {
+				if err == nil {
+					t.Fatal("expected unresolved template error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("RenderValue() error = %v", err)
+			}
 			if got != tt.want {
 				t.Errorf("RenderValue(%q) = %q, want %q", tt.input, got, tt.want)
 			}
@@ -204,7 +269,26 @@ func TestRenderer_RenderEnvMap_InheritsEnvironment(t *testing.T) {
 		t.Fatalf("RenderEnvMap() error = %v", err)
 	}
 
-	if env["UNIQUE_VAR"] != "unique_value" {
-		t.Errorf("env[UNIQUE_VAR] = %q, want %q (should inherit from EnvReader)", env["UNIQUE_VAR"], "unique_value")
+	if _, ok := env["UNIQUE_VAR"]; ok {
+		t.Error("environment must not inherit an unallowlisted variable")
+	}
+}
+
+func TestRenderer_RenderEnvMapScrubsScenarioState(t *testing.T) {
+	r := NewRenderer("/app", "/bundle", testutil.NewMockPortAllocator(), mockEnvReader{env: map[string]string{
+		"WC_SESSION_STATE_ROOT": "/operator/sessions", "VROOLI_STORAGE_NAMESPACE": "live", "XDG_STATE_HOME": "/operator/state",
+		"WC_WEB_CONSOLE_SESSION_ID": "operator", "HOME": "/operator/home", "LANG": "C.UTF-8",
+	}})
+	env, err := r.RenderEnvMap(manifest.Service{Env: map[string]string{"DECLARED": "yes"}}, manifest.Binary{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"WC_SESSION_STATE_ROOT", "VROOLI_STORAGE_NAMESPACE", "XDG_STATE_HOME", "WC_WEB_CONSOLE_SESSION_ID"} {
+		if _, ok := env[key]; ok {
+			t.Errorf("env contains scrubbed key %s", key)
+		}
+	}
+	if env["HOME"] != "/operator/home" || env["LANG"] != "C.UTF-8" || env["DECLARED"] != "yes" {
+		t.Errorf("allowlisted or declared environment missing: %#v", env)
 	}
 }

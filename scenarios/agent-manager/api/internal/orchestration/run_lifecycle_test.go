@@ -1,0 +1,1049 @@
+package orchestration_test
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
+
+	"github.com/google/uuid"
+	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
+)
+
+type gatedContinuationRunRepository struct {
+	repository.RunRepository
+	runID   uuid.UUID
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (r *gatedContinuationRunRepository) Update(ctx context.Context, run *domain.Run) error {
+	if run.ID == r.runID && run.Status == domain.RunStatusRunning {
+		r.once.Do(func() { close(r.entered) })
+		select {
+		case <-r.release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return r.RunRepository.Update(ctx, run)
+}
+
+func (r *gatedContinuationRunRepository) UpdateInteractiveContinuation(ctx context.Context, run *domain.Run, expectedStatus domain.RunStatus, expectedInvocationStartedAt *time.Time) error {
+	if run.ID == r.runID && run.Status == domain.RunStatusRunning {
+		r.once.Do(func() { close(r.entered) })
+		select {
+		case <-r.release:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return r.RunRepository.UpdateInteractiveContinuation(ctx, run, expectedStatus, expectedInvocationStartedAt)
+}
+
+func TestStopRun_WithTerminatorEmitsStatusEventAndBroadcast(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mustRegisterRunner(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+	terminator := orchestration.NewTerminator(repos.Runs, registry, orchestration.TerminatorConfig{
+		GracePeriod:      time.Millisecond,
+		MaxRetries:       1,
+		BaseBackoff:      time.Millisecond,
+		MaxBackoff:       time.Millisecond,
+		VerifyTimeout:    time.Millisecond,
+		KillProcessGroup: false,
+	})
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithBroadcaster(broadcaster),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithTerminator(terminator),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:       "stop-profile",
+		ProfileKey: "stop-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:     "stop task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeInPlace,
+		Status:         domain.RunStatusRunning,
+		Phase:          domain.RunPhaseExecuting,
+		SessionID:      "sess-stop",
+		StartedAt:      &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+		},
+		ApprovalState: domain.ApprovalStateNone,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if err := svc.StopRun(ctx, runID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+
+	updated, err := repos.Runs.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusCancelled {
+		t.Fatalf("expected cancelled run, got %s", updated.Status)
+	}
+	if updated.Actions != nil {
+		t.Fatal("repository run should not have computed actions persisted")
+	}
+
+	events, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeStatus},
+	})
+	if err != nil {
+		t.Fatalf("get events: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one status event, got %d", len(events))
+	}
+	status, ok := events[0].Data.(*domain.StatusEventData)
+	if !ok {
+		t.Fatalf("expected status event data, got %T", events[0].Data)
+	}
+	if status.OldStatus != string(domain.RunStatusRunning) || status.NewStatus != string(domain.RunStatusCancelled) {
+		t.Fatalf("unexpected status transition %s -> %s", status.OldStatus, status.NewStatus)
+	}
+
+	broadcasts := broadcaster.getStatusBroadcasts()
+	if len(broadcasts) != 1 {
+		t.Fatalf("expected one run status broadcast, got %d", len(broadcasts))
+	}
+	if broadcasts[0].Status != domain.RunStatusCancelled {
+		t.Fatalf("expected cancelled broadcast, got %s", broadcasts[0].Status)
+	}
+	if broadcasts[0].Actions == nil || broadcasts[0].Actions.CanStop {
+		t.Fatalf("expected broadcast with updated actions and CanStop=false")
+	}
+}
+
+// cancelIntentRecordingRepo wraps a RunRepository and records that the durable
+// cancellation intent was stamped. It pins the StopRun ordering rule: stamp
+// intent first, terminate second, so a process that exits during termination
+// reconciles to cancelled instead of complete.
+type cancelIntentRecordingRepo struct {
+	repository.RunRepository
+	stamped bool
+}
+
+func (r *cancelIntentRecordingRepo) RequestCancellation(ctx context.Context, id uuid.UUID, at time.Time) (bool, error) {
+	r.stamped = true
+	return r.RunRepository.RequestCancellation(ctx, id, at)
+}
+
+func TestStopRun_PersistsCancellationIntentBeforeTerminating(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	recorder := &cancelIntentRecordingRepo{RunRepository: repos.Runs}
+
+	var observeStampAtStop bool
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.StopFunc = func(context.Context, uuid.UUID) error {
+		observeStampAtStop = recorder.stamped
+		return nil
+	}
+	mustRegisterRunner(t, registry, mockRunner)
+
+	terminator := orchestration.NewTerminator(recorder, registry, orchestration.TerminatorConfig{
+		GracePeriod:      time.Millisecond,
+		MaxRetries:       1,
+		BaseBackoff:      time.Millisecond,
+		MaxBackoff:       time.Millisecond,
+		VerifyTimeout:    time.Millisecond,
+		KillProcessGroup: false,
+	})
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		recorder,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithTerminator(terminator),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:       "cancel-order-profile",
+		ProfileKey: "cancel-order-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:     "cancel order task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeInPlace,
+		Status:         domain.RunStatusRunning,
+		Phase:          domain.RunPhaseExecuting,
+		SessionID:      "sess-cancel-order",
+		StartedAt:      &now,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState:  domain.ApprovalStateNone,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if err := recorder.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if err := svc.StopRun(ctx, runID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+	if !recorder.stamped {
+		t.Fatal("StopRun did not persist cancellation intent")
+	}
+	if !observeStampAtStop {
+		t.Fatal("runner was asked to stop before cancellation intent was persisted")
+	}
+
+	updated, err := recorder.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusCancelled {
+		t.Fatalf("run status = %s, want cancelled", updated.Status)
+	}
+	if updated.CancelRequestedAt == nil {
+		t.Fatal("cancellation intent not retained on the terminal run")
+	}
+}
+
+// TestStopRun_DuplicateReplayAfterOwnerReopenIsIdempotent covers Phase 3's
+// duplicate-cancellation replay contract across owner reopen. A caller that
+// issued a stop but lost the response replays the stop against a fresh owner
+// instance over the same durable state. The replay must observe the same
+// terminal result (cancelled) instead of a state error, and must not append a
+// second terminal transition.
+func TestStopRun_DuplicateReplayAfterOwnerReopenIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	registry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mustRegisterRunner(t, registry, mockRunner)
+
+	terminator := orchestration.NewTerminator(repos.Runs, registry, orchestration.TerminatorConfig{
+		GracePeriod:      time.Millisecond,
+		MaxRetries:       1,
+		BaseBackoff:      time.Millisecond,
+		MaxBackoff:       time.Millisecond,
+		VerifyTimeout:    time.Millisecond,
+		KillProcessGroup: false,
+	})
+
+	// openOwner models an owner process (re)start: a fresh orchestrator holding
+	// no in-memory lifecycle state, reading only the durable repositories.
+	openOwner := func() *orchestration.Orchestrator {
+		return orchestration.New(
+			repos.Profiles,
+			repos.Tasks,
+			repos.Runs,
+			orchestration.WithEvents(eventStore),
+			orchestration.WithRunners(registry),
+			orchestration.WithRunStateRoot(t.TempDir()),
+			orchestration.WithTerminator(terminator),
+		)
+	}
+
+	ownerA := openOwner()
+	profile := mustCreateProfile(t, ownerA, ctx, &domain.AgentProfile{
+		Name:       "replay-profile",
+		ProfileKey: "replay-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, ownerA, ctx, &domain.Task{
+		Title:     "replay task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeInPlace,
+		Status:         domain.RunStatusRunning,
+		Phase:          domain.RunPhaseExecuting,
+		SessionID:      "sess-replay",
+		StartedAt:      &now,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState:  domain.ApprovalStateNone,
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	// The stop ran to completion on owner A, but the caller lost the response.
+	if err := ownerA.StopRun(ctx, runID); err != nil {
+		t.Fatalf("first StopRun: %v", err)
+	}
+
+	// Owner reopen: replay the same stop against a fresh instance.
+	ownerB := openOwner()
+	if err := ownerB.StopRun(ctx, runID); err != nil {
+		t.Fatalf("replayed StopRun after owner reopen should be idempotent, got: %v", err)
+	}
+	// A further replay is still a no-op.
+	if err := ownerB.StopRun(ctx, runID); err != nil {
+		t.Fatalf("second replayed StopRun should be idempotent, got: %v", err)
+	}
+
+	updated, err := repos.Runs.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusCancelled {
+		t.Fatalf("run status = %s, want cancelled", updated.Status)
+	}
+	if updated.CancelRequestedAt == nil {
+		t.Fatal("cancellation intent not retained across owner reopen")
+	}
+
+	events, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeStatus},
+	})
+	if err != nil {
+		t.Fatalf("get status events: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("duplicate stop replay appended another status event: got %d, want 1", len(events))
+	}
+	status := events[0].Data.(*domain.StatusEventData)
+	if status.OldStatus != string(domain.RunStatusRunning) || status.NewStatus != string(domain.RunStatusCancelled) {
+		t.Fatalf("unexpected status transition %s -> %s", status.OldStatus, status.NewStatus)
+	}
+}
+
+func TestContinueRun_EmitsRunningAndTerminalStatusTransitions(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	continueDone := make(chan struct{})
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsMessages:     true,
+		SupportsStreaming:    true,
+		SupportsCancellation: true,
+		SupportsContinuation: true,
+		MaxTurns:             100,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		defer close(continueDone)
+		return &runner.ExecuteResult{
+			Success:   true,
+			ExitCode:  0,
+			SessionID: "sess-after-continue",
+		}, nil
+	}
+
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	broadcaster := &testBroadcaster{}
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithBroadcaster(broadcaster),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:       "continue-profile",
+		ProfileKey: "continue-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:     "continue task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeInPlace,
+		Status:         domain.RunStatusComplete,
+		Phase:          domain.RunPhaseCompleted,
+		SessionID:      "sess-before-continue",
+		StartedAt:      &now,
+		EndedAt:        &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode,
+		},
+		ApprovalState: domain.ApprovalStateNone,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	returned, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+		RunID:   runID,
+		Message: "please continue",
+	})
+	if err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+	if returned.Status != domain.RunStatusRunning {
+		t.Fatalf("expected immediate returned run to be running, got %s", returned.Status)
+	}
+	if returned.Actions == nil || !returned.Actions.CanStop {
+		t.Fatalf("expected returned run actions to allow stop while continuation is running")
+	}
+
+	select {
+	case <-continueDone:
+	case <-time.After(10 * time.Second):
+		t.Fatal("continuation runner was never called")
+	}
+
+	events := waitForStatusEvents(t, ctx, eventStore, runID, 2)
+
+	first := events[0].Data.(*domain.StatusEventData)
+	second := events[1].Data.(*domain.StatusEventData)
+	if first.OldStatus != string(domain.RunStatusComplete) || first.NewStatus != string(domain.RunStatusRunning) {
+		t.Fatalf("unexpected first transition %s -> %s", first.OldStatus, first.NewStatus)
+	}
+	if second.OldStatus != string(domain.RunStatusRunning) || second.NewStatus != string(domain.RunStatusComplete) {
+		t.Fatalf("unexpected second transition %s -> %s", second.OldStatus, second.NewStatus)
+	}
+
+	updated, err := repos.Runs.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.SessionID != "sess-after-continue" {
+		t.Fatalf("expected updated session ID, got %q", updated.SessionID)
+	}
+
+	broadcasts := broadcaster.getStatusBroadcasts()
+	if len(broadcasts) != 2 {
+		t.Fatalf("expected two run status broadcasts, got %d", len(broadcasts))
+	}
+	if broadcasts[0].Status != domain.RunStatusRunning || broadcasts[1].Status != domain.RunStatusComplete {
+		t.Fatalf("unexpected broadcast statuses %s, %s", broadcasts[0].Status, broadcasts[1].Status)
+	}
+	if broadcasts[1].Actions == nil || !broadcasts[1].Actions.CanContinue {
+		t.Fatalf("expected terminal broadcast actions to allow continuation")
+	}
+}
+
+func TestContinueRunAndCreateTaskAttemptShareEffortAdmission(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	continued := make(chan struct{}, 1)
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsMessages: true, SupportsStreaming: true, SupportsCancellation: true,
+		SupportsContinuation: true, MaxTurns: 100, SupportedModels: []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		continued <- struct{}{}
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, SessionID: "should-not-run"}, nil
+	}
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	profileID := uuid.New()
+	ownerID := uuid.New()
+	gate := &gatedContinuationRunRepository{
+		RunRepository: repos.Runs,
+		runID:         ownerID,
+		entered:       make(chan struct{}),
+		release:       make(chan struct{}),
+	}
+	svc := orchestration.New(
+		repos.Profiles, repos.Tasks, gate,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
+	)
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		ID: profileID, Name: "effort-continuation-profile", ProfileKey: "effort-continuation-" + uuid.New().String()[:8],
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff}, RoleRef: "code.default",
+	})
+	ownerTask := mustCreateTask(t, svc, ctx, &domain.Task{Title: "original effort coordinator", ScopePath: "src/"})
+	newTask := mustCreateTask(t, svc, ctx, &domain.Task{Title: "competing effort coordinator", ScopePath: "src/"})
+	ownerRef := &eventpb.WorkReference{
+		Kind: "effort", Id: "effort:continue-create-race", Revision: "source-r1", Relationship: "orchestrator",
+		Verified: true, Visibility: eventpb.WorkReferenceVisibility_WORK_REFERENCE_VISIBILITY_PUBLIC,
+		State: eventpb.WorkReferenceState_WORK_REFERENCE_STATE_ACTIVE,
+	}
+	now := time.Now().UTC()
+	owner := &domain.Run{
+		ID: ownerID, TaskID: ownerTask.ID, AgentProfileID: &profile.ID, Tag: ownerID.String(),
+		RunMode: domain.RunModeInPlace, Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted,
+		SessionID: "sess-before-race", WorkReferences: []*eventpb.WorkReference{ownerRef},
+		StartedAt: &now, EndedAt: &now, ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, owner); err != nil {
+		t.Fatalf("create terminal effort owner: %v", err)
+	}
+
+	continueResult := make(chan error, 1)
+	go func() {
+		_, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: ownerID, Message: "continue the original work"})
+		continueResult <- err
+	}()
+	select {
+	case <-gate.entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("ContinueRun did not reach the shared durable Running transition")
+	}
+
+	newOwnerID := uuid.New()
+	newOwner := &domain.Run{
+		ID: newOwnerID, TaskID: newTask.ID, Tag: newOwnerID.String(), RunMode: domain.RunModeInPlace,
+		Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued,
+		WorkReferences: []*eventpb.WorkReference{ownerRef}, ApprovalState: domain.ApprovalStateNone,
+	}
+	if err := repos.Runs.CreateTaskAttempt(ctx, newTask, newTask, newOwner, nil); err != nil {
+		t.Fatalf("create should be eligible while prior owner is terminal: %v", err)
+	}
+	close(gate.release)
+
+	select {
+	case err := <-continueResult:
+		if err == nil {
+			t.Fatal("ContinueRun resumed after another orchestrator claimed the effort")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ContinueRun did not return after releasing the transaction gate")
+	}
+	select {
+	case <-continued:
+		t.Fatal("runner received a continuation after durable effort admission was refused")
+	default:
+	}
+
+	storedOwner, err := repos.Runs.Get(ctx, ownerID)
+	if err != nil || storedOwner.Status != domain.RunStatusComplete {
+		t.Fatalf("refused continuation changed original owner state: run=%+v err=%v", storedOwner, err)
+	}
+	storedNewOwner, err := repos.Runs.Get(ctx, newOwnerID)
+	if err != nil || storedNewOwner.Status != domain.RunStatusPending {
+		t.Fatalf("competing TaskAttempt was not retained: run=%+v err=%v", storedNewOwner, err)
+	}
+}
+
+func TestContinueRun_ProtectedSandboxCarriesLauncherInputsAndLifecycleEvents(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	continueDone := make(chan error, 1)
+	var captured runner.ContinueRequest
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsMessages:     true,
+		SupportsStreaming:    true,
+		SupportsCancellation: true,
+		SupportsContinuation: true,
+		MaxTurns:             100,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(ctx context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		defer close(continueDone)
+		captured = req
+		if req.EventSink == nil {
+			continueDone <- errors.New("expected continuation event sink")
+			return nil, errors.New("expected continuation event sink")
+		}
+		if err := req.EventSink.Emit(domain.NewMessageEvent(req.RunID, "assistant", "continued from protected sandbox")); err != nil {
+			continueDone <- err
+			return nil, err
+		}
+		continueDone <- nil
+		return &runner.ExecuteResult{
+			Success:   true,
+			ExitCode:  0,
+			SessionID: "sess-protected-after-continue",
+		}, nil
+	}
+
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	sandboxID := uuid.New()
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithSandbox(&mocks.FakeSandboxProvider{
+			GetFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return &sandbox.Sandbox{
+					ID:        sandboxID,
+					Status:    sandbox.SandboxStatusCheckpointed,
+					WorkDir:   "",
+					CreatedAt: time.Now(),
+				}, nil
+			},
+			ResumeFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return &sandbox.Sandbox{
+					ID:        sandboxID,
+					Status:    sandbox.SandboxStatusActive,
+					WorkDir:   "/tmp/sandbox/" + sandboxID.String() + "/merged",
+					CreatedAt: time.Now(),
+				}, nil
+			},
+		}),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:       "protected-continue-profile",
+		ProfileKey: "protected-continue-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:       "protected continue task",
+		Description: "continuation should preserve protected launcher inputs",
+		ScopePath:   "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeSandboxed,
+		SandboxID:      &sandboxID,
+		Status:         domain.RunStatusComplete,
+		Phase:          domain.RunPhaseCompleted,
+		SessionID:      "sess-protected-before-continue",
+		StartedAt:      &now,
+		EndedAt:        &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType: domain.RunnerTypeClaudeCode, NetworkAccess: domain.NetworkAccessNone,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone, WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}}},
+		},
+		ApprovalState: domain.ApprovalStateNone,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	// Profile changes after admission must not widen a resumed assignment.
+	profile.NetworkAccess = domain.NetworkAccessFull
+	profile.SandboxConfig = &domain.SandboxConfig{Mode: domain.SandboxModeOff}
+	if _, err := svc.UpdateProfile(ctx, profile); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+		RunID:   runID,
+		Message: "please continue in protected mode",
+	}); err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+
+	select {
+	case err := <-continueDone:
+		if err != nil {
+			t.Fatalf("continuation runner: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("continuation runner was never called")
+	}
+
+	if captured.ResolvedConfig == nil {
+		t.Fatal("expected continuation request to carry resolved config")
+	}
+	if captured.ResolvedConfig.SandboxConfig == nil || captured.ResolvedConfig.SandboxConfig.Mode != domain.SandboxModeProtected {
+		t.Fatalf("expected protected sandbox config, got %#v", captured.ResolvedConfig.SandboxConfig)
+	}
+	policy := captured.ResolvedConfig.SandboxConfig
+	if captured.ResolvedConfig.NetworkAccess != domain.NetworkAccessNone || policy.NetworkMode != domain.NetworkAccessNone ||
+		policy.WritePolicy == nil || len(policy.WritePolicy.Paths) != 1 || policy.WritePolicy.Paths[0] != "src" {
+		t.Fatalf("continuation widened persisted authority after profile mutation: %+v", captured.ResolvedConfig)
+	}
+	if captured.SandboxID == nil || *captured.SandboxID != sandboxID {
+		t.Fatalf("expected sandbox ID %s, got %v", sandboxID, captured.SandboxID)
+	}
+
+	statusEvents := waitForStatusEvents(t, ctx, eventStore, runID, 2)
+	first := statusEvents[0].Data.(*domain.StatusEventData)
+	second := statusEvents[1].Data.(*domain.StatusEventData)
+	if first.NewStatus != string(domain.RunStatusRunning) || second.NewStatus != string(domain.RunStatusComplete) {
+		t.Fatalf("unexpected continuation status events %s then %s", first.NewStatus, second.NewStatus)
+	}
+
+	messageEvents, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeMessage},
+	})
+	if err != nil {
+		t.Fatalf("get message events: %v", err)
+	}
+	if len(messageEvents) != 2 {
+		t.Fatalf("expected user and assistant message events, got %d", len(messageEvents))
+	}
+}
+
+func TestContinueRun_ResumeFailureDoesNotMarkRunRunning(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsContinuation: true,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(context.Context, runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		t.Fatal("runner continuation must not start when sandbox resume fails")
+		return nil, nil
+	}
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	sandboxID := uuid.New()
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithSandbox(&mocks.FakeSandboxProvider{
+			GetFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return &sandbox.Sandbox{
+					ID:     sandboxID,
+					Status: sandbox.SandboxStatusCheckpointed,
+				}, nil
+			},
+			ResumeFunc: func(context.Context, uuid.UUID) (*sandbox.Sandbox, error) {
+				return nil, errors.New("resume failed")
+			},
+		}),
+		newTestRolePolicyOption(t),
+	)
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:       "resume-fail-profile",
+		ProfileKey: "resume-fail-" + uuid.New().String()[:8],
+
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title:     "resume fail task",
+		ScopePath: "src/",
+	})
+
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID:             runID,
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Tag:            runID.String(),
+		RunMode:        domain.RunModeSandboxed,
+		SandboxID:      &sandboxID,
+		Status:         domain.RunStatusComplete,
+		Phase:          domain.RunPhaseCompleted,
+		SessionID:      "sess-before-continue",
+		StartedAt:      &now,
+		EndedAt:        &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    domain.RunnerTypeClaudeCode,
+			Model:         "mock-model",
+			RoleRef:       "code.default",
+			NetworkAccess: domain.NetworkAccessNone,
+			SandboxConfig: &domain.SandboxConfig{
+				Mode:        domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone,
+				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+			},
+		},
+		ApprovalState: domain.ApprovalStateNone,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{
+		RunID:   runID,
+		Message: "please continue",
+	}); err == nil {
+		t.Fatal("ContinueRun error = nil, want resume failure")
+	}
+
+	updated, err := repos.Runs.Get(ctx, runID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if updated.Status != domain.RunStatusComplete {
+		t.Fatalf("run status = %s, want complete", updated.Status)
+	}
+	events, err := eventStore.Get(ctx, runID, event.GetOptions{
+		AfterSequence: -1,
+		EventTypes:    []domain.RunEventType{domain.EventTypeStatus},
+	})
+	if err != nil {
+		t.Fatalf("get status events: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("expected no status events, got %d", len(events))
+	}
+}
+
+func waitForStatusEvents(t *testing.T, ctx context.Context, store event.Store, runID uuid.UUID, count int) []*domain.RunEvent {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	var events []*domain.RunEvent
+	var err error
+	for time.Now().Before(deadline) {
+		events, err = store.Get(ctx, runID, event.GetOptions{
+			AfterSequence: -1,
+			EventTypes:    []domain.RunEventType{domain.EventTypeStatus},
+		})
+		if err != nil {
+			t.Fatalf("get events: %v", err)
+		}
+		if len(events) >= count {
+			return events
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("expected %d status events, got %d", count, len(events))
+	return nil
+}
+
+func TestContinueRun_ReplacesEachDeletedSandboxIncarnation(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	oldSandboxID := uuid.New()
+	firstReplacementID := uuid.New()
+	secondReplacementID := uuid.New()
+	statuses := map[uuid.UUID]sandbox.SandboxStatus{
+		oldSandboxID: sandbox.SandboxStatusDeleted,
+	}
+	createdByKey := map[string]*sandbox.Sandbox{}
+	provider := mocks.NewFakeSandboxProvider()
+	provider.GetFunc = func(_ context.Context, id uuid.UUID) (*sandbox.Sandbox, error) {
+		return &sandbox.Sandbox{ID: id, Status: statuses[id], WorkDir: "/tmp/sandbox/" + id.String() + "/merged"}, nil
+	}
+	provider.CreateFunc = func(_ context.Context, req sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		if existing := createdByKey[req.IdempotencyKey]; existing != nil {
+			// Model the provider's authoritative current status on idempotent
+			// replay. A deleted resource remains deleted; the stale object stored
+			// at initial Create must not make a tombstone look active.
+			existing.Status = statuses[existing.ID]
+			return existing, nil
+		}
+		var id uuid.UUID
+		switch len(createdByKey) {
+		case 0:
+			id = firstReplacementID
+		case 1:
+			id = secondReplacementID
+		default:
+			t.Fatalf("unexpected extra replacement create for key %q", req.IdempotencyKey)
+		}
+		created := &sandbox.Sandbox{ID: id, Status: sandbox.SandboxStatusActive, WorkDir: "/tmp/sandbox/" + id.String() + "/merged"}
+		createdByKey[req.IdempotencyKey] = created
+		statuses[id] = sandbox.SandboxStatusActive
+		return created, nil
+	}
+
+	continueSandboxIDs := make(chan uuid.UUID, 2)
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	mockRunner.SetCapabilities(runner.Capabilities{
+		SupportsContinuation: true,
+		SupportedModels:      []string{"mock-model"},
+	})
+	mockRunner.ContinueFunc = func(_ context.Context, req runner.ContinueRequest) (*runner.ExecuteResult, error) {
+		if req.SandboxID == nil {
+			return nil, errors.New("sandboxed continuation lost its sandbox ID")
+		}
+		continueSandboxIDs <- *req.SandboxID
+		return &runner.ExecuteResult{Success: true, ExitCode: 0, SessionID: "session-incarnation"}, nil
+	}
+	registry := runner.NewRegistry()
+	mustRegisterRunner(t, registry, mockRunner)
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(registry),
+		orchestration.WithSandbox(provider),
+		orchestration.WithRunStateRoot(t.TempDir()),
+		newTestRolePolicyOption(t),
+	)
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:          "deleted-sandbox-continuation-profile",
+		ProfileKey:    "deleted-sandbox-continuation-" + uuid.New().String()[:8],
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, RoleRef: "code.default",
+	})
+	task := mustCreateTask(t, svc, ctx, &domain.Task{
+		Title: "deleted sandbox continuation task", ScopePath: "src/", ProjectRoot: t.TempDir(),
+	})
+	now := time.Now()
+	runID := uuid.New()
+	run := &domain.Run{
+		ID: runID, TaskID: task.ID, AgentProfileID: &profile.ID, Tag: runID.String(),
+		RunMode: domain.RunModeSandboxed, SandboxID: &oldSandboxID,
+		Status: domain.RunStatusComplete, Phase: domain.RunPhaseCompleted,
+		SessionID: "session-incarnation", StartedAt: &now, EndedAt: &now,
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    domain.RunnerTypeClaudeCode,
+			Model:         "mock-model",
+			RoleRef:       "code.default",
+			NetworkAccess: domain.NetworkAccessNone,
+			SandboxConfig: &domain.SandboxConfig{
+				Mode:        domain.SandboxModeProtected,
+				NetworkMode: domain.NetworkAccessNone,
+				WritePolicy: &domain.WorkspaceWritePolicy{Paths: []string{"src"}},
+			},
+		},
+		ApprovalState: domain.ApprovalStateNone, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	continueOnce := func(wantSandboxID uuid.UUID, wantStatusEvents int) {
+		t.Helper()
+		if _, err := svc.ContinueRun(ctx, orchestration.ContinueRunRequest{RunID: runID, Message: "continue safely"}); err != nil {
+			t.Fatalf("ContinueRun: %v", err)
+		}
+		select {
+		case got := <-continueSandboxIDs:
+			if got != wantSandboxID {
+				t.Fatalf("runner sandbox ID = %s, want %s", got, wantSandboxID)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("runner continuation was not dispatched")
+		}
+		waitForStatusEvents(t, ctx, eventStore, runID, wantStatusEvents)
+		deadline := time.Now().Add(2 * time.Second)
+		var current *domain.Run
+		var err error
+		for time.Now().Before(deadline) {
+			current, err = repos.Runs.Get(ctx, runID)
+			if err != nil {
+				t.Fatalf("read run after continuation: %v", err)
+			}
+			if current.FinalizationStatus == domain.RunFinalizationStatusSucceeded || current.FinalizationStatus == domain.RunFinalizationStatusSkipped {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if current == nil || (current.FinalizationStatus != domain.RunFinalizationStatusSucceeded && current.FinalizationStatus != domain.RunFinalizationStatusSkipped) {
+			t.Fatalf("continuation finalization = %q, want succeeded or skipped", current.FinalizationStatus)
+		}
+		if current.Status != domain.RunStatusComplete || current.SandboxID == nil || *current.SandboxID != wantSandboxID {
+			t.Fatalf("run after continuation = status %s sandbox %v; want complete on %s", current.Status, current.SandboxID, wantSandboxID)
+		}
+	}
+
+	continueOnce(firstReplacementID, 2)
+	statuses[firstReplacementID] = sandbox.SandboxStatusDeleted
+	continueOnce(secondReplacementID, 4)
+
+	requests := provider.CreateRequests()
+	if len(requests) != 2 {
+		t.Fatalf("sandbox create requests = %d, want 2", len(requests))
+	}
+	if requests[0].IdempotencyKey == "" || requests[1].IdempotencyKey == "" || requests[0].IdempotencyKey == requests[1].IdempotencyKey {
+		t.Fatalf("successive deleted sandbox incarnations must use distinct non-empty create keys: %q %q", requests[0].IdempotencyKey, requests[1].IdempotencyKey)
+	}
+}

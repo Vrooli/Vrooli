@@ -1,0 +1,95 @@
+{
+  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Token Economy のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "app": {
+    "title": "Token Economy"
+  },
+  "layout": {
+    "sidebarLabel": "メインナビゲーション",
+    "bottomNavLabel": "モバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
+    "nav": {
+      "dashboard": "ダッシュボード",
+      "tokens": "Token types",
+      "holders": "Holders",
+      "earning": "Earning",
+      "grants": "Grants",
+      "catalog": "Catalog",
+      "approvals": "Approvals",
+      "journal": "Journal",
+      "settings": "設定"
+    }
+  },
+  "theme": {
+    "switcherLabel": "テーマ",
+    "choice": {
+      "light": "ライト",
+      "dark": "ダーク",
+      "system": "システム"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "ダッシュボード",
+      "description": "A current operating view of this household economy."
+    },
+    "settings": {
+      "title": "設定",
+      "themeHeading": "外観",
+      "localeHeading": "言語"
+    }
+  },
+  "common": { "status": "Status", "actions": "Actions", "amount": "Amount", "active": "Active", "inactive": "Inactive", "retired": "Retired", "retire": "Retire", "pending": "Pending", "name": "Name", "identifier": "Identifier", "description": "Description", "loading": "Loading current records…", "requestError": "The current records could not be loaded. Try again.", "search": "Search records" },
+  "dashboard": { "current": "Current", "tokenTypes": "Token types", "holders": "Holders", "rewards": "Available rewards", "pendingApprovals": "Pending approvals" },
+  "mints": { "title": "Token types", "description": "Declare each economy, its identity, supply policy and minter authority.", "createTitle": "Declare a token type", "create": "Create token type", "identity": "Identity", "symbol": "Symbol", "color": "Color", "minterSubject": "Minter identity", "supplyPolicy": "Supply policy", "unbounded": "Unbounded", "capped": "Capped", "fixed": "Fixed", "capAmount": "Supply cap", "supply": "Minted / cap", "mintAmount": "Amount to mint", "mint": "Mint", "tableCaption": "Declared token types", "empty": "No token type exists yet. Declare one before issuing tokens." },
+  "holders": { "title": "Holders", "description": "Bind each participant to one verified authenticator identity.", "addTitle": "Add a holder", "add": "Add holder", "authenticatorSubject": "Authenticated identity", "tableCaption": "Holders and their identity bindings", "empty": "No holders exist yet. Add a participant to begin the economy." },
+  "holderView": {
+    "appTitle": "My Token Economy", "appDescription": "Your balance, history, and rewards", "mainLabel": "My economy", "navigationLabel": "Holder navigation", "nav": { "home": "Home", "history": "History", "rewards": "Rewards" },
+    "eyebrow": "Your economy", "title": "My tokens", "welcome": "Hello, {{name}}", "balanceExplanation": "Every balance comes from the history shown below.", "balances": "Current balances", "signInRequired": "Sign in with your holder account to see this economy.",
+    "noBalance": "No tokens yet", "noBalanceDescription": "Completed work and grants will appear here when they are recorded.", "recentHistory": "Recent history", "seeAll": "See all history", "journalEvent": "Token event", "noHistory": "No history yet", "noHistoryDescription": "Your first earning or redemption will appear here with its reason.", "historyTitle": "How my balance changed", "historyDescription": "This append-only history explains every token added or used.", "historyListLabel": "Token history",
+    "pendingTitle": "Waiting for a decision", "noPending": "No reward requests are waiting.", "rewardRequest": "Reward request for {{amount}} tokens",
+    "rewardsTitle": "Rewards", "rewardsDescription": "Choose what your tokens can buy. The server checks every rule before accepting a request.", "cost": "{{amount}} tokens", "redeem": "Request reward", "noEligibleGrant": "Earn tokens under an eligible grant before requesting this reward.", "noRewards": "No rewards are available", "noRewardsDescription": "The minter has not published an available reward yet.", "redemptionRecorded": "Your reward request was recorded.", "redemptionRefused": "This reward could not be requested: {{reason}}"
+  },
+  "grants": { "title": "Grants and rules", "description": "Issue mandate-shaped authority and explain every condition before it becomes active.", "issueTitle": "Issue a grant", "issue": "Issue grant", "tokenType": "Token type identifier", "holder": "Holder identifier", "source": "Grant source", "authorizer": "Authorizer identity", "catalogScope": "Allowed catalog scope", "rules": "Rules", "rule": "Rule", "noRules": "No rules", "condition": "Rule condition", "operand": "Rule value", "allowScope": "Allow catalog scope", "denyScope": "Deny catalog scope", "requireEvidence": "Require evidence", "rulePreview": "This grant applies the selected rule to {{operand}}.", "anyScope": "any scope", "tableCaption": "Issued grants and their rules", "empty": "No grants exist yet. Earnings and operator issuance appear here." },
+  "catalog": { "title": "Reward catalog", "description": "Define what tokens can buy and whether a redemption needs approval.", "createTitle": "Define a reward", "create": "Create reward", "tokenType": "Token type identifier", "cost": "Cost", "approval": "Approval posture", "needsApproval": "Needs approval", "immediate": "Settles immediately", "tableCaption": "Catalog rewards", "empty": "No rewards are available yet. Define the first thing tokens can buy." },
+  "approvals": { "title": "Approval queue", "description": "Review waiting redemptions with the evidence and reason needed for a clear decision.", "holder": "Holder", "reward": "Reward", "decision": "Decision", "reason": "Decision reason", "defaultApprovalReason": "Approved by the minter", "defaultDenialReason": "Denied by the minter", "approve": "Approve", "deny": "Deny", "tableCaption": "Redemptions waiting for a decision", "empty": "Nothing is waiting for approval." },
+  "journal": { "title": "Journal", "description": "Read the append-only evidence behind every balance and export the same records.", "kind": "Event", "reason": "Reason", "actor": "Actor and verification", "noActor": "No actor recorded", "verified": "Verified", "unverified": "Not verified", "holderFilter": "Holder identifier", "tokenFilter": "Token type identifier", "export": "Export journal", "tableCaption": "Append-only journal events", "empty": "No journal events match these filters." },
+  "earning": { "title": "Earning", "description": "Record offline work through the same earning contract used by programmatic adapters.", "submitTitle": "Record work completed", "submit": "Record earning", "holder": "Holder identifier", "tokenType": "Token type identifier", "reason": "What was completed", "path": "Adapter path", "operatorAdapter": "Operator entry", "replayed": "Replay returned", "recorded": "Recorded", "sharedPathNote": "Operator entry uses the ordinary earning service; it has no privileged shortcut.", "tableCaption": "Earning submissions", "empty": "No earnings have been submitted yet." },
+  "health": {
+    "title": "API ステータス",
+    "loading": "API のステータスを確認中…",
+    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
+    "refresh": "再読み込み",
+    "refreshCount": "{{count}} 回更新しました",
+    "serviceLabel": "サービス:",
+    "timestampLabel": "タイムスタンプ:"
+  },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "言語"
+  },
+  "errorBoundary": {
+    "title": "問題が発生しました",
+    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
+    "retry": "再試行"
+  }
+}

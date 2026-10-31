@@ -1,111 +1,108 @@
 {
-  "module": "persistence",
-  "description": "Health check result storage and history",
-  "prd_refs": [
-    "OT-P0-009",
-    "OT-P1-006"
-  ],
+  "_metadata": {
+    "last_validated_at": "2026-09-02T09:47:16-04:00"
+  },
   "requirements": [
     {
       "id": "PERSIST-STORE-001",
       "title": "Store health check results",
-      "description": "Persist each health check result with check_id, status, message, timestamp",
+      "status": "pending",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
+      "description": "Persist each health check result with check_id, status, message, timestamp",
       "validation": [
         {
           "type": "test",
-          "phase": "unit",
-          "status": "planned",
-          "ref": "api/internal/storage/postgres_test.go",
-          "notes": "Database storage tests pending"
+          "ref": "api/internal/bootstrap/fullstack_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Covered by tagged Go integration test [REQ:PERSIST-STORE-001] (api/internal/bootstrap)"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PERSIST-QUERY-001",
       "title": "Query last-known status",
-      "description": "Retrieve most recent health result for each check",
+      "status": "pending",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
+      "description": "Retrieve most recent health result for each check",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "planned",
-          "ref": "api/internal/storage/postgres_test.go",
-          "notes": "Database query tests pending"
+          "status": "failing",
+          "notes": "Behavior covered by SQLite persistence tests (result read-back); [REQ:PERSIST-QUERY-001] tagging pending"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PERSIST-QUERY-002",
       "title": "Query overall health summary",
-      "description": "Aggregate results into ok/warning/critical counts",
+      "status": "pending",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
+      "description": "Aggregate results into ok/warning/critical counts",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "planned",
-          "ref": "api/internal/storage/postgres_test.go",
-          "notes": "Summary query tests pending"
+          "status": "failing",
+          "notes": "Behavior covered by SQLite persistence tests (GetCheckTrends summary); [REQ:PERSIST-QUERY-002] tagging pending"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PERSIST-HISTORY-001",
       "title": "Store 24-hour history",
-      "description": "Retain health check history for past 24 hours for trend analysis",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
+      "description": "Retain health check history for past 24 hours for trend analysis",
       "validation": [
         {
           "type": "test",
+          "ref": "ui/src/App.test.tsx",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "ui/src/App.test.tsx"
+          "status": "failing"
         }
-      ],
-      "status": "complete"
+      ]
     },
     {
       "id": "PERSIST-HISTORY-002",
       "title": "History cleanup",
-      "description": "Automatically purge health records older than retention window",
+      "status": "pending",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
+      "description": "Automatically purge health records older than retention window",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/persistence/store_sqlite_planner_test.go",
           "phase": "unit",
-          "status": "planned",
-          "ref": "api/internal/storage/postgres_test.go",
-          "notes": "Cleanup tests pending"
+          "status": "failing",
+          "notes": "Cleanup path covered by planner test (CleanupOldResults); behavioral retention test + [REQ:PERSIST-HISTORY-002] tagging pending"
         }
-      ],
-      "status": "pending"
+      ]
     },
     {
       "id": "PERSIST-ACTIONS-001",
       "title": "Store auto-heal actions",
-      "description": "Log all auto-heal actions (restarts, fixes) with timestamps",
+      "status": "pending",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
+      "description": "Log all auto-heal actions (restarts, fixes) with timestamps",
       "validation": [
         {
           "type": "test",
+          "ref": "api/internal/persistence/store_sqlite_test.go",
           "phase": "unit",
-          "status": "planned",
-          "ref": "api/internal/storage/postgres_test.go",
-          "notes": "Action logging tests pending"
+          "status": "failing",
+          "notes": "Behavior covered by SQLite persistence tests (ActionLogRoundTrip); [REQ:PERSIST-ACTIONS-001] tagging pending"
         }
-      ],
-      "status": "pending"
+      ]
     }
   ]
 }

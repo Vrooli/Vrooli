@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "enabled": true,
+  "linux": {
+    "gpg_key_id": "4A81236E416FA4792815AB648D783B0798A75581",
+    "gpg_passphrase_env": "VROOLI_GPG_PASSPHRASE",
+    "managed_key": {
+      "logical_id": "vrooli/desktop-signing"
+    }
+  }
+}

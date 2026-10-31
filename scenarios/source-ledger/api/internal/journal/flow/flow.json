@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "journal-write",
+  "domain": "journal",
+  "description": "Immutable journal append with bounded optional enrichment and atomic persistence of incomplete work.",
+  "model": {
+    "module": "JournalWriteWorkflow",
+    "seed": "2026072701",
+    "maxSteps": 3,
+    "traceCount": 8,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "TerminalClosure",
+        "IllegalTransitionsPreserveState"
+      ]
+    }
+  },
+  "states": [
+    {
+      "id": "received",
+      "quint": "Received",
+      "initial": true
+    },
+    {
+      "id": "appended",
+      "quint": "Appended",
+      "terminal": true
+    }
+  ],
+  "events": [
+    {
+      "id": "append",
+      "quint": "Append"
+    }
+  ],
+  "transitionDefaults": {
+    "invalid": {
+      "to": "self",
+      "wantError": true
+    },
+    "terminal": {
+      "to": "self",
+      "wantError": true
+    }
+  },
+  "transitions": [
+    {
+      "from": "received",
+      "event": "append",
+      "to": "appended"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "type_ok",
+      "quint": "TypeOK",
+      "description": "The model status remains inside the declared state set."
+    },
+    {
+      "id": "terminal_closure",
+      "quint": "TerminalClosure",
+      "description": "Persisted terminal states cannot transition."
+    },
+    {
+      "id": "illegal_transitions_preserve_state",
+      "quint": "IllegalTransitionsPreserveState",
+      "description": "Rejected transitions preserve status."
+    }
+  ],
+  "traces": [
+    {
+      "name": "durable_append_retains_incomplete_enrichment",
+      "initial": "received",
+      "steps": [
+        {
+          "event": "append",
+          "want": "appended",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "runtime": {
+    "go": {
+      "package": "flow",
+      "statusType": "JournalWriteStatus",
+      "eventType": "JournalWriteEvent",
+      "constantPrefix": "JournalWrite"
+    },
+    "sideEffects": [
+      "Bound all optional provider enrichment to one two-second budget.",
+      "Persist source, derived text and incomplete enrichment work in one journal transaction."
+    ]
+  },
+  "replay": {
+    "transition": {
+      "function": "TransitionJournalWrite",
+      "stateType": "JournalWriteState",
+      "statusField": "Status"
+    }
+  }
+}

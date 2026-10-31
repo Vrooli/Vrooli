@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app": {
+      "testId": "git-control-tower",
+      "selector": "[data-testid=\"git-control-tower\"]"
+    },
+    "header.root": {
+      "testId": "status-header",
+      "selector": "[data-testid=\"status-header\"]"
+    },
+    "header.branchInfo": {
+      "testId": "branch-info",
+      "selector": "[data-testid=\"branch-info\"]"
+    },
+    "header.commitOid": {
+      "testId": "commit-oid",
+      "selector": "[data-testid=\"commit-oid\"]"
+    },
+    "header.fileStats": {
+      "testId": "file-stats",
+      "selector": "[data-testid=\"file-stats\"]"
+    },
+    "header.healthStatus": {
+      "testId": "health-status",
+      "selector": "[data-testid=\"health-status\"]"
+    },
+    "header.refreshButton": {
+      "testId": "refresh-button",
+      "selector": "[data-testid=\"refresh-button\"]"
+    },
+    "fileList.root": {
+      "testId": "file-list-panel",
+      "selector": "[data-testid=\"file-list-panel\"]"
+    },
+    "fileList.stageAllButton": {
+      "testId": "stage-all-button",
+      "selector": "[data-testid=\"stage-all-button\"]"
+    },
+    "fileList.unstageAllButton": {
+      "testId": "unstage-all-button",
+      "selector": "[data-testid=\"unstage-all-button\"]"
+    },
+    "fileList.emptyState": {
+      "testId": "empty-state",
+      "selector": "[data-testid=\"empty-state\"]"
+    },
+    "diffViewer.root": {
+      "testId": "diff-viewer-panel",
+      "selector": "[data-testid=\"diff-viewer-panel\"]"
+    },
+    "diffViewer.stats": {
+      "testId": "diff-stats",
+      "selector": "[data-testid=\"diff-stats\"]"
+    },
+    "diffViewer.loading": {
+      "testId": "diff-loading",
+      "selector": "[data-testid=\"diff-loading\"]"
+    },
+    "diffViewer.error": {
+      "testId": "diff-error",
+      "selector": "[data-testid=\"diff-error\"]"
+    },
+    "diffViewer.empty": {
+      "testId": "diff-empty",
+      "selector": "[data-testid=\"diff-empty\"]"
+    },
+    "diffViewer.noChanges": {
+      "testId": "diff-no-changes",
+      "selector": "[data-testid=\"diff-no-changes\"]"
+    },
+    "diffViewer.content": {
+      "testId": "diff-content",
+      "selector": "[data-testid=\"diff-content\"]"
+    },
+    "diffViewer.raw": {
+      "testId": "diff-raw",
+      "selector": "[data-testid=\"diff-raw\"]"
+    },
+    "diffViewer.minimap": {
+      "testId": "diff-minimap",
+      "selector": "[data-testid=\"diff-minimap\"]"
+    },
+    "diffViewer.minimapRail": {
+      "testId": "diff-minimap-rail",
+      "selector": "[data-testid=\"diff-minimap-rail\"]"
+    },
+    "diffViewer.minimapViewport": {
+      "testId": "diff-minimap-viewport",
+      "selector": "[data-testid=\"diff-minimap-viewport\"]"
+    },
+    "diffViewer.minimapMarker": {
+      "testId": "diff-minimap-marker",
+      "selector": "[data-testid=\"diff-minimap-marker\"]"
+    },
+    "diffViewer.minimapTexture": {
+      "testId": "diff-minimap-texture",
+      "selector": "[data-testid=\"diff-minimap-texture\"]"
+    },
+    "diffViewer.minimapTextureLine": {
+      "testId": "diff-minimap-texture-line",
+      "selector": "[data-testid=\"diff-minimap-texture-line\"]"
+    },
+    "proposals.workspace": {
+      "testId": "proposal-workspace",
+      "selector": "[data-testid=\"proposal-workspace\"]"
+    },
+    "proposals.inbox": {
+      "testId": "proposal-inbox",
+      "selector": "[data-testid=\"proposal-inbox\"]"
+    },
+    "proposals.inboxOpen": {
+      "testId": "proposal-inbox-open",
+      "selector": "[data-testid=\"proposal-inbox-open\"]"
+    },
+    "proposals.back": {
+      "testId": "proposal-workspace-back",
+      "selector": "[data-testid=\"proposal-workspace-back\"]"
+    },
+    "proposals.detail": {
+      "testId": "proposal-detail",
+      "selector": "[data-testid=\"proposal-detail\"]"
+    },
+    "proposals.card": {
+      "testId": "proposal-card",
+      "selector": "[data-testid=\"proposal-card\"]"
+    },
+    "proposals.captureUnavailable": {
+      "testId": "proposal-capture-unavailable",
+      "selector": "[data-testid=\"proposal-capture-unavailable\"]"
+    },
+    "proposals.close": {
+      "testId": "proposal-withdraw",
+      "selector": "[data-testid=\"proposal-withdraw\"]"
+    },
+    "proposals.approve": {
+      "testId": "proposal-approve",
+      "selector": "[data-testid=\"proposal-approve\"]"
+    },
+    "proposals.approveExplanation": {
+      "testId": "proposal-approve-explain",
+      "selector": "[data-testid=\"proposal-approve-explain\"]"
+    },
+    "proposals.guidance": {
+      "testId": "proposal-guidance",
+      "selector": "[data-testid=\"proposal-guidance\"]"
+    },
+    "proposals.versionHelp": {
+      "testId": "proposal-version-help",
+      "selector": "[data-testid=\"proposal-version-help\"]"
+    },
+    "commitMessage.primary": {
+      "testId": "commit-message-primary",
+      "selector": "[data-testid=\"commit-message-primary\"]"
+    },
+    "commitMessage.actions": {
+      "testId": "commit-message-actions",
+      "selector": "[data-testid=\"commit-message-actions\"]"
+    },
+    "commitMessage.investigate": {
+      "testId": "commit-message-investigate",
+      "selector": "[data-testid=\"commit-message-investigate\"]"
+    },
+    "commitMessage.previousDraft": {
+      "testId": "commit-message-previous-draft",
+      "selector": "[data-testid=\"commit-message-previous-draft\"]"
+    },
+    "commitMessage.stage": {
+      "testId": "commit-message-stage",
+      "selector": "[data-testid=\"commit-message-stage\"]"
+    },
+    "commitMessage.panel": {
+      "testId": "commit-panel",
+      "selector": "[data-testid=\"commit-panel\"]"
+    },
+    "commitMessage.composer": {
+      "testId": "commit-message-composer",
+      "selector": "[data-testid=\"commit-message-composer\"]"
+    },
+    "commitMessage.title": {
+      "testId": "commit-message-input",
+      "selector": "[data-testid=\"commit-message-input\"]"
+    },
+    "commitMessage.description": {
+      "testId": "commit-message-description",
+      "selector": "[data-testid=\"commit-message-description\"]"
+    },
+    "commitMessage.trailers": {
+      "testId": "commit-message-trailers",
+      "selector": "[data-testid=\"commit-message-trailers\"]"
+    },
+    "commitMessage.suggest": {
+      "testId": "suggest-commit-message",
+      "selector": "[data-testid=\"suggest-commit-message\"]"
+    },
+    "commitMessage.suggestions": {
+      "testId": "commit-message-suggestions",
+      "selector": "[data-testid=\"commit-message-suggestions\"]"
+    },
+    "commitMessage.standing": {
+      "testId": "commit-suggestion-standing",
+      "selector": "[data-testid=\"commit-suggestion-standing\"]"
+    },
+    "commitMessage.suggestion": {
+      "testId": "commit-message-suggestion",
+      "selector": "[data-testid=\"commit-message-suggestion\"]"
+    },
+    "commitMessage.partialCoverage": {
+      "testId": "commit-message-partial-coverage",
+      "selector": "[data-testid=\"commit-message-partial-coverage\"]"
+    },
+    "commitMessage.stale": {
+      "testId": "commit-message-stale",
+      "selector": "[data-testid=\"commit-message-stale\"]"
+    },
+    "commitMessage.progress": {
+      "testId": "commit-drafting-progress",
+      "selector": "[data-testid=\"commit-drafting-progress\"]"
+    },
+    "commitMessage.mobileNav": {
+      "testId": "mobile-nav-commit",
+      "selector": "[data-testid=\"mobile-nav-commit\"]"
+    },
+    "errorToast": {
+      "testId": "error-toast",
+      "selector": "[data-testid=\"error-toast\"]"
+    },
+    "library.navigation.tabs.root": {
+      "testId": "navigation.tabs",
+      "selector": "[data-testid=\"navigation.tabs\"]"
+    },
+    "library.navigation.tabs.links": {
+      "testId": "navigation.tabs.Links",
+      "selector": "[data-testid=\"navigation.tabs.Links\"]"
+    },
+    "library.navigation.tabs.settingsTabSessions": {
+      "testId": "navigation.tabs.settings-tab-sessions",
+      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
+    },
+    "library.controls.icon-button.root": {
+      "testId": "controls.icon-button",
+      "selector": "[data-testid=\"controls.icon-button\"]"
+    },
+    "library.notificationbadge.root": {
+      "testId": "notificationbadge",
+      "selector": "[data-testid=\"notificationbadge\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.feedback.toast.root": {
+      "testId": "feedback.toast",
+      "selector": "[data-testid=\"feedback.toast\"]"
+    },
+    "library.feedback.toast.action": {
+      "testId": "feedback.toast.action",
+      "selector": "[data-testid=\"feedback.toast.action\"]"
+    },
+    "library.feedback.toast.dismiss": {
+      "testId": "feedback.toast.dismiss",
+      "selector": "[data-testid=\"feedback.toast.dismiss\"]"
+    },
+    "library.feedback.toast.viewport": {
+      "testId": "feedback.toast.viewport",
+      "selector": "[data-testid=\"feedback.toast.viewport\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "fileList.section": {
+      "description": "File section by category (staged, unstaged, untracked, conflicts)",
+      "selectorPattern": "[data-testid=\"file-section-${category}\"]",
+      "testIdPattern": "file-section-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.sectionToggle": {
+      "description": "File section toggle button",
+      "selectorPattern": "[data-testid=\"file-section-toggle-${category}\"]",
+      "testIdPattern": "file-section-toggle-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.fileItem": {
+      "description": "File item by category",
+      "selectorPattern": "[data-testid=\"file-item-${category}\"]",
+      "testIdPattern": "file-item-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.fileAction": {
+      "description": "File action button (stage/unstage)",
+      "selectorPattern": "[data-testid=\"file-action-${category}\"]",
+      "testIdPattern": "file-action-${category}",
+      "params": [
+        {
+          "name": "category",
+          "type": "enum",
+          "values": [
+            "staged",
+            "unstaged",
+            "untracked",
+            "conflicts"
+          ]
+        }
+      ]
+    },
+    "fileList.fileByPath": {
+      "description": "File item by path",
+      "selectorPattern": "[data-file-path=\"${path}\"]",
+      "params": [
+        {
+          "name": "path",
+          "type": "string"
+        }
+      ]
+    },
+    "diffViewer.hunk": {
+      "description": "Diff hunk by index",
+      "selectorPattern": "[data-testid=\"diff-hunk-${index}\"]",
+      "testIdPattern": "diff-hunk-${index}",
+      "params": [
+        {
+          "name": "index",
+          "type": "number"
+        }
+      ]
+    },
+    "diffViewer.line": {
+      "description": "Diff line",
+      "selectorPattern": "[data-testid=\"diff-line\"]",
+      "testIdPattern": "diff-line",
+      "params": []
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "0a9333cceea22496c793687e3a716cd8ac51d5abc56d9bf9ca1704db075f0b10",
+    "ui/src/consts/selectors.ts": "20a4c7a61fe82db0dcbb1ef1c59b0600f22f8ae33d919e4d93c177107c3aa6ce"
+  }
+}

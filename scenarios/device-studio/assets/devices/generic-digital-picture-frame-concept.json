@@ -1,0 +1,150 @@
+{
+  "schema_version": "device-definition/v1",
+  "id": "generic-digital-picture-frame-concept",
+  "group": "smart_display_frame",
+  "kind": "digital_picture_frame",
+  "identity_status": "generic_design",
+  "manufacturer": "Unspecified",
+  "model": "Generic digital picture-frame adaptation",
+  "dimensions": {
+    "front-facing": {
+      "width": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "front-facing",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "height": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "front-facing",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "depth": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "front-facing",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      }
+    },
+    "tabletop": {
+      "width": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "left-to-right in front reference pose",
+        "configuration": "tabletop",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "height": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "bottom-to-top in front reference pose",
+        "configuration": "tabletop",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      },
+      "depth": {
+        "value": null,
+        "unit": "mm",
+        "meaning": "front-to-back in front reference pose",
+        "configuration": "tabletop",
+        "method": "unknown",
+        "uncertainty": {
+          "status": "unknown",
+          "explanation": "No source-backed numeric value established."
+        },
+        "evidence": []
+      }
+    }
+  },
+  "displays": [
+    {
+      "id": "front-panel",
+      "topology": "unknown",
+      "physical_boundary": {
+        "status": "unknown"
+      },
+      "active_area": {
+        "status": "unknown"
+      },
+      "app_safe_area": {
+        "status": "unknown"
+      },
+      "hardware_occlusions": []
+    }
+  ],
+  "joints": [],
+  "supported_poses": [
+    {
+      "name": "portrait",
+      "status": "unknown"
+    },
+    {
+      "name": "landscape",
+      "status": "unknown"
+    }
+  ],
+  "supported_motion": [
+    {
+      "name": "orientation-change",
+      "status": "unknown"
+    }
+  ],
+  "supported_profiles": [],
+  "supports": [
+    {
+      "kind": "tabletop",
+      "status": "unknown"
+    },
+    {
+      "kind": "wall_mount",
+      "status": "unknown"
+    }
+  ],
+  "model_candidates": [
+    {
+      "id": "cc0-passive-picture-frame-lead",
+      "status": "not_acquired",
+      "listing_url": "https://polyhaven.com/a/standing_picture_frame_01",
+      "author": "Poly Haven",
+      "license": "CC0 listing",
+      "rights_notes": "Passive frame only; not digital electronics and not a match for complete display body."
+    }
+  ],
+  "provenance": [
+    {
+      "source": "/home/matthalloran8/.vrooli/evidence/device-presentation-2026-10-18/model-sourcing/large-devices.json",
+      "kind": "archived_source_record",
+      "qualifier": "No exact digital-frame body and active display dimensions sourced; passive frame is an adaptation lead only."
+    }
+  ],
+  "qualification": "unqualified",
+  "description": "Explicit generic concept, not a measured digital frame product; display assembly, electronics, body, stand, and wall attachment are unknown."
+}

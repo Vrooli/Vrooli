@@ -1,0 +1,66 @@
+{
+  "scenario": "audio-tools",
+  "workItem": "execute/audio-tools-local-dictation-development-pilot",
+  "objective": "Develop and instrument reliable local dictation for a nominated Linux amd64 Chromium cohort through the shared voice contract. Perform successive in-scope repairs under one engagement; retain honest unknowns and submit evidence for operator acceptance. This is a proposed first slice, not approval of all Audio Tools product extensions.",
+  "artifactPaths": [
+    "scenarios/audio-tools/docs/concepts/ARCHITECTURE.md",
+    "scenarios/audio-tools/docs/internal/SEAMS.md",
+    "scenarios/audio-tools/docs/internal/TESTING.md",
+    "scenarios/audio-tools/docs/internal/PROBLEMS.md",
+    "scenarios/audio-tools/docs/business/MONETIZATION.md",
+    "scenarios/audio-tools/requirements/index.json",
+    "scenarios/audio-tools/requirements/01-must-ship/module.json",
+    "scenarios/audio-tools/requirements/02-post-launch/module.json",
+    "scenarios/audio-tools/requirements/03-future/module.json"
+  ],
+  "outcomes": [
+    {
+      "id": "local-browser-measurement",
+      "criterion": "Record click, permission, capture-ready, session-ready, voiced-sample, displayed-partial, committed-final and stop-complete boundaries in paced Chromium runs. Retain failed attempts, counts and cold/warm distributions with exact host/browser/engine/model/build identities. Do not substitute CLI replay timing for browser latency or adopt the candidate SLOs silently.",
+      "evidenceSource": "Audio Tools experiment/corpus receipts and paced browser traces through the shared capture seam; at least 30 attempts in each nominated initial cohort, including negative controls. Exact cohort and acceptance bands require operator disposition."
+    },
+    {
+      "id": "partial-and-final-integrity",
+      "criterion": "Display genuine revisable partials on the selected native-streaming local engine; preserve the final tail and prevent silent loss or duplicate commitment in the tested cohort. Stop, cancellation, truncated input and disconnect must expose explicit recovery or failure. Batch-only engines must not be presented as native streaming.",
+      "evidenceSource": "Focused owner regressions plus paced Audio Tools browser receipts with known ending phrases, interval coverage, minimum input duration and early-EOF negative controls. Native-device and three-hour soak qualification remain separate unfulfilled commitments."
+    },
+    {
+      "id": "portable-consumer-path",
+      "criterion": "Exercise the same shared capture and transcript contract in Audio Tools and Web Console; avoid private consumer/provider workarounds. A missing dependency capability produces an explicit limitation without silently changing route or spending credits.",
+      "evidenceSource": "Scoped shared-package tests and paced consumer integration receipts. Additional Web Console owner paths require an amendment before edits outside the proposed scope."
+    },
+    {
+      "id": "honest-continuation",
+      "criterion": "Retain interventions, evidence references, remaining outcomes, pending operations, actual aggregate usage and limitations under the owning engagement. Never mark the complete Audio Tools vision accepted on the strength of this local slice or a successful harness event.",
+      "evidenceSource": "Swarm-owned engagement checkpoint and final submission after the mandate runtime is implemented and separately qualified. Fresh-agent launch requires the operator's later instruction."
+    }
+  ],
+  "acceptanceAllow": [
+    "scenarios/audio-tools/**",
+    "packages/audio-capture-browser/**",
+    "scenarios/web-console/ui/src/audio-integration/**"
+  ],
+  "acceptanceDeny": [
+    "scenarios/audio-tools/.env*",
+    "scenarios/audio-tools/PRD.md",
+    "scenarios/audio-tools/docs/internal/local-dictation-proposal.json",
+    "scenarios/landing-page-business-suite/**",
+    "scenarios/swarm-manager/**"
+  ],
+  "allowedEffects": [
+    "PROPOSED ONLY: local source/test/documentation edits inside the allow paths, with deny paths taking precedence; preserve unrelated worktree changes",
+    "PROPOSED ONLY: focused deterministic checks, governed Test Genie phases, local-engine inference on licensed or consented fixtures, and browser automation against the named local consumers",
+    "PROPOSED ONLY: lifecycle operations for the named test consumers when they will not interrupt unrelated work; do not repair host state privately",
+    "No paid-provider calls, subscription purchases, credit spending, production billing fixtures, credential export, commits, pushes, publication or deployment",
+    "No background development-agent launch or delegated allowance from this proposal; the operator must first review and approve a retained target revision and aggregate limits"
+  ],
+  "guidance": {
+    "effort": "thorough",
+    "startingState": "unknown",
+    "validation": "targeted",
+    "repairRelatedCode": true,
+    "additionalInstructions": "Fully pursue the intent of this approved local-dictation slice, not a checklist-shaped approximation. Use the scenario improvement skill and measurement program to choose successive repairs. Validate real streamed browser text, including final-tail integrity, rather than inferring browser quality from CLI success. Repair a shared owner only inside the explicitly permitted paths; do not introduce consumer-specific duplicates. Preserve unrelated changes and distinguish product defects, missing measurements, and broken infrastructure. Continue independent authorized work when one route is unavailable. Exact SLO bands, budgets and runtime qualification remain operator decisions before launch; this draft does not adopt them. BYOK, subscription, credits, additional device cohorts and full Audio Tools acceptance are outside this initial slice."
+  },
+  "maxTokens": "0",
+  "maxWallSeconds": "0"
+}

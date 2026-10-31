@@ -10,7 +10,8 @@
  * - recording-frames: Frame capture and screenshots
  * - recording-input: Pointer, keyboard, wheel, viewport input
  * - recording-pages: Multi-tab page management
- * - recording-diagnostics-routes: Debug endpoints, pipeline testing
+ * - recording-stream-settings-route: Recording stream configuration
+ * - recording-diagnostics-routes: Debug and external URL injection checks
  */
 
 // Types
@@ -24,13 +25,8 @@ export type {
   ReplayPreviewRequest,
   ReplayPreviewResponse,
   NavigateRequest,
-  NavigateResponse,
-  ReloadRequest,
-  ReloadResponse,
-  GoBackRequest,
-  GoBackResponse,
-  GoForwardRequest,
-  GoForwardResponse,
+  NavigationResponse,
+  HistoryNavigationRequest,
   NavigationStateResponse,
   ScreenshotRequest,
   ScreenshotResponse,
@@ -52,13 +48,15 @@ export {
   handleRecordStop,
   handleRecordStatus,
   handleRecordActions,
+  handleRecordActionsAck,
 } from './recording-lifecycle';
 
-// Recording diagnostics handlers (stream settings, debug, testing)
+// Recording stream configuration
+export { handleStreamSettings } from './recording-stream-settings-route';
+
+// Recording diagnostics handlers (debug, testing)
 export {
-  handleStreamSettings,
   handleRecordDebug,
-  handleRecordPipelineTest,
   handleRecordExternalUrlTest,
 } from './recording-diagnostics-routes';
 
@@ -76,16 +74,14 @@ export {
   handleRecordGoForward,
   handleRecordNavigationState,
   handleRecordNavigationStack,
-  clearNavigationState,
 } from './recording-navigation';
 
 // Recording frame handlers
 export {
   handleRecordFrame,
   handleRecordScreenshot,
-  clearFrameCache,
-  clearAllFrameCaches,
 } from './recording-frames';
+export { clearFrameCache, clearAllFrameCaches } from '../../session/frame-cache';
 
 // Recording input handlers
 export {
@@ -97,18 +93,5 @@ export {
 export {
   handleRecordNewPage,
   handleRecordActivePage,
+  handleRecordClosePage,
 } from './recording-pages';
-
-// Cleanup utility
-import { removeRecordingBuffer } from '../../recording';
-import { clearFrameCache } from './recording-frames';
-import { clearNavigationState } from './recording-navigation';
-
-/**
- * Clean up recording buffer, frame cache, and navigation state for a session
- */
-export function cleanupSessionRecording(sessionId: string): void {
-  removeRecordingBuffer(sessionId);
-  clearFrameCache(sessionId);
-  clearNavigationState(sessionId);
-}

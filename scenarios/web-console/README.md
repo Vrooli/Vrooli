@@ -1,6 +1,16 @@
-# Web Console (web-console scenario)
+# Aquila (web-console scenario)
 
-Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios.
+Aquila is a workspace for working with coding agents: see which conversations need attention, read structured answers, inspect their files, and carry useful context into the next conversation. Its pane-based terminal remains available alongside message views. The technical scenario key remains `web-console` for API and lifecycle compatibility.
+
+For customer value, current desktop positioning, proof sources and setup boundaries, see [Go to market](docs/business/GO-TO-MARKET.md). The target rewrite goals below are not a release-availability checklist.
+
+## Platform support
+
+Linux is supported and covered by PTY/tmux integration tests. macOS uses the
+Unix PTY path with Darwin termios support. Windows uses the native ConPTY
+adapter; the Windows build is cross-compiled in validation, while tmux
+persistence remains Unix-only. Platform claims and evidence live in
+`.vrooli/service.json`.
 
 ## Scope Status
 
@@ -17,6 +27,8 @@ Web Console delivers a full-fidelity terminal experience in the browser with pan
 5. Mobile usability through floating terminal keyboard controls.
 6. Configurable new-terminal launcher with empty shell and shortcut options.
 7. Sidebar/drawer for operational controls and status.
+8. Non-destructive session archive with cross-session transcript retrieval and bounded retention.
+9. Sender-owned reusable message snippets with named variables, capture from messages/composers, and explicit one-way promotion to governed skills.
 
 ## Single-User Design
 
@@ -29,6 +41,47 @@ Web Console is designed for personal server use — a single operator running th
 - Mobile: single-column stacked pane layout.
 - Layout should preserve active session continuity while resizing.
 
+### File inspection
+
+The file drawer supports HTML, audio, images, PDF, video, Markdown, JSON/YAML,
+CSV/TSV, code/logs, unified patches, Excel workbooks, Word documents, PowerPoint,
+EPUB, archives, 3D models, and folders. Source readers provide
+literal search, original-line navigation, range copying, and log severity filters.
+Change review includes file/hunk navigation, old/new line numbers, and wide
+comparison views. Excel (.xlsx, .xls, .xlsm, .xlsb) provides worksheet selection,
+formatted values, cell/formula inspection, loaded-cell search, address navigation,
+and pagination. Phones use row and cell drill-in views. Workbooks are read-only;
+formulas display saved results without recalculation. Preview limits and errors
+retain access to the original download.
+
+3D previews support GLB, self-contained glTF 2.0, OBJ geometry and STL, with
+orbit/pan/zoom, preset views, wireframe, ground grid, lighting and background
+controls. The viewer is static and read-only. Models requiring separate assets,
+unsupported compression or skeletal/morph geometry retain download access.
+WebGL2 is required; parsing and rendering use bounded local resources on any
+host OS. Try the original [Orbital study model](fixtures/file-preview/orbital-study.glb).
+
+Open `fixtures/file-preview/operations-workbook.xlsx` for a multi-sheet example
+with currency, percentages, dates, booleans, and saved formulas.
+Source, change review and workbook settings share a responsive options sheet;
+phones keep worksheet selection in a separate full-width row. Explicit phone
+table view opens cell details on selection and supports returning to the table.
+Other examples are `ui/src/components/file-preview/sourceData.ts` and
+`../../docs/internal/delivery-reliability-research/sources/A134logs/11-toolchain-floor-candidate-v8.patch`.
+
+Word (.docx) provides a reflowing reader with headings, an outline, literal search,
+text sizing, tables, embedded raster images and text copying. Pagination and complex
+page layouts may differ from Word. Parsing happens locally in a bounded worker;
+external resources and embedded styles stay disabled. Try
+`fixtures/file-preview/operations-brief.docx`.
+
+Folder previews use a full-width filter and responsive options for sorting and
+hidden files. Wide drawers show aligned size/date columns; phones keep those facts
+beneath each filename. History Back stays in a dedicated navigation row, restores
+the previous location, and disables at the starting folder. Parent-folder and
+breadcrumb navigation are separate actions. Open `fixtures/` to explore both
+sample documents through the folder reader.
+
 ### Terminal Fidelity
 - PTY-backed stream handling with binary-safe input/output.
 - Reliable resize and cursor-report handling.
@@ -39,6 +92,60 @@ Web Console is designed for personal server use — a single operator running th
 - Default policy: never expire.
 - Refreshing page or reconnecting should restore session context.
 - Missed output while disconnected must be replayed and visible.
+- Closing a pane archives it and preserves its transcript. Permanent deletion is a separate confirmed action.
+- Archived sessions expose `Reopenable`, `Read-only`, or `Nothing to restore` before the operator acts.
+
+### Groups, Roles, and Handoffs
+
+- A **group** is one piece of work, named for the task. The new-session dialog
+  states which group it will join on every open, and can create one by name
+  without leaving the dialog.
+- A **role** is a named position inside a group. A role is *running* when it
+  holds a session and *waiting* when it holds a command and no session. A
+  waiting role costs no process and no PTY, survives a restart, and renders as
+  a dashed placeholder. Roles are optional: dragging a session into a group
+  keeps working and creates none.
+- A **group template** is a saved role list. Creating a group from one creates
+  the group and its roles in a single action; only a role marked *starts now*
+  spends a process.
+- A **handoff** sends a message from one session to one or more targets in the
+  same group, from the pane header, the file viewer, or a sidebar role. It
+  starts a waiting target first, reports a per-target `sent`, `queued`, or
+  `failed` result, and is never dropped silently. The payload is a file path, a
+  passage, or nothing — the console never classifies it.
+- A **capture rule** decides when a handoff is *suggested*. A rule never sends
+  anything: a match is a dismissible chip that opens the same composer a button
+  opens.
+- A group with no sessions and no waiting roles closes itself, reversibly. The
+  waiting-role exemption is what keeps a half-started group alive.
+
+Shipped templates and rules are ordinary editable rows. Deleting them leaves
+every capability working. Design record:
+`docs/internal/ROLES-AND-HANDOFFS-UX.md`.
+
+### Snippets and Message Actions
+
+- Snippets are flat, sender-owned reusable text with optional lowercase named
+  variables. They have no receiver, group, role, or privileged built-in state.
+- Operators can capture message or composer text, insert snippets from desktop
+  and mobile composer surfaces, and manage, pin, recolor, or delete them in
+  Settings.
+- Handoffs can target the current group, other live sessions, or a new
+  ungrouped session. Message text resolves by per-target edit, selected
+  snippet, receiver role prompt, then payload.
+- Message actions come from one declared registry with at most three actions
+  inline; remaining actions use one overflow menu with 44-pixel hit targets.
+- Promotion copies a snippet into prompt-manager once. No identifier or sync
+  link is retained. Design record:
+  `docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md`.
+
+### Conversation Messages
+
+- Messages use a bounded 500-event window. Opening a Messages pane reads the newest page; approaching the top loads the preceding page without shifting the visible content.
+- `ConversationService.Get` accepts `limit` and `before_sequence`; callers that omit both retain the legacy complete-history response.
+- Per-session whole-history search is server-side and debounced in the UI. Cross-session archive search uses SQLite FTS5 and returns sequence-addressable message excerpts across retained lineages.
+- Message jump loads the page containing an off-window search result. Export Select All uses the server range endpoint, capped at 5,000 events, so it does not silently omit older history.
+- Virtualized message and navigator lists keep first paint bounded even for multi-thousand-event sessions. Inactive Messages panes unmount while terminal panes remain warm.
 
 ### AI Input
 - Command-generation UI should be available from main shell workspace.
@@ -53,7 +160,7 @@ Web Console is designed for personal server use — a single operator running th
   - Empty terminal
   - Configured shortcut entries
 - Default shortcut entries:
-  - `claude --dangerously-skip-permissions`
+  - `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`
   - `codex --yolo`
 
 ### Mobile Toolbar
@@ -139,3 +246,27 @@ make stop
 
 - Avoid direct process execution outside scenario lifecycle commands.
 - Keep docs and requirements in lockstep as rewrite decisions evolve.
+
+Font files (`.ttf`, `.otf`, `.woff`, `.woff2`) open as local specimens with
+editable text, size/spacing controls, mapped Unicode character browsing and
+authored variable axes. They require no OS installation or remote converter.
+Try the existing [Archivo font](../landing-page-business-suite/ui/public/presentation/archivo.ttf).
+The `console-stencil` fixtures are original geometric test fonts, including
+a variable TTF; they are parser/transport specimens rather than readable typefaces.
+
+
+SQLite files (`.sqlite`, `.sqlite3`, `.db`, or an extensionless SQLite header)
+open in a read-only table browser with column filters, sorting, 50-row pages,
+column/index/relationship details, bounded cell inspection and CSV export of
+the current page. Phones use records with local Back; wide drawers use a grid.
+Try [Project Atlas](fixtures/file-preview/project-atlas.sqlite), an original
+sample with projects, tasks, relationships, JSON, binary and edge-case values.
+
+Database snapshots include committed WAL changes, are limited to 32 MiB, and
+never change the source database's journal mode. Refresh obtains a new snapshot.
+The bundled browser engine uses no system SQLite command, remote viewer, OPFS
+or browser persistence. Views/virtual tables, encrypted databases and incomplete
+journal-dependent archive members are not supported. Values are bounded to
+16,384 characters (at most 64 KiB UTF-8); oversized results require a narrower
+filter. Original download is the raw source file, which may need its journal
+when opened in another application.

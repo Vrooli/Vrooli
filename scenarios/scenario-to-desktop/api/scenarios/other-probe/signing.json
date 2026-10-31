@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "enabled": true,
+  "linux": {
+    "gpg_key_id": "BEEC110B67DCBA9F52890540CEC705D77790E249",
+    "gpg_passphrase_env": "VROOLI_GPG_PASSPHRASE",
+    "managed_key": {
+      "logical_id": "vrooli/desktop-signing-e2e"
+    }
+  }
+}

@@ -75,32 +75,35 @@ func (x *GraphPosition) GetY() float64 {
 	return 0
 }
 
-// GraphInitiativeRollup summarizes the member backlog state for an initiative.
-type GraphInitiativeRollup struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Total         int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
-	Completed     int32                  `protobuf:"varint,2,opt,name=completed,proto3" json:"completed,omitempty"`
-	InProgress    int32                  `protobuf:"varint,3,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
-	Failed        int32                  `protobuf:"varint,4,opt,name=failed,proto3" json:"failed,omitempty"`
-	Pending       int32                  `protobuf:"varint,5,opt,name=pending,proto3" json:"pending,omitempty"`
+// GraphGoalRollup summarizes the derived backlog state for a goal.
+type GraphGoalRollup struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Total      int32                  `protobuf:"varint,1,opt,name=total,proto3" json:"total,omitempty"`
+	Completed  int32                  `protobuf:"varint,2,opt,name=completed,proto3" json:"completed,omitempty"`
+	InProgress int32                  `protobuf:"varint,3,opt,name=in_progress,json=inProgress,proto3" json:"in_progress,omitempty"`
+	Failed     int32                  `protobuf:"varint,4,opt,name=failed,proto3" json:"failed,omitempty"`
+	Pending    int32                  `protobuf:"varint,5,opt,name=pending,proto3" json:"pending,omitempty"`
+	// Items the operator decided not to do: neither an achievement (completed)
+	// nor outstanding work (pending).
+	Dropped       int32 `protobuf:"varint,6,opt,name=dropped,proto3" json:"dropped,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GraphInitiativeRollup) Reset() {
-	*x = GraphInitiativeRollup{}
+func (x *GraphGoalRollup) Reset() {
+	*x = GraphGoalRollup{}
 	mi := &file_swarm_manager_v1_domain_graph_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GraphInitiativeRollup) String() string {
+func (x *GraphGoalRollup) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GraphInitiativeRollup) ProtoMessage() {}
+func (*GraphGoalRollup) ProtoMessage() {}
 
-func (x *GraphInitiativeRollup) ProtoReflect() protoreflect.Message {
+func (x *GraphGoalRollup) ProtoReflect() protoreflect.Message {
 	mi := &file_swarm_manager_v1_domain_graph_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -112,54 +115,66 @@ func (x *GraphInitiativeRollup) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GraphInitiativeRollup.ProtoReflect.Descriptor instead.
-func (*GraphInitiativeRollup) Descriptor() ([]byte, []int) {
+// Deprecated: Use GraphGoalRollup.ProtoReflect.Descriptor instead.
+func (*GraphGoalRollup) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_domain_graph_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GraphInitiativeRollup) GetTotal() int32 {
+func (x *GraphGoalRollup) GetTotal() int32 {
 	if x != nil {
 		return x.Total
 	}
 	return 0
 }
 
-func (x *GraphInitiativeRollup) GetCompleted() int32 {
+func (x *GraphGoalRollup) GetCompleted() int32 {
 	if x != nil {
 		return x.Completed
 	}
 	return 0
 }
 
-func (x *GraphInitiativeRollup) GetInProgress() int32 {
+func (x *GraphGoalRollup) GetInProgress() int32 {
 	if x != nil {
 		return x.InProgress
 	}
 	return 0
 }
 
-func (x *GraphInitiativeRollup) GetFailed() int32 {
+func (x *GraphGoalRollup) GetFailed() int32 {
 	if x != nil {
 		return x.Failed
 	}
 	return 0
 }
 
-func (x *GraphInitiativeRollup) GetPending() int32 {
+func (x *GraphGoalRollup) GetPending() int32 {
 	if x != nil {
 		return x.Pending
 	}
 	return 0
 }
 
+func (x *GraphGoalRollup) GetDropped() int32 {
+	if x != nil {
+		return x.Dropped
+	}
+	return 0
+}
+
 // GraphBacklogNodeData describes a backlog item node.
 type GraphBacklogNodeData struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Kind     string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
-	Name     string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Title    string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	Status   string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Priority int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Kind  string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Title string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	// Backlog lifecycle status. Not constrained to an inline allowlist — see the
+	// note on BacklogItem.status in domain/backlog.proto. This list is the reason
+	// for that note: it had drifted from the real vocabulary, omitting
+	// `suggested` and admitting `archived`, which is not a status at all (archival
+	// is the separate archived_at timestamp).
+	Status   string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Priority int32  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
 	// Cross-lens execution status annotation (topology enrichment).
 	ActiveExecutionStatus *string `protobuf:"bytes,6,opt,name=active_execution_status,json=activeExecutionStatus,proto3,oneof" json:"active_execution_status,omitempty"`
 	ActiveExecutionCount  int32   `protobuf:"varint,7,opt,name=active_execution_count,json=activeExecutionCount,proto3" json:"active_execution_count,omitempty"`
@@ -246,31 +261,31 @@ func (x *GraphBacklogNodeData) GetActiveExecutionCount() int32 {
 	return 0
 }
 
-// GraphInitiativeNodeData describes an initiative node.
-type GraphInitiativeNodeData struct {
+// GraphGoalNodeData describes a goal node.
+type GraphGoalNodeData struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
-	Rollup        *GraphInitiativeRollup `protobuf:"bytes,4,opt,name=rollup,proto3" json:"rollup,omitempty"`
+	Rollup        *GraphGoalRollup       `protobuf:"bytes,4,opt,name=rollup,proto3" json:"rollup,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GraphInitiativeNodeData) Reset() {
-	*x = GraphInitiativeNodeData{}
+func (x *GraphGoalNodeData) Reset() {
+	*x = GraphGoalNodeData{}
 	mi := &file_swarm_manager_v1_domain_graph_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GraphInitiativeNodeData) String() string {
+func (x *GraphGoalNodeData) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GraphInitiativeNodeData) ProtoMessage() {}
+func (*GraphGoalNodeData) ProtoMessage() {}
 
-func (x *GraphInitiativeNodeData) ProtoReflect() protoreflect.Message {
+func (x *GraphGoalNodeData) ProtoReflect() protoreflect.Message {
 	mi := &file_swarm_manager_v1_domain_graph_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -282,33 +297,33 @@ func (x *GraphInitiativeNodeData) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GraphInitiativeNodeData.ProtoReflect.Descriptor instead.
-func (*GraphInitiativeNodeData) Descriptor() ([]byte, []int) {
+// Deprecated: Use GraphGoalNodeData.ProtoReflect.Descriptor instead.
+func (*GraphGoalNodeData) Descriptor() ([]byte, []int) {
 	return file_swarm_manager_v1_domain_graph_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GraphInitiativeNodeData) GetName() string {
+func (x *GraphGoalNodeData) GetName() string {
 	if x != nil {
 		return x.Name
 	}
 	return ""
 }
 
-func (x *GraphInitiativeNodeData) GetTitle() string {
+func (x *GraphGoalNodeData) GetTitle() string {
 	if x != nil {
 		return x.Title
 	}
 	return ""
 }
 
-func (x *GraphInitiativeNodeData) GetStatus() string {
+func (x *GraphGoalNodeData) GetStatus() string {
 	if x != nil {
 		return x.Status
 	}
 	return ""
 }
 
-func (x *GraphInitiativeNodeData) GetRollup() *GraphInitiativeRollup {
+func (x *GraphGoalNodeData) GetRollup() *GraphGoalRollup {
 	if x != nil {
 		return x.Rollup
 	}
@@ -714,7 +729,7 @@ type GraphNodeData struct {
 	// Types that are valid to be assigned to Value:
 	//
 	//	*GraphNodeData_Backlog
-	//	*GraphNodeData_Initiative
+	//	*GraphNodeData_Goal
 	//	*GraphNodeData_Capture
 	//	*GraphNodeData_Scenario
 	//	*GraphNodeData_Execution
@@ -771,10 +786,10 @@ func (x *GraphNodeData) GetBacklog() *GraphBacklogNodeData {
 	return nil
 }
 
-func (x *GraphNodeData) GetInitiative() *GraphInitiativeNodeData {
+func (x *GraphNodeData) GetGoal() *GraphGoalNodeData {
 	if x != nil {
-		if x, ok := x.Value.(*GraphNodeData_Initiative); ok {
-			return x.Initiative
+		if x, ok := x.Value.(*GraphNodeData_Goal); ok {
+			return x.Goal
 		}
 	}
 	return nil
@@ -833,8 +848,8 @@ type GraphNodeData_Backlog struct {
 	Backlog *GraphBacklogNodeData `protobuf:"bytes,1,opt,name=backlog,proto3,oneof"`
 }
 
-type GraphNodeData_Initiative struct {
-	Initiative *GraphInitiativeNodeData `protobuf:"bytes,2,opt,name=initiative,proto3,oneof"`
+type GraphNodeData_Goal struct {
+	Goal *GraphGoalNodeData `protobuf:"bytes,2,opt,name=goal,proto3,oneof"`
 }
 
 type GraphNodeData_Capture struct {
@@ -859,7 +874,7 @@ type GraphNodeData_Run struct {
 
 func (*GraphNodeData_Backlog) isGraphNodeData_Value() {}
 
-func (*GraphNodeData_Initiative) isGraphNodeData_Value() {}
+func (*GraphNodeData_Goal) isGraphNodeData_Value() {}
 
 func (*GraphNodeData_Capture) isGraphNodeData_Value() {}
 
@@ -1115,32 +1130,33 @@ var File_swarm_manager_v1_domain_graph_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\n" +
-	"#swarm-manager/v1/domain/graph.proto\x12\x10swarm_manager.v1\x1a\x1bbuf/validate/validate.proto\"+\n" +
+	"#swarm-manager/v1/domain/graph.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\"+\n" +
 	"\rGraphPosition\x12\f\n" +
 	"\x01x\x18\x01 \x01(\x01R\x01x\x12\f\n" +
-	"\x01y\x18\x02 \x01(\x01R\x01y\"\xcb\x01\n" +
-	"\x15GraphInitiativeRollup\x12\x1d\n" +
+	"\x01y\x18\x02 \x01(\x01R\x01y\"\xe8\x01\n" +
+	"\x0fGraphGoalRollup\x12\x1d\n" +
 	"\x05total\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x05total\x12%\n" +
 	"\tcompleted\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\tcompleted\x12(\n" +
 	"\vin_progress\x18\x03 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\n" +
 	"inProgress\x12\x1f\n" +
 	"\x06failed\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06failed\x12!\n" +
-	"\apending\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\apending\"\xb6\x03\n" +
+	"\apending\x18\x05 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\apending\x12!\n" +
+	"\adropped\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\adropped\"\xe9\x02\n" +
 	"\x14GraphBacklogNodeData\x12>\n" +
 	"\x04kind\x18\x01 \x01(\tB*\xbaH'r%R\x04ideaR\bresearchR\x03fixR\aexecuteR\x05choreR\x04kind\x12\x1b\n" +
 	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
-	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12l\n" +
-	"\x06status\x18\x04 \x01(\tBT\xbaHQrOR\abacklogR\vresearchingR\x05readyR\x06queuedR\vin_progressR\tcompletedR\x06failedR\barchivedR\x06status\x12%\n" +
+	"\x05title\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x1f\n" +
+	"\x06status\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12%\n" +
 	"\bpriority\x18\x05 \x01(\x05B\t\xbaH\x06\x1a\x04\x18\n" +
 	"(\x01R\bpriority\x12;\n" +
 	"\x17active_execution_status\x18\x06 \x01(\tH\x00R\x15activeExecutionStatus\x88\x01\x01\x124\n" +
 	"\x16active_execution_count\x18\a \x01(\x05R\x14activeExecutionCountB\x1a\n" +
-	"\x18_active_execution_status\"\xb7\x01\n" +
-	"\x17GraphInitiativeNodeData\x12\x1b\n" +
+	"\x18_active_execution_status\"\xc5\x01\n" +
+	"\x11GraphGoalNodeData\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12\x1f\n" +
-	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12?\n" +
-	"\x06rollup\x18\x04 \x01(\v2'.swarm_manager.v1.GraphInitiativeRollupR\x06rollup\"\x8c\x01\n" +
+	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06status\x12G\n" +
+	"\x06rollup\x18\x04 \x01(\v2/.vrooli.swarm_manager.v1.domain.GraphGoalRollupR\x06rollupJ\x04\b\x05\x10\x06J\x04\b\x06\x10\a\"\x8c\x01\n" +
 	"\x14GraphCaptureNodeData\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1b\n" +
 	"\x04text\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04text\x12>\n" +
@@ -1157,21 +1173,22 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"validatingR\vneeds_fixupR\tcompletedR\x06failedR\bcanceledR\x06status\x12'\n" +
 	"\x04mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\x04mode\x12\x1a\n" +
 	"\x06run_id\x18\x06 \x01(\tH\x00R\x05runId\x88\x01\x01B\t\n" +
-	"\a_run_id\"\xff\x05\n" +
+	"\a_run_id\"\xc6\x06\n" +
 	"\x1aGraphAgentActivityNodeData\x12(\n" +
 	"\vactivity_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"activityId\x12@\n" +
+	"activityId\x12U\n" +
 	"\n" +
-	"owner_type\x18\x02 \x01(\tB!\xbaH\x1er\x1cR\abacklogR\acaptureR\bscenarioR\townerType\x12\"\n" +
+	"owner_type\x18\x02 \x01(\tB6\xbaH3r1R\abacklogR\acaptureR\bscenarioR\n" +
+	"initiativeR\asessionR\townerType\x12\"\n" +
 	"\n" +
 	"owner_kind\x18\x03 \x01(\tH\x00R\townerKind\x88\x01\x01\x12&\n" +
 	"\n" +
 	"owner_name\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\townerName\x12$\n" +
 	"\vowner_title\x18\x05 \x01(\tH\x01R\n" +
 	"ownerTitle\x88\x01\x01\x12&\n" +
-	"\fexecution_id\x18\x06 \x01(\tH\x02R\vexecutionId\x88\x01\x01\x12x\n" +
-	"\apurpose\x18\a \x01(\tB^\xbaH[rYR\n" +
-	"initializeR\bworkshopR\bfinalizeR\bresearchR\aprocessR\x05fixupR\bfollowupR\tspec_syncR\bclassifyR\apurpose\x12A\n" +
+	"\fexecution_id\x18\x06 \x01(\tH\x02R\vexecutionId\x88\x01\x01\x12\xa9\x01\n" +
+	"\apurpose\x18\a \x01(\tB\x8e\x01\xbaH\x8a\x01r\x87\x01R\n" +
+	"initializeR\bworkshopR\bfinalizeR\bresearchR\aprocessR\x05fixupR\bfollowupR\tspec_syncR\bclassifyR\aclarifyR\bfeedbackR\x11feedback_continueR\x06reviewR\apurpose\x12A\n" +
 	"\x10interaction_type\x18\b \x01(\tB\x16\xbaH\x13r\x11R\x05spawnR\bcontinueR\x0finteractionType\x12q\n" +
 	"\x06status\x18\t \x01(\tBY\xbaHVrTR\apendingR\bstartingR\arunningR\fneeds_reviewR\bcompleteR\x06failedR\tcancelledR\vunspecifiedR\x06status\x12\x1a\n" +
 	"\x06run_id\x18\n" +
@@ -1189,24 +1206,21 @@ const file_swarm_manager_v1_domain_graph_proto_rawDesc = "" +
 	"\atask_id\x18\x02 \x01(\tH\x00R\x06taskId\x88\x01\x01\x12\x1f\n" +
 	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06statusB\n" +
 	"\n" +
-	"\b_task_id\"\x82\x04\n" +
-	"\rGraphNodeData\x12B\n" +
-	"\abacklog\x18\x01 \x01(\v2&.swarm_manager.v1.GraphBacklogNodeDataH\x00R\abacklog\x12K\n" +
-	"\n" +
-	"initiative\x18\x02 \x01(\v2).swarm_manager.v1.GraphInitiativeNodeDataH\x00R\n" +
-	"initiative\x12B\n" +
-	"\acapture\x18\x03 \x01(\v2&.swarm_manager.v1.GraphCaptureNodeDataH\x00R\acapture\x12E\n" +
-	"\bscenario\x18\x04 \x01(\v2'.swarm_manager.v1.GraphScenarioNodeDataH\x00R\bscenario\x12H\n" +
-	"\texecution\x18\x05 \x01(\v2(.swarm_manager.v1.GraphExecutionNodeDataH\x00R\texecution\x12J\n" +
-	"\bactivity\x18\x06 \x01(\v2,.swarm_manager.v1.GraphAgentActivityNodeDataH\x00R\bactivity\x126\n" +
-	"\x03run\x18\a \x01(\v2\".swarm_manager.v1.GraphRunNodeDataH\x00R\x03runB\a\n" +
-	"\x05value\"\x82\x02\n" +
+	"\b_task_id\"\xd2\x04\n" +
+	"\rGraphNodeData\x12P\n" +
+	"\abacklog\x18\x01 \x01(\v24.vrooli.swarm_manager.v1.domain.GraphBacklogNodeDataH\x00R\abacklog\x12G\n" +
+	"\x04goal\x18\x02 \x01(\v21.vrooli.swarm_manager.v1.domain.GraphGoalNodeDataH\x00R\x04goal\x12P\n" +
+	"\acapture\x18\x03 \x01(\v24.vrooli.swarm_manager.v1.domain.GraphCaptureNodeDataH\x00R\acapture\x12S\n" +
+	"\bscenario\x18\x04 \x01(\v25.vrooli.swarm_manager.v1.domain.GraphScenarioNodeDataH\x00R\bscenario\x12V\n" +
+	"\texecution\x18\x05 \x01(\v26.vrooli.swarm_manager.v1.domain.GraphExecutionNodeDataH\x00R\texecution\x12X\n" +
+	"\bactivity\x18\x06 \x01(\v2:.vrooli.swarm_manager.v1.domain.GraphAgentActivityNodeDataH\x00R\bactivity\x12D\n" +
+	"\x03run\x18\a \x01(\v20.vrooli.swarm_manager.v1.domain.GraphRunNodeDataH\x00R\x03runB\a\n" +
+	"\x05value\"\x98\x02\n" +
 	"\tGraphNode\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12j\n" +
-	"\x04type\x18\x02 \x01(\tBV\xbaHSrQR\vBacklogItemR\n" +
-	"InitiativeR\aCaptureR\bScenarioR\x0fExecutionRecordR\rAgentActivityR\x03RunR\x04type\x123\n" +
-	"\x04data\x18\x03 \x01(\v2\x1f.swarm_manager.v1.GraphNodeDataR\x04data\x12;\n" +
-	"\bposition\x18\x04 \x01(\v2\x1f.swarm_manager.v1.GraphPositionR\bposition\"\x85\x02\n" +
+	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12d\n" +
+	"\x04type\x18\x02 \x01(\tBP\xbaHMrKR\vBacklogItemR\x04GoalR\aCaptureR\bScenarioR\x0fExecutionRecordR\rAgentActivityR\x03RunR\x04type\x12A\n" +
+	"\x04data\x18\x03 \x01(\v2-.vrooli.swarm_manager.v1.domain.GraphNodeDataR\x04data\x12I\n" +
+	"\bposition\x18\x04 \x01(\v2-.vrooli.swarm_manager.v1.domain.GraphPositionR\bposition\"\x85\x02\n" +
 	"\tGraphEdge\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1f\n" +
 	"\x06source\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06source\x12\x1f\n" +
@@ -1244,31 +1258,31 @@ func file_swarm_manager_v1_domain_graph_proto_rawDescGZIP() []byte {
 
 var file_swarm_manager_v1_domain_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_swarm_manager_v1_domain_graph_proto_goTypes = []any{
-	(*GraphPosition)(nil),              // 0: swarm_manager.v1.GraphPosition
-	(*GraphInitiativeRollup)(nil),      // 1: swarm_manager.v1.GraphInitiativeRollup
-	(*GraphBacklogNodeData)(nil),       // 2: swarm_manager.v1.GraphBacklogNodeData
-	(*GraphInitiativeNodeData)(nil),    // 3: swarm_manager.v1.GraphInitiativeNodeData
-	(*GraphCaptureNodeData)(nil),       // 4: swarm_manager.v1.GraphCaptureNodeData
-	(*GraphScenarioNodeData)(nil),      // 5: swarm_manager.v1.GraphScenarioNodeData
-	(*GraphExecutionNodeData)(nil),     // 6: swarm_manager.v1.GraphExecutionNodeData
-	(*GraphAgentActivityNodeData)(nil), // 7: swarm_manager.v1.GraphAgentActivityNodeData
-	(*GraphRunNodeData)(nil),           // 8: swarm_manager.v1.GraphRunNodeData
-	(*GraphNodeData)(nil),              // 9: swarm_manager.v1.GraphNodeData
-	(*GraphNode)(nil),                  // 10: swarm_manager.v1.GraphNode
-	(*GraphEdge)(nil),                  // 11: swarm_manager.v1.GraphEdge
-	(*GraphMeta)(nil),                  // 12: swarm_manager.v1.GraphMeta
+	(*GraphPosition)(nil),              // 0: vrooli.swarm_manager.v1.domain.GraphPosition
+	(*GraphGoalRollup)(nil),            // 1: vrooli.swarm_manager.v1.domain.GraphGoalRollup
+	(*GraphBacklogNodeData)(nil),       // 2: vrooli.swarm_manager.v1.domain.GraphBacklogNodeData
+	(*GraphGoalNodeData)(nil),          // 3: vrooli.swarm_manager.v1.domain.GraphGoalNodeData
+	(*GraphCaptureNodeData)(nil),       // 4: vrooli.swarm_manager.v1.domain.GraphCaptureNodeData
+	(*GraphScenarioNodeData)(nil),      // 5: vrooli.swarm_manager.v1.domain.GraphScenarioNodeData
+	(*GraphExecutionNodeData)(nil),     // 6: vrooli.swarm_manager.v1.domain.GraphExecutionNodeData
+	(*GraphAgentActivityNodeData)(nil), // 7: vrooli.swarm_manager.v1.domain.GraphAgentActivityNodeData
+	(*GraphRunNodeData)(nil),           // 8: vrooli.swarm_manager.v1.domain.GraphRunNodeData
+	(*GraphNodeData)(nil),              // 9: vrooli.swarm_manager.v1.domain.GraphNodeData
+	(*GraphNode)(nil),                  // 10: vrooli.swarm_manager.v1.domain.GraphNode
+	(*GraphEdge)(nil),                  // 11: vrooli.swarm_manager.v1.domain.GraphEdge
+	(*GraphMeta)(nil),                  // 12: vrooli.swarm_manager.v1.domain.GraphMeta
 }
 var file_swarm_manager_v1_domain_graph_proto_depIdxs = []int32{
-	1,  // 0: swarm_manager.v1.GraphInitiativeNodeData.rollup:type_name -> swarm_manager.v1.GraphInitiativeRollup
-	2,  // 1: swarm_manager.v1.GraphNodeData.backlog:type_name -> swarm_manager.v1.GraphBacklogNodeData
-	3,  // 2: swarm_manager.v1.GraphNodeData.initiative:type_name -> swarm_manager.v1.GraphInitiativeNodeData
-	4,  // 3: swarm_manager.v1.GraphNodeData.capture:type_name -> swarm_manager.v1.GraphCaptureNodeData
-	5,  // 4: swarm_manager.v1.GraphNodeData.scenario:type_name -> swarm_manager.v1.GraphScenarioNodeData
-	6,  // 5: swarm_manager.v1.GraphNodeData.execution:type_name -> swarm_manager.v1.GraphExecutionNodeData
-	7,  // 6: swarm_manager.v1.GraphNodeData.activity:type_name -> swarm_manager.v1.GraphAgentActivityNodeData
-	8,  // 7: swarm_manager.v1.GraphNodeData.run:type_name -> swarm_manager.v1.GraphRunNodeData
-	9,  // 8: swarm_manager.v1.GraphNode.data:type_name -> swarm_manager.v1.GraphNodeData
-	0,  // 9: swarm_manager.v1.GraphNode.position:type_name -> swarm_manager.v1.GraphPosition
+	1,  // 0: vrooli.swarm_manager.v1.domain.GraphGoalNodeData.rollup:type_name -> vrooli.swarm_manager.v1.domain.GraphGoalRollup
+	2,  // 1: vrooli.swarm_manager.v1.domain.GraphNodeData.backlog:type_name -> vrooli.swarm_manager.v1.domain.GraphBacklogNodeData
+	3,  // 2: vrooli.swarm_manager.v1.domain.GraphNodeData.goal:type_name -> vrooli.swarm_manager.v1.domain.GraphGoalNodeData
+	4,  // 3: vrooli.swarm_manager.v1.domain.GraphNodeData.capture:type_name -> vrooli.swarm_manager.v1.domain.GraphCaptureNodeData
+	5,  // 4: vrooli.swarm_manager.v1.domain.GraphNodeData.scenario:type_name -> vrooli.swarm_manager.v1.domain.GraphScenarioNodeData
+	6,  // 5: vrooli.swarm_manager.v1.domain.GraphNodeData.execution:type_name -> vrooli.swarm_manager.v1.domain.GraphExecutionNodeData
+	7,  // 6: vrooli.swarm_manager.v1.domain.GraphNodeData.activity:type_name -> vrooli.swarm_manager.v1.domain.GraphAgentActivityNodeData
+	8,  // 7: vrooli.swarm_manager.v1.domain.GraphNodeData.run:type_name -> vrooli.swarm_manager.v1.domain.GraphRunNodeData
+	9,  // 8: vrooli.swarm_manager.v1.domain.GraphNode.data:type_name -> vrooli.swarm_manager.v1.domain.GraphNodeData
+	0,  // 9: vrooli.swarm_manager.v1.domain.GraphNode.position:type_name -> vrooli.swarm_manager.v1.domain.GraphPosition
 	10, // [10:10] is the sub-list for method output_type
 	10, // [10:10] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
@@ -1287,7 +1301,7 @@ func file_swarm_manager_v1_domain_graph_proto_init() {
 	file_swarm_manager_v1_domain_graph_proto_msgTypes[8].OneofWrappers = []any{}
 	file_swarm_manager_v1_domain_graph_proto_msgTypes[9].OneofWrappers = []any{
 		(*GraphNodeData_Backlog)(nil),
-		(*GraphNodeData_Initiative)(nil),
+		(*GraphNodeData_Goal)(nil),
 		(*GraphNodeData_Capture)(nil),
 		(*GraphNodeData_Scenario)(nil),
 		(*GraphNodeData_Execution)(nil),

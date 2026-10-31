@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	types "scenario-dependency-analyzer/internal/types"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 func TestScenarioWorkspaceListingAndConfig(t *testing.T) {
 	tempDir := t.TempDir()
-	cfg := types.ServiceConfig{}
+	cfg := types.Manifest{}
 	cfg.Service.Name = "alpha"
 	cfg.Service.DisplayName = "Alpha"
 	cfg.Service.Description = "Alpha scenario"
@@ -50,7 +50,7 @@ func TestScenarioWorkspaceMissingConfig(t *testing.T) {
 	}
 }
 
-func writeServiceConfig(t *testing.T, root, name string, cfg types.ServiceConfig) {
+func writeServiceConfig(t *testing.T, root, name string, cfg types.Manifest) {
 	t.Helper()
 	serviceDir := filepath.Join(root, name, ".vrooli")
 	if err := os.MkdirAll(serviceDir, 0o755); err != nil {

@@ -14,6 +14,7 @@
     "07-security/module.json",
     "08-performance/module.json",
     "09-design-branding/module.json",
-    "10-advanced-features/module.json"
+    "10-advanced-features/module.json",
+    "11-product-presentation/module.json"
   ]
 }

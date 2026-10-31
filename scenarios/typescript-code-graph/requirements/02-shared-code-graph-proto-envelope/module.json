@@ -1,0 +1,82 @@
+{
+  "description": "Consume `packages/proto/schemas/common/v1/code_graph.proto` as the Graph envelope; extend `NodeKind` / `EdgeKind` only with TypeScript-specific kinds (component, hook, re_export). Do not duplicate the envelope. The envelope is co-owned with `go-code-graph`.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "description": "Consume the canonical Graph envelope defined in packages/proto/schemas/common/v1/code_graph.proto as the shared data contract co-owned with go-code-graph. Extend NodeKind and EdgeKind exclusively with TypeScript-specific values: NodeKind.COMPONENT, NodeKind.HOOK, and EdgeKind.RE_EXPORT. Do not duplicate, fork, or redefine the envelope structure. All generated protobuf code must be derived from the single source-of-truth proto file. Changes to the envelope must be backward-compatible and coordinated with go-code-graph owners.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Shared Code-Graph Proto Envelope Consumption and Extension",
+      "validation": [
+        {
+          "notes": "Test that NodeKind enum includes exactly the TS-specific extensions (COMPONENT, HOOK) beyond the base envelope kinds",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that EdgeKind enum includes RE_EXPORT as the sole TS-specific extension",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that no duplicate message types exist that shadow the shared envelope definitions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test proto file import path resolves to packages/proto/schemas/common/v1/code_graph.proto",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-PROTO-ENVELOPE: Compile the proto with both typescript-code-graph and go-code-graph extensions and assert no field number collisions",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Assert that a Graph message produced by typescript-code-graph can be deserialized by a go-code-graph consumer using the shared envelope",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify CI fails if code_graph.proto is modified without updating both co-owner scenarios",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Proto review sign-off from go-code-graph team confirms no envelope duplication",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A single shared proto schema version is referenced in both typescript-code-graph and go-code-graph package manifests",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Shared Code-Graph Proto Envelope"
+}

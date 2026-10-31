@@ -1,20 +1,29 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"agent-manager/cli/domains"
+	"agent-manager/cli/internal/support"
+	"agent-manager/internal/goalhome"
+
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
-
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 const (
@@ -30,169 +39,225 @@ var (
 )
 
 type App struct {
-	core     *cliapp.ScenarioApp
-	services *Services
+	core                 *cliapp.ScenarioApp
+	services             *Services
+	journeyReceiptReader goalhome.JourneyReceiptReader
+}
+
+type subcommandHandler func([]string) error
+
+func dispatchSubcommand(args []string, group string, handlers map[string]subcommandHandler) error {
+	if len(args) == 0 {
+		return nil
+	}
+	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		return nil
+	}
+	if handler, ok := handlers[args[0]]; ok {
+		return handler(args[1:])
+	}
+	return fmt.Errorf("unknown %s subcommand: %s\n\nRun 'agent-manager %s help' for usage", group, args[0], group)
 }
 
 func NewApp() (*App, error) {
-	env := cliapp.StandardScenarioEnv(appName, cliapp.ScenarioEnvOptions{
-		ExtraAPIEnvVars: []string{"API_BASE_URL", "VITE_API_BASE_URL"},
-	})
-	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
-		Name:              appName,
-		Version:           appVersion,
-		Description:       "Agent Manager CLI",
-		DefaultAPIBase:    defaultAPIBase,
-		APIEnvVars:        env.APIEnvVars,
-		APIPortEnvVars:    env.APIPortEnvVars,
-		APIPortDetector:   cliutil.DetectPortFromVrooli(appName, "API_PORT"),
-		ConfigDirEnvVars:  env.ConfigDirEnvVars,
-		SourceRootEnvVars: env.SourceRootEnvVars,
-		TokenEnvVars:      env.TokenEnvVars,
-		BuildFingerprint:  buildFingerprint,
-		BuildTimestamp:    buildTimestamp,
-		BuildSourceRoot:   buildSourceRoot,
-		AllowAnonymous:    true,
+	app := &App{}
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
+		Name:             appName,
+		Version:          appVersion,
+		Description:      "Agent Manager CLI",
+		DefaultAPIBase:   defaultAPIBase,
+		ExtraAPIEnvVars:  []string{"API_BASE_URL", "VITE_API_BASE_URL"},
+		BuildFingerprint: buildFingerprint,
+		BuildTimestamp:   buildTimestamp,
+		BuildSourceRoot:  buildSourceRoot,
+		AllowAnonymous:   true,
+		Preflight: func(_ cliapp.Command, global cliapp.GlobalOptions, _ *cliapp.ScenarioApp) error {
+			return rejectUnsupportedNodeTarget(global.Node)
+		},
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			app.core = core
+			return app.customCommandGroups()
+		},
+		SubcommandGroups: func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+			app.core = core
+			return domains.SubcommandGroups(app.dependencies())
+		},
 	})
 	if err != nil {
 		return nil, err
 	}
-	app := &App{
-		core:     core,
-		services: NewServices(core.APIClient),
-	}
-	app.core.SetCommands(app.registerCommands())
+	app.core = core
+	app.services = NewServices(core.APIClient)
 	return app, nil
+}
+
+func rejectUnsupportedNodeTarget(node string) error {
+	node = strings.TrimSpace(node)
+	if node == "" {
+		return nil
+	}
+	return fmt.Errorf("agent-manager does not support remote --node routing for %q; use an addressed scenario command or Web Console", node)
 }
 
 func (a *App) Run(args []string) error {
 	return a.core.CLI.Run(args)
 }
 
-func (a *App) registerCommands() []cliapp.CommandGroup {
-	health := cliapp.CommandGroup{
-		Title: "Health",
-		Commands: []cliapp.Command{
-			{Name: "status", NeedsAPI: true, Description: "Check API health", Run: a.cmdStatus},
-		},
-	}
-
-	profiles := cliapp.CommandGroup{
-		Title: "Profiles",
-		Commands: []cliapp.Command{
-			{Name: "profile", NeedsAPI: true, Description: "Manage agent profiles", Run: a.cmdProfile},
-		},
-	}
-
-	tasks := cliapp.CommandGroup{
-		Title: "Tasks",
-		Commands: []cliapp.Command{
-			{Name: "task", NeedsAPI: true, Description: "Manage tasks", Run: a.cmdTask},
-		},
-	}
-
-	runs := cliapp.CommandGroup{
-		Title: "Runs",
-		Commands: []cliapp.Command{
-			{Name: "run", NeedsAPI: true, Description: "Manage run executions", Run: a.cmdRun},
-		},
-	}
-
-	runners := cliapp.CommandGroup{
-		Title: "Runners",
-		Commands: []cliapp.Command{
-			{Name: "runner", NeedsAPI: true, Description: "Manage agent runners", Run: a.cmdRunner},
-		},
-	}
-
-	settings := cliapp.CommandGroup{
-		Title: "Settings",
-		Commands: []cliapp.Command{
-			{Name: "settings", NeedsAPI: true, Description: "Manage settings", Run: a.cmdSettings},
-		},
-	}
-
-	maintenance := cliapp.CommandGroup{
-		Title: "Maintenance",
-		Commands: []cliapp.Command{
-			{Name: "maintenance", NeedsAPI: true, Description: "Maintenance operations", Run: a.cmdMaintenance},
-		},
-	}
-
-	config := cliapp.CommandGroup{
-		Title: "Configuration",
-		Commands: []cliapp.Command{
-			a.core.ConfigureCommand([]string{"api_base"}, []string{"token", "api_token"}),
-		},
-	}
-
-	return []cliapp.CommandGroup{health, profiles, tasks, runs, runners, settings, maintenance, config}
+func (a *App) customCommandGroups() []cliapp.CommandGroup {
+	return domains.CommandGroups(a.dependencies())
 }
 
-func (a *App) apiPath(v1Path string) string {
-	v1Path = strings.TrimSpace(v1Path)
-	if v1Path == "" {
-		return ""
-	}
-	if !strings.HasPrefix(v1Path, "/") {
-		v1Path = "/" + v1Path
-	}
-	base := strings.TrimRight(strings.TrimSpace(a.core.HTTPClient.BaseURL()), "/")
-	if strings.HasSuffix(base, "/api/v1") {
-		return v1Path
-	}
-	return "/api/v1" + v1Path
+func (a *App) commandGroups() []cliapp.CommandGroup {
+	return append(a.core.StandardBaseCommandGroups(cliapp.StandardBaseCommandOptions{}), a.customCommandGroups()...)
 }
 
-type healthResponse struct {
-	Status     string            `json:"status"`
-	Service    string            `json:"service"`
-	Version    string            `json:"version"`
-	Readiness  bool              `json:"readiness"`
-	Timestamp  string            `json:"timestamp"`
-	Deps       map[string]string `json:"dependencies"`
-	Error      string            `json:"error,omitempty"`
-	Message    string            `json:"message,omitempty"`
-	Operations map[string]any    `json:"operations,omitempty"`
+func (a *App) dependencies() support.Dependencies {
+	return support.Dependencies{
+		Profile:          a.cmdProfile,
+		Declarations:     a.cmdDeclarations,
+		Workflow:         a.cmdWorkflow,
+		Watch:            a.cmdWatch,
+		Effort:           a.cmdEffort,
+		Investigation:    a.cmdInvestigation,
+		Task:             a.cmdTask,
+		TaskGet:          a.taskGet,
+		TaskCreate:       a.taskCreate,
+		Run:              a.cmdRun,
+		RunCommands:      a.runCommands(),
+		UsageCommands:    a.usageCommands(),
+		Runner:           a.cmdRunner,
+		Policy:           a.cmdPolicy,
+		PermissionPolicy: a.cmdPermissionPolicy,
+		Settings:         a.cmdSettings,
+		Maintenance:      a.cmdMaintenance,
+		Storage:          a.cmdStorage,
+		StandingGrants:   a.cmdStandingGrants,
+		Health:           a.cmdHealth,
+		Events:           a.cmdEvents,
+		Subscription:     a.cmdSubscription,
+		Conversation:     a.cmdConversation,
+		ScenarioSmoke:    a.cmdScenarioSmoke,
+	}
 }
 
-func (a *App) cmdStatus(_ []string) error {
-	body, err := a.core.APIClient.Get(a.apiPath("/health"), nil)
-	if err != nil {
-		return err
+func (a *App) runCommands() []cliapp.Command {
+	type entry struct {
+		name, description, usage string
+		run                      func([]string) error
 	}
-
-	var parsed healthResponse
-	if unmarshalErr := json.Unmarshal(body, &parsed); unmarshalErr == nil && parsed.Status != "" {
-		fmt.Printf("Status: %s\n", parsed.Status)
-		fmt.Printf("Ready: %v\n", parsed.Readiness)
-		if parsed.Service != "" {
-			fmt.Printf("Service: %s\n", parsed.Service)
-		}
-		if parsed.Version != "" {
-			fmt.Printf("Version: %s\n", parsed.Version)
-		}
-		if len(parsed.Deps) > 0 {
-			fmt.Println("Dependencies:")
-			for key, value := range parsed.Deps {
-				fmt.Printf("  %s: %s\n", key, value)
+	entries := []entry{
+		{"list", "List runs", "agent-manager run list [options]", a.runList},
+		{"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
+		{"identity", "Show the current Agent Manager run identity", "agent-manager run identity [--json]", a.runIdentity},
+		{"import-identity", "Resolve imported harness session provenance", "agent-manager run import-identity --harness kind --session-id id [--json]", a.runImportIdentity},
+		{"report", "Show bounded investigation diagnostics and the run's weighted token spend (--facts: invocation facts)", "agent-manager run report <id> [--children] [--weights sol=10,luna=1] [--facts] [--json]", a.runReport},
+		{"attach", "Attach an operator-started harness session", "agent-manager run attach --harness-kind kind --harness-session-id id [options]", a.runAttach},
+		{"detach", "Close an attached harness session", "agent-manager run detach <id> [--reason text]", a.runDetach},
+		{"recent", "Show recent work and evidence-bounded durability", "agent-manager run recent [--limit n] [--json]", a.runRecent},
+		{"result", "Show final-output and structured-result provenance", "agent-manager run result <id>", a.runResult},
+		{"ledger", "Show cross-scenario receipt ledger", "agent-manager run ledger <id> [--with-projections] [--json]", a.runLedger},
+		{"import-transcript", "Adopt an external harness transcript as a read-only run", "agent-manager run import-transcript <path> [--runner type] [--label value] [--json]", a.runImportTranscript},
+		{"import-session-corpus", "Import a bounded, reproducible governed runner-session corpus", "agent-manager run import-session-corpus [--runners codex,claude-code] [--from RFC3339] [--to RFC3339] [--per-month n] [--limit n] [--json]", a.runImportSessionCorpus},
+		{"import-sweep", "Run one Transcript Indexer pass over every transcript root now", "agent-manager run import-sweep [--json]", a.runImportSweep},
+		{"tools", "Show tool calls and failures", "agent-manager run tools <id> [--failed]", a.runTools},
+		{"messages", "Inspect messages in one known run", "agent-manager run messages <id> [--all] [--range start:end] [--grep text]", a.runMessages},
+		{"receipts", "Show observed receipt state and evidence", "agent-manager run receipts <id> [--json]", a.runReceipts},
+		{"get-by-tag", "Get a run by tag", "agent-manager run get-by-tag <tag>", a.runGetByTag},
+		{"create", "Create and start a run", "agent-manager run create [options]", a.runCreate},
+		{"delete", "Delete a run", "agent-manager run delete <id>", a.runDelete},
+		{"stop", "Stop a run", "agent-manager run stop <id>", a.runStop},
+		{"stop-by-tag", "Stop runs by tag", "agent-manager run stop-by-tag <tag>", a.runStopByTag},
+		{"stop-all", "Stop all matching runs", "agent-manager run stop-all [options]", a.runStopAll},
+		{"quiesce", "Drain in-flight scenario runs", "agent-manager run quiesce --scenario <scenario>", a.runQuiesce},
+		{"continue", "Continue a run, or type into its running interactive session", "agent-manager run continue <id> --message <message> [--idempotency-key <key>] [--reinstall-goal]", a.runContinue},
+		{"park", "Park a run", "agent-manager run park <id> --producer <p> --key <k> [--timeout 15m]\n  For a supervisor review, use --producer review-timer --key <RFC3339-time> and a timeout later than that time; requires the owning managed run's identity.", a.runPark},
+		{"wake", "Wake a parked run", "agent-manager run wake (<id> | --key <key> [--producer children]) [--result <r>]", a.runWake},
+		{"await-result", "Read a run's awaited result", "agent-manager run await-result <id>", a.runAwaitResult},
+		{"recover", "Reconcile execution or retry failed sandbox finalization", "agent-manager run recover <id>", a.runRecover},
+		{"apply-investigation", "Apply investigation recommendations", "agent-manager run apply-investigation <id>", a.runApplyInvestigation},
+		{"sandbox-sync", "Sync run state from sandbox", "agent-manager run sandbox-sync <id>", a.runSandboxSync},
+		{"approve", "Approve run changes", "agent-manager run approve <id>", a.runApprove},
+		{"reject", "Reject run changes", "agent-manager run reject <id>", a.runReject},
+		{"diff", "Show sandbox diff", "agent-manager run diff <id> [--stat]", a.runDiff},
+		{"events", "Show or follow run events", "agent-manager run events <id> [--follow] [--stats] [--failed] [--after-sequence N] [--limit N] [--json]", a.runEvents},
+	}
+	commands := make([]cliapp.Command, 0, len(entries))
+	for _, item := range entries {
+		// cliapp dispatches registered subcommands directly, bypassing cmdRun.
+		// Keep the run-identity boundary here as well as in cmdRun so both the
+		// legacy dispatcher and the discoverable command tree enforce it.
+		name, run := item.name, item.run
+		command := support.Command(name, item.description, func(args []string) error {
+			if err := rejectRunIdentityLifecycleCommand(name); err != nil {
+				return err
 			}
+			return run(args)
+		})
+		command.Usage = item.usage
+		if item.name == "list" || item.name == "create" {
+			command.HelpText = support.FlagHelp(item.run)
 		}
-		return nil
+		commands = append(commands, command)
 	}
+	// Keep the richer local `run events` view for statistics, failed-result filtering,
+	// and WebSocket following. This separate typed page is the governed bounded
+	// Connect surface for workflow consumers.
+	commands = append(commands, runEventPageCommand())
+	return commands
+}
 
-	cliutil.PrintJSON(body)
-	return nil
+func runEventPageCommand() cliapp.Command {
+	command := cliapp.Command{
+		Name:        "event-page",
+		Description: "Read one bounded typed page from a run event stream",
+		NeedsAPI:    true,
+		Args: cliapp.ArgSchema{
+			Positionals: []cliapp.Positional{{Name: "run_id", Required: true, Description: "Run UUID"}},
+			Flags: []cliapp.Flag{
+				{Name: "limit", Default: "100", Description: "Maximum events (1-1000)"},
+				{Name: "after-sequence", Description: "Resume after this event sequence", Bind: cliapp.FlagBind{Field: "after_sequence"}},
+				{Name: "summary-only", Bool: true, Description: "Return page counts and latest sequence without event payloads", Bind: cliapp.FlagBind{Field: "summary_only"}},
+			},
+		},
+	}
+	return command.WithPrimitive(cliapp.ProtoList(
+		func(op cliapp.OperationContext) (*apipb.GetRunEventsResponse, error) {
+			limitValue, err := strconv.ParseInt(op.Flag("limit"), 10, 32)
+			if err != nil || limitValue < 1 || limitValue > 1000 {
+				return nil, fmt.Errorf("limit must be between 1 and 1000")
+			}
+			request := &apipb.GetRunEventsRequest{RunId: op.Positional("run_id"), Limit: proto.Int32(int32(limitValue)), SummaryOnly: op.BoolFlag("summary-only")}
+			if op.FlagProvided("after-sequence") {
+				sequence, parseErr := strconv.ParseInt(op.Flag("after-sequence"), 10, 64)
+				if parseErr != nil || sequence < 0 {
+					return nil, fmt.Errorf("after-sequence must be a non-negative integer")
+				}
+				request.AfterSequence = proto.Int64(sequence)
+			}
+			h, base := cliapp.NewConnectHTTPClient(op.Core())
+			response, err := apiconnect.NewAgentManagerServiceClient(h, base).GetRunEvents(context.Background(), connect.NewRequest(request))
+			if err != nil {
+				return nil, err
+			}
+			if request.SummaryOnly && (response.Msg.GetSummary() == nil || len(response.Msg.GetEvents()) != 0) {
+				return nil, fmt.Errorf("agent-manager API did not return the requested payload-free event summary")
+			}
+			return response.Msg, nil
+		},
+		func(_ cliapp.OperationContext, response *apipb.GetRunEventsResponse) cliapp.ListReport {
+			if summary := response.GetSummary(); summary != nil {
+				return cliapp.ListReport{Summary: []string{fmt.Sprintf("Run event summary: latest_sequence=%d (has_more=%t)", summary.GetLatestSequence(), response.GetHasMore())}}
+			}
+			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Run event page: %d events (has_more=%t)", len(response.GetEvents()), response.GetHasMore())}}
+		},
+	))
 }
 
 func formatEnumValue(value fmt.Stringer, prefix, separator string) string {
 	if value == nil {
 		return ""
 	}
-	name := value.String()
-	if strings.HasPrefix(name, prefix) {
-		name = strings.TrimPrefix(name, prefix)
-	}
+	name := strings.TrimPrefix(value.String(), prefix)
 	name = strings.ToLower(name)
 	if separator != "_" {
 		name = strings.ReplaceAll(name, "_", separator)
@@ -221,19 +286,6 @@ func formatDuration(duration *durationpb.Duration) string {
 	return duration.AsDuration().String()
 }
 
-func parseRunnerType(value string) domainpb.RunnerType {
-	switch strings.ToLower(value) {
-	case "claude-code":
-		return domainpb.RunnerType_RUNNER_TYPE_CLAUDE_CODE
-	case "codex":
-		return domainpb.RunnerType_RUNNER_TYPE_CODEX
-	case "opencode":
-		return domainpb.RunnerType_RUNNER_TYPE_OPENCODE
-	default:
-		return domainpb.RunnerType_RUNNER_TYPE_UNSPECIFIED
-	}
-}
-
 func parseRunMode(value string) domainpb.RunMode {
 	switch strings.ToLower(value) {
 	case "sandboxed":
@@ -242,6 +294,57 @@ func parseRunMode(value string) domainpb.RunMode {
 		return domainpb.RunMode_RUN_MODE_IN_PLACE
 	default:
 		return domainpb.RunMode_RUN_MODE_UNSPECIFIED
+	}
+}
+
+// apiError enriches a failed API call's error with the human-readable message
+// (and recovery hint) the agent-manager API returns in the JSON error body.
+// The shared cliutil client parses the legacy `error` key, but agent-manager's
+// proto error envelope carries the message under `message` (+ a hint under
+// details.fields.hint), so a validation rejection would otherwise surface only
+// as "api error (400): HTTP 400". The full body is preserved on the typed
+// cliutil.APIError (RawResponse); when it has no usable message the original
+// transport error is returned unchanged. The optional body argument (returned
+// by service wrappers) is used as a fallback source.
+func apiError(body []byte, err error) error {
+	if err == nil {
+		return nil
+	}
+	raw := body
+	var apiErr *cliutil.APIError
+	if errors.As(err, &apiErr) && len(apiErr.RawResponse) > 0 {
+		raw = apiErr.RawResponse
+	}
+	var parsed struct {
+		Message string `json:"message"`
+		Details struct {
+			Fields struct {
+				Hint struct {
+					StringValue string `json:"string_value"`
+				} `json:"hint"`
+			} `json:"fields"`
+		} `json:"details"`
+	}
+	if jsonErr := json.Unmarshal(raw, &parsed); jsonErr == nil && strings.TrimSpace(parsed.Message) != "" {
+		msg := strings.TrimSpace(parsed.Message)
+		if hint := strings.TrimSpace(parsed.Details.Fields.Hint.StringValue); hint != "" && !strings.Contains(msg, hint) {
+			msg = msg + "\nhint: " + hint
+		}
+		return errors.New(msg)
+	}
+	return err
+}
+
+func parseExecutionMode(value string) domainpb.ExecutionMode {
+	switch strings.ToLower(value) {
+	case "codec_pipe", "codec-pipe":
+		return domainpb.ExecutionMode_EXECUTION_MODE_CODEC_PIPE
+	case "interactive":
+		return domainpb.ExecutionMode_EXECUTION_MODE_INTERACTIVE
+	case "attached":
+		return domainpb.ExecutionMode_EXECUTION_MODE_ATTACHED
+	default:
+		return domainpb.ExecutionMode_EXECUTION_MODE_UNSPECIFIED
 	}
 }
 
@@ -289,6 +392,52 @@ func parseSandboxConfig(value, filePath string) (*domainpb.SandboxConfig, error)
 		return nil, fmt.Errorf("invalid sandbox config JSON: %w", err)
 	}
 	return &cfg, nil
+}
+
+// applySandboxModeOverride parses --sandbox-mode and applies it to cfg.
+// Empty input is a no-op (preserves the existing mode); non-empty input
+// must match one of: off, tracking, protected (case-insensitive). When
+// cfg is nil and a non-empty mode is requested the caller is expected
+// to construct a SandboxConfig before calling — see profileUpdate's
+// "build one if missing" branch.
+func applySandboxModeOverride(cfg *domainpb.SandboxConfig, mode string) (*domainpb.SandboxConfig, error) {
+	mode = strings.TrimSpace(mode)
+	if mode == "" {
+		return cfg, nil
+	}
+	if cfg == nil {
+		cfg = &domainpb.SandboxConfig{}
+	}
+	switch strings.ToLower(mode) {
+	case "off":
+		cfg.Mode = domainpb.SandboxMode_SANDBOX_MODE_OFF
+	case "tracking":
+		cfg.Mode = domainpb.SandboxMode_SANDBOX_MODE_TRACKING
+	case "protected":
+		cfg.Mode = domainpb.SandboxMode_SANDBOX_MODE_PROTECTED
+	default:
+		return nil, fmt.Errorf("invalid sandbox mode %q: expected one of off, tracking, protected", mode)
+	}
+	return cfg, nil
+}
+
+// profileSandboxMode renders the sandbox mode for human display.
+// Returns "off"/"tracking"/"protected"/"-"; "-" means the profile has
+// no SandboxConfig set, in which case the run-time default applies.
+func profileSandboxMode(p *domainpb.AgentProfile) string {
+	if p == nil || p.SandboxConfig == nil {
+		return "-"
+	}
+	switch p.SandboxConfig.Mode {
+	case domainpb.SandboxMode_SANDBOX_MODE_OFF:
+		return "off"
+	case domainpb.SandboxMode_SANDBOX_MODE_TRACKING:
+		return "tracking"
+	case domainpb.SandboxMode_SANDBOX_MODE_PROTECTED:
+		return "protected"
+	default:
+		return "default"
+	}
 }
 
 func applySandboxRetention(cfg *domainpb.SandboxConfig, mode, ttl string) (*domainpb.SandboxConfig, error) {

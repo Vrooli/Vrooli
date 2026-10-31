@@ -1,0 +1,18 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "vrooli-events",
+  "generator": "v1.0.0",
+  "manifest_hash": "cf6d382dfa77799f55213dcde7845cc7183184bc208da86489b8730490467c76",
+  "commands": [
+    {
+      "path": "events aggregate",
+      "group": "events",
+      "command": "aggregate",
+      "binding": "vrooli.vrooli_events.v1.domain.ReceiptAggregateService.AggregateReceipts",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    }
+  ]
+}

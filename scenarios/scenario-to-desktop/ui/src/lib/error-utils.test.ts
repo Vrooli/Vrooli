@@ -3,21 +3,20 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { ApiError, type RecoveryAction } from "./api";
-import {
-  getErrorMessage,
-  logError,
-  createErrorInfo,
-} from "./error-utils";
+import { getErrorMessage, logError, createErrorInfo } from "./error-utils";
 
 // Helper to create ApiError instances
-function makeApiError(opts: {
-  error?: string;
-  code?: string;
-  recovery?: RecoveryAction;
-  recoveryHint?: string;
-  details?: Record<string, unknown>;
-} = {}): ApiError {
+function makeApiError(
+  opts: {
+    error?: string;
+    code?: string;
+    recovery?: RecoveryAction;
+    recoveryHint?: string;
+    details?: Record<string, unknown>;
+  } = {},
+): ApiError {
   return new ApiError({
     error: opts.error ?? "Test error",
     code: opts.code,
@@ -111,6 +110,103 @@ describe("logError", () => {
 // ============================================================================
 
 describe("createErrorInfo", () => {
+  it("decodes the shared Connect remediation envelope", () => {
+    const connectError = new ConnectError("pipeline missing", Code.NotFound);
+    connectError.details.push({
+      type: "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope",
+      value: new Uint8Array(),
+      debug: {
+        code: "PIPELINE_NOT_FOUND",
+        category: "resource_missing",
+        recovery: "fix_input",
+        recoveryHint: "Start a new pipeline or check the ID",
+        details: { pipeline_id: '"pipe-42"' },
+        manualSteps: ["Run scenario-to-desktop pipeline list"],
+      },
+    });
+
+    expect(createErrorInfo(connectError)).toMatchObject({
+      code: "PIPELINE_NOT_FOUND",
+      requiresInputFix: true,
+      recoveryHint: "Start a new pipeline or check the ID",
+      details: {
+        pipeline_id: "pipe-42",
+        category: "resource_missing",
+      },
+    });
+  });
+
+  it("falls back safely when an envelope has incomplete or malformed fields", () => {
+    const connectError = new ConnectError(
+      "temporary failure",
+      Code.Unavailable,
+    );
+    connectError.details.push(
+      {
+        type: "unrelated.detail",
+        value: new Uint8Array(),
+        debug: { recovery: "retry" },
+      },
+      {
+        type: "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope",
+        value: new Uint8Array(),
+        debug: {
+          recovery: "not-a-recovery-action",
+          details: { machine_value: "not-json" },
+        },
+      },
+    );
+
+    expect(createErrorInfo(connectError)).toMatchObject({
+      code: "Unavailable",
+      canRetry: true,
+      recoveryHint: undefined,
+      details: {
+        machine_value: "not-json",
+      },
+    });
+  });
+
+  it("ignores malformed envelope debug payloads and retains generic Connect diagnostics", () => {
+    const connectError = new ConnectError("bad input", Code.InvalidArgument);
+    connectError.details.push({
+      type: "vrooli.scenario_to_desktop.v1.shared.ErrorEnvelope",
+      value: new Uint8Array(),
+      debug: [],
+    });
+
+    expect(createErrorInfo(connectError)).toMatchObject({
+      code: "InvalidArgument",
+      requiresInputFix: true,
+      details: { connectCode: Code.InvalidArgument },
+    });
+  });
+
+  it("preserves Connect code, metadata, and details for recovery UI", () => {
+    const connectError = new ConnectError(
+      "pipeline service is temporarily unavailable",
+      Code.Unavailable,
+      { "x-request-id": "request-123" },
+    );
+    connectError.details.push({
+      type: "type.googleapis.com/vrooli.scenario_to_desktop.v1.ErrorDetail",
+      value: new Uint8Array([1, 2, 3]),
+    });
+
+    const info = createErrorInfo(connectError);
+
+    expect(info).toMatchObject({
+      message: "pipeline service is temporarily unavailable",
+      code: "Unavailable",
+      canRetry: true,
+      details: {
+        connectCode: Code.Unavailable,
+        connectMetadata: { "x-request-id": "request-123" },
+      },
+    });
+    expect(info.details?.connectDetails).toHaveLength(1);
+  });
+
   it("creates ErrorInfo from ApiError", () => {
     const error = makeApiError({
       error: "Validation failed",

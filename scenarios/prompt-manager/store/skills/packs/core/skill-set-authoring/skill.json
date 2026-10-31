@@ -1,0 +1,46 @@
+{
+  "createdAt": "2026-09-02T00:00:00Z",
+  "description": "Determine owed and requested scenario skill roles, inventory real evidence and programs, author through per-role guides, and declare the selected skill set. Optional feature roles are not fleet obligations.",
+  "entry": "SKILL.md",
+  "icon": "layers",
+  "id": "skill-set-authoring",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "meta"
+  ],
+  "name": "skill-set-authoring",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "prompt-manager skill list",
+      "measures-health validate scenario",
+      "business-health matrix show",
+      "program-runtime bindings condition",
+      "program-runtime library search",
+      "cli-health search query",
+      "vrooli scenario status",
+      "prompt-manager skill-set validate"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "measures-health",
+      "program-runtime"
+    ]
+  },
+  "revision": 9,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "skill",
+    "authoring",
+    "skill-set",
+    "scenario",
+    "self-improvement",
+    "meta-optimization"
+  ],
+  "updatedAt": "2026-09-08T00:00:00Z"
+}

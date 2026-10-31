@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	appconfig "scenario-dependency-analyzer/internal/config"
-	types "scenario-dependency-analyzer/internal/types"
+	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
+	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // TestNewDetector tests detector creation.
 func TestNewDetector(t *testing.T) {
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: "/tmp/scenarios",
 	}
 	detector := New(cfg)
@@ -32,7 +32,7 @@ func TestNewDetector(t *testing.T) {
 // TestCatalogManager tests catalog management functionality.
 func TestCatalogManager(t *testing.T) {
 	t.Run("RefreshClears", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		// Force load
 		catalog.ensureLoaded()
 		if !catalog.loaded {
@@ -47,7 +47,7 @@ func TestCatalogManager(t *testing.T) {
 	})
 
 	t.Run("ThreadSafeLoad", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		done := make(chan bool, 10)
 
 		// Concurrent access
@@ -65,7 +65,7 @@ func TestCatalogManager(t *testing.T) {
 	})
 
 	t.Run("PermissiveModeWhenEmpty", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		catalog.mu.Lock()
 		catalog.loaded = true
 		catalog.knownScenarios = map[string]struct{}{}
@@ -82,7 +82,7 @@ func TestCatalogManager(t *testing.T) {
 	})
 
 	t.Run("GetScenarioCatalogReturnsCopy", func(t *testing.T) {
-		catalog := newCatalogManager(appconfig.Config{})
+		catalog := newCatalogManager(appconfig.RuntimeConfig{})
 		catalog.mu.Lock()
 		catalog.loaded = true
 		catalog.knownScenarios = map[string]struct{}{"test-scenario": {}}
@@ -101,10 +101,10 @@ func TestCatalogManager(t *testing.T) {
 // TestShouldSkipDirectoryEntry tests directory filtering.
 func TestShouldSkipDirectoryEntry(t *testing.T) {
 	tests := []struct {
-		name     string
-		dirName  string
-		isDir    bool
-		want     bool
+		name    string
+		dirName string
+		isDir   bool
+		want    bool
 	}{
 		{"NodeModules", "node_modules", true, true},
 		{"Dist", "dist", true, true},
@@ -199,11 +199,11 @@ func TestDetectorIntegration(t *testing.T) {
 	resourcesDir := filepath.Join(tempDir, "resources")
 
 	// Create directories
-	os.MkdirAll(filepath.Join(scenariosDir, "test-scenario"), 0755)
-	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0755)
-	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0755)
+	os.MkdirAll(filepath.Join(scenariosDir, "test-scenario"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "postgres"), 0o755)
+	os.MkdirAll(filepath.Join(resourcesDir, "redis"), 0o755)
 
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: scenariosDir,
 	}
 	detector := New(cfg)
@@ -243,23 +243,23 @@ func TestScanResources(t *testing.T) {
 
 	// Create test scenario with resource references
 	scenarioPath := filepath.Join(scenariosDir, "test-scenario")
-	os.MkdirAll(filepath.Join(scenarioPath, "api"), 0755)
-	os.MkdirAll(resourcesDir, 0755)
+	os.MkdirAll(filepath.Join(scenarioPath, "api"), 0o755)
+	os.MkdirAll(resourcesDir, 0o755)
 
 	// Create a script with resource CLI reference
 	scriptContent := `#!/bin/bash
 resource-postgres connect
 PGHOST=localhost
 `
-	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0644)
+	os.WriteFile(filepath.Join(scenarioPath, "api", "setup.sh"), []byte(scriptContent), 0o644)
 
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: scenariosDir,
 	}
 	detector := New(cfg)
 	detector.RefreshCatalogs()
 
-	serviceConfig := &types.ServiceConfig{}
+	serviceConfig := &types.Manifest{}
 	deps, err := detector.ScanResources(scenarioPath, "test-scenario", serviceConfig)
 	if err != nil {
 		t.Fatalf("ScanResources error: %v", err)
@@ -267,6 +267,82 @@ PGHOST=localhost
 
 	// The scanner should find resource references (may or may not depending on catalog state)
 	t.Logf("Found %d resource dependencies", len(deps))
+}
+
+func TestScenarioURLResolverDetectionRequiresCanonicalImportedResolverAndLiteralKnownTarget(t *testing.T) {
+	scenariosDir := t.TempDir()
+	for _, name := range []string{"device-studio", "ai-gateway"} {
+		path := filepath.Join(scenariosDir, name, ".vrooli")
+		if err := os.MkdirAll(path, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "service.json"), []byte(`{"service":{"name":"`+name+`"}}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scanner := newScenarioScanner(newCatalogManager(appconfig.RuntimeConfig{ScenariosDir: scenariosDir}))
+	source := `package rendering
+import (
+	"github.com/vrooli/api-core/discovery"
+	other "example.invalid/discovery"
+)
+func resolve(ctx context.Context, target string) {
+	// discovery.ResolveScenarioURLDefault(ctx, "comment-only")
+	_ = "discovery.ResolveScenarioURLDefault(ctx, \"string-only\")"
+	_, _ = discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
+	_, _ = discovery.ResolveScenarioURLDefault(ctx, target)
+	_, _ = other.ResolveScenarioURLDefault(ctx, "ai-gateway")
+}`
+	got := scanner.scanFile(source, "api/rendering/worker.go", "device-studio", "device-studio")
+	if len(got) != 1 {
+		t.Fatalf("detected %d dependencies, want one literal canonical resolver call: %+v", len(got), got)
+	}
+	if got[0].DependencyName != "ai-gateway" || got[0].AccessMethod != "scenario_url_discovery" || got[0].Required {
+		t.Fatalf("unexpected resolver evidence: %+v", got[0])
+	}
+	if got[0].Configuration["found_in_file"] != "api/rendering/worker.go" {
+		t.Fatalf("resolver evidence lost source path: %+v", got[0].Configuration)
+	}
+}
+
+func TestScanScenarioDependenciesIncludesCanonicalProgramBindings(t *testing.T) {
+	scenariosDir := t.TempDir()
+	for _, name := range []string{"image-tools", "device-studio"} {
+		if err := os.MkdirAll(filepath.Join(scenariosDir, name, ".vrooli"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(scenariosDir, name, ".vrooli", "service.json"), []byte(`{"service":{"name":"`+name+`"}}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := filepath.Join(scenariosDir, "image-tools")
+	files := map[string]string{
+		".vrooli/program-runtime/prepare.json": `{"name":"image-tools.prepare","bindings":[{"id":"device-studio/scenes/from-preparation","optional":true},{"id":"device-studio/scenes/get"},{"id":"image-tools/jobs/get"},{"id":"unknown-owner/jobs/get"},{"id":"device-studio//invalid"}]}`,
+		".vrooli/program-runtime/foreign.json": `{"name":"another-owner.prepare","bindings":[{"id":"device-studio/scenes/get"}]}`,
+		".vrooli/program-runtime/broken.json":  `{"name":"image-tools.broken","bindings":[`,
+		"docs/example.json":                    `{"name":"image-tools.example","bindings":[{"id":"device-studio/scenes/get"}]}`,
+	}
+	for name, body := range files {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	detector := New(appconfig.RuntimeConfig{ScenariosDir: scenariosDir})
+	deps, err := detector.ScanScenarioDependencies(root, "image-tools")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deps) != 1 {
+		t.Fatalf("dependencies = %+v; want one deduplicated known foreign owner from the canonical contract", deps)
+	}
+	dep := deps[0]
+	if dep.DependencyName != "device-studio" || dep.AccessMethod != "program_binding" || dep.Required || dep.Configuration["found_in_file"] != ".vrooli/program-runtime/prepare.json" {
+		t.Fatalf("program dependency lost optionality or source evidence: %+v", dep)
+	}
 }
 
 // TestScanScenarioDependencies tests scenario dependency scanning.
@@ -277,16 +353,16 @@ func TestScanScenarioDependencies(t *testing.T) {
 	// Create test scenarios
 	testScenario := filepath.Join(scenariosDir, "test-scenario")
 	dependencyScenario := filepath.Join(scenariosDir, "dependency-scenario")
-	os.MkdirAll(filepath.Join(testScenario, "api"), 0755)
-	os.MkdirAll(filepath.Join(dependencyScenario, ".vrooli"), 0755)
+	os.MkdirAll(filepath.Join(testScenario, "api"), 0o755)
+	os.MkdirAll(filepath.Join(dependencyScenario, ".vrooli"), 0o755)
 
 	// Create script with scenario reference
 	scriptContent := `#!/bin/bash
 vrooli scenario run dependency-scenario
 `
-	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0644)
+	os.WriteFile(filepath.Join(testScenario, "api", "start.sh"), []byte(scriptContent), 0o644)
 
-	cfg := appconfig.Config{
+	cfg := appconfig.RuntimeConfig{
 		ScenariosDir: scenariosDir,
 	}
 	detector := New(cfg)
@@ -309,39 +385,6 @@ vrooli scenario run dependency-scenario
 	if !found && len(deps) > 0 {
 		t.Logf("Found dependencies: %+v", deps)
 	}
-}
-
-// TestScanSharedWorkflows tests workflow scanning.
-func TestScanSharedWorkflows(t *testing.T) {
-	tempDir := t.TempDir()
-
-	t.Run("NoWorkflows", func(t *testing.T) {
-		cfg := appconfig.Config{}
-		detector := New(cfg)
-
-		deps, err := detector.ScanSharedWorkflows(tempDir, "test-scenario")
-		if err != nil {
-			t.Fatalf("ScanSharedWorkflows error: %v", err)
-		}
-		if len(deps) != 0 {
-			t.Errorf("expected no workflows, got %d", len(deps))
-		}
-	})
-
-	t.Run("WithWorkflowDir", func(t *testing.T) {
-		workflowDir := filepath.Join(tempDir, "initialization", "automation", "n8n")
-		os.MkdirAll(workflowDir, 0755)
-
-		cfg := appconfig.Config{}
-		detector := New(cfg)
-
-		deps, err := detector.ScanSharedWorkflows(tempDir, "test-scenario")
-		if err != nil {
-			t.Fatalf("ScanSharedWorkflows error: %v", err)
-		}
-		// May or may not find workflows depending on content
-		t.Logf("Found %d workflow dependencies", len(deps))
-	})
 }
 
 // mockDirEntry is a mock implementation of fs.DirEntry for testing

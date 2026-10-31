@@ -22,8 +22,6 @@ export { ScreenshotSlideshow } from './ScreenshotSlideshow';
 export type { ScreenshotSlideshowProps, Screenshot } from './ScreenshotSlideshow';
 
 // Video player
-export { VideoPlayer } from './VideoPlayer';
-export type { VideoPlayerRef, VideoPlayerProps } from './VideoPlayer';
 
 // Hooks
 export { useSlideshowPlayback } from './useSlideshowPlayback';

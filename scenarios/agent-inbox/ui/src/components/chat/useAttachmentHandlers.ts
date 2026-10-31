@@ -1,5 +1,4 @@
-import { useState, useCallback } from "react";
-import type { ForcedTool } from "./AttachmentButton";
+import { useCallback } from "react";
 
 interface UseAttachmentHandlersOptions {
   addAttachment: (file: File, type: "image" | "pdf") => void;
@@ -8,8 +7,6 @@ interface UseAttachmentHandlersOptions {
 export function useAttachmentHandlers({
   addAttachment,
 }: UseAttachmentHandlersOptions) {
-  const [forcedTool, setForcedTool] = useState<ForcedTool | null>(null);
-
   const handleImageSelect = useCallback(
     (file: File) => {
       addAttachment(file, "image");
@@ -24,23 +21,8 @@ export function useAttachmentHandlers({
     [addAttachment],
   );
 
-  const handleForceTool = useCallback(
-    (scenario: string, toolName: string) => {
-      setForcedTool({ scenario, toolName });
-    },
-    [],
-  );
-
-  const handleClearForcedTool = useCallback(() => {
-    setForcedTool(null);
-  }, []);
-
   return {
-    forcedTool,
-    setForcedTool,
     handleImageSelect,
     handlePDFSelect,
-    handleForceTool,
-    handleClearForcedTool,
   };
 }

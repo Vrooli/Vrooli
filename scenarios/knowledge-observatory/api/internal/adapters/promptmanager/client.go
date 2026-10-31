@@ -5,14 +5,15 @@ package promptmanager
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	skillsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills"
+	skillsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/skills/skills_v1connect"
 )
 
 // Client is an HTTP client for prompt-manager.
@@ -40,29 +41,15 @@ func (c *Client) GetSkill(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/api/v1/skills/%s", baseURL, id), nil)
+	client := skillsconnect.NewSkillsServiceClient(c.httpClient, baseURL)
+	resp, err := client.GetSkill(ctx, connect.NewRequest(&skillsv1.GetSkillRequest{Id: id}))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", fmt.Errorf("get prompt-manager skill: %w", err)
 	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", err
+	if resp.Msg.GetSkill() == nil {
+		return "", fmt.Errorf("prompt-manager returned no skill")
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("prompt-manager error: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	var payload struct {
-		Content string `json:"content"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-	return payload.Content, nil
+	return resp.Msg.GetSkill().GetContent(), nil
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {

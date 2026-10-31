@@ -51,6 +51,7 @@ export interface ExportStylizationSidebarProps {
   className?: string;
   /** Whether stylization applies to the currently selected format */
   stylizationApplies?: boolean;
+  recordedVideo?: boolean;
 }
 
 /**
@@ -60,6 +61,7 @@ export interface ExportStylizationSidebarProps {
 export function ExportStylizationSidebar({
   className,
   stylizationApplies = true,
+  recordedVideo = false,
 }: ExportStylizationSidebarProps) {
   const [activeSection, setActiveSection] = useState<ExportSidebarSection>("visual");
 
@@ -145,7 +147,8 @@ export function ExportStylizationSidebar({
             onDeviceFrameThemeChange={(v) => setReplaySetting("deviceFrameTheme", v)}
           />
         )}
-        {activeSection === "cursor" && (
+        {activeSection === "cursor" && recordedVideo && <p className="text-sm text-slate-300">The pointer is part of this recording. Choose its appearance before capture. Select slideshow replay to edit pointer trails.</p>}
+        {activeSection === "cursor" && !recordedVideo && (
           <CursorSection
             cursorTheme={replay.cursorTheme}
             cursorInitialPosition={replay.cursorInitialPosition}
@@ -161,7 +164,7 @@ export function ExportStylizationSidebar({
             onCursorPathStyleChange={(v) => setReplaySetting("cursorPathStyle", v)}
           />
         )}
-        {activeSection === "branding" && <BrandingSection />}
+        {activeSection === "branding" && <>{recordedVideo && <p className="mb-3 text-sm text-slate-300">Intro and outro cards need a slideshow replay or a separate edit. Watermarks can be applied to this recording.</p>}<BrandingSection /></>}
       </div>
     </div>
   );

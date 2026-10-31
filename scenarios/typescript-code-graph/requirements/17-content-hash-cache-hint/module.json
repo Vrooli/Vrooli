@@ -1,0 +1,79 @@
+{
+  "description": "Return a `graph_hash` field on every `Extract` response so consumers can detect \"graph unchanged since last call\" without redoing their own diff. No internal cache in this scenario.",
+  "module_id": "MOD-P1-017",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "Every Extract response must include a graph_hash field containing a stable, deterministic hash of the returned graph content (e.g., SHA-256 of the canonical serialized graph bytes). This allows consumers to detect whether the graph has changed since their last call without performing their own diff. No internal caching is implemented in this scenario; the hash is a hint for external consumers. The hash must be identical across invocations for identical graph content, consistent with the byte-stable serialization guarantee.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Content-Hash Graph Field on Extract Responses",
+      "validation": [
+        {
+          "notes": "Test that graph_hash is a valid hex-encoded SHA-256 string",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that two Extract calls on unchanged source produce identical graph_hash values",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that modifying a single declaration in source changes the graph_hash",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Test that graph_hash is computed from the canonical serialized graph bytes, not from source file hashes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "TCG-CONTENT-HASH: Extract the same fixture twice and assert graph_hash is identical both times",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Modify a fixture file, re-extract, and assert graph_hash changes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Verify graph_hash field is present in the Connect-RPC response proto envelope",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "react-component-library client can skip downstream processing when graph_hash matches the cached value from the previous extraction",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Content-Hash Cache Hint"
+}

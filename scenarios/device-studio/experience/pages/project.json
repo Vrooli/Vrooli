@@ -1,0 +1,166 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "project",
+    "title": "Project",
+    "routes": [
+      "/projects/:projectId"
+    ],
+    "purpose": "Organize a project into shots, source media and results while making privacy, spend and saved revisions visible.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-013"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Choose the shot or result to work on."
+    },
+    {
+      "statement": "Understand project privacy and budget before any external action."
+    },
+    {
+      "statement": "Keep reusable assets separate from immutable shot revisions."
+    }
+  ],
+  "states": [
+    {
+      "id": "idle",
+      "description": "No operation is pending; identify the current task and available next action."
+    },
+    {
+      "id": "pending",
+      "description": "Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state."
+    },
+    {
+      "id": "retrying",
+      "description": "A safe retry is actively reconciling or executing without blind duplicate side effects."
+    },
+    {
+      "id": "default",
+      "description": "Explain the current task, saved revision and next meaningful action."
+    },
+    {
+      "id": "loading",
+      "description": "Name what is loading; retain stable layout and existing local content."
+    },
+    {
+      "id": "submitting",
+      "description": "Acknowledge the requested operation once and prevent duplicate costly submissions."
+    },
+    {
+      "id": "saving",
+      "description": "Distinguish local draft changes from durably saved revision; never claim saved early."
+    },
+    {
+      "id": "syncing",
+      "description": "Explain local versus remote state and conflict resolution without silently overwriting edits."
+    },
+    {
+      "id": "refreshing",
+      "description": "Retain usable content and identify the specific information being refreshed."
+    },
+    {
+      "id": "empty",
+      "description": "Explain why there is no content and offer a relevant low-risk first action."
+    },
+    {
+      "id": "partial",
+      "description": "Show which inputs, output or services are available and which remain incomplete."
+    },
+    {
+      "id": "stale",
+      "description": "Show age, affected decisions and explicit refresh; never silently spend on refresh."
+    },
+    {
+      "id": "success",
+      "description": "Confirm the concrete durable result and offer inspection or the next task."
+    },
+    {
+      "id": "validation-error",
+      "description": "Associate actionable correction with each invalid field while preserving input."
+    },
+    {
+      "id": "request-error",
+      "description": "Explain the failed operation, preserved work and safe next action with diagnostic reference."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Identify the unavailable operation and authority boundary without requesting unrelated access."
+    },
+    {
+      "id": "offline",
+      "description": "Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect."
+    },
+    {
+      "id": "retry",
+      "description": "Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation."
+    },
+    {
+      "id": "conflict",
+      "description": "Compare conflicting revisions and choose preserve-both or explicit resolution."
+    },
+    {
+      "id": "missing-media",
+      "description": "Keep existing results viewable and list affected source dependencies."
+    },
+    {
+      "id": "budget-blocked",
+      "description": "Show local supported work and the cap or funding reason affecting external tasks."
+    }
+  ],
+  "claims": [
+    {
+      "id": "project-intent-1",
+      "type": "custom",
+      "statement": "Shot edits create revisions and do not mutate released device or scene assets.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    },
+    {
+      "id": "project-intent-2",
+      "type": "custom",
+      "statement": "Project summaries distinguish operator intent, agent authority and execution safety checks.",
+      "tier": "aspirational",
+      "rationale": "Unimplemented design intent; runtime bindings, exact state setup, visual evidence and operator review remain required."
+    }
+  ],
+  "x-route-status": "partially-implemented",
+  "x-design": {
+    "layout": "Project title and saved state above shots and recent results; source bin and privacy/budget summary remain discoverable. Mobile uses ordered tabs instead of squeezed panels.",
+    "controls": [
+      "Create/duplicate/reorder/archive shots",
+      "Import recording/image/audio with duration, aspect and provenance inspection",
+      "Open project settings and source usage",
+      "Export portable project or publish a deliberate consumer handoff"
+    ],
+    "details": [
+      "A shot card identifies photographic or true-3D route and its preview/final capability.",
+      "Deleting a shared source lists affected shots and preserves outputs; explicit removal policy precedes destructive action.",
+      "Agent requests identify requesting agent, operation, revision, scope and owner approval boundary."
+    ]
+  },
+  "x-requirements": [
+    "DS-SAFETY-BUDGET",
+    "DS-SAFETY-EGRESS"
+  ],
+  "x-evidence-policy": "No fake selectors, region bindings, setup hooks, captures or attestations. Planned controls are metadata until implemented and grounded.",
+  "x-implementation": {
+    "stage": "E1 UI capture complete; P3 media UI implementation in progress, acceptance pending",
+    "implemented": [
+      "Load a real project by opaque ID",
+      "Rename against the revision observed when editing began",
+      "Typed stale-revision conflict with explicit reload"
+    ],
+    "evidence": [
+      "docs/internal/goal/evidence/E1/routed-live-journey.json",
+      "docs/internal/goal/evidence/E1/primary-restart-readonly.json",
+      "docs/internal/goal/evidence/E1/ui-light-table/README.md"
+    ],
+    "limits": "PNG/JPEG media UI is in implementation and not yet accepted. Existing aspirational shot, recovery, privacy, budget, archive and search claims remain unimplemented. No release or whole-page claim is promoted by this annotation."
+  }
+}

@@ -33,7 +33,7 @@ export function Suggestions({
   embedded = false,
 }: SuggestionsProps) {
   const { submodes, levelTemplates } = useMemo(() => {
-    const templatesList = templates ?? [];
+    const templatesList = templates;
 
     if (currentModePath.length === 0) {
       const availableModes = new Set<string>();

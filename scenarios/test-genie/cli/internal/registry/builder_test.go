@@ -3,7 +3,7 @@ package registry
 import (
 	"testing"
 
-	apiRegistry "test-genie/internal/playbooks/registry"
+	apiRegistry "test-genie/cli/internal/playbookregistry"
 )
 
 func TestRegistryFileNameAliasesSharedAPIConstant(t *testing.T) {

@@ -1,0 +1,27 @@
+syntax = "proto3";
+package vrooli.treasury.v1.wallet;
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet;wallet_v1";
+
+// Receive-only custody metadata. No field confers signing or spending authority.
+message Wallet {
+  string id = 1;
+  string book_id = 2;
+  string operator_identity = 3;
+  string network = 4;
+  string address = 5;
+  string public_key = 6;
+  string custody_reference = 7;
+  google.protobuf.Timestamp created_at = 8;
+  string recovery_status = 9;
+  string recovery_sha256 = 10;
+  // Always false until an independently recoverable off-host backup is qualified.
+  bool independent_recovery_verified = 11;
+}
+message ControlProof {
+  Wallet wallet = 1;
+  string message = 2;
+  string signature = 3;
+  string scheme = 4;
+  bool verified = 5;
+}

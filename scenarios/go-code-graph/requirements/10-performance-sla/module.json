@@ -1,0 +1,93 @@
+{
+  "description": "Extraction completes in \u003c5 seconds for any scenario with ≤200 files and \u003c30 seconds for any scenario with ≤2000 files, measured end-to-end including Connect-RPC transport. Performance regression tests live in CI.",
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "performance",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-006"
+      ],
+      "description": "Extraction must complete within strict latency bounds measured end-to-end including Connect-RPC transport: \u003c5 seconds for any scenario with ≤200 source files, and \u003c30 seconds for any scenario with ≤2000 source files. Performance regression tests must run in CI on representative fixtures of each size class and fail the build if latency bounds are exceeded. Baselines must be established and committed so regressions are detectable across commits.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "draft",
+      "title": "Extraction Performance SLA with CI Regression Tests",
+      "validation": [
+        {
+          "notes": "Benchmark test for graph node/edge serialization at 200-node and 2000-node scale",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Benchmark test for per-path lock acquisition and release under contention",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance CI test: extract a 200-file fixture end-to-end via Connect-RPC; assert wall-clock time \u003c5 seconds; fail build if exceeded",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance CI test: extract a 2000-file fixture end-to-end via Connect-RPC; assert wall-clock time \u003c30 seconds; fail build if exceeded",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance regression test: compare current run latency against committed baseline; fail if regression exceeds 20% of SLA budget",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "≤200-file extraction completes in \u003c5 seconds end-to-end including Connect-RPC transport on CI hardware",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "≤2000-file extraction completes in \u003c30 seconds end-to-end including Connect-RPC transport on CI hardware",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance test fixtures of 200 and 2000 files are committed under bas/fixtures/ and used consistently across runs",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "CI performance gate prevents merging changes that regress extraction latency beyond the defined SLA",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Performance baselines are documented and version-controlled alongside the performance test fixtures",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Performance SLA"
+}

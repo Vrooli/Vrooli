@@ -19,11 +19,11 @@ type ErrorTestPattern struct {
 
 // PerformanceTestPattern defines performance testing scenarios
 type PerformanceTestPattern struct {
-	Name           string
-	Description    string
-	Request        HTTPTestRequest
-	MaxDuration    time.Duration
-	MinThroughput  int // requests per second
+	Name          string
+	Description   string
+	Request       HTTPTestRequest
+	MaxDuration   time.Duration
+	MinThroughput int // requests per second
 }
 
 // TestScenarioBuilder provides a fluent interface for building test scenarios

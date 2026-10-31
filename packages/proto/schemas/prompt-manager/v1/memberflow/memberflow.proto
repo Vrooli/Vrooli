@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package vrooli.prompt_manager.v1.memberflow;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/prompt-manager/v1/memberflow;memberflow_v1";
+
+import "google/protobuf/struct.proto";
+
+// MemberflowService exposes the operating-model and topic-flow projections.
+// Several projections are deliberately Value-backed: their schemas are
+// governed data catalogs whose keys evolve independently of this transport.
+service MemberflowService {
+  rpc GetMemberTopics(MemberRequest) returns (JsonResponse);
+  rpc UpdateMemberTopics(UpdateMemberTopicsRequest) returns (JsonResponse);
+  rpc GetTeamTopics(TeamRequest) returns (JsonResponse);
+  rpc GetTopicGraph(EmptyRequest) returns (JsonResponse);
+  rpc GetRules(EmptyRequest) returns (JsonResponse);
+  rpc GetObjectives(EmptyRequest) returns (JsonResponse);
+  rpc GetOrientationCost(EmptyRequest) returns (JsonResponse);
+  rpc GetInstruments(EmptyRequest) returns (JsonResponse);
+  rpc GetDrainStatus(EmptyRequest) returns (JsonResponse);
+  rpc GetOperatingModels(EmptyRequest) returns (JsonResponse);
+  rpc ValidateOperatingModels(EmptyRequest) returns (JsonResponse);
+  rpc DiffOperatingModels(EmptyRequest) returns (JsonResponse);
+  rpc GetOperatingModelCoverage(EmptyRequest) returns (JsonResponse);
+  rpc GetOperatingMap(EmptyRequest) returns (JsonResponse);
+}
+
+message EmptyRequest {}
+message MemberRequest { string team_id = 1; string agent_id = 2; }
+message TeamRequest { string team_id = 1; }
+message UpdateMemberTopicsRequest {
+  string team_id = 1;
+  string agent_id = 2;
+  google.protobuf.Value topics = 3;
+}
+message JsonResponse { google.protobuf.Value data = 1; }

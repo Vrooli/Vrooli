@@ -1,0 +1,1 @@
+{"gate":"reduced-motion","assetId":"calibration-reduced-motion","kind":"component","runner":"static","requiredFailureCode":"catalog.reduced-motion","catalogAsset":"asset.json","source":"broken.tsx","mutation":"differential-hard-coded","description":"Keeps the same transition duration when reduced motion is requested."}

@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_cloud.v1.deployments;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+import "scenario-to-cloud/v1/identity/identity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/deployments;deploymentsv1";
+
+// =============================================================================
+// DEPLOYMENTS — typed read surface over cloud deployment records
+// =============================================================================
+//
+// @stability beta
+//
+// DeploymentsService is the first typed slice of the scenario-to-cloud API.
+// It resolves selectors to stable identities and reads deployment records.
+// Mutations (execute, recover, stop) stay on the REST surface until the
+// executable-plan and durable-operation domains land.
+//
+// Selector rules: exactly one of the four forms is accepted — by id; by
+// (scenario_id, environment); by (scenario_id, domain); by (scenario_id, host).
+// More than one matching record is a `deployment_selector_ambiguous` failure,
+// never a best-effort pick.
+//
+// Version negotiation: responses carry schema_version. A client that receives
+// a schema_version it does not understand must treat the payload as unsupported
+// rather than reading fields positionally.
+//
+// USAGE CONTEXTS:
+//   - api/deploymentsvc: Connect handler mounted beside the REST routes.
+//   - ui/src/lib: parses responses through the generated schemas.
+//   - cli: typed client for `deployment resolve|get|list`.
+//
+// =============================================================================
+
+service DeploymentsService {
+  // ResolveDeployment maps one selector to exactly one DeploymentRef.
+  rpc ResolveDeployment(ResolveDeploymentRequest) returns (ResolveDeploymentResponse);
+  // GetDeployment reads one deployment record by stable id.
+  rpc GetDeployment(GetDeploymentRequest) returns (GetDeploymentResponse);
+  // ListDeployments returns summaries, newest first.
+  rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
+}
+
+// DeploymentSelector is a conjunction of identity facets. Only the four
+// canonical forms are accepted by the service.
+message DeploymentSelector {
+  // @format uuid
+  string id = 1;
+  string scenario_id = 2;
+  string environment = 3;
+  string domain = 4;
+  string host = 5;
+}
+
+message ResolveDeploymentRequest {
+  DeploymentSelector selector = 1;
+}
+
+message ResolveDeploymentResponse {
+  // @default "1"
+  string schema_version = 1;
+  identity.DeploymentRef ref = 2;
+}
+
+message GetDeploymentRequest {
+  // @format uuid
+  string id = 1;
+}
+
+message GetDeploymentResponse {
+  string schema_version = 1;
+  Deployment deployment = 2;
+}
+
+message ListDeploymentsRequest {
+  // Optional filters; empty means no filter.
+  string scenario_id = 1;
+  string environment = 2;
+  string status = 3;
+  // Maximum records to return. @default 100
+  int32 page_size = 4;
+  // Opaque continuation token from a previous response.
+  string page_token = 5;
+}
+
+message ListDeploymentsResponse {
+  string schema_version = 1;
+  repeated DeploymentSummary deployments = 2;
+  string next_page_token = 3;
+}
+
+// DeploymentSummary is the list-view projection.
+message DeploymentSummary {
+  identity.DeploymentRef ref = 1;
+  string name = 2;
+  string status = 3;
+  // Edge domain from the manifest; empty when no edge is configured.
+  string domain = 4;
+  string error_message = 5;
+  string progress_step = 6;
+  double progress_percent = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp last_deployed_at = 9;
+}
+
+// Deployment is the full record. The manifest is carried as a Struct until the
+// manifest domain is typed; secrets never appear in it.
+message Deployment {
+  identity.DeploymentRef ref = 1;
+  string name = 2;
+  string status = 3;
+  string domain = 4;
+  // Fence at read time; operations must carry a fence at least this high.
+  uint64 fence = 5;
+  google.protobuf.Struct manifest = 6;
+  string bundle_sha256 = 7;
+  string error_message = 8;
+  string error_step = 9;
+  string progress_step = 10;
+  double progress_percent = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  google.protobuf.Timestamp last_deployed_at = 14;
+  google.protobuf.Timestamp last_inspected_at = 15;
+  // Operator intent for the workload: "running", "stopped" or "retired".
+  // Distinct from status: an intentional stop is never drift and observation
+  // never restarts it (docs/reference/activation-and-reconciliation.md).
+  string desired_state = 16;
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "scoped-library-release",
+    "title": "Import and scoped library release",
+    "purpose": "Convert an inspected local candidate into a scoped reusable asset through evidence and deliberate review rather than parser success alone.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-004",
+      "OT-P0-006",
+      "OT-P0-008",
+      "OT-P0-010",
+      "OT-P0-014"
+    ]
+  },
+  "steps": [
+    {
+      "page": "import",
+      "state": "inspecting",
+      "intent": "Inspect bounded local files, source/license, units, axes, parts and textures.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "import",
+      "state": "rights-unknown",
+      "intent": "Resolve a genuine provenance gap before release without inventing permission.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "asset",
+      "state": "release-pending",
+      "intent": "Inspect articulation, display masks and route-specific limitations.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "review",
+      "state": "release-pending",
+      "intent": "Review actual rights, reference, neutral/beauty, temporal and portable evidence independently.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "review",
+      "state": "approved",
+      "intent": "Record an operator decision for exact artifact hashes and supported capabilities.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "library",
+      "state": "default",
+      "intent": "Find the released version with accurate qualification and attribution.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "scoped-library-release-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Convert an inspected local candidate into a scoped reusable asset through evidence and deliberate review rather than parser success alone.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

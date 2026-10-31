@@ -1,0 +1,54 @@
+{
+  "id": "react-vite-tailwind",
+  "requires": "react-vite-tailwind",
+  "copy": [
+    {
+      "from": "tokens.css",
+      "to": "ui/src/design-tokens.css"
+    },
+    {
+      "from": "tailwind.theme.json",
+      "to": "ui/tailwind.theme.json"
+    },
+    {
+      "from": "fonts/face-1.ttf",
+      "to": "ui/src/fonts/face-1.ttf"
+    },
+    {
+      "from": "fonts/face-2.ttf",
+      "to": "ui/src/fonts/face-2.ttf"
+    },
+    {
+      "from": "fonts/face-3.ttf",
+      "to": "ui/src/fonts/face-3.ttf"
+    },
+    {
+      "from": "fonts/face-4.ttf",
+      "to": "ui/src/fonts/face-4.ttf"
+    },
+    {
+      "from": "fonts/face-5.ttf",
+      "to": "ui/src/fonts/face-5.ttf"
+    },
+    {
+      "from": "fonts/face-6.ttf",
+      "to": "ui/src/fonts/face-6.ttf"
+    },
+    {
+      "from": "fonts/face-7.ttf",
+      "to": "ui/src/fonts/face-7.ttf"
+    },
+    {
+      "from": "fonts/Archivo-OFL.txt",
+      "to": "ui/src/fonts/Archivo-OFL.txt"
+    },
+    {
+      "from": "fonts/IBM-Plex-Mono-OFL.txt",
+      "to": "ui/src/fonts/IBM-Plex-Mono-OFL.txt"
+    },
+    {
+      "from": "fonts/IBM-Plex-Sans-OFL.txt",
+      "to": "ui/src/fonts/IBM-Plex-Sans-OFL.txt"
+    }
+  ]
+}

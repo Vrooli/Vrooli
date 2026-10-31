@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "name": "evidence-review",
+    "description": "Open the operator evidence review surface and verify the exact commit controls are present.",
+    "requirement": "DM-EVIDENCE-REVIEW",
+    "version": "1",
+    "labels": { "reset": "none", "purpose": "evidence-review" },
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1440, "viewport_height": 900 },
+  "nodes": [
+    { "id": "open-evidence", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "deployment-manager", "scenario_path": "/evidence", "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE", "timeout_ms": 30000 }, "metadata": { "label": "Open evidence review" } } },
+    { "id": "assert-heading", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/evidence.heading", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": { "stringValue": "Evidence review" }, "timeout_ms": 10000, "failure_message": "Evidence review heading did not render" }, "metadata": { "label": "Evidence review heading" } } }
+  ],
+  "edges": [ { "source": "open-evidence", "target": "assert-heading" } ]
+}

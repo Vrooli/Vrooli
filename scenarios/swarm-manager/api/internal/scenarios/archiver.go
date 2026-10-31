@@ -5,8 +5,9 @@ package scenarios
 import (
 	"context"
 
-	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 	"swarm-manager/internal/execution"
+
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
 // Archiver performs scenario archive operations.

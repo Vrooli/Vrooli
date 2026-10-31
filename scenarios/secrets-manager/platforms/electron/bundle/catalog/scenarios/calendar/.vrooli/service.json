@@ -1,0 +1,274 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {"entries":{"logs":{"rung":"owned","path":"logs","kind":"dir","class":"logs","regenerable":true,"rationale":"Scenario operational logs observed in the canonical logs directory."}},"rationale":"Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."},
+  "service": {
+    "name": "calendar",
+    "displayName": "Calendar System",
+    "description": "Universal scheduling intelligence system that enables time-aware workflows and cross-scenario temporal coordination",
+    "version": "1.0.0",
+    "tags": [
+      "scheduling",
+      "calendar",
+      "events",
+      "time-management",
+      "automation",
+      "ai-scheduling",
+      "notifications",
+      "multi-user",
+      "postgres-storage",
+      "vector-search",
+      "microservice",
+      "saas-ready"
+    ],
+    "parent": "vrooli",
+    "type": "scenario",
+    "category": "general",
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/calendar"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Calendar REST API for event management and scheduling",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Professional calendar interface with week/month views",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Calendar system health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Calendar system",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/calendar-api"
+            ]
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          },
+          {
+            "type": "cli",
+            "command": "calendar",
+            "targets": [
+              "calendar"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "initialization/postgres"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o calendar-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start calendar system with API and UI servers",
+      "steps": [
+        {
+          "name": "ensure-env",
+          "run": "export VROOLI_LIFECYCLE_MANAGED=true",
+          "description": "Set lifecycle environment flag"
+        },
+        {
+          "name": "setup-database",
+          "run": "resource-postgres content create-database calendar_system",
+          "description": "Create calendar database if not exists (idempotent)"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && eval \"$(resource-postgres content get --database calendar_system --as-env)\" && ENVIRONMENT=test VROOLI_LIFECYCLE_MANAGED=true QDRANT_URL=http://localhost:6333 JWT_SECRET=development-secret-for-calendar-system AUTH_SERVICE_URL=http://localhost:15785 NOTIFICATION_SERVICE_URL=http://localhost:15310 NOTIFICATION_PROFILE_ID=calendar-system-prod ./calendar-api",
+          "description": "Start Go API server with auth and notification integration",
+          "background": true,
+          "condition": {
+            "file_exists": "api/calendar-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.cjs",
+          "description": "Start Express server with built React app",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive phased testing for calendar",
+      "steps": [
+        {
+          "name": "run-phased-tests",
+          "run": "test-genie execute calendar --preset comprehensive",
+          "description": "Execute phased scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop calendar services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenarios/calendar.*calendar-api\" || true; sleep 1; pkill -9 -f \"scenarios/calendar.*calendar-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/calendar/ui/server.cjs\" || pkill -f \"calendar-ui.*server.cjs\" || true; sleep 1; pkill -9 -f \"scenarios/calendar/ui/server.cjs\" 2>/dev/null || pkill -9 -f \"calendar-ui.*server.cjs\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Vector database for semantic event search and scheduling intelligence",
+        "collection": "calendar_events",
+        "dimensions": 1536,
+        "distance": "Cosine",
+        "purpose": "AI-powered semantic event search and scheduling intelligence",
+        "estimated_vectors": "1M events with embeddings"
+      },
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Primary event storage and recurring schedule data",
+        "instance_name": "calendar-system",
+        "database": "calendar_system",
+        "purpose": "Event storage, user schedules, recurring patterns",
+        "schema_file": "initialization/postgres/schema.sql",
+        "estimated_size": "10GB for 100K events",
+        "backup_frequency": "daily"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Natural language processing for chat interface",
+        "model_roles": [
+          "chat.small"
+        ]
+      }
+    },
+    "scenarios": {
+      "scenario-authenticator": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Multi-user authentication and user context",
+        "degraded_behavior": "Single-user mode without authentication"
+      },
+      "notification-hub": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Event reminders and schedule change notifications",
+        "degraded_behavior": "In-memory reminder queue without delivery"
+      }
+    }
+  },
+  "cli": {
+    "enabled": true,
+    "command": "calendar",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "calendar"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  }
+}

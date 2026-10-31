@@ -3,6 +3,7 @@ package deployments
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // Local mirrors of scenario-to-desktop pipeline types.
@@ -16,8 +17,10 @@ type PipelineDeployResult struct {
 
 // PipelineDeployArtifact mirrors a single uploaded artifact result.
 type PipelineDeployArtifact struct {
-	ArtifactID int64  `json:"artifact_id"`
-	Platform   string `json:"platform"`
+	ArtifactID        int64  `json:"artifact_id"`
+	Platform          string `json:"platform"`
+	SHA512            string `json:"sha512,omitempty"`
+	DestinationObject string `json:"destination_object,omitempty"`
 }
 
 // PipelineBuildProvenance mirrors the git/version state from the pipeline.
@@ -75,6 +78,9 @@ func ExtractProvenance(status *PipelineStatus) (*PipelineBuildProvenance, error)
 	}
 	if status.Provenance == nil {
 		return nil, fmt.Errorf("pipeline status has no provenance")
+	}
+	if strings.TrimSpace(status.Provenance.Version) == "" || strings.TrimSpace(status.Provenance.GitCommitHash) == "" {
+		return nil, fmt.Errorf("pipeline provenance requires version and git commit hash")
 	}
 	return status.Provenance, nil
 }

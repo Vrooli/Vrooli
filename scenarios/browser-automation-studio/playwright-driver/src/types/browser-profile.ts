@@ -151,6 +151,8 @@ export interface BrowserProfile {
   anti_detection?: AntiDetectionSettings;
   proxy?: ProxySettings;
   extra_headers?: Record<string, string>; // Custom HTTP headers sent with every request
+  motion_preference?: 'no-preference' | 'reduce';
+  interaction_state?: 'rest' | 'hover' | 'focus-visible' | 'pressed' | 'disabled';
 }
 
 /**

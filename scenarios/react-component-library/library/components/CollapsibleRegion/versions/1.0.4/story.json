@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "open": true
+      },
+      "id": "open",
+      "mode": "pinned",
+      "name": "Open",
+      "role": "anatomy",
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-collapsible-region]"
+        }
+      ]
+    },
+    {
+      "args": {
+        "open": false
+      },
+      "id": "closed",
+      "mode": "pinned",
+      "name": "Closed",
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-collapsible-region]",
+          "attribute": "data-open",
+          "value": "false"
+        }
+      ],
+      "role": "boundary"
+    }
+  ],
+  "title": "CollapsibleRegion"
+}

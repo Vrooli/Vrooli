@@ -1,0 +1,414 @@
+package wiring
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/usagemodes"
+
+	"agent-manager/internal/adapters/database"
+	"agent-manager/internal/capabilities"
+	"agent-manager/internal/config"
+	"agent-manager/internal/conformance"
+	"agent-manager/internal/conversationpolicy"
+	"agent-manager/internal/conversationsearch"
+	"agent-manager/internal/eventlog"
+	"agent-manager/internal/findings"
+	"agent-manager/internal/handlers"
+	healthstore "agent-manager/internal/health"
+	"agent-manager/internal/httpmw"
+	"agent-manager/internal/interventions"
+	"agent-manager/internal/investigation"
+	"agent-manager/internal/invocationreadmodel"
+	"agent-manager/internal/maintenance"
+	analyticsmeasures "agent-manager/internal/measures"
+	"agent-manager/internal/metrics"
+	"agent-manager/internal/modelpolicydrift"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/permissionpolicy"
+	"agent-manager/internal/pricing"
+	"agent-manager/internal/programlibrary"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runreport"
+	"agent-manager/internal/storage"
+	"agent-manager/internal/storagehealth"
+	"agent-manager/internal/supervision"
+	"agent-manager/internal/transcriptindex"
+
+	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/lifecycle"
+	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/cli-core/agentcatalog"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
+	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control/control_v1connect"
+)
+
+// RouteDependencies names every runtime capability used by HTTP route
+// registration. Keeping this composition data in wiring prevents the entry
+// point from acquiring presentation or business logic.
+type RouteDependencies struct {
+	Recovery                 *maintenance.Recovery
+	CapabilityRegistry       *capabilities.Registry
+	DB                       *database.DB
+	Orchestrator             *orchestration.Orchestrator
+	StatsRepository          repository.StatsRepository
+	PricingService           pricing.Service
+	PricingRepository        pricing.Repository
+	WebSocketHub             *handlers.WebSocketHub
+	RolePolicyState          *rolepolicy.State
+	PermissionPolicyState    *permissionpolicy.State
+	PermissionPolicy         *permissionpolicy.Service
+	Storage                  storage.Service
+	HealthStore              *healthstore.Store
+	EventRepository          eventlog.Repository
+	SupervisionService       *supervision.Service
+	WatchActionAuthorizer    handlers.WatchActionAuthorizer
+	ExactVerifier            *supervision.ExactVerifier
+	InvocationReadModel      invocationreadmodel.Store
+	ModelPolicyDrift         *modelpolicydrift.Scheduler
+	UsageModes               *usagemodes.Service
+	UsageModeNotifier        *usagemodes.Notifier
+	TranscriptImporter       *orchestration.TranscriptIndex
+	ConversationSearch       *conversationsearch.Service
+	ConversationIndexer      *conversationsearch.Indexer
+	ConversationSearchPolicy *conversationpolicy.Policy
+	ConversationSemantic     *conversationsearch.SemanticRuntime
+	ConversationSearchFile   string
+	ConversationControlToken func() string
+	StorageHealth            *storagehealth.Handler
+	LifecycleService         commonconnect.LifecycleMaintenanceServiceHandler
+	// DecisionEffects are additional owners of notification-hub resolutions
+	// (e.g. the evidence-prune approval), each claiming only its own event type.
+	DecisionEffects  []operatordecision.DomainEffect
+	WorkspaceSandbox interface {
+		IsAvailable(context.Context) (bool, string)
+	}
+}
+
+// SetupRoutes registers the complete HTTP surface. It intentionally owns only
+// transport composition; every route's behavior remains in handlers.
+func SetupRoutes(router *mux.Router, deps RouteDependencies) {
+	router.Use(httpmw.Logging)
+	router.Use(httpmw.SecurityHeaders)
+	router.Use(httpmw.CORS)
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		panic(fmt.Errorf("authentication configuration: %w", err))
+	}
+	authConfig = authConfig.WithScenarioAuthenticator("agent-manager")
+	authConfig = authConfig.WithCreateRunCallerAudience("swarm-manager")
+	authConfig = authConfig.WithManagedCloudflare("agent-manager")
+	router.Use(authn.Middleware(authConfig))
+	var standingAuthority *handlers.StandingGrantAuthority
+	// A verified service principal's only costly-write authority is an
+	// operator-approved standing grant. This installs that authority into the
+	// request context (for service callers only) before AgentOperationMiddleware
+	// and the handlers decide, so one RequestOperationAuthority seam serves both.
+	if deps.DB != nil && deps.Orchestrator != nil {
+		standingGrants := database.NewStandingGrantRepository(deps.DB)
+		standingAuthority = handlers.NewStandingGrantAuthority(standingGrants, standingGrantUsageReader{orch: deps.Orchestrator}, nil)
+		// The orchestrator is the approval raiser: on a needs-approval outcome the
+		// middleware asks it to raise the operator decision (idempotent, capped).
+		router.Use(handlers.StandingGrantMiddleware(standingAuthority, deps.Orchestrator))
+	}
+	router.Use(handlers.AgentOperationMiddleware)
+	if deps.Orchestrator != nil {
+		handlers.RegisterAuthorizations(router, deps.Orchestrator)
+		handlers.RegisterStandingGrants(router, deps.Orchestrator)
+	}
+	handlers.RegisterPromptManagerAdmissionDiagnostic(router, standingAuthority)
+	if deps.LifecycleService != nil {
+		path, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(deps.LifecycleService)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: lifecycle.LoopbackOnly(handler)})
+	}
+
+	healthHandler := withLifecycleRefusalObservation(health.New().
+		Version("1.0.0").
+		BuildIdentity(os.Getenv("VROOLI_BUILD_IDENTITY")).
+		Check(health.Func("database", func(ctx context.Context) error {
+			if deps.DB == nil {
+				return fmt.Errorf("database is not configured")
+			}
+			return deps.DB.PingContext(ctx)
+		}), health.Critical).
+		Check(RolePolicyHealthChecker(deps.RolePolicyState), health.Critical).
+		Check(PermissionPolicyHealthChecker(deps.PermissionPolicyState, deps.PermissionPolicy), health.Critical).
+		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional).
+		Check(supervisionLivenessHealthChecker(deps.DB), health.Optional), handlers.LifecycleRefusalFunctionalStatus).
+		Metric("startup_recovery", func(time.Time) any {
+			if deps.Recovery == nil {
+				return nil
+			}
+			return deps.Recovery.Snapshot()
+		}).
+		Handler()
+	router.HandleFunc("/health", healthHandler).Methods("GET")
+
+	eventsBaseURL := os.Getenv("VROOLI_EVENTS_API_BASE")
+	if eventsBaseURL == "" {
+		if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); err == nil {
+			eventsBaseURL = resolved
+		}
+	}
+	receiptTargets, receiptTargetsErr := declaredReceiptTargets(receiptCaptureDeclarationPath())
+	if receiptTargetsErr != nil {
+		routesLog := obs.Component("routes")
+		routesLog.Warn("receipt capture declaration unavailable", obs.KeyError, receiptTargetsErr.Error())
+	}
+	receiptAvailability := func(ctx context.Context) runreport.Availability {
+		if summary, decisive := receiptRuntimeAvailability(ctx, receiptTargets, productionReceiptRuntimeReader); decisive {
+			return summary.Availability
+		}
+		return runreport.Availability{State: runreport.AvailabilityUnobserved}
+	}
+	var frictionBoard handlers.FrictionBoard
+	var usageStore *database.UsageAttributionRepository
+	if deps.DB != nil {
+		usageStore = usageAttributionStore(deps.DB, deps.Orchestrator)
+	}
+	if service, ok := newFrictionService(deps, usageStore); ok {
+		frictionBoard = service
+	}
+	handler := handlers.New(
+		orchestration.NewHandlerServices(deps.Orchestrator),
+		handlers.WithStorage(deps.Storage),
+		handlers.WithRolePolicyState(deps.RolePolicyState),
+		handlers.WithPermissionPolicy(deps.PermissionPolicyState, deps.PermissionPolicy),
+		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
+		handlers.WithReceiptAvailabilityReader(receiptAvailability),
+		handlers.WithTranscriptImporter(deps.TranscriptImporter),
+		handlers.WithInvestigationLifecycle(investigationRepository(deps.DB)),
+		handlers.WithEffortEnrollments(deps.SupervisionService),
+		handlers.WithFrictionBoard(frictionBoard),
+	)
+	handler.SetWebSocketHub(deps.WebSocketHub)
+	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
+	connectHandler.SetManagedTeamReader(promptmanager.NewHTTPClient())
+	exactVerifier := deps.ExactVerifier
+	if exactVerifier == nil && deps.SupervisionService != nil {
+		exactVerifier = deps.SupervisionService.Efforts.InstalledExactVerifier()
+	}
+	connectHandler.SetExactVerifier(exactVerifier)
+	connectHandler.RegisterExactRoutes(router)
+	connectHandler.SetWatchActionAuthorizer(deps.WatchActionAuthorizer)
+	apiPath, apiHandler := apiconnect.NewAgentManagerServiceHandler(connectHandler)
+	router.Handle(apiconnect.AgentManagerServiceWaitWorkflowExecutionProcedure, handlers.WorkflowWaitResponse(apiHandler)).Methods(http.MethodPost)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: apiPath, Handler: apiHandler})
+	episodesPath, episodesHandler := domainconnect.NewEpisodesServiceHandler(handler)
+	router.PathPrefix(strings.TrimRight(episodesPath, "/")).Handler(episodesHandler)
+	frictionPath, frictionHandler := domainconnect.NewFrictionServiceHandler(handler)
+	router.PathPrefix(strings.TrimRight(frictionPath, "/")).Handler(frictionHandler)
+	router.HandleFunc("/api/v1/runs/external/tombstone", handlers.TombstoneExternalConversation(deps.Orchestrator, deps.DB, deps.ConversationIndexer)).Methods(http.MethodPost)
+	if deps.StorageHealth != nil {
+		// The reclaim pair is the contract storage-manager calls when the declared
+		// budget is exceeded; compact requires the owner and a drained fence.
+		router.HandleFunc("/api/v1/storage/health", deps.StorageHealth.Health).Methods("GET")
+		router.HandleFunc("/api/v1/storage/reclaim", deps.StorageHealth.Reclaim).Methods("POST")
+		router.HandleFunc("/api/v1/storage/compact", deps.StorageHealth.Compact).Methods("POST")
+	}
+	if deps.ConversationSearch != nil {
+		adapter := handlers.NewConversationSearchAdapter(deps.ConversationSearch, deps.ConversationIndexer)
+		// Aggregate the process-local policy/masking counters across the two
+		// independently-wired seams: the orchestrator owns the import seam and the
+		// PII masker; the search policy owns the search-hide seam. A nil orchestrator
+		// or search policy simply contributes zeros, so the block is still coherent.
+		orchestrator := deps.Orchestrator
+		searchPolicy := deps.ConversationSearchPolicy
+		adapter.WithPolicyCounters(func() handlers.PolicyCountersSnapshot {
+			snapshot := handlers.PolicyCountersSnapshot{}
+			if orchestrator != nil {
+				snapshot.ImportCounts = orchestrator.ImportPolicyCounts()
+				snapshot.PIICounts = orchestrator.PIIMaskCounts()
+			}
+			snapshot.SearchCounts = searchPolicy.Snapshot()
+			return snapshot
+		})
+		searchPath, searchHandler := domainconnect.NewConversationSearchServiceHandler(
+			handlers.NewConversationSearchConnectHandler(adapter),
+		)
+		router.PathPrefix(strings.TrimRight(searchPath, "/")).Handler(searchHandler)
+	}
+	if deps.ConversationIndexer != nil {
+		controlOptions := handlers.ConversationSearchControlOptions{
+			Indexer: deps.ConversationIndexer, SearchFilePath: deps.ConversationSearchFile,
+			ControlToken: deps.ConversationControlToken,
+		}
+		directControlPath, directControlHandler := domainconnect.NewConversationSearchControlServiceHandler(
+			handlers.NewConversationSearchControlConnectHandler(handlers.NewConversationSearchDirectControl(controlOptions)),
+		)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: directControlPath, Handler: directControlHandler})
+		controlPath, controlHandler := controlconnect.NewSearchControlServiceHandler(
+			handlers.NewConversationSearchSharedControl(controlOptions),
+		)
+		connectx.RegisterServices(router, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
+	}
+	if deps.ConversationSemantic != nil {
+		handlers.NewConversationSearchGenerationHandler(deps.ConversationSemantic, deps.ConversationControlToken).RegisterRoutes(router)
+	}
+	router.HandleFunc("/api/v1/health", handler.Health).Methods("GET")
+	secret := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET"))
+	if secret == "" {
+		if resolved, err := resolveEventsWebhookSecret(); err != nil {
+			obs.Component("routes").Warn("events webhook credential unavailable", obs.KeyError, err.Error())
+		} else {
+			secret = resolved
+		}
+	}
+	if secret != "" {
+		router.Handle(handlers.ProgramEventWebhookPath, handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
+		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret, deps.DecisionEffects...)).Methods(http.MethodPost)
+		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				defer cancel()
+				if err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+handlers.ProgramEventWebhookPath); err != nil {
+					obs.Component("routes").Warn("program-runtime event subscription reconciliation failed", obs.KeyError, err.Error())
+				}
+				if err := ReconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+handlers.DecisionEventWebhookPath); err != nil {
+					obs.Component("routes").Warn("decision answer event subscription reconciliation failed", obs.KeyError, err.Error())
+				}
+			}()
+		}
+	}
+	if deps.CapabilityRegistry != nil {
+		router.HandleFunc("/api/v1/capabilities/describe", func(w http.ResponseWriter, req *http.Request) {
+			data, err := deps.CapabilityRegistry.Describe(req.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(data)
+		}).Methods(http.MethodGet)
+		routesLog := obs.Component("routes")
+		routesLog.Info("capability descriptor registered", "path", "/api/v1/capabilities/describe")
+	}
+
+	repoRoot := os.Getenv("PROJECT_ROOT")
+	if repoRoot == "" {
+		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	}
+	conformancePath, conformanceHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(conformance.NewHandler(repoRoot, deps.PermissionPolicy))
+	router.PathPrefix(strings.TrimRight(conformancePath, "/")).Handler(conformanceHandler)
+	handler.RegisterRoutes(router)
+
+	routesLog := obs.Component("routes")
+	if deps.HealthStore != nil {
+		catalogReader := func(context.Context) []agentcatalog.CatalogFreshness {
+			freshness := make([]agentcatalog.CatalogFreshness, 0, 4)
+			for _, runner := range []string{"codex", "claude-code", "opencode", "grok"} {
+				path := filepath.Join(repoRoot, "resources", runner, "model-policy.json")
+				freshness = append(freshness, agentcatalog.ReadCatalogFreshness(runner, path, time.Now().UTC()))
+			}
+			return freshness
+		}
+		handlers.NewHealthAuditHandler(deps.HealthStore).WithCatalogFreshness(catalogReader).WithModelPolicyDrift(deps.ModelPolicyDrift).RegisterRoutes(router)
+		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
+	}
+	if deps.EventRepository != nil {
+		handlers.NewEventsHandler(deps.EventRepository).RegisterRoutes(router)
+		routesLog.Info("events endpoint registered", "path", "/api/v1/events")
+	}
+	if deps.InvocationReadModel != nil {
+		measureHandler := analyticsmeasures.NewHandler(deps.InvocationReadModel, nil)
+		measureHandler.SetConversationSearchQuality(deps.ConversationSearch, deps.ConversationIndexer)
+		if validityConfig, err := config.LoadMeasureValidityConfig(); err == nil {
+			measureHandler.SetValidityConfig(analyticsmeasures.ValidityConfig{MinSampleMeaningful: validityConfig.MinSampleMeaningful, MaxFingerprintBucketShare: validityConfig.MaxFingerprintBucketShare})
+		}
+		if deps.Orchestrator != nil {
+			measureHandler.SetCohortSource(deps.Orchestrator)
+		}
+		if readings, ok := deps.PricingRepository.(pricing.QuotaReadingSource); ok {
+			measureHandler.SetUsageForecast(readings)
+		}
+		if deps.UsageModes != nil {
+			measureHandler.SetUsageModes(deps.UsageModes)
+		}
+		if deps.Orchestrator != nil {
+			measureHandler.SetRunRebaser(usageModeRunRebaser{orch: deps.Orchestrator})
+		}
+		if deps.UsageModeNotifier != nil {
+			measureHandler.SetRoleProposer(deps.UsageModeNotifier)
+		}
+		if deps.DB != nil {
+			var coverage transcriptindex.CoverageReader
+			if deps.TranscriptImporter != nil {
+				coverage = deps.TranscriptImporter
+			}
+			measureHandler.SetUsageActivity(database.NewUsageActivityRepository(deps.DB))
+			measureHandler.SetInterventions(interventions.NewStore(deps.DB))
+			measureHandler.SetSignals(interventions.NewStore(deps.DB))
+			measureHandler.SetSignalControl(interventions.SignalControl{Store: interventions.NewStore(deps.DB)})
+			measureHandler.SetProgramLibrary(programlibrary.New())
+			measureHandler.SetUsageAttribution(usageStore, deps.PricingService, coverage, findings.NewFrictionStatusStore(deps.DB))
+			if deps.Orchestrator != nil {
+				measureHandler.SetOutcomeLedger(database.NewRunLedgerRepository(deps.DB, deps.Orchestrator.TranscriptParserVersion))
+				if deps.UsageModeNotifier != nil {
+					// The evidence-ready notice reads the same analysis the evidence view shows.
+					deps.UsageModeNotifier.SetEvidence(usagemodes.EvidenceFunc(measureHandler.ReadyEvidence))
+				}
+			}
+		}
+		if registryHandler, err := measureHandler.MeasuresHandler(); err != nil {
+			routesLog.Error("measures registry unavailable", obs.KeyError, err.Error())
+		} else {
+			router.PathPrefix("/measures").Handler(http.StripPrefix("/measures", registryHandler))
+			connectPath, connectHandler := measureconnect.NewMeasuresServiceHandler(measureHandler)
+			router.PathPrefix(strings.TrimRight(connectPath, "/")).Handler(connectHandler)
+			routesLog.Info("durable friction measures registered", "paths", "/measures, "+connectPath)
+		}
+	}
+	if deps.PricingService != nil && deps.StatsRepository != nil {
+		var subscriptions pricing.SubscriptionRepository
+		var quotaStore pricing.QuotaObservationRepository
+		if deps.PricingRepository != nil {
+			subscriptions, _ = deps.PricingRepository.(pricing.SubscriptionRepository)
+			quotaStore, _ = deps.PricingRepository.(pricing.QuotaObservationRepository)
+		}
+		handlers.NewPricingHandlerWithQuota(deps.PricingService, deps.StatsRepository, subscriptions, quotaStore).RegisterRoutes(router)
+		routesLog.Info("pricing endpoints registered", "path", "/api/v1/pricing/*")
+	}
+	router.Handle("/metrics", metrics.Handler()).Methods("GET")
+	routesLog.Info("websocket endpoint registered", "path", "/api/v1/ws")
+	routesLog.Info("metrics endpoint registered", "path", "/metrics")
+}
+
+func investigationRepository(db *database.DB) investigation.Repository {
+	if db == nil {
+		return nil
+	}
+	return investigation.NewSQLiteRepository(db)
+}
+
+func workspaceSandboxHealthChecker(provider interface {
+	IsAvailable(context.Context) (bool, string)
+},
+) health.Checker {
+	if provider == nil {
+		return nil
+	}
+	return health.Func("workspace_sandbox", func(ctx context.Context) error {
+		available, reason := provider.IsAvailable(ctx)
+		if !available {
+			return fmt.Errorf("%s", reason)
+		}
+		return nil
+	})
+}

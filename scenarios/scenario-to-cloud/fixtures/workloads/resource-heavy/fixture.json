@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "resource-heavy",
+  "kind": "workload",
+  "shape": "resource_heavy_profile",
+  "classification": "compatibility_only",
+  "description": "Resource-heavy profile (GPU plus large memory) certified only for the explicit unsupported or insufficient-capacity refusal path. A successful deployment of this fixture is never a certification claim.",
+  "policy_ref": "docs/reference/support-policy.md#workload-shapes",
+  "declaration": {
+    "primary_scenario": "fixture-resource-heavy",
+    "resources": [
+      "ollama"
+    ],
+    "scenarios": [],
+    "transitive": {},
+    "listeners": [
+      {
+        "name": "api",
+        "protocol": "http",
+        "role": "api",
+        "public": true,
+        "path_prefix": "/api/v1"
+      }
+    ],
+    "persistent_data": [
+      {
+        "binding": "model-cache",
+        "kind": "files",
+        "mount": "models",
+        "quota_mib": 8192,
+        "recovery_point_seconds_max": null,
+        "regenerable": true
+      }
+    ],
+    "expected_capacity": {
+      "cpu_millicores": 4000,
+      "memory_mib": 16384,
+      "disk_mib": 40960,
+      "gpu": {
+        "required": true,
+        "min_vram_mib": 8192
+      },
+      "concurrent_readers": 4,
+      "planned_unavailability_seconds_max": 300
+    }
+  },
+  "seed": {
+    "version": "1",
+    "files": [
+      "seed/refusal-expectations.json"
+    ],
+    "records": 3,
+    "checksum": "sha256:37b31d94fa63908c2b73b6de4073c06c14d77ab62880505061680ea7871279a8"
+  },
+  "oracle": {
+    "algorithm": "fixture-oracle/v1",
+    "description": "For each seeded machine profile the preflight or plan returns the expected typed refusal with its reason and no target effect (PLAN-04); no bundle, staging directory or process is created.",
+    "expected_state": {
+      "algorithm": "fixture-oracle/v1",
+      "files": [
+        {
+          "path": "seed/refusal-expectations.json",
+          "bytes": 489,
+          "records": 3,
+          "sha256": "e76508fe3ff98fc71fa00ce0054db814b79694303b39a82b67db1315afcd2d51"
+        }
+      ],
+      "total_records": 3,
+      "total_bytes": 489
+    },
+    "checksum": "sha256:9c2cc2f1b2fbb47f44d2816db6203a2335ab5021123864d3414cce3d883cc04e"
+  },
+  "ownership": {
+    "target_ownership": "owned_ephemeral",
+    "cleanup_owner": "scenario-to-cloud fixture lease (routed test storage + owned target)",
+    "cleanup_policy": "retain_failed_evidence_then_remove_owned_ephemeral_resources",
+    "neighbor_invariant": "Unrelated operator data, processes, files and network rules remain unchanged after setup and cleanup (P02-A03).",
+    "write_scope_invariant": "Every SQL and file write made while the fixture is leased belongs to its lease scope and its owned target (P02-A02).",
+    "lease_scope": "fixture:resource-heavy"
+  },
+  "lifecycle": {
+    "status": "declared_not_executable",
+    "note": "Setup and teardown argv are returned by the fixture owner at lease time as typed {verb, argv[]} actions; no owner runtime exists at phase 2, so none are recorded here. Never a shell string.",
+    "setup_owner": "unassigned (durable operations, phase 7)",
+    "teardown_owner": "unassigned (data lifecycle, phase 12)"
+  }
+}

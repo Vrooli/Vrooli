@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { List, Layers, FolderTree } from "lucide-react";
 import type { FileViewMode } from "../lib/api";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 interface ViewModeCycleButtonProps {
   mode: FileViewMode;
@@ -15,19 +16,19 @@ const modeConfig: Record<
 > = {
   flat: {
     Icon: List,
-    color: "text-slate-300 border-slate-600 hover:bg-slate-800/50",
+    color: "text-slate-300",
     label: "Flat view",
     nextLabel: "grouped",
   },
   grouped: {
     Icon: Layers,
-    color: "text-blue-300 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20",
+    color: "text-blue-300",
     label: "Grouped view",
     nextLabel: "tree",
   },
   tree: {
     Icon: FolderTree,
-    color: "text-emerald-300 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20",
+    color: "text-emerald-300",
     label: "Tree view",
     nextLabel: "flat",
   },
@@ -37,7 +38,7 @@ export const ViewModeCycleButton = memo(function ViewModeCycleButton({
   mode,
   onCycle,
   groupingAvailable,
-  compact,
+  compact: _compact,
 }: ViewModeCycleButtonProps) {
   const { Icon, color, label, nextLabel } = modeConfig[mode];
 
@@ -52,15 +53,22 @@ export const ViewModeCycleButton = memo(function ViewModeCycleButton({
   const tooltip = `${label} (click for ${actualNextLabel})`;
 
   return (
-    <button
-      type="button"
+    <IconButton
       onClick={onCycle}
-      className={`${compact ? "h-7 w-7" : "h-9 w-9"} inline-flex items-center justify-center rounded-full border transition-colors ${color}`}
-      title={tooltip}
       aria-label={tooltip}
+      title={tooltip}
+      size="xs"
+      surface="ghost"
+      swapIdentity="gct-view-mode"
+      // These are different Lucide component trees, not compatible morph
+      // paths. Automatic morphing can briefly hide the glyph while the RCL
+      // transition layer is waiting for a path match.
+      morph="none"
+      denseTapTarget
+      className={`!h-8 !w-8 !min-h-0 !min-w-0 !border-0 !shadow-none ${color.split(" ").filter((token) => token.startsWith("text-")).join(" ")}`}
       data-testid="view-mode-cycle-button"
     >
-      <Icon className={compact ? "h-3 w-3" : "h-4 w-4"} />
-    </button>
+      <Icon className="h-4 w-4" />
+    </IconButton>
   );
 });

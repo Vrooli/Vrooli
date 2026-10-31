@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:AccountSettingsSurface",
+  "displayName": "Account Settings Surface",
+  "description": "Reusable responsive account and subscription settings surface",
+  "kind": "control",
+  "tags": [
+    "monetization",
+    "account"
+  ],
+  "entry": "AccountSettingsSurface.tsx",
+  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

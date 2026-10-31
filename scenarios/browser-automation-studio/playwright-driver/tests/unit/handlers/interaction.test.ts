@@ -29,10 +29,10 @@ describe('InteractionHandler', () => {
   });
 
   describe('getSupportedTypes', () => {
-    it('should support click, hover, type, focus, and blur instructions', () => {
+    it('should support click, hover, type/input, focus, and blur instructions', () => {
       const types = handler.getSupportedTypes();
 
-      expect(types).toEqual(['click', 'hover', 'type', 'focus', 'blur']);
+      expect(types).toEqual(['click', 'hover', 'type', 'input', 'focus', 'blur']);
     });
   });
 
@@ -96,6 +96,15 @@ describe('InteractionHandler', () => {
       expect(selector).toBe('#input');
       expect(text).toBe('Hello World');
       expect(options).toEqual(expect.any(Object));
+      expect(result.success).toBe(true);
+    });
+
+    it('should accept the canonical input action name', async () => {
+      const instruction = createTypedInstruction('input', { selector: '#input', text: 'Hello World' }, { nodeId: 'node-1' });
+
+      const result = await handler.execute(instruction, context);
+
+      expect(mockPage.fill).toHaveBeenCalledWith('#input', 'Hello World', expect.any(Object));
       expect(result.success).toBe(true);
     });
 

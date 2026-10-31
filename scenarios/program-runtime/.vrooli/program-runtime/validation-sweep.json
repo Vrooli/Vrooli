@@ -1,0 +1,112 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.validation-sweep",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "purpose": "Read the latest recorded test-genie validation run for each scenario in a set and report which are passing, naming any not passing or never validated, so a supervisor runs one program instead of one validation lookup per scenario.",
+  "inputs": {
+    "scenarios": {
+      "type": "string",
+      "required": false,
+      "default": "agent-manager,prompt-manager,web-console,workflow-health,browser-automation-studio,scenario-to-desktop,nutrition-planner,personal-planner",
+      "description": "Comma-separated scenario slugs to read validation state for. Defaults to the delivery/product scenario set."
+    }
+  },
+  "assumptions": [
+    "the latest recorded test-genie run per scenario is reachable through the validate runtime verb; when it is not, that scenario's read is reported unavailable, never as a passing or failing verdict",
+    "this program reads recorded run rows only; it never starts a validation run"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "no validation run is started; only the latest recorded run is read",
+    "at most one validate read is issued per requested scenario",
+    "a failed read for one scenario is isolated and reported unavailable; it never aborts the sweep",
+    "the envelope is printed exactly once, on every path",
+    "at most 32 requested scenarios are reported; the request is truncated with truncated=true"
+  ],
+  "bindings": [],
+  "verbs": [
+    "validate"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ],
+      "note": "ok when every requested scenario's latest run was readable (not-passing and never-validated are domain signals, not failures); partial when at least one read was unavailable; unavailable when every read was unavailable; failed only on invalid input."
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "requested": "count of scenario slugs after truncation",
+      "found": "count of requested scenarios with a recorded latest run that was readable",
+      "passing": "count of requested scenarios whose latest recorded run is passing",
+      "attention": "list of {name, status, run_id} for requested scenarios whose latest run is not passing or which have no recorded run",
+      "unavailable": "count of requested scenarios whose validation read could not be performed (treat as unknown, never as zero)",
+      "truncated": "true when more than 32 slugs were requested"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "remote_error",
+        "no_governed_binding"
+      ]
+    },
+    "evidence": "validate:<scenario> markers and test-genie-run:<id> for each readable latest run"
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 64
+  },
+  "fixtures": [
+    {
+      "id": "live",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "ok",
+          "partial",
+          "unavailable"
+        ]
+      },
+      "requires": [
+        "program-runtime"
+      ],
+      "note": "Reads the latest recorded test-genie run per scenario through the validate verb. When that history is unreachable the per-scenario read is unavailable and the sweep returns partial or unavailable; that is the honest unknown, not a program defect."
+    },
+    {
+      "id": "empty-request",
+      "inputs": {
+        "scenarios": ""
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "note": "An empty scenario set after trimming is an invalid input the program reports as failed with class invalid_input before any read."
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "program-runtime"
+}

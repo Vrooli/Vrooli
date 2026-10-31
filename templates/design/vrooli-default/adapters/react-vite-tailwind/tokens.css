@@ -1,0 +1,121 @@
+:root {
+  --text-heading-sm: 600 16px / 22px var(--font-sans);
+  --text-heading-sm-size: 16px;
+  --text-heading-sm-line: 22px;
+  /* Compatibility aliases for standalone catalog components. New source
+     should prefer the canonical --color/--dur names below, but released
+     assets may be adopted into older Vrooli shells. Keeping this bridge in
+     the kit prevents a component from silently degrading to browser chrome. */
+  color-scheme: light;
+}
+
+:root[data-resolved-theme="dark"],
+.dark {
+  --color-background: #020617;
+  --color-shell: #020617;
+  --color-surface: #0f172a;
+  --color-surface-muted: #1e293b;
+  --color-surface-raised: #172033;
+  --color-foreground: #f8fafc;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #334155;
+  --color-primary: #60a5fa;
+  --color-primary-foreground: #020617;
+  --color-accent: #22d3ee;
+  --color-success: #22c55e;
+  --color-danger: #f87171;
+  --color-warning: #f59e0b;
+  --color-info: #38bdf8;
+  --color-focus: #60a5fa;
+  --scrollbar-thumb: #475569;
+  --scrollbar-thumb-hover: #64748b;
+  --elev-flat: none;
+  --elev-raised: 0 1px 2px rgba(0, 0, 0, .40);
+  --elev-overlay: 0 4px 16px rgba(0, 0, 0, .50);
+  --elev-modal: 0 16px 48px rgba(0, 0, 0, .60);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-resolved-theme="light"]) {
+    --color-background: #020617;
+    --color-shell: #020617;
+    --color-surface: #0f172a;
+    --color-surface-muted: #1e293b;
+    --color-surface-raised: #172033;
+    --color-foreground: #f8fafc;
+    --color-muted-foreground: #94a3b8;
+    --color-border: #334155;
+    --color-primary: #60a5fa;
+    --color-primary-foreground: #020617;
+    --color-accent: #22d3ee;
+    --color-success: #22c55e;
+    --color-danger: #f87171;
+    --color-warning: #f59e0b;
+    --color-info: #38bdf8;
+    --color-focus: #60a5fa;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+    color-scheme: dark;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.touch-target {
+  min-height: var(--touch-target);
+  min-width: var(--touch-target);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

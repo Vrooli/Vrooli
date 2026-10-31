@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useResizablePanel } from "../hooks/useResizablePanel";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useActionMutation } from "../hooks/useActionMutation";
 import { BottomSheet } from "../components/ui/bottom-sheet";
 import { ErrorState } from "../components/ui/error-state";
 import { PageLoadingState } from "../components/ui/loading-states";
@@ -9,14 +10,11 @@ import { SkillsPanel } from "../components/prompts/SkillsPanel";
 import { PromptCatalog } from "../components/prompts/PromptCatalog";
 import { PromptEditor } from "../components/prompts/PromptEditor";
 import { ExperimentResults } from "../components/prompts/ExperimentResults";
-import { SimulationDialog, defaultSimulationPayload, type SimulationPayload } from "../components/prompts/SimulationDialog";
 import { selectors } from "../consts/selectors";
 import { defaultQueryOptions } from "../lib";
 import { promptService } from "../services";
-import type { BacklogKind, PromptCatalogEntry, PromptSkillVersion } from "../types";
+import type { PromptCatalogEntry, PromptSkillVersion } from "../types";
 
-const KINDS: BacklogKind[] = ["idea", "research", "fix", "execute", "chore"];
-const MODES: string[] = ["workshop", "initialize", "finalize"];
 const GROUP_ORDER = ["capture", "backlog", "execution", "archive", "support"] as const;
 const GROUP_LABELS: Record<(typeof GROUP_ORDER)[number], string> = {
   capture: "Capture",
@@ -32,7 +30,6 @@ type PromptTab = "catalog" | "viewer" | "experiments";
 const MIN_SKILLS_PANEL_WIDTH = 260;
 const MAX_SKILLS_PANEL_WIDTH = 460;
 const MIN_EDITOR_WIDTH = 480;
-const RESIZE_HANDLE_WIDTH = 8;
 
 const splitLines = (value: string) => value.replace(/\r\n/g, "\n").split("\n");
 
@@ -57,25 +54,24 @@ const buildSimpleDiff = (next: string, previous: string): string[] => {
 export function PromptsPage() {
   const queryClient = useQueryClient();
   const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const skillsPanelRef = useRef<HTMLDivElement | null>(null);
 
   const [activeTab, setActiveTab] = useState<PromptTab>("catalog");
-  const [selectedSkillId, setSelectedSkillId] = useState<string>("");
+  const [selectedSkillId, setSelectedSkillId] = useState("");
   const [content, setContent] = useState("");
   const [comparisonVersion, setComparisonVersion] = useState<PromptSkillVersion | null>(null);
   const [markdownView, setMarkdownView] = useState<"raw" | "rendered">("raw");
-  const { size: skillsPanelWidth, isResizing, resizeHandleProps: skillsResizeHandleProps } = useResizablePanel({
+  const { isResizing, separatorProps: skillsSeparatorProps, panelProps: skillsPanelProps } = useResizablePanel({
     containerRef: workspaceRef,
-    minSize: MIN_SKILLS_PANEL_WIDTH,
-    maxSize: MAX_SKILLS_PANEL_WIDTH,
+    panelRef: skillsPanelRef,
+    min: MIN_SKILLS_PANEL_WIDTH,
+    max: MAX_SKILLS_PANEL_WIDTH,
     defaultSize: 320,
-    adjacentMinSize: MIN_EDITOR_WIDTH,
-    handleWidth: RESIZE_HANDLE_WIDTH,
+    adjacentMin: MIN_EDITOR_WIDTH,
+    panelName: "Skills",
   });
-  const [selectedExperimentId, setSelectedExperimentId] = useState<string>("");
-  const [showSimulationModal, setShowSimulationModal] = useState(false);
-  const [showMobileSkills, setShowMobileSkills] = useState(false);
-  const [simulationPayload, setSimulationPayload] = useState<SimulationPayload>(defaultSimulationPayload());
-  const [lastSimulationPayload, setLastSimulationPayload] = useState<SimulationPayload | null>(null);
+  const [selectedExperimentId, setSelectedExperimentId] = useState("");
+	const [showMobileSkills, setShowMobileSkills] = useState(false);
 
   // --- Queries ---
   const catalogQuery = useQuery({
@@ -118,31 +114,29 @@ export function PromptsPage() {
   }, [skillQuery.data?.current_content]);
 
   // --- Mutations ---
-  const updateMutation = useMutation({
+  const updateMutation = useActionMutation({
     mutationFn: ({ draft, nextContent }: { draft: boolean; nextContent: string }) =>
       promptService.updateSkill(selectedSkillId, { content: nextContent, draft }),
+    errorMessage: "Couldn't save this skill",
+    successMessage: (_result, { draft }) => draft ? "Draft saved" : "Skill published",
+    source: "PromptsPage.update",
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
     },
   });
 
-  const revertMutation = useMutation({
+  const revertMutation = useActionMutation({
     mutationFn: (version: number) => promptService.revertSkillVersion(selectedSkillId, version),
+    errorMessage: "Couldn't revert to that version",
+    successMessage: (_result, version) => `Reverted to version ${version}`,
+    source: "PromptsPage.revert",
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
-      queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skills"] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "skill", selectedSkillId] });
+      void queryClient.invalidateQueries({ queryKey: ["prompts", "versions", selectedSkillId] });
       setComparisonVersion(null);
-    },
-  });
-
-  const simulateMutation = useMutation({
-    mutationFn: (payload: SimulationPayload) => promptService.simulate(payload),
-    onSuccess: () => {
-      setShowSimulationModal(false);
-      setMarkdownView("rendered");
     },
   });
 
@@ -154,7 +148,7 @@ export function PromptsPage() {
     return buildSimpleDiff(content, comparisonVersion.content);
   }, [comparisonVersion, content]);
 
-  const markdownPreviewSource = simulateMutation.data?.prompt ?? content;
+	const markdownPreviewSource = content;
 
   const groupEntries = useMemo(() => {
     const grouped = new Map<PromptGroup, PromptCatalogEntry[]>(
@@ -170,17 +164,6 @@ export function PromptsPage() {
     }));
   }, [catalogQuery.data]);
 
-  const selectedSkillCatalogEntries = useMemo(
-    () =>
-      (catalogQuery.data ?? []).filter(
-        (entry) =>
-          entry.skill_id === selectedSkillId &&
-          entry.group === "backlog" &&
-          entry.usage_type === "direct_runtime"
-      ),
-    [catalogQuery.data, selectedSkillId]
-  );
-
   const experimentIds = useMemo(() => {
     const ids = new Set<string>();
     for (const entry of catalogQuery.data ?? []) {
@@ -189,58 +172,11 @@ export function PromptsPage() {
     return Array.from(ids);
   }, [catalogQuery.data]);
 
-  const canSimulateSelectedSkill = selectedSkillCatalogEntries.length > 0;
-
-  const simulationKindOptions = useMemo(() => {
-    if (!canSimulateSelectedSkill) return KINDS;
-    const allowed = new Set<BacklogKind>();
-    for (const entry of selectedSkillCatalogEntries) {
-      for (const kind of entry.backlog_kinds ?? []) {
-        allowed.add(kind as BacklogKind);
-      }
-    }
-    return KINDS.filter((kind) => allowed.has(kind));
-  }, [canSimulateSelectedSkill, selectedSkillCatalogEntries]);
-
-  const simulationModeOptions = useMemo(() => {
-    if (!canSimulateSelectedSkill) return MODES;
-    const allowed = new Set<string>();
-    for (const entry of selectedSkillCatalogEntries) {
-      for (const mode of entry.modes ?? []) {
-        allowed.add(mode);
-      }
-    }
-    return MODES.filter((mode) => allowed.has(mode));
-  }, [canSimulateSelectedSkill, selectedSkillCatalogEntries]);
-
-  // --- Effects ---
-  useEffect(() => {
-    if (!canSimulateSelectedSkill) return;
-    const [entry] = selectedSkillCatalogEntries;
-    if (!entry) return;
-    setSimulationPayload((prev) => {
-      const nextMode = entry.modes?.[0] ?? prev.mode;
-      const allowedKinds = entry.backlog_kinds ?? [];
-      const nextKind = allowedKinds.includes(prev.kind)
-        ? prev.kind
-        : ((allowedKinds[0] as BacklogKind | undefined) ?? prev.kind);
-      if (nextMode === prev.mode && nextKind === prev.kind) return prev;
-      return { ...prev, mode: nextMode, kind: nextKind };
-    });
-  }, [canSimulateSelectedSkill, selectedSkillCatalogEntries]);
-
   // --- Handlers ---
   const openInViewer = (skillID?: string) => {
     if (!skillID) return;
     setSelectedSkillId(skillID);
     setActiveTab("viewer");
-  };
-
-  const runSimulation = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const payload: SimulationPayload = { ...simulationPayload };
-    setLastSimulationPayload(payload);
-    simulateMutation.mutate(payload);
   };
 
   // --- Loading / error states ---
@@ -285,9 +221,10 @@ export function PromptsPage() {
         <TabsContent value="viewer" data-testid={selectors.prompts.viewerPanel}>
           <PromptEditor
             workspaceRef={workspaceRef}
-            skillsPanelWidth={skillsPanelWidth}
+            skillsPanelRef={skillsPanelRef}
+            skillsPanelStyle={skillsPanelProps.style}
             isResizing={isResizing}
-            skillsResizeHandleProps={skillsResizeHandleProps}
+            skillsSeparatorProps={skillsSeparatorProps}
             skillsSidebar={
               <SkillsPanel
                 skills={skillsQuery.data ?? []}
@@ -302,17 +239,9 @@ export function PromptsPage() {
             markdownView={markdownView}
             onToggleMarkdownView={() => setMarkdownView((prev) => (prev === "rendered" ? "raw" : "rendered"))}
             markdownPreviewSource={markdownPreviewSource}
-            lastSimulationPayload={lastSimulationPayload}
             onSaveDraft={() => updateMutation.mutate({ draft: true, nextContent: content })}
             onPublish={() => updateMutation.mutate({ draft: false, nextContent: content })}
             updatePending={updateMutation.isPending}
-            canSimulate={canSimulateSelectedSkill}
-            onOpenSimulation={() => setShowSimulationModal(true)}
-            hasSimulationResult={Boolean(simulateMutation.data)}
-            onClearSimulation={() => {
-              simulateMutation.reset();
-              setLastSimulationPayload(null);
-            }}
             onShowMobileSkills={() => setShowMobileSkills(true)}
             versions={versionsQuery.data?.versions ?? []}
             comparisonVersion={comparisonVersion}
@@ -350,18 +279,6 @@ export function PromptsPage() {
           </TabsContent>
         )}
       </Tabs>
-
-      <SimulationDialog
-        isOpen={showSimulationModal}
-        onClose={() => setShowSimulationModal(false)}
-        isPending={simulateMutation.isPending}
-        selectedSkillId={selectedSkillId}
-        payload={simulationPayload}
-        onPayloadChange={setSimulationPayload}
-        kindOptions={simulationKindOptions}
-        modeOptions={simulationModeOptions}
-        onSubmit={runSimulation}
-      />
 
       <BottomSheet
         isOpen={showMobileSkills}

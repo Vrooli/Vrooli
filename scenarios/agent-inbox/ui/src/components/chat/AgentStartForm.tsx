@@ -3,49 +3,18 @@
  * Contains runner selection, project path, and advanced options.
  */
 
-import { Cpu, FolderOpen, Zap, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import type { RunnerType } from "../../lib/api";
+import { FolderOpen, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { usePathValidation } from "../../hooks/usePathValidation";
 
-export const RUNNER_OPTIONS: { value: RunnerType; label: string; description: string }[] = [
-  {
-    value: "claude-code",
-    label: "Claude Code",
-    description: "Anthropic's official CLI agent"
-  },
-  {
-    value: "codex",
-    label: "Codex",
-    description: "OpenAI Codex CLI agent"
-  },
-  {
-    value: "opencode",
-    label: "OpenCode",
-    description: "Open-source coding agent"
-  }
-];
-
 interface AgentStartFormProps {
-  runnerType: RunnerType;
-  onRunnerTypeChange: (value: RunnerType) => void;
   projectPath: string;
   onProjectPathChange: (value: string) => void;
-  model: string;
-  onModelChange: (value: string) => void;
-  maxTurns: number;
-  onMaxTurnsChange: (value: number) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
 export function AgentStartForm({
-  runnerType,
-  onRunnerTypeChange,
   projectPath,
   onProjectPathChange,
-  model,
-  onModelChange,
-  maxTurns,
-  onMaxTurnsChange,
   onSubmit,
 }: AgentStartFormProps) {
   const { isValidating, result: pathValidation } = usePathValidation(projectPath);
@@ -53,42 +22,6 @@ export function AgentStartForm({
 
   return (
     <form onSubmit={onSubmit} className="p-6 space-y-5">
-      {/* Runner Selection */}
-      <div>
-        <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-2">
-          <Cpu className="h-4 w-4" />
-          Runner
-        </label>
-        <div className="space-y-2">
-          {RUNNER_OPTIONS.map(option => (
-            <label
-              key={option.value}
-              className={`
-                flex items-start gap-3 p-3 rounded-lg cursor-pointer
-                border transition-colors
-                ${runnerType === option.value
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-zinc-700 hover:border-zinc-600"
-                }
-              `}
-            >
-              <input
-                type="radio"
-                name="runner"
-                value={option.value}
-                checked={runnerType === option.value}
-                onChange={(e) => onRunnerTypeChange(e.target.value as RunnerType)}
-                className="mt-1"
-              />
-              <div>
-                <div className="font-medium text-white">{option.label}</div>
-                <div className="text-xs text-zinc-400">{option.description}</div>
-              </div>
-            </label>
-          ))}
-        </div>
-      </div>
-
       {/* Project Path */}
       <div>
         <label className="flex items-center gap-2 text-sm font-medium text-zinc-300 mb-2">
@@ -126,7 +59,7 @@ export function AgentStartForm({
             </span>
           )}
         </div>
-        {pathIsInvalid && pathValidation?.message ? (
+        {pathIsInvalid && pathValidation.message ? (
           <p className="mt-1 text-xs text-red-400">{pathValidation.message}</p>
         ) : (
           <p className="mt-1 text-xs text-zinc-500">
@@ -135,50 +68,7 @@ export function AgentStartForm({
         )}
       </div>
 
-      {/* Advanced Options */}
-      <details className="group">
-        <summary className="flex items-center gap-2 text-sm font-medium text-zinc-400 cursor-pointer hover:text-zinc-300">
-          <Zap className="h-4 w-4" />
-          Advanced Options
-        </summary>
-        <div className="mt-3 space-y-4 pl-6">
-          {/* Model */}
-          <div>
-            <label className="text-sm text-zinc-400 mb-1 block">Model (optional)</label>
-            <input
-              type="text"
-              value={model}
-              onChange={(e) => onModelChange(e.target.value)}
-              placeholder="Use runner default"
-              className="
-                w-full px-3 py-2 rounded-lg
-                bg-zinc-800 border border-zinc-700
-                text-white placeholder-zinc-500
-                focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-                text-sm
-              "
-            />
-          </div>
-
-          {/* Max Turns */}
-          <div>
-            <label className="text-sm text-zinc-400 mb-1 block">Max Turns (0 = unlimited)</label>
-            <input
-              type="number"
-              min="0"
-              value={maxTurns}
-              onChange={(e) => onMaxTurnsChange(parseInt(e.target.value) || 0)}
-              className="
-                w-full px-3 py-2 rounded-lg
-                bg-zinc-800 border border-zinc-700
-                text-white placeholder-zinc-500
-                focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-                text-sm
-              "
-            />
-          </div>
-        </div>
-      </details>
+      <p className="text-xs text-zinc-500">Agent Manager resolves the portable coding role and concrete model for this chat.</p>
     </form>
   );
 }

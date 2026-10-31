@@ -2,6 +2,7 @@ import datetime
 
 from browser_automation_studio.v1.actions import action_pb2 as _action_pb2
 from browser_automation_studio.v1.base import geometry_pb2 as _geometry_pb2
+from browser_automation_studio.v1.base import shared_pb2 as _shared_pb2
 from browser_automation_studio.v1.domain import selectors_pb2 as _selectors_pb2
 from browser_automation_studio.v1.timeline import entry_pb2 as _entry_pb2
 from common.v1 import types_pb2 as _types_pb2
@@ -31,6 +32,13 @@ class FailureSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FAILURE_SOURCE_ENGINE: _ClassVar[FailureSource]
     FAILURE_SOURCE_EXECUTOR: _ClassVar[FailureSource]
     FAILURE_SOURCE_RECORDER: _ClassVar[FailureSource]
+
+class ScreenshotCapturePolicy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    SCREENSHOT_CAPTURE_POLICY_UNSPECIFIED: _ClassVar[ScreenshotCapturePolicy]
+    SCREENSHOT_CAPTURE_POLICY_ALWAYS: _ClassVar[ScreenshotCapturePolicy]
+    SCREENSHOT_CAPTURE_POLICY_ON_FAILURE: _ClassVar[ScreenshotCapturePolicy]
+    SCREENSHOT_CAPTURE_POLICY_NEVER: _ClassVar[ScreenshotCapturePolicy]
 FAILURE_KIND_UNSPECIFIED: FailureKind
 FAILURE_KIND_ENGINE: FailureKind
 FAILURE_KIND_INFRA: FailureKind
@@ -42,6 +50,10 @@ FAILURE_SOURCE_UNSPECIFIED: FailureSource
 FAILURE_SOURCE_ENGINE: FailureSource
 FAILURE_SOURCE_EXECUTOR: FailureSource
 FAILURE_SOURCE_RECORDER: FailureSource
+SCREENSHOT_CAPTURE_POLICY_UNSPECIFIED: ScreenshotCapturePolicy
+SCREENSHOT_CAPTURE_POLICY_ALWAYS: ScreenshotCapturePolicy
+SCREENSHOT_CAPTURE_POLICY_ON_FAILURE: ScreenshotCapturePolicy
+SCREENSHOT_CAPTURE_POLICY_NEVER: ScreenshotCapturePolicy
 
 class StepFailure(_message.Message):
     __slots__ = ("kind", "code", "message", "fatal", "retryable", "occurred_at", "details", "source")
@@ -174,28 +186,6 @@ class CursorPosition(_message.Message):
     elapsed_ms: int
     def __init__(self, point: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., elapsed_ms: _Optional[int] = ...) -> None: ...
 
-class ConditionOutcome(_message.Message):
-    __slots__ = ("type", "outcome", "negated", "operator", "variable", "selector", "expression", "actual", "expected")
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    OUTCOME_FIELD_NUMBER: _ClassVar[int]
-    NEGATED_FIELD_NUMBER: _ClassVar[int]
-    OPERATOR_FIELD_NUMBER: _ClassVar[int]
-    VARIABLE_FIELD_NUMBER: _ClassVar[int]
-    SELECTOR_FIELD_NUMBER: _ClassVar[int]
-    EXPRESSION_FIELD_NUMBER: _ClassVar[int]
-    ACTUAL_FIELD_NUMBER: _ClassVar[int]
-    EXPECTED_FIELD_NUMBER: _ClassVar[int]
-    type: str
-    outcome: bool
-    negated: bool
-    operator: str
-    variable: str
-    selector: str
-    expression: str
-    actual: _types_pb2.JsonValue
-    expected: _types_pb2.JsonValue
-    def __init__(self, type: _Optional[str] = ..., outcome: _Optional[bool] = ..., negated: _Optional[bool] = ..., operator: _Optional[str] = ..., variable: _Optional[str] = ..., selector: _Optional[str] = ..., expression: _Optional[str] = ..., actual: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ..., expected: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
-
 class AssertionOutcome(_message.Message):
     __slots__ = ("mode", "selector", "expected", "actual", "success", "negated", "case_sensitive", "message")
     MODE_FIELD_NUMBER: _ClassVar[int]
@@ -294,7 +284,7 @@ class StepOutcome(_message.Message):
     network_events: _containers.RepeatedCompositeFieldContainer[DriverNetworkEvent]
     extracted_data: _containers.MessageMap[str, _types_pb2.JsonValue]
     assertion: AssertionOutcome
-    condition: ConditionOutcome
+    condition: _shared_pb2.ConditionOutcome
     probe_result: _containers.MessageMap[str, _types_pb2.JsonValue]
     element_bounding_box: _geometry_pb2.BoundingBox
     click_position: _geometry_pb2.Point
@@ -309,17 +299,16 @@ class StepOutcome(_message.Message):
     used_selector: str
     selector_confidence: float
     selector_match_count: int
-    def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[str] = ..., instruction: _Optional[str] = ..., success: _Optional[bool] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., final_url: _Optional[str] = ..., screenshot: _Optional[_Union[DriverScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[DOMSnapshot, _Mapping]] = ..., console_logs: _Optional[_Iterable[_Union[DriverConsoleLogEntry, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[DriverNetworkEvent, _Mapping]]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., condition: _Optional[_Union[ConditionOutcome, _Mapping]] = ..., probe_result: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., focused_element: _Optional[_Union[_entry_pb2.ElementFocus, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., cursor_trail: _Optional[_Iterable[_Union[CursorPosition, _Mapping]]] = ..., notes: _Optional[_Mapping[str, str]] = ..., failure: _Optional[_Union[StepFailure, _Mapping]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., used_selector: _Optional[str] = ..., selector_confidence: _Optional[float] = ..., selector_match_count: _Optional[int] = ...) -> None: ...
+    def __init__(self, schema_version: _Optional[str] = ..., payload_version: _Optional[str] = ..., execution_id: _Optional[str] = ..., correlation_id: _Optional[str] = ..., step_index: _Optional[int] = ..., attempt: _Optional[int] = ..., node_id: _Optional[str] = ..., step_type: _Optional[str] = ..., instruction: _Optional[str] = ..., success: _Optional[bool] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., duration_ms: _Optional[int] = ..., final_url: _Optional[str] = ..., screenshot: _Optional[_Union[DriverScreenshot, _Mapping]] = ..., dom_snapshot: _Optional[_Union[DOMSnapshot, _Mapping]] = ..., console_logs: _Optional[_Iterable[_Union[DriverConsoleLogEntry, _Mapping]]] = ..., network_events: _Optional[_Iterable[_Union[DriverNetworkEvent, _Mapping]]] = ..., extracted_data: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., assertion: _Optional[_Union[AssertionOutcome, _Mapping]] = ..., condition: _Optional[_Union[_shared_pb2.ConditionOutcome, _Mapping]] = ..., probe_result: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., element_bounding_box: _Optional[_Union[_geometry_pb2.BoundingBox, _Mapping]] = ..., click_position: _Optional[_Union[_geometry_pb2.Point, _Mapping]] = ..., focused_element: _Optional[_Union[_entry_pb2.ElementFocus, _Mapping]] = ..., highlight_regions: _Optional[_Iterable[_Union[_selectors_pb2.HighlightRegion, _Mapping]]] = ..., mask_regions: _Optional[_Iterable[_Union[_selectors_pb2.MaskRegion, _Mapping]]] = ..., zoom_factor: _Optional[float] = ..., cursor_trail: _Optional[_Iterable[_Union[CursorPosition, _Mapping]]] = ..., notes: _Optional[_Mapping[str, str]] = ..., failure: _Optional[_Union[StepFailure, _Mapping]] = ..., element_snapshot: _Optional[_Union[_selectors_pb2.ElementMeta, _Mapping]] = ..., used_selector: _Optional[str] = ..., selector_confidence: _Optional[float] = ..., selector_match_count: _Optional[int] = ...) -> None: ...
+
+class StepTelemetryDirective(_message.Message):
+    __slots__ = ("screenshot",)
+    SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
+    screenshot: ScreenshotCapturePolicy
+    def __init__(self, screenshot: _Optional[_Union[ScreenshotCapturePolicy, str]] = ...) -> None: ...
 
 class CompiledInstruction(_message.Message):
-    __slots__ = ("index", "node_id", "type", "params", "preload_html", "context", "metadata", "action")
-    class ParamsEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _types_pb2.JsonValue
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    __slots__ = ("index", "node_id", "preload_html", "context", "metadata", "action", "telemetry")
     class ContextEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -336,21 +325,19 @@ class CompiledInstruction(_message.Message):
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     INDEX_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    PARAMS_FIELD_NUMBER: _ClassVar[int]
     PRELOAD_HTML_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
+    TELEMETRY_FIELD_NUMBER: _ClassVar[int]
     index: int
     node_id: str
-    type: str
-    params: _containers.MessageMap[str, _types_pb2.JsonValue]
     preload_html: str
     context: _containers.MessageMap[str, _types_pb2.JsonValue]
     metadata: _containers.ScalarMap[str, str]
     action: _action_pb2.ActionDefinition
-    def __init__(self, index: _Optional[int] = ..., node_id: _Optional[str] = ..., type: _Optional[str] = ..., params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., preload_html: _Optional[str] = ..., context: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., metadata: _Optional[_Mapping[str, str]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
+    telemetry: StepTelemetryDirective
+    def __init__(self, index: _Optional[int] = ..., node_id: _Optional[str] = ..., preload_html: _Optional[str] = ..., context: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., metadata: _Optional[_Mapping[str, str]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ..., telemetry: _Optional[_Union[StepTelemetryDirective, _Mapping]] = ...) -> None: ...
 
 class PlanEdge(_message.Message):
     __slots__ = ("id", "target", "condition", "source_port", "target_port")
@@ -367,14 +354,7 @@ class PlanEdge(_message.Message):
     def __init__(self, id: _Optional[str] = ..., target: _Optional[str] = ..., condition: _Optional[str] = ..., source_port: _Optional[str] = ..., target_port: _Optional[str] = ...) -> None: ...
 
 class PlanStep(_message.Message):
-    __slots__ = ("index", "node_id", "type", "params", "outgoing", "loop", "metadata", "context", "preload_html", "source_position", "action")
-    class ParamsEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: _types_pb2.JsonValue
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
+    __slots__ = ("index", "node_id", "outgoing", "loop", "metadata", "context", "preload_html", "source_position", "action")
     class MetadataEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -398,8 +378,6 @@ class PlanStep(_message.Message):
         def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_types_pb2.JsonValue, _Mapping]] = ...) -> None: ...
     INDEX_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    PARAMS_FIELD_NUMBER: _ClassVar[int]
     OUTGOING_FIELD_NUMBER: _ClassVar[int]
     LOOP_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
@@ -409,8 +387,6 @@ class PlanStep(_message.Message):
     ACTION_FIELD_NUMBER: _ClassVar[int]
     index: int
     node_id: str
-    type: str
-    params: _containers.MessageMap[str, _types_pb2.JsonValue]
     outgoing: _containers.RepeatedCompositeFieldContainer[PlanEdge]
     loop: PlanGraph
     metadata: _containers.ScalarMap[str, str]
@@ -418,7 +394,7 @@ class PlanStep(_message.Message):
     preload_html: str
     source_position: _containers.MessageMap[str, _types_pb2.JsonValue]
     action: _action_pb2.ActionDefinition
-    def __init__(self, index: _Optional[int] = ..., node_id: _Optional[str] = ..., type: _Optional[str] = ..., params: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., outgoing: _Optional[_Iterable[_Union[PlanEdge, _Mapping]]] = ..., loop: _Optional[_Union[PlanGraph, _Mapping]] = ..., metadata: _Optional[_Mapping[str, str]] = ..., context: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., preload_html: _Optional[str] = ..., source_position: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
+    def __init__(self, index: _Optional[int] = ..., node_id: _Optional[str] = ..., outgoing: _Optional[_Iterable[_Union[PlanEdge, _Mapping]]] = ..., loop: _Optional[_Union[PlanGraph, _Mapping]] = ..., metadata: _Optional[_Mapping[str, str]] = ..., context: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., preload_html: _Optional[str] = ..., source_position: _Optional[_Mapping[str, _types_pb2.JsonValue]] = ..., action: _Optional[_Union[_action_pb2.ActionDefinition, _Mapping]] = ...) -> None: ...
 
 class PlanGraph(_message.Message):
     __slots__ = ("steps",)

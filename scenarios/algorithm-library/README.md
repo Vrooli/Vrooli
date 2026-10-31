@@ -6,12 +6,12 @@ The Algorithm Library is a validated, multi-language reference system for data s
 
 ## Purpose
 
-This scenario adds a **permanent capability** to Vrooli: a centralized, validated algorithm reference that ensures correctness across all coding scenarios. Every algorithm is tested via Judge0, performance benchmarked, and available in multiple programming languages.
+This scenario adds a **permanent capability** to Vrooli: a centralized, validated algorithm reference that ensures correctness across all coding scenarios. Algorithms are tested with the scenario's local multi-language executor, performance benchmarked, and available in multiple programming languages.
 
 ## Key Features
 
 - **Multi-Language Support**: Full support for Python, JavaScript, Go, Java, and C++
-- **Local Execution Fallback**: Robust local executor when Judge0 is unavailable
+- **Local Execution**: Robust executor for supported languages
 - **Code Compilation**: Automatic compilation for Java and C++ with error reporting
 - **Performance Benchmarking**: Time and space complexity measurements for optimization
 - **Algorithm Visualization**: Interactive animations showing step-by-step execution of sorting algorithms
@@ -27,9 +27,9 @@ algorithm-library/
 ├── api/              # Go API server (port 16796)
 ├── cli/              # Bash CLI wrapper
 ├── ui/               # React web interface (port 3252)
-├── initialization/
+├── api/internal/<domain>/
 │   ├── postgres/     # Database schema and seed data
-│   └── n8n/         # Testing workflows via Judge0
+│   └── n8n/         # Historical workflow definitions
 └── tests/           # Validation tests
 ```
 
@@ -94,8 +94,7 @@ curl -X POST http://localhost:16796/api/v1/performance/record \
 
 ### Required
 - **PostgreSQL**: Stores algorithms, implementations, and test results
-- **Judge0**: Executes and validates code in sandboxed environment
-- **n8n**: Orchestrates testing workflows
+- **Local executor**: Executes and validates Python, JavaScript, Go, Java, and C++ implementations
 
 ### Optional
 - **Redis**: Caches frequently accessed algorithms
@@ -169,8 +168,7 @@ This creates a focused, efficient environment that feels like a hacker's algorit
 vrooli scenario test algorithm-library
 
 # Test specific components
-cd scenarios/algorithm-library
-./tests/test-judge0-integration.sh
+vrooli scenario test algorithm-library
 ```
 
 ## Contributing
@@ -184,11 +182,9 @@ All submissions must pass the full test suite before being accepted into the lib
 
 ## Known Issues
 
-### Judge0 Integration
-- **Issue**: Judge0 execution fails with cgroup configuration errors
-- **Impact**: Judge0 direct execution is non-functional
-- **Workaround**: Local executor fully implemented for all 5 languages (Python, JavaScript, Go, Java, C++)
-- **Resolution**: Requires system-level cgroup configuration on the host
+### Execution model
+
+Algorithm validation uses the local executor for Python, JavaScript, Go, Java, and C++.
 
 ### Current Status
 - All API endpoints fully functional

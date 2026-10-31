@@ -3,9 +3,11 @@
     "name": "new-skill-opens-editor",
     "description": "Validate sidebar tabs and new skill action opens the editor",
     "labels": {
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1440,

@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "package_id": "device-studio-starter-ipad-mini-6-ipad-environment-v2",
+  "status": "candidate_only_unqualified",
+  "asset": {
+    "path": "ipad-study-environment.glb",
+    "media_type": "model/gltf-binary",
+    "size_bytes": 289224,
+    "sha256": "598c50a9bea67b56f9911c2601e3bed8d11428e171725315b0f382fa92462c5f",
+    "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+    "triangle_count": 8416,
+    "source_profile_id": "device-studio-ipad-study-environment-export-v2",
+    "source_manifest_sha256": "bc8bb2a1eebe3053cd0ae9e767032ecd7fdaa173a72c36b2b6864c22c2eec5b5",
+    "source_export_script_sha256": "a4bc2706dca107973a3355bc921c4b2593abb2d488486b31c1725d44929d2ef1",
+    "source_glb_sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+    "source_glb_size_bytes": 421404,
+    "projection_device_glb_sha256": "0326fd47e7df4a065978eaae76e6789cb3027f54bab6f3f7fdef1bdfb867e52e",
+    "projection_device_glb_size_bytes": 1939592,
+    "native_export_operation": "docs/internal/goal/evidence/E3/scene-studies/ipad-environment-export-6/cpu-export/operation-terminal.json",
+    "native_export_inventory_sha256": "d944b1e06cf422cb309a58e31e35a48de022f88c364fa801f5257f66f65b26d5"
+  },
+  "candidate_identity": {
+    "artifact_id": "ipad-study-environment-v2-glb",
+    "bundle_id": "device-studio-starter-ipad-mini-6-ipad-environment-v2",
+    "camera_id": "ipad-study-camera-16x9-fit-screen-uv-oriented-180-v3",
+    "scene_id": "ipad-study-environment-screen-uv-oriented-180-v2-cup128-fit-camera-v3",
+    "status": "candidate_only_until_native_export_and_visual_contact_review"
+  },
+  "camera": {
+    "camera_candidate_id": "ipad-study-camera-16x9-fit-screen-uv-oriented-180-v3",
+    "translation_m": [
+      0.1002994491448368,
+      1.409043851488113,
+      0.5300879317248927
+    ],
+    "rotation_xyzw": [
+      -0.3913243654372847,
+      0.14705677223763933,
+      0.06350320239003839,
+      0.9062046623364743
+    ],
+    "projection": "PERSPECTIVE",
+    "focal_length_mm": 78,
+    "sensor_width_mm": 36,
+    "sensor_height_mm": 20.25,
+    "sensor_fit": "HORIZONTAL",
+    "aspect": 1.7777777777777777,
+    "image_margin_normalized": 0.04,
+    "minimum_device_cup_gap_normalized": 0.1,
+    "exported_tablet_bounds_normalized": [
+      0.5303182907853982,
+      0.14442755243860034,
+      0.9450648365621568,
+      0.8475996859044996
+    ],
+    "exported_cup_bounds_normalized": [
+      0.13657039844803037,
+      0.2286106263648327,
+      0.3961621841080011,
+      0.6900518111069782
+    ],
+    "exported_gap": 0.13415610667739708,
+    "status": "candidate_camera_geometry_fit_only_not_visual_approval"
+  },
+  "source": {
+    "environment": "Vrooli-authored phone study environment and phone-table geometry; no phone model or private app screenshot is embedded in this scene GLB.",
+    "cup": "Regenerated using fixed 128-radial-segment geometry and actual inventory-indexed material bindings.",
+    "rights": "Vrooli-authored geometry. Travertine material maps are separate ambientCG Travertine001 CC0-1.0 assets. Not measured furniture or manufacturer CAD."
+  },
+  "nodes": {
+    "RoomBackWall": {
+      "node_index": 0,
+      "mesh_index": 0,
+      "parent_index": null,
+      "role": "environment_backdrop",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 0,
+          "material_name": "Warm plaster backdrop"
+        }
+      ]
+    },
+    "TableLeg-NE": {
+      "node_index": 1,
+      "mesh_index": 1,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 1,
+          "material_name": "Warm pale timber support legs"
+        }
+      ]
+    },
+    "TableLeg-NW": {
+      "node_index": 2,
+      "mesh_index": 2,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 1,
+          "material_name": "Warm pale timber support legs"
+        }
+      ]
+    },
+    "TableLeg-SE": {
+      "node_index": 3,
+      "mesh_index": 3,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 1,
+          "material_name": "Warm pale timber support legs"
+        }
+      ]
+    },
+    "TableLeg-SW": {
+      "node_index": 4,
+      "mesh_index": 4,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 1,
+          "material_name": "Warm pale timber support legs"
+        }
+      ]
+    },
+    "TableTop": {
+      "node_index": 5,
+      "mesh_index": 5,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 2,
+          "material_name": "Pale warm mineral sides"
+        },
+        {
+          "primitive_index": 1,
+          "material_index": 3,
+          "material_name": "Travertine001 top material slot"
+        }
+      ]
+    },
+    "TeaCup": {
+      "node_index": 6,
+      "mesh_index": 6,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 4,
+          "material_name": "Warm ivory glazed ceramic"
+        }
+      ]
+    },
+    "TeaCupHandle": {
+      "node_index": 7,
+      "mesh_index": 7,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 4,
+          "material_name": "Warm ivory glazed ceramic"
+        }
+      ]
+    },
+    "TeaSurface": {
+      "node_index": 8,
+      "mesh_index": 8,
+      "parent_index": null,
+      "role": "imported_table_scene_part",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 5,
+          "material_name": "Dark tea scale cue"
+        }
+      ]
+    },
+    "WindowFrameRailLower": {
+      "node_index": 9,
+      "mesh_index": 9,
+      "parent_index": null,
+      "role": "environment_backdrop",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 0,
+          "material_name": "Warm plaster backdrop"
+        }
+      ]
+    },
+    "WindowFrameRailUpper": {
+      "node_index": 10,
+      "mesh_index": 10,
+      "parent_index": null,
+      "role": "environment_backdrop",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 0,
+          "material_name": "Warm plaster backdrop"
+        }
+      ]
+    },
+    "WindowFrameUprightLeft": {
+      "node_index": 11,
+      "mesh_index": 11,
+      "parent_index": null,
+      "role": "environment_backdrop",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 0,
+          "material_name": "Warm plaster backdrop"
+        }
+      ]
+    },
+    "WindowFrameUprightRight": {
+      "node_index": 12,
+      "mesh_index": 12,
+      "parent_index": null,
+      "role": "environment_backdrop",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 0,
+          "material_name": "Warm plaster backdrop"
+        }
+      ]
+    },
+    "WindowLightPanel": {
+      "node_index": 13,
+      "mesh_index": 13,
+      "parent_index": null,
+      "role": "environment_backdrop",
+      "primitive_materials": [
+        {
+          "primitive_index": 0,
+          "material_index": 6,
+          "material_name": "Soft luminous window"
+        }
+      ]
+    }
+  },
+  "materials": [
+    {
+      "material_index": 0,
+      "name": "Warm plaster backdrop",
+      "pbr": {
+        "baseColorFactor": [
+          0.6800000071525574,
+          0.6299999952316284,
+          0.5600000023841858,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8999999761581421
+      },
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "material_index": 1,
+      "name": "Warm pale timber support legs",
+      "pbr": {
+        "baseColorFactor": [
+          0.3799999952316284,
+          0.28999999165534973,
+          0.20000000298023224,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7200000286102295
+      },
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "material_index": 2,
+      "name": "Pale warm mineral sides",
+      "pbr": {
+        "baseColorFactor": [
+          0.6899999976158142,
+          0.6299999952316284,
+          0.5400000214576721,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7149999737739563
+      },
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "material_index": 3,
+      "name": "Travertine001 top material slot",
+      "pbr": {
+        "baseColorFactor": [
+          0.6499999761581421,
+          0.6000000238418579,
+          0.5,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7799999713897705
+      },
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "material_index": 4,
+      "name": "Warm ivory glazed ceramic",
+      "pbr": {
+        "baseColorFactor": [
+          0.7799999713897705,
+          0.7300000190734863,
+          0.6499999761581421,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.23999999463558197
+      },
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "material_index": 5,
+      "name": "Dark tea scale cue",
+      "pbr": {
+        "baseColorFactor": [
+          0.054999999701976776,
+          0.03200000151991844,
+          0.017999999225139618,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.20000000298023224
+      },
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "material_index": 6,
+      "name": "Soft luminous window",
+      "pbr": {
+        "baseColorFactor": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "metallicFactor": 0
+      },
+      "emissive_factor_linear_rgb": [
+        0.6240000128746033,
+        0.656000018119812,
+        0.7039999961853027
+      ]
+    }
+  ],
+  "texture_bindings": [
+    {
+      "artifact_id": "travertine-color",
+      "path": "phone-table/textures/travertine-color.jpg",
+      "role": "base_color",
+      "sha256": "e14668f66d61b73c1b1bd1df6150449244ea9c766af12908e3f522c6c93b09c8",
+      "size_bytes": 16152869,
+      "license": "CC0-1.0"
+    },
+    {
+      "artifact_id": "travertine-normal-gl",
+      "path": "phone-table/textures/travertine-normal-gl.jpg",
+      "role": "normal_gl",
+      "sha256": "68419c7540b71608d34ef103d6ae839f7144128784b3b03af44c95b1db8b168b",
+      "size_bytes": 5152752,
+      "license": "CC0-1.0"
+    },
+    {
+      "artifact_id": "travertine-roughness",
+      "path": "phone-table/textures/travertine-roughness.jpg",
+      "role": "roughness",
+      "sha256": "a8f053413e46dacce39e601d1ceb5ae615cd7f91e1f270db386e6c6470cf9b90",
+      "size_bytes": 5302649,
+      "license": "CC0-1.0"
+    },
+    {
+      "artifact_id": "travertine-height",
+      "path": "phone-table/textures/travertine-height.jpg",
+      "role": "bump_height",
+      "sha256": "64001fed9f67bbf9af0fccdf079fccbb0e01cba369c9c0319009b3c9aa2cabaf",
+      "size_bytes": 355941,
+      "license": "CC0-1.0",
+      "use": "bump only"
+    }
+  ],
+  "limitations": [
+    "Candidate-only and not qualified or promoted.",
+    "Dimensions and camera fit derive from GLB geometry under the metre convention; not physical measurement.",
+    "Native export succeeded, but the tablet scene still requires root hero-6 visual review.",
+    "The approved phone scene/camera and prior iPad v1/v2 candidates are unchanged."
+  ]
+}

@@ -7,13 +7,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
+
+// vrooliCLI is the shared typed client for the local vrooli CLI.
+var vrooliCLI = vroolicli.New()
 
 // Client provides API access for scenario operations.
 type Client struct {
@@ -113,15 +115,18 @@ func (c *Client) DeploymentReport(ctx context.Context, scenarioID string) ([]byt
 }
 
 func defaultResolveAnalyzerBaseURL(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "scenario-dependency-analyzer", "API_PORT")
-	out, err := cmd.Output()
+	resp, err := vrooliCLI.ScenarioPort(ctx, "scenario-dependency-analyzer", "API_PORT")
 	if err != nil {
 		return "", fmt.Errorf("resolve analyzer port: %w", err)
 	}
-	portStr := strings.TrimSpace(string(out))
-	port, err := strconv.Atoi(portStr)
-	if err != nil || port <= 0 {
-		return "", fmt.Errorf("invalid analyzer port: %s", portStr)
+	if !resp.GetSuccess() {
+		if detail := strings.TrimSpace(resp.GetError()); detail != "" {
+			return "", fmt.Errorf("resolve analyzer port: %s", detail)
+		}
+		return "", fmt.Errorf("resolve analyzer port: unresolved")
 	}
-	return fmt.Sprintf("http://localhost:%d", port), nil
+	if port := resp.GetPort(); port > 0 {
+		return fmt.Sprintf("http://localhost:%d", port), nil
+	}
+	return "", fmt.Errorf("invalid analyzer port: %d", resp.GetPort())
 }

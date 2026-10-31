@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // createTestLimitsDB creates an in-memory SQLite database for testing.
@@ -43,7 +44,7 @@ func createTestLimitsDB(t *testing.T) *sql.DB {
 }
 
 // createTestLimitsService creates a limits service for testing.
-func createTestLimitsService(t *testing.T) (*LimitsService, *sql.DB) {
+func createTestLimitsService(t *testing.T) (*commerce.LimitsService, *sql.DB) {
 	t.Helper()
 
 	db := createTestLimitsDB(t)
@@ -247,7 +248,7 @@ func TestLimitsService_UpdateLimit_WithDisplayDollars(t *testing.T) {
 
 	// Update solo tier from $5 to $10
 	newDollars := 10.0
-	update := TierLimitUpdate{DisplayDollars: &newDollars}
+	update := commerce.TierLimitUpdate{DisplayDollars: &newDollars}
 
 	limit, err := svc.UpdateLimit(ctx, "solo", "ai_credits", nil, update)
 	if err != nil {
@@ -271,7 +272,7 @@ func TestLimitsService_UpdateLimit_SetUnlimited(t *testing.T) {
 
 	// Set solo tier to unlimited
 	isUnlimited := true
-	update := TierLimitUpdate{IsUnlimited: &isUnlimited}
+	update := commerce.TierLimitUpdate{IsUnlimited: &isUnlimited}
 
 	limit, err := svc.UpdateLimit(ctx, "solo", "ai_credits", nil, update)
 	if err != nil {
@@ -293,7 +294,7 @@ func TestLimitsService_UpdateLimit_WithLimitValue(t *testing.T) {
 
 	// Set specific internal unit value
 	newValue := int64(123456789)
-	update := TierLimitUpdate{LimitValue: &newValue}
+	update := commerce.TierLimitUpdate{LimitValue: &newValue}
 
 	limit, err := svc.UpdateLimit(ctx, "solo", "ai_credits", nil, update)
 	if err != nil {
@@ -312,7 +313,7 @@ func TestLimitsService_UpdateLimit_NonExistent_ReturnsError(t *testing.T) {
 	ctx := context.Background()
 
 	newValue := int64(100)
-	update := TierLimitUpdate{LimitValue: &newValue}
+	update := commerce.TierLimitUpdate{LimitValue: &newValue}
 
 	_, err := svc.UpdateLimit(ctx, "nonexistent", "ai_credits", nil, update)
 	if err == nil {
@@ -330,7 +331,7 @@ func TestLimitsService_CreateLimit_InsertsNew(t *testing.T) {
 
 	ctx := context.Background()
 
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:         "enterprise",
 		LimitType:      "cost_based",
 		LimitKey:       "ai_credits",
@@ -368,7 +369,7 @@ func TestLimitsService_CreateLimit_InvalidLimitType_ReturnsError(t *testing.T) {
 
 	ctx := context.Background()
 
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:    "test",
 		LimitType: "invalid_type",
 		LimitKey:  "ai_credits",
@@ -386,7 +387,7 @@ func TestLimitsService_CreateLimit_DefaultsMultiplier(t *testing.T) {
 
 	ctx := context.Background()
 
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:     "test",
 		LimitType:  "cost_based",
 		LimitKey:   "ai_credits",
@@ -591,7 +592,7 @@ func TestLimitsService_UpdateLimit_EmptyUpdate_ReturnsValidationError(t *testing
 	ctx := context.Background()
 
 	// Empty update (no fields set)
-	update := TierLimitUpdate{}
+	update := commerce.TierLimitUpdate{}
 
 	_, err := svc.UpdateLimit(ctx, "solo", "ai_credits", nil, update)
 	if err == nil {
@@ -605,7 +606,7 @@ func TestLimitsService_CreateLimit_EmptyTierID_ReturnsValidationError(t *testing
 
 	ctx := context.Background()
 
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:    "", // Empty
 		LimitType: "cost_based",
 		LimitKey:  "ai_credits",
@@ -623,7 +624,7 @@ func TestLimitsService_CreateLimit_EmptyLimitKey_ReturnsValidationError(t *testi
 
 	ctx := context.Background()
 
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:    "test",
 		LimitType: "cost_based",
 		LimitKey:  "", // Empty
@@ -643,7 +644,7 @@ func TestLimitsService_CreateLimit_WithAllFields(t *testing.T) {
 
 	// Create limit with all fields specified
 	appKey := "test-bundle"
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:         "enterprise",
 		LimitType:      "cost_based",
 		LimitKey:       "api_calls",
@@ -797,7 +798,7 @@ func TestLimitsService_CreateLimit_AppSpecificType(t *testing.T) {
 	ctx := context.Background()
 
 	appKey := "my-app"
-	newLimit := TierLimit{
+	newLimit := commerce.TierLimit{
 		TierID:       "test",
 		LimitType:    "app_specific",
 		LimitKey:     "custom_feature",
@@ -861,7 +862,7 @@ func TestLimitsService_UpdateLimit_PriorityIsUnlimitedOverDollars(t *testing.T) 
 	// Set both is_unlimited and display_dollars - unlimited should take priority
 	isUnlimited := true
 	dollars := 50.0
-	update := TierLimitUpdate{
+	update := commerce.TierLimitUpdate{
 		IsUnlimited:    &isUnlimited,
 		DisplayDollars: &dollars,
 	}

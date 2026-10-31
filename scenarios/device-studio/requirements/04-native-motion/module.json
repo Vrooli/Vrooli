@@ -1,0 +1,122 @@
+{
+  "_metadata": {
+    "module": "native-motion",
+    "description": "Controlled physical device motion. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-MOTION-PHONE",
+      "title": "The renderer shall perform actual phone rotation.",
+      "description": "When a qualified phone rotation is requested, the renderer shall evaluate continuous physical pose, depth/occlusion and changing material response while preserving declared readable proof intervals.",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "native-motion",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-MOTION-PHONE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-MOTION-PHONE",
+            "planned_automation": "Trajectory/occlusion checks and continuous playback review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-MOTION-LID",
+      "title": "The renderer shall perform real laptop opening and closure.",
+      "description": "When laptop articulation is requested, the renderer shall evaluate the qualified lid/display rig, mechanical limits, closed envelope and full motion-sweep clearance against the support scene.",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "native-motion",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-MOTION-LID protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-MOTION-LID",
+            "planned_automation": "Rig endpoint/sweep tests and continuous playback review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-MOTION-ENTRY",
+      "title": "The renderer shall make a continuous screen-entry handoff.",
+      "description": "When screen entry is selected, the camera shall continuously approach the selected active app surface and hand off to the authentic capture with matching framing, source time and declared crop.",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "native-motion",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-MOTION-ENTRY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-MOTION-ENTRY",
+            "planned_automation": "Projection/clock tests and final-size transition review.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-MOTION-PARITY",
+      "title": "The preview and final renderer shall share evaluated tracks.",
+      "description": "The compiler shall supply the same sampled camera, device, joint and source-clock semantics to approximate preview and final adapters and expose renderer-specific appearance limits.",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "native-motion",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-MOTION-PARITY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-MOTION-PARITY",
+            "planned_automation": "Sampling parity and adapter contract tests.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

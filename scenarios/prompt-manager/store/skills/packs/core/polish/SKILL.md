@@ -1,4 +1,27 @@
+---
+name: "polish"
+description: "Final touches - consistency, edge cases, error messages"
+license: "CC-BY-4.0"
+metadata:
+  kind: "skill"
+  schemaVersion: 1
+  modes: ["steer","polish"]
+  tags: ["skill"]
+  icon: "sparkles"
+  status: "active"
+  targetDimensions: ["visual","tidiness","standards"]
+  revision: 47
+  createdAt: "2025-01-15T00:00:00Z"
+  updatedAt: "2026-10-25T00:00:00Z"
+  requires:
+    scenarios: ["prompt-manager"]
+    commands: ["prompt-manager skill", "prompt-manager skill read"]
+  origin:
+    kind: "authored"
+---
 ## Steer focus: Polish
+
+> **Ladder position:** R3 (features hardened — consistency, edge cases, finish). Polish is the *right* move only once the scenario is past the lower rungs and its features actually exist; don't reach for it while a feature is missing (that's R4 work — see the ladder skill). See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
 Prioritize **overall quality, coherence, and finish** across the scenario.
 Do **not** break functionality or regress tests; all changes must maintain or improve completeness.
@@ -7,7 +30,7 @@ Avoid large structural refactors or new feature work — focus on **refinement, 
 The goal of this phase is to make the scenario feel **reliable, intentional, and “done”**.
 
 Required reading:
-- `prompt-manager skills read visited-tracker-tools`
+- `prompt-manager skill read visited-tracker-tools`
 
 ---
 
@@ -91,6 +114,11 @@ Required reading:
 * Do **not** change core workflows, APIs, or business logic.
 * Do **not** introduce new features or flows that are unrelated to polishing.
 * Respect the PRD, operational targets, and test-driven requirements.
+* Follow the current design target and `experiential-ui-design` §2a for amendments and
+  refinements. Prefer a fitting shared component and clearer hierarchy when evidence shows
+  a benefit. Record material agent-authored choices in the existing product design document;
+  preserve capabilities, discoverability and accessibility. Verified expected differences
+  from older mockups do not block completion; untested changes and genuine defects do.
 * Use the existing completeness and quality metrics as **guardrails**, not as a game:
   * do not make superficial changes solely to move a metric
   * prioritize changes that genuinely improve perceived quality and robustness

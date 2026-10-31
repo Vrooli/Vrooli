@@ -1,0 +1,25 @@
+{
+  "id": "bioluminescent",
+  "gradient": "radial-gradient(circle at 50% 20%, var(--color-glow), transparent 60%)",
+  "primary": "#72f6c3",
+  "accent": "#c4ff9b",
+  "glow": "#72f6c3",
+  "cornerRadius": "2px",
+  "haloWidths": [
+    1,
+    2,
+    4
+  ],
+  "tokens": {
+    "--color-background": "#02100d",
+    "--color-background-deep": "#000604",
+    "--color-surface": "rgba(8, 30, 25, 0.72)",
+    "--color-foreground": "#e2fbf4",
+    "--color-muted-foreground": "#7dbfab",
+    "--color-primary": "#2ee6b3",
+    "--color-accent": "#a8ffe6",
+    "--color-glow": "rgba(46, 230, 179, 0.5)",
+    "--color-border": "rgba(46, 230, 179, 0.22)",
+    "--color-gap": "#a9c0ff"
+  }
+}

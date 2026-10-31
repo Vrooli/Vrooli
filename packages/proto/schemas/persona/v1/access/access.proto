@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package vrooli.persona.v1.access;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/persona/v1/access;access_v1";
+
+service AccessService {
+  rpc ActAs(ActAsRequest) returns (ActAsResponse);
+  rpc ResolvePersona(ResolvePersonaRequest) returns (ResolvePersonaResponse);
+  rpc CreateGrant(CreateGrantRequest) returns (CreateGrantResponse);
+  rpc ListGrants(ListGrantsRequest) returns (ListGrantsResponse);
+  rpc RemoveGrant(RemoveGrantRequest) returns (RemoveGrantResponse);
+  rpc IssueAttestation(IssueAttestationRequest) returns (IssueAttestationResponse);
+}
+
+enum GrantLevel {
+  GRANT_LEVEL_UNSPECIFIED = 0;
+  GRANT_LEVEL_ACT = 1;
+  GRANT_LEVEL_PROPOSE = 2;
+}
+
+// ResolvedPersonaKind is repeated locally because access is a separately
+// served transport domain. The access contract must not import the personas
+// service's descriptor merely to describe entitled metadata.
+enum ResolvedPersonaKind {
+  RESOLVED_PERSONA_KIND_UNSPECIFIED = 0;
+  RESOLVED_PERSONA_KIND_PERSONAL = 1;
+  RESOLVED_PERSONA_KIND_BUSINESS = 2;
+}
+
+message PersonaGrant {
+  string id = 1;
+  string persona_id = 2;
+  string human_subject = 3;
+  GrantLevel level = 4;
+  string source = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message ActAsRequest { string persona_id = 1; string action = 2; }
+message ActAsResponse {
+  string persona_id = 1;
+  string run_id = 2;
+  string account_subject = 3;
+  string authorising_human = 4;
+  google.protobuf.Timestamp granted_at = 5;
+}
+
+message ResolvePersonaRequest {
+  string persona_id = 1;
+  repeated string fields = 2;
+}
+message PersonaResolution {
+  string persona_id = 1;
+  ResolvedPersonaKind kind = 2;
+  string display_name = 3;
+  string legal_subject_id = 4;
+  string controlled_email = 5;
+  repeated string address_ids = 6;
+  repeated string returned_fields = 7;
+}
+message ResolvePersonaResponse { PersonaResolution persona = 1; }
+
+message CreateGrantRequest {
+  string persona_id = 1;
+  string human_subject = 2;
+  GrantLevel level = 3;
+  string source = 4;
+}
+message CreateGrantResponse { PersonaGrant grant = 1; }
+message ListGrantsRequest { string persona_id = 1; }
+message ListGrantsResponse { repeated PersonaGrant grants = 1; }
+message RemoveGrantRequest { string grant_id = 1; }
+message RemoveGrantResponse {}
+
+message IssueAttestationRequest { string persona_id = 1; string audience = 2; int64 expires_at_unix = 3; }
+message IdentityAttestation {
+  string issuer = 1;
+  string audience = 2;
+  string legal_person = 3;
+  string persona_id = 4;
+  string account_subject = 5;
+  string run_id = 6;
+  int64 issued_at_unix = 7;
+  int64 expires_at_unix = 8;
+  string claim_format = 9;
+  bytes signature = 10;
+  string key_id = 11;
+}
+message IssueAttestationResponse { IdentityAttestation attestation = 1; }

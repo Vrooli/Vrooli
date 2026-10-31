@@ -1,0 +1,63 @@
+{
+  "_metadata": {
+    "module": "autofix",
+    "description": "Shared maturity-go/autofix adoption, structure-health fixers, format-preserving service.json edits, and standardized auto-fixable coverage.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SH-FIX-001",
+      "title": "Preview is dry-run and apply is idempotent",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "PreviewFixConfig produces fix candidates without writing; ApplyFixConfig composes the service.json edits and is idempotent (apply-twice yields one change) via schema-aware CanFix re-checks.",
+      "tags": ["autofix", "dry-run", "idempotency"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "autofix/autofix_test.go proves preview is dry-run and apply composes edits idempotently; handlers/validation/handler_test.go proves the RPCs dry-run by default and write only on apply."}
+      ]
+    },
+    {
+      "id": "SH-FIX-002",
+      "title": "Format-preserving service.json edits",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "service.json fixes use targeted node edits that preserve key order and unknown fields and keep HTML characters escaped, never a blind full-file map round-trip that reorders keys or drops fields.",
+      "tags": ["svcedit", "format-preservation", "service-json"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "svcedit/svcedit_test.go proves byte-identical round-trip, key-order/unknown-field preservation, and escape preservation."}
+      ]
+    },
+    {
+      "id": "SH-FIX-003",
+      "title": "Fixers cover the deterministic majority of findings",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "api",
+      "criticality": "P1",
+      "description": "Fixers add a missing health/freshness check, create a missing surface directory and README, and otherwise remediate the deterministic majority of structure findings; each rule reports its FixClass so a high fraction of findings report autofix_available=true.",
+      "tags": ["autofix", "fixers", "fix-class"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "autofix/autofix_test.go covers surface-dir creation, README creation, the rule filter, FixClass resolution, and the no-op-when-conformant path."}
+      ]
+    },
+    {
+      "id": "SH-FIX-004",
+      "title": "Adopt the shared maturity-go/autofix helper and coverage metric",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "api",
+      "criticality": "P1",
+      "description": "structure-health registers its fixers against the shared packages/maturity-go/autofix registry (FixClass, Candidate, Preview/Apply, AutofixableCount) and emits the standardized autofixable_count/autofixable_total in the shared assessment response, so auto-fixable coverage is readable uniformly by Test Genie and meta-optimization.",
+      "tags": ["maturity-go", "shared-helper", "autofixable-count"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "autofix/autofix_test.go exercises the shared registry orchestrator; the assessment response carries autofixable_count."}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package vrooli.experience_manager.v1.capabilities;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/capabilities;capabilities_v1";
+
+service CapabilityStatusService {
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+}
+
+message GetStatusRequest {}
+
+message CapabilityStatus {
+  string id = 1;
+  string title = 2;
+  repeated string facets = 3;
+  bool provable = 4;
+  string status = 5;
+  string blocking_axis = 6;
+  string blocking_evidence = 7;
+}
+
+message GetStatusResponse {
+  repeated CapabilityStatus capabilities = 1;
+  int32 provable = 2;
+  int32 total = 3;
+}

@@ -1,0 +1,200 @@
+{
+  "description": "`cli-health validate \u003cscenario\u003e` returns schema errors, unresolved `binding.service`/`binding.method` references, orphan proto methods, and stale omission entries; exits nonzero on any error-level finding.",
+  "module_id": "MOD-P0-001",
+  "prd_ref": "OT-P0-001",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "cli",
+      "description": "The `cli-health validate \u003cscenario\u003e` command must validate the scenario's `cli/manifest.json` against the canonical `.vrooli/schemas/cli-manifest.schema.json`. Every schema violation must be reported as an error-level finding with a unique finding code, a human-readable message, and the JSON path of the offending field. The command must exit with a nonzero exit code when one or more error-level findings are present.",
+      "id": "REQ-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "JSON Schema Validation for CLI Manifest",
+      "validation": [
+        {
+          "notes": "Given a manifest missing a required top-level field, validate returns a finding with code SCHEMA_MISSING_FIELD and the correct JSON path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a manifest with a field of the wrong type, validate returns a finding with code SCHEMA_TYPE_MISMATCH",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a fully valid manifest, validate returns zero schema findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given any error-level finding, the process exits with exit code 1",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given only warning-level findings, the process exits with exit code 0",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Run `cli-health validate` against all 6 currently-adopting scenario manifests and assert zero schema findings",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Inject a known schema violation into one adopting scenario manifest copy and assert nonzero exit code and correct finding code",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Schema validation catches malformed manifests before they reach runtime, preventing misconfigured CLI discovery",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "The `cli-health validate \u003cscenario\u003e` command must resolve every `binding.service` and `binding.method` reference in the manifest against the compiled proto descriptor set for that scenario. Any reference that cannot be resolved to a known service or method in the descriptor set must be reported as an error-level finding with finding code UNRESOLVED_BINDING, including the unresolved service FQN and method name. The command must exit nonzero when any such finding is present.",
+      "id": "REQ-P0-002",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Binding Reference Resolution Against Proto Descriptors",
+      "validation": [
+        {
+          "notes": "Given a manifest binding referencing a service not present in the descriptor set, validate returns UNRESOLVED_BINDING with the correct service FQN",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given a manifest binding referencing a valid service but a nonexistent method, validate returns UNRESOLVED_BINDING with the method name",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given all bindings resolving correctly against the descriptor set, validate returns zero binding findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit tests use synthetic proto descriptor sets generated from minimal .proto files",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parameterized test: for each of the 6 adopting scenarios, run validate and assert all binding references resolve against that scenario's real descriptor set",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Mutate one binding in a test manifest copy to reference a nonexistent method and assert UNRESOLVED_BINDING finding and nonzero exit",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unresolved bindings would cause silent runtime failures in CLI routing; deterministic validation prevents this",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "The `cli-health validate \u003cscenario\u003e` command must detect (a) orphan proto methods: RPC methods present in the descriptor set that are neither bound in the manifest nor listed in the `omitted[]` array, reported as error-level finding ORPHAN_METHOD; and (b) stale omission entries: entries in `omitted[]` that no longer correspond to any method in the descriptor set, reported as error-level finding STALE_OMISSION. Both finding types must trigger a nonzero exit code. No additions to `.vrooli/schemas/cli-manifest.schema.json` are permitted; the existing `omitted[]` field is used as-is.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-001",
+      "status": "draft",
+      "title": "Orphan Proto Method and Stale Omission Detection",
+      "validation": [
+        {
+          "notes": "Given a descriptor set containing method Foo not in manifest bindings and not in omitted[], validate returns ORPHAN_METHOD for Foo",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given method Foo in omitted[] but absent from descriptor set, validate returns STALE_OMISSION for Foo",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Given all descriptor methods either bound or in omitted[], and all omitted[] entries present in descriptor, validate returns zero orphan/stale findings",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Per-finding-code unit tests use synthetic manifests and descriptor sets",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Parameterized validation across all 6 adopting scenarios asserts zero orphan method and stale omission findings",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Add a synthetic method to a test descriptor and assert ORPHAN_METHOD is produced",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Orphan methods represent undocumented CLI surface area; stale omissions indicate manifest drift from the proto source of truth",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Deterministic manifest validation"
+}

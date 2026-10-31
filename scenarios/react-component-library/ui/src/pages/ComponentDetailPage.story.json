@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 5,
+  "kind": "page",
+  "title": "Asset detail",
+  "route": "/assets/missing-asset",
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "not-found",
+      "name": "Unknown asset explains absence",
+      "role": "boundary",
+      "apiState": [
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponent",
+          "method": "POST",
+          "status": 200,
+          "body": {}
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/GetComponentByLibraryId",
+          "method": "POST",
+          "status": 200,
+          "body": {}
+        },
+        {
+          "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponents",
+          "method": "POST",
+          "status": 200,
+          "body": {
+            "components": []
+          }
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Component not found."
+        },
+        {
+          "kind": "visible",
+          "selector": "a[href=\"/\"]"
+        }
+      ]
+    }
+  ]
+}

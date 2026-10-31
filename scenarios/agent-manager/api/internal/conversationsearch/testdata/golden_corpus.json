@@ -1,0 +1,252 @@
+{
+  "schema_version": 1,
+  "corpus_id": "agent-manager-conversation-recall-v1",
+  "description": "Synthetic conversation-search corpus modelled on an analysis correction without copying operator transcript content.",
+  "content_policy": {
+    "synthetic_only": true,
+    "contains_credentials": false,
+    "contains_operator_home_paths": false
+  },
+  "runs": [
+    {
+      "id": "fixture-run-adaptive-scheduler",
+      "label": "Worker admission review",
+      "harness": "claude-code",
+      "source_session_id": "fixture-session-claude-a",
+      "project_scope": "/workspace/alpha",
+      "status": "complete",
+      "events": [
+        {
+          "id": "adaptive-001",
+          "sequence": 1,
+          "role": "operator",
+          "content_class": "prose",
+          "content": "Review why execution throughput is limited and whether the monitor contributes capacity evidence."
+        },
+        {
+          "id": "adaptive-002",
+          "sequence": 2,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "The first pass treats suite concurrency as a fixed ceiling configured before a run starts."
+        },
+        {
+          "id": "adaptive-003",
+          "sequence": 3,
+          "role": "operator",
+          "content_class": "prose",
+          "content": "What about per-phase resource usage reporting and the shared system monitor?"
+        },
+        {
+          "id": "adaptive-004",
+          "sequence": 4,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "The correction is that suite-level limits remain fixed, but phase admission is adaptive: measured resource history and a shared capacity ledger decide when another phase may start."
+        },
+        {
+          "id": "adaptive-005",
+          "sequence": 5,
+          "role": "assistant",
+          "content_class": "quoted_prose",
+          "content": "A prior note said that execution was fully fixed; this conversation records why that quote is incomplete.",
+          "quote_fingerprint": "fixture-quoted-fixed-concurrency"
+        },
+        {
+          "id": "adaptive-006",
+          "sequence": 6,
+          "role": "tool",
+          "content_class": "tool_output",
+          "content_recipe": {
+            "unit": "diagnostic sample line without conversational meaning\n",
+            "repeat": 2048
+          }
+        },
+        {
+          "id": "adaptive-007",
+          "sequence": 7,
+          "role": "assistant",
+          "content_class": "evidence_only_duplicate",
+          "content": "The correction is that phase admission is adaptive.",
+          "duplicate_of": "adaptive-004"
+        },
+        {
+          "id": "adaptive-008",
+          "sequence": 8,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "A logically removed secret-shaped example must never be discoverable.",
+          "deleted": true
+        },
+        {
+          "id": "adaptive-009",
+          "sequence": 9,
+          "role": "assistant",
+          "content_class": "prose",
+          "content_recipe": {
+            "unit": "bounded oversized paragraph. ",
+            "repeat": 8192
+          }
+        }
+      ]
+    },
+    {
+      "id": "fixture-run-unrelated-release",
+      "label": "Release checklist",
+      "harness": "codex",
+      "source_session_id": "fixture-session-codex-b",
+      "project_scope": "/workspace/beta",
+      "status": "complete",
+      "events": [
+        {
+          "id": "release-001",
+          "sequence": 1,
+          "role": "operator",
+          "content_class": "prose",
+          "content": "Prepare a release checklist and verify the package signature."
+        },
+        {
+          "id": "release-002",
+          "sequence": 2,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "The release artifact is signed and ready for staged publication."
+        }
+      ]
+    },
+    {
+      "id": "fixture-run-equal-score-a",
+      "label": "Capacity note A",
+      "harness": "claude-code",
+      "source_session_id": "fixture-session-equal-a",
+      "project_scope": "/workspace/alpha",
+      "status": "complete",
+      "events": [
+        {
+          "id": "equal-a-001",
+          "sequence": 1,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "capacity ledger admission token"
+        }
+      ]
+    },
+    {
+      "id": "fixture-run-equal-score-b",
+      "label": "Capacity note B",
+      "harness": "codex",
+      "source_session_id": "fixture-session-equal-b",
+      "project_scope": "/workspace/beta",
+      "status": "complete",
+      "events": [
+        {
+          "id": "equal-b-001",
+          "sequence": 1,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "capacity ledger admission token"
+        }
+      ]
+    },
+    {
+      "id": "fixture-run-purged",
+      "label": "Purged discussion",
+      "harness": "claude-code",
+      "source_session_id": "fixture-session-purged",
+      "project_scope": "/workspace/alpha",
+      "status": "purged",
+      "purged": true,
+      "events": [
+        {
+          "id": "purged-001",
+          "sequence": 1,
+          "role": "assistant",
+          "content_class": "prose",
+          "content": "purged sentinel phrase must remain undiscoverable"
+        }
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "id": "golden-keywords",
+      "query": "phase resource usage system monitor",
+      "modes": ["text", "hybrid"],
+      "coverage_group": "golden-positive",
+      "expected_run_id": "fixture-run-adaptive-scheduler",
+      "top_k": 5
+    },
+    {
+      "id": "golden-correction",
+      "query": "agent initially said fixed concurrency but later found adaptive phase scheduling",
+      "modes": ["semantic", "hybrid"],
+      "coverage_group": "golden-positive",
+      "expected_run_id": "fixture-run-adaptive-scheduler",
+      "top_k": 5
+    },
+    {
+      "id": "golden-incomplete-memory",
+      "query": "conversation where I corrected the analysis about test execution",
+      "modes": ["semantic", "hybrid"],
+      "coverage_group": "golden-positive",
+      "expected_run_id": "fixture-run-adaptive-scheduler",
+      "top_k": 5
+    },
+    {
+      "id": "exact-phrase",
+      "query": "shared capacity ledger",
+      "modes": ["text", "regex"],
+      "coverage_group": "exact-positive",
+      "expected_run_id": "fixture-run-adaptive-scheduler",
+      "top_k": 3
+    },
+    {
+      "id": "negative-release",
+      "query": "signed package publication",
+      "modes": ["text", "semantic", "hybrid"],
+      "coverage_group": "negative",
+      "excluded_run_ids": ["fixture-run-adaptive-scheduler"]
+    },
+    {
+      "id": "exclude-deleted",
+      "query": "secret-shaped example",
+      "modes": ["text", "semantic", "hybrid", "regex"],
+      "coverage_group": "privacy",
+      "excluded_event_ids": ["adaptive-008"]
+    },
+    {
+      "id": "exclude-purged",
+      "query": "purged sentinel phrase",
+      "modes": ["text", "semantic", "hybrid", "regex"],
+      "coverage_group": "privacy",
+      "excluded_run_ids": ["fixture-run-purged"]
+    },
+    {
+      "id": "project-filter",
+      "query": "capacity ledger admission token",
+      "modes": ["text"],
+      "coverage_group": "filters",
+      "filters": {"project_scope": "/workspace/beta"},
+      "expected_run_id": "fixture-run-equal-score-b",
+      "top_k": 1
+    },
+    {
+      "id": "stable-equal-score-pagination",
+      "query": "capacity ledger admission token",
+      "modes": ["text"],
+      "coverage_group": "pagination",
+      "expected_order": ["fixture-run-equal-score-a", "fixture-run-equal-score-b"],
+      "page_size": 1
+    },
+    {
+      "id": "semantic-outage",
+      "query": "adaptive admission informed by machine pressure",
+      "modes": ["hybrid"],
+      "coverage_group": "degradation",
+      "semantic_available": false,
+      "expected_run_id": "fixture-run-adaptive-scheduler",
+      "expected_degradation": "semantic_unavailable",
+      "top_k": 5
+    }
+  ]
+}

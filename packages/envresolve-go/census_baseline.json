@@ -1,0 +1,6 @@
+{
+  "pairs": 718,
+  "scenarios": 87,
+  "classes": {"A": 0, "B": 0, "C": 718},
+  "note": "Measured by cmd/env-census against the current worktree on 2026-08-23 after production database/Redis seam migrations, dead-resource cleanup, and test-support exclusion. All remaining occurrences are classified C pending explicit configuration or resource ownership review."
+}

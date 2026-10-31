@@ -1,0 +1,441 @@
+package hostfs
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"testing"
+	"time"
+
+	"storage-manager/internal/cleanup"
+	"storage-manager/internal/providers"
+
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
+)
+
+func TestNativeTemporaryRecoveryPreservesFreshDescendantAndRemovesExpiredFixture(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux native temporary qualification")
+	}
+	root := t.TempDir()
+	expired := filepath.Join(root, "expired")
+	fresh := filepath.Join(root, "fresh")
+	now := time.Now()
+	old := now.Add(-10 * 24 * time.Hour)
+	for _, dir := range []string{expired, fresh} {
+		write(t, filepath.Join(dir, "payload"), "test-only fixture")
+		if err := os.Chtimes(filepath.Join(dir, "payload"), old, old); err != nil {
+			t.Fatal(err)
+		}
+		write(t, filepath.Join(expired, ".cache", "hidden-payload"), "test-only hidden payload")
+		for _, path := range []string{filepath.Join(expired, ".cache", "hidden-payload"), filepath.Join(expired, ".cache"), expired} {
+			if err := os.Chtimes(path, old, old); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.Chtimes(dir, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Chtimes(filepath.Join(fresh, "payload"), now, now); err != nil {
+		t.Fatal(err)
+	}
+	// Native filesystem effects are exercised against private fixtures. Process
+	// activity comes from an explicit verified fixture observation; privileged
+	// host observation is separately checked in the control-plane package.
+	provider := providers.NewTmpProvider(New(Options{}), schedule.System(), providers.FileProviderConfig{ID: "tmp", Roots: []string{root}, TopLevelEntries: true, ProtectActive: true, LeaseCheck: "temporary", ActivityObserver: fixtureActivity{}})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 72 * time.Hour}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Items) != 1 || preview.Items[0].Path != expired {
+		t.Fatalf("native temporary preview=%#v", preview)
+	}
+	result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: provider.Metadata().Version, IdempotencyKey: "fixture-only", Preview: preview})
+	if err != nil || !result.Applied || len(result.AppliedItems) != 1 {
+		t.Fatalf("apply=%#v err=%v", result, err)
+	}
+	if _, err := os.Stat(expired); !os.IsNotExist(err) {
+		t.Fatalf("expired fixture remains: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(fresh, "payload")); err != nil {
+		t.Fatalf("fresh payload was removed: %v", err)
+	}
+}
+
+func TestNativeTemporaryRecoveryAdvancesPastEmptyFiles(t *testing.T) {
+	root := t.TempDir()
+	empty := filepath.Join(root, "empty")
+	payload := filepath.Join(root, "payload")
+	old := time.Now().Add(-10 * 24 * time.Hour)
+	write(t, empty, "")
+	write(t, filepath.Join(payload, "output"), "reclaimable output")
+	for _, path := range []string{empty, filepath.Join(payload, "output"), payload} {
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	provider := providers.NewTmpProvider(New(Options{}), schedule.System(), providers.FileProviderConfig{
+		ID: "tmp", Roots: []string{root}, TopLevelEntries: true,
+		ProtectActive: true, LeaseCheck: "temporary", ActivityObserver: fixtureActivity{},
+	})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{
+		Scope:  cleanup.ObservationScope{Now: time.Now(), Recovery: true},
+		Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 72 * time.Hour},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Items) != 1 || preview.Items[0].Path != payload || preview.Items[0].Bytes <= 0 {
+		t.Fatalf("empty file prevented recovery of the expired payload: %#v", preview)
+	}
+}
+
+type fixtureActivity struct{}
+
+func (fixtureActivity) ObserveTemporary(context.Context, string) (map[string]struct{}, error) {
+	return map[string]struct{}{}, nil
+}
+
+func write(t *testing.T, path string, contents string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("mkdir for %s: %v", path, err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatalf("write %s: %v", path, err)
+	}
+}
+
+func walkPaths(t *testing.T, f *FS, root string) []string {
+	t.Helper()
+	var got []string
+	if err := f.Walk(context.Background(), root, func(info cleanup.FileInfo) error {
+		got = append(got, info.Path)
+		return nil
+	}); err != nil {
+		t.Fatalf("Walk(%s): %v", root, err)
+	}
+	sort.Strings(got)
+	return got
+}
+
+func TestProcessLivenessDetectsOpenFileHandle(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("/proc file-handle inspection is Unix-specific")
+	}
+	path := filepath.Join(t.TempDir(), "database.sqlite")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	liveness := NewProcessLiveness()
+	open, err := liveness.IsRunning(context.Background(), path)
+	if err != nil || !open {
+		t.Fatalf("open handle liveness = %t, %v; want true", open, err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	open, err = liveness.IsRunning(context.Background(), path)
+	if err != nil || open {
+		t.Fatalf("closed handle liveness = %t, %v; want false", open, err)
+	}
+}
+
+// TestWalk_ReportsFilesAndDirectories asserts directories are visited too.
+// The top-level-entry providers aggregate a subtree by its directory, so a walk
+// that reported only files would under-count an empty directory's existence.
+func TestWalk_ReportsFilesAndDirectories(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	write(t, filepath.Join(root, "staging", "payload.bin"), "data")
+	if err := os.MkdirAll(filepath.Join(root, "empty-dir"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	got := walkPaths(t, New(Options{}), root)
+
+	want := []string{
+		root,
+		filepath.Join(root, "empty-dir"),
+		filepath.Join(root, "staging"),
+		filepath.Join(root, "staging", "payload.bin"),
+	}
+	if len(got) != len(want) {
+		t.Fatalf("walked %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("entry %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+// TestWalk_DoesNotFollowSymlinks asserts a symlink is never descended into and
+// never reported as a candidate.
+//
+// This matters because the providers only check that a path lies within a
+// configured root. A symlink inside /tmp pointing at a home directory would
+// otherwise present that home directory's contents as reclaimable temp files.
+func TestWalk_DoesNotFollowSymlinks(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "symlink creation on windows requires elevation or developer mode")
+	}
+
+	root := t.TempDir()
+	outside := t.TempDir()
+	write(t, filepath.Join(outside, "precious.txt"), "do not touch")
+
+	if err := os.Symlink(outside, filepath.Join(root, "escape")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	for _, path := range walkPaths(t, New(Options{}), root) {
+		if path != root {
+			t.Errorf("walk reported %q; a symlink must be neither followed nor listed", path)
+		}
+	}
+}
+
+// TestWalk_SkipsUnreadableSubtreeAndContinues asserts a permission error does
+// not abort the walk.
+//
+// A cleanup pass over a shared /tmp meets unreadable directories constantly —
+// the incident host had system-service private mounts among 24,882 entries. If
+// one of those aborted the walk, the reclaimable space behind it would never be
+// found, which is precisely how a cleanup tool reports zero while the disk is
+// full.
+func TestWalk_SkipsUnreadableSubtreeAndContinues(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "unix permission bits do not model windows ACLs")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses permission bits, so the failure cannot be provoked")
+	}
+
+	root := t.TempDir()
+	locked := filepath.Join(root, "locked")
+	write(t, filepath.Join(locked, "hidden.bin"), "unreachable")
+	reachable := filepath.Join(root, "reachable.bin")
+	write(t, reachable, "findable")
+
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	got := walkPaths(t, New(Options{}), root)
+
+	var sawReachable bool
+	for _, path := range got {
+		if path == reachable {
+			sawReachable = true
+		}
+		if path == filepath.Join(locked, "hidden.bin") {
+			t.Errorf("walk descended into an unreadable directory")
+		}
+	}
+	if !sawReachable {
+		t.Errorf("walk did not reach %q past the unreadable directory; got %v", reachable, got)
+	}
+}
+
+// TestRemoveAll_MissingPathIsNotAnError asserts removal is idempotent.
+// Two safeguards can report the same pressure event and race to reclaim the
+// same entry; the loser must not report a failure for work that got done.
+func TestRemoveAll_MissingPathIsNotAnError(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	if err := New(Options{}).RemoveAll(context.Background(), filepath.Join(root, "never-existed")); err != nil {
+		t.Errorf("RemoveAll on a missing path = %v, want nil", err)
+	}
+}
+
+// TestRemoveAll_DeletesSubtree asserts the ordinary path works end to end.
+func TestRemoveAll_DeletesSubtree(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	staging := filepath.Join(root, "staging")
+	write(t, filepath.Join(staging, "nested", "payload.bin"), "data")
+
+	if err := New(Options{}).RemoveAll(context.Background(), staging); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+	if _, err := os.Stat(staging); !os.IsNotExist(err) {
+		t.Errorf("staging directory still present after RemoveAll (stat err = %v)", err)
+	}
+}
+
+// TestRemoveAll_RemovesSymlinkNotTarget asserts deleting a link inside a root
+// does not delete what it points at.
+func TestRemoveAll_RemovesSymlinkNotTarget(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "symlink creation on windows requires elevation or developer mode")
+	}
+
+	root := t.TempDir()
+	outside := t.TempDir()
+	target := filepath.Join(outside, "precious.txt")
+	write(t, target, "do not touch")
+
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	if err := New(Options{}).RemoveAll(context.Background(), link); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+	if _, err := os.Stat(target); err != nil {
+		t.Errorf("removing a symlink destroyed its target: %v", err)
+	}
+}
+
+// TestStat_ReportsSymlinkItselfNotTarget asserts Lstat semantics.
+func TestStat_ReportsSymlinkItselfNotTarget(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "symlink creation on windows requires elevation or developer mode")
+	}
+
+	root := t.TempDir()
+	target := filepath.Join(root, "target")
+	write(t, target, "0123456789")
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+
+	info, err := New(Options{}).Stat(context.Background(), link)
+	if err != nil {
+		t.Fatalf("Stat: %v", err)
+	}
+	if info.IsDir {
+		t.Error("symlink reported as a directory")
+	}
+	if info.Size == 10 {
+		t.Error("Stat reported the target's size; it must describe the link itself")
+	}
+}
+
+// TestWalk_HonoursContextCancellation asserts a cancelled cleanup stops
+// promptly rather than walking a very large tree to completion.
+func TestWalk_HonoursContextCancellation(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	for i := 0; i < 50; i++ {
+		write(t, filepath.Join(root, "entry", string(rune('a'+i%26))+".bin"), "data")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := New(Options{}).Walk(ctx, root, func(cleanup.FileInfo) error { return nil }); err == nil {
+		t.Error("Walk with a cancelled context returned nil, want a context error")
+	}
+}
+
+func TestWithinRoot(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join(string(filepath.Separator), "tmp")
+	cases := []struct {
+		path string
+		want bool
+	}{
+		{root, true},
+		{filepath.Join(root, "entry"), true},
+		{filepath.Join(root, "entry", "nested"), true},
+		// The classic prefix bug: /tmpfoo is not inside /tmp.
+		{root + "foo", false},
+		{filepath.Join(string(filepath.Separator), "var", "tmp"), false},
+	}
+	for _, tc := range cases {
+		if got := WithinRoot(root, tc.path); got != tc.want {
+			t.Errorf("WithinRoot(%q, %q) = %v, want %v", root, tc.path, got, tc.want)
+		}
+	}
+}
+
+// A tree the user owns outright must still be removable when some of its own
+// directories are read-only: Go's module cache extracts every directory 0555,
+// and tests that chmod a t.TempDir fixture leave the same shape. Removal used
+// to fail with "unlinkat: permission denied" on every pass.
+func TestRemoveAll_RestoresOwnerWriteOnOwnedReadOnlyDirectories(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "unix directory permission semantics")
+	}
+
+	root := t.TempDir()
+	fixture := filepath.Join(root, "TestFixture123")
+	write(t, filepath.Join(fixture, "module@v1.0.0", "pkg", "file.go"), "package pkg")
+	for _, dir := range []string{filepath.Join(fixture, "module@v1.0.0", "pkg"), filepath.Join(fixture, "module@v1.0.0"), fixture} {
+		if err := os.Chmod(dir, 0o555); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() {
+		_ = filepath.Walk(fixture, func(path string, _ os.FileInfo, _ error) error { _ = os.Chmod(path, 0o755); return nil })
+	})
+
+	if err := New(Options{}).RemoveAll(context.Background(), fixture); err != nil {
+		t.Fatalf("RemoveAll of an owned read-only tree: %v", err)
+	}
+	if _, err := os.Lstat(fixture); !os.IsNotExist(err) {
+		t.Fatalf("fixture still present after RemoveAll (lstat err = %v)", err)
+	}
+}
+
+// The permission repair is confined to the candidate: a read-only directory
+// reached only through a symlink inside the candidate keeps its mode and
+// contents.
+func TestRemoveAll_PermissionRepairNeverFollowsSymlinksOutOfCandidate(t *testing.T) {
+	t.Parallel()
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "unix directory permission semantics")
+	}
+
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside")
+	write(t, filepath.Join(outside, "precious.txt"), "do not touch")
+	if err := os.Chmod(outside, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(outside, 0o755) })
+
+	candidate := filepath.Join(root, "candidate")
+	write(t, filepath.Join(candidate, "locked", "payload"), "data")
+	if err := os.Symlink(outside, filepath.Join(candidate, "locked", "escape")); err != nil {
+		t.Fatalf("symlink: %v", err)
+	}
+	if err := os.Chmod(filepath.Join(candidate, "locked"), 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filepath.Join(candidate, "locked"), 0o755) })
+
+	if err := New(Options{}).RemoveAll(context.Background(), candidate); err != nil {
+		t.Fatalf("RemoveAll: %v", err)
+	}
+	info, err := os.Stat(outside)
+	if err != nil {
+		t.Fatalf("symlink target removed: %v", err)
+	}
+	if info.Mode().Perm() != 0o555 {
+		t.Fatalf("symlink target mode = %o, want untouched 0555", info.Mode().Perm())
+	}
+	if _, err := os.Stat(filepath.Join(outside, "precious.txt")); err != nil {
+		t.Fatalf("symlink target contents removed: %v", err)
+	}
+}

@@ -15,6 +15,7 @@ import { X, Plus, Tag } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useGlobalKeydown } from '@/hooks/useGlobalKeydown'
 import { TagManagementModal } from './TagManagementModal'
 
 interface TagChipsEditorProps {
@@ -69,15 +70,14 @@ export function TagChipsEditor({
   useEffect(() => {
     if (isPopoverOpen) {
       document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscape)
       // Focus input when popover opens
       setTimeout(() => inputRef.current?.focus(), 0)
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEscape)
     }
-  }, [isPopoverOpen, handleClickOutside, handleEscape])
+  }, [isPopoverOpen, handleClickOutside])
+  useGlobalKeydown(handleEscape, { enabled: isPopoverOpen, target: 'document' })
 
   const addTag = useCallback(
     (tag: string) => {

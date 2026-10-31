@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -54,7 +53,7 @@ func TestReportAppIssue_RequiredFields(t *testing.T) {
 				AppID:   "test-app",
 				Message: "",
 			},
-			expectedErr: "issue message is required",
+			expectedErr: "fix report message is required",
 		},
 		{
 			name: "whitespace message",
@@ -62,7 +61,7 @@ func TestReportAppIssue_RequiredFields(t *testing.T) {
 				AppID:   "test-app",
 				Message: "   ",
 			},
-			expectedErr: "issue message is required",
+			expectedErr: "fix report message is required",
 		},
 	}
 
@@ -90,12 +89,13 @@ func TestReportAppIssue_InvalidScreenshot(t *testing.T) {
 		doFunc: func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewBufferString(`{"success": true, "message": "created", "data": {"issue_id": "issue-123"}}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"test-fix","title":"Test Fix","kind":"fix","status":"backlog"}}`)),
 			}, nil
 		},
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
 	invalidBase64 := stringPtr("this is not valid base64!!!")
 
 	req := &IssueReportRequest{
@@ -123,22 +123,23 @@ func TestReportAppIssue_ValidScreenshot(t *testing.T) {
 	}
 
 	requestReceived := false
-	var receivedPayload map[string]interface{}
+	var receivedBody string
 
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
 			requestReceived = true
 			bodyBytes, _ := io.ReadAll(req.Body)
-			_ = json.Unmarshal(bodyBytes, &receivedPayload)
+			receivedBody = string(bodyBytes)
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewBufferString(`{"success": true, "message": "created", "data": {"issue_id": "issue-123"}}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"test-fix","title":"Test Fix","kind":"fix","status":"backlog"}}`)),
 			}, nil
 		},
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
 
 	// Create valid base64 encoded PNG
 	validBase64 := base64.StdEncoding.EncodeToString([]byte("fake png data"))
@@ -162,39 +163,11 @@ func TestReportAppIssue_ValidScreenshot(t *testing.T) {
 		t.Fatal("HTTP request was not made")
 	}
 
-	// Verify screenshot was included in artifacts
-	if artifacts, ok := receivedPayload["artifacts"].([]interface{}); ok {
-		found := false
-		for _, artifact := range artifacts {
-			if artifactMap, ok := artifact.(map[string]interface{}); ok {
-				if artifactMap["name"] == attachmentScreenshotName {
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			t.Error("Screenshot artifact was not included in payload")
-		}
+	if !strings.Contains(receivedBody, "evidence/screenshot.png") {
+		t.Error("Screenshot evidence path was not included in multipart request")
 	}
-
-	if appID, exists := receivedPayload["app_id"]; exists && appID != nil {
-		t.Errorf("Expected app_id to be omitted, found %v", appID)
-	}
-
-	if targets, ok := receivedPayload["targets"].([]interface{}); !ok || len(targets) == 0 {
-		t.Error("Expected targets array to be populated")
-	} else {
-		if first, ok := targets[0].(map[string]interface{}); ok {
-			if first["type"] != "scenario" {
-				t.Errorf("Expected primary target type 'scenario', got %v", first["type"])
-			}
-			if first["id"] != "test-scenario" {
-				t.Errorf("Expected primary target id 'test-scenario', got %v", first["id"])
-			}
-		} else {
-			t.Error("Targets entry was not an object")
-		}
+	if !strings.Contains(receivedBody, "scenarios/test-scenario/**") {
+		t.Error("acceptance_allow was not included in multipart item")
 	}
 }
 
@@ -210,7 +183,7 @@ func TestReportAppIssue_FullWorkflow(t *testing.T) {
 	}
 
 	requestReceived := false
-	var receivedPayload map[string]interface{}
+	var receivedBody string
 
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
@@ -222,16 +195,17 @@ func TestReportAppIssue_FullWorkflow(t *testing.T) {
 			}
 
 			bodyBytes, _ := io.ReadAll(req.Body)
-			_ = json.Unmarshal(bodyBytes, &receivedPayload)
+			receivedBody = string(bodyBytes)
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewBufferString(`{"success": true, "message": "Issue created", "data": {"issue_id": "ISSUE-456"}}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"issue-456","title":"Issue created","kind":"fix","status":"backlog"}}`)),
 			}, nil
 		},
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
 
 	req := &IssueReportRequest{
 		AppID:   "test-app",
@@ -253,65 +227,26 @@ func TestReportAppIssue_FullWorkflow(t *testing.T) {
 		t.Fatal("Expected non-nil result")
 	}
 
-	if result.IssueID != "ISSUE-456" {
-		t.Errorf("Expected issue ID 'ISSUE-456', got %q", result.IssueID)
+	if result.Name != "issue-456" {
+		t.Errorf("Expected fix name 'issue-456', got %q", result.Name)
 	}
 
-	if result.Message != "Issue created" {
-		t.Errorf("Expected message 'Issue created', got %q", result.Message)
+	if result.Message != "Fix backlog item created" {
+		t.Errorf("Expected fix creation message, got %q", result.Message)
 	}
 
 	if !requestReceived {
 		t.Fatal("HTTP request was not made")
 	}
 
-	// Verify payload structure
-	if title, ok := receivedPayload["title"].(string); !ok || title == "" {
-		t.Error("Expected title field to be populated")
+	if !strings.Contains(receivedBody, `"kind":"fix"`) {
+		t.Error("Expected multipart item to create a fix")
 	}
-
-	if desc, ok := receivedPayload["description"].(string); !ok || desc == "" {
-		t.Error("Expected description field to be populated")
+	if !strings.Contains(receivedBody, "scenarios/test-scenario/**") {
+		t.Error("Expected acceptance_allow to target the scenario")
 	}
-
-	if tags, ok := receivedPayload["tags"].([]interface{}); !ok || len(tags) == 0 {
-		t.Error("Expected tags to be populated")
-	}
-
-	if _, exists := receivedPayload["app_id"]; exists {
-		t.Error("Expected app_id to be omitted from payload")
-	}
-
-	if targets, ok := receivedPayload["targets"].([]interface{}); !ok || len(targets) == 0 {
-		t.Fatal("Expected targets array to contain at least one entry")
-	} else if first, ok := targets[0].(map[string]interface{}); ok {
-		if first["type"] != "scenario" {
-			t.Errorf("Expected first target type 'scenario', got %v", first["type"])
-		}
-		if first["id"] != "test-scenario" {
-			t.Errorf("Expected first target id 'test-scenario', got %v", first["id"])
-		}
-		if firstName, ok := first["name"].(string); ok && strings.TrimSpace(firstName) == "" {
-			t.Error("Expected target name to be populated when available")
-		}
-	} else {
-		t.Fatal("Targets entry was not an object")
-	}
-
-	// Verify artifacts
-	if artifacts, ok := receivedPayload["artifacts"].([]interface{}); ok {
-		found := false
-		for _, artifact := range artifacts {
-			if artifactMap, ok := artifact.(map[string]interface{}); ok {
-				if artifactMap["name"] == attachmentLifecycleName {
-					found = true
-					break
-				}
-			}
-		}
-		if !found {
-			t.Error("Lifecycle logs artifact was not included")
-		}
+	if !strings.Contains(receivedBody, "evidence/lifecycle.txt") {
+		t.Error("Expected lifecycle logs evidence path")
 	}
 }
 
@@ -322,21 +257,22 @@ func TestReportAppIssue_LogsTruncation(t *testing.T) {
 		},
 	}
 
-	var receivedPayload map[string]interface{}
+	var receivedBody string
 
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
 			bodyBytes, _ := io.ReadAll(req.Body)
-			_ = json.Unmarshal(bodyBytes, &receivedPayload)
+			receivedBody = string(bodyBytes)
 
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(bytes.NewBufferString(`{"success": true, "data": {"issue_id": "test"}}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"item":{"name":"test","title":"Test","kind":"fix","status":"backlog"}}`)),
 			}, nil
 		},
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioURL = func(context.Context, string) (string, error) { return "http://localhost:8080", nil }
 
 	// Create more logs than the max (300)
 	logs := make([]string, 500)
@@ -355,27 +291,12 @@ func TestReportAppIssue_LogsTruncation(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	if _, exists := receivedPayload["app_id"]; exists {
-		t.Error("Expected payload to omit deprecated app_id field")
+	if !strings.Contains(receivedBody, "evidence/lifecycle.txt") {
+		t.Error("Expected lifecycle evidence path in multipart request")
 	}
 
-	if targets, ok := receivedPayload["targets"].([]interface{}); !ok || len(targets) == 0 {
-		t.Error("Expected targets array to be included in payload")
-	}
-
-	// Verify logs were truncated
-	if artifacts, ok := receivedPayload["artifacts"].([]interface{}); ok {
-		for _, artifact := range artifacts {
-			if artifactMap, ok := artifact.(map[string]interface{}); ok {
-				if artifactMap["name"] == attachmentLifecycleName {
-					content := artifactMap["content"].(string)
-					lines := strings.Split(content, "\n")
-					if len(lines) > 300 {
-						t.Errorf("Expected max 300 log lines, got %d", len(lines))
-					}
-				}
-			}
-		}
+	if !strings.Contains(receivedBody, "evidence/report.json") {
+		t.Error("Expected report evidence path in multipart request")
 	}
 }
 
@@ -1062,24 +983,24 @@ func TestSanitizeCaptureTimestamp(t *testing.T) {
 // Integration-level tests
 // =============================================================================
 
-func TestReportAppIssue_IssueTrackerUnavailable(t *testing.T) {
+func TestReportAppIssue_SwarmManagerUnavailable(t *testing.T) {
 	mockRepo := &mockAppRepository{
 		apps: []repository.App{
 			{ID: "test-app", Name: "Test App", ScenarioName: "test-scenario"},
 		},
 	}
 
-	// Mock issue tracker being unavailable
+	// Mock Swarm Manager being unavailable
 	mockHTTP := &mockHTTPClient{
 		doFunc: func(req *http.Request) (*http.Response, error) {
-			// The test assumes the CLI command will fail to locate the issue tracker port,
-			// but if it succeeds (returns a port), we'll reach submitIssueToTracker.
-			// In that case, simulate a connection error to the non-existent tracker.
-			return nil, errors.New("connection refused: issue tracker not available")
+			return nil, errors.New("connection refused: swarm-manager not available")
 		},
 	}
 
 	service := NewAppServiceWithOptions(mockRepo, mockHTTP, nil)
+	service.scenarioURL = func(context.Context, string) (string, error) {
+		return "", errors.New("swarm-manager not available")
+	}
 
 	req := &IssueReportRequest{
 		AppID:   "test-app",
@@ -1088,6 +1009,6 @@ func TestReportAppIssue_IssueTrackerUnavailable(t *testing.T) {
 
 	_, err := service.ReportAppIssue(context.Background(), req)
 	if err == nil {
-		t.Fatal("Expected error when issue tracker is unavailable")
+		t.Fatal("Expected error when Swarm Manager is unavailable")
 	}
 }

@@ -3,10 +3,10 @@ package validation
 import (
 	"testing"
 
+	"scenario-to-desktop-api/signing/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"scenario-to-desktop-api/signing/types"
 )
 
 func TestDefaultValidator_ValidateConfig_NilConfig(t *testing.T) {
@@ -130,7 +130,7 @@ func TestDefaultValidator_ValidateConfig_WindowsInvalidSource(t *testing.T) {
 	assert.Equal(t, "WIN_CERT_SOURCE_INVALID", result.Errors[0].Code)
 }
 
-func TestDefaultValidator_ValidateConfig_WindowsCloudKMSWarning(t *testing.T) {
+func TestDefaultValidator_ValidateConfig_WindowsCloudKMSIsUnsupported(t *testing.T) {
 	v := NewValidator()
 
 	for _, source := range []string{types.CertSourceAzureKeyVault, types.CertSourceAWSKMS} {
@@ -142,10 +142,9 @@ func TestDefaultValidator_ValidateConfig_WindowsCloudKMSWarning(t *testing.T) {
 		}
 		result := v.ValidateConfig(config)
 
-		// Should be valid but with warning
-		assert.True(t, result.Valid, "Cloud KMS source %s should be valid", source)
-		require.Len(t, result.Warnings, 1)
-		assert.Equal(t, "WIN_CLOUD_KMS_LIMITED", result.Warnings[0].Code)
+		assert.False(t, result.Valid, "Cloud KMS source %s must not be ready", source)
+		require.Len(t, result.Errors, 1)
+		assert.Equal(t, "WIN_CERT_SOURCE_UNSUPPORTED", result.Errors[0].Code)
 	}
 }
 
@@ -202,11 +201,12 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithoutTeamID(t *testing.T
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			Notarize:        true,
-			HardenedRuntime: true,
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "/path/to/key.p8",
+			Identity:         "Developer ID Application: Test",
+			Notarize:         true,
+			HardenedRuntime:  true,
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "/path/to/key.p8",
+			AppleAPIIssuerID: "ISSUER123",
 			// TeamID missing
 		},
 	}
@@ -230,12 +230,13 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithoutHardenedRuntime(t *
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			TeamID:          "TEAMID",
-			Notarize:        true,
-			HardenedRuntime: false, // Should be true for notarization
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "/path/to/key.p8",
+			Identity:         "Developer ID Application: Test",
+			TeamID:           "TEAMID",
+			Notarize:         true,
+			HardenedRuntime:  false, // Should be true for notarization
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "/path/to/key.p8",
+			AppleAPIIssuerID: "ISSUER123",
 		},
 	}
 	result := v.ValidateConfig(config)
@@ -282,12 +283,13 @@ func TestDefaultValidator_ValidateConfig_MacOSNotarizeWithAPIKey(t *testing.T) {
 	config := &types.SigningConfig{
 		Enabled: true,
 		MacOS: &types.MacOSSigningConfig{
-			Identity:        "Developer ID Application: Test",
-			TeamID:          "TEAMID",
-			HardenedRuntime: true,
-			Notarize:        true,
-			AppleAPIKeyID:   "KEY123",
-			AppleAPIKeyFile: "/path/to/key.p8",
+			Identity:         "Developer ID Application: Test",
+			TeamID:           "TEAMID",
+			HardenedRuntime:  true,
+			Notarize:         true,
+			AppleAPIKeyID:    "KEY123",
+			AppleAPIKeyFile:  "/path/to/key.p8",
+			AppleAPIIssuerID: "ISSUER123",
 		},
 	}
 	result := v.ValidateConfig(config)
@@ -322,7 +324,7 @@ func TestDefaultValidator_ValidateConfig_LinuxValid(t *testing.T) {
 	config := &types.SigningConfig{
 		Enabled: true,
 		Linux: &types.LinuxSigningConfig{
-			GPGKeyID: "ABC123DEF456",
+			GPGKeyID: "fixture-gpg-key-id",
 		},
 	}
 	result := v.ValidateConfig(config)
@@ -435,6 +437,38 @@ func TestDefaultValidator_ValidateForPlatform_NilConfig(t *testing.T) {
 	result := v.ValidateForPlatform(nil, types.PlatformWindows)
 
 	assert.True(t, result.Valid)
+}
+
+func TestDefaultValidator_LinuxRejectsAmbiguousSigningSource(t *testing.T) {
+	v := NewValidator()
+	config := &types.SigningConfig{
+		Enabled: true,
+		Linux: &types.LinuxSigningConfig{
+			GPGKeyID:   "ABC123",
+			GPGHomedir: "/custom/keyring",
+			ManagedKey: &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+		},
+	}
+	result := v.ValidateForPlatform(config, types.PlatformLinux)
+
+	assert.False(t, result.Valid)
+	assert.Equal(t, "LINUX_SIGNING_SOURCE_AMBIGUOUS", result.Errors[0].Code)
+}
+
+func TestDefaultValidator_LinuxWarnsOnNonstandardManagedPassphraseEnv(t *testing.T) {
+	v := NewValidator()
+	config := &types.SigningConfig{
+		Enabled: true,
+		Linux: &types.LinuxSigningConfig{
+			GPGKeyID:         "ABC123",
+			GPGPassphraseEnv: "MY_CUSTOM_GPG_PASSPHRASE",
+			ManagedKey:       &types.ManagedSigningKey{LogicalID: "vrooli/desktop-signing"},
+		},
+	}
+	result := v.ValidateForPlatform(config, types.PlatformLinux)
+
+	assert.True(t, result.Valid)
+	assert.Equal(t, "LINUX_MANAGED_PASSPHRASE_ENV_NONSTANDARD", result.Warnings[0].Code)
 }
 
 func TestDefaultValidator_ValidateForPlatform_DisabledConfig(t *testing.T) {

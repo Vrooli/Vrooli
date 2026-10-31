@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "morning-planning",
+    "title": "Morning: plan today and start the first focus block",
+    "purpose": "The core daily loop — inspect a realistic day, choose a manageable set of work, review a proposed plan, apply it deliberately, and start focused work — proving the honest planning loop is usable end-to-end.",
+    "prd_refs": ["OT-P0-005", "OT-P1-002", "OT-P1-005"]
+  },
+  "steps": [
+    { "page": "today", "state": "success", "intent": "See available capacity, the next useful action, and any commitment notices for today." },
+    { "page": "plan", "state": "success", "intent": "Add or select a manageable set of work and open the Day/Capacity perspective.", "via": "Open Plan from the rail or a 'plan my day' affordance." },
+    { "page": "plan", "state": "partial", "intent": "Generate a proposal and inspect original vs proposed placements, conflicts, and affected commitments.", "via": "Request a plan proposal." },
+    { "page": "today", "state": "success", "intent": "Apply the reviewed changes explicitly and return to a truthful Today.", "via": "Apply the proposal (a separate, revalidated command)." },
+    { "page": "focus", "state": "running", "intent": "Start the first focus block on the chosen next action.", "via": "Start focus from the next-action surface." }
+  ]
+}

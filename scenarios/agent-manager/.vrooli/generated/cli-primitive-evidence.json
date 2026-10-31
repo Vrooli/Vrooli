@@ -1,0 +1,1071 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "agent-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "ee059762b9eae9188f29fbbd0d6e7438adbccd92e4d6f34cf524af378e1d6e95",
+  "commands": [
+    {
+      "path": "conversation context",
+      "group": "conversation",
+      "command": "context",
+      "binding": "ConversationSearchService.GetConversationContext"
+    },
+    {
+      "path": "conversation index",
+      "group": "conversation",
+      "command": "index"
+    },
+    {
+      "path": "conversation search",
+      "group": "conversation",
+      "command": "search",
+      "binding": "ConversationSearchService.SearchConversations"
+    },
+    {
+      "path": "declarations plan",
+      "group": "declarations",
+      "command": "plan",
+      "binding": "."
+    },
+    {
+      "path": "declarations reconcile-scenario",
+      "group": "declarations",
+      "command": "reconcile-scenario",
+      "binding": "."
+    },
+    {
+      "path": "effort board",
+      "group": "effort",
+      "command": "board",
+      "binding": "AgentManagerService.GetEffortBoard"
+    },
+    {
+      "path": "effort compact",
+      "group": "effort",
+      "command": "compact",
+      "binding": "."
+    },
+    {
+      "path": "effort decision",
+      "group": "effort",
+      "command": "decision",
+      "binding": "."
+    },
+    {
+      "path": "effort delivery",
+      "group": "effort",
+      "command": "delivery",
+      "binding": "."
+    },
+    {
+      "path": "effort discover",
+      "group": "effort",
+      "command": "discover",
+      "binding": "."
+    },
+    {
+      "path": "effort enroll",
+      "group": "effort",
+      "command": "enroll",
+      "binding": "."
+    },
+    {
+      "path": "effort epoch-check",
+      "group": "effort",
+      "command": "epoch-check",
+      "binding": "."
+    },
+    {
+      "path": "effort exact-receipt",
+      "group": "effort",
+      "command": "exact-receipt",
+      "binding": "."
+    },
+    {
+      "path": "effort exact-reconcile",
+      "group": "effort",
+      "command": "exact-reconcile",
+      "binding": "."
+    },
+    {
+      "path": "effort exact-setup",
+      "group": "effort",
+      "command": "exact-setup",
+      "binding": "."
+    },
+    {
+      "path": "effort feedback",
+      "group": "effort",
+      "command": "feedback",
+      "binding": "."
+    },
+    {
+      "path": "effort handoff",
+      "group": "effort",
+      "command": "handoff",
+      "binding": "."
+    },
+    {
+      "path": "effort lint",
+      "group": "effort",
+      "command": "lint",
+      "binding": "."
+    },
+    {
+      "path": "effort list",
+      "group": "effort",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "effort park",
+      "group": "effort",
+      "command": "park",
+      "binding": "."
+    },
+    {
+      "path": "effort reconcile-metadata",
+      "group": "effort",
+      "command": "reconcile-metadata",
+      "binding": "."
+    },
+    {
+      "path": "effort signal",
+      "group": "effort",
+      "command": "signal",
+      "binding": "."
+    },
+    {
+      "path": "effort signals",
+      "group": "effort",
+      "command": "signals",
+      "binding": "."
+    },
+    {
+      "path": "effort withdraw",
+      "group": "effort",
+      "command": "withdraw",
+      "binding": "."
+    },
+    {
+      "path": "events list",
+      "group": "events",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "health audit",
+      "group": "health",
+      "command": "audit",
+      "binding": "."
+    },
+    {
+      "path": "health models",
+      "group": "health",
+      "command": "models",
+      "binding": "."
+    },
+    {
+      "path": "health runners",
+      "group": "health",
+      "command": "runners",
+      "binding": "."
+    },
+    {
+      "path": "investigation cancel",
+      "group": "investigation",
+      "command": "cancel",
+      "binding": "AgentManagerService.CancelInvestigation"
+    },
+    {
+      "path": "investigation get",
+      "group": "investigation",
+      "command": "get",
+      "binding": "AgentManagerService.GetInvestigation"
+    },
+    {
+      "path": "investigation list",
+      "group": "investigation",
+      "command": "list",
+      "binding": "AgentManagerService.ListInvestigations"
+    },
+    {
+      "path": "investigation start",
+      "group": "investigation",
+      "command": "start",
+      "binding": "AgentManagerService.StartInvestigation"
+    },
+    {
+      "path": "investigation wait",
+      "group": "investigation",
+      "command": "wait",
+      "binding": "AgentManagerService.WaitInvestigation"
+    },
+    {
+      "path": "maintenance backfill-labels",
+      "group": "maintenance",
+      "command": "backfill-labels",
+      "binding": "."
+    },
+    {
+      "path": "maintenance backfill-subjects",
+      "group": "maintenance",
+      "command": "backfill-subjects",
+      "binding": "."
+    },
+    {
+      "path": "maintenance begin",
+      "group": "maintenance",
+      "command": "begin",
+      "binding": "."
+    },
+    {
+      "path": "maintenance drain",
+      "group": "maintenance",
+      "command": "drain",
+      "binding": "."
+    },
+    {
+      "path": "maintenance purge",
+      "group": "maintenance",
+      "command": "purge",
+      "binding": "."
+    },
+    {
+      "path": "maintenance resume",
+      "group": "maintenance",
+      "command": "resume",
+      "binding": "."
+    },
+    {
+      "path": "maintenance status",
+      "group": "maintenance",
+      "command": "status"
+    },
+    {
+      "path": "measures cohort",
+      "group": "measures",
+      "command": "cohort",
+      "binding": "."
+    },
+    {
+      "path": "measures cohort-report",
+      "group": "measures",
+      "command": "cohort-report",
+      "binding": "MeasuresService.CohortReport",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "measures get",
+      "group": "measures",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "measures list",
+      "group": "measures",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "measures select-cohort",
+      "group": "measures",
+      "command": "select-cohort",
+      "binding": "MeasuresService.SelectCohort",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "permission-policy catalog",
+      "group": "permission-policy",
+      "command": "catalog",
+      "binding": "."
+    },
+    {
+      "path": "permission-policy doctor",
+      "group": "permission-policy",
+      "command": "doctor",
+      "binding": "."
+    },
+    {
+      "path": "permission-policy plan",
+      "group": "permission-policy",
+      "command": "plan",
+      "binding": "."
+    },
+    {
+      "path": "permission-policy reconcile",
+      "group": "permission-policy",
+      "command": "reconcile",
+      "binding": "."
+    },
+    {
+      "path": "permission-policy reload",
+      "group": "permission-policy",
+      "command": "reload",
+      "binding": "."
+    },
+    {
+      "path": "permission-policy status",
+      "group": "permission-policy",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "permission-policy validate",
+      "group": "permission-policy",
+      "command": "validate",
+      "binding": "."
+    },
+    {
+      "path": "profile create",
+      "group": "profile",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "profile delete",
+      "group": "profile",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "profile ensure",
+      "group": "profile",
+      "command": "ensure",
+      "binding": "."
+    },
+    {
+      "path": "profile get",
+      "group": "profile",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "profile list",
+      "group": "profile",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "profile reconcile-scenario",
+      "group": "profile",
+      "command": "reconcile-scenario",
+      "binding": "."
+    },
+    {
+      "path": "profile update",
+      "group": "profile",
+      "command": "update",
+      "binding": "."
+    },
+    {
+      "path": "role-policy catalog",
+      "group": "role-policy",
+      "command": "catalog",
+      "binding": "."
+    },
+    {
+      "path": "role-policy explain",
+      "group": "role-policy",
+      "command": "explain",
+      "binding": "."
+    },
+    {
+      "path": "role-policy reload",
+      "group": "role-policy",
+      "command": "reload",
+      "binding": "."
+    },
+    {
+      "path": "role-policy status",
+      "group": "role-policy",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "role-policy validate",
+      "group": "role-policy",
+      "command": "validate",
+      "binding": "."
+    },
+    {
+      "path": "run apply-investigation",
+      "group": "run",
+      "command": "apply-investigation",
+      "binding": "."
+    },
+    {
+      "path": "run approve",
+      "group": "run",
+      "command": "approve",
+      "binding": "."
+    },
+    {
+      "path": "run attach",
+      "group": "run",
+      "command": "attach",
+      "binding": "."
+    },
+    {
+      "path": "run await-result",
+      "group": "run",
+      "command": "await-result",
+      "binding": "."
+    },
+    {
+      "path": "run continue",
+      "group": "run",
+      "command": "continue",
+      "binding": "."
+    },
+    {
+      "path": "run create",
+      "group": "run",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "run delete",
+      "group": "run",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "run detach",
+      "group": "run",
+      "command": "detach",
+      "binding": "."
+    },
+    {
+      "path": "run diff",
+      "group": "run",
+      "command": "diff",
+      "binding": "."
+    },
+    {
+      "path": "run event-page",
+      "group": "run",
+      "command": "event-page",
+      "binding": "AgentManagerService.GetRunEvents",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "run events",
+      "group": "run",
+      "command": "events",
+      "binding": "."
+    },
+    {
+      "path": "run get",
+      "group": "run",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "run get-by-tag",
+      "group": "run",
+      "command": "get-by-tag",
+      "binding": "."
+    },
+    {
+      "path": "run identity",
+      "group": "run",
+      "command": "identity",
+      "binding": "."
+    },
+    {
+      "path": "run import-identity",
+      "group": "run",
+      "command": "import-identity",
+      "binding": "."
+    },
+    {
+      "path": "run import-session-corpus",
+      "group": "run",
+      "command": "import-session-corpus",
+      "binding": "."
+    },
+    {
+      "path": "run import-sweep",
+      "group": "run",
+      "command": "import-sweep",
+      "binding": "."
+    },
+    {
+      "path": "run import-transcript",
+      "group": "run",
+      "command": "import-transcript",
+      "binding": "EpisodesService.ImportTranscript"
+    },
+    {
+      "path": "run ledger",
+      "group": "run",
+      "command": "ledger",
+      "binding": "EpisodesService.GetCrossScenarioLedger"
+    },
+    {
+      "path": "run list",
+      "group": "run",
+      "command": "list",
+      "binding": "AgentManagerService.ListRuns"
+    },
+    {
+      "path": "run messages",
+      "group": "run",
+      "command": "messages",
+      "binding": "."
+    },
+    {
+      "path": "run park",
+      "group": "run",
+      "command": "park",
+      "binding": "."
+    },
+    {
+      "path": "run quiesce",
+      "group": "run",
+      "command": "quiesce",
+      "binding": "."
+    },
+    {
+      "path": "run receipts",
+      "group": "run",
+      "command": "receipts",
+      "binding": "."
+    },
+    {
+      "path": "run recent",
+      "group": "run",
+      "command": "recent",
+      "binding": "."
+    },
+    {
+      "path": "run recover",
+      "group": "run",
+      "command": "recover",
+      "binding": "."
+    },
+    {
+      "path": "run reject",
+      "group": "run",
+      "command": "reject",
+      "binding": "."
+    },
+    {
+      "path": "run report",
+      "group": "run",
+      "command": "report",
+      "binding": "AgentManagerService.GetRunReport"
+    },
+    {
+      "path": "run result",
+      "group": "run",
+      "command": "result",
+      "binding": "."
+    },
+    {
+      "path": "run sandbox-sync",
+      "group": "run",
+      "command": "sandbox-sync",
+      "binding": "."
+    },
+    {
+      "path": "run stop",
+      "group": "run",
+      "command": "stop",
+      "binding": "."
+    },
+    {
+      "path": "run stop-all",
+      "group": "run",
+      "command": "stop-all",
+      "binding": "."
+    },
+    {
+      "path": "run stop-by-tag",
+      "group": "run",
+      "command": "stop-by-tag",
+      "binding": "."
+    },
+    {
+      "path": "run tools",
+      "group": "run",
+      "command": "tools",
+      "binding": "."
+    },
+    {
+      "path": "run wake",
+      "group": "run",
+      "command": "wake",
+      "binding": "."
+    },
+    {
+      "path": "runner execution-options",
+      "group": "runner",
+      "command": "execution-options",
+      "binding": "."
+    },
+    {
+      "path": "runner list",
+      "group": "runner",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "runner probe",
+      "group": "runner",
+      "command": "probe",
+      "binding": "."
+    },
+    {
+      "path": "runner tools",
+      "group": "runner",
+      "command": "tools",
+      "binding": "."
+    },
+    {
+      "path": "settings investigation",
+      "group": "settings",
+      "command": "investigation",
+      "binding": "."
+    },
+    {
+      "path": "settings orchestration",
+      "group": "settings",
+      "command": "orchestration",
+      "binding": "."
+    },
+    {
+      "path": "space get",
+      "group": "space",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "standing-grants create",
+      "group": "standing-grants",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "standing-grants diagnose-prompt-manager",
+      "group": "standing-grants",
+      "command": "diagnose-prompt-manager",
+      "binding": "."
+    },
+    {
+      "path": "standing-grants list",
+      "group": "standing-grants",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "standing-grants revoke",
+      "group": "standing-grants",
+      "command": "revoke",
+      "binding": "."
+    },
+    {
+      "path": "storage compact",
+      "group": "storage",
+      "command": "compact",
+      "binding": "."
+    },
+    {
+      "path": "storage evidence",
+      "group": "storage",
+      "command": "evidence",
+      "binding": "."
+    },
+    {
+      "path": "storage evidence-prune",
+      "group": "storage",
+      "command": "evidence-prune",
+      "binding": "."
+    },
+    {
+      "path": "storage reclaim",
+      "group": "storage",
+      "command": "reclaim",
+      "binding": "."
+    },
+    {
+      "path": "storage status",
+      "group": "storage",
+      "command": "status",
+      "binding": "."
+    },
+    {
+      "path": "subscription periods",
+      "group": "subscription",
+      "command": "periods",
+      "binding": "."
+    },
+    {
+      "path": "subscription quota",
+      "group": "subscription",
+      "command": "quota",
+      "binding": "."
+    },
+    {
+      "path": "task cancel",
+      "group": "task",
+      "command": "cancel",
+      "binding": "."
+    },
+    {
+      "path": "task create",
+      "group": "task",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "task delete",
+      "group": "task",
+      "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "task get",
+      "group": "task",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "task list",
+      "group": "task",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "task update",
+      "group": "task",
+      "command": "update",
+      "binding": "."
+    },
+    {
+      "path": "usage burners",
+      "group": "usage",
+      "command": "burners",
+      "binding": "MeasuresService.UsageBurners",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage compare",
+      "group": "usage",
+      "command": "compare",
+      "binding": "MeasuresService.UsageCompare",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage coverage",
+      "group": "usage",
+      "command": "coverage",
+      "binding": "MeasuresService.UsageCoverage",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage experiment",
+      "group": "usage",
+      "command": "experiment",
+      "binding": "."
+    },
+    {
+      "path": "usage forecast",
+      "group": "usage",
+      "command": "forecast",
+      "binding": "MeasuresService.UsageForecast",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage friction",
+      "group": "usage",
+      "command": "friction",
+      "binding": "MeasuresService.UsageFriction",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage friction-dismiss",
+      "group": "usage",
+      "command": "friction-dismiss",
+      "binding": "FrictionService.DismissFriction",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "usage friction-report",
+      "group": "usage",
+      "command": "friction-report",
+      "binding": "FrictionService.ReportFriction",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "usage mode",
+      "group": "usage",
+      "command": "mode",
+      "binding": "."
+    },
+    {
+      "path": "usage opportunities",
+      "group": "usage",
+      "command": "opportunities",
+      "binding": "."
+    },
+    {
+      "path": "usage outcomes",
+      "group": "usage",
+      "command": "outcomes",
+      "binding": "MeasuresService.UsageOutcomes",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage parity",
+      "group": "usage",
+      "command": "parity",
+      "binding": "MeasuresService.UsageParity",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage recommendations",
+      "group": "usage",
+      "command": "recommendations",
+      "binding": "MeasuresService.UsageRecommendations",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage reindex",
+      "group": "usage",
+      "command": "reindex",
+      "binding": "."
+    },
+    {
+      "path": "usage signals",
+      "group": "usage",
+      "command": "signals",
+      "binding": "."
+    },
+    {
+      "path": "watch action",
+      "group": "watch",
+      "command": "action",
+      "binding": "AgentManagerService.RequestCohortWatchAction"
+    },
+    {
+      "path": "watch actions",
+      "group": "watch",
+      "command": "actions",
+      "binding": "AgentManagerService.ListCohortWatchActions"
+    },
+    {
+      "path": "watch cancel",
+      "group": "watch",
+      "command": "cancel",
+      "binding": "AgentManagerService.CancelCohortWatch"
+    },
+    {
+      "path": "watch create",
+      "group": "watch",
+      "command": "create",
+      "binding": "AgentManagerService.CreateCohortWatch"
+    },
+    {
+      "path": "watch get",
+      "group": "watch",
+      "command": "get",
+      "binding": "AgentManagerService.GetCohortWatch"
+    },
+    {
+      "path": "watch inspect",
+      "group": "watch",
+      "command": "inspect",
+      "binding": "AgentManagerService.InspectCohortWatch"
+    },
+    {
+      "path": "watch list",
+      "group": "watch",
+      "command": "list",
+      "binding": "AgentManagerService.ListCohortWatches"
+    },
+    {
+      "path": "watch policy-assess",
+      "group": "watch",
+      "command": "policy-assess",
+      "binding": "AgentManagerService.RecordSupervisionOutcome"
+    },
+    {
+      "path": "watch policy-candidate",
+      "group": "watch",
+      "command": "policy-candidate",
+      "binding": "AgentManagerService.CreateSupervisionPolicyCandidate"
+    },
+    {
+      "path": "watch policy-disable",
+      "group": "watch",
+      "command": "policy-disable",
+      "binding": "AgentManagerService.SetSupervisionPolicyDisabled"
+    },
+    {
+      "path": "watch policy-evaluate",
+      "group": "watch",
+      "command": "policy-evaluate",
+      "binding": "AgentManagerService.EvaluateSupervisionPolicy"
+    },
+    {
+      "path": "watch policy-get",
+      "group": "watch",
+      "command": "policy-get",
+      "binding": "AgentManagerService.GetSupervisionPolicy"
+    },
+    {
+      "path": "watch policy-outcomes",
+      "group": "watch",
+      "command": "policy-outcomes",
+      "binding": "AgentManagerService.ListSupervisionOutcomes"
+    },
+    {
+      "path": "watch policy-promote",
+      "group": "watch",
+      "command": "policy-promote",
+      "binding": "AgentManagerService.PromoteSupervisionPolicy"
+    },
+    {
+      "path": "watch policy-reject",
+      "group": "watch",
+      "command": "policy-reject",
+      "binding": "AgentManagerService.RejectSupervisionPolicy"
+    },
+    {
+      "path": "watch policy-rollback",
+      "group": "watch",
+      "command": "policy-rollback",
+      "binding": "AgentManagerService.RollbackSupervisionPolicy"
+    },
+    {
+      "path": "watch wait",
+      "group": "watch",
+      "command": "wait",
+      "binding": "AgentManagerService.WaitCohortWatch"
+    },
+    {
+      "path": "workflow cancel",
+      "group": "workflow",
+      "command": "cancel",
+      "binding": "AgentManagerService.CancelWorkflowExecution"
+    },
+    {
+      "path": "workflow execution-advance",
+      "group": "workflow",
+      "command": "execution-advance",
+      "binding": "."
+    },
+    {
+      "path": "workflow execution-get",
+      "group": "workflow",
+      "command": "execution-get",
+      "binding": "AgentManagerService.GetWorkflowExecution"
+    },
+    {
+      "path": "workflow execution-list",
+      "group": "workflow",
+      "command": "execution-list",
+      "binding": "."
+    },
+    {
+      "path": "workflow execution-result",
+      "group": "workflow",
+      "command": "execution-result",
+      "binding": "AgentManagerService.GetWorkflowExecutionResult"
+    },
+    {
+      "path": "workflow execution-runs",
+      "group": "workflow",
+      "command": "execution-runs",
+      "binding": "."
+    },
+    {
+      "path": "workflow execution-wait",
+      "group": "workflow",
+      "command": "execution-wait",
+      "binding": "AgentManagerService.WaitWorkflowExecution"
+    },
+    {
+      "path": "workflow explain",
+      "group": "workflow",
+      "command": "explain",
+      "binding": "."
+    },
+    {
+      "path": "workflow get",
+      "group": "workflow",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "workflow list",
+      "group": "workflow",
+      "command": "list",
+      "binding": "."
+    },
+    {
+      "path": "workflow plan",
+      "group": "workflow",
+      "command": "plan",
+      "binding": "."
+    },
+    {
+      "path": "workflow reconcile-scenario",
+      "group": "workflow",
+      "command": "reconcile-scenario",
+      "binding": "."
+    },
+    {
+      "path": "workflow reload",
+      "group": "workflow",
+      "command": "reload",
+      "binding": "."
+    },
+    {
+      "path": "workflow resume",
+      "group": "workflow",
+      "command": "resume",
+      "binding": "."
+    },
+    {
+      "path": "workflow retry",
+      "group": "workflow",
+      "command": "retry",
+      "binding": "."
+    },
+    {
+      "path": "workflow signal",
+      "group": "workflow",
+      "command": "signal",
+      "binding": "."
+    },
+    {
+      "path": "workflow simulate",
+      "group": "workflow",
+      "command": "simulate",
+      "binding": "."
+    },
+    {
+      "path": "workflow start",
+      "group": "workflow",
+      "command": "start",
+      "binding": "AgentManagerService.StartWorkflowExecution"
+    },
+    {
+      "path": "workflow trace",
+      "group": "workflow",
+      "command": "trace",
+      "binding": "."
+    },
+    {
+      "path": "workflow validate",
+      "group": "workflow",
+      "command": "validate",
+      "binding": "."
+    }
+  ]
+}

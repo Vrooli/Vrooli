@@ -98,7 +98,7 @@
 
 ### Known Issues
 - PostgreSQL connection configured but falls back to in-memory when credentials vary (works gracefully)
-- N8n workflows exist but resource not currently running (files ready in initialization/)
+- N8n workflows exist but resource not currently running (files ready in api/internal/<domain>/)
 - Test coverage at 39.3% (below 50% threshold - existing technical debt, requires PostgreSQL for full coverage)
 - 19 standards violations (1 high, 18 medium) - mostly auditor false positives for SVG constants and shell variables
 - All critical environment variables (API_PORT, UI_PORT, database config) properly validated
@@ -383,7 +383,7 @@ registry_entry:
 ### Documentation
 - API docs in README.md
 - CLI help: `picker-wheel --help`
-- PostgreSQL schema: `initialization/postgres/schema.sql`
+- PostgreSQL schema: `api/internal/<domain>/schema.sql`
 
 ## Progress History
 - **2025-09-24**: Initial PRD created, scenario assessment complete (0% → 0%)

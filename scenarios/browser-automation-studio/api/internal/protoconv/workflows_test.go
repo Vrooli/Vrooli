@@ -11,7 +11,10 @@ import (
 func TestFlowDefinitionToProto(t *testing.T) {
 	def := database.JSONMap{
 		"nodes": []map[string]any{
-			{"id": "n1", "type": "navigate"},
+			{"id": "n1", "action": map[string]any{
+				"type":     "ACTION_TYPE_NAVIGATE",
+				"navigate": map[string]any{"url": "https://example.com"},
+			}},
 		},
 		"edges":    []map[string]any{},
 		"metadata": map[string]any{"name": "Test"},
@@ -25,6 +28,60 @@ func TestFlowDefinitionToProto(t *testing.T) {
 	}
 	if pb.Metadata == nil || pb.Metadata.Name == nil || *pb.Metadata.Name != "Test" {
 		t.Fatalf("expected metadata with name")
+	}
+}
+
+func TestFlowDefinitionToProtoRejectsUnknownFields(t *testing.T) {
+	_, err := FlowDefinitionToProto(database.JSONMap{
+		"nodes": []map[string]any{{
+			"id": "n1",
+			"action": map[string]any{
+				"type":     "ACTION_TYPE_NAVIGATE",
+				"navigate": map[string]any{"url": "https://example.com", "unexpected": true},
+			},
+		}},
+	})
+	if err == nil {
+		t.Fatal("expected unknown workflow field to be rejected")
+	}
+}
+
+func TestFlowDefinitionToProtoPreservesSnakeCaseContinueOnError(t *testing.T) {
+	pb, err := FlowDefinitionToProto(database.JSONMap{
+		"nodes": []map[string]any{{
+			"id": "recoverable-click",
+			"action": map[string]any{
+				"type":  "ACTION_TYPE_CLICK",
+				"click": map[string]any{"selector": ".missing"},
+			},
+			"execution_settings": map[string]any{"continue_on_error": true},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("convert definition: %v", err)
+	}
+	if got := pb.GetNodes()[0].GetExecutionSettings().GetContinueOnError(); !got {
+		t.Fatal("snake_case continue_on_error was not preserved at the workflow ingress boundary")
+	}
+}
+
+func TestFlowDefinitionToProtoPreservesExplicitSnakeCaseContinueOnErrorFalse(t *testing.T) {
+	pb, err := FlowDefinitionToProto(database.JSONMap{
+		"nodes": []map[string]any{{
+			"id": "critical-assertion",
+			"action": map[string]any{
+				"type":  "ACTION_TYPE_CLICK",
+				"click": map[string]any{"selector": ".required"},
+			},
+			"execution_settings": map[string]any{"continue_on_error": false},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("convert definition: %v", err)
+	}
+	settings := pb.GetNodes()[0].GetExecutionSettings()
+	if settings == nil || settings.ContinueOnError == nil || *settings.ContinueOnError {
+		t.Fatal("explicit snake_case continue_on_error=false was lost at the workflow ingress boundary")
 	}
 }
 
@@ -60,4 +117,3 @@ func TestWorkflowValidationResultToProto(t *testing.T) {
 		t.Fatalf("unexpected meta fields")
 	}
 }
-

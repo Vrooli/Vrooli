@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.skill_catalog;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/skill_catalog;skill_catalog_v1";
+
+// =============================================================================
+// SKILL CATALOG DOMAIN — Mirror of prompt-manager skills (OT-P0-002)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain skill_catalog
+// @stability evolving
+//
+// SkillCatalogService maintains a read-only local mirror of the skill catalog
+// owned by prompt-manager. Sync pulls the current set from prompt-manager
+// (today via REST, behind a SkillCatalogSource seam; tomorrow via Connect
+// when prompt-manager exposes proto) and reconciles the local mirror.
+// List and Get serve cached reads — every other DTV domain that needs to
+// reference skills (manifest, validation_run, staleness, report) reads from
+// here, not from prompt-manager directly.
+// =============================================================================
+
+service SkillCatalogService {
+  // Sync fetches the current skill set from prompt-manager and reconciles
+  // the local mirror (insert new, update changed, remove missing). Returns
+  // the post-reconcile catalog plus counts of changes applied.
+  rpc Sync(SyncRequest) returns (SyncResponse);
+
+  // ListSkills returns the locally-mirrored catalog ordered by id.
+  rpc ListSkills(ListSkillsRequest) returns (ListSkillsResponse);
+
+  // GetSkill returns one skill by id.
+  rpc GetSkill(GetSkillRequest) returns (GetSkillResponse);
+}
+
+// Skill is the canonical wire shape for a mirrored skill.
+message Skill {
+  // Skill identifier from prompt-manager (slug-shape). Natural key.
+  string id = 1;
+
+  // Skill version. Today this is the prompt-manager updated_at timestamp
+  // converted to RFC3339; treat opaquely.
+  string version = 2;
+
+  // Stable hash of the skill's content (sha256 hex of SKILL.md body).
+  // Manifests pin this to detect skill drift.
+  string content_hash = 3;
+
+  // Server time of the last sync that touched this row.
+  google.protobuf.Timestamp synced_at = 4;
+}
+
+message SyncRequest {}
+
+message SyncResponse {
+  // Catalog state after reconcile, ordered by id.
+  repeated Skill skills = 1;
+
+  // Number of new rows inserted during the reconcile.
+  int32 added = 2;
+
+  // Number of existing rows whose version/content_hash changed.
+  int32 updated = 3;
+
+  // Number of rows removed because the upstream catalog no longer
+  // includes them.
+  int32 removed = 4;
+}
+
+message ListSkillsRequest {}
+
+message ListSkillsResponse {
+  repeated Skill skills = 1;
+}
+
+message GetSkillRequest {
+  string id = 1;
+}
+
+message GetSkillResponse {
+  Skill skill = 1;
+}

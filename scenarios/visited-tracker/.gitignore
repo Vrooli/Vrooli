@@ -1,1 +1,4 @@
 cli/cli
+
+# Generated validation output
+/api/coverage.html

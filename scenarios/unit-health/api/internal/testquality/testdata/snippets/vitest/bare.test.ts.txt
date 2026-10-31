@@ -1,0 +1,4 @@
+import { test, expect } from "vitest";
+test("bare", () => {
+ expect(2 + 3);
+});

@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/testutil"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
 func TestServiceUsesPlaywright(t *testing.T) {

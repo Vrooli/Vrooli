@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.modelselection;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/modelselection;modelselection_v1";
+
+// Read-only view of a local coding runner's resource-owned role policy.
+service ModelSelectionService {
+  rpc GetRoleModelChoices(GetRoleModelChoicesRequest) returns (GetRoleModelChoicesResponse);
+}
+
+message GetRoleModelChoicesRequest {
+  string agent_id = 1;
+  string target_id = 2;
+}
+
+message RoleModelChoice {
+  string model = 1;
+  string source = 2;
+  string provider = 3;
+  string launch_model = 4;
+  string effort = 5;
+  string source_label = 6;
+  bool is_default = 7;
+}
+
+message GetRoleModelChoicesResponse {
+  // ready, stale, unknown, or unsupported.
+  string policy_status = 1;
+  // Provider runtime availability is never implied by static role policy.
+  string availability = 2;
+  string runner = 3;
+  string role = 4;
+  string provenance = 5;
+  string observed_at = 6;
+  string policy_digest = 7;
+  repeated RoleModelChoice choices = 8;
+  string detail = 9;
+  string model_flag = 10;
+}

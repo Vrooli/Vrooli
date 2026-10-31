@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	schema "product-manager-api/internal/product"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -14,6 +15,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
+	redisconfig "github.com/vrooli/api-core/redis"
 	"github.com/vrooli/api-core/server"
 )
 
@@ -21,7 +23,6 @@ import (
 type App struct {
 	DB          *sql.DB
 	RedisClient *redis.Client
-	OllamaURL   string
 	QdrantURL   string
 }
 
@@ -42,12 +43,6 @@ func main() {
 	// Initialize Redis
 	redisClient := initRedis()
 
-	// Ollama URL - REQUIRED, no defaults
-	ollamaURL := os.Getenv("OLLAMA_URL")
-	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
-	}
-
 	// Qdrant URL - REQUIRED, no defaults
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
@@ -58,7 +53,6 @@ func main() {
 	app := &App{
 		DB:          db,
 		RedisClient: redisClient,
-		OllamaURL:   ollamaURL,
 		QdrantURL:   qdrantURL,
 	}
 
@@ -93,6 +87,10 @@ func main() {
 	mux.HandleFunc("/api/dashboard", corsMiddleware(app.dashboardHandler))
 
 	// Start server with graceful shutdown
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		log.Fatalf("database schema initialization failed: %v", err)
+	}
 	if err := server.Run(server.Config{
 		Handler: mux,
 		Cleanup: func(ctx context.Context) error {
@@ -111,18 +109,12 @@ func initDB() (*sql.DB, error) {
 }
 
 func initRedis() *redis.Client {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
-	}
-
-	opt, err := redis.ParseURL(redisURL)
+	resolved, err := redisconfig.Resolve(os.Getenv)
 	if err != nil {
-		log.Printf("Failed to parse Redis URL, using defaults: %v", err)
-		opt = &redis.Options{
-			Addr: "localhost:6379",
-		}
+		log.Printf("Redis is unavailable: %v", err)
+		return redis.NewClient(&redis.Options{Addr: "127.0.0.1:6379"})
 	}
+	opt := &redis.Options{Addr: resolved.Addr, Password: resolved.Password, DB: resolved.DB}
 
 	client := redis.NewClient(opt)
 

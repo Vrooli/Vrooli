@@ -1,0 +1,699 @@
+{
+  "schema": "device-studio-demo-delivery-receipt/v1",
+  "status": "six_projects_saved_reopened_compiled",
+  "sourcePolicy": "Every copied input is pinned by SHA-256. Reference outputs remain at their original evidence paths and are never attributed to a new project, shot, revision, or render job.",
+  "projectCount": 6,
+  "shotCount": 15,
+  "allShotsCompiledReopened": true,
+  "projects": [
+    {
+      "key": "laptop-photo",
+      "projectName": "Device Studio demo — Laptop browser and OS",
+      "projectId": "ea87d7f8-5274-4c97-92c6-9758d457e151",
+      "shots": [
+        {
+          "name": "Browser window on laptop desk",
+          "id": "9edfa645-8341-4ae2-81ff-5db751e1444e",
+          "revision": 1,
+          "compiled": true,
+          "recipeSha256": "f159257b15de683653af0259b4fca3371cfc602004dad7e50344676de216edc8",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d",
+            "1d1d7327f430c6949b194170a3fce2dd0225ebab9007cd4959072a97188f7ff2",
+            "441c5e1aaae96d758d2a210a9121c438c97cc1ad523710acdfc01a322858b6de"
+          ]
+        }
+      ],
+      "archivedReference": {
+        "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/public-jobs/laptop-browser-revision3-output.png",
+        "sha256": "305164d04c88c36cd745981bf4eea331b2f6a8a948ff9ad2ac45eeca41fc37d4",
+        "project_id": "a78e9e7d-2d0c-4320-8c67-5d755d209ca3",
+        "shot_id": "9760650e-69f2-484b-8015-3d39ff512fd5",
+        "shot_revision": 3,
+        "render_job_id": "6a91e6e5-8ccc-4d9f-a7fb-fa1d59790104",
+        "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E2/public-jobs/lease-9006c575-d26a-4c12-8675-7277281191ca/source-bindings/manifest.json",
+        "claim": "verified original still output from its archived job; reference only"
+      }
+    },
+    {
+      "key": "phone-photo",
+      "projectName": "Device Studio demo — Phone system areas",
+      "projectId": "1ce3ba70-8916-406a-a1ce-0a19e2f5d930",
+      "shots": [
+        {
+          "name": "Phone system chrome on photo plate",
+          "id": "86f8103f-951f-42c5-bfc5-9f4e9bdcb52d",
+          "revision": 1,
+          "compiled": true,
+          "recipeSha256": "da014bfda94f756514719b78b721ee6bc6d7d0313b28e946f8e6df58f3994f4f",
+          "sourceMediaSha256": [
+            "e21792cedc1ae20fa43db029ab722730c99400a3854ef6c7429c901603244261",
+            "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+            "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+            "a122e0ec5193cb45a7cb3660715d0fbec04938bb69f64ce5bdf942c3b5260470"
+          ]
+        }
+      ],
+      "archivedReference": {
+        "path": "scenarios/device-studio/docs/internal/goal/evidence/E2/presentations/phone-v3-live-run/outputs/auto-defaults.png",
+        "sha256": "792dfecef11b572154dad2619955832198cb3a0a0b24fb86d38e88e2d37fa221",
+        "project_id": "76a0d275-f317-4acc-8802-91f2b5f1ca24",
+        "shot_id": "01244d39-5381-4e85-8d11-bb3b9199e090",
+        "shot_revision": 1,
+        "render_job_id": "f37897d2-b229-4f12-a489-4e2baf46dc0a",
+        "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E2/presentations/phone-v3-live-run/live-proof-manifest.json",
+        "claim": "verified original still output from its archived job; reference only"
+      }
+    },
+    {
+      "key": "phone-rotation",
+      "projectName": "Device Studio demo — Physical phone rotation",
+      "projectId": "f4d19c09-bc9c-40db-bf08-dc2ef2862f1f",
+      "shots": [
+        {
+          "name": "Ten second phone yaw",
+          "id": "1099de49-e0ae-4d5b-acf6-971ab87e1e41",
+          "revision": 1,
+          "compiled": true,
+          "recipeSha256": "ad807227748ac50e1be89d310b46e8183661a14cf0652cc5b41f9333bbd7bbcf",
+          "sourceMediaSha256": [
+            "e21792cedc1ae20fa43db029ab722730c99400a3854ef6c7429c901603244261"
+          ],
+          "preset": {
+            "id": "ds-demo-phone-rotation",
+            "revision": 1,
+            "sha256": "5bc04ffd0c385a251ff1e3c44889130ded9181003863075e8be9a92a78d6f601"
+          }
+        }
+      ],
+      "archivedReference": {
+        "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/physical-motion-public/runs/api3long30/phone-yaw-app-export.mp4",
+        "sha256": "6873b1ffd3bb52a347d61f5c3f4074203a07b438af798b03301e5c41310f7dbe",
+        "project_id": "e3441811-c2d8-4f7a-9993-c053d776cb58",
+        "shot_id": "92790465-7796-4940-8e2a-2d6352fe62fc",
+        "shot_revision": 1,
+        "render_job_id": "4874f9dc-a1a3-4a07-9737-724e4b0846ed",
+        "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E3/physical-motion-public/runs/api3long30/physical_manifest.json",
+        "claim": "verified original physical job output; reference only"
+      }
+    },
+    {
+      "key": "laptop-lid",
+      "projectName": "Device Studio demo — Laptop lid opening and closure",
+      "projectId": "1ac6959e-c764-4076-ad83-7392cce063f0",
+      "shots": [
+        {
+          "name": "Ten second laptop lid motion",
+          "id": "b952ba29-e86a-4636-bbc3-a32d3ecd8420",
+          "revision": 1,
+          "compiled": true,
+          "recipeSha256": "3953171ed267ee44b1b1e60ab2d97ca2c048f8f50f60129e540337c8cba56fdc",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d"
+          ],
+          "preset": {
+            "id": "ds-demo-laptop-lid",
+            "revision": 1,
+            "sha256": "039e43caf40c7f58195025c19a5c59966d7eab949a5c5095d6c0d53b1781eb67"
+          }
+        }
+      ],
+      "archivedReference": {
+        "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/laptop-lid-10s.mp4",
+        "sha256": "9e6d9047e1425e0dd54f6516af070318d95f5248e66f4688265748291842d314",
+        "project_id": "be160ed2-08ac-4a90-95f0-569962d8bea2",
+        "shot_id": "a2e0756a-fbe6-4442-a153-ca20f2165872",
+        "shot_revision": 2,
+        "render_job_id": "e1cb98b3-46a6-41dc-acf1-3c0200e03d1d",
+        "claim": "verified original physical job output; reference only",
+        "source_manifest_files": [
+          "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/parent-review.json",
+          "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/laptop-lid-vflip-10s-3/render-verification.json"
+        ]
+      }
+    },
+    {
+      "key": "camera-entry",
+      "projectName": "Device Studio demo — Camera entry to active app",
+      "projectId": "462587d8-c609-4561-91ca-752cb4b6c9bd",
+      "shots": [
+        {
+          "name": "Ten second entry ending on live app viewport",
+          "id": "0f6827af-93f0-4922-bdc6-a6e10b8633d9",
+          "revision": 1,
+          "compiled": true,
+          "recipeSha256": "711434ce3a750b797484732cabbc1a3e0899be5d8355c85fc7bd904e45819109",
+          "sourceMediaSha256": [
+            "425db180fd4552b01c193f8631b03c56c80ed95b2454cd30f30013932702480e",
+            "9d1c223677a610b9e63c13ccba51c8a5d44f87d0d087fc5e977e58897ceccf4a",
+            "63b8751df790f9ad2145a1ee7fc9320473d8da682025c7ab5636c421a553dcf2",
+            "a122e0ec5193cb45a7cb3660715d0fbec04938bb69f64ce5bdf942c3b5260470"
+          ]
+        }
+      ],
+      "archivedReference": {
+        "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/phone-screen-entry-3/final/phone-screen-entry-10s.mp4",
+        "sha256": "fc7a9d5f260ab7d5f9ee22ebc7edfa144463df665ee9fc842c58610ccb31fd06",
+        "project_id": "404f5b37-2773-4c27-bf5d-635fdd411282",
+        "shot_id": "3a790159-35a4-49f1-93f0-8e4a680c841d",
+        "shot_revision": 2,
+        "render_job_id": "56600ac0-9823-4573-a345-70e179b823e2",
+        "source_manifest": "scenarios/device-studio/docs/internal/goal/evidence/E3/final-demos/phone-screen-entry-3/final/proof.json",
+        "claim": "verified original video job output; reference only"
+      }
+    },
+    {
+      "key": "family-showcase",
+      "projectName": "Device Studio demo — Remaining family showcase",
+      "projectId": "c952d9c8-eee6-40a7-8d75-2a1eea702261",
+      "shots": [
+        {
+          "name": "Candidate 01 — ipad-screen-uv-oriented-180",
+          "id": "90c20734-dd9a-48cb-8e21-d8c69efc9088",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "301082c867039b015433932f05c0916f457ef70dec4bce23634572b086ffe76d",
+          "sourceMediaSha256": [
+            "cf1a75656ccdb4e4d1d0cebc49f074a4c0c8a18b75531f0b8d1932e9f9221c3c"
+          ],
+          "preset": {
+            "id": "ipad-portrait-cupfree-fit-v2",
+            "revision": 2,
+            "sha256": "a83c26dd82e55651052504fe1feb581cf195baed99de1441bdf0e6283a33e6f4",
+            "candidateOnly": true,
+            "starterId": "ipad-screen-uv-oriented-180"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "867e03bd56d1f439393c13d02403e315aae96e01c92d2249ac587f4e41abc440"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "b93898527672f73f25586d22331f135469985bf507cafdd906a6b05ab27aebcb"
+            },
+            {
+              "revision": 3,
+              "recipeSha256": "301082c867039b015433932f05c0916f457ef70dec4bce23634572b086ffe76",
+              "backend": "PHYSICAL_RENDER_BACKEND_OPTIX"
+            }
+          ],
+          "publicBindings": {
+            "sourceMediaId": "66727f36-ea40-467b-9a81-207d0b607789",
+            "sourceMediaSha256": "cf1a75656ccdb4e4d1d0cebc49f074a4c0c8a18b75531f0b8d1932e9f9221c3c",
+            "device": {
+              "id": "datsketch-ipad-mini-6-neutral-uv-oriented-180-v2",
+              "revision": 2,
+              "sha256": "7fea221707836bf127cc18501e3c5f312d6370f12a76facd5f96c56663b8e2bc"
+            },
+            "scene": {
+              "id": "ipad-laptop-cupfree-ipad-fit-camera-scene-v1",
+              "revision": 1,
+              "sha256": "d845687997fdc0f083ce75fd0d27928361fc8523b62c66e75ad86f702ea94aa2"
+            },
+            "motion": {
+              "id": "phone-still-identity",
+              "revision": 1,
+              "sha256": "45e46e09f0f01bd04b71d24993e43ada9dee199d294429f259be8024aaf7d236"
+            },
+            "displayId": "main_display",
+            "deviceSupportId": "device-root-support",
+            "sceneSupportId": "laptop-tabletop",
+            "cameraId": "ipad-laptop-cupfree-fit-camera-v1"
+          },
+          "nativeRender": {
+            "jobId": "8e00e3e1-2049-49f9-8aab-033f523f5796",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "382234a5a56b8698892a5964d9ce7662f45b028151f933340226c0d5691ee610",
+            "bytes": 4656811,
+            "width": 2560,
+            "height": 1440,
+            "path": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-tablet-monitor-rev3/tablet/tablet-family-showcase-optix.png",
+            "elapsedSubmitToVerifiedMs": 23717,
+            "visualReview": "root-reviewed: accepted for the exact tablet-portrait static setup and app mapping; no occluder and plausible body, edge, and table contact",
+            "reviewScope": "tablet portrait fit, source-to-display app mapping, bounded body/edge/table contact; no fine-print readability or tablet-landscape claim",
+            "reviewedSha256": "382234a5a56b8698892a5964d9ce7662f45b028151f933340226c0d5691ee610"
+          }
+        },
+        {
+          "name": "Candidate 02 — generic-book-fold",
+          "id": "c5a062e8-caaa-44da-83f3-1ccf5291fe47",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "0e795fdb0eff2c20ae14d190f24af921bc958436c6ed176f17108df254293d20",
+          "sourceMediaSha256": [
+            "e21792cedc1ae20fa43db029ab722730c99400a3854ef6c7429c901603244261"
+          ],
+          "preset": {
+            "id": "generic-book-fold-still-v3-left-screen-vflip-static",
+            "revision": 2,
+            "sha256": "b1f4fe2475d8c4b4c4a47fe89770d0f899d659cf0c49d320f570348770873c84",
+            "candidateOnly": true,
+            "starterId": "generic-book-fold"
+          },
+          "nativeRender": {
+            "jobId": "f2ed45f9-c0d2-4f72-ab39-a2c8b7d444f0",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "023d008d92a0c9000c8c4d97372ff8e67e18e5085a8da6724610e0a376baa609",
+            "bytes": 5094362,
+            "width": 2560,
+            "height": 1440,
+            "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-rev3/generic-book-fold.png",
+            "elapsedSubmitToVerifiedMs": 36302,
+            "visualReview": "root-reviewed: accepted within the exact static setup and app-mapping scope",
+            "reviewedSha256": "023d008d92a0c9000c8c4d97372ff8e67e18e5085a8da6724610e0a376baa609",
+            "reviewScope": "bounded visual appearance/setup and source-to-display app mapping; no qualification or universal device claim"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "eb82d1864a9242956703c793131a77d9a879f92f5358e2f1c73375d26f8a93ae"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "6976fcc971a715521d82bb23848ffd9a8fa57a0a40de63f798f003f6a6fb2485"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 03 — generic-round-watch-v2",
+          "id": "18467919-aa4f-4a55-92bf-e3bf9a202d1a",
+          "revision": 4,
+          "compiled": true,
+          "recipeSha256": "9c6c33a2fc4510b983d91e9e82fd48363ba6afad8ff8a0891e345b9950512931",
+          "sourceMediaSha256": [
+            "68e83ddbcd27a7f74dfd659018c79f7c1b4cf1d31e86f1bf703c2c9203bf97f4"
+          ],
+          "preset": {
+            "id": "generic-round-watch-body-floating-still-v4",
+            "revision": 3,
+            "sha256": "3be114c5bb76e6bf19eb686ce2b4d9139b4ee1843780398d91a2c4db3206928c",
+            "candidateOnly": true,
+            "starterId": "generic-round-watch-v2"
+          },
+          "nativeRender": {
+            "jobId": "9a9a4805-3c3a-4e41-a8dd-bbca94482dac",
+            "revision": 4,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "d5780711aadb399ef2138732d26d3cd11680c856a4e0ae41dafee3cab8f828ad",
+            "bytes": 4674400,
+            "width": 2560,
+            "height": 1440,
+            "path": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/watch-corrected-v4/watch-synthetic-dial-f16-optix.png",
+            "sourceSha256": "68e83ddbcd27a7f74dfd659018c79f7c1b4cf1d31e86f1bf703c2c9203bf97f4",
+            "sceneRevision": 2,
+            "presetRevision": 3,
+            "visualReview": "root-reviewed: accepted for a static floating-body view with the synthetic 12:48 diagnostic; no real app, manufacturer, wearable, or additional fine-print readability claim",
+            "claim": "synthetic calibration graphic; not app imagery",
+            "reviewedSha256": "d5780711aadb399ef2138732d26d3cd11680c856a4e0ae41dafee3cab8f828ad",
+            "reviewScope": "bounded watch body/crown coherence, readable synthetic dial, and circular clipping of diagnostic corners; static setup only"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "08561a87057ef19632611f3e188499ddd4b4a074e62dd72225e311b1dfa1f73c"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "22df4570d6056b83cb64fbbd7a3743d40b7e7246c2e707c871a5e53d7accec12"
+            },
+            {
+              "revision": 3,
+              "recipeSha256": "8ca67729955776b0c383d0c90c40d5c0d81903edc7cf9b3ae90b4141821fe578",
+              "backend": "PHYSICAL_RENDER_BACKEND_OPTIX"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 04 — monitor-screen-mapped-v2",
+          "id": "08533833-ad26-4119-9ff5-e7af637d962f",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "08497a0cfb4d36fd045b17366213631d57c232e16128be1b4d13e15c35b8970e",
+          "sourceMediaSha256": [
+            "b8be231b19577a0ab0b2cb328a1a57eda0b40468468246032716df4180c40f3a"
+          ],
+          "preset": {
+            "id": "innerscene-monitor-study-hero-screenmap-v2",
+            "revision": 2,
+            "sha256": "24fbe0afbd6c9b72eab89144e0416f3b80f6b46d940b172c1f517195c4c7f29e",
+            "candidateOnly": true,
+            "starterId": "monitor-screen-mapped-v2"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "d9b0b6117893f1815357dcb912ef43cae847aeed2e52e547b19b21bdf6d28e9e"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "acd62965c2e5709745885ae600a1a5a3361bb4698ed297e8ba02079d86ee824d"
+            },
+            {
+              "revision": 3,
+              "recipeSha256": "08497a0cfb4d36fd045b17366213631d57c232e16128be1b4d13e15c35b8970e",
+              "backend": "PHYSICAL_RENDER_BACKEND_OPTIX"
+            }
+          ],
+          "publicBindings": {
+            "sourceMediaId": "d67aad33-c7be-405d-bf91-d9f9c54324ea",
+            "sourceMediaSha256": "b8be231b19577a0ab0b2cb328a1a57eda0b40468468246032716df4180c40f3a",
+            "device": {
+              "id": "innerscene-ultrawide-monitor-generic-screenmap-v2",
+              "revision": 2,
+              "sha256": "e08bf8b094bfbd5ce4d2b119bb1e877357b02b1d890d14c5858f9f58dc701a29"
+            },
+            "scene": {
+              "id": "innerscene-monitor-study-no-cup-screenmap-v2",
+              "revision": 1,
+              "sha256": "838329c01e93870550b420408ffda759b046218b9cfbdd4dbc1f67be2e284066"
+            },
+            "motion": {
+              "id": "phone-still-identity",
+              "revision": 1,
+              "sha256": "45e46e09f0f01bd04b71d24993e43ada9dee199d294429f259be8024aaf7d236"
+            },
+            "displayId": "main_display",
+            "deviceSupportId": "monitor-root-support-screenmap-v2",
+            "sceneSupportId": "laptop-tabletop",
+            "cameraId": "monitor-camera-full-bounds-screenmap-v2"
+          },
+          "nativeRender": {
+            "jobId": "92ef4301-af65-4428-9326-af51fdd03bd5",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "71bfa821f6bd4e425eb9354e78c9ab4f9e4c78005c636a832d3fc41be0111223",
+            "bytes": 4619224,
+            "width": 2560,
+            "height": 1440,
+            "path": "scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-tablet-monitor-rev3/monitor/monitor-family-showcase-optix.png",
+            "elapsedSubmitToVerifiedMs": 14988,
+            "visualReview": "root-reviewed: accepted for the exact matching-monitor static setup and app mapping",
+            "reviewScope": "matching monitor aspect, upright app content, bezel and stand contact; matching screenshot only",
+            "reviewedSha256": "71bfa821f6bd4e425eb9354e78c9ab4f9e4c78005c636a832d3fc41be0111223"
+          }
+        },
+        {
+          "name": "Candidate 05 — generic-television-concept-v3",
+          "id": "895c8b59-bb2c-4ccd-8a03-a3df28001560",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "03c6db3214c741d7e477df6053a0ff4597bf79b251a9f0605b55b8f9171fae01",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d"
+          ],
+          "preset": {
+            "id": "generic-television-thin-bezel-still-v3",
+            "revision": 2,
+            "sha256": "f58c98d671e408aacf4cf485fc8579f52e1a3246b19012022ec3cd4615702a32",
+            "candidateOnly": true,
+            "starterId": "generic-television-concept-v3"
+          },
+          "nativeRender": {
+            "jobId": "547e0d66-b3f6-44b2-94f0-356943843eb1",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "344687523b5f7eb1929f7ed7559ee0a6bd2848574a6a40a5719fe9afe05b78e7",
+            "bytes": 4641065,
+            "width": 2560,
+            "height": 1440,
+            "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-rev3/generic-television-concept-v3.png",
+            "elapsedSubmitToVerifiedMs": 17756,
+            "visualReview": "root-reviewed: accepted within the exact static setup and app-mapping scope",
+            "reviewedSha256": "344687523b5f7eb1929f7ed7559ee0a6bd2848574a6a40a5719fe9afe05b78e7",
+            "reviewScope": "bounded visual appearance/setup and source-to-display app mapping; no qualification or universal device claim"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "46a5e1551f07644b3946e24f86b0ba45d67ce780bbcf6720c840e7fced1be7eb"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "769217535cd9545a0e2be446b05f607ca5c0904545de706dba836c399db3f123"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 06 — generic-smart-display-concept-v4",
+          "id": "d51710d8-f0f4-4c61-8947-28ec60c5c0e5",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "99cfe45037e6a7034eb4aa39299ff8242fbdffa76d7c23501d9c73456f7568b3",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d"
+          ],
+          "preset": {
+            "id": "generic-smart-display-tabletop-still-v7",
+            "revision": 2,
+            "sha256": "06c988583ca160d7f6cf79134dd91eb39b7e9c6c7a56966c5150dcb8b917d1b0",
+            "candidateOnly": true,
+            "starterId": "generic-smart-display-concept-v4"
+          },
+          "nativeRender": {
+            "jobId": "48e00403-f968-43e7-b4c5-1fcb0a80b8d0",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "695447d33d319463831a1ca7108bb45530951d7f3879a76704d07154739be9f7",
+            "bytes": 4954422,
+            "width": 2560,
+            "height": 1440,
+            "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-rev3/generic-smart-display-concept-v4.png",
+            "elapsedSubmitToVerifiedMs": 20344,
+            "visualReview": "root-reviewed: accepted within the exact static setup and app-mapping scope",
+            "reviewedSha256": "695447d33d319463831a1ca7108bb45530951d7f3879a76704d07154739be9f7",
+            "reviewScope": "bounded visual appearance/setup and source-to-display app mapping; no qualification or universal device claim"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "02c4f12e35596ad9b7383a35d17e665489ecded74a3524037e8d25eb5a0aac8f"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "a281b4d8cb612f6660abb90e524cea91297fd4ff0a5307c8f8428de3cd987a74"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 07 — generic-digital-frame-concept-v4-glassless",
+          "id": "0702b1ab-7a0b-43be-bb64-0a6460582d83",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "40427ca0de4571ccfb57e29b5dd273524d4a0a7230422de797a193b7717fda65",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d"
+          ],
+          "preset": {
+            "id": "innerscene-digital-frame-tabletop-still-v4-glassless",
+            "revision": 2,
+            "sha256": "0482c823b181fac20863ef0b0216df8a2b94f8b778b3eddf3f4236e998b30c43",
+            "candidateOnly": true,
+            "starterId": "generic-digital-frame-concept-v4-glassless"
+          },
+          "nativeRender": {
+            "jobId": "c655a9c8-d821-4368-a634-8cd12562f9d7",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "560b1729b4b82f87163e3a43be74be4cabf3eb90060aef4214c45bbfc03cc4a4",
+            "bytes": 4886067,
+            "width": 2560,
+            "height": 1440,
+            "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-rev3/generic-digital-frame-concept-v4-glassless.png",
+            "elapsedSubmitToVerifiedMs": 22949,
+            "visualReview": "root-reviewed: accepted within the exact static setup and app-mapping scope",
+            "reviewedSha256": "560b1729b4b82f87163e3a43be74be4cabf3eb90060aef4214c45bbfc03cc4a4",
+            "reviewScope": "bounded visual appearance/setup and source-to-display app mapping; no qualification or universal device claim"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "ccb01705947314fecf95291f599afbbfbb63e17dc29093a3166229121d962355"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "a453ce096330bd9cecb36ac99d782e197445a4f9db56c7dafb78dd3ca00e6d36"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 08 — generic-digital-frame-wall-v4-glassless",
+          "id": "554ba9fc-af1e-4565-ad11-52ed102d9f7c",
+          "revision": 3,
+          "compiled": true,
+          "recipeSha256": "4db63789e0f2ac1a2666f75f8a6f2c086f995d76747e1b81103d7c12de0c4fb1",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d"
+          ],
+          "preset": {
+            "id": "innerscene-digital-frame-wall-still-v5-mounted",
+            "revision": 2,
+            "sha256": "3d5a3696cf2d25fcaba11cb6966b7cce4737b3d251c4ab0de587e4b03d7b2e4e",
+            "candidateOnly": true,
+            "starterId": "generic-digital-frame-wall-v4-glassless"
+          },
+          "nativeRender": {
+            "jobId": "52f83e44-b675-47c4-9033-23706378a734",
+            "revision": 3,
+            "backend": "PHYSICAL_RENDER_BACKEND_OPTIX",
+            "outputSha256": "f73c434a786ea71e2fca66b885c5abe287a7df20c0ac919ff173f1084fb48f4a",
+            "bytes": 4791728,
+            "width": 2560,
+            "height": 1440,
+            "path": "/home/matthalloran8/Vrooli/scenarios/device-studio/docs/internal/goal/evidence/E4/family-native-review/primary-showcase-optix-rev3/generic-digital-frame-wall-v4-glassless.png",
+            "elapsedSubmitToVerifiedMs": 22264,
+            "visualReview": "root-reviewed: accepted within the exact static setup and app-mapping scope",
+            "reviewedSha256": "f73c434a786ea71e2fca66b885c5abe287a7df20c0ac919ff173f1084fb48f4a",
+            "reviewScope": "bounded visual appearance/setup and source-to-display app mapping; no qualification or universal device claim"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "fb2c9375a6c688cf10d380ce597f68f923c24158a20879a6f9cbf8bb513d23df"
+            },
+            {
+              "revision": 2,
+              "recipeSha256": "0c3c9adda49bce1bfe597ad419d0924a48f9690dba91f91b5e2f933a1497f2d9"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 09 — generic-vehicle-dashboard-carplay-sim",
+          "id": "d53c8efe-cdc5-468e-a0e1-c31cc5baeac0",
+          "revision": 2,
+          "compiled": true,
+          "recipeSha256": "bbf3fc42a3ad7054c7fad12aed0f0966a8d48d134a422145412480aea9ae7e8e",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d",
+            "2e1af8acfd9b11cf2506007959fabddf12d2b6ff398d1c8f14c60d863ce2d715",
+            "5f4c525ffeb7058de690042be24e3f90dcbe73a9f13f885f730d14d4fd4cfa2b"
+          ],
+          "nativeRender": {
+            "jobId": "edc8346b-b95a-462a-8ac4-7a4392b1f5d0",
+            "revision": 2,
+            "backend": "PHOTOGRAPHIC_COMPOSITOR_FIXED",
+            "outputSha256": "caa8a7c230176ec3a68e7de0b68a43a34fbc9eb0f138948e377e729e2f15eae2",
+            "width": 1672,
+            "height": 941,
+            "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/durable-demo-exports-20261021/vehicle-photographic-v1/carplay.png",
+            "claim": "fixed generated photographic cabin with illustrative simulated dashboard; no OEM fit/native-platform claim",
+            "visualReview": "pending"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "8bac65300d299f4249a4d5e3183fffb2eea98b4d014fbca1344ebfe63e0ca040"
+            }
+          ]
+        },
+        {
+          "name": "Candidate 10 — generic-vehicle-dashboard-android-auto-sim",
+          "id": "4c0025c2-65b0-413f-93b5-9f8000f9c177",
+          "revision": 2,
+          "compiled": true,
+          "recipeSha256": "0973aa05f95118b9fa540845ad8da4d94198dd8311fa6ece2c915d9a065c0aa8",
+          "sourceMediaSha256": [
+            "70ecddd6cfd3db8e32438a09f1c58d249fe83735bf28b99b7aa6e187461e389d",
+            "2e1af8acfd9b11cf2506007959fabddf12d2b6ff398d1c8f14c60d863ce2d715",
+            "5f4c525ffeb7058de690042be24e3f90dcbe73a9f13f885f730d14d4fd4cfa2b"
+          ],
+          "nativeRender": {
+            "jobId": "76801c4d-3316-41aa-90ff-f42b946f6a0f",
+            "revision": 2,
+            "backend": "PHOTOGRAPHIC_COMPOSITOR_FIXED",
+            "outputSha256": "caa8a7c230176ec3a68e7de0b68a43a34fbc9eb0f138948e377e729e2f15eae2",
+            "width": 1672,
+            "height": 941,
+            "path": "scenarios/device-studio/docs/internal/goal/evidence/E3/durable-demo-exports-20261021/vehicle-photographic-v1/android-auto.png",
+            "claim": "fixed generated photographic cabin with illustrative simulated dashboard; no OEM fit/native-platform claim",
+            "visualReview": "pending"
+          },
+          "revisionHistory": [
+            {
+              "revision": 1,
+              "recipeSha256": "5804ef24022f8ca74a1c3b3d8962de4f3d082b93027b8b06dfbcef6a70be0ff5"
+            }
+          ]
+        }
+      ],
+      "archivedReference": null
+    }
+  ],
+  "familyCandidates": {
+    "ipad-screen-uv-oriented-180": {
+      "id": "ipad-screen-uv-oriented-180-review-still-v1",
+      "revision": 1,
+      "sha256": "d705c8ee0219c30bb111da9547065ece32cb14b2f044753ce3c7dc29f2cac19e",
+      "candidateOnly": true
+    },
+    "generic-book-fold": {
+      "id": "generic-book-fold-still-v2",
+      "revision": 1,
+      "sha256": "c6acd2ffdc75768488c506d63b5673870dee6f36712938e0cf1c0c433e422e16",
+      "candidateOnly": true
+    },
+    "generic-round-watch-v2": {
+      "id": "generic-round-watch-still-v2",
+      "revision": 1,
+      "sha256": "81421420967b2e19254ad9e84897d872af4ba31281a6600f93831134cc33599c",
+      "candidateOnly": true
+    },
+    "monitor-screen-mapped-v2": {
+      "id": "innerscene-monitor-study-hero-screenmap-v2",
+      "revision": 1,
+      "sha256": "940955628d44c51fe7246aaab73e29b07f14d6570d9808e013d79fb1198fc4ec",
+      "candidateOnly": true
+    },
+    "generic-television-concept-v3": {
+      "id": "generic-television-thin-bezel-still-v3",
+      "revision": 1,
+      "sha256": "2788bbaa22dd30b6547677dd5f81a4f08c1d9d63a69391922082baaeaa0448bc",
+      "candidateOnly": true
+    },
+    "generic-smart-display-concept-v4": {
+      "id": "generic-smart-display-tabletop-still-v4",
+      "revision": 1,
+      "sha256": "6c97d092b631fc148a6a9fbac09ad1ceafdaca8d6317ad4f9b4a7afaab84fd36",
+      "candidateOnly": true
+    },
+    "generic-digital-frame-concept-v4-glassless": {
+      "id": "innerscene-digital-frame-tabletop-still-v4-glassless",
+      "revision": 1,
+      "sha256": "f51a4adafb87c89627e9ce7278c715f332d689b434570e80857911e267965a15",
+      "candidateOnly": true
+    },
+    "generic-digital-frame-wall-v4-glassless": {
+      "id": "innerscene-digital-frame-wall-still-v4-glassless",
+      "revision": 1,
+      "sha256": "29096f7b9f1b056a1603962a4a3d5d5cb50c6be7ad41346c43205b6d4eab8be8",
+      "candidateOnly": true
+    },
+    "generic-vehicle-dashboard-carplay-sim": {
+      "id": "generic-dashboard-cc0-carplay-sim-still-v1",
+      "revision": 1,
+      "sha256": "155d2cf46aed7fa55da1fc9aa38d3bce2794db737810403313978128a25c8204",
+      "candidateOnly": true
+    },
+    "generic-vehicle-dashboard-android-auto-sim": {
+      "id": "generic-dashboard-cc0-android-auto-sim-still-v1",
+      "revision": 1,
+      "sha256": "76e3eac498932b31decb53f136a7305e260f10c019380a6f9cd0173fd8b1fec7",
+      "candidateOnly": true
+    }
+  },
+  "physicalPresets": {
+    "ds-demo-phone-rotation": {
+      "revision": 1,
+      "sha256": "5bc04ffd0c385a251ff1e3c44889130ded9181003863075e8be9a92a78d6f601"
+    },
+    "ds-demo-laptop-lid": {
+      "revision": 1,
+      "sha256": "039e43caf40c7f58195025c19a5c59966d7eab949a5c5095d6c0d53b1781eb67"
+    }
+  },
+  "rendering": "No new render jobs submitted; archived reference outputs remain attributed to their original project, shot revision, and render job.",
+  "familyShowcaseRevisionStatus": "Eight family candidate routes have verified PRIMARY native OptiX stills, with exact bounded visual reviews recorded for all eight. The watch review is limited to a synthetic-dial static view. Tablet approval is portrait-only and does not claim fine-print readability or landscape qualification. Monitor approval covers the matching screenshot and static setup. Two photographic vehicle shots have verified PRIMARY revision-2 compositor outputs.",
+  "familyShowcaseUpdatedRows": 8
+}

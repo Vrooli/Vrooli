@@ -14,8 +14,9 @@ import { logger, scopedLog, LogContext } from '../../utils';
 import type { FrameWebSocket } from '../types';
 import { WS_RECONNECT_DELAY_MS } from '../types';
 
-// Type cast for WebSocket constructor (ws module types are complex)
-const WS: new (url: string) => FrameWebSocket = WebSocket as new (url: string) => FrameWebSocket;
+type WebSocketOptions = { headers?: Record<string, string> };
+const WS: new (url: string, options?: WebSocketOptions) => FrameWebSocket =
+  WebSocket as new (url: string, options?: WebSocketOptions) => FrameWebSocket;
 
 /**
  * WebSocket connection state.
@@ -41,6 +42,7 @@ export interface WebSocketConnectionOptions {
   sessionId: string;
   /** Reconnection delay in ms (default: WS_RECONNECT_DELAY_MS) */
   reconnectDelayMs?: number;
+  routedTestMode?: boolean;
 }
 
 /**
@@ -52,10 +54,12 @@ export class WebSocketConnectionManager {
   private state: WebSocketConnectionState;
   private readonly sessionId: string;
   private readonly reconnectDelayMs: number;
+  private readonly routedTestMode: boolean;
 
   constructor(options: WebSocketConnectionOptions) {
     this.sessionId = options.sessionId;
     this.reconnectDelayMs = options.reconnectDelayMs ?? WS_RECONNECT_DELAY_MS;
+    this.routedTestMode = options.routedTestMode === true;
     this.state = {
       ws: null,
       url: options.url,
@@ -93,10 +97,14 @@ export class WebSocketConnectionManager {
     if (!this.state.isActive) return;
 
     try {
-      const ws = new WS(this.state.url);
+      const ws = this.routedTestMode
+        ? new WS(this.state.url, { headers: { 'X-Vrooli-Test-Mode': '1' } })
+        : new WS(this.state.url);
       this.state.ws = ws;
+      const ownsSocket = (): boolean => this.state.ws === ws;
 
       ws.on('open', () => {
+        if (!ownsSocket()) return;
         this.state.isReady = true;
         logger.info(scopedLog(LogContext.RECORDING, 'frame WebSocket connected'), {
           sessionId: this.sessionId,
@@ -104,6 +112,7 @@ export class WebSocketConnectionManager {
       });
 
       ws.on('close', () => {
+        if (!ownsSocket()) return;
         this.state.isReady = false;
         logger.debug(scopedLog(LogContext.RECORDING, 'frame WebSocket closed'), {
           sessionId: this.sessionId,
@@ -111,11 +120,14 @@ export class WebSocketConnectionManager {
 
         // Reconnect if still active
         if (this.state.isActive) {
-          setTimeout(() => this.connect(), this.reconnectDelayMs);
+          setTimeout(() => {
+            if (this.state.isActive && ownsSocket()) this.connect();
+          }, this.reconnectDelayMs);
         }
       });
 
       ws.on('error', (err: Error) => {
+        if (!ownsSocket()) return;
         this.state.isReady = false;
         logger.warn(scopedLog(LogContext.RECORDING, 'frame WebSocket error'), {
           sessionId: this.sessionId,
@@ -150,38 +162,6 @@ export class WebSocketConnectionManager {
       }
       this.state.ws = null;
     }
-  }
-}
-
-/**
- * Build WebSocket URL from HTTP callback URL.
- *
- * For recording mode:
- *   Converts http://host:port/api/v1/recordings/live/{sessionId}/frame
- *   to ws://host:port/ws/recording/{sessionId}/frames
- *
- * For execution mode:
- *   Converts http://host:port/api/v1/executions/{executionId}/frames
- *   to ws://host:port/ws/execution/{executionId}/frames
- */
-export function buildWebSocketUrl(callbackUrl: string, sessionId: string): string {
-  try {
-    const url = new URL(callbackUrl);
-    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-
-    // Detect execution mode from URL path
-    // Pattern: /api/v1/executions/{executionId}/frames
-    const executionMatch = url.pathname.match(/\/executions\/([^/]+)\/frames/);
-    if (executionMatch) {
-      const executionId = executionMatch[1];
-      return `${protocol}//${url.host}/ws/execution/${executionId}/frames`;
-    }
-
-    // Recording mode (default)
-    return `${protocol}//${url.host}/ws/recording/${sessionId}/frames`;
-  } catch {
-    // Fallback: assume localhost API
-    return `ws://127.0.0.1:8080/ws/recording/${sessionId}/frames`;
   }
 }
 

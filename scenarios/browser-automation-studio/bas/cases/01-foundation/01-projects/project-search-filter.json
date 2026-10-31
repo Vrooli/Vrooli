@@ -45,11 +45,15 @@
   ],
   "metadata": {
     "description": "Validates project search and filtering functionality on the dashboard",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "dashboard"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Project Search Filter",
+    "version": "1"
   },
   "nodes": [
     {
@@ -60,7 +64,7 @@
         "navigate": {
           "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
           "scenario": "browser-automation-studio",
-          "scenario_path": "/",
+          "scenario_path": "/?tab=projects",
           "timeout_ms": 45000,
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
         },
@@ -89,9 +93,6 @@
           "label": "Navigate to Projects tab"
         },
         "type": "ACTION_TYPE_CLICK"
-      },
-      "execution_settings": {
-        "wait_after_ms": 500
       },
       "id": "click-projects-tab"
     },

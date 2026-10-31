@@ -5,12 +5,21 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os/exec"
 	"sync"
 	"time"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
+// cliClient is the shared typed Vrooli CLI client for scenario discovery. The
+// var is package-level so tests can swap in a stubbed Runner.
+var cliClient = vroolicli.New()
+
 // ScenarioInfo holds metadata about a single scenario.
+//
+// HealthStatus is retained for API compatibility but is always nil: the
+// `vrooli scenario status --json` contract (vrooli.cli.v1.ScenarioStatusItem)
+// carries no health field, so there is nothing to populate it from.
 type ScenarioInfo struct {
 	Name         string   `json:"name"`
 	DisplayName  string   `json:"display_name"`
@@ -34,7 +43,10 @@ func NewScenarioLocator(ttl time.Duration) *ScenarioLocator {
 	return &ScenarioLocator{cacheTTL: ttl}
 }
 
-// List returns all known scenarios, caching results for cacheTTL.
+// List returns all known scenarios, caching results for cacheTTL. It reads the
+// typed `vrooli scenario status --json` contract through the CLI client; a CLI
+// or decode failure is propagated (never degraded to an empty list, which would
+// silently report zero scenarios on a transient hiccup).
 func (sl *ScenarioLocator) List(ctx context.Context) ([]ScenarioInfo, error) {
 	sl.mu.Lock()
 	defer sl.mu.Unlock()
@@ -43,33 +55,29 @@ func (sl *ScenarioLocator) List(ctx context.Context) ([]ScenarioInfo, error) {
 		return sl.cache, nil
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(callCtx, "vrooli", "scenario", "status", "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ScenarioStatuses(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var resp struct {
-		Scenarios []json.RawMessage `json:"scenarios"`
-	}
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
-	}
-
-	scenarios := make([]ScenarioInfo, 0, len(resp.Scenarios))
-	for _, raw := range resp.Scenarios {
-		var s ScenarioInfo
-		if err := json.Unmarshal(raw, &s); err != nil {
-			log.Printf("WARNING: skipping unparseable scenario entry: %v", err)
+	items := resp.GetScenarios()
+	scenarios := make([]ScenarioInfo, 0, len(items))
+	for _, item := range items {
+		if item.GetName() == "" {
 			continue
 		}
-		if s.Tags == nil {
-			s.Tags = []string{}
+		tags := item.GetTags()
+		if tags == nil {
+			tags = []string{}
 		}
-		scenarios = append(scenarios, s)
+		scenarios = append(scenarios, ScenarioInfo{
+			Name:        item.GetName(),
+			DisplayName: item.GetDisplayName(),
+			Description: item.GetDescription(),
+			Status:      item.GetStatus(),
+			Tags:        tags,
+			Runtime:     item.GetRuntime(),
+		})
 	}
 
 	sl.cache = scenarios

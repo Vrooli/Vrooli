@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package vrooli.notification_hub.v1.delivery;
+
+import "notification-hub/v1/shared/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/delivery;delivery_v1";
+
+service DeliveryService {
+  rpc GetTimeline(GetTimelineRequest) returns (GetTimelineResponse);
+  rpc Deliver(DeliverRequest) returns (DeliverResponse);
+  rpc GetAnalytics(GetAnalyticsRequest) returns (GetAnalyticsResponse);
+}
+message GetTimelineRequest { int32 limit = 1; }
+message GetTimelineResponse { repeated shared.Notification notifications = 1; }
+message DeliverRequest { string id = 1; }
+message DeliverResponse { repeated shared.DeliveryReceipt receipts = 1; }
+message GetAnalyticsRequest { string since = 1; string until = 2; }
+message AnalyticsChannel { string channel = 1; int64 delivered = 2; int64 failed = 3; int64 attempts = 4; double failure_rate = 5; double average_latency_ms = 6; }
+message GetAnalyticsResponse { string since = 1; string until = 2; repeated AnalyticsChannel channels = 3; int64 total_notifications = 4; }

@@ -1,0 +1,48 @@
+{
+  "slug": "REPLACE-with-url-safe-slug",
+  "display_name": "REPLACE-with-clearly-fictional-name",
+  "identity_block": {
+    "gender_presentation": "feminine | masculine | androgynous | non-binary",
+    "age_range": "e.g. 60-70",
+    "ethnicity": "descriptive string; realistic representation; not targeting any specific real person",
+    "body_type": "e.g. average-build",
+    "face_structure": "e.g. round face, wide-set eyes, soft jaw",
+    "hair": {
+      "color": "e.g. silver-gray",
+      "style": "e.g. shoulder-length, slight wave",
+      "length": "e.g. shoulder-length"
+    },
+    "eyes": {
+      "color": "e.g. hazel",
+      "notable_features": "e.g. crow's feet, kind expression"
+    },
+    "distinctive_features": []
+  },
+  "core_traits": {
+    "demeanor": "e.g. warm, deliberate, slightly amused",
+    "voice_profile": {
+      "pitch_range": "e.g. mid-low",
+      "pace": "e.g. slow-moderate",
+      "accent_or_dialect": "e.g. neutral US Midwest",
+      "notable_features": "e.g. occasional pause for thought"
+    },
+    "niche": "e.g. home organization and routine for retirees",
+    "audience_target": "REPLACE-with-key-from-AUDIENCES.md"
+  },
+  "wardrobe_variants": [
+    {
+      "id": "casual-home",
+      "description": "soft cardigan, relaxed slacks, slip-on shoes; muted earth tones",
+      "palette_notes": "earth tones do not conflict with brand neon-green accent in product placements"
+    }
+  ],
+  "character_sheet_uri": "./REPLACE-slug.character-sheet.png",
+  "disclosure_required": true,
+  "do_not_resemble": [
+    "any specific identifiable real person, celebrity, public figure, or named competitor founder"
+  ],
+  "lora_uri": null,
+  "do_not_pair_with": [],
+  "tied_skus": [],
+  "notes": ""
+}

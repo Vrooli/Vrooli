@@ -1,0 +1,1467 @@
+package orchestration
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner/codecs"
+	"agent-manager/internal/adapters/runner/core"
+	"agent-manager/internal/adapters/sandbox"
+	"agent-manager/internal/adapters/webconsole"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil"
+	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/runstate"
+
+	"agent-manager/internal/adapters/runner"
+
+	"github.com/google/uuid"
+)
+
+// recordingSessions is a webconsole.SessionController that records the lifecycle
+// calls (and SendPrompt source) the interactive Stop/Continue paths make, and
+// lets a session be marked gone or GetSession forced to error.
+type recordingSessions struct {
+	mu          sync.Mutex
+	calls       []string
+	promptSrc   []string
+	promptText  []string
+	gone        map[string]bool
+	getNotFound bool
+	getErr      error
+	archiveErr  error
+	onCreate    func()
+	onPrompt    func()
+	promptErr   error
+	commandHook func()
+	sessionIDs  []string
+	// promptResult overrides the default verified single-Enter submission.
+	promptResult *webconsole.PromptSubmission
+	shellScreen  string
+}
+
+type legacyOnlyIdempotency struct {
+	repository.IdempotencyRepository
+}
+
+func newRecordingSessions() *recordingSessions {
+	return &recordingSessions{gone: map[string]bool{}}
+}
+
+func (r *recordingSessions) record(c string) {
+	r.mu.Lock()
+	r.calls = append(r.calls, c)
+	r.mu.Unlock()
+}
+
+func (r *recordingSessions) callLog() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]string, len(r.calls))
+	copy(out, r.calls)
+	return out
+}
+
+func (r *recordingSessions) CreateSession(_ context.Context, params webconsole.CreateSessionParams) (string, error) {
+	r.record("create")
+	if r.onCreate != nil {
+		r.onCreate()
+	}
+	if params.RequestedSessionID != "" {
+		return params.RequestedSessionID, nil
+	}
+	return "created", nil
+}
+
+func (r *recordingSessions) GetSession(_ context.Context, id string) (webconsole.SessionInfo, error) {
+	r.mu.Lock()
+	notFound := r.getNotFound || r.gone[id]
+	getErr := r.getErr
+	r.mu.Unlock()
+	if getErr != nil {
+		return webconsole.SessionInfo{}, getErr
+	}
+	if notFound {
+		return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
+	}
+	return webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}, nil
+}
+
+func (r *recordingSessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
+	return nil, nil
+}
+
+func (r *recordingSessions) ArchiveSession(_ context.Context, id string) error {
+	r.record("archive")
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.archiveErr != nil {
+		return r.archiveErr
+	}
+	r.gone[id] = true
+	return nil
+}
+
+func (r *recordingSessions) SendText(context.Context, string, string, string) error {
+	r.record("sendtext")
+	return nil
+}
+
+func (r *recordingSessions) SendCommand(ctx context.Context, sessionID, command, source string) (webconsole.PromptSubmission, error) {
+	r.record("sendcommand")
+	r.mu.Lock()
+	r.promptSrc = append(r.promptSrc, source)
+	r.promptText = append(r.promptText, command)
+	r.sessionIDs = append(r.sessionIDs, sessionID)
+	result := r.promptResult
+	r.mu.Unlock()
+	if r.commandHook != nil {
+		r.commandHook()
+	}
+	if r.onPrompt != nil {
+		r.onPrompt()
+	}
+	if err := ctx.Err(); err != nil {
+		return webconsole.PromptSubmission{EnterPresses: 1}, err
+	}
+	if result == nil {
+		return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, r.promptErr
+	}
+	return *result, r.promptErr
+}
+
+func (r *recordingSessions) SendPrompt(_ context.Context, sessionID, prompt, source string) (webconsole.PromptSubmission, error) {
+	if r.onPrompt != nil {
+		r.onPrompt()
+	}
+	r.record("sendprompt")
+	r.mu.Lock()
+	r.promptSrc = append(r.promptSrc, source)
+	r.promptText = append(r.promptText, prompt)
+	r.sessionIDs = append(r.sessionIDs, sessionID)
+	result := r.promptResult
+	r.mu.Unlock()
+	if result == nil {
+		return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, r.promptErr
+	}
+	return *result, r.promptErr
+}
+
+func (r *recordingSessions) Interrupt(context.Context, string, string) error {
+	r.record("interrupt")
+	return nil
+}
+
+func (r *recordingSessions) Screen(context.Context, string, bool) (string, error) {
+	return r.shellScreen, nil
+}
+
+func interactiveTestTask(t *testing.T, svc *Orchestrator) *domain.Task {
+	t.Helper()
+	task, err := svc.CreateTask(context.Background(), &domain.Task{Title: "interactive", ScopePath: "src/"})
+	if err != nil {
+		t.Fatalf("create task: %v", err)
+	}
+	return task
+}
+
+func persistInteractiveRun(t *testing.T, runs repository.RunRepository, taskID uuid.UUID, status domain.RunStatus, sessionID, wcSession string) *domain.Run {
+	t.Helper()
+	now := time.Now()
+	id := uuid.New()
+	run := &domain.Run{
+		ID:                  id,
+		TaskID:              taskID,
+		Tag:                 id.String(),
+		RunMode:             domain.RunModeInPlace,
+		ExecutionMode:       domain.ExecutionModeInteractive,
+		WebConsoleSessionID: wcSession,
+		SessionID:           sessionID,
+		Status:              status,
+		Phase:               domain.RunPhaseExecuting,
+		ApprovalState:       domain.ApprovalStateNone,
+		ResolvedConfig:      &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		CreatedAt:           now,
+		UpdatedAt:           now,
+	}
+	if status.IsTerminal() {
+		run.Phase = domain.RunPhaseCompleted
+		run.EndedAt = &now
+	}
+	if err := runs.Create(context.Background(), run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+	return run
+}
+
+func TestInteractiveGoalObservationSeparatesPauseFromCoordinatorHeartbeat(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(eventStore), WithInteractiveSessions(sessions))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
+	run.ResolvedConfig.Until = "finish E1"
+	providerAt := time.Now().Add(-2 * time.Hour).UTC().Truncate(time.Second)
+	heartbeatAt := time.Now().UTC().Truncate(time.Second)
+	run.LastHeartbeat = &heartbeatAt
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	activity := domain.NewProviderMessageEvent(run.ID, "assistant", "work paused", domain.MessageEventData{ProviderOrigin: "codex"})
+	activity.Timestamp = providerAt
+	pause := domain.NewGoalStatusChangedEvent(run.ID, "finish E1", "paused", 2, "owner dependency")
+	pause.Timestamp = providerAt.Add(time.Second)
+	if err := eventStore.Append(ctx, run.ID, activity, pause); err != nil {
+		t.Fatal(err)
+	}
+	mismatch := domain.NewGoalStatusChangedEvent(run.ID, "different objective", "complete", 3, "stale")
+	mismatch.Timestamp = providerAt.Add(2 * time.Second)
+	if err := eventStore.Append(ctx, run.ID, mismatch); err != nil {
+		t.Fatal(err)
+	}
+	observed, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observed.Status != domain.RunStatusRunning || observed.ObservedGoalStatus != "paused" || observed.ObservedGoalAt == nil || observed.ProviderActivityAt == nil || !observed.ProviderActivityAt.Equal(providerAt) || observed.LastHeartbeat == nil || !observed.LastHeartbeat.Equal(heartbeatAt) {
+		t.Fatalf("pause/heartbeat/provider projection = %+v", observed)
+	}
+	if _, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "directive", IdempotencyKey: "paused-directive"}); err == nil || !strings.Contains(err.Error(), "goal is paused") {
+		t.Fatalf("paused input was not rejected before transport: %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("paused input reached transport: %v", calls)
+	}
+	// An unmatched or rejected parser result never emits a GoalStatusChanged
+	// event. Re-reading the same stream is stable across owner restart/replay.
+	restarted := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(eventStore))
+	replayed, err := restarted.GetRun(ctx, run.ID)
+	if err != nil || replayed.ObservedGoalStatus != "paused" || replayed.ProviderActivityAt == nil || !replayed.ProviderActivityAt.Equal(providerAt) {
+		t.Fatalf("replayed observation changed: %+v %v", replayed, err)
+	}
+}
+
+// TestExecuteInteractiveRun_ProtectedBackstop verifies the execution-path backstop
+// (in addition to the CreateRun-time gate): a run that reaches executeInteractiveRun
+// as protected (sandboxed) fails before workspace creation or host launch, even
+// when a sandbox provider is configured.
+func TestExecuteInteractiveRun_ProtectedBackstop(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	provider := mocks.NewFakeSandboxProvider()
+	provider.CreateFunc = func(context.Context, sandbox.CreateRequest) (*sandbox.Sandbox, error) {
+		return nil, errors.New("unexpected workspace creation before launch policy validation")
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithSandbox(provider), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+
+	now := time.Now()
+	id := uuid.New()
+	run := &domain.Run{
+		ID:             id,
+		TaskID:         task.ID,
+		Tag:            id.String(),
+		RunMode:        domain.RunModeSandboxed, // protected
+		ExecutionMode:  domain.ExecutionModeInteractive,
+		Status:         domain.RunStatusStarting,
+		Phase:          domain.RunPhaseExecuting,
+		ApprovalState:  domain.ApprovalStateNone,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeClaudeCode},
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatalf("create run: %v", err)
+	}
+
+	svc.executeInteractiveRun(ctx, run, task, nil, "do the task", nil)
+
+	got, err := repos.Runs.Get(ctx, id)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if got.Status != domain.RunStatusFailed {
+		t.Fatalf("status = %s, want failed", got.Status)
+	}
+	if !strings.Contains(got.ErrorMsg, "interactive execution cannot enforce") {
+		t.Errorf("error should explain the protected-run gate, got %q", got.ErrorMsg)
+	}
+	if len(provider.CreateRequests()) != 0 {
+		t.Fatal("unsupported protected execution must be refused before workspace creation")
+	}
+	for _, c := range sessions.callLog() {
+		if c == "create" {
+			t.Fatal("a protected run must never create a host web-console session")
+		}
+	}
+}
+
+func TestContinueInteractiveCodexRefusesMissingRunScopedTailContextBeforeEffects(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions))
+	run := &domain.Run{
+		ID: uuid.New(), WebConsoleSessionID: "codex-session",
+		ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusComplete,
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex},
+		TranscriptPath: "/retained/seed.jsonl", TranscriptCursor: 123,
+	}
+	_, err := svc.continueInteractiveRun(ctx, run, "continue the task", nil, false)
+	if err == nil || !domain.IsPreEffectRefusal(err) {
+		t.Fatalf("continue error = %v, want a pre-effect refusal without run-scoped Codex context", err)
+	}
+	if run.Status != domain.RunStatusComplete || run.TranscriptPath != "/retained/seed.jsonl" || run.TranscriptCursor != 123 || run.InteractiveInvocationStartedAt != nil {
+		t.Fatalf("refused continuation mutated retained run: %+v", run)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("refused continuation reached session effects: %v", calls)
+	}
+}
+
+func TestValidateExecutionContainment(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		mode    domain.ExecutionMode
+		sandbox domain.SandboxMode
+		config  *domain.RunConfig
+		denied  bool
+	}{
+		{"protected interactive", domain.ExecutionModeInteractive, domain.SandboxModeProtected, nil, true},
+		{"implicit protected interactive", domain.ExecutionModeInteractive, "", nil, true},
+		{"tracking interactive", domain.ExecutionModeInteractive, domain.SandboxModeTracking, nil, false},
+		{"off interactive", domain.ExecutionModeInteractive, domain.SandboxModeOff, nil, false},
+		{"effect-bearing interactive", domain.ExecutionModeInteractive, domain.SandboxModeTracking, &domain.RunConfig{RequireEffectContainment: true}, true},
+		{"write-restricted interactive", domain.ExecutionModeInteractive, domain.SandboxModeOff, &domain.RunConfig{SandboxConfig: &domain.SandboxConfig{WritePolicy: &domain.WorkspaceWritePolicy{}}}, true},
+		{"protected pipe", domain.ExecutionModeCodecPipe, domain.SandboxModeProtected, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateExecutionContainment(tc.mode, tc.sandbox, tc.config); (err != nil) != tc.denied {
+				t.Fatalf("denied=%v, error=%v", tc.denied, err)
+			}
+		})
+	}
+}
+
+// TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution drives the
+// actual interactive coordinator through a recorded Codex terminal. It proves
+// Tracking uses the sandbox workdir, then applies the sandbox-owned attribution
+// facts to the same persisted run as codec-pipe finalization.
+func TestExecuteInteractiveRun_TrackingPersistsSandboxAttribution(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	root := t.TempDir()
+	sessions := newRecordingSessions()
+	sessions.shellScreen = "fixture$ "
+	provider := mocks.NewFakeSandboxProvider()
+	provider.ApplyAtRunEndResult = &sandbox.ApplyAtRunEndResult{
+		Success: true, Applied: 2, TotalSizeBytes: 3072,
+		DiffPath: "/api/v1/sandboxes/tracking/diff", CommitHash: "tracking-commit", AppliedAt: time.Now(),
+	}
+	registry := runner.NewRegistry()
+	if err := registry.Register(core.NewRunner(codecs.NewCodexForTest(), nil, nil)); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunners(registry), WithRunStateRoot(root),
+		WithIdentitySecret([]byte("interactive-tracking-fixture-secret")), newCurrentModelPolicyFixtureOption(t))
+	task := interactiveTestTask(t, svc)
+
+	now := time.Now()
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, Tag: "interactive-tracking", RunMode: domain.RunModeSandboxed,
+		ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusPending, Phase: domain.RunPhaseQueued,
+		ApprovalState:  domain.ApprovalStateNone,
+		SandboxConfig:  &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: func() *bool { value := true; return &value }(), Lifecycle: domain.SandboxLifecycleConfig{DeleteOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}}},
+		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if bound, err := repos.Runs.EnsureCurrentRun(ctx, task.ID, run.ID, now); err != nil || !bound {
+		t.Fatalf("bind task to exact interactive run: bound=%v err=%v", bound, err)
+	}
+	runDir, err := runstate.RunDir(root, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trace, err := os.ReadFile(filepath.Join("..", "adapters", "runner", "codecs", "testdata", "codex_rollout_trace.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var statusAtLaunch domain.RunStatus
+	sessions.onCreate = func() {
+		persisted, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Errorf("read run before interactive launch: %v", err)
+			return
+		}
+		statusAtLaunch = persisted.Status
+		rollout := filepath.Join(runDir, "codex", "sessions", "2026", "07", "26", "rollout-tracking.jsonl")
+		if err := os.MkdirAll(filepath.Dir(rollout), 0o755); err != nil {
+			t.Errorf("mkdir rollout: %v", err)
+			return
+		}
+		if err := os.WriteFile(rollout, trace, 0o600); err != nil {
+			t.Errorf("write rollout: %v", err)
+		}
+	}
+
+	svc.executeInteractiveRun(ctx, run, task, nil, "perform tracked work", nil)
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusComplete {
+		t.Fatalf("status = %s, want complete (%s)", got.Status, got.ErrorMsg)
+	}
+	if statusAtLaunch != domain.RunStatusStarting {
+		t.Fatalf("persisted status before web-console launch = %s, want starting", statusAtLaunch)
+	}
+	if got.SandboxID == nil {
+		t.Fatal("tracking interactive run did not persist sandbox id")
+	}
+	if got.ChangedFiles != 2 || got.TotalSizeBytes != 3072 || got.DiffPath != "/api/v1/sandboxes/tracking/diff" || got.CommitHash != "tracking-commit" {
+		t.Fatalf("tracking attribution = files=%d bytes=%d diff=%q commit=%q", got.ChangedFiles, got.TotalSizeBytes, got.DiffPath, got.CommitHash)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 {
+		t.Fatalf("apply calls = %d, want 1", provider.ApplyAtRunEndCallCount())
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("terminal tracking sandbox delete calls = %d, want 1", provider.DeleteCallCount())
+	}
+	created := provider.CreateRequests()
+	if len(created) != 1 || created[0].Behavior == nil || created[0].Behavior.Mode != domain.SandboxModeTracking {
+		t.Fatalf("sandbox create did not use tracking mode: %+v", created)
+	}
+}
+
+func TestStopInteractiveRun_ArchiveFailureRemainsRetryable(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-archive-retry")
+	run.IdentityTokenHash = "test-child-hash"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	archiveFailure := errors.New("archive unavailable")
+	sessions.archiveErr = archiveFailure
+	if err := svc.StopRun(ctx, run.ID); !errors.Is(err, archiveFailure) {
+		t.Fatalf("first StopRun error = %v, want archive failure", err)
+	}
+	afterFailure, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run after archive failure: %v", err)
+	}
+	if afterFailure.Status != domain.RunStatusRunning {
+		t.Fatalf("status after archive failure = %s, want running/retryable", afterFailure.Status)
+	}
+	if afterFailure.IdentityTokenRevokedAt == nil {
+		t.Fatal("child identity must remain revoked while retirement is pending")
+	}
+	if sessions.gone[run.WebConsoleSessionID] {
+		t.Fatal("failed archive must not mark the session gone")
+	}
+	if got := sessions.callLog(); len(got) != 2 || got[0] != "interrupt" || got[1] != "archive" {
+		t.Fatalf("first stop calls = %v, want [interrupt archive]", got)
+	}
+
+	// The same owner can retry after the archive service recovers. Identity
+	// revocation is idempotent, and only the successful archive permits cleanup
+	// and terminalization.
+	sessions.mu.Lock()
+	sessions.archiveErr = nil
+	sessions.mu.Unlock()
+	if err := svc.StopRun(ctx, run.ID); err != nil {
+		t.Fatalf("retry StopRun: %v", err)
+	}
+	afterRetry, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run after retry: %v", err)
+	}
+	if afterRetry.Status != domain.RunStatusCancelled {
+		t.Fatalf("status after successful archive retry = %s, want cancelled", afterRetry.Status)
+	}
+	if afterRetry.IdentityTokenRevokedAt == nil {
+		t.Fatal("successful retry must preserve child identity revocation")
+	}
+	if got := sessions.callLog(); len(got) != 4 || got[2] != "interrupt" || got[3] != "archive" {
+		t.Fatalf("calls after retry = %v, want two [interrupt archive] attempts", got)
+	}
+}
+
+// TestStopInteractiveRun_EscalationLadderAndSingleFinalize drives Stop through the
+// live-driver path: the coordinator is cancelled and drained, the session is torn
+// down interrupt-then-delete, and the run is finalized Cancelled exactly once.
+func TestStopInteractiveRun_EscalationLadderAndSingleFinalize(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-1")
+	run.IdentityTokenHash = "test-child-hash"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	// Register a live driver that mimics a coordinator: it exits when cancelled.
+	driverCtx, driver := svc.interactiveDrivers.register(context.Background(), run.ID)
+	exited := make(chan struct{})
+	go func() {
+		<-driverCtx.Done()
+		svc.interactiveDrivers.finish(run.ID, driver)
+		close(exited)
+	}()
+
+	if err := svc.StopRun(ctx, run.ID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+	select {
+	case <-exited:
+	case <-time.After(2 * time.Second):
+		t.Fatal("live coordinator was not cancelled+drained by Stop")
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if got.Status != domain.RunStatusCancelled {
+		t.Fatalf("status = %s, want cancelled", got.Status)
+	}
+	if got.IdentityTokenRevokedAt == nil {
+		t.Fatal("Stop did not revoke the child identity before teardown")
+	}
+	// Soft-then-hard escalation: interrupt precedes delete.
+	calls := sessions.callLog()
+	if len(calls) != 2 || calls[0] != "interrupt" || calls[1] != "archive" {
+		t.Fatalf("expected [interrupt delete], got %v", calls)
+	}
+	if svc.interactiveDrivers.has(run.ID) {
+		t.Error("driver should be deregistered after Stop")
+	}
+}
+
+func TestStopInteractiveRun_FinalizesTerminalSandbox(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	provider := mocks.NewFakeSandboxProvider()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithSandbox(provider), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-sandbox-stop")
+	sandboxID := uuid.New()
+	apply := true
+	run.RunMode = domain.RunModeSandboxed
+	run.SandboxID = &sandboxID
+	run.SandboxConfig = &domain.SandboxConfig{Mode: domain.SandboxModeTracking, AutoApply: &apply, Lifecycle: domain.SandboxLifecycleConfig{DeleteOn: []domain.SandboxLifecycleEvent{domain.SandboxLifecycleTerminal}}}
+	run.ResolvedConfig.SandboxConfig = run.SandboxConfig
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+
+	if err := svc.StopRun(ctx, run.ID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+	if provider.ApplyAtRunEndCallCount() != 1 {
+		t.Fatalf("apply calls = %d, want 1", provider.ApplyAtRunEndCallCount())
+	}
+	if provider.DeleteCallCount() != 1 {
+		t.Fatalf("delete calls = %d, want 1", provider.DeleteCallCount())
+	}
+}
+
+// TestStopInteractiveRun_NaturalCompletionRaceNoDoubleFinalize verifies that when
+// the coordinator finalizes the run (natural completion) during the Stop
+// hand-off, Stop yields — it does not overwrite Complete with Cancelled.
+func TestStopInteractiveRun_NaturalCompletionRaceNoDoubleFinalize(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-2")
+
+	// The driver simulates the coordinator winning the race: on cancellation it
+	// finalizes the run Complete (bypassing the state machine, as the real
+	// coordinator does) before signalling done.
+	driverCtx, driver := svc.interactiveDrivers.register(context.Background(), run.ID)
+	go func() {
+		<-driverCtx.Done()
+		cur, _ := repos.Runs.Get(context.Background(), run.ID)
+		now := time.Now()
+		cur.Status = domain.RunStatusComplete
+		cur.Phase = domain.RunPhaseCompleted
+		cur.EndedAt = &now
+		_ = repos.Runs.Update(context.Background(), cur)
+		svc.interactiveDrivers.finish(run.ID, driver)
+	}()
+
+	if err := svc.StopRun(ctx, run.ID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("get run: %v", err)
+	}
+	if got.Status != domain.RunStatusComplete {
+		t.Fatalf("status = %s, want complete (Stop must not overwrite a natural completion)", got.Status)
+	}
+}
+
+// TestStopInteractiveRun_NoLiveDriver covers stopping an interactive run with no
+// live coordinator (e.g. recovered but not reattached): the session is still torn
+// down and the run finalized Cancelled.
+func TestStopInteractiveRun_NoLiveDriver(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-3")
+
+	if err := svc.StopRun(ctx, run.ID); err != nil {
+		t.Fatalf("StopRun: %v", err)
+	}
+	got, _ := repos.Runs.Get(ctx, run.ID)
+	if got.Status != domain.RunStatusCancelled {
+		t.Fatalf("status = %s, want cancelled", got.Status)
+	}
+	calls := sessions.callLog()
+	if len(calls) != 2 || calls[0] != "interrupt" || calls[1] != "archive" {
+		t.Fatalf("expected [interrupt delete], got %v", calls)
+	}
+}
+
+// TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn verifies interactive
+// Continue types the follow-up into the live session with the run-scoped source
+// attribution, reactivates the run, and reattaches a driver — never respawning a
+// process (no new session is created).
+func TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	// A replay runner exposes the transcript parser the reattach tailer needs.
+	registry := runner.NewRegistry()
+	if err := registry.Register(mocks.NewTranscriptReplayRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry), newCurrentModelPolicyFixtureOption(t))
+	reconciler := NewReconciler(repos.Runs, registry, WithReconcilerEvents(eventStore), WithReconcilerInteractive(sessions))
+	svc.SetReconciler(reconciler)
+	task := interactiveTestTask(t, svc)
+
+	// A completed interactive run whose transcript exists (non-terminal, so the
+	// reattached tailer blocks polling for the new turn rather than finalizing).
+	transcript := filepath.Join(t.TempDir(), "session.jsonl")
+	if err := os.WriteFile(transcript, []byte("{\"type\":\"noise\"}\n"), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-sess", "wc-4")
+	originalStart := time.Now().Add(-time.Hour).UTC()
+	run.StartedAt = &originalStart
+	sessions.onPrompt = func() {
+		recovery, err := reconciler.RecoverRun(ctx, run.ID)
+		if err != nil || recovery == nil || !recovery.Idempotent || !strings.Contains(recovery.Message, "owner is in flight") {
+			t.Fatalf("recovery crossed in-flight invocation admission: %+v %v", recovery, err)
+		}
+
+		admitted, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if admitted.InteractiveInvocationStartedAt == nil || !admitted.InteractiveInvocationStartedAt.After(originalStart) || admitted.StartedAt == nil || !admitted.StartedAt.Equal(originalStart) || admitted.Status != domain.RunStatusRunning {
+			t.Fatal("continuation delivered before its invocation identity was durably admitted")
+		}
+	}
+
+	run.TranscriptPath = transcript
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+	// Ensure any reattached driver is stopped at test end.
+	t.Cleanup(func() { svc.interactiveDrivers.cancelAndWait(run.ID) })
+
+	out, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "please continue the task"})
+	if err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+	if out.Status != domain.RunStatusRunning {
+		t.Fatalf("status = %s, want running", out.Status)
+	}
+
+	calls := sessions.callLog()
+	sawPrompt := false
+	for _, c := range calls {
+		if c == "sendprompt" {
+			sawPrompt = true
+		}
+		if c == "create" {
+			t.Fatal("interactive Continue must never create a new session (no respawn)")
+		}
+	}
+	if !sawPrompt {
+		t.Fatalf("expected sendprompt, calls=%v", calls)
+	}
+	sessions.mu.Lock()
+	src := append([]string(nil), sessions.promptSrc...)
+	text := append([]string(nil), sessions.promptText...)
+	sessions.mu.Unlock()
+	wantSrc := "agent-manager:run-" + run.ID.String()
+	if len(src) != 1 || src[0] != wantSrc {
+		t.Errorf("prompt source = %v, want [%s]", src, wantSrc)
+	}
+	if len(text) != 1 || text[0] != "please continue the task" {
+		t.Errorf("prompt text = %v", text)
+	}
+	if !svc.interactiveDrivers.has(run.ID) {
+		t.Error("a live driver should be registered to drive the continuation turn")
+	}
+}
+
+type nativeObjectiveReplayRunner struct {
+	runner.Runner
+	capabilities runner.Capabilities
+}
+
+func (r *nativeObjectiveReplayRunner) Capabilities() runner.Capabilities {
+	return r.capabilities
+}
+
+func (r *nativeObjectiveReplayRunner) NewTranscriptParser() runner.TranscriptParser {
+	factory, ok := r.Runner.(runner.TranscriptParserFactory)
+	if !ok {
+		return nil
+	}
+	return factory.NewTranscriptParser()
+}
+
+func newNativeObjectiveRegistry(t *testing.T) *runner.DefaultRegistry {
+	t.Helper()
+	replay := mocks.NewTranscriptReplayRunner(domain.RunnerTypeClaudeCode)
+	caps := replay.Capabilities()
+	caps.SpawnCapabilities = []runner.SpawnCapability{{ExecutionMode: string(domain.ExecutionModeInteractive), SandboxModes: []string{string(domain.SandboxModeOff)}, NativeObjective: true}}
+	registry := runner.NewRegistry()
+	if err := registry.Register(&nativeObjectiveReplayRunner{Runner: replay, capabilities: caps}); err != nil {
+		t.Fatalf("register native objective runner: %v", err)
+	}
+	return registry
+}
+
+func setupNativeGoalContinuation(t *testing.T, until string, withIdempotency bool) (repository.RunRepository, *recordingSessions, *Orchestrator, *domain.Run) {
+	t.Helper()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	options := []Option{WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(newNativeObjectiveRegistry(t)), newCurrentModelPolicyFixtureOption(t)}
+	if withIdempotency {
+		options = append(options, WithIdempotency(repos.Idempotency))
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, options...)
+	task := interactiveTestTask(t, svc)
+	transcript := filepath.Join(t.TempDir(), "session.jsonl")
+	if err := os.WriteFile(transcript, []byte("{\"type\":\"noise\"}\n"), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "provider-session", "wc-goal")
+	run.ResolvedConfig.Until = until
+	run.TranscriptPath = transcript
+	if err := repos.Runs.Update(context.Background(), run); err != nil {
+		t.Fatalf("update run: %v", err)
+	}
+	t.Cleanup(func() { svc.interactiveDrivers.cancelAndWait(run.ID) })
+	return repos.Runs, sessions, svc, run
+}
+
+func TestContinueInteractiveRun_CompletesSuccessfulTurnAfterCompletedGoal(t *testing.T) {
+	ctx := context.Background()
+	runs, sessions, svc, run := setupNativeGoalContinuation(t, "finish the existing objective", false)
+	oldTurn := []byte("done: original goal completed\n")
+	if err := os.WriteFile(run.TranscriptPath, oldTurn, 0o644); err != nil {
+		t.Fatalf("write prior completed goal turn: %v", err)
+	}
+	run.TranscriptCursor = int64(len(oldTurn))
+	if err := runs.Update(ctx, run); err != nil {
+		t.Fatalf("save prior transcript cursor: %v", err)
+	}
+	if err := svc.events.Append(ctx, run.ID, domain.NewGoalStatusChangedEvent(run.ID, "finish the existing objective", string(runner.GoalStatusComplete), 1, "finished")); err != nil {
+		t.Fatalf("record completed native goal: %v", err)
+	}
+	sessions.onPrompt = func() {
+		f, err := os.OpenFile(run.TranscriptPath, os.O_APPEND|os.O_WRONLY, 0)
+		if err != nil {
+			t.Errorf("open transcript for continued turn: %v", err)
+			return
+		}
+		if _, err := f.WriteString("done: continuation result\n"); err != nil {
+			t.Errorf("append continued turn: %v", err)
+		}
+		if err := f.Close(); err != nil {
+			t.Errorf("close transcript: %v", err)
+		}
+	}
+
+	if _, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "continue after the completed objective"}); err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		got, err := runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Fatalf("read continued run: %v", err)
+		}
+		if got.Status == domain.RunStatusComplete {
+			if got.EndedAt == nil {
+				t.Fatal("continued run completed without terminal timestamp")
+			}
+			if got.TranscriptCursor <= int64(len(oldTurn)) {
+				t.Fatalf("continued run finalized without consuming the new turn: cursor=%d prior_end=%d", got.TranscriptCursor, len(oldTurn))
+			}
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("continued successful turn did not complete the run; status=%s error=%q stop=%s transcriptCursor=%d", got.Status, got.ErrorMsg, got.StopReason, got.TranscriptCursor)
+		case <-tick.C:
+		}
+	}
+}
+
+func TestContinueInteractiveRun_ClosesBoundedFollowupAfterBlockedGoalWithoutChangingVerdict(t *testing.T) {
+	ctx := context.Background()
+	runs, sessions, svc, run := setupNativeGoalContinuation(t, "report whether the build and test ran", false)
+	oldTurn := []byte("blocked: build preflight failed\n")
+	if err := os.WriteFile(run.TranscriptPath, oldTurn, 0o644); err != nil {
+		t.Fatalf("write prior blocked goal turn: %v", err)
+	}
+	run.TranscriptCursor = int64(len(oldTurn))
+	if err := runs.Update(ctx, run); err != nil {
+		t.Fatalf("save prior blocked goal state: %v", err)
+	}
+	if err := svc.events.Append(ctx, run.ID, domain.NewGoalStatusChangedEvent(run.ID, run.ResolvedConfig.Until, string(runner.GoalStatusBlocked), 1, "build preflight failed")); err != nil {
+		t.Fatalf("record blocked native goal: %v", err)
+	}
+	sessions.onPrompt = func() {
+		f, err := os.OpenFile(run.TranscriptPath, os.O_APPEND|os.O_WRONLY, 0)
+		if err != nil {
+			t.Errorf("open transcript for bounded follow-up: %v", err)
+			return
+		}
+		if _, err := f.WriteString("done:The build preflight failed; tests were not run.\n"); err != nil {
+			t.Errorf("append bounded follow-up: %v", err)
+		}
+		if err := f.Close(); err != nil {
+			t.Errorf("close transcript: %v", err)
+		}
+	}
+
+	if _, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "report the exact build and test outcome; do not claim acceptance"}); err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+	continued, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("read admitted continuation: %v", err)
+	}
+	policy := continued.ResolvedConfig.InteractiveContinuation
+	if policy == nil || !policy.CompleteAfterFirstSuccessfulTurnWithoutGoalMarker {
+		t.Fatalf("blocked-goal follow-up did not persist one-turn closure policy: %+v", policy)
+	}
+	if continued.ObservedGoalStatus != string(runner.GoalStatusBlocked) {
+		t.Fatalf("admitting report follow-up changed historical goal verdict to %q", continued.ObservedGoalStatus)
+	}
+	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("no-reinstall follow-up should send only the report prompt, calls=%v", calls)
+	}
+
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		got, err := svc.GetRun(ctx, run.ID)
+		if err != nil {
+			t.Fatalf("read completed report follow-up: %v", err)
+		}
+		if got.Status == domain.RunStatusComplete {
+			if got.EndedAt == nil || got.TranscriptCursor <= int64(len(oldTurn)) {
+				t.Fatalf("follow-up completed without consuming its turn: ended=%v cursor=%d", got.EndedAt, got.TranscriptCursor)
+			}
+			if got.ObservedGoalStatus != string(runner.GoalStatusBlocked) {
+				t.Fatalf("follow-up replaced historical blocked verdict with %q", got.ObservedGoalStatus)
+			}
+			if got.Result == nil || !got.Result.Success || got.Result.TerminalReason != "completed_goal_continuation" {
+				t.Fatalf("bounded follow-up result = %+v, want successful continuation boundary without a goal-complete verdict", got.Result)
+			}
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("blocked-goal report follow-up did not close; status=%s error=%q stop=%s cursor=%d", got.Status, got.ErrorMsg, got.StopReason, got.TranscriptCursor)
+		case <-tick.C:
+		}
+	}
+}
+
+func TestContinueInteractiveRun_ReinstallsGoalCommandBeforeFollowupInSameSession(t *testing.T) {
+	_, sessions, svc, run := setupNativeGoalContinuation(t, "finish  E3\nwith exact terms", false)
+	out, err := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "continue the existing work", ReinstallGoal: true})
+	if err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+	if out.ID != run.ID || out.Status != domain.RunStatusRunning {
+		t.Fatalf("continued run = %s/%s, want same run running", out.ID, out.Status)
+	}
+	calls := sessions.callLog()
+	if len(calls) != 2 || calls[0] != "sendcommand" || calls[1] != "sendprompt" {
+		t.Fatalf("goal command must be submitted before follow-up, calls=%v", calls)
+	}
+	sessions.mu.Lock()
+	defer sessions.mu.Unlock()
+	wantSource := "agent-manager:run-" + run.ID.String()
+	wantCommand := "/goal finish  E3 with exact terms"
+	if len(sessions.promptText) != 2 || sessions.promptText[0] != wantCommand || sessions.promptText[1] != "continue the existing work" {
+		t.Fatalf("submitted texts = %q, want goal command then follow-up", sessions.promptText)
+	}
+	if len(sessions.promptSrc) != 2 || sessions.promptSrc[0] != wantSource || sessions.promptSrc[1] != wantSource {
+		t.Fatalf("submission sources = %v, want both scoped to %s", sessions.promptSrc, wantSource)
+	}
+	if len(sessions.sessionIDs) != 2 || sessions.sessionIDs[0] != "wc-goal" || sessions.sessionIDs[1] != "wc-goal" {
+		t.Fatalf("submission sessions = %v, want both on existing wc-goal session", sessions.sessionIDs)
+	}
+}
+
+func TestContinueInteractiveRun_ExplicitlyReinstallsBlockedGoalBeforeFollowup(t *testing.T) {
+	_, sessions, svc, run := setupNativeGoalContinuation(t, "report the build and test outcome", false)
+	if err := svc.events.Append(context.Background(), run.ID, domain.NewGoalStatusChangedEvent(run.ID, run.ResolvedConfig.Until, string(runner.GoalStatusBlocked), 1, "build preflight failed")); err != nil {
+		t.Fatalf("record blocked goal state: %v", err)
+	}
+	if _, err := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "continue after the blocker", ReinstallGoal: true}); err != nil {
+		t.Fatalf("ContinueRun with explicit reinstall: %v", err)
+	}
+	calls := sessions.callLog()
+	if len(calls) != 2 || calls[0] != "sendcommand" || calls[1] != "sendprompt" {
+		t.Fatalf("explicit reinstall must submit the same objective before follow-up, calls=%v", calls)
+	}
+	sessions.mu.Lock()
+	defer sessions.mu.Unlock()
+	if len(sessions.promptText) != 2 || sessions.promptText[0] != "/goal report the build and test outcome" || sessions.promptText[1] != "continue after the blocker" {
+		t.Fatalf("explicit blocked-goal submissions = %q, want same goal then follow-up", sessions.promptText)
+	}
+	continued, err := svc.GetRun(context.Background(), run.ID)
+	if err != nil {
+		t.Fatalf("read explicitly reinstalled run: %v", err)
+	}
+	if continued.ResolvedConfig.InteractiveContinuation != nil {
+		t.Fatalf("explicit reinstall must retain goal-verdict completion policy, got %+v", continued.ResolvedConfig.InteractiveContinuation)
+	}
+}
+
+func TestContinueInteractiveRun_StillRefusesPausedNativeGoal(t *testing.T) {
+	_, sessions, svc, run := setupNativeGoalContinuation(t, "finish the current objective", false)
+	if err := svc.events.Append(context.Background(), run.ID, domain.NewGoalStatusChangedEvent(run.ID, run.ResolvedConfig.Until, string(runner.GoalStatusPaused), 1, "awaiting approval")); err != nil {
+		t.Fatalf("record paused native goal: %v", err)
+	}
+	if _, err := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "continue without approval"}); err == nil || !strings.Contains(err.Error(), "native goal is paused") {
+		t.Fatalf("paused native goal should remain refused before effects, got %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("paused-goal refusal reached interactive transport: %v", calls)
+	}
+	stored, err := svc.GetStoredRun(context.Background(), run.ID)
+	if err != nil {
+		t.Fatalf("read paused run: %v", err)
+	}
+	if stored.Status != domain.RunStatusComplete || stored.ResolvedConfig.InteractiveContinuation != nil {
+		t.Fatalf("paused refusal changed run state or persisted a continuation policy: status=%s policy=%+v", stored.Status, stored.ResolvedConfig.InteractiveContinuation)
+	}
+}
+
+func TestContinueInteractiveRun_UnverifiedOrFailedGoalSubmissionWithholdsFollowup(t *testing.T) {
+	tests := []struct {
+		name             string
+		setup            func(*recordingSessions)
+		cancelDuringSend bool
+	}{
+		{name: "unverified submission", setup: func(s *recordingSessions) {
+			s.promptResult = &webconsole.PromptSubmission{Verified: false, EnterPresses: 1}
+		}},
+		{name: "transport outcome unknown", setup: func(s *recordingSessions) { s.promptErr = errors.New("command transport failed after input") }},
+		{name: "canceled after command input", setup: func(*recordingSessions) {}, cancelDuringSend: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			runs, sessions, svc, run := setupNativeGoalContinuation(t, "finish the existing objective", true)
+			tc.setup(sessions)
+			ctx, cancel := context.WithCancel(context.Background())
+			if tc.cancelDuringSend {
+				sessions.commandHook = cancel
+			}
+			_, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "do not send before goal acknowledgement", ReinstallGoal: true, IdempotencyKey: "goal-reinstall-" + tc.name})
+			cancel()
+			if err == nil {
+				t.Fatal("expected goal-install acknowledgement failure")
+			}
+			calls := sessions.callLog()
+			if len(calls) != 1 || calls[0] != "sendcommand" {
+				t.Fatalf("follow-up must be withheld after uncertain goal install, calls=%v", calls)
+			}
+			if !tc.cancelDuringSend {
+				got, getErr := runs.Get(context.Background(), run.ID)
+				if getErr != nil || got.Status != domain.RunStatusFailed {
+					t.Fatalf("failed/uncertain reinstall status = %v err=%v", got, getErr)
+				}
+			}
+			_, retryErr := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "do not send before goal acknowledgement", ReinstallGoal: true, IdempotencyKey: "goal-reinstall-" + tc.name})
+			if retryErr == nil || !strings.Contains(retryErr.Error(), "already in progress") {
+				t.Fatalf("same key should require reconciliation, got %v", retryErr)
+			}
+			if gotCalls := sessions.callLog(); len(gotCalls) != 1 {
+				t.Fatalf("same-key replay duplicated an uncertain command: %v", gotCalls)
+			}
+		})
+	}
+}
+
+func TestContinueInteractiveRun_ReinstallGoalFlagNoOpsWithoutNativeObjective(t *testing.T) {
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	registry := runner.NewRegistry()
+	if err := registry.Register(mocks.NewTranscriptReplayRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry), newCurrentModelPolicyFixtureOption(t))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "provider-session", "wc-no-goal")
+	if _, err := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "continue without a native objective", ReinstallGoal: true}); err != nil {
+		t.Fatalf("ContinueRun: %v", err)
+	}
+	calls := sessions.callLog()
+	if len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("no-goal flag must retain existing no-op behavior, calls=%v", calls)
+	}
+	for _, call := range calls {
+		if call == "sendcommand" {
+			t.Fatalf("no native objective should produce no command, calls=%v", calls)
+		}
+	}
+}
+
+func TestShouldCompleteAfterTerminalGoalContinuationUsesPersistedStateAndReinstallOption(t *testing.T) {
+	base := &domain.Run{
+		Status:             domain.RunStatusComplete,
+		ExecutionMode:      domain.ExecutionModeInteractive,
+		ResolvedConfig:     domain.DefaultRunConfig(),
+		ObservedGoalStatus: string(runner.GoalStatusComplete),
+	}
+	base.ResolvedConfig.Until = "complete the fixture"
+	for _, tc := range []struct {
+		name          string
+		mutate        func(*domain.Run)
+		reinstallGoal bool
+		want          bool
+	}{
+		{name: "completed native goal without reinstall", want: true},
+		{name: "blocked native goal without reinstall", mutate: func(r *domain.Run) { r.ObservedGoalStatus = string(runner.GoalStatusBlocked) }, want: true},
+		{name: "blocked native goal with reinstall", mutate: func(r *domain.Run) { r.ObservedGoalStatus = string(runner.GoalStatusBlocked) }, reinstallGoal: true},
+		{name: "paused goal", mutate: func(r *domain.Run) { r.ObservedGoalStatus = string(runner.GoalStatusPaused) }},
+		{name: "budget-limited goal", mutate: func(r *domain.Run) { r.ObservedGoalStatus = string(runner.GoalStatusBudgetLimited) }},
+		{name: "usage-limited goal", mutate: func(r *domain.Run) { r.ObservedGoalStatus = string(runner.GoalStatusUsageLimited) }},
+		{name: "explicit goal reinstall", reinstallGoal: true},
+		{name: "goal not completed", mutate: func(r *domain.Run) { r.ObservedGoalStatus = string(runner.GoalStatusActive) }},
+		{name: "no native objective", mutate: func(r *domain.Run) { r.ResolvedConfig.Until = "" }},
+		{name: "not a completed run", mutate: func(r *domain.Run) { r.Status = domain.RunStatusFailed }},
+		{name: "not interactive", mutate: func(r *domain.Run) { r.ExecutionMode = domain.ExecutionModeCodecPipe }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := *base
+			config := *base.ResolvedConfig
+			run.ResolvedConfig = &config
+			if tc.mutate != nil {
+				tc.mutate(&run)
+			}
+			if got := shouldCompleteAfterTerminalGoalContinuation(&run, tc.reinstallGoal); got != tc.want {
+				t.Fatalf("shouldCompleteAfterTerminalGoalContinuation()=%v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestContinueInteractiveRun_SessionGone rejects a continuation when the live
+// web-console session has been torn down, with an actionable error.
+func TestContinueInteractiveRun_SessionGone(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	sessions := newRecordingSessions()
+	sessions.getNotFound = true
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithEvents(eventStore), newCurrentModelPolicyFixtureOption(t))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-sess", "wc-dead")
+
+	_, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "keep going"})
+	if err == nil {
+		t.Fatal("expected error when the live session is gone")
+	}
+	if !strings.Contains(strings.ToLower(err.Error()), "no longer exists") {
+		t.Errorf("error should explain the session is gone, got %q", err.Error())
+	}
+	// The run must be left in its terminal state, not flipped to running.
+	got, _ := repos.Runs.Get(ctx, run.ID)
+	if got.Status != domain.RunStatusComplete {
+		t.Errorf("run status = %s, want complete (unchanged)", got.Status)
+	}
+	if sawSendPrompt(sessions) {
+		t.Error("no prompt should be sent when the session is gone")
+	}
+}
+
+func TestTerminalInteractiveContinuationRetriesAfterPreEffectSessionReadFailure(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	registry := runner.NewRegistry()
+	if err := registry.Register(mocks.NewTranscriptReplayRunner(domain.RunnerTypeClaudeCode)); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+	sessions := newRecordingSessions()
+	sessions.getErr = errors.New("temporary session inventory outage")
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithInteractiveSessions(sessions), WithEvents(eventStore), WithRunners(registry),
+		WithIdempotency(repos.Idempotency), newCurrentModelPolicyFixtureOption(t))
+	task := interactiveTestTask(t, svc)
+	transcript := filepath.Join(t.TempDir(), "session.jsonl")
+	if err := os.WriteFile(transcript, []byte("{\"type\":\"noise\"}\n"), 0o644); err != nil {
+		t.Fatalf("write transcript: %v", err)
+	}
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-session", "wc-retry")
+	run.TranscriptPath = transcript
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatalf("update run transcript: %v", err)
+	}
+	req := ContinueRunRequest{RunID: run.ID, Message: "retry after read outage", IdempotencyKey: "terminal-interactive-retry"}
+	if _, err := svc.ContinueRun(ctx, req); err == nil || !domain.IsPreEffectRefusal(err) {
+		t.Fatalf("session read error was not an explicit pre-effect refusal: %v", err)
+	}
+	if sawSendPrompt(sessions) {
+		t.Fatal("pre-effect session read failure reached the prompt transport")
+	}
+	gotRun, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || gotRun.Status != domain.RunStatusComplete {
+		t.Fatalf("pre-effect refusal changed run status: %+v err=%v", gotRun, err)
+	}
+	receipts := repos.Idempotency.(repository.ContinuationIdempotencyRepository)
+	receipt, err := receipts.CheckContinuation(ctx, req.IdempotencyKey)
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusFailed {
+		t.Fatalf("pre-effect failure did not make only this receipt retryable: %+v err=%v", receipt, err)
+	}
+
+	sessions.mu.Lock()
+	sessions.getErr = nil
+	sessions.mu.Unlock()
+	t.Cleanup(func() { svc.interactiveDrivers.cancelAndWait(run.ID) })
+	if _, err := svc.ContinueRun(ctx, req); err != nil {
+		t.Fatalf("retry after session read recovered: %v", err)
+	}
+	if !sawSendPrompt(sessions) {
+		t.Fatal("same-key retry did not deliver after pre-effect read recovery")
+	}
+	receipt, err = receipts.CheckContinuation(ctx, req.IdempotencyKey)
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusComplete {
+		t.Fatalf("successful retry receipt = %+v err=%v", receipt, err)
+	}
+}
+
+func sawSendPrompt(s *recordingSessions) bool {
+	for _, c := range s.callLog() {
+		if c == "sendprompt" {
+			return true
+		}
+	}
+	return false
+}
+
+func TestInteractivePromptTransportUnknownRetainsIdempotencyReservation(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, _, _ := testutil.SetupTestReposWithDB(t, db)
+	sessions := newRecordingSessions()
+	sessions.promptErr = errors.New("submit result lost after paste")
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithIdempotency(repos.Idempotency))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
+	req := ContinueRunRequest{RunID: run.ID, Message: "D5", IdempotencyKey: "same-handoff"}
+	if _, err := svc.ContinueRun(ctx, req); err == nil || !strings.Contains(err.Error(), "outcome unknown") || domain.IsPreEffectRefusal(err) {
+		t.Fatalf("partial transport did not surface unknown (or claimed no effects): %v", err)
+	}
+	updatedRun, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || updatedRun.InteractiveInvocationStartedAt == nil {
+		t.Fatalf("ambiguous prompt outcome lost its pre-effect invocation fence: run=%+v err=%v", updatedRun, err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE idempotency_records SET expires_at = '2000-01-01 00:00:00' WHERE key = ?`, req.IdempotencyKey); err != nil {
+		t.Fatalf("expire ambiguous receipt fixture: %v", err)
+	}
+	if removed, err := repos.Idempotency.CleanupExpired(ctx); err != nil || removed != 0 {
+		t.Fatalf("expired ambiguous receipt was cleaned up: removed %d, err %v", removed, err)
+	}
+	if _, err := svc.ContinueRun(ctx, req); err == nil {
+		t.Fatal("duplicate handoff was resent after the ambiguous receipt expired")
+	}
+	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("duplicate handoff effects: %v", calls)
+	}
+}
+
+func TestContinueRunRefusesConfiguredRepositoryWithoutContinuationReceipts(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithIdempotency(legacyOnlyIdempotency{}))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-no-typed-receipt")
+	_, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "must refuse", IdempotencyKey: "legacy-repository"})
+	if err == nil || !strings.Contains(err.Error(), "does not support durable continuation receipts") {
+		t.Fatalf("configured legacy repository was not explicitly refused: %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("configured legacy repository allowed continuation effects: %v", calls)
+	}
+}
+
+func TestRunningSessionContinuationRecordsDirectiveAsUserMessage(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repos, eventStore, _ := testutil.SetupTestReposWithDB(t, db)
+	sessions := newRecordingSessions()
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithIdempotency(repos.Idempotency))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-1")
+
+	req := ContinueRunRequest{RunID: run.ID, Message: "D2: run J02 only", IdempotencyKey: "handoff-d2"}
+	if _, err := svc.ContinueRun(ctx, req); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var recorded bool
+	for _, ev := range events {
+		if msg, ok := ev.Data.(*domain.MessageEventData); ok && msg.Role == "user" && msg.Content == "D2: run J02 only" {
+			recorded = true
+		}
+	}
+	if !recorded {
+		t.Fatalf("directive not recorded as a user message: %+v", events)
+	}
+	receipt, err := repos.Idempotency.Check(ctx, "handoff-d2")
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusComplete {
+		t.Fatalf("receipt = %+v err=%v, want a completed continuation receipt", receipt, err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE idempotency_records SET expires_at = '2000-01-01 00:00:00' WHERE key = ?`, req.IdempotencyKey); err != nil {
+		t.Fatalf("expire completed receipt fixture: %v", err)
+	}
+	if _, err := svc.ContinueRun(ctx, req); err != nil {
+		t.Fatalf("replay completed continuation after expiry: %v", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("expired completed receipt caused another delivery: %v", calls)
+	}
+}
+
+func TestRunningSessionContinuationNotSubmittedIsAnErrorWithoutReceipt(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	sessions.promptResult = &webconsole.PromptSubmission{EnterPresses: 3}
+	sessions.promptErr = webconsole.ErrPromptNotSubmitted
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithEvents(eventStore), WithIdempotency(repos.Idempotency))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "provider-session", "wc-stuck")
+	req := ContinueRunRequest{RunID: run.ID, Message: "D1 is recorded in E17.md", IdempotencyKey: "handoff-d1"}
+
+	_, err := svc.ContinueRun(ctx, req)
+	if err == nil || !strings.Contains(err.Error(), "not submitted") || !strings.Contains(err.Error(), "wc-stuck") {
+		t.Fatalf("err = %v, want a not-submitted error naming the session", err)
+	}
+	if domain.IsPreEffectRefusal(err) {
+		t.Fatal("a pasted-but-unsent directive was reported as refused before effects")
+	}
+	receipt, err := repos.Idempotency.Check(ctx, "handoff-d1")
+	if err != nil || receipt == nil || receipt.Status == domain.IdempotencyStatusComplete {
+		t.Fatalf("receipt = %+v err=%v, want the reservation held, not completed", receipt, err)
+	}
+	if _, err := svc.ContinueRun(ctx, req); err == nil {
+		t.Fatal("same-key retry was accepted while the directive sits in the composer")
+	}
+	if calls := sessions.callLog(); len(calls) != 1 {
+		t.Fatalf("retry pasted again: %v", calls)
+	}
+	events, err := eventStore.Get(ctx, run.ID, event.GetOptions{AfterSequence: -1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range events {
+		if msg, ok := ev.Data.(*domain.MessageEventData); ok && msg.Role == "user" {
+			t.Fatalf("unsent directive recorded as a delivered user message: %+v", msg)
+		}
+	}
+}
+
+func TestInteractiveInitialPrompt(t *testing.T) {
+	cases := []struct {
+		name   string
+		system string
+		user   string
+		want   string
+	}{
+		{"user-only (no attachments)", "", "do the task", "do the task"},
+		{"system + user combined", "instructions", "context data", "instructions\n\ncontext data"},
+		{"system-only", "instructions", "", "instructions"},
+		{"trims surrounding whitespace", "  sys  ", "  usr  ", "sys\n\nusr"},
+		{"both empty", "", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := interactiveInitialPrompt(tc.system, tc.user); got != tc.want {
+				t.Errorf("interactiveInitialPrompt(%q,%q) = %q, want %q", tc.system, tc.user, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestInitialPromptWithUntilDeliversEngineContract(t *testing.T) {
+	run := &domain.Run{ResolvedConfig: &domain.RunConfig{Until: "all phases complete"}}
+	got := initialPromptWithUntil(run, "implement the plan")
+	if !strings.Contains(got, "implement the plan") || !strings.Contains(got, "all phases complete") {
+		t.Fatalf("prompt=%q; expected task and until contract", got)
+	}
+}
+
+func TestObservedGoalMatchesLaunchNormalizedUntilWithoutWhitespaceCollapse(t *testing.T) {
+	run := &domain.Run{ResolvedConfig: &domain.RunConfig{Until: "finish  every\r\nphase\tcarefully"}}
+	for _, tc := range []struct {
+		name, objective string
+		want            bool
+	}{
+		{name: "normalized launch value", objective: "finish  every phase\tcarefully", want: true},
+		{name: "raw configured value", objective: "finish  every\r\nphase\tcarefully", want: true},
+		{name: "newline suffix", objective: "finish  every phase\tcarefully\nattached prompt", want: true},
+		{name: "space collapse rejected", objective: "finish every phase\tcarefully"},
+		{name: "tab replacement rejected", objective: "finish  every phase carefully"},
+		{name: "term replacement rejected", objective: "finish  every different\tcarefully"},
+		{name: "delimiter required", objective: "finish  every phase\tcarefully-extra"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := observedGoalMatchesRun(run, tc.objective); got != tc.want {
+				t.Fatalf("observedGoalMatchesRun(%q) = %v, want %v", tc.objective, got, tc.want)
+			}
+		})
+	}
+}
+
+type rejectingRunUpdateRepository struct {
+	repository.RunRepository
+	err error
+}
+
+func (r rejectingRunUpdateRepository) Update(context.Context, *domain.Run) error { return r.err }
+
+func TestStopInteractiveRunRevocationFailurePreventsSessionRetirement(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	sessions := newRecordingSessions()
+	taskSvc := New(repos.Profiles, repos.Tasks, repos.Runs)
+	task := interactiveTestTask(t, taskSvc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusRunning, "agent-sess", "wc-revoke-fail")
+	run.IdentityTokenHash = "test-child-hash"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	failure := errors.New("identity revocation store unavailable")
+	svc := New(repos.Profiles, repos.Tasks, rejectingRunUpdateRepository{RunRepository: repos.Runs, err: failure}, WithInteractiveSessions(sessions))
+	err := svc.StopRun(ctx, run.ID)
+	if !errors.Is(err, failure) {
+		t.Fatalf("StopRun error = %v, want revocation failure", err)
+	}
+	if got := sessions.callLog(); len(got) != 0 {
+		t.Fatalf("session was touched before durable revocation: %v", got)
+	}
+	stored, getErr := repos.Runs.Get(ctx, run.ID)
+	if getErr != nil || stored.Status != domain.RunStatusRunning || stored.IdentityTokenRevokedAt != nil {
+		t.Fatalf("run state after failed revocation = %+v, err=%v", stored, getErr)
+	}
+}
+
+func TestResolvedRunModeRejectsProtectedInPlace(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		mode      domain.RunMode
+		cfg       *domain.SandboxConfig
+		wantError bool
+	}{
+		{"protected in place", domain.RunModeInPlace, &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, true},
+		{"default protected in place", domain.RunModeInPlace, &domain.SandboxConfig{}, true},
+		{"protected sandbox", domain.RunModeSandboxed, &domain.SandboxConfig{Mode: domain.SandboxModeProtected}, false},
+		{"off in place", domain.RunModeInPlace, &domain.SandboxConfig{Mode: domain.SandboxModeOff}, false},
+		{"tracking in place", domain.RunModeInPlace, &domain.SandboxConfig{Mode: domain.SandboxModeTracking}, false},
+		{"no config", domain.RunModeInPlace, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateResolvedRunMode(tc.mode, tc.cfg)
+			if (err != nil) != tc.wantError {
+				t.Fatalf("validateResolvedRunMode() = %v; want error %v", err, tc.wantError)
+			}
+		})
+	}
+}

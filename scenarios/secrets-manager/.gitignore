@@ -1,0 +1,4 @@
+# Build output and oversized files should not be committed.
+/platforms/electron/bundle/runtime/linux-x64/runtime
+/platforms/electron/bundle/resources/vault/resource-vault_linux_amd64
+/platforms/electron/bundle/runtime/linux-x64/runtimectl

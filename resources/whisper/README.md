@@ -1,229 +1,86 @@
-# Whisper Speech-to-Text Resource
+# Whisper Resource
 
-Whisper is OpenAI's automatic speech recognition (ASR) system that provides robust transcription capabilities across 100+ languages.
+Managed Whisper speech-to-text runtime for local transcription and translation workflows.
 
-## Features
+## Intent
 
-- **Multi-language Support**: Transcribe audio in 100+ languages
-- **Translation**: Translate audio from any language to English
-- **High Accuracy**: State-of-the-art transcription accuracy
-- **Multiple Formats**: Supports WAV, MP3, OGG, M4A, FLAC, AAC, WMA
-- **Configurable Models**: From tiny (39MB) to large (1.5GB) models
-- **GPU Acceleration**: Optional NVIDIA GPU support for faster processing
+- Resource ID: `whisper`
+- Category: `ai`
+- Driver: `managed-service`
+- Portability tier: Linux native supported; Windows acquisition conditional; macOS unsupported until a signed native server build exists
 
-## Quick Start
+The macOS candidate build recipe is documented in
+[docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/whisper/docs/OPERATIONS.md).
+It is a native-host build aid only; it does not promote macOS support or
+replace the signed acquisition entry in `resource.json`.
 
-```bash
-# Install with default large model
-./manage.sh --action install
+## Use Cases
 
-# Install with smaller model (faster, less accurate)
-./manage.sh --action install --model small
+- Transcribe speech-to-text for scenario ingestion and automation pipelines.
+- Translate spoken audio into English for downstream LLM or search workflows.
+- Preprocess recordings, meetings, or voice notes into text that other resources can use.
 
-# Install with GPU support
-./manage.sh --action install --gpu yes
+## Architecture
 
-# Check status
-./manage.sh --action status
+This resource uses the `managed-service` structure.
 
-# Transcribe audio
-./manage.sh --action transcribe --file audio.mp3
-```
+- `resource.json` is the declarative authority for lifecycle, checksum-pinned native acquisition, ports, exports, health, and freshness metadata.
+- `cli/` is the thin binary entrypoint and delegated command wiring surface.
+- `cli/internal/` contains the activity edge and its native `/asr` compatibility adapter.
 
-## Available Models
+The intended escalation path is:
 
-| Model | Size | Speed | Accuracy | Use Case |
-|-------|------|-------|----------|----------|
-| tiny | 39 MB | Fastest | Lower | Quick drafts, real-time |
-| base | 74 MB | Very Fast | Good | General use, quick results |
-| small | 244 MB | Fast | Better | Balanced performance |
-| medium | 769 MB | Moderate | Very Good | Professional transcription |
-| large | 1.5 GB | Slower | Best | Maximum accuracy (default) |
-| large-v2 | 1.5 GB | Slower | Best | Latest v2 improvements |
-| large-v3 | 1.5 GB | Slower | Best | Latest v3 improvements |
+1. express behavior in `resource.json` and its acquisition targets
+2. rely on the shared `vrooli resource ...` control plane
+3. add Whisper-specific Go code under `cli/internal/...` only where specialization is real
+4. add custom CLI commands only when the resource truly needs resource-local operator actions beyond the standard lifecycle surface
 
-## API Usage
+Current internal package boundaries:
 
-### Transcription Endpoint
+- `cli/internal/activityproxy`: canonical port, capacity activity, and native request adaptation
+- `cli/internal/recommend`: resource sizing and capacity-degrade policy
+
+## Usage
 
 ```bash
-# Basic transcription
-curl -X POST "http://localhost:8090/asr?output=json" \
-  -F "audio_file=@audio.mp3" \
-  -F "task=transcribe"
+# Install or validate the resource contract
+vrooli resource install whisper
 
-# With language specification
-curl -X POST "http://localhost:8090/asr?output=json" \
-  -F "audio_file=@spanish.mp3" \
-  -F "language=es" \
-  -F "task=transcribe"
+# Check status through the shared control plane
+resource-whisper status
 
-# Translation to English
-curl -X POST "http://localhost:8090/asr?output=json" \
-  -F "audio_file=@foreign.mp3" \
-  -F "task=translate"
+# Default transcription endpoint
+curl http://localhost:8090/
 ```
 
-### Language Detection Endpoint
+## Activity Edge
 
-```bash
-# Detect the language of an audio file
-curl -X POST "http://localhost:8090/detect-language" \
-  -F "audio_file=@audio.mp3"
-```
+Whisper clients must use `127.0.0.1:8090`. That port is owned by the host-side
+`activity-edge` companion, which forwards to the supervised native
+`whisper-server` on `127.0.0.1:18090`.
 
-### Response Formats
+The edge is intentionally part of the serving path: it is the only component that
+can see every `POST /asr` request from host dictation and browser clients, so it
+also reports whisper active/idle state to the capacity broker. If the native
+server is healthy but `8090` refuses connections, the companion is down, STT is
+unavailable, and capacity reporting is blind. `vrooli resource status whisper`
+reports that state distinctly, and `vrooli-autoheal` can recover it with a
+cheap `vrooli resource start whisper` reconcile that respawns the companion
+without restarting the server.
 
-#### Transcription Response
-```json
-{
-  "text": "Hello, this is a transcription of the audio file.",
-  "segments": [
-    {
-      "id": 0,
-      "seek": 0,
-      "start": 0.0,
-      "end": 3.5,
-      "text": "Hello, this is a transcription",
-      "tokens": [50365, 25674, 50563],
-      "temperature": 0.0,
-      "avg_logprob": -0.4147,
-      "compression_ratio": 0.333,
-      "no_speech_prob": 0.551
-    }
-  ],
-  "language": "en"
-}
-```
+The shared companion launcher also honors the resource's
+`orchestration.recovery_attempts` as a crash-loop cap for repeated stale-pid
+respawns. For whisper, two dead-edge respawns inside the rolling window are
+allowed; the next reconcile writes `activity-edge.failed` beside the pidfile and
+the status JSON reports `failed: true` with the terminal reason. A deliberate
+`vrooli resource stop whisper` clears the companion crash state.
 
-#### Language Detection Response
-```json
-{
-  "detected_language": "english",
-  "language_code": "en",
-  "confidence": 0.9987
-}
-```
+## Notes
 
-## Technical Notes
+- Keep `cli/main.go` thin. Do not treat it as the implementation surface for transcription workflows.
+- Keep runtime state rooted in `${RESOURCE_*_DIR}` paths; the native server and
+  its GGML model are acquired and verified outside the repository.
+- Use [docs/OPERATIONS.md](/home/matthalloran8/Vrooli/resources/whisper/docs/OPERATIONS.md) as the architecture boundary for future migrations.
+## Maturity
 
-### API Health Check
-
-The Whisper service uses a 307 redirect pattern for its health check:
-
-- **Root endpoint** (`/`) returns HTTP 307 redirect to `/docs`
-- This is normal behavior and indicates the service is healthy
-- The Vrooli resource provider accepts both 200 and 307 status codes
-- Interactive API documentation is available at `/docs`
-- OpenAPI specification is available at `/openapi.json`
-
-### Model Management
-
-The Whisper service currently loads a single model at startup:
-- Model size is specified via the `ASR_MODEL` environment variable
-- Changing models requires restarting the container
-- The `/models` endpoint is not available in the current implementation
-
-## Management Commands
-
-```bash
-# Start/stop/restart
-./manage.sh --action start
-./manage.sh --action stop
-./manage.sh --action restart
-
-# View logs
-./manage.sh --action logs
-
-# List available models
-./manage.sh --action models
-
-# Show detailed information
-./manage.sh --action info
-
-# Clean up old upload files (older than 1 day by default)
-./manage.sh --action cleanup
-
-# Uninstall
-./manage.sh --action uninstall
-```
-
-## Configuration
-
-### Environment Variables
-
-- `WHISPER_CUSTOM_PORT`: Override default port (8090)
-- `WHISPER_DEFAULT_MODEL`: Override default model size
-- `WHISPER_IMAGE`: Custom Docker image for GPU
-- `WHISPER_CPU_IMAGE`: Custom Docker image for CPU
-
-### File Locations
-
-- Models: `~/.whisper/models/`
-- Uploads: `~/.whisper/uploads/`
-- Config: Integrated with Vrooli resource configuration
-
-## Troubleshooting
-
-### Model Loading Takes Too Long
-
-Large models can take 1-3 minutes to load initially. Once loaded, subsequent transcriptions are fast.
-
-### Out of Memory Errors
-
-Try using a smaller model:
-```bash
-./manage.sh --action install --model small --force yes
-```
-
-### GPU Not Detected
-
-Ensure NVIDIA drivers and nvidia-docker are installed:
-```bash
-nvidia-smi  # Should show your GPU
-```
-
-### Port Already in Use
-
-Either stop the conflicting service or use a custom port:
-```bash
-export WHISPER_CUSTOM_PORT=8091
-./manage.sh --action install
-```
-
-### Audio Format Not Supported
-
-Convert to a supported format using ffmpeg:
-```bash
-ffmpeg -i input.xyz -acodec pcm_s16le -ar 16000 output.wav
-```
-
-## Performance Tips
-
-1. **Model Selection**: Start with `small` or `medium` for good balance
-2. **GPU Acceleration**: Use `--gpu yes` for 5-10x speedup
-3. **Batch Processing**: Process multiple files sequentially for efficiency
-4. **Audio Quality**: Higher quality audio yields better transcriptions
-5. **Language Hints**: Specify language when known for better accuracy
-
-## Integration with Vrooli
-
-Once installed, Whisper is automatically configured in Vrooli's resource registry and can be used by AI agents for speech-to-text tasks.
-
-## Security Considerations
-
-- Audio files are temporarily stored in `~/.whisper/uploads/`
-- Use `./manage.sh --action cleanup` to remove old upload files
-- Consider scheduling cleanup via cron for production deployments:
-  ```bash
-  # Add to crontab to run daily at 3 AM
-  0 3 * * * /path/to/whisper/manage.sh --action cleanup
-  ```
-- Container runs in isolated environment
-- No external network access required after model download
-
-## Links
-
-- [OpenAI Whisper](https://github.com/openai/whisper)
-- [Whisper Models](https://huggingface.co/openai)
-- [API Documentation](https://github.com/ahmetoner/whisper-asr-webservice)
+M4 (2026-08-05): lifecycle, health, platform gates, and Go CLI test evidence are covered by the fleet contract.

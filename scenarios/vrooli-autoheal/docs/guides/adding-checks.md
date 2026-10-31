@@ -9,12 +9,28 @@ Every health check implements this interface:
 ```go
 type Check interface {
     ID() string                         // Unique identifier
+    Title() string                      // Human-friendly name
     Description() string                // Human-readable description
+    Importance() string                 // Why this check matters
+    Category() checks.Category          // Check category
     IntervalSeconds() int               // How often to run
-    Platforms() []platform.Type         // Which platforms (nil = all)
+    Platforms() []platform.Type         // Which platforms (empty = all)
     Run(ctx context.Context) Result     // Execute the check
 }
 ```
+
+The production interface is defined in `scenarios/vrooli-autoheal/api/internal/checks/types.go` and imports `github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks` plus its platform package. Register checks through `DefaultCheckFactory` in `api/internal/bootstrap/factory.go`, in the exact category slice consumed by the factory.
+
+Registration checklist:
+
+1. Add the check file and its desired-behavior tests.
+2. Add it to the appropriate `DefaultCheckFactory` slice.
+3. If it heals, add its action to the allowlists in `registry.go`.
+4. Add or update the corresponding space-doc cell.
+5. Add a setpoint bar with a unit and threshold.
+6. Add the check to `docs/reference/check-catalog.md` and register a new reference document in `docs/manifest.json`.
+
+The worked example is `api/internal/checks/system/swap.go`. Use `IntervalSeconds() int`, not a duration, and report an unavailable platform as unread or not-applicable rather than zero.
 
 ## Creating a New Check
 
@@ -31,8 +47,8 @@ import (
     "fmt"
     "runtime"
 
-    "vrooli-autoheal/internal/checks"
-    "vrooli-autoheal/internal/platform"
+    "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+    "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
 // MemoryCheck monitors system memory usage
@@ -124,7 +140,7 @@ import (
     "context"
     "testing"
 
-    "vrooli-autoheal/internal/checks"
+    "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
 func TestMemoryCheck_ID(t *testing.T) {

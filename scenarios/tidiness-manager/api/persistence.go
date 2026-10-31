@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/pathfilter"
-
-	"github.com/lib/pq"
 )
 
 // ErrDuplicateIssue indicates an insert attempted to create a duplicate issue.
@@ -346,29 +344,35 @@ func (ts *TidinessStore) ResolveStaleMetricIssues(ctx context.Context, scenario 
 	var err error
 
 	if len(filePaths) == 0 {
+		categoryClause, categoryArgs := stringInClause("category", 2, metricCategories)
 		// No fresh metric issues — resolve ALL open metric issues for the scenario
-		result, err = ts.db.ExecContext(ctx, `
+		query := `
 			UPDATE issues
 			SET status = 'resolved',
 				resolution_notes = 'auto-resolved: no longer exceeds threshold',
 				updated_at = CURRENT_TIMESTAMP
 			WHERE scenario = $1
-				AND category = ANY($2::text[])
+				AND ` + categoryClause + `
 				AND status = 'open'
-		`, scenario, pq.Array(metricCategories))
+		`
+		args := append([]interface{}{scenario}, categoryArgs...)
+		result, err = ts.db.ExecContext(ctx, query, args...)
 	} else {
-		result, err = ts.db.ExecContext(ctx, `
+		categoryClause, categoryArgs := stringInClause("category", 2, metricCategories)
+		notFreshClause, notFreshArgs := fileCategoryNotInClause(len(categoryArgs)+2, filePaths, categories)
+		query := `
 			UPDATE issues
 			SET status = 'resolved',
 				resolution_notes = 'auto-resolved: no longer exceeds threshold',
 				updated_at = CURRENT_TIMESTAMP
 			WHERE scenario = $1
-				AND category = ANY($2::text[])
+				AND ` + categoryClause + `
 				AND status = 'open'
-				AND (file_path, category) NOT IN (
-					SELECT unnest($3::text[]), unnest($4::text[])
-				)
-		`, scenario, pq.Array(metricCategories), pq.Array(filePaths), pq.Array(categories))
+				AND ` + notFreshClause + `
+		`
+		args := append([]interface{}{scenario}, categoryArgs...)
+		args = append(args, notFreshArgs...)
+		result, err = ts.db.ExecContext(ctx, query, args...)
 	}
 
 	if err != nil {
@@ -381,6 +385,54 @@ func (ts *TidinessStore) ResolveStaleMetricIssues(ctx context.Context, scenario 
 	}
 
 	return int(rows), nil
+}
+
+// ResolveLegacyPercentageDuplicationIssues closes the retired per-file
+// percentage issues. Normalized block findings are now the sole duplication
+// signal, so retaining these records makes the issue queue stale and
+// contradictory.
+func (ts *TidinessStore) ResolveLegacyPercentageDuplicationIssues(ctx context.Context, scenario string) (int, error) {
+	result, err := ts.db.ExecContext(ctx, `
+		UPDATE issues
+		SET status = 'resolved',
+			resolution_notes = 'auto-resolved: superseded by normalized duplication findings',
+			updated_at = CURRENT_TIMESTAMP
+		WHERE scenario = $1
+			AND category = 'duplication'
+			AND status = 'open'
+			AND description LIKE '%duplicated code%'
+			AND description LIKE '%threshold%'
+	`, scenario)
+	if err != nil {
+		return 0, fmt.Errorf("resolve legacy percentage duplication issues: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("read resolved legacy percentage duplication issues: %w", err)
+	}
+	return int(rows), nil
+}
+
+func stringInClause(column string, startIndex int, values []string) (string, []interface{}) {
+	placeholders := make([]string, 0, len(values))
+	args := make([]interface{}, 0, len(values))
+	for i, value := range values {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", startIndex+i))
+		args = append(args, value)
+	}
+	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ", ")), args
+}
+
+func fileCategoryNotInClause(startIndex int, filePaths, categories []string) (string, []interface{}) {
+	pairs := make([]string, 0, len(filePaths))
+	args := make([]interface{}, 0, len(filePaths)*2)
+	next := startIndex
+	for i := range filePaths {
+		pairs = append(pairs, fmt.Sprintf("(file_path = $%d AND category = $%d)", next, next+1))
+		args = append(args, filePaths[i], categories[i])
+		next += 2
+	}
+	return "NOT (" + strings.Join(pairs, " OR ") + ")", args
 }
 
 func (ts *TidinessStore) FetchIssueCounts(ctx context.Context) (map[string]IssueCounts, error) {

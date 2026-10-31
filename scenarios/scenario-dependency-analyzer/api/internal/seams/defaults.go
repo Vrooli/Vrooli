@@ -39,7 +39,7 @@ func (OSFileSystem) Stat(name string) (fs.FileInfo, error) {
 
 // ReadFile reads a file.
 func (OSFileSystem) ReadFile(name string) ([]byte, error) {
-	return os.ReadFile(name)
+	return os.ReadFile(name) // #nosec G304 -- this seam intentionally delegates caller-validated file paths to the OS.
 }
 
 // WriteFile writes a file.

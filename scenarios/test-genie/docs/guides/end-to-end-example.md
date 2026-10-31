@@ -591,6 +591,6 @@ BAS workflows are:
 
 - [Requirement Flow Architecture](../concepts/requirement-flow.md) - How the system works
 - [Testing Strategy](../concepts/strategy.md) - Three-layer approach
-- [UI Automation with BAS](../phases/playbooks/ui-automation-with-bas.md) - Workflow details
+- [Workflow Phase](../phases/workflow/README.md) - Workflow details
 - [Requirements Sync](../phases/business/requirements-sync.md) - Auto-sync process
 - [Scenario Unit Testing](../phases/unit/scenario-unit-testing.md) - Writing unit tests

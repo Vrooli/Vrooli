@@ -1,0 +1,24 @@
+{
+  "name": "Device Sync Hub",
+  "short_name": "device-sync-hub",
+  "description": "Polished, secure cross-device file and text transfer hub: push files or text from any trusted device and pull them on your other devices, relayed through your always-on server.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

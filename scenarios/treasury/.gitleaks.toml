@@ -1,0 +1,16 @@
+# Scenario-local gitleaks config, loaded by Security Health from the scenario
+# root. Flow Verifier generates public SHA-256 freshness constants into the
+# replay runtimes; the generic-api-key rule misclassifies the public
+# `<Flow>...SHA256 = <64 hex>` assignments as credential material. Constrain
+# the exception to these tool-owned generated files. Hand-authored policy,
+# authorization, approval, and identity code remains under the default rules.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Flow Verifier generated artifact hashes are public freshness evidence, not credentials"
+paths = [
+  '''^api/internal/authorization/flow/generated/runtime\.go$''',
+  '''^api/internal/approval/flow/generated/runtime\.go$''',
+]

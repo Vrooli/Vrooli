@@ -8,11 +8,22 @@ import { selectors } from "../../../consts/selectors";
 import { Panel, PanelHeader, PanelTitle } from "../../../shared/ui/composites";
 
 function getUptimeColor(percentage: number): string {
-  if (percentage >= 99) return "text-emerald-400";
-  if (percentage >= 95) return "text-emerald-300";
-  if (percentage >= 90) return "text-amber-400";
-  if (percentage >= 80) return "text-amber-500";
-  return "text-red-400";
+  if (percentage >= 95) return "text-accent-success";
+  if (percentage >= 80) return "text-accent-warning";
+  return "text-accent-danger";
+}
+
+function getUptimeBarClass(status: HealthStatus): string {
+  if (status === "ok") return "h-full bg-accent-success";
+  if (status === "warning") return "h-4 bg-accent-warning";
+  if (status === "not-applicable") return "h-3 bg-text-muted/50";
+  return "h-5 bg-accent-danger";
+}
+
+function getUptimeProgressColor(percentage: number): string {
+  if (percentage >= 95) return "bg-accent-success";
+  if (percentage >= 80) return "bg-accent-warning";
+  return "bg-accent-danger";
 }
 
 function getUptimeLabel(percentage: number): string {
@@ -33,17 +44,11 @@ function StatusSparkline({ statuses }: { statuses: HealthStatus[] }) {
   }
 
   return (
-    <div className="flex items-end gap-px h-6">
+    <div className="flex h-6 items-end gap-px">
       {displayStatuses.map((status, idx) => (
         <div
           key={idx}
-          className={`w-1 rounded-t-sm transition-all ${
-            status === "ok"
-              ? "bg-emerald-500 h-full"
-              : status === "warning"
-              ? "bg-amber-500 h-4"
-              : "bg-red-500 h-5"
-          }`}
+          className={`w-1 rounded-t-sm transition-all ${getUptimeBarClass(status)}`}
           style={{
             opacity: 0.5 + (idx / displayStatuses.length) * 0.5,
           }}
@@ -149,10 +154,7 @@ export function UptimeStats({ onShowTrends }: UptimeStatsProps) {
       {/* Progress bar */}
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-overlay">
         <div
-          className={`h-full transition-all duration-500 ${
-            data.uptimePercentage >= 95 ? "bg-emerald-500" :
-            data.uptimePercentage >= 80 ? "bg-amber-500" : "bg-red-500"
-          }`}
+          className={`h-full transition-all duration-500 ${getUptimeProgressColor(data.uptimePercentage)}`}
           style={{ width: `${Math.min(100, data.uptimePercentage)}%` }}
         />
       </div>
@@ -160,15 +162,15 @@ export function UptimeStats({ onShowTrends }: UptimeStatsProps) {
       {/* Breakdown */}
       <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
         <div>
-          <div className="text-emerald-400 font-medium">{data.okEvents}</div>
+          <div className="font-medium text-accent-success">{data.okEvents}</div>
           <div className="text-text-muted/80">OK</div>
         </div>
         <div>
-          <div className="text-amber-400 font-medium">{data.warningEvents}</div>
+          <div className="font-medium text-accent-warning">{data.warningEvents}</div>
           <div className="text-text-muted/80">Warn</div>
         </div>
         <div>
-          <div className="text-red-400 font-medium">{data.criticalEvents}</div>
+          <div className="font-medium text-accent-danger">{data.criticalEvents}</div>
           <div className="text-text-muted/80">Crit</div>
         </div>
       </div>

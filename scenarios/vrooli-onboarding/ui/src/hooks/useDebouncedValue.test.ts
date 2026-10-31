@@ -1,5 +1,5 @@
 // [REQ:REQ-P2-002] Debounced search input for glossary
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act } from "../test-utils";
 import { vi } from "vitest";
 import { useDebouncedValue } from "./useDebouncedValue";
 

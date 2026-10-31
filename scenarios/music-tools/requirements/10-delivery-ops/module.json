@@ -1,0 +1,78 @@
+{
+  "_metadata": {
+    "description": "Deterministic delivery: standards-conformant loudness measurement, platform-target normalisation, and reference mastering — all on CPU with no model download. Scoped to the delta beyond MUS-P0-002, which asserts only that deterministic ops need no model, not that their output is correct.",
+    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "module": "delivery-ops",
+    "prd_ref": "OT-P1-003",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P1-009",
+      "title": "Loudness is measured to a stated standard, not an ad-hoc average",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Loudness measurement reports integrated loudness, loudness range, and true peak against a named standard (ITU-R BS.1770 / EBU R128), and the standard is recorded with the measurement. True peak is measured with oversampling, not sample peak, because inter-sample peaks are exactly what a downstream encoder clips on. A number without its standard is not a measurement.",
+      "tags": [
+        "ops",
+        "delivery",
+        "zero-download"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Delivery operations are later-scope work outside this composition slice"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P1-010",
+      "title": "Platform normalisation hits a declared target without clipping",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Normalisation targets are data-defined per delivery platform, not hard-coded constants. Applying a target brings integrated loudness to it within tolerance while keeping true peak under the target's declared ceiling. Where gain alone would breach the ceiling, the operation limits and records that it did rather than clipping silently. Re-applying the same target to an already-normalised track is a no-op within tolerance.",
+      "tags": [
+        "ops",
+        "delivery",
+        "zero-download"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Delivery operations are later-scope work outside this composition slice"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P1-011",
+      "title": "Reference mastering runs on CPU as an isolated process",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "core",
+      "criticality": "P1",
+      "description": "Reference mastering matches a track to a supplied reference without a GPU and without downloading model weights, so it works on a machine that has installed nothing. The implementation is copyleft and is therefore invoked as a subprocess under MUS-P1-007; this requirement asserts the capability and its zero-dependency property, and defers the isolation mechanism to that requirement. The reference track and the applied gain or curve are recorded with the output.",
+      "tags": [
+        "transformation",
+        "delivery",
+        "zero-download"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Delivery operations are later-scope work outside this composition slice"
+        }
+      ]
+    }
+  ]
+}

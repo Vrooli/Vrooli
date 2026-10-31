@@ -1,0 +1,354 @@
+{
+  "metadata": {
+    "name": "message-list-behavior",
+    "description": "Verify MessageList preserves a keyed reading position during incoming and historical messages, exposes return-to-latest, changes branches through its port, and retains content during retry.",
+    "requirement": "PR-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "message-list",
+      "spec_entry_id": "component-harness",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"PR-001\"]"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 15000,
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:MessageList/harness.html?story=live-history"
+        }
+      }
+    },
+    {
+      "id": "ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-message]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        }
+      }
+    },
+    {
+      "id": "settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "read-earlier",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.querySelector('[data-rcl-virtual-list-viewport]').scrollTop=500; true"
+        }
+      }
+    },
+    {
+      "id": "reader-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "remember",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');const r=[...v.querySelectorAll('[data-rcl-virtual-list-row]')].find(r=>r.getBoundingClientRect().top>=v.getBoundingClientRect().top);if(!r)throw Error('No reading anchor');window.__reader={key:r.dataset.rclVirtualListKey,top:r.getBoundingClientRect().top};return window.__reader;})()"
+        }
+      }
+    },
+    {
+      "id": "append",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "button:has-text(\"Append response\")"
+        }
+      }
+    },
+    {
+      "id": "append-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "unread",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const b=document.querySelector('[data-message-list-action=latest]');if(!b?.textContent.includes('new messages (1)'))throw Error('New message indicator missing');const a=window.__reader;const r=document.querySelector('[data-rcl-virtual-list-key=\"'+a.key+'\"]');if(Math.abs(r.getBoundingClientRect().top-a.top)>1)throw Error('Append moved reader');return {indicator:b.textContent};})()"
+        }
+      }
+    },
+    {
+      "id": "history",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-message-list-action=history]"
+        }
+      }
+    },
+    {
+      "id": "history-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "history-anchor",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const a=window.__reader;const r=document.querySelector('[data-rcl-virtual-list-key=\"'+a.key+'\"]');if(Math.abs(r.getBoundingClientRect().top-a.top)>1)throw Error('History moved reader');const b=document.querySelector('[data-message-list-action=latest]');if(!b?.textContent.includes('new messages (1)'))throw Error('History counted as unread');return true;})()"
+        }
+      }
+    },
+    {
+      "id": "latest",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-message-list-action=latest]"
+        }
+      }
+    },
+    {
+      "id": "latest-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "live-edge",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const v=document.querySelector('[data-rcl-virtual-list-viewport]');if(v.scrollHeight-v.clientHeight-v.scrollTop>1)throw Error('Not at end');if(document.querySelector('[data-message-list-action=latest]'))throw Error('Unread notice remained');return true;})()"
+        }
+      }
+    },
+    {
+      "id": "branch",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const s=document.querySelector('[data-rcl-message-list] select');s.value='alternative';s.dispatchEvent(new Event('change',{bubbles:true}));return true;})()"
+        }
+      }
+    },
+    {
+      "id": "branch-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "branch-content",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{if(!document.querySelector('[data-rcl-message-list]').textContent.includes('alternative explanation'))throw Error('Branch did not change');return true;})()"
+        }
+      }
+    },
+    {
+      "id": "error",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 15000,
+          "scenario": "react-component-library",
+          "scenario_path": "/preview/react-component-library:MessageList/harness.html?story=request-error"
+        }
+      }
+    },
+    {
+      "id": "error-ready",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-rcl-message]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 10000
+        }
+      }
+    },
+    {
+      "id": "retry",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "[data-rcl-async-boundary] button:has-text(\"Retry\")"
+        }
+      }
+    },
+    {
+      "id": "retry-settle",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "duration_ms": 300
+        }
+      }
+    },
+    {
+      "id": "retry-retains-content",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const list=document.querySelector('[data-rcl-message-list]');if(list.dataset.state!=='retry'||!list.textContent.includes('rollout completed successfully'))throw Error('Retry lost conversation');const boundary=list.querySelector('[data-rcl-async-boundary]'); const description=document.getElementById(boundary.getAttribute('aria-describedby')); const rect=description.getBoundingClientRect(); if(!description.textContent.trim()||rect.width>1||rect.height>1||getComputedStyle(description).position!=='absolute') throw Error('Accessible description is visibly duplicated'); return true;})()"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "source": "open",
+      "target": "ready"
+    },
+    {
+      "id": "e1",
+      "source": "ready",
+      "target": "settle"
+    },
+    {
+      "id": "e2",
+      "source": "settle",
+      "target": "read-earlier"
+    },
+    {
+      "id": "e3",
+      "source": "read-earlier",
+      "target": "reader-settle"
+    },
+    {
+      "id": "e4",
+      "source": "reader-settle",
+      "target": "remember"
+    },
+    {
+      "id": "e5",
+      "source": "remember",
+      "target": "append"
+    },
+    {
+      "id": "e6",
+      "source": "append",
+      "target": "append-settle"
+    },
+    {
+      "id": "e7",
+      "source": "append-settle",
+      "target": "unread"
+    },
+    {
+      "id": "e8",
+      "source": "unread",
+      "target": "history"
+    },
+    {
+      "id": "e9",
+      "source": "history",
+      "target": "history-settle"
+    },
+    {
+      "id": "e10",
+      "source": "history-settle",
+      "target": "history-anchor"
+    },
+    {
+      "id": "e11",
+      "source": "history-anchor",
+      "target": "latest"
+    },
+    {
+      "id": "e12",
+      "source": "latest",
+      "target": "latest-settle"
+    },
+    {
+      "id": "e13",
+      "source": "latest-settle",
+      "target": "live-edge"
+    },
+    {
+      "id": "e14",
+      "source": "live-edge",
+      "target": "branch"
+    },
+    {
+      "id": "e15",
+      "source": "branch",
+      "target": "branch-settle"
+    },
+    {
+      "id": "e16",
+      "source": "branch-settle",
+      "target": "branch-content"
+    },
+    {
+      "id": "e17",
+      "source": "branch-content",
+      "target": "error"
+    },
+    {
+      "id": "e18",
+      "source": "error",
+      "target": "error-ready"
+    },
+    {
+      "id": "e19",
+      "source": "error-ready",
+      "target": "retry"
+    },
+    {
+      "id": "e20",
+      "source": "retry",
+      "target": "retry-settle"
+    },
+    {
+      "id": "e21",
+      "source": "retry-settle",
+      "target": "retry-retains-content"
+    }
+  ]
+}

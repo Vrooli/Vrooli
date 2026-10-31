@@ -4,7 +4,11 @@ import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const distDir = path.join(__dirname, 'dist')
+const outputFlagIndex = process.argv.indexOf('--outDir')
+const requestedOutput = outputFlagIndex >= 0 ? process.argv[outputFlagIndex + 1] : ''
+const distDir = requestedOutput && !requestedOutput.startsWith('-')
+  ? path.resolve(requestedOutput)
+  : path.join(__dirname, 'dist')
 
 fs.rmSync(distDir, { recursive: true, force: true })
 fs.mkdirSync(distDir, { recursive: true })

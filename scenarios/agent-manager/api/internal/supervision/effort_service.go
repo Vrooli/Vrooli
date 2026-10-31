@@ -1,0 +1,803 @@
+package supervision
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"agent-manager/internal/domain"
+	"agent-manager/internal/goalhome"
+	"agent-manager/internal/pricing"
+
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+// TeamEffortAuthority is an in-process, current owner decision for one declared
+// team leader. Only the authenticated Prompt Manager read constructs it.
+type TeamEffortAuthority struct{ TeamID, MemberRef, HomePath string }
+
+// EffortActor is populated by the existing authenticated owner/run verifier.
+// Request text and workspace declarations never construct this authority.
+type EffortActor struct {
+	Team *TeamEffortAuthority
+
+	exact              *exactAuthorization
+	ID                 string
+	Operator           bool
+	MetadataReconciler bool
+	// Delegated is a live session holding an owner-approved interactive
+	// grant for effort.reconcile on this effort; ApprovedBy is the owner.
+	Delegated  bool
+	ApprovedBy string
+	Scopes     []string
+	// DeliveryManager controls only an existing enrollment's commission under
+	// an owner-approved effort.delivery grant. It conveys no enrollment rights.
+	DeliveryManager bool
+}
+
+const EffortMetadataReconcileScope = "agent-manager:effort-reconcile"
+
+func (a EffortActor) canReconcileMetadata(e *pb.EffortEnrollment) bool {
+	if a.Operator {
+		return a.ID != ""
+	}
+	if a.Delegated {
+		return a.ID != "" && a.ApprovedBy != ""
+	}
+	if !a.MetadataReconciler || a.ID == "" || e == nil {
+		return false
+	}
+	for _, scope := range a.Scopes {
+		if scope != EffortMetadataReconcileScope {
+			continue
+		}
+		for _, subject := range e.Subjects {
+			if subject != nil && subject.RunId == a.ID && subject.Role == "orchestrator" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type EffortService struct {
+	repo              EffortRepository
+	controller        ActionController
+	config            EffortDiscoveryConfig
+	now               func() time.Time
+	mu                sync.Mutex
+	nextScan          time.Time
+	runRegistry       EffortRunRegistry
+	signalCursorStore EffortSignalCursorStore
+	signalScanAfter   string
+	signalScanSubject string
+	quotaStore        pricing.QuotaObservationRepository
+	// decisionMu serializes decision transitions (raise, answer, resolve,
+	// record) so each answer yields exactly one operator_answer signal.
+	decisionMu        sync.Mutex
+	decisionPublisher DecisionPublisher
+	spend             EffortSpendReader
+	goalHomes         goalHomeCache
+	deliveryMu        sync.Mutex
+	deliveryScanAfter string
+}
+
+func NewEffortService(repo EffortRepository, controller ActionController, config EffortDiscoveryConfig) *EffortService {
+	if config.ScanLimit <= 0 || config.ScanLimit > 1000 {
+		config.ScanLimit = 100
+	}
+	if config.FileBytes <= 0 || config.FileBytes > 1024*1024 {
+		config.FileBytes = goalhome.DefaultBoardFileBytes
+	}
+	if config.Interval < time.Second {
+		config.Interval = time.Minute
+	}
+	if config.StaleAfter <= 0 {
+		config.StaleAfter = 5 * time.Minute
+	}
+	return &EffortService{repo: repo, controller: controller, config: config, now: time.Now}
+}
+
+// SetQuotaObservationStore installs the pricing-owned provider observation
+// surface. Board reads it once and joins by canonical source run identity.
+func (s *EffortService) SetQuotaObservationStore(store pricing.QuotaObservationRepository) {
+	s.quotaStore = store
+}
+
+// SetEffortSignalCursorStore installs the canonical run-row cursor owner used
+// by the retained-run check-in dispatcher.
+func (s *EffortService) SetEffortSignalCursorStore(store EffortSignalCursorStore) {
+	s.signalCursorStore = store
+}
+
+func quotaObservationProto(o pricing.QuotaObservation) *pb.EffortQuotaObservation {
+	result := &pb.EffortQuotaObservation{
+		Provider: o.Provider, Pool: o.Pool, Window: o.Window,
+		ObservedAt: timestamppb.New(o.ObservedAt.UTC()), Standing: string(o.Standing),
+		Freshness: string(o.Freshness), Provenance: o.Provenance,
+		Uncertainty: o.Uncertainty, EvidenceRef: o.EvidenceRef, SourceRunId: o.SourceRunID,
+	}
+	if o.UsedPercent != nil {
+		result.UsedPercent = o.UsedPercent
+	}
+	if o.WindowMinutes != nil {
+		result.WindowMinutes = o.WindowMinutes
+	}
+	if o.ResetAt != nil {
+		result.ResetAt = timestamppb.New(o.ResetAt.UTC())
+	}
+	return result
+}
+
+func quotaObservationsForRow(row *pb.EffortBoardRow, observations map[string][]*pb.EffortQuotaObservation) {
+	if row == nil {
+		return
+	}
+	seen := map[string]bool{}
+	for _, assignment := range row.GetAssignments() {
+		if assignment == nil || assignment.GetSubject() == nil {
+			continue
+		}
+		runID := assignment.GetSubject().GetRunId()
+		for _, observation := range observations[runID] {
+			if observation == nil || seen[observation.GetSourceRunId()+"\x00"+observation.GetProvider()+"\x00"+observation.GetPool()+"\x00"+observation.GetWindow()+"\x00"+observation.GetObservedAt().String()] {
+				continue
+			}
+			row.QuotaObservations = append(row.QuotaObservations, observation)
+			seen[observation.GetSourceRunId()+"\x00"+observation.GetProvider()+"\x00"+observation.GetPool()+"\x00"+observation.GetWindow()+"\x00"+observation.GetObservedAt().String()] = true
+		}
+	}
+}
+
+func validateEffortEnrollment(e *pb.EffortEnrollment) error {
+	if e == nil || strings.TrimSpace(e.EffortRef) == "" || len(e.EffortRef) > 512 || len(e.Subjects) > 100 {
+		return errors.New("bounded effort reference and at most 100 subjects required")
+	}
+	if e.Workspace != "" && (!filepath.IsLocal(e.Workspace) || filepath.Base(e.Workspace) != e.Workspace || strings.ContainsAny(e.Workspace, "/\\")) {
+		return errors.New("workspace must be an immediate relative directory")
+	}
+	if e.SupervisorRunId != "" {
+		if _, err := uuid.Parse(e.SupervisorRunId); err != nil {
+			return errors.New("invalid supervisor run UUID")
+		}
+	}
+	seen := map[string]bool{}
+	for _, sub := range e.Subjects {
+		if sub == nil || sub.Owner == "" || sub.Kind == "" || sub.Reference == "" {
+			return errors.New("subjects require owner, kind and exact reference")
+		}
+		if sub.RunId == "" {
+			continue
+		}
+		if sub.Owner != "agent-manager" || sub.Kind != "run" {
+			return errors.New("run identity must belong to Agent Manager")
+		}
+		if _, err := uuid.Parse(sub.RunId); err != nil {
+			return errors.New("invalid subject run UUID")
+		}
+		if seen[sub.RunId] {
+			return errors.New("duplicate run subject")
+		}
+		seen[sub.RunId] = true
+	}
+	return nil
+}
+
+func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
+	s.deliveryMu.Lock()
+	defer s.deliveryMu.Unlock()
+	if actor.ID == "" || (!actor.Operator && actor.Team == nil && (!actor.DeliveryManager || actor.ApprovedBy == "")) {
+		return nil, errors.New("authenticated operator authority required to enroll or amend")
+	}
+	if req == nil || req.Enrollment == nil || strings.TrimSpace(req.IdempotencyKey) == "" {
+		return nil, errors.New("enrollment and idempotency key required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	digest := effortDigest(req) + actor.ID
+	if actor.Team != nil {
+		digest += ":team:" + actor.Team.TeamID
+	} else if !actor.Operator {
+		digest += ":effort.delivery:" + actor.ApprovedBy
+	}
+	key := "enroll:" + req.IdempotencyKey
+	replay := &pb.EffortEnrollment{}
+	if ok, err := s.repo.ReplayEffortOperation(ctx, key, digest, replay); ok || err != nil {
+		return replay, err
+	}
+	e := proto.Clone(req.Enrollment).(*pb.EffortEnrollment)
+	if actor.Operator || actor.Team != nil {
+		e.AuthorizedBy = actor.ID
+		e.Withdrawn = false
+		e.WithdrawalReason = ""
+	}
+	if err := validateEffortEnrollment(e); err != nil {
+		return nil, err
+	}
+	old, o, err := s.repo.GetEffort(ctx, e.EffortRef)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		return nil, err
+	}
+	if old == nil && req.ExpectedRevision != 0 || old != nil && old.Revision != req.ExpectedRevision {
+		return nil, ErrConflict
+	}
+	if actor.Team != nil {
+		if err := authorizeTeamEnrollment(actor, e, old); err != nil {
+			return nil, err
+		}
+	} else if !actor.Operator {
+		if old == nil || old.Withdrawn || e.Delivery == nil {
+			return nil, errors.New("delivery management requires an existing active enrollment and a commission")
+		}
+		unchanged := proto.Clone(e).(*pb.EffortEnrollment)
+		unchanged.Delivery = old.Delivery
+		if !proto.Equal(unchanged, old) {
+			return nil, errors.New("delivery management cannot change enrollment fields")
+		}
+	}
+	if err := s.transitionDelivery(ctx, old, e); err != nil {
+		return nil, err
+	}
+	if o == nil {
+		o = &pb.EffortBoardRow{RuntimeState: "unknown", OutcomeStanding: &pb.EffortOutcomeStanding{State: "unknown", Attribution: "owner references"}}
+	}
+	e.Revision = req.ExpectedRevision + 1
+	e.UpdatedAt = timestamppb.New(s.now().UTC())
+	if err = s.repo.SaveEffort(ctx, e, o, req.ExpectedRevision, key, digest); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// ReconcileMetadata updates only owner-facing effort metadata. It preserves
+// all authority, dispatch, subject and withdrawal fields so routine workspace
+// synchronization cannot renew, revoke or replace a grant.
+func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.ReconcileEffortMetadataRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
+	if _, present := authn.RequestOperationAuthorityFromContext(ctx); present || actor.exact != nil {
+		if actor.exact == nil || actor.ID != actor.exact.envelope.Executor || actor.ApprovedBy != actor.exact.envelope.Initiator || actor.Operator || actor.Delegated || actor.DeliveryManager || actor.MetadataReconciler || actor.exact.validate(ctx, req) != nil {
+			return nil, ErrExactAuthority
+		}
+		repo, ok := s.repo.(*Repository)
+		if !ok || actor.exact.verifier.repo != repo {
+			return nil, ErrExactAuthority
+		}
+		return repo.reconcileExact(ctx, req, actor.exact)
+	}
+
+	if req == nil || req.Enrollment == nil || strings.TrimSpace(req.IdempotencyKey) == "" {
+		return nil, errors.New("enrollment and idempotency key required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old, observation, err := s.repo.GetEffort(ctx, req.Enrollment.EffortRef)
+	if err != nil {
+		return nil, err
+	}
+	if !actor.canReconcileMetadata(old) {
+		return nil, errors.New("explicit effort metadata reconciliation authority required")
+	}
+	key := "reconcile-metadata:" + req.IdempotencyKey
+	digest := effortDigest(req) + actor.ID
+	replay := &pb.EffortEnrollment{}
+	if ok, err := s.repo.ReplayEffortOperation(ctx, key, digest, replay); ok || err != nil {
+		return replay, err
+	}
+	if old.Revision != req.ExpectedRevision {
+		return nil, ErrConflict
+	}
+	if req.Enrollment.EffortRef != old.EffortRef {
+		return nil, errors.New("metadata reconciliation cannot change effort reference")
+	}
+	requestedImmutable := proto.Clone(req.Enrollment).(*pb.EffortEnrollment)
+	storedImmutable := proto.Clone(old).(*pb.EffortEnrollment)
+	for _, enrollment := range []*pb.EffortEnrollment{requestedImmutable, storedImmutable} {
+		enrollment.DisplayName = ""
+		enrollment.DestinationRef = ""
+		enrollment.TargetRevision = ""
+		enrollment.SourceRevision = ""
+		enrollment.Workspace = ""
+		enrollment.WorkShape = ""
+		enrollment.Revision = 0
+		enrollment.UpdatedAt = nil
+	}
+	if !proto.Equal(requestedImmutable, storedImmutable) {
+		return nil, errors.New("metadata reconciliation cannot change authority, subjects, actions or withdrawal state")
+	}
+	next := proto.Clone(old).(*pb.EffortEnrollment)
+	next.DisplayName = req.Enrollment.DisplayName
+	next.DestinationRef = req.Enrollment.DestinationRef
+	next.TargetRevision = req.Enrollment.TargetRevision
+	next.SourceRevision = req.Enrollment.SourceRevision
+	next.Workspace = req.Enrollment.Workspace
+	next.WorkShape = req.Enrollment.WorkShape
+	// Validation sees the retained grant as an existing owner grant. This does
+	// not grant the caller any authority; it only prevents a valid enrollment
+	// from becoming invalid while metadata is reconciled.
+	if err := validateEffortEnrollment(next); err != nil {
+		return nil, err
+	}
+	next.Revision++
+	next.UpdatedAt = timestamppb.New(s.now().UTC())
+	if err := s.repo.SaveEffort(ctx, next, observation, old.Revision, key, digest); err != nil {
+		return nil, err
+	}
+	return next, nil
+}
+
+func (s *EffortService) Withdraw(ctx context.Context, req *pb.WithdrawEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
+	if req == nil || req.IdempotencyKey == "" || req.Reason == "" {
+		return nil, errors.New("withdrawal reason and idempotency key required")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	key := "withdraw:" + req.IdempotencyKey
+	digest := effortDigest(req) + actor.ID
+	replay := &pb.EffortEnrollment{}
+	if ok, err := s.repo.ReplayEffortOperation(ctx, key, digest, replay); ok || err != nil {
+		return replay, err
+	}
+	e, o, err := s.repo.GetEffort(ctx, req.EffortRef)
+	if err != nil {
+		return nil, err
+	}
+	if !actor.Operator || actor.ID == "" {
+		return nil, errors.New("operator authority required for withdrawal")
+	}
+	if e.Revision != req.ExpectedRevision {
+		return nil, ErrConflict
+	}
+	if e.Delivery != nil && e.Delivery.FinalizedAt == nil {
+		return nil, errors.New("stop and finalize the delivery commission before withdrawing its enrollment")
+	}
+	e.Withdrawn = true
+	e.WithdrawalReason = req.Reason
+	e.Revision++
+	e.UpdatedAt = timestamppb.New(s.now().UTC())
+	if err = s.repo.SaveEffort(ctx, e, o, req.ExpectedRevision, key, digest); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func effortPageSize(n uint32) int {
+	if n == 0 {
+		return 50
+	}
+	if n > 100 {
+		return 100
+	}
+	return int(n)
+}
+
+func (s *EffortService) List(ctx context.Context, req *pb.ListEffortsRequest) (*pb.ListEffortsResponse, error) {
+	if req == nil {
+		req = &pb.ListEffortsRequest{}
+	}
+	n := effortPageSize(req.PageSize)
+	rows, err := s.repo.ListEfforts(ctx, req.PageToken, n+1)
+	if err != nil {
+		return nil, err
+	}
+	response := &pb.ListEffortsResponse{Efforts: rows}
+	if len(rows) > n {
+		response.Efforts = rows[:n]
+		response.NextPageToken = rows[n-1].EffortRef
+	}
+	// The retained enrollment bound is explicit in Board when this count is partial.
+	all, err := s.repo.ListEfforts(ctx, "", 1001)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range all {
+		if !e.Withdrawn {
+			response.ActiveCount++
+		}
+	}
+	return response, nil
+}
+
+func (s *EffortService) Board(ctx context.Context, req *pb.GetEffortBoardRequest) (*pb.EffortBoard, error) {
+	if req == nil {
+		req = &pb.GetEffortBoardRequest{}
+	}
+	list, err := s.List(ctx, &pb.ListEffortsRequest{PageSize: req.PageSize, PageToken: req.PageToken})
+	if err != nil {
+		return nil, err
+	}
+	d, err := s.repo.GetEffortDiscovery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	b := &pb.EffortBoard{ObservedAt: timestamppb.New(s.now().UTC()), Discovery: d, ActiveCount: list.ActiveCount, NextPageToken: list.NextPageToken, Partial: d.Partial}
+	quotaByRun := map[string][]*pb.EffortQuotaObservation{}
+	if s.quotaStore != nil {
+		quotaRows, quotaErr := s.quotaStore.ListQuotaObservations(ctx, "", "", "", 100)
+		if quotaErr != nil {
+			b.Partial = true
+			b.Limitations = append(b.Limitations, "provider quota observation read unavailable: "+quotaErr.Error())
+		} else {
+			if len(quotaRows) == 0 {
+				b.Partial = true
+				b.Limitations = append(b.Limitations, "provider quota standing is unknown: no native provider observation has been received")
+			}
+			for _, quota := range quotaRows {
+				if quota.Freshness == "" || quota.Freshness == pricing.ObservationFresh || quota.Freshness == pricing.ObservationStale {
+					quota.Freshness = pricing.Freshness(&quota, s.now().UTC(), s.config.StaleAfter)
+				}
+				mapped := quotaObservationProto(quota)
+				// Keep every provider/pool/window observation once at board scope.
+				// Row joins below only add observations attributable to that row's
+				// canonical run subjects.
+				b.QuotaObservations = append(b.QuotaObservations, mapped)
+				if mapped.GetSourceRunId() != "" {
+					quotaByRun[mapped.GetSourceRunId()] = append(quotaByRun[mapped.GetSourceRunId()], mapped)
+				}
+			}
+		}
+	}
+	if list.ActiveCount > 1000 {
+		b.Partial = true
+		b.Limitations = append(b.Limitations, "active count is censored at 1001 enrollments")
+	}
+	if req.EffortRef != "" {
+		e, _, getErr := s.repo.GetEffort(ctx, req.EffortRef)
+		if getErr != nil {
+			return nil, getErr
+		}
+		list.Efforts = []*pb.EffortEnrollment{e}
+		b.NextPageToken = ""
+	}
+	identity := d.ChangeIdentity
+	for _, e := range list.Efforts {
+		_, ob, getErr := s.repo.GetEffort(ctx, e.EffortRef)
+		if getErr != nil {
+			return nil, getErr
+		}
+		row := s.projectEffort(ctx, e, ob, d)
+		row.GoalHome = s.projectGoalHome(ctx, e, row)
+		row.DeliveryPressure = DeliveryPressure(e.Delivery, s.now())
+		if row.GoalHome != nil && row.GoalHome.GetState() == "partial" {
+			b.Partial = true
+			if row.NextAction == "observe" {
+				row.NextAction = "review goal-home evidence"
+				row.Rationale = strings.TrimSpace(row.Rationale + " Goal-home epoch evidence is incomplete; review its named limitation before acceptance.")
+			}
+		}
+		quotaObservationsForRow(row, quotaByRun)
+		cut := proto.Clone(row).(*pb.EffortBoardRow)
+		cut.ObservedAt = nil
+		if cut.GoalHome != nil {
+			cut.GoalHome.ReadAt = nil
+		}
+		cut.ChangeIdentity = ""
+		cut.VisibilityChangeIdentity = ""
+		for _, a := range cut.Assignments {
+			a.ObservedAt = nil
+		}
+		row.VisibilityChangeIdentity = effortDigest(cut)
+		row.ChangeIdentity = effortSubjectIdentity(row, ob)
+		identity += row.VisibilityChangeIdentity
+		b.Rows = append(b.Rows, row)
+		if row.Freshness != pb.EffortFreshness_EFFORT_FRESHNESS_FRESH || len(row.Limitations) > 0 || row.Usage.GetPartial() {
+			b.Partial = true
+		}
+	}
+	b.ChangeIdentity = bytesDigest([]byte(identity))
+	return b, nil
+}
+
+func (s *EffortService) projectEffort(ctx context.Context, e *pb.EffortEnrollment, ob *pb.EffortBoardRow, d *pb.EffortDiscovery) *pb.EffortBoardRow {
+	row := proto.Clone(ob).(*pb.EffortBoardRow)
+	row.Enrollment = e
+	row.Assignments = nil
+	row.Usage = &pb.EffortUsage{Source: "Agent Manager current run summaries", Partial: true, Limitations: []string{"billing and unregistered agent work remain unknown; summary cost estimates are not reported charges"}}
+	if row.OutcomeStanding == nil {
+		row.OutcomeStanding = &pb.EffortOutcomeStanding{State: "unknown"}
+	}
+	now := s.now().UTC()
+	if e.Workspace == "" {
+		row.ObservedAt = timestamppb.New(now)
+		row.Freshness = pb.EffortFreshness_EFFORT_FRESHNESS_FRESH
+	} else if row.Freshness != pb.EffortFreshness_EFFORT_FRESHNESS_UNAVAILABLE {
+		stamp := ob.GetObservedAt().AsTime()
+		if now.Sub(stamp) > s.config.StaleAfter {
+			row.Freshness = pb.EffortFreshness_EFFORT_FRESHNESS_STALE
+		}
+	}
+	seen := map[string]bool{}
+	allTokens := true
+	tokens := int64(0)
+	seconds := float64(0)
+	allTime := true
+	unavailable := 0
+	subjects := append([]*pb.EffortSubject{}, e.Subjects...)
+	if e.SupervisorRunId != "" {
+		exists := false
+		for _, sub := range subjects {
+			if sub.RunId == e.SupervisorRunId {
+				exists = true
+			}
+		}
+		if !exists {
+			subjects = append(subjects, &pb.EffortSubject{Owner: "agent-manager", Kind: "run", Reference: e.SupervisorRunId, RunId: e.SupervisorRunId, Role: "supervisor"})
+		}
+	}
+	for _, sub := range subjects {
+		a := &pb.EffortAssignment{Subject: sub, RuntimeState: "unknown", ObservedAt: timestamppb.New(now), Usage: &pb.EffortUsage{Partial: true}}
+		row.Assignments = append(row.Assignments, a)
+		if sub.Owner != "agent-manager" || sub.Kind != "run" || sub.RunId == "" || s.controller == nil {
+			a.UnavailableReason = "current owner telemetry unavailable"
+			unavailable++
+			allTokens = false
+			allTime = false
+			continue
+		}
+		row.Usage.DeclaredRuns++
+		id, err := uuid.Parse(sub.RunId)
+		if err != nil {
+			a.UnavailableReason = "invalid run identity"
+			unavailable++
+			allTokens = false
+			allTime = false
+			continue
+		}
+		run, err := s.controller.GetRun(ctx, id)
+		if err != nil || run == nil || run.ID != id {
+			a.UnavailableReason = "run owner unavailable"
+			unavailable++
+			allTokens = false
+			allTime = false
+			continue
+		}
+		a.RuntimeState = string(run.Status)
+		a.RequestedModel = run.RequestedModel
+		a.EffectiveModel = run.ActualModel
+		a.EffectiveRunner = run.HarnessKind
+		if run.ResolvedConfig != nil {
+			a.EffectiveRunner = string(run.ResolvedConfig.RunnerType)
+		}
+		a.ExecutionIdentity = run.ID.String()
+		if run.ImportSourceSessionID != "" {
+			a.ExecutionIdentity = domain.NormalizeImportHarness(run.ImportSourceHarness) + ":" + run.ImportSourceSessionID
+		} else if run.SessionID != "" {
+			a.ExecutionIdentity = a.EffectiveRunner + ":" + run.SessionID
+		}
+		if config := run.ResolvedConfig; config != nil && config.Admission != nil {
+			ad := config.Admission
+			a.RequestedModel = ad.RequestedModel
+			a.RequestedRunner = ad.RequestedRunner
+			a.RequestedReasoning = ad.RequestedEffort
+			a.EffectiveReasoning = ad.EffectiveEffort
+			if a.EffectiveModel == "" {
+				a.EffectiveModel = ad.EffectiveModel
+			}
+			a.Usage.Limitations = append(a.Usage.Limitations, "effective admission settings are not provider qualification")
+		}
+		inconsistent := (run.Status.IsActive() || run.Status == domain.RunStatusParked) && run.EndedAt != nil
+		if inconsistent {
+			a.RuntimeState = "unknown"
+			a.UnavailableReason = "owner lifecycle inconsistency: active status retains an ended timestamp; reconcile original run identity"
+			if run.ErrorMsg != "" {
+				a.Usage.Limitations = append(a.Usage.Limitations, "owner also retains an error alongside active status")
+			}
+			if run.LastHeartbeat != nil && run.LastHeartbeat.After(*run.EndedAt) {
+				a.Usage.Limitations = append(a.Usage.Limitations, "heartbeat is newer than retained end; activity does not resolve prior terminal evidence")
+			}
+			row.Blockers = append(row.Blockers, "reconcile owner lifecycle evidence for run "+run.ID.String())
+			unavailable++
+		}
+		if s.spend != nil && !inconsistent {
+			if total, known, err := s.spend.RunTokens(ctx, run.ID); err == nil && known {
+				a.Usage.Tokens = &total
+			} else {
+				a.Usage.Limitations = append(a.Usage.Limitations, "run token total is not authoritatively metered")
+			}
+		}
+		if !inconsistent && run.Status.IsTerminal() && run.StartedAt != nil && run.EndedAt != nil {
+			v := run.EndedAt.Sub(*run.StartedAt).Seconds()
+			if v >= 0 {
+				a.Usage.AgentSeconds = &v
+			}
+		}
+		if seen[a.ExecutionIdentity] {
+			a.Usage.Limitations = append(a.Usage.Limitations, "shared execution identity excluded from aggregate to avoid double counting")
+			continue
+		}
+		seen[a.ExecutionIdentity] = true
+		row.Usage.ObservedRuns++
+		if a.Usage.Tokens == nil {
+			allTokens = false
+		} else {
+			tokens += *a.Usage.Tokens
+		}
+		if a.Usage.AgentSeconds == nil {
+			allTime = false
+		} else {
+			seconds += *a.Usage.AgentSeconds
+		}
+	}
+	if allTokens && row.Usage.ObservedRuns > 0 {
+		row.Usage.Tokens = &tokens
+	}
+	if allTime && row.Usage.ObservedRuns > 0 {
+		row.Usage.AgentSeconds = &seconds
+	}
+	// Usage above covers every role. Product runtime requires an explicit executor
+	// role, and cannot borrow liveness from supervision or diagnostic observations.
+	// Resolve roles after all owner reads so aliases are independent of ordering.
+	executionRoles := map[string]string{}
+	identityOf := func(a *pb.EffortAssignment) string {
+		if a.ExecutionIdentity != "" {
+			return a.ExecutionIdentity
+		}
+		if a.Subject.RunId != "" {
+			return a.Subject.Owner + ":run:" + a.Subject.RunId
+		}
+		return ""
+	}
+	recordRole := func(identity, role string) {
+		if identity == "" {
+			return
+		}
+		if previous := executionRoles[identity]; previous != "" && previous != role {
+			executionRoles[identity] = "conflict"
+		} else {
+			executionRoles[identity] = role
+		}
+	}
+	for _, a := range row.Assignments {
+		role := a.Subject.Role
+		if role != "orchestrator" && role != "worker" {
+			role = "observation"
+		}
+		identity := identityOf(a)
+		recordRole(identity, role)
+		if e.SupervisorRunId != "" && a.Subject.RunId == e.SupervisorRunId {
+			recordRole(identity, "observation")
+		}
+	}
+	type runtimeCoverage struct{ declared, active, terminal, unknown int }
+	coverage := map[string]*runtimeCoverage{"orchestrator": {}, "worker": {}}
+	conflicts := map[string]bool{}
+	for _, a := range row.Assignments {
+		counts := coverage[a.Subject.Role]
+		if counts == nil {
+			continue
+		}
+		counts.declared++
+		identity := identityOf(a)
+		if executionRoles[identity] == "conflict" {
+			counts.unknown++
+			a.Usage.Limitations = append(a.Usage.Limitations, "conflicting execution roles; product runtime attribution unknown")
+			if !conflicts[identity] {
+				row.Limitations = append(row.Limitations, "conflicting execution roles for "+identity+"; product runtime attribution unknown")
+				conflicts[identity] = true
+			}
+			continue
+		}
+		status := domain.RunStatus(a.RuntimeState)
+		switch {
+		case a.UnavailableReason != "" || status == domain.RunStatusUnknown:
+			counts.unknown++
+		case status.IsActive() || status == domain.RunStatusParked:
+			counts.active++
+		case status.IsTerminal():
+			counts.terminal++
+		default:
+			counts.unknown++
+		}
+	}
+	for _, role := range []string{"orchestrator", "worker"} {
+		counts := coverage[role]
+		detail := fmt.Sprintf("%s runtime coverage: declared=%d active=%d terminal=%d unknown=%d", role, counts.declared, counts.active, counts.terminal, counts.unknown)
+		if counts.declared == 0 {
+			detail += "; no explicit assignment, coverage unknown"
+		}
+		row.Limitations = append(row.Limitations, detail)
+	}
+	orchestrators, workers := coverage["orchestrator"], coverage["worker"]
+	row.RuntimeState = "unknown"
+	if orchestrators.active+workers.active > 0 {
+		row.RuntimeState = "active"
+	} else if orchestrators.declared > 0 && orchestrators.terminal+workers.terminal > 0 && orchestrators.unknown+workers.unknown == 0 {
+		row.RuntimeState = "finished"
+	}
+	row.Limitations = append(row.Limitations, "runtime covers explicit orchestrator/worker assignments; observation roles remain in usage; terminal runtime does not establish outcome acceptance")
+	if unavailable > 0 {
+		row.Limitations = append(row.Limitations, fmt.Sprintf("%d subject owner observations unavailable", unavailable))
+	}
+	if e.Withdrawn {
+		row.NextAction = "retired"
+		row.Rationale = e.WithdrawalReason
+	} else if row.NextAction == "" {
+		row.NextAction = "observe"
+		row.Rationale = "no independently evidenced outcome deviation has been classified"
+	}
+	return row
+}
+
+// The trigger is a subject cut, not a checksum of the supervisory UI. Inward
+// accounting stays visible without waking inference because its own run finished.
+func effortSubjectIdentity(row, source *pb.EffortBoardRow) string {
+	cut := proto.Clone(source).(*pb.EffortBoardRow)
+	cut.ObservedAt, cut.Usage = nil, nil
+	cut.ChangeIdentity, cut.VisibilityChangeIdentity = "", ""
+	cut.Enrollment = proto.Clone(row.Enrollment).(*pb.EffortEnrollment)
+	e := cut.Enrollment
+	e.Revision, e.UpdatedAt, e.Subjects = 0, nil, nil
+	e.SupervisorRunId = ""
+	cut.Assignments = nil
+	cut.Freshness = row.Freshness
+	for _, assignment := range row.Assignments {
+		if assignment.Subject.GetRole() == "supervisor" {
+			continue
+		}
+		a := proto.Clone(assignment).(*pb.EffortAssignment)
+		a.ObservedAt = nil
+		cut.Assignments = append(cut.Assignments, a)
+	}
+	return effortDigest(cut)
+}
+
+// Tick is cheap owner recovery, not agent inference. The surrounding scheduler
+// remains alive with no efforts, and failure here does not stop family work.
+func (s *EffortService) Tick(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	if now.Before(s.nextScan) {
+		return nil
+	}
+	_, err := s.reconcileDiscovery(ctx)
+	s.nextScan = now.Add(s.config.Interval)
+	return errors.Join(err, s.tickDelivery(ctx), s.sweepEndedRuns(ctx), s.publishPendingDecisions(ctx), s.dispatchEffortSignalCheckins(ctx))
+}
+
+// Team management can prepare its own declared effort, never seize another
+// enrollment or change active commission metadata. Clock transitions stay with
+// transitionDelivery, including server-owned time and immutable budget policy.
+func authorizeTeamEnrollment(actor EffortActor, e, old *pb.EffortEnrollment) error {
+	a := actor.Team
+	if a.TeamID == "" || a.MemberRef == "" || a.HomePath == "" || e.WorkShape != "orchestrated_epochs" || !strings.HasPrefix(e.EffortRef, "effort:") {
+		return errors.New("invalid team effort binding")
+	}
+	destination := strings.TrimPrefix(e.DestinationRef, "path:")
+	if destination == e.DestinationRef || !strings.HasPrefix(destination, a.HomePath+"/") || filepath.ToSlash(filepath.Clean(destination)) != destination || strings.Contains(destination, "\\") {
+		return errors.New("team effort destination must be inside its declared home")
+	}
+	if e.TargetRevision == "" || e.SourceRevision == "" || e.AuthorityRef == "" {
+		return errors.New("team effort requires target, source and authority references")
+	}
+	if old == nil {
+		if len(e.Subjects) != 1 || e.SupervisorRunId != "" || e.Revision != 0 || e.Delivery != nil {
+			return errors.New("initial team enrollment must be inert with one declared leader")
+		}
+		subject := e.Subjects[0]
+		if subject.GetOwner() != "prompt-manager" || subject.GetKind() != "team-member" || subject.GetReference() != a.MemberRef || subject.GetRole() != "orchestrator" || subject.GetRunId() != "" {
+			return errors.New("team enrollment leader does not match its owner")
+		}
+		return nil
+	}
+	if old.Withdrawn || old.AuthorizedBy != actor.ID {
+		return errors.New("team management cannot replace existing effort ownership")
+	}
+	if !proto.Equal(&pb.EffortEnrollment{Subjects: e.Subjects}, &pb.EffortEnrollment{Subjects: old.Subjects}) {
+		return errors.New("team management cannot replace enrolled subjects")
+	}
+	if old.Delivery != nil {
+		unchanged := proto.Clone(e).(*pb.EffortEnrollment)
+		unchanged.Delivery = old.Delivery
+		if !proto.Equal(unchanged, old) {
+			return errors.New("team management cannot change commissioned enrollment metadata")
+		}
+	}
+	return nil
+}

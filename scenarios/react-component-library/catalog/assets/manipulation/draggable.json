@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.draggable",
+    "name": "Draggable",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-drag",
+        "reason": "Pointer capture, constraints, and velocity keep movement outside React rendering."
+      },
+      {
+        "asset": "hooks.use-announce",
+        "reason": "Position and outcome are announced through the one shared live region."
+      },
+      {
+        "asset": "services.drag-drop-store",
+        "reason": "Active drag and target state live in the shared scoped store."
+      },
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "drag-drop-adapter",
+      "optional": true
+    }
+  ],
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation"
+  ],
+  "rationale": "Keyboard dragging is part of the contract rather than an enhancement. A drag interaction reachable only by pointer excludes keyboard and switch users from an entire class of operation."
+}

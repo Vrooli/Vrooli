@@ -5,15 +5,17 @@ import {
   deleteCapture as apiDeleteCapture,
   deleteAllCaptures as apiDeleteAll,
   buildCapturesDownloadUrl,
-  type Capture,
-  type CapturesSummary,
 } from "../lib/api/captures";
+import type {
+  EvidenceCapture,
+  EvidenceCapturesSummary,
+} from "@vrooli/proto-types/scenario-to-desktop/v1/domain/evidence_pb";
 
 interface CapturesState {
   isOpen: boolean;
   scenarioName: string | null;
-  captures: Capture[];
-  summary: CapturesSummary | null;
+  captures: EvidenceCapture[];
+  summary: EvidenceCapturesSummary | null;
   selectedIds: Set<string>;
   loading: boolean;
   error: string | null;
@@ -52,7 +54,7 @@ export const useCapturesStore = create<CapturesStore>((set, get) => ({
       error: null,
       loading: true,
     });
-    get().fetchCaptures();
+    void get().fetchCaptures();
   },
 
   close: () => {
@@ -106,7 +108,7 @@ export const useCapturesStore = create<CapturesStore>((set, get) => ({
   },
 
   selectAll: () => {
-    const ids = new Set(get().captures.map((c) => c.id));
+    const ids = new Set(get().captures.map((capture) => capture.captureId));
     set({ selectedIds: ids });
   },
 

@@ -296,7 +296,7 @@ func CheckAPIApplicationLogging(content []byte, filePath string) []Violation {
 				continue
 			}
 			if strings.Contains(line, "=") && !strings.Contains(line, "==") &&
-			   strings.Contains(line, "fmt.Sprintf") {
+				strings.Contains(line, "fmt.Sprintf") {
 				continue
 			}
 

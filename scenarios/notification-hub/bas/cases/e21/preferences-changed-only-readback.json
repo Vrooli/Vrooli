@@ -1,0 +1,197 @@
+{
+  "metadata": {
+    "name": "e21-preferences-changed-only-readback",
+    "description": "Change one disposable owner's notification category, preserve its sibling, and confirm persisted preference after reload.",
+    "requirement": "NOTIFICA-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-preferences-changed-only"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Update one test-owner preference category without altering a sibling category; verify UI and API readback after reload.",
+      "requirement": "NOTIFICA-P0-008",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 1280,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&e22_fixture=settings-owner&e22_case=e43-preferences",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the owner settings page with the leased two-category preference fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-catalog",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"notification-source-e43-fixture-source\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the disposable owner preference catalog"
+          }
+        }
+      },
+      {
+        "id": "assert-preference-baseline",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const card=document.querySelector('[data-testid=\"notification-source-e43-fixture-source\"]');const d=card?.querySelector('input[aria-label=\"Enable Delivery updates\"]');const c=card?.querySelector('input[aria-label=\"Enable Critical notices\"]');const ds=card?.querySelector('select[aria-label=\"Delivery updates · Minimum urgency\"]');const cs=card?.querySelector('select[aria-label=\"Critical notices · Minimum urgency\"]');if(!d?.checked||!c?.checked||ds?.value!==\"normal\"||cs?.value!==\"critical\")throw new Error(`unexpected preference baseline ${JSON.stringify({delivery:d?.checked,critical:c?.checked,urgencies:[ds?.value,cs?.value]})}`);return {source:\"e43-fixture-source\",categories:[\"delivery\",\"critical\"],enabled:[true,true],minimumUrgencies:{delivery:\"normal\",critical:\"critical\"}}})()"
+          },
+          "metadata": {
+            "label": "Verify both disposable categories start from their declared defaults"
+          }
+        }
+      },
+      {
+        "id": "disable-delivery-category",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "label[data-kind=\"switch\"]:has(input[aria-label=\"Enable Delivery updates\"])"
+          },
+          "metadata": {
+            "label": "Change only the Delivery updates preference"
+          }
+        }
+      },
+      {
+        "id": "wait-owner-readback",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"notification-source-e43-fixture-source\"] input[aria-label=\"Enable Delivery updates\"]:not(:checked)",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the changed category to return from owner-scoped catalog readback"
+          }
+        }
+      },
+      {
+        "id": "reload-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&e22_fixture=settings-owner&e22_case=e43-preferences",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload the same leased owner preference view"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded-catalog",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"notification-source-e43-fixture-source\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for persisted preference values after reload"
+          }
+        }
+      },
+      {
+        "id": "assert-changed-only-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "async()=>{const card=document.querySelector('[data-testid=\"notification-source-e43-fixture-source\"]');const d=card?.querySelector('input[aria-label=\"Enable Delivery updates\"]');const c=card?.querySelector('input[aria-label=\"Enable Critical notices\"]');const ds=card?.querySelector('select[aria-label=\"Delivery updates · Minimum urgency\"]');const cs=card?.querySelector('select[aria-label=\"Critical notices · Minimum urgency\"]');const response=await fetch('/api/v1/notifications/catalog',{headers:{'X-Vrooli-Browser-Session':'1'},credentials:'same-origin',cache:'no-store'});if(!response.ok)throw new Error(`owner catalog readback failed ${response.status}`);const catalog=await response.json();const saved=catalog.preferences.filter(x=>x.source_scenario==='e43-fixture-source');if(d?.checked||!c?.checked||ds?.value!=='normal'||cs?.value!=='critical'||saved.length!==1||saved[0].category!=='delivery'||saved[0].enabled!==false)throw new Error(`changed-only preference mismatch ${JSON.stringify({enabled:{delivery:d?.checked,critical:c?.checked},urgencies:{delivery:ds?.value,critical:cs?.value},saved})}`);return {changedCategory:'delivery',enabled:false,siblingCriticalEnabled:c.checked,siblingMinimumUrgency:cs.value,storedPreferenceRows:saved.length,persistedAfterReload:true}}"
+          },
+          "metadata": {
+            "label": "Verify one persisted category changed and the critical sibling remains at its default"
+          }
+        }
+      },
+      {
+        "id": "capture-preference-readback",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the owner settings preference result on desktop"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-pref-00",
+        "source": "open-settings",
+        "target": "wait-catalog",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-01",
+        "source": "wait-catalog",
+        "target": "assert-preference-baseline",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-02",
+        "source": "assert-preference-baseline",
+        "target": "disable-delivery-category",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-03",
+        "source": "disable-delivery-category",
+        "target": "wait-owner-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-04",
+        "source": "wait-owner-readback",
+        "target": "reload-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-05",
+        "source": "reload-settings",
+        "target": "wait-reloaded-catalog",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-06",
+        "source": "wait-reloaded-catalog",
+        "target": "assert-changed-only-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-pref-07",
+        "source": "assert-changed-only-readback",
+        "target": "capture-preference-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

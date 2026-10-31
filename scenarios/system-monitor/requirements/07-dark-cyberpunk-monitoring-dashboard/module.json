@@ -1,64 +1,53 @@
 {
-  "description": "React + Vite + TypeScript UI in ui/src/. 7 routes, MetricsGrid, sparkline charts (recharts), MatrixBackground, process monitor with kill dialog, infrastructure monitor, investigation agent panel, report generation panel. Share Tech Mono font, #5cff95 primary green.",
-  "module_id": "MOD-P0-007",
-  "prd_ref": "system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-09-02T21:50:20-04:00"
+  },
   "requirements": [
     {
-      "category": "ui",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "System must provide a dark cyberpunk monitoring dashboard with Matrix theme using React",
       "id": "REQ-P0-007",
-      "prd_ref": "system-monitor-must-have-dark-cyberpunk-monitoring-dashboard-matrix-themed-react-ui",
-      "status": "implemented",
-      "title": "Matrix-Themed Dashboard",
+      "title": "Vrooli Operational Console Dashboard",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-007",
+      "category": "ui",
+      "description": "System must provide a governed, responsive monitoring dashboard using the vrooli-default / Vrooli Operational Console design system with React. This supersedes the former Matrix-theme requirement by the production-readiness decision dated 2026-08-19: the default system is the platform-supported design contract and is already covered by UI governance.",
       "validation": [
         {
-          "notes": "Test React components",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test React components"
         },
         {
-          "notes": "Verify theme consistency",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Verify vrooli-default token consistency"
         },
         {
-          "notes": "Test dashboard data updates",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Test dashboard data updates"
         },
         {
-          "notes": "UI renders \u003c 2s",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "UI renders \u003c 2s"
         },
         {
-          "notes": "Smooth animations",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Smooth animations"
         },
         {
-          "notes": "UI matches design spec",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "UI matches the amended vrooli-default design contract"
         }
       ]
     }
-  ],
-  "title": "Dark cyberpunk monitoring dashboard (Matrix-themed React UI)"
+  ]
 }

@@ -1,0 +1,93 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Document actual template preferences and inherited accessibility and locale seams without claiming implemented Device Studio account or worker settings.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-011",
+      "OT-P0-012"
+    ]
+  },
+  "x-status": "Implemented template route, not an implemented Device Studio product surface.",
+  "states": [
+    {
+      "id": "idle",
+      "description": "Design requirement only: No operation is pending; identify the current task and available next action. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "pending",
+      "description": "Design requirement only: Work is acknowledged and queued or in flight with observed progress or an honest indeterminate state. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "retrying",
+      "description": "Design requirement only: A safe retry is actively reconciling or executing without blind duplicate side effects. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "default",
+      "description": "Design requirement only: Explain the current task, saved revision and next meaningful action. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "loading",
+      "description": "Design requirement only: Name what is loading; retain stable layout and existing local content. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "submitting",
+      "description": "Design requirement only: Acknowledge the requested operation once and prevent duplicate costly submissions. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "saving",
+      "description": "Design requirement only: Distinguish local draft changes from durably saved revision; never claim saved early. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "syncing",
+      "description": "Design requirement only: Explain local versus remote state and conflict resolution without silently overwriting edits. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "refreshing",
+      "description": "Design requirement only: Retain usable content and identify the specific information being refreshed. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "empty",
+      "description": "Design requirement only: Explain why there is no content and offer a relevant low-risk first action. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "partial",
+      "description": "Design requirement only: Show which inputs, output or services are available and which remain incomplete. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "stale",
+      "description": "Design requirement only: Show age, affected decisions and explicit refresh; never silently spend on refresh. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "success",
+      "description": "Design requirement only: Confirm the concrete durable result and offer inspection or the next task. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "validation-error",
+      "description": "Design requirement only: Associate actionable correction with each invalid field while preserving input. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "request-error",
+      "description": "Design requirement only: Explain the failed operation, preserved work and safe next action with diagnostic reference. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Design requirement only: Identify the unavailable operation and authority boundary without requesting unrelated access. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "offline",
+      "description": "Design requirement only: Keep supported local work usable; mark online operations unavailable and never auto-submit paid work on reconnect. No runtime setup or state coverage is claimed for this template route."
+    },
+    {
+      "id": "retry",
+      "description": "Design requirement only: Explain whether retry reuses an operation identity, reconciles prior work or starts a newly authorized operation. No runtime setup or state coverage is claimed for this template route."
+    }
+  ]
+}

@@ -33,28 +33,30 @@ func (s *Server) fetchCodeQualityDimension(ctx context.Context, scenarioName str
 }
 
 // fetchTestsDimension queries test-genie for test execution data.
-func (s *Server) fetchTestsDimension(ctx context.Context, scenarioName string, detailCount int) (*TestsDimension, bool) {
+func (s *Server) fetchTestsDimension(ctx context.Context, scenarioName, executionID string, detailCount int) (*TestsDimension, bool) {
 	available := s.capabilities.IsAvailable(ctx, "test-genie")
 	if !available {
 		return nil, false
 	}
 
 	dim := &TestsDimension{Available: true}
-	list, err := s.testGenieClient.ListExecutions(ctx, scenarioName, 1)
-	if err != nil || list == nil || len(list.Items) == 0 {
+	latest, err := s.testGenieClient.ReadRun(ctx, scenarioName, executionID)
+	if err != nil || latest.GetRunId() == "" {
 		return dim, true
 	}
-
-	latest := list.Items[0]
-	dim.Passed = latest.Success
-	dim.Total = latest.PhaseSummary.Total
-	dim.PassedCount = latest.PhaseSummary.Passed
-	dim.FailedCount = latest.PhaseSummary.Failed
-	if latest.CompletedAt != "" {
-		dim.LastRun = latest.CompletedAt
-	}
-	if detailCount > 0 {
-		dim.Failures = buildTestFailures(latest.Phases, detailCount)
+	dim.Passed = latest.GetStatus() == "passed" && len(latest.GetPhases()) > 0
+	dim.LastRun = latest.GetCompletedAt()
+	dim.Total = len(latest.GetPhases())
+	for _, phase := range latest.GetPhases() {
+		switch phase.GetStatus() {
+		case "passed":
+			dim.PassedCount++
+		case "failed", "error", "aborted":
+			dim.FailedCount++
+			if len(dim.Failures) < detailCount {
+				dim.Failures = append(dim.Failures, TestFailure{Phase: phase.GetName()})
+			}
+		}
 	}
 	return dim, true
 }
@@ -169,26 +171,6 @@ func buildCodeQualityIssues(bd *TidinessBreakdown, limit int) []CodeQualityIssue
 		issues = issues[:limit]
 	}
 	return issues
-}
-
-// buildTestFailures extracts failed phases from a test execution, capped at limit.
-func buildTestFailures(phases []TestPhaseResult, limit int) []TestFailure {
-	var failures []TestFailure
-	for _, p := range phases {
-		if p.Status != "failed" {
-			continue
-		}
-		failures = append(failures, TestFailure{
-			Phase:          p.Name,
-			Error:          p.Error,
-			Classification: p.Classification,
-			Remediation:    p.Remediation,
-		})
-		if len(failures) >= limit {
-			break
-		}
-	}
-	return failures
 }
 
 // severityOrder maps severity strings to sort priority (lower = more severe).

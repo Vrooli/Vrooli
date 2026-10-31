@@ -1,0 +1,563 @@
+{
+  "schema_version": "2026-10-30",
+  "provider": {
+    "id": "orcarouter",
+    "family": "openai-compatible",
+    "endpoints": [
+      "chat",
+      "models"
+    ],
+    "capabilities": [
+      "chat",
+      "tools",
+      "structured_output",
+      "vision",
+      "streaming",
+      "provider_fallbacks"
+    ]
+  },
+  "excluded_models": [],
+  "roles": {
+    "chat.small": {
+      "model": "openai/gpt-4o-mini",
+      "fallbacks": [
+        "deepseek/deepseek-chat"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Low-cost OrcaRouter chat role for short, low-risk text paths.",
+      "preference": 10,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 2048
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "chat.default": {
+      "model": "openai/gpt-6-luna",
+      "fallbacks": [
+        "openai/gpt-4o-mini",
+        "deepseek/deepseek-chat"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Default OrcaRouter chat role: low-cost hosted workhorse with a broad fallback chain.",
+      "preference": 20,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 4096
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "chat.quality": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "fallbacks": [
+        "openai/gpt-6.1-sol"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Quality-tier OrcaRouter chat role for higher-reliability reasoning and prose.",
+      "preference": 30,
+      "request_defaults": {
+        "temperature": 0.7,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "summarize.default": {
+      "model": "openai/gpt-6-luna",
+      "fallbacks": [
+        "openai/gpt-4o-mini"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat",
+        "long_context"
+      ],
+      "description": "Summarization role with a long-context model and cheap fallback.",
+      "preference": 40,
+      "request_defaults": {
+        "temperature": 0.3,
+        "max_tokens": 4096
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "classify.routing": {
+      "model": "openai/gpt-4o-mini",
+      "fallbacks": [
+        "deepseek/deepseek-chat"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Fast, cheap routing and classification role.",
+      "preference": 50,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 512
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "extract.structured": {
+      "model": "openai/gpt-4o-mini",
+      "fallbacks": [
+        "deepseek/deepseek-chat"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "structured_output"
+      ],
+      "description": "Structured-extraction role using OpenAI-compatible json_schema output.",
+      "preference": 60,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 4096,
+        "response_format": "json_schema"
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; structured-output support not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "code.default": {
+      "model": "deepseek/deepseek-chat",
+      "fallbacks": [
+        "anthropic/claude-sonnet-4.6",
+        "openai/gpt-4o-mini"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat",
+        "code"
+      ],
+      "description": "Default OrcaRouter coding role with a Frontier fallback.",
+      "preference": 80,
+      "request_defaults": {
+        "temperature": 0.1,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "agent.tools": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "fallbacks": [
+        "openai/gpt-4o-mini",
+        "deepseek/deepseek-chat"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "tools"
+      ],
+      "description": "Tool-calling agent role biased toward reliability over raw cheapness.",
+      "preference": 90,
+      "request_defaults": {
+        "temperature": 0.2,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "write.default": {
+      "model": "google/gemini-3.1-pro-preview",
+      "fallbacks": [
+        "anthropic/claude-sonnet-4.6"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat"
+      ],
+      "description": "Hosted prose writing role.",
+      "preference": 70,
+      "request_defaults": {
+        "temperature": 0.9,
+        "max_tokens": 8192
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; availability and sampling behavior not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    },
+    "vision.default": {
+      "model": "google/gemini-3.1-pro-preview",
+      "fallbacks": [
+        "openai/gpt-4o-mini"
+      ],
+      "endpoint": "chat",
+      "required_capabilities": [
+        "chat",
+        "vision"
+      ],
+      "description": "Hosted visual grounding and image understanding role.",
+      "preference": 65,
+      "request_defaults": {
+        "temperature": 0.0,
+        "max_tokens": 1024
+      },
+      "sampling_support": {
+        "temperature": "unknown"
+      },
+      "provenance": {
+        "source_kind": "orcarouter_docs",
+        "confidence": "low",
+        "source": "OrcaRouter model catalog and OpenAI-compatibility docs, 2026-10-30; vision support not live-verified",
+        "observed_at": "2026-10-30",
+        "sample_count": 0
+      }
+    }
+  },
+  "models": {
+    "openai/gpt-4o-mini": {
+      "provider": "openai",
+      "family": "gpt-4o",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "vision",
+        "long_context",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 128000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "orcarouter_docs",
+          "confidence": "low",
+          "source": "OrcaRouter model catalog, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "openai/gpt-6-luna": {
+      "provider": "openai",
+      "family": "gpt-6",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "orcarouter_docs",
+          "confidence": "low",
+          "source": "OrcaRouter model catalog, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "openai/gpt-6.1-sol": {
+      "provider": "openai",
+      "family": "gpt-6",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "reasoning"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "orcarouter_docs",
+          "confidence": "low",
+          "source": "OrcaRouter model catalog, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "anthropic/claude-sonnet-4.6": {
+      "provider": "anthropic",
+      "family": "claude",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "code",
+        "vision"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 200000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "orcarouter_docs",
+          "confidence": "low",
+          "source": "OrcaRouter model catalog, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "google/gemini-3.1-pro-preview": {
+      "provider": "google",
+      "family": "gemini",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "long_context",
+        "vision",
+        "reasoning"
+      ],
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 1000000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "orcarouter_docs",
+          "confidence": "low",
+          "source": "OrcaRouter model catalog, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      }
+    },
+    "deepseek/deepseek-chat": {
+      "provider": "deepseek",
+      "family": "deepseek",
+      "capabilities": [
+        "chat",
+        "text_input",
+        "text_output",
+        "tools",
+        "structured_output",
+        "code"
+      ],
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "endpoints": [
+        "chat"
+      ],
+      "context_window_tokens": 128000,
+      "default_eligible": true,
+      "provenance": {
+        "catalog": {
+          "source_kind": "orcarouter_docs",
+          "confidence": "low",
+          "source": "OrcaRouter model catalog, 2026-10-30",
+          "observed_at": "2026-10-30",
+          "sample_count": 0
+        }
+      }
+    }
+  },
+  "constraints": {
+    "endpoints": [
+      "chat"
+    ],
+    "capability_vocabulary": [
+      "chat",
+      "text_input",
+      "text_output",
+      "tools",
+      "structured_output",
+      "long_context",
+      "code",
+      "vision",
+      "reasoning"
+    ],
+    "role_preference_order": [
+      "chat.small",
+      "chat.default",
+      "chat.quality",
+      "summarize.default",
+      "classify.routing",
+      "extract.structured",
+      "vision.default",
+      "code.default",
+      "agent.tools",
+      "write.default"
+    ],
+    "direct_model_exception_required_fields": [
+      "reason",
+      "owner",
+      "review_after"
+    ],
+    "provenance_required": true,
+    "provenance_source_kinds": [
+      "manual_policy",
+      "operator_override",
+      "orcarouter_docs",
+      "orcarouter_models",
+      "static_estimate",
+      "scenario_pin"
+    ],
+    "modality_vocabulary": [
+      "text",
+      "image",
+      "vector",
+      "video",
+      "audio"
+    ]
+  },
+  "provenance": {
+    "policy": {
+      "source_kind": "manual_policy",
+      "confidence": "low",
+      "source": "Initial OrcaRouter provider policy, 2026-10-30",
+      "observed_at": "2026-10-30",
+      "sample_count": 0
+    }
+  }
+}

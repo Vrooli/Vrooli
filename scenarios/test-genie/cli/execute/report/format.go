@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	execTypes "test-genie/cli/internal/execute"
 	"test-genie/cli/internal/repo"
+
+	execTypes "test-genie/cli/internal/execute"
 )
 
 // StatusIcon returns an icon for the given phase status.

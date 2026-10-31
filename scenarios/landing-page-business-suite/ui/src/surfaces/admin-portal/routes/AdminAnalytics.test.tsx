@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderWithProviders as render } from "@vrooli/api-base/testing";
 import type { ReactNode } from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { AdminAnalytics } from './AdminAnalytics';
 import { AdminAuthProvider } from '../../../app/providers/AdminAuthProvider';
@@ -67,31 +69,33 @@ const renderWithRouter = (component: React.ReactElement) =>
 
 const renderWithAuth = async (component: React.ReactElement) => {
   const utils = renderWithRouter(component);
-  await waitFor(() => expect(vi.mocked(api.checkAdminSession)).toHaveBeenCalled());
+  await waitFor(() => { expect(vi.mocked(api.checkAdminSession)).toHaveBeenCalled(); });
   return utils;
 };
 
 describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () => {
   const originalFetch = globalThis.fetch;
   const originalLocation = window.location;
-  const setLocation = (next: Location) => {
-    Object.defineProperty(window, 'location', { value: next, writable: true });
-  };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false } as Response);
-    setLocation({ ...originalLocation, pathname: '/admin/analytics' } as Location);
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false });
+    window.history.replaceState({}, '', '/admin/analytics');
     window.localStorage.clear();
+    vi.stubGlobal('open', vi.fn());
 
     vi.mocked(api.getMetricsSummary).mockResolvedValue(mockSummary);
+    vi.mocked(api.getVariantMetrics).mockResolvedValue({ start_date: '2026-01-01', end_date: '2026-01-07', stats: [mockSummary.variant_stats[0]!] });
+    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [{ key: 'US', label: 'United States', sessions: 8, conversions: 2, revenue_minor: 1200, share: 1 }], total_sessions: 8, exhaustive: true, currency: 'usd' });
+    vi.mocked(api.getTrafficSeries).mockResolvedValue({ points: [{ bucket_start: '2026-01-01T00:00:00Z', value: 8 }], unit: 'count' });
     vi.mocked(api.checkAdminSession).mockResolvedValue({ authenticated: true, email: 'ops@vrooli.dev' });
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
-    setLocation(originalLocation);
+    window.history.replaceState({}, '', `${originalLocation.pathname}${originalLocation.search}`);
     window.localStorage.clear();
+    vi.unstubAllGlobals();
   });
 
   it('[REQ:METRIC-SUMMARY] should display total visitors metric', async () => {
@@ -190,5 +194,116 @@ describe('AdminAnalytics [REQ:METRIC-SUMMARY,METRIC-DETAIL,METRIC-FILTER]', () =
     await waitFor(() => {
       expect(screen.getByTestId('analytics-edit-hero-1')).toBeInTheDocument();
     });
+  });
+
+  it('opens detail analytics and drives the table navigation actions', async () => {
+    await renderWithAuth(<AdminAnalytics />);
+
+    const details = await screen.findByTestId('analytics-view-details-1');
+    fireEvent.click(details);
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-variant-detail')).toBeInTheDocument();
+      expect(screen.getByText('Detailed Variant Stats')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Back to All Variants' }));
+    await waitFor(() => { expect(screen.queryByTestId('analytics-variant-detail')).not.toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId('analytics-edit-1'));
+    fireEvent.click(screen.getByTestId('analytics-edit-hero-1'));
+  });
+
+  it('filters to a variant and exposes focus, preview, shortcut, and detail actions', async () => {
+    await renderWithAuth(<AdminAnalytics />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByTestId('analytics-variant-filter'));
+    await user.click(await screen.findByRole('option', { name: 'Variant A' }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('analytics-variant-detail')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-reset-filters')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-focus-customize')).toBeInTheDocument();
+      expect(screen.getByTestId('analytics-focus-preview')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('analytics-focus-preview'));
+    await user.click(screen.getByTestId('analytics-reset-filters'));
+
+    await waitFor(() => { expect(screen.queryByTestId('analytics-variant-detail')).not.toBeInTheDocument(); });
+    const shortcuts = screen.getByTestId('analytics-shortcuts');
+    await user.click(within(shortcuts).getByRole('button', { name: 'Focus analytics' }));
+    await user.click(within(shortcuts).getByRole('button', { name: 'View breakdown' }));
+    await user.click(within(shortcuts).getByRole('button', { name: 'Inspect metrics' }));
+  });
+
+  it('changes time ranges and renders empty analytics safely', async () => {
+    vi.mocked(api.getMetricsSummary).mockResolvedValue({ ...mockSummary, variant_stats: [], total_downloads: undefined, top_cta: undefined, top_cta_ctr: undefined });
+    await renderWithAuth(<AdminAnalytics />);
+
+    expect(await screen.findByText('No variant data available yet')).toBeInTheDocument();
+    expect(screen.getByText('No data yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('analytics-time-range'));
+    fireEvent.click(await screen.findByRole('option', { name: 'Last 24 hours' }));
+    await waitFor(() => { expect(vi.mocked(api.getMetricsSummary).mock.calls.length).toBeGreaterThan(1); });
+  });
+
+  it('renders each supported traffic dimension and a real series', async () => {
+    await renderWithAuth(<AdminAnalytics />);
+    const user = userEvent.setup();
+    expect(await screen.findByTestId('traffic-series')).toBeInTheDocument();
+    const select = screen.getByTestId('traffic-dimension-select');
+    for (const label of ['Referrer kind', 'Campaign source', 'Campaign', 'Device', 'Landing page', 'Variant', 'Country']) {
+      await user.click(select);
+      await user.click(await screen.findByRole('option', { name: label }));
+      expect(screen.getByTestId('traffic-attribution')).toBeInTheDocument();
+    }
+  });
+
+  it('states when the selected traffic window predates enrichment', async () => {
+    vi.mocked(api.getTrafficBreakdown).mockResolvedValue({ rows: [], total_sessions: 0, exhaustive: true, currency: 'usd' });
+    vi.mocked(api.getTrafficSeries).mockResolvedValue({ points: [], unit: 'count' });
+    await renderWithAuth(<AdminAnalytics />);
+    expect(await screen.findByTestId('traffic-breakdown-empty')).toHaveTextContent(/predate attribution enrichment/i);
+    expect(screen.getByTestId('traffic-series-empty')).toHaveTextContent(/No enriched traffic data/i);
+  });
+
+  it('shows a recoverable analytics load error and retries without leaving the dashboard unavailable', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(api.getMetricsSummary)
+      .mockRejectedValueOnce(new Error('Analytics warehouse unavailable'))
+      .mockResolvedValueOnce(mockSummary);
+    await renderWithAuth(<AdminAnalytics />);
+
+    expect(await screen.findByText('Error: Analytics warehouse unavailable')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByTestId('analytics-total-visitors')).toBeInTheDocument();
+    expect(consoleError).toHaveBeenCalledWith('Analytics fetch error:', expect.any(Error));
+    consoleError.mockRestore();
+  });
+
+  it('renders robust detail fallbacks for down-trending, incomplete analytics records', async () => {
+    const fallbackStat = {
+      variant_id: 3, variant_slug: 'fallback', variant_name: 'Fallback', views: 10,
+      cta_clicks: 0, conversions: 0, downloads: 0, conversion_rate: Number.NaN,
+      trend: 'down' as const,
+    };
+    const incomplete = {
+      total_visitors: 10,
+      total_downloads: undefined,
+      top_cta: undefined,
+      top_cta_ctr: undefined,
+      variant_stats: [fallbackStat],
+    };
+    vi.mocked(api.getMetricsSummary).mockResolvedValue(incomplete);
+    vi.mocked(api.getVariantMetrics).mockResolvedValue({
+      start_date: '2026-01-01', end_date: '2026-01-07',
+      stats: [{ ...fallbackStat, avg_scroll_depth: 0 }],
+    });
+    await renderWithAuth(<AdminAnalytics />);
+
+    expect(await screen.findByText('0.00%')).toBeInTheDocument();
+    expect(screen.getByText('No data yet')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('analytics-view-details-3'));
+    expect(await screen.findByTestId('analytics-variant-detail')).toBeInTheDocument();
+    expect(screen.getByText('Average Scroll Depth')).toBeInTheDocument();
+    expect(screen.getByText('0.0%')).toBeInTheDocument();
   });
 });

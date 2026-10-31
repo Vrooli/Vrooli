@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package vrooli.program_runtime.v1.library;
+
+import "google/protobuf/struct.proto";
+import "program-runtime/v1/programs/programs.proto";
+import "program-runtime/v1/shared/library.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library;library_v1";
+
+message ListLibraryRequest {
+  string query = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+message ListLibraryResponse { repeated vrooli.program_runtime.v1.shared.LibraryProgram programs = 1; }
+message GetLibraryRequest { string name = 1; int64 version = 2; }
+message BindingDrift {
+  string binding_id = 1;
+  string validated_at = 2;
+  string generation_mtime = 3;
+  string drift_status = 4;
+  bool changed = 5;
+  string reason = 6;
+}
+message GetLibraryResponse {
+  vrooli.program_runtime.v1.shared.LibraryProgram program = 1;
+  repeated BindingDrift drift = 2;
+}
+message PromoteLibraryRequest {
+  string program_id = 1;
+  string name = 2;
+  string description = 3;
+  string promoted_by = 4;
+  string reason = 5;
+  string coverage = 6;
+  repeated string declared_inputs = 7;
+  repeated string declared_outputs = 8;
+}
+message PromoteLibraryResponse { vrooli.program_runtime.v1.shared.LibraryProgram program = 1; }
+message SetCurrentLibraryRequest { string name = 1; int64 version = 2; }
+message SetCurrentLibraryResponse { vrooli.program_runtime.v1.shared.LibraryProgram program = 1; }
+
+// RunDeclaredProgram executes one scenario-owned contract in a fresh bounded
+// session. The server validates names/defaults, waits once, and reclaims the
+// session; callers never coordinate low-level session and program RPCs.
+message RunDeclaredProgramRequest {
+  string name = 1;
+  google.protobuf.Struct inputs = 2;
+  vrooli.program_runtime.v1.programs.Provenance provenance = 3;
+  // Optional content identity from GetLibrary. Refuse drift before creating a session.
+  string expected_digest = 4;
+  // Return the accepted durable program immediately. The caller attaches with
+  // WaitForProgram; disconnecting never reclaims a running session.
+  bool async = 5;
+  programs.Caller caller = 6;
+  // Optional durable request key, scoped to name. Requires expected_digest.
+  // Repeating identical intent returns the original program, including failed
+  // or interrupted executions; it never repeats effects. Changed intent refuses.
+  string idempotency_key = 7;
+  // Required with idempotency_key: fixed RFC3339 admission deadline, at most
+  // 24h in the future. Replays retain this value. After expiry a missing record
+  // is refused, not executed again; retained executions can still be observed.
+  string admission_deadline = 8;
+  // Explicit grants of the form binding:<id>, limited to destructive bindings
+  // declared by this pinned contract. They are part of immutable replay intent.
+  repeated string grants = 9;
+}
+message RunDeclaredProgramResponse {
+  vrooli.program_runtime.v1.programs.Program program = 1;
+  bool terminal = 2;
+  int64 waited_millis = 3;
+}
+
+service LibraryService {
+  // Atomically prevent an unused key from executing, or return its already
+  // admitted execution for draining. This never starts or retries a program.
+  rpc CloseDeclaredAdmission(RunDeclaredProgramRequest) returns (RunDeclaredProgramResponse);
+  // Read-only keyed observation also proves the deployed admission contract.
+  rpc GetDeclaredExecution(GetDeclaredExecutionRequest) returns (GetDeclaredExecutionResponse);
+  rpc ListLibrary(ListLibraryRequest) returns (ListLibraryResponse);
+  rpc GetLibrary(GetLibraryRequest) returns (GetLibraryResponse);
+  rpc PromoteLibrary(PromoteLibraryRequest) returns (PromoteLibraryResponse);
+  rpc SetCurrentLibrary(SetCurrentLibraryRequest) returns (SetCurrentLibraryResponse);
+  rpc RunDeclaredProgram(RunDeclaredProgramRequest) returns (RunDeclaredProgramResponse);
+}
+
+message GetDeclaredExecutionRequest {
+  string name = 1;
+  string idempotency_key = 2;
+}
+
+message GetDeclaredExecutionResponse {
+  // 2 = pinned intent, fixed deadline, atomic reservation, expiry refusal and
+  // atomic closure of an unused admission. Existing executions are drained.
+  uint32 admission_contract_version = 1;
+  bool found = 2;
+  program_runtime.v1.programs.Program program = 3;
+}

@@ -1,0 +1,121 @@
+{
+  "_metadata": {
+    "description": "Deterministic interview-driven scaffolding: PRD.md + requirements/ skeletons that validate clean by construction; resumable; dry-run by default.",
+    "last_validated_at": "2026-07-02T05:26:48-04:00",
+    "module": "scaffolding-wizard",
+    "prd_ref": "OT-P0-004",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BH-WIZ-001",
+      "title": "Wizard questions derive from the validator's section model",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The interview question model is generated from the same intent-go template-section definitions the validator checks, so wizard output and validator expectations can never disagree.",
+      "tags": [
+        "wizard",
+        "single-source"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/wizard/questions_test.go. Asserts question set covers exactly the required section model."
+        }
+      ]
+    },
+    {
+      "id": "BH-WIZ-002",
+      "title": "Round-trip: wizard output validates clean",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "For a corpus of generated answer files, wizard output → validator yields zero REQUIRED findings (property test); a contract authored solely via --answers passes validate scenario clean.",
+      "tags": [
+        "round-trip",
+        "property-test"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/wizard/roundtrip_test.go. Property test over generated answer corpora."
+        }
+      ]
+    },
+    {
+      "id": "BH-WIZ-003",
+      "title": "Deterministic, offline, dry-run by default",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "No LLM or network calls anywhere in the wizard path; writes preview as diffs by default and only land with explicit --apply; sessions are resumable from a file under data/.",
+      "tags": [
+        "deterministic",
+        "dry-run",
+        "d4",
+        "d7"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/wizard/wizard_test.go. Asserts no network seams are reachable from wizard; dry-run default; resume from session file."
+        }
+      ]
+    },
+    {
+      "id": "BH-WIZ-004",
+      "title": "Interactive and --answers modes",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "business-health wizard runs as an interactive TTY interview and non-interactively via --answers file.json, producing identical artifacts for equivalent inputs; init (registry-only scaffold) is the wizard's degenerate mode.",
+      "tags": [
+        "cli",
+        "wizard",
+        "init"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: cli/domains/wizard/wizard_test.go. --answers mode exercised end-to-end; golden outputs; init subsumption covered."
+        }
+      ]
+    },
+    {
+      "id": "BH-WIZ-005",
+      "title": "Pre-scaffold capability dedup hook",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "api",
+      "criticality": "P2",
+      "description": "When search-hub is reachable, the wizard surfaces 'similar capability exists in scenario X' before scaffolding; when it is down, the hook degrades silently with no impact on the interview.",
+      "tags": [
+        "dedup",
+        "search",
+        "degradation"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Planned ref: api/internal/wizard/dedup_test.go. Hub-up returns results; hub-down degrades silently (fake client)."
+        }
+      ]
+    }
+  ]
+}

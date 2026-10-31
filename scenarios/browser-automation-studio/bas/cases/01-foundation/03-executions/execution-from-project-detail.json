@@ -21,11 +21,15 @@
   ],
   "metadata": {
     "description": "Validates workflow execution triggered from project detail view and monitors execution status",
+    "execution_mode": "mutating",
     "labels": {
-      "reset": "none"
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "project-detail"
     },
-    "version": "1",
-    "execution_mode": "observer"
+    "name": "Execution From Project Detail",
+    "version": "1"
   },
   "nodes": [
     {
@@ -49,7 +53,7 @@
         "assert": {
           "failure_message": "Execute button should be visible once the builder has loaded",
           "mode": "ASSERTION_MODE_EXISTS",
-          "selector": "@selector/workflowBuilder.executeButton",
+          "selector": "@selector/header.buttons.execute",
           "timeout_ms": 15000
         },
         "metadata": {
@@ -62,7 +66,7 @@
     {
       "action": {
         "click": {
-          "selector": "@selector/workflowBuilder.executeButton"
+          "selector": "@selector/header.buttons.execute"
         },
         "metadata": {
           "label": "Click execute button"
@@ -73,8 +77,7 @@
         "resilience": {
           "success_selector": "@selector/executions.viewer.status, @selector/executions.list.item",
           "success_timeout_ms": 30000
-        },
-        "wait_after_ms": 500
+        }
       },
       "id": "click-execute"
     },

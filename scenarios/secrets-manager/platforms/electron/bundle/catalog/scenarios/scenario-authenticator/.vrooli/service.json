@@ -1,0 +1,198 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "scenario-authenticator",
+    "displayName": "Scenario Authenticator",
+    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys — consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "general",
+    "tags": [
+      "react-ui",
+      "go-api",
+      "security",
+      "authentication",
+      "identity-provider",
+      "jwt",
+      "multi-tenant",
+      "foundational"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-06-18T00:33:06Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "07c578f32d3ba10c86cc91ce06d830a48959a1fffad8348f97a9858b6313bbc8"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "scenario-authenticator",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "scenario-authenticator"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting. Optional at tier-1-local, where the durable local store behind the same Store seam keeps this state across restart. Required above one replica, because a revocation blacklist that is not shared does not revoke; that per-tier answer is recorded in tier_feasibility. Account persistence is SQLite via the api-core/storage seam (no shared Postgres).",
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "environment": {
+    "VROOLI_AUTH_RESOURCE_AUDIENCES": "device-sync-hub=scenario-authenticator:device-sync-hub"
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "tier_feasibility": {
+    "metadata_version": 1,
+    "dependencies": {
+      "resources": {
+        "redis": {
+          "resource_type": "hot-state-store",
+          "platform_support": {
+            "tier-1-local": {
+              "supported": true,
+              "notes": "The durable local store is the single-node default; Redis is an opt-in accelerator. The in-memory fake is a test double only, because dropping the revocation blacklist on restart re-admits a revoked token."
+            },
+            "tier-2-desktop": {
+              "supported": false,
+              "reason": "No vendorable cross-platform RESP server exists",
+              "alternatives": [
+                "durable-local"
+              ],
+              "notes": "Redis upstream publishes no native macOS or Windows build, Valkey ships source only, and Garnet's archives are framework-dependent rather than self-contained."
+            },
+            "tier-4-saas": {
+              "supported": true,
+              "notes": "Redis is required above one replica. The revocation blacklist and the rate-limit counters must be shared across replicas: a blacklist that is not shared does not revoke."
+            }
+          },
+          "swappable_with": [
+            {
+              "id": "durable-local",
+              "relationship": "single-node-equivalent",
+              "notes": "A durable local store behind the same Store seam preserves the durability property across restart, but not cross-replica sharing. A deployment running more than one replica still needs a real Redis."
+            }
+          ]
+        }
+      }
+    }
+  }
+}

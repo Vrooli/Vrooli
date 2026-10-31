@@ -1,0 +1,19 @@
+{
+  "program": {
+    "id": "prog_04911217-813b-4685-8512-2599122a97dc",
+    "session_id": "sess_37649ca4-f6dc-4390-9a9a-1553b8fc4829",
+    "provenance": "PROVENANCE_OPERATOR",
+    "status": "PROGRAM_STATUS_SUCCEEDED",
+    "stdout": "{\"errors\": [], \"evidence\": [], \"phase\": \"report\", \"program\": \"web-search.learning-read\", \"signals\": {\"cohorts\": [], \"eligible_attempts\": 0, \"excluded_test_attempts\": 2, \"from\": \"2026-09-05T00:00:00Z\", \"interpretation\": \"Evidence-linked caller reports; operator/test is caller-declared. No causal or release-approval claim. Task timing covers observed attempts only; compare identical contexts and windows.\", \"reason\": \"unreliable:no_eligible_attempts\", \"reliable\": false, \"targets\": null, \"to\": \"2026-09-05T07:23:10Z\"}, \"status\": \"partial\", \"version\": \"1\"}\n",
+    "context_bytes": "557",
+    "created_at": "2026-09-05T07:23:48.708602566Z",
+    "output_limit_bytes": "65536",
+    "agent_bytes": "557",
+    "completed_at": "2026-09-05T07:23:48.793759333Z",
+    "wall_time_millis": "84",
+    "cpu_time_millis": "50",
+    "library_version": "batch-inference@1,concurrent-fanout@1,delegated-run@1,failure-triage@1,fleet-fanout@1,handle-shaping@1,morning-vision-walk-prep@5,probe@1,registry-sweep@1,typed-inference@1"
+  },
+  "terminal": true,
+  "waited_millis": "88"
+}

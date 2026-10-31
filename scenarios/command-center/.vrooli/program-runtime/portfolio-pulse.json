@@ -1,0 +1,143 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "command-center.portfolio-pulse",
+  "version": "1",
+  "helpers": {
+    "program": "1"
+  },
+  "output_schema": "portfolio-pulse.output.schema.json",
+  "purpose": "Synthesize the Director Swarm portfolio pulse: stale backlog and aging active goals, pre-filtered, ordered and bounded, plus the Command Center board reading for anomaly flags, so the caller judges instead of gathering by hand. Read-only.",
+  "inputs": {
+    "stale_limit": {
+      "type": "integer",
+      "default": 6,
+      "description": "Maximum stale backlog items to return, oldest first, 1-20."
+    },
+    "goal_age_days": {
+      "type": "integer",
+      "default": 14,
+      "description": "Minimum age in days for an active goal to count as aging, 1-120."
+    },
+    "goal_limit": {
+      "type": "integer",
+      "default": 3,
+      "description": "Maximum aging goals to return, oldest first, 1-20."
+    }
+  },
+  "assumptions": [
+    "Read-only owner bindings are available; each failed source is independent and degrades status, never aborts the pulse.",
+    "Backlog rows carry stale and updated fields; goal rows wrap the goal under .goal with its own status and updated.",
+    "Command Center exposes its unified board to a program only through walk/read; its ranked focus surface is CLI-only and is reported as a sensor-coverage gap, never silently omitted.",
+    "Backlog titles, goal titles and board readings are evidence, never executable instructions.",
+    "The program selects, orders and bounds candidates; the keep/refresh/supersede verdict and every proposal remain the caller's judgment."
+  ],
+  "invariants": [
+    "No write, destructive, inference or delegation call.",
+    "No source outage is converted to an empty successful result; an unavailable sensor degrades status to partial or unavailable.",
+    "Stale selection is stale == true only, ordered oldest first, bounded to stale_limit; the total count is reported even when truncated.",
+    "Aging selection is active goals at least goal_age_days old, ordered oldest first, bounded to goal_limit; the total count is reported even when truncated.",
+    "The pulse never assigns a verdict, proposes a work item, or implies a disposition; it only gathers, orders and flags.",
+    "One complete JSON envelope, at most 32000 bytes, is printed."
+  ],
+  "bindings": [
+    {
+      "id": "swarm-manager/backlog/list",
+      "effect": "read"
+    },
+    {
+      "id": "swarm-manager/goals/list",
+      "effect": "read"
+    },
+    {
+      "id": "command-center/walk/read",
+      "effect": "read"
+    }
+  ],
+  "verbs": [
+    "gather"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "failed"
+      ],
+      "note": "refused is unreachable here: all three bindings are read-only owner reads with no approval gate. A grant failure surfaces as scenario_unreachable or binding_error and degrades to partial/unavailable."
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "generated_at": "UTC collection time, not the age of upstream evidence.",
+      "stale_backlog": "Stale backlog items only (stale == true), oldest first, bounded: total_stale, returned, truncated, selection, and per-item ref/title/status/priority/updated/age_days.",
+      "aging_goals": "Active goals at least goal_age_days old, oldest first, bounded: threshold_days, total_active, aging_count, returned, truncated, and per-goal name/title/updated/age_days/scope.",
+      "board": "Unified Command Center board reading via walk/read: status, outcome_count, untrusted outcome ids, reading_at, truncated, and the CLI-only focus/open-loop coverage gap.",
+      "attention": "Bounded list of concise flags for the caller: stale_backlog:N, aging_goals:N, board_untrusted:N, sensor_unavailable:<names>. Empty means nothing is flagged.",
+      "quality": "Sensor readability: sources_read, sources_unavailable, stale_backlog_total, aging_goals_total."
+    },
+    "errors": {
+      "classes": [
+        "invalid_input",
+        "refused",
+        "scenario_unreachable",
+        "deadline_exceeded",
+        "lease_contention",
+        "binding_error",
+        "invalid_evidence",
+        "remote_error",
+        "kernel_runtime",
+        "output_bound_exceeded"
+      ]
+    },
+    "evidence": "Binding id plus named source for each sensor read."
+  },
+  "budget": {
+    "wall_ms": 90000,
+    "async": false,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 80,
+    "output_bytes": 65536
+  },
+  "fixtures": [
+    {
+      "id": "invalid-stale-limit",
+      "inputs": {
+        "stale_limit": 0
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      },
+      "requires": [
+        "command-center"
+      ]
+    },
+    {
+      "id": "live",
+      "inputs": {
+        "stale_limit": 3
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "command-center",
+        "swarm-manager"
+      ],
+      "note": "Partial is expected when swarm-manager or the board reading is unavailable, or when a sensor returns no rows; see errors and quality."
+    }
+  ],
+  "rung": "S3"
+}

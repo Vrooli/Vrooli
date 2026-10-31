@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/shared;sharedv1";
+
+// HealthResponse is the typed payload for the two operational health probes.
+message HealthResponse {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+}
+
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}

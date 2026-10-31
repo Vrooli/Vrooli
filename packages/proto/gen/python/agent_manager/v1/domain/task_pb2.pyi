@@ -12,7 +12,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Task(_message.Message):
-    __slots__ = ("id", "title", "description", "scope_path", "project_root", "phase_prompt_ids", "context_attachments", "status", "created_by", "created_at", "updated_at")
+    __slots__ = ("id", "title", "description", "scope_path", "project_root", "phase_prompt_ids", "context_attachments", "status", "created_by", "created_at", "updated_at", "current_run_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -24,6 +24,7 @@ class Task(_message.Message):
     CREATED_BY_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     description: str
@@ -35,7 +36,8 @@ class Task(_message.Message):
     created_by: str
     created_at: _timestamp_pb2.Timestamp
     updated_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., phase_prompt_ids: _Optional[_Iterable[str]] = ..., context_attachments: _Optional[_Iterable[_Union[ContextAttachment, _Mapping]]] = ..., status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    current_run_id: str
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., scope_path: _Optional[str] = ..., project_root: _Optional[str] = ..., phase_prompt_ids: _Optional[_Iterable[str]] = ..., context_attachments: _Optional[_Iterable[_Union[ContextAttachment, _Mapping]]] = ..., status: _Optional[_Union[_types_pb2.TaskStatus, str]] = ..., created_by: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., current_run_id: _Optional[str] = ...) -> None: ...
 
 class ContextAttachment(_message.Message):
     __slots__ = ("type", "path", "url", "content", "label", "key", "tags", "summary", "format", "priority", "attachment_id")

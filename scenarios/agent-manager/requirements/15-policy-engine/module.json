@@ -1,47 +1,115 @@
 {
-  "description": "Build configurable policy system",
-  "module_id": "MOD-P1-015",
-  "prd_ref": "OT-P1-004",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-10-29T13:50:55-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-004",
+      "title": "Policy Engine Core",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-004",
       "category": "core",
       "description": "Build configurable policy engine for enforcing run constraints",
-      "id": "REQ-P1-004",
-      "prd_ref": "OT-P1-004",
-      "status": "draft",
-      "title": "Policy Engine Core",
       "validation": [
         {
-          "notes": "Test policy evaluation",
+          "type": "test",
+          "ref": "api/internal/rolepolicy/resolution_test.go::TestResolveCapturesConcreteResourceEvidenceWithoutDroppingUnavailableFallback",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Test portable role resolution records immutable resource-owned evidence"
         },
         {
-          "notes": "Verify policy enforcement",
+          "type": "test",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackSkipsUnavailablePersistedCandidate",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Verify persisted role snapshot skips unavailable candidates"
         },
         {
-          "notes": "Measure policy overhead",
+          "type": "test",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackUsesPersistedCandidatesAcrossRunners",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify persisted snapshot fallback across runner boundaries"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotFallbackExhaustionIsTerminalAndObservable",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify terminal exhaustion and digest-qualified event evidence"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestPolicySnapshotResumeStartsAtPersistedCandidate",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify restart/resume continues from the persisted candidate"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/phases/execute_test.go::TestToolRestrictionCandidateReason",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify an enforced tool restriction skips fallback candidates that cannot enforce it"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/rolepolicy/state_test.go::TestStateRetainsActiveRevisionAfterInvalidReload",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify catalog reload failures retain the active role revision"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/role_policy_test.go::TestRolePolicyStatusCatalogAndLegacySurfaceRemoval",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify read-only role status/catalog and removed legacy surface"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/role_policy_test.go::TestRolePolicyValidateAndFailedReloadPreserveActiveRevision",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify controlled role-policy reload preserves the active revision"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/protoconv/convert_test.go::TestExecutionPolicySnapshotRoundTrip",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Verify role snapshot round-trips its requested role and candidate sequence"
+        },
+        {
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Measure policy overhead"
         },
         {
-          "notes": "Validate policy effectiveness",
+          "type": "test",
           "phase": "business",
-          "ref": "",
+          "status": "failing",
+          "notes": "Validate policy effectiveness"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P2-013",
+      "title": "Inspectable policy templates",
+      "status": "planned",
+      "prd_ref": "OT-P2-004",
+      "category": "core",
+      "description": "Where policy templates are offered, Agent Manager may provide versioned pre-built configurations that operators can inspect before applying.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
           "status": "pending",
-          "type": "test"
+          "notes": "Verify template versioning, preview, and explicit application when the capability is implemented"
         }
       ]
     }
-  ],
-  "title": "Policy Engine"
+  ]
 }

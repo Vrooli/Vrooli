@@ -2,24 +2,37 @@ package export
 
 import (
 	"strings"
+
+	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // Apply applies client-provided overrides to a movie spec, applying presets first,
 // then explicit overrides, and finally synchronizing cursor-related fields across
 // the spec's Cursor, Decor, and CursorMotion structures.
-func Apply(spec *ReplayMovieSpec, overrides *Overrides) {
+func Apply(spec *exportsv1.ReplaySpec, overrides *Overrides) {
 	if spec == nil || overrides == nil {
 		return
+	}
+
+	if spec.Decor == nil {
+		spec.Decor = &exportsv1.ReplayDecor{}
+	}
+	if spec.Cursor == nil {
+		spec.Cursor = &exportsv1.ReplayCursor{}
+	}
+	if spec.CursorMotion == nil {
+		spec.CursorMotion = &exportsv1.ReplayCursorMotion{}
 	}
 
 	// Apply theme preset, then explicit theme override
 	if overrides.ThemePreset != nil {
 		if theme := BuildThemeFromPreset(spec, overrides.ThemePreset); theme != nil {
-			spec.Theme = *theme
+			spec.Theme = theme
 		}
 	}
 	if overrides.Theme != nil {
-		spec.Theme = *overrides.Theme
+		spec.Theme = overrides.Theme
 	}
 
 	// Apply cursor preset, then explicit cursor override
@@ -27,7 +40,7 @@ func Apply(spec *ReplayMovieSpec, overrides *Overrides) {
 		spec.Cursor = BuildCursorSpec(spec.Cursor, overrides.CursorPreset)
 	}
 	if overrides.Cursor != nil {
-		spec.Cursor = *overrides.Cursor
+		spec.Cursor = overrides.Cursor
 	}
 
 	// Apply decor overrides and synchronize cursor fields
@@ -37,9 +50,13 @@ func Apply(spec *ReplayMovieSpec, overrides *Overrides) {
 
 // applyDecorOverrides applies theme and cursor preset names to the Decor field.
 // The Decor field stores the original preset names for provenance tracking.
-func applyDecorOverrides(spec *ReplayMovieSpec, overrides *Overrides) {
+func applyDecorOverrides(spec *exportsv1.ReplaySpec, overrides *Overrides) {
 	if spec == nil || overrides == nil {
 		return
+	}
+
+	if spec.Decor == nil {
+		spec.Decor = &exportsv1.ReplayDecor{}
 	}
 
 	// Record theme preset names
@@ -49,10 +66,10 @@ func applyDecorOverrides(spec *ReplayMovieSpec, overrides *Overrides) {
 		}
 		if background := strings.TrimSpace(preset.BackgroundTheme); background != "" {
 			spec.Decor.BackgroundTheme = background
-			spec.Decor.Background = map[string]any{
+			spec.Decor.Background, _ = structpb.NewStruct(map[string]any{
 				"type": "theme",
 				"id":   background,
-			}
+			})
 		}
 	}
 
@@ -62,7 +79,7 @@ func applyDecorOverrides(spec *ReplayMovieSpec, overrides *Overrides) {
 			spec.Decor.CursorTheme = theme
 		}
 		if initial := strings.TrimSpace(cursorPreset.InitialPosition); initial != "" {
-			spec.Decor.CursorInitial = initial
+			spec.Decor.CursorInitialPosition = initial
 		}
 		if anim := strings.TrimSpace(cursorPreset.ClickAnimation); anim != "" {
 			spec.Decor.CursorClickAnimation = anim
@@ -74,11 +91,11 @@ func applyDecorOverrides(spec *ReplayMovieSpec, overrides *Overrides) {
 
 	// Apply explicit cursor override values to Decor
 	if cursorOverride := overrides.Cursor; cursorOverride != nil {
-		if strings.TrimSpace(cursorOverride.InitialPos) != "" {
-			spec.Decor.CursorInitial = cursorOverride.InitialPos
+		if strings.TrimSpace(cursorOverride.InitialPosition) != "" {
+			spec.Decor.CursorInitialPosition = cursorOverride.InitialPosition
 		}
-		if strings.TrimSpace(cursorOverride.ClickAnim) != "" {
-			spec.Decor.CursorClickAnimation = cursorOverride.ClickAnim
+		if strings.TrimSpace(cursorOverride.ClickAnimation) != "" {
+			spec.Decor.CursorClickAnimation = cursorOverride.ClickAnimation
 		}
 		if cursorOverride.Scale > 0 {
 			spec.Decor.CursorScale = ClampCursorScale(cursorOverride.Scale)
@@ -88,25 +105,35 @@ func applyDecorOverrides(spec *ReplayMovieSpec, overrides *Overrides) {
 
 // syncCursorFields synchronizes cursor-related values across Cursor, Decor, and CursorMotion
 // to ensure consistency throughout the movie spec.
-func syncCursorFields(spec *ReplayMovieSpec) {
+func syncCursorFields(spec *exportsv1.ReplaySpec) {
 	if spec == nil {
 		return
 	}
 
-	// Sync initial position
-	if strings.TrimSpace(spec.Decor.CursorInitial) == "" {
-		spec.Decor.CursorInitial = strings.TrimSpace(spec.Cursor.InitialPos)
+	if spec.Decor == nil {
+		spec.Decor = &exportsv1.ReplayDecor{}
 	}
-	if strings.TrimSpace(spec.Cursor.InitialPos) == "" {
-		spec.Cursor.InitialPos = spec.Decor.CursorInitial
+	if spec.Cursor == nil {
+		spec.Cursor = &exportsv1.ReplayCursor{}
+	}
+	if spec.CursorMotion == nil {
+		spec.CursorMotion = &exportsv1.ReplayCursorMotion{}
+	}
+
+	// Sync initial position
+	if strings.TrimSpace(spec.Decor.CursorInitialPosition) == "" {
+		spec.Decor.CursorInitialPosition = strings.TrimSpace(spec.Cursor.InitialPosition)
+	}
+	if strings.TrimSpace(spec.Cursor.InitialPosition) == "" {
+		spec.Cursor.InitialPosition = spec.Decor.CursorInitialPosition
 	}
 
 	// Sync click animation
 	if strings.TrimSpace(spec.Decor.CursorClickAnimation) == "" {
-		spec.Decor.CursorClickAnimation = strings.TrimSpace(spec.Cursor.ClickAnim)
+		spec.Decor.CursorClickAnimation = strings.TrimSpace(spec.Cursor.ClickAnimation)
 	}
-	if strings.TrimSpace(spec.Cursor.ClickAnim) == "" {
-		spec.Cursor.ClickAnim = spec.Decor.CursorClickAnimation
+	if strings.TrimSpace(spec.Cursor.ClickAnimation) == "" {
+		spec.Cursor.ClickAnimation = spec.Decor.CursorClickAnimation
 	}
 
 	// Sync cursor scale
@@ -129,7 +156,7 @@ func syncCursorFields(spec *ReplayMovieSpec) {
 
 	// Sync to CursorMotion
 	if strings.TrimSpace(spec.CursorMotion.InitialPosition) == "" {
-		spec.CursorMotion.InitialPosition = spec.Decor.CursorInitial
+		spec.CursorMotion.InitialPosition = spec.Decor.CursorInitialPosition
 	}
 	if strings.TrimSpace(spec.CursorMotion.ClickAnimation) == "" {
 		spec.CursorMotion.ClickAnimation = spec.Decor.CursorClickAnimation
@@ -145,7 +172,7 @@ func syncCursorFields(spec *ReplayMovieSpec) {
 		spec.CursorMotion.InitialPosition = "center"
 	}
 	if spec.CursorMotion.ClickAnimation == "" {
-		spec.CursorMotion.ClickAnimation = spec.Cursor.ClickAnim
+		spec.CursorMotion.ClickAnimation = spec.Cursor.ClickAnimation
 	}
 	if spec.CursorMotion.CursorScale <= 0 {
 		spec.CursorMotion.CursorScale = ClampCursorScale(spec.Cursor.Scale)

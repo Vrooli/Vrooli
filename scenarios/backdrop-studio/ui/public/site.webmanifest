@@ -1,0 +1,25 @@
+{
+  "id": ".",
+  "name": "Backdrop Studio",
+  "short_name": "backdrop-studio",
+  "description": "Design-system-aware generation of ambient hero imagery for landing pages and promotional surfaces",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "manifest-icon-192.maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "manifest-icon-512.maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

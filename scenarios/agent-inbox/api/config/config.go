@@ -23,33 +23,28 @@ func Default() *Config {
 			ShutdownTimeout: 10 * time.Second,
 		},
 		AI: AIConfig{
-			DefaultModel:             getEnvOrDefault("DEFAULT_AI_MODEL", "anthropic/claude-3.5-sonnet"),
+			DefaultRole: getEnvOrDefault("DEFAULT_AI_ROLE", "chat.default"),
+			// DefaultModel is an advanced explicit override only. There is no
+			// concrete code default: when empty, the model is resolved from
+			// DefaultRole via resource-openrouter (see AIConfig.ResolveModel).
+			DefaultModel:             getEnvOrDefault("DEFAULT_AI_MODEL", ""),
 			CompletionTimeout:        120 * time.Second,
 			StreamBufferSize:         4096,
 			CompletionReservePercent: 25,
 			DefaultContextLength:     8192,
 		},
 		Integration: IntegrationConfig{
-			OllamaBaseURL:       getOllamaBaseURL(),
-			OllamaTimeout:       30 * time.Second,
 			AgentManagerTimeout: 60 * time.Second,
 			OpenRouterTimeout:   120 * time.Second,
 			ModelCacheTTL:       5 * time.Minute,
 			Naming: NamingConfig{
-				Model:               getEnvOrDefault("OLLAMA_NAMING_MODEL", "llama3.1:8b"),
+				Role:                getEnvOrDefault("OLLAMA_NAMING_ROLE", "chat.small"),
 				Temperature:         0.3,
 				MaxTokens:           20,
 				SummaryMessageLimit: 10,
 				SummaryContentLimit: 200,
 				Timeout:             30 * time.Second,
 				FallbackName:        "New Conversation",
-			},
-			ToolDiscovery: ToolDiscoveryConfig{
-				AutoDiscovery:    getEnvBool("TOOL_AUTO_DISCOVERY", true),
-				Scenarios:        getToolScenarios(),
-				DiscoveryTimeout: 10 * time.Second,
-				CacheTTL:         60 * time.Second,
-				RefreshOnStartup: true,
 			},
 		},
 		Resilience: ResilienceConfig{
@@ -86,7 +81,7 @@ func Default() *Config {
 		},
 		SkillSuggest: SkillSuggestConfig{
 			Enabled:         getEnvBool("SKILL_SUGGEST_ENABLED", true),
-			Model:           getEnvOrDefault("SKILL_SUGGEST_MODEL", "llama3.1:8b"),
+			Model:           getEnvOrDefault("SKILL_SUGGEST_MODEL", "chat.small"),
 			MaxMessages:     getEnvInt("SKILL_SUGGEST_MAX_MESSAGES", 10),
 			MaxContentLen:   getEnvInt("SKILL_SUGGEST_MAX_CONTENT_LEN", 300),
 			CacheTTLSeconds: getEnvInt("SKILL_SUGGEST_CACHE_TTL", 60),

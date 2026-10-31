@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/pathfilter"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // FileNode represents a file or directory within a scenario.
@@ -303,8 +304,8 @@ func (s *ScenarioDirectoryService) searchScenarioFiles(ctx context.Context, root
 func loadCoverageMap(scenarioDir string) map[string]float64 {
 	coverage := make(map[string]float64)
 	summaries := []string{
-		filepath.Join(scenarioDir, "coverage", "coverage-summary.json"),
-		filepath.Join(scenarioDir, "ui", "coverage", "coverage-summary.json"),
+		artifactpaths.ScenarioPath(scenarioDir, artifactpaths.CoverageRoot, "coverage-summary.json"),
+		artifactpaths.ScenarioPath(scenarioDir, "ui", artifactpaths.CoverageRoot, "coverage-summary.json"),
 	}
 	for _, path := range summaries {
 		mergeCoverageSummary(coverage, scenarioDir, path)

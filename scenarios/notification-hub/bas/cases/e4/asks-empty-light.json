@@ -1,0 +1,238 @@
+{
+  "metadata": {
+    "name": "e4-asks-empty-light",
+    "description": "Given the leased disposable recipient fixture on a phone, when the owner uses the destination drawer, then the selected light empty Needs you state is shown.",
+    "requirement": "OT-P0-001",
+    "version": "2",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "asks-empty-light"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844,
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    }
+  },
+  "nodes": [
+    {
+      "id": "open-settings-for-theme",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/settings?view=all&vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Settings to apply the named theme"
+        }
+      }
+    },
+    {
+      "id": "set-light",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/settingsPage.themeOption(choice=light)"
+        },
+        "metadata": {
+          "label": "Choose light with the registered Settings theme control"
+        }
+      }
+    },
+    {
+      "id": "reload-clean-query-cache",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=empty-open-asks",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Updates with the chosen theme and a fresh client query cache"
+        }
+      }
+    },
+    {
+      "id": "open-menu-for-focus-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/layout.menu"
+        },
+        "metadata": {
+          "label": "Open the mobile destination drawer"
+        }
+      }
+    },
+    {
+      "id": "focus-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_FOCUS",
+        "focus": {
+          "selector": "@selector/layout.navLink(key=asks)",
+          "scroll": true
+        },
+        "metadata": {
+          "label": "Focus Needs you with the keyboard"
+        }
+      }
+    },
+    {
+      "id": "activate-asks-tab",
+      "action": {
+        "type": "ACTION_TYPE_KEYBOARD",
+        "keyboard": {
+          "key": "Enter"
+        },
+        "metadata": {
+          "label": "Open Needs you with Enter"
+        }
+      }
+    },
+    {
+      "id": "reload-selected-asks-page",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "window.location.reload(); true"
+        },
+        "metadata": {
+          "label": "Reload the selected Needs you page to force its actual list read"
+        }
+      }
+    },
+    {
+      "id": "responsive-phone-check",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const width=window.innerWidth,height=window.innerHeight,scrollWidth=document.documentElement.scrollWidth;if(width!==390||height!==844||scrollWidth>width)throw new Error(`unexpected mobile layout ${width}x${height}, scrollWidth=${scrollWidth}`);return {width,height,scrollWidth}})()"
+        },
+        "metadata": {
+          "label": "Confirm the 390x844 phone layout has no horizontal overflow"
+        }
+      }
+    },
+    {
+      "id": "assert-selected-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/asks.empty",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "string_value": "Nothing needs an answer"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "NH13.4 selected state is visible"
+        },
+        "metadata": {
+          "label": "NH13.4 selected state is visible in light theme"
+        }
+      }
+    },
+    {
+      "id": "verify-phone-theme-and-dpr",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(()=>{const width=window.innerWidth,height=window.innerHeight,dpr=window.devicePixelRatio,theme=document.documentElement.dataset.theme,resolved=document.documentElement.dataset.resolvedTheme;if(width!==390||height!==844||dpr!==2||theme!=='light'||resolved!=='light')throw new Error(`unexpected selected capture: ${width}x${height} DPR ${dpr} theme ${theme}/${resolved}`);return {width,height,dpr,theme,resolved}})()"
+        },
+        "metadata": {
+          "label": "Verify 390x844 DPR 2 light selected capture"
+        }
+      }
+    },
+    {
+      "id": "capture-selected-state",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture selected asks-empty-light state in light theme"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "open-settings-for-theme",
+      "target": "set-light",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "set-light",
+      "target": "reload-clean-query-cache",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "reload-clean-query-cache",
+      "target": "open-menu-for-focus-asks-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "activate-asks-tab",
+      "target": "reload-selected-asks-page",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "responsive-phone-check",
+      "target": "assert-selected-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "responsive",
+      "source": "reload-selected-asks-page",
+      "target": "responsive-phone-check",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "keyboard-activation",
+      "source": "focus-asks-tab",
+      "target": "activate-asks-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "verify-theme-and-dpr",
+      "source": "assert-selected-state",
+      "target": "verify-phone-theme-and-dpr",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "capture-selected-state-edge",
+      "source": "verify-phone-theme-and-dpr",
+      "target": "capture-selected-state",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "open-menu-for-focus-asks-tab-edge",
+      "source": "open-menu-for-focus-asks-tab",
+      "target": "focus-asks-tab",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

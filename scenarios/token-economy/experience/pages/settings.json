@@ -1,0 +1,161 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "settings",
+    "title": "Settings",
+    "routes": [
+      "/settings"
+    ],
+    "purpose": "Own every preference this scenario needs — appearance, language, accessibility, notification reach, and economy defaults — in one place for both audiences.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-013"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "A holder sees only the preferences that apply to them.",
+      "notes": "The settings page is shared, but the minter's economy defaults are not a holder's business."
+    },
+    {
+      "statement": "Accessibility preferences are first-class, not buried under appearance.",
+      "notes": "The holder view may be used by a child; text scale and reduced motion are primary controls here."
+    },
+    {
+      "statement": "Locale switching is owned here, per the shell contract."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Preferences loaded for the current role."
+    },
+    {
+      "id": "loading",
+      "description": "Preferences are being fetched."
+    },
+    {
+      "id": "saving",
+      "description": "A preference is being persisted."
+    },
+    {
+      "id": "success",
+      "description": "Preference saved and applied immediately."
+    },
+    {
+      "id": "request-error",
+      "description": "Preferences could not be loaded or saved."
+    },
+    {
+      "id": "permission-denied",
+      "description": "Minter-only sections are not rendered for a holder identity."
+    },
+    {
+      "id": "empty",
+      "description": "No optional preference groups apply to this identity; the page states that rather than rendering an empty shell."
+    },
+    {
+      "id": "partial",
+      "description": "Some preference groups loaded and others failed; each group reports its own state."
+    },
+    {
+      "id": "stale",
+      "description": "Showing cached preference values after a failed refresh, labelled as such."
+    }
+  ],
+  "elements": [
+    {
+      "id": "appearance-section",
+      "role": "group",
+      "name": "Appearance",
+      "description": "Theme selection across light, dark and system."
+    },
+    {
+      "id": "language-section",
+      "role": "group",
+      "name": "Language",
+      "description": "Locale switching, owned by Settings per the shell contract."
+    },
+    {
+      "id": "accessibility-section",
+      "role": "group",
+      "name": "Accessibility",
+      "description": "Text scale, reduced motion, and contrast preferences."
+    },
+    {
+      "id": "notification-section",
+      "role": "group",
+      "name": "Notifications",
+      "description": "Whether approval requests relay out of band when notification-hub is present."
+    },
+    {
+      "id": "economy-defaults-section",
+      "role": "group",
+      "name": "Economy defaults",
+      "description": "Minter-only defaults such as approval posture for new catalog entries."
+    }
+  ],
+  "claims": [
+    {
+      "id": "role-scoped-sections",
+      "type": "state-covered",
+      "statement": "Minter-only sections are absent for a holder identity rather than present and disabled.",
+      "tier": "aspirational",
+      "states": [
+        "permission-denied"
+      ]
+    },
+    {
+      "id": "accessibility-is-primary",
+      "type": "reading-order",
+      "statement": "Accessibility preferences appear at the same level as appearance, not nested beneath it.",
+      "tier": "aspirational",
+      "elements": [
+        "appearance-section",
+        "accessibility-section"
+      ],
+      "locales": [
+        "en"
+      ]
+    },
+    {
+      "id": "preferences-apply-immediately",
+      "type": "state-covered",
+      "statement": "A saved preference is applied without requiring a reload.",
+      "tier": "aspirational",
+      "states": [
+        "success"
+      ]
+    },
+    {
+      "id": "notification-absence-explained",
+      "type": "element-present",
+      "statement": "When notification-hub is unavailable, the notification section explains that approvals still work in-console.",
+      "tier": "aspirational",
+      "elements": [
+        "notification-section"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "appearance-section": {
+        "testid": "settings-appearance"
+      },
+      "language-section": {
+        "testid": "settings-language"
+      },
+      "accessibility-section": {
+        "testid": "settings-accessibility"
+      },
+      "notification-section": {
+        "testid": "settings-notifications"
+      },
+      "economy-defaults-section": {
+        "testid": "settings-economy-defaults"
+      }
+    }
+  }
+}

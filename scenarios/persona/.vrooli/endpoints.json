@@ -1,0 +1,356 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.persona.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.persona.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Machine-readable capability status endpoint.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.persona.v1.capabilities.DescribeResponse",
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.persona.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "access_act_as",
+      "path": "/vrooli.persona.v1.access.AccessService/ActAs",
+      "method": "POST",
+      "summary": "Act as a named persona",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_resolve_persona",
+      "path": "/vrooli.persona.v1.access.AccessService/ResolvePersona",
+      "method": "POST",
+      "summary": "Resolve entitled persona metadata",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_create_grant",
+      "path": "/vrooli.persona.v1.access.AccessService/CreateGrant",
+      "method": "POST",
+      "summary": "Grant a human persona access",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_list_grants",
+      "path": "/vrooli.persona.v1.access.AccessService/ListGrants",
+      "method": "POST",
+      "summary": "List persona access grants",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_remove_grant",
+      "path": "/vrooli.persona.v1.access.AccessService/RemoveGrant",
+      "method": "POST",
+      "summary": "Remove a persona access grant",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "access_issue_attestation",
+      "path": "/vrooli.persona.v1.access.AccessService/IssueAttestation",
+      "method": "POST",
+      "summary": "Issue a signed identity attestation",
+      "description": "",
+      "category": "access"
+    },
+    {
+      "id": "accounts_link",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/LinkAccount",
+      "method": "POST",
+      "summary": "Link an account created as a persona",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_list",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/ListAccounts",
+      "method": "POST",
+      "summary": "List linked accounts",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_add_address",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/AddAddress",
+      "method": "POST",
+      "summary": "Add a persona address",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_list_addresses",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/ListAddresses",
+      "method": "POST",
+      "summary": "List persona addresses",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_add_obligation",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/AddObligation",
+      "method": "POST",
+      "summary": "Record an account obligation",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_list_obligations",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/ListObligations",
+      "method": "POST",
+      "summary": "List persona obligations",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_cancel_obligation",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/CancelObligation",
+      "method": "POST",
+      "summary": "Cancel an obligation",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "accounts_release_address",
+      "path": "/vrooli.persona.v1.accounts.AccountsService/ReleaseAddress",
+      "method": "POST",
+      "summary": "Release an address into a named target",
+      "description": "",
+      "category": "accounts"
+    },
+    {
+      "id": "channels_bind",
+      "path": "/vrooli.persona.v1.channels.ChannelsService/BindChannel",
+      "method": "POST",
+      "summary": "Bind a controlled channel",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_list",
+      "path": "/vrooli.persona.v1.channels.ChannelsService/ListChannels",
+      "method": "POST",
+      "summary": "List controlled channels",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_send_message",
+      "path": "/vrooli.persona.v1.channels.ChannelsService/SendMessage",
+      "method": "POST",
+      "summary": "Send from a controlled channel",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_retrieve_code",
+      "path": "/vrooli.persona.v1.channels.ChannelsService/RetrieveCode",
+      "method": "POST",
+      "summary": "Retrieve a one-time code",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "documents_bind",
+      "path": "/vrooli.persona.v1.documents.DocumentsService/BindDocument",
+      "method": "POST",
+      "summary": "Bind a document-manager document",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "documents_list",
+      "path": "/vrooli.persona.v1.documents.DocumentsService/ListBindings",
+      "method": "POST",
+      "summary": "List document bindings",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "documents_release",
+      "path": "/vrooli.persona.v1.documents.DocumentsService/ReleaseIntoHandoff",
+      "method": "POST",
+      "summary": "Release a document into a named handoff",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "handoffs_open",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/OpenHandoff",
+      "method": "POST",
+      "summary": "Open a resumable human handoff",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "handoffs_get",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/GetHandoff",
+      "method": "POST",
+      "summary": "Read a handoff checkpoint",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "handoffs_list",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/ListHandoffs",
+      "method": "POST",
+      "summary": "List handoffs",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "handoffs_complete",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/CompleteHandoff",
+      "method": "POST",
+      "summary": "Complete a human handoff",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "handoffs_cancel",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/CancelHandoff",
+      "method": "POST",
+      "summary": "Cancel a handoff",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "handoffs_resume",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/ResumeHandoff",
+      "method": "POST",
+      "summary": "Resume from a completed checkpoint",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "handoffs_prepare_enrolment",
+      "path": "/vrooli.persona.v1.handoffs.HandoffsService/PrepareEnrolment",
+      "method": "POST",
+      "summary": "Prepare one enrolment handoff",
+      "description": "",
+      "category": "handoffs"
+    },
+    {
+      "id": "personas_create",
+      "path": "/vrooli.persona.v1.personas.PersonasService/CreatePersona",
+      "method": "POST",
+      "summary": "Create a persona",
+      "description": "",
+      "category": "personas"
+    },
+    {
+      "id": "personas_get",
+      "path": "/vrooli.persona.v1.personas.PersonasService/GetPersona",
+      "method": "POST",
+      "summary": "Read a persona",
+      "description": "",
+      "category": "personas"
+    },
+    {
+      "id": "personas_list",
+      "path": "/vrooli.persona.v1.personas.PersonasService/ListPersonas",
+      "method": "POST",
+      "summary": "List personas",
+      "description": "",
+      "category": "personas"
+    },
+    {
+      "id": "personas_archive",
+      "path": "/vrooli.persona.v1.personas.PersonasService/ArchivePersona",
+      "method": "POST",
+      "summary": "Archive a persona",
+      "description": "",
+      "category": "personas"
+    },
+    {
+      "id": "personas_health",
+      "path": "/vrooli.persona.v1.personas.PersonasService/CheckHealth",
+      "method": "POST",
+      "summary": "Check persona readiness",
+      "description": "",
+      "category": "personas"
+    },
+    {
+      "id": "journal_append",
+      "path": "/vrooli.persona.v1.journal.JournalService/Append",
+      "method": "POST",
+      "summary": "Append an attributable journal entry",
+      "description": "",
+      "category": "journal"
+    },
+    {
+      "id": "journal_list",
+      "path": "/vrooli.persona.v1.journal.JournalService/List",
+      "method": "POST",
+      "summary": "List journal entries",
+      "description": "",
+      "category": "journal"
+    }
+  ]
+}

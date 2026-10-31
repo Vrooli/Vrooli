@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "data-display.budget-bar",
+    "name": "BudgetBar",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "A runtime budget bar for mount and rerender cost.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "hooks.use-locale",
+        "reason": "User-facing copy resolves through the adopting host locale bridge."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "accessible-naming",
+    "non-color-status"
+  ],
+  "requiredStates": [
+    "default",
+    "request-error"
+  ],
+  "qualityGates": [
+    "accessibility",
+    "surface-discipline",
+    "composition"
+  ],
+  "rationale": "Cost must be compared with its budget and remain visible when it exceeds it."
+}

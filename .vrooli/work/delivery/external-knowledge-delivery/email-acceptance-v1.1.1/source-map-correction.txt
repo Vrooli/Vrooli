@@ -1,0 +1,7 @@
+Email acceptance correction · 14 October 2026, 23:38 UTC: do not create Gmail accounts. Owner-facing live closure is adding one existing personal Gmail account through Google OAuth. Multi-account support, unified Inbox and account-specific filtering remain first-release requirements; controlled synthetic provider fixtures validate multiple-account behavior without requiring a second owner account. Specification v1.1.1 supersedes the earlier two-real-account acceptance wording. The v1.1 atlas and source package stay frozen, accompanied by a separate acceptance amendment. This records scope and evidence requirements; it does not establish account connection, local import, native approval or team activation.
+
+Source map: https://docs.google.com/document/d/1_f-6wZSetVj_AawGdtSdGJet6pvF6dtAflTfyjcs0-0/edit
+Verified revision: AHj4eMSk_xzLOh3cApOwwkR9MLVxaf_XfqSc_tCvihUhBdrXCospYrEJi8krHb25VXgLRDMXRaPVlTP_LrWfz40_4xUf9UzlNS5MU1fQIg
+
+Acceptance amendment link: https://drive.google.com/file/d/1r1c8gFuD4fvcZXhCHEKvDIn6R-mjeoEw/view
+Final linked-map revision: AHj4eMTB2fY6tK8ZlpBez6rYQNJQyIDS7-GlYVYzUkzuveGUA3CILRa1gTZpzF8e4eAl0ECXZCVpj9Q0wCcrynQvJMbR4U-Ex3A10Etf5g

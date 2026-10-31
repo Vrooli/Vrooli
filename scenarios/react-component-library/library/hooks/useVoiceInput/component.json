@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "runtime-hook",
+  "catalogId": "react-component-library:useVoiceInput",
+  "deprecatedVersions": [],
+  "latest": "3.0.0",
+  "libraryId": "react-component-library:useVoiceInput"
+}

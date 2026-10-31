@@ -1,0 +1,175 @@
+{
+  "finiteLeader": {
+    "effortRef": "effort:3132d75d-c3b7-42fd-9441-ba0a0a9e2887",
+    "acceptedRevision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+    "coordinatorPromptRef": "prompt-manager:rcl-prompt-manager-ux-design-campaign-coordinator",
+    "sourceRefs": [
+      "team:rcl-prompt-manager-ux-design-campaign",
+      "effort:rcl-prompt-manager-ux-design-campaign"
+    ]
+  },
+  "finiteLeaderState": {
+    "agentId": "rcl-prompt-manager-ux-design-coordinator",
+    "binding": {
+      "acceptedRevision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+      "coordinatorPromptRef": "prompt-manager:rcl-prompt-manager-ux-design-campaign-coordinator",
+      "effortRef": "effort:3132d75d-c3b7-42fd-9441-ba0a0a9e2887",
+      "sourceRefs": [
+        "team:rcl-prompt-manager-ux-design-campaign",
+        "effort:rcl-prompt-manager-ux-design-campaign"
+      ]
+    },
+    "createdAt": "2026-09-15T22:28:32.709254293Z",
+    "dispatchStarted": true,
+    "id": "b8772b28-0726-4fb6-9fbe-2df2f4048c7d",
+    "profileKey": "prompt-manager/heartbeat-judgment",
+    "restartHistory": [
+      {
+        "evidenceRef": "agent-manager://runs/8a8185d9-a53e-48e3-ac39-65ab2a4640ed/result",
+        "restartedAt": "2026-09-14T14:34:06.112996214Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "8a8185d9-a53e-48e3-ac39-65ab2a4640ed",
+        "taskId": "1a0dec6a-5ea8-4bd6-9bb4-2871690f7982"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/269214bd-d88f-4820-99e7-099d96f26d31/result",
+        "restartedAt": "2026-09-14T17:41:33.333641947Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "269214bd-d88f-4820-99e7-099d96f26d31",
+        "taskId": "7a11f21a-e97c-4bf1-9559-0a013da78a16"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/a7ebd9c4-f01a-4010-91f5-eb0031ffeb9a/result",
+        "restartedAt": "2026-09-14T17:45:00.746292517Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "a7ebd9c4-f01a-4010-91f5-eb0031ffeb9a",
+        "taskId": "5bc3b1a8-6526-4412-9023-19213ae08605"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/a7ebd9c4-f01a-4010-91f5-eb0031ffeb9a/result",
+        "restartedAt": "2026-09-14T21:32:07.585390868Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "4dcd71e3-d073-4f20-a4cc-f53860dd4c82",
+        "taskId": "1e191345-e437-4736-babc-f0b01c29c863"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/a7ebd9c4-f01a-4010-91f5-eb0031ffeb9a/result",
+        "restartedAt": "2026-09-14T21:42:31.474841453Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "26670618-f21c-424b-b9ee-5438a3c098f4",
+        "taskId": "73b6e0d3-1fde-4edc-a6c8-be7587d64d38"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/f281d4ec-c899-47b6-a1d4-1351f4181c02/result",
+        "restartedAt": "2026-09-14T22:55:52.877768102Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "f281d4ec-c899-47b6-a1d4-1351f4181c02",
+        "taskId": "be58526d-6be1-4534-9175-3b61faa04ad7"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/f281d4ec-c899-47b6-a1d4-1351f4181c02/result",
+        "restartedAt": "2026-09-14T23:01:12.266916488Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "98aa8564-1b2f-4b22-8e9c-58531edd4cd0",
+        "taskId": "abdc2053-9d51-4bdd-ab4a-d49c3be57208"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/5f50a353-198f-47f1-ba44-517de610c5b9/result",
+        "restartedAt": "2026-09-14T23:05:15.415006664Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "5f50a353-198f-47f1-ba44-517de610c5b9",
+        "taskId": "64945ec9-740f-40de-81b1-94bbc4677f30"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/553d3e27-43da-447b-8846-a4420d9d6ee2/result",
+        "restartedAt": "2026-09-15T15:55:04.941300604Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "553d3e27-43da-447b-8846-a4420d9d6ee2",
+        "taskId": "8240f137-e8dd-452c-8d52-2fc074e83377"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/553d3e27-43da-447b-8846-a4420d9d6ee2/result",
+        "restartedAt": "2026-09-15T18:00:32.683695625Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "83f53acd-753b-4db8-a487-fe1cd1fc1847",
+        "taskId": "5b72eee4-bd57-4d08-bce6-a6967d3319a3"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/ae9f689d-5ac7-495f-9e4c-dd8152454d44/result",
+        "restartedAt": "2026-09-15T18:32:01.971721919Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "ae9f689d-5ac7-495f-9e4c-dd8152454d44",
+        "taskId": "450031ae-9c33-45f0-a17d-73e6b2caf824"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/ae9f689d-5ac7-495f-9e4c-dd8152454d44/result",
+        "restartedAt": "2026-09-15T19:08:05.133767988Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "752bff44-130e-4791-8362-586f58afb828",
+        "taskId": "9c99538d-4b37-44dd-b4cc-8bcc931b5cca"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/bde9d64c-f3b7-4c5f-a0de-bc1635d026af/result",
+        "restartedAt": "2026-09-15T19:47:08.625246133Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "bde9d64c-f3b7-4c5f-a0de-bc1635d026af",
+        "taskId": "5cf56c60-dc83-4687-9459-ed1f8dfe912c"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/bde9d64c-f3b7-4c5f-a0de-bc1635d026af/result",
+        "restartedAt": "2026-09-15T19:54:01.317171961Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "b6f7c723-973e-4845-82a4-cc0ad89fe2fa",
+        "taskId": "82dc3327-a526-4732-930d-0b79c3aaaf70"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/bde9d64c-f3b7-4c5f-a0de-bc1635d026af/result",
+        "restartedAt": "2026-09-15T20:59:50.599699661Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "f3f7e791-417f-4579-88fe-d74a75bdc048",
+        "taskId": "939b72ca-0243-4015-821e-80765bbd14d3"
+      },
+      {
+        "evidenceRef": "agent-manager://runs/e9afc70a-5d43-4320-9d50-09571e948f59/result",
+        "restartedAt": "2026-09-15T22:28:32.633266369Z",
+        "revision": "rcl-prompt-manager-ux-design-campaign-acceptance-20260914-1",
+        "runId": "e9afc70a-5d43-4320-9d50-09571e948f59",
+        "taskId": "f219bc18-5ea4-4d9a-8c18-a94ad1ee33c0"
+      }
+    ],
+    "runId": "279a42e6-fd69-4260-be04-eeeb578533f8",
+    "status": "RUN_STATUS_COMPLETE",
+    "taskId": "78ca1024-e7cc-4007-a196-f55e24da0a39",
+    "taskStarted": true,
+    "teamId": "rcl-prompt-manager-ux-design-campaign",
+    "version": 1
+  },
+  "teamId": "rcl-prompt-manager-ux-design-campaign",
+  "agentId": "rcl-prompt-manager-ux-design-coordinator",
+  "enabled": true,
+  "teamEnabled": false,
+  "effectiveState": "team-disabled",
+  "effectiveReason": "team is disabled",
+  "controlState": "active",
+  "scheduled": false,
+  "schedule": "*/5 * * * *",
+  "profileKey": "prompt-manager/heartbeat-judgment",
+  "consecutiveFailures": 0,
+  "lifecycleState": "healthy",
+  "lastExecution": {
+    "startedAt": "2026-09-15T22:28:32.993204581Z",
+    "endedAt": "2026-09-15T23:02:33.034703401Z",
+    "status": "completed",
+    "runId": "279a42e6-fd69-4260-be04-eeeb578533f8",
+    "logPath": "."
+  },
+  "lastSuccessfulExecution": {
+    "startedAt": "2026-09-15T22:28:32.993204581Z",
+    "endedAt": "2026-09-15T23:02:33.034703401Z",
+    "status": "completed",
+    "runId": "279a42e6-fd69-4260-be04-eeeb578533f8",
+    "logPath": "."
+  },
+  "createdAt": "2026-09-14T05:16:13Z",
+  "updatedAt": "2026-09-15T23:05:00Z"
+}

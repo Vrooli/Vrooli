@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "artifact_id": "innerscene-ultrawide-monitor-screen-uv-v1",
+  "path": "monitor-screen-uv-v1.glb",
+  "media_type": "model/gltf-binary",
+  "size_bytes": 109512,
+  "sha256": "eff6e9a20a4fd26003046e7f0c7b5d0ea737d83d4ce9adb66b1c118561155266",
+  "source_manifest_sha256": "507989d4027b4a31f18629b03fa67c12eaed5c30bdab5ef8246f716e40c10e54",
+  "source_path": "scenarios/device-studio/assets/sources/innerscene-ultrawide-monitor/monitor-source-manifest.json",
+  "source_title": "Wide View - Ultrawide Monitor",
+  "creator": "Innerscene (original model)",
+  "license": "CC0-1.0",
+  "attribution": "Innerscene, Wide View - Ultrawide Monitor (CC0-1.0; retained as provenance)",
+  "adaptation": "Screen-only affine UV0 normalization for the pinned display-glass primitive; see source manifest for exact byte-range and preservation facts.",
+  "identity": "Generic monitor design only; no manufacturer or model claim.",
+  "qualification": "candidate_only_unqualified"
+}

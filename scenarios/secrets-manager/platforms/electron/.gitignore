@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-electron/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Electron builder
+app-update.yml
+dev-app-update.yml
+
+# Environment variables
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
+
+# Rebuilt deployment payload: copied control-plane catalog/resources and UI.
+# Keep the Electron/native-host source outside this directory visible to Git.
+/bundle/

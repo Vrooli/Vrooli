@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.shortcuts;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shortcuts;shortcuts_v1";
+
+// =============================================================================
+// SHORTCUTS DOMAIN — launch shortcut profiles
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain shortcuts
+// @stability stable
+//
+// Wire contract for the ShortcutsService Connect-RPC service. Profiles
+// group launch shortcuts under a scope hierarchy (service → workspace →
+// parent); the effective shortcut list is resolved by picking the
+// highest-priority scope's profile.
+//
+// Consumed by:
+//   - API: handlers/shortcuts/connect_handler.go implements
+//          ShortcutsServiceHandler.
+//   - UI:  ui/src/api/shortcuts.ts (Connect-Web client).
+//   - CLI: cli/domains/shortcuts/register.go (Connect-Go client).
+// =============================================================================
+
+service ShortcutsService {
+  rpc GetEffective(GetEffectiveRequest) returns (GetEffectiveResponse);
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse);
+  rpc UpsertProfile(UpsertProfileRequest) returns (UpsertProfileResponse);
+  rpc DeleteProfile(DeleteProfileRequest) returns (DeleteProfileResponse);
+  rpc GetAgentPreferences(GetAgentPreferencesRequest) returns (GetAgentPreferencesResponse);
+  rpc UpdateAgentPreferences(UpdateAgentPreferencesRequest) returns (UpdateAgentPreferencesResponse);
+}
+
+// Shortcut is a single launch shortcut: a labelled command line.
+//
+// agent_id typed-links an entry to one coding agent in the capability
+// catalogue ("claude", "codex", "opencode", "grok", "agy"). It exists so
+// surfaces stop pattern-matching command text to guess which agent an entry
+// launches -- a guess any operator-authored wrapper defeats. Empty means the
+// entry is a plain operator command that belongs to no agent. The server
+// derives it from the command when a client omits it, so older clients keep
+// working and the derivation lives in exactly one place.
+message Shortcut {
+  string label = 1;
+  string command = 2;
+  string description = 3;
+  string agent_id = 4;
+}
+
+// Profile is a named bundle of shortcuts at a given scope. Scope is one
+// of "service", "workspace", "parent" — validated server-side.
+message Profile {
+  string id = 1;
+  string scope = 2;
+  string name = 3;
+  repeated Shortcut shortcuts = 4;
+  string created_at = 5;
+  string updated_at = 6;
+}
+
+message GetEffectiveRequest {}
+
+// GetEffectiveResponse carries the resolved list plus the identity of the
+// profile it came from, so a client that lets the operator reorder or edit
+// the effective list can write it back without re-deriving scope priority.
+// profile_id is empty when no profile exists and the built-in defaults are
+// being served; a client must then create a profile rather than update one.
+message GetEffectiveResponse {
+  repeated Shortcut shortcuts = 1;
+  string profile_id = 2;
+  string scope = 3;
+  // The profile's name, which UpsertProfile requires and rejects when blank.
+  // Without it a client writing an edited list back has to invent a name and
+  // would silently rename the operator's profile.
+  string profile_name = 4;
+}
+
+message ListProfilesRequest {}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1;
+}
+
+// UpsertProfileRequest creates or updates a profile by id. All fields are
+// required; the service rejects unknown scopes, blank names, and shortcut
+// entries with missing label/command.
+message UpsertProfileRequest {
+  string id = 1;
+  string scope = 2;
+  string name = 3;
+  repeated Shortcut shortcuts = 4;
+}
+
+message UpsertProfileResponse {
+  Profile profile = 1;
+}
+
+// DeleteProfileRequest is idempotent: deleting a missing id succeeds
+// silently. The post-condition "profile does not exist" is what matters.
+message DeleteProfileRequest {
+  string id = 1;
+}
+
+message DeleteProfileResponse {}
+
+// Agent preferences are stored separately from shortcut commands so an older
+// profile editor cannot erase them. An empty profile_id identifies the
+// built-in fallback when no profile exists. New agents default to visible.
+message AgentPreferences {
+  string profile_id = 1;
+  repeated string ordered_agent_ids = 2;
+  repeated string hidden_agent_ids = 3;
+  uint64 revision = 4;
+  // Opaque identity of this profile instance; empty for the built-in fallback.
+  string profile_instance = 5;
+}
+
+message GetAgentPreferencesRequest {}
+message GetAgentPreferencesResponse { AgentPreferences preferences = 1; }
+
+// The current effective profile and revision must still match the values read
+// by the caller. A conflict returns ABORTED; refresh and let the user retry.
+message UpdateAgentPreferencesRequest {
+  string profile_id = 1;
+  uint64 expected_revision = 2;
+  repeated string ordered_agent_ids = 3;
+  repeated string hidden_agent_ids = 4;
+  string profile_instance = 5;
+}
+message UpdateAgentPreferencesResponse { AgentPreferences preferences = 1; }

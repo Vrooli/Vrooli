@@ -19,6 +19,7 @@ describe('WebSocket Proxy Integration', () => {
   let uiPort: number
   let apiPort: number
   const testMessages: string[] = []
+  let lastUpgradeHeaders: http.IncomingHttpHeaders = {}
 
   beforeAll(async () => {
     // Find available ports
@@ -59,6 +60,7 @@ describe('WebSocket Proxy Integration', () => {
     })
 
     apiServer.on('upgrade', (request, socket, head) => {
+      lastUpgradeHeaders = request.headers
       if (request.url?.startsWith('/api/v1/ws')) {
         wsServer.handleUpgrade(request, socket, head, (ws) => {
           wsServer.emit('connection', ws, request)
@@ -146,6 +148,9 @@ describe('WebSocket Proxy Integration', () => {
     const ws = new WebSocket(wsUrl, {
       headers: {
         'X-Custom-Header': 'test-value',
+        Host: 'console.example',
+        Origin: 'https://console.example',
+        'X-Forwarded-Host': 'untrusted.example',
       },
     })
 
@@ -166,6 +171,9 @@ describe('WebSocket Proxy Integration', () => {
     })
 
     expect(ws.readyState).toBe(WebSocket.OPEN)
+    expect(lastUpgradeHeaders['x-forwarded-host']).toBe('console.example')
+    expect(lastUpgradeHeaders.origin).toBe('https://console.example')
+    expect(lastUpgradeHeaders.host).toBe(`127.0.0.1:${apiPort}`)
     ws.close()
   })
 

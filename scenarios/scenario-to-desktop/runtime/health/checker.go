@@ -10,10 +10,10 @@ import (
 	"regexp"
 	"time"
 
-	"scenario-to-desktop-runtime/deps"
-	"scenario-to-desktop-runtime/infra"
-	"scenario-to-desktop-runtime/manifest"
-	"scenario-to-desktop-runtime/ports"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/deps"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/ports"
 )
 
 // Status represents the current state of a service.
@@ -48,32 +48,35 @@ type Monitor struct {
 	appData  string
 
 	// StatusGetter provides access to service status from the orchestrator.
-	StatusGetter func(id string) (Status, bool)
+	StatusGetter     func(id string) (Status, bool)
+	OnReadinessProbe func(serviceID string, attempt int, success bool, at time.Time)
 }
 
 // MonitorConfig holds the dependencies for Monitor.
 type MonitorConfig struct {
-	Manifest     *manifest.Manifest
-	Ports        ports.Allocator
-	Dialer       infra.NetworkDialer
-	CmdRunner    infra.CommandRunner
-	FS           infra.FileSystem
-	Clock        infra.Clock
-	AppData      string
-	StatusGetter func(id string) (Status, bool)
+	Manifest         *manifest.Manifest
+	Ports            ports.Allocator
+	Dialer           infra.NetworkDialer
+	CmdRunner        infra.CommandRunner
+	FS               infra.FileSystem
+	Clock            infra.Clock
+	AppData          string
+	StatusGetter     func(id string) (Status, bool)
+	OnReadinessProbe func(serviceID string, attempt int, success bool, at time.Time)
 }
 
 // NewMonitor creates a new Monitor with the given dependencies.
 func NewMonitor(cfg MonitorConfig) *Monitor {
 	return &Monitor{
-		manifest:     cfg.Manifest,
-		ports:        cfg.Ports,
-		dialer:       cfg.Dialer,
-		cmd:          cfg.CmdRunner,
-		fs:           cfg.FS,
-		clock:        cfg.Clock,
-		appData:      cfg.AppData,
-		StatusGetter: cfg.StatusGetter,
+		manifest:         cfg.Manifest,
+		ports:            cfg.Ports,
+		dialer:           cfg.Dialer,
+		cmd:              cfg.CmdRunner,
+		fs:               cfg.FS,
+		clock:            cfg.Clock,
+		appData:          cfg.AppData,
+		StatusGetter:     cfg.StatusGetter,
+		OnReadinessProbe: cfg.OnReadinessProbe,
 	}
 }
 
@@ -93,7 +96,7 @@ func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error 
 
 	switch svc.Readiness.Type {
 	case "health_success":
-		return m.pollHealth(ctx, *svc)
+		return m.pollReadinessHealth(ctx, *svc)
 	case "port_open":
 		port, err := m.ports.Resolve(svc.ID, svc.Readiness.PortName)
 		if err != nil {
@@ -106,6 +109,28 @@ func (m *Monitor) WaitForReadiness(ctx context.Context, serviceID string) error 
 		return m.WaitForDependencies(ctx, svc)
 	default:
 		return fmt.Errorf("unknown readiness type %q", svc.Readiness.Type)
+	}
+}
+
+// pollReadinessHealth uses the startup deadline, independently of the operator
+// monitoring interval and retry count. WaitForReadiness owns that deadline.
+func (m *Monitor) pollReadinessHealth(ctx context.Context, svc manifest.Service) error {
+	for attempt := 1; ; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		ok := m.checkHealthOnce(ctx, svc, 2*time.Second)
+		if m.OnReadinessProbe != nil {
+			m.OnReadinessProbe(svc.ID, attempt, ok, m.clock.Now())
+		}
+		if ok {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-m.clock.After(100 * time.Millisecond):
+		}
 	}
 }
 
@@ -124,42 +149,14 @@ func (m *Monitor) CheckOnce(ctx context.Context, serviceID string) bool {
 	return m.checkHealthOnce(ctx, *svc, timeout)
 }
 
-// pollHealth repeatedly checks health until success or timeout.
-func (m *Monitor) pollHealth(ctx context.Context, svc manifest.Service) error {
-	interval := time.Duration(svc.Health.IntervalMs) * time.Millisecond
-	if interval == 0 {
-		interval = 500 * time.Millisecond
-	}
-	timeout := time.Duration(svc.Health.TimeoutMs) * time.Millisecond
-	if timeout == 0 {
-		timeout = 2 * time.Second
-	}
-	retries := svc.Health.Retries
-	if retries == 0 {
-		retries = 3
-	}
-
-	for attempt := 0; attempt <= retries; attempt++ {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-		if m.checkHealthOnce(ctx, svc, timeout) {
-			return nil
-		}
-		m.clock.Sleep(interval)
-	}
-	return fmt.Errorf("health check failed after %d attempts", retries+1)
-}
-
 // checkHealthOnce performs a single health check.
 func (m *Monitor) checkHealthOnce(ctx context.Context, svc manifest.Service, timeout time.Duration) bool {
 	switch svc.Health.Type {
 	case "http":
 		return m.checkHTTPHealth(ctx, svc, timeout)
 	case "tcp":
-		return m.checkTCPHealth(svc, timeout)
+		port, err := m.ports.Resolve(svc.ID, svc.Health.PortName)
+		return err == nil && m.checkTCPPort(ctx, port, timeout)
 	case "command":
 		return m.checkCommandHealth(ctx, svc, timeout)
 	case "log_match":
@@ -216,23 +213,21 @@ func parseHealthBody(body io.Reader) bool {
 	if payload.Readiness != nil && !*payload.Readiness {
 		return false
 	}
-	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" {
+	if payload.Status != "" && payload.Status != "healthy" && payload.Status != "degraded" && payload.Status != "ok" {
 		return false
 	}
 	return true
 }
 
-// checkTCPHealth verifies service health via TCP connection.
-func (m *Monitor) checkTCPHealth(svc manifest.Service, timeout time.Duration) bool {
-	port, err := m.ports.Resolve(svc.ID, svc.Health.PortName)
+// checkTCPPort shares deadline-bound dialing for health and port readiness.
+func (m *Monitor) checkTCPPort(ctx context.Context, port int, timeout time.Duration) bool {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	conn, err := m.dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		return false
 	}
-	conn, err := m.dialer.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), timeout)
-	if err != nil {
-		return false
-	}
-	conn.Close()
+	_ = conn.Close()
 	return true
 }
 
@@ -291,17 +286,17 @@ func (m *Monitor) logMatches(svc manifest.Service, pattern string) bool {
 // waitForPort waits for a TCP port to become available.
 func (m *Monitor) waitForPort(ctx context.Context, port int) error {
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if m.checkTCPPort(ctx, port, 500*time.Millisecond) {
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
+		case <-m.clock.After(250 * time.Millisecond):
 		}
-		conn, err := m.dialer.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 500*time.Millisecond)
-		if err == nil {
-			conn.Close()
-			return nil
-		}
-		m.clock.Sleep(250 * time.Millisecond)
 	}
 }
 

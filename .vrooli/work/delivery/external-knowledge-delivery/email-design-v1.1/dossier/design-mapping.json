@@ -1,0 +1,496 @@
+{
+  "version": "1.1",
+  "date": "2026-10-14",
+  "artifact_status": "Owner endorsed the overall visual direction on 2026-10-14 at 20:59 UTC and selected first-release multi-Gmail scope. This revised artifact set and live implementation are not separately accepted.",
+  "spec_doc": "https://docs.google.com/document/d/1b-XsCToyltcrFWZuHQIo-M6DQVOASP6pjafOpPk9nbY/edit",
+  "atlas_doc": "https://docs.google.com/document/d/1FGEwJtpi67XDCfqpzb4FwkL4isVEXRDNhlsC3Q7FtjU/edit",
+  "entry_doc": "https://docs.google.com/document/d/1bAOrWfuDLas4VABUzXC8H3DOGtGeRdNgvQwfdkV52E4/edit",
+  "drive_folder": "https://drive.google.com/drive/folders/18JBf_zTLaPQ1CCBw4ZaHug0irUYkyvkx",
+  "families": [
+    {
+      "id": "EM01",
+      "title": "Unified inbox",
+      "requirements": [
+        "R01",
+        "R04",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A02",
+        "A06",
+        "A09",
+        "A13",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM02",
+      "title": "Thread and reading",
+      "requirements": [
+        "R01",
+        "R04",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A03",
+        "A05",
+        "A13",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM03",
+      "title": "Reply and draft",
+      "requirements": [
+        "R02",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A07",
+        "A08",
+        "A13",
+        "A18"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM04",
+      "title": "Search and evidence",
+      "requirements": [
+        "R03",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A04",
+        "A05",
+        "A13",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM05",
+      "title": "Agent proposal review",
+      "requirements": [
+        "R04",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A05",
+        "A10",
+        "A14",
+        "A18"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM06",
+      "title": "Waiting",
+      "requirements": [
+        "R04",
+        "R05",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A06",
+        "A10",
+        "A11",
+        "A13"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM07",
+      "title": "Projects",
+      "requirements": [
+        "R03",
+        "R04",
+        "R05",
+        "R06",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A06",
+        "A11"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM08",
+      "title": "Attachment preview",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A03",
+        "A04",
+        "A12",
+        "A13"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM09",
+      "title": "Accounts and setup",
+      "requirements": [
+        "R01",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A02",
+        "A14",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM10",
+      "title": "Settings and privacy",
+      "requirements": [
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A13",
+        "A14"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM11",
+      "title": "Per-account sync and recovery",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A07",
+        "A14",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EM12",
+      "title": "Original and source viewer",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A03",
+        "A04",
+        "A12",
+        "A13"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EX01",
+      "title": "Reconnect",
+      "requirements": [
+        "R01",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A02",
+        "A07",
+        "A14",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EX02",
+      "title": "Genuinely empty inbox",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A13",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EX03",
+      "title": "Semantic search degraded",
+      "requirements": [
+        "R03",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A04",
+        "A05",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "EX04",
+      "title": "Send review",
+      "requirements": [
+        "R02",
+        "R06",
+        "R07",
+        "R08"
+      ],
+      "acceptance": [
+        "A07",
+        "A08",
+        "A13",
+        "A14",
+        "A18"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "MA01",
+      "title": "Account chooser and view filter",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "MA02",
+      "title": "Add account and provider picker",
+      "requirements": [
+        "R01",
+        "R06",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A14",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "MA03",
+      "title": "Specific-account inbox",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "MA04",
+      "title": "Partial unified inbox",
+      "requirements": [
+        "R01",
+        "R03",
+        "R06",
+        "R08"
+      ],
+      "acceptance": [
+        "A01",
+        "A02",
+        "A16",
+        "A17"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    },
+    {
+      "id": "MA05",
+      "title": "New message and sender choice",
+      "requirements": [
+        "R02",
+        "R06",
+        "R08"
+      ],
+      "acceptance": [
+        "A07",
+        "A08",
+        "A18"
+      ],
+      "expected_variants": [
+        "desktop-light",
+        "desktop-dark",
+        "mobile-light",
+        "mobile-dark"
+      ]
+    }
+  ],
+  "source_provenance": {
+    "recovered_brief": "Full transferable text returned in native inspection around15:04UTC, before later source edits; not an exact-byte claim for the later native file.",
+    "current_native_brief_sha256": "0651ce41d7b4a88a3b20b1c987ca96fbb398ae15cc150c18b23b2173f2b6f06d",
+    "current_native_manifest_observation": "2026-10-14T19:14:48.472484Z",
+    "native_preparation_v2_applied": "2026-10-14T19:27:58.683Z",
+    "team_state": "disabled, unscheduled, idle, undispatched",
+    "native_import": "pending; no design assets imported in this authoring task"
+  },
+  "history": "https://drive.google.com/drive/folders/1UScrIfcGb9VzlPH6ZsWUffnO2ToYwnEK"
+}

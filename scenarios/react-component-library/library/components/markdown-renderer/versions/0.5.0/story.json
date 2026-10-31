@@ -1,0 +1,133 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "content": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n\u003e Keep operator context visible.\n\n```ts\nconst stable = true;\n```"
+      },
+      "composition": {
+        "specimen": {
+          "export": "MarkdownStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Shared markdown"
+        },
+        {
+          "kind": "text",
+          "value": "Ready"
+        },
+        {
+          "kind": "text",
+          "value": "Keep operator context visible."
+        },
+        {
+          "kind": "text",
+          "value": "const stable = true;"
+        }
+      ],
+      "id": "gfm-prose-and-code",
+      "mode": "pinned",
+      "name": "GFM, prose, and code",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "content": ""
+      },
+      "composition": {
+        "specimen": {
+          "export": "MarkdownStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-testid='markdown-story-output']:empty",
+          "value": "1"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty markdown",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "content": "# A deliberately long markdown heading that must wrap cleanly\n\nThis paragraph contains enough content to exercise the renderer boundary."
+      },
+      "composition": {
+        "specimen": {
+          "export": "MarkdownStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "A deliberately long markdown heading that must wrap cleanly"
+        },
+        {
+          "kind": "text",
+          "value": "This paragraph contains enough content to exercise the renderer boundary."
+        }
+      ],
+      "id": "overflow",
+      "mode": "pinned",
+      "name": "Long markdown",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "content": "Keep the original **08:53:33 UTC** trial cutoff; the lease expires at 2026-10-29T03:02:00Z.\n\nI'll check back in 20 minutes. The config value `retry_at=08:53:33Z` stays as written."
+      },
+      "composition": {
+        "specimen": {
+          "export": "MarkdownTimeStory",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-testid='markdown-story-output'] [data-rcl-time-mention]",
+          "value": "3"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='markdown-story-output'] strong [data-rcl-time-mention]",
+          "value": "1"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='markdown-story-output'] code [data-rcl-time-mention]",
+          "value": "0"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='markdown-story-output'] [data-rcl-time-mention-badge]",
+          "value": "3"
+        },
+        {
+          "kind": "text",
+          "value": "retry_at=08:53:33Z"
+        }
+      ],
+      "id": "time-mentions",
+      "mode": "pinned",
+      "name": "Time mentions in a message",
+      "role": "anatomy"
+    }
+  ],
+  "title": "Markdown Renderer"
+}

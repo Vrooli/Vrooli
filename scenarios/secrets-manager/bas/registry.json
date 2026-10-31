@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-09-06T10:30:27Z",
+  "metadata": {
+    "execution_mode": "observer"
+  },
+  "playbooks": [
+    {
+      "description": "Given an operator opens Secrets Manager, when the dashboard is loaded, then its initial UI can be rendered without mutating credential state.",
+      "file": "bas/cases/01-foundation/dashboard-smoke.json",
+      "fixtures": [],
+      "requirements": [
+        "SEC-UI-001"
+      ],
+      "reset": "none"
+    },
+    {
+      "description": "Given an operator opens Secrets Manager, when the vault page is loaded, then the vault collection renders without mutating credential state.",
+      "file": "bas/cases/01-foundation/vault-daily-workflow.json",
+      "requirements": ["SEC-UI-001"],
+      "reset": "none"
+    },
+    {
+      "description": "Scaffold BAS observer case for active experience page \"access\"",
+      "file": "bas/cases/experience-spec/access.json",
+      "fixtures": [],
+      "requirements": [],
+      "reset": "none"
+    },
+    {
+      "description": "Scaffold BAS observer case for active experience page \"activity\"",
+      "file": "bas/cases/experience-spec/activity.json",
+      "fixtures": [],
+      "requirements": [],
+      "reset": "none"
+    },
+    {
+      "description": "Scaffold BAS observer case for active experience page \"recovery\"",
+      "file": "bas/cases/experience-spec/recovery.json",
+      "fixtures": [],
+      "requirements": [],
+      "reset": "none"
+    },
+    {
+      "description": "Scaffold BAS observer case for active experience page \"settings\"",
+      "file": "bas/cases/experience-spec/settings.json",
+      "fixtures": [],
+      "requirements": [],
+      "reset": "none"
+    },
+    {
+      "description": "Scaffold BAS observer case for active experience page \"sources\"",
+      "file": "bas/cases/experience-spec/sources.json",
+      "fixtures": [],
+      "requirements": [],
+      "reset": "none"
+    },
+    {
+      "description": "Scaffold BAS observer case for active experience page \"vault\"",
+      "file": "bas/cases/experience-spec/vault.json",
+      "fixtures": [],
+      "requirements": [],
+      "reset": "none"
+    }
+  ],
+  "scenario": "secrets-manager"
+}

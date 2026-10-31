@@ -1,9 +1,9 @@
 import { useEffect, useCallback, useRef } from "react";
 import type { ViewMode } from "../lib/api";
 
-export type ReviewTab = "overview" | "metrics" | "screenshots" | "workflows" | "tests" | "code-quality" | "rules" | "ai-provenance" | "agent";
+export type ReviewTab = "overview" | "baselines" | "metrics" | "screenshots" | "workflows" | "tests" | "ai-provenance" | "agent";
 
-const VALID_REVIEW_TABS: readonly string[] = ["overview", "metrics", "screenshots", "workflows", "tests", "code-quality", "rules", "ai-provenance", "agent"];
+export const VALID_REVIEW_TABS: readonly ReviewTab[] = ["overview", "baselines", "metrics", "screenshots", "workflows", "tests", "ai-provenance", "agent"];
 
 /**
  * URL state parameters for deep linking
@@ -19,6 +19,9 @@ export interface UrlState {
   panel?: "changes" | "related";
   /** Commit hash when in history mode */
   commit?: string;
+  proposal?: string;
+  proposalFile?: string;
+  proposalRevision?: number;
   /** Primary panel (when set to review with a scenario slug) */
   primary?: string;
   /** Scenario slug for review panel */
@@ -29,6 +32,8 @@ export interface UrlState {
   anyFile?: boolean;
   /** Agent run ID for the agent tab */
   agentRunId?: string;
+  /** Durable source-ramp distribution opened from the repository workspace */
+  sourceDistributionId?: string;
 }
 
 /**
@@ -37,6 +42,12 @@ export interface UrlState {
 export function parseUrlState(search: string): UrlState {
   const params = new URLSearchParams(search);
   const state: UrlState = {};
+  const proposal = params.get("proposal");
+  const proposalFile = params.get("proposalFile");
+  if (proposal) state.proposal = proposal;
+  if (proposalFile) state.proposalFile = proposalFile;
+  const proposalRevision = Number(params.get("proposalRevision"));
+  if (Number.isSafeInteger(proposalRevision) && proposalRevision > 0) state.proposalRevision = proposalRevision;
 
   const file = params.get("file");
   if (file) {
@@ -76,7 +87,7 @@ export function parseUrlState(search: string): UrlState {
   }
 
   const reviewTab = params.get("reviewTab");
-  if (reviewTab && VALID_REVIEW_TABS.includes(reviewTab)) {
+  if (reviewTab && VALID_REVIEW_TABS.includes(reviewTab as ReviewTab)) {
     state.reviewTab = reviewTab as ReviewTab;
   }
 
@@ -90,6 +101,11 @@ export function parseUrlState(search: string): UrlState {
     state.agentRunId = agentRunId;
   }
 
+  const sourceDistributionId = params.get("sourceDistributionId");
+  if (sourceDistributionId) {
+    state.sourceDistributionId = sourceDistributionId;
+  }
+
   return state;
 }
 
@@ -98,6 +114,9 @@ export function parseUrlState(search: string): UrlState {
  */
 export function buildUrlSearch(state: UrlState): string {
   const params = new URLSearchParams();
+  if (state.proposal) params.set("proposal", state.proposal);
+  if (state.proposalFile) params.set("proposalFile", state.proposalFile);
+  if (state.proposalRevision) params.set("proposalRevision", String(state.proposalRevision));
 
   if (state.file) {
     params.set("file", encodeURIComponent(state.file));
@@ -137,6 +156,10 @@ export function buildUrlSearch(state: UrlState): string {
 
   if (state.agentRunId) {
     params.set("agentRunId", state.agentRunId);
+  }
+
+  if (state.sourceDistributionId) {
+    params.set("sourceDistributionId", state.sourceDistributionId);
   }
 
   const search = params.toString();

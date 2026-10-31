@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Workspace actions",
+          "role": "menu"
+        },
+        {
+          "kind": "role",
+          "name": "Open workspace Enter",
+          "role": "menuitem"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Workspace actions",
+      "role": "anatomy"
+    }
+    ,
+    {"id":"empty","name":"Empty menu","args":{"items":[]},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading menu","args":{"state":"loading"},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Menu error","args":{"state":"error"},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long menu item labels","args":{"items":[{"id":"long","label":"A deliberately long menu item label that must wrap cleanly"}]},"expect":[{"kind":"role","name":"Workspace actions","role":"menu"}],"role":"boundary","mode":"pinned"}
+  ],
+  "title": "Menu"
+}

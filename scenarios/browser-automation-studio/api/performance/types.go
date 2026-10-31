@@ -26,7 +26,7 @@ type FrameTimings struct {
 	// SequenceNum is the frame sequence number within session (monotonically increasing)
 	SequenceNum int `json:"sequence_num"`
 
-	// Timestamp is the ISO 8601 timestamp when capture started
+	// Timestamp labels the local observation (driver capture or API receipt).
 	Timestamp time.Time `json:"timestamp"`
 
 	// Driver-side timings (all in milliseconds)
@@ -45,7 +45,7 @@ type FrameTimings struct {
 
 	// API-side timings (added by Go API)
 
-	// APIReceiveMs is the time to receive frame from driver WebSocket
+	// APIReceiveMs is retained for wire compatibility. Unmeasured transit is omitted.
 	APIReceiveMs float64 `json:"api_receive_ms,omitempty"`
 
 	// APIBroadcastMs is the time to broadcast frame to all subscribed clients
@@ -89,10 +89,10 @@ type FrameStatsAggregated struct {
 	// WindowDurationMs is the duration of the stats window in milliseconds
 	WindowDurationMs int64 `json:"window_duration_ms"`
 
-	// FrameCount is the total frames captured in this window
+	// FrameCount is the number of retained frame observations in this window
 	FrameCount int `json:"frame_count"`
 
-	// SkippedCount is frames skipped due to unchanged content
+	// SkippedCount counts skipped observations; API samples only contain received frames
 	SkippedCount int `json:"skipped_count"`
 
 	// Capture timing percentiles (milliseconds)
@@ -109,23 +109,23 @@ type FrameStatsAggregated struct {
 	// CaptureMaxMs is the maximum capture time observed
 	CaptureMaxMs float64 `json:"capture_max_ms"`
 
-	// End-to-end timing percentiles (driver capture start -> API broadcast complete)
+	// Processing-duration sums; legacy e2e names do not imply measured transit or paint.
 
-	// E2EP50Ms is the 50th percentile end-to-end time
+	// E2EP50Ms is the 50th percentile processing duration
 	E2EP50Ms float64 `json:"e2e_p50_ms"`
 
-	// E2EP90Ms is the 90th percentile end-to-end time
+	// E2EP90Ms is the 90th percentile processing duration
 	E2EP90Ms float64 `json:"e2e_p90_ms"`
 
-	// E2EP99Ms is the 99th percentile end-to-end time
+	// E2EP99Ms is the 99th percentile processing duration
 	E2EP99Ms float64 `json:"e2e_p99_ms"`
 
-	// E2EMaxMs is the maximum end-to-end time observed
+	// E2EMaxMs is the maximum processing duration observed
 	E2EMaxMs float64 `json:"e2e_max_ms"`
 
 	// Throughput metrics
 
-	// ActualFps is the actual frames per second achieved
+	// ActualFps is non-skipped samples per second in the observation window
 	ActualFps float64 `json:"actual_fps"`
 
 	// TargetFps is the target FPS configured for the session
@@ -150,6 +150,9 @@ type FrameStatsAggregated struct {
 type BottleneckType string
 
 const (
+	// BottleneckProcessing indicates slow measured components, without inferring transit.
+	BottleneckProcessing BottleneckType = "processing"
+
 	// BottleneckCapture indicates screenshot capture is slow
 	BottleneckCapture BottleneckType = "capture"
 

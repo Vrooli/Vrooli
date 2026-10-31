@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Vrooli Portal">
+  <title>Vrooli Portal</title>
+  <rect width="512" height="512" rx="96" fill="#020617"/>
+  <path d="M128 160c0-17.7 14.3-32 32-32h192c17.7 0 32 14.3 32 32v192c0 17.7-14.3 32-32 32H160c-17.7 0-32-14.3-32-32V160Z" fill="#0f172a" stroke="#22d3ee" stroke-width="18"/>
+  <path d="M176 256h160" stroke="#f8fafc" stroke-width="26" stroke-linecap="round"/>
+  <path d="M256 176v160" stroke="#22d3ee" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="46" fill="#2563eb" stroke="#f8fafc" stroke-width="14"/>
+</svg>

@@ -14,7 +14,7 @@
  * - Keyboard shortcuts (Escape to close)
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useId } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import { PreviewSettingsSidebar } from './PreviewSettingsSidebar';
@@ -44,6 +44,7 @@ export function PreviewSettingsPanel({
   onClose,
   sessionId,
 }: PreviewSettingsPanelProps) {
+  const tabIdPrefix = useId();
   const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
 
@@ -197,12 +198,18 @@ export function PreviewSettingsPanel({
 
         {/* Horizontal Tab Navigation */}
         <PreviewSettingsSidebar
+          idPrefix={tabIdPrefix}
           activeSection={activeSection}
           onSectionChange={setActiveSection}
         />
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div
+          className="flex-1 overflow-y-auto p-6"
+          role="tabpanel"
+          id={`${tabIdPrefix}-${activeSection}-panel`}
+          aria-labelledby={`${tabIdPrefix}-${activeSection}-tab`}
+        >
           {renderSection(activeSection)}
         </div>
       </div>

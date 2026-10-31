@@ -10,26 +10,24 @@ import (
 // A chat contains a sequence of messages between users and AI assistants,
 // and can be organized with labels, starred, or archived.
 type Chat struct {
-	ID                    string    `json:"id"`
-	Name                  string    `json:"name"`
-	Preview               string    `json:"preview"`
-	Model                 string    `json:"model"`
-	ViewMode              string    `json:"view_mode"` // "bubble" (default)
-	IsRead                bool      `json:"is_read"`
-	IsArchived            bool      `json:"is_archived"`
-	IsStarred             bool      `json:"is_starred"`
-	LabelIDs              []string  `json:"label_ids"`
-	SystemPrompt          string    `json:"system_prompt"`
-	ToolsEnabled          bool      `json:"tools_enabled"`
-	WebSearchEnabled      bool      `json:"web_search_enabled"`                 // Default web search setting for new messages
-	ActiveLeafMessageID   string    `json:"active_leaf_message_id,omitempty"`   // Current branch leaf for message tree
-	ActiveTemplateID      string    `json:"active_template_id,omitempty"`       // Currently active template (tools remain enabled until used)
-	ActiveTemplateToolIDs []string  `json:"active_template_tool_ids,omitempty"` // Tool IDs suggested by active template
-	ChatMode              string    `json:"chat_mode"`                          // "llm" (default) or "agent"
-	AgentRunID            string    `json:"agent_run_id,omitempty"`             // Run ID when in agent mode
-	AgentTaskID           string    `json:"agent_task_id,omitempty"`            // Task ID when in agent mode
-	CreatedAt             time.Time `json:"created_at"`
-	UpdatedAt             time.Time `json:"updated_at"`
+	ID                  string    `json:"id"`
+	Name                string    `json:"name"`
+	Preview             string    `json:"preview"`
+	Model               string    `json:"model"`
+	ViewMode            string    `json:"view_mode"` // "bubble" (default)
+	IsRead              bool      `json:"is_read"`
+	IsArchived          bool      `json:"is_archived"`
+	IsStarred           bool      `json:"is_starred"`
+	LabelIDs            []string  `json:"label_ids"`
+	SystemPrompt        string    `json:"system_prompt"`
+	WebSearchEnabled    bool      `json:"web_search_enabled"`               // Default web search setting for new messages
+	ActiveLeafMessageID string    `json:"active_leaf_message_id,omitempty"` // Current branch leaf for message tree
+	ActiveTemplateID    string    `json:"active_template_id,omitempty"`     // Currently active template
+	ChatMode            string    `json:"chat_mode"`                        // "llm" (default) or "agent"
+	AgentRunID          string    `json:"agent_run_id,omitempty"`           // Run ID when in agent mode
+	AgentTaskID         string    `json:"agent_task_id,omitempty"`          // Task ID when in agent mode
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // Message represents a single message in a chat.

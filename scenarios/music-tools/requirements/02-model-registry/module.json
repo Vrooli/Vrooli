@@ -1,0 +1,80 @@
+{
+  "_metadata": {
+    "description": "Declarative, hardware-aware, licence-aware model registry with checksum-verified installs and a disk floor.",
+    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "module": "model-registry",
+    "prd_ref": "OT-P0-002",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "MUS-P0-003",
+      "title": "Declarative registry with hardware gates",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Every model is declared with operations, architecture, backend, approximate disk size, and hardware gates (min_vram_gb, min_ram_gb, cpu_capable); selection refuses a model whose gates the host cannot meet rather than failing at inference time.",
+      "tags": [
+        "registry",
+        "hardware"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/models/models_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Schema-backed registry and hardware metadata are covered by the shipped model tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-004",
+      "title": "Capability labels carry licence and lineage",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Every registry entry declares license, commercial_use, commercial_use_notes, base_model_lineage, and known_risks; an entry missing any of these fails registry conformance.",
+      "tags": [
+        "registry",
+        "licensing",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/models/models_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Model capability and licence metadata are covered by the shipped model tests"
+        }
+      ]
+    },
+    {
+      "id": "MUS-P0-005",
+      "title": "Installs are checksum-verified and disk-gated",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "criticality": "P0",
+      "description": "Model installation verifies a recorded checksum and refuses to begin when free disk would fall below the declared floor after download, reporting the shortfall rather than filling the volume.",
+      "tags": [
+        "registry",
+        "install",
+        "disk"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/models/models_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Model install-state and checksum metadata are covered by the shipped model tests"
+        }
+      ]
+    }
+  ]
+}

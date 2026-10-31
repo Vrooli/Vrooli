@@ -1,0 +1,38 @@
+{
+  "_metadata": {
+    "entity": "search-hub",
+    "description": "Parent registry linking operational targets to technical requirements",
+    "auto_sync_enabled": true,
+    "schema_version": "1.0.0"
+  },
+  "imports": [
+    "01-provider-registry/module.json",
+    "02-explicit-type-federation/module.json",
+    "03-graceful-degradation/module.json",
+    "04-operator-friendly-output/module.json",
+    "05-automatic-routing/module.json",
+    "06-thin-router-boundary/module.json",
+    "07-unified-reranking/module.json",
+    "08-measurement-backbone/module.json",
+    "09-live-provider-federation/module.json",
+    "10-gap-corpus-tracking/module.json",
+    "11-search-ui/module.json",
+    "12-honest-provider-signals/module.json",
+    "13-expansion-roadmap/module.json"
+  ],
+  "modules": [
+    { "id": "MOD-P0-001", "path": "01-provider-registry", "priority": "P0", "title": "Provider registry + self-registration" },
+    { "id": "MOD-P0-002", "path": "02-explicit-type-federation", "priority": "P0", "title": "Explicit-type federation (router core)" },
+    { "id": "MOD-P0-003", "path": "03-graceful-degradation", "priority": "P0", "title": "Graceful degradation" },
+    { "id": "MOD-P0-004", "path": "04-operator-friendly-output", "priority": "P0", "title": "Operator-friendly output" },
+    { "id": "MOD-P0-005", "path": "05-automatic-routing", "priority": "P0", "title": "Automatic routing (classifier)" },
+    { "id": "MOD-P0-006", "path": "06-thin-router-boundary", "priority": "P0", "title": "Thin-router architecture boundary" },
+    { "id": "MOD-P1-007", "path": "07-unified-reranking", "priority": "P1", "title": "Unified cross-provider ranking" },
+    { "id": "MOD-P1-008", "path": "08-measurement-backbone", "priority": "P1", "title": "Measurement backbone" },
+    { "id": "MOD-P1-009", "path": "09-live-provider-federation", "priority": "P1", "title": "All live providers federated" },
+    { "id": "MOD-P1-010", "path": "10-gap-corpus-tracking", "priority": "P1", "title": "Gap corpora tracked as stubs" },
+    { "id": "MOD-P1-011", "path": "11-search-ui", "priority": "P1", "title": "Search UI" },
+    { "id": "MOD-P1-012", "path": "12-honest-provider-signals", "priority": "P1", "title": "Honest provider signals" },
+    { "id": "MOD-P2-013", "path": "13-expansion-roadmap", "priority": "P2", "title": "Search expansion roadmap" }
+  ]
+}

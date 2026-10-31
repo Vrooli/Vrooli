@@ -104,7 +104,8 @@ export function VPSManagement({ deploymentId, deploymentName }: VPSManagementPro
 
   const openCleanupDialog = (level: CleanupLevel) => {
     setResult(null);
-    const levelInfo = CLEANUP_LEVELS.find((l) => l.level === level)!;
+    const levelInfo = CLEANUP_LEVELS.find((l) => l.level === level);
+    if (!levelInfo) return;
     let confirmText = deploymentName;
     if (level === 3) {
       confirmText = "DOCKER-RESET";

@@ -1,0 +1,51 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - gofumpt
+    - goconst
+    - govet
+    - ineffassign
+    - mnd
+    - revive
+    - staticcheck
+    - typecheck
+    - unused
+
+linters-settings:
+  gocyclo:
+    min-complexity: 20
+  goconst:
+    ignore-tests: false
+  mnd:
+    checks:
+      - argument
+      - assign
+      - case
+      - condition
+      - operation
+      - return
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: exported
+        disabled: true
+      - name: increment-decrement
+      - name: range
+      - name: var-declaration
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocyclo
+        - revive
+  max-issues-per-linter: 0
+  max-same-issues: 0

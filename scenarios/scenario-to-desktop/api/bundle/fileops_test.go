@@ -231,6 +231,8 @@ func TestPlatformResolver_ParseKey(t *testing.T) {
 		{"linux-arm64", "linux-arm64", "linux", "arm64", false},
 		{"darwin-x64", "darwin-x64", "darwin", "amd64", false},
 		{"darwin-arm64", "darwin-arm64", "darwin", "arm64", false},
+		{"macos-amd64", "macos-amd64", "darwin", "amd64", false},
+		{"macos-arm64", "macos-arm64", "darwin", "arm64", false},
 		{"win-x64", "win-x64", "windows", "amd64", false},
 		{"windows-amd64", "windows-amd64", "windows", "amd64", false},
 		{"mac-arm64", "mac-arm64", "darwin", "arm64", false},
@@ -268,6 +270,8 @@ func TestPlatformResolver_NormalizeRuntime(t *testing.T) {
 		expected string
 	}{
 		{"linux", "linux-x64"},
+		{"linux-amd64", "linux-x64"},
+		{"linux-arm64", "linux-arm64"},
 		{"mac", "darwin-x64"},
 		{"darwin", "darwin-x64"},
 		{"win", "win-x64"},

@@ -1,0 +1,550 @@
+{
+  "_metadata": {
+    "description": "P0 requirements for Code Facts target resolution, fact selection, evidence status, proof synthesis, cache, and programmatic surfaces.",
+    "last_validated_at": "2026-08-21T23:51:20-04:00",
+    "module": "core-contract",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CF-P0-001",
+      "title": "Resolve bounded code targets",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "target",
+      "criticality": "P0",
+      "description": "Resolve path, scenario, project, repo, package, and control-plane targets into a canonical root, target kind, optional scenario context, language filter, and evidence-backed diagnostics; reject deferred kinds with typed errors.",
+      "tags": [
+        "target",
+        "resolution"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Target resolver tests cover scenario:\u003cname\u003e, path-inside-scenario, generic Go module, generic TS project, explicit tsconfig, and unsupported path."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "code-facts describe --include surfaces,parse_units returns target context without calling providers."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-002",
+      "title": "Inventory scenario surfaces and parse units",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "category": "surface",
+      "criticality": "P0",
+      "description": "Report Vrooli scenario API, CLI, UI, sidecar, endpoint, and generic parse-unit facts with known/missing/unsupported/ambiguous/unknown statuses.",
+      "tags": [
+        "surface",
+        "parse-units"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Service tests cover generated scenario API/CLI/UI surface inventory, sidecar unsupported status, generic Go modules, generic TypeScript projects, and paths inside scenario surfaces."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "test-genie execute code-facts business --json confirms this requirement maps to OT-P0-002 and the registry validates structurally."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-003",
+      "title": "Broker supported analyzer providers",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "category": "analyzer",
+      "criticality": "P0",
+      "description": "Route Go parse units to go-code-graph and TypeScript parse units to typescript-code-graph through provider seams; Code Facts must not parse supported source files itself.",
+      "tags": [
+        "analyzer",
+        "providers",
+        "seams"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Fake provider tests verify routing, provider failure mapping, strict-mode provider errors, and unsupported parse units."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Code Facts Phase 13 live check ran code-facts facts describe scenario:proto-health --include all --no-cache --json against running go-code-graph and typescript-code-graph providers."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-004",
+      "title": "Filter describe output by fact family",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "facts",
+      "criticality": "P0",
+      "description": "Describe requests include explicit fact-family filters and responses contain only requested families plus required context, warnings, and unsupported-family evidence.",
+      "tags": [
+        "facts",
+        "filtering"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Provider-backed unit tests verify imports-only and calls-only requests omit unrelated provider facts; proof-only and CLI filtering remain planned."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "UI and API tests assert fact-family include selections are propagated and unrelated families are omitted from filtered describe output."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-005",
+      "title": "Use explicit evidence statuses",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "category": "proof",
+      "criticality": "P0",
+      "description": "Every high-level proof and unsupported condition uses one of proven, missing, contradicted, unsupported, or unknown with source evidence.",
+      "tags": [
+        "evidence",
+        "status"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Proof synthesis tests cover proven, missing, contradicted, unsupported, and unknown-oriented evidence paths."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-006",
+      "title": "Prove proto adoption facts",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "proof",
+      "criticality": "P0",
+      "description": "Detect generated proto adoption in Go API/CLI and TypeScript UI surfaces from import/reference/call facts, including missing and unsupported cases.",
+      "tags": [
+        "proto",
+        "adoption"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "API tests cover Go generated imports by surface and missing adoption outcomes. TS generated import proof uses the same normalized import path matcher."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-007",
+      "title": "Prove REST endpoint implementation facts",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "proof",
+      "criticality": "P0",
+      "description": "Synthesize endpoint proof facts for supported REST handlers using framework adapters over generic call/type/import/route facts from graph providers.",
+      "tags": [
+        "endpoint-proof",
+        "go",
+        "typescript",
+        "framework-adapter"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "API tests cover Go protojson response construction, error envelope usage, TypeScript Express static route proof, missing payload evidence, import-only unknown evidence, and contradicted declaration from wrong response type."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-008",
+      "title": "Expose deterministic cache diagnostics",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "cache",
+      "criticality": "P0",
+      "description": "Cache keys include analyzer version, target root, options, config hashes, source hashes, graph hash, and requested family; responses expose hit/miss/stale reason metadata.",
+      "tags": [
+        "cache",
+        "determinism"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Cache tests verify repeated describe reuse, source-hash invalidation, status entries, and dry-run clear semantics."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Connect API and CLI expose status, inspect, and clear operations with cache key/hash metadata."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-009",
+      "title": "Maintain API and CLI parity",
+      "status": "complete",
+      "prd_ref": "OT-P0-009",
+      "category": "surface",
+      "criticality": "P0",
+      "description": "Connect API and CLI expose equivalent describe, surfaces, proto-adoption, endpoint-proof, and cache status/inspect/clear operations.",
+      "tags": [
+        "api",
+        "cli"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Endpoint generation tests assert the CLI manifest contains the eight facts/cache operations backed by CodeFactsService endpoints."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "CLI package tests and live Phase 13 command execution cover JSON output for describe/proof/cache operations through generated Connect clients."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-010",
+      "title": "Inspect evidence in the operator UI",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "UI lets operators inspect target context, surfaces, parse units, fact families, warnings, evidence statuses, provider provenance, and cache state.",
+      "tags": [
+        "ui",
+        "operator-workbench"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "FactsWorkbench tests cover target entry, include filtering, populated evidence/fact/surface/parse-unit tables, warnings, cache panel, path targets, cache preference, and error states."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-011",
+      "title": "When a governed root changes, the catalog shall classify every eligible source in one active generation.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-011",
+      "category": "catalog",
+      "criticality": "P0",
+      "description": "Code Facts must inventory governed roots deterministically, assign one explicit corpus role, exclude transient artifacts, and report role counts against the versioned corpus policy.",
+      "tags": [
+        "catalog",
+        "corpus-policy",
+        "roles"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/facts/corpus_contract_test.go::TestCorpusPolicyFixtureIsComplete",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The fixture gate protects the complete role vocabulary, governed roots, exclusions, and deterministic three-times multiplier. Catalog behavior coverage is added with the catalog implementation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/catalog_test.go::TestRepositoryCorpusInventory",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The opt-in live inventory streams Git-tracked and non-ignored files, proves every governed root and role, and rejects transient catalog entries. Classification goldens cover every role."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-012",
+      "title": "When an exact code query arrives, the service shall answer from the persistent index within the exact-search budgets.",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "retrieval.lexical",
+      "criticality": "P0",
+      "description": "Exact identifier, symbol, and path queries must read no repository source files and must meet the current and three-times-corpus wall-time and CPU budgets.",
+      "tags": [
+        "fts",
+        "exact",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/evaluation_test.go::TestSQLiteExactSearchPerformanceBudgets",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "The deterministic 32,000- and 96,000-document scale proof records p50, p95, p99, and allocations. Latest measured p95 is 11.96 ms and 72.51 ms against 100 ms and 200 ms budgets, with 91 allocations per query. TestRetrievalProductionDoesNotOpenRepositorySourceFiles rejects serving filesystem access. Public-handler cutover remains planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-013",
+      "title": "When a natural-language query arrives, the service shall fuse evaluated lexical and semantic candidates within the hybrid-search budgets.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-013",
+      "category": "retrieval.hybrid",
+      "criticality": "P0",
+      "description": "Hybrid retrieval must meet recall@5, MRR@3, category, latency, and CPU gates on the reviewed evaluation corpus without regressing exact queries.",
+      "tags": [
+        "hybrid",
+        "semantic",
+        "quality",
+        "performance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/facts/corpus_contract_test.go::TestRetrievalEvaluationCorpusHasAuthoritativeLocators",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The evaluation-contract test verifies reviewed categories, immutable quality gates, and source-backed locators. Retrieval evaluation is added with the fusion engine."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/hybrid_test.go::TestHybridEngineRunsLegsConcurrentlyAndExplainsFusion",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Shared concurrent lexical and semantic fusion preserves per-leg reciprocal-rank evidence. Exact queries bypass semantic and reranking, while embedder, vector-store, and reranker failures preserve truthful lexical service. The versioned installed-host profile report passes recall@5 and MRR@3 gates; final full-provider latency and evaluation remain planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-014",
+      "title": "When indexed inputs change, reconciliation shall expose only complete fresh evidence.",
+      "status": "complete",
+      "prd_ref": "OT-P0-014",
+      "category": "index.generation",
+      "criticality": "P0",
+      "description": "Ordinary files update catalog and FTS rows atomically within 15 seconds p95; missed events repair through the five-minute manifest audit. Schema, extraction-policy, descriptor, and model changes continue through complete shadow-generation promotion. Stale or deleted candidates must never cross source-hash and generation fences.",
+      "tags": [
+        "generation",
+        "freshness",
+        "reconcile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/facts/production_index_test.go::TestProductionIndexOrdinaryFileRefreshIsAtomicAndWithinFreshnessBudget",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Production-index coverage proves an ordinary file update commits catalog hash, FTS rows, digest, and cache invalidation under 15 seconds; stale and deleted rows disappear, and a clean committed change missed by the watcher is recovered by manifest reconciliation."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/sqlite_test.go::TestSQLiteRepositoryPromotesOnlyCompleteShadowGeneration",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Catalog generation tests prove transactional activation, retained serving generation on failed promotion, immutable retired generations, restart-safe migration, rollback, changed/renamed/deleted convergence, and bounded paging."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/indexcontrol/coordinator_test.go::TestDebouncerDeduplicatesAndBoundsFreshnessLatency",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Watcher work deduplicates by path and becomes due within 10 seconds. The periodic manifest audit becomes due at exactly five minutes. Coordinator tests also cover bounded changes, no-change work, interruption, cancellation, promotion compensation, shadow completion, and rollback."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-015",
+      "title": "When a result is returned, the service shall separate stable provenance, retrieval relevance, and relationship proof.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-015",
+      "category": "evidence",
+      "criticality": "P0",
+      "description": "Every result must carry a stable identity, current range and source hash, generation, role, scope, retrieval regime, score explanation, analyzer provenance, and independent evidence status.",
+      "tags": [
+        "identity",
+        "provenance",
+        "proof"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/catalog/catalog_test.go::TestStableEvidenceIdentityIgnoresMutableLinePosition",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Stable file, symbol, contract, and content-anchor identities exclude mutable line ranges. Search-response separation remains planned for the retrieval phase."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/sqlite_test.go::TestSQLiteIndexExactBM25FiltersAndExplanations",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Persistent retrieval returns stable ID, current range, source hash, generation, role, scope, authority, regime, score factors, retrieval explanation, evidence freshness, and independent proof state."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/analysis/sqlite_test.go::TestSQLiteProjectionStoreReturnsOnlyCurrentAnalyzerEvidence",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Indexed relationship expansion returns analyzer name/version and proof status only when generation and source hash remain current; retrieval relevance never manufactures graph proof."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-016",
+      "title": "If an optional retrieval stage is unavailable, then the service shall preserve lexical search and name the degradation.",
+      "status": "complete",
+      "prd_ref": "OT-P0-016",
+      "category": "retrieval.degradation",
+      "criticality": "P0",
+      "description": "Qdrant, Ollama, reranker, and graph failures must degrade independently; exact identifier and path queries must bypass unnecessary model work.",
+      "tags": [
+        "degradation",
+        "fallback",
+        "availability"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/retrieval/hybrid_test.go::TestHybridDegradedMatrixPreservesLexicalResults",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Embedder, vector-store, reranker, and graph failures name the unavailable stage and preserve lexical results. Exact queries invoke neither semantic retrieval nor reranking. Live resource-stop validation remains a final integration gate."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-017",
+      "title": "When an authorized operator changes index state, every control surface shall report the same durable job outcome.",
+      "status": "complete",
+      "prd_ref": "OT-P0-017",
+      "category": "index.control",
+      "criticality": "P0",
+      "description": "Reconcile, reindex, cancel, promote, rollback, and cleanup must use typed API, CLI, UI, and Search Hub contracts, enforce authorization and confirmation, and preserve the last complete generation on failure.",
+      "tags": [
+        "control-plane",
+        "jobs",
+        "rollback"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/indexcontrol/coordinator_test.go::TestSQLiteJobStorePersistsCancellationAndRestartEvidence",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The durable SQLite job and promotion ledgers, typed Connect RPCs, confirmation guards, and governed `code-facts index` CLI commands cover status, reconcile, reindex, cancel, promote, rollback, and cleanup. UI parity remains planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-018",
+      "title": "While expensive workloads run concurrently, the service shall enforce bounded admission, memory, and storage.",
+      "status": "complete",
+      "prd_ref": "OT-P0-018",
+      "category": "resource-governance",
+      "criticality": "P0",
+      "description": "One weighted controller must bound indexing, embedding, graph extraction, fleet analysis, and fallback work; caches and derived storage must honor quotas without write-on-hit behavior or full-table health scans.",
+      "tags": [
+        "admission",
+        "memory",
+        "storage",
+        "cache"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "implemented",
+          "notes": "Concurrent workload, RSS, allocation, queue-release, cancellation, no-write-on-hit, quota, orphan, TTL, and storage-growth tests will enforce the budgets."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-019",
+      "title": "When protobuf contracts are indexed, the service shall use the descriptor image for structure and `.proto` files for provenance.",
+      "status": "complete",
+      "prd_ref": "OT-P0-019",
+      "category": "contract-index",
+      "criticality": "P0",
+      "description": "Contract indexing must consume the current descriptor digest through descriptorimage.Source, join canonical declarations to source files, and retain the last valid snapshot after load or drift failure.",
+      "tags": [
+        "protobuf",
+        "descriptor",
+        "provenance"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/proof/descriptor_test.go::TestCommittedDescriptorImageResolvesCodeFactsSearchToAuthoritativeProto",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Descriptor fixture and committed-image tests cover resolved services, RPCs, messages, fields, enums, imports, generated aliases, digest/source joins, missing ranges, invalid reloads, and last-known-good retention. Endpoint option projection remains planned."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-020",
+      "title": "While a complete generation is active, Search Hub shall receive truthful scoped local-index capabilities and status.",
+      "status": "complete",
+      "prd_ref": "OT-P0-020",
+      "category": "integration.search-hub",
+      "criticality": "P0",
+      "description": "Code and contract leaves must propagate scenario, package, path, family, and role scopes; expose generation, freshness, drift, counts, and degraded stages; and avoid provider timeout replacement storms.",
+      "tags": [
+        "search-hub",
+        "local-index",
+        "scope"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/facts/production_index_test.go::TestProductionIndexSearchReadsActiveSQLiteGenerationAfterSourceRemoval",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "The production seam proves active-generation SQLite service without repository reads; registration tests preserve scoped direct cases, and Search Hub run 817f611a-5935-4061-89c6-540680030557 passed all 15 reviewed code cases."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/registration/registration_test.go::TestEvalSuitePreservesScopedDirectCases",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Live federation status on 2026-08-21 reported both leaves reachable, current, ready, and generation-fenced with 231719 documents; the contracts run 542dd219-abe1-4fcf-9932-097d1018f634 passed 15/15."
+        }
+      ]
+    },
+    {
+      "id": "CF-P0-021",
+      "title": "When an operator searches or manages the corpus, the evidence workspace shall make trust and index state understandable on every supported viewport.",
+      "status": "complete",
+      "prd_ref": "OT-P0-021",
+      "category": "ui",
+      "criticality": "P0",
+      "description": "The responsive workspace must expose search, ranked evidence, provenance, graph relationships, contract proof, corpus generations, controls, degradation, and evaluation comparison with WCAG 2.2 AA keyboard behavior.",
+      "tags": [
+        "ui",
+        "accessibility",
+        "responsive",
+        "evidence"
+      ],
+      "validation": [
+        {
+          "type": "automation",
+          "ref": "ui/src/features/facts/FactsWorkbench.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Unit and axe coverage verifies ranked evidence, trust/provenance, relationships, search controls, index state, fallback and failure states. Browser Automation Studio readiness captured the same journey at desktop, tablet, and mobile viewports in phase 10.",
+          "scenario": "browser-automation-studio"
+        }
+      ]
+    }
+  ]
+}

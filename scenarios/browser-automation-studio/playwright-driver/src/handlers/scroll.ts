@@ -1,4 +1,5 @@
-import { BaseHandler, type HandlerContext, type HandlerResult } from './base';
+import type { ElementHandle } from 'rebrowser-playwright';
+import { BaseHandler, getDocument, type HandlerContext, type HandlerResult } from './base';
 import type { HandlerInstruction } from '../types';
 import { getScrollParams } from '../types';
 import { normalizeError } from '../utils';
@@ -7,6 +8,8 @@ import {
   executeHumanScroll,
   executeSmoothScroll,
   applyPreActionDelay,
+  scrollTarget,
+  resolveTimeoutFromContext,
 } from './behavior-utils';
 
 /**
@@ -24,58 +27,50 @@ export class ScrollHandler extends BaseHandler {
     return ['scroll'];
   }
 
-  async execute(
-    instruction: HandlerInstruction,
-    context: HandlerContext
-  ): Promise<HandlerResult> {
-    const { page, logger } = context;
-
+  async execute(instruction: HandlerInstruction, context: HandlerContext): Promise<HandlerResult> {
+    const { logger } = context;
     try {
+      const page = getDocument(context);
       // Extract typed params from action
       const typedParams = instruction.action ? getScrollParams(instruction.action) : undefined;
       const params = this.requireTypedParams(typedParams, 'scroll', instruction.nodeId);
 
-      const x = Number(params.x || 0);
-      const y = Number(params.y || 0);
-
-      // Get behavior settings from context
-      const behavior = getBehaviorFromContext(context);
-      const scrollStyle = behavior ? behavior.getScrollStyle() : 'instant';
-
-      logger.debug('Scrolling page', {
-        x,
-        y,
-        humanBehavior: !!behavior,
-        scrollStyle,
-      });
-
-      // Apply pre-scroll delay if behavior is enabled
-      // Use click delay as a reasonable pre-action delay for scroll
-      await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
-
-      if (behavior) {
-        if (scrollStyle === 'smooth') {
-          // Use native smooth scrolling
-          await executeSmoothScroll(page, x, y, behavior);
-        } else {
-          // Use stepped scrolling with human-like timing
-          await executeHumanScroll(page, x, y, behavior);
-        }
-      } else {
-        // No behavior configured - instant scroll
-        await page.evaluate(
-          ([scrollX, scrollY]) => {
-            // @ts-expect-error - window is available in browser context
-            window.scrollTo(scrollX, scrollY);
-          },
-          [x, y]
+      const timeout = resolveTimeoutFromContext(undefined, context, 'default');
+      const target: ElementHandle<Element> | null = params.selector
+        ? await page.waitForSelector(params.selector, { state: 'attached', timeout })
+        : (
+            await page.evaluateHandle(() => document.scrollingElement ?? document.documentElement)
+          ).asElement();
+      if (!target) throw new Error('Scroll target is unavailable');
+      try {
+        const position = await target.evaluate((element) => ({
+          x: element.scrollLeft,
+          y: element.scrollTop,
+          maxX: Math.max(0, element.scrollWidth - element.clientWidth),
+          maxY: Math.max(0, element.scrollHeight - element.clientHeight),
+        }));
+        // Absolute coordinates take precedence on their axis. Missing axes stay put.
+        const x = Math.max(
+          0,
+          Math.min(position.maxX, params.x ?? position.x + (params.deltaX ?? 0))
         );
+        const y = Math.max(
+          0,
+          Math.min(position.maxY, params.y ?? position.y + (params.deltaY ?? 0))
+        );
+        const behavior = getBehaviorFromContext(context);
+        const style = params.behavior ?? behavior?.getScrollStyle() ?? 'instant';
+        await applyPreActionDelay(behavior, (b) => b.getClickDelay() / 2);
+        if (style === 'smooth') await executeSmoothScroll(target, x, y, behavior, timeout);
+        else if (behavior && params.behavior === undefined)
+          await executeHumanScroll(target, x, y, behavior);
+        else await scrollTarget(target, x, y);
+      } finally {
+        await target.dispose();
       }
 
       logger.info('Scroll successful', {
-        x,
-        y,
-        scrollStyle,
+        selector: params.selector,
       });
 
       return {

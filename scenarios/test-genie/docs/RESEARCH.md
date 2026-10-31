@@ -5,7 +5,7 @@
 - Related tooling includes `scripts/scenarios/testing/` (shared bash harness) and Vrooli Ascension workflows for integration coverage.
 
 ## Related Scenarios & Resources
-- `scenario-auditor`, `scenario-completeness-scoring`, and `ecosystem-manager` consume scenario test results and will eventually benefit from a more portable orchestrator.
+- `scenario-auditor`, `scenario-completeness-scoring`, and `swarm-manager` consume scenario test results and will eventually benefit from a more portable orchestrator.
 - Resources required: PostgreSQL (test registry), Ollama (AI prompt generation), optional Redis/Qdrant for performance and semantic search.
 
 ## External Inspiration

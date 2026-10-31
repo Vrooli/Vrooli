@@ -1,0 +1,717 @@
+{
+  "version": 1,
+  "note": "The founding catalog. Every style declares its own ink defaults so it renders on a cold install with no brand bound; a bound brand overrides those defaults slot by slot.",
+  "surfaces": [
+    {
+      "id": "web.hero",
+      "name": "Landing page hero",
+      "kind": "product",
+      "width": 1440,
+      "height": 720,
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "framed_inset",
+        "corner_bleed"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "web.hero-mobile",
+      "name": "Mobile landing page hero",
+      "kind": "product",
+      "width": 390,
+      "height": 844,
+      "placements": [
+        "full_bleed",
+        "framed_inset"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "web.auth-panel",
+      "name": "Authentication panel",
+      "kind": "product",
+      "width": 640,
+      "height": 900,
+      "placements": [
+        "split_panel",
+        "full_bleed"
+      ],
+      "authority": "Backdrop Studio product geometry",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "play.feature-graphic",
+      "name": "Google Play feature graphic",
+      "kind": "store",
+      "width": 1024,
+      "height": 500,
+      "placements": [
+        "feature_graphic"
+      ],
+      "authority": "Google Play Console Help — Graphic assets",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "play.phone-screenshot",
+      "name": "Google Play phone screenshot",
+      "kind": "store",
+      "width": 1080,
+      "height": 1920,
+      "placements": [
+        "device_center",
+        "caption_above_device",
+        "caption_below_device",
+        "caption_only"
+      ],
+      "authority": "Google Play Console Help — Graphic assets",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "play.tablet-screenshot",
+      "name": "Google Play tablet screenshot",
+      "kind": "store",
+      "width": 1920,
+      "height": 1080,
+      "placements": [
+        "device_center",
+        "caption_above_device",
+        "caption_below_device",
+        "caption_only"
+      ],
+      "authority": "Google Play Console Help — Graphic assets",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "app-store-6.7-screenshot",
+      "name": "App Store 6.7-inch screenshot",
+      "kind": "store",
+      "width": 1290,
+      "height": 2796,
+      "placements": [
+        "device_center",
+        "caption_above_device",
+        "caption_below_device",
+        "caption_only"
+      ],
+      "authority": "Apple App Store Connect Help — screenshot specifications",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "app-store-6.5-screenshot",
+      "name": "App Store 6.5-inch screenshot",
+      "kind": "store",
+      "width": 1284,
+      "height": 2778,
+      "placements": [
+        "device_center",
+        "caption_above_device",
+        "caption_below_device",
+        "caption_only"
+      ],
+      "authority": "Apple App Store Connect Help — screenshot specifications",
+      "confirmed_on": "2026-08-11"
+    },
+    {
+      "id": "app-store-12.9-screenshot",
+      "name": "App Store 12.9-inch screenshot",
+      "kind": "store",
+      "width": 2048,
+      "height": 2732,
+      "placements": [
+        "device_center",
+        "caption_above_device",
+        "caption_below_device",
+        "caption_only"
+      ],
+      "authority": "Apple App Store Connect Help — screenshot specifications",
+      "confirmed_on": "2026-08-11"
+    }
+  ],
+  "styles": [
+    {
+      "id": "cyanotype-arcade",
+      "name": "Cyanotype Arcade",
+      "version": 1,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "cyanotype",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "duotone",
+        "halftone"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#1b3fbf",
+        "$brand.background": "#f5efdc"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "halftone": "{\"lpi\":72,\"angle\":15,\"dot\":\"circle\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "engraved-colonnade",
+      "name": "Engraved Colonnade",
+      "version": 1,
+      "role": "ambient",
+      "subject": "statuary_architecture",
+      "lineage": "scientific_plate",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "engraving"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#2b2b28",
+        "$brand.background": "#efe9dc"
+      },
+      "treatment_params": {
+        "engraving": "{\"spacing\":7,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "op-art-interior",
+      "name": "Op Art Interior",
+      "version": 1,
+      "role": "ambient",
+      "subject": "interior",
+      "lineage": "op_art",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "line_screen"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#141414",
+        "$brand.background": "#f2f2f2"
+      },
+      "treatment_params": {
+        "line_screen": "{\"spacing\":6,\"angle\":45,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "riso-horizon",
+      "name": "Riso Horizon",
+      "version": 1,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "riso_zine",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "dither_diffusion",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#2b39a8",
+        "$brand.background": "#ffd9c7"
+      },
+      "treatment_params": {
+        "dither_diffusion": "{\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "grain": "{\"amount\":0.05,\"contrast_multiplier\":1.0,\"seed\":11}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "city-pop-horizon",
+      "name": "City Pop Horizon",
+      "version": 1,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "city_pop",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#14204d",
+        "$brand.background": "#ffd166"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":7,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "grain": "{\"amount\":0.09,\"contrast_multiplier\":1.10,\"seed\":4}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "solar-bloom-horizon",
+      "name": "Solar Bloom Horizon",
+      "version": 1,
+      "role": "ambient",
+      "subject": "horizon",
+      "lineage": "solarpunk",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "bloom",
+        "grain",
+        "scrim"
+      ],
+      "placements": [
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#1d4d2b",
+        "$brand.background": "#f7f3d8"
+      },
+      "treatment_params": {
+        "bloom": "{\"threshold\":0.62,\"radius\":18}",
+        "grain": "{\"amount\":0.06,\"contrast_multiplier\":1.04,\"seed\":9}",
+        "scrim": "{\"color\":\"$brand.primary\",\"opacity\":0.55,\"direction\":\"left\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "ukiyo-tide",
+      "name": "Ukiyo Tide",
+      "version": 1,
+      "role": "ambient",
+      "subject": "aquatic",
+      "lineage": "ukiyo_e",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "halftone"
+      ],
+      "placements": [
+        "full_bleed",
+        "framed_inset"
+      ],
+      "inks": {
+        "$brand.primary": "#123a6b",
+        "$brand.background": "#f0e3c8"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":4,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "halftone": "{\"lpi\":110,\"angle\":30,\"dot\":\"circle\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "demoscene-terrain",
+      "name": "Demoscene Terrain",
+      "version": 1,
+      "role": "ambient",
+      "subject": "geological",
+      "lineage": "demoscene",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "dither_ordered"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#06251d",
+        "$brand.background": "#a6f58f"
+      },
+      "treatment_params": {
+        "dither_ordered": "{\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "stipple-massif",
+      "name": "Stipple Massif",
+      "version": 1,
+      "role": "ambient",
+      "subject": "geological",
+      "lineage": "wpa_poster",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "stipple"
+      ],
+      "placements": [
+        "framed_inset",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#23262f",
+        "$brand.background": "#f4f0e6"
+      },
+      "treatment_params": {
+        "stipple": "{\"spacing\":7,\"seed\":19,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "swiss-contour",
+      "name": "Swiss Contour",
+      "version": 1,
+      "role": "ambient",
+      "subject": "cartographic",
+      "lineage": "swiss_international",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "posterize",
+        "line_screen"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#b02a1f",
+        "$brand.background": "#f3f1ec"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":5,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "line_screen": "{\"spacing\":11,\"angle\":0,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "technical-field",
+      "name": "Technical Field",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "technical_minimalism",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "duotone",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#1f2937",
+        "$brand.background": "#e5e7eb"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "grain": "{\"amount\":0.04,\"contrast_multiplier\":1.02,\"seed\":2}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "ascii-field",
+      "name": "ASCII Field",
+      "version": 1,
+      "role": "ambient",
+      "subject": "non_representational",
+      "lineage": "demoscene",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "ascii_mosaic"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#0d1b2a",
+        "$brand.background": "#cfe8ff"
+      },
+      "treatment_params": {
+        "ascii_mosaic": "{\"block_size\":7,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#111827"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "memphis-weave",
+      "name": "Memphis Weave",
+      "version": 1,
+      "role": "ambient",
+      "subject": "textile_material",
+      "lineage": "memphis",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "displacement",
+        "posterize"
+      ],
+      "placements": [
+        "full_bleed",
+        "corner_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#2d1b4e",
+        "$brand.background": "#ffd6e8"
+      },
+      "treatment_params": {
+        "displacement": "{\"amplitude\":18,\"spacing\":26,\"seed\":5}",
+        "posterize": "{\"levels\":6,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "vaporwave-drift",
+      "name": "Vaporwave Drift",
+      "version": 1,
+      "role": "ambient",
+      "subject": "object_metaphor",
+      "lineage": "vaporwave",
+      "strategy": "procedural-treated",
+      "treatments": [
+        "aberration",
+        "bloom",
+        "scrim"
+      ],
+      "placements": [
+        "full_bleed"
+      ],
+      "inks": {
+        "$brand.primary": "#2a0f4d",
+        "$brand.background": "#ffb3de"
+      },
+      "treatment_params": {
+        "aberration": "{\"distance\":9}",
+        "bloom": "{\"threshold\":0.58,\"radius\":22}",
+        "scrim": "{\"color\":\"$brand.primary\",\"opacity\":0.42,\"direction\":\"bottom\"}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "guided-botanical",
+      "name": "Guided Botanical",
+      "version": 1,
+      "role": "ambient",
+      "subject": "botanical",
+      "lineage": "art_nouveau",
+      "strategy": "guided",
+      "treatments": [
+        "duotone",
+        "grain"
+      ],
+      "placements": [
+        "full_bleed",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#1c3d2f",
+        "$brand.background": "#f2ead6"
+      },
+      "scaffold": {
+        "preset": "field",
+        "conditioner": "edge",
+        "params_json": "{\"focal_x\":0.68,\"depth_ramp\":0.8}"
+      },
+      "generation": {
+        "prompt_template": "dense botanical forms pressed flat against the picture plane, hard-edged leaves, no visible brushwork, generous empty ground at left",
+        "negative": "text, watermark, signature, photorealistic skin, lens flare"
+      },
+      "treatment_params": {
+        "duotone": "{\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}",
+        "grain": "{\"amount\":0.07,\"contrast_multiplier\":1.05,\"seed\":3}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    },
+    {
+      "id": "constructivist-figure",
+      "name": "Constructivist Figure",
+      "version": 1,
+      "role": "ambient",
+      "subject": "figure",
+      "lineage": "constructivist",
+      "strategy": "synthesized",
+      "treatments": [
+        "posterize"
+      ],
+      "placements": [
+        "framed_inset",
+        "split_panel"
+      ],
+      "inks": {
+        "$brand.primary": "#a4161a",
+        "$brand.background": "#f5f0e6"
+      },
+      "generation": {
+        "prompt_template": "a non-identifiable silhouetted figure in flat geometric planes, steep diagonal composition, large areas of unbroken ground",
+        "negative": "recognisable face, portrait likeness, text, watermark"
+      },
+      "treatment_params": {
+        "posterize": "{\"levels\":4,\"dark\":\"$brand.primary\",\"light\":\"$brand.background\",\"normalize\":true}"
+      },
+      "regions": [
+        {
+          "x": 0.06,
+          "y": 0.18,
+          "width": 0.48,
+          "height": 0.4,
+          "kind": "overlay",
+          "text_color": "#ffffff"
+        }
+      ],
+      "contrast_threshold": 4.5
+    }
+  ]
+}

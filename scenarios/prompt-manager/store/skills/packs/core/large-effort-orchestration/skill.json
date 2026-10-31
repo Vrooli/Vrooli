@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-09-10T00:00:00Z",
+  "description": "Deliver a long product goal through one orchestrator and substantial independent worker outcomes. Assess the product against governing requirements and selected designs, maintain an evolving allocation, coordinate parallel implementation, and independently accept results. Use for finite orchestrated delivery; ordinary tasks and phased plans keep their own work models.",
+  "entry": "SKILL.md",
+  "icon": "network",
+  "id": "large-effort-orchestration",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "large-effort-orchestration",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "prompt-manager skill read",
+      "agent-manager"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "agent-manager"
+    ]
+  },
+  "revision": 66,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "orchestration",
+    "multi-agent",
+    "effort",
+    "epochs",
+    "continuity",
+    "recovery"
+  ],
+  "updatedAt": "2026-10-26T00:00:00Z"
+}

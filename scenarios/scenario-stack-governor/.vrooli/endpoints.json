@@ -65,7 +65,7 @@
       "examples": [
         {
           "name": "Enable a rule",
-          "curl": "curl -X PUT http://localhost:${API_PORT}/api/v1/config -H 'Content-Type: application/json' -d '{\"version\":\"1.0.0\",\"enabled_rules\":{\"GO_CLI_WORKSPACE_INDEPENDENCE\":true}}'"
+          "curl": "curl -X PUT http://localhost:${API_PORT}/api/v1/config -H 'Content-Type: application/json' -d '{\"version\":\"1.0.0\",\"enabled_rules\":{\"REACT_VITE_UI_INSTALLS_DEPENDENCIES\":true}}'"
         }
       ]
     },

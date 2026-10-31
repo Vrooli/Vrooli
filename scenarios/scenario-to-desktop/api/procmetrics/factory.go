@@ -20,5 +20,6 @@ func NewDefaultMonitorFactory(proc ProcReader, window WindowDetector, logger *sl
 
 // NewMonitor creates a fresh DefaultMonitor.
 func (f *DefaultMonitorFactory) NewMonitor() Monitor {
-	return NewDefaultMonitor(f.proc, f.window, f.logger)
+	tree, _ := f.proc.(ProcessTreeReader)
+	return NewDefaultMonitorWithTree(f.proc, tree, f.window, f.logger)
 }

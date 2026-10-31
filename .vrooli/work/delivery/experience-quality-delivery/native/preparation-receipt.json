@@ -1,0 +1,330 @@
+{
+  "observed_at": "2026-10-16T15:44:03.697401+00:00",
+  "scope": "preparation only; no enable, trigger or run-create operations",
+  "team_create": {
+    "program_id": "prog_4d5f5ff4-0c3f-41f2-8665-c2785cbdf6cd",
+    "session_id": "sess_6672da01-f31f-4006-9462-b926cc275ec6",
+    "status": "PROGRAM_STATUS_SUCCEEDED",
+    "prior_validation_failure": {
+      "program_id": "prog_0345bf84-23a5-46ea-a4e8-0b4b12ccb063",
+      "reason": "Required sources.json had not yet been materialized. Native team read confirmed not_found before corrected submission."
+    }
+  },
+  "source_scope": "team:experience-quality-delivery",
+  "finite_binding": {
+    "state": "unapplied_proposal",
+    "reason": "Documented command absent in actual CLI/source",
+    "qa_entry": "knw-1792165359676022214"
+  },
+  "team": {
+    "purpose": "delivery",
+    "lifetime": "finite",
+    "effortRefs": [
+      "effort:experience-quality"
+    ],
+    "id": "experience-quality-delivery",
+    "displayName": "Experience Quality Delivery",
+    "mission": "Deliver shared visual and temporal experience capture, review, repair and required release evidence; preserve Dot cloud workflows and outage fallbacks, enable native agents without Google connectors, and consolidate existing ownership/debt. Preparation remains disabled.",
+    "enabled": false,
+    "archived": false,
+    "runtime": {
+      "mode": "multi-process"
+    },
+    "coordination": {
+      "pattern": "leader-led",
+      "leadAgentId": "experience-quality-orchestrator",
+      "reportingMode": "leader",
+      "messagingMode": "async-inbox",
+      "capabilities": {
+        "showOrgContext": true,
+        "injectInbox": true,
+        "allowPeerTriggers": false,
+        "showTaskBoardGuidance": false,
+        "showKnowledgeLogGuidance": false,
+        "requireHandoff": false
+      }
+    },
+    "execution": {
+      "queuePolicy": "serialized",
+      "maxConcurrentRuns": 1
+    },
+    "operatingContract": {
+      "schemaVersion": 1,
+      "governance": {},
+      "documents": {
+        "planOfRecord": [
+          {
+            "id": "experience-quality-target",
+            "hub": {
+              "base": "repo-root",
+              "path": "docs/architecture/experience-quality.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": "docs/architecture/experience-quality.md"
+              }
+            ],
+            "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
+            "consumers": [
+              "experience-quality-delivery",
+              "experience-quality-orchestrator"
+            ],
+            "useFor": "EQ-01..EQ-18 and subject-specific authority; intended state, not implementation proof.",
+            "required": true
+          },
+          {
+            "id": "experience-quality-entry",
+            "hub": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/README.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": ".vrooli/work/delivery/experience-quality-delivery/README.md"
+              }
+            ],
+            "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
+            "consumers": [
+              "experience-quality-delivery",
+              "experience-quality-orchestrator"
+            ],
+            "useFor": "Normal receiving entry and source roles.",
+            "required": true
+          },
+          {
+            "id": "experience-quality-goal",
+            "hub": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/GOAL.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": ".vrooli/work/delivery/experience-quality-delivery/GOAL.md"
+              }
+            ],
+            "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
+            "consumers": [
+              "experience-quality-delivery",
+              "experience-quality-orchestrator"
+            ],
+            "useFor": "Compact destination and disabled preparation boundary.",
+            "required": true
+          },
+          {
+            "id": "experience-quality-validation",
+            "hub": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/VALIDATION.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": ".vrooli/work/delivery/experience-quality-delivery/VALIDATION.md"
+              }
+            ],
+            "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
+            "consumers": [
+              "experience-quality-delivery",
+              "experience-quality-orchestrator"
+            ],
+            "useFor": "Exact acceptance journeys and evidence classes.",
+            "required": true
+          },
+          {
+            "id": "experience-quality-setup",
+            "hub": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/SETUP.md"
+            },
+            "paths": [
+              {
+                "base": "repo-root",
+                "path": ".vrooli/work/delivery/experience-quality-delivery/SETUP.md"
+              }
+            ],
+            "writePolicy": "Preparation amendments are authorized. No activation or product implementation follows; owner-selected constraints remain governing.",
+            "consumers": [
+              "experience-quality-delivery",
+              "experience-quality-orchestrator"
+            ],
+            "useFor": "Current native setup, material transfer and eventual activation qualification.",
+            "required": true
+          }
+        ],
+        "sharedState": [
+          {
+            "id": "eq-queue",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/QUEUE.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-feedback",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/FEEDBACK.md"
+            },
+            "kind": "operator-input",
+            "required": true
+          },
+          {
+            "id": "eq-workarounds",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/WORKAROUNDS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-installs",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/INSTALLS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-targets",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/TARGETS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-research",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/RESEARCH.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-gaps",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/GAPS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-decisions",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/DECISIONS.md"
+            },
+            "kind": "working-register",
+            "required": true
+          },
+          {
+            "id": "eq-sources",
+            "path": {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery/sources.json"
+            },
+            "kind": "working-register",
+            "required": true
+          }
+        ]
+      },
+      "knowledgeTopics": {},
+      "members": {
+        "experience-quality-orchestrator": {
+          "lane": "Coordinate substantial experience-quality epochs and independently accept evidence; maintain the goal home. Never implement product code. Preparation is disabled and undispatched.",
+          "allowedWrites": [
+            {
+              "kind": "handoff"
+            },
+            {
+              "base": "repo-root",
+              "path": ".vrooli/work/delivery/experience-quality-delivery"
+            }
+          ],
+          "safetyCriticalRules": [
+            "Team and heartbeat remain disabled; do not activate, trigger or dispatch during preparation.",
+            "Read the target, dated research/gaps, selected sources and exact acceptance before admission; preserve Dot cloud-only design and local connector-independent use.",
+            "Use existing domain owners, governed programs and BAS workflows; reconcile duplicate ownership and retire obsolete paths with protected behavior.",
+            "Preserve original artifacts and actual source/runtime/device/reviewer scope; unknown/skipped/synthetic evidence never becomes required commercial readiness.",
+            "Required shared schema/proto/generated work remains in whole-outcome scope despite child exclusions. Use governed owner generation/verification and dependency installation.",
+            "Preserve unrelated authored changes and user data; coordinate actual overlap with existing teams. No publication, credentials/account setup or new paid spend is authorized.",
+            "Native identity, permissions, budgets and safeguards govern later execution. No anonymous retry, principal substitution, runtime-store edit or shadow finite scheduler.",
+            "Follow large-effort-orchestration; use existing qualified delivery profiles and Agent Manager epochs after explicit activation; no Swarm or Plan Manager dispatch."
+          ],
+          "readOnlyModeBehavior": {
+            "stillWriteKnowledge": false,
+            "stillWriteHandoff": true
+          }
+        }
+      }
+    },
+    "memberCount": 1,
+    "createdAt": "2026-10-16T15:40:39Z",
+    "updatedAt": "2026-10-16T15:40:39Z",
+    "roles": [
+      {
+        "id": "experience-quality-orchestrator",
+        "name": "Experience Quality Orchestrator",
+        "description": "Coordinate the finite experience-quality outcome and independently accept substantial epochs; maintain its goal home without implementing product code."
+      }
+    ],
+    "members": [
+      {
+        "agentId": "experience-quality-orchestrator",
+        "displayName": "Experience Quality Orchestrator",
+        "roles": [
+          "experience-quality-orchestrator"
+        ],
+        "status": "active"
+      }
+    ],
+    "orgChart": {
+      "teamId": "experience-quality-delivery",
+      "edges": null
+    }
+  },
+  "heartbeat": {
+    "creationProof": {
+      "kind": "agent",
+      "owner": "d47163a3-1ba3-5e7b-96dd-e6f8fc450b3f",
+      "source": "agent_provenance",
+      "subject": "c3f5135b-adbb-4e14-a7d5-fdef7b74474f"
+    },
+    "teamId": "experience-quality-delivery",
+    "agentId": "experience-quality-orchestrator",
+    "enabled": false,
+    "teamEnabled": false,
+    "effectiveState": "team-disabled",
+    "effectiveReason": "team is disabled",
+    "controlState": "active",
+    "scheduled": false,
+    "schedule": "",
+    "profileKey": "prompt-manager/delivery-orchestrator",
+    "consecutiveFailures": 0,
+    "lifecycleState": "disabled",
+    "createdAt": "2026-10-16T15:40:40Z",
+    "updatedAt": "2026-10-16T15:40:40Z"
+  },
+  "logs": {
+    "teamId": "experience-quality-delivery",
+    "agentId": "experience-quality-orchestrator",
+    "logs": []
+  },
+  "roles": [
+    {
+      "id": "experience-quality-orchestrator",
+      "name": "Experience Quality Orchestrator",
+      "description": "Coordinate the finite experience-quality outcome and independently accept substantial epochs; maintain its goal home without implementing product code."
+    }
+  ]
+}

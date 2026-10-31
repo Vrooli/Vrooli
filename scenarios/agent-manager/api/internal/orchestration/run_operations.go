@@ -1,0 +1,822 @@
+// This file provides high-level retrieval and control operations for runs.
+package orchestration
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"regexp"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/pricing"
+	"agent-manager/internal/promptmanager"
+	"agent-manager/internal/repository"
+	"agent-manager/internal/rolepolicy"
+
+	agentconfig "agent-manager/internal/config"
+
+	"github.com/google/uuid"
+)
+
+func (o *Orchestrator) GetRunnerStatus(ctx context.Context) ([]*RunnerStatus, error) {
+	if o.runners == nil {
+		return nil, nil
+	}
+
+	var statuses []*RunnerStatus
+	for _, r := range o.runners.List() {
+		available, msg := r.IsAvailable(ctx)
+		statuses = append(statuses, &RunnerStatus{
+			Type:         r.Type(),
+			Available:    available,
+			Message:      msg,
+			Capabilities: r.Capabilities(),
+		})
+	}
+	return statuses, nil
+}
+
+func (o *Orchestrator) ListExecutionOptions(ctx context.Context, roleRef string) ([]ExecutionOption, error) {
+	if o.runners == nil {
+		return nil, nil
+	}
+	// Resolve the role's candidate order and models when a role is supplied and
+	// role policy is configured. The resolved policy is the catalog's model
+	// truth; the local runner probe is merged only as additional entries.
+	var resolved []rolepolicy.ResolvedCandidate
+	if strings.TrimSpace(roleRef) != "" {
+		if o.rolePolicy == nil || o.roleResolver == nil {
+			return nil, domain.NewValidationError("roleRef", "role-policy resolver is not configured")
+		}
+		res, err := o.rolePolicy.Resolve(ctx, o.roleResolver, roleRef)
+		if err != nil {
+			return nil, err
+		}
+		if res == nil || len(res.Candidates) == 0 {
+			return nil, domain.NewValidationError("roleRef", "role resolution produced no candidates")
+		}
+		resolved = res.Candidates
+	}
+
+	byRunner := map[domain.RunnerType]rolepolicy.ResolvedCandidate{}
+	order := make([]domain.RunnerType, 0, len(resolved))
+	for _, candidate := range resolved {
+		if _, ok := byRunner[candidate.Runner]; ok {
+			continue
+		}
+		byRunner[candidate.Runner] = candidate
+		order = append(order, candidate.Runner)
+	}
+	options := make([]ExecutionOption, 0)
+	if len(order) == 0 {
+		for _, r := range o.runners.List() {
+			options = append(options, executionOptionForRunner(ctx, r, nil))
+		}
+		return options, nil
+	}
+	for _, rt := range order {
+		r, err := o.runners.Get(rt)
+		if err != nil {
+			continue
+		}
+		candidate := byRunner[rt]
+		options = append(options, executionOptionForRunner(ctx, r, &candidate))
+	}
+	return options, nil
+}
+
+// executionOptionForRunner keeps a malformed optional adapter from taking
+// down the read-only catalog. A runner that cannot publish capabilities is
+// represented as unavailable with its diagnostic, which is safer than
+// claiming support based on its type alone. When resolved is non-nil, its
+// role-policy model is the default and its models are listed with
+// source=role_policy; the runner's own locally-probed models are merged as
+// source=local_probe.
+func executionOptionForRunner(ctx context.Context, r runner.Runner, resolved *rolepolicy.ResolvedCandidate) (option ExecutionOption) {
+	option.Message = "runner adapter did not publish execution capabilities"
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			option.Available = false
+			option.Models = nil
+			option.DefaultModel = ""
+			option.Message = fmt.Sprintf("runner capability probe failed: %v", recovered)
+		}
+	}()
+	if r == nil {
+		option.Message = "runner adapter is nil"
+		return option
+	}
+	option.RunnerType = string(r.Type())
+	available, message := r.IsAvailable(ctx)
+	option.Available = available
+	option.Message = message
+	capabilities := r.Capabilities()
+	for _, capability := range capabilities.SpawnCapabilities {
+		if capability.NativeObjective {
+			option.NativeObjective = true
+			option.SandboxModesWithNativeObjective = append(option.SandboxModesWithNativeObjective, capability.SandboxModes...)
+		}
+	}
+	if !available {
+		return option
+	}
+	seenModel := map[string]bool{}
+	addModel := func(id, canonical, source string, isDefault bool) {
+		id = strings.TrimSpace(id)
+		if id == "" || seenModel[id] {
+			return
+		}
+		seenModel[id] = true
+		option.Models = append(option.Models, ExecutionModelOption{ID: id, CanonicalModel: canonical, Source: source, IsDefault: isDefault})
+	}
+	if resolved != nil {
+		option.DefaultModel = strings.TrimSpace(resolved.Model)
+		if option.DefaultModel == "" {
+			option.DefaultModel = strings.TrimSpace(resolved.CanonicalModel)
+		}
+		if option.DefaultModel != "" {
+			option.DefaultModelSource = executionModelSourceRolePolicy
+		}
+		addModel(option.DefaultModel, resolved.CanonicalModel, executionModelSourceRolePolicy, option.DefaultModel != "")
+		for _, fallback := range resolved.Fallbacks {
+			addModel(fallback, "", executionModelSourceRolePolicy, false)
+		}
+	} else if len(capabilities.SupportedModels) > 0 {
+		// No role resolved: the first probed model is the runner's default.
+		option.DefaultModel = capabilities.SupportedModels[0]
+		option.DefaultModelSource = executionModelSourceLocalProbe
+		addModel(option.DefaultModel, option.DefaultModel, executionModelSourceLocalProbe, true)
+	}
+	for _, model := range capabilities.SupportedModels {
+		addModel(model, model, executionModelSourceLocalProbe, option.DefaultModel == "" && len(option.Models) == 0)
+	}
+	if option.DefaultModel == "" && len(option.Models) > 0 {
+		option.DefaultModel = option.Models[0].ID
+		option.Models[0].IsDefault = true
+	}
+	option.EffortLevels = orderedEffortLevels(capabilities.EffortMappings)
+	return option
+}
+
+const (
+	executionModelSourceRolePolicy = "role_policy"
+	executionModelSourceLocalProbe = "local_probe"
+)
+
+// effortLevelOrder is the deterministic display order for reasoning effort.
+var effortLevelOrder = []domain.Effort{
+	domain.EffortLow, domain.EffortMedium, domain.EffortHigh, domain.EffortXHigh, domain.EffortMax,
+}
+
+// orderedEffortLevels returns the declared effort levels in fixed low→max order
+// instead of Go map order, with any unknown level appended sorted.
+func orderedEffortLevels(mappings map[string]string) []string {
+	declared := map[string]bool{}
+	for level := range mappings {
+		declared[level] = true
+	}
+	ordered := make([]string, 0, len(declared))
+	for _, effort := range effortLevelOrder {
+		level := string(effort)
+		if declared[level] {
+			ordered = append(ordered, level)
+			delete(declared, level)
+		}
+	}
+	extra := make([]string, 0, len(declared))
+	for level := range declared {
+		extra = append(extra, level)
+	}
+	sort.Strings(extra)
+	return append(ordered, extra...)
+}
+
+// ProbeRunner sends a real, bounded request through the registered runner
+// adapter. Execution therefore follows the same launcher and environment seam
+// as a managed run rather than spawning a coding-agent binary from orchestration.
+func (o *Orchestrator) ProbeRunner(ctx context.Context, runnerType domain.RunnerType) (*ProbeResult, error) {
+	if o.runners == nil {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    "no runner registry configured",
+		}, nil
+	}
+
+	r, err := o.runners.Get(runnerType)
+	if err != nil {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    fmt.Sprintf("runner not found: %v", err),
+		}, nil
+	}
+
+	// First check if the runner reports itself as available
+	available, msg := r.IsAvailable(ctx)
+	if !available {
+		return &ProbeResult{
+			RunnerType: runnerType,
+			Success:    false,
+			Message:    msg,
+		}, nil
+	}
+
+	start := time.Now()
+	probeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	result, execErr := r.Execute(probeCtx, runner.ExecuteRequest{
+		RunID: uuid.New(),
+		Tag:   "agent-manager-runner-probe",
+		// This is a read-only runner health check, not a workspace mutation.
+		// Declare tracking explicitly so the launcher does not interpret the
+		// omitted policy as a malformed protected run. A real delivery run
+		// receives its protected config and sandbox identity through normal
+		// owner admission and run creation.
+		ResolvedConfig: &domain.RunConfig{
+			RunnerType:    runnerType,
+			MaxTurns:      1,
+			SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeTracking},
+		},
+		WorkingDir: os.TempDir(),
+		Prompt:     "Reply with exactly one word: PROBE_OK",
+	})
+	duration := time.Since(start)
+	if probeCtx.Err() == context.DeadlineExceeded {
+		return &ProbeResult{RunnerType: runnerType, Success: false, Message: "runner probe timed out after 30s", DurationMs: duration.Milliseconds()}, nil
+	}
+	if execErr != nil {
+		return &ProbeResult{RunnerType: runnerType, Success: false, Message: fmt.Sprintf("runner probe failed: %v", execErr), DurationMs: duration.Milliseconds()}, nil
+	}
+	if result == nil || !result.Success {
+		message := "runner probe returned an unsuccessful result"
+		if result != nil && result.ErrorMessage != "" {
+			message = result.ErrorMessage
+		}
+		return &ProbeResult{RunnerType: runnerType, Success: false, Message: message, DurationMs: duration.Milliseconds()}, nil
+	}
+	return &ProbeResult{
+		RunnerType: runnerType,
+		Success:    true,
+		Message:    "runner completed managed probe",
+		DurationMs: duration.Milliseconds(),
+	}, nil
+}
+
+// purgePartialResult preserves committed counts when a later owner CAS fails.
+// A nil result remains appropriate when the operation has made no mutation.
+func purgePartialResult(result *PurgeResult) *PurgeResult {
+	if result == nil || result.Deleted == (PurgeCounts{}) {
+		return nil
+	}
+	return result
+}
+
+// cleanupDeletedTaskRunSidecars removes external event/search projections after
+// the database has atomically deleted a cancelled Task and its terminal Runs.
+func (o *Orchestrator) cleanupDeletedTaskRunSidecars(ctx context.Context, taskID uuid.UUID, runs []*domain.Run) error {
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+		o.notifyConversationSearch(ctx, "delete_run", run.ID.String(), "")
+		if o.events != nil {
+			if err := o.events.Delete(ctx, run.ID); err != nil {
+				return fmt.Errorf("task %s and its attached runs were deleted, but event cleanup failed at run %s; later sidecars, if any, were not attempted: %w", taskID, run.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
+// PurgeData deletes profiles, tasks, or runs matching a regex pattern.
+func (o *Orchestrator) PurgeData(ctx context.Context, req PurgeRequest) (*PurgeResult, error) {
+	pattern := strings.TrimSpace(req.Pattern)
+	if pattern == "" {
+		return nil, domain.NewValidationError("pattern", "pattern is required")
+	}
+	if len(req.Targets) == 0 {
+		return nil, domain.NewValidationError("targets", "at least one target is required")
+	}
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return nil, domain.NewValidationError("pattern", "invalid regex pattern")
+	}
+
+	targets := map[PurgeTarget]bool{}
+	for _, t := range req.Targets {
+		targets[t] = true
+	}
+
+	result := &PurgeResult{
+		Matched: PurgeCounts{},
+		Deleted: PurgeCounts{},
+		DryRun:  req.DryRun,
+	}
+
+	var profileIDs []uuid.UUID
+	if targets[PurgeTargetProfiles] {
+		profiles, err := o.profiles.List(ctx, repository.ListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, profile := range profiles {
+			if re.MatchString(profile.ProfileKey) {
+				result.Matched.Profiles++
+				profileIDs = append(profileIDs, profile.ID)
+			}
+		}
+	}
+
+	var taskIDs []*domain.Task
+	if targets[PurgeTargetTasks] {
+		tasks, err := o.tasks.List(ctx, repository.ListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, task := range tasks {
+			if re.MatchString(task.Title) {
+				result.Matched.Tasks++
+				taskIDs = append(taskIDs, task)
+			}
+		}
+	}
+
+	var runIDs []*domain.Run
+	if targets[PurgeTargetRuns] {
+		runs, err := o.runs.List(ctx, repository.RunListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, run := range runs {
+			if re.MatchString(run.GetTag()) {
+				result.Matched.Runs++
+				runIDs = append(runIDs, run)
+			}
+		}
+	}
+
+	if req.DryRun {
+		return result, nil
+	}
+	// Validate every selected owner before mutating any dependent records.
+	for _, run := range runIDs {
+		if allowed, reason := domain.CanDeleteRun(run); !allowed {
+			return nil, domain.NewStateErrorWithID("Run", run.ID.String(), string(run.Status), "purge", reason)
+		}
+	}
+	attachedByTask := make(map[uuid.UUID][]*domain.Run, len(taskIDs))
+	for _, task := range taskIDs {
+		if task.Status != domain.TaskStatusCancelled {
+			return nil, domain.NewStateErrorWithID("Task", task.ID.String(), string(task.Status), "purge", "only cancelled tasks can be deleted")
+		}
+		attached, err := o.runs.ListByTask(ctx, task.ID, repository.ListFilter{})
+		if err != nil {
+			return nil, err
+		}
+		for _, run := range attached {
+			if allowed, reason := domain.CanDeleteRun(run); !allowed {
+				return nil, domain.NewStateErrorWithID("Run", run.ID.String(), string(run.Status), "purge task", reason)
+			}
+		}
+		attachedByTask[task.ID] = attached
+	}
+
+	deletedRunIDs := make(map[uuid.UUID]bool, len(runIDs))
+	cleanedEventRunIDs := make(map[uuid.UUID]bool, len(runIDs))
+	for _, run := range runIDs {
+		if err := o.runs.Delete(ctx, run.ID, run.Status, run.LifecycleVersion); err != nil {
+			return purgePartialResult(result), fmt.Errorf("delete run %s during purge: %w", run.ID, err)
+		}
+		deletedRunIDs[run.ID] = true
+		// The run and its checkpoints are now committed gone. Count that durable
+		// effect before touching the separately stored event sidecar.
+		result.Deleted.Runs++
+		o.notifyConversationSearch(ctx, "delete_run", run.ID.String(), "")
+		if o.events != nil {
+			if err := o.events.Delete(ctx, run.ID); err != nil {
+				return result, fmt.Errorf("run %s was deleted but event cleanup failed: %w", run.ID, err)
+			}
+			cleanedEventRunIDs[run.ID] = true
+		}
+	}
+	for _, task := range taskIDs {
+		if err := o.tasks.Delete(ctx, task.ID); err != nil {
+			return purgePartialResult(result), fmt.Errorf("delete task %s during purge: %w", task.ID, err)
+		}
+		result.Deleted.Tasks++
+		// Task deletion cascades its terminal Run and checkpoint rows in the
+		// run-model database. Their event rows live separately, so account for
+		// each cascade and clean those sidecars only after the Task CAS succeeds.
+		var cascadeSidecars []*domain.Run
+		for _, run := range attachedByTask[task.ID] {
+			if !deletedRunIDs[run.ID] {
+				deletedRunIDs[run.ID] = true
+				result.Deleted.Runs++
+			}
+			if !cleanedEventRunIDs[run.ID] {
+				cascadeSidecars = append(cascadeSidecars, run)
+				cleanedEventRunIDs[run.ID] = true
+			}
+		}
+		if err := o.cleanupDeletedTaskRunSidecars(ctx, task.ID, cascadeSidecars); err != nil {
+			return result, err
+		}
+	}
+
+	for _, id := range profileIDs {
+		if err := o.profiles.Delete(ctx, id); err != nil {
+			return purgePartialResult(result), fmt.Errorf("delete profile %s during purge: %w", id, err)
+		}
+		result.Deleted.Profiles++
+	}
+
+	return result, nil
+}
+
+// -----------------------------------------------------------------------------
+// Helper Types
+// -----------------------------------------------------------------------------
+
+// EventBroadcaster is a callback for broadcasting events in real-time.
+// This is typically implemented by the WebSocket hub.
+//
+// The canonical definition lives in the phases package so per-phase
+// functions can reference it without an import cycle. The alias here keeps
+// existing orchestration call sites compiling without per-site rewrites.
+type EventBroadcaster = phases.EventBroadcaster
+
+func appendAndBroadcastEvents(ctx context.Context, store event.Store, broadcaster EventBroadcaster, runID uuid.UUID, events ...*domain.RunEvent) error {
+	persistable := make([]*domain.RunEvent, 0, len(events))
+	for _, evt := range events {
+		if evt != nil {
+			persistable = append(persistable, evt)
+		}
+	}
+	if len(persistable) == 0 {
+		return nil
+	}
+	if store == nil {
+		return fmt.Errorf("event store is required before broadcasting run events")
+	}
+	if err := store.Append(ctx, runID, persistable...); err != nil {
+		return err
+	}
+	if broadcaster != nil {
+		for _, evt := range persistable {
+			if !evt.PersistenceReplay {
+				broadcaster.BroadcastEvent(evt)
+			}
+		}
+	}
+	return nil
+}
+
+func (o *Orchestrator) appendAndBroadcastEvents(ctx context.Context, runID uuid.UUID, events ...*domain.RunEvent) error {
+	if err := appendAndBroadcastEvents(ctx, o.events, o.broadcaster, runID, events...); err != nil {
+		return err
+	}
+	for _, evt := range events {
+		if evt == nil || evt.PersistenceReplay {
+			continue
+		}
+		o.afterRunEventPersisted(runID, evt)
+		switch evt.EventType {
+		case domain.EventTypeMessage, domain.EventTypeToolCall, domain.EventTypeToolResult:
+			o.notifyConversationSearch(ctx, "upsert_run", runID.String(), evt.ID.String())
+		case domain.EventTypeMessageDeleted:
+			target := ""
+			if data, ok := evt.Data.(*domain.MessageDeletedEventData); ok {
+				target = data.TargetEventID
+			}
+			o.notifyConversationSearch(ctx, "delete_event", runID.String(), target)
+		}
+	}
+	return nil
+}
+
+// eventStoreAdapter adapts event.Store to runner.EventSink
+type eventStoreAdapter struct {
+	mu           sync.Mutex
+	store        event.Store
+	runID        uuid.UUID
+	lastSequence int64
+	hooks        *Orchestrator
+}
+
+func (e *eventStoreAdapter) Emit(evt *domain.RunEvent) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if err := e.store.Append(context.Background(), e.runID, evt); err != nil {
+		return err
+	}
+	e.lastSequence = evt.Sequence
+	e.hooks.afterRunEventPersisted(e.runID, evt)
+	return nil
+}
+
+func (e *eventStoreAdapter) Close() error {
+	return nil
+}
+
+func (e *eventStoreAdapter) LastSequence() int64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.lastSequence
+}
+
+// newRunEventSink is the one constructor for run-event sinks. Execution,
+// continuation, interactive tails and recovery all build their sink here, and
+// every sink applies the hook owner's post-persist hook set
+// (afterRunEventPersisted) to each non-replay event it persists. Only a unit
+// test that builds an executor or reconciler without an orchestrator passes a
+// nil owner; production wiring always supplies one.
+func newRunEventSink(hooks *Orchestrator, store event.Store, broadcaster EventBroadcaster, runID uuid.UUID) runner.EventSink {
+	switch {
+	case store != nil && broadcaster != nil:
+		return &broadcastingEventSink{
+			store:       store,
+			runID:       runID,
+			broadcaster: broadcaster,
+			hooks:       hooks,
+		}
+	case store != nil:
+		return &eventStoreAdapter{store: store, runID: runID, hooks: hooks}
+	default:
+		return &noOpEventSink{}
+	}
+}
+
+// broadcastingEventSink stores events AND broadcasts them via WebSocket.
+type broadcastingEventSink struct {
+	store        event.Store
+	runID        uuid.UUID
+	broadcaster  EventBroadcaster
+	lastSequence int64
+	hooks        *Orchestrator
+}
+
+func (b *broadcastingEventSink) Emit(evt *domain.RunEvent) error {
+	// Validate event and log warnings for missing data
+	domain.ValidateEvent(evt)
+
+	if err := appendAndBroadcastEvents(context.Background(), b.store, b.broadcaster, b.runID, evt); err != nil {
+		obs.Component("broadcast-sink").Warn("event store append failed",
+			obs.KeyRunID, b.runID.String(),
+			obs.KeyError, err.Error(),
+		)
+		return err
+	}
+	b.lastSequence = evt.Sequence
+	b.hooks.afterRunEventPersisted(b.runID, evt)
+
+	if b.broadcaster != nil && !evt.PersistenceReplay {
+		// Also emit progress events for status changes
+		if data, ok := evt.Data.(*domain.StatusEventData); ok {
+			b.broadcaster.BroadcastProgress(b.runID, domain.RunPhase(data.NewStatus), 0, data.Reason)
+		}
+		if data, ok := evt.Data.(*domain.ProgressEventData); ok {
+			b.broadcaster.BroadcastProgress(b.runID, data.Phase, data.PercentComplete, data.CurrentAction)
+		}
+	}
+
+	return nil
+}
+
+func (b *broadcastingEventSink) Close() error {
+	return nil
+}
+
+func (b *broadcastingEventSink) LastSequence() int64 {
+	return b.lastSequence
+}
+
+// runEventSink builds this orchestrator's sink for one run.
+func (o *Orchestrator) runEventSink(runID uuid.UUID) runner.EventSink {
+	return newRunEventSink(o, o.events, o.broadcaster, runID)
+}
+
+// afterRunEventPersisted is the orchestrator's one post-persist hook set. It
+// runs once per persisted non-replay event: provider quota frames become
+// quota observations, usage nudges the owning workflow, and usage feeds the
+// token cap. A nil owner applies no hooks.
+func (o *Orchestrator) afterRunEventPersisted(runID uuid.UUID, evt *domain.RunEvent) {
+	if o == nil || evt == nil || evt.PersistenceReplay {
+		return
+	}
+	o.observeQuotaEvent(evt, true)
+	o.nudgeWorkflowUsage(runID, evt)
+	o.observeTokenCapUsage(runID, evt)
+}
+
+// observeQuotaEvent records a provider quota frame as a quota observation.
+// retained reports whether the event itself was persisted; an imported
+// messages-only transcript keeps the observation but not the event, so its
+// evidence reference names the run instead of a missing event row.
+func (o *Orchestrator) observeQuotaEvent(evt *domain.RunEvent, retained bool) {
+	if o == nil || o.quotaObservations == nil || evt == nil || evt.EventType != domain.EventTypeQuota {
+		return
+	}
+	observation, err := pricing.ObservationFromEvent(evt, o.now().UTC())
+	if err != nil {
+		obs.Component("quota-observation").Warn("provider quota frame rejected", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())
+		return
+	}
+	if observation == nil {
+		return
+	}
+	if !retained {
+		observation.EvidenceRef = "agent-manager://runs/" + evt.RunID.String()
+	}
+	if err := o.quotaObservations.RecordQuotaObservation(context.Background(), observation); err != nil {
+		obs.Component("quota-observation").Warn("provider quota frame persistence failed", obs.KeyRunID, evt.RunID.String(), obs.KeyError, err.Error())
+	}
+}
+
+// runnerTypeOrEmpty returns the runner type from a run's resolved
+// config, or "" when no resolved config is set yet (e.g. during
+// pre-spawn validation). Used for lifecycle event tagging.
+func runnerTypeOrEmpty(run *domain.Run) domain.RunnerType {
+	if run == nil || run.ResolvedConfig == nil {
+		return ""
+	}
+	return run.ResolvedConfig.RunnerType
+}
+
+// dispatcherSink returns an obs.Sink for emitting lifecycle events
+// (spawn-enqueued, spawn-started) from the spawn dispatcher path. It
+// uses the same store + broadcaster as the per-run gate, so the
+// timeline shows a continuous lifecycle from "queued" through "exited"
+// regardless of where in the run-executor stack the event originated.
+//
+// Returned sink is non-nil even when the orchestrator has no event
+// store wired (defaults to the noOp sink so dispatcher.Enqueue still
+// emits its log line).
+func (o *Orchestrator) dispatcherSink(runID uuid.UUID) obs.Sink {
+	return o.runEventSink(runID)
+}
+
+// noOpEventSink discards events
+type noOpEventSink struct{}
+
+func (n *noOpEventSink) Emit(_ *domain.RunEvent) error { return nil }
+func (n *noOpEventSink) Close() error                  { return nil }
+
+// valueOrDefault returns the pointer value or default
+func valueOrDefault(ptr *domain.RunMode, def domain.RunMode) domain.RunMode {
+	if ptr != nil {
+		return *ptr
+	}
+	return def
+}
+
+// -----------------------------------------------------------------------------
+// Investigation Settings Operations
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetInvestigationSettings(ctx context.Context) (*domain.InvestigationSettings, error) {
+	var settings *domain.InvestigationSettings
+	if o.investigationSettings == nil {
+		settings = domain.DefaultInvestigationSettings()
+	} else {
+		var err error
+		settings, err = o.investigationSettings.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Overlay prompt templates from prompt-manager skills (overrides DB values)
+	if o.promptClient != nil {
+		if prompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation", nil, false); err == nil {
+			settings.PromptTemplate = prompt
+		}
+		if applyPrompt, err := o.promptClient.ReadSkill(ctx, "agent-manager-process-investigation-apply", nil, false); err == nil {
+			settings.ApplyPromptTemplate = applyPrompt
+		}
+	}
+
+	return settings, nil
+}
+
+func (o *Orchestrator) UpdateInvestigationSettings(ctx context.Context, settings *domain.InvestigationSettings) error {
+	if o.investigationSettings == nil {
+		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
+	}
+
+	// Validate operational settings
+	if !settings.DefaultDepth.IsValid() {
+		return domain.NewValidationError("defaultDepth", "invalid depth value")
+	}
+
+	// Write prompt templates to prompt-manager skills
+	if o.promptClient != nil {
+		if adminClient, ok := o.promptClient.(promptmanager.AdminClient); ok {
+			if settings.PromptTemplate != "" {
+				content := settings.PromptTemplate
+				if _, err := adminClient.UpdateSkill(ctx, "agent-manager-process-investigation",
+					promptmanager.PromptSkillUpdate{Content: &content}); err != nil {
+					return fmt.Errorf("update investigation skill: %w", err)
+				}
+			}
+			if settings.ApplyPromptTemplate != "" {
+				content := settings.ApplyPromptTemplate
+				if _, err := adminClient.UpdateSkill(ctx, "agent-manager-process-investigation-apply",
+					promptmanager.PromptSkillUpdate{Content: &content}); err != nil {
+					return fmt.Errorf("update apply investigation skill: %w", err)
+				}
+			}
+		}
+	}
+
+	// Operational config still saved to local DB
+	return o.investigationSettings.Update(ctx, settings)
+}
+
+func (o *Orchestrator) ResetInvestigationSettings(ctx context.Context) error {
+	if o.investigationSettings == nil {
+		return domain.NewConfigMissingError("investigationSettings", "repository not configured", nil)
+	}
+
+	// Revert prompt-manager skills to original version
+	if o.promptClient != nil {
+		if adminClient, ok := o.promptClient.(promptmanager.AdminClient); ok {
+			_ = adminClient.RevertSkillVersion(ctx, "agent-manager-process-investigation", 1)
+			_ = adminClient.RevertSkillVersion(ctx, "agent-manager-process-investigation-apply", 1)
+		}
+	}
+
+	// Reset operational config in DB
+	return o.investigationSettings.Reset(ctx)
+}
+
+// -----------------------------------------------------------------------------
+// Orchestration Settings Operations
+// -----------------------------------------------------------------------------
+
+func (o *Orchestrator) GetOrchestrationSettings(_ context.Context) (*agentconfig.OrchestrationSettings, error) {
+	if o.orchestrationSettings == nil {
+		defaults := agentconfig.DefaultOrchestrationSettings()
+		return &defaults, nil
+	}
+	settings := o.orchestrationSettings.Get()
+	return &settings, nil
+}
+
+func (o *Orchestrator) UpdateOrchestrationSettings(_ context.Context, settings *agentconfig.OrchestrationSettings) error {
+	if o.orchestrationSettings == nil {
+		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
+	}
+	if err := o.orchestrationSettings.Update(*settings); err != nil {
+		return err
+	}
+	o.propagateOrchestrationSettings(settings)
+	return nil
+}
+
+func (o *Orchestrator) ResetOrchestrationSettings(_ context.Context) error {
+	if o.orchestrationSettings == nil {
+		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
+	}
+	if err := o.orchestrationSettings.Reset(); err != nil {
+		return err
+	}
+	defaults := agentconfig.DefaultOrchestrationSettings()
+	o.propagateOrchestrationSettings(&defaults)
+	return nil
+}
+
+// propagateOrchestrationSettings applies updated settings to running components.
+func (o *Orchestrator) propagateOrchestrationSettings(s *agentconfig.OrchestrationSettings) {
+	// Update orchestrator config (affects new runs).
+	o.config.DefaultTimeout = time.Duration(s.RunExecution.RunTimeoutMinutes) * time.Minute
+	o.config.MaxConcurrentRuns = s.RunExecution.MaxConcurrentRuns
+	o.config.RequireSandboxByDefault = s.SafetyIsolation.RequireSandbox
+
+	// Propagate to reconciler.
+	if o.reconciler != nil {
+		// Start from the live config so fields settings do not own survive.
+		o.reconciler.UpdateConfig(ReconcilerConfigWithSettings(o.reconciler.Config(), *s))
+	}
+
+	// Propagate to terminator.
+	if o.terminator != nil {
+		o.terminator.UpdateConfig(TerminatorConfig{
+			GracePeriod:      time.Duration(s.ProcessTermination.GracePeriodSeconds) * time.Second,
+			MaxRetries:       s.ProcessTermination.TerminationMaxRetries,
+			BaseBackoff:      500 * time.Millisecond,
+			MaxBackoff:       5 * time.Second,
+			VerifyTimeout:    2 * time.Second,
+			KillProcessGroup: s.ProcessTermination.KillProcessGroup,
+		})
+	}
+}

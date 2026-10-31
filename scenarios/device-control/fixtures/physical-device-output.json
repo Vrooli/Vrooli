@@ -1,0 +1,9 @@
+{
+  "id": "physical-device-output",
+  "name": "Physical device output verbs",
+  "steps": [
+    {"id": "tree", "kind": "semantic-target", "target": "com.sec.android.app.launcher", "required_capabilities": ["semantic-tree"], "timeout_ms": 10000},
+    {"id": "logs", "kind": "device-logs", "arguments": {"package": "com.android.systemui"}, "required_capabilities": ["device-logs"], "timeout_ms": 10000},
+    {"id": "record", "kind": "screenrecord", "required_capabilities": ["native-recording"], "timeout_ms": 10000}
+  ]
+}

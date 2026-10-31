@@ -10,19 +10,16 @@
  * - Mouse movement: Natural paths for realistic interaction patterns
  */
 
-import type { BrowserContext } from 'rebrowser-playwright';
+import type { BrowserContext, ElementHandle } from 'rebrowser-playwright';
 import type { BehaviorSettings } from '../types';
 import { HumanBehavior, BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
 import { sleep } from '../utils';
-import type { HandlerContext } from './base';
+import type { BrowserDocument, HandlerContext } from './base';
 import type { Config } from '../config';
 import {
   SCROLL_CLOSE_ENOUGH_THRESHOLD_PX,
   SCROLL_STEP_MIN_DELAY_MS,
   SCROLL_STEP_MAX_DELAY_MS,
-  SMOOTH_SCROLL_BASE_DURATION_MS,
-  SMOOTH_SCROLL_DISTANCE_FACTOR,
-  SMOOTH_SCROLL_MAX_DURATION_MS,
   MOUSE_PATH_DEFAULT_STEPS,
   MOUSE_MOVEMENT_DEFAULT_DURATION_MS,
 } from '../constants';
@@ -177,150 +174,55 @@ export async function applyPostActionPause(behavior: HumanBehavior | null): Prom
   }
 }
 
-/**
- * Execute stepped scroll with human-like behavior.
- *
- * Scrolls in increments with delays between steps for natural appearance.
- *
- * @param page - Playwright Page instance
- * @param targetX - Target scroll X position
- * @param targetY - Target scroll Y position
- * @param behavior - HumanBehavior instance (can be null for instant scroll)
- * @param options - Additional scroll options
- */
-export async function executeHumanScroll(
-  page: import('rebrowser-playwright').Page,
-  targetX: number,
-  targetY: number,
-  behavior: HumanBehavior | null,
-  options: {
-    /** Minimum step delay in ms */
-    minStepDelayMs?: number;
-    /** Maximum step delay in ms */
-    maxStepDelayMs?: number;
-  } = {}
+/** Apply a scroll to an already resolved target, keeping its ownership stable. */
+export async function scrollTarget(
+  target: ElementHandle<Element>, x: number, y: number, smooth = false, timeoutMs = 30000,
 ): Promise<void> {
-  // If no behavior or scroll speed is 0, do instant scroll
-  if (!behavior) {
-    await page.evaluate(
-      ([x, y]) => {
-        window.scrollTo(x ?? 0, y ?? 0);
-      },
-      [targetX, targetY]
-    );
+  await target.evaluate((element, position) => {
+    element.scrollTo({ left: position.x, top: position.y, behavior: position.smooth ? 'smooth' : 'instant' });
+  }, { x, y, smooth });
+  if (smooth) {
+    const frame = await target.ownerFrame();
+    if (!frame) throw new Error('Scroll target has no owning frame');
+    const completion = await frame.waitForFunction(({ element, x, y }) =>
+      Math.abs(element.scrollLeft - x) < 1 && Math.abs(element.scrollTop - y) < 1,
+    { element: target, x, y }, { timeout: timeoutMs, polling: 'raf' });
+    await completion.dispose();
+  }
+}
+
+/** Execute stepped movement on the same element used to resolve coordinates. */
+export async function executeHumanScroll(
+  target: ElementHandle<Element>, targetX: number, targetY: number,
+  behavior: HumanBehavior | null,
+  options: { minStepDelayMs?: number; maxStepDelayMs?: number } = {},
+): Promise<void> {
+  const current = await target.evaluate(element => ({ x: element.scrollLeft, y: element.scrollTop }));
+  const deltaX = targetX - current.x;
+  const deltaY = targetY - current.y;
+  const distance = Math.hypot(deltaX, deltaY);
+  if (!behavior || distance < SCROLL_CLOSE_ENOUGH_THRESHOLD_PX) {
+    await scrollTarget(target, targetX, targetY);
     return;
   }
-
-  // Get current scroll position
-    const currentPosition = await page.evaluate(() => ({
-      x: window.scrollX || window.pageXOffset,
-      y: window.scrollY || window.pageYOffset,
-    }));
-
-  const deltaX = targetX - currentPosition.x;
-  const deltaY = targetY - currentPosition.y;
-  const totalDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-
-  // DECISION: If already at target or very close, use instant scroll
-  // Threshold defined in constants.ts for tuning
-  if (totalDistance < SCROLL_CLOSE_ENOUGH_THRESHOLD_PX) {
-    await page.evaluate(
-      ([x, y]) => {
-        window.scrollTo(x ?? 0, y ?? 0);
-      },
-      [targetX, targetY]
-    );
-    return;
-  }
-
-  // Calculate step size based on scroll speed settings
-  const scrollSpeed = behavior.getScrollSpeed();
-  const steps = Math.max(1, Math.ceil(totalDistance / scrollSpeed));
-  const stepX = deltaX / steps;
-  const stepY = deltaY / steps;
-
-  // Calculate step delay using constants from constants.ts
+  const steps = Math.max(1, Math.ceil(distance / Math.max(1, behavior.getScrollSpeed())));
   const minDelay = options.minStepDelayMs ?? SCROLL_STEP_MIN_DELAY_MS;
   const maxDelay = options.maxStepDelayMs ?? SCROLL_STEP_MAX_DELAY_MS;
-
-  // Execute stepped scroll
   for (let i = 1; i <= steps; i++) {
-    const nextX = Math.round(currentPosition.x + stepX * i);
-    const nextY = Math.round(currentPosition.y + stepY * i);
-
-    await page.evaluate(
-      ([x, y]) => {
-        // @ts-expect-error - window is available in browser context
-        window.scrollTo(x, y);
-      },
-      [nextX, nextY]
-    );
-
-    // Add delay between steps (except for last step)
+    await scrollTarget(target, Math.round(current.x + deltaX * i / steps), Math.round(current.y + deltaY * i / steps));
     if (i < steps) {
-      const stepDelay = minDelay + Math.random() * (maxDelay - minDelay);
-      await sleep(stepDelay);
-
-      // Occasional micro-pause during scroll
-      if (behavior.shouldMicroPause()) {
-        await sleep(behavior.getMicroPauseDuration());
-      }
+      await sleep(minDelay + Math.random() * (maxDelay - minDelay));
+      if (behavior.shouldMicroPause()) await sleep(behavior.getMicroPauseDuration());
     }
   }
 }
 
-/**
- * Execute smooth scroll using CSS scroll-behavior.
- *
- * Uses native browser smooth scrolling for a natural appearance.
- * Falls back to stepped scroll if smooth scrolling is not supported.
- *
- * @param page - Playwright Page instance
- * @param targetX - Target scroll X position
- * @param targetY - Target scroll Y position
- * @param behavior - HumanBehavior instance for micro-pauses
- */
+/** Smooth scrolling waits for its actual target, bounded by the action timeout. */
 export async function executeSmoothScroll(
-  page: import('rebrowser-playwright').Page,
-  targetX: number,
-  targetY: number,
-  behavior: HumanBehavior | null
+  target: ElementHandle<Element>, x: number, y: number, behavior: HumanBehavior | null, timeoutMs = 30000,
 ): Promise<void> {
-  // Apply pre-scroll micro-pause if enabled
-  if (behavior?.shouldMicroPause()) {
-    await sleep(behavior.getMicroPauseDuration());
-  }
-
-  // Use native smooth scroll
-  await page.evaluate(
-    ([x, y]) => {
-      window.scrollTo({
-        left: x ?? 0,
-        top: y ?? 0,
-        behavior: 'smooth',
-      });
-    },
-    [targetX, targetY]
-  );
-
-  // Wait for scroll to complete (approximate based on distance)
-  const currentPosition = await page.evaluate(() => ({
-    x: window.scrollX || window.pageXOffset,
-    y: window.scrollY || window.pageYOffset,
-  }));
-
-  const distance = Math.sqrt(
-    Math.pow(targetX - currentPosition.x, 2) + Math.pow(targetY - currentPosition.y, 2)
-  );
-
-  // DECISION: Estimate scroll duration based on distance
-  // Formula: base + (distance / factor), capped at max
-  // Constants defined in constants.ts for tuning
-  const estimatedDuration = Math.min(
-    SMOOTH_SCROLL_MAX_DURATION_MS,
-    SMOOTH_SCROLL_BASE_DURATION_MS + distance / SMOOTH_SCROLL_DISTANCE_FACTOR
-  );
-  await sleep(estimatedDuration);
+  if (behavior?.shouldMicroPause()) await sleep(behavior.getMicroPauseDuration());
+  await scrollTarget(target, x, y, true, timeoutMs);
 }
 
 /**
@@ -395,7 +297,7 @@ export async function moveMouseNaturally(
  * @returns Center coordinates or null if element not found
  */
 export async function getElementCenter(
-  page: import('rebrowser-playwright').Page,
+  page: BrowserDocument,
   selector: string,
   timeout?: number
 ): Promise<{ x: number; y: number } | null> {

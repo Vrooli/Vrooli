@@ -3,6 +3,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+// vi.restoreAllMocks() does not undo a plain assignment; restore the real
+// fetch so later test files in this single-threaded run are not handed a mock.
+const realFetch = globalThis.fetch
 import {
   fetchRuntimeConfig,
   getInjectedConfig,
@@ -18,6 +22,7 @@ describe('fetchRuntimeConfig', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    globalThis.fetch = realFetch
   })
 
   it('fetches config from default endpoint', async () => {
@@ -181,6 +186,7 @@ describe('resolveWithConfig', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    globalThis.fetch = realFetch
   })
 
   it('uses injected config apiUrl', async () => {

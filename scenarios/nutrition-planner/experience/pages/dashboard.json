@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Home (retired)",
+    "routes": [
+      "/dashboard"
+    ],
+    "purpose": "Deprecated placeholder superseded by Today; retained only so the generated BAS case that referenced the scaffold home page continues to resolve.",
+    "prd_refs": [
+      "OT-P0-008"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The surface at rest with data present; the state a journey step assumes when it names none.",
+      "setup": {
+        "route": "/dashboard"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "First read of the page's data; layout is reserved so nothing shifts on arrival.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "loading"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "The read succeeded and there is genuinely nothing, which is distinct from not-yet-loaded.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some contributing data could not be read; what is missing is named rather than shown as zero.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is older than its freshness window; its age is shown.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the reason and the next available action are stated.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "validation-error",
+      "description": "Input was rejected before submission; the offending field is identified next to it.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "validation-error"
+        }
+      }
+    },
+    {
+      "id": "saving",
+      "description": "A write is in flight; the affected control says why it is unavailable.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "saving"
+        }
+      }
+    },
+    {
+      "id": "offline",
+      "description": "The client cannot reach the API; read-only or queued behavior is explained.",
+      "setup": {
+        "route": "/dashboard",
+        "query": {
+          "fixture": "offline"
+        }
+      }
+    }
+  ]
+}

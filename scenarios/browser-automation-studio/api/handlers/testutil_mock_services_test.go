@@ -1,0 +1,1408 @@
+package handlers
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/minio/minio-go/v7"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
+	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/domain"
+	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	"github.com/vrooli/browser-automation-studio/services/workflow"
+	"github.com/vrooli/browser-automation-studio/storage"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	basexports "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
+	basprojects "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/projects"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
+)
+
+// ============================================================================
+// Mock CatalogService
+// ============================================================================
+
+// MockCatalogService is a test mock for workflow.CatalogService
+type MockCatalogService struct {
+	mu sync.RWMutex
+
+	// Storage
+	projects  map[uuid.UUID]*database.ProjectIndex
+	workflows map[uuid.UUID]*database.WorkflowIndex
+
+	// Error injection for testing error paths
+	CheckHealthError            error
+	CheckAutomationHealthError  error
+	CreateProjectError          error
+	GetProjectError             error
+	GetProjectByNameError       error
+	GetProjectByFolderPathError error
+	UpdateProjectError          error
+	DeleteProjectError          error
+	ListProjectsError           error
+	GetProjectStatsError        error
+	GetProjectsStatsError       error
+	ListWorkflowsByProjectError error
+	DeleteProjectWorkflowsError error
+	CreateWorkflowError         error
+	GetWorkflowAPIError         error
+	UpdateWorkflowError         error
+	DeleteWorkflowError         error
+	ListWorkflowsError          error
+	SyncProjectWorkflowsError   error
+
+	// Health check responses
+	AutomationHealthy bool
+
+	// Call tracking
+	CreateProjectCalled        bool
+	DeleteProjectCalled        bool
+	SyncProjectWorkflowsCalled bool
+}
+
+func NewMockCatalogService() *MockCatalogService {
+	return &MockCatalogService{
+		projects:          make(map[uuid.UUID]*database.ProjectIndex),
+		workflows:         make(map[uuid.UUID]*database.WorkflowIndex),
+		AutomationHealthy: true,
+	}
+}
+
+// Compile-time interface check
+var _ workflow.CatalogService = (*MockCatalogService)(nil)
+
+func (m *MockCatalogService) CheckHealth() string {
+	return "healthy"
+}
+
+func (m *MockCatalogService) CheckAutomationHealth(ctx context.Context) (bool, error) {
+	if m.CheckAutomationHealthError != nil {
+		return false, m.CheckAutomationHealthError
+	}
+	return m.AutomationHealthy, nil
+}
+
+func (m *MockCatalogService) CreateProject(ctx context.Context, project *database.ProjectIndex, description string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CreateProjectCalled = true
+
+	if m.CreateProjectError != nil {
+		return m.CreateProjectError
+	}
+
+	if project.ID == uuid.Nil {
+		project.ID = uuid.New()
+	}
+	copy := *project
+	m.projects[project.ID] = &copy
+	return nil
+}
+
+func (m *MockCatalogService) GetProject(ctx context.Context, id uuid.UUID) (*database.ProjectIndex, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetProjectError != nil {
+		return nil, m.GetProjectError
+	}
+
+	project, ok := m.projects[id]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	copy := *project
+	return &copy, nil
+}
+
+func (m *MockCatalogService) GetProjectByName(ctx context.Context, name string) (*database.ProjectIndex, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetProjectByNameError != nil {
+		return nil, m.GetProjectByNameError
+	}
+
+	for _, project := range m.projects {
+		if project.Name == name {
+			copy := *project
+			return &copy, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *MockCatalogService) GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.ProjectIndex, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetProjectByFolderPathError != nil {
+		return nil, m.GetProjectByFolderPathError
+	}
+
+	for _, project := range m.projects {
+		if project.FolderPath == folderPath {
+			copy := *project
+			return &copy, nil
+		}
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *MockCatalogService) UpdateProject(ctx context.Context, project *database.ProjectIndex, description string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.UpdateProjectError != nil {
+		return m.UpdateProjectError
+	}
+
+	if _, ok := m.projects[project.ID]; !ok {
+		return database.ErrNotFound
+	}
+	copy := *project
+	m.projects[project.ID] = &copy
+	return nil
+}
+
+func (m *MockCatalogService) DeleteProject(ctx context.Context, id uuid.UUID, deleteFiles bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.DeleteProjectCalled = true
+
+	if m.DeleteProjectError != nil {
+		return m.DeleteProjectError
+	}
+
+	delete(m.projects, id)
+	return nil
+}
+
+func (m *MockCatalogService) ListProjects(ctx context.Context, limit, offset int) ([]*database.ProjectIndex, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ListProjectsError != nil {
+		return nil, m.ListProjectsError
+	}
+
+	projects := make([]*database.ProjectIndex, 0, len(m.projects))
+	for _, p := range m.projects {
+		copy := *p
+		projects = append(projects, &copy)
+	}
+	return projects, nil
+}
+
+func (m *MockCatalogService) GetProjectStats(ctx context.Context, projectID uuid.UUID) (*database.ProjectStats, error) {
+	if m.GetProjectStatsError != nil {
+		return nil, m.GetProjectStatsError
+	}
+	return &database.ProjectStats{ProjectID: projectID}, nil
+}
+
+func (m *MockCatalogService) GetProjectsStats(ctx context.Context, projectIDs []uuid.UUID) (map[uuid.UUID]*database.ProjectStats, error) {
+	if m.GetProjectsStatsError != nil {
+		return nil, m.GetProjectsStatsError
+	}
+
+	result := make(map[uuid.UUID]*database.ProjectStats, len(projectIDs))
+	for _, id := range projectIDs {
+		result[id] = &database.ProjectStats{ProjectID: id}
+	}
+	return result, nil
+}
+
+func (m *MockCatalogService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.WorkflowIndex, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ListWorkflowsByProjectError != nil {
+		return nil, m.ListWorkflowsByProjectError
+	}
+
+	workflows := make([]*database.WorkflowIndex, 0)
+	for _, w := range m.workflows {
+		if w.ProjectID != nil && *w.ProjectID == projectID {
+			copy := *w
+			workflows = append(workflows, &copy)
+		}
+	}
+	return workflows, nil
+}
+
+func (m *MockCatalogService) DeleteProjectWorkflows(ctx context.Context, projectID uuid.UUID, workflowIDs []uuid.UUID) error {
+	if m.DeleteProjectWorkflowsError != nil {
+		return m.DeleteProjectWorkflowsError
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, id := range workflowIDs {
+		delete(m.workflows, id)
+	}
+	return nil
+}
+
+func (m *MockCatalogService) EnsureSeedProject(ctx context.Context) (*database.ProjectIndex, error) {
+	return &database.ProjectIndex{
+		ID:         uuid.New(),
+		Name:       "Demo Project",
+		FolderPath: "/tmp/demo",
+	}, nil
+}
+
+func (m *MockCatalogService) HydrateProject(ctx context.Context, project *database.ProjectIndex) (*basprojects.Project, error) {
+	return &basprojects.Project{
+		Id:          project.ID.String(),
+		Name:        project.Name,
+		Description: "",
+		FolderPath:  project.FolderPath,
+	}, nil
+}
+
+func (m *MockCatalogService) CreateWorkflow(ctx context.Context, req *basapi.CreateWorkflowRequest) (*basapi.CreateWorkflowResponse, error) {
+	if m.CreateWorkflowError != nil {
+		return nil, m.CreateWorkflowError
+	}
+	return &basapi.CreateWorkflowResponse{
+		Workflow: &basapi.WorkflowSummary{
+			Id:   uuid.New().String(),
+			Name: req.GetName(),
+		},
+	}, nil
+}
+
+func (m *MockCatalogService) GetWorkflowAPI(ctx context.Context, req *basapi.GetWorkflowRequest) (*basapi.GetWorkflowResponse, error) {
+	if m.GetWorkflowAPIError != nil {
+		return nil, m.GetWorkflowAPIError
+	}
+	return &basapi.GetWorkflowResponse{}, nil
+}
+
+func (m *MockCatalogService) UpdateWorkflow(ctx context.Context, req *basapi.UpdateWorkflowRequest) (*basapi.UpdateWorkflowResponse, error) {
+	if m.UpdateWorkflowError != nil {
+		return nil, m.UpdateWorkflowError
+	}
+	return &basapi.UpdateWorkflowResponse{}, nil
+}
+
+func (m *MockCatalogService) DeleteWorkflow(ctx context.Context, req *basapi.DeleteWorkflowRequest) (*basapi.DeleteWorkflowResponse, error) {
+	if m.DeleteWorkflowError != nil {
+		return nil, m.DeleteWorkflowError
+	}
+	return &basapi.DeleteWorkflowResponse{}, nil
+}
+
+func (m *MockCatalogService) ListWorkflows(ctx context.Context, req *basapi.ListWorkflowsRequest) (*basapi.ListWorkflowsResponse, error) {
+	if m.ListWorkflowsError != nil {
+		return nil, m.ListWorkflowsError
+	}
+	return &basapi.ListWorkflowsResponse{
+		Workflows: []*basapi.WorkflowSummary{},
+	}, nil
+}
+
+func (m *MockCatalogService) GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	workflow, ok := m.workflows[workflowID]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	return &basapi.WorkflowSummary{
+		Id:   workflow.ID.String(),
+		Name: workflow.Name,
+	}, nil
+}
+
+func (m *MockCatalogService) GetWorkflowVersion(ctx context.Context, workflowID uuid.UUID, version int) (*basapi.WorkflowSummary, error) {
+	return m.GetWorkflow(ctx, workflowID)
+}
+
+func (m *MockCatalogService) GetWorkflowByProjectPath(ctx context.Context, callingWorkflowID uuid.UUID, workflowPath string, projectRoot string) (*basapi.WorkflowSummary, error) {
+	return nil, database.ErrNotFound
+}
+
+func (m *MockCatalogService) ListWorkflowVersionsAPI(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowVersionList, error) {
+	return &basapi.WorkflowVersionList{}, nil
+}
+
+func (m *MockCatalogService) GetWorkflowVersionAPI(ctx context.Context, workflowID uuid.UUID, version int32) (*basapi.WorkflowVersion, error) {
+	return &basapi.WorkflowVersion{}, nil
+}
+
+func (m *MockCatalogService) RestoreWorkflowVersionAPI(ctx context.Context, workflowID uuid.UUID, version int32, changeDescription string) (*basapi.RestoreWorkflowVersionResponse, error) {
+	return &basapi.RestoreWorkflowVersionResponse{}, nil
+}
+
+func (m *MockCatalogService) SyncProjectWorkflows(ctx context.Context, projectID uuid.UUID) error {
+	m.SyncProjectWorkflowsCalled = true
+	return m.SyncProjectWorkflowsError
+}
+
+func (m *MockCatalogService) ModifyWorkflowAPI(ctx context.Context, workflowID uuid.UUID, prompt string, current *basworkflows.WorkflowDefinitionV2) (*basapi.UpdateWorkflowResponse, error) {
+	return &basapi.UpdateWorkflowResponse{}, nil
+}
+
+// Test helper methods
+func (m *MockCatalogService) AddProject(project *database.ProjectIndex) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if project.ID == uuid.Nil {
+		project.ID = uuid.New()
+	}
+	copy := *project
+	m.projects[project.ID] = &copy
+}
+
+func (m *MockCatalogService) AddWorkflow(workflow *database.WorkflowIndex) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if workflow.ID == uuid.Nil {
+		workflow.ID = uuid.New()
+	}
+	copy := *workflow
+	m.workflows[workflow.ID] = &copy
+}
+
+// ============================================================================
+// Mock ExecutionService
+// ============================================================================
+
+// MockExecutionService is a test mock for workflow.ExecutionService
+type MockExecutionService struct {
+	mu sync.RWMutex
+
+	executions map[uuid.UUID]*database.ExecutionIndex
+
+	// Error injection
+	ExecuteWorkflowError            error
+	ExecuteWorkflowAPIError         error
+	ExecuteAdhocWorkflowAPIError    error
+	StopExecutionError              error
+	ResumeExecutionError            error
+	ListExecutionsError             error
+	GetExecutionError               error
+	UpdateExecutionError            error
+	GetExecutionScreenshotsError    error
+	GetExecutionTimelineError       error
+	GetExecutionTimelineProtoError  error
+	GetExecutionReplayPackageError  error
+	DescribeExecutionExportError    error
+	ExportToFolderError             error
+	HydrateExecutionProtoError      error
+	GetExecutionTraceArtifactsError error
+	GetExecutionHarArtifactsError   error
+	GetExecutionVideoArtifactsError error
+
+	// Response overrides
+	ExecutionScreenshots    []*basexecution.ExecutionScreenshot
+	ExecutionTimeline       *workflow.ExecutionTimeline
+	ExecutionTimelineProto  *bastimeline.ExecutionTimeline
+	ExecutionReplayPackage  *basevidence.ReplayPackage
+	ExecutionTraceArtifacts []workflow.ExecutionFileArtifact
+	ExecutionHarArtifacts   []workflow.ExecutionFileArtifact
+	ExecutionVideoArtifacts []workflow.ExecutionVideoArtifact
+
+	// Call tracking
+	StopExecutionCalled   bool
+	ResumeExecutionCalled bool
+}
+
+func NewMockExecutionService() *MockExecutionService {
+	return &MockExecutionService{
+		executions: make(map[uuid.UUID]*database.ExecutionIndex),
+	}
+}
+
+// Compile-time interface check
+var _ workflow.ExecutionService = (*MockExecutionService)(nil)
+
+func (m *MockExecutionService) ExecuteWorkflow(ctx context.Context, workflowID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
+	if m.ExecuteWorkflowError != nil {
+		return nil, m.ExecuteWorkflowError
+	}
+
+	execution := &database.ExecutionIndex{
+		ID:         uuid.New(),
+		WorkflowID: workflowID,
+		Status:     "running",
+	}
+
+	m.mu.Lock()
+	m.executions[execution.ID] = execution
+	m.mu.Unlock()
+
+	return execution, nil
+}
+
+func (m *MockExecutionService) ExecuteWorkflowAPI(ctx context.Context, req *basapi.ExecuteWorkflowRequest) (*basapi.ExecuteWorkflowResponse, error) {
+	return m.ExecuteWorkflowAPIWithOptions(ctx, req, nil)
+}
+
+func (m *MockExecutionService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req *basapi.ExecuteWorkflowRequest, opts *workflow.ExecuteOptions) (*basapi.ExecuteWorkflowResponse, error) {
+	if m.ExecuteWorkflowAPIError != nil {
+		return nil, m.ExecuteWorkflowAPIError
+	}
+
+	executionID := uuid.New()
+	return &basapi.ExecuteWorkflowResponse{
+		ExecutionId: executionID.String(),
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+	}, nil
+}
+
+func (m *MockExecutionService) ExecuteAdhocWorkflowAPI(ctx context.Context, req *basexecution.ExecuteAdhocRequest) (*basexecution.ExecuteAdhocResponse, error) {
+	return m.ExecuteAdhocWorkflowAPIWithOptions(ctx, req, nil)
+}
+
+func (m *MockExecutionService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *workflow.ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error) {
+	if m.ExecuteAdhocWorkflowAPIError != nil {
+		return nil, m.ExecuteAdhocWorkflowAPIError
+	}
+
+	executionID := uuid.New()
+	return &basexecution.ExecuteAdhocResponse{
+		ExecutionId: executionID.String(),
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+	}, nil
+}
+
+func (m *MockExecutionService) StopExecution(ctx context.Context, executionID uuid.UUID) error {
+	m.StopExecutionCalled = true
+
+	if m.StopExecutionError != nil {
+		return m.StopExecutionError
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if execution, ok := m.executions[executionID]; ok {
+		execution.Status = "stopped"
+	}
+	return nil
+}
+
+func (m *MockExecutionService) ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error) {
+	m.ResumeExecutionCalled = true
+
+	if m.ResumeExecutionError != nil {
+		return nil, m.ResumeExecutionError
+	}
+
+	newExecution := &database.ExecutionIndex{
+		ID:     uuid.New(),
+		Status: "running",
+	}
+
+	m.mu.Lock()
+	m.executions[newExecution.ID] = newExecution
+	m.mu.Unlock()
+
+	return newExecution, nil
+}
+
+func (m *MockExecutionService) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
+	if m.ListExecutionsError != nil {
+		return nil, 0, m.ListExecutionsError
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	executions := make([]*database.ExecutionIndex, 0, len(m.executions))
+	for _, e := range m.executions {
+		// Note: projectID filtering would require workflow lookup, skip for mock
+		if (query.WorkflowID == nil || e.WorkflowID == *query.WorkflowID) && (query.Status == "" || e.Status == query.Status) {
+			copy := *e
+			executions = append(executions, &copy)
+		}
+	}
+	return applyTestPagination(executions, query.Limit, query.Offset), len(executions), nil
+}
+
+func applyTestPagination[T any](items []*T, limit, offset int) []*T {
+	if offset >= len(items) {
+		return []*T{}
+	}
+	items = items[offset:]
+	if limit > 0 && limit < len(items) {
+		items = items[:limit]
+	}
+	return items
+}
+
+func (m *MockExecutionService) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	if m.GetExecutionError != nil {
+		return nil, m.GetExecutionError
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	execution, ok := m.executions[id]
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+	copy := *execution
+	return &copy, nil
+}
+
+func (m *MockExecutionService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
+	if m.UpdateExecutionError != nil {
+		return m.UpdateExecutionError
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.executions[execution.ID]; !ok {
+		return database.ErrNotFound
+	}
+	copy := *execution
+	m.executions[execution.ID] = &copy
+	return nil
+}
+
+func (m *MockExecutionService) GetExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]*basexecution.ExecutionScreenshot, error) {
+	if m.GetExecutionScreenshotsError != nil {
+		return nil, m.GetExecutionScreenshotsError
+	}
+
+	if m.ExecutionScreenshots != nil {
+		return m.ExecutionScreenshots, nil
+	}
+	return []*basexecution.ExecutionScreenshot{}, nil
+}
+
+func (m *MockExecutionService) GetExecutionVideoArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionVideoArtifact, error) {
+	if m.GetExecutionVideoArtifactsError != nil {
+		return nil, m.GetExecutionVideoArtifactsError
+	}
+	if m.ExecutionVideoArtifacts != nil {
+		return m.ExecutionVideoArtifacts, nil
+	}
+	return []workflow.ExecutionVideoArtifact{}, nil
+}
+
+func (m *MockExecutionService) GetExecutionTraceArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
+	if m.GetExecutionTraceArtifactsError != nil {
+		return nil, m.GetExecutionTraceArtifactsError
+	}
+	if m.ExecutionTraceArtifacts != nil {
+		return m.ExecutionTraceArtifacts, nil
+	}
+	return []workflow.ExecutionFileArtifact{}, nil
+}
+
+func (m *MockExecutionService) GetExecutionHarArtifacts(ctx context.Context, executionID uuid.UUID) ([]workflow.ExecutionFileArtifact, error) {
+	if m.GetExecutionHarArtifactsError != nil {
+		return nil, m.GetExecutionHarArtifactsError
+	}
+	if m.ExecutionHarArtifacts != nil {
+		return m.ExecutionHarArtifacts, nil
+	}
+	return []workflow.ExecutionFileArtifact{}, nil
+}
+
+func (m *MockExecutionService) GetExecutionReplayPackage(ctx context.Context, executionID uuid.UUID) (*basevidence.ReplayPackage, error) {
+	if m.GetExecutionReplayPackageError != nil {
+		return nil, m.GetExecutionReplayPackageError
+	}
+	if m.ExecutionReplayPackage != nil {
+		return m.ExecutionReplayPackage, nil
+	}
+	return nil, database.ErrNotFound
+}
+
+func (m *MockExecutionService) HydrateExecutionProto(ctx context.Context, execIndex *database.ExecutionIndex) (*basexecution.Execution, error) {
+	if m.HydrateExecutionProtoError != nil {
+		return nil, m.HydrateExecutionProtoError
+	}
+
+	return &basexecution.Execution{
+		ExecutionId: execIndex.ID.String(),
+		Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+	}, nil
+}
+
+func (m *MockExecutionService) GetExecutionTimeline(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionTimeline, error) {
+	if m.GetExecutionTimelineError != nil {
+		return nil, m.GetExecutionTimelineError
+	}
+
+	if m.ExecutionTimeline != nil {
+		return m.ExecutionTimeline, nil
+	}
+	return &workflow.ExecutionTimeline{}, nil
+}
+
+func (m *MockExecutionService) GetExecutionTimelineProto(ctx context.Context, executionID uuid.UUID) (*bastimeline.ExecutionTimeline, error) {
+	if m.GetExecutionTimelineProtoError != nil {
+		return nil, m.GetExecutionTimelineProtoError
+	}
+	if m.ExecutionTimelineProto != nil {
+		return m.ExecutionTimelineProto, nil
+	}
+	return &bastimeline.ExecutionTimeline{}, nil
+}
+
+func (m *MockExecutionService) DescribeExecutionExport(ctx context.Context, executionID uuid.UUID) (*workflow.ExecutionExportPreview, error) {
+	if m.DescribeExecutionExportError != nil {
+		return nil, m.DescribeExecutionExportError
+	}
+	return &workflow.ExecutionExportPreview{
+		Package: &basexports.ReplaySpec{},
+	}, nil
+}
+
+func (m *MockExecutionService) ExportToFolder(ctx context.Context, executionID uuid.UUID, outputDir string, storageClient storage.StorageInterface) error {
+	return m.ExportToFolderError
+}
+
+// Test helper methods
+func (m *MockExecutionService) AddExecution(execution *database.ExecutionIndex) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if execution.ID == uuid.Nil {
+		execution.ID = uuid.New()
+	}
+	copy := *execution
+	m.executions[execution.ID] = &copy
+}
+
+// ============================================================================
+// Mock Storage
+// ============================================================================
+
+// MockStorage is a test mock for storage.StorageInterface
+type MockStorage struct {
+	mu sync.RWMutex
+
+	screenshots map[string][]byte
+	artifacts   map[string][]byte
+
+	// Error injection
+	HealthCheckError      error
+	GetScreenshotError    error
+	StoreScreenshotError  error
+	DeleteScreenshotError error
+	ListScreenshotsError  error
+	GetArtifactError      error
+	StoreArtifactError    error
+
+	// Config
+	BucketName string
+	Healthy    bool
+}
+
+func NewMockStorage() *MockStorage {
+	return &MockStorage{
+		screenshots: make(map[string][]byte),
+		artifacts:   make(map[string][]byte),
+		BucketName:  "test-bucket",
+		Healthy:     true,
+	}
+}
+
+// Compile-time interface check
+var _ storage.StorageInterface = (*MockStorage)(nil)
+
+func (m *MockStorage) GetScreenshot(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	if m.GetScreenshotError != nil {
+		return nil, nil, m.GetScreenshotError
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	data, ok := m.screenshots[objectName]
+	if !ok {
+		return nil, nil, database.ErrNotFound
+	}
+
+	return io.NopCloser(strings.NewReader(string(data))), &minio.ObjectInfo{
+		Key:  objectName,
+		Size: int64(len(data)),
+	}, nil
+}
+
+func (m *MockStorage) StoreScreenshot(ctx context.Context, executionID uuid.UUID, stepName string, data []byte, contentType string) (*storage.ScreenshotInfo, error) {
+	if m.StoreScreenshotError != nil {
+		return nil, m.StoreScreenshotError
+	}
+
+	objectName := executionID.String() + "/" + stepName + ".png"
+
+	m.mu.Lock()
+	m.screenshots[objectName] = data
+	m.mu.Unlock()
+
+	return &storage.ScreenshotInfo{
+		ObjectName: objectName,
+		SizeBytes:  int64(len(data)),
+	}, nil
+}
+
+func (m *MockStorage) StoreScreenshotFromFile(ctx context.Context, executionID uuid.UUID, stepName string, filePath string) (*storage.ScreenshotInfo, error) {
+	return m.StoreScreenshot(ctx, executionID, stepName, []byte("mock-file-content"), "image/png")
+}
+
+func (m *MockStorage) DeleteScreenshot(ctx context.Context, objectName string) error {
+	if m.DeleteScreenshotError != nil {
+		return m.DeleteScreenshotError
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.screenshots, objectName)
+	return nil
+}
+
+func (m *MockStorage) ListExecutionScreenshots(ctx context.Context, executionID uuid.UUID) ([]string, error) {
+	if m.ListScreenshotsError != nil {
+		return nil, m.ListScreenshotsError
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	prefix := executionID.String() + "/"
+	var result []string
+	for key := range m.screenshots {
+		if strings.HasPrefix(key, prefix) {
+			result = append(result, key)
+		}
+	}
+	return result, nil
+}
+
+func (m *MockStorage) GetArtifact(ctx context.Context, objectName string) (io.ReadCloser, *minio.ObjectInfo, error) {
+	if m.GetArtifactError != nil {
+		return nil, nil, m.GetArtifactError
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	data, ok := m.artifacts[objectName]
+	if !ok {
+		return nil, nil, database.ErrNotFound
+	}
+
+	return io.NopCloser(strings.NewReader(string(data))), &minio.ObjectInfo{
+		Key:  objectName,
+		Size: int64(len(data)),
+	}, nil
+}
+
+func (m *MockStorage) StoreArtifactFromFile(ctx context.Context, executionID uuid.UUID, label string, filePath string, contentType string) (*storage.ArtifactInfo, error) {
+	return m.StoreArtifact(ctx, executionID.String()+"/"+label, []byte("mock-artifact"), contentType)
+}
+
+func (m *MockStorage) StoreArtifact(ctx context.Context, objectName string, data []byte, contentType string) (*storage.ArtifactInfo, error) {
+	if m.StoreArtifactError != nil {
+		return nil, m.StoreArtifactError
+	}
+
+	m.mu.Lock()
+	m.artifacts[objectName] = data
+	m.mu.Unlock()
+	digest := sha256.Sum256(data)
+
+	return &storage.ArtifactInfo{
+		ObjectName: objectName,
+		SizeBytes:  int64(len(data)),
+		SHA256:     hex.EncodeToString(digest[:]),
+	}, nil
+}
+
+func (m *MockStorage) HealthCheck(ctx context.Context) error {
+	if m.HealthCheckError != nil {
+		return m.HealthCheckError
+	}
+	if !m.Healthy {
+		return database.ErrNotFound
+	}
+	return nil
+}
+
+func (m *MockStorage) GetBucketName() string {
+	return m.BucketName
+}
+
+// ============================================================================
+// Mock DriverClient (implements driver.ClientInterface)
+// ============================================================================
+
+// MockDriverClient is a test mock for driver.ClientInterface.
+// It provides configurable responses and error injection for testing handlers.
+type MockDriverClient struct {
+	mu sync.RWMutex
+
+	// Error injection
+
+	GetRecordingStatusError   error
+	GetRecordedActionsError   error
+	GetNavigationStateError   error
+	GetNavigationStackError   error
+	UpdateViewportError       error
+	UpdateStreamSettingsError error
+	ValidateSelectorError     error
+	ReplayPreviewError        error
+	CaptureScreenshotError    error
+	GetFrameError             error
+
+	// Response overrides
+
+	RecordingStatusResponse  *driver.RecordingStatusResponse
+	RecordedActionsResponse  *driver.GetActionsResponse
+	NavigationStateResponse  *driver.NavigationStateResponse
+	NavigationStackResponse  *driver.NavigationStackResponse
+	UpdateViewportResponse   *driver.UpdateViewportResponse
+	StreamSettingsResponse   *driver.UpdateStreamSettingsResponse
+	ValidateSelectorResponse *driver.ValidateSelectorResponse
+	ReplayPreviewResponse    *driver.ReplayPreviewResponse
+	ScreenshotResponse       *driver.CaptureScreenshotResponse
+	FrameResponse            *driver.GetFrameResponse
+	GetFrameFunc             func(context.Context, string, string) (*driver.GetFrameResponse, error)
+
+	// Call tracking
+
+	GetRecordedActionsCalled bool
+
+	LastSessionID string
+}
+
+// NewMockDriverClient creates a new MockDriverClient.
+func NewMockDriverClient() *MockDriverClient {
+	return &MockDriverClient{}
+}
+
+func (m *MockRecordModeService) StopRecording(ctx context.Context, sessionID string) (*driver.StopRecordingResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StopRecordingCalled = true
+	m.LastSessionID = sessionID
+
+	if m.StopRecordingError != nil {
+		return nil, m.StopRecordingError
+	}
+	if m.StopRecordingResponse != nil {
+		return m.StopRecordingResponse, nil
+	}
+	return &driver.StopRecordingResponse{
+		SessionID:   sessionID,
+		RecordingID: "recording-fixture",
+		ActionCount: 5,
+		StoppedAt:   time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func (m *MockDriverClient) GetRecordingStatus(ctx context.Context, sessionID string) (*driver.RecordingStatusResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetRecordingStatusError != nil {
+		return nil, m.GetRecordingStatusError
+	}
+	if m.RecordingStatusResponse != nil {
+		return m.RecordingStatusResponse, nil
+	}
+	return &driver.RecordingStatusResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		ActionCount: 0,
+		FrameCount:  0,
+	}, nil
+}
+
+func (m *MockDriverClient) GetRecordedActions(ctx context.Context, sessionID string) (*driver.GetActionsResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.GetRecordedActionsCalled = true
+	m.LastSessionID = sessionID
+
+	if m.GetRecordedActionsError != nil {
+		return nil, m.GetRecordedActionsError
+	}
+	if m.RecordedActionsResponse != nil {
+		return m.RecordedActionsResponse, nil
+	}
+	return &driver.GetActionsResponse{
+		SessionID:   sessionID,
+		IsRecording: false,
+		Actions:     []driver.RecordedAction{},
+	}, nil
+}
+
+func (m *MockDriverClient) GetNavigationState(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*driver.NavigationStateResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetNavigationStateError != nil {
+		return nil, m.GetNavigationStateError
+	}
+	if m.NavigationStateResponse != nil {
+		return m.NavigationStateResponse, nil
+	}
+	return &driver.NavigationStateResponse{
+		URL:          "https://example.com",
+		Title:        "Test Page",
+		CanGoBack:    false,
+		CanGoForward: false,
+	}, nil
+}
+
+func (m *MockDriverClient) GetNavigationStack(ctx context.Context, sessionID, executionID, leaseID, expectedPageID string) (*driver.NavigationStackResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetNavigationStackError != nil {
+		return nil, m.GetNavigationStackError
+	}
+	if m.NavigationStackResponse != nil {
+		return m.NavigationStackResponse, nil
+	}
+	return &driver.NavigationStackResponse{
+		SessionID:    sessionID,
+		BackStack:    []driver.NavigationStackEntry{},
+		ForwardStack: []driver.NavigationStackEntry{},
+	}, nil
+}
+
+func (m *MockDriverClient) UpdateViewport(ctx context.Context, sessionID, executionID, leaseID string, req *driver.UpdateViewportRequest) (*driver.UpdateViewportResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.UpdateViewportError != nil {
+		return nil, m.UpdateViewportError
+	}
+	if m.UpdateViewportResponse != nil {
+		return m.UpdateViewportResponse, nil
+	}
+	return &driver.UpdateViewportResponse{
+		SessionID:    sessionID,
+		DriverPageID: req.ExpectedPageID,
+		Width:        req.Width,
+		Height:       req.Height,
+	}, nil
+}
+
+func (m *MockDriverClient) UpdateStreamSettings(ctx context.Context, sessionID string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.UpdateStreamSettingsError != nil {
+		return nil, m.UpdateStreamSettingsError
+	}
+	if m.StreamSettingsResponse != nil {
+		return m.StreamSettingsResponse, nil
+	}
+
+	quality := 55
+	if req.Quality != nil {
+		quality = *req.Quality
+	}
+	fps := 6
+	if req.FPS != nil {
+		fps = *req.FPS
+	}
+
+	return &driver.UpdateStreamSettingsResponse{
+		SessionID:   sessionID,
+		Quality:     quality,
+		FPS:         fps,
+		CurrentFPS:  float64(fps),
+		Scale:       req.Scale,
+		IsStreaming: true,
+		Updated:     true,
+	}, nil
+}
+
+func (m *MockDriverClient) ValidateSelector(ctx context.Context, sessionID string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ValidateSelectorError != nil {
+		return nil, m.ValidateSelectorError
+	}
+	if m.ValidateSelectorResponse != nil {
+		return m.ValidateSelectorResponse, nil
+	}
+	return &driver.ValidateSelectorResponse{
+		Valid:      true,
+		MatchCount: 1,
+		Selector:   req.Selector,
+	}, nil
+}
+
+func (m *MockDriverClient) ReplayPreview(ctx context.Context, sessionID string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.ReplayPreviewError != nil {
+		return nil, m.ReplayPreviewError
+	}
+	if m.ReplayPreviewResponse != nil {
+		return m.ReplayPreviewResponse, nil
+	}
+	return &driver.ReplayPreviewResponse{
+		Success:         true,
+		PassedActions:   len(req.Actions),
+		FailedActions:   0,
+		Results:         []driver.ActionResult{},
+		TotalDurationMs: 100,
+	}, nil
+}
+
+func (m *MockDriverClient) CaptureScreenshot(ctx context.Context, sessionID string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.CaptureScreenshotError != nil {
+		return nil, m.CaptureScreenshotError
+	}
+	if m.ScreenshotResponse != nil {
+		return m.ScreenshotResponse, nil
+	}
+	return &driver.CaptureScreenshotResponse{
+		Data: "base64-screenshot-data",
+	}, nil
+}
+
+func (m *MockDriverClient) GetFrame(ctx context.Context, sessionID, queryParams string) (*driver.GetFrameResponse, error) {
+	if m.GetFrameFunc != nil {
+		return m.GetFrameFunc(ctx, sessionID, queryParams)
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetFrameError != nil {
+		return nil, m.GetFrameError
+	}
+	if m.FrameResponse != nil {
+		return m.FrameResponse, nil
+	}
+	return &driver.GetFrameResponse{
+		SessionID:   sessionID,
+		Image:       "base64-frame-data",
+		Mime:        "image/jpeg",
+		Width:       1920,
+		Height:      1080,
+		CapturedAt:  time.Now().UTC().Format(time.RFC3339),
+		ContentHash: "abc123",
+	}, nil
+}
+
+func (m *MockRecordModeService) ForwardInput(ctx context.Context, sessionID string, body []byte) (*driver.ForwardInputResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.ForwardInputCalled = true
+	m.LastSessionID = sessionID
+	m.LastForwardInputBody = body
+
+	if m.ForwardInputError != nil {
+		return nil, m.ForwardInputError
+	}
+	return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: 1}, nil
+}
+
+// Compile-time interface check
+var _ driver.ClientInterface = (*MockDriverClient)(nil)
+
+// ============================================================================
+// Mock RecordModeService
+// ============================================================================
+
+// MockRecordModeService is a test mock for RecordModeService interface.
+// It implements the RecordModeService interface defined in handler.go.
+type MockRecordModeService struct {
+	OwnedSessions         map[string]*autosession.Session
+	LastForwardInputBody  []byte
+	ForwardInputCalled    bool
+	ForwardInputError     error
+	StopRecordingCalled   bool
+	StopRecordingResponse *driver.StopRecordingResponse
+	StopRecordingError    error
+	mu                    sync.RWMutex
+
+	// Session tracking
+	Sessions map[string]*livecapture.SessionResult
+
+	// Mock driver client for pass-through operations
+	mockDriverClient *MockDriverClient
+
+	// Error injection for service-level operations
+	CreateSessionError    error
+	CloseSessionError     error
+	GetStorageStateError  error
+	StartRecordingError   error
+	GenerateWorkflowError error
+
+	// Response overrides
+	StartRecordingResponse *driver.StartRecordingResponse
+	GeneratedWorkflow      *livecapture.GenerateWorkflowResult
+	StorageState           json.RawMessage
+
+	// Call tracking
+	CreateSessionCalled    bool
+	CloseSessionCalled     bool
+	StartRecordingCalled   bool
+	GenerateWorkflowCalled bool
+	LastSessionID          string
+}
+
+func NewMockRecordModeService() *MockRecordModeService {
+	return &MockRecordModeService{
+		Sessions:         make(map[string]*livecapture.SessionResult),
+		mockDriverClient: NewMockDriverClient(),
+	}
+}
+
+// MockClient provides direct access to the mock driver client for test configuration.
+func (m *MockRecordModeService) MockClient() *MockDriverClient {
+	return m.mockDriverClient
+}
+
+func (m *MockRecordModeService) GetRecordingStatus(ctx context.Context, id string) (*driver.RecordingStatusResponse, error) {
+	return m.mockDriverClient.GetRecordingStatus(ctx, id)
+}
+
+func (m *MockRecordModeService) GetRecordedActions(ctx context.Context, id string) (*driver.GetActionsResponse, error) {
+	return m.mockDriverClient.GetRecordedActions(ctx, id)
+}
+
+func (m *MockRecordModeService) CaptureScreenshot(ctx context.Context, id string, req *driver.CaptureScreenshotRequest) (*driver.CaptureScreenshotResponse, error) {
+	return m.mockDriverClient.CaptureScreenshot(ctx, id, req)
+}
+
+func (m *MockRecordModeService) UpdateStreamSettings(ctx context.Context, id string, req *driver.UpdateStreamSettingsRequest) (*driver.UpdateStreamSettingsResponse, error) {
+	return m.mockDriverClient.UpdateStreamSettings(ctx, id, req)
+}
+
+func (m *MockRecordModeService) GetFrame(ctx context.Context, id, query string) (*driver.GetFrameResponse, error) {
+	return m.mockDriverClient.GetFrame(ctx, id, query)
+}
+
+func (m *MockRecordModeService) ValidateSelector(ctx context.Context, id string, req *driver.ValidateSelectorRequest) (*driver.ValidateSelectorResponse, error) {
+	return m.mockDriverClient.ValidateSelector(ctx, id, req)
+}
+
+func (m *MockRecordModeService) ReplayPreview(ctx context.Context, id string, req *driver.ReplayPreviewRequest) (*driver.ReplayPreviewResponse, error) {
+	return m.mockDriverClient.ReplayPreview(ctx, id, req)
+}
+
+func (m *MockRecordModeService) GetRecordingDebug(context.Context, string) (*http.Response, error) {
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+}
+
+func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapture.SessionConfig) (*livecapture.SessionResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CreateSessionCalled = true
+
+	if m.CreateSessionError != nil {
+		return nil, m.CreateSessionError
+	}
+
+	result := &livecapture.SessionResult{
+		SessionID: "test-session-" + uuid.NewString()[:8],
+		CreatedAt: time.Now().UTC(),
+	}
+	result.Close = func(ctx context.Context) error { return m.CloseSession(ctx, result.SessionID) }
+	m.Sessions[result.SessionID] = result
+	m.LastSessionID = result.SessionID
+
+	return result, nil
+}
+
+func (m *MockRecordModeService) CloseSession(ctx context.Context, sessionID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CloseSessionCalled = true
+	m.LastSessionID = sessionID
+
+	if m.CloseSessionError != nil {
+		return m.CloseSessionError
+	}
+
+	delete(m.Sessions, sessionID)
+	return nil
+}
+
+func (m *MockRecordModeService) GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if m.GetStorageStateError != nil {
+		return nil, m.GetStorageStateError
+	}
+
+	if m.StorageState != nil {
+		return m.StorageState, nil
+	}
+	return json.RawMessage(`{"cookies":[],"origins":[]}`), nil
+}
+
+func (m *MockRecordModeService) StartRecording(ctx context.Context, sessionID string, cfg *livecapture.RecordingConfig) (*driver.StartRecordingResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StartRecordingCalled = true
+	m.LastSessionID = sessionID
+
+	if m.StartRecordingError != nil {
+		return nil, m.StartRecordingError
+	}
+
+	if m.StartRecordingResponse != nil {
+		return m.StartRecordingResponse, nil
+	}
+	return &driver.StartRecordingResponse{
+		SessionID:   sessionID,
+		RecordingID: "recording-fixture",
+		StartedAt:   time.Now().UTC().Format(time.RFC3339),
+	}, nil
+}
+
+func (m *MockRecordModeService) GenerateWorkflow(ctx context.Context, sessionID string, cfg *livecapture.GenerateWorkflowConfig) (*livecapture.GenerateWorkflowResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.GenerateWorkflowCalled = true
+	m.LastSessionID = sessionID
+
+	if m.GenerateWorkflowError != nil {
+		return nil, m.GenerateWorkflowError
+	}
+
+	if m.GeneratedWorkflow != nil {
+		return m.GeneratedWorkflow, nil
+	}
+
+	return &livecapture.GenerateWorkflowResult{
+		FlowDefinition: &basworkflows.WorkflowDefinitionV2{},
+		NodeCount:      0,
+		ActionCount:    0,
+	}, nil
+}
+
+// Multi-page support methods
+
+func (m *MockRecordModeService) GetSession(sessionID string) (*autosession.Session, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	session, ok := m.OwnedSessions[sessionID]
+	return session, ok
+}
+
+func (m *MockRecordModeService) GetPages(sessionID string) (*livecapture.PageListResult, error) {
+	return &livecapture.PageListResult{
+		Pages:        []*domain.Page{},
+		ActivePageID: "",
+	}, nil
+}
+
+func (m *MockRecordModeService) GetOpenPages(sessionID string) ([]*domain.Page, uuid.UUID, error) {
+	return []*domain.Page{}, uuid.Nil, nil
+}
+
+func (m *MockRecordModeService) ClosePage(ctx context.Context, sessionID string, pageID uuid.UUID) (*livecapture.PageCloseResult, error) {
+	sess, ok := m.GetSession(sessionID)
+	if !ok || sess.Pages() == nil {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	event, err := sess.Pages().ClosePage(pageID)
+	if err != nil {
+		return nil, err
+	}
+	result := &livecapture.PageCloseResult{Event: event}
+	if active := sess.Pages().GetActivePageID(); active != uuid.Nil {
+		result.ActivePageID = active.String()
+	}
+	return result, nil
+}
+
+func (m *MockRecordModeService) ActivatePage(ctx context.Context, sessionID string, pageID uuid.UUID) error {
+	return nil
+}
+
+// Service worker management methods
+
+func (m *MockRecordModeService) GetServiceWorkers(ctx context.Context, sessionID string) (*driver.GetServiceWorkersResponse, error) {
+	return &driver.GetServiceWorkersResponse{
+		SessionID: sessionID,
+		Workers:   []driver.ServiceWorkerInfo{},
+	}, nil
+}
+
+func (m *MockRecordModeService) UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*driver.UnregisterServiceWorkersResponse, error) {
+	return &driver.UnregisterServiceWorkersResponse{
+		SessionID:         sessionID,
+		UnregisteredCount: 0,
+	}, nil
+}
+
+func (m *MockRecordModeService) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*driver.UnregisterServiceWorkerResponse, error) {
+	return &driver.UnregisterServiceWorkerResponse{
+		SessionID: sessionID,
+	}, nil
+}
+
+// Timeline support methods
+
+func (m *MockRecordModeService) CreatePage(ctx context.Context, sessionID string, url string) (*domain.Page, error) {
+	return &domain.Page{
+		ID: uuid.New(), SessionID: sessionID, Status: domain.PageStatusActive, CreatedAt: time.Now(),
+		DriverPageID: "mock-page-id",
+		URL:          url,
+	}, nil
+}
+
+func (m *MockRecordModeService) RestoreTabs(ctx context.Context, sessionID string, tabs []sessionprofilepersistence.TabState) (*livecapture.TabRestorationResult, error) {
+	return &livecapture.TabRestorationResult{
+		InitialURL: "",
+		Tabs:       []livecapture.RestoredTab{},
+	}, nil
+}
+
+func (m *MockRecordModeService) AddTimelineAction(ctx context.Context, sessionID string, action *driver.RecordedAction, pageID uuid.UUID) error {
+	return nil
+}
+
+func (m *MockRecordModeService) AddTimelineEntry(ctx context.Context, sessionID string, entry *bastimeline.TimelineEntry, pageID uuid.UUID) error {
+	return nil
+}
+
+func (m *MockRecordModeService) AddTimelinePageEvent(ctx context.Context, sessionID string, event *domain.PageEvent) error {
+	return nil
+}
+
+func (m *MockRecordModeService) GetTimeline(ctx context.Context, sessionID string, pageID *uuid.UUID, limit, offset int) (*domain.TimelineResponse, error) {
+	return &domain.TimelineResponse{
+		Entries:      []domain.TimelineEntry{},
+		HasMore:      false,
+		TotalEntries: 0,
+	}, nil
+}

@@ -1,0 +1,207 @@
+syntax = "proto3";
+
+package vrooli.device_studio.v1.library;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "ai-gateway/v1/inference/inference.proto";
+import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-studio/v1/library;library_v1";
+
+service LibraryCatalogService {
+  rpc ListBundleRevisions(ListBundleRevisionsRequest) returns (ListBundleRevisionsResponse);
+  rpc GetBundleRevision(GetBundleRevisionRequest) returns (GetBundleRevisionResponse);
+  rpc ListIntakeCandidates(ListIntakeCandidatesRequest) returns (ListIntakeCandidatesResponse);
+  rpc GetIntakeCandidate(GetIntakeCandidateRequest) returns (GetIntakeCandidateResponse);
+}
+
+message ListBundleRevisionsRequest {
+  string after_bundle_id = 1;
+  uint32 after_revision = 2;
+  uint32 page_size = 3;
+}
+
+message ListBundleRevisionsResponse {
+  repeated BundleRevisionMetadata revisions = 1;
+  string next_after_bundle_id = 2;
+  uint32 next_after_revision = 3;
+}
+
+message GetBundleRevisionRequest {
+  string bundle_id = 1;
+  uint32 revision = 2;
+}
+
+message GetBundleRevisionResponse {
+  BundleRevisionMetadata revision = 1;
+}
+
+// Metadata only. This API does not expose storage keys or artifact bytes.
+message BundleRevisionMetadata {
+  BundleManifest manifest = 1;
+  string manifest_sha256 = 2;
+  ReviewBinding review = 3;
+  string review_sha256 = 4;
+  google.protobuf.Timestamp published_at = 5;
+}
+
+message BundleManifest {
+  uint32 version = 1;
+  string bundle_id = 2;
+  uint32 revision = 3;
+  repeated Artifact artifacts = 4;
+}
+
+message Artifact {
+  string id = 1;
+  string role = 2;
+  string mime = 3;
+  int64 size_bytes = 4;
+  string sha256 = 5;
+  string license_id = 6;
+  string attribution = 7;
+  ArtifactProvenance provenance = 8;
+  repeated string rights = 9;
+}
+
+message ArtifactProvenance {
+  string kind = 1;
+  string source_label = 2;
+  string source_sha256 = 3;
+  string derived_from_artifact_id = 4;
+  string adaptation = 5;
+}
+
+message ReviewBinding {
+  string id = 1;
+  string reviewer_id = 2;
+  google.protobuf.Timestamp reviewed_at = 3;
+  string decision = 4;
+  string manifest_sha256 = 5;
+  repeated string allowed_uses = 6;
+  string rationale = 7;
+}
+
+// User statements captured by local GLB intake. These claims do not grant
+// Library rights, review, or render qualification.
+message IntakeCandidateClaims {
+  string candidate_id = 1;
+  string display_name = 2;
+  string source_label = 3;
+  string license_claim = 4;
+  string attribution = 5;
+  repeated string declared_uses = 6;
+  string parent_candidate_id = 7;
+  uint32 parent_revision = 8;
+  string parent_sha256 = 9;
+}
+
+message ListIntakeCandidatesRequest {
+  string after_candidate_id = 1;
+  uint32 page_size = 2;
+}
+
+message ListIntakeCandidatesResponse {
+  repeated IntakeCandidateRevision candidates = 1;
+  string next_after_candidate_id = 2;
+}
+
+message GetIntakeCandidateRequest {
+  string candidate_id = 1;
+  uint32 revision = 2;
+}
+
+message GetIntakeCandidateResponse {
+  IntakeCandidateRevision candidate = 1;
+}
+
+// Metadata only. The private routed blob key and source bytes are never
+// projected through this message.
+message IntakeCandidateRevision {
+  string id = 1;
+  uint32 revision = 2;
+  string revision_sha256 = 3;
+  string display_name = 4;
+  string original_filename = 5;
+  string original_sha256 = 6;
+  int64 size_bytes = 7;
+  string mime = 8;
+  google.protobuf.Timestamp imported_at = 9;
+  string import_method = 10;
+  string source_label = 11;
+  string license_claim = 12;
+  string attribution = 13;
+  repeated string declared_uses = 14;
+  string parent_candidate_id = 15;
+  uint32 parent_revision = 16;
+  string parent_sha256 = 17;
+  IntakeInspection inspection = 18;
+  string review_status = 19;
+  string render_status = 20;
+  CreationLineage creation_lineage = 21;
+  MaterialCorrectionLineage material_correction_lineage = 22;
+}
+
+// CreationLineage preserves reported construction inputs and inference
+// provenance. It does not grant review, rights, or publication authority.
+message CreationLineage {
+  string job_id = 1;
+  string recipe_sha256 = 2;
+  repeated string reference_sha256 = 3;
+  string provider = 4;
+  string model = 5;
+  int32 provider_calls_made = 6;
+  int64 input_tokens = 7;
+  int64 output_tokens = 8;
+  int64 cost_micros = 9;
+  vrooli.ai_gateway.v1.inference.UsageProvenance input_tokens_provenance = 10;
+  vrooli.ai_gateway.v1.inference.UsageProvenance output_tokens_provenance = 11;
+  vrooli.ai_gateway.v1.inference.UsageProvenance cost_provenance = 12;
+  vrooli.ai_gateway.v1.shared.AppliedSettings applied_settings = 13;
+  string inference_outcome_sha256 = 14;
+  CreationCorrectionSource correction_source = 15;
+  // LPBS credits charged; presence distinguishes known zero from pending.
+  optional int64 credits_charged = 16;
+  string accounting_status = 17;
+}
+
+message CreationCorrectionSource {
+  string job_id = 1;
+  string input_fingerprint = 2;
+  string brief_sha256 = 3;
+  string recipe_sha256 = 4;
+  string issue_code = 5;
+  string part_id = 6;
+  string axis = 7;
+  string mode = 8;
+  string feedback = 9;
+}
+
+// MaterialCorrectionLineage records a deterministic edit to one imported
+// material while retaining exact before/after hashes and unchanged geometry.
+message MaterialCorrectionLineage {
+  string parent_candidate_id = 1;
+  uint32 parent_revision = 2;
+  string parent_sha256 = 3;
+  string request_sha256 = 4;
+  uint32 material_index = 5;
+  string material_name = 6;
+  google.protobuf.Struct before = 7;
+  google.protobuf.Struct after = 8;
+  string before_glb_sha256 = 9;
+  string after_glb_sha256 = 10;
+  repeated string before_bin_chunks_sha256 = 11;
+  repeated string after_bin_chunks_sha256 = 12;
+  bool geometry_unchanged = 13;
+}
+
+message IntakeInspection {
+  string profile = 1;
+  uint32 profile_version = 2;
+  bool supported = 3;
+  uint32 node_count = 4;
+  uint32 mesh_count = 5;
+  uint64 triangle_count = 6;
+  string finding = 7;
+}

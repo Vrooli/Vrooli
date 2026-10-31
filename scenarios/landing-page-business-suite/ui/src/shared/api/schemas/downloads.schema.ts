@@ -35,8 +35,14 @@ export const DownloadStorageSettingsSnapshotSchema = z.object({
   access_key_id_set: z.boolean(),
   secret_access_key_set: z.boolean(),
   session_token_set: z.boolean(),
-  credentials_from_env: z.boolean(),
+  credentials_from_authority: z.boolean(),
   settings_row_available: z.boolean(),
+  access_key_id_state: z.enum(['configured', 'missing', 'unavailable', 'authority_error']).optional(),
+  secret_access_key_state: z.enum(['configured', 'missing', 'unavailable', 'authority_error']).optional(),
+  session_token_state: z.enum(['configured', 'missing', 'unavailable', 'authority_error']).optional(),
+  credentials_source: z.string().optional(),
+  credential_detail: z.string().optional(),
+  session_token_optional: z.boolean().optional(),
 });
 
 // Download storage settings response schema

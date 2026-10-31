@@ -1,0 +1,12 @@
+{
+  "kind": "team-roles",
+  "schemaVersion": 1,
+  "teamId": "unattended-self-improvement",
+  "roles": [
+    {
+      "id": "unattended-self-improvement-coordinator",
+      "name": "Unattended Self-Improvement Coordinator",
+      "description": "Deliver the reviewed unattended-self-improvement family to its intent: honest goal/sliced execution, interruption recovery, mandate shape and operator surfaces, then the product launches on the reviewed frontier."
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 6,
+  "kind": "temporal",
+  "flowId": "web-console.playback-transport.ui",
+  "domain": "tts-playback",
+  "description": "Transport state machine for TTS playback in the web-console: queue navigation across conversation events, with explicit pause/resume semantics and stale-completion protection.",
+  "model": {
+    "module": "PlaybackTransportWorkflow",
+    "seed": "2026051301",
+    "maxSteps": 8,
+    "traceCount": 16,
+    "verify": {
+      "invariants": [
+        "TypeOK",
+        "IllegalTransitionsPreserveState",
+        "PausedSwallowsAutoAdvance",
+        "StaleCompletionIsIgnored"
+      ]
+    }
+  },
+  "states": [
+    { "id": "idle", "quint": "Idle", "initial": true },
+    { "id": "loading", "quint": "Loading" },
+    { "id": "playing", "quint": "Playing" },
+    { "id": "paused", "quint": "Paused" },
+    { "id": "error", "quint": "Errored" }
+  ],
+  "events": [
+    { "id": "play", "quint": "Play" },
+    { "id": "loadResolved", "quint": "LoadResolved" },
+    { "id": "loadFailed", "quint": "LoadFailed" },
+    { "id": "trackStarted", "quint": "TrackStarted" },
+    { "id": "trackEnded", "quint": "TrackEnded" },
+    { "id": "pause", "quint": "Pause" },
+    { "id": "resume", "quint": "Resume" },
+    { "id": "stop", "quint": "Stop" },
+    { "id": "playbackError", "quint": "PlaybackError" }
+  ],
+  "transitionDefaults": {
+    "invalid": { "to": "self", "wantError": false }
+  },
+  "transitions": [
+    { "from": ["idle", "loading", "playing", "paused", "error"], "event": "play", "to": "loading" },
+    { "from": "loading", "event": "loadResolved", "to": "playing" },
+    { "from": "loading", "event": "loadFailed", "to": "error" },
+    { "from": "loading", "event": "trackStarted", "to": "loading" },
+    { "from": "loading", "event": "trackEnded", "to": "loading" },
+    { "from": "loading", "event": "pause", "to": "loading" },
+    { "from": "loading", "event": "resume", "to": "loading" },
+    { "from": "loading", "event": "stop", "to": "idle" },
+    { "from": "loading", "event": "playbackError", "to": "error" },
+    { "from": "playing", "event": "loadResolved", "to": "playing" },
+    { "from": "playing", "event": "loadFailed", "to": "playing" },
+    { "from": "playing", "event": "trackStarted", "to": "playing" },
+    { "from": "playing", "event": "trackEnded", "to": "idle" },
+    { "from": "playing", "event": "pause", "to": "paused" },
+    { "from": "playing", "event": "resume", "to": "playing" },
+    { "from": "playing", "event": "stop", "to": "idle" },
+    { "from": "playing", "event": "playbackError", "to": "error" },
+    { "from": "paused", "event": "loadResolved", "to": "paused" },
+    { "from": "paused", "event": "loadFailed", "to": "paused" },
+    { "from": "paused", "event": "trackStarted", "to": "paused" },
+    { "from": "paused", "event": "trackEnded", "to": "paused" },
+    { "from": "paused", "event": "pause", "to": "paused" },
+    { "from": "paused", "event": "resume", "to": "playing" },
+    { "from": "paused", "event": "stop", "to": "idle" },
+    { "from": "paused", "event": "playbackError", "to": "error" },
+    { "from": "error", "event": "stop", "to": "idle" },
+    { "from": "error", "event": "loadResolved", "to": "error" },
+    { "from": "error", "event": "loadFailed", "to": "error" },
+    { "from": "error", "event": "trackStarted", "to": "error" },
+    { "from": "error", "event": "trackEnded", "to": "error" },
+    { "from": "error", "event": "pause", "to": "error" },
+    { "from": "error", "event": "resume", "to": "error" },
+    { "from": "error", "event": "playbackError", "to": "error" },
+    { "from": "idle", "event": "loadResolved", "to": "idle" },
+    { "from": "idle", "event": "loadFailed", "to": "idle" },
+    { "from": "idle", "event": "trackStarted", "to": "idle" },
+    { "from": "idle", "event": "trackEnded", "to": "idle" },
+    { "from": "idle", "event": "pause", "to": "idle" },
+    { "from": "idle", "event": "resume", "to": "idle" },
+    { "from": "idle", "event": "stop", "to": "idle" },
+    { "from": "idle", "event": "playbackError", "to": "idle" }
+  ],
+  "invariants": [
+    { "id": "type_ok", "quint": "TypeOK", "description": "Model variables remain inside declared state and event sets." },
+    { "id": "illegal_transitions_preserve_state", "quint": "IllegalTransitionsPreserveState", "description": "Rejected transitions are state preserving." },
+    {
+      "id": "paused_swallows_auto_advance",
+      "quint": "PausedSwallowsAutoAdvance",
+      "description": "When paused, TrackEnded does not advance to idle and therefore cannot trigger queue auto-advance.",
+      "expression": "status != Paused or nextStatus(status, TrackEnded) == Paused"
+    },
+    {
+      "id": "stale_completion_is_ignored",
+      "quint": "StaleCompletionIsIgnored",
+      "description": "LoadResolved, LoadFailed, TrackStarted, and TrackEnded are status-preserving outside the state where they are expected, so stale provider callbacks cannot corrupt transport state.",
+      "expression": "(status == Loading or nextStatus(status, LoadResolved) == status) and (status == Loading or nextStatus(status, LoadFailed) == status) and (status == Playing or status == Loading or nextStatus(status, TrackStarted) == status) and (status == Playing or nextStatus(status, TrackEnded) == status)"
+    }
+  ],
+  "traces": [
+    {
+      "name": "single_event_play_through",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "trackStarted", "want": "playing", "wantError": false },
+        { "event": "trackEnded", "want": "idle", "wantError": false }
+      ]
+    },
+    {
+      "name": "pause_then_resume_then_finish",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "pause", "want": "paused", "wantError": false },
+        { "event": "resume", "want": "playing", "wantError": false },
+        { "event": "trackEnded", "want": "idle", "wantError": false }
+      ]
+    },
+    {
+      "name": "pause_then_stale_trackEnded_does_not_advance",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "pause", "want": "paused", "wantError": false },
+        { "event": "trackEnded", "want": "paused", "wantError": false },
+        { "event": "resume", "want": "playing", "wantError": false }
+      ]
+    },
+    {
+      "name": "pause_then_play_other_event",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "pause", "want": "paused", "wantError": false },
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false }
+      ]
+    },
+    {
+      "name": "play_replaces_in_flight_load",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false }
+      ]
+    },
+    {
+      "name": "load_failed_then_retry",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadFailed", "want": "error", "wantError": false },
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false }
+      ]
+    },
+    {
+      "name": "playback_error_recovers_via_play",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "playbackError", "want": "error", "wantError": false },
+        { "event": "play", "want": "loading", "wantError": false }
+      ]
+    },
+    {
+      "name": "stop_from_paused_returns_idle",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "pause", "want": "paused", "wantError": false },
+        { "event": "stop", "want": "idle", "wantError": false }
+      ]
+    },
+    {
+      "name": "stale_load_resolved_after_stop_is_ignored",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "stop", "want": "idle", "wantError": false },
+        { "event": "loadResolved", "want": "idle", "wantError": false }
+      ]
+    },
+    {
+      "name": "queue_auto_advance_via_idle",
+      "initial": "idle",
+      "steps": [
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false },
+        { "event": "trackEnded", "want": "idle", "wantError": false },
+        { "event": "play", "want": "loading", "wantError": false },
+        { "event": "loadResolved", "want": "playing", "wantError": false }
+      ]
+    }
+  ],
+  "runtime": {
+    "typescript": {
+      "statusType": "PlaybackTransportStatus",
+      "eventType": "PlaybackTransportEventType",
+      "statusesConst": "playbackTransportStatuses",
+      "eventsConst": "playbackTransportEvents",
+      "formalExpectationConst": "playbackTransportFormalExpectation",
+      "stateUnionType": "PlaybackTransportState",
+      "eventUnionType": "PlaybackTransportEvent",
+      "payloadTypes": {
+        "sessionId": "string",
+        "eventId": "string",
+        "loadId": "string",
+        "queue": "readonly string[]",
+        "queueIndex": "number",
+        "message": "string"
+      },
+      "stateVariants": {
+        "idle": {},
+        "loading": {
+          "sessionId": "sessionId",
+          "eventId": "eventId",
+          "loadId": "loadId",
+          "queue": "queue",
+          "queueIndex": "queueIndex"
+        },
+        "playing": {
+          "sessionId": "sessionId",
+          "eventId": "eventId",
+          "loadId": "loadId",
+          "queue": "queue",
+          "queueIndex": "queueIndex"
+        },
+        "paused": {
+          "sessionId": "sessionId",
+          "eventId": "eventId",
+          "loadId": "loadId",
+          "queue": "queue",
+          "queueIndex": "queueIndex"
+        },
+        "error": {
+          "sessionId": "sessionId",
+          "eventId": "eventId",
+          "message": "message",
+          "queue": "queue",
+          "queueIndex": "queueIndex"
+        }
+      },
+      "eventVariants": {
+        "play": {
+          "sessionId": "sessionId",
+          "eventId": "eventId",
+          "loadId": "loadId",
+          "queue": "queue",
+          "queueIndex": "queueIndex"
+        },
+        "loadResolved": {
+          "loadId": "loadId"
+        },
+        "loadFailed": {
+          "loadId": "loadId",
+          "message": "message"
+        },
+        "trackStarted": {
+          "eventId": "eventId"
+        },
+        "trackEnded": {
+          "eventId": "eventId"
+        },
+        "pause": {},
+        "resume": {},
+        "stop": {},
+        "playbackError": {
+          "message": "message"
+        }
+      }
+    },
+    "staleCompletion": "load-id"
+  },
+  "replay": {
+    "transition": {
+      "function": "transitionPlaybackTransport",
+      "statusAccessor": "state.status"
+    }
+  }
+}

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/owneridentity"
+
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -58,24 +60,23 @@ func (c *Client) Health(ctx context.Context) (bool, error) {
 	return resp.StatusCode == http.StatusOK, nil
 }
 
-// EnsureProfile resolves a profile by key, creating it with defaults if needed.
-func (c *Client) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
-	body, err := c.jsonOpts.Marshal(req)
+// ReconcileScenarioProfiles activates the target scenario's declared,
+// repository-owned profile sources. Agent Manager remains the only profile
+// writer; consumers never supply inline profile defaults.
+func (c *Client) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	body, err := c.jsonOpts.Marshal(&apipb.ReconcileScenarioProfilesRequest{Scenario: scenario})
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("marshal reconcile request: %w", err)
 	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/ensure", body)
+	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/reconcile-scenario", body)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK {
 		return nil, c.parseError(resp)
 	}
-
-	var result apipb.EnsureProfileResponse
+	var result apipb.ReconcileScenarioProfilesResponse
 	if err := c.parseResponse(resp, &result); err != nil {
 		return nil, err
 	}
@@ -109,6 +110,9 @@ func (c *Client) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb
 
 // CreateRun starts a new run for a task.
 func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
+	if err := owneridentity.RequireCreateRunCaller(ctx, time.Now(), true); err != nil {
+		return nil, err
+	}
 	body, err := c.jsonOpts.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
@@ -121,7 +125,7 @@ func (c *Client) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*d
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+		return nil, fmt.Errorf("%s", owneridentity.RedactCreateRunCaller(ctx, c.parseError(resp).Error()))
 	}
 
 	var result apipb.CreateRunResponse
@@ -274,7 +278,16 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body []byte
 	}
 	req.Header.Set("Accept", "application/json")
 
-	return c.httpClient.Do(req)
+	client := *c.httpClient
+	if method == http.MethodPost && path == "/api/v1/runs" {
+		auth, err := owneridentity.CreateRunAuthorization(ctx, time.Now())
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", auth)
+		client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	}
+	return client.Do(req)
 }
 
 func (c *Client) resolveBaseURL(ctx context.Context) (string, error) {

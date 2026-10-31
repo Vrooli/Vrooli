@@ -1,6 +1,6 @@
 import type { Node, Edge } from 'reactflow';
 import type { Workflow } from '../types';
-import { sanitizeNodesForPersistence, sanitizeEdgesForPersistence } from './serialization';
+import { canvasToWorkflowDefinition } from './codec';
 import { sanitizeViewportSettings } from './viewport';
 
 // ============================================================================
@@ -48,8 +48,7 @@ export const computeWorkflowFingerprint = (workflow: Workflow | null, nodes: Nod
     return '';
   }
 
-  const serializableNodes = sanitizeNodesForPersistence(nodes);
-  const serializableEdges = sanitizeEdgesForPersistence(edges ?? []);
+  const definition = canvasToWorkflowDefinition(workflow.flowDefinition, nodes, edges ?? [], workflow.executionViewport);
   const sanitizedViewport = sanitizeViewportSettings(workflow.executionViewport);
 
   return stableSerialize({
@@ -57,9 +56,7 @@ export const computeWorkflowFingerprint = (workflow: Workflow | null, nodes: Nod
     description: workflow.description ?? '',
     folderPath: workflow.folderPath ?? '/',
     tags: Array.isArray(workflow.tags) ? [...workflow.tags].sort() : [],
-    nodes: serializableNodes,
-    edges: serializableEdges,
+    flowDefinition: definition,
     executionViewport: sanitizedViewport ?? null,
-    flowDefinition: workflow.flowDefinition ?? null,
   });
 };

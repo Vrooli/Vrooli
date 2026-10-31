@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "name": "Proposal inbox observer",
+    "description": "Given any proposal count, when the inbox opens, then review navigation and code-preservation guidance are visible.",
+    "requirement": "GCT-PROPOSAL-WORKSPACE",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "safety": "observer"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewportWidth": 1440,
+    "viewportHeight": 900
+  },
+  "nodes": [
+    {
+      "id": "open",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destinationType": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "git-control-tower",
+          "scenarioPath": "/?proposal=inbox",
+          "waitUntil": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeoutMs": 30000
+        }
+      }
+    },
+    {
+      "id": "inbox",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/proposals.inbox",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "capture",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "fullPage": false
+        }
+      }
+    },
+    {
+      "id": "back",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/proposals.back",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 10000
+        }
+      }
+    },
+    {
+      "id": "working",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/proposals.inbox",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Closing a proposal keeps all code and staged changes."
+          },
+          "timeoutMs": 10000
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "open",
+      "target": "inbox"
+    },
+    {
+      "id": "edge-2",
+      "source": "inbox",
+      "target": "capture"
+    },
+    {
+      "id": "edge-3",
+      "source": "capture",
+      "target": "back"
+    },
+    {
+      "id": "edge-4",
+      "source": "back",
+      "target": "working"
+    }
+  ]
+}

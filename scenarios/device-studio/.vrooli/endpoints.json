@@ -1,0 +1,802 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Operational capability description probe returns a dynamic dependency and recovery report."
+      }
+    },
+    {
+      "id": "projects_list",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/ListProjects",
+      "method": "POST",
+      "summary": "List projects",
+      "description": "Returns a bounded page of local projects.",
+      "category": "projects"
+    },
+    {
+      "id": "projects_create",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/CreateProject",
+      "method": "POST",
+      "summary": "Create project",
+      "description": "Creates an empty local project.",
+      "category": "projects"
+    },
+    {
+      "id": "projects_get",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/GetProject",
+      "method": "POST",
+      "summary": "Open project",
+      "description": "Returns a local project by id.",
+      "category": "projects"
+    },
+    {
+      "id": "projects_rename",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/RenameProject",
+      "method": "POST",
+      "summary": "Rename project",
+      "description": "Renames a project only when expected_revision matches; conflicts return ProjectConflict detail.",
+      "category": "projects"
+    },
+    {
+      "id": "projects_media_list",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/ListSourceMedia",
+      "method": "POST",
+      "summary": "List project source media",
+      "description": "Returns a bounded page of project-owned source image and recording metadata, including inspection readiness.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_get",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/GetSourceMedia",
+      "method": "POST",
+      "summary": "Get project source media",
+      "description": "Returns typed metadata and inspection readiness for one source media item.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_clock_page",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/GetSourceMediaClockPage",
+      "method": "POST",
+      "summary": "Page inspected source clock",
+      "description": "Returns a bounded digest-bound page of exact video-clock frame ordinals and PTS values plus the inspected rational time base.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_inspection_ensure",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/EnsureSourceMediaInspection",
+      "method": "POST",
+      "summary": "Ensure source media inspection",
+      "description": "Idempotently submits or recovers the one inspection job for immutable source media.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_inspection_retry",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/RetrySourceMediaInspection",
+      "method": "POST",
+      "summary": "Retry source media inspection",
+      "description": "Explicitly retries a settled failed or cancelled inspection using the expected job version.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_inspection_cancel",
+      "path": "/vrooli.device_studio.v1.projects.ProjectsService/CancelSourceMediaInspection",
+      "method": "POST",
+      "summary": "Cancel source media inspection",
+      "description": "Cancels one project-owned inspection at its expected job version and reconciles the exact native operation.",
+      "category": "media"
+    },
+    {
+      "id": "projects_media_import",
+      "path": "/api/v1/projects/{project_id}/media",
+      "method": "POST",
+      "summary": "Import project source media",
+      "description": "Streams one PNG, JPEG, MP4, QuickTime, WebM, or Matroska source and returns typed metadata; accepted recordings remain pending until inspected.",
+      "category": "media",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart carries the file bytes; the response is the proto-typed UploadSourceMediaResponse.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_studio.v1.projects.UploadSourceMediaResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "projects_media_content",
+      "path": "/api/v1/projects/{project_id}/media/{media_id}/content",
+      "method": "GET",
+      "summary": "Fetch source media bytes",
+      "description": "Serves digest-verified original source image or recording bytes by opaque project and media ids.",
+      "category": "media",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Serves opaque source media bytes by identifiers; no generated client applies and content size and digest are verified while streaming.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "photographic_submit",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes",
+      "method": "POST",
+      "summary": "Submit one local photographic scene generation",
+      "description": "Browser-owned request adapter to Image Tools; local-only owner job execution remains authoritative.",
+      "category": "projects",
+      "request": {
+        "type": "object",
+        "properties": {
+          "height": "512 or 768",
+          "operation_id": "UUID",
+          "prompt": "string (<=800 UTF-8 bytes)",
+          "width": "768 or 512"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "model_id": "string",
+          "state": "string",
+          "tier": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The project workbench needs a bounded JSON/browser action; Image Tools remains the sole generation and job owner."
+      }
+    },
+    {
+      "id": "photographic_read",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}",
+      "method": "GET",
+      "summary": "Read local generation status",
+      "description": "Reads an Image Tools operation record without submitting work.",
+      "category": "projects",
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "progress": "integer",
+          "result_ref": "string",
+          "state": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser reads a caller-key status DTO; the durable record remains owned by Image Tools."
+      }
+    },
+    {
+      "id": "photographic_wait",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}/wait",
+      "method": "POST",
+      "summary": "Wait once for local generation",
+      "description": "Uses the Image Tools block-once WaitJob verb.",
+      "category": "projects",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser invokes one block-once owner wait through its project API origin."
+      }
+    },
+    {
+      "id": "photographic_cancel",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}/cancel",
+      "method": "POST",
+      "summary": "Request local generation cancellation",
+      "description": "Forwards cancellation to the Image Tools job owner and returns its current state.",
+      "category": "projects",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The browser invokes the owner cancellation through its project API origin."
+      }
+    },
+    {
+      "id": "photographic_content",
+      "path": "/api/v1/projects/{project_id}/photographic-scenes/operations/{operation_id}/content",
+      "method": "GET",
+      "summary": "Read verified generated PNG",
+      "description": "Copies a successful managed Image Tools PNG after checking type, size, and requested dimensions.",
+      "category": "projects",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Binary owner content is verified and proxied through the project API; callers cannot provide filesystem paths."
+      }
+    },
+    {
+      "id": "prepared_photo_to_scene_candidate",
+      "path": "/api/v1/photographic-scenes/from-preparation",
+      "method": "POST",
+      "summary": "Convert an accepted immutable photograph preparation into an edit-only scene candidate",
+      "description": "Fetches a content-addressed Image Tools preparation by ID, validates its exact retained review/geometry/source bytes, publishes geometry and clean-plate assets through Library, then saves a SceneCandidate. It never grants render rights or claims measured scale.",
+      "category": "scenes",
+      "request": {
+        "type": "object",
+        "properties": {
+          "attribution": "explicit caller claim",
+          "license_id": "explicit caller claim",
+          "preparation_id": "64-character content SHA-256",
+          "source_label": "explicit caller claim"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "library_bundle_id": "string",
+          "scale_status": "estimated_monocular_scale_not_measured",
+          "scene_id": "string",
+          "scene_revision": "integer",
+          "scene_sha256": "SHA-256"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The workbench submits an immutable preparation ID and explicit source-rights claims; the server fetches exact retained bytes from Image Tools and publishes through canonical Library and SceneCandidate owners."
+      }
+    },
+    {
+      "id": "pending_preparation_geometry_qa",
+      "path": "/api/v1/photographic-scenes/preparations/{preparation_id}/geometry-qa",
+      "method": "GET",
+      "summary": "Inspect geometry for a pending EMPTY_SCENE preparation",
+      "description": "Runs strict outer bundle, inner ZIP/NPY and camera-projection checks and returns a diagnostic-only ZIP with source/ROI/depth/plane overlays. It cannot accept or publish a preparation.",
+      "category": "scenes",
+      "response": {
+        "type": "application/zip",
+        "properties": {
+          "geometry-qa.json": "pending-only numerical validation report",
+          "geometry-qa.png": "source ROI/inlier/reject, depth and plane-residual panels"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "This bounded inspection download is read-only and requires the content-addressed pending preparation ID."
+      }
+    },
+    {
+      "id": "devices_candidate_save",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/SaveDeviceCandidate",
+      "method": "POST",
+      "summary": "Save device candidate",
+      "description": "Appends an immutable device candidate revision at the expected head. Candidate state does not imply qualification.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_revision_get",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/GetDeviceRevision",
+      "method": "POST",
+      "summary": "Get device revision",
+      "description": "Returns one immutable device candidate revision after verifying its canonical digest.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_head_get",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/GetDeviceHead",
+      "method": "POST",
+      "summary": "Get device head",
+      "description": "Returns the current immutable device candidate revision.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_revision_list",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ListDeviceRevisions",
+      "method": "POST",
+      "summary": "List device revisions",
+      "description": "Returns a bounded ascending page of immutable device revisions.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_candidate_list",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ListDeviceCandidates",
+      "method": "POST",
+      "summary": "List device candidate heads",
+      "description": "Returns one latest immutable candidate revision per device in stable identifier order.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_candidate_review",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ReviewDeviceCandidate",
+      "method": "POST",
+      "summary": "Review and qualify exact device revision",
+      "description": "Records an explicit exact-revision physical review and appends a qualified revision only when source, scope, preset, and native-output evidence validate.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_qualification_package_export",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ExportQualificationPackage",
+      "method": "POST",
+      "summary": "Export a scoped qualification package",
+      "description": "Exports an existing passed review and verified render evidence for explicit operator transfer; package hashes do not authenticate the reviewer.",
+      "category": "devices"
+    },
+    {
+      "id": "devices_qualification_package_import",
+      "path": "/vrooli.device_studio.v1.devices.DevicesService/ImportQualificationPackage",
+      "method": "POST",
+      "summary": "Import a scoped qualification package",
+      "description": "Revalidates exact existing destination revisions and appends the transferred human decision without creating a render job or widening scope.",
+      "category": "devices"
+    },
+    {
+      "id": "scenes_candidate_save",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/SaveSceneCandidate",
+      "method": "POST",
+      "summary": "Save scene candidate",
+      "description": "Appends an immutable scene candidate revision at the expected head; external artifacts remain soft references and are not qualified by save.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_revision_get",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/GetSceneRevision",
+      "method": "POST",
+      "summary": "Get scene revision",
+      "description": "Returns one immutable scene candidate revision after canonical digest verification.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_head_get",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/GetSceneHead",
+      "method": "POST",
+      "summary": "Get scene head",
+      "description": "Returns the current immutable scene candidate revision.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_revision_list",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/ListSceneRevisions",
+      "method": "POST",
+      "summary": "List scene revisions",
+      "description": "Returns a bounded ascending page of immutable scene revisions.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_candidate_list",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/ListSceneCandidates",
+      "method": "POST",
+      "summary": "List scene candidate heads",
+      "description": "Returns one latest immutable candidate revision per scene in stable identifier order.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_pose_fit",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/FitKnownCameraPose",
+      "method": "POST",
+      "summary": "Fit known-camera device pose",
+      "description": "Fits only the rigid device transform from caller-supplied 2D/3D landmarks and an immutable scene camera; a declared hinge assumption remains fixed.",
+      "category": "scenes"
+    },
+    {
+      "id": "scenes_import_prepared_photograph",
+      "path": "/vrooli.device_studio.v1.scenes.ScenesService/ImportPreparedPhotograph",
+      "method": "POST",
+      "summary": "Import accepted prepared photograph",
+      "description": "Fetches an exact content-addressed Image Tools child, verifies its expected bundle hash and reviewed source, then publishes an edit-only scene candidate through canonical Library and SceneCandidate owners. Monocular scale remains an estimate.",
+      "category": "scenes"
+    },
+    {
+      "id": "motions_candidate_save",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/SaveMotionCandidate",
+      "method": "POST",
+      "summary": "Save motion candidate",
+      "description": "Appends an immutable motion candidate revision at the expected head; local validity does not resolve external targets or qualify motion.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_revision_get",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/GetMotionRevision",
+      "method": "POST",
+      "summary": "Get motion revision",
+      "description": "Returns one immutable motion candidate revision after canonical digest verification.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_head_get",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/GetMotionHead",
+      "method": "POST",
+      "summary": "Get motion head",
+      "description": "Returns the current immutable motion candidate revision.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_revision_list",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/ListMotionRevisions",
+      "method": "POST",
+      "summary": "List motion revisions",
+      "description": "Returns a bounded ascending page of immutable motion revisions.",
+      "category": "motions"
+    },
+    {
+      "id": "motions_candidate_list",
+      "path": "/vrooli.device_studio.v1.motions.MotionsService/ListMotionCandidates",
+      "method": "POST",
+      "summary": "List motion candidate heads",
+      "description": "Returns one latest immutable candidate revision per motion in stable identifier order.",
+      "category": "motions"
+    },
+    {
+      "id": "library_bundle_revision_list",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/ListBundleRevisions",
+      "method": "POST",
+      "summary": "List reviewed bundle revisions",
+      "description": "Returns bounded, validated bundle and review metadata without exposing artifact storage keys or bytes.",
+      "category": "library"
+    },
+    {
+      "id": "library_bundle_revision_get",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/GetBundleRevision",
+      "method": "POST",
+      "summary": "Get a reviewed bundle revision",
+      "description": "Returns one immutable bundle manifest and its digest-bound review metadata without artifact bytes.",
+      "category": "library"
+    },
+    {
+      "id": "library_intake_candidate_list",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/ListIntakeCandidates",
+      "method": "POST",
+      "summary": "List local geometry intake candidates",
+      "description": "Returns bounded local GLB intake metadata, user claims, and inspector observations; candidates remain unreviewed and unavailable for rendering.",
+      "category": "library"
+    },
+    {
+      "id": "library_intake_candidate_get",
+      "path": "/vrooli.device_studio.v1.library.LibraryCatalogService/GetIntakeCandidate",
+      "method": "POST",
+      "summary": "Get local geometry intake metadata",
+      "description": "Returns one immutable intake candidate revision without exposing its routed storage key or source bytes.",
+      "category": "library"
+    },
+    {
+      "id": "library_intake_candidate_import",
+      "path": "/api/v1/library/intake-candidates",
+      "method": "POST",
+      "summary": "Import a local GLB candidate",
+      "description": "Streams one bounded GLB with a protobuf-JSON IntakeCandidateClaims metadata part. Import records claims and inspection facts only; it does not publish rights or make the candidate renderable.",
+      "category": "library",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Multipart contains metadata and one GLB file; the response is proto-JSON GetIntakeCandidateResponse.",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.device_studio.v1.library.IntakeCandidateClaims",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.device_studio.v1.library.GetIntakeCandidateResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "library_intake_candidate_content",
+      "path": "/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/content",
+      "method": "GET",
+      "summary": "Fetch verified original GLB bytes",
+      "description": "Streams digest-verified original bytes from a pinned intake candidate revision.",
+      "category": "library",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "The owner verifies the full byte count and SHA-256 before publishing the final byte.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "library_intake_candidate_preview",
+      "path": "/api/v1/library/intake-candidates/{candidate_id}/revisions/{revision}/preview",
+      "method": "GET",
+      "summary": "Render a bounded local preview of an exact imported GLB revision",
+      "description": "Returns a read-only three-view CPU PNG with embedded vertex colors honored where present. The preview remains tied to the exact unreviewed intake revision and makes no UV, PBR, metric-scale, or render-readiness claim.",
+      "category": "library",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Requires revision_sha256 query parameter; returned headers bind PNG bytes to the candidate revision and GLB digests.",
+        "proto_payloads": {
+          "request": {
+            "transport": "query",
+            "conformance": "revision_sha256 is required and must match the immutable intake revision"
+          },
+          "response": {
+            "transport": "image/png",
+            "conformance": "bounded 768×256 CPU preview; identity, content digest, vertex-color mode, and unreviewed status in X-Intake-* headers"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "physical_starter_initialize",
+      "path": "/vrooli.device_studio.v1.physical.PhysicalStarterService/InitializeReviewedStarter",
+      "method": "POST",
+      "summary": "Initialize reviewed physical starter candidates",
+      "description": "Publishes the fixed locally reviewed starter bytes through the Library and creates immutable unqualified candidate revisions on the active storage route.",
+      "category": "physical"
+    },
+    {
+      "id": "shots_create",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/CreateShot",
+      "method": "POST",
+      "summary": "Create shot revision",
+      "description": "Creates an immutable first shot revision in a project.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_save",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/SaveShot",
+      "method": "POST",
+      "summary": "Save shot revision",
+      "description": "Appends an immutable revision when expected_revision matches; conflicts return ShotConflict detail.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_list",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ListShots",
+      "method": "POST",
+      "summary": "List shots",
+      "description": "Returns a bounded keyset page of project shots.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_get",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetShot",
+      "method": "POST",
+      "summary": "Get shot",
+      "description": "Returns a shot and its immutable head revision.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_revision_get",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetShotRevision",
+      "method": "POST",
+      "summary": "Get shot revision",
+      "description": "Returns one immutable historical shot revision.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_revision_list",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ListShotRevisions",
+      "method": "POST",
+      "summary": "List shot revisions",
+      "description": "Returns a bounded page of immutable shot revisions.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_compile",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/CompileShot",
+      "method": "POST",
+      "summary": "Compile shot",
+      "description": "Resolves source media metadata, semantic digests, and render eligibility for an immutable revision.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_validate",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ValidateShot",
+      "method": "POST",
+      "summary": "Validate shot draft",
+      "description": "Validates typed shot fields without persisting a revision.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_review_output_readability",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ReviewOutputReadability",
+      "method": "POST",
+      "summary": "Review rendered output readability",
+      "description": "Records a human readability verdict against one exact immutable render output.",
+      "category": "shots"
+    },
+    {
+      "id": "shots_get_output_readability_review",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetOutputReadabilityReview",
+      "method": "POST",
+      "summary": "Get output readability review",
+      "description": "Returns the human readability verdict for one exact immutable render output.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_save",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/SavePhysicalShotPreset",
+      "method": "POST",
+      "summary": "Save physical setup preset",
+      "description": "Appends an immutable setup join after resolving exact candidate revisions and current render rights.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_get",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetPhysicalShotPreset",
+      "method": "POST",
+      "summary": "Get physical setup preset revision",
+      "description": "Returns one immutable physical setup join without assets or qualification claims.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_head",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/GetPhysicalShotPresetHead",
+      "method": "POST",
+      "summary": "Get physical setup preset head",
+      "description": "Returns the current immutable setup preset revision.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_list",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ListPhysicalShotPresets",
+      "method": "POST",
+      "summary": "List physical setup preset heads",
+      "description": "Returns a bounded stable-ID page of physical shot setup joins.",
+      "category": "shots"
+    },
+    {
+      "id": "physical_setup_preset_revisions",
+      "path": "/vrooli.device_studio.v1.shots.ShotsService/ListPhysicalShotPresetRevisions",
+      "method": "POST",
+      "summary": "List physical setup preset revisions",
+      "description": "Returns a bounded page of immutable setup preset revisions.",
+      "category": "shots"
+    },
+    {
+      "id": "render_submit",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/SubmitRender",
+      "method": "POST",
+      "summary": "Submit a render",
+      "description": "Submits an immutable still render, video sample preview, or fixed-profile MP4 render to the shared durable local job ledger.",
+      "category": "renders"
+    },
+    {
+      "id": "render_sample_binding",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/GetVideoSampleBinding",
+      "method": "POST",
+      "summary": "Get verified phone video sample claim",
+      "description": "Returns a server-verified AUTO phone trim-start sample claim for saving into a new immutable shot revision; manual and browser previews do not produce saveable claims.",
+      "category": "renders"
+    },
+    {
+      "id": "render_get",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/GetRender",
+      "method": "POST",
+      "summary": "Get render job",
+      "description": "Reads a project-owned render job without advancing execution.",
+      "category": "renders"
+    },
+    {
+      "id": "render_list",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/ListRenders",
+      "method": "POST",
+      "summary": "List render jobs",
+      "description": "Returns a bounded project-scoped keyset page of render jobs.",
+      "category": "renders"
+    },
+    {
+      "id": "render_cancel",
+      "path": "/vrooli.device_studio.v1.shots.RenderJobsService/CancelRender",
+      "method": "POST",
+      "summary": "Cancel render job",
+      "description": "Requests cancellation using an expected job version.",
+      "category": "renders"
+    },
+    {
+      "id": "render_output_content",
+      "path": "/api/v1/projects/{project_id}/renders/{render_id}/content",
+      "method": "GET",
+      "summary": "Fetch rendered output",
+      "description": "Streams digest-verified PNG, sample PNG, or MP4 bytes for a succeeded project-owned render.",
+      "category": "renders",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Streams verified opaque output bytes by project and job id; no filesystem path is exposed.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.device_studio.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    }
+  ]
+}

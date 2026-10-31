@@ -1,0 +1,362 @@
+{
+  "metadata": {
+    "name": "e21-channel-create-unknown-readback",
+    "description": "Create a disposable owner email address with a lost confirming read, retry the same stable ID, and verify after reload.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-channel-create-stable-retry"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Exercise stable-ID creation retry after an unknown confirming read using only the pinned disposable owner pool.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-create-unknown-readback&e22_fault=channel-unknown-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased fixture with its email address absent and one read fault armed"
+          }
+        }
+      },
+      {
+        "id": "wait-owner-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the fixture owner device"
+          }
+        }
+      },
+      {
+        "id": "capture-create-requests",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const original=window.fetch.bind(window);window.__e43CreateRequests=[];window.fetch=async(input,init)=>{const url=typeof input==='string'?input:input?.url||'';if(url.includes('/CreateChannelAddress')){let raw='';try{if(input instanceof Request)raw=await input.clone().text();else if(typeof init?.body==='string')raw=init.body;else if(init?.body instanceof Uint8Array)raw=new TextDecoder().decode(init.body);else raw=String(init?.body||'');const body=JSON.parse(raw);window.__e43CreateRequests.push({id:body.id,address:body.address,raw})}catch(error){window.__e43CreateRequests.push({raw,parseError:String(error)})}}return original(input,init)};return {requestObserverInstalled:true}})()"
+          },
+          "metadata": {
+            "label": "Observe only disposable CreateChannelAddress stable IDs for same-row retry verification"
+          }
+        }
+      },
+      {
+        "id": "open-add-email",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Add email channel"
+          },
+          "metadata": {
+            "label": "Open the add-email editor for this disposable device"
+          }
+        }
+      },
+      {
+        "id": "enter-address",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "[data-testid=\"reach-channel-editor\"] input[type=email]",
+            "value": "created@example.test",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Enter a reserved example destination"
+          }
+        }
+      },
+      {
+        "id": "review-create",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Review content access"
+          },
+          "metadata": {
+            "label": "Review the new destination before saving"
+          }
+        }
+      },
+      {
+        "id": "save-create-with-read-fault",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save destination"
+          },
+          "metadata": {
+            "label": "Create the owner-scoped address while the confirming read fails once"
+          }
+        }
+      },
+      {
+        "id": "wait-unknown-outcome",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Channel readback is unavailable. The save outcome is unknown; your draft is retained and must be checked before another create.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for truthful unknown-outcome copy"
+          }
+        }
+      },
+      {
+        "id": "assert-created-draft-retained",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-channel-editor]');const text=root?.textContent||'';const error=root?.querySelector('[role=alert]')?.textContent||'';const requests=window.__e43CreateRequests||[];if(!root||!text.includes('Destination: created@example.test')||!error.includes('save outcome is unknown')||requests.length!==1||!requests[0].id||requests[0].address!=='created@example.test')throw new Error(`create unknown state mismatch ${JSON.stringify({text,error,requests})}`);return {draftRetained:true,outcome:'unknown',createdID:requests[0].id,createCalls:requests.length,noSuccessClaim:true}})()"
+          },
+          "metadata": {
+            "label": "Verify retained draft, explicit unknown state and the first caller-stable create ID"
+          }
+        }
+      },
+      {
+        "id": "capture-create-unknown",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the add-channel unknown readback recovery state on phone"
+          }
+        }
+      },
+      {
+        "id": "retry-same-create",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Save destination"
+          },
+          "metadata": {
+            "label": "Retry creation with the retained stable ID after the one-shot fault"
+          }
+        }
+      },
+      {
+        "id": "wait-confirmed-create",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "text=Destination and approved labels saved and confirmed by owner-scoped readback.",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for exact owner-scoped create confirmation"
+          }
+        }
+      },
+      {
+        "id": "assert-same-create-id",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const requests=window.__e43CreateRequests||[];if(requests.length!==2||!requests[0].id||requests[0].id!==requests[1].id||requests.some(x=>x.address!=='created@example.test'))throw new Error(`retry changed stable create ID ${JSON.stringify(requests)}`);return {sameStableID:true,id:requests[0].id,createCalls:requests.length}})()"
+          },
+          "metadata": {
+            "label": "Confirm retry sent the same stable ID and destination"
+          }
+        }
+      },
+      {
+        "id": "reload-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-channel-create-unknown-readback&e22_fault=channel-unknown-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload the same case without resetting its newly created row"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-e22-settings-device\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the owner-scoped device and created address"
+          }
+        }
+      },
+      {
+        "id": "reopen-email-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "text=Edit content access"
+          },
+          "metadata": {
+            "label": "Open the saved email row after reload"
+          }
+        }
+      },
+      {
+        "id": "assert-created-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const input=document.querySelector('[data-testid=reach-channel-editor] input[type=email]');if(input?.value!=='created@example.test')throw new Error(`created address missing after reload: ${input?.value}`);return {address:input.value,ownerScopedReadbackAfterReload:true}})()"
+          },
+          "metadata": {
+            "label": "Verify the created address survived a full route reload"
+          }
+        }
+      },
+      {
+        "id": "capture-created-readback",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture stable-ID creation readback on phone"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-create-00",
+        "source": "open-reach",
+        "target": "wait-owner-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-01",
+        "source": "wait-owner-device",
+        "target": "capture-create-requests",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-02",
+        "source": "capture-create-requests",
+        "target": "open-add-email",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-03",
+        "source": "open-add-email",
+        "target": "enter-address",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-04",
+        "source": "enter-address",
+        "target": "review-create",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-05",
+        "source": "review-create",
+        "target": "save-create-with-read-fault",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-06",
+        "source": "save-create-with-read-fault",
+        "target": "wait-unknown-outcome",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-07",
+        "source": "wait-unknown-outcome",
+        "target": "assert-created-draft-retained",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-08",
+        "source": "assert-created-draft-retained",
+        "target": "capture-create-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-09",
+        "source": "capture-create-unknown",
+        "target": "retry-same-create",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-10",
+        "source": "retry-same-create",
+        "target": "wait-confirmed-create",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-11",
+        "source": "wait-confirmed-create",
+        "target": "assert-same-create-id",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-12",
+        "source": "assert-same-create-id",
+        "target": "reload-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-13",
+        "source": "reload-reach",
+        "target": "wait-reloaded-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-14",
+        "source": "wait-reloaded-device",
+        "target": "reopen-email-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-15",
+        "source": "reopen-email-editor",
+        "target": "assert-created-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-create-16",
+        "source": "assert-created-readback",
+        "target": "capture-created-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

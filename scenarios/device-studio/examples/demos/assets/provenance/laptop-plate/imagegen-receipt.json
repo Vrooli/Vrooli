@@ -1,0 +1,14 @@
+{
+  "tool": "built-in image_gen",
+  "intent": "generate new blank-screen photographic plate",
+  "prompt_file": "prompt.txt",
+  "prompt_sha256": "2cc6ea13ea855c2e5182768b95c04826789073d0be8b1726e4e50362fc3f3d4a",
+  "output_file": "plate.png",
+  "output_sha256": "1d1d7327f430c6949b194170a3fce2dd0225ebab9007cd4959072a97188f7ff2",
+  "input_images": [],
+  "private_product_pixels_sent": false,
+  "model": "not reported",
+  "seed": "not reported",
+  "cost": "not reported",
+  "retained_at_utc": "2026-10-18T20:35:37.682248+00:00"
+}

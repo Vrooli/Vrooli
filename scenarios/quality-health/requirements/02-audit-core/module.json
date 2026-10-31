@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "module": "audit-core",
+    "description": "Requirements for Code Facts discovery, contract evaluation, findings, command execution, and autofix.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "QH-AUDIT-001",
+      "title": "Discover scenario surfaces through Code Facts",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "AuditQuality resolves the target scenario through Code Facts and builds a normalized surface inventory before applying any language/framework contracts.",
+      "tags": ["code-facts", "surfaces", "api"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Use a fake Code Facts client to prove discovered surfaces drive contract matching and unavailable discovery returns a degraded audit."
+        }
+      ]
+    },
+    {
+      "id": "QH-AUDIT-002",
+      "title": "Evaluate migrated static-quality contracts",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The contract registry evaluates every migrated Tidiness Manager / Scenario Auditor rule ID with equal or stronger semantics and without template-level policy coupling.",
+      "tags": ["contracts", "rule-parity", "api"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Fixture tests cover positive and negative cases for all ten migrated rule IDs."
+        }
+      ]
+    },
+    {
+      "id": "QH-AUDIT-003",
+      "title": "Enforce protective config comments",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "TypeScript and ESLint config checks fail when strict values are present but required safety-critical agent guidance comments are missing.",
+      "tags": ["comments", "typescript", "eslint"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Negative fixtures prove strict tsconfig and ESLint safety rules fail without the required comments."
+        }
+      ]
+    },
+    {
+      "id": "QH-AUDIT-004",
+      "title": "Emit stable agent-readable findings",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Audit responses include stable finding IDs, severity, path evidence, expected and observed values, why-it-matters text, remediation, command evidence, next steps, and maturity summary.",
+      "tags": ["findings", "maturity", "test-genie"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Golden response tests assert deterministic finding IDs and maturity rung transitions."
+        }
+      ]
+    },
+    {
+      "id": "QH-AUDIT-005",
+      "title": "Preview safe config autofixes",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "FixConfig returns deterministic config file edit previews by default and only applies supported edits when the caller explicitly requests apply mode.",
+      "tags": ["autofix", "dry-run", "safety"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Temp-directory tests prove dry-run leaves files untouched, apply mutates only supported config files, and protective comments are inserted or preserved."
+        }
+      ]
+    }
+  ]
+}

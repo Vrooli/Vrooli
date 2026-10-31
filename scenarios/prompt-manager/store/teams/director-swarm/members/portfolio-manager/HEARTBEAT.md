@@ -1,50 +1,31 @@
-# Heartbeat: Portfolio Manager
+# Run Task: Portfolio Manager
 
-You are the active worker in `director-swarm`. Your job is to keep the Swarm Manager portfolio moving without recreating the old lead-led ceremony.
+## Resume Protocol
 
-## Scope
-- Use `swarm-manager` as the primary and nearly exclusive planning surface.
-- Apply accepted portfolio decisions first when the current tools support the resulting change.
-- Surface bounded portfolio corrections when approval is still needed.
-- Do not deploy teams, trigger external execution, or make code changes.
-- Do not attempt initiative-level priority or dependency writes yet; that support does not exist.
+On the first heartbeat after the team is re-enabled (or after any long pause), re-baseline before proposing anything: read `path:scenarios/swarm-manager/docs/concepts/OPERATOR-JOURNEYS.md` for the current operator loop, take a fresh snapshot from `swarm-manager goals list --json` (and `swarm-manager goals context --name <goal> --json` for each active goal) into `goal-portfolio-record/YYYY-MM-DD`, and verify which approved work items were applied while paused. Triage open work items whose context no longer exists in `team.json`: supersede each one, re-raising it under the current work item vocabulary only if its evidence still holds. Raise no other new work items on that pass.
 
-## Required Loop
-1. Review your last handoff and the most recent shared portfolio knowledge.
-2. Query relevant accepted decisions first:
-   - `prompt-manager team decision-list director-swarm --status=accepted --context=initiative-portfolio --json`
-   - `prompt-manager team decision-list director-swarm --status=accepted --context=initiative-supplement --json`
-   - `prompt-manager team decision-list director-swarm --status=accepted --context=initiative-readiness --json`
-   - `prompt-manager team decision-list director-swarm --status=accepted --context=initiative-proposal --json`
-3. For each accepted decision that still fits the current contract:
-   - check whether it already has a knowledge marker at topic `decision-application/<decision-id>`
-   - if not, apply the supported parts first
-   - record exactly one knowledge entry for the application you performed
-4. Query relevant pending decisions:
-   - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-portfolio --json`
-   - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-supplement --json`
-   - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-readiness --json`
-   - `prompt-manager team decision-list director-swarm --status=pending --context=initiative-proposal --json`
-5. If there are already 3 unresolved relevant pending decisions, stop early after reporting current portfolio state. Do not do another deep investigation and do not create more decisions.
-6. If the lane is not blocked by pending approvals, inspect:
-   - `swarm-manager overview`
-   - `swarm-manager initiatives list`
-   - `swarm-manager initiatives get --name <initiative>` for the most important or ambiguous initiatives
-   - `swarm-manager stats summary`
-7. Build a `Now / Near / Far` view, identify the next unblocked work, and call out under-specified or mis-sequenced items.
-8. Create at most 3 new pending decisions if approval is needed. Keep them small, concrete, and directly tied to portfolio flow.
-9. End your response with `## HANDOFF` as the final section.
+## Task Loop
+1. Review portfolio work items the operator has moved to `ready` (Swarm Manager has no `accepted` status; see `path:docs/agent-system/SWARM_MANAGER_WORK.md` §"Lifecycle") and mark supported applications. Operator decision is the consumer of this team's items.
+2. Gather the portfolio pulse in one governed call instead of listing and sorting by hand: `program-runtime library run command-center.portfolio-pulse --provenance agent --input stale_limit=6 --input goal_limit=3 --json`. Parse `.program.stdout` as the typed envelope (output schema `command-center.portfolio-pulse`). Branch on `.status`:
+   - `ok` or `partial`: `signals.stale_backlog.items` is already the stale-only, oldest-first, 6-bounded batch and `signals.aging_goals.items` the active, ≥14-day, oldest-first, 3-bounded batch; carry them into steps 3–4 directly. Read `signals.attention` and `signals.board.untrusted` as portfolio-outcome anomaly flags worth a narrative line. On `partial`, read `errors[]` and `signals.quality` to see which sensor was unavailable and treat that lane as unread — never invent its rows.
+   - `unavailable` or `failed`: the pulse is the sensor, not the authority; fall back to the direct reads named in steps 3–4, record the degradation in today's snapshot, and continue.
+   The program owns the deterministic selection (filter, order, bound); you own the verdict. Do not re-list or re-sort the backlog or goals when the pulse already returned them.
+3. For each item in `signals.stale_backlog.items` (fallback: rows where `.stale == true` from `swarm-manager backlog list --status backlog --archived false --json`, sorted by `.updated` ascending, capped at the 6 oldest), assign `keep`, `refresh`, or `supersede` and cite its `age_days`, whether its plan reference resolves, and whether its acceptance paths still exist.
+4. For each goal in `signals.aging_goals.items` (fallback: active goals whose `.goal.updated` is at least 14 days old from `swarm-manager goals list --json`, oldest first, capped at the 3 oldest), assign `keep`, `refresh`, or `supersede` and cite its `age_days`, acceptance criteria, milestone state, and target state.
+5. Write one bounded staleness-verdict section to today's `goal-portfolio-record/YYYY-MM-DD` snapshot on every run. Include the inspected counts, each typed item or goal reference, its verdict, and its evidence. Record an explicit empty batch when no stale entity qualifies.
+6. Treat every staleness verdict as a proposal. Never apply it: do not import backlog changes, change item status, archive a goal, or start consequential work from this lane. Human disposition is the only path from this batch to mutation. Do not use the interactive `operations-sweep-staleness` job.
+7. Diff live goal names (`swarm-manager goals list`) against the `goal:` references in `path:docs/director-swarm/strategy/ROADMAP.md`. Any delta — a listed goal that no longer exists, or a live goal with no theme row — is drift; propose one bounded `goal-portfolio` work item covering the delta.
+8. Check scenario-scoped proposals against existing goal coverage before drafting anything new.
+9. Identify the smallest portfolio correction that needs approval.
+10. Record portfolio markers or snapshots.
+11. Propose corrections when they are not duplicative. `goal-proposal` and `goal-portfolio` work items carry the prediction block required by the Outcomes Charter.
 
-## Supported Actions Today
-- backlog-item priority or dependency cleanup when an accepted decision explicitly authorizes it
-- approval-gated backlog proposals that follow the `swarm-manager-recommendations` contract
-- portfolio judgments recorded as decisions, knowledge, or handoff notes
+## Run Decision
 
-## Required Output
-- `Portfolio status`
-- `Applied accepted decisions`
-- `Now / Near / Far`
-- `Ready now`
-- `Blocked or under-specified`
-- `Corrections that need approval`
-- `## HANDOFF`
+Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+
+## Stop Conditions
+
+- **Instrument unavailable.** If `swarm-manager` cannot be reached, record one line saying so and stop.
+- **Nothing changed.** If the stale batch and the roadmap delta match the last `goal-portfolio-record/*` entry and that batch is still undispositioned, record one line saying so and stop. Do not re-propose the same batch.
+- **Never file a challenge as a new Swarm item.** Record a disagreement with an existing item as an annotation on that item (`swarm-manager backlog update --kind <kind> --name <name> --data '<json>'`), not as a new item.

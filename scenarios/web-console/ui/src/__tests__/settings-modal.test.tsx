@@ -1,10 +1,15 @@
+import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import SettingsModal from "../components/SettingsModal";
+import { setDesktopViewport, setMobileViewport } from "../test-utils/viewport";
 
 const mockStoreState = {
   settingsModalOpen: true,
   setSettingsModalOpen: vi.fn(),
+  settingsInitialTab: null as string | null,
+  setSettingsInitialTab: vi.fn(),
+  markAudioIntent: vi.fn(),
 };
 
 const mediaQueryState = {
@@ -58,8 +63,12 @@ vi.mock("../components/settings/IntegrationsSection", () => ({
 describe("SettingsModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.removeItem("wc-settings-location-v2");
+    localStorage.removeItem("wc-settings-active-tab");
+    mockStoreState.settingsInitialTab = null;
     mockStoreState.settingsModalOpen = true;
     mediaQueryState.isMobile = false;
+    setDesktopViewport();
   });
 
   it("does not render when closed", () => {
@@ -81,16 +90,149 @@ describe("SettingsModal", () => {
     expect(screen.getByTestId("sessions-section")).toBeTruthy();
   });
 
-  it("closes on backdrop click", () => {
+  it("closes on backdrop press, not on panel press", () => {
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
-    fireEvent.click(screen.getByTestId("settings-backdrop"));
+    const panel = screen.getByTestId("settings-modal");
+    fireEvent.pointerDown(panel);
+    expect(mockStoreState.setSettingsModalOpen).not.toHaveBeenCalled();
+    // The backdrop dismisses on press, not on click: a click only lands after
+    // the pointer is released over the same element, which a drag that starts
+    // on the backdrop never satisfies.
+    fireEvent.pointerDown(screen.getByTestId("settings-modal.backdrop"));
     expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
   });
 
-  it("renders mobile tabs row on mobile", () => {
-    mediaQueryState.isMobile = true;
+  it("closes on Escape and renders dialog semantics", () => {
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
-    expect(screen.getByTestId("settings-tabs-row")).toBeTruthy();
+    const panel = screen.getByTestId("settings-modal");
+    expect(panel.getAttribute("role")).toBe("dialog");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("traps focus inside the settings dialog", () => {
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const panel = screen.getByTestId("settings-modal");
+    const tab = screen.getByTestId("settings-tab-sessions");
+    tab.focus();
+    fireEvent.keyDown(panel, { key: "Tab" });
+    expect(panel.contains(document.activeElement)).toBe(true);
+    fireEvent.keyDown(panel, { key: "Tab", shiftKey: true });
+    expect(panel.contains(document.activeElement)).toBe(true);
+  });
+
+  it("starts on the category list, then remembers a selected page and the list", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    const { unmount } = render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-categories")).toBeTruthy();
     expect(screen.queryByTestId("settings-sidebar")).toBeNull();
+    fireEvent.click(screen.getByTestId("settings-tab-sessions"));
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
+    expect(screen.getByTestId("settings-categories-back").closest("header")?.querySelector("h2")?.textContent).toBeTruthy();
+    unmount();
+    const next = render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("settings-categories-back"));
+    expect(screen.getByTestId("settings-categories")).toBeTruthy();
+    next.unmount();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-categories")).toBeTruthy();
+  });
+
+  it("honors a requested settings page on a first mobile visit", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    mockStoreState.settingsInitialTab = "sessions";
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
+    expect(mockStoreState.setSettingsInitialTab).toHaveBeenCalledWith(null);
+  });
+
+  it("offers a drag handle on mobile and a close button on desktop", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    const { unmount } = render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-modal.grabber")).toBeTruthy();
+    expect(screen.queryByTestId("settings-modal.close")).toBeNull();
+    unmount();
+
+    mediaQueryState.isMobile = false;
+    setDesktopViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    expect(screen.getByTestId("settings-modal.close")).toBeTruthy();
+    expect(screen.queryByTestId("settings-modal.grabber")).toBeNull();
+  });
+
+  it("dismisses when the mobile handle is dragged down", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const grabber = screen.getByTestId("settings-modal.grabber");
+    fireEvent.pointerDown(grabber, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(grabber, { pointerId: 1, clientX: 100, clientY: 260 });
+    fireEvent.pointerUp(grabber, { pointerId: 1, clientX: 100, clientY: 260 });
+    expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("moves the sheet exactly as far as the finger", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const panel = screen.getByTestId("settings-modal");
+    // jsdom lays nothing out, so the surface has to be given a height for the
+    // drag to have something to be a fraction of.
+    panel.getBoundingClientRect = () => ({ height: 600 }) as DOMRect;
+    const grabber = screen.getByTestId("settings-modal.grabber");
+    fireEvent.pointerDown(grabber, { pointerId: 1, clientX: 0, clientY: 100 });
+    fireEvent.pointerMove(grabber, { pointerId: 1, clientX: 0, clientY: 160 });
+    // The surface moves the same 60px the finger did. Two earlier shapes got
+    // this wrong: translating by a fraction of the 96px commit threshold moved
+    // it 375px, and routing the offset through an inherited custom property
+    // fixed the distance but invalidated style for the whole subtree each
+    // frame. The offset is a plain non-inheriting transform, in pixels.
+    expect(panel.style.transform).toBe("translateY(60px)");
+  });
+
+  it("keeps the mobile handle reachable without a pointer", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    fireEvent.keyDown(screen.getByTestId("settings-modal.grabber"), { key: "Enter" });
+    expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
+  });
+
+  it("seats the mobile sheet flush with the bottom edge below a top gap", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    // Addressed by prefix: the sheet key carries the stylesheet revision, and
+    // pinning the whole key here would turn every unrelated drawer release
+    // into a failure in this file.
+    const sheet = document.head.querySelector(
+      '[data-rcl-sheet*="FullPageDrawer"]',
+    )?.textContent;
+    expect(sheet).toBeTruthy();
+    // The bug this guards: the panel used to inset itself from the bottom by
+    // env(safe-area-inset-bottom), resolved against a viewport this app had
+    // already narrowed, which left the sheet floating above the edge it slid
+    // in from. The surface reaches the edge; the safe area is padding inside.
+    expect(sheet).toContain("inset-block-end: 0");
+    expect(sheet).toContain(
+      "inset-block-start: calc(var(--rcl-safe-top, 0px) + var(--overlay-drawer-top-gap))",
+    );
+    expect(sheet).toContain("padding-block-end: var(--rcl-safe-bottom, 0px)");
+  });
+
+  it("keeps mobile category navigation keyboard reachable", () => {
+    mediaQueryState.isMobile = true;
+    setMobileViewport();
+    render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
+    const sessions = screen.getByTestId("settings-tab-sessions");
+    sessions.focus();
+    expect(document.activeElement).toBe(sessions);
+    fireEvent.click(sessions);
+    expect(screen.getByTestId("sessions-section")).toBeTruthy();
   });
 });

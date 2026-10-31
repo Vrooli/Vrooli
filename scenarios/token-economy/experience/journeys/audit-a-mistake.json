@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "audit-a-mistake",
+    "title": "Correct a mistake and keep the record",
+    "purpose": "The path that proves the economy is teachable rather than arbitrary: a wrong grant is corrected without any history being erased.",
+    "prd_refs": [
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-004"
+    ]
+  },
+  "steps": [
+    {
+      "page": "journal",
+      "state": "default",
+      "intent": "The minter finds the event that was wrong and sees who caused it and whether they were verified.",
+      "via": "event-table"
+    },
+    {
+      "page": "journal",
+      "state": "default",
+      "intent": "The minter observes that no edit or delete affordance exists anywhere on the page.",
+      "via": "provenance-indicator"
+    },
+    {
+      "page": "grants-admin",
+      "state": "success",
+      "intent": "The minter issues a compensating correction with a reason rather than removing the original.",
+      "via": "grant-reason"
+    },
+    {
+      "page": "journal",
+      "state": "default",
+      "intent": "The correction appears linked to the original, and both remain visible.",
+      "via": "correction-pair"
+    },
+    {
+      "page": "holder-history",
+      "state": "default",
+      "intent": "The holder sees both the mistake and its correction, which is what makes the economy trustworthy to them.",
+      "via": "correction-link"
+    }
+  ],
+  "claims": [
+    {
+      "id": "nothing-is-erased",
+      "type": "element-absent",
+      "statement": "No surface in this journey offers deletion of a journal event.",
+      "tier": "aspirational",
+      "rationale": "The append-only contract is a product promise, not only a storage detail."
+    }
+  ]
+}

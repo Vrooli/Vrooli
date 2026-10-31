@@ -1,0 +1,118 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "contributors",
+    "title": "Contributors",
+    "routes": [
+      "/contributors"
+    ],
+    "purpose": "Prepare bounded voluntary contribution packets and preserve real author-controlled wording and consent.",
+    "prd_refs": [
+      "OT-P0-029",
+      "OT-P0-030"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "The default state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "prepared-brief",
+      "description": "The prepared brief state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "awaiting-authorized-handoff",
+      "description": "The awaiting authorized handoff state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "sent-with-receipt",
+      "description": "The sent with receipt state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "considering",
+      "description": "The considering state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "accepted-scope",
+      "description": "The accepted scope state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "submitted",
+      "description": "The submitted state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "changes-requested",
+      "description": "The changes requested state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "final-wording-accepted",
+      "description": "The final wording accepted state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "declined",
+      "description": "The declined state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "withdrawn",
+      "description": "The withdrawn state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "outcome-reported",
+      "description": "The outcome reported state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "loading",
+      "description": "The loading state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "empty",
+      "description": "The empty state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "partial",
+      "description": "The partial state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "stale",
+      "description": "The stale state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "request-error",
+      "description": "The request error state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The permission denied state is distinguishable with its truthful basis and a permitted next action."
+    },
+    {
+      "id": "offline",
+      "description": "The offline state is distinguishable with its truthful basis and a permitted next action."
+    }
+  ],
+  "claims": [
+    {
+      "id": "contributors-outcome-1",
+      "type": "custom",
+      "statement": "Included and excluded packet material and exact recipient/use scope are readable before sharing.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    },
+    {
+      "id": "contributors-outcome-2",
+      "type": "custom",
+      "statement": "Only authenticated or verified response evidence supports consent; decline, withdrawal and independently reported outcome remain distinct.",
+      "tier": "aspirational",
+      "rationale": "Accepted target intent; no running selector or runtime attestation is asserted."
+    }
+  ],
+  "x-i16-source": {
+    "dossier": "package/documents/dossier-accepted-basis/document-text.md",
+    "selected_visuals": [
+      "design-source/screens/M11-contributor-v03-desktop.png",
+      "design-source/screens/M11-contributor-v03-phone.png"
+    ]
+  }
+}

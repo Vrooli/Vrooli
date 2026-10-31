@@ -1,0 +1,726 @@
+{
+  "metadata": {
+    "name": "p1-mobile-today-scroll-frame-comparison",
+    "description": "Measure one fixed reference-scale mobile Today timeline scroll under two browser-local art-free settings using the existing routed Workflow Health lease. Record actual scroll position and passive main-thread RAF/Long Animation Frame/Long Task observations with a same-condition idle control. Diagnostic only; no budget gate and no product mutation.",
+    "requirement": "OT-P1-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "surface": "performance-reference-scale-v1-scroll",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-today",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "metadata": {
+          "label": "Open Today in the fixed reference-scale lease"
+        },
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED",
+          "timeout_ms": 30000
+        }
+      }
+    },
+    {
+      "id": "wait-today",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "settle-today-a",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait outside measurement for the existing Today route scroll-settling window"
+        },
+        "wait": {
+          "duration_ms": 3100
+        }
+      }
+    },
+    {
+      "id": "top-before-condition-a",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "metadata": {
+          "label": "Start Condition A at the route top using BAS scroll"
+        },
+        "scroll": {
+          "selector": ".planner-route-scroll",
+          "y": 0,
+          "behavior": "SCROLL_BEHAVIOR_AUTO"
+        }
+      }
+    },
+    {
+      "id": "install-passive-probe",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Install bounded passive frame, task and content-position observations"
+        },
+        "evaluate": {
+          "expression": "(() => {\n const currentRoot=()=>document.querySelector('[data-testid=\"page-today\"]');\n const currentScroller=()=>document.querySelector('.planner-route-scroll');\n const visible=e=>{if(!e?.isConnected)return false;const cs=getComputedStyle(e),box=e.getBoundingClientRect();return cs.display!=='none'&&cs.visibility!=='hidden'&&Number(cs.opacity)!==0&&box.width>0&&box.height>0&&box.bottom>0&&box.top<innerHeight};\n const content=()=>{const root=currentRoot();if(!root)return {today_visible:false,day_plan_heading_visible:false,day_plan_heading_top_px:null,seeded_work_present:false,seeded_work_action_visible:false,seeded_work_action_count:0,visible_seeded_work_action_count:0,visible_alert_count:0};const heading=root.querySelector('.day-plan-heading h2#day-plan-heading');const r=heading?.getBoundingClientRect();const actions=[...root.querySelectorAll('.day-plan .time-block[role=\"button\"][aria-label*=\"P1 Reference work\"]')];const visibleActions=actions.filter(visible);return {today_visible:visible(root),day_plan_heading_visible:visible(heading),day_plan_heading_top_px:r?Math.round(r.top*100)/100:null,seeded_work_present:actions.length>0,seeded_work_action_visible:visibleActions.length>0,seeded_work_action_count:actions.length,visible_seeded_work_action_count:visibleActions.length,visible_alert_count:[...root.querySelectorAll('[role=\"alert\"]')].filter(visible).length};};\n const preference=()=>{const root=currentRoot();if(!root)throw new Error('Today is not mounted while reading scenery preferences');return {art_free:root.classList.contains('art-free'),reduced_scenery:root.classList.contains('reduced-scenery'),subdued_night:root.classList.contains('subdued-night')};};\n const root=currentRoot();\n if(!root)throw new Error('Today page is unavailable while capturing its browser-local preference');\n const initial_preference=preference(),initial_content=content(),scroller=currentScroller(),scroll_capacity_px=scroller?Math.max(0,scroller.scrollHeight-scroller.clientHeight):0,initial_remaining_scroll_px=scroller?Math.max(0,scroll_capacity_px-scroller.scrollTop):0;\n const percentile=(values,p)=>{if(!values.length)return null;const a=[...values].sort((x,y)=>x-y);return Math.round(a[Math.min(a.length-1,Math.ceil(p*a.length)-1)]*100)/100;};\n const probe={initial_preference,initial_diagnostic:{scroller_available:!!scroller,scroll_capacity_px,remaining_scroll_px:initial_remaining_scroll_px,content:initial_content},phases:[],control_errors:[],control_checks:[],alignments:[],observer_support:{longtask:false,long_animation_frame:false},long_tasks:[],long_animation_frames:[],dropped_entries:{long_tasks:0,long_animation_frames:0},raf_cap_hit:false,active:null,raf_id:null,watchdog_id:null,disposed:false};\n const observers=[];\n if('PerformanceObserver'in window){for(const [type,key] of [['longtask','long_tasks'],['long-animation-frame','long_animation_frames']]){try{if(type==='long-animation-frame'&&!(PerformanceObserver.supportedEntryTypes??[]).includes(type))continue;const observer=new PerformanceObserver(list=>{if(probe.disposed)return;for(const entry of list.getEntries()){if(probe[key].length<40)probe[key].push({start_ms:entry.startTime,duration_ms:entry.duration,blocking_duration_ms:Number.isFinite(entry.blockingDuration)?entry.blockingDuration:null});else probe.dropped_entries[key]++;}});observer.observe({type,buffered:true});observers.push({key,observer});probe.observer_support[type==='longtask'?'longtask':'long_animation_frame']=true;}catch{}}}\n const stopFrame=()=>{if(probe.raf_id!==null){cancelAnimationFrame(probe.raf_id);probe.raf_id=null;}};\n const clearPhaseWatchdog=()=>{if(probe.watchdog_id!==null){clearTimeout(probe.watchdog_id);probe.watchdog_id=null;}};\n const checkVisible=(name)=>{const root=currentRoot(),scroller=currentScroller(),c=content(),capacity=scroller?Math.max(0,scroller.scrollHeight-scroller.clientHeight):0,remaining=scroller?Math.max(0,capacity-scroller.scrollTop):0;const reasons=[];if(!root||!scroller)reasons.push('Today route root or scroller is unavailable');if(!c.seeded_work_present)reasons.push('seeded mobile reference work action is absent');if(!c.day_plan_heading_visible)reasons.push('mobile day-plan heading is outside the viewport');if(!c.seeded_work_action_visible)reasons.push('seeded mobile work action is outside the viewport');if(c.visible_alert_count!==0)reasons.push('Today displays a visible error');if(remaining<220)reasons.push('reference-scale route has less than 220px of remaining scroll range');const result={name,valid:reasons.length===0,reasons,scroll_capacity_px:capacity,remaining_scroll_px:remaining,content:c};probe.control_checks.push(result);if(reasons.length)probe.control_errors.push(name+': '+reasons.join('; '));return result;};\n probe.align=async(name)=>{const root=currentRoot(),scroller=currentScroller(),heading=root?.querySelector('.day-plan-heading h2#day-plan-heading'),action=[...(root?.querySelectorAll('.day-plan .time-block[role=\\\"button\\\"][aria-label*=\\\"P1 Reference work\\\"]')??[])].find(e=>e.isConnected&&getComputedStyle(e).display!=='none');if(!root||!scroller||!heading||!action){const result={name,valid:false,reason:'Today root, route scroller, mobile day-plan heading, or visible seeded work action is unavailable',before:null,target_scroll_top_px:null,after:null};probe.alignments.push(result);probe.control_errors.push(name+': '+result.reason);return result;}const sr=scroller.getBoundingClientRect(),hr=heading.getBoundingClientRect(),ar=action.getBoundingClientRect(),before={scroll_top_px:Math.round(scroller.scrollTop*100)/100,scroll_capacity_px:Math.max(0,scroller.scrollHeight-scroller.clientHeight),remaining_scroll_px:Math.max(0,scroller.scrollHeight-scroller.clientHeight-scroller.scrollTop),day_plan_heading_top_px:Math.round(hr.top*100)/100,seeded_action_top_px:Math.round(ar.top*100)/100,scroller_top_px:Math.round(sr.top*100)/100,client_height_px:scroller.clientHeight};const headingContentY=scroller.scrollTop+hr.top-sr.top,actionContentY=scroller.scrollTop+ar.top-sr.top,maxTarget=Math.max(0,scroller.scrollHeight-scroller.clientHeight-220),requested=Math.max(headingContentY-scroller.clientHeight*.25,actionContentY-scroller.clientHeight*.82),target=Math.max(0,Math.min(maxTarget,requested));scroller.scrollTo({top:target,behavior:'instant'});await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await new Promise(r=>setTimeout(r,80));const afterHeading=heading.getBoundingClientRect(),afterAction=action.getBoundingClientRect(),after={scroll_top_px:Math.round(scroller.scrollTop*100)/100,scroll_capacity_px:Math.max(0,scroller.scrollHeight-scroller.clientHeight),remaining_scroll_px:Math.max(0,scroller.scrollHeight-scroller.clientHeight-scroller.scrollTop),day_plan_heading_top_px:Math.round(afterHeading.top*100)/100,seeded_action_top_px:Math.round(afterAction.top*100)/100,content:content()};const result={name,valid:Math.abs(scroller.scrollTop-target)<=2&&after.content.day_plan_heading_visible&&after.content.seeded_work_action_visible&&after.remaining_scroll_px>=220,before,target_scroll_top_px:Math.round(target*100)/100,requested_scroll_top_px:Math.round(requested*100)/100,after,setup_method:'mobile day-plan geometry followed by scroller.scrollTo; outside the measured BAS scroll phase'};if(!result.valid){result.reason='derived mobile day-plan alignment could not place the heading and seeded work action in view with 220px remaining scroll range';probe.control_errors.push(name+': '+result.reason);}probe.alignments.push(result);return result;};\nprobe.preflight=(name)=>checkVisible(name);\n const raf=ts=>{probe.raf_id=null;const phase=probe.active;if(!phase||probe.disposed)return;if(!phase.scroller.isConnected){phase.invalid_reason='route scroller was detached during measurement';phase.expired=true;return;}if(performance.now()-phase.started_at>phase.max_duration_ms){phase.invalid_reason='phase exceeded its bounded duration';phase.expired=true;return;}const y=phase.scroller.scrollTop;if(phase.previous){const dt=ts-phase.previous.t;if(phase.intervals.length<900)phase.intervals.push(dt);else{phase.raf_cap_hit=true;probe.raf_cap_hit=true;return;}if(Math.abs(y-phase.previous.y)>.25){phase.moving_intervals.push(dt);if(phase.positions.length<300)phase.positions.push({t_ms:Math.round((ts-phase.started_at)*100)/100,scroll_top_px:Math.round(y*100)/100});}}else if(phase.positions.length<300)phase.positions.push({t_ms:0,scroll_top_px:Math.round(y*100)/100});phase.previous={t:ts,y};probe.raf_id=requestAnimationFrame(raf);};\n probe.begin=(name,max_duration_ms=6500)=>{if(probe.disposed)throw new Error('probe has been disposed');if(probe.active)throw new Error('a measurement phase is already active');const root=currentRoot(),scroller=currentScroller(),check=checkVisible(name+' preflight');const now=performance.now(),phase={name,started_at:now,max_duration_ms,scroller,scroll_start_px:scroller?.scrollTop??null,previous:null,intervals:[],moving_intervals:[],positions:[],content_before:content(),preferences:root?preference():null,expired:false,raf_cap_hit:false,invalid_reason:check.valid?null:check.reasons.join('; ')};probe.active=phase;if(check.valid){probe.watchdog_id=setTimeout(()=>{if(probe.active===phase){phase.expired=true;phase.invalid_reason='phase exceeded its bounded duration';stopFrame();}},max_duration_ms);probe.raf_id=requestAnimationFrame(raf);}return {phase:name,started:check.valid,invalid_reason:phase.invalid_reason,scroll_start_px:phase.scroll_start_px===null?null:Math.round(phase.scroll_start_px*100)/100,preferences:phase.preferences};};\n probe.end=()=>{const phase=probe.active;if(!phase)throw new Error('no measurement phase is active');stopFrame();clearPhaseWatchdog();let after;try{after=content();}catch(error){phase.invalid_reason=phase.invalid_reason??String(error);after={today_visible:false,day_plan_heading_visible:false,day_plan_heading_top_px:null,seeded_work_present:false,seeded_work_action_visible:false,seeded_work_action_count:0,visible_seeded_work_action_count:0,visible_alert_count:0};}for(const {key,observer} of observers){for(const entry of observer.takeRecords()){const list=key==='long_tasks'?probe.long_tasks:probe.long_animation_frames;if(list.length<40)list.push({start_ms:entry.startTime,duration_ms:entry.duration,blocking_duration_ms:Number.isFinite(entry.blockingDuration)?entry.blockingDuration:null});else probe.dropped_entries[key]++;}}const end=performance.now(),scrollEnd=phase.scroller?.scrollTop??null,overlap=list=>list.filter(item=>item.start_ms<=end&&item.start_ms+item.duration_ms>=phase.started_at).map(item=>({start_after_phase_ms:Math.round((item.start_ms-phase.started_at)*100)/100,duration_ms:Math.round(item.duration_ms*100)/100,blocking_duration_ms:item.blocking_duration_ms===null?null:Math.round(item.blocking_duration_ms*100)/100}));const valid=!phase.invalid_reason&&!phase.expired&&!phase.raf_cap_hit&&!!phase.scroller?.isConnected;const result={phase:phase.name,valid,invalid_reason:phase.invalid_reason,elapsed_ms:Math.round((end-phase.started_at)*100)/100,preferences:phase.preferences,scroll_start_px:phase.scroll_start_px===null?null:Math.round(phase.scroll_start_px*100)/100,scroll_end_px:scrollEnd===null?null:Math.round(scrollEnd*100)/100,scroll_delta_px:scrollEnd===null||phase.scroll_start_px===null?null:Math.round((scrollEnd-phase.scroll_start_px)*100)/100,raf_callback_intervals_ms:{count:phase.intervals.length,p50:percentile(phase.intervals,.5),p95:percentile(phase.intervals,.95),max:phase.intervals.length?Math.round(Math.max(...phase.intervals)*100)/100:null},intervals_during_observed_scroll_ms:{count:phase.moving_intervals.length,p50:percentile(phase.moving_intervals,.5),p95:percentile(phase.moving_intervals,.95),max:phase.moving_intervals.length?Math.round(Math.max(...phase.moving_intervals)*100)/100:null},scroll_positions:phase.positions,content_before:phase.content_before,content_after:after,long_task_entries:overlap(probe.long_tasks),long_animation_frame_entries:overlap(probe.long_animation_frames),observer_support:probe.observer_support,dropped_entries:{...probe.dropped_entries},interpretation:'requestAnimationFrame callback intervals are main-thread callback cadence, not physical/compositor FPS or touch latency'};probe.phases.push(result);probe.active=null;return result;};\n const teardown=()=>{if(probe.active){probe.active.invalid_reason=probe.active.invalid_reason??'probe disposed before phase completion';stopFrame();clearPhaseWatchdog();probe.phases.push({phase:probe.active.name,valid:false,invalid_reason:probe.active.invalid_reason});probe.active=null;}probe.disposed=true;stopFrame();clearPhaseWatchdog();for(const {observer} of observers)observer.disconnect();};\n probe.dispose=()=>{teardown();window.removeEventListener('pagehide',teardown);let current=null;try{current=preference();}catch{}const preferenceRestored=current!==null&&JSON.stringify(current)===JSON.stringify(probe.initial_preference);return {initial_preference:probe.initial_preference,final_preference:current,preference_restored:preferenceRestored,observer_support:probe.observer_support,dropped_entries:{...probe.dropped_entries},phase_count:probe.phases.length,control_checks:probe.control_checks,alignments:probe.alignments,control_errors:probe.control_errors};};\n window.__plannerScrollFrameProbe=probe;window.addEventListener('pagehide',teardown,{once:true});return {installed:true,initial_preference:probe.initial_preference,initial_diagnostic:probe.initial_diagnostic,observer_support:probe.observer_support};\n})()",
+          "store_result": "planner_scroll_probe_capabilities"
+        }
+      }
+    },
+    {
+      "id": "assert-reference-content",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require the fixed reference work item in the mobile timeline before scrolling"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-today\"]",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Reference-scale Today content is unavailable"
+        }
+      }
+    },
+    {
+      "id": "align-condition-a",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Align mobile day-plan heading and seeded timeline action using measured route geometry outside the timed scroll"
+        },
+        "evaluate": {
+          "expression": "(async()=>window.__plannerScrollFrameProbe.align('condition-a'))()",
+          "store_result": "planner_scroll_alignment_a"
+        }
+      }
+    },
+    {
+      "id": "preflight-condition-a",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Record whether useful Today content and 220px capacity are ready for Condition A"
+        },
+        "evaluate": {
+          "expression": "window.__plannerScrollFrameProbe.preflight('condition-a')",
+          "store_result": "planner_scroll_preflight_a"
+        }
+      }
+    },
+    {
+      "id": "condition-a-idle",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Measure one second of same-route idle callback cadence under the initial art setting"
+        },
+        "evaluate": {
+          "expression": "(async()=>{const p=window.__plannerScrollFrameProbe;p.begin('condition-a-idle-control');await new Promise(r=>setTimeout(r,1000));return p.end();})()",
+          "store_result": "planner_scroll_condition_a_idle"
+        }
+      }
+    },
+    {
+      "id": "condition-a-scroll-start",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Start the page-clock sample before BAS smooth scrolling"
+        },
+        "evaluate": {
+          "expression": "window.__plannerScrollFrameProbe.begin('condition-a-bas-smooth-scroll')",
+          "store_result": "planner_scroll_condition_a_scroll_start"
+        }
+      }
+    },
+    {
+      "id": "condition-a-bas-scroll",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "metadata": {
+          "label": "Perform an actual 220-pixel smooth scroll through the BAS scroll action"
+        },
+        "scroll": {
+          "selector": ".planner-route-scroll",
+          "delta_y": 220,
+          "behavior": "SCROLL_BEHAVIOR_SMOOTH"
+        }
+      }
+    },
+    {
+      "id": "condition-a-scroll-finish",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Wait for scroll position to settle and record actual movement/content/frame metrics"
+        },
+        "evaluate": {
+          "expression": "(async()=>{const p=window.__plannerScrollFrameProbe;const el=document.querySelector('.planner-route-scroll');if(!el){p.control_errors.push('Condition A route scroller was unavailable after the BAS scroll');return p.end();}const deadline=performance.now()+4000;let last=el.scrollTop,stable=performance.now();while(performance.now()<deadline){await new Promise(r=>setTimeout(r,40));const y=el.scrollTop,now=performance.now();if(Math.abs(y-last)>.25){last=y;stable=now;}if(now-stable>=250)break;}const result=p.end();if(result.scroll_delta_px===null||result.scroll_delta_px<=0){result.valid=false;result.invalid_reason='BAS scroll action produced no downward viewport movement';p.control_errors.push(result.phase+': '+result.invalid_reason);}if(!result.content_after.seeded_work_action_visible){result.valid=false;result.invalid_reason='seeded mobile work action left the viewport during the bounded scroll';p.control_errors.push(result.phase+': '+result.invalid_reason);}if(result.content_after.visible_alert_count!==0){result.valid=false;result.invalid_reason='Today displayed an error during the scroll sample';p.control_errors.push(result.phase+': '+result.invalid_reason);}return result;})()",
+          "store_result": "planner_scroll_condition_a_scroll"
+        }
+      }
+    },
+    {
+      "id": "top-before-settings",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "metadata": {
+          "label": "Reset the route viewport before changing the browser-local preference"
+        },
+        "scroll": {
+          "selector": ".planner-route-scroll",
+          "y": 0,
+          "behavior": "SCROLL_BEHAVIOR_AUTO"
+        }
+      }
+    },
+    {
+      "id": "open-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Open Settings through the real navigation control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-settings-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-settings",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Settings"
+        },
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "wait-art-free-switch",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for the existing Art-free mode control"
+        },
+        "wait": {
+          "selector": "label[data-rcl-selection-row]:has-text(\"Art-free mode\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "toggle-art-free",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Toggle only the browser-local Art-free mode through the UI"
+        },
+        "click": {
+          "selector": "label[data-rcl-selection-row]:has-text(\"Art-free mode\")"
+        }
+      }
+    },
+    {
+      "id": "verify-art-free-toggle",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Verify the accessible switch rendered its updated state"
+        },
+        "evaluate": {
+          "expression": "(async()=>{await new Promise(r=>setTimeout(r,350));const p=window.__plannerScrollFrameProbe,label=[...document.querySelectorAll('label[data-rcl-selection-row]')].find(e=>e.textContent.trim()==='Art-free mode'),sw=label?.querySelector('[role=\"switch\"]');if(!sw){p.control_errors.push('Art-free mode switch was unavailable after the Condition B toggle');return {aria_checked:null,visible:false};}const state=sw.getAttribute('aria-checked');if((state==='true')===p.initial_preference.art_free)p.control_errors.push('Condition B did not change Art-free mode');return {aria_checked:state,visible:!!sw.getClientRects().length};})()",
+          "store_result": "planner_scroll_art_free_switch_state"
+        }
+      }
+    },
+    {
+      "id": "return-today-b",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Return to Today through the real navigation control"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-dashboard-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-today-b",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today after preference change"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "settle-today-b",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait outside measurement for the same Today route scroll-settling window after the Settings remount"
+        },
+        "wait": {
+          "duration_ms": 3100
+        }
+      }
+    },
+    {
+      "id": "assert-reference-content-b",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require the same seeded Today work item in Condition B"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-today\"]",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Reference-scale Today content changed during the browser-only comparison"
+        }
+      }
+    },
+    {
+      "id": "top-before-condition-b",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "metadata": {
+          "label": "Start Condition B at the route top using BAS scroll"
+        },
+        "scroll": {
+          "selector": ".planner-route-scroll",
+          "y": 0,
+          "behavior": "SCROLL_BEHAVIOR_AUTO"
+        }
+      }
+    },
+    {
+      "id": "verify-condition-b-preferences",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Verify art-free changed while reduced scenery and subdued night stayed fixed"
+        },
+        "evaluate": {
+          "expression": "(()=>{const p=window.__plannerScrollFrameProbe,r=document.querySelector('[data-testid=\"page-today\"]'),next={art_free:r?.classList.contains('art-free')??null,reduced_scenery:r?.classList.contains('reduced-scenery')??null,subdued_night:r?.classList.contains('subdued-night')??null};if(next.art_free===null||next.art_free===p.initial_preference.art_free||next.reduced_scenery!==p.initial_preference.reduced_scenery||next.subdued_night!==p.initial_preference.subdued_night)p.control_errors.push('Condition B did not isolate the requested Art-free setting');return next;})()",
+          "store_result": "planner_scroll_condition_b_preferences"
+        }
+      }
+    },
+    {
+      "id": "align-condition-b",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Reacquire Today after Settings remount and align the same content for Condition B"
+        },
+        "evaluate": {
+          "expression": "(async()=>window.__plannerScrollFrameProbe.align('condition-b'))()",
+          "store_result": "planner_scroll_alignment_b"
+        }
+      }
+    },
+    {
+      "id": "preflight-condition-b",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Record whether useful Today content and 220px capacity are ready for Condition B"
+        },
+        "evaluate": {
+          "expression": "window.__plannerScrollFrameProbe.preflight('condition-b')",
+          "store_result": "planner_scroll_preflight_b"
+        }
+      }
+    },
+    {
+      "id": "condition-b-idle",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Measure one second of same-route idle callback cadence under the flipped art setting"
+        },
+        "evaluate": {
+          "expression": "(async()=>{const p=window.__plannerScrollFrameProbe;p.begin('condition-b-idle-control');await new Promise(r=>setTimeout(r,1000));return p.end();})()",
+          "store_result": "planner_scroll_condition_b_idle"
+        }
+      }
+    },
+    {
+      "id": "condition-b-scroll-start",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Start the page-clock sample before the second BAS smooth scroll"
+        },
+        "evaluate": {
+          "expression": "window.__plannerScrollFrameProbe.begin('condition-b-bas-smooth-scroll')",
+          "store_result": "planner_scroll_condition_b_scroll_start"
+        }
+      }
+    },
+    {
+      "id": "condition-b-bas-scroll",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "metadata": {
+          "label": "Perform the same 220-pixel smooth BAS scroll in Condition B"
+        },
+        "scroll": {
+          "selector": ".planner-route-scroll",
+          "delta_y": 220,
+          "behavior": "SCROLL_BEHAVIOR_SMOOTH"
+        }
+      }
+    },
+    {
+      "id": "condition-b-scroll-finish",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Wait for scroll position to settle and record actual movement/content/frame metrics"
+        },
+        "evaluate": {
+          "expression": "(async()=>{const p=window.__plannerScrollFrameProbe,el=document.querySelector('.planner-route-scroll');if(!el){p.control_errors.push('Condition B route scroller was unavailable after the BAS scroll');return p.end();}const deadline=performance.now()+4000;let last=el.scrollTop,stable=performance.now();while(performance.now()<deadline){await new Promise(r=>setTimeout(r,40));const y=el.scrollTop,now=performance.now();if(Math.abs(y-last)>.25){last=y;stable=now;}if(now-stable>=250)break;}const result=p.end();if(result.scroll_delta_px===null||result.scroll_delta_px<=0){result.valid=false;result.invalid_reason='BAS scroll action produced no downward viewport movement';p.control_errors.push(result.phase+': '+result.invalid_reason);}if(!result.content_after.seeded_work_action_visible){result.valid=false;result.invalid_reason='seeded mobile work action left the viewport during the bounded scroll';p.control_errors.push(result.phase+': '+result.invalid_reason);}if(result.content_after.visible_alert_count!==0){result.valid=false;result.invalid_reason='Today displayed an error during the scroll sample';p.control_errors.push(result.phase+': '+result.invalid_reason);}return result;})()",
+          "store_result": "planner_scroll_condition_b_scroll"
+        }
+      }
+    },
+    {
+      "id": "top-before-restore",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "metadata": {
+          "label": "Reset the route viewport before restoring the initial setting"
+        },
+        "scroll": {
+          "selector": ".planner-route-scroll",
+          "y": 0,
+          "behavior": "SCROLL_BEHAVIOR_AUTO"
+        }
+      }
+    },
+    {
+      "id": "open-settings-restore",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Open Settings to restore the original browser-local preference"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-settings-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-settings-restore",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Settings before restoring the preference"
+        },
+        "wait": {
+          "selector": "@selector/pages.settings",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "wait-art-free-switch-restore",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Art-free mode before restoring it"
+        },
+        "wait": {
+          "selector": "label[data-rcl-selection-row]:has-text(\"Art-free mode\")",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "restore-art-free",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Restore the original Art-free mode through its visible Settings switch"
+        },
+        "evaluate": {
+          "expression": "(async()=>{const p=window.__plannerScrollFrameProbe,label=[...document.querySelectorAll('label[data-rcl-selection-row]')].find(e=>e.textContent.trim()==='Art-free mode'),sw=label?.querySelector('[role=\"switch\"]');if(!sw||!sw.getClientRects().length){p.control_errors.push('Art-free mode switch was unavailable during restoration');return {restored:false};}const desired=String(p.initial_preference.art_free);if(sw.getAttribute('aria-checked')!==desired){sw.click();const deadline=performance.now()+1500;while(performance.now()<deadline&&sw.getAttribute('aria-checked')!==desired)await new Promise(r=>setTimeout(r,25));}const restored=sw.getAttribute('aria-checked')===desired;if(!restored)p.control_errors.push('Art-free mode did not return to its original value');return {restored,aria_checked:sw.getAttribute('aria-checked')};})()",
+          "store_result": "planner_scroll_art_free_restore_action"
+        }
+      }
+    },
+    {
+      "id": "verify-switch-restored",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Verify the accessible switch rendered its restored state"
+        },
+        "evaluate": {
+          "expression": "(async()=>{await new Promise(r=>setTimeout(r,350));const p=window.__plannerScrollFrameProbe,label=[...document.querySelectorAll('label[data-rcl-selection-row]')].find(e=>e.textContent.trim()==='Art-free mode'),sw=label?.querySelector('[role=\"switch\"]');if(!sw){p.control_errors.push('Art-free mode switch was unavailable after restoration');return {aria_checked:null,visible:false};}const state=sw.getAttribute('aria-checked');if((state==='true')!==p.initial_preference.art_free)p.control_errors.push('visible Settings switch does not show the original Art-free value');return {aria_checked:state,visible:!!sw.getClientRects().length};})()",
+          "store_result": "planner_scroll_art_free_restore_switch_state"
+        }
+      }
+    },
+    {
+      "id": "return-today-final",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "metadata": {
+          "label": "Return to Today after restoring the initial preference"
+        },
+        "click": {
+          "selector": "[data-testid=\"layout-nav-dashboard-tab\"]"
+        }
+      }
+    },
+    {
+      "id": "wait-today-final",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "metadata": {
+          "label": "Wait for Today after preference restoration"
+        },
+        "wait": {
+          "selector": "@selector/pages.today",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 20000
+        }
+      }
+    },
+    {
+      "id": "assert-reference-content-final",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "metadata": {
+          "label": "Require the same seeded work item after restoration"
+        },
+        "assert": {
+          "selector": "[data-testid=\"page-today\"]",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "P1 Reference work"
+          },
+          "case_sensitive": true,
+          "timeout_ms": 20000,
+          "failure_message": "Reference-scale Today content is missing after restoring scenery"
+        }
+      }
+    },
+    {
+      "id": "finalize-preference-and-samples",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "metadata": {
+          "label": "Confirm browser-local preferences were restored and return bounded paired observations"
+        },
+        "evaluate": {
+          "expression": "(()=>{const p=window.__plannerScrollFrameProbe,summary=p.dispose(),invalid=p.phases.filter(x=>x.valid===false);if(!summary.preference_restored)throw new Error('browser-local scenery preference was not restored');if(p.control_errors.length)throw new Error('measurement controls were invalid: '+p.control_errors.join('; '));if(invalid.length)throw new Error('one or more measurement phases were invalid: '+invalid.map(x=>x.phase+': '+x.invalid_reason).join('; '));return {summary,phases:p.phases};})()",
+          "store_result": "planner_scroll_frame_final_results"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "open-today",
+      "target": "wait-today"
+    },
+    {
+      "source": "wait-today",
+      "target": "settle-today-a"
+    },
+    {
+      "source": "settle-today-a",
+      "target": "top-before-condition-a"
+    },
+    {
+      "source": "top-before-condition-a",
+      "target": "install-passive-probe"
+    },
+    {
+      "source": "install-passive-probe",
+      "target": "assert-reference-content"
+    },
+    {
+      "source": "assert-reference-content",
+      "target": "align-condition-a"
+    },
+    {
+      "source": "align-condition-a",
+      "target": "preflight-condition-a"
+    },
+    {
+      "source": "preflight-condition-a",
+      "target": "condition-a-idle"
+    },
+    {
+      "source": "condition-a-idle",
+      "target": "condition-a-scroll-start"
+    },
+    {
+      "source": "condition-a-scroll-start",
+      "target": "condition-a-bas-scroll"
+    },
+    {
+      "source": "condition-a-bas-scroll",
+      "target": "condition-a-scroll-finish"
+    },
+    {
+      "source": "condition-a-scroll-finish",
+      "target": "top-before-settings"
+    },
+    {
+      "source": "top-before-settings",
+      "target": "open-settings"
+    },
+    {
+      "source": "open-settings",
+      "target": "wait-settings"
+    },
+    {
+      "source": "wait-settings",
+      "target": "wait-art-free-switch"
+    },
+    {
+      "source": "wait-art-free-switch",
+      "target": "toggle-art-free"
+    },
+    {
+      "source": "toggle-art-free",
+      "target": "verify-art-free-toggle"
+    },
+    {
+      "source": "verify-art-free-toggle",
+      "target": "return-today-b"
+    },
+    {
+      "source": "return-today-b",
+      "target": "wait-today-b"
+    },
+    {
+      "source": "wait-today-b",
+      "target": "settle-today-b"
+    },
+    {
+      "source": "settle-today-b",
+      "target": "assert-reference-content-b"
+    },
+    {
+      "source": "assert-reference-content-b",
+      "target": "top-before-condition-b"
+    },
+    {
+      "source": "top-before-condition-b",
+      "target": "verify-condition-b-preferences"
+    },
+    {
+      "source": "verify-condition-b-preferences",
+      "target": "align-condition-b"
+    },
+    {
+      "source": "align-condition-b",
+      "target": "preflight-condition-b"
+    },
+    {
+      "source": "preflight-condition-b",
+      "target": "condition-b-idle"
+    },
+    {
+      "source": "condition-b-idle",
+      "target": "condition-b-scroll-start"
+    },
+    {
+      "source": "condition-b-scroll-start",
+      "target": "condition-b-bas-scroll"
+    },
+    {
+      "source": "condition-b-bas-scroll",
+      "target": "condition-b-scroll-finish"
+    },
+    {
+      "source": "condition-b-scroll-finish",
+      "target": "top-before-restore"
+    },
+    {
+      "source": "top-before-restore",
+      "target": "open-settings-restore"
+    },
+    {
+      "source": "open-settings-restore",
+      "target": "wait-settings-restore"
+    },
+    {
+      "source": "wait-settings-restore",
+      "target": "wait-art-free-switch-restore"
+    },
+    {
+      "source": "wait-art-free-switch-restore",
+      "target": "restore-art-free"
+    },
+    {
+      "source": "restore-art-free",
+      "target": "verify-switch-restored"
+    },
+    {
+      "source": "verify-switch-restored",
+      "target": "return-today-final"
+    },
+    {
+      "source": "return-today-final",
+      "target": "wait-today-final"
+    },
+    {
+      "source": "wait-today-final",
+      "target": "assert-reference-content-final"
+    },
+    {
+      "source": "assert-reference-content-final",
+      "target": "finalize-preference-and-samples"
+    }
+  ]
+}

@@ -126,6 +126,21 @@ func TestCapabilityRegistry_NoChecker(t *testing.T) {
 	}
 }
 
+func TestProjectedCapabilitiesUseManifestAuthorityAndFeatureOverlays(t *testing.T) {
+	defs := projectedCapabilities()
+	if len(defs) != len(capabilityFeatures) {
+		t.Fatalf("projected definitions = %d, want %d manifest dependencies", len(defs), len(capabilityFeatures))
+	}
+	for _, def := range defs {
+		if def.ID != def.DependencySlug || def.DependencyKind != DependencyScenario {
+			t.Fatalf("definition %q is not a projected scenario dependency: %+v", def.ID, def)
+		}
+		if len(def.Features) == 0 {
+			t.Fatalf("definition %q lost its operational feature overlay", def.ID)
+		}
+	}
+}
+
 // CountingChecker tracks how many times Check is called.
 type CountingChecker struct {
 	Status CapabilityStatus

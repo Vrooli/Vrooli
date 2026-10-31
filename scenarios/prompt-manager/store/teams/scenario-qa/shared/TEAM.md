@@ -1,44 +1,48 @@
 # Scenario QA Team
 
 ## Mission
-Ensure scenario quality through comprehensive code auditing, test coverage analysis, and documentation verification. We produce actionable Swarm Manager backlog artifacts (`fix` or `execute`) instead of direct target-scenario edits.
+Ensure scenario quality through structural quality audits, programmatic readiness reviews, root-cause bug investigation, and contrarian challenge of QA outcomes — producing evidence-rich backlog items, audit logs, investigation logs, and challenge notes that downstream agents act on.
 
-## Quality Dimensions
-We assess scenarios across four dimensions:
-1. **Architecture** — Does code match declared architecture? Are boundaries clean?
-2. **Security** — OWASP top 10 baseline. Input validation. Auth patterns.
-3. **Test Coverage** — Behavior coverage weighted by risk. Not just line counts.
-4. **Documentation** — Bidirectional traceability. Manifest completeness. Accuracy.
+## Scope
+Owns scenario-quality findings (programmatic + structural), bug-triage for the entire agent system, and contrarian challenge of every scenario-qa output. Drains the universal-source `bug-inbox/*` topic that any team's members may write via the `report-bug` skill.
 
-## Scoring Rubric
-Each dimension is rated:
-- **A** — Excellent. Minor improvements only.
-- **B** — Good. Some gaps but solid foundation.
-- **C** — Adequate. Significant gaps that need attention.
-- **D** — Poor. Critical issues that block reliability.
-- **F** — Failing. Fundamental problems requiring immediate action.
+Does not directly edit target scenarios. Does not own monetization, marketing, infrastructure, or meta-layer optimization.
 
-## Audit Workflow
-1. **programmatic-qa-runner** (every 6h): Runs GCT reviews on priority scenarios, creates fix/execute backlog items for failing dimensions, wires depends_on on related items.
-2. **quality-auditor** (daily): Picks a scenario + steer skill, investigates structural quality, creates execute backlog items with draft plans and suggested skills.
-3. All findings become Swarm Manager backlog items — the team never modifies target scenario code directly.
+## Shared team corpus
+Durable context lives in the `team:scenario-qa` source-ledger scope. Use `source-ledger recall` and `source-ledger journal note`; file defects and QA work once through swarm-manager.
 
-## Swarm Manager Contract (Mandatory)
-- Use the shared `swarm-manager-recommendations` skill for all QA handoffs.
-- Required fields: `targetScenario`, `problemOrOpportunity`, `proposedAction`, `evidence`, `riskLevel`, `executionModeHint`, `createdByTeam`, `sourceRunId`.
-- QA team does not directly modify target scenario code under this workflow.
+## Plan of Record
+Strategic canon lives at [`docs/scenario-qa/README.md`](../../../../../../docs/scenario-qa/README.md), with three paired-doc-and-skill registries:
+- [`path:docs/scenario-qa/methods/investigation/`](../../../../../../docs/scenario-qa/methods/investigation/README.md) — bug-investigator's methods (1 entry: `scientific-debugging`).
+- [`path:docs/scenario-qa/methods/audit/`](../../../../../../docs/scenario-qa/methods/audit/README.md) — quality-auditor's seven lenses.
+- [`path:docs/scenario-qa/methods/readiness/`](../../../../../../docs/scenario-qa/methods/readiness/README.md) — readiness checks (stub; populated as GCT dimensions stabilize). Pre-emptive readiness for scheduled feature work is now handled programmatically by swarm-manager's fix-before-feature gate, not a QA member.
 
-## Cross-Team Coordination
-- Bugs discovered during code audits become `fix` backlog items in swarm-manager.
-- Code smell findings become `execute` backlog items in swarm-manager for structural improvements.
-- **Feature Team** receives quality gates for new features.
-- **Marketing Crew** can reference quality improvements in content.
-- **Meta Optimization** receives feedback on audit skill effectiveness.
+Bug taxonomy: [`docs/scenario-qa/taxonomies/bug-report/README.md`](../../../../../../docs/scenario-qa/taxonomies/bug-report/README.md) (paired with `taxonomy.json`).
 
-## Key Skills
-- `prompt-manager skill read screaming-architecture-audit`
-- `prompt-manager skill read invariant-discovery-and-enforcement`
-- `prompt-manager skill read e2e-testing`
-- `prompt-manager skill read documentation-health`
-- `prompt-manager skill read security`
-- `prompt-manager skill read swarm-manager-recommendations`
+## Roster
+The canonical list lives in `team.json` (`operatingContract.members`). Roles, in summary:
+- `quality-auditor` — applies the seven-lens audit rotation; produces `quality-audit/*` knowledge and `quality-audit-backlog` work items.
+- `bug-investigator` — drains `bug-inbox/*` (universal-source); applies investigation techniques; produces `bug-investigation-report/*` audit log and `bug-resolution-proposal` work items.
+
+## Knowledge topic table
+
+| Topic prefix | Owner | Producer | Retention |
+|---|---|---|---|
+| `quality-audit/<scenario-id>/<skill-id>` | quality-auditor | self | append-only |
+| `bug-inbox/<signal-type>/<slug>` | bug-investigator | **any team via `report-bug` skill** (universal-source intake) | drained-on-close |
+| `bug-investigation-report/<slug>` | bug-investigator | self | append-only |
+
+## Work types
+- `quality-audit-backlog` — owner: quality-auditor. Judgment-based structural audit findings → Swarm Manager execute backlog items.
+- `bug-resolution-proposal` — owner: bug-investigator. Cross-cutting fixes that require operator approval (rename a CLI verb, refactor a confusing skill section, canonicalize a drifted data-shape, etc.).
+
+## Universal-source intake pattern
+`bug-inbox/*` declares `source_team: "*"` in the bug-investigator's `topics.json`. This is a first-class semantic meaning *any team's members may write*. The producer-side anchor is the `report-bug` writer skill — declared in the bug-investigator's `external_producers` so the validator's `wildcard_source_misuse` rule stays quiet. The investigator validates the producer's signal-type assignment as the first sub-step of investigation; there is no separate classifier skill (deterministic-prefix routing).
+
+## Team-Specific Principles
+- **Findings become artifacts, not direct edits.** Backlog items, audit-log entries, investigation logs, challenge notes — all evidence-rich and actionable by future agents who don't have this team's context.
+- **Behavior-oriented evidence over generic audit language.** "The X output produced Y when given Z, contradicting the schema documented at W" beats "this could be improved."
+- **Investigation rigor.** One technique applied per entry per heartbeat; if a technique stalls, record findings honestly and move on. A bug-investigation that admits "blocked, capability work item filed" is more honest than one that guesses at a cause.
+- **Contrarian discipline.** Every challenge cites a specific failure mode from a registered technique's PoR doc. Quiet heartbeats are valid; manufactured challenges are forbidden.
+- **Right inbox for the observation.** Bugs go to `bug-inbox/*` via the `report-bug` skill — even when observed during readiness review or quality audit. Each member uses the inbox shape that fits its observation.
+- **Doc + paired skill discipline.** Every technique has both a strategic-canon doc (in `docs/scenario-qa/{investigation,audit,readiness}-techniques/`) and an executable skill. Neither half is optional.

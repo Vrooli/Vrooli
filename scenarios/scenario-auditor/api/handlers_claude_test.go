@@ -669,9 +669,9 @@ func init() {
 	validAPIKey = os.Getenv("VALID_API_KEY")
 	if validAPIKey == "" {
 		validAPIKey = os.Getenv("VALID_API_KEY")
-if validAPIKey == "" {
-	validAPIKey = "test-key"
-}
+		if validAPIKey == "" {
+			validAPIKey = "test-key"
+		}
 	}
 	httpClient = &http.Client{Timeout: 30 * time.Second}
 	rateLimiter = NewRateLimiter(100, time.Minute)

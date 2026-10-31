@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
@@ -14,11 +14,14 @@ vi.mock('../../lib/api', () => ({
 
 // Mock clipboard API with proper mock implementation
 const mockWriteText = vi.fn(() => Promise.resolve());
-Object.assign(navigator, {
-  clipboard: {
-    writeText: mockWriteText,
-  },
-});
+function installClipboardMock() {
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: mockWriteText },
+    configurable: true,
+    writable: true,
+  });
+}
+installClipboardMock();
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -43,6 +46,13 @@ const createWrapper = () => {
 describe('CampaignsView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // userEvent.setup() in earlier tests replaces navigator.clipboard with
+    // its own stub; re-install our mock before each test.
+    installClipboardMock();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe('Loading state', () => {
@@ -122,8 +132,8 @@ describe('CampaignsView', () => {
       await waitFor(() => {
         // Check for the "Use Cases:" label and specific use case text
         expect(screen.getByText(/Use Cases:/i)).toBeInTheDocument();
-        expect(screen.getByText(/Systematic refactoring/i)).toBeInTheDocument();
         expect(screen.getByText(/batch issue discovery/i)).toBeInTheDocument();
+        expect(screen.getByText(/pre-release quality gates/i)).toBeInTheDocument();
       });
     });
   });
@@ -313,6 +323,7 @@ describe('CampaignsView', () => {
 
     it('should copy pause command to clipboard', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       render(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
@@ -321,7 +332,7 @@ describe('CampaignsView', () => {
       await user.click(pauseButton);
 
       await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect(mockWriteText).toHaveBeenCalledWith(
           'tidiness-manager campaigns pause test-scenario'
         );
         // Verify both toasts appear: info toast for CLI command + success toast for clipboard copy
@@ -331,6 +342,7 @@ describe('CampaignsView', () => {
 
     it('should copy resume command to clipboard', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       (api.fetchCampaigns as any).mockResolvedValue([
         { ...mockCampaigns[0], status: 'paused' },
       ]);
@@ -343,7 +355,7 @@ describe('CampaignsView', () => {
       await user.click(resumeButton);
 
       await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect(mockWriteText).toHaveBeenCalledWith(
           'tidiness-manager campaigns resume test-scenario'
         );
         expect(screen.getByText(/CLI command copied to clipboard/i)).toBeInTheDocument();
@@ -352,6 +364,7 @@ describe('CampaignsView', () => {
 
     it('should copy stop command to clipboard', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       render(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
@@ -360,7 +373,7 @@ describe('CampaignsView', () => {
       await user.click(stopButton);
 
       await waitFor(() => {
-        expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        expect(mockWriteText).toHaveBeenCalledWith(
           'tidiness-manager campaigns stop test-scenario'
         );
         expect(screen.getByText(/CLI command copied to clipboard/i)).toBeInTheDocument();
@@ -369,6 +382,7 @@ describe('CampaignsView', () => {
 
     it('should show toast on successful clipboard copy', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       render(<CampaignsView />, { wrapper: createWrapper() });
 
       await waitFor(() => screen.getByText('test-scenario'));
@@ -383,6 +397,7 @@ describe('CampaignsView', () => {
 
     it('should show error toast on clipboard failure', async () => {
       const user = userEvent.setup();
+      installClipboardMock();
       mockWriteText.mockRejectedValueOnce(
         new Error('Clipboard access denied')
       );
@@ -402,7 +417,7 @@ describe('CampaignsView', () => {
 
   describe('Polling behavior', () => {
     it('should refetch campaigns every 10 seconds', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
       (api.fetchCampaigns as any).mockResolvedValue([]);
 
       render(<CampaignsView />, { wrapper: createWrapper() });
@@ -412,7 +427,7 @@ describe('CampaignsView', () => {
       });
 
       // Fast-forward 10 seconds
-      vi.advanceTimersByTime(10000);
+      await vi.advanceTimersByTimeAsync(10000);
 
       await waitFor(() => {
         expect(api.fetchCampaigns).toHaveBeenCalledTimes(2);
@@ -576,9 +591,10 @@ describe('CampaignsView', () => {
       const newCampaignButton = screen.getByTitle(/Create a new automated campaign/i);
       expect(newCampaignButton).toBeInTheDocument();
 
-      // Disabled button should also have the "coming soon" tooltip
-      const disabledButton = screen.getByTitle(/UI campaign creation coming soon/i);
-      expect(disabledButton).toBeInTheDocument();
+      // Disabled button (in empty state) appears after the campaigns query resolves
+      await waitFor(() => {
+        expect(screen.getByTitle(/UI campaign creation coming soon/i)).toBeInTheDocument();
+      });
     });
   });
 });

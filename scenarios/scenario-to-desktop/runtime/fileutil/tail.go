@@ -4,7 +4,7 @@ package fileutil
 import (
 	"strings"
 
-	"scenario-to-desktop-runtime/infra"
+	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 )
 
 // TailFile returns the last N lines from a file.

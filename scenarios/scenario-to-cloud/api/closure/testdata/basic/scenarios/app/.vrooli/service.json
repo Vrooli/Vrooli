@@ -1,0 +1,143 @@
+{
+  "service": {
+    "name": "app",
+    "version": "1.2.0"
+  },
+  "runtime": {
+    "kind": "long_running",
+    "auto_restart_default": false
+  },
+  "dependencies": {
+    "resources": {
+      "cache": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start"
+      }
+    },
+    "scenarios": {
+      "records-service": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "stores application records"
+      },
+      "optional-helper": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start"
+      },
+      "disabled-extra": {
+        "enabled": false,
+        "required": false,
+        "startup_policy": "try_start"
+      }
+    }
+  },
+  "hostTools": [
+    {
+      "name": "curl",
+      "required": true,
+      "reason": "health probes",
+      "platforms": [
+        "linux"
+      ]
+    },
+    {
+      "name": "powershell",
+      "required": true,
+      "reason": "windows only",
+      "platforms": [
+        "windows"
+      ]
+    }
+  ],
+  "hostSafeguards": [
+    {
+      "name": "firewall",
+      "required": true,
+      "reason": "public listener",
+      "privilege": "elevated"
+    }
+  ],
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "fixture/app",
+        "field": "session-secret",
+        "required": true,
+        "label": "Session secret"
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "20000-24999"
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {},
+      "run": {
+        "argv": [
+          "api"
+        ],
+        "port": "api",
+        "readiness": {
+          "type": "http",
+          "path": "/health"
+        }
+      }
+    }
+  },
+  "tier_feasibility": {
+    "tiers": {
+      "tier-1-local": {
+        "requirements": {
+          "ram_mb": 512,
+          "disk_mb": 1024,
+          "cpu_cores": 0.5
+        }
+      }
+    }
+  },
+  "deployment": {
+    "supported_targets": [
+      {
+        "os": "linux",
+        "distribution": "ubuntu",
+        "version": "24.04",
+        "architectures": [
+          "amd64",
+          "arm64"
+        ]
+      }
+    ],
+    "listeners": [
+      {
+        "id": "public-http",
+        "port": "api",
+        "visibility": "public_via_edge"
+      }
+    ],
+    "persistent_data": [
+      {
+        "id": "application-records",
+        "owner": "store",
+        "binding": "schema:app",
+        "backup_provider": "data-backup-manager",
+        "migration_owner": "scenario"
+      }
+    ],
+    "recovery": {
+      "code_rollback": "compatible_predecessor_only",
+      "schema_strategy": "expand_contract"
+    }
+  }
+}

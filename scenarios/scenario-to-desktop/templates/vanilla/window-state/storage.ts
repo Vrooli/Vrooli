@@ -25,9 +25,15 @@ export interface IFileSystem {
     readFile(path: string): Promise<string>;
     /** Write string to file (creates parent dirs if needed) */
     writeFile(path: string, content: string): Promise<void>;
+    /** Replace a file atomically when the host filesystem supports it. */
+    rename?(from: string, to: string): Promise<void>;
+    /** Remove a temporary file during an interrupted atomic write. */
+    unlink?(path: string): Promise<void>;
     /** Check if file exists */
     exists(path: string): Promise<boolean>;
 }
+
+let atomicWriteSequence = 0;
 
 /**
  * Interface for path operations.
@@ -125,7 +131,19 @@ export class WindowStateStorage implements IStateStorage {
 
         try {
             const content = JSON.stringify(state, null, 2);
-            await this.deps.fileSystem.writeFile(statePath, content);
+            const rename = this.deps.fileSystem.rename;
+            if (typeof rename !== "function") {
+                await this.deps.fileSystem.writeFile(statePath, content);
+            } else {
+                const temporary = `${statePath}.tmp-${++atomicWriteSequence}`;
+                try {
+                    await this.deps.fileSystem.writeFile(temporary, content);
+                    await rename.call(this.deps.fileSystem, temporary, statePath);
+                } catch (error) {
+                    try { await this.deps.fileSystem.unlink?.(temporary); } catch { /* preserve original failure */ }
+                    throw error;
+                }
+            }
             this.log("Saved window state:", state);
         } catch (error) {
             // Log but don't throw - failing to save state is not critical
@@ -172,6 +190,8 @@ export function createWindowStateStorage(
             readFile(path: string, encoding: "utf-8"): Promise<string>;
             writeFile(path: string, data: string): Promise<void>;
             access(path: string): Promise<void>;
+            rename(from: string, to: string): Promise<void>;
+            unlink(path: string): Promise<void>;
             mkdir(path: string, options: { recursive: boolean }): Promise<string | undefined>;
         };
     },
@@ -187,6 +207,8 @@ export function createWindowStateStorage(
                 await fs.promises.mkdir(dir, { recursive: true });
                 await fs.promises.writeFile(p, content);
             },
+            rename: (from, to) => fs.promises.rename(from, to),
+            unlink: (p) => fs.promises.unlink(p),
             exists: async (p) => {
                 try {
                     await fs.promises.access(p);

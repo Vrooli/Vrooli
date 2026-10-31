@@ -4,20 +4,20 @@ import type { KeyComboStep } from "../consts/key-combos";
 
 describe("sendComboSequence", () => {
   it("single-step combo calls onInput once", async () => {
-    const onInput = vi.fn(() => true);
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [{ data: "\x03" }];
 
     await sendComboSequence(steps, onInput, fakeDelay);
 
     expect(onInput).toHaveBeenCalledTimes(1);
-    expect(onInput).toHaveBeenCalledWith("\x03");
+    expect(onInput).toHaveBeenCalledWith("\x03", "named_key");
     expect(fakeDelay).not.toHaveBeenCalled();
   });
 
   it("multi-step combo calls onInput in order with correct data", async () => {
     const calls: string[] = [];
-    const onInput = vi.fn((data: string) => { calls.push(data); return true; });
+    const onInput = vi.fn((data: string) => { calls.push(data); return { status: "sent" as const, offset: 1 }; });
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [
       { data: "\x03" },
@@ -31,7 +31,7 @@ describe("sendComboSequence", () => {
   });
 
   it("calls delay with correct delayMs values", async () => {
-    const onInput = vi.fn(() => true);
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [
       { data: "\x03" },
@@ -46,8 +46,24 @@ describe("sendComboSequence", () => {
     expect(fakeDelay).toHaveBeenCalledWith(50);
   });
 
+  it("uses the real setTimeout-backed delay when none is injected", async () => {
+    vi.useFakeTimers();
+    try {
+      const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
+      const steps: KeyComboStep[] = [{ data: "\x03", delayMs: 40 }];
+      const done = sendComboSequence(steps, onInput);
+      // The default delay is a real pending timer, so nothing has fired yet.
+      expect(onInput).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(40);
+      await done;
+      expect(onInput).toHaveBeenCalledWith("\x03", "named_key");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("skips delay for steps without delayMs or delayMs: 0", async () => {
-    const onInput = vi.fn(() => true);
+    const onInput = vi.fn(() => ({ status: "sent" as const, offset: 1 }));
     const fakeDelay = vi.fn(() => Promise.resolve());
     const steps: KeyComboStep[] = [
       { data: "\x03" },

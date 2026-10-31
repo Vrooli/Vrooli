@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package vrooli.money_ledger.v1.capabilities;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/capabilities;capabilities_v1";
+
+// The capabilities probe remains an operational REST exception. This typed
+// domain reserves the scenario's capability vocabulary for future Connect
+// adoption and keeps the handler domain represented in the contract graph.
+message DescribeResponse {
+  repeated Definition definitions = 1;
+  repeated State states = 2;
+}
+
+message Definition {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string dependency_kind = 4;
+  string dependency_slug = 5;
+  repeated string features = 6;
+  string action_kind = 7;
+  string action_label = 8;
+  string operator_command = 9;
+}
+
+message State {
+  string id = 1;
+  string status = 2;
+  string message = 3;
+  string reason_code = 4;
+  string checked_at = 5;
+}

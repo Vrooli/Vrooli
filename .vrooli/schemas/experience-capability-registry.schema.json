@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "experience-capability-registry/v1",
+  "title": "Experience Capability Registry",
+  "description": "The fleet-wide vocabulary of experience capabilities, capture axes, evidence kinds, and perceivable states. Lives in `scenarios/experience-manager/capabilities/` (index.json + states.json + axes.json + evidence.json + capabilities/*.json). One schema covers all five document kinds, discriminated by the top-level `kind` field.\n\nDOCTRINE (owned by scenarios/experience-manager, see its docs/internal/DECISIONS.md):\n\n1. THIS REGISTRY IS INTENT; STATUS IS DERIVED. No document here records whether something works. An axis declares the mechanism that WOULD drive it; a capability declares what it needs. Whether a capability is `provable` is computed by experience-manager from the live reconciler — never authored, never cached in these files. Hand-written status fields go stale and invite agents to declare success.\n\n2. ONE REGISTRY, TWO FACETS. A capability is either something an asset PROMISES to users (facet `promises` — validatable through claim types, capture axes, and evidence kinds), or something an asset NEEDS from its host (facet `port` — satisfiable by a template `provides` block or another asset), or both. `reduced-motion` is genuinely both: a promise a component makes and a policy its host supplies. Two registries would drift; one namespace cannot.\n\n3. DECLARE THE FULL PROJECTION. Axes and capabilities are entered whether or not anything can capture them today. An axis with no engine support is planned work, not an error. The registry's value is that validator debt becomes a first-class number ('capability X is declared by 14 assets and provable by 0') instead of an `unverifiable` warning buried in a run log.\n\n4. THIS IS THE SOURCE THE CODE DERIVES FROM. The claim-type vocabulary currently exists in three places that can drift — the scenario-experience-spec schema description, `spec.knownClaimType()`, and `reconcile.claimEvaluator()`. The state vocabulary exists in four. Those are consumers of this registry, not peers of it.\n\n5. SELECTION IS BASELINE PLUS OPT-IN, NEVER CROSS-PRODUCT. Thirteen axes multiplied out is astronomical. The design kit declares a small baseline matrix; a claim scoped to an axis adds only the targets that claim needs. A scenario may narrow its kit's baseline with a documented reason and may never silently widen it.",
+  "oneOf": [
+    { "$ref": "#/$defs/IndexDocument" },
+    { "$ref": "#/$defs/StateVocabularyDocument" },
+    { "$ref": "#/$defs/AxisRegistryDocument" },
+    { "$ref": "#/$defs/EvidenceRegistryDocument" },
+    { "$ref": "#/$defs/CapabilityGroupDocument" }
+  ],
+  "$defs": {
+    "Id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Kebab-case identifier, stable once published. Catalog assets and experience specs reference these by id."
+    },
+    "SchemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "Contract": {
+      "type": "object",
+      "required": ["kind", "schema"],
+      "properties": {
+        "kind": { "type": "string", "const": "experience-capability-registry" },
+        "schema": { "type": "string", "const": "experience-capability-registry/v1" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "IndexDocument": {
+      "type": "object",
+      "required": ["kind", "contract", "schemaVersion", "documents"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "capability-registry-index" },
+        "contract": { "$ref": "#/$defs/Contract" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "description": { "type": "string" },
+        "documents": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "kind"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^(states|axes|evidence)\\.json$|^capabilities/[a-z0-9-]+\\.json$",
+                "description": "Path relative to the capabilities/ folder."
+              },
+              "kind": {
+                "type": "string",
+                "enum": ["state-vocabulary", "axis-registry", "evidence-registry", "capability-group"]
+              },
+              "title": { "type": "string" }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "Every file under capabilities/ must be listed here and vice versa (parser-enforced)."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "StateVocabularyDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "canonical", "views"],
+      "description": "The single canonical list of perceivable states, plus named views over it. Before this document existed the fleet carried four overlapping vocabularies: the scenario-experience-spec StateId list (15), the RegionLifecycle enum (6), DESIGN.md's request-lifecycle prose (6), and a hardcoded allowlist in checks/state_coverage.go (7). Two of those contained entries that are not states at all (`static` is a lifecycle kind; `disabled` is an element property). Views exist so those consumers can keep their local labels while resolving to one id space.",
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "state-vocabulary" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "canonical": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/CanonicalState" }
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "description": { "type": "string", "minLength": 10 }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          },
+          "description": "Coarse groupings used by consumers that key off state class rather than individual state — most importantly the kit motion tables, whose transition classes are defined over groups."
+        },
+        "views": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/StateView" },
+          "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "CanonicalState": {
+      "type": "object",
+      "required": ["id", "group", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "group": { "$ref": "#/$defs/Id" },
+        "description": { "type": "string", "minLength": 15 },
+        "aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Id" },
+          "uniqueItems": true,
+          "description": "Other names this state is known by in existing consumers. Accepted on read, normalized to `id`."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "StateView": {
+      "type": "object",
+      "required": ["description", "states"],
+      "description": "A named projection of the canonical list for one consumer. `labels` renames canonical ids for that consumer; `excluded` records entries the consumer historically carried that are NOT states, with the reason.",
+      "properties": {
+        "description": { "type": "string", "minLength": 15 },
+        "states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Id" },
+          "uniqueItems": true
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+          "description": "canonical id -> the label this consumer uses."
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "reason"],
+            "properties": {
+              "name": { "type": "string" },
+              "reason": { "type": "string", "minLength": 15 }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "AxisRegistryDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "axes"],
+      "description": "The dimensions along which a capture can vary. Deliberately includes axes no engine supports yet — see doctrine 3. Note that no axis carries a status field: whether an axis is wired is computed from the live reconciler, not recorded here.",
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "axis-registry" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Axis" }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Axis": {
+      "type": "object",
+      "required": ["id", "title", "description", "values", "mechanism"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 15 },
+        "values": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "description"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "description": { "type": "string" },
+              "params": {
+                "type": "object",
+                "description": "Value-specific parameters the capture driver needs (e.g. viewport width/height, locale tag)."
+              }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          }
+        },
+        "default": {
+          "$ref": "#/$defs/Id",
+          "description": "The value assumed when a claim does not scope to this axis."
+        },
+        "mechanism": { "$ref": "#/$defs/Mechanism" },
+        "notes": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Mechanism": {
+      "type": "object",
+      "required": ["kind"],
+      "description": "How this axis or evidence kind would be driven or produced. Authored as intent — the status computation checks reality against it.",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "bas-browser-profile",
+            "bas-action",
+            "cdp-emulation",
+            "harness-preference",
+            "fixture-selection",
+            "bas-capture"
+          ]
+        },
+        "detail": {
+          "type": "string",
+          "description": "The concrete field, action type, or CDP domain (e.g. `FingerprintSettings.color_scheme`, `ACTION_TYPE_ROTATE`, `Emulation.setEmulatedMedia`)."
+        },
+        "engineWorkRequired": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the named mechanism does not exist in the engine yet and must be built. Distinguishes 'BAS can do this, the reconciler does not ask' from 'nothing can do this'."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "EvidenceRegistryDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "evidence"],
+      "description": "What a capture yields. Modeled separately from axes because an axis configures the world and an evidence kind describes the observation — conflating them makes it impossible to say 'this axis works, we just cannot see the result', which is the exact shape of the computed-style gap.",
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "evidence-registry" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "description", "producer"],
+            "properties": {
+              "id": { "$ref": "#/$defs/Id" },
+              "title": { "type": "string", "minLength": 1 },
+              "description": { "type": "string", "minLength": 15 },
+              "producer": { "$ref": "#/$defs/Mechanism" },
+              "notes": { "type": "string" }
+            },
+            "patternProperties": { "^x-": {} },
+            "additionalProperties": false
+          }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+
+    "CapabilityGroupDocument": {
+      "type": "object",
+      "required": ["kind", "schemaVersion", "group", "capabilities"],
+      "properties": {
+        "$schema": { "type": "string" },
+        "kind": { "type": "string", "const": "capability-group" },
+        "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
+        "group": {
+          "type": "object",
+          "required": ["id", "description"],
+          "properties": {
+            "id": { "$ref": "#/$defs/Id" },
+            "description": { "type": "string", "minLength": 15 }
+          },
+          "patternProperties": { "^x-": {} },
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Capability" }
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Capability": {
+      "type": "object",
+      "required": ["id", "title", "facets", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/Id" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 20 },
+        "facets": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["promises", "port"] },
+          "description": "`promises` = an asset asserts this to users and it is validatable. `port` = an asset needs this from its host and it is satisfiable. Both is legal and expected for policy-like capabilities."
+        },
+        "proves": { "$ref": "#/$defs/Proves" },
+        "port": { "$ref": "#/$defs/Port" },
+        "appliesTo": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["component", "hook", "page", "page-template", "pattern", "fixture", "navigation"]
+          },
+          "description": "Asset kinds this capability is meaningful for. Omitted = all."
+        },
+        "tierCeiling": {
+          "type": "string",
+          "enum": ["machine", "manual", "aspirational"],
+          "description": "The highest enforcement tier this capability can reach once provable. Craft capabilities that will never be fully deterministic cap at `manual` deliberately."
+        },
+        "rationale": { "type": "string" }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "facets": { "contains": { "const": "promises" } } }, "required": ["facets"] },
+          "then": { "required": ["proves"] }
+        },
+        {
+          "if": { "properties": { "facets": { "contains": { "const": "port" } } }, "required": ["facets"] },
+          "then": { "required": ["port"] }
+        }
+      ]
+    },
+    "Proves": {
+      "type": "object",
+      "description": "What it takes to demonstrate the promise. The status computation resolves each reference against the live reconciler; any unmet element downgrades the capability and names the specific blocker.",
+      "properties": {
+        "axes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/Id" },
+            "uniqueItems": true
+          },
+          "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+          "description": "axis id -> the values that must be capturable. Omitted axes use their default."
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Id" },
+          "uniqueItems": true,
+          "description": "Evidence kinds the checker reads."
+        },
+        "claimTypes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Id" },
+          "uniqueItems": true,
+          "description": "scenario-experience-spec claim types that carry this capability. An entry with no implemented evaluator derives status `no-checker` — which is how a claim type that parses but cannot pass becomes visible."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    },
+    "Port": {
+      "type": "object",
+      "required": ["contract", "satisfiedBy"],
+      "description": "A dependency on the host rather than on a named asset. `expects: router-adapter` is satisfied by whatever the target already provides — which is what lets template-seeded foundations avoid being copied into every adoption closure.",
+      "properties": {
+        "contract": {
+          "type": "string",
+          "minLength": 20,
+          "description": "What the satisfying implementation must supply, in plain language. Not a type signature — the binding is checked structurally by the consuming target's own toolchain."
+        },
+        "typeParameters": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+          "uniqueItems": true,
+          "description": "Names of type parameters the satisfying side must bind, e.g. [\"T\"] for `data-source<T>`. An untyped port cannot validate that a fixture satisfies it, so parameterization is supported deliberately — but kept to bare names rather than a type system."
+        },
+        "satisfiedBy": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["template-provides", "asset", "scenario-local"] },
+          "description": "Legal sources. `template-provides` resolves against the ui-manifest `provides` block; `asset` against an adopted catalog asset; `scenario-local` against hand-written scenario code."
+        },
+        "minimumVersion": {
+          "$ref": "#/$defs/SchemaVersion",
+          "description": "When satisfied by a versioned template `provides` entry, the lowest acceptable version. A target below this is a blocking finding, never a silent copy."
+        }
+      },
+      "patternProperties": { "^x-": {} },
+      "additionalProperties": false
+    }
+  }
+}

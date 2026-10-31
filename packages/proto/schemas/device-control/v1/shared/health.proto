@@ -1,0 +1,19 @@
+syntax = "proto3";
+package vrooli.device_control.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/shared;shared_v1";
+message DependencyStatus {
+  bool connected = 1;
+  double latency_ms = 2;
+  string error = 3;
+  string database = 4;
+}
+message Response {
+  string status = 1;
+  string service = 2;
+  string timestamp = 3;
+  bool readiness = 4;
+  string version = 5;
+  double uptime_seconds = 6;
+  map<string, DependencyStatus> dependencies = 7;
+}

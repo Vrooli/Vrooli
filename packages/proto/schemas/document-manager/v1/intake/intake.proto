@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package vrooli.document_manager.v1.intake;
+
+import "google/protobuf/timestamp.proto";
+import "document-manager/v1/shared/document.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/document-manager/v1/intake;intake_v1";
+
+service IntakeService {
+  rpc Ingest(IngestRequest) returns (IngestResponse);
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
+  rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse);
+  rpc ConfigureWatch(ConfigureWatchRequest) returns (ConfigureWatchResponse);
+  rpc GetTypeVerdict(GetTypeVerdictRequest) returns (GetTypeVerdictResponse);
+}
+
+message Document {
+  string id = 1;
+  string content_sha256 = 2;
+  string source_name = 3;
+  string detected_mime = 4;
+  string pdf_type = 5;
+  double pdf_confidence = 6;
+  shared.PrivacyClass privacy_class = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message IngestRequest {
+  bytes content = 1;
+  string source_name = 2;
+  string collection_id = 3;
+  shared.PrivacyClass privacy_class = 4;
+}
+message IngestResponse { Document document = 1; bool duplicate = 2; }
+message GetDocumentRequest { string id = 1; }
+message GetDocumentResponse { Document document = 1; }
+message ListDocumentsRequest { int32 limit = 1; }
+message ListDocumentsResponse { repeated Document documents = 1; }
+message ListSourcesRequest {}
+message ListSourcesResponse { repeated string sources = 1; }
+message ConfigureWatchRequest { string path = 1; bool enabled = 2; }
+message ConfigureWatchResponse { string path = 1; bool enabled = 2; }
+message GetTypeVerdictRequest { string id = 1; }
+message GetTypeVerdictResponse { string detected_mime = 1; string pdf_type = 2; double confidence = 3; }

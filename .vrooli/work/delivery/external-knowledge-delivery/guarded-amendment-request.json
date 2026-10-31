@@ -1,0 +1,21 @@
+{
+  "expectedRevision": "preparation-v1:sha256:3c5b6d987132b9a42efef7cedaaf8f6995202f2d281a73f2a69f8292593452df",
+  "binding": {
+    "effortRef": "effort:external-knowledge-search",
+    "acceptedRevision": "preparation-v2:sha256:ad31c53a71676fae6e4af743f3f1bb29d5a5c7f5e5d070b895ecf19c9eeb264d",
+    "coordinatorPromptRef": "path:.vrooli/work/delivery/external-knowledge-delivery/GOAL.md",
+    "sourceRefs": [
+      "path:docs/architecture/external-knowledge-search.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/RESEARCH.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/QUEUE.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/SETUP.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/EMAIL-DESIGN-PROMPT.md",
+      "path:.vrooli/work/delivery/external-knowledge-delivery/sources.json"
+    ],
+    "keepAlive": true,
+    "checkin": {
+      "mode": "parked"
+    }
+  },
+  "evidenceRef": "path:.vrooli/work/delivery/external-knowledge-delivery/PLATFORM-AMENDMENT.md"
+}

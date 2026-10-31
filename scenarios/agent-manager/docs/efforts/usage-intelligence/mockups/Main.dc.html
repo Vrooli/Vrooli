@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mizar Usage page, desktop</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f8fafc;font-family:Inter,system-ui,sans-serif;color:#0f172a}
+a{color:#1d4ed8}a:hover{color:#1e3a8a}
+</style>
+</helmet>
+<div style="display: flex; flex-wrap: wrap; min-height: 1640px; background: #f8fafc; font-family: Inter, system-ui, sans-serif; color: #0f172a;">
+  <nav aria-label="Primary" style="flex: 1 1 200px; max-width: 220px; background: #ffffff; border-right: 1px solid #e2e8f0; padding: 20px 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 4px 10px 18px;">
+      <div style="width: 28px; height: 28px; border-radius: 7px; background: #0f172a; display: flex; align-items: center; justify-content: center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" aria-hidden="true"><circle cx="8" cy="9" r="2"></circle><circle cx="16" cy="15" r="2"></circle><path d="M10 10l4 4"></path></svg>
+      </div>
+      <span style="font-weight: 700; font-size: 15px;">Mizar</span>
+    </div>
+    <a href="Dashboard.dc.html" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Dashboard</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Tasks</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Runs</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Flows</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Watches</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Efforts</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Investigations</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Findings</a>
+    <a href="#" aria-current="page" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; font-weight: 600; color: #1d4ed8; background: #eff6ff; text-decoration: none;">Usage</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Profiles</a>
+    <a href="#" style="padding: 9px 10px; border-radius: 6px; font-size: 14px; color: #334155; text-decoration: none;">Health</a>
+    <div style="margin-top: 16px; padding: 10px; font-size: 12px; line-height: 17px; color: #64748b; border-top: 1px solid #e2e8f0;">Stats and Import now live under Usage › Details and Usage › Coverage.</div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px 36px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; max-width: 1220px;">
+    <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 4px;">
+        <h1 style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 700;">Usage</h1>
+        <p style="margin: 0; font-size: 14px; color: #475569;">How much subscription capacity your agents use, what uses it, and what to change.</p>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+        <a href="#coverage" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 1px solid #bbf7d0; background: #f0fdf4; border-radius: 9999px; font-size: 13px; font-weight: 500; color: #166534; text-decoration: none;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #16a34a;"></span>Coverage 97% · 7 days
+        </a>
+        <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #475569;">Times in
+          <select style="height: 32px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 8px; font-size: 13px; background: #fff; color: #0f172a;"><option>Local</option><option>UTC</option></select>
+        </label>
+      </div>
+    </header>
+
+    <section aria-labelledby="windows-h" style="display: flex; flex-direction: column; gap: 12px;">
+      <h2 id="windows-h" style="margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #475569;">Subscription windows</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+
+        <article style="grid-column: span 2; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="font-size: 16px; font-weight: 600;">Codex · Pro · weekly limit</div>
+              <div style="font-size: 13px; color: #64748b;">Provider reading 2 min ago · resets Wed Nov 4, 06:57 UTC (6 days)</div>
+            </div>
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 13px; font-weight: 600;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"></path></svg>Will run out before reset
+            </span>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 10px;">
+            <span style="font-size: 40px; line-height: 44px; font-weight: 700;">33%</span>
+            <span style="font-size: 14px; color: #475569;">used · 67% left</span>
+          </div>
+          <div role="img" aria-label="33 percent of the weekly limit used" style="height: 10px; border-radius: 9999px; background: #e2e8f0; overflow: hidden;">
+            <div style="width: 33%; height: 10px; background: #dc2626; border-radius: 9999px;"></div>
+          </div>
+          <p style="margin: 0; font-size: 14px; line-height: 21px; color: #0f172a;"><strong>Projected to run out Oct 30 00:40 – Oct 31 00:00 UTC</strong>, 4–5 days before the reset. To last until the reset, burn at most <strong>0.46%/h</strong> (now 3.4%/h over 6 h).</p>
+          <figure style="margin: 0; display: flex; flex-direction: column; gap: 6px;">
+            <svg viewBox="0 0 820 230" width="100%" height="230" role="img" aria-label="Used percent this window with projection to run-out and the reset marker">
+              <g stroke="#e2e8f0" stroke-width="1">
+                <line x1="10" y1="10" x2="810" y2="10"></line><line x1="10" y1="60" x2="810" y2="60"></line><line x1="10" y1="110" x2="810" y2="110"></line><line x1="10" y1="160" x2="810" y2="160"></line><line x1="10" y1="210" x2="810" y2="210"></line>
+              </g>
+              <polygon points="114.8,144 208.6,10 319.5,10" fill="#fecaca" opacity="0.7"></polygon>
+              <line x1="114.8" y1="144" x2="810" y2="10" stroke="#64748b" stroke-width="1.5" stroke-dasharray="5 5"></line>
+              <polyline fill="none" stroke="#2563eb" stroke-width="2.5" points="14.8,210 19.5,208 24.3,206 29,206 38.6,204 43.3,202 48.1,200 52.9,198 57.6,198 62.4,196 67.1,194 71.9,192 76.7,186 81.4,180 86.2,170 91,162 95.7,156 100.5,150 105.2,144 110,144 114.8,144"></polyline>
+              <circle cx="114.8" cy="144" r="4" fill="#2563eb"></circle>
+              <line x1="810" y1="10" x2="810" y2="210" stroke="#0f172a" stroke-width="1.5"></line>
+              <g font-family="Inter, system-ui, sans-serif" font-size="11" fill="#475569">
+                <text x="14" y="226">Oct 28</text><text x="124" y="226">Oct 29</text><text x="238" y="226">Oct 30</text><text x="352" y="226">Oct 31</text><text x="467" y="226">Nov 1</text><text x="581" y="226">Nov 2</text><text x="695" y="226">Nov 3</text>
+                <text x="760" y="24">reset</text><text x="214" y="26" fill="#b91c1c">run-out band</text><text x="560" y="78">rate that lasts to reset</text>
+                <text x="0" y="14">100</text><text x="0" y="114">50</text>
+              </g>
+            </svg>
+            <figcaption style="font-size: 12px; color: #64748b;">Solid: provider readings. Shaded: projected run-out band. Dashed: the burn rate that would last to the reset.</figcaption>
+          </figure>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; border-top: 1px solid #e2e8f0; padding-top: 14px;">
+            <div><div style="font-size: 12px; color: #64748b;">Last 1 h</div><div style="font-size: 16px; font-weight: 600;">0.0%/h</div></div>
+            <div><div style="font-size: 12px; color: #64748b;">Last 6 h</div><div style="font-size: 16px; font-weight: 600; color: #b91c1c;">3.4%/h</div></div>
+            <div><div style="font-size: 12px; color: #64748b;">Last 24 h</div><div style="font-size: 16px; font-weight: 600;">1.5%/h</div></div>
+            <div><div style="font-size: 12px; color: #64748b;">Lasts to reset</div><div style="font-size: 16px; font-weight: 600; color: #166534;">≤ 0.46%/h</div></div>
+          </div>
+          <p style="margin: 0; font-size: 12px; color: #64748b;">This window started early (5 early resets in the last 6 days). The forecast restarts whenever the provider resets.</p>
+        </article>
+
+        <article style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="font-size: 16px; font-weight: 600;">Claude Code</div>
+              <div style="font-size: 13px; color: #64748b;">5-hour and weekly limits</div>
+            </div>
+            <span style="padding: 4px 10px; border-radius: 9999px; background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; font-size: 13px; font-weight: 600;">No reading yet</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px;"><span>5-hour</span><span style="color: #64748b;">—</span></div>
+            <div style="height: 8px; border-radius: 9999px; background: #e2e8f0;"></div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px;"><span>Weekly</span><span style="color: #64748b;">—</span></div>
+            <div style="height: 8px; border-radius: 9999px; background: #e2e8f0;"></div>
+          </div>
+          <p style="margin: 0; font-size: 13px; line-height: 19px; color: #475569;">Readings appear after the next Claude Code reply. They come from the status line feed that <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">resource-claude-code</code> installs.</p>
+          <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-size: 13px; font-weight: 600;">Not forecast</div>
+            <div style="font-size: 13px; color: #475569;">OpenCode, Grok: the providers report no quota. Token totals only.</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="burn-h" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+        <div>
+          <h2 id="burn-h" style="margin: 0; font-size: 16px; font-weight: 600;">What's using Codex this window</h2>
+          <p style="margin: 2px 0 0; font-size: 13px; color: #64748b;">Share of the 33 points used, estimated from model-weighted tokens and calibrated to provider readings.</p>
+        </div>
+        <div role="group" aria-label="Group by" style="display: inline-flex; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden;">
+          <button type="button" aria-pressed="true" style="height: 32px; padding: 0 12px; border: 0; background: #0f172a; color: #fff; font-size: 13px; font-family: inherit;">Session</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border: 0; border-left: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 13px; font-family: inherit;">Profile</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border: 0; border-left: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 13px; font-family: inherit;">Workload</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border: 0; border-left: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 13px; font-family: inherit;">Model</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border: 0; border-left: 1px solid #cbd5e1; background: #fff; color: #0f172a; font-size: 13px; font-family: inherit;">Runner</button>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px;">
+          <thead>
+            <tr style="text-align: left; color: #475569; font-size: 12px;">
+              <th scope="col" style="padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Session</th>
+              <th scope="col" style="padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #e2e8f0; width: 34%;">Share of window</th>
+              <th scope="col" style="padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Model</th>
+              <th scope="col" style="padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Agents</th>
+              <th scope="col" style="padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #e2e8f0;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><a href="#">Research orchestrator</a><div style="font-size: 12px; color: #64748b; font-family: 'JetBrains Mono', monospace;">web-console 1e5904ed · open 8 days</div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><div style="display: flex; align-items: center; gap: 10px;"><div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 9999px;"><div style="width: 84%; height: 8px; background: #2563eb; border-radius: 9999px;"></div></div><span style="font-weight: 600; min-width: 92px;">≈ 28 pts · 84%</span></div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">terra, luna</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">1 + 44 sub-agents</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">Web console</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><a href="RunUsage.dc.html">Vega E1 Overview and shared shell</a><div style="font-size: 12px; color: #64748b;">Agent Manager run · failed</div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><div style="display: flex; align-items: center; gap: 10px;"><div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 9999px;"><div style="width: 7%; height: 8px; background: #2563eb; border-radius: 9999px;"></div></div><span style="font-weight: 600; min-width: 92px;">≈ 2.2 pts · 7%</span></div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">terra</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">1</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">Interactive</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><a href="#">Vega E2 Logs query journey</a><div style="font-size: 12px; color: #64748b;">Agent Manager run · failed</div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><div style="display: flex; align-items: center; gap: 10px;"><div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 9999px;"><div style="width: 4.5%; height: 8px; background: #2563eb; border-radius: 9999px;"></div></div><span style="font-weight: 600; min-width: 92px;">≈ 1.5 pts · 4.5%</span></div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">terra</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">1</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">Interactive</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><a href="#">Vega redesign heartbeat</a><div style="font-size: 12px; color: #64748b;">Agent Manager run · complete</div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;"><div style="display: flex; align-items: center; gap: 10px;"><div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 9999px;"><div style="width: 3.3%; height: 8px; background: #2563eb; border-radius: 9999px;"></div></div><span style="font-weight: 600; min-width: 92px;">≈ 1.1 pts · 3%</span></div></td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">terra</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">1</td>
+              <td style="padding: 12px 10px; border-bottom: 1px solid #f1f5f9;">Headless</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 10px; color: #475569;">Everything else (77 sessions)</td>
+              <td style="padding: 12px 10px;"><div style="display: flex; align-items: center; gap: 10px;"><div style="flex: 1; height: 8px; background: #e2e8f0; border-radius: 9999px;"><div style="width: 1%; height: 8px; background: #94a3b8; border-radius: 9999px;"></div></div><span style="font-weight: 600; min-width: 92px;">≈ 0.3 pts</span></div></td>
+              <td style="padding: 12px 10px; color: #475569;" colspan="3">Off-disk or unattributed: ≈ 0.4 pts (usage from other machines or apps)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="rec-h" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 4px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding-bottom: 8px;">
+        <div>
+          <h2 id="rec-h" style="margin: 0; font-size: 16px; font-weight: 600;">Recommendations</h2>
+          <p style="margin: 2px 0 0; font-size: 13px; color: #64748b;">Ranked by estimated weekly quota saved. Each one links to the runs and numbers behind it.</p>
+        </div>
+        <span style="font-size: 13px; color: #475569;">Applying 1–3 brings the projected run-out after the reset</span>
+      </div>
+
+      <details open="" style="border-top: 1px solid #e2e8f0; padding: 14px 0;">
+        <summary style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; cursor: pointer; list-style: none;">
+          <span style="width: 26px; height: 26px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;">1</span>
+          <span style="flex: 1 1 360px; font-size: 15px; font-weight: 600;">Start a fresh session or compact the research orchestrator</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; background: #f1f5f9; color: #334155;">Context</span>
+          <span style="font-size: 14px; font-weight: 700; color: #166534; min-width: 120px; text-align: right;">−10 to −16 pts/wk</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; border: 1px solid #bbf7d0; color: #166534;">High confidence</span>
+        </summary>
+        <div style="margin: 12px 0 0 38px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 21px;">
+            <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">Why</div>
+            <div>Each turn re-reads about 185k tokens of context (window 258k), across about 4,500 turns since Oct 21. Cached re-reading accounts for most of this session's quota.</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 21px;">
+            <div style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">What to do</div>
+            <div>Hand off to a new session with a short brief, or run <code style="font-family: 'JetBrains Mono', monospace; font-size: 12px;">/compact</code> when context passes 60%.</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <a href="#" style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 6px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none;">Open session</a>
+              <a href="#" style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #cbd5e1; color: #0f172a; font-size: 13px; text-decoration: none;">Evidence (12 turns)</a>
+              <button type="button" style="height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; color: #475569; font-size: 13px; font-family: inherit;">Dismiss</button>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <details style="border-top: 1px solid #e2e8f0; padding: 14px 0;">
+        <summary style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; cursor: pointer; list-style: none;">
+          <span style="width: 26px; height: 26px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;">2</span>
+          <span style="flex: 1 1 360px; font-size: 15px; font-weight: 600;">Run sub-agents on luna instead of terra in the research orchestrator</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; background: #f1f5f9; color: #334155;">Model</span>
+          <span style="font-size: 14px; font-weight: 700; color: #166534; min-width: 120px; text-align: right;">−6 to −9 pts/wk</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; border: 1px solid #fde68a; color: #92400e;">Medium confidence</span>
+        </summary>
+      </details>
+
+      <details style="border-top: 1px solid #e2e8f0; padding: 14px 0;">
+        <summary style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; cursor: pointer; list-style: none;">
+          <span style="width: 26px; height: 26px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;">3</span>
+          <span style="flex: 1 1 360px; font-size: 15px; font-weight: 600;">Limit sub-agent bursts: 8 agents started at 04:55 each re-read the parent's context</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; background: #f1f5f9; color: #334155;">Fan-out</span>
+          <span style="font-size: 14px; font-weight: 700; color: #166534; min-width: 120px; text-align: right;">−3 to −5 pts/wk</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; border: 1px solid #fde68a; color: #92400e;">Medium confidence</span>
+        </summary>
+      </details>
+
+      <details style="border-top: 1px solid #e2e8f0; padding: 14px 0;">
+        <summary style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; cursor: pointer; list-style: none;">
+          <span style="width: 26px; height: 26px; border-radius: 50%; background: #eff6ff; color: #1d4ed8; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; justify-content: center;">4</span>
+          <span style="flex: 1 1 360px; font-size: 15px; font-weight: 600;">Fix the repeated file re-reads in Vega delivery workers (read-then-reread episodes)</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; background: #f1f5f9; color: #334155;">Friction</span>
+          <span style="font-size: 14px; font-weight: 700; color: #166534; min-width: 120px; text-align: right;">−1 to −2 pts/wk</span>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 9999px; border: 1px solid #cbd5e1; color: #475569;">Low confidence</span>
+        </summary>
+      </details>
+    </section>
+
+    <section id="coverage" aria-labelledby="cov-h" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;">
+        <div>
+          <h2 id="cov-h" style="margin: 0; font-size: 16px; font-weight: 600;">Coverage</h2>
+          <p style="margin: 2px 0 0; font-size: 13px; color: #64748b;">What Mizar has read compared with the session files on this machine. Numbers above are only as good as this.</p>
+        </div>
+        <a href="#" style="font-size: 13px; font-weight: 600;">Details (formerly Stats) →</a>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;"><div style="font-size: 12px; color: #64748b;">Web console sessions</div><div style="font-size: 18px; font-weight: 700;">96%</div><div style="font-size: 12px; color: #475569;">62 of 64 files</div></div>
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;"><div style="font-size: 12px; color: #64748b;">Agent Manager runs</div><div style="font-size: 18px; font-weight: 700;">100%</div><div style="font-size: 12px; color: #475569;">65 of 65 files</div></div>
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;"><div style="font-size: 12px; color: #64748b;">Claude Code projects</div><div style="font-size: 18px; font-weight: 700;">98%</div><div style="font-size: 12px; color: #475569;">87 of 89 files, incl. sub-agents</div></div>
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;"><div style="font-size: 12px; color: #64748b;">Default Codex home</div><div style="font-size: 18px; font-weight: 700;">100%</div><div style="font-size: 12px; color: #475569;">3 of 3 files</div></div>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 8px; background: #fffbeb; border: 1px solid #fde68a;">
+        <span style="font-size: 14px; color: #78350f;">2 files could not be read: one is still being written, and one has an unsupported format.</span>
+        <div style="display: flex; gap: 8px;">
+          <a href="#" style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #d6d3d1; background: #fff; color: #0f172a; font-size: 13px; text-decoration: none;">Show files</a>
+          <a href="#" style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #d6d3d1; background: #fff; color: #0f172a; font-size: 13px; text-decoration: none;">Add a folder</a>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -44,7 +44,7 @@ export function updateMetaTags(config: SEOConfig): void {
 
   // Update canonical link
   if (config.canonical) {
-    let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (!link) {
       link = document.createElement('link');
       link.rel = 'canonical';
@@ -59,7 +59,7 @@ export function updateMetaTags(config: SEOConfig): void {
  */
 function setMetaTag(attrName: 'name' | 'property', attrValue: string, content?: string): void {
   const selector = `meta[${attrName}="${attrValue}"]`;
-  let element = document.querySelector(selector) as HTMLMetaElement | null;
+  let element = document.querySelector<HTMLMetaElement>(selector);
 
   if (!content) {
     // Remove tag if content is empty
@@ -93,7 +93,7 @@ function removeMetaTag(attrName: 'name' | 'property', attrValue: string): void {
  * Updates favicon dynamically.
  */
 export function updateFavicon(url: string): void {
-  let link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
   if (!link) {
     link = document.createElement('link');
     link.rel = 'icon';
@@ -102,7 +102,7 @@ export function updateFavicon(url: string): void {
   link.href = url;
 
   // Also update shortcut icon
-  let shortcut = document.querySelector('link[rel="shortcut icon"]') as HTMLLinkElement | null;
+  let shortcut = document.querySelector<HTMLLinkElement>('link[rel="shortcut icon"]');
   if (!shortcut) {
     shortcut = document.createElement('link');
     shortcut.rel = 'shortcut icon';

@@ -1,8 +1,7 @@
 import { useState, useMemo } from "react";
-import { Button } from "./ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { EditPricingDialog } from "./dialogs/EditPricingDialog";
-import { useModelCostComparison } from "../features/stats/hooks/useModelCostComparison";
-import type { CompareModelsRequest } from "../features/stats/api/types";
+import { useModelCostComparison, type CompareModelsRequest } from "../features/usage/modelCostComparison";
 import { formatUnknownLabel } from "../lib/display";
 import { truncate } from "../lib/utils";
 import { formatUsdFixed } from "../lib/currency";
@@ -63,7 +62,7 @@ export function ModelCostComparison({
         </h4>
         <div className="flex gap-1">
           <Button
-            variant={modelList === "popular" ? "default" : "outline"}
+            variant={modelList === "popular" ? "primary" : "secondary"}
             size="sm"
             onClick={() => setModelList("popular")}
             className="h-7 text-xs"
@@ -71,7 +70,7 @@ export function ModelCostComparison({
             Popular
           </Button>
           <Button
-            variant={modelList === "recent" ? "default" : "outline"}
+            variant={modelList === "recent" ? "primary" : "secondary"}
             size="sm"
             onClick={() => setModelList("recent")}
             className="h-7 text-xs"

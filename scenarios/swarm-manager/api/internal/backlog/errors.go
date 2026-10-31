@@ -15,4 +15,9 @@ var (
 	// ErrInvalidKind indicates the provided kind string is not a recognized
 	// backlog kind (idea, research, fix, execute, chore).
 	ErrInvalidKind = errors.New("invalid backlog kind")
+
+	// ErrInvalidStatus indicates an on-disk spec.json contained a status
+	// value not in the canonical status enum. Greenfield: we refuse to
+	// silently normalize — surface the bad value so the owner can fix it.
+	ErrInvalidStatus = errors.New("invalid backlog status")
 )

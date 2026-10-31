@@ -1,0 +1,82 @@
+import json
+inputs = program.inputs()
+envelope = {"program": "knowledge-observatory.prepare-change", "version": "2", "status": "failed", "phase": "validate", "inputs": {}, "signals": {"capture_required": True}, "errors": [], "evidence": []}
+fail = program.fail
+
+def document(handle):
+    value = dict(handle.meta())
+    value["references"] = handle.head(12)
+    value["referencesTruncated"] = bool(value.get("referencesTruncated") or handle.count() > 12)
+    return value
+
+def checked_path(value):
+    return isinstance(value, str) and 0 < len(value) <= 500 and not value.startswith("/") and not any(c in value for c in ["\\", ":", "\x00"]) and ".." not in value.split("/")
+
+def scalar(handle):
+    rows = handle.head(1)
+    return rows[0] if rows else {}
+
+def step_validate():
+    if not isinstance(inputs,dict) or set(inputs)-{"paths","base_path","intent","max_files","dispositions"}:return fail("failed","invalid_input","Unsupported input","validate")
+    paths=inputs.get("paths")
+    if not isinstance(paths,list) or not 1 <= len(paths) <= 8 or not all(checked_path(p) for p in paths) or not checked_path(inputs.get("base_path")):
+        return fail("failed","invalid_input","Select 1..8 repository-relative paths and a bounded scan directory","validate")
+    if not isinstance(inputs.get("intent"),str) or not 0<len(inputs["intent"].strip())<=2000 or type(inputs.get("max_files",300)) is not int or not 1<=inputs.get("max_files",300)<=1000:
+        return fail("failed","invalid_input","Intent and max_files 1..1000 required","validate")
+    dispositions=inputs.get("dispositions",[])
+    if not isinstance(dispositions,list) or len(dispositions)>8:
+        return fail("failed","invalid_input","At most 8 dispositions allowed","validate")
+    seen=[]
+    for d in dispositions:
+        if not isinstance(d,dict) or set(d)-{"source","action","targets","reason","preserve","decision","evidence_refs"} or d.get("source") not in paths or d.get("source") in seen or d.get("action") not in ["correct","consolidate","promote","relocate","retain","retire"] or d.get("decision") not in ["proposed","resolved"]:
+            return fail("failed","invalid_input","Disposition needs a selected source, action and decision","validate")
+        seen.append(d["source"])
+        if not isinstance(d.get("reason"),str) or not 1<=len(d["reason"])<=1000 or not isinstance(d.get("targets"),list) or len(d["targets"])>8 or not all(checked_path(p) for p in d["targets"]):
+            return fail("failed","invalid_input","Disposition reason and bounded target paths required","validate")
+        for key in ["preserve","evidence_refs"]:
+            if not isinstance(d.get(key),list) or not 1<=len(d[key])<=12 or not all(isinstance(v,str) and 0<len(v)<=1000 for v in d[key]):
+                return fail("failed","invalid_input","Name preservation obligations and decision evidence","validate")
+        if d["action"] in ["consolidate","promote","relocate"] and not d["targets"]:
+            return fail("failed","invalid_input","This action requires a destination","validate")
+    envelope["inputs"]={k:v for k,v in inputs.items() if k not in ["reference_baseline","dispositions","preservation"]}
+    return "collect"
+def step_collect():
+    envelope["phase"]="collect"
+    try:
+        review=knowledge_observatory.knowledge_base.review(paths=inputs["paths"],base_path=inputs["base_path"],max_files=inputs.get("max_files",300),rows="documents")
+        docs=review.head(8);meta=review.meta()
+        for doc in docs:
+            refs=doc.get("references",[]);doc["references"]=refs[:12];doc["referencesTruncated"]=bool(doc.get("referencesTruncated") or len(refs)>12)
+        envelope["signals"].update({"documents":docs,"preconditions":[{"path":d["path"],"sha256":d["sha256"]} for d in docs],"observations":meta.get("observations",[])[:100],"files_checked":meta.get("filesChecked",0),"truncated":bool(meta.get("truncated")),"gaps":meta.get("gaps",[])[:12],"decisions_required":[]})
+        for d in docs:
+            status=(d.get("metadata") or {}).get("knowledge_status","unknown")
+            decision="Inspect for unique accepted knowledge to promote; retain necessary evidence with its plan owner; retire only after verified preservation." if status=="supplemental" else "Review authority, overlap, semantic conflicts, and applicability before correcting or consolidating."
+            envelope["signals"]["decisions_required"].append({"path":d["path"],"review":decision})
+            envelope["evidence"].append("path:"+d["path"]+"#sha256="+d["sha256"])
+        related=knowledge_observatory.knowledge_base.search(query=inputs["intent"],scope="path",target=inputs["base_path"],limit=5)
+        envelope["signals"]["related_sources"]=[{"path":r.get("path"),"title":r.get("title"),"snippet":r.get("snippet","")[:280]} for r in related.head(5)]
+        supplied={d["source"]:d for d in inputs.get("dispositions",[])}
+        envelope["signals"]["dispositions"]=[dict(supplied[d["path"]],source_sha256=d["sha256"]) if d["path"] in supplied else {"source":d["path"],"source_sha256":d["sha256"],"action":"unresolved","targets":[],"reason":"Caller must compare source knowledge and authority","preserve":[],"decision":"unresolved","evidence_refs":[]} for d in docs]
+        envelope["signals"]["editorial_review_complete"]=all(d["decision"]=="resolved" for d in envelope["signals"]["dispositions"])
+        envelope["signals"]["task_success_verified"]=False
+        health=knowledge_observatory.knowledge_base.health(scope="path-exact",path=inputs["base_path"],skip_external_links=True,checks=["links","refs"],rows="referenceFindings")
+        reference=health.head(100);content=health.meta().get("contentFindings",[])
+        baseline={"base_path":inputs["base_path"],"checks":["links","refs"],"skip_external_links":True,"complete":health.count()<=100 and len(content)<=100,"reference_findings":reference,"content_findings":content[:100]}
+        envelope["signals"]["reference_baseline"]=baseline
+        envelope["status"]="partial" if meta.get("truncated") or not baseline["complete"] else "ok"
+    except Exception as exc:
+        status,klass=program.classify(exc);return fail("partial" if envelope["signals"].get("documents") else status,klass,exc,"collect")
+    return "report"
+
+def step_report():
+    envelope["phase"] = "report"
+    if len(json.dumps(envelope, ensure_ascii=False).encode("utf-8")) > 60000:
+        envelope["status"] = "partial"
+        envelope["signals"] = {"capture_required": True, "output_truncated": True, "next_step": "Narrow the source family or read one source page; this response cannot establish completeness."}
+        envelope["evidence"] = [str(e)[:512] for e in envelope["evidence"][:8]]
+        envelope["errors"] = [{"class": "output_bound", "detail": "Evidence exceeds the declared response budget", "where": "report"}]
+    print(json.dumps(envelope, ensure_ascii=False))
+    return None
+STATES = {"validate": step_validate, "collect": step_collect, "report": step_report}
+state = "validate"
+program.run(STATES, state)

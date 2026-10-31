@@ -1,0 +1,1 @@
+{"gate":"interaction","assetId":"calibration-interaction","kind":"component","runner":"external","requiredFailureCode":"catalog.interaction_calibration","description":"A browser interaction fixture that must fail keyboard activation."}

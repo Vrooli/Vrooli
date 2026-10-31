@@ -1,0 +1,11 @@
+torch==2.7.1+cu126
+torchaudio==2.7.1+cu126
+torchvision==0.22.1+cu126
+transformers==5.10.4
+diffusers==0.41.0
+accelerate==1.15.0
+soundfile==0.13.1
+numpy==2.0.2
+scipy==1.17.1
+librosa==0.11.0
+bitsandbytes==0.50.2

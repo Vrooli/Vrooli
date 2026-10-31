@@ -1,0 +1,23 @@
+{
+  "schedule": "*/30 * * * *",
+  "profileKey": "prompt-manager/delivery-orchestrator",
+  "finiteLeader": {
+    "effortRef": "effort:experience-quality",
+    "acceptedRevision": "proposed-preparation-v1:sha256:e4cba472f2d45f77bbffb30a848412fa562e745b7f44fa59b7e06cce1fa88d0e",
+    "coordinatorPromptRef": "path:.vrooli/work/delivery/experience-quality-delivery/GOAL.md",
+    "sourceRefs": [
+      "path:docs/architecture/experience-quality.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/README.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/RESEARCH.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/GAPS.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/VALIDATION.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/SETUP.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/COMMISSION.md",
+      "path:.vrooli/work/delivery/experience-quality-delivery/sources.json"
+    ],
+    "keepAlive": true,
+    "checkin": {
+      "mode": "parked"
+    }
+  }
+}

@@ -1,0 +1,575 @@
+{
+  "schemaVersion": 1,
+  "selectors": {
+    "app.title": {
+      "testId": "app-title",
+      "selector": "[data-testid=\"app-title\"]"
+    },
+    "health.card": {
+      "testId": "health-card",
+      "selector": "[data-testid=\"health-card\"]"
+    },
+    "health.loading": {
+      "testId": "health-loading",
+      "selector": "[data-testid=\"health-loading\"]"
+    },
+    "health.error": {
+      "testId": "health-error",
+      "selector": "[data-testid=\"health-error\"]"
+    },
+    "health.statusValue": {
+      "testId": "health-status-value",
+      "selector": "[data-testid=\"health-status-value\"]"
+    },
+    "health.serviceValue": {
+      "testId": "health-service-value",
+      "selector": "[data-testid=\"health-service-value\"]"
+    },
+    "health.timestampValue": {
+      "testId": "health-timestamp-value",
+      "selector": "[data-testid=\"health-timestamp-value\"]"
+    },
+    "health.refreshButton": {
+      "testId": "health-refresh-button",
+      "selector": "[data-testid=\"health-refresh-button\"]"
+    },
+    "health.refreshCount": {
+      "testId": "health-refresh-count",
+      "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "notifications.summary": {
+      "testId": "notifications-summary",
+      "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "locale.switcher": {
+      "testId": "locale-switcher",
+      "selector": "[data-testid=\"locale-switcher\"]"
+    },
+    "layout.shell": {
+      "testId": "layout-shell",
+      "selector": "[data-testid=\"layout-shell\"]"
+    },
+    "theme.switcher": {
+      "testId": "theme-switcher",
+      "selector": "[data-testid=\"theme-switcher\"]"
+    },
+    "theme.select": {
+      "testId": "theme-select",
+      "selector": "[data-testid=\"theme-select\"]"
+    },
+    "pages.dashboard": {
+      "testId": "page-dashboard",
+      "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.settings": {
+      "testId": "page-settings",
+      "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.search": {
+      "testId": "page-search",
+      "selector": "[data-testid=\"page-search\"]"
+    },
+    "pages.findings": {
+      "testId": "page-findings",
+      "selector": "[data-testid=\"page-findings\"]"
+    },
+    "pages.disputes": {
+      "testId": "page-disputes",
+      "selector": "[data-testid=\"page-disputes\"]"
+    },
+    "pages.ops": {
+      "testId": "page-ops",
+      "selector": "[data-testid=\"page-ops\"]"
+    },
+    "search.form": {
+      "testId": "search-form",
+      "selector": "[data-testid=\"search-form\"]"
+    },
+    "search.input": {
+      "testId": "search-input",
+      "selector": "[data-testid=\"search-input\"]"
+    },
+    "search.submit": {
+      "testId": "search-submit",
+      "selector": "[data-testid=\"search-submit\"]"
+    },
+    "search.modeLive": {
+      "testId": "search-mode-live",
+      "selector": "[data-testid=\"search-mode-live\"]"
+    },
+    "search.modeLearnings": {
+      "testId": "search-mode-learnings",
+      "selector": "[data-testid=\"search-mode-learnings\"]"
+    },
+    "search.synthesizeToggle": {
+      "testId": "search-synthesize-toggle",
+      "selector": "[data-testid=\"search-synthesize-toggle\"]"
+    },
+    "search.loading": {
+      "testId": "search-loading",
+      "selector": "[data-testid=\"search-loading\"]"
+    },
+    "search.error": {
+      "testId": "search-error",
+      "selector": "[data-testid=\"search-error\"]"
+    },
+    "search.empty": {
+      "testId": "search-empty",
+      "selector": "[data-testid=\"search-empty\"]"
+    },
+    "search.method": {
+      "testId": "search-method",
+      "selector": "[data-testid=\"search-method\"]"
+    },
+    "search.cached": {
+      "testId": "search-cached",
+      "selector": "[data-testid=\"search-cached\"]"
+    },
+    "search.degraded": {
+      "testId": "search-degraded",
+      "selector": "[data-testid=\"search-degraded\"]"
+    },
+    "search.engineWarning": {
+      "testId": "search-engine-warning",
+      "selector": "[data-testid=\"search-engine-warning\"]"
+    },
+    "search.results": {
+      "testId": "search-results",
+      "selector": "[data-testid=\"search-results\"]"
+    },
+    "search.result": {
+      "testId": "search-result",
+      "selector": "[data-testid=\"search-result\"]"
+    },
+    "search.synthesis": {
+      "testId": "search-synthesis",
+      "selector": "[data-testid=\"search-synthesis\"]"
+    },
+    "search.findingHits": {
+      "testId": "search-finding-hits",
+      "selector": "[data-testid=\"search-finding-hits\"]"
+    },
+    "search.findingHit": {
+      "testId": "search-finding-hit",
+      "selector": "[data-testid=\"search-finding-hit\"]"
+    },
+    "history.panel": {
+      "testId": "history-panel",
+      "selector": "[data-testid=\"history-panel\"]"
+    },
+    "history.empty": {
+      "testId": "history-empty",
+      "selector": "[data-testid=\"history-empty\"]"
+    },
+    "history.list": {
+      "testId": "history-list",
+      "selector": "[data-testid=\"history-list\"]"
+    },
+    "history.item": {
+      "testId": "history-item",
+      "selector": "[data-testid=\"history-item\"]"
+    },
+    "history.clear": {
+      "testId": "history-clear",
+      "selector": "[data-testid=\"history-clear\"]"
+    },
+    "ops.panel": {
+      "testId": "ops-panel",
+      "selector": "[data-testid=\"ops-panel\"]"
+    },
+    "ops.dependencies": {
+      "testId": "ops-dependencies",
+      "selector": "[data-testid=\"ops-dependencies\"]"
+    },
+    "ops.dependenciesLoading": {
+      "testId": "ops-dependencies-loading",
+      "selector": "[data-testid=\"ops-dependencies-loading\"]"
+    },
+    "ops.dependenciesError": {
+      "testId": "ops-dependencies-error",
+      "selector": "[data-testid=\"ops-dependencies-error\"]"
+    },
+    "ops.dependenciesEmpty": {
+      "testId": "ops-dependencies-empty",
+      "selector": "[data-testid=\"ops-dependencies-empty\"]"
+    },
+    "ops.dependency": {
+      "testId": "ops-dependency",
+      "selector": "[data-testid=\"ops-dependency\"]"
+    },
+    "ops.lastQuery": {
+      "testId": "ops-last-query",
+      "selector": "[data-testid=\"ops-last-query\"]"
+    },
+    "ops.lastQueryEmpty": {
+      "testId": "ops-last-query-empty",
+      "selector": "[data-testid=\"ops-last-query-empty\"]"
+    },
+    "ops.captureStatus": {
+      "testId": "ops-capture-status",
+      "selector": "[data-testid=\"ops-capture-status\"]"
+    },
+    "findings.panel": {
+      "testId": "findings-panel",
+      "selector": "[data-testid=\"findings-panel\"]"
+    },
+    "findings.list": {
+      "testId": "findings-list",
+      "selector": "[data-testid=\"findings-list\"]"
+    },
+    "findings.loading": {
+      "testId": "findings-loading",
+      "selector": "[data-testid=\"findings-loading\"]"
+    },
+    "findings.error": {
+      "testId": "findings-error",
+      "selector": "[data-testid=\"findings-error\"]"
+    },
+    "findings.empty": {
+      "testId": "findings-empty",
+      "selector": "[data-testid=\"findings-empty\"]"
+    },
+    "findings.item": {
+      "testId": "findings-item",
+      "selector": "[data-testid=\"findings-item\"]"
+    },
+    "findings.age": {
+      "testId": "findings-age",
+      "selector": "[data-testid=\"findings-age\"]"
+    },
+    "findings.statusBadge": {
+      "testId": "findings-status-badge",
+      "selector": "[data-testid=\"findings-status-badge\"]"
+    },
+    "findings.includeArchived": {
+      "testId": "findings-include-archived",
+      "selector": "[data-testid=\"findings-include-archived\"]"
+    },
+    "findings.editButton": {
+      "testId": "findings-edit-button",
+      "selector": "[data-testid=\"findings-edit-button\"]"
+    },
+    "findings.editForm": {
+      "testId": "findings-edit-form",
+      "selector": "[data-testid=\"findings-edit-form\"]"
+    },
+    "findings.editClaim": {
+      "testId": "findings-edit-claim",
+      "selector": "[data-testid=\"findings-edit-claim\"]"
+    },
+    "findings.editConfidence": {
+      "testId": "findings-edit-confidence",
+      "selector": "[data-testid=\"findings-edit-confidence\"]"
+    },
+    "findings.editSave": {
+      "testId": "findings-edit-save",
+      "selector": "[data-testid=\"findings-edit-save\"]"
+    },
+    "findings.editCancel": {
+      "testId": "findings-edit-cancel",
+      "selector": "[data-testid=\"findings-edit-cancel\"]"
+    },
+    "findings.supersedeButton": {
+      "testId": "findings-supersede-button",
+      "selector": "[data-testid=\"findings-supersede-button\"]"
+    },
+    "findings.supersedeForm": {
+      "testId": "findings-supersede-form",
+      "selector": "[data-testid=\"findings-supersede-form\"]"
+    },
+    "findings.flagButton": {
+      "testId": "findings-flag-button",
+      "selector": "[data-testid=\"findings-flag-button\"]"
+    },
+    "findings.flagForm": {
+      "testId": "findings-flag-form",
+      "selector": "[data-testid=\"findings-flag-form\"]"
+    },
+    "findings.correctionButton": {
+      "testId": "findings-correction-button",
+      "selector": "[data-testid=\"findings-correction-button\"]"
+    },
+    "findings.correctionForm": {
+      "testId": "findings-correction-form",
+      "selector": "[data-testid=\"findings-correction-form\"]"
+    },
+    "findings.correctionDisposition": {
+      "testId": "findings-correction-disposition",
+      "selector": "[data-testid=\"findings-correction-disposition\"]"
+    },
+    "findings.correctionReason": {
+      "testId": "findings-correction-reason",
+      "selector": "[data-testid=\"findings-correction-reason\"]"
+    },
+    "findings.correctionSubmit": {
+      "testId": "findings-correction-submit",
+      "selector": "[data-testid=\"findings-correction-submit\"]"
+    },
+    "findings.addForm": {
+      "testId": "findings-add-form",
+      "selector": "[data-testid=\"findings-add-form\"]"
+    },
+    "findings.addClaim": {
+      "testId": "findings-add-claim",
+      "selector": "[data-testid=\"findings-add-claim\"]"
+    },
+    "findings.addConfidence": {
+      "testId": "findings-add-confidence",
+      "selector": "[data-testid=\"findings-add-confidence\"]"
+    },
+    "findings.addQuery": {
+      "testId": "findings-add-query",
+      "selector": "[data-testid=\"findings-add-query\"]"
+    },
+    "findings.addCitationUrl": {
+      "testId": "findings-add-citation-url",
+      "selector": "[data-testid=\"findings-add-citation-url\"]"
+    },
+    "findings.addCitationTitle": {
+      "testId": "findings-add-citation-title",
+      "selector": "[data-testid=\"findings-add-citation-title\"]"
+    },
+    "findings.addCitationRow": {
+      "testId": "findings-add-citation-row",
+      "selector": "[data-testid=\"findings-add-citation-row\"]"
+    },
+    "findings.addSubmit": {
+      "testId": "findings-add-submit",
+      "selector": "[data-testid=\"findings-add-submit\"]"
+    },
+    "findings.pruneDryRun": {
+      "testId": "findings-prune-dry-run",
+      "selector": "[data-testid=\"findings-prune-dry-run\"]"
+    },
+    "findings.pruneApply": {
+      "testId": "findings-prune-apply",
+      "selector": "[data-testid=\"findings-prune-apply\"]"
+    },
+    "findings.pruneResult": {
+      "testId": "findings-prune-result",
+      "selector": "[data-testid=\"findings-prune-result\"]"
+    },
+    "findings.effectivenessPanel": {
+      "testId": "findings-effectiveness-panel",
+      "selector": "[data-testid=\"findings-effectiveness-panel\"]"
+    },
+    "findings.effectivenessList": {
+      "testId": "findings-effectiveness-list",
+      "selector": "[data-testid=\"findings-effectiveness-list\"]"
+    },
+    "findings.effectivenessItem": {
+      "testId": "findings-effectiveness-item",
+      "selector": "[data-testid=\"findings-effectiveness-item\"]"
+    },
+    "findings.effectivenessLoading": {
+      "testId": "findings-effectiveness-loading",
+      "selector": "[data-testid=\"findings-effectiveness-loading\"]"
+    },
+    "findings.effectivenessError": {
+      "testId": "findings-effectiveness-error",
+      "selector": "[data-testid=\"findings-effectiveness-error\"]"
+    },
+    "findings.effectivenessEmpty": {
+      "testId": "findings-effectiveness-empty",
+      "selector": "[data-testid=\"findings-effectiveness-empty\"]"
+    },
+    "research.panel": {
+      "testId": "research-panel",
+      "selector": "[data-testid=\"research-panel\"]"
+    },
+    "research.query": {
+      "testId": "research-query",
+      "selector": "[data-testid=\"research-query\"]"
+    },
+    "research.start": {
+      "testId": "research-start",
+      "selector": "[data-testid=\"research-start\"]"
+    },
+    "research.resume": {
+      "testId": "research-resume",
+      "selector": "[data-testid=\"research-resume\"]"
+    },
+    "research.status": {
+      "testId": "research-status",
+      "selector": "[data-testid=\"research-status\"]"
+    },
+    "research.resultStatus": {
+      "testId": "research-result-status",
+      "selector": "[data-testid=\"research-result-status\"]"
+    },
+    "research.gaps": {
+      "testId": "research-gaps",
+      "selector": "[data-testid=\"research-gaps\"]"
+    },
+    "research.summary": {
+      "testId": "research-summary",
+      "selector": "[data-testid=\"research-summary\"]"
+    },
+    "research.passageId": {
+      "testId": "research-passage-id",
+      "selector": "[data-testid=\"research-passage-id\"]"
+    },
+    "research.readPassage": {
+      "testId": "research-read-passage",
+      "selector": "[data-testid=\"research-read-passage\"]"
+    },
+    "research.passage": {
+      "testId": "research-passage",
+      "selector": "[data-testid=\"research-passage\"]"
+    },
+    "research.error": {
+      "testId": "research-error",
+      "selector": "[data-testid=\"research-error\"]"
+    },
+    "disputes.panel": {
+      "testId": "disputes-panel",
+      "selector": "[data-testid=\"disputes-panel\"]"
+    },
+    "disputes.list": {
+      "testId": "disputes-list",
+      "selector": "[data-testid=\"disputes-list\"]"
+    },
+    "disputes.loading": {
+      "testId": "disputes-loading",
+      "selector": "[data-testid=\"disputes-loading\"]"
+    },
+    "disputes.error": {
+      "testId": "disputes-error",
+      "selector": "[data-testid=\"disputes-error\"]"
+    },
+    "disputes.empty": {
+      "testId": "disputes-empty",
+      "selector": "[data-testid=\"disputes-empty\"]"
+    },
+    "disputes.item": {
+      "testId": "disputes-item",
+      "selector": "[data-testid=\"disputes-item\"]"
+    },
+    "disputes.note": {
+      "testId": "disputes-note",
+      "selector": "[data-testid=\"disputes-note\"]"
+    },
+    "disputes.resolveButton": {
+      "testId": "disputes-resolve-button",
+      "selector": "[data-testid=\"disputes-resolve-button\"]"
+    },
+    "disputes.resolveForm": {
+      "testId": "disputes-resolve-form",
+      "selector": "[data-testid=\"disputes-resolve-form\"]"
+    },
+    "disputes.replacement": {
+      "testId": "disputes-replacement",
+      "selector": "[data-testid=\"disputes-replacement\"]"
+    },
+    "disputes.reason": {
+      "testId": "disputes-reason",
+      "selector": "[data-testid=\"disputes-reason\"]"
+    },
+    "disputes.resolveSubmit": {
+      "testId": "disputes-resolve-submit",
+      "selector": "[data-testid=\"disputes-resolve-submit\"]"
+    },
+    "disputes.dismissButton": {
+      "testId": "disputes-dismiss-button",
+      "selector": "[data-testid=\"disputes-dismiss-button\"]"
+    },
+    "disputes.dismissError": {
+      "testId": "disputes-dismiss-error",
+      "selector": "[data-testid=\"disputes-dismiss-error\"]"
+    },
+    "disputes.reresearchButton": {
+      "testId": "disputes-reresearch-button",
+      "selector": "[data-testid=\"disputes-reresearch-button\"]"
+    },
+    "disputes.reresearchStatus": {
+      "testId": "disputes-reresearch-status",
+      "selector": "[data-testid=\"disputes-reresearch-status\"]"
+    },
+    "disputes.reresearchError": {
+      "testId": "disputes-reresearch-error",
+      "selector": "[data-testid=\"disputes-reresearch-error\"]"
+    },
+    "errorBoundary.root": {
+      "testId": "error-boundary-root",
+      "selector": "[data-testid=\"error-boundary-root\"]"
+    },
+    "errorBoundary.retryButton": {
+      "testId": "error-boundary-retry",
+      "selector": "[data-testid=\"error-boundary-retry\"]"
+    }
+  },
+  "dynamicSelectors": {
+    "locale.toggle": {
+      "description": "Locale toggle button by language code",
+      "selectorPattern": "[data-testid=\"locale-toggle-${code}\"]",
+      "testIdPattern": "locale-toggle-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    },
+    "layout.navLink": {
+      "description": "App shell navigation link by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-link-${key}\"]",
+      "testIdPattern": "layout-nav-link-${key}",
+      "params": [
+        {
+          "name": "key",
+          "type": "enum",
+          "values": [
+            "dashboard",
+            "search",
+            "findings",
+            "disputes",
+            "ops",
+            "settings"
+          ]
+        }
+      ]
+    },
+    "settingsPage.themeOption": {
+      "description": "Theme choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
+      "testIdPattern": "page-settings-theme-${choice}",
+      "params": [
+        {
+          "name": "choice",
+          "type": "enum",
+          "values": [
+            "light",
+            "dark",
+            "system"
+          ]
+        }
+      ]
+    },
+    "settingsPage.localeOption": {
+      "description": "Locale choice radio button on the settings page",
+      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
+      "testIdPattern": "page-settings-locale-${code}",
+      "params": [
+        {
+          "name": "code",
+          "type": "enum",
+          "values": [
+            "en",
+            "ja",
+            "ar"
+          ]
+        }
+      ]
+    }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "f32319b4f20977779fe5bca6416d524a062d3247d963df70661fc945c716c2ad",
+    "ui/src/consts/selectors.ts": "d5591786c687305df50935bcc870a4378d09b581d5345fbf75fb7dbe237964d6",
+    "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
+  }
+}

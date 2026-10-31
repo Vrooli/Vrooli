@@ -1,0 +1,126 @@
+{
+  "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Quality Health هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `vrooli scenario generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
+  "app": {
+    "title": "Quality Health",
+    "eyebrow": "مرجع الجودة الثابتة",
+    "description": "يدقق lint وسلامة الأنواع وحواجز إعدادات التكوين وتنفيذ الأوامر وجاهزية الإصلاح التلقائي لسيناريوهات Vrooli."
+  },
+  "layout": {
+    "sidebarLabel": "تنقل الشريط الجانبي",
+    "bottomNavLabel": "تنقل الهاتف",
+    "mainLabel": "المحتوى الرئيسي",
+    "nav": {
+      "dashboard": "لوحة التحكم",
+      "settings": "الإعدادات"
+    }
+  },
+  "theme": {
+    "switcherLabel": "المظهر",
+    "choice": {
+      "light": "فاتح",
+      "dark": "داكن",
+      "system": "النظام"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "تدقيق الجودة",
+      "description": "افحص عقود الجودة الثابتة والأسطح المكتشفة والنتائج ومسارات الإصلاح الآمنة للسيناريو المحدد."
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "themeHeading": "المظهر",
+      "localeHeading": "اللغة"
+    }
+  },
+  "health": {
+    "title": "حالة API",
+    "loading": "جارٍ التحقق من حالة API…",
+    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
+    "refresh": "تحديث",
+    "refreshCount": "تم التحديث {{count}} مرات",
+    "refreshCount_one": "تم التحديث مرة واحدة",
+    "statusLabel": "الحالة:",
+    "serviceLabel": "الخدمة:",
+    "timestampLabel": "الطابع الزمني:"
+  },
+  "quality": {
+    "title": "تدقيق جودة السيناريو",
+    "scenarioLabel": "السيناريو",
+    "scenarioPlaceholder": "quality-health",
+    "runAudit": "تشغيل التدقيق",
+    "running": "جارٍ التشغيل",
+    "refresh": "تحديث",
+    "loading": "جارٍ تشغيل تدقيق الجودة الثابتة…",
+    "status": "الحالة",
+    "maturity": "النضج",
+    "findings": "النتائج",
+    "surfaces": "الأسطح",
+    "commands": "الأوامر",
+    "countSummary": "{{errors}} أخطاء / {{warnings}} تحذيرات / {{infos}} معلومات",
+    "unknown": "غير معروف",
+    "surfaceBreakdown": "تفصيل الأسطح",
+    "noSurfaces": "لم يتم اكتشاف أي أسطح لهذا التدقيق.",
+    "findingsWorkbench": "مساحة عمل النتائج",
+    "severityFilter": "الخطورة",
+    "surfaceFilter": "السطح",
+    "ruleFilter": "القاعدة",
+    "allSeverities": "كل مستويات الخطورة",
+    "allSurfaces": "كل الأسطح",
+    "allRules": "كل القواعد",
+    "errorSeverity": "أخطاء",
+    "warningSeverity": "تحذيرات",
+    "infoSeverity": "معلومات",
+    "autofixGroup": "إصلاح تلقائي",
+    "agentGroup": "إصلاح الوكيل",
+    "manualGroup": "مراجعة يدوية",
+    "noFindings": "لا توجد نتائج تطابق عوامل التصفية الحالية.",
+    "contractDetail": "تفاصيل العقد",
+    "rule": "القاعدة",
+    "expected": "المتوقع",
+    "observed": "المرصود",
+    "whyItMatters": "سبب الأهمية",
+    "remediation": "الإصلاح",
+    "none": "لا شيء",
+    "selectFinding": "حدد نتيجة لفحص تفاصيل العقد.",
+    "autofixPreview": "معاينة الإصلاح التلقائي",
+    "previewFix": "معاينة الإصلاح",
+    "applyFix": "تطبيق الإصلاح",
+    "applied": "تم التطبيق",
+    "dryRun": "تشغيل تجريبي",
+    "noAutofix": "حدد نتيجة قابلة للإصلاح التلقائي لمعاينة تعديلات التكوين الحتمية.",
+    "commandsTitle": "نتائج الأوامر",
+    "noCommands": "لم يتم تضمين نتائج تنفيذ الأوامر في هذا التدقيق."
+  },
+  "notifications": {
+    "summary": "{{count}} إشعارات",
+    "summary_zero": "لا توجد إشعارات",
+    "summary_one": "إشعار واحد"
+  },
+  "errors": {
+    "canceled": "Operation canceled.",
+    "unknown": "An unknown error occurred.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "deadline_exceeded": "Operation timed out.",
+    "not_found": "Resource not found.",
+    "already_exists": "Already exists.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "aborted": "Operation aborted.",
+    "out_of_range": "Out of range.",
+    "unimplemented": "Not yet implemented.",
+    "internal": "Something went wrong. Please try again.",
+    "unavailable": "Service temporarily unavailable.",
+    "data_loss": "Data loss detected.",
+    "unauthenticated": "Please sign in to continue."
+  },
+  "locale": {
+    "switcherLabel": "اللغة"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
+    "retry": "إعادة المحاولة"
+  }
+}

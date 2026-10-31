@@ -8,6 +8,7 @@ import { initIframeBridgeChild } from '@vrooli/iframe-bridge/child';
 import { AppWithUpdates, ReadyMarker } from './AppShell';
 import { WebSocketProvider } from './contexts/WebSocketProvider';
 import './index.css';
+import { onProfilerRender } from './lib/profiler';
 import { logger } from './utils/logger';
 
 declare global {
@@ -18,6 +19,7 @@ declare global {
 
 interface MountOptions {
   strictMode?: boolean;
+  rootWrapper?: (children: ReactNode) => ReactNode;
 }
 
 const queryClient = new QueryClient({
@@ -64,12 +66,17 @@ function ensureBridge() {
   bridgeInitialized = true;
 }
 
-function renderTree(): ReactNode {
+function renderTree(rootWrapper?: (children: ReactNode) => ReactNode): ReactNode {
+  const app = rootWrapper ? rootWrapper(<AppWithUpdates />) : (
+    <React.Profiler id="App" onRender={onProfilerRender}>
+      <AppWithUpdates />
+    </React.Profiler>
+  );
   const content = (
     <QueryClientProvider client={queryClient}>
       <WebSocketProvider>
         <ReadyMarker />
-        <AppWithUpdates />
+        {app}
         <Toaster
           position="bottom-right"
           toastOptions={{
@@ -94,7 +101,9 @@ export function mountApp(target: HTMLElement, options: MountOptions = {}): Root 
   ensureBridge();
 
   const { strictMode = false } = options;
-  const tree = strictMode ? <React.StrictMode>{renderTree()}</React.StrictMode> : renderTree();
+  const tree = strictMode
+    ? <React.StrictMode>{renderTree(options.rootWrapper)}</React.StrictMode>
+    : renderTree(options.rootWrapper);
 
   const root = createRoot(target);
   root.render(tree);

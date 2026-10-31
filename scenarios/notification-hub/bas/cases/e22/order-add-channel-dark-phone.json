@@ -1,0 +1,193 @@
+{
+  "metadata": {
+    "name": "e22-order-add-channel-dark-phone",
+    "description": "Capture selected dark phone Add channel state from a fresh leased one-channel saved order.",
+    "requirement": "NOTIFICA-P0-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e22-order-add-channel-dark-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Open the Email option from the single-channel Web Push order and capture the dark phone Add channel state without saving.",
+      "requirement": "NOTIFICA-P0-006",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_order=single&e22_case=e22-order-add-channel-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased owner fixture with canonical Web Push then Email order"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalationOrder.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the routed escalation-order read"
+          }
+        }
+      },
+      {
+        "id": "select-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Set dark appearance for the Add channel phone capture"
+          }
+        }
+      },
+      {
+        "id": "set-selected-capture-safe-area",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(root).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(root).getPropertyValue('--safe-area-inset-bottom').trim();if(top!=='0px'||bottom!=='0px')throw new Error(`selected capture requires zero insets, got ${top}/${bottom}`);return {top,bottom,viewport:{width:innerWidth,height:innerHeight}}})()",
+            "store_result": "selectedCaptureSafeArea"
+          },
+          "metadata": {
+            "label": "Match the selected artwork zero-inset capture while preserving separate safe-area verification"
+          }
+        }
+      },
+      {
+        "id": "open-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.openButton"
+          },
+          "metadata": {
+            "label": "Open the single-channel saved order"
+          }
+        }
+      },
+      {
+        "id": "open-add-channel",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalationOrder.addSelect"
+          },
+          "metadata": {
+            "label": "Open the channel picker without changing the saved order"
+          }
+        }
+      },
+      {
+        "id": "assert-add-channel-state",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector(\"[data-testid=\\\"escalation-order-root\\\"]\");const choices=document.querySelector(\"[data-testid=\\\"escalation-order-channel-picker\\\"]\");const text=root?.textContent||\"\";const buttons=[...(choices?.querySelectorAll(\"button\")||[])];const email=buttons.find(button=>button.textContent?.includes(\"Email\"));if(!choices||buttons.length!==1||!email||!text.includes(\"Escalation order \u00b7 Web Push selected\")||!text.includes(\"Add a channel\")||!text.includes(\"Append a supported channel to the order\")||!text.includes(\"Availability is checked separately\")||!text.includes(\"An adapter-ready observation does not prove a deliverable destination\"))throw new Error(`Add channel state mismatch choices=${buttons.map(button=>button.textContent).join(\"|\")} text=${text}`);return {availableChoices:[\"email\"],selectedSavedChannel:\"web_push\",availabilityDisclosure:true,noOrderWriteBeforeCapture:true}})()"
+          },
+          "metadata": {
+            "label": "Verify Email is available, Web Push remains saved, and eligibility stays held"
+          }
+        }
+      },
+      {
+        "id": "assert-selected-phone-environment",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-right','0px');root.style.setProperty('--safe-area-inset-bottom','0px');root.style.setProperty('--safe-area-inset-left','0px');const insets=Object.fromEntries(['top','right','bottom','left'].map(key=>[key,getComputedStyle(root).getPropertyValue('--safe-area-inset-'+key).trim()]));const actualTheme=root.getAttribute('data-theme');if(innerWidth!==390||innerHeight!==844||devicePixelRatio!==2||actualTheme!=='dark'||Object.values(insets).some(value=>value!=='0px'))throw new Error(`selected phone environment mismatch viewport=${innerWidth}x${innerHeight} dpr=${devicePixelRatio} theme=${actualTheme} insets=${JSON.stringify(insets)}`);return {viewport:{width:innerWidth,height:innerHeight},devicePixelRatio,theme:actualTheme,insets}})()"
+          },
+          "metadata": {
+            "label": "Assert selected dark 390 by 844 phone viewport, DPR 2, and zero safe-area insets before capture"
+          }
+        }
+      },
+      {
+        "id": "capture-add-channel",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected dark Add channel phone state at 390 by 844 CSS pixels"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e22-add-dark-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-01",
+        "source": "wait-settings",
+        "target": "select-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-02",
+        "source": "select-theme",
+        "target": "set-selected-capture-safe-area",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-03",
+        "source": "open-editor",
+        "target": "open-add-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-04",
+        "source": "open-add-channel",
+        "target": "assert-add-channel-state",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-05",
+        "source": "assert-add-channel-state",
+        "target": "assert-selected-phone-environment",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-zero-inset",
+        "source": "set-selected-capture-safe-area",
+        "target": "open-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e22-add-dark-07",
+        "source": "assert-selected-phone-environment",
+        "target": "capture-add-channel",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

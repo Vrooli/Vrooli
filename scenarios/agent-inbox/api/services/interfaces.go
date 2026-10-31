@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"agent-inbox/domain"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // =============================================================================
@@ -20,7 +18,7 @@ import (
 // This interface enables dependency injection for testing.
 type CompletionRepository interface {
 	// Chat settings
-	GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (model string, toolsEnabled bool, webSearchEnabled bool, err error)
+	GetChatSettingsWithWebSearch(ctx context.Context, chatID string) (model string, webSearchEnabled bool, err error)
 	UpdateChatPreview(ctx context.Context, chatID, preview string, markUnread bool) error
 
 	// Message operations
@@ -69,7 +67,7 @@ type AsyncTrackerInterface interface {
 	GetOperation(toolCallID string) *AsyncOperation
 
 	// StartTracking begins tracking an async operation with polling.
-	StartTracking(ctx context.Context, toolCallID, chatID, toolName, scenario string, toolResult interface{}, asyncBehavior *toolspb.AsyncBehavior) error
+	StartTracking(ctx context.Context, toolCallID, chatID, toolName, scenario string, toolResult interface{}, asyncBehavior *AsyncBehavior) error
 }
 
 // =============================================================================

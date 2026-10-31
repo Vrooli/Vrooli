@@ -16,7 +16,6 @@ flowchart TB
         structure["structure"]
         deps["dependencies"]
         unit["unit"]
-        integration["integration"]
         playbooks["playbooks"]
         business["business"]
         performance["performance"]
@@ -32,7 +31,6 @@ flowchart TB
     reg --> structure
     reg --> deps
     reg --> unit
-    reg --> integration
     reg --> playbooks
     reg --> business
     reg --> performance
@@ -40,7 +38,6 @@ flowchart TB
     structure --> runner
     deps --> runner
     unit --> runner
-    integration --> runner
     playbooks --> runner
     business --> runner
     performance --> runner
@@ -63,8 +60,8 @@ spec, ok := catalog.Lookup("unit")
 // Get all phases for API responses
 descriptors := catalog.Descriptors()
 
-// Get phase ordering weight
-weight, ok := catalog.Weight(phases.Unit)
+// Get phase registration order
+order, ok := catalog.Order(phases.Unit)
 ```
 
 ## Runner Contract
@@ -134,75 +131,49 @@ flowchart LR
 
 ### dependencies
 
-**File:** `phase_dependencies.go`
+**File:** `phase_validationprovider.go`
 
-Confirms required runtimes and tools are available:
+Delegates dependency validation to Scenario Dependency Analyzer:
 
-- Go toolchain (`go`)
-- Node.js (`node`, `npm`/`pnpm`/`yarn`)
-- Python (`python3`/`python`)
-- Bash (`bash`)
-- Declared resources in `service.json`
+- Calls `scenario-validation/v1.ScenarioValidationService.ValidateScenario` on `scenario-dependency-analyzer`
+- Maps SDA assessment findings into `FINDING_SOURCE_DEPENDENCY`
+- Does not run native dependency checks or call SDA drift separately
+- Fails when SDA returns `ERROR` / `BLOCKER` dependency health findings or when the producer is unavailable
+
+Delegated health providers may return either a legacy single local maturity
+ladder or additive `assessment.capabilities[]` ladders. Test Genie validates
+both through `maturity-go/assessment`, preserves the backward-compatible
+`local.current_level` / `local.next_level` summary, and includes compact
+capability summaries plus `highest_priority_capability` in observations when a
+provider emits them. Phase pass/fail remains based on the shared validation
+status and finding severity, not provider-specific capability names.
 
 ### unit
 
-**File:** `phase_unit.go`
+**File:** `phase_validationprovider.go`
 
-Executes language-specific unit tests:
+Delegates test execution, coverage analysis, test architecture, and test-quality
+diagnostics to Unit Health:
 
-```mermaid
-flowchart TB
-    subgraph Go
-        go_test["go test ./..."]
-    end
+- Calls `scenario-validation/v1.ScenarioValidationService.ValidateScenario` on `unit-health`
+- Sets `include_execution=true` so the provider actually runs the discovered tests
+- Uses a long provider timeout because test execution can be slow
+- Maps coverage-dimension assessment findings into `FINDING_SOURCE_COVERAGE`
 
-    subgraph Node
-        detect_pm["Detect package manager"]
-        install["Install deps if needed"]
-        npm_test["pnpm/npm/yarn test"]
-    end
+### workflow
 
-    subgraph Python
-        detect_py["Detect python workspace"]
-        pytest["pytest -q"]
-        unittest["unittest discover"]
-    end
+**File:** `phase_validationprovider.go`
 
-    subgraph Shell
-        bash_n["bash -n <scripts>"]
-    end
+Delegates BAS workflow validation and safe execution to Workflow Health:
 
-    go_test --> Node
-    Node --> Python
-    Python --> Shell
-```
+- Reads Workflow Health's descriptor-declared `durable-run` delivery mode, then
+  calls `scenario-validation/v1.DurableValidationRunService.StartValidationRun`
+  and waits once for its terminal shared response
+- Preserves routed-isolation and explicit-confirmation guardrails for mutating or destructive workflows
+- Maps provider findings into `FINDING_SOURCE_WORKFLOW`
 
-| Runtime | Test Command | Detection |
-|---------|--------------|-----------|
-| Go | `go test ./...` in `api/` | `api/` directory exists |
-| Node | `pnpm test` / `npm test` | `package.json` with `scripts.test` |
-| Python | `pytest -q` or `unittest discover` | `requirements.txt`, `pyproject.toml`, or `tests/` |
-| Shell | `bash -n <file>` | CLI binary, `test/lib/*.sh` |
-
-### integration
-
-**File:** `phase_integration.go`
-
-Exercises higher-level test suites:
-
-- BATS test files under `test/`
-- CLI integration tests
-- Orchestrator listing commands
-
-### playbooks
-
-**File:** `phase_playbooks.go`
-
-Executes Vrooli Ascension workflows declared in `bas/`:
-
-- Reads `registry.json` for workflow definitions
-- Invokes BAS runner for each workflow
-- Validates end-to-end UI flows
+`playbooks`, `playbook`, and `e2e` are accepted only as deprecated input
+aliases that normalize to `workflow`.
 
 ### business
 
@@ -231,6 +202,7 @@ Audits requirements modules:
 | `misconfiguration` | User-fixable config error | Missing `service.json`, invalid JSON |
 | `missing_dependency` | Required tool not installed | `go` command not found |
 | `timeout` | Phase exceeded time limit | Long-running test suite |
+| `test_failure` | Provider-attributed product defect | Validation returned failed status or findings |
 | `system` | Unexpected runtime error | File permission issue |
 
 ## Adding a New Phase
@@ -304,10 +276,7 @@ phases/
 ├── types.go                # Name, Runner, RunReport, ExecutionResult
 │
 ├── phase_structure.go      # Structure validation
-├── phase_dependencies.go   # Dependency checks
-├── phase_unit.go           # Unit test execution
-├── phase_integration.go    # Integration tests
-├── phase_playbooks.go      # BAS workflow execution
+├── phase_validationprovider.go # Shared health-provider delegation
 ├── phase_business.go       # Requirements auditing
 ├── phase_performance.go    # Performance benchmarks
 │

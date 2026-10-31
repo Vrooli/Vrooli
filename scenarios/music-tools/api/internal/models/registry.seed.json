@@ -1,0 +1,279 @@
+[
+  {
+    "id": "ACE-Step/Ace-Step1.5:acestep-v15-turbo",
+    "display_name": "ACE-Step 1.5 Turbo",
+    "variant": "acestep-v15-turbo",
+    "revision": "19671f406d603126926c1b7e2adc169acbcade22",
+    "licence": "permissive",
+    "installed": false,
+    "bytes": 7516192768,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 6442450944,
+      "min_ram_bytes": 8589934592,
+      "cpu_capable": false
+    },
+    "license": "MIT",
+    "commercial_use": "yes",
+    "commercial_use_notes": "Vendor asserts licensed, royalty-free, or synthetic training data.",
+    "base_model_lineage": "ACE-Step 1.5",
+    "known_risks": "Publisher-authored remote code is pinned and reviewed inside the verified resource artifact.",
+    "checksum": "3f6e0797fad420a39bd33979eb6e840e30989e34a3794e843d23b60ec6e422d7",
+    "disk_floor_bytes": 2147483648,
+    "engine": "ace-step",
+    "composition_preference": 2,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
+      "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
+    }
+  },
+  {
+    "id": "stabilityai/stable-audio-3-medium",
+    "display_name": "Stable Audio 3 Medium",
+    "variant": "stable-audio-3-medium",
+    "revision": "d4d3579395a8ac0df4ab13b5b1d7138ce7290f81",
+    "licence": "restricted",
+    "installed": false,
+    "bytes": 10443825655,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 9663676416,
+      "min_ram_bytes": 25769803776,
+      "cpu_capable": false
+    },
+    "license": "Stability AI Community License; Gemma terms",
+    "commercial_use": "conditional",
+    "commercial_use_notes": "Requires applicable Community commercial eligibility/registration and Gemma terms; current-host gate acceptance is not blanket eligibility.",
+    "base_model_lineage": "Stable Audio 3 Medium; T5Gemma",
+    "known_risks": "Gated local CUDA resource; 9GiB estimated resident claim, 8GiB Torch cap; actual startup/fit must be qualified per host.",
+    "checksum": "48d9c65e290e7bcd5194e0633bfc2424a59ee9683f5c2d58762d997b7d8ce0b5",
+    "disk_floor_bytes": 2147483648,
+    "engine": "stable-audio-3",
+    "composition_preference": 1,
+    "sung_lyrics": {
+      "supported": false,
+      "reason": "This model does not output intelligible vocals; vocal textures cannot satisfy authored sung lyrics.",
+      "source": "https://github.com/Stability-AI/stable-audio-3/blob/77e0398c26f7d22d801ec1bb036307e8b231f741/docs/guides/prompting.md"
+    }
+  },
+  {
+    "id": "ACE-Step/Ace-Step1.5:acestep-v15-sft",
+    "display_name": "ACE-Step 1.5 SFT",
+    "variant": "acestep-v15-sft",
+    "revision": "c410d249e71ea9385a7b586865e65b1473e1098d",
+    "licence": "permissive",
+    "installed": false,
+    "bytes": 0,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 6442450944,
+      "min_ram_bytes": 8589934592,
+      "cpu_capable": false
+    },
+    "license": "MIT",
+    "commercial_use": "yes",
+    "commercial_use_notes": "Vendor asserts licensed, royalty-free, or synthetic training data.",
+    "base_model_lineage": "ACE-Step/acestep-v15-sft; ACE-Step 1.5 shared components",
+    "known_risks": "Publisher-authored remote code is pinned and reviewed inside the verified resource artifact.",
+    "checksum": "d4dd3a93870f06720027965b90771f529ab02094b3d29e2518f1d5e097e1af7e",
+    "disk_floor_bytes": 2147483648,
+    "engine": "ace-step",
+    "composition_preference": 3,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
+      "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
+    }
+  },
+  {
+    "id": "MiniMaxAI/MiniMax-Music3",
+    "display_name": "MiniMax Music3 NF4",
+    "variant": "minimax-music3-nf4",
+    "revision": "fbdf52fbaaca799592917417eb05f1899f1255ec",
+    "licence": "restricted",
+    "installed": false,
+    "bytes": 28517620698,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 10737418240,
+      "min_ram_bytes": 17179869184,
+      "cpu_capable": false
+    },
+    "license": "MiniMax Music3 Model License",
+    "commercial_use": "conditional",
+    "commercial_use_notes": "Model-specific terms apply; personal trial acceptance is not blanket commercial eligibility.",
+    "base_model_lineage": "MiniMaxAI/MiniMax-Music3; diffusers-0.41.0",
+    "known_risks": "Soft structure/style conditioning; no native voice-reference input in this qualified adapter. Duration is an upper bound. Output-head NF4 is not BF16-equivalent.",
+    "checksum": "83179c5eaa9a68a370affe0c1b96c2179f659ea4175666b31071490a202c2a4d",
+    "disk_floor_bytes": 2147483648,
+    "engine": "songgen",
+    "composition_preference": 100,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Native generation accepts authored lyrics and section tags; adherence still requires listening.",
+      "source": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/blob/fbdf52fbaaca799592917417eb05f1899f1255ec/README.md"
+    },
+    "runtime": {
+      "protocol": "song-v1",
+      "resource": "songgen",
+      "profile": "minimax-music3-nf4",
+      "url_variable": "SONGGEN_URL",
+      "default_url": "http://127.0.0.1:8897",
+      "catalog_sha256": "32680b7e31856afae45b99c8108e61316fee7750c8301e80172b60451ce00804",
+      "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201",
+      "source_revision": "diffusers-0.41.0",
+      "weight_files": 24,
+      "versions": {
+        "bitsandbytes": "0.50.2",
+        "diffusers": "0.41.0",
+        "soundfile": "0.13.1",
+        "torch": "2.7.1+cu126",
+        "transformers": "5.10.4"
+      },
+      "min_duration": 1,
+      "max_duration": 150,
+      "default_steps": 30,
+      "min_steps": 1,
+      "max_steps": 100,
+      "default_guidance": 1.7,
+      "min_guidance": 0.01,
+      "max_guidance": 20,
+      "timeout_seconds": 7200
+    },
+    "voice_reference": {
+      "supported": false,
+      "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
+      "source": "resources/songgen/server/profiles.json"
+    }
+  },
+  {
+    "id": "HeartMuLa/HeartMuLa-oss-3B-happy-new-year",
+    "display_name": "HeartMuLa 3B",
+    "variant": "heartmula-3b",
+    "revision": "41f6fc68490e11dc43fdabaa6b5767946408c903",
+    "licence": "permissive",
+    "installed": false,
+    "bytes": 22400063678,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 10737418240,
+      "min_ram_bytes": 17179869184,
+      "cpu_capable": false
+    },
+    "license": "Apache-2.0",
+    "commercial_use": "yes",
+    "commercial_use_notes": "Upstream declares Apache-2.0; retain upstream notices.",
+    "base_model_lineage": "HeartMuLa/HeartMuLa-oss-3B-happy-new-year; 5858ca8f1ffe58d62be7c007ea55f1033c5ca456",
+    "known_risks": "Soft structure/style conditioning; no native voice-reference input in this qualified adapter. Bounded attention cache and CPU scalar decode.",
+    "checksum": "4815367cdbddc0192abe3dbe81e2ae6a6e8978a39ad4dd1d26a20e445b3aeea6",
+    "disk_floor_bytes": 2147483648,
+    "engine": "songgen",
+    "composition_preference": 101,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Native generation accepts authored lyrics and section tags; adherence still requires listening.",
+      "source": "https://github.com/HeartMuLa/heartlib/tree/5858ca8f1ffe58d62be7c007ea55f1033c5ca456"
+    },
+    "runtime": {
+      "protocol": "song-v1",
+      "resource": "songgen",
+      "profile": "heartmula-3b",
+      "url_variable": "SONGGEN_URL",
+      "default_url": "http://127.0.0.1:8897",
+      "catalog_sha256": "32680b7e31856afae45b99c8108e61316fee7750c8301e80172b60451ce00804",
+      "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201",
+      "source_revision": "5858ca8f1ffe58d62be7c007ea55f1033c5ca456",
+      "weight_files": 13,
+      "versions": {
+        "soundfile": "0.13.1",
+        "torch": "2.7.1+cu126",
+        "torchtune": "0.4.0",
+        "transformers": "4.57.1"
+      },
+      "min_duration": 1,
+      "max_duration": 150,
+      "default_steps": 0,
+      "min_steps": 0,
+      "max_steps": 0,
+      "default_guidance": 1.5,
+      "min_guidance": 0.01,
+      "max_guidance": 20,
+      "timeout_seconds": 7200
+    },
+    "voice_reference": {
+      "supported": false,
+      "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
+      "source": "resources/songgen/server/profiles.json"
+    }
+  },
+  {
+    "id": "audio-cpp/Yue2-3B-GGUF:yue2-q8",
+    "display_name": "YuE2 Q8 \u2014 native full-score planning",
+    "variant": "yue2-q8",
+    "revision": "cca74d8980c00f30ab8d52248a367c01ad633ec2",
+    "licence": "restricted",
+    "installed": false,
+    "bytes": 4532008588,
+    "operations": [
+      "compose"
+    ],
+    "hardware": {
+      "min_vram_bytes": 10737418240,
+      "min_ram_bytes": 25769803776,
+      "cpu_capable": false
+    },
+    "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+    "commercial_use": "no",
+    "commercial_use_notes": "CC-BY-NC profile qualified only for private noncommercial research; no production/commercial permission established.",
+    "base_model_lineage": "m-a-p/YuE2-3B@1a96eca688d6ae5d7f0feb88573fec89920fcd19; audio-cpp Q8/F16 conversion",
+    "known_risks": "Experimental native full-score route. Q8/F16 differs from upstream BF16/F32. Duration is a semantic-token upper bound; truncation flags and full-song listening remain decisive. No voice reference. Native output PCM16.",
+    "checksum": "52be345b5155bf9ef0b2411e7df8d1d2b8e13b6d977a2f70c35612ec69b1f591",
+    "disk_floor_bytes": 2147483648,
+    "engine": "songgen",
+    "composition_preference": 100,
+    "sung_lyrics": {
+      "supported": true,
+      "reason": "Native YuE2 accepts original authored words and generates an inspectable score; delivery requires listening.",
+      "source": "https://github.com/0xShug0/audio.cpp/blob/41c1f8ffa0d13a1b7e366e30ea5fe5ab8d169d48/docs/models/yue2.md"
+    },
+    "runtime": {
+      "protocol": "song-v1",
+      "resource": "songgen",
+      "profile": "yue2-q8",
+      "url_variable": "SONGGEN_URL",
+      "default_url": "http://127.0.0.1:8897",
+      "catalog_sha256": "32680b7e31856afae45b99c8108e61316fee7750c8301e80172b60451ce00804",
+      "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201",
+      "source_revision": "audio.cpp@41c1f8ffa0d13a1b7e366e30ea5fe5ab8d169d48",
+      "weight_files": 8,
+      "versions": {
+        "audio.cpp": "0.9.3"
+      },
+      "min_duration": 1,
+      "max_duration": 180,
+      "default_steps": 8,
+      "min_steps": 1,
+      "max_steps": 100,
+      "default_guidance": 1.0,
+      "min_guidance": 0.01,
+      "max_guidance": 20,
+      "timeout_seconds": 1800
+    },
+    "voice_reference": {
+      "supported": false,
+      "reason": "The qualified song adapter accepts text conditioning and lyrics; reference-conditioned conversion is a separate operation.",
+      "source": "resources/songgen/server/profiles.json"
+    }
+  }
+]

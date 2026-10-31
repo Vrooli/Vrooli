@@ -1,0 +1,27 @@
+{
+  "description": "Additional quantization tiers/variants added to the registry as they mature; relight added as a first-class op if a production-quality model surfaces.",
+  "module_id": "MOD-P2-004",
+  "prd_ref": "OT-P2-004",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "feature",
+      "dependencies": [],
+      "description": "Additional quantization tiers/variants added to the registry as they mature; relight added as a first-class op if a production-quality model surfaces.",
+      "id": "IMG-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Additional Model Tiers & Relight",
+      "validation": [
+        {
+          "notes": "New model tiers added to registry as available",
+          "phase": "manual",
+          "ref": "docs/internal/DECISIONS.md",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ],
+  "title": "Additional Model Tiers & Relight"
+}

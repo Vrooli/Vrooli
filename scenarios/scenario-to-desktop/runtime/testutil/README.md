@@ -41,7 +41,8 @@ ticker := clock.NewTicker(time.Second)
 ```go
 fs := testutil.NewMockFileSystem()
 
-// Pre-populate files
+// Pre-populate ordinary fixture files. Production code does not use this
+// in-memory filesystem as a credential store.
 fs.Files["config.json"] = []byte(`{"key": "value"}`)
 
 // Set up directories
@@ -102,8 +103,8 @@ func TestSomething(t *testing.T) {
     fs := testutil.NewMockFileSystem()
     dialer := testutil.NewMockDialer()
 
-    // Pre-populate state
-    fs.Files["secrets.json"] = []byte(`{"API_KEY": "test"}`)
+    // Pre-populate non-credential state
+    fs.Files["config.json"] = []byte(`{"mode": "test"}`)
 
     // Create supervisor with mocks
     supervisor, err := bundleruntime.NewSupervisor(bundleruntime.Options{

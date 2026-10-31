@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package vrooli.scenario_to_plugin.v1.conformance;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-plugin/v1/conformance;conformance_v1";
+
+// PLG-CONF-DRIFT, PLG-CONF-DRIFT-PIN, PLG-CONF-SPEC, PLG-CONF-SAFETY.
+service ConformanceService {
+  // Runs all fail-closed package conformance rules.
+  rpc Check(CheckRequest) returns (CheckResponse);
+}
+message CheckRequest { string package_id = 1; }
+message CheckResponse { bool passed = 1; string manifest_revision = 2; repeated Finding findings = 3; }
+message Finding { string code = 1; string message = 2; string path = 3; }

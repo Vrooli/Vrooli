@@ -1,0 +1,467 @@
+// Package invocationreadmodel owns the durable analytical projection contract.
+package invocationreadmodel
+
+import (
+	"context"
+	"time"
+
+	"agent-manager/internal/runsignal"
+	"agent-manager/internal/tokenaccounting"
+	"agent-manager/internal/toolfriction"
+)
+
+// Store persists the durable analytical projection. Replace is atomic: facts
+// and their source watermark either move forward together or not at all.
+type Store interface {
+	Replace(context.Context, []Fact, Watermark) error
+	Facts(context.Context, string) ([]Fact, error)
+	Watermark(context.Context, string) (*Watermark, error)
+	Cohort(context.Context, Filter, int) (Cohort, error)
+	RunMetrics(context.Context, Filter) (RunMetrics, error)
+	WindowedUsage(context.Context, Filter) (UsageTotals, error)
+	RunDurationStatistics(context.Context, Filter) (RunDurationStatistics, error)
+	RunStatusCounts(context.Context, Filter) ([]RunStatusCount, error)
+	RunBreakdown(context.Context, Filter, string, int) ([]RunBreakdownRow, error)
+	RunTimeSeries(context.Context, Filter, time.Duration) ([]RunTimeSeriesBucket, error)
+	ToolUsage(context.Context, Filter, int) ([]ToolUsageRow, error)
+	FallbackInsights(context.Context, Filter) (FallbackInsights, error)
+}
+
+// FreshnessStore is an optional extension implemented by durable projections
+// that can report their newest materialized row. It is optional so older
+// adapters and focused test doubles remain compatible with Store.
+type FreshnessStore interface {
+	LatestProjection(context.Context) (time.Time, error)
+}
+
+// CohortDefinitionStore persists named, classifier-bound filters. Members are
+// resolved at read time so a definition remains reproducible without freezing
+// a moving run population at creation.
+type CohortDefinitionStore interface {
+	DefineCohort(context.Context, CohortDefinition) error
+	ListCohorts(context.Context) ([]CohortDefinition, error)
+	GetCohortDefinition(context.Context, string) (*CohortDefinition, error)
+	DeleteCohort(context.Context, string) error
+}
+
+type CohortDefinition struct {
+	Name              string    `json:"name"`
+	FilterJSON        string    `json:"filterJson"`
+	ClassifierVersion string    `json:"classifierVersion"`
+	CreatedAt         time.Time `json:"createdAt"`
+	ChangeBinding     string    `json:"changeBinding,omitempty"`
+}
+
+// RunStore is implemented by projections that also retain one terminal
+// throughput summary per run. It is deliberately additive to Store so the
+// invocation-fact contract remains usable by focused test doubles and older
+// projection adapters during rollout.
+type RunStore interface {
+	ReplaceRun(context.Context, RunFact) error
+}
+
+// WorkloadStore updates only the identity columns during historical
+// backfills, preserving consumption already projected for runs without
+// retained source events.
+type WorkloadStore interface {
+	BackfillWorkload(context.Context, string, string, string, string) error
+}
+
+// PendingProjection is one durable "needs projection" mark. Generation
+// changes on every re-mark, so completing an older generation keeps the mark.
+type PendingProjection struct {
+	RunID      string
+	Generation int64
+	Attempts   int
+}
+
+// ProjectionQueue holds the durable needs-projection marks. Every terminal
+// writer marks its run; the reconcile sweep enqueues ended runs whose
+// watermark is missing or stale, and projects due marks idempotently.
+type ProjectionQueue interface {
+	MarkProjectionPending(ctx context.Context, runID string, at time.Time) error
+	// EnqueueStaleProjections marks ended runs whose watermark is missing or
+	// was written by another fact classifier version.
+	EnqueueStaleProjections(ctx context.Context, factVersion string, at time.Time, limit int) (int, error)
+	DueProjections(ctx context.Context, at time.Time, limit int) ([]PendingProjection, error)
+	CompleteProjection(ctx context.Context, runID string, generation int64) error
+	DeferProjection(ctx context.Context, runID string, until time.Time) error
+}
+
+// ProjectionStore atomically advances both analytical projections for a run.
+// Consumers may fall back to Store during rollout, but the production adapter
+// implements this contract so a crash cannot leave terminal throughput facts
+// ahead of, or behind, invocation facts and their watermark.
+type ProjectionStore interface {
+	ReplaceProjection(context.Context, []Fact, []SelfReportSpan, Watermark, RunFact) error
+	// AdvanceWatermark records the classifier versions and projection time of
+	// a run whose stored projection is kept as it is (its source events are
+	// evicted), so the stale sweep stops queueing it. It writes no facts,
+	// spans and leaves an existing watermark's last event.
+	AdvanceWatermark(context.Context, Watermark) error
+	SelfReportSpansForRun(context.Context, string) ([]SelfReportSpan, error)
+	TimeAccountingForRun(context.Context, string) (runsignal.TimeAccounting, bool, error)
+}
+
+// Filter is the single analytical predicate shared by aggregates and cohort
+// selection. A zero filter is the complete retained corpus.
+type Filter struct {
+	RunID        string     `json:"runId,omitempty"`
+	From         *time.Time `json:"from,omitempty"`
+	To           *time.Time `json:"to,omitempty"`
+	Ownership    string     `json:"ownership,omitempty"`
+	Outcome      string     `json:"outcome,omitempty"`
+	Executable   string     `json:"executable,omitempty"`
+	Fingerprint  string     `json:"fingerprint,omitempty"`
+	ProfileID    string     `json:"profileId,omitempty"`
+	RunnerType   string     `json:"runnerType,omitempty"`
+	Model        string     `json:"model,omitempty"`
+	WorkloadKind string     `json:"workloadKind,omitempty"`
+	// Scope selects which runs a statistic counts; see RunScope. Empty counts
+	// only Agent Manager executed runs for run statistics and everything for
+	// token totals.
+	Scope             RunScope `json:"scope,omitempty"`
+	WorkloadKey       string   `json:"workloadKey,omitempty"`
+	TagPrefix         string   `json:"tagPrefix,omitempty"`
+	RunStatus         string   `json:"runStatus,omitempty"`
+	ToolName          string   `json:"toolName,omitempty"`
+	ClassifierVersion string   `json:"classifierVersion,omitempty"`
+	TargetScenario    string   `json:"targetScenario,omitempty"`
+	Operation         string   `json:"operation,omitempty"`
+}
+
+// RunScope is the origin filter of a statistic (P2-D8). Agent Manager runs
+// are those Agent Manager executed itself (codec-pipe); operator sessions are
+// imported, attached and interactive sessions. A session copied into several
+// harness homes, and an imported or attached session with no usage, never
+// counts as a run of its own.
+type RunScope string
+
+const (
+	ScopeUnspecified      RunScope = ""
+	ScopeAgentManager     RunScope = "agent_manager"
+	ScopeOperatorSessions RunScope = "operator_sessions"
+	ScopeAll              RunScope = "all"
+)
+
+type Cohort struct {
+	RunIDs      []string    `json:"runIds"`
+	Rows        []CohortRun `json:"rows,omitempty"`
+	Truncated   bool        `json:"truncated"`
+	MatchedRuns int         `json:"matchedRuns"`
+	DroppedRuns int         `json:"droppedRuns"`
+}
+
+type CohortRun struct {
+	RunID               string
+	TaskTitle           string
+	ProfileID           string
+	ProfileName         string
+	Status              string
+	CreatedAt           time.Time
+	Model               string
+	RunnerType          string
+	WorkloadKey         string
+	TotalTokens         int64
+	TotalChargeMicroUSD *int64
+	ChargeBasis         *string
+	ToolCallCount       *int64
+}
+
+// RunMetrics is the shared SQL result for run-level throughput measures. It
+// intentionally has separate denominators for terminal success and completed
+// cycle-time populations, so a partial lifecycle is never presented as a
+// precise rate or duration.
+type RunMetrics struct {
+	TotalRuns             int64   `json:"totalRuns"`
+	TerminalRuns          int64   `json:"terminalRuns"`
+	SuccessfulRuns        int64   `json:"successfulRuns"`
+	SuccessRate           float64 `json:"successRate"`
+	CompletedDurationRuns int64   `json:"completedDurationRuns"`
+	AverageDurationMS     float64 `json:"averageDurationMs"`
+	P50DurationMS         float64 `json:"p50DurationMs"`
+	P90DurationMS         float64 `json:"p90DurationMs"`
+}
+
+// UsageTotals is the token and charge spend of the transcript requests
+// observed in a window, whatever run they belong to. Dollars exist only for
+// per-token (metered) runs: a run's charge is apportioned to the window by the
+// share of the run's lifetime tokens requested in it.
+type UsageTotals struct {
+	Requests              int64
+	Runs                  int64
+	TotalTokens           int64
+	InputTokens           int64
+	OutputTokens          int64
+	CacheReadTokens       int64
+	CacheCreationTokens   int64
+	MeteredCostUSD        float64
+	InputCostUSD          float64
+	OutputCostUSD         float64
+	CacheReadCostUSD      float64
+	CacheCreationCostUSD  float64
+	MeteredChargeMicroUSD int64
+}
+
+// RunDurationStatistics retains the complete duration summary used by the
+// dashboard and CSV export. Percentile values follow the underlying durable
+// store's documented semantics rather than reopening the event stream.
+type RunDurationStatistics struct {
+	AverageDurationMS float64
+	P50DurationMS     float64
+	P90DurationMS     float64
+	P95DurationMS     float64
+	P99DurationMS     float64
+	MinDurationMS     int64
+	MaxDurationMS     int64
+	Count             int64
+}
+
+// RunCostDistribution is the per-run token and cost distribution over runs
+// with observed token usage. Percentiles use nearest-rank over the filtered
+// population, and SampleSize makes the observed denominator explicit so a
+// consumer never presents the distribution as covering every matching run.
+type RunCostDistribution struct {
+	P50Tokens      int64
+	P90Tokens      int64
+	P95Tokens      int64
+	P99Tokens      int64
+	MaxTokens      int64
+	P50CostUSD     float64
+	P90CostUSD     float64
+	P95CostUSD     float64
+	P99CostUSD     float64
+	MaxCostUSD     float64
+	TokenBuckets   []RunTokenBucket
+	SampleSize     int64
+	UnobservedRuns int64
+}
+
+// RunTokenBucket is one run-count bucket of the token distribution. The
+// range is inclusive on MinTokens and exclusive on MaxTokens; a zero
+// MaxTokens means unbounded.
+type RunTokenBucket struct {
+	Label     string
+	MinTokens int64
+	MaxTokens int64
+	RunCount  int64
+}
+
+// RunStatusCount is one explicit terminal-run status bucket. It is a table
+// rather than a synthetic scalar so consumers can preserve the current
+// status-distribution product without reconstructing it from raw events.
+type RunStatusCount struct {
+	Status string
+	Count  int64
+}
+
+// RunBreakdownRow is a durable run-summary aggregate for one dimension. The
+// dimension is selected by the owning typed measure (runner, model, or
+// profile), never by an untyped transport switch.
+type RunBreakdownRow struct {
+	Key                                string
+	Value                              string
+	RunCount                           int64
+	SuccessCount                       int64
+	FailedCount                        int64
+	TotalCostUSD                       float64
+	TotalTokens                        int64
+	TotalChargeMicroUSD                int64
+	InputTokens                        int64
+	OutputTokens                       int64
+	CacheReadTokens                    int64
+	CacheCreationTokens                int64
+	AvgDurationMS                      float64
+	ConsumptionPerSuccessfulCompletion float64
+	CompletionRate                     float64
+}
+
+// RunTimeSeriesBucket is a terminal-time bucket. It records completed,
+// failed, and cancelled runs without pretending that a terminal projection
+// can authoritatively count in-progress starts.
+type RunTimeSeriesBucket struct {
+	Bucket        time.Time
+	TerminalRuns  int64
+	CompletedRuns int64
+	FailedRuns    int64
+	CancelledRuns int64
+	AvgDurationMS float64
+}
+
+// ToolUsageRow retains one tool's invocation population and classified
+// outcomes, so tool analytics do not need to reopen prunable event JSON.
+type ToolUsageRow struct {
+	ToolName            string
+	CallCount           int64
+	SuccessCount        int64
+	FailedCount         int64
+	TotalTokens         int64
+	EstimatedTokenShare float64
+}
+
+type ToolCommandRow struct {
+	Executable          string
+	CommandPath         string
+	CallCount           int64
+	SuccessCount        int64
+	FailedCount         int64
+	RunCount            int64
+	TotalTokens         int64
+	EstimatedTokenShare float64
+	P50FootprintTokens  int64
+	P95FootprintTokens  int64
+	MaxFootprintTokens  int64
+	Truncated           bool
+}
+
+// TokenAttributionRow is the typed aggregate behind the three token views.
+// The factors remain separate in storage; TotalTokens is selected at query
+// time from footprint, residency, or incurred cost.
+type TokenAttributionRow struct {
+	GroupBy             string
+	Value               string
+	CallCount           int64
+	TotalTokens         int64
+	EstimatedTokens     int64
+	EstimatedTokenShare float64
+	P50FootprintTokens  int64
+	P95FootprintTokens  int64
+	MaxFootprintTokens  int64
+}
+
+// SelfReportSpan is a durable, redacted self-reported-friction signal. The
+// classifier's Text field is already bounded/redacted before it reaches this
+// projection.
+type SelfReportSpan struct {
+	runsignal.SelfReportSpan
+	RunID      string
+	OccurredAt time.Time
+	TimeBasis  string
+	ProfileID  string
+	RunnerType string
+	Model      string
+	Tag        string
+	RunStatus  string
+}
+
+// Fact is one persisted analytical observation plus the dimensions required by
+// corpus filters. Unknown is represented as an explicit value, never NULL.
+type Fact struct {
+	runsignal.InvocationFact
+	RunID      string
+	OccurredAt time.Time
+	TimeBasis  string
+	ProfileID  string
+	RunnerType string
+	Model      string
+	Tag        string
+	RunStatus  string
+	// Tool is what the call's and result's text say about the command, read
+	// once at projection (nil for a fact the tool profiles do not read).
+	Tool *toolfriction.Features
+}
+
+// RunFact is the durable terminal summary used for run-level throughput and
+// cost measurements. occurred_at is terminal time when available, otherwise
+// creation time, with TimeBasis making that fallback visible to consumers.
+type RunFact struct {
+	RunID                  string
+	GoalID                 string
+	GoalStatus             string
+	OccurredAt             time.Time
+	CreatedAt              time.Time
+	StartedAt              *time.Time
+	EndedAt                *time.Time
+	DurationMS             int64
+	Status                 string
+	ProfileID              string
+	RunnerType             string
+	Model                  string
+	Tag                    string
+	WorkloadKind           string
+	WorkloadKey            string
+	WorkloadInstance       string
+	TotalCostUSD           float64
+	CostSource             string
+	ChargeReason           string
+	InputCostUSD           float64
+	OutputCostUSD          float64
+	CacheReadCostUSD       float64
+	CacheCreationCostUSD   float64
+	TotalTokens            int64
+	InputTokens            int64
+	OutputTokens           int64
+	CacheReadTokens        int64
+	CacheCreationTokens    int64
+	Turns                  int64
+	ToolCalls              int64
+	TotalChargeMicroUSD    int64
+	MeteredChargeMicroUSD  int64
+	UnpricedTokenCount     int64
+	PreambleInjectedTokens int64
+	PreambleFixedTokens    int64
+	PreambleTokenBasis     tokenaccounting.Basis
+	UnattributedTokens     int64
+	UnattributedReason     string
+	TimeAccounting         runsignal.TimeAccounting
+	CostTimeBasis          string
+	// TimeBasis identifies whether lifecycle/event time came from the source
+	// transcript or was assigned while Agent Manager ingested the run.
+	TimeBasis   string
+	ProjectedAt time.Time
+}
+
+type Efficiency struct {
+	Consumption      int64
+	SuccessfulRuns   int64
+	PerSuccessfulRun float64
+}
+
+// ConsumptionPerSuccessfulCompletion deliberately includes failed attempts
+// in the numerator; excluding them would make unreliable cheap models look
+// efficient after retries.
+func ConsumptionPerSuccessfulCompletion(facts []RunFact) Efficiency {
+	var result Efficiency
+	for _, fact := range facts {
+		result.Consumption += fact.TotalTokens
+		if fact.Status == "complete" || fact.Status == "completed" || fact.Status == "success" {
+			result.SuccessfulRuns++
+		}
+	}
+	if result.SuccessfulRuns > 0 {
+		result.PerSuccessfulRun = float64(result.Consumption) / float64(result.SuccessfulRuns)
+	}
+	return result
+}
+
+// Watermark states the newest source event incorporated for a run.
+type Watermark struct {
+	RunID                       string
+	LastEventID                 string
+	LastEventAt                 time.Time
+	ClassifierVersion           string
+	SelfReportClassifierVersion string
+	ProjectedAt                 time.Time
+}
+
+// FallbackInsights counts runner and model fallbacks and policy-candidate
+// outcomes among the retained run events of a window.
+type FallbackInsights struct {
+	RunnerAttempts, RunnerExhausted int64
+	ModelAttempts, ModelExhausted   int64
+	RunnerPairs, ModelPairs         []FallbackPair
+	RunnerReasons, ModelReasons     []CountRow
+	PolicyCandidateEvents           int64
+	PolicyOutcomes                  []CountRow
+	PolicyFailureClasses            []CountRow
+}
+
+type FallbackPair struct {
+	From, To, Reason string
+	Count            int64
+}
+
+type CountRow struct {
+	Key   string
+	Count int64
+}

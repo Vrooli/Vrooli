@@ -1,0 +1,13 @@
+{
+  "schema": "device-studio-generated-plate-provenance/v1",
+  "createdAt": "2026-10-21T16:49:00Z",
+  "mode": "built-in image_gen tool; project provider path not used",
+  "purpose": "Fixed photographic generic automotive cabin study for app screen replacement",
+  "prompt": "Use case: product-mockup. Asset type: photographic background plate for a reproducible device-screen compositing workflow. Create an exceptionally realistic premium automotive interior photograph, landscape 16:9, viewed from the middle of the rear seat toward a parked unbranded modern vehicle dashboard. The hero is a large clean rectangular landscape central infotainment screen, approximately 16:9, filling 45 percent of image width and 40 percent of image height, slightly above image center. Screen is fully visible, nearly front-on with a very slight perspective, completely blank uniform dark charcoal, clean planar glass with a thin refined black bezel, modest rounded corners; no reflection, glare, text or graphics within active display. Surroundings: physically coherent continuous dark charcoal soft-touch dashboard, subtle satin aluminum trim, two realistic vents directly below the display, partial steering wheel at far left, quiet out-of-focus greenery beyond the windshield. Restrained warm daylight and soft cinematic cabin shadows, natural materials and photographed optical depth, professional automotive advertising quality, realistic scale and engineering. Tight enough that the app inserted later will be readable, while enough dashboard and steering-wheel context remains to unmistakably convey an actual car cabin. No logos, branding, people, hands, cups, dangling accessories, watermarks, duplicate controls, warped surfaces or invented lettering. This is an illustrative generic car, not manufacturer CAD.",
+  "source": "Chat built-in generated image, not a photograph of an actual vehicle",
+  "limits": [
+    "No manufacturer identity, CAD accuracy or measured physical dimensions",
+    "Fixed photographic composition only; no parallax, moving device or changing reflections",
+    "Not evidence for unattended local ImageTools generation or its usage accounting"
+  ]
+}

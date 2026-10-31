@@ -1,0 +1,56 @@
+# Product and validation research
+
+Status: pre-implementation investigation, 2026-10-19. Recommendations below are proposed defaults, not user-approved scope. No scenario has been generated.
+
+## Verified starting point
+
+The retained photographic clips are 4 seconds at 24 fps; both have full decode evidence and exact outside-screen preservation before lossy encoding (`../../v6/laptop/video-validation.json:4`, `../../v6/phone/validation.json:22`). Their scene and hardware are static. They establish a viable composition method, not unattended generation, general device support, 4K quality, or native screen reflections. The operator accepted the direction of these images after rejecting v5's finished 3D appearance. Preserve both judgments.
+
+The domain design already distinguishes measurements, model versions, part/joint graphs, physical and logical displays, source clocks, attachments, motion, quality review and AI creation (`../../v2/device-domain.md:27`, `:45`, `:115`, `:123`, `:147`). The existing narrow shot schema is not yet a generalized public contract.
+
+Template registry read returned `react-vite` version 5.0.0, `python-uv-react-vite` 1.0.0 and `landing-page-react-vite` 2.1.0, all `quarantined`. The projection at `scenarios/template-manager/api/internal/catalog/sqlite.go:377` assigns quarantine when the latest deep validation is absent or not passing. This is not evidence that generation is impossible. The generation engine at `api/internal/templateengine/generate.go:24` prepares, preflights, writes and validates a generated scenario; the inspected function does not use that catalog status. A future implementation must inspect current owner validation evidence and qualify its actual generated scaffold, rather than declare the template production-ready from its version. No deep validation or generation was performed in this investigation.
+
+Recommended template: react-vite, because its documented shape has the Go API, generated Connect/proto, CLI, React UI, SQLite metadata, shared component library, experience contract and lifecycle seams we need (`templates/scenarios/react-vite/README.md:5`). Python/Blender remains a worker implementation detail; a Python API is not required merely because rendering uses Python. The formal plan must select the template before scaffolding, per the scenario-generation skill read during research.
+
+Shared blob primitives exist at `packages/api-core/blobstore/blobstore.go` and `filesystem.go:22`; they do not by themselves establish asset versions, review states or retention policy. `internal/tools/ffmpeg/tool.json` and `internal/tools/python/tool.json` are existing host-tool registrations; neither declares qualified cross-platform operation. No Blender manifest was found under `internal/tools`. The executor-scope maintenance code observes ownership/termination and is not a general isolated render execution service. Production Blender tool integration and worker isolation therefore remain explicit implementation obligations, not presumed infrastructure.
+
+## Product shape recommendation
+
+Use the same saved shot for UI, CLI and agent invocation. A shot is a versioned declarative request, not a collection of browser state. It binds sources, device/plate instances, presentation profiles, placement, device/camera motion, renderer strategy and delivery settings. Rendering resolves a frozen dependency set and records an attempt. Editing creates a new recipe revision; old jobs remain replayable against their pinned inputs.
+
+The normal UI is a shot builder: choose/create/import assets, attach captures, configure the presentation, select compatible scene and motion, preview, render, compare and export. An advanced workspace exposes screen calibration, transform/joint tracks, material/light controls and reference review. The initial product should not require a general mesh editor, arbitrary shader graph or non-linear film editor. Import/export of native files and AI-assisted edits can serve advanced modeling without rebuilding Blender in the browser.
+
+Separate four concepts in every interface: a rough interactive preview; a final-render frame; a motion sample; and a released shot. The first must not silently stand in for the other three. The existing operator artifact viewer is a delivery surface, not the proposed editor. Direct PNG/MP4/model download remains required regardless of embedded preview success.
+
+AI-assisted creation is a target capability, not a footnote. Its initial workflow should accept a desired device/scene, references and constraints, search/import or build candidates, render comparisons, revise a bounded set of parameters, and retain a resumable candidate. It should be useful with review between candidates before claiming autonomous qualification. Human-review defaults, catalog breadth and cost policy are operator choices; the data model and execution safety are engineering choices.
+
+## Validation structure
+
+Validate behavior at the boundary that owns it; do not use one generic green suite as a visual verdict.
+
+| Boundary | Evidence required |
+|---|---|
+| Definition and compatibility | Positive and negative fixtures for units, part hierarchy, joint limits, display masks, screen handoff, mounts, host openings, slot bounds and scene placement. Reject unsupported requests rather than silently changing the shot. |
+| Media composition | Known patterns at all display edges and cutouts; contain/crop behavior; no leakage into reserved OS regions; per-surface clocks; frame order/timestamps; source hashes; alpha/premultiplication and color tests. |
+| Physical motion | Tested articulation endpoints and intermediate poses, swept clearances, contact, stable mapped screens and explicit occlusion. A rotation of a flattened photograph cannot satisfy a 3D motion requirement. |
+| Appearance | Final-profile still and continuous short clip against a named reference board. Inspect silhouette, small anatomy, materials, lighting, shadows, reflections, projected text readability and temporal stability. Reviewer verdict remains distinct from geometry/codec checks. |
+| Jobs | Idempotent submission, durable states, restart recovery, cancellation of owned children, timeout/resource limit handling, partial-output visibility, cache invalidation and retained failed attempts. |
+| Import and AI execution | Dependency closure, external path policy, no automatic imported scripts, bounded isolated execution, credential exclusion, immutable candidates and auditable edits. Actual isolation must be demonstrated. |
+| UI and agent surfaces | Same recipe/result through UI and CLI; accessible controls and numeric alternatives to dragging; mobile review; progress/error/empty states; save/reopen and reproducible export; discoverable tools. |
+| Consumer handoff | A real launch-video workflow consumes the produced shot and retains media timing, dimensions, provenance and attribution. Do not require copying transient local paths into another scenario. |
+
+Use focused unit/contract tests during implementation, representative renderer integration runs for changed geometry/material behavior, and scoped `vrooli scenario test device-studio --phases ...` according to the actual interfaces affected. The available phases and server-owned wait command must come from Test Genie at execution time (`docs/TESTING.md:1`, `:68`). Final scenario acceptance includes all agreed product journeys and quality gates; early photographic success alone cannot close a promised 3D-motion scope.
+
+Reproducibility has levels. Replay of pinned 2D inputs can target deterministic composites in a pinned environment. Path-traced renders across GPU/CPU or version changes need declared numeric/visual tolerance, not a false universal byte-identity promise. Image generation preserves its actual returned bytes and invocation metadata; a prompt alone is not a reproducible asset.
+
+## Color and screen presentation
+
+Keep source color metadata and the output encoding explicit. Blender's current manual describes scene-linear compositing, image input conversion and view transforms; AgX deliberately changes highly exposed colors. This makes a physically lit emissive display and a color-faithful app demonstration different rendering choices, even when both use genuine captures. Recommended default: preserve app readability/color through a separately controlled display pass, with an optional physically integrated screen treatment whose reflections and tone mapping are reviewed. This is an engineering proposal, not yet a tested moving-device compositor. See [Blender color management](https://docs.blender.org/manual/en/4.5/render/color_management.html). The installed 4.0 feature set must be inspected rather than assuming all features of the 4.5 manual exist.
+
+Video range/transfer conversion must be explicit and distinct from simply labeling the file. Variable-rate input timing, final frame rate, pixel aspect and dimension padding need dedicated fixtures. See [FFmpeg colorspace filter](https://ffmpeg.org/ffmpeg-filters.html#colorspace). Defaults can be SDR sRGB stills and BT.709 video; HDR and wide gamut should be a separately qualified target if requested.
+
+Blender's documentation states that embedded Python can execute without general restrictions and distinguishes automatic from manual execution. Disable imported automatic scripts and restrict generated/imported execution through a separate isolation boundary; the flag alone is not a sandbox. See [Blender scripting security](https://docs.blender.org/manual/id/dev/advanced/scripting/security.html). Version-specific 4.0 manual retrieval failed through the web tool; these general findings are cross-checked against the current manual and must not be read as a runtime isolation test.
+
+## Questions genuinely reserved for the operator
+
+Candidate questions, pending synthesis with the other research reports: first-version catalog/scene breadth; desired UI editing depth; final output quality/format envelope; acceptable asynchronous render latency; host/deployment scope; external generation/compute policy; capture privacy policy; first-time template/model approval versus unattended reuse; whether hybrid rendering is part of initial delivery or later research. Do not ask the operator to choose a database, geometry library, protocol or renderer implementation where engineering evidence provides the choice. Do not reopen the already-settled free-model sourcing constraint or authentic-screen requirement.

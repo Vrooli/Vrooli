@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -22,7 +23,7 @@ type externalRuleProvider interface {
 	ID() string
 	Name() string
 	Rules() []rulespkg.Rule
-	Run(ctx context.Context, scenarioName string, ruleIDs []string) ([]StandardsViolation, error)
+	Run(ctx context.Context, target standardsScanTarget, ruleIDs []string) ([]StandardsViolation, error)
 }
 
 // externalRuleFixer is an optional interface for providers that support deterministic fixes.
@@ -45,10 +46,30 @@ type ExternalFixChange struct {
 }
 
 var (
-	externalProvidersMu sync.RWMutex
-	externalProviders   = make(map[string]externalRuleProvider)
-	externalRulesIndex  = make(map[string]externalRuleDefinition)
+	externalProvidersMu   sync.RWMutex
+	externalProviders     = make(map[string]externalRuleProvider)
+	externalRulesIndex    = make(map[string]externalRuleDefinition)
+	externalProvidersOnce sync.Once
 )
+
+func registerDefaultExternalProviders() {
+	externalProvidersOnce.Do(func() {
+		for _, provider := range []externalRuleProvider{
+			// NOTE: the app-monitor interop provider was removed — the static
+			// UI-interop rules moved to ui-health, the single UI-validation
+			// authority. scenario-auditor no longer registers interop_* rules.
+			// The test-genie structure provider was likewise removed — the
+			// structure_* rules are owned by structure-health via test-genie's
+			// structure phase, and the delegation endpoint no longer exists.
+			// The PRD control-tower provider (prd_* rules) was removed —
+			// the business contract is owned by business-health via
+			// test-genie's business phase.
+			newStackGovernorProvider(),
+		} {
+			registerExternalProvider(provider)
+		}
+	})
+}
 
 func registerExternalProvider(provider externalRuleProvider) {
 	if provider == nil {
@@ -86,6 +107,7 @@ func registerExternalProvider(provider externalRuleProvider) {
 }
 
 func loadExternalRuleInfos() map[string]RuleInfo {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 
@@ -97,6 +119,7 @@ func loadExternalRuleInfos() map[string]RuleInfo {
 }
 
 func isExternalRule(ruleID string) bool {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 	_, ok := externalRulesIndex[ruleID]
@@ -104,6 +127,7 @@ func isExternalRule(ruleID string) bool {
 }
 
 func externalRuleProviderFor(ruleID string) (externalRuleProvider, bool) {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 	entry, ok := externalRulesIndex[ruleID]
@@ -114,6 +138,7 @@ func externalRuleProviderFor(ruleID string) (externalRuleProvider, bool) {
 }
 
 func externalFixerForRule(ruleID string) (externalRuleFixer, bool) {
+	registerDefaultExternalProviders()
 	externalProvidersMu.RLock()
 	defer externalProvidersMu.RUnlock()
 	info, ok := externalRulesIndex[ruleID]
@@ -125,6 +150,7 @@ func externalFixerForRule(ruleID string) (externalRuleFixer, bool) {
 }
 
 func mergeWithExternalRules(ruleInfos map[string]RuleInfo) map[string]RuleInfo {
+	registerDefaultExternalProviders()
 	merged := make(map[string]RuleInfo, len(ruleInfos)+len(externalRulesIndex))
 	for id, info := range ruleInfos {
 		merged[id] = info
@@ -137,7 +163,9 @@ func mergeWithExternalRules(ruleInfos map[string]RuleInfo) map[string]RuleInfo {
 	return merged
 }
 
-func runExternalRuleChecks(ctx context.Context, scenarioName string, requested map[string]struct{}, includeDisabled bool) ([]StandardsViolation, error) {
+func runExternalRuleChecks(ctx context.Context, target standardsScanTarget, requested map[string]struct{}, includeDisabled bool) ([]StandardsViolation, error) {
+	registerDefaultExternalProviders()
+	scenarioName := strings.TrimSpace(target.Name)
 	if strings.TrimSpace(scenarioName) == "" {
 		return nil, nil
 	}
@@ -160,7 +188,7 @@ func runExternalRuleChecks(ctx context.Context, scenarioName string, requested m
 		if provider == nil {
 			continue
 		}
-		providerViolations, err := provider.Run(ctx, scenarioName, ruleIDs)
+		providerViolations, err := provider.Run(ctx, target, ruleIDs)
 		if err != nil {
 			logger.Warn("External provider failed", map[string]any{
 				"provider": provider.Name(),
@@ -170,6 +198,10 @@ func runExternalRuleChecks(ctx context.Context, scenarioName string, requested m
 			continue
 		}
 		for _, violation := range providerViolations {
+			if shouldDropExternalViolationForTarget(target, violation) {
+				continue
+			}
+			violation.FilePath = stableExternalViolationPath(target, violation.FilePath)
 			violation.Source = providerID
 			violation.ScenarioName = scenarioName
 			if violation.ID == "" {
@@ -180,6 +212,32 @@ func runExternalRuleChecks(ctx context.Context, scenarioName string, requested m
 	}
 
 	return violations, nil
+}
+
+func shouldDropExternalViolationForTarget(target standardsScanTarget, violation StandardsViolation) bool {
+	if strings.TrimSpace(target.Path) == "" || strings.TrimSpace(violation.FilePath) == "" {
+		return false
+	}
+	filePath := filepath.Clean(violation.FilePath)
+	if !filepath.IsAbs(filePath) {
+		return false
+	}
+	return !pathWithinDir(filePath, filepath.Clean(target.Path))
+}
+
+func stableExternalViolationPath(target standardsScanTarget, filePath string) string {
+	cleaned := strings.TrimSpace(filePath)
+	if cleaned == "" || strings.TrimSpace(target.Path) == "" {
+		return cleaned
+	}
+	abs := filepath.Clean(cleaned)
+	if !filepath.IsAbs(abs) {
+		return filepath.ToSlash(cleaned)
+	}
+	if rel, err := filepath.Rel(filepath.Clean(target.Path), abs); err == nil && rel != "." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != ".." {
+		return filepath.ToSlash(rel)
+	}
+	return cleaned
 }
 
 func shouldEvaluateExternalRule(ruleID string, requested map[string]struct{}, states map[string]bool, includeDisabled bool) bool {

@@ -46,6 +46,8 @@ func setupDownloadEntitlementDB(t *testing.T) (*sql.DB, *DownloadAuthorizer) {
 			customer_id VARCHAR(255),
 			customer_email VARCHAR(255),
 			status VARCHAR(50) NOT NULL,
+			source VARCHAR(100) NOT NULL DEFAULT 'stripe',
+			external_subscription_id VARCHAR(255),
 			plan_tier VARCHAR(50),
 			price_id VARCHAR(255),
 			bundle_key VARCHAR(100),
@@ -76,6 +78,7 @@ func setupDownloadEntitlementDB(t *testing.T) (*sql.DB, *DownloadAuthorizer) {
 			metadata JSONB DEFAULT '{}'::jsonb,
 			display_order INTEGER DEFAULT 0,
 			update_api_key TEXT,
+			update_policy JSONB NOT NULL DEFAULT '{"check_interval_hours":4,"update_mode":"optional","allow_downgrade":false}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE(bundle_key, app_key)
@@ -119,8 +122,8 @@ func setupDownloadEntitlementDB(t *testing.T) (*sql.DB, *DownloadAuthorizer) {
 	service := ConfigureStripeServiceSimple(t, db)
 	accountSvc := NewAccountService(db, service.planService)
 	// Disable subscription cache so status changes in lifecycle tests are immediately visible
-	accountSvc.cacheTTL = 0
-	downloadSvc := &DownloadService{db: db}
+	accountSvc.SetCacheTTL(0)
+	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 
 	return db, authorizer
@@ -150,7 +153,7 @@ func TestIntegration_Status_Active_Download_Allowed(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "active@example.com", "active", "sub_active")
 
-	asset, err := authorizer.Authorize("test-app", "windows", "active@example.com")
+	asset, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "active@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -159,7 +162,7 @@ func TestIntegration_Status_PastDue_Download_Denied(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "pastdue@example.com", "past_due", "sub_pastdue")
 
-	_, err := authorizer.Authorize("test-app", "windows", "pastdue@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "pastdue@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"past_due subscription should deny downloads, got: %v", err)
 }
@@ -168,7 +171,7 @@ func TestIntegration_Status_Canceled_Download_Denied(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "canceled@example.com", "canceled", "sub_canceled")
 
-	_, err := authorizer.Authorize("test-app", "windows", "canceled@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "canceled@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"canceled subscription should deny downloads, got: %v", err)
 }
@@ -177,7 +180,7 @@ func TestIntegration_Status_Unpaid_Download_Denied(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "unpaid@example.com", "unpaid", "sub_unpaid")
 
-	_, err := authorizer.Authorize("test-app", "windows", "unpaid@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "unpaid@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"unpaid subscription should deny downloads, got: %v", err)
 }
@@ -186,7 +189,7 @@ func TestIntegration_Status_Incomplete_Download_Denied(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "incomplete@example.com", "incomplete", "sub_incomplete")
 
-	_, err := authorizer.Authorize("test-app", "windows", "incomplete@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "incomplete@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"incomplete subscription should deny downloads, got: %v", err)
 }
@@ -195,7 +198,7 @@ func TestIntegration_Status_IncompleteExpired_Download_Denied(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "incexp@example.com", "incomplete_expired", "sub_incexp")
 
-	_, err := authorizer.Authorize("test-app", "windows", "incexp@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "incexp@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"incomplete_expired subscription should deny downloads, got: %v", err)
 }
@@ -204,7 +207,7 @@ func TestIntegration_Status_Trialing_Download_Allowed(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "trialing@example.com", "trialing", "sub_trialing")
 
-	asset, err := authorizer.Authorize("test-app", "windows", "trialing@example.com")
+	asset, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "trialing@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -213,7 +216,7 @@ func TestIntegration_Status_Paused_Download_Denied(t *testing.T) {
 	db, authorizer := setupDownloadEntitlementDB(t)
 	seedSubscription(t, db, "paused@example.com", "paused", "sub_paused")
 
-	_, err := authorizer.Authorize("test-app", "windows", "paused@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "paused@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"paused subscription should deny downloads, got: %v", err)
 }
@@ -229,7 +232,7 @@ func TestIntegration_Subscription_Active_To_Canceled_Download_Denied(t *testing.
 	seedSubscription(t, db, "lifecycle@example.com", "active", "sub_lifecycle_cancel")
 
 	// Verify access while active
-	asset, err := authorizer.Authorize("test-app", "windows", "lifecycle@example.com")
+	asset, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "lifecycle@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 
@@ -238,7 +241,7 @@ func TestIntegration_Subscription_Active_To_Canceled_Download_Denied(t *testing.
 	require.NoError(t, err)
 
 	// Download should now be denied
-	_, err = authorizer.Authorize("test-app", "windows", "lifecycle@example.com")
+	_, err = authorizer.Authorize(testRequestContext, "test-app", "windows", "lifecycle@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"canceled subscription should deny downloads, got: %v", err)
 }
@@ -250,7 +253,7 @@ func TestIntegration_Subscription_Canceled_To_Resubscribed_Download_Restored(t *
 	seedSubscription(t, db, "resub@example.com", "canceled", "sub_resub_old")
 
 	// Verify access denied while canceled
-	_, err := authorizer.Authorize("test-app", "windows", "resub@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "resub@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription))
 
 	// Re-subscribe (new subscription ID, same email)
@@ -261,7 +264,7 @@ func TestIntegration_Subscription_Canceled_To_Resubscribed_Download_Restored(t *
 	require.NoError(t, err)
 
 	// Download should be restored
-	asset, err := authorizer.Authorize("test-app", "windows", "resub@example.com")
+	asset, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "resub@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -273,7 +276,7 @@ func TestIntegration_Subscription_Active_To_PastDue_To_Active(t *testing.T) {
 	seedSubscription(t, db, "pastdue-recovery@example.com", "active", "sub_pastdue_recovery")
 
 	// Active: access granted
-	_, err := authorizer.Authorize("test-app", "windows", "pastdue-recovery@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "pastdue-recovery@example.com")
 	require.NoError(t, err)
 
 	// Transition to past_due
@@ -281,7 +284,7 @@ func TestIntegration_Subscription_Active_To_PastDue_To_Active(t *testing.T) {
 	require.NoError(t, err)
 
 	// Past due: access denied
-	_, err = authorizer.Authorize("test-app", "windows", "pastdue-recovery@example.com")
+	_, err = authorizer.Authorize(testRequestContext, "test-app", "windows", "pastdue-recovery@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription))
 
 	// Recovery: back to active
@@ -289,7 +292,7 @@ func TestIntegration_Subscription_Active_To_PastDue_To_Active(t *testing.T) {
 	require.NoError(t, err)
 
 	// Active again: access restored
-	asset, err := authorizer.Authorize("test-app", "windows", "pastdue-recovery@example.com")
+	asset, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "pastdue-recovery@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 }
@@ -301,7 +304,7 @@ func TestIntegration_Subscription_Trial_Expired_No_Payment_Download_Denied(t *te
 	seedSubscription(t, db, "trial-expired@example.com", "trialing", "sub_trial_expire")
 
 	// Trialing: access granted
-	asset, err := authorizer.Authorize("test-app", "windows", "trial-expired@example.com")
+	asset, err := authorizer.Authorize(testRequestContext, "test-app", "windows", "trial-expired@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "windows", asset.Platform)
 
@@ -310,7 +313,7 @@ func TestIntegration_Subscription_Trial_Expired_No_Payment_Download_Denied(t *te
 	require.NoError(t, err)
 
 	// Access denied
-	_, err = authorizer.Authorize("test-app", "windows", "trial-expired@example.com")
+	_, err = authorizer.Authorize(testRequestContext, "test-app", "windows", "trial-expired@example.com")
 	assert.True(t, errors.Is(err, ErrDownloadRequiresActiveSubscription),
 		"expired trial should deny downloads, got: %v", err)
 }
@@ -332,7 +335,7 @@ func TestIntegration_Entitlement_LookupError_Download_Denied(t *testing.T) {
 	}
 
 	authorizer := NewDownloadAuthorizer(fakeDownloads, failingEntitlements, "bundle")
-	_, err := authorizer.Authorize("app", "windows", "user@example.com")
+	_, err := authorizer.Authorize(testRequestContext, "app", "windows", "user@example.com")
 	require.Error(t, err, "download should be denied when entitlement lookup fails")
 	assert.Contains(t, err.Error(), "database connection refused")
 	assert.Equal(t, 1, failingEntitlements.calls)

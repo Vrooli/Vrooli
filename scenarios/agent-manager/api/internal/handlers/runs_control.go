@@ -1,0 +1,775 @@
+package handlers
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/permissionpolicy"
+	"agent-manager/internal/protoconv"
+	"agent-manager/internal/rolepolicy"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+)
+
+func (h *Handler) GetRunByTag(w http.ResponseWriter, r *http.Request) {
+	tag := mux.Vars(r)["tag"]
+	req := apipb.GetRunByTagRequest{Tag: tag}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	run, err := h.svc.GetRunByTag(r.Context(), tag)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunByTagResponse{
+		Run: protoconv.RunToProto(run),
+	})
+}
+
+// StopRunByTag stops a run identified by its custom tag.
+func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
+	tag := mux.Vars(r)["tag"]
+	req := apipb.StopRunByTagRequest{Tag: tag}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	// The tag resolves to one run first, so a run identity is held to the same
+	// rule as `run stop` on that run: its lineage or an agent.manage grant.
+	tagged, err := h.svc.GetRunByTag(r.Context(), tag)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	if !h.lineageLifecycleAllowed(r, tagged.ID, false) && h.denyRunLifecycleOnTarget(w, r, "stop-run-by-tag", tagged.ID.String(), "") {
+		return
+	}
+
+	if err := h.svc.StopRunByTag(r.Context(), tag); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	run, err := h.svc.GetRunByTag(r.Context(), tag)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.StopRunByTagResponse{
+		Status: "stopped",
+		Tag:    tag,
+		Run:    protoconv.RunToProto(run),
+	})
+}
+
+// StopAllRuns stops all running runs, optionally filtered by tag prefix.
+// POST /api/v1/runs/stop-all
+// Body: {"tagPrefix": "ecosystem-", "force": true}
+func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
+	// Stopping every run needs an agent.manage grant that covers every run
+	// (agent-manager:run/* or agent-manager:*); a grant on named runs does not.
+	if h.denyRunLifecycleOnTarget(w, r, "stop-all", "*", "") {
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.StopAllRunsRequest
+	if len(body) > 0 {
+		if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+			writeSimpleError(w, r, "body", "invalid JSON request body")
+			return
+		}
+		if !h.validateProto(w, r, &req) {
+			return
+		}
+	}
+	tagPrefix := ""
+	if req.TagPrefix != nil {
+		tagPrefix = *req.TagPrefix
+	}
+
+	result, err := h.svc.StopAllRuns(r.Context(), orchestration.StopAllOptions{
+		TagPrefix: tagPrefix,
+		Force:     req.Force,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.StopAllRunsResponse{
+		Result: protoconv.StopAllResultToProto(&protoconv.StopAllResult{
+			Stopped:   result.Stopped,
+			Failed:    result.Failed,
+			Skipped:   result.Skipped,
+			FailedIDs: result.FailedIDs,
+		}),
+	})
+}
+
+// QuiesceScenario drains in-flight runs targeting a scenario so a Baseline Modes
+// promote can re-point and restart its live instance without killing in-flight
+// agent work (Baseline Modes P6).
+//
+// The route clears the server write deadline (WorkflowWaitResponse); the drain
+// itself is bounded by orchestration.MaxQuiesceTimeout.
+func (h *Handler) QuiesceScenario(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.QuiesceScenarioRequest
+	if len(body) > 0 {
+		if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+			writeSimpleError(w, r, "body", "invalid JSON request body")
+			return
+		}
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if h.denyRunInitiatedQuiesce(w, r, strings.TrimSpace(req.GetScenario()), req.GetForce()) {
+		return
+	}
+
+	opts := orchestration.QuiesceOptions{
+		Scenario:    req.GetScenario(),
+		ScopePrefix: req.GetScopePrefix(),
+		TagPrefix:   req.GetTagPrefix(),
+		Force:       req.GetForce(),
+	}
+	if v := req.GetExcludeRunId(); v != "" {
+		id, perr := uuid.Parse(v)
+		if perr != nil {
+			writeSimpleError(w, r, "exclude_run_id", "invalid UUID format for exclude_run_id")
+			return
+		}
+		opts.ExcludeRunID = &id
+	}
+	for _, v := range req.GetExcludeRunIds() {
+		id, perr := uuid.Parse(v)
+		if perr != nil {
+			writeSimpleError(w, r, "exclude_run_ids", "invalid UUID format in exclude_run_ids")
+			return
+		}
+		opts.ExcludeRunIDs = append(opts.ExcludeRunIDs, id)
+	}
+	opts.Instance = req.GetInstance()
+	if v := req.GetTimeout(); v != "" {
+		d, perr := time.ParseDuration(v)
+		if perr != nil {
+			writeSimpleError(w, r, "timeout", "invalid duration; use a Go duration like \"5m\"")
+			return
+		}
+		opts.Timeout = d
+	}
+
+	result, err := h.svc.QuiesceScenario(r.Context(), opts)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.QuiesceScenarioResponse{
+		Result: quiesceResultToProto(result),
+	})
+}
+
+func quiesceResultToProto(res *orchestration.QuiesceResult) *apipb.QuiesceResult {
+	if res == nil {
+		return nil
+	}
+	return &apipb.QuiesceResult{
+		Scenario:   res.Scenario,
+		Drained:    res.Drained,
+		Aborted:    res.Aborted,
+		Initial:    int32(res.Initial),
+		InFlight:   quiesceRefsToProto(res.InFlight),
+		Cancelled:  quiesceRefsToProto(res.Cancelled),
+		WaitedMs:   res.WaitedMs,
+		Reason:     res.Reason,
+		Excluded:   quiesceRefsToProto(res.Excluded),
+		NotDrained: quiesceRefsToProto(res.NotDrained),
+	}
+}
+
+func quiesceRefsToProto(refs []orchestration.QuiesceRunRef) []*apipb.QuiesceRunRef {
+	if len(refs) == 0 {
+		return nil
+	}
+	out := make([]*apipb.QuiesceRunRef, len(refs))
+	for i, ref := range refs {
+		out[i] = &apipb.QuiesceRunRef{
+			Id:        ref.ID,
+			Tag:       ref.Tag,
+			Status:    ref.Status,
+			ScopePath: ref.ScopePath,
+			Instances: ref.Instances,
+		}
+	}
+	return out
+}
+
+// GetRunEvents returns events for a run.
+func (h *Handler) GetRunEvents(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	req := apipb.GetRunEventsRequest{RunId: id.String()}
+	if after, provided, err := parseQueryInt64Strict(r, "after_sequence", "afterSequence"); err != nil {
+		writeSimpleError(w, r, "after_sequence", "must be a number")
+		return
+	} else if provided {
+		value := after
+		req.AfterSequence = &value
+	}
+	if limit, provided, err := parseQueryIntStrict(r, "limit"); err != nil {
+		writeSimpleError(w, r, "limit", "must be a number")
+		return
+	} else if provided {
+		// Validate the public range before narrowing to the int32 proto field.
+		// Otherwise a large host int (for example 4294967297) can wrap to 1.
+		if limit < 1 || limit > 1000 {
+			writeSimpleError(w, r, "limit", "must be between 1 and 1000")
+			return
+		}
+		value := int32(limit)
+		req.Limit = &value
+	}
+	eventTypesRaw := r.URL.Query()["event_types"]
+	if len(eventTypesRaw) == 0 {
+		eventTypesRaw = r.URL.Query()["eventTypes"]
+	}
+	if len(eventTypesRaw) > 0 {
+		types, invalid := parseEventTypes(eventTypesRaw)
+		if len(invalid) > 0 {
+			writeSimpleError(w, r, "event_types", "invalid event type")
+			return
+		}
+		req.EventTypes = make([]domainpb.RunEventType, len(types))
+		for i, eventType := range types {
+			req.EventTypes[i] = protoconv.RunEventTypeToProto(eventType)
+		}
+	}
+	if rawSummary := r.URL.Query().Get("summary_only"); rawSummary != "" {
+		summaryOnly, err := strconv.ParseBool(rawSummary)
+		if err != nil {
+			writeSimpleError(w, r, "summary_only", "must be a boolean")
+			return
+		}
+		req.SummaryOnly = summaryOnly
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+
+	response, err := h.getRunEventsPage(r.Context(), id, &req)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, response)
+}
+
+// getRunEventsPage is the shared bounded event projection for REST and Connect.
+// Callers own transport parsing and validation; this helper owns filtering,
+// cursor semantics, and the lookahead used to report HasMore.
+func (h *Handler) getRunEventsPage(ctx context.Context, runID uuid.UUID, req *apipb.GetRunEventsRequest) (*apipb.GetRunEventsResponse, error) {
+	if req == nil {
+		return nil, domain.NewValidationError("body", "request is required")
+	}
+	opts := event.GetOptions{AfterSequence: -1}
+	if req.AfterSequence != nil {
+		opts.AfterSequence = req.GetAfterSequence()
+	}
+	if req.Limit != nil {
+		limit := req.GetLimit()
+		if limit < 1 || limit > 1000 {
+			return nil, domain.NewValidationError("limit", "must be between 1 and 1000")
+		}
+		// Ordinary pages fetch one lookahead event. Summary selection performs
+		// the same lookahead in SQL without loading event payloads.
+		opts.Limit = int(limit)
+		if !req.GetSummaryOnly() {
+			opts.Limit++
+		}
+	}
+	if len(req.EventTypes) > 0 {
+		opts.EventTypes = make([]domain.RunEventType, len(req.EventTypes))
+		for i, eventType := range req.EventTypes {
+			converted := protoconv.RunEventTypeFromProto(eventType)
+			if !converted.IsValid() {
+				return nil, domain.NewValidationError("event_types", "invalid event type")
+			}
+			opts.EventTypes[i] = converted
+		}
+	}
+
+	if req.GetSummaryOnly() {
+		summary, err := h.svc.GetRunEventSummary(ctx, runID, opts)
+		if err != nil {
+			return nil, err
+		}
+		if summary == nil {
+			return nil, domain.NewInternalError("event store returned no summary", nil)
+		}
+		return &apipb.GetRunEventsResponse{
+			Summary: &apipb.RunEventSummary{Counts: summary.Counts, LatestSequence: summary.LatestSequence},
+			HasMore: summary.HasMore,
+		}, nil
+	}
+	events, err := h.svc.GetRunEvents(ctx, runID, opts)
+	if err != nil {
+		return nil, err
+	}
+	hasMore := req.Limit != nil && len(events) > int(req.GetLimit())
+	if hasMore {
+		events = events[:int(req.GetLimit())]
+	}
+	return &apipb.GetRunEventsResponse{
+		Events:  protoconv.RunEventsToProto(events),
+		HasMore: hasMore,
+	}, nil
+}
+
+// GetRunDiff returns the diff for a run.
+func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
+	idStr := mux.Vars(r)["id"]
+	req := apipb.GetRunDiffRequest{RunId: idStr}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	id, err := uuid.Parse(req.RunId)
+	if err != nil {
+		writeSimpleError(w, r, "run_id", "invalid UUID format for run ID")
+		return
+	}
+
+	diff, err := h.svc.GetRunDiff(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	// Convert sandbox.FileChange to protoconv.FileChange
+	files := make([]protoconv.FileChange, len(diff.Files))
+	for i, f := range diff.Files {
+		files[i] = protoconv.FileChange{
+			ID:           f.ID,
+			FilePath:     f.FilePath,
+			ChangeType:   string(f.ChangeType),
+			FileSize:     f.FileSize,
+			LinesAdded:   f.LinesAdded,
+			LinesRemoved: f.LinesRemoved,
+		}
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunDiffResponse{
+		Diff: protoconv.DiffResultToProto(id, &protoconv.DiffResult{
+			SandboxID:   diff.SandboxID,
+			Files:       files,
+			UnifiedDiff: diff.UnifiedDiff,
+			Generated:   diff.Generated,
+			Stats: protoconv.DiffStats{
+				FilesChanged:  diff.Stats.FilesChanged,
+				FilesAdded:    diff.Stats.FilesAdded,
+				FilesModified: diff.Stats.FilesModified,
+				FilesDeleted:  diff.Stats.FilesDeleted,
+			},
+			ArchiveState:      string(diff.ArchiveState),
+			FileCountVerified: diff.FileCountVerified,
+		}),
+	})
+}
+
+// ApproveRun approves a run's changes.
+func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "approve-run") {
+		return
+	}
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.ApproveRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
+
+	actor := normalizeActor(req.GetActor())
+	result, err := h.svc.ApproveRun(r.Context(), orchestration.ApproveRequest{
+		RunID:     id,
+		Actor:     actor,
+		CommitMsg: req.GetCommitMsg(),
+		Force:     req.Force,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.ApproveRunResponse{
+		Result: protoconv.ApproveResultToProto(&protoconv.ApproveResult{
+			Success:    result.Success,
+			Applied:    result.Applied,
+			Remaining:  result.Remaining,
+			IsPartial:  result.IsPartial,
+			CommitHash: result.CommitHash,
+			AppliedAt:  result.AppliedAt,
+			ErrorMsg:   result.ErrorMsg,
+		}),
+	})
+}
+
+// RejectRun rejects a run's changes.
+func (h *Handler) RejectRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "reject-run") {
+		return
+	}
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.RejectRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
+
+	actor := normalizeActor(req.GetActor())
+	reason := strings.TrimSpace(req.Reason)
+	if err := h.svc.RejectRun(r.Context(), id, actor, reason); err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.RejectRunResponse{Status: "rejected"})
+}
+
+// PartialApproveRun approves only selected files from a run's changes.
+func (h *Handler) PartialApproveRun(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "partial-approve-run") {
+		return
+	}
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeSimpleError(w, r, "body", "failed to read request body")
+		return
+	}
+
+	var req apipb.PartialApproveRunRequest
+	if err := protoconv.UnmarshalJSON(body, &req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if !h.validateProto(w, r, &req) {
+		return
+	}
+	if req.RunId != "" && req.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "run_id does not match URL")
+		return
+	}
+
+	if len(req.FileIds) == 0 {
+		writeSimpleError(w, r, "file_ids", "at least one file ID is required")
+		return
+	}
+
+	fileIDs := make([]uuid.UUID, len(req.FileIds))
+	for i, fid := range req.FileIds {
+		parsed, err := uuid.Parse(fid)
+		if err != nil {
+			writeSimpleError(w, r, "file_ids", "invalid UUID format for file ID: "+fid)
+			return
+		}
+		fileIDs[i] = parsed
+	}
+
+	actor := normalizeActor(req.GetActor())
+	result, err := h.svc.PartialApprove(r.Context(), orchestration.PartialApproveRequest{
+		RunID:     id,
+		FileIDs:   fileIDs,
+		Actor:     actor,
+		CommitMsg: req.GetCommitMsg(),
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.PartialApproveRunResponse{
+		Result: protoconv.ApproveResultToProto(&protoconv.ApproveResult{
+			Success:    result.Success,
+			Applied:    result.Applied,
+			Remaining:  result.Remaining,
+			IsPartial:  result.IsPartial,
+			CommitHash: result.CommitHash,
+			AppliedAt:  result.AppliedAt,
+			ErrorMsg:   result.ErrorMsg,
+		}),
+	})
+}
+
+type sandboxSyncRequest struct {
+	RunID      string `json:"runId,omitempty"`
+	SandboxID  string `json:"sandboxId,omitempty"`
+	Status     string `json:"status"`
+	Actor      string `json:"actor,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Applied    int    `json:"applied,omitempty"`
+	Remaining  int    `json:"remaining,omitempty"`
+	IsPartial  bool   `json:"isPartial,omitempty"`
+	CommitHash string `json:"commitHash,omitempty"`
+}
+
+// SyncRunFromSandbox updates a run based on workspace-sandbox approval state.
+func (h *Handler) SyncRunFromSandbox(w http.ResponseWriter, r *http.Request) {
+	if h.denyRunInitiatedLifecycleOperation(w, r, "sandbox-sync") {
+		return
+	}
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeSimpleError(w, r, "id", "invalid UUID format for run ID")
+		return
+	}
+
+	var req sandboxSyncRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if req.RunID != "" && req.RunID != id.String() {
+		writeSimpleError(w, r, "runId", "runId does not match URL")
+		return
+	}
+	if strings.TrimSpace(req.Status) == "" {
+		writeSimpleError(w, r, "status", "status is required")
+		return
+	}
+
+	var sandboxID *uuid.UUID
+	if strings.TrimSpace(req.SandboxID) != "" {
+		parsed, err := uuid.Parse(strings.TrimSpace(req.SandboxID))
+		if err != nil {
+			writeSimpleError(w, r, "sandboxId", "invalid UUID format for sandboxId")
+			return
+		}
+		sandboxID = &parsed
+	}
+
+	run, err := h.svc.SyncRunFromSandbox(r.Context(), orchestration.SandboxSyncRequest{
+		RunID:      id,
+		SandboxID:  sandboxID,
+		Status:     req.Status,
+		Actor:      req.Actor,
+		Reason:     req.Reason,
+		Applied:    req.Applied,
+		Remaining:  req.Remaining,
+		IsPartial:  req.IsPartial,
+		CommitHash: req.CommitHash,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"status":        "synced",
+		"runId":         run.ID.String(),
+		"runStatus":     run.Status,
+		"approvalState": run.ApprovalState,
+	})
+}
+
+// GetRunnerStatus returns status of all runners.
+func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
+	statuses, err := h.svc.GetRunnerStatus(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+
+	// Convert orchestration.RunnerStatus to protoconv types
+	protoStatuses := make([]*protoconv.OrchestratorRunnerStatus, len(statuses))
+	for i, s := range statuses {
+		protoStatuses[i] = &protoconv.OrchestratorRunnerStatus{
+			Type:      s.Type,
+			Available: s.Available,
+			Message:   s.Message,
+			Capabilities: protoconv.RunnerCapabilities{
+				SpawnCapabilities: func() []protoconv.SpawnCapability {
+					result := make([]protoconv.SpawnCapability, 0, len(s.Capabilities.SpawnCapabilities))
+					for _, capability := range s.Capabilities.SpawnCapabilities {
+						result = append(result, protoconv.SpawnCapability{ExecutionMode: capability.ExecutionMode, SandboxModes: capability.SandboxModes, NativeObjective: capability.NativeObjective})
+					}
+					return result
+				}(),
+				SupportsMessages:          s.Capabilities.SupportsMessages,
+				SupportsToolEvents:        s.Capabilities.SupportsToolEvents,
+				SupportsCostTracking:      s.Capabilities.SupportsCostTracking,
+				SupportsStreaming:         s.Capabilities.SupportsStreaming,
+				SupportsCancellation:      s.Capabilities.SupportsCancellation,
+				SupportsContinuation:      s.Capabilities.SupportsContinuation,
+				SupportsWarmIteration:     s.Capabilities.SupportsWarmIteration,
+				SupportsSessionCompaction: s.Capabilities.SupportsSessionCompaction,
+				SupportsImageAttachments:  s.Capabilities.SupportsImageAttachments,
+				SupportsEffort:            s.Capabilities.SupportsEffort,
+				EffortMappings:            s.Capabilities.EffortMappings,
+				EffortModelSpecific:       s.Capabilities.EffortModelSpecific,
+				MaxTurns:                  s.Capabilities.MaxTurns,
+				SupportedModels:           s.Capabilities.SupportedModels,
+				SupportsRunnerDefault:     s.Capabilities.SupportsRunnerDefault,
+				DynamicModelPrefixes:      s.Capabilities.DynamicModelPrefixes,
+				SupportedFeatures:         s.Capabilities.SupportedFeatures,
+				AllowedExtraFlags:         s.Capabilities.AllowedExtraFlags,
+				SupportsToolRestriction:   s.Capabilities.SupportsToolRestriction,
+				ToolRestrictionMappings:   s.Capabilities.ToolRestrictionMappings,
+			},
+		}
+	}
+
+	writeProtoJSON(w, http.StatusOK, &apipb.GetRunnerStatusResponse{
+		Runners: protoconv.OrchestratorRunnerStatusesToProto(protoStatuses),
+	})
+}
+
+// GetRolePolicyCatalog exposes only portable roles and resource-role candidates.
+func (h *Handler) GetRolePolicyCatalog(w http.ResponseWriter, r *http.Request) {
+	if h.rolePolicy == nil {
+		writeSimpleError(w, r, "role_policy", "role policy state is not configured")
+		return
+	}
+	writeProtoJSON(w, http.StatusOK, h.rolePolicyCatalogResponse())
+}
+
+func (h *Handler) rolePolicyCatalogResponse() *apipb.GetRolePolicyCatalogResponse {
+	var catalog *rolepolicy.Catalog
+	if active := h.rolePolicy.Active(); active != nil {
+		catalog = active.Catalog()
+	}
+	return &apipb.GetRolePolicyCatalogResponse{
+		Status:  protoconv.RolePolicyStatusToProto(h.rolePolicy.Status()),
+		Catalog: protoconv.RolePolicyCatalogToProto(catalog),
+	}
+}
+
+func rolePolicyInvalidDiagnostic(err error) *apipb.RolePolicyDiagnostic {
+	return protoconv.RolePolicyDiagnosticToProto(&rolepolicy.Diagnostic{Code: rolepolicy.DiagnosticCodeCatalogInvalid, Message: err.Error(), Cause: err.Error()})
+}
+
+func logPermissionPolicyPlan(event string, plan permissionpolicy.AggregatePlan) {
+	driftCount, unsupportedCount := permissionPolicyObservationCounts(plan.Resources)
+	attrs := []any{
+		obs.KeyPermissionPolicyDigest, plan.CatalogDigest,
+		obs.KeyPermissionPolicyResourceCount, len(plan.Resources),
+		obs.KeyPermissionPolicyDriftCount, driftCount,
+		obs.KeyPermissionPolicyUnsupportedCount, unsupportedCount,
+		obs.KeyHardEnforcementSatisfied, plan.HardEnforcementSatisfied,
+		obs.KeyMissingHardEnforcementRuleIDs, plan.MissingHardEnforcementRuleIDs,
+	}
+	logger := obs.Component("permission-policy")
+	if !plan.HardEnforcementSatisfied || unsupportedCount > 0 {
+		logger.Warn(event, attrs...)
+		return
+	}
+	logger.Info(event, attrs...)
+}
+
+func logPermissionPolicyReconcile(result permissionpolicy.ReconcileResult) {
+	driftCount, unsupportedCount := permissionPolicyObservationCounts(result.Resources)
+	attrs := []any{
+		obs.KeyPermissionPolicyDigest, result.CatalogDigest,
+		obs.KeyPermissionPolicyResourceCount, len(result.Resources),
+		obs.KeyPermissionPolicyDriftCount, driftCount,
+		obs.KeyPermissionPolicyUnsupportedCount, unsupportedCount,
+		obs.KeyHardEnforcementSatisfied, result.HardEnforcementSatisfied,
+		obs.KeyMissingHardEnforcementRuleIDs, result.MissingHardEnforcementRuleIDs,
+		obs.KeyPermissionPolicyPartialFailure, !result.Success,
+	}
+	logger := obs.Component("permission-policy")
+	if !result.Success || unsupportedCount > 0 {
+		logger.Warn("permission_policy_reconcile_completed", attrs...)
+		return
+	}
+	logger.Info("permission_policy_reconcile_completed", attrs...)
+}
+
+func permissionPolicyObservationCounts(resources []permissionpolicy.ResourcePlan) (driftCount, unsupportedCount int) {
+	for _, resource := range resources {
+		if resource.Drift {
+			driftCount++
+		}
+		unsupportedCount += len(resource.UnsupportedMatchers)
+	}
+	return driftCount, unsupportedCount
+}
+
+func normalizeActor(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "unknown"
+	}
+	return trimmed
+}

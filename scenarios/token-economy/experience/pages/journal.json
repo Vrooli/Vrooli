@@ -1,0 +1,154 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "journal",
+    "title": "Journal",
+    "routes": [
+      "/journal"
+    ],
+    "purpose": "Give the minter the complete, append-only record of the economy, including who caused each event and how they were verified.",
+    "prd_refs": [
+      "OT-P0-004",
+      "OT-P0-010",
+      "OT-P0-011"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every event is present and nothing has been compacted away."
+    },
+    {
+      "statement": "Actor provenance — who caused this and whether they were verified — is visible per event.",
+      "notes": "This is what distinguishes an agent-initiated grant from an operator-initiated one after the fact."
+    },
+    {
+      "statement": "A correction and the event it corrects are visibly linked, and neither is hidden."
+    },
+    {
+      "statement": "The journal offers no destructive action, because none exists.",
+      "notes": "The absence is the point; a reader should be able to see that history cannot be edited here."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Events listed newest first."
+    },
+    {
+      "id": "loading",
+      "description": "Events are being fetched."
+    },
+    {
+      "id": "empty",
+      "description": "No events yet."
+    },
+    {
+      "id": "partial",
+      "description": "Only part of the range loaded; the gap is stated rather than implied."
+    },
+    {
+      "id": "request-error",
+      "description": "Journal could not be loaded."
+    },
+    {
+      "id": "stale",
+      "description": "Showing a cached page of events after a failed refresh, labelled as such."
+    }
+  ],
+  "elements": [
+    {
+      "id": "event-table",
+      "role": "table",
+      "name": "Events",
+      "description": "Every journal event with kind, amount, holder, actor and time."
+    },
+    {
+      "id": "provenance-indicator",
+      "role": "status",
+      "name": "Verification",
+      "description": "Whether the acting identity was verified, unverified, or absent."
+    },
+    {
+      "id": "correction-pair",
+      "role": "group",
+      "name": "Correction",
+      "description": "A compensating event shown linked to its original."
+    },
+    {
+      "id": "export-action",
+      "role": "button",
+      "name": "Export",
+      "description": "Downloads the journal for a period."
+    }
+  ],
+  "claims": [
+    {
+      "id": "provenance-per-event",
+      "type": "element-present",
+      "statement": "Every event row carries a verification status, including when that status is unverified.",
+      "tier": "aspirational",
+      "elements": [
+        "event-table",
+        "provenance-indicator"
+      ]
+    },
+    {
+      "id": "no-destructive-action",
+      "type": "element-absent",
+      "statement": "No edit or delete affordance exists anywhere on this page.",
+      "tier": "aspirational",
+      "rationale": "Structural expression of OT-P0-010: the repository has no update or delete, and the UI must not imply otherwise."
+    },
+    {
+      "id": "corrections-linked",
+      "type": "element-present",
+      "statement": "A compensating event is rendered linked to the event it corrects, and both remain visible.",
+      "tier": "aspirational",
+      "elements": [
+        "correction-pair"
+      ]
+    },
+    {
+      "id": "partial-gap-stated",
+      "type": "state-covered",
+      "statement": "The partial state states which range failed to load rather than presenting an incomplete list as complete.",
+      "tier": "aspirational",
+      "states": [
+        "partial"
+      ]
+    },
+    {
+      "id": "journal-filterable",
+      "type": "affordance-present",
+      "statement": "The journal offers filtering by holder, token type and event kind.",
+      "tier": "aspirational",
+      "elements": [
+        "event-table"
+      ],
+      "params": {
+        "affordances": [
+          "filter",
+          "search"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "event-table": {
+        "testid": "journal-event-table"
+      },
+      "provenance-indicator": {
+        "testid": "journal-provenance"
+      },
+      "correction-pair": {
+        "testid": "journal-correction-pair"
+      },
+      "export-action": {
+        "testid": "journal-export"
+      }
+    }
+  }
+}

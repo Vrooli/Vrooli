@@ -10,49 +10,31 @@ interface ScriptListItemProps {
 export const ScriptListItem = ({ script, isSelected, onSelect }: ScriptListItemProps) => (
   <button
     type="button"
-    onClick={() => onSelect(script)}
-    style={{
-      width: '100%',
-      textAlign: 'left',
-      padding: 'var(--spacing-md)',
-      border: 'none',
-      background: isSelected ? 'var(--color-primary-muted)' : 'transparent',
-      color: 'var(--color-text)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 'var(--spacing-xs)',
-      cursor: 'pointer'
-    }}
+    onClick={() => { onSelect(script); }}
+    className={`script-list-item ${isSelected ? 'is-selected' : ''}`}
   >
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <span className="icon-text" style={{
-        fontSize: 'var(--text-sm)',
-        fontWeight: 600,
-        textTransform: 'uppercase'
-      }}>
-        <FileText size={16} style={{ color: 'var(--color-primary)' }} />
+    <div data-sm-style="sm-style-d4e3683f04">
+      <span className="icon-text" data-sm-style="sm-style-006c1c4c18">
+        <FileText size={16} data-sm-style="sm-style-392c7463c7" />
         {script.name}
       </span>
-      <span style={{
-        fontSize: 'var(--text-xs)',
-        color: script.enabled ? 'var(--color-success)' : 'var(--color-text-secondary)',
-        letterSpacing: '0.08em'
-      }}>
+      <span className={`text-xs script-enabled-label ${script.enabled ? 'is-enabled' : 'is-disabled'}`}>
         {script.enabled ? 'ENABLED' : 'DISABLED'}
       </span>
     </div>
-    <div className="text-dim-xs" style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-    }}>
+    <div data-sm-style="sm-style-b34553c6d3">
+      <span className="text-dim-xs" title={script.executionMode === 'native' ? 'Runs through typed collector queries' : 'Requires declared host tools'}>
+        {script.executionMode === 'native' ? 'NATIVE QUERY' : 'SHELL-GATED'}
+      </span>
+      {(script.platforms ?? []).length > 0 && <span className="text-dim-xs">{(script.platforms ?? []).join(' / ')}</span>}
+      {script.source && <span className="text-dim-xs">{script.source.toUpperCase()}</span>}
+      {script.skipReason && <span className="text-dim-xs" title={script.skipReason}>UNAVAILABLE ON HOST</span>}
+    </div>
+    <div className="text-dim-xs" data-sm-style="sm-style-a37b6e5cc8">
       <span>{script.category}</span>
       <span>{script.author}</span>
     </div>
-    <p style={{
-      margin: 0,
-      fontSize: 'var(--text-xs)',
-      color: 'var(--color-text-secondary)'
-    }}>
+    <p data-sm-style="sm-style-4d1bf7fe88">
       {script.description}
     </p>
   </button>

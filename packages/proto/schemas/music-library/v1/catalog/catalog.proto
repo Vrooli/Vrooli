@@ -1,0 +1,31 @@
+syntax = "proto3";
+package vrooli.music_library.v1.catalog;
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/music-library/v1/catalog;catalog_v1";
+
+service CatalogService {
+  rpc PutTrack(PutTrackRequest) returns (PutTrackResponse);
+  rpc ListTracks(ListTracksRequest) returns (ListTracksResponse);
+  rpc RecordUse(RecordUseRequest) returns (RecordUseResponse);
+}
+message Track {
+  string sha256 = 1;
+  string title = 2;
+  string source_path = 3;
+  string take_id = 4;
+  string receipt_path = 5;
+  repeated string tags = 6;
+  string approval = 7;
+  string feedback = 8;
+  repeated TrackUse uses = 9;
+}
+message TrackUse {
+  string project = 1;
+  string revision = 2;
+  string status = 3;
+}
+message PutTrackRequest { Track track = 1; }
+message PutTrackResponse { Track track = 1; }
+message ListTracksRequest { string tag = 1; bool unused_only = 2; string project = 3; }
+message ListTracksResponse { repeated Track tracks = 1; }
+message RecordUseRequest { string sha256 = 1; TrackUse use = 2; }
+message RecordUseResponse { Track track = 1; }

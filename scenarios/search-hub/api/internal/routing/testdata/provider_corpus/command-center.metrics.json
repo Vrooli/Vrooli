@@ -1,0 +1,11 @@
+{
+ "provider_id": "command-center.metrics",
+  "lifecycle": "LIFECYCLE_PRODUCTION",
+  "provider_group": "command-center",
+  "bucket": "BUCKET_STATE",
+  "type": "runtime-metrics",
+  "description": "Runtime data and metrics searchable by what the system is doing right now — 'what is the system doing / how is X performing?'. No semantic search exists yet; today this means the command-center aggregator. (Distinct from search-hub's own query telemetry, which is the metrics domain.)",
+  "intended_home": "command-center",
+  "state": "PROVIDER_STATE_CAPABILITY_GAP",
+  "scope": "SCOPE_PROJECT"
+}

@@ -15,7 +15,8 @@ func (s *Service) resolveFinalizationScope(ctx context.Context, record Record, i
 		changedPathsByScenario: map[string][]string{},
 	}
 
-	acceptanceScenarios := pathutil.UniqueSortedStrings(pathutil.ScenariosFromGlobs(item.AcceptanceAllow))
+	effectiveAllow := effectiveWriteScope(item, record.ScopeExtensions)
+	acceptanceScenarios := pathutil.UniqueSortedStrings(pathutil.ScenariosFromGlobs(effectiveAllow))
 	var sandboxDiff agentmanager.RunDiff
 	if s.differ != nil && strings.TrimSpace(record.RunID) != "" {
 		diff, err := s.differ.GetRunDiff(ctx, record.RunID)

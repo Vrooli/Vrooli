@@ -63,7 +63,7 @@ interface ChatViewProps {
   asyncReferences?: AsyncResultReference[];
   onInsertAsyncReference?: (operation: AsyncStatusUpdate) => void;
   onRemoveAsyncReference?: (toolCallId: string) => void;
-  onTemplateActivated?: (templateId: string, toolIds: string[]) => Promise<void>;
+  onTemplateActivated?: (templateId: string) => Promise<void>;
   activeTemplateId?: string | null;
   onTemplateDeactivate?: () => void;
   onRefreshChat?: () => void;
@@ -126,7 +126,7 @@ export function ChatView({
     if (!messages || messages.length === 0) return EMPTY_MESSAGES;
     return messages;
   }, [chatData?.messages]);
-  const activeLeafId = chatData?.chat?.active_leaf_message_id ?? null;
+  const activeLeafId = chatData?.chat.active_leaf_message_id ?? null;
 
   const visibleMessages = useMemo(() => {
     if (allMessages.length === 0) return EMPTY_MESSAGES;
@@ -163,7 +163,7 @@ export function ChatView({
           onAssignLabel={onAssignLabel} onRemoveLabel={onRemoveLabel}
           isAgentActive={agent.isAgentActive} agentStatus={agent.agentStatus}
           agentMetrics={agent.agentMetrics} agentError={agent.agentError}
-          onStopAgent={agent.handleStopAgent} onBackToList={onBackToList}
+          onStopAgent={() => { void agent.handleStopAgent(); }} onBackToList={onBackToList}
           isMobile={isMobile} onOpenSidebar={onOpenSidebar}
           hasMessages={visibleMessages.length > 0}
           onModeChange={agent.setChatMode} onOpenAgentSettings={_onOpenAgentSettings}

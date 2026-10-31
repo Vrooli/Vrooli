@@ -41,7 +41,7 @@ interface CacheEntry {
  * Results are cached for `cacheTtlMs`. Negative lookups are NOT cached
  * so retries happen immediately when a scenario starts up.
  */
-export function createPortResolver(cacheTtlMs = 30_000) {
+export function createPortResolver(cacheTtlMs = 30_000, portKey = 'UI_PORT') {
   const cache = new Map<string, CacheEntry>()
 
   return (scenarioName: string): string | null => {
@@ -52,7 +52,7 @@ export function createPortResolver(cacheTtlMs = 30_000) {
     }
 
     // Try environment variable first
-    const envVar = `${scenarioName.replace(/-/g, '_').toUpperCase()}_UI_PORT`
+    const envVar = `${scenarioName.replace(/-/g, '_').toUpperCase()}_${portKey}`
     const envPort = process.env[envVar]
     if (envPort) {
       cache.set(scenarioName, { port: envPort, resolvedAt: now })
@@ -61,7 +61,7 @@ export function createPortResolver(cacheTtlMs = 30_000) {
 
     // Fall back to vrooli CLI
     try {
-      const output = execSync(`vrooli scenario port ${scenarioName} UI_PORT`, {
+      const output = execSync(`vrooli scenario port ${scenarioName} ${portKey}`, {
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
       }).trim()
@@ -82,6 +82,12 @@ export function createPortResolver(cacheTtlMs = 30_000) {
  *
  * - localhost requests → http://localhost:{port}
  * - tunnel/remote requests → swap first subdomain to scenario name
+ *
+ * Scenarios whose API is written in Go use the peer implementation in
+ * packages/api-core/discovery (BrowserURLForHost / ResolveExternalURL), whose
+ * suite transcribes the cases below. The two must give the same answer: a link
+ * that resolves one way through an Express scenario and another through a Go
+ * one is worse than either rule alone, so a change here belongs in both.
  */
 export function resolveExternalUrl(
   req: Request,
@@ -181,14 +187,45 @@ export function createEmbeddedProxyRouter(options: EmbeddedProxyOptions = {}): R
       return
     }
 
+    const headers: http.OutgoingHttpHeaders = {
+      ...req.headers,
+      host: `${upstreamHost}:${port}`,
+    }
+    let parsedBody: Buffer | undefined
+    const hasBody = Number(req.headers['content-length']) > 0 || req.headers['transfer-encoding'] !== undefined
+    if (!req.readable && hasBody) {
+      // A preceding Express parser consumed the stream. Reframe its retained
+      // representation before opening the upstream request: the original length
+      // and compression describe bytes that are no longer available.
+      try {
+        const mediaType = req.headers['content-type']?.split(';')[0]?.trim()
+        if (Buffer.isBuffer(req.body)) {
+          parsedBody = req.body
+        } else if (req.body !== undefined && req.is(['json', 'application/*+json'])) {
+          const json = JSON.stringify(req.body)
+          if (json === undefined) throw new Error('JSON body is unavailable')
+          parsedBody = Buffer.from(json, 'utf8')
+          headers['content-type'] = `${mediaType}; charset=utf-8`
+        } else if (typeof req.body === 'string') {
+          parsedBody = Buffer.from(req.body, 'utf8')
+          headers['content-type'] = `${mediaType || 'text/plain'}; charset=utf-8`
+        } else {
+          throw new Error('Consumed body has no supported representation')
+        }
+      } catch {
+        res.status(400).json({ error: 'Cannot forward consumed request body', scenario: scenarioName })
+        return
+      }
+      headers['content-length'] = parsedBody.length
+      delete headers['transfer-encoding']
+      delete headers['content-encoding']
+    }
+
     const proxyReq = http.request(
       url,
       {
         method: req.method,
-        headers: {
-          ...req.headers,
-          host: `${upstreamHost}:${port}`,
-        },
+        headers,
       },
       (proxyRes) => {
         res.writeHead(proxyRes.statusCode || 502, proxyRes.headers)
@@ -221,7 +258,9 @@ export function createEmbeddedProxyRouter(options: EmbeddedProxyOptions = {}): R
       }
     })
 
-    if (req.readable) {
+    if (parsedBody !== undefined) {
+      proxyReq.end(parsedBody)
+    } else if (req.readable) {
       req.pipe(proxyReq, { end: true })
     } else {
       proxyReq.end()

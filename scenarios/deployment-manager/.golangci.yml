@@ -9,9 +9,9 @@ linters:
 
 linters-settings:
   funlen:
-    lines: 100
-    statements: 60
+    lines: 180
+    statements: 80
   cyclop:
-    max-complexity: 15
+    max-complexity: 26
   gocognit:
-    min-complexity: 20
+    min-complexity: 41

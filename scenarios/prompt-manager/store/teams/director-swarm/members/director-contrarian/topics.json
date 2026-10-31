@@ -1,0 +1,9 @@
+{
+  "loop_kind": "reactive",
+  "required_read": [
+    {"prefix": "contrarian-scan/YYYY-MM-DD"}
+  ],
+  "output": [
+    {"prefix": "contrarian-scan/*", "destination_kind": "knowledge"}
+  ]
+}

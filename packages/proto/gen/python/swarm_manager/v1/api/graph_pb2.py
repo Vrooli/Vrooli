@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from swarm_manager.v1.domain import graph_pb2 as swarm__manager_dot_v1_dot_domain_dot_graph__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n swarm-manager/v1/api/graph.proto\x12\x10swarm_manager.v1\x1a#swarm-manager/v1/domain/graph.proto\"\xa6\x01\n\rGraphResponse\x12\x31\n\x05nodes\x18\x01 \x03(\x0b\x32\x1b.swarm_manager.v1.GraphNodeR\x05nodes\x12\x31\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32\x1b.swarm_manager.v1.GraphEdgeR\x05\x65\x64ges\x12/\n\x04meta\x18\x03 \x01(\x0b\x32\x1b.swarm_manager.v1.GraphMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n swarm-manager/v1/api/graph.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a#swarm-manager/v1/domain/graph.proto\"\xd0\x01\n\rGraphResponse\x12?\n\x05nodes\x18\x01 \x03(\x0b\x32).vrooli.swarm_manager.v1.domain.GraphNodeR\x05nodes\x12?\n\x05\x65\x64ges\x18\x02 \x03(\x0b\x32).vrooli.swarm_manager.v1.domain.GraphEdgeR\x05\x65\x64ges\x12=\n\x04meta\x18\x03 \x01(\x0b\x32).vrooli.swarm_manager.v1.domain.GraphMetaR\x04metaBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,6 +33,6 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'swarm_manager.v1.api.graph_
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;api'
-  _globals['_GRAPHRESPONSE']._serialized_start=92
-  _globals['_GRAPHRESPONSE']._serialized_end=258
+  _globals['_GRAPHRESPONSE']._serialized_start=103
+  _globals['_GRAPHRESPONSE']._serialized_end=311
 # @@protoc_insertion_point(module_scope)

@@ -1,0 +1,78 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "agent-creation-and-release",
+    "title": "Bounded AI creation and review",
+    "purpose": "Create or repair an asset through explicit AI/agent work, bounded costs, retained comparisons and a separate human release decision.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-007",
+      "OT-P0-008",
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011"
+    ]
+  },
+  "steps": [
+    {
+      "page": "library",
+      "state": "no-qualified-assets",
+      "intent": "Understand the capability gap before choosing import or labeled AI/agent creation.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "creation",
+      "state": "preflight",
+      "intent": "Inspect references, target, provider/model, upload manifest, requested controls and aggregate cost limits.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "creation",
+      "state": "awaiting-consent",
+      "intent": "Resolve only the exact missing project consent or authority before work begins.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "creation",
+      "state": "running",
+      "intent": "Track bounded nested steps and retained iterations without hidden provider calls.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "creation",
+      "state": "review-needed",
+      "intent": "Inspect the candidate and honest requested-versus-honored controls with cost receipts.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "review",
+      "state": "changes-requested",
+      "intent": "Compare actual reference/neutral/beauty evidence and request concrete fixes.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "review",
+      "state": "release-pending",
+      "intent": "Check independent rights, screen, motion, portable and worker gates.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "asset",
+      "state": "approved",
+      "intent": "Adopt only the exact reviewed released version and its scoped capabilities.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "agent-creation-and-release-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Create or repair an asset through explicit AI/agent work, bounded costs, retained comparisons and a separate human release decision.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

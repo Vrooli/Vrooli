@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// LIFECYCLE MAINTENANCE FENCE
+// =============================================================================
+//
+// @stability experimental
+//
+// Provider-owned protocol used by the control plane before replacing a live
+// scenario instance. Providers close admission atomically, expose complete
+// drain evidence, and issue a fence token that the caller must retain through
+// the replacement operation.
+
+enum LifecycleMaintenancePhase {
+  LIFECYCLE_MAINTENANCE_PHASE_UNSPECIFIED = 0;
+  LIFECYCLE_MAINTENANCE_PHASE_OPEN = 1;
+  LIFECYCLE_MAINTENANCE_PHASE_CLOSING = 2;
+  LIFECYCLE_MAINTENANCE_PHASE_DRAINED = 3;
+  LIFECYCLE_MAINTENANCE_PHASE_RESUMED = 4;
+}
+
+enum LifecycleBlockerDisposition {
+  LIFECYCLE_BLOCKER_DISPOSITION_UNSPECIFIED = 0;
+  LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING = 1;
+  LIFECYCLE_BLOCKER_DISPOSITION_OVERRIDEABLE = 2;
+  LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN = 3;
+}
+
+message LifecyclePrepareRequest {
+  string operation_id = 1;
+  string reason = 2;
+  bool emergency_override = 3;
+  string override_reason = 4;
+}
+
+message LifecycleStatusRequest {
+  string operation_id = 1;
+  string fence_token = 2;
+  int64 revision = 3;
+}
+
+message LifecycleDrainRequest {
+  string operation_id = 1;
+  string fence_token = 2;
+  google.protobuf.Duration timeout = 3;
+  int64 revision = 4;
+}
+
+message LifecycleResumeRequest {
+  string operation_id = 1;
+  string fence_token = 2;
+  int64 revision = 3;
+}
+
+message LifecycleWorkItem {
+  string id = 1;
+  string kind = 2;
+  string status = 3;
+  bool physical_executor_present = 4;
+}
+
+message LifecycleBlocker {
+  string code = 1;
+  string message = 2;
+  LifecycleBlockerDisposition disposition = 3;
+  bool observed = 4;
+}
+
+message LifecycleStanding {
+  string provider = 1;
+  string provider_instance_id = 2;
+  string scenario = 3;
+  string instance_id = 4;
+  string operation_id = 5;
+  string fence_token = 6;
+  int64 revision = 7;
+  LifecycleMaintenancePhase phase = 8;
+  bool admission_closed = 9;
+  int32 admitting = 10;
+  int32 remaining = 11;
+  bool inventory_complete = 12;
+  bool drained = 13;
+  repeated LifecycleWorkItem work = 14;
+  repeated LifecycleBlocker blockers = 15;
+  google.protobuf.Timestamp observed_at = 16;
+  google.protobuf.Timestamp expires_at = 17;
+  string interlock = 18;
+}
+
+message LifecyclePrepareResponse { LifecycleStanding standing = 1; }
+message LifecycleStatusResponse { LifecycleStanding standing = 1; }
+message LifecycleDrainResponse { LifecycleStanding standing = 1; }
+message LifecycleResumeResponse { LifecycleStanding standing = 1; }
+
+service LifecycleMaintenanceService {
+  rpc Prepare(LifecyclePrepareRequest) returns (LifecyclePrepareResponse);
+  rpc Status(LifecycleStatusRequest) returns (LifecycleStatusResponse);
+  rpc Drain(LifecycleDrainRequest) returns (LifecycleDrainResponse);
+  rpc Resume(LifecycleResumeRequest) returns (LifecycleResumeResponse);
+}

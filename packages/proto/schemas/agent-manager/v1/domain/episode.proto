@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package agent_manager.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain;domain";
+
+// EpisodesService exposes a run's cross-scenario ledger and transcript import.
+// The name predates its current surface and is kept so generated client paths
+// stay stable.
+service EpisodesService {
+  rpc GetCrossScenarioLedger(GetCrossScenarioLedgerRequest) returns (GetCrossScenarioLedgerResponse);
+  rpc ImportTranscript(ImportTranscriptRequest) returns (ImportTranscriptResponse);
+}
+
+message GetCrossScenarioLedgerRequest {
+  string run_id = 1;
+  bool with_projections = 2;
+}
+message Availability {
+  string state = 1;
+  string reason = 2;
+}
+message CrossScenarioCall {
+  string occurred_at = 1;
+  string target_scenario = 2;
+  string operation = 3;
+  string outcome = 4;
+  uint32 status_code = 5;
+  uint64 duration_ms = 6;
+  string receipt_event_id = 7;
+  bool verified = 8;
+  google.protobuf.Struct projection = 9;
+  int64 projection_drop_count = 10;
+  string policy_version = 11;
+}
+message LedgerTargetRollup {
+  string target_scenario = 1;
+  int64 calls = 2;
+  int64 failures = 3;
+  uint64 total_duration_ms = 4;
+  uint64 median_duration_ms = 5;
+}
+message GetCrossScenarioLedgerResponse {
+  Availability ledger_availability = 1;
+  Availability projection_availability = 2;
+  repeated LedgerTargetRollup target_rollups = 3;
+  repeated CrossScenarioCall calls = 4;
+}
+
+message ImportTranscriptRequest {
+  string path = 1;
+  string runner_type = 2;
+  string label = 3;
+  // Stable external provenance supplied by an owning scenario. When both are
+  // present, imports are idempotent on this pair rather than on the path.
+  string source_harness = 4;
+  string source_session_id = 5;
+}
+message ImportTranscriptResponse {
+  string run_id = 1;
+  string status = 2;
+  string execution_mode = 3;
+}

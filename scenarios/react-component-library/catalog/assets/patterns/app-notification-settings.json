@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "patterns.app-notification-settings",
+    "name": "AppNotificationSettings",
+    "kind": "component",
+    "domain": "patterns",
+    "description": "A scenario's own notification settings: show its notifications in its installed app instead of Chimesail on this device, plus on/off and minimum urgency for each of its notification types.",
+    "targets": ["react-vite"],
+    "slot": "ui-pattern",
+    "delivery": "adopted",
+    "target": { "priority": "P1", "maturity": "verified" }
+  },
+  "dependencies": {
+    "requires": [
+      { "asset": "controls.button", "reason": "Turn on, turn off, retry and confirm actions use the shared button." },
+      { "asset": "controls.radio-group", "reason": "The device pairing choice is a shared card radio group." },
+      { "asset": "forms.select", "reason": "Each notification type's minimum urgency is a shared select." },
+      { "asset": "controls.switch", "reason": "Each notification type's on/off choice is a shared switch." }
+    ]
+  },
+  "requiredCapabilities": ["accessible-naming", "keyboard-operable", "status-announced", "recovery-path", "error-honesty", "optimistic-rollback"],
+  "rationale": "Every scenario with app delivery needs the same pairing and per-type preference surface over the shared /vrooli-notify routes served by @vrooli/api-base/server."
+}

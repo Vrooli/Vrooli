@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent } from '@/test-utils/renderWithProviders'
 import { useGraphStore } from '@/stores/graphStore'
 import { useGraphHealthConfigStore } from '@/stores/graphHealthConfigStore'
 import { GraphSettingsContent } from './GraphSettingsContent'
@@ -14,6 +14,7 @@ vi.mock('lucide-react', () => ({
   Users: (props: Record<string, unknown>) => <span data-testid="icon-users" {...props} />,
   Bot: (props: Record<string, unknown>) => <span data-testid="icon-bot" {...props} />,
   Sparkles: (props: Record<string, unknown>) => <span data-testid="icon-sparkles" {...props} />,
+  PlaySquare: (props: Record<string, unknown>) => <span data-testid="icon-play-square" {...props} />,
   Terminal: (props: Record<string, unknown>) => <span data-testid="icon-terminal" {...props} />,
   LayoutGrid: (props: Record<string, unknown>) => <span data-testid="icon-layout" {...props} />,
   RefreshCw: (props: Record<string, unknown>) => <span data-testid="icon-refresh" {...props} />,

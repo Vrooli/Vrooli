@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package landing_page_business_suite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1;landing_page_business_suite_v1";
+
+// FeedbackCreateRequest is the JSON contract for the public feedback form and
+// its legacy embedded-client alias. The handler owns validation and assigns a
+// pending status; clients cannot set lifecycle fields.
+message FeedbackCreateRequest {
+  string type = 1;
+  string email = 2;
+  string subject = 3;
+  string message = 4;
+  optional string order_id = 5;
+}
+
+// FeedbackCreateResponse acknowledges durable creation of a feedback request.
+message FeedbackCreateResponse {
+  bool success = 1;
+  int64 id = 2;
+}
+
+// FeedbackError is the stable JSON error envelope for the feedback form.
+message FeedbackError {
+  string error = 1;
+  string type = 2;
+}
+
+enum FeedbackType {
+  FEEDBACK_TYPE_UNSPECIFIED = 0;
+  FEEDBACK_TYPE_REFUND = 1;
+  FEEDBACK_TYPE_BUG = 2;
+  FEEDBACK_TYPE_FEATURE = 3;
+  FEEDBACK_TYPE_GENERAL = 4;
+}
+
+enum FeedbackStatus {
+  FEEDBACK_STATUS_UNSPECIFIED = 0;
+  FEEDBACK_STATUS_PENDING = 1;
+  FEEDBACK_STATUS_IN_PROGRESS = 2;
+  FEEDBACK_STATUS_RESOLVED = 3;
+  FEEDBACK_STATUS_REJECTED = 4;
+}
+
+message FeedbackRecord {
+  int64 id = 1;
+  FeedbackType type = 2;
+  string email = 3;
+  string subject = 4;
+  string message = 5;
+  optional string order_id = 6;
+  FeedbackStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message ListFeedbackRequest {
+  optional FeedbackStatus status = 1;
+}
+
+message ListFeedbackResponse {
+  repeated FeedbackRecord feedback = 1;
+}
+
+message GetFeedbackRequest {
+  int64 id = 1;
+}
+
+message GetFeedbackResponse {
+  FeedbackRecord feedback = 1;
+}
+
+message UpdateFeedbackStatusRequest {
+  int64 id = 1;
+  FeedbackStatus status = 2;
+}
+
+message UpdateFeedbackStatusResponse {
+  FeedbackRecord feedback = 1;
+}
+
+message DeleteFeedbackRequest {
+  int64 id = 1;
+}
+
+message DeleteFeedbackResponse {
+  bool deleted = 1;
+  int64 id = 2;
+}
+
+message DeleteFeedbackBulkRequest {
+  repeated int64 ids = 1;
+}
+
+message DeleteFeedbackBulkResponse {
+  int64 deleted = 1;
+}
+
+service FeedbackService {
+  rpc CreateFeedback(FeedbackCreateRequest) returns (FeedbackCreateResponse);
+  rpc ListFeedback(ListFeedbackRequest) returns (ListFeedbackResponse);
+  rpc GetFeedback(GetFeedbackRequest) returns (GetFeedbackResponse);
+  rpc UpdateFeedbackStatus(UpdateFeedbackStatusRequest) returns (UpdateFeedbackStatusResponse);
+  rpc DeleteFeedback(DeleteFeedbackRequest) returns (DeleteFeedbackResponse);
+  rpc DeleteFeedbackBulk(DeleteFeedbackBulkRequest) returns (DeleteFeedbackBulkResponse);
+}

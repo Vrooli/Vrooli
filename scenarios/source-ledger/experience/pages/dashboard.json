@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Ledger list",
+    "routes": ["/"],
+    "purpose": "Give the operator the first useful view of Source Ledger scopes and make the primary next action clear.",
+    "prd_refs": ["OT-P0-001", "OT-P0-004"]
+  },
+  "states": [
+    {"id": "default", "description": "Scopes and their corpus health summaries are visible."},
+    {"id": "loading", "description": "Scope inventory is loading."},
+    {"id": "empty", "description": "No scopes have been registered yet."},
+    {"id": "partial", "description": "Some scope health data is available while another source is pending."},
+    {"id": "request-error", "description": "Scope inventory failed and the reason is visible."},
+    {"id": "stale", "description": "The displayed health summary is older than the latest maintenance outcome."}
+  ],
+  "elements": [
+    {"id": "scope-list", "role": "list", "name": "Ledger scopes"},
+    {"id": "health-summary", "role": "status", "name": "Ledger health"}
+  ],
+  "claims": [
+    {"id": "scope-list-present", "type": "element-present", "statement": "The ledger list exposes a named scope list.", "tier": "machine", "elements": ["scope-list"], "states": ["default", "empty", "request-error"]},
+    {"id": "scope-list-states", "type": "state-covered", "statement": "Loading, empty, ready, and request-error states are distinct.", "tier": "machine", "elements": ["scope-list"], "states": ["loading", "default", "empty", "request-error"]}
+  ],
+  "bindings": {"elements": {"scope-list": {"testid": "page-dashboard"}, "health-summary": {"testid": "health-card"}}}
+}

@@ -3,52 +3,47 @@ package graph
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/backlog"
 	"swarm-manager/internal/execution"
 )
 
 // ProjectionService builds lens-specific graph projections from data sources.
 type ProjectionService struct {
-	backlog    BacklogLister
-	initiative InitiativeLister
-	capture    CaptureLister
-	scenario   ScenarioLister
-	execution  ExecutionLister
-	activity   AgentActivityLister
+	backlog   BacklogLister
+	goal      GoalLister
+	capture   CaptureLister
+	scenario  ScenarioLister
+	execution ExecutionLister
 }
 
 // ProjectionConfig holds constructor dependencies for ProjectionService.
 type ProjectionConfig struct {
-	Backlog    BacklogLister
-	Initiative InitiativeLister
-	Capture    CaptureLister
-	Scenario   ScenarioLister
-	Execution  ExecutionLister
-	Activity   AgentActivityLister
+	Backlog   BacklogLister
+	Goal      GoalLister
+	Capture   CaptureLister
+	Scenario  ScenarioLister
+	Execution ExecutionLister
 }
 
 // NewProjectionService creates a ProjectionService.
 func NewProjectionService(cfg ProjectionConfig) *ProjectionService {
 	return &ProjectionService{
-		backlog:    cfg.Backlog,
-		initiative: cfg.Initiative,
-		capture:    cfg.Capture,
-		scenario:   cfg.Scenario,
-		execution:  cfg.Execution,
-		activity:   cfg.Activity,
+		backlog:   cfg.Backlog,
+		goal:      cfg.Goal,
+		capture:   cfg.Capture,
+		scenario:  cfg.Scenario,
+		execution: cfg.Execution,
 	}
 }
 
-// Project builds a graph for the given lens and optional focus.
+// Project builds a graph for the given lens. Topology is the only
+// projection lens; the Focus lens is a client-side filter over topology
+// data, and the Plan lens has its own endpoint (GET /api/v1/plan).
 func (p *ProjectionService) Project(ctx context.Context, params ProjectionParams) (GraphResponse, error) {
 	switch params.Lens {
 	case LensTopology:
 		return p.buildTopology(ctx)
-	case LensOperations:
-		return p.buildOperations(ctx, params.FocusNodeID)
 	default:
 		return GraphResponse{}, fmt.Errorf("unknown lens: %s", params.Lens)
 	}
@@ -64,16 +59,17 @@ func backlogItemKey(kind, name string) string {
 	return kind + "/" + name
 }
 
-type initiativeRollup struct {
+type goalRollup struct {
 	Total      int
 	Completed  int
 	InProgress int
 	Failed     int
 	Pending    int
+	Dropped    int
 }
 
-func computeInitiativeRollup(items []string, itemByKey map[string]backlog.BacklogItem) initiativeRollup {
-	rollup := initiativeRollup{
+func computeGoalRollup(items []string, itemByKey map[string]backlog.BacklogItem) goalRollup {
+	rollup := goalRollup{
 		Total: len(items),
 	}
 
@@ -87,9 +83,12 @@ func computeInitiativeRollup(items []string, itemByKey map[string]backlog.Backlo
 		switch item.Status {
 		case backlog.StatusCompleted:
 			rollup.Completed++
-		case backlog.StatusFailed:
+		case backlog.StatusDropped:
+			rollup.Dropped++
+		case backlog.StatusFailed, backlog.StatusNeedsFollowup:
 			rollup.Failed++
-		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching:
+		case backlog.StatusInProgress, backlog.StatusQueued, backlog.StatusResearching,
+			backlog.StatusInReview, backlog.StatusReviewPending:
 			rollup.InProgress++
 		default:
 			rollup.Pending++
@@ -97,6 +96,17 @@ func computeInitiativeRollup(items []string, itemByKey map[string]backlog.Backlo
 	}
 
 	return rollup
+}
+
+// activeExecutionStatuses are execution statuses considered "active" when
+// annotating backlog nodes with in-flight run summaries.
+var activeExecutionStatuses = map[execution.Status]bool{
+	execution.StatusPending:     true,
+	execution.StatusStarting:    true,
+	execution.StatusRunning:     true,
+	execution.StatusNeedsReview: true,
+	execution.StatusValidating:  true,
+	execution.StatusNeedsFixup:  true,
 }
 
 // executionStatusPriority defines the display priority for active execution statuses.
@@ -129,113 +139,6 @@ func computeActiveExecutionSummary(backlogKey string, records []execution.Record
 		}
 	}
 	return status, count
-}
-
-// parseFocusNodeID extracts the node type and identifying parts from a canonical node ID.
-// Returns ("backlog", [kind, name]) or ("initiative", [name]) or ("scenario", [name]).
-func parseFocusNodeID(nodeID string) (nodeType string, parts []string, err error) {
-	if strings.HasPrefix(nodeID, "backlog-item/") {
-		rest := strings.TrimPrefix(nodeID, "backlog-item/")
-		slashIdx := strings.Index(rest, "/")
-		if slashIdx < 0 || slashIdx == len(rest)-1 {
-			return "", nil, fmt.Errorf("invalid backlog focus: %s", nodeID)
-		}
-		return "backlog", []string{rest[:slashIdx], rest[slashIdx+1:]}, nil
-	}
-	if strings.HasPrefix(nodeID, "initiative/") {
-		name := strings.TrimPrefix(nodeID, "initiative/")
-		if name == "" {
-			return "", nil, fmt.Errorf("empty initiative name in focus: %s", nodeID)
-		}
-		return "initiative", []string{name}, nil
-	}
-	if strings.HasPrefix(nodeID, "scenario/") {
-		name := strings.TrimPrefix(nodeID, "scenario/")
-		if name == "" {
-			return "", nil, fmt.Errorf("empty scenario name in focus: %s", nodeID)
-		}
-		return "scenario", []string{name}, nil
-	}
-	return "", nil, fmt.Errorf("unsupported focus node type: %s", nodeID)
-}
-
-func buildBacklogNode(item backlog.BacklogItem) Node {
-	return Node{
-		ID:   backlogItemNodeID(string(item.Kind), item.Name),
-		Type: "BacklogItem",
-		Data: GraphBacklogNodeData{
-			Kind:     string(item.Kind),
-			Name:     item.Name,
-			Title:    item.Title,
-			Status:   string(item.Status),
-			Priority: int32(item.Priority),
-		},
-	}
-}
-
-func buildExecutionNode(rec execution.Record) Node {
-	return Node{
-		ID:   "execution-record/" + rec.ExecutionID,
-		Type: "ExecutionRecord",
-		Data: GraphExecutionNodeData{
-			ExecutionID: rec.ExecutionID,
-			BacklogKind: rec.BacklogKind,
-			BacklogName: rec.BacklogName,
-			Status:      string(rec.Status),
-			Mode:        string(rec.Mode),
-			RunID:       rec.RunID,
-		},
-	}
-}
-
-func buildActivityNode(rec agentactivity.Record) Node {
-	return Node{
-		ID:   activityNodeID(rec.ActivityID),
-		Type: "AgentActivity",
-		Data: GraphAgentActivityNodeData{
-			ActivityID:      rec.ActivityID,
-			OwnerType:       string(rec.OwnerType),
-			OwnerKind:       rec.OwnerKind,
-			OwnerName:       rec.OwnerName,
-			OwnerTitle:      rec.OwnerTitle,
-			ExecutionID:     rec.ExecutionID,
-			Purpose:         string(rec.Purpose),
-			InteractionType: string(rec.InteractionType),
-			Status:          string(rec.Status),
-			RunID:           rec.RunID,
-			TaskID:          rec.TaskID,
-			RequestedAt:     rec.RequestedAt,
-		},
-	}
-}
-
-func buildRunNode(runID, taskID, status string) Node {
-	return Node{
-		ID:   "run/" + runID,
-		Type: "Run",
-		Data: GraphRunNodeData{
-			RunID:  runID,
-			TaskID: taskID,
-			Status: status,
-		},
-	}
-}
-
-func activityNodeID(activityID string) string {
-	return "agent-activity/" + activityID
-}
-
-func ownerNodeID(record agentactivity.Record) string {
-	switch record.OwnerType {
-	case agentactivity.OwnerBacklog:
-		return backlogItemNodeID(record.OwnerKind, record.OwnerName)
-	case agentactivity.OwnerCapture:
-		return "capture/" + record.OwnerName
-	case agentactivity.OwnerScenario:
-		return "scenario/" + record.OwnerName
-	default:
-		return ""
-	}
 }
 
 // backlogItemNodeIDFromKey converts "kind/name" to the full node ID.

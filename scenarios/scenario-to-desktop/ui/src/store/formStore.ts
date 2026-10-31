@@ -60,155 +60,181 @@ export const useFormStore = create<FormStore>((set) => ({
 
   // ========== App Metadata Setters ==========
 
-  setAppDisplayName: (value: string) =>
+  setAppDisplayName: (value: string) => {
     set((state) => ({
       appMetadata: {
         ...state.appMetadata,
         displayName: value,
         displayNameEdited: true,
       },
-    })),
+    }));
+  },
 
-  setAppDescription: (value: string) =>
+  setAppDescription: (value: string) => {
     set((state) => ({
       appMetadata: {
         ...state.appMetadata,
         description: value,
         descriptionEdited: true,
       },
-    })),
+    }));
+  },
 
-  setIconPath: (value: string) =>
+  setIconPath: (value: string) => {
     set((state) => ({
       appMetadata: {
         ...state.appMetadata,
         iconPath: value,
         iconPathEdited: true,
       },
-    })),
+    }));
+  },
 
-  setIconPreviewError: (value: boolean) =>
+  setIconPreviewError: (value: boolean) => {
     set((state) => ({
       appMetadata: { ...state.appMetadata, iconPreviewError: value },
-    })),
+    }));
+  },
 
   // ========== Deployment Setters ==========
 
-  setDeploymentMode: (mode: DeploymentMode) =>
+  setDeploymentMode: (mode: DeploymentMode) => {
     set((state) => ({
       deployment: { ...state.deployment, mode },
-    })),
+    }));
+  },
 
-  setServerType: (serverType: ServerType) =>
+  setServerType: (serverType: ServerType) => {
     set((state) => ({
       deployment: { ...state.deployment, serverType },
-    })),
+    }));
+  },
 
-  setFramework: (framework: string) =>
+  setFramework: (framework) => {
     set((state) => ({
       deployment: { ...state.deployment, framework },
-    })),
+    }));
+  },
 
   // ========== Output Setters ==========
 
-  setLocationMode: (locationMode: OutputLocation) =>
+  setLocationMode: (locationMode: OutputLocation) => {
     set((state) => ({
       output: { ...state.output, locationMode },
-    })),
+    }));
+  },
 
-  setOutputPath: (outputPath: string) =>
+  setOutputPath: (outputPath: string) => {
     set((state) => ({
       output: { ...state.output, outputPath },
-    })),
+    }));
+  },
 
   // ========== Platform Setters ==========
 
-  setPlatforms: (platforms: PlatformsState) =>
-    set({ platforms }),
+  setPlatforms: (platforms: PlatformsState) => {
+    set({ platforms });
+  },
 
-  handlePlatformChange: (platform: string, checked: boolean) =>
+  handlePlatformChange: (platform: string, checked: boolean) => {
     set((state) => ({
       platforms: { ...state.platforms, [platform]: checked },
-    })),
+    }));
+  },
 
   // ========== Connection Setters ==========
 
-  setProxyUrl: (proxyUrl: string) =>
+  setProxyUrl: (proxyUrl: string) => {
     set((state) => ({
       connection: { ...state.connection, proxyUrl },
-    })),
+    }));
+  },
 
-  setBundleManifestPath: (bundleManifestPath: string) =>
+  setBundleManifestPath: (bundleManifestPath: string) => {
     set((state) => ({
       connection: { ...state.connection, bundleManifestPath },
-    })),
+    }));
+  },
 
-  setServerPort: (serverPort: number) =>
+  setServerPort: (serverPort: number) => {
     set((state) => ({
       connection: { ...state.connection, serverPort },
-    })),
+    }));
+  },
 
-  setLocalServerPath: (localServerPath: string) =>
+  setLocalServerPath: (localServerPath: string) => {
     set((state) => ({
       connection: { ...state.connection, localServerPath },
-    })),
+    }));
+  },
 
-  setLocalApiEndpoint: (localApiEndpoint: string) =>
+  setLocalApiEndpoint: (localApiEndpoint: string) => {
     set((state) => ({
       connection: { ...state.connection, localApiEndpoint },
-    })),
+    }));
+  },
 
-  setAutoManageTier1: (autoManageTier1: boolean) =>
+  setAutoManageTier1: (autoManageTier1: boolean) => {
     set((state) => ({
       connection: { ...state.connection, autoManageTier1 },
-    })),
+    }));
+  },
 
-  setVrooliBinaryPath: (vrooliBinaryPath: string) =>
+  setVrooliBinaryPath: (vrooliBinaryPath: string) => {
     set((state) => ({
       connection: { ...state.connection, vrooliBinaryPath },
-    })),
+    }));
+  },
 
-  setConnectionResult: (connectionResult: ProbeResponse | null) =>
+  setConnectionResult: (connectionResult: ProbeResponse | null) => {
     set((state) => ({
       connection: { ...state.connection, connectionResult },
-    })),
+    }));
+  },
 
-  setConnectionError: (connectionError: string | null) =>
+  setConnectionError: (connectionError: string | null) => {
     set((state) => ({
       connection: { ...state.connection, connectionError },
-    })),
+    }));
+  },
 
   // ========== Signing ==========
 
-  setSigningEnabledForBuild: (enabled: boolean) =>
-    set({ signingEnabledForBuild: enabled }),
+  setSigningEnabledForBuild: (enabled: boolean) => {
+    set({ signingEnabledForBuild: enabled });
+  },
 
   // ========== Template ==========
 
-  setSelectedTemplate: (template: string) =>
-    set({ selectedTemplate: template }),
+  setSelectedTemplate: (template: string) => {
+    set({ selectedTemplate: template });
+  },
 
   // ========== Validation ==========
 
-  setValidationErrors: (errors: ValidationError[]) =>
-    set({ validationErrors: errors }),
+  setValidationErrors: (errors: ValidationError[]) => {
+    set({ validationErrors: errors });
+  },
 
-  clearValidationErrors: () =>
-    set({ validationErrors: [] }),
+  clearValidationErrors: () => {
+    set({ validationErrors: [] });
+  },
 
   // ========== UI State ==========
 
-  setScenarioLocked: (locked: boolean) =>
-    set({ scenarioLocked: locked }),
+  setScenarioLocked: (locked: boolean) => {
+    set({ scenarioLocked: locked });
+  },
 
   // ========== Bundle Result Seed ==========
 
-  setBundleResultSeed: (result) =>
-    set({ bundleResultSeed: result }),
+  setBundleResultSeed: (result) => {
+    set({ bundleResultSeed: result });
+  },
 
   // ========== Reset ==========
 
-  resetFormState: () =>
+  resetFormState: () => {
     set({
       appMetadata: defaultAppMetadata,
       deployment: defaultDeployment,
@@ -220,11 +246,12 @@ export const useFormStore = create<FormStore>((set) => ({
       validationErrors: [],
       scenarioLocked: false,
       bundleResultSeed: null,
-    }),
+    });
+  },
 
   // ========== Hydration ==========
 
-  hydrateFromServer: (data: HydrateFormData) =>
+  hydrateFromServer: (data: HydrateFormData) => {
     set((state) => ({
       appMetadata: data.appMetadata
         ? { ...state.appMetadata, ...data.appMetadata }
@@ -232,15 +259,15 @@ export const useFormStore = create<FormStore>((set) => ({
       deployment: data.deployment
         ? { ...state.deployment, ...data.deployment }
         : state.deployment,
-      output: data.output
-        ? { ...state.output, ...data.output }
-        : state.output,
+      output: data.output ? { ...state.output, ...data.output } : state.output,
       platforms: data.platforms ?? state.platforms,
       connection: data.connection
         ? { ...state.connection, ...data.connection }
         : state.connection,
-      signingEnabledForBuild: data.signingEnabledForBuild ?? state.signingEnabledForBuild,
+      signingEnabledForBuild:
+        data.signingEnabledForBuild ?? state.signingEnabledForBuild,
       selectedTemplate: data.selectedTemplate ?? state.selectedTemplate,
       bundleResultSeed: data.bundleResultSeed ?? state.bundleResultSeed,
-    })),
+    }));
+  },
 }));

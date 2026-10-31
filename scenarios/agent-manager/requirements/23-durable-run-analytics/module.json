@@ -1,0 +1,54 @@
+{
+  "description": "Retain durable invocation facts and expose typed historical analytics with non-blocking event-capture observability",
+  "module_id": "MOD-P0-012",
+  "prd_ref": "OT-P0-012",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "Persist versioned invocation facts at run completion, aggregate them through one typed and provenance-stamped measure path, and reconcile declared receipt capture without delaying run execution",
+      "id": "REQ-P0-014",
+      "prd_ref": "OT-P0-012",
+      "status": "in_progress",
+      "title": "Durable Invocation Analytics and Event Capture",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/invocationreadmodel/contract_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Versioned invocation facts, explicit-unknown dimensions, projection provenance and conservation; passes 2026-10-29."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/measures/measures_test.go::TestRegistryAndTypedRPCShareRunThroughputComputation",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Measure registry and typed RPC share one computation; sibling TestRegistryAndTypedRPCShare* cases cover status, trend, errors and external tools; passes 2026-10-29."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/invocation_read_model_test.go::TestReplayInvocationFacts_RebuildsRetainedAndPreservesPruned",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Replay determinism over retained and pruned runs; passes 2026-10-29."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/wiring/receipt_runtime_test.go::TestReceiptSummaryReaderDistinguishesRuntimeEmptyStates",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Receipt capture declaration reconciliation and non-blocking degradation states."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/orchestration/invocation_read_model_test.go::TestEveryTerminalWriterMarksRunForProjectionAndSweepProjectsIt",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Projection at run completion is not yet durable: it runs in a fire-and-forget goroutine and Reconciler terminal writes skip it (92 of 97 recent runs had no row, EVIDENCE E-5). Usage Intelligence W1 replaces it with a durable needs-projection mark and an idempotent sweep (DEBT D-4). Planned location; W1 updates the ref when the test lands."
+        }
+      ]
+    }
+  ],
+  "title": "Durable Run Analytics"
+}

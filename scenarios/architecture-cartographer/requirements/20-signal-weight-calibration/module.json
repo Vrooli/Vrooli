@@ -1,0 +1,79 @@
+{
+  "description": "Provide arch-cart calibrate to propose weight adjustments based on override history; all weight changes require explicit human acceptance before taking effect.",
+  "module_id": "MOD-P2-020",
+  "prd_ref": "OT-P2-005",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "cli",
+      "dependencies": [
+        "REQ-P0-004",
+        "REQ-P0-009"
+      ],
+      "description": "Cartographer must provide an arch-cart calibrate command that analyzes override history from analytics and proposes weight adjustments for manifest signal weights. All proposed weight changes must require explicit human acceptance before taking effect. The command must display the current weight, the proposed weight, the evidence base (override count and pattern), and the expected impact on placement accuracy.",
+      "id": "REQ-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "draft",
+      "title": "Signal-Weight Calibration via Override History Analysis",
+      "validation": [
+        {
+          "notes": "Calibration algorithm produces a weight adjustment proposal when override rate for a signal exceeds a configurable threshold",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Weight proposal is bounded within configured min/max weight limits to prevent runaway adjustments",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Proposed weight changes are not written to the manifest until the user explicitly runs arch-cart calibrate --accept",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Seed analytics with override history favoring path-token signal; arch-cart calibrate proposes increasing path-token weight",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "arch-cart calibrate --accept writes the accepted weight changes to the manifest and logs the calibration event in analytics",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "arch-cart calibrate --dry-run shows proposals without modifying anything",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "A platform engineer can improve placement accuracy over time by reviewing and accepting calibration proposals periodically",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "No weight change takes effect without an explicit human acceptance action recorded in analytics",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Signal-Weight Calibration"
+}

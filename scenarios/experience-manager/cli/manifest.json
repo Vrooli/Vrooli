@@ -1,0 +1,872 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "experience-manager",
+  "description": "Experience Manager CLI surface: validate experience/ specs, expose the shared provider contract, and preview deterministic remediation. Schema-validated against cli-manifest/v1 and cross-validated against proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "spec",
+      "description": "Parse and validate scenario-experience-spec/v1 contracts",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate a scenario's experience/ folder and render the native assessment.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "fleet",
+          "description": "List fleet-wide experience depth and debt, worst-first.",
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "ListFleet"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "attest",
+          "description": "Append manual evidence for a manual-tier experience claim.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            },
+            {
+              "name": "claim",
+              "required": true,
+              "description": "Claim id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "author",
+              "description": "Attestation author"
+            },
+            {
+              "name": "rationale",
+              "description": "Evidence rationale"
+            },
+            {
+              "name": "expires-at",
+              "description": "RFC3339 expiry timestamp"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "AppendAttestation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "scaffold",
+          "description": "Derive BAS case stubs from active experience page specs.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to scaffold instead of a scenario slug"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview scaffold changes without writing",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ContractService",
+            "method": "ScaffoldCases"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List pages and journeys declared in a scenario's experience/ index.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "ListSpec"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "show",
+          "description": "Show one page experience spec as JSON.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "ShowSpec"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "render",
+          "description": "Render one page experience spec as a deterministic workshop wireframe.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "mode",
+              "description": "Render mode: wireframe or image"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "RenderSpec"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "evidence",
+          "description": "List persisted reconciliation evidence for a page and optional claim.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "claim",
+              "description": "Optional claim id to filter"
+            },
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum evidence rows to render"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "ListEvidence"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "compare-variants",
+          "description": "Render page-form variants side by side as deterministic workshop HTML.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "mode",
+              "description": "Render mode: wireframe or image"
+            },
+            {
+              "name": "file",
+              "description": "JSON file containing an array of SpecVariant objects",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "CompareVariants"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "promote-variant",
+          "description": "Promote one page-form variant into the target experience spec.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "file",
+              "description": "JSON file containing one SpecVariant object",
+              "local_only": true
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "PromoteVariant"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "suggest-bindings",
+          "description": "Suggest bindings for a page from existing spec and reconciliation evidence.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            },
+            {
+              "name": "page",
+              "required": true,
+              "description": "Page id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to inspect instead of a scenario slug"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum suggestions to render"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "SuggestBindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "author",
+      "description": "Persisted form-shaped experience spec authoring sessions",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Start an authoring session for a scenario.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to author instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "StartAuthoringSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "submit",
+          "description": "Submit a typed page form into an authoring session.",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to a PageForm JSON document"
+            },
+            {
+              "name": "id",
+              "description": "Page id"
+            },
+            {
+              "name": "title",
+              "description": "Page title"
+            },
+            {
+              "name": "purpose",
+              "description": "Page purpose"
+            },
+            {
+              "name": "routes",
+              "description": "Comma-separated routes"
+            },
+            {
+              "name": "prd-refs",
+              "description": "Comma-separated PRD operational target refs"
+            },
+            {
+              "name": "status",
+              "description": "draft, active, or deprecated"
+            },
+            {
+              "name": "priorities",
+              "description": "Semicolon-separated priority statements"
+            },
+            {
+              "name": "states",
+              "description": "Semicolon-separated id:description entries"
+            },
+            {
+              "name": "elements",
+              "description": "Semicolon-separated id:role:name:description entries"
+            },
+            {
+              "name": "claims",
+              "description": "Semicolon-separated id:type:tier:statement:elements:states entries"
+            },
+            {
+              "name": "bindings",
+              "description": "Semicolon-separated element:testid:selector entries"
+            },
+            {
+              "name": "sketch",
+              "description": "Semicolon-separated region:elements entries"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "SubmitPage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "preview",
+          "description": "Preview authoring session diffs and parser validation.",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id",
+              "local_only": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "PreviewSession"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply an authoring session after zero-error parser validation.",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "ApplySession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "discard",
+          "description": "Discard an authoring session.",
+          "positionals": [
+            {
+              "name": "session",
+              "required": true,
+              "description": "Authoring session id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "StudioSessionService",
+            "method": "DiscardSession"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "provider",
+      "description": "Shared ScenarioValidationService provider surface",
+      "commands": [
+        {
+          "name": "validate",
+          "description": "Validate through the delegated ScenarioValidationService contract.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to validate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to validate instead of a scenario slug"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ValidateScenario"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix",
+      "description": "Deterministic experience-contract remediation",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview deterministic fixes experience-manager can apply, as diffs. Phase 1 returns Unimplemented until fixers land.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to fix instead of a scenario slug"
+            },
+            {
+              "name": "rules",
+              "description": "Comma-separated finding codes to restrict the preview to",
+              "bind": {
+                "field": "rule_ids"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true,
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic fixes. Phase 1 returns Unimplemented until fixers land.",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "path",
+              "description": "Filesystem path to fix instead of a scenario slug"
+            },
+            {
+              "name": "rules",
+              "description": "Comma-separated finding codes to restrict the apply to"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "capabilities",
+      "description": "Read derived provability for the fleet capability registry",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Report capability facets, provability, and blocking evidence",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CapabilityStatusService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "ContractService",
+      "method": "GetReadinessProfile",
+      "reason": "Machine-to-machine compiled projection consumed by Browser Automation Studio and UI Health; it intentionally has no user-facing Experience Manager CLI command."
+    }
+  ],
+  "measures": {
+    "domains": [],
+    "omitted": [
+      {
+        "domain": "authoring_sessions",
+        "reason": "Studio sessions are transient draft state for safe spec authoring, not historical telemetry; product value is proven by parser-clean apply, not trend analysis."
+      }
+    ]
+  }
+}

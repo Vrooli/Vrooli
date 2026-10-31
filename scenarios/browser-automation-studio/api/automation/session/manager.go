@@ -3,6 +3,7 @@ package session
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,22 +128,67 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (*Session, error) {
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
+	return m.adopt(resp, spec.ExecutionID.String(), spec.Mode, spec.Recording)
+}
 
-	session := &Session{
-		id:             resp.SessionID,
-		mode:           spec.Mode,
-		client:         m.client,
-		actualViewport: resp.ActualViewport,
-		recording:      spec.Recording,
+// CreateForDrill admits a session through the broker using the drill's
+// one-shot scoped token. The returned session carries the lease, so even a
+// successful fault drill is closed through the normal owner-checked path.
+func (m *Manager) CreateForDrill(ctx context.Context, req *driver.CreateSessionRequest, token string) (*Session, error) {
+	resp, err := m.client.CreateSessionForDrill(ctx, req, token)
+	if err != nil {
+		return nil, err
 	}
+	return m.adopt(resp, req.ExecutionID, ModeExecution, nil)
+}
+
+// ListObservedSessions provides recovery metadata without refreshing driver
+// activity. Session-route access remains inside the broker package.
+func (m *Manager) ListObservedSessions(ctx context.Context) ([]driver.ObservedSession, error) {
+	return m.client.ListObservedSessions(ctx)
+}
+
+// ForceCloseSession performs the driver's authenticated recovery close.
+func (m *Manager) ForceCloseSession(ctx context.Context, sessionID string) error {
+	return m.client.ForceCloseSession(ctx, sessionID)
+}
+
+func (m *Manager) adopt(resp *driver.CreateSessionResponse, executionID string, mode Mode, recording *RecordingCallbacks) (*Session, error) {
 
 	m.mu.Lock()
+	defer m.mu.Unlock()
+	if existing := m.sessions[resp.SessionID]; existing != nil && existing.executionID == executionID && existing.leaseID == resp.LeaseID {
+		existing.mu.Lock()
+		defer existing.mu.Unlock()
+		if existing.terminal != nil {
+			return nil, fmt.Errorf("create session: returned lease is terminating")
+		}
+		if resp.LastInstructionSequence > existing.lastInstructionSequence {
+			existing.lastInstructionSequence = resp.LastInstructionSequence
+		}
+		return existing, nil
+	}
+
+	session := &Session{
+		id:                      resp.SessionID,
+		initialDriverPageID:     resp.ActivePageID,
+		lastInstructionSequence: resp.LastInstructionSequence,
+		executionID:             executionID,
+		leaseID:                 resp.LeaseID,
+		mode:                    mode,
+		client:                  m.client,
+		actualViewport:          resp.ActualViewport,
+		recording:               recording,
+	}
+	session.onTerminal = func() {
+		m.forget(session.id, session)
+	}
+
 	m.sessions[session.id] = session
-	m.mu.Unlock()
 
 	m.log.WithFields(logrus.Fields{
 		"session_id":   session.id,
-		"execution_id": spec.ExecutionID,
+		"execution_id": executionID,
 	}).Info("Session created")
 
 	return session, nil
@@ -185,51 +231,64 @@ func (m *Manager) buildRequest(spec Spec) *driver.CreateSessionRequest {
 	req := &driver.CreateSessionRequest{
 		ExecutionID: spec.ExecutionID.String(),
 		WorkflowID:  spec.WorkflowID.String(),
-		Viewport: driver.Viewport{
-			Width:  spec.ViewportWidth,
-			Height: spec.ViewportHeight,
+		Options: driver.SessionOptions{
+			Viewport: driver.Viewport{
+				Width:  spec.ViewportWidth,
+				Height: spec.ViewportHeight,
+			},
+			ReuseMode:             spec.ReuseMode,
+			FrameScale:            "css",
+			Labels:                spec.Labels,
+			SessionProfileVersion: spec.SessionProfileVersion,
+			BrowserProfile:        spec.BrowserProfile,
+			AppTarget:             spec.AppTarget,
+			ValidationContext:     spec.ValidationContext,
 		},
-		ReuseMode:      spec.ReuseMode,
-		Labels:         spec.Labels,
-		BrowserProfile: spec.BrowserProfile,
+	}
+	if spec.FrameStreaming != nil && spec.FrameStreaming.Scale != "" {
+		req.Options.FrameScale = spec.FrameStreaming.Scale
 	}
 
 	// Frame streaming (all modes support live preview)
 	if spec.FrameStreaming != nil {
-		callbackURL := spec.FrameStreaming.CallbackURL
-		if callbackURL == "" {
-			callbackURL = m.buildFrameCallbackURL(spec)
+		streamURL := spec.FrameStreaming.URL
+		if streamURL == "" {
+			streamURL = m.buildFrameStreamURL()
 		}
-		req.FrameStreaming = &driver.FrameStreamingConfig{
-			CallbackURL: callbackURL,
-			Quality:     spec.FrameStreaming.Quality,
-			FPS:         spec.FrameStreaming.FPS,
-			Scale:       spec.FrameStreaming.Scale,
+		req.Options.FrameStreaming = &driver.FrameStreamingConfig{
+			URL:     streamURL,
+			Quality: spec.FrameStreaming.Quality,
+			FPS:     spec.FrameStreaming.FPS,
 		}
 	}
 
 	// Storage state for authenticated sessions (all modes support this)
 	if len(spec.StorageState) > 0 {
-		req.StorageState = spec.StorageState
+		req.Options.StorageState = spec.StorageState
 	}
 
 	// Execution-specific config
 	if spec.Mode == ModeExecution || spec.Mode == ModeHybrid {
-		req.BaseURL = spec.BaseURL
+		req.Options.BaseURL = spec.BaseURL
 
 		if !spec.Capabilities.IsEmpty() {
-			req.RequiredCapabilities = &driver.CapabilityRequest{
-				Tabs:      spec.Capabilities.NeedsParallelTabs,
-				Iframes:   spec.Capabilities.NeedsIframes,
-				Uploads:   spec.Capabilities.NeedsFileUploads,
-				Downloads: spec.Capabilities.NeedsDownloads,
-				HAR:       spec.Capabilities.NeedsHAR,
-				Video:     spec.Capabilities.NeedsVideo,
-				Tracing:   spec.Capabilities.NeedsTracing,
+			req.Options.RequiredCapabilities = &driver.CapabilityRequest{
+				Tabs:          spec.Capabilities.NeedsParallelTabs,
+				Iframes:       spec.Capabilities.NeedsIframes,
+				Uploads:       spec.Capabilities.NeedsFileUploads,
+				Downloads:     spec.Capabilities.NeedsDownloads,
+				HAR:           spec.Capabilities.NeedsHAR,
+				Video:         spec.Capabilities.NeedsVideo,
+				Tracing:       spec.Capabilities.NeedsTracing,
+				PerfTrace:     spec.Capabilities.NeedsPerfTrace,
+				Accessibility: spec.Capabilities.NeedsAccessibility,
 			}
 		}
-		if paths := m.buildArtifactPaths(spec, req.RequiredCapabilities); paths != nil {
-			req.ArtifactPaths = paths
+		if paths := m.buildArtifactPaths(spec, req.Options.RequiredCapabilities); paths != nil {
+			req.Options.ArtifactPaths = paths
+		}
+		if spec.FakeMicrophoneWav != "" {
+			req.Options.FakeMedia = &driver.FakeMediaConfig{MicrophoneWav: spec.FakeMicrophoneWav}
 		}
 	}
 
@@ -257,26 +316,25 @@ func (m *Manager) buildArtifactPaths(spec Spec, caps *driver.CapabilityRequest) 
 	if caps.Tracing {
 		paths.TracePath = filepath.Join(artifactRoot, "traces", fmt.Sprintf("execution-%s.zip", execID))
 	}
+	if caps.PerfTrace {
+		paths.PerfDir = filepath.Join(artifactRoot, "performance")
+	}
+	if caps.Accessibility {
+		paths.AccessibilityDir = filepath.Join(artifactRoot, "accessibility")
+	}
 
-	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" && strings.TrimSpace(paths.TracePath) == "" {
+	if strings.TrimSpace(paths.VideoDir) == "" && strings.TrimSpace(paths.HARPath) == "" &&
+		strings.TrimSpace(paths.TracePath) == "" && strings.TrimSpace(paths.PerfDir) == "" &&
+		strings.TrimSpace(paths.AccessibilityDir) == "" {
 		return nil
 	}
 
 	return paths
 }
 
-// buildFrameCallbackURL constructs the frame callback URL based on mode.
-func (m *Manager) buildFrameCallbackURL(spec Spec) string {
-	if spec.Mode == ModeRecording {
-		return fmt.Sprintf(
-			"http://%s:%s/api/v1/recordings/live/%s/frame",
-			m.apiHost, m.apiPort, spec.ExecutionID,
-		)
-	}
-	return fmt.Sprintf(
-		"http://%s:%s/api/v1/executions/%s/frames",
-		m.apiHost, m.apiPort, spec.ExecutionID,
-	)
+// buildFrameStreamURL configures the one driver-to-hub frame transport.
+func (m *Manager) buildFrameStreamURL() string {
+	return fmt.Sprintf("ws://%s:%s/ws/frames", m.apiHost, m.apiPort)
 }
 
 // Get returns a session by ID.
@@ -289,12 +347,9 @@ func (m *Manager) Get(sessionID string) (*Session, bool) {
 
 // Close closes a session by ID.
 func (m *Manager) Close(ctx context.Context, sessionID string) error {
-	m.mu.Lock()
+	m.mu.RLock()
 	session, ok := m.sessions[sessionID]
-	if ok {
-		delete(m.sessions, sessionID)
-	}
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
 	if !ok {
 		return nil
@@ -305,18 +360,27 @@ func (m *Manager) Close(ctx context.Context, sessionID string) error {
 
 // CloseAll closes all active sessions.
 func (m *Manager) CloseAll(ctx context.Context) {
-	m.mu.Lock()
+	m.mu.RLock()
 	sessions := make([]*Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		sessions = append(sessions, s)
 	}
-	m.sessions = make(map[string]*Session)
-	m.mu.Unlock()
+	m.mu.RUnlock()
 
 	for _, s := range sessions {
 		if err := s.Close(ctx); err != nil {
 			m.log.WithError(err).WithField("session_id", s.id).Warn("Failed to close session")
 		}
+	}
+}
+
+// forget removes a terminal session while protecting against a future
+// replacement that happens to reuse the same driver-generated id.
+func (m *Manager) forget(sessionID string, expected *Session) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if current, ok := m.sessions[sessionID]; ok && current == expected {
+		delete(m.sessions, sessionID)
 	}
 }
 
@@ -327,9 +391,24 @@ func (m *Manager) ActiveCount() int {
 	return len(m.sessions)
 }
 
-// Client returns the underlying driver client.
-func (m *Manager) Client() *driver.Client {
-	return m.client
+// Health checks driver availability without exposing the client to callers.
+func (m *Manager) Health(ctx context.Context) error { return m.client.Health(ctx) }
+
+// CircuitBreakerState reports driver health telemetry without exposing routes.
+func (m *Manager) CircuitBreakerState() string { return m.client.CircuitBreakerState() }
+
+// SetAdministrativeSecret configures the one-shot recovery credential on the
+// broker-owned transport without exposing that transport to production callers.
+func (m *Manager) SetAdministrativeSecret(secret string) { m.client.SetAdministrativeSecret(secret) }
+
+// RouteSessionRequest resolves an API-owned session before forwarding a raw
+// response-preserving driver endpoint through its session owner.
+func (m *Manager) RouteSessionRequest(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+	owned, ok := m.Get(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("session not found: %s", sessionID)
+	}
+	return owned.RouteRequest(ctx, method, suffix, body)
 }
 
 func resolveAPIHost() string {

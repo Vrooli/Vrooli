@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-10-21T00:00:00Z",
+  "description": "Investigate an open-ended question through bounded source research, data analysis, and local experiments; retain evidence, competing explanations, reproducible prototypes, and a separate integration handoff.",
+  "entry": "SKILL.md",
+  "icon": "search",
+  "id": "adaptive-research",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "adaptive-research",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "search-hub query",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 9,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "research",
+    "experiment",
+    "evidence",
+    "optimization"
+  ],
+  "updatedAt": "2026-10-26T00:00:00Z"
+}

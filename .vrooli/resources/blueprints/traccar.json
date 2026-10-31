@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/resource-blueprint.schema.json",
+  "name": "traccar",
+  "display_name": "Traccar",
+  "category": "telematics",
+  "summary": "GPS tracking and fleet-management platform for device telemetry, geofencing, and location-aware workflows.",
+  "why_it_matters": "Traccar preserves useful telematics capability knowledge, but there is no current validated workflow that justifies active maintenance as a supported resource.",
+  "when_to_use": [
+    "A future scenario needs device or fleet tracking.",
+    "Operators want a telematics backend with geofencing and location history.",
+    "The workflow depends on GPS-device integrations rather than generic map storage."
+  ],
+  "example_scenarios": [
+    "Fleet management",
+    "Asset tracking systems",
+    "Location-triggered automation"
+  ],
+  "integration_kind": "managed-service",
+  "platform_support": {
+    "notes": "The service can run in containers, but useful support depends on device protocols, persistence, and operator workflows around location data.",
+    "linux": "partial",
+    "macos": "partial",
+    "windows": "partial"
+  },
+  "prerequisites": [
+    "Persistent database and media storage",
+    "Validated test device or sample telemetry source",
+    "Clear privacy and retention rules for location data"
+  ],
+  "dependencies": [],
+  "suggested_template": "managed-service",
+  "implementation_notes": [
+    "Promotion should validate one real device or telemetry path.",
+    "Keep platform operations distinct from business logic built on top of location data.",
+    "Location-history ownership and data policies should be explicit."
+  ],
+  "operational_notes": [
+    "Device onboarding and protocol support drive real complexity.",
+    "Validation should include a real track ingest and retrieval flow.",
+    "Retention and privacy requirements matter for telematics data."
+  ],
+  "risks": [
+    "Protocol breadth creates a misleadingly large support surface.",
+    "A generic wrapper would imply stronger device compatibility than tested."
+  ],
+  "status": "candidate",
+  "replacement_for": [
+    "traccar"
+  ],
+  "references": [
+    {
+      "kind": "doc",
+      "value": "docs/plans/resource-cross-platform-migration-plan.md"
+    },
+    {
+      "kind": "resource",
+      "value": "resources/traccar"
+    }
+  ],
+  "last_reviewed": "2026-04-11"
+}

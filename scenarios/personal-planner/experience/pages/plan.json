@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "plan",
+    "title": "Plan",
+    "routes": ["/plan"],
+    "purpose": "Project one record set through Day, Week, Month, Agenda, Timeline, Capacity, and Commitments perspectives so the user can place work, inspect load, and review promises without seven separate stores.",
+    "prd_refs": ["OT-P0-003", "OT-P0-004", "OT-P1-001", "OT-P1-002"]
+  },
+  "priorities": [
+    { "statement": "Fixed, flexible, date-assigned, and unscheduled work are visually distinct, and moving one item never silently moves other accepted items.", "notes": "The gesture authorizes that move, not a global optimization (plan §8.3)." },
+    { "statement": "Filtering the visible items never removes hidden obligations from feasibility — capacity stays aware of all authorized busy time.", "notes": "Plan §8.2." },
+    { "statement": "A proposal preview shows original vs proposed geometry, locks, changed demand, remaining conflicts, and affected commitments before any apply.", "notes": "Plan §11.4." },
+    { "statement": "Every perspective is fully usable with a keyboard and screen reader; Agenda is the accessible equivalent of the Timeline.", "notes": "Plan §8.2, §6.7." }
+  ],
+  "states": [
+    { "id": "loading", "description": "The selected range loads; existing accepted placements render before proposals." },
+    { "id": "success", "description": "The chosen perspective shows the record set with truthful time geometry and distinct item kinds." },
+    { "id": "empty", "description": "No scheduled items in range: show the empty window with capture and routine affordances." },
+    { "id": "partial", "description": "A proposal is pending review: original and proposed placements are both shown, labeled." },
+    { "id": "stale", "description": "A proposal became stale (input changed): keep it inspectable and offer to regenerate." },
+    { "id": "request-error", "description": "A range query failed: keep the last-known accepted schedule visible with a retry." }
+  ]
+}

@@ -13,6 +13,13 @@ import (
 	_ "github.com/lib/pq"
 )
 
+func assertHealthUnavailable(t *testing.T, rr *httptest.ResponseRecorder) {
+	t.Helper()
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Fatalf("health endpoint returned %d, want %d; body: %s", rr.Code, http.StatusServiceUnavailable, rr.Body.String())
+	}
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	// Set required environment variables for testing
 	os.Setenv("API_PORT", "8080")
@@ -38,10 +45,7 @@ func TestHealthEndpoint(t *testing.T) {
 	rr := httptest.NewRecorder()
 	srv.router.ServeHTTP(rr, req)
 
-	// Health endpoint should return 200 even if db is nil (will show unhealthy status)
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Health endpoint returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
+	assertHealthUnavailable(t, rr)
 
 	// Check response body contains expected content
 	body := rr.Body.String()
@@ -49,7 +53,7 @@ func TestHealthEndpoint(t *testing.T) {
 		t.Error("Health endpoint returned empty body")
 	}
 
-	// In unit tests without real DB, we expect unhealthy status
+	// In unit tests without real DB, we expect unhealthy status.
 	if !contains(body, "status") {
 		t.Error("Health endpoint response should contain 'status' field")
 	}
@@ -179,10 +183,7 @@ func TestRoutingMiddleware(t *testing.T) {
 	rr := httptest.NewRecorder()
 	srv.router.ServeHTTP(rr, req)
 
-	// Just verify the request was processed
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status OK, got %v", rr.Code)
-	}
+	assertHealthUnavailable(t, rr)
 }
 
 // Helper function to check if a string contains a substring
@@ -265,9 +266,7 @@ func TestHealthEndpointCORS(t *testing.T) {
 	srv.router.ServeHTTP(rr, req)
 
 	// Health endpoint should have CORS headers from middleware
-	if rr.Code != http.StatusOK {
-		t.Errorf("Expected status OK, got %v", rr.Code)
-	}
+	assertHealthUnavailable(t, rr)
 }
 
 // TestHealthV1Endpoint validates the v1 API health endpoint
@@ -285,9 +284,7 @@ func TestHealthV1Endpoint(t *testing.T) {
 	rr := httptest.NewRecorder()
 	srv.router.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("/api/v1/health returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
+	assertHealthUnavailable(t, rr)
 
 	if !contains(rr.Body.String(), "status") {
 		t.Error("/api/v1/health response should contain 'status' field")
@@ -376,8 +373,8 @@ func TestHealthEndpointConcurrency(t *testing.T) {
 			rr := httptest.NewRecorder()
 			srv.router.ServeHTTP(rr, req)
 
-			if status := rr.Code; status != http.StatusOK {
-				t.Errorf("Expected status OK in concurrent request, got %v", status)
+			if rr.Code != http.StatusServiceUnavailable {
+				t.Errorf("Expected status %d in concurrent request, got %v", http.StatusServiceUnavailable, rr.Code)
 			}
 			done <- true
 		}()
@@ -412,10 +409,7 @@ func TestHealthEndpointDatabaseError(t *testing.T) {
 	rr := httptest.NewRecorder()
 	srv.router.ServeHTTP(rr, req)
 
-	// Should still return 200 but with unhealthy status
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Expected status OK even with DB error, got %v", status)
-	}
+	assertHealthUnavailable(t, rr)
 
 	var healthResp map[string]interface{}
 	if err := json.Unmarshal(rr.Body.Bytes(), &healthResp); err != nil {
@@ -464,9 +458,8 @@ func TestHealthEndpointMaliciousHeaders(t *testing.T) {
 		rr := httptest.NewRecorder()
 		srv.router.ServeHTTP(rr, req)
 
-		// Should still process request normally without crashing
-		if status := rr.Code; status != http.StatusOK {
-			t.Errorf("Health endpoint should handle malicious header %s gracefully, got status %v", headerName, status)
+		if rr.Code != http.StatusServiceUnavailable {
+			t.Errorf("Health endpoint should handle malicious header %s gracefully, got status %v", headerName, rr.Code)
 		}
 
 		// Should not reflect malicious content in response
@@ -552,9 +545,7 @@ func TestHealthEndpointQueryParameters(t *testing.T) {
 	rr := httptest.NewRecorder()
 	srv.router.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("Health endpoint should handle query params, got %v", status)
-	}
+	assertHealthUnavailable(t, rr)
 
 	var healthResp map[string]interface{}
 	if err := json.Unmarshal(rr.Body.Bytes(), &healthResp); err != nil {

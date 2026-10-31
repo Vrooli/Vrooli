@@ -88,7 +88,7 @@ export function removeTestResult(
   provider: string
 ): Record<string, KeyTestResult> {
   const next = { ...results };
-  delete next[provider];
+  Reflect.deleteProperty(next, provider);
   return next;
 }
 
@@ -113,7 +113,7 @@ export function addTestResult(
  */
 export async function fetchAPIKeys(): Promise<APIKey[]> {
   const response = await apiListAPIKeys();
-  return response.keys || [];
+  return response.keys;
 }
 
 /**

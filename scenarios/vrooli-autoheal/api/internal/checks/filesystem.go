@@ -4,22 +4,34 @@ package checks
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
+	"time"
+
+	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
 )
 
-// StatfsResult contains filesystem statistics
+// StatfsResult contains filesystem statistics.
+//
+// Bfree and Bavail are deliberately distinct and must not be used
+// interchangeably. Bfree counts every unallocated block, including the blocks
+// a filesystem holds back for the superuser; Bavail counts only the blocks an
+// unprivileged writer can actually consume. `df` reports capacity against
+// Bavail, so every disk-pressure decision in this scenario does too. Reading
+// Bfree under-reports pressure by the size of the reserve — on the incident
+// host that was a 93 GB, 6-percentage-point gap.
 type StatfsResult struct {
-	Blocks  uint64 // Total blocks
-	Bfree   uint64 // Free blocks
-	Bavail  uint64 // Available blocks (non-root)
-	Files   uint64 // Total inodes
-	Ffree   uint64 // Free inodes
-	Bsize   int64  // Block size
-	Namemax uint64 // Max filename length
+	Blocks uint64 // Total blocks
+	Bfree  uint64 // Free blocks, including blocks reserved for the superuser
+	Bavail uint64 // Blocks available to an unprivileged writer
+	Files  uint64 // Total inodes (zero where the platform has no inode concept)
+	Ffree  uint64 // Free inodes (zero where the platform has no inode concept)
+	Bsize  int64  // Block size
 }
 
 // FileSystemReader abstracts filesystem operations for testability.
@@ -31,29 +43,14 @@ type FileSystemReader interface {
 }
 
 // RealFileSystemReader is the production implementation of FileSystemReader.
+// Statfs is implemented per platform in filesystem_statfs_unix.go and
+// filesystem_statfs_windows.go.
 type RealFileSystemReader struct{}
-
-// Statfs returns real filesystem statistics using syscall.
-func (r *RealFileSystemReader) Statfs(path string) (*StatfsResult, error) {
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(path, &stat); err != nil {
-		return nil, err
-	}
-	return &StatfsResult{
-		Blocks:  stat.Blocks,
-		Bfree:   stat.Bfree,
-		Bavail:  stat.Bavail,
-		Files:   stat.Files,
-		Ffree:   stat.Ffree,
-		Bsize:   stat.Bsize,
-		Namemax: uint64(stat.Namelen),
-	}, nil
-}
 
 // DefaultFileSystemReader is the global filesystem reader used when none is injected.
 var DefaultFileSystemReader FileSystemReader = &RealFileSystemReader{}
 
-// MemInfo contains memory information from /proc/meminfo
+// MemInfo contains memory information adapted from the shared host inventory.
 type MemInfo struct {
 	MemTotal     uint64 // Total RAM in KB
 	MemFree      uint64 // Free RAM in KB
@@ -79,7 +76,7 @@ type ProcessInfo struct {
 // This interface allows system checks to be unit tested without
 // actually accessing /proc.
 type ProcReader interface {
-	// ReadMeminfo returns memory information from /proc/meminfo
+	// ReadMeminfo returns memory information.
 	ReadMeminfo() (*MemInfo, error)
 	// ListProcesses returns information about all processes
 	ListProcesses() ([]ProcessInfo, error)
@@ -89,91 +86,35 @@ type ProcReader interface {
 	ReadProcessCmdline(pid int) (string, error)
 }
 
+// ErrProcNotApplicable is returned when a host does not expose Linux's
+// /proc contract. Callers must report this as not-applicable/degraded, never
+// as a green empty process list.
+var ErrProcNotApplicable = errors.New("process inspection is not applicable on this platform")
+
 // RealProcReader is the production implementation of ProcReader.
 type RealProcReader struct{}
 
-// ReadMeminfo reads memory and swap information from /proc/meminfo.
+// ReadMeminfo reads memory and swap information from the shared host inventory.
 func (r *RealProcReader) ReadMeminfo() (*MemInfo, error) {
-	file, err := os.Open("/proc/meminfo")
+	snap, err := sharedhost.Collect(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	info := &MemInfo{}
-	scanner := bufio.NewScanner(file)
-	var parseErrors []string
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			continue
-		}
-
-		var val uint64
-		var err error
-		fieldName := fields[0]
-
-		switch fieldName {
-		case "MemTotal:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.MemTotal = val
-			}
-		case "MemFree:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.MemFree = val
-			}
-		case "MemAvailable:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.MemAvailable = val
-			}
-		case "Buffers:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.Buffers = val
-			}
-		case "Cached:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.Cached = val
-			}
-		case "SwapTotal:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.SwapTotal = val
-			}
-		case "SwapFree:":
-			val, err = strconv.ParseUint(fields[1], 10, 64)
-			if err == nil {
-				info.SwapFree = val
-			}
-		default:
-			continue
-		}
-
-		if err != nil {
-			parseErrors = append(parseErrors, fieldName+" "+err.Error())
-		}
-	}
-
-	if scanErr := scanner.Err(); scanErr != nil {
-		return info, scanErr
-	}
-
-	// Return parse errors if any critical fields failed
-	if info.MemTotal == 0 && len(parseErrors) > 0 {
-		return info, fmt.Errorf("failed to parse meminfo: %s", strings.Join(parseErrors, "; "))
-	}
-
-	return info, nil
+	return &MemInfo{
+		MemTotal:     snap.Memory.TotalBytes / 1024,
+		MemAvailable: snap.Memory.AvailableBytes / 1024,
+		Buffers:      snap.Memory.BuffersBytes / 1024,
+		Cached:       snap.Memory.CachedBytes / 1024,
+		SwapTotal:    snap.Swap.TotalBytes / 1024,
+		SwapFree:     snap.Swap.FreeBytes / 1024,
+	}, nil
 }
 
 // ListProcesses reads process information from /proc.
 func (r *RealProcReader) ListProcesses() ([]ProcessInfo, error) {
+	if runtime.GOOS != "linux" {
+		return nil, ErrProcNotApplicable
+	}
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return nil, err
@@ -261,6 +202,9 @@ var DefaultProcReader ProcReader = &RealProcReader{}
 // Environment variables are stored as null-separated KEY=VALUE pairs.
 // Returns an error if the environ file cannot be read (e.g., permission denied).
 func (r *RealProcReader) ReadProcessEnviron(pid int) (map[string]string, error) {
+	if runtime.GOOS != "linux" {
+		return nil, ErrProcNotApplicable
+	}
 	environPath := "/proc/" + strconv.Itoa(pid) + "/environ"
 	data, err := os.ReadFile(environPath)
 	if err != nil {
@@ -287,6 +231,9 @@ func (r *RealProcReader) ReadProcessEnviron(pid int) (map[string]string, error) 
 // ReadProcessCmdline reads the full command line from /proc/[pid]/cmdline.
 // Arguments are stored as null-separated strings.
 func (r *RealProcReader) ReadProcessCmdline(pid int) (string, error) {
+	if runtime.GOOS != "linux" {
+		return "", ErrProcNotApplicable
+	}
 	cmdlinePath := "/proc/" + strconv.Itoa(pid) + "/cmdline"
 	data, err := os.ReadFile(cmdlinePath)
 	if err != nil {
@@ -388,9 +335,7 @@ func ProcessAge(startTime uint64) float64 {
 // unixNow returns the current Unix timestamp in seconds.
 // Extracted for potential testability.
 func unixNow() int64 {
-	var t syscall.Timeval
-	_ = syscall.Gettimeofday(&t)
-	return t.Sec
+	return time.Now().Unix()
 }
 
 // PortInfo contains information about port usage

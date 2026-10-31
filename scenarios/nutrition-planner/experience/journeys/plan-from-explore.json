@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "plan-from-explore",
+    "title": "Plan from Explore",
+    "purpose": "Fill an empty week slot from Explore: the slot becomes explicit context, a suggestion with a reason is added to that slot only, and the week shows the new occurrence.",
+    "prd_refs": [
+      "OT-P0-018",
+      "OT-P0-009",
+      "OT-P0-006",
+      "OT-P0-017"
+    ]
+  },
+  "steps": [
+    {
+      "page": "week",
+      "intent": "Choose Add dinner on an empty Wednesday slot.",
+      "via": "empty-slot-action"
+    },
+    {
+      "page": "explore",
+      "state": "planning-context",
+      "intent": "See Planning Wednesday dinner and suggestions that fit, each with a reason.",
+      "via": "context-banner"
+    },
+    {
+      "page": "explore",
+      "state": "planning-context",
+      "intent": "Add a suggestion to Wednesday.",
+      "via": "add-to-slot-action"
+    },
+    {
+      "page": "week",
+      "intent": "See the new occurrence on Wednesday and a recipe snapshot in the collection.",
+      "via": "slot-card"
+    }
+  ],
+  "claims": [
+    {
+      "id": "targets-only-the-slot",
+      "type": "custom",
+      "statement": "Adding from Explore creates exactly one occurrence in the context slot and replaces nothing.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "retry-is-idempotent",
+      "type": "custom",
+      "statement": "Retrying the add or save does not create a duplicate meal or occurrence.",
+      "tier": "aspirational"
+    }
+  ]
+}

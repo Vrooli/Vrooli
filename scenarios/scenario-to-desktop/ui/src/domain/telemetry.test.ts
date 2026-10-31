@@ -9,7 +9,7 @@ import {
   formatEventPreview,
   generateExampleEvent,
   TELEMETRY_FILE_NAME,
-  STANDARD_EVENTS
+  STANDARD_EVENTS,
 } from "./telemetry";
 
 describe("telemetry domain", () => {
@@ -40,8 +40,12 @@ describe("telemetry domain", () => {
     it("uses correct platform-specific locations", () => {
       const paths = generateTelemetryPaths("App");
 
-      expect(paths.find((p) => p.os === "Windows")?.path).toContain("%APPDATA%");
-      expect(paths.find((p) => p.os === "macOS")?.path).toContain("Library/Application Support");
+      expect(paths.find((p) => p.os === "Windows")?.path).toContain(
+        "%APPDATA%",
+      );
+      expect(paths.find((p) => p.os === "macOS")?.path).toContain(
+        "Library/Application Support",
+      );
       expect(paths.find((p) => p.os === "Linux")?.path).toContain(".config");
     });
 
@@ -125,7 +129,7 @@ describe("telemetry domain", () => {
     it("validates well-formed events", () => {
       const events = [
         { event: "runtime_start" },
-        { event: "service_ready", service_id: "api" }
+        { event: "service_ready", service_id: "api" },
       ];
       const result = validateTelemetryEvents(events);
 
@@ -146,7 +150,9 @@ describe("telemetry domain", () => {
       const result = validateTelemetryEvents(events);
 
       expect(result.valid).toBe(true);
-      expect(result.warnings.some((w) => w.includes("Non-standard event types"))).toBe(true);
+      expect(
+        result.warnings.some((w) => w.includes("Non-standard event types")),
+      ).toBe(true);
     });
 
     it("returns invalid for empty events array", () => {
@@ -201,7 +207,9 @@ describe("telemetry domain", () => {
 
       expect(result.success).toBe(true);
       expect(result.warnings).toBeDefined();
-      expect(result.warnings?.some((w) => w.includes("Non-standard"))).toBe(true);
+      expect(result.warnings?.some((w) => w.includes("Non-standard"))).toBe(
+        true,
+      );
     });
   });
 
@@ -210,7 +218,7 @@ describe("telemetry domain", () => {
       const event = {
         event: "test_event",
         timestamp: "2024-01-15T10:00:00Z",
-        detail: "some detail"
+        detail: "some detail",
       };
       const preview = formatEventPreview(event);
 
@@ -231,7 +239,7 @@ describe("telemetry domain", () => {
     it("truncates long detail values", () => {
       const event = {
         event: "test",
-        detail: "a".repeat(100)
+        detail: "a".repeat(100),
       };
       const preview = formatEventPreview(event);
 

@@ -26,7 +26,6 @@ export interface Template {
   content: string;
   variables: TemplateVariable[];
   suggestedSkillIds?: string[];
-  suggestedToolIds?: string[];
   draft?: boolean;
 }
 

@@ -1,0 +1,134 @@
+{
+  "name": "blog.primary",
+  "version": 2,
+  "profile": "content-desk/marketing-dev-log-profile",
+  "subject": "How Vrooli's server-owned test runs make long-running validation durable",
+  "section_count_range": [
+    4,
+    7
+  ],
+  "mechanical_gates": {
+    "min_words": 900,
+    "max_words": 1600,
+    "min_sentences": 35,
+    "max_paragraph_duplication": 0.5,
+    "numbers_must_appear_in_evidence": true,
+    "evidence_claim_coverage_required": true,
+    "semantic_measurement_required": true,
+    "max_semantic_section_repetition": 0.86,
+    "required_claim_terms": [
+      "server-owned",
+      "test-genie",
+      "wait"
+    ],
+    "blind_comparison_required": true,
+    "min_adjacent_paragraph_novelty": 0.45,
+    "min_distinct_artifacts_used": 3
+  },
+  "evidence_source": "evals/baselines/server-owned-test-runs.md",
+  "judge_protocol": {
+    "rubrics": [
+      {
+        "key": "argument",
+        "criterion": "Which article argues something and advances it? Prefer the one that develops a position and moves forward. Penalise an article that restates a point it has already made, or that ends sections by summarising them.",
+        "question": "Does the article develop a position and advance it?",
+        "levels": {
+          "5": "Every part advances the argument, nothing is restated, and the ending lands somewhere the opening did not.",
+          "3": "Mostly advances, but repeats at least one point or closes by summarising what was already said.",
+          "1": "Says the same few things repeatedly and has added nothing by the end."
+        }
+      },
+      {
+        "key": "concreteness",
+        "criterion": "Which article is more concrete? Prefer specific mechanisms, named steps, and things a reader could act on. Penalise abstraction that describes a mechanism without ever showing it.",
+        "question": "Is the article concrete enough to act on?",
+        "levels": {
+          "5": "Names specific mechanisms, steps, commands, or artifacts a reader could act on directly.",
+          "3": "Describes mechanisms in general terms with occasional specifics.",
+          "1": "Describes everything abstractly; a reader finishes knowing no specific thing to do."
+        }
+      },
+      {
+        "key": "readability",
+        "criterion": "Which article would a technical reader keep reading? Judge voice, rhythm, and sentence variety. Penalise generic corporate register and uniformly-shaped sentences.",
+        "question": "Would a technical reader keep reading?",
+        "levels": {
+          "5": "Varied sentence rhythm, concrete verbs, an identifiable voice, and no filler.",
+          "3": "Competent but uniform, with stretches of generic register.",
+          "1": "Uniformly-shaped sentences, generic corporate register, and filler phrasing throughout."
+        }
+      }
+    ],
+    "primary_channel": "independent_absolute_scoring",
+    "calibration": {
+      "anchor": "restatement_maximal_derivative",
+      "construction": "The scenario's own assembled text, rebuilt by cycling its first two paragraphs until the original word count is reached. Topic, vocabulary, register, and length are held equal to the article it is derived from, so the only difference the judge can be responding to is that it says one thing repeatedly.",
+      "requirement": "A rubric counts toward the verdict only when the judge scores this anchor strictly below the better-scoring of the two real articles on that rubric.",
+      "why_better_of_two_and_not_both": "Requiring the anchor to sit below both articles conflates a judge that cannot discriminate with an article that is genuinely anchor-level bad on one dimension. On the 2026-08-19 run the judge scored the scenario 3, the baseline 1, and the anchor 1 on concreteness: it had discriminated by two levels, and the baseline really was as abstract as the degenerate text. The strict form discarded that rubric because one article scored badly, which is a finding rather than a calibration failure. The rule was corrected after a run it affected, so the record states the effect plainly: under both forms that run returns the same failed verdict, and the correction changes which rubrics are counted rather than which side wins.",
+      "limits": "This is a floor test, not a certificate. It detects a judge that cannot discriminate at all; it does not establish that a judge which passes it can resolve the finer difference between two genuine articles. A rubric that fails it is excluded as uncalibrated rather than counted as a tie."
+    },
+    "orders": [
+      "scenario_first",
+      "baseline_first"
+    ],
+    "decision": "scenario must win more calibrated rubrics than the baseline on the independent-scoring channel",
+    "why_scoring_is_primary": "Pairwise comparison asks the judge to choose between two articles it can see at once, and the routed judge answers that question partly from placement. On the first run against the unaided-agent control, two of three rubrics chose position A in both orders, leaving one informative rubric out of three. Scoring each article in its own request removes the confound structurally rather than correcting for it after the fact: there is no position for the judge to anchor on, because it never sees the other article. The pairwise channel is retained as a recorded diagnostic because its per-rubric anchoring is the measurement that revealed the problem, but it no longer decides the gate.",
+    "rationale": "Three rubrics judged in both positions is six trials. The rubrics are distinct because the known failure modes are distinct, and a single 'which is better' question averages them into a verdict that names none of them. Both orders are run for every rubric because a judge that always picks the first article is otherwise indistinguishable from a judge that prefers this scenario's output. A rubric that picks the same position in both orders is anchored on placement, carries no information about either article, and is excluded from the decisive tally rather than counted: it contributes one win to each side, which leaves the margin unchanged while inflating the number of trials that margin appears to rest on. The unfiltered counts are retained as raw_scenario_wins and raw_baseline_wins so the exclusion is auditable. This is not hypothetical. On the first run against the unaided-agent control, argument and readability both chose position A in both orders while concreteness chose the scenario in both; the unfiltered tally read 4-2 across three rubrics when the evidence was 2-0 from one.",
+    "comparison": {
+      "method": "all_pairs_win_rate",
+      "why": "With three documents a side, a rubric yields nine scenario-versus-baseline pairs. Counting wins over every pair is the Mann-Whitney comparison stated plainly, and it is the right test for a small ordinal sample: a 1-5 score has no meaningful mean, and comparing medians throws away the spread that made single-run results untrustworthy in the first place. A rubric goes to whichever side wins more pairs than it loses; equal counts are a tie for that rubric.",
+      "why_not_one_draft_each": "The scenario scored argument 5 and then 3 on consecutive runs of an identical configuration, and the routed writer runs at temperature 0.9 on both sides. At one sample each, that spread is indistinguishable from an effect, which made every change this eval measured unfalsifiable. Both sides are now sampled; the control set is fixed and checked in so the target still holds still across runs."
+    }
+  },
+  "evidence_claims": [
+    "test-genie owns a scenario test run after the command returns",
+    "operators start the suite, record its run identifier, and wait once on the server-owned run",
+    "a cancelled client is not the same thing as an aborted run"
+  ],
+  "gate_rationale": {
+    "min_words": "650 admitted a fragment. A blog that argues something is not 490 words.",
+    "min_sentences": "Paragraph count alone passed any three paragraphs; sentence count is what distinguishes an article from a summary.",
+    "max_paragraph_duplication": "Catches verbatim and near-verbatim paragraph reuse only. Paraphrase that repeats meaning in fresh words scores low here by construction; that failure is the semantic_section_repetition gate's job, and the two are kept separate so a passing number is not read as evidence of the other.",
+    "numbers_must_appear_in_evidence": "Fabricated metrics are the failure mode with the highest cost and the easiest deterministic check.",
+    "evidence_claim_coverage_required": "Coverage is measured as declared evidence claims that reached the article. The prior form created a claim from every generated sentence and then asked whether the sentences were covered, which no output could fail.",
+    "semantic_measurement_required": "An unmeasured semantic tier must fail the gate rather than pass it silently.",
+    "blind_comparison_required": "The only gate that measures whether the article is good, and the only one that measures what this scenario claims. It compares the assembled document against an unaided-agent draft: same model, same brief, same subject, same length target, one call, none of the machinery. The model is held fixed on both sides deliberately, so a win is attributable to outline-and-section composition, measured candidate sets, gating, selection, and reroll rather than to model capability. Two earlier forms of this gate did not measure that. The first recorded the verdict as pending and never ran. The second compared the article against the 182-word evidence brief it had been expanded from, because the comparison read evidence_source while only the record read baseline; that comparison had no information in it. Across its six judged runs the scenario won four and lost two, and the same four-two split held for whichever article sat in position A, so one judge with no order swap could not separate the two explanations. Superseded again on 2026-08-19: single-sample comparison was retired after the artifact-channel run showed the scenario's argument score moving 5 to 3 between two runs of the same configuration. Both sides are now sampled three times and compared over all nine pairs per rubric.",
+    "max_semantic_section_repetition": "Provisional. Measured section-level values on documents that passed every other gate: 0.8199, 0.8184, 0.8297 (4 sections, nomic-embed-text 768d). Paragraph-level calibration against the known-bad 2026-08-17 article gives 0.7622 bad vs 0.6877 good, so the measure separates in the right direction but its absolute level depends on how many units are compared. 0.86 sits above the observed good band and below any measured bad document; it is set to fire on worse-than-observed rather than calibrated from a labelled corpus, and needs a bad 4-section example to anchor properly.",
+    "min_adjacent_paragraph_novelty": "Independent paragraph-level check on the defect the section gate now enforces inside the service. The blind judge scored the scenario 3 and the unaided baseline 5 on argument, naming repetition across sections and a summarising conclusion, and no deterministic gate in this file could see that: paragraph duplication measures shared tokens, and a paragraph that re-argues its predecessor in fresh words scores low on both that and this, for opposite reasons. Measured over 62 committed section transitions before any gate applied pressure, adjacent-section novelty ran median 0.724 with a minimum of 0.559. Paragraph transitions are noisier and sit lower than section transitions because a paragraph carries less material, so this floor is set below the section floor of 0.65 rather than equal to it. Provisional: it is a floor on the worst single transition, and it is deliberately measured here with a different stop list and a different unit from the service's implementation, so agreement between the two is evidence rather than an artefact of shared code.",
+    "min_distinct_artifacts_used": "Counts distinct declared artifacts that reached the article, not occurrences: text repeating one command eight times is not eight artifacts concrete. Set to 3 of 4 declared so an article can omit the one artifact its argument genuinely does not need, while an article that shows nothing fails. Provisional and measured independently here from the service's own per-section floor, which asks a different question -- whether every section carries specifics, rather than whether the document as a whole does."
+  },
+  "evidence_policy": "Store generated text, document provenance, section measurements, coherence, provider/model, cost, and gate results; never feed the blind verdict into selection.",
+  "evidence_artifacts": [
+    {
+      "kind": "command",
+      "value": "vrooli scenario test",
+      "gloss": "starts a scenario suite and returns once the run is registered"
+    },
+    {
+      "kind": "command",
+      "value": "test-genie runs wait --json",
+      "gloss": "blocks once on a server-owned run; the documented alternative to polling"
+    },
+    {
+      "kind": "command",
+      "value": "vrooli scenario test abort",
+      "gloss": "ends the run itself, as opposed to cancelling the client"
+    },
+    {
+      "kind": "path",
+      "value": "docs/TESTING.md",
+      "gloss": "the protocol this article summarises"
+    }
+  ],
+  "artifact_policy": {
+    "why": "The generation instruction forbade inventing implementation details while the brief contained only prose, so the only compliant register was abstraction. The blind judge scored the scenario 3 on concreteness against a baseline of 1, and its rationale named the absence of 'specific commands, API signatures, or code artifacts'. Declaring artifacts converts that prohibition into a permission with a fixed vocabulary: everything here is quotable verbatim, everything else remains invented.",
+    "grounding": "A number or literal is grounded when it appears in the evidence source OR in this artifact list. Before artifacts existed, numbers_must_appear_in_evidence made any specific figure a violation, which is why the gate and the concreteness goal were in direct conflict.",
+    "limits": "Artifacts are a vocabulary, not a fact-check. That a command is quotable here does not establish that it is correct; correctness of the claim it supports remains content-desk's citation job."
+  },
+  "samples": {
+    "scenario": 3,
+    "baseline": 3,
+    "baseline_max_draws": 6
+  },
+  "baseline_glob": "evals/baselines/unaided-agent-draft-*.md"
+}

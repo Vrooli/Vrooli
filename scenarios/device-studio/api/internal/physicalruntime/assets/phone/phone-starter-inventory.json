@@ -1,0 +1,66 @@
+{
+  "claims": {
+    "authorship": "Vrooli-authored procedural interpretation based on Apple reference material",
+    "claims": "generic tall-phone presentation model; not manufacturer CAD, not a physical-device measurement, and not Apple-endorsed",
+    "source_model": "research-only source input; the output is a derivative with a neutral display and matte island material",
+    "source_screen_pixels": "private research image; not redistributed in the derived starter asset"
+  },
+  "derived_display_png_sha256": "cb472f375bbb42696bc7d71e557d35fcc1cef405460ee70ad0a69e815bb7c6ed",
+  "derived_glb_sha256": "152c02883f75affc15185194f4347c256fef91cc83541262744678c40c761fca",
+  "derived_size_bytes": 2580196,
+  "display_dimensions_pixels": [
+    444,
+    965
+  ],
+  "display_pixels_removed": true,
+  "export_script_sha256": "2cdc2ae6072459761f94fbaa3b8c284695c9cc371d186f1742f882528ff2f6f2",
+  "gltf_asset": {
+    "generator": "Khronos glTF Blender I/O v5.2.40",
+    "version": "2.0"
+  },
+  "gltf_extensions": {
+    "required": [],
+    "used": [
+      "KHR_materials_transmission",
+      "KHR_materials_specular"
+    ]
+  },
+  "island_binding": {
+    "island_material_index": 9,
+    "island_mesh_index": 40,
+    "island_node_index": 40
+  },
+  "island_material": {
+    "doubleSided": true,
+    "extensions": {
+      "KHR_materials_specular": {
+        "specularFactor": 0
+      }
+    },
+    "name": "Matte black sensor cutout",
+    "pbrMetallicRoughness": {
+      "baseColorFactor": [
+        0.0024999999441206455,
+        0.003000000026077032,
+        0.004000000189989805,
+        1
+      ],
+      "metallicFactor": 0,
+      "roughnessFactor": 0.8199999928474426
+    }
+  },
+  "manifest_sha256": "bd6e1387f59fc6615b262047ae5d9cd43fc35d991fd0b824f762bd2ba8aa1021",
+  "mesh_node_count": 57,
+  "neutral_display_linear_rgba": [
+    0.34,
+    0.34,
+    0.34,
+    1.0
+  ],
+  "profile_id": "device-studio-authored-phone-starter-v1",
+  "source_embedded_display_sha256": "f4b6c7ed95981727bbb94abf1b3958a27c27faf5618e86e2b06b3d8047f3fb6d",
+  "source_glb_sha256": "46e7c79c1b54725e5f5e9ff876a3bd55f8c3eeba45e1d01e1a230ff5e7fd5b36",
+  "source_size_bytes": 2583052,
+  "status": "neutralized_authored_model_unreviewed",
+  "triangle_count": 58196
+}

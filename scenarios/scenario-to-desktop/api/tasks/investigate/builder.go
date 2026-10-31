@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-desktop-api/domain"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/tasks/shared"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // BuildPromptAndContext generates the investigation prompt and context attachments.

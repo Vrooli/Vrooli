@@ -1,0 +1,431 @@
+{
+  "metadata": {
+    "name": "e22-quiet-remove-monday-dark-phone",
+    "description": "Capture Monday saved-window removal review on dark phone using exact 13:00\u201314:00 Etc/UTC owner state; do not confirm removal.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "e22-quiet-remove-monday-dark-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Capture Monday saved-window removal review on dark phone using exact 13:00\u201314:00 Etc/UTC owner state; do not confirm removal.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-quiet-remove-monday-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings in the leased owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the routed quiet-hours editor"
+          }
+        }
+      },
+      {
+        "id": "select-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=dark)"
+          },
+          "metadata": {
+            "label": "Set dark appearance for the selected removal review"
+          }
+        }
+      },
+      {
+        "id": "open-monday-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Open the Monday quiet-window editor"
+          }
+        }
+      },
+      {
+        "id": "set-monday-start",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayStart(day=1)",
+            "value": "13:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Monday start time to 13:00"
+          }
+        }
+      },
+      {
+        "id": "set-monday-end",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayEnd(day=1)",
+            "value": "14:00",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Set Monday end time to 14:00"
+          }
+        }
+      },
+      {
+        "id": "set-monday-timezone",
+        "action": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
+            "selector": "@selector/quietHours.dayTimezone(day=1)",
+            "value": "Etc/UTC",
+            "clear_first": true
+          },
+          "metadata": {
+            "label": "Keep Monday wall-clock time in the selected Etc/UTC zone"
+          }
+        }
+      },
+      {
+        "id": "stage-monday-edit",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=1)"
+          },
+          "metadata": {
+            "label": "Stage the Monday edit for review"
+          }
+        }
+      },
+      {
+        "id": "review-monday-change",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.reviewButton"
+          },
+          "metadata": {
+            "label": "Review the named Monday change before saving"
+          }
+        }
+      },
+      {
+        "id": "save-monday-change",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.saveButton"
+          },
+          "metadata": {
+            "label": "Persist the reviewed Monday fixture value"
+          }
+        }
+      },
+      {
+        "id": "assert-monday-saved",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Quiet hours saved"
+            },
+            "timeout_ms": 10000,
+            "failure_message": "Monday quiet-hours write is confirmed by readback before the visual capture"
+          },
+          "metadata": {
+            "label": "Confirm the persisted Monday window from latest read"
+          }
+        }
+      },
+      {
+        "id": "reload-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e22-quiet-remove-monday-dark-phone",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Reload Settings using the same lease-pinned fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded-settings",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.root",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for authoritative quiet-hours read after refresh"
+          }
+        }
+      },
+      {
+        "id": "open-saved-monday-editor",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.editDay(day=1)"
+          },
+          "metadata": {
+            "label": "Reopen the persisted Monday quiet-window editor"
+          }
+        }
+      },
+      {
+        "id": "assert-saved-baseline",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const s=document.querySelector('[data-testid=\\\"quiet-hours-start-1\\\"]')?.value;const e=document.querySelector('[data-testid=\\\"quiet-hours-end-1\\\"]')?.value;const z=document.querySelector('[data-testid=\\\"quiet-hours-timezone-1\\\"]')?.value;if(s!=='13:00'||e!=='14:00'||z!=='Etc/UTC')throw new Error('selected saved baseline mismatch');return {s,e,z}})()"
+          },
+          "metadata": {
+            "label": "Verify the selected saved value before removal"
+          }
+        }
+      },
+      {
+        "id": "stage-monday-removal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.removeDay(day=1)"
+          },
+          "metadata": {
+            "label": "Stage removal of the saved Monday window in the draft"
+          }
+        }
+      },
+      {
+        "id": "return-to-week",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.doneDay(day=1)"
+          },
+          "metadata": {
+            "label": "Apply the staged removal to the unsaved week draft"
+          }
+        }
+      },
+      {
+        "id": "review-removal",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/quietHours.reviewButton"
+          },
+          "metadata": {
+            "label": "Review the Monday removal before any write"
+          }
+        }
+      },
+      {
+        "id": "assert-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/quietHours.root",
+            "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+            "expected": {
+              "string_value": "Remove Monday\u2019s window?"
+            },
+            "timeout_ms": 10000,
+            "failure_message": "The exact Monday removal review is visible before saving"
+          },
+          "metadata": {
+            "label": "Assert removal review and saved-window context"
+          }
+        }
+      },
+      {
+        "id": "normalize-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{document.activeElement instanceof HTMLElement&&document.activeElement.blur();const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const top=getComputedStyle(r).getPropertyValue('--safe-area-inset-top').trim(),bottom=getComputedStyle(r).getPropertyValue('--safe-area-inset-bottom').trim();if(innerWidth!==390||innerHeight!==844||top!=='0px'||bottom!=='0px')throw new Error('selected phone viewport/insets mismatch');return {viewport:{width:innerWidth,height:innerHeight},top,bottom}})()",
+            "store_result": "selectedCaptureState"
+          },
+          "metadata": {
+            "label": "Normalize exact selected phone viewport and zero insets"
+          }
+        }
+      },
+      {
+        "id": "capture-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture Monday removal review without confirming or saving"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "remove-dark-00",
+        "source": "open-settings",
+        "target": "wait-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-01",
+        "source": "wait-settings",
+        "target": "select-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-02",
+        "source": "select-theme",
+        "target": "open-monday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-03",
+        "source": "open-monday-editor",
+        "target": "set-monday-start",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-04",
+        "source": "set-monday-start",
+        "target": "set-monday-end",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-05",
+        "source": "set-monday-end",
+        "target": "set-monday-timezone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-06",
+        "source": "set-monday-timezone",
+        "target": "stage-monday-edit",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-07",
+        "source": "stage-monday-edit",
+        "target": "review-monday-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-08",
+        "source": "review-monday-change",
+        "target": "save-monday-change",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-09",
+        "source": "save-monday-change",
+        "target": "assert-monday-saved",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-10",
+        "source": "assert-monday-saved",
+        "target": "reload-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-11",
+        "source": "reload-settings",
+        "target": "wait-reloaded-settings",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-12",
+        "source": "wait-reloaded-settings",
+        "target": "open-saved-monday-editor",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-13",
+        "source": "open-saved-monday-editor",
+        "target": "assert-saved-baseline",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-14",
+        "source": "assert-saved-baseline",
+        "target": "stage-monday-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-15",
+        "source": "stage-monday-removal",
+        "target": "return-to-week",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-16",
+        "source": "return-to-week",
+        "target": "review-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-17",
+        "source": "review-removal",
+        "target": "assert-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-18",
+        "source": "assert-removal-review",
+        "target": "normalize-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "remove-dark-19",
+        "source": "normalize-capture",
+        "target": "capture-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

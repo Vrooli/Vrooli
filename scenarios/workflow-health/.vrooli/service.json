@@ -1,0 +1,189 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "run_artifacts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "run-artifacts",
+        "regenerable": false,
+        "rationale": "Workflow execution summaries (latest.json, the checksummed evidence reference) and full BAS timelines keyed by target scenario and validation run. Owner retention removes only timeline.json of finished runs that are older than 3 days, not among the newest 2 per workflow, not active, not pinned with .retain, and not cited by run ID under docs/ or .vrooli/work/; summaries are never removed.",
+        "budget": {
+          "max_bytes": "6GiB",
+          "rationale": "Timelines are dominated by per-step DOM snapshots (2-20 MB per case). The owner trims oldest-first down to 6 GiB but never removes a timeline younger than 24h or a protected one, so heavy delivery days can still alarm."
+        },
+        "reclaim": {
+          "pruner": "custom"
+        }
+      },
+      "run_artifacts_retention_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/run-artifacts-receipt.json",
+        "regenerable": true,
+        "rationale": "Detailed last-cycle receipt of run-artifact timeline retention: every pruned path, bytes, reason, and protection counts.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "Replaced each cycle; the first backlog cycle lists tens of thousands of pruned paths."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement receipt for the run-artifact owner pruner.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state replaced on each cycle."
+        }
+      }
+    },
+    "rationale": "Storage surfaces include durable scenario data and the owner-scoped workflow run store, keyed by target scenario."
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "workflow-health",
+    "displayName": "Workflow Health",
+    "description": "Validates, executes, indexes, and improves scenario workflow assets.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ]
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.4.0"
+    },
+    "generated_at": "2026-07-02T17:01:25Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "9d2078da47d8cc4a420033c4bcb994c3868c0c4f4e4be7e8b7891fc51781f35c",
+    "content_sha": "f1bba8129e09d01142b67b37caca8ecf893edc25e59546ad1485bbe1b52eb076"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "workflow-health",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "workflow-health"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    }
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "environment": {},
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "port": "api",
+        "cwd": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  }
+}

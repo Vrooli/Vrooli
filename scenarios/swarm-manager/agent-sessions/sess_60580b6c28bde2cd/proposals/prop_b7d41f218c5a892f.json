@@ -1,0 +1,52 @@
+{
+  "id": "prop_b7d41f218c5a892f",
+  "kind": "mutation_list",
+  "status": "applied",
+  "summary": "Mutation proposal for Lifecycle triage drill A",
+  "payload_json": "{\n  \"form\": \"mutation_list\",\n  \"rationale\": \"Bounded lifecycle decision drill: refresh only the specified derived artifact scopes for the two scratch backlog items, preserving their item specs.\",\n  \"mutations\": [\n    {\n      \"id\": \"m1\",\n      \"op\": \"reset_artifacts\",\n      \"target\": \"fix/lifecycle-triage-drill-a\",\n      \"reset_scope\": [\n        \"workshop\"\n      ],\n      \"rationale\": \"Validation-only refresh proposal for scratch item A, limited to workshop artifacts.\"\n    },\n    {\n      \"id\": \"m2\",\n      \"op\": \"reset_artifacts\",\n      \"target\": \"fix/lifecycle-triage-drill-b\",\n      \"reset_scope\": [\n        \"review\"\n      ],\n      \"rationale\": \"Validation-only refresh proposal for scratch item B, limited to review artifacts.\"\n    }\n  ]\n}",
+  "created_at": "2026-07-20T18:12:58Z",
+  "updated_at": "2026-07-20T18:13:13Z",
+  "attribution": {
+    "type": "agent",
+    "run_id": "83c4b0a9-8d37-4d03-8170-29dcc6642475",
+    "task_id": "03de13ff-258a-4f3d-bb05-a302ed20da0f",
+    "profile_key": "swarm-manager/default",
+    "session_id": "sess_60580b6c28bde2cd",
+    "session_kind": "swarm_operations",
+    "source": "session/sess_60580b6c28bde2cd"
+  },
+  "target": {
+    "type": "backlog_item",
+    "ref": "fix/lifecycle-triage-drill-a",
+    "name": "Lifecycle triage drill A"
+  },
+  "decisions": [
+    {
+      "kind": "apply",
+      "accepted_mutation_ids": [
+        "m1"
+      ],
+      "rejected_mutation_ids": [
+        "m2"
+      ],
+      "note": "Approve only the workshop reset for the lifecycle validation; deny m2 unchanged-target check.",
+      "outcomes": [
+        {
+          "mutation_id": "m1",
+          "op": "reset_artifacts",
+          "target": "fix/lifecycle-triage-drill-a",
+          "applied": true,
+          "skipped": false
+        },
+        {
+          "mutation_id": "m2",
+          "op": "reset_artifacts",
+          "target": "fix/lifecycle-triage-drill-b",
+          "applied": false,
+          "skipped": true
+        }
+      ],
+      "decided_at": "2026-07-20T18:13:13Z"
+    }
+  ]
+}

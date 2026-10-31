@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"system-monitor-api/internal/apierrors"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
 )
 
 var (
@@ -25,14 +25,26 @@ func ProtoJSON(w http.ResponseWriter, msg proto.Message) error {
 }
 
 func ProtoJSONWithStatus(w http.ResponseWriter, status int, msg proto.Message) error {
-	payload, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(msg)
+	return protoJSONWithStatus(w, status, msg, true)
+}
+
+// ProtoJSONCamel writes the REST-compatible lowerCamelCase form. Connect
+// clients and the generated TypeScript protobuf parser use this spelling;
+// REST endpoints that feed those clients must not silently downgrade every
+// metric field to its snake_case proto name.
+func ProtoJSONCamel(w http.ResponseWriter, msg proto.Message) error {
+	return protoJSONWithStatus(w, http.StatusOK, msg, false)
+}
+
+func protoJSONWithStatus(w http.ResponseWriter, status int, msg proto.Message, useProtoNames bool) error {
+	payload, err := protojson.MarshalOptions{UseProtoNames: useProtoNames}.Marshal(msg)
 	if err != nil {
 		return err
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, writeErr := w.Write(payload)
-	return writeErr
+	// Delegate the actual write to the shared WriteRaw helper so the secure
+	// header floor is applied in one place and this file performs no direct
+	// ResponseWriter writes.
+	return WriteRaw(w, status, "application/json", payload)
 }
 
 func DecodeProtoJSON(r *http.Request, msg proto.Message) error {

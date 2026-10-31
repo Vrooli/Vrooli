@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "name": "experience-plan-spec-smoke",
+    "description": "Generated observer smoke for active experience page plan.",
+    "requirement": "OT-P0-004",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "plan",
+      "surface": "experience-plan",
+      "routed_isolation": "true",
+      "requires_confirmation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-plan",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "personal-planner",
+          "scenario_path": "/plan",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open plan"
+        }
+      }
+    },
+    {
+      "id": "wait-plan-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.plan",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "plan page visible"
+        }
+      }
+    },
+    {
+      "id": "measure-plan-navigation-paint",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(() => {\n  const nav = performance.getEntriesByType('navigation')[0];\n  const paints = Object.fromEntries(\n    performance.getEntriesByType('paint').map(entry => [entry.name, entry.startTime])\n  );\n  return {\n    sample_point: 'after_page_selector_visible',\n    route: location.pathname,\n    navigation_ms: {\n      dom_content_loaded: nav ? nav.domContentLoadedEventEnd : null,\n      load_event: nav ? nav.loadEventEnd : null\n    },\n    paint_ms: paints\n  };\n})()",
+          "store_result": "planner_page_performance"
+        },
+        "metadata": {
+          "label": "Record navigation and paint timing after page becomes visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-plan-navigate-to-visible",
+      "source": "navigate-plan",
+      "target": "wait-plan-page"
+    },
+    {
+      "id": "edge-plan-visible-to-measure",
+      "source": "wait-plan-page",
+      "target": "measure-plan-navigation-paint"
+    }
+  ]
+}

@@ -112,6 +112,14 @@ export function createRuntimeControlClient(
             throw new Error("Runtime control API did not respond before timeout");
         },
 
+        async waitForReady(timeoutMs: number, criticalOnly = false): Promise<RuntimeReadyResponse> {
+            const boundedTimeout = Math.max(1, Math.min(120000, Math.floor(timeoutMs)));
+            const criticalQuery = criticalOnly ? "&critical_only=true" : "";
+            const result = await client.request<RuntimeReadyResponse>(`/readyz/wait?timeout_ms=${boundedTimeout}${criticalQuery}`);
+            if (typeof result === "string") return { ready: false };
+            return result;
+        },
+
         async collectDiagnostics(serviceIds?: string[]): Promise<RuntimeDiagnostics> {
             const [readyResult, portsResult, telemetryResult] = await Promise.all([
                 client.request<RuntimeReadyResponse>("/readyz"),

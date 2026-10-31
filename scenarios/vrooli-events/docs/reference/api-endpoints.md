@@ -36,6 +36,40 @@ Accepts an event and stores it durably. Returns immediately (202 Accepted) — s
 
 **Response**: `202 Accepted` with `{"id": <store_id>}`
 
+#### Receipt observations
+
+`vrooli.events.receipt.v1` is the platform receipt type. It requires `correlationId` (the verified Agent Manager run ID), `metadata.operation`, and `metadata.outcome`; `metadata.safe_projection` is limited to 64 KiB. Receipt ingestion requires a valid `X-Agent-Identity-Token` verified by Agent Manager. An unverified header or claimed run ID returns `401` and is never stored as agent-attributed evidence.
+
+Receipts are post-response, best-effort observations. Absence of a receipt means **unobserved**, not failed.
+
+### Receipt projection rules
+
+Receipt projection rules are the central allow-list for typed unary receipt data. Scenario code can propose a bounded candidate projection, but a matching rule is required before `api-core/eventbus` emits it and Vrooli Events independently validates it at ingestion. Fields outside `response_fields`, fields in `redact_fields`, payloads over `max_bytes`, and sampling exclusions are rejected or omitted; no matching rule means no receipt.
+
+`retention_days` is copied from the matching rule into the receipt metadata and stored as an event-specific expiry. The normal pruner removes an expired receipt even when the service-wide event retention window is longer.
+
+| Method | Path | Description |
+|---|---|---|
+| POST | /receipt-projections | Create a projection rule |
+| GET | /receipt-projections | List rules (`source`, `target`, `enabled`) |
+| GET | /receipt-projections/:id | Get a rule |
+| PUT | /receipt-projections/:id | Replace a rule |
+| DELETE | /receipt-projections/:id | Delete a rule |
+
+```json
+{
+  "source_scenario": "agent-manager",
+  "target_scenario": "plan-manager",
+  "operation_pattern": "plans.create",
+  "response_fields": ["plan_id", "status"],
+  "redact_fields": ["internal_note"],
+  "max_bytes": 1024,
+  "sample_per_ten_k": 10000,
+  "retention_days": 30,
+  "enabled": true
+}
+```
+
 ### GET /events — Query Events
 
 [CODE: api/handlers.go#handleQuery]
@@ -46,11 +80,19 @@ Returns stored events matching the given filters.
 |-------|------|-------------|
 | type | string | Glob pattern on event type (e.g., `swarm-manager.**`) |
 | source | string | Filter by source scenario |
+| target | string | Filter by target scenario; useful for receipt investigations |
 | correlation_id | string | Filter by correlation ID |
 | since | string | ISO-8601 timestamp lower bound |
 | until | string | ISO-8601 timestamp upper bound |
+| order | string | `asc` (default) or `desc` by durable store order |
+| before_event_id | string | Exclusive descending keyset cursor; requires `order=desc` and cannot be combined with `since` |
 | limit | int | Max results (default: 100, max: 1000) |
 | offset | int | Pagination offset |
+
+`before_event_id` addresses a retained event by its public event ID; the store
+resolves it to the durable row key and returns older rows. A missing or pruned
+cursor returns `400 INVALID_PARAM`. Existing queries remain ascending unless
+`order=desc` is explicitly requested.
 
 **Response**: `200 OK` with `{"events": [...], "total": N}`
 
@@ -125,6 +167,12 @@ Fields vary by `rule_type`:
 | source | string | Filter by source scenario pattern |
 | target | string | Filter by target scenario pattern |
 | enabled | bool | Filter by enabled state |
+
+### GET /policies/snapshot — Fetch Atomic Policy Snapshot
+
+Returns the enabled policy rules and a monotonic `version` for standard API clients. Clients replace their entire local snapshot only when the returned version is newer. This endpoint is for background refresh; it must not be called on the request path.
+
+The snapshot also contains enabled `receipt_projections`; clients use them to decide whether post-response observations may be emitted.
 
 ### GET /policies/:id — Get Rule
 
@@ -235,17 +283,67 @@ SSE stream of policy updates. Used by EmittingResolver and PolicyMiddleware to k
 **Response**:
 ```json
 {
+  "subscription_id": 7,
   "total_delivered": 1234,
   "total_failed": 5,
-  "success_rate": 0.996,
   "consecutive_failures": 0,
   "last_delivered_at": "2026-04-05T10:30:00Z",
   "last_failed_at": "2026-04-04T08:15:00Z",
-  "status": "healthy"
+  "status": "active"
 }
 ```
 
-Status values: `healthy`, `degraded` (>5% failure rate), `circuit_broken` (auto-disabled)
+`status` is the delivery-health state: `active` or `circuit_broken`. A
+`circuit_broken` value records that a delivery exhausted its automatic retry
+budget; it does not disable the subscription or stop delivery of other events.
+The direct `/deliver` endpoint below is a one-shot send and does not update the
+durable queue or health counters.
+
+### GET /subscriptions/:id/deliveries/:eventID — Read delivery retry metadata
+
+Returns only the delivery status and cumulative failed-attempt count needed
+to make a safe retry request. Successful delivery does not increment this
+existing queue counter. The stored webhook payload, destination, and last
+error are not returned.
+
+**Response**:
+```json
+{
+  "subscription_id": 7,
+  "event_id": "example.audit.001",
+  "status": "dead_letter",
+  "attempts": 5
+}
+```
+
+### POST /subscriptions/:id/deliveries/retry — Retry one dead-lettered delivery
+
+Requeue one exact durable delivery after its target is repaired. This operation
+uses the payload already stored for `(subscription_id, event_id)`; callers
+cannot replace it. `expected_attempts` is the row's current cumulative failed-attempt
+count and must be a positive multiple of five from a fully exhausted cycle.
+Early terminal failures such as invalid stored payloads cannot be repaired
+through this API because it never accepts replacement payload. The count makes
+a lost-response retry safe: the first request changes the row
+from `dead_letter` to `pending`, and a duplicate or stale request conflicts.
+
+**Request Body**:
+```json
+{
+  "event_id": "example.audit.001",
+  "expected_attempts": 5
+}
+```
+
+**Response**: `202 Accepted` with `{"status":"queued","subscription_id":7,"event_id":"example.audit.001","attempts":5}`.
+The existing dispatcher performs the next delivery attempt. A matching row
+that is absent, not dead-lettered, not at an exhausted five-failure boundary,
+or has a different attempt count returns
+`409 Conflict` without mutation. Each explicit retry starts one new bounded
+cycle of at most five attempts; cumulative failed `attempts` and subscription
+health totals remain intact. The cumulative count itself marks cycle boundaries,
+so a restart cannot reset or extend the budget. Retry backoff starts again at
+one second for the first failure in the new cycle.
 
 ### POST /subscriptions/:id/test — Send Test Event
 

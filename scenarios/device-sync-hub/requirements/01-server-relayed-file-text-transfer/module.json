@@ -1,0 +1,159 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-09-09T16:26:32-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P0-001",
+      "title": "Server-Relayed File Transfer",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "Files uploaded from any trusted device are streamed to the Vrooli server and relayed to all other trusted devices in the owner's trust group. Files are stored in the api-core blobstore, original filenames are preserved end-to-end, and image thumbnails are generated server-side at ingest. Files are treated as first-class items with full metadata tracking, retention policy support, and per-item ACL enforcement identical to text snippets.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: blobstore ingestion handler streams file bytes without buffering entire payload in memory, verified with a mock blobstore seam"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: thumbnail generator produces correct image thumbnails for JPEG, PNG, and GIF inputs and returns a no-op result for non-image files"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: file metadata record is created with correct owner_id, device_id, filename, mime_type, size, and retention policy at ingest time"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: relay dispatcher fan-out correctly addresses all trusted devices except the sender when no target override is set"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: upload a binary file from Device A; assert the file appears in Device B's receive list with correct filename, size, and MIME type"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: download the relayed file on Device B and assert byte-for-byte identity with the original upload"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: upload a JPEG image and assert a thumbnail URL is populated in the item metadata returned to Device B"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: an unpaired device attempting to retrieve the relayed file receives HTTP 403 with no content disclosed"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "File upload and relay delivery complete within 1 second for payloads under 10 MB under normal network conditions"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Memory profile confirms no full-file buffering in the relay path for a 100 MB test file"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Smoke test: send a file from Device A and confirm it appears in Device B's Receive pane with thumbnail rendered"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Accessibility audit: file items in the Receive pane expose correct aria-label and data-testid attributes"
+        }
+      ]
+    },
+    {
+      "id": "REQ-P0-002",
+      "title": "Server-Relayed Text Snippet Transfer",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "Text snippets sent from any trusted device are relayed through the Vrooli server and delivered to all other trusted devices. Text snippets are first-class items identical in feature support to files: they carry retention policies, per-item ACLs, directed delivery targets, full-text indexing, and appear in the Receive pane with the same interaction surface as file items. There must be no feature disparity between file and text item types.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: text snippet domain model validates required fields (content, owner_id, device_id, retention policy) and rejects empty content"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: relay dispatcher routes text snippets through the same fan-out path as file items"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: text snippet metadata record supports all retention policy values (Live, Held, Pinned) identically to file items"
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Unit test: full-text index is updated atomically on snippet creation and removed on deletion"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: send a text snippet from Device A; assert it appears in Device B's receive list with correct content and retention policy"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: assert that a text snippet and a file item uploaded in the same session both appear with identical UI controls in Device B's Receive pane"
+        },
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "not_implemented",
+          "notes": "Integration test: assert that feature matrix (search, sort, filter, directed delivery, retention controls) behaves identically for text and file item types"
+        },
+        {
+          "type": "test",
+          "phase": "performance",
+          "status": "planned",
+          "notes": "Text snippet relay delivery completes within 1 second end-to-end"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "QA playbook: verify that all Receive pane controls (download, pin, delete, target) are available on both text and file items with no UI disparity"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "not_implemented",
+          "notes": "Accessibility: text snippet items expose role='listitem' with aria-label containing snippet preview text"
+        }
+      ]
+    }
+  ]
+}

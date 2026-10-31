@@ -6,7 +6,7 @@
  * a tabbed interface with sidebar navigation.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useId } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import ResponsiveDialog from '@shared/layout/ResponsiveDialog';
 import { PreviewSettingsSidebar } from './PreviewSettingsSidebar';
@@ -35,6 +35,7 @@ export function PreviewSettingsDialog({
   onClose,
   sessionId,
 }: PreviewSettingsDialogProps) {
+  const tabIdPrefix = useId();
   const [showSavePresetDialog, setShowSavePresetDialog] = useState(false);
   const [newPresetName, setNewPresetName] = useState('');
 
@@ -155,11 +156,17 @@ export function PreviewSettingsDialog({
           {/* Body - Sidebar + Content */}
           <div className="flex-1 flex overflow-hidden">
             <PreviewSettingsSidebar
+              idPrefix={tabIdPrefix}
               activeSection={activeSection}
               onSectionChange={setActiveSection}
             />
 
-            <div className="flex-1 overflow-y-auto p-6">
+            <div
+              className="flex-1 overflow-y-auto p-6"
+              role="tabpanel"
+              id={`${tabIdPrefix}-${activeSection}-panel`}
+              aria-labelledby={`${tabIdPrefix}-${activeSection}-tab`}
+            >
               {renderSection(activeSection)}
             </div>
           </div>

@@ -1,0 +1,10 @@
+{
+  "displayName": "Git Control Tower",
+  "icon": "git-control-tower",
+  "appDelivery": true,
+  "categories": [
+    { "key": "proposal-received", "displayName": "Commit proposal received", "description": "An agent submitted a commit proposal for your review.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "commit-message-ready", "displayName": "Commit message ready", "description": "The AI commit-message suggestion for your staged changes finished.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "commit-message-failed", "displayName": "Commit message suggestion failed", "description": "The AI commit-message drafting agent ended without a suggestion.", "defaultEnabled": true, "defaultMinUrgency": "normal" }
+  ]
+}

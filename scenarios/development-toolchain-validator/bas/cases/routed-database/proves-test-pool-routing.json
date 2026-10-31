@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "name": "routed-smoke",
+    "description": "End-to-end proof that test-genie's routed test-database path actually works: navigates to the goldens index served by the live scenario, and asserts that the slug seeded into the per-run test pool ('routed-smoke-001') is rendered in the list. The slug exists only in the test pool; if the API failed to route the request to the test pool (e.g., X-Vrooli-Test-Mode header not attached, TestModeMiddleware missing, RoutedDB.pick(ctx) returning the primary), the assertion fails.",
+    "requirement": "REQ-ROUTED-DB-E2E",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "routed-test-db-proof"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-goldens-index",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "development-toolchain-validator",
+          "scenario_path": "/",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to goldens index (/)" }
+      }
+    },
+    {
+      "id": "wait-goldens-list",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/goldens.list",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Goldens list container visible" }
+      }
+    },
+    {
+      "id": "assert-routed-slug-present",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/goldens.list",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "routed-smoke-001" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Seeded golden 'routed-smoke-001' not visible in the goldens list — the UI→API request did not reach the routed test pool. Check that X-Vrooli-Test-Mode is being attached by Playwright (browser_profile.extra_headers), that TestModeMiddleware is mounted, and that the goldens repository uses *database.RoutedDB."
+        },
+        "metadata": { "label": "Assert seeded golden slug is rendered (proves routing end-to-end)" }
+      }
+    }
+  ]
+}

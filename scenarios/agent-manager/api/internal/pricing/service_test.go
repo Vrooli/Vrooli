@@ -2,6 +2,8 @@ package pricing
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +25,15 @@ func newMockProvider(name string) *mockProvider {
 		pricing:        make(map[string]*ModelPricing),
 		supportsModels: make(map[string]bool),
 	}
+}
+
+type testModelResolver struct{}
+
+func (testModelResolver) Resolve(_ context.Context, _ string, model string) (string, string, error) {
+	if strings.Contains(model, "/") {
+		return model, "openrouter", nil
+	}
+	return "", "", fmt.Errorf("no fixture mapping for %q", model)
 }
 
 func (p *mockProvider) Name() string { return p.name }
@@ -63,7 +74,8 @@ func testService(t *testing.T, providers ...Provider) (Service, *MemoryRepositor
 	log := logrus.New()
 	log.SetLevel(logrus.WarnLevel)
 
-	svc := NewService(repo, providers, log)
+	svc := NewServiceWithModelResolver(repo, providers, log, testModelResolver{})
+	require.NoError(t, svc.RefreshPricing(context.Background()))
 	return svc, repo
 }
 
@@ -196,45 +208,9 @@ func TestCalculateCost_ManualOverrideTakesPriority(t *testing.T) {
 	assert.Equal(t, SourceProviderAPI, calc.ComponentSources[ComponentOutputTokens])
 }
 
-func TestCalculateCost_HistoricalAverageFallback(t *testing.T) {
-	svc, repo := testService(t)
-
-	// No provider pricing, but set historical averages
-	histInputPrice := 0.000004
-	histOutputPrice := 0.000012
-	repo.SetHistoricalAverages("anthropic/claude-3-sonnet", &HistoricalPricing{
-		CanonicalModel:      "anthropic/claude-3-sonnet",
-		InputTokenAvgPrice:  &histInputPrice,
-		OutputTokenAvgPrice: &histOutputPrice,
-		SampleCount:         100,
-		Since:               time.Now().AddDate(0, 0, -7),
-	})
-
-	req := CostRequest{
-		Model:        "anthropic/claude-3-sonnet",
-		RunnerType:   "codex",
-		InputTokens:  1000,
-		OutputTokens: 500,
-	}
-
-	calc, err := svc.CalculateCost(context.Background(), req)
-	require.NoError(t, err)
-	require.NotNil(t, calc)
-
-	expectedInputCost := float64(1000) * histInputPrice
-	expectedOutputCost := float64(500) * histOutputPrice
-
-	assert.InDelta(t, expectedInputCost, calc.InputCostUSD, 0.0001)
-	assert.InDelta(t, expectedOutputCost, calc.OutputCostUSD, 0.0001)
-
-	// Check provenance - should be historical average
-	assert.Equal(t, SourceHistoricalAverage, calc.ComponentSources[ComponentInputTokens])
-	assert.Equal(t, SourceHistoricalAverage, calc.ComponentSources[ComponentOutputTokens])
-}
-
 func TestCalculateCost_FallbackChainPriority(t *testing.T) {
-	// This test verifies the full fallback chain:
-	// Manual Override > Provider API > Historical Average
+	// The fallback chain is Manual Override > Provider API. A component no
+	// source prices stays unpriced: it is never estimated from run history.
 
 	provider := newMockProvider("openrouter")
 
@@ -249,18 +225,7 @@ func TestCalculateCost_FallbackChainPriority(t *testing.T) {
 		ExpiresAt:          time.Now().Add(6 * time.Hour),
 	})
 
-	svc, repo := testService(t, provider)
-
-	// Historical average has both input and output
-	histInputPrice := 0.000004
-	histOutputPrice := 0.000012
-	repo.SetHistoricalAverages("test/model", &HistoricalPricing{
-		CanonicalModel:      "test/model",
-		InputTokenAvgPrice:  &histInputPrice,
-		OutputTokenAvgPrice: &histOutputPrice,
-		SampleCount:         50,
-		Since:               time.Now().AddDate(0, 0, -7),
-	})
+	svc, _ := testService(t, provider)
 
 	req := CostRequest{
 		Model:        "test/model",
@@ -273,15 +238,11 @@ func TestCalculateCost_FallbackChainPriority(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, calc)
 
-	// Input should fall back to historical (no provider price)
-	// Output should use provider price (higher priority than historical)
-	expectedInputCost := float64(1000) * histInputPrice
 	expectedOutputCost := float64(500) * providerOutputPrice
-
-	assert.InDelta(t, expectedInputCost, calc.InputCostUSD, 0.0001)
+	assert.InDelta(t, 0.0, calc.InputCostUSD, 0.0001)
 	assert.InDelta(t, expectedOutputCost, calc.OutputCostUSD, 0.0001)
-
-	assert.Equal(t, SourceHistoricalAverage, calc.ComponentSources[ComponentInputTokens])
+	_, inputPriced := calc.ComponentSources[ComponentInputTokens]
+	assert.False(t, inputPriced, "an unpriced component has no source")
 	assert.Equal(t, SourceProviderAPI, calc.ComponentSources[ComponentOutputTokens])
 }
 
@@ -345,13 +306,29 @@ func TestResolveCanonicalModel_FromAlias(t *testing.T) {
 func TestResolveCanonicalModel_DefaultResolution(t *testing.T) {
 	svc, _ := testService(t)
 
-	// Test model that should use default alias resolution
-	canonical, provider, err := svc.ResolveCanonicalModel(context.Background(), "gpt-4", "codex")
-	require.NoError(t, err)
+	// Bare names are not guessed from provider/model spelling.
+	_, _, err := svc.ResolveCanonicalModel(context.Background(), "future-model", "codex")
+	require.Error(t, err)
+}
 
-	// Default resolution should handle common patterns
-	assert.NotEmpty(t, canonical)
-	assert.NotEmpty(t, provider)
+func TestResolveCanonicalModel_ReportsUnresolvedBareAlias(t *testing.T) {
+	svc, _ := testService(t)
+	_, _, err := svc.ResolveCanonicalModel(context.Background(), "opus", "codex")
+	// Resource-observed aliases must resolve through the resource resolver or
+	// an explicit database alias, never through a global default table.
+	require.Error(t, err)
+	canonical, _, err := svc.ResolveCanonicalModel(context.Background(), "not-a-model", "codex")
+	require.Error(t, err)
+	assert.Empty(t, canonical)
+}
+
+func TestCalculateCost_UnlabelledModelIsUnpriced(t *testing.T) {
+	svc, _ := testService(t)
+	calc, err := svc.CalculateCost(context.Background(), CostRequest{RunnerType: "codex", InputTokens: 100})
+	require.NoError(t, err)
+	assert.Equal(t, "unpriced", calc.CostSource)
+	assert.Equal(t, "model_unlabelled", calc.ChargeReason)
+	assert.Zero(t, calc.TotalCostUSD)
 }
 
 func TestSetOverride_ClearsCache(t *testing.T) {
@@ -468,7 +445,6 @@ func TestSettings_DefaultValues(t *testing.T) {
 	settings, err := svc.GetSettings(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, 7, settings.HistoricalAverageDays)
 	assert.Equal(t, 6*time.Hour, settings.ProviderCacheTTL)
 }
 
@@ -476,8 +452,7 @@ func TestSettings_UpdatePersists(t *testing.T) {
 	svc, _ := testService(t)
 
 	newSettings := &PricingSettings{
-		HistoricalAverageDays: 14,
-		ProviderCacheTTL:      12 * time.Hour,
+		ProviderCacheTTL: 12 * time.Hour,
 	}
 
 	err := svc.UpdateSettings(context.Background(), newSettings)
@@ -486,7 +461,6 @@ func TestSettings_UpdatePersists(t *testing.T) {
 	retrieved, err := svc.GetSettings(context.Background())
 	require.NoError(t, err)
 
-	assert.Equal(t, 14, retrieved.HistoricalAverageDays)
 	assert.Equal(t, 12*time.Hour, retrieved.ProviderCacheTTL)
 }
 
@@ -570,6 +544,46 @@ func TestRefreshPricing_ClearsCache(t *testing.T) {
 	assert.InDelta(t, float64(1000)*newPrice, calc.InputCostUSD, 0.0001)
 }
 
+func TestRefreshModelPricingCacheStatusAndListExposeEffectivePricing(t *testing.T) {
+	provider := newMockProvider("openrouter")
+	input, output := 0.000002, 0.000004
+	now := time.Now().UTC()
+	provider.SetPricing("provider/model", &ModelPricing{
+		CanonicalModelName: "provider/model", Provider: "openrouter", InputTokenPrice: &input, OutputTokenPrice: &output,
+		InputTokenSource: SourceProviderAPI, OutputTokenSource: SourceProviderAPI, FetchedAt: now, ExpiresAt: now.Add(time.Hour), PricingVersion: "v1",
+	})
+	svc, repo := testService(t, provider)
+	ctx := context.Background()
+	if err := svc.RefreshModelPricing(ctx, "provider/model"); err != nil {
+		t.Fatalf("refresh model: %v", err)
+	}
+	if err := svc.RefreshModelPricing(ctx, "unknown/model"); err == nil {
+		t.Fatal("refresh unexpectedly succeeded for unsupported model")
+	}
+	status, err := svc.GetCacheStatus(ctx)
+	if err != nil || status.TotalModels != 1 || status.ExpiredCount != 0 {
+		t.Fatalf("cache status=%+v err=%v", status, err)
+	}
+	items, err := svc.ListModelsWithPricing(ctx)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("pricing list=%+v err=%v", items, err)
+	}
+	if items[0].CanonicalName != "provider/model" || items[0].InputPricePer1M != 2 || items[0].OutputPricePer1M != 4 || items[0].InputSource != SourceProviderAPI {
+		t.Fatalf("effective list item=%+v", items[0])
+	}
+	// A cache entry must be invalidated by targeted refresh; the repository is
+	// the durable source that feeds subsequent cost calculations.
+	if _, err := svc.GetModelPricing(ctx, "provider/model", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpsertPricing(ctx, &ModelPricing{CanonicalModelName: "provider/model", Provider: "openrouter", InputTokenPrice: &output, ExpiresAt: now.Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RefreshModelPricing(ctx, "provider/model"); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTokensToMillion(t *testing.T) {
 	tests := []struct {
 		perToken   float64
@@ -584,22 +598,5 @@ func TestTokensToMillion(t *testing.T) {
 	for _, tc := range tests {
 		result := TokensToMillion(tc.perToken)
 		assert.InDelta(t, tc.perMillion, result, 0.0001)
-	}
-}
-
-func TestMillionToTokens(t *testing.T) {
-	tests := []struct {
-		perMillion float64
-		perToken   float64
-	}{
-		{3.0, 0.000003},
-		{15.0, 0.000015},
-		{1.5, 0.0000015},
-		{0.1, 0.0000001},
-	}
-
-	for _, tc := range tests {
-		result := MillionToTokens(tc.perMillion)
-		assert.InDelta(t, tc.perToken, result, 0.0000001)
 	}
 }

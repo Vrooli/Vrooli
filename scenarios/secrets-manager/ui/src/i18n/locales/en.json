@@ -1,0 +1,4 @@
+{
+  "app": {"title": "Secrets Manager"},
+  "navigation": {"vault": "Vault", "access": "Access", "activity": "Activity", "recovery": "Recovery", "sources": "Sources", "settings": "Settings"}
+}

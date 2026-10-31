@@ -1,0 +1,38 @@
+{
+  "id": "01d9dbb5-e771-46fc-941f-799c1874a748",
+  "state": "approved",
+  "policy": "team-preparation",
+  "targets": [
+    "prompt-manager:team/external-knowledge-delivery"
+  ],
+  "request_expires_at": "2026-10-21T17:24:07.387049147Z",
+  "duration_seconds": 28800,
+  "approvalURL": "https://agent-manager.itsagitime.com/api/v1/authorizations/01d9dbb5-e771-46fc-941f-799c1874a748/approve",
+  "processPID": 1468389,
+  "harnessSession": "01a13aaf-1d44-79b0-9094-4b878a80ebc6",
+  "lastFailedConfirmation": {
+    "observedAt": "2026-10-14T19:09:18.072397+00:00",
+    "stateAfter": "pending",
+    "detail": "Browser confirmation reached issuer but failed required-capability check; existing verified owner binding lacked prompt-manager:read and prompt-manager:write.",
+    "diagnosticScreenshot": "/home/matthalloran8/.vrooli/cache/vrooli/web-console/uploads/f5ef6b9a-15b2-44dd-9681-8196d0a2cda9/IMG_1607.png"
+  },
+  "ownerPolicyRepair": {
+    "source": "cloudflare_access",
+    "subjectUnchanged": true,
+    "canonicalOwnerUnchanged": true,
+    "relyingResource": "agent-manager",
+    "addedCapabilities": [
+      "prompt-manager:read",
+      "prompt-manager:write"
+    ],
+    "otherResourcesUnchanged": true,
+    "beforeSHA256": "6efa6b1c6430ada7d85ac3aa94f76b1fe0aa61dadaca745bfb5b225aa5e8cf49",
+    "afterSHA256": "817f188471d5af6e7b8ab6a8a6c300d16ff36a5e20f4f0c7e928c5acd2602c3c",
+    "grantApproved": true
+  },
+  "approvedAt": "2026-10-14T19:24:50.512260132Z",
+  "nativeAppliedAt": "2026-10-14T19:27:58.683218506Z",
+  "nativeRevision": "preparation-v2:sha256:ad31c53a71676fae6e4af743f3f1bb29d5a5c7f5e5d070b895ecf19c9eeb264d",
+  "teamRemainsDisabled": true,
+  "heartbeatRemainsDisabled": true
+}

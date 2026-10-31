@@ -1,0 +1,78 @@
+{
+  "description": "Every signal collector is registered behind a circuit breaker — a failing or malformed source disables that collector, redistributes its weight, and surfaces the degradation in output; malformed input must never crash the score path.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "Every signal collector must be registered behind a circuit breaker. When a collector fails (panics, returns error, or produces malformed output), the circuit breaker must: (1) disable that collector for the current request, (2) redistribute the disabled collector's weight proportionally among the remaining healthy collectors, and (3) include a degradation notice in the score response output identifying which collector was disabled and its original weight. A malformed or missing source artifact must never cause a panic or unhandled error that crashes the score path. The circuit breaker registration and weight redistribution logic must be covered by unit tests using fixture artifact directories.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "draft",
+      "title": "Circuit Breaker Per Signal Collector with Weight Redistribution and Degradation Surface",
+      "validation": [
+        {
+          "notes": "api/internal/signals/circuit_breaker_test.go [REQ:OT-P0-006]: well-formed fixture dir → all collectors fire, no degradation notices",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/circuit_breaker_test.go: malformed source fixture dir → failing collector disabled, degradation notice present in result, remaining weights sum to 100%",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/circuit_breaker_test.go: missing source file fixture dir → circuit breaker engages, no panic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/circuit_breaker_test.go: all collectors fail → composite score returns 0 with full degradation notice list, no panic",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/signals/circuit_breaker_test.go: weight redistribution — disabled collector weight is distributed proportionally, assert redistributed weights sum equals original total weight",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: inject a deliberately malformed phase-results file; assert GetScore returns HTTP 200 with degradation block populated and no 5xx error",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score get \u003cscenario\u003e` with a malformed artifact exits 0 and prints degradation warning line",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Score tooling remains available and informative even when individual data sources are corrupt or missing, preventing silent failures",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Resilient Collection"
+}

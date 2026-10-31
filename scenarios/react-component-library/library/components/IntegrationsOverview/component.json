@@ -1,0 +1,45 @@
+{
+  "catalogId": "patterns.integrations-overview",
+  "category": "uncategorized",
+  "deprecatedVersions": [
+    "0.1.0",
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5"
+  ],
+  "description": "What a scenario is connected to and whether each piece works: a health summary, problems with one fix each, grouped rows of accounts, tools and apps, and a detail view per row.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Integrations overview",
+  "draft": "",
+  "entry": "IntegrationsOverview.tsx",
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.4",
+    "1.0.3",
+    "1.0.2",
+    "1.0.1",
+    "1.0.0",
+    "0.1.0"
+  ],
+  "kind": "control",
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:IntegrationsOverview",
+  "retiredMajorAliases": [
+    "0"
+  ],
+  "slot": "ui-pattern",
+  "tags": [
+    "integrations",
+    "settings",
+    "status"
+  ]
+}

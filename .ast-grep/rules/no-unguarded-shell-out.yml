@@ -1,0 +1,20 @@
+id: no-unguarded-shell-out
+language: Go
+severity: warning
+message: >-
+  Do not hide platform-specific behavior behind an unguarded shell command;
+  use a platform implementation or record a dated portability exception.
+note: >-
+  Shell commands inherit the host shell vocabulary and are not portable by
+  default. The finding must be split, replaced by a native API, or allowlisted.
+files:
+  - "**/*.go"
+  - "!**/*_test.go"
+rule:
+  any:
+    - pattern: exec.Command("bash", "-c", $$$ARGS)
+    - pattern: exec.CommandContext($CTX, "bash", "-c", $$$ARGS)
+    - pattern: exec.Command("sh", "-c", $$$ARGS)
+    - pattern: exec.CommandContext($CTX, "sh", "-c", $$$ARGS)
+ruleDirs:
+  - .ast-grep/rules

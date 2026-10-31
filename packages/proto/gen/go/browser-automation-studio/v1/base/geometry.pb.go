@@ -22,8 +22,6 @@ const (
 )
 
 // BoundingBox captures the position and dimensions of a rectangular region.
-//
-// @usage ActionTelemetry.element_bounding_box, HighlightRegion.bounding_box
 type BoundingBox struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// X coordinate in viewport pixels.
@@ -97,8 +95,6 @@ func (x *BoundingBox) GetHeight() float64 {
 }
 
 // Point represents a 2D coordinate.
-//
-// @usage ActionTelemetry.click_position, ActionTelemetry.cursor_position, ActionTelemetry.cursor_trail
 type Point struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// X coordinate in viewport pixels.
@@ -154,8 +150,6 @@ func (x *Point) GetY() float64 {
 }
 
 // NodePosition captures canvas placement for visual editors.
-//
-// @usage WorkflowNodeV2.position
 type NodePosition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// X coordinate on the canvas.

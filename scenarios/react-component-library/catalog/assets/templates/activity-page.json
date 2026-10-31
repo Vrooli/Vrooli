@@ -1,0 +1,118 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "templates.activity-page",
+    "name": "ActivityPage",
+    "kind": "page-template",
+    "domain": "templates",
+    "description": "The chronological activity surface with filters, grouping, actor and target attribution, pagination, detail inspection, and audit-oriented metadata.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "page-template",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    },
+    "kits": [
+      "vrooli-default"
+    ]
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "navigation.page",
+        "reason": "Route boundary, metadata, scroll restoration, and focus placement are the shared page."
+      },
+      {
+        "asset": "navigation.page-header",
+        "reason": "Title, breadcrumbs, description, and actions are the shared header."
+      },
+      {
+        "asset": "data-display.activity-feed",
+        "reason": "Stream presentation, grouping, and pagination are shared."
+      },
+      {
+        "asset": "feedback.async-boundary",
+        "reason": "Every generic state is delegated to the shared boundary."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "router-adapter"
+    },
+    {
+      "capability": "ui-provider"
+    },
+    {
+      "capability": "design-tokens"
+    },
+    {
+      "capability": "data-source",
+      "typeArguments": [
+        "TEvent"
+      ]
+    }
+  ],
+  "requiredCapabilities": [
+    "viewport-fill",
+    "no-horizontal-overflow",
+    "responsive-transformation",
+    "mobile-capability-parity",
+    "keyboard-operable",
+    "focus-order",
+    "heading-hierarchy",
+    "semantic-structure",
+    "entrance-restraint",
+    "content-reflow",
+    "recovery-path",
+    "error-honesty",
+    "partial-degradation",
+    "offline-behavior",
+    "freshness-disclosure",
+    "permission-explained",
+    "empty-state-craft",
+    "status-announced",
+    "dark-parity",
+    "text-scale-resilience",
+    "card-restraint"
+  ],
+  "requiredStates": [
+    "default",
+    "loading",
+    "refreshing",
+    "empty",
+    "partial",
+    "stale",
+    "request-error",
+    "permission-denied",
+    "offline",
+    "retry"
+  ],
+  "regions": [
+    {
+      "id": "filters",
+      "purpose": "Actor, action, target, and time filters.",
+      "required": false,
+      "lifecycle": "static"
+    },
+    {
+      "id": "feed",
+      "purpose": "The chronological stream itself.",
+      "required": true,
+      "lifecycle": "async",
+      "accepts": "data-display"
+    },
+    {
+      "id": "detail",
+      "purpose": "Inspection of a selected event.",
+      "required": false,
+      "lifecycle": "async"
+    }
+  ]
+}

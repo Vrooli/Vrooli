@@ -26,6 +26,10 @@ const STRATEGY_OPTIONS = [
   { value: "delegate", label: "Delegate (use cloud provider secret)" }
 ];
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function ManifestSecretDetailPanel({
   secret,
   isOverridden,
@@ -66,8 +70,10 @@ export function ManifestSecretDetailPanel({
       return;
     }
     try {
-      const parsed = JSON.parse(value);
-      onUpdatePendingChange({ generator_template: parsed });
+      const parsed: unknown = JSON.parse(value);
+      if (isRecord(parsed)) {
+        onUpdatePendingChange({ generator_template: parsed });
+      }
     } catch {
       // Keep the string in state even if invalid JSON - user is still typing
       // We'll validate on save

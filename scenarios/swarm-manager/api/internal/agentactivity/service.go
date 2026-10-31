@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"sort"
-	"strings"
 	"sync"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/dispatch"
 	"swarm-manager/internal/idgen"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 var errNotFound = errors.New("agent activity not found")
@@ -21,9 +21,12 @@ type rawAgentService interface {
 	IsAvailable(ctx context.Context) bool
 	ResolveURL(ctx context.Context) (string, error)
 	GetProfileID() string
-	SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error)
 	GetRunState(ctx context.Context, runID string) (agentmanager.RunState, error)
 	StopRun(ctx context.Context, runID string) error
+}
+
+type sessionSpawner interface {
+	SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error)
 }
 
 type runContinuer interface {
@@ -34,27 +37,45 @@ type runDiffer interface {
 	GetRunDiff(ctx context.Context, runID string) (agentmanager.RunDiff, error)
 }
 
+type runEventReader interface {
+	GetRunEvents(ctx context.Context, runID string, opts agentmanager.RunEventsOptions) ([]*domainpb.RunEvent, bool, error)
+}
+
 type ServiceConfig struct {
 	StorePath    string
 	AgentService rawAgentService
+	// LanePolicy returns the concurrency cap for each phase-kind lane. If
+	// nil, the service spawns without lane gating (legacy / test fallback);
+	// production wiring always supplies one.
+	LanePolicy     LanePolicy
+	NeedsReviewTTL time.Duration
 }
 
-// Service is the single Swarm Manager seam for tracked agent-manager usage.
-// All backlog/capture/scenario work spawns and continuations must flow through
-// this service so durable activity records remain complete.
+// Service projects Agent Manager Run activity for human-led sessions. Structured
+// backlog, capture, execution, review, and milestone work uses declared
+// workflows and must never acquire a raw Run continuation through this seam.
 type Service struct {
 	store           Store
 	agentService    rawAgentService
 	continuer       runContinuer
 	differ          runDiffer
+	eventReader     runEventReader
+	sessionSpawner  sessionSpawner
+	lanePolicy      LanePolicy
+	needsReviewTTL  time.Duration
 	eventDispatcher dispatch.NodeDispatcher
 	mu              sync.Mutex
 }
 
 func NewService(cfg ServiceConfig) *Service {
 	svc := &Service{
-		store:        NewStore(cfg.StorePath),
-		agentService: cfg.AgentService,
+		store:          NewStore(cfg.StorePath),
+		agentService:   cfg.AgentService,
+		lanePolicy:     cfg.LanePolicy,
+		needsReviewTTL: cfg.NeedsReviewTTL,
+	}
+	if svc.needsReviewTTL <= 0 {
+		svc.needsReviewTTL = 24 * time.Hour
 	}
 	if continuer, ok := cfg.AgentService.(runContinuer); ok {
 		svc.continuer = continuer
@@ -62,11 +83,145 @@ func NewService(cfg ServiceConfig) *Service {
 	if differ, ok := cfg.AgentService.(runDiffer); ok {
 		svc.differ = differ
 	}
+	if reader, ok := cfg.AgentService.(runEventReader); ok {
+		svc.eventReader = reader
+	}
+	if spawner, ok := cfg.AgentService.(sessionSpawner); ok {
+		svc.sessionSpawner = spawner
+	}
 	return svc
 }
 
 func (s *Service) SetEventDispatcher(d dispatch.NodeDispatcher) {
 	s.eventDispatcher = d
+}
+
+// RecordWorkflowStart implements agentmanager.WorkflowActivityRecorder. It is
+// invoked after Agent Manager accepted a workflow and returned its immutable
+// execution correlation. The ledger is a projection, never workflow state.
+func (s *Service) RecordWorkflowStart(_ context.Context, activity agentmanager.WorkflowActivity, start agentmanager.WorkflowStart) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	spec, err := (Spec{
+		OwnerType: OwnerType(activity.OwnerType), OwnerKind: activity.OwnerKind,
+		OwnerName: activity.OwnerName, OwnerTitle: activity.OwnerTitle,
+		Purpose: Purpose(activity.Purpose), Metadata: map[string]string{"workflow_key": activity.WorkflowKey},
+	}).normalized()
+	if err != nil {
+		return err
+	}
+	records, err := s.store.Load()
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record.Metadata["workflow_execution_id"] == start.ExecutionID {
+			return nil
+		}
+	}
+	now := nowRFC3339()
+	record := Record{
+		ActivityID: idgen.Generate(), OwnerType: spec.OwnerType, OwnerKind: spec.OwnerKind,
+		OwnerName: spec.OwnerName, OwnerTitle: spec.OwnerTitle, Purpose: spec.Purpose,
+		InteractionType: InteractionSpawn, RunID: start.RunID, Status: StatusRunning,
+		RequestedAt: now, StartedAt: now, RequestedBy: "swarm-manager", UpdatedAt: now,
+		Metadata: map[string]string{"workflow_key": activity.WorkflowKey, "workflow_execution_id": start.ExecutionID, "workflow_status": start.Status.String()},
+	}
+	records = append(records, record)
+	if err := s.store.Save(records); err != nil {
+		return err
+	}
+	s.dispatchStatusUpdate(record)
+	return nil
+}
+
+// SetLanePolicy wires the lane policy after construction. Useful when
+// settings (the canonical LanePolicy implementation) is constructed after
+// the activity service in the bootstrap order.
+func (s *Service) SetLanePolicy(p LanePolicy) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lanePolicy = p
+}
+
+// LaneActiveCounts returns active-record counts per canonical lane. This
+// satisfies the execution.ActivityLaneReader seam so GovernanceStatus can
+// render the four-lane utilization view without execution importing the
+// agentactivity store directly.
+func (s *Service) LaneActiveCounts() (map[Lane]int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.reapExpiredNeedsReviewLocked(records, time.Now()); err != nil {
+		return nil, err
+	}
+	return LaneActiveCounts(records), nil
+}
+
+// LaneHolder identifies an active record that contributes to a lane count.
+type LaneHolder struct {
+	ActivityID string `json:"activity_id"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// LaneHolders returns the active records grouped by lane for operator-facing
+// saturation explanations.
+func (s *Service) LaneHolders() (map[Lane][]LaneHolder, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.reapExpiredNeedsReviewLocked(records, time.Now()); err != nil {
+		return nil, err
+	}
+	holders := make(map[Lane][]LaneHolder, len(Lanes()))
+	for _, lane := range Lanes() {
+		holders[lane] = []LaneHolder{}
+	}
+	for _, record := range records {
+		if !isActiveStatus(record.Status) {
+			continue
+		}
+		lane, err := LaneOf(record.Purpose, record.PhaseKind)
+		if err != nil {
+			continue
+		}
+		reason := record.FailureReason
+		if reason == "" {
+			reason = string(record.Status)
+		}
+		holders[lane] = append(holders[lane], LaneHolder{ActivityID: record.ActivityID, Reason: reason})
+	}
+	return holders, nil
+}
+
+// checkLaneCapacityLocked returns ErrLaneSaturated when the lane derived
+// from spec is at or above the policy cap. records must be the current
+// store snapshot (callers already hold s.mu and have just loaded). On any
+// derivation error (unrecognized purpose / phaseKind), the spawn is
+// rejected — that path indicates a wiring bug that should be loud.
+func (s *Service) checkLaneCapacityLocked(spec Spec, records []Record) error {
+	if s.lanePolicy == nil {
+		return nil
+	}
+	lane, err := LaneOf(spec.Purpose, spec.PhaseKind)
+	if err != nil {
+		return err
+	}
+	limit := s.lanePolicy.LimitFor(lane)
+	if limit <= 0 {
+		return nil
+	}
+	if LaneActiveCount(records, lane) >= limit {
+		return fmt.Errorf("%w: lane=%s purpose=%s phase_kind=%s", ErrLaneSaturated, lane, spec.Purpose, spec.PhaseKind)
+	}
+	return nil
 }
 
 func (s *Service) IsEnabled() bool {
@@ -94,18 +249,24 @@ func (s *Service) GetProfileID() string {
 	return s.agentService.GetProfileID()
 }
 
-func (s *Service) SpawnBacklog(ctx context.Context, req agentmanager.BacklogSpawnRequest) (agentmanager.RunResult, error) {
+func (s *Service) SpawnSession(ctx context.Context, req agentmanager.SessionSpawnRequest) (agentmanager.RunResult, error) {
 	spec, err := specFromContext(ctx)
 	if err != nil {
 		return agentmanager.RunResult{}, err
 	}
-	return s.spawnTracked(ctx, spec, req)
+	if spec.OwnerType != OwnerSession {
+		return agentmanager.RunResult{}, fmt.Errorf("SpawnSession requires owner_type=session")
+	}
+	return s.spawnSessionTracked(ctx, spec, req)
 }
 
 func (s *Service) ContinueRun(ctx context.Context, runID string, message string) error {
 	spec, err := specFromContext(ctx)
 	if err != nil {
 		return err
+	}
+	if spec.OwnerType != OwnerSession {
+		return fmt.Errorf("ContinueRun requires owner_type=session")
 	}
 	return s.continueTracked(ctx, spec, runID, message)
 }
@@ -117,324 +278,16 @@ func (s *Service) GetRunState(ctx context.Context, runID string) (agentmanager.R
 	return s.agentService.GetRunState(ctx, runID)
 }
 
+func (s *Service) GetRunEvents(ctx context.Context, runID string, opts agentmanager.RunEventsOptions) ([]*domainpb.RunEvent, bool, error) {
+	if s.eventReader == nil {
+		return nil, false, agentmanager.ErrNotAvailable
+	}
+	return s.eventReader.GetRunEvents(ctx, runID, opts)
+}
+
 func (s *Service) GetRunDiff(ctx context.Context, runID string) (agentmanager.RunDiff, error) {
 	if s.differ == nil {
 		return agentmanager.RunDiff{}, fmt.Errorf("run diff not available")
 	}
 	return s.differ.GetRunDiff(ctx, runID)
-}
-
-func (s *Service) StopRun(ctx context.Context, runID string) error {
-	if s.agentService == nil {
-		return agentmanager.ErrNotAvailable
-	}
-	trimmed := strings.TrimSpace(runID)
-	if trimmed == "" {
-		return fmt.Errorf("run id is required")
-	}
-	if err := s.agentService.StopRun(ctx, trimmed); err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err := s.store.Load()
-	if err != nil {
-		return err
-	}
-	now := nowRFC3339()
-	changed := false
-	for i := range records {
-		if strings.TrimSpace(records[i].RunID) != trimmed || !isActiveStatus(records[i].Status) {
-			continue
-		}
-		records[i].Status = StatusCancelled
-		records[i].FinishedAt = now
-		records[i].UpdatedAt = now
-		changed = true
-	}
-	if !changed {
-		return nil
-	}
-	if err := s.store.Save(records); err != nil {
-		return err
-	}
-	for _, record := range records {
-		if record.RunID == trimmed && record.Status == StatusCancelled {
-			s.dispatchStatusUpdate(record)
-		}
-	}
-	return nil
-}
-
-func (s *Service) Get(ctx context.Context, activityID string) (Record, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := s.refreshActiveLocked(ctx); err != nil {
-		return Record{}, err
-	}
-	records, err := s.store.Load()
-	if err != nil {
-		return Record{}, err
-	}
-	trimmed := strings.TrimSpace(activityID)
-	for _, record := range records {
-		if record.ActivityID == trimmed {
-			return record, nil
-		}
-	}
-	return Record{}, errNotFound
-}
-
-func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := s.refreshActiveLocked(ctx); err != nil {
-		return nil, err
-	}
-	records, err := s.store.Load()
-	if err != nil {
-		return nil, err
-	}
-
-	filtered := make([]Record, 0, len(records))
-	for _, record := range records {
-		if matchesFilters(record, filters) {
-			filtered = append(filtered, record)
-		}
-	}
-
-	sort.Slice(filtered, func(i, j int) bool {
-		if filtered[i].RequestedAt == filtered[j].RequestedAt {
-			return filtered[i].ActivityID > filtered[j].ActivityID
-		}
-		return filtered[i].RequestedAt > filtered[j].RequestedAt
-	})
-
-	return filtered, nil
-}
-
-// HasActiveAgent checks whether a backlog item has an active agent
-// (pending, starting, running, or needs_review). Used by non-spawn guards
-// like WorkshopDeleteRound and WorkshopReset to prevent mutations while
-// an agent is working. Returns false on store errors (safe-side: allow
-// operations to proceed if the store is broken).
-func (s *Service) HasActiveAgent(ctx context.Context, ownerKind, ownerName string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err := s.store.Load()
-	if err != nil {
-		return false
-	}
-	_ = s.refreshActiveForOwnerLocked(ctx, records, ownerKind, ownerName)
-	records, _ = s.store.Load()
-
-	for _, rec := range records {
-		if rec.OwnerType != OwnerBacklog || rec.OwnerKind != ownerKind || rec.OwnerName != ownerName {
-			continue
-		}
-		if isPendingStale(rec) {
-			continue
-		}
-		if isActiveStatus(rec.Status) {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *Service) spawnTracked(
-	ctx context.Context,
-	spec Spec,
-	req agentmanager.BacklogSpawnRequest,
-) (agentmanager.RunResult, error) {
-	if s.agentService == nil || !s.agentService.IsEnabled() {
-		return agentmanager.RunResult{}, agentmanager.ErrNotAvailable
-	}
-
-	s.mu.Lock()
-	records, err := s.store.Load()
-	if err != nil {
-		s.mu.Unlock()
-		return agentmanager.RunResult{}, err
-	}
-
-	// Guard: at most one active agent per backlog item.
-	if spec.OwnerType == OwnerBacklog {
-		// Best-effort refresh of this item's active records to clear stale state.
-		if refreshErr := s.refreshActiveForOwnerLocked(ctx, records, spec.OwnerKind, spec.OwnerName); refreshErr != nil {
-			slog.Warn("backlog item guard: refresh failed, proceeding with stale data", "err", refreshErr)
-		}
-		// Re-load after refresh may have saved updated statuses.
-		records, err = s.store.Load()
-		if err != nil {
-			s.mu.Unlock()
-			return agentmanager.RunResult{}, err
-		}
-
-		staleCleaned := false
-		for i, rec := range records {
-			if rec.OwnerType != OwnerBacklog || rec.OwnerKind != spec.OwnerKind || rec.OwnerName != spec.OwnerName {
-				continue
-			}
-			// Auto-fail stale pending records (no RunID, older than TTL).
-			if isPendingStale(rec) {
-				records[i].Status = StatusFailed
-				records[i].FailureReason = "pending spawn timed out"
-				records[i].FinishedAt = nowRFC3339()
-				records[i].UpdatedAt = records[i].FinishedAt
-				staleCleaned = true
-				continue
-			}
-			if isActiveStatus(rec.Status) {
-				s.mu.Unlock()
-				return agentmanager.RunResult{}, fmt.Errorf("%w: %s/%s already has an active agent (activity=%s, status=%s, purpose=%s)",
-					ErrBacklogItemBusy, rec.OwnerKind, rec.OwnerName, rec.ActivityID, rec.Status, rec.Purpose)
-			}
-		}
-		if staleCleaned {
-			if err := s.store.Save(records); err != nil {
-				s.mu.Unlock()
-				return agentmanager.RunResult{}, err
-			}
-		}
-	}
-
-	now := nowRFC3339()
-	record := Record{
-		ActivityID:      idgen.Generate(),
-		OwnerType:       spec.OwnerType,
-		OwnerKind:       spec.OwnerKind,
-		OwnerName:       spec.OwnerName,
-		OwnerTitle:      spec.OwnerTitle,
-		ExecutionID:     spec.ExecutionID,
-		Purpose:         spec.Purpose,
-		InteractionType: InteractionSpawn,
-		Status:          StatusPending,
-		RequestedAt:     now,
-		RequestedBy:     spec.RequestedBy,
-		Metadata:        spec.Metadata,
-		UpdatedAt:       now,
-	}
-	records = append(records, record)
-	if err := s.store.Save(records); err != nil {
-		s.mu.Unlock()
-		return agentmanager.RunResult{}, err
-	}
-	s.dispatchStatusUpdate(record)
-	s.mu.Unlock()
-
-	runResult, spawnErr := s.agentService.SpawnBacklog(ctx, req)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err = s.store.Load()
-	if err != nil {
-		return agentmanager.RunResult{}, err
-	}
-	idx := indexByID(records, record.ActivityID)
-	if idx < 0 {
-		return agentmanager.RunResult{}, fmt.Errorf("agent activity disappeared during spawn")
-	}
-
-	updated := records[idx]
-	updated.UpdatedAt = nowRFC3339()
-	if spawnErr != nil {
-		updated.Status = StatusFailed
-		updated.FailureReason = spawnErr.Error()
-		updated.FinishedAt = updated.UpdatedAt
-		records[idx] = updated
-		if err := s.store.Save(records); err != nil {
-			return agentmanager.RunResult{}, err
-		}
-		s.dispatchStatusUpdate(updated)
-		return agentmanager.RunResult{}, spawnErr
-	}
-
-	updated.TaskID = strings.TrimSpace(runResult.TaskID)
-	updated.RunID = strings.TrimSpace(runResult.RunID)
-	updated.Status = StatusStarting
-	updated.StartedAt = updated.UpdatedAt
-	records[idx] = updated
-	if err := s.store.Save(records); err != nil {
-		return agentmanager.RunResult{}, err
-	}
-	s.dispatchStatusUpdate(updated)
-	return runResult, nil
-}
-
-func (s *Service) continueTracked(ctx context.Context, spec Spec, runID string, message string) error {
-	if s.continuer == nil {
-		return fmt.Errorf("run continuation not available")
-	}
-	trimmedRunID := strings.TrimSpace(runID)
-	if trimmedRunID == "" {
-		return fmt.Errorf("run id is required")
-	}
-
-	s.mu.Lock()
-	records, err := s.store.Load()
-	if err != nil {
-		s.mu.Unlock()
-		return err
-	}
-	now := nowRFC3339()
-	record := Record{
-		ActivityID:      idgen.Generate(),
-		OwnerType:       spec.OwnerType,
-		OwnerKind:       spec.OwnerKind,
-		OwnerName:       spec.OwnerName,
-		OwnerTitle:      spec.OwnerTitle,
-		ExecutionID:     spec.ExecutionID,
-		Purpose:         spec.Purpose,
-		InteractionType: InteractionContinue,
-		RunID:           trimmedRunID,
-		Status:          StatusPending,
-		RequestedAt:     now,
-		RequestedBy:     spec.RequestedBy,
-		Metadata:        spec.Metadata,
-		UpdatedAt:       now,
-	}
-	records = append(records, record)
-	if err := s.store.Save(records); err != nil {
-		s.mu.Unlock()
-		return err
-	}
-	s.dispatchStatusUpdate(record)
-	s.mu.Unlock()
-
-	continueErr := s.continuer.ContinueRun(ctx, trimmedRunID, message)
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	records, err = s.store.Load()
-	if err != nil {
-		return err
-	}
-	idx := indexByID(records, record.ActivityID)
-	if idx < 0 {
-		return fmt.Errorf("agent activity disappeared during continuation")
-	}
-	updated := records[idx]
-	updated.UpdatedAt = nowRFC3339()
-	if continueErr != nil {
-		updated.Status = StatusFailed
-		updated.FailureReason = continueErr.Error()
-		updated.FinishedAt = updated.UpdatedAt
-	} else {
-		updated.Status = StatusRunning
-		updated.StartedAt = updated.UpdatedAt
-	}
-	records[idx] = updated
-	if err := s.store.Save(records); err != nil {
-		return err
-	}
-	s.dispatchStatusUpdate(updated)
-	return continueErr
 }

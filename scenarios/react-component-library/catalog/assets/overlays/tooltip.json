@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "overlays.tooltip",
+    "name": "Tooltip",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "overlays",
+    "description": "The concise explanatory overlay with hover intent, keyboard activation, an explicit touch policy, shared delay grouping, collision handling, and description rather than label semantics.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P0",
+      "maturity": "production-ready"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.tokens",
+        "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
+      },
+      {
+        "asset": "primitives.surface",
+        "reason": "Background and elevation come from the shared surface primitive rather than per-overlay shadow values."
+      },
+      {
+        "asset": "motion.presence",
+        "reason": "Enter and exit lifecycle, interruption, and reduced-motion collapse are owned once."
+      },
+      {
+        "asset": "hooks.use-hover",
+        "reason": "Hover intent, delay, and pointer-type awareness are shared."
+      }
+    ]
+  },
+  "expects": [
+    {
+      "capability": "layer-manager"
+    },
+    {
+      "capability": "positioning-adapter"
+    }
+  ],
+  "requiredCapabilities": [
+    "accessible-naming",
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "layered-dismissal",
+    "contrast-floor",
+    "dark-parity",
+    "reduced-motion",
+    "transition-class-conformance",
+    "no-layout-animation",
+    "responsive-transformation",
+    "pointer-independence"
+  ],
+  "beauty": {
+    "avoid": [
+      "hover-only-affordance"
+    ]
+  },
+  "rationale": "Deliberately not built on Popover: a tooltip must never take focus, and inheriting Popover's focus management is how tooltips end up trapping keyboard users."
+}

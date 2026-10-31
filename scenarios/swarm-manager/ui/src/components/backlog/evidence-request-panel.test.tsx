@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithProviders as renderWithCanonicalProviders } from "../../test-utils/renderWithProviders";
 import { EvidenceRequestPanel } from "./evidence-request-panel";
 import { useReviewStore } from "../../stores/review-store";
 import type { ReviewRound } from "../../services/review-service";
@@ -86,7 +87,7 @@ beforeEach(() => {
 
 function renderPanel(rounds: ReviewRound[] = [mockRound]) {
   const onAction = vi.fn();
-  const result = render(
+  const result = renderWithCanonicalProviders(
     <EvidenceRequestPanel
       backlogKind="fix"
       backlogName="my-item"

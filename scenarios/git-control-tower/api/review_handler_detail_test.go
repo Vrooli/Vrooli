@@ -530,49 +530,6 @@ func TestBuildCodeQualityIssues_AllZero(t *testing.T) {
 	}
 }
 
-func TestBuildTestFailures(t *testing.T) {
-	t.Parallel()
-
-	phases := []TestPhaseResult{
-		{Name: "build", Status: "passed"},
-		{Name: "unit", Status: "failed", Error: "assertion error", Classification: "logic", Remediation: "fix test"},
-		{Name: "integration", Status: "failed", Error: "timeout", Classification: "infra"},
-		{Name: "lint", Status: "passed"},
-	}
-
-	failures := buildTestFailures(phases, 10)
-	if len(failures) != 2 {
-		t.Fatalf("expected 2 failures, got %d", len(failures))
-	}
-	if failures[0].Phase != "unit" {
-		t.Errorf("expected 'unit' first, got %s", failures[0].Phase)
-	}
-	if failures[0].Remediation != "fix test" {
-		t.Errorf("expected 'fix test' remediation, got %s", failures[0].Remediation)
-	}
-	if failures[1].Phase != "integration" {
-		t.Errorf("expected 'integration' second, got %s", failures[1].Phase)
-	}
-
-	// Test capping.
-	capped := buildTestFailures(phases, 1)
-	if len(capped) != 1 {
-		t.Fatalf("expected 1 capped failure, got %d", len(capped))
-	}
-}
-
-func TestBuildTestFailures_NoneFaild(t *testing.T) {
-	t.Parallel()
-	phases := []TestPhaseResult{
-		{Name: "build", Status: "passed"},
-		{Name: "unit", Status: "passed"},
-	}
-	failures := buildTestFailures(phases, 5)
-	if len(failures) != 0 {
-		t.Errorf("expected 0 failures, got %d", len(failures))
-	}
-}
-
 func TestBuildTopViolations(t *testing.T) {
 	t.Parallel()
 

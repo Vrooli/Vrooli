@@ -74,10 +74,20 @@ export function StatusBadge({ status, size = "sm", className, onStatusChange, st
   );
 
   const label = status.replace(/_/g, " ");
+  const isInReview = status === "in_review";
+  // Leading pulsing dot when the review agent is running; signals "busy —
+  // check back when it lands in review_pending".
+  const pulseDot = isInReview ? (
+    <span className="relative mr-1.5 inline-flex h-1.5 w-1.5 shrink-0" aria-hidden>
+      <span className={cn("absolute inline-flex h-full w-full animate-ping rounded-full opacity-75", colors.text)} />
+      <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", colors.text)} />
+    </span>
+  ) : null;
 
   if (!onStatusChange) {
     return (
       <span className={badgeClasses} data-testid="status-badge">
+        {pulseDot}
         {label}
       </span>
     );
@@ -94,7 +104,7 @@ export function StatusBadge({ status, size = "sm", className, onStatusChange, st
       >
         {statusChangePending ? (
           <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-        ) : null}
+        ) : pulseDot}
         {label}
       </button>
 

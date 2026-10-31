@@ -445,5 +445,17 @@ func parseSuggestSection(lines []string, parsed *parsedItemSection) {
 
 // parseNotesSection extracts freeform notes content.
 func parseNotesSection(lines []string, parsed *parsedItemSection) {
-	parsed.notes = strings.TrimSpace(strings.Join(lines, "\n"))
+	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	// The export's item separator belongs to the outer document, not notes.md.
+	// Remove only a terminal separator so intentional rules inside notes survive.
+	if len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "---" {
+		lines = lines[:len(lines)-1]
+	}
+	notes := strings.TrimSpace(strings.Join(lines, "\n"))
+	if notes == "_No notes._" {
+		return
+	}
+	parsed.notes = notes
 }

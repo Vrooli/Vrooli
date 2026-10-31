@@ -4,10 +4,10 @@ import { parseProtoStrict } from './proto';
 
 describe('parseProtoStrict', () => {
   it('parses valid protojson payloads with json field names', () => {
-    // Note: Execution proto has json_name="id" for execution_id field
+    // Standard ProtoJSON uses the lower-camel field name for execution_id.
     const parsed = parseProtoStrict(ExecutionSchema, {
-      id: 'exec-1',
-      workflow_id: 'wf-1',
+      executionId: 'exec-1',
+      workflowId: 'wf-1',
     });
     expect(parsed.executionId).toBe('exec-1');
     expect(parsed.workflowId).toBe('wf-1');
@@ -16,8 +16,8 @@ describe('parseProtoStrict', () => {
   it('throws when unknown fields are present', () => {
     expect(() =>
       parseProtoStrict(ExecutionSchema, {
-        id: 'exec-1',
-        workflow_id: 'wf-1',
+        executionId: 'exec-1',
+        workflowId: 'wf-1',
         extra_field: 'nope',
       }),
     ).toThrow();

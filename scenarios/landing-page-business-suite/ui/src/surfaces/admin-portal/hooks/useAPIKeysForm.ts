@@ -84,7 +84,7 @@ export function useAPIKeysForm(): UseAPIKeysFormReturn {
 
   // Initial load
   useEffect(() => {
-    fetchKeys();
+    void fetchKeys();
   }, [fetchKeys]);
 
   /**

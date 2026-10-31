@@ -1,0 +1,2 @@
+INVOICE 42
+Total 10.00

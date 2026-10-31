@@ -1,0 +1,29 @@
+{
+  "slug": "REPLACE-with-scenario-or-product-slug",
+  "display_name": "REPLACE — human-readable name",
+  "product_kind": "scenario",
+  "physical_descriptors": {
+    "ui_surfaces": [
+      {
+        "surface_kind": "web-app",
+        "key_visual_elements": [
+          "REPLACE — distinctive visual elements of the surface"
+        ],
+        "do_not_distort": [
+          "feature names must match current scenario state",
+          "tier labels must match current TIERS.md"
+        ]
+      }
+    ],
+    "packaging": null
+  },
+  "brand_element_placement_rules": {
+    "logo_placement": "REPLACE — e.g. lower-right corner, white version on dark backgrounds",
+    "palette_lock": "REPLACE — e.g. full brand palette per IMAGE_STYLE.md",
+    "tagline_rules": "REPLACE — refer to docs/narrative/PITCH.md for current canonical taglines"
+  },
+  "tier_alignment_required": true,
+  "on_screen_ui_assets": [],
+  "do_not_pair_with": [],
+  "notes": ""
+}

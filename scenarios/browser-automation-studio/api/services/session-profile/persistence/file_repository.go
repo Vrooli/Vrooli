@@ -2,7 +2,6 @@
 package persistence
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -11,19 +10,22 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 // FileRepository implements Repository using JSON files with atomic writes.
 type FileRepository struct {
-	root string
-	log  *logrus.Logger
-	fs   FileSystem
+	root      string
+	fs        FileSystem
+	authority func() (*credentialauthority.Authority, error)
 }
 
 // FileRepositoryConfig configures the FileRepository.
 type FileRepositoryConfig struct {
 	// FileSystem provides file operations. If nil, uses the real OS filesystem.
 	FileSystem FileSystem
+	// Authority resolves credentials in process. Nil uses the platform authority.
+	Authority func() (*credentialauthority.Authority, error)
 }
 
 // NewFileRepository creates a file-based repository at the given path.
@@ -47,30 +49,31 @@ func NewFileRepositoryWithConfig(root string, log *logrus.Logger, config FileRep
 	if err := fsys.MkdirAll(root, 0o755); err != nil && log != nil {
 		log.WithError(err).Warn("Failed to ensure session profiles directory exists")
 	}
+	authority := config.Authority
+	if authority == nil {
+		authority = credentialauthority.Default
+	}
 	return &FileRepository{
-		root: root,
-		log:  log,
-		fs:   fsys,
+		root:      root,
+		fs:        fsys,
+		authority: authority,
 	}
 }
 
 // Get retrieves a profile by ID.
 func (r *FileRepository) Get(id ProfileID) (*SessionProfile, error) {
-	if id == "" {
-		return nil, errors.New("profile id is required")
+	path, err := r.profilePath(id)
+	if err != nil {
+		return nil, err
 	}
-	data, err := r.fs.ReadFile(r.profilePath(id))
+	data, err := r.fs.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil // Profile not found, return nil without error
 		}
 		return nil, fmt.Errorf("read profile: %w", err)
 	}
-	var profile SessionProfile
-	if err := json.Unmarshal(data, &profile); err != nil {
-		return nil, fmt.Errorf("parse profile: %w", err)
-	}
-	return &profile, nil
+	return r.decodeProfile(id, data)
 }
 
 // List returns all profiles sorted by last_used_at (desc) then created_at.
@@ -88,10 +91,7 @@ func (r *FileRepository) List() ([]SessionProfile, error) {
 		id := ProfileID(strings.TrimSuffix(file.Name(), ".json"))
 		profile, err := r.Get(id)
 		if err != nil {
-			if r.log != nil {
-				r.log.WithError(err).WithField("file", file.Name()).Warn("Skipping unreadable session profile")
-			}
-			continue
+			return nil, fmt.Errorf("recover session profile %q: %w", id, err)
 		}
 		if profile != nil {
 			profiles = append(profiles, *profile)
@@ -113,32 +113,58 @@ func (r *FileRepository) Create(profile *SessionProfile) error {
 	if profile == nil {
 		return errors.New("profile is nil")
 	}
-	if profile.ID == "" {
-		return errors.New("profile id is required")
-	}
+	return r.withWriteLock(profile.ID, func(path string) error {
+		existing, err := r.Get(profile.ID)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			return fmt.Errorf("profile already exists: %s", profile.ID)
+		}
+		return r.save(profile, path)
+	})
+}
 
-	// Check if profile already exists
-	existing, err := r.Get(profile.ID)
+// Update reads and changes one current snapshot while holding write ownership.
+func (r *FileRepository) Update(id ProfileID, modify func(*SessionProfile) error) (*SessionProfile, error) {
+	var profile *SessionProfile
+	err := r.withWriteLock(id, func(path string) error {
+		var err error
+		profile, err = r.Get(id)
+		if err != nil {
+			return err
+		}
+		if profile == nil {
+			return ErrProfileNotFound
+		}
+		if err := modify(profile); err != nil {
+			return err
+		}
+		if profile.ID != id {
+			return errors.New("profile update cannot change identity")
+		}
+		return r.save(profile, path)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return profile, nil
+}
+
+func (r *FileRepository) withWriteLock(id ProfileID, write func(path string) error) error {
+	path, err := r.profilePath(id)
 	if err != nil {
 		return err
 	}
-	if existing != nil {
-		return fmt.Errorf("profile already exists: %s", profile.ID)
+	release, err := r.fs.Lock(filepath.Join(r.root, ".profiles.lock"))
+	if err != nil {
+		return fmt.Errorf("acquire profile write ownership: %w", err)
 	}
-
-	return r.Save(profile)
+	defer release()
+	return write(path)
 }
 
-// Save atomically persists the entire profile.
-// Uses write-to-temp-file-then-rename pattern for crash safety.
-func (r *FileRepository) Save(profile *SessionProfile) error {
-	if profile == nil {
-		return errors.New("profile is nil")
-	}
-	if profile.ID == "" {
-		return errors.New("profile id is required")
-	}
-
+func (r *FileRepository) save(profile *SessionProfile, path string) error {
 	// Set timestamps if not already set
 	if profile.CreatedAt.IsZero() {
 		profile.CreatedAt = profile.UpdatedAt
@@ -150,24 +176,12 @@ func (r *FileRepository) Save(profile *SessionProfile) error {
 		profile.LastUsedAt = profile.CreatedAt
 	}
 
-	data, err := json.MarshalIndent(profile, "", "  ")
+	data, err := r.encodeProfile(profile)
 	if err != nil {
-		return fmt.Errorf("marshal profile: %w", err)
+		return err
 	}
-
-	// Write to temp file first for atomic operation
-	targetPath := r.profilePath(profile.ID)
-	tempPath := targetPath + ".tmp"
-
-	if err := r.fs.WriteFile(tempPath, data, 0o600); err != nil {
-		return fmt.Errorf("write temp profile: %w", err)
-	}
-
-	// Atomic rename (on POSIX systems, this is atomic for same-filesystem renames)
-	if err := r.fs.Rename(tempPath, targetPath); err != nil {
-		// Clean up temp file on failure
-		_ = r.fs.Remove(tempPath)
-		return fmt.Errorf("rename profile: %w", err)
+	if err := r.fs.WriteFileAtomic(path, data, 0o600); err != nil {
+		return fmt.Errorf("commit profile: %w", err)
 	}
 
 	return nil
@@ -175,24 +189,26 @@ func (r *FileRepository) Save(profile *SessionProfile) error {
 
 // Delete removes a profile by ID.
 func (r *FileRepository) Delete(id ProfileID) error {
-	if id == "" {
-		return errors.New("profile id is required")
-	}
-	path := r.profilePath(id)
-	if _, err := r.fs.Stat(path); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("profile not found")
+	return r.withWriteLock(id, func(path string) error {
+		if err := r.fs.Remove(path); err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return ErrProfileNotFound
+			}
+			return fmt.Errorf("delete profile: %w", err)
 		}
-		return fmt.Errorf("delete profile: %w", err)
-	}
-	if err := r.fs.Remove(path); err != nil {
-		return fmt.Errorf("delete profile: %w", err)
-	}
-	return nil
+		return nil
+	})
 }
 
-func (r *FileRepository) profilePath(id ProfileID) string {
-	return filepath.Join(r.root, fmt.Sprintf("%s.json", id))
+func (r *FileRepository) profilePath(id ProfileID) (string, error) {
+	if id == "" {
+		return "", errors.New("profile id is required")
+	}
+	// Reject separators on every host, including Windows drive/stream syntax.
+	if id == "." || id == ".." || strings.ContainsAny(string(id), "/\\:\x00") {
+		return "", ErrInvalidProfileID
+	}
+	return filepath.Join(r.root, string(id)+".json"), nil
 }
 
 // Ensure FileRepository implements Repository at compile time.

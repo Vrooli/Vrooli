@@ -1,0 +1,116 @@
+{
+  "schema_version": "2026-10-30",
+  "upstreams": {
+    "local": {
+      "locality": "local",
+      "protocol": "ollaya",
+      "description": "The managed Ollaya daemon's native /api/decide endpoint (adds timings and state_truncated to the TypeSafe answer shape)."
+    },
+    "edenai": {
+      "locality": "remote",
+      "protocol": "system-one",
+      "endpoint": "https://api.edenai.run/v3/alpha/decisions",
+      "credentials": [
+        {
+          "env": "EDENAI_API_KEY",
+          "logical_id": "vrooli/edenai",
+          "field": "api-key",
+          "use": "bearer"
+        }
+      ],
+      "description": "Eden AI alpha decisions endpoint serving TypeSafe Jev; the request and response bodies are TypeSafe's System One shape at a different path. Alpha: the shape may change without notice."
+    },
+    "typesafe": {
+      "locality": "remote",
+      "protocol": "system-one",
+      "endpoint": "https://api.typesafe.ai/v1/systemone",
+      "credentials": [
+        {
+          "env": "TYPESAFE_API_KEY",
+          "logical_id": "vrooli/typesafe",
+          "field": "api-key",
+          "use": "bearer"
+        }
+      ],
+      "description": "TypeSafe's own hosted Jev API (waitlisted)."
+    },
+    "cloudflare": {
+      "locality": "remote",
+      "protocol": "system-one",
+      "endpoint": "https://api.cloudflare.com/client/v4/accounts/{account}/ai/run/@cf/cloudflare/clef-flash",
+      "envelope": "cloudflare",
+      "credentials": [
+        {
+          "env": "CLOUDFLARE_WORKERS_AI_API_TOKEN",
+          "logical_id": "vrooli/cloudflare-workers-ai",
+          "field": "api-token",
+          "use": "bearer"
+        },
+        {
+          "env": "CLOUDFLARE_WORKERS_AI_ACCOUNT_ID",
+          "logical_id": "vrooli/cloudflare-workers-ai",
+          "field": "account-id",
+          "use": "account"
+        }
+      ],
+      "description": "Cloudflare Workers AI REST run endpoint for @cf/cloudflare/clef-flash; the System One answer is wrapped in Cloudflare's {result, success} envelope."
+    }
+  },
+  "roles": {
+    "decide.local": {
+      "upstream": "local",
+      "model": "laya",
+      "description": "Local CPU/GPU-capable Laya router (laya:en or laya:multilingual by script). Fast and private; Ollaya reports it is weak beyond about 20 options."
+    },
+    "decide.local.accurate": {
+      "upstream": "local",
+      "model": "winnow:e4b",
+      "description": "Local Winnow-E4B (Gemma 4 fine-tune, Q8_0 GGUF on llama.cpp): Ollaya's recommended open model. Opt-in: an 8 GB pull that needs about 9 GB of free VRAM to run on the GPU."
+    },
+    "decide.jev.edenai": {
+      "upstream": "edenai",
+      "model": "typesafe/jev-latest",
+      "description": "Hosted TypeSafe Jev through Eden AI."
+    },
+    "decide.jev.typesafe": {
+      "upstream": "typesafe",
+      "model": "jev-latest",
+      "description": "Hosted TypeSafe Jev through TypeSafe's own API."
+    },
+    "decide.clef.cloudflare": {
+      "upstream": "cloudflare",
+      "model": "clef-flash",
+      "description": "Hosted Cloudflare Clef-flash (9B decision model) on Workers AI."
+    }
+  },
+  "models": {
+    "laya": {
+      "digest": "89aa53ce17e105dc801b899b4c1b6d4fcbee7ea2710a303e149a5129476bc2c6",
+      "routes": [
+        "laya:en",
+        "laya:multilingual"
+      ],
+      "default_pull": true,
+      "license": "Apache-2.0 (Convai Innovations)",
+      "disk_bytes": 10432
+    },
+    "laya:en": {
+      "digest": "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d",
+      "default_pull": true,
+      "license": "Apache-2.0 (Convai Innovations)",
+      "disk_bytes": 852602494
+    },
+    "laya:multilingual": {
+      "digest": "2840506e1f978aeb696a6f84af43ecc7fca95754cb63a67bafe6132532d384eb",
+      "default_pull": true,
+      "license": "Apache-2.0 (Convai Innovations)",
+      "disk_bytes": 683339997
+    },
+    "winnow:e4b": {
+      "digest": "dd4bf88aa50bebb02e7a26fbebed14682befd037e3e89789ee22b9793f82d226",
+      "default_pull": false,
+      "license": "Gemma Terms of Use (EldanRing Winnow-E4B on Gemma 4)",
+      "disk_bytes": 8005450992
+    }
+  }
+}

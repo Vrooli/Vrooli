@@ -13,31 +13,31 @@
 The checklists below define the measurable outcomes needed for each release tier. Status is driven by requirements sync rather than manual edits.
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | API metadata inventory | Store and retrieve API metadata including endpoints, pricing, rate limits, and auth methods.
-- [ ] OT-P0-002 | Semantic capability search | Provide semantic search across API descriptions and capabilities for instant discovery.
-- [ ] OT-P0-003 | Credential tracking | Track which APIs have credentials configured so operators know what is ready to use.
-- [ ] OT-P0-004 | API insights workspace | Capture and display notes, gotchas, and integration learnings for every API.
-- [ ] OT-P0-005 | Research-assistant integration | Pull newly discovered APIs from research-assistant to keep the library fresh.
-- [ ] OT-P0-006 | Metadata history | Track creation/update timestamps and source URLs for every API record.
-- [ ] OT-P0-007 | Scenario-facing REST API | Expose REST endpoints so other scenarios can query, filter, and mutate the catalog.
-- [ ] OT-P0-008 | Operator web UI | Provide a web UI for browsing, searching, and managing APIs.
+- [x] OT-P0-001 | API metadata inventory | Store and retrieve API metadata including endpoints, pricing, rate limits, and auth methods.
+- [x] OT-P0-002 | Semantic capability search | Provide semantic search across API descriptions and capabilities for instant discovery.
+- [x] OT-P0-003 | Credential tracking | Track which APIs have credentials configured so operators know what is ready to use.
+- [x] OT-P0-004 | API insights workspace | Capture and display notes, gotchas, and integration learnings for every API.
+- [x] OT-P0-005 | Research-assistant integration | Pull newly discovered APIs from research-assistant to keep the library fresh.
+- [x] OT-P0-006 | Metadata history | Track creation/update timestamps and source URLs for every API record.
+- [x] OT-P0-007 | Scenario-facing REST API | Expose REST endpoints so other scenarios can query, filter, and mutate the catalog.
+- [x] OT-P0-008 | Operator web UI | Provide a web UI for browsing, searching, and managing APIs.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Redis caching | Cache frequently accessed APIs to reduce latency for popular queries.
-- [ ] OT-P1-002 | Pricing refresh | Automatically refresh pricing data from source URLs on a 24-hour cadence.
-- [ ] OT-P1-003 | Cost calculator | Offer usage-based cost calculators that estimate spend per scenario.
-- [ ] OT-P1-004 | Categorization and tagging | Maintain API categories/tags plus supporting CRUD endpoints.
-- [ ] OT-P1-005 | Version tracking | Track version history, breaking changes, and migration metadata per API.
-- [ ] OT-P1-006 | Integration recipes | Store integration snippets/recipes with community voting and metadata.
-- [ ] OT-P1-007 | Status monitoring | Monitor deprecations, sunsets, and general API status through dedicated endpoints.
-- [ ] OT-P1-008 | Export tools | Export filtered catalogs as JSON or CSV for auditing and downstream automation.
+- [x] OT-P1-001 | Redis caching | Cache frequently accessed APIs to reduce latency for popular queries.
+- [x] OT-P1-002 | Pricing refresh | Automatically refresh pricing data from source URLs on a 24-hour cadence.
+- [x] OT-P1-003 | Cost calculator | Offer usage-based cost calculators that estimate spend per scenario.
+- [x] OT-P1-004 | Categorization and tagging | Maintain API categories/tags plus supporting CRUD endpoints.
+- [x] OT-P1-005 | Version tracking | Track version history, breaking changes, and migration metadata per API.
+- [x] OT-P1-006 | Integration recipes | Store integration snippets/recipes with community voting and metadata.
+- [x] OT-P1-007 | Status monitoring | Monitor deprecations, sunsets, and general API status through dedicated endpoints.
+- [x] OT-P1-008 | Export tools | Export filtered catalogs as JSON or CSV for auditing and downstream automation.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Comparison matrix | Generate API comparison matrices for capability/customer fit analysis.
-- [ ] OT-P2-002 | Usage analytics | Surface usage analytics and recommendations tied to scenario behavior.
-- [ ] OT-P2-003 | Update webhooks | Emit webhooks when API data changes so dependent scenarios can react.
-- [ ] OT-P2-004 | Codegen integrations | Provide opinionated code-generation endpoints for scaffolding integrations.
-- [ ] OT-P2-005 | Health monitoring | Track uptime/performance signals for APIs and expose them via monitoring endpoints.
+- [x] OT-P2-001 | Comparison matrix | Generate API comparison matrices for capability/customer fit analysis.
+- [x] OT-P2-002 | Usage analytics | Surface usage analytics and recommendations tied to scenario behavior.
+- [x] OT-P2-003 | Update webhooks | Emit webhooks when API data changes so dependent scenarios can react.
+- [x] OT-P2-004 | Codegen integrations | Provide opinionated code-generation endpoints for scaffolding integrations.
+- [x] OT-P2-005 | Health monitoring | Track uptime/performance signals for APIs and expose them via monitoring endpoints.
 
 ## 🧱 Tech Direction Snapshot
 The platform favors boring, observable components so future agents can safely extend it without relearning novel stacks.
@@ -49,7 +49,6 @@ The platform favors boring, observable components so future agents can safely ex
 
 ## 🤝 Dependencies & Launch Plan
 - Requires local Postgres, Qdrant, and Redis resources plus optional Ollama for embedding refreshes; all orchestrated through the scenario lifecycle manager (make start/test/logs/stop).
-- Depends on research-assistant scenario for continuous intake plus ecosystem-manager for publishing catalog metadata to other apps.
 - Launch gating: seed baseline API catalog, verify semantic search accuracy, and enable monitoring hooks before exposing REST endpoints to dependent scenarios.
 - Operational readiness: integrate with system-monitor alerts and ensure CLI + API auth policies align with deployment tier expectations.
 

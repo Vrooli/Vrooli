@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package vrooli.development_toolchain_validator.v1.staleness;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/development-toolchain-validator/v1/staleness;staleness_v1";
+
+// =============================================================================
+// STALENESS DOMAIN — Derived manifest-vs-current drift report (OT-P0-007)
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain staleness
+// @stability evolving
+//
+// Staleness is a derived view: per-manifest pinning compared against
+// current golden template version and current skill version. No new
+// table beyond manifest_stale_overrides (owned by the manifest domain).
+//
+// Templates are advisory storage for `vrooli scenario generate`; the
+// service consults golden.template_version_pinned and skill_catalog.version
+// as the "current" pin values.
+// =============================================================================
+
+service StalenessService {
+  rpc ListStale(ListStaleRequest) returns (ListStaleResponse);
+}
+
+// StaleKind classifies why a (skill_id, golden_slug) tuple is stale.
+enum StaleKind {
+  STALE_KIND_UNSPECIFIED = 0;
+  STALE_KIND_TEMPLATE_DRIFT = 1;
+  STALE_KIND_SKILL_DRIFT = 2;
+  STALE_KIND_BOTH = 3;
+}
+
+message StaleEntry {
+  string skill_id = 1;
+  string golden_slug = 2;
+  StaleKind kind = 3;
+
+  // Snapshot of the inputs that produced the verdict, so callers can
+  // render an actionable message without re-querying.
+  string manifest_template_version_pinned = 4;
+  string manifest_skill_version_pinned = 5;
+  string golden_template_version_current = 6;
+  string skill_version_current = 7;
+}
+
+message ListStaleRequest {}
+
+message ListStaleResponse {
+  repeated StaleEntry entries = 1;
+}

@@ -1,0 +1,25 @@
+id: no-unguarded-kernel-fs
+language: Go
+severity: warning
+message: >-
+  Guard /proc and /sys reads behind a platform implementation or record a
+  dated portability exception.
+note: >-
+  Linux kernel filesystems are not present on every supported host. A portable
+  caller must return an explicit unread result when no native counterpart exists.
+files:
+  - "**/*.go"
+  - "!**/*_test.go"
+  - "!**/*_linux.go"
+  - "!**/*_darwin.go"
+  - "!**/*_windows.go"
+  - "!**/*_unix.go"
+  - "!**/*_other.go"
+rule:
+  any:
+    - kind: call_expression
+      regex: 'os\.(ReadFile|Open|Stat)\(\s*"/(proc|sys)'
+    - kind: call_expression
+      regex: 'filepath\.Join\(\s*"/(proc|sys)'
+ruleDirs:
+  - .ast-grep/rules

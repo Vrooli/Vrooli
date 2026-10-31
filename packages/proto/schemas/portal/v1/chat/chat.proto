@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package vrooli.portal.v1.chat;
+
+import "portal/v1/shared/common.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/chat;chat_v1";
+
+// ChatService owns conversation list and group metadata.
+service ChatService {
+  rpc ListChats(ListChatsRequest) returns (ListChatsResponse);
+  rpc CreateChat(CreateChatRequest) returns (CreateChatResponse);
+  rpc GetChat(GetChatRequest) returns (GetChatResponse);
+  rpc UpdateChat(UpdateChatRequest) returns (UpdateChatResponse);
+  rpc DeleteChat(DeleteChatRequest) returns (DeleteChatResponse);
+  rpc ListGroups(ListGroupsRequest) returns (ListGroupsResponse);
+  rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
+  rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
+  rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+}
+
+message Chat {
+  string id = 1;
+  string title = 2;
+  string group_id = 3;
+  int32 sort_order = 4;
+  string model = 5;
+  bool web_search_enabled = 6;
+  vrooli.portal.v1.shared.ChatMode mode = 7;
+  vrooli.portal.v1.shared.AgentHarness agent_harness = 8;
+  string active_leaf_message_id = 9;
+  string created_at = 10;
+  string updated_at = 11;
+}
+
+message ChatGroup {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  bool collapsed = 4;
+  int32 sort_order = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message ListChatsRequest {
+  string group_id = 1;
+  string query = 2;
+}
+
+message ListChatsResponse {
+  repeated Chat chats = 1;
+  repeated ChatGroup groups = 2;
+}
+
+message CreateChatRequest {
+  string title = 1;
+  string group_id = 2;
+  string model = 3;
+  bool web_search_enabled = 4;
+  vrooli.portal.v1.shared.ChatMode mode = 5;
+  vrooli.portal.v1.shared.AgentHarness agent_harness = 6;
+}
+
+message CreateChatResponse {
+  Chat chat = 1;
+}
+
+message GetChatRequest {
+  string id = 1;
+}
+
+message GetChatResponse {
+  Chat chat = 1;
+}
+
+message UpdateChatRequest {
+  string id = 1;
+  string title = 2;
+  bool has_title = 3;
+  string group_id = 4;
+  bool has_group_id = 5;
+  string model = 6;
+  bool has_model = 7;
+  bool web_search_enabled = 8;
+  bool has_web_search_enabled = 9;
+  string active_leaf_message_id = 10;
+  bool has_active_leaf_message_id = 11;
+}
+
+message UpdateChatResponse {
+  Chat chat = 1;
+}
+
+message DeleteChatRequest {
+  string id = 1;
+}
+
+message DeleteChatResponse {}
+
+message ListGroupsRequest {}
+
+message ListGroupsResponse {
+  repeated ChatGroup groups = 1;
+}
+
+message CreateGroupRequest {
+  string name = 1;
+  string color = 2;
+}
+
+message CreateGroupResponse {
+  ChatGroup group = 1;
+}
+
+message UpdateGroupRequest {
+  string id = 1;
+  string name = 2;
+  bool has_name = 3;
+  string color = 4;
+  bool has_color = 5;
+  bool collapsed = 6;
+  bool has_collapsed = 7;
+  int32 sort_order = 8;
+  bool has_sort_order = 9;
+}
+
+message UpdateGroupResponse {
+  ChatGroup group = 1;
+}
+
+message DeleteGroupRequest {
+  string id = 1;
+}
+
+message DeleteGroupResponse {}

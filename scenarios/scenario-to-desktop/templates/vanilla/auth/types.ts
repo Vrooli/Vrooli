@@ -13,10 +13,27 @@
  * Stored authentication tokens.
  */
 export interface StoredTokens {
+    /** Short-lived access token; process-memory only. */
     accessToken: string;
+    /** Website refresh token; process-memory only. */
     refreshToken: string;
+    /** Compatibility session expiry; not a lease authorization boundary. */
     expiresAt: string;
+    /** Signed LPBS entitlement lease, when the account has one. */
+    entitlementLease?: string;
 }
+
+export interface CreditSessionShareStatus {
+    state: "shared" | "not_shared" | "signed_out" | "unavailable";
+    /** Clearing the local credential cannot revoke already-issued short-lived access tokens. */
+    remoteRevocation?: "uncertain";
+    localCleared?: boolean;
+}
+
+/** A fresh, authenticated LPBS wallet read. Values are display facts only. */
+export type CreditBalanceStatus =
+    | { state: "available"; balanceCredits: string; displayCreditsLabel: string; displayCreditsMultiplier: number; walletUpdatedAt?: string; fetchedAt: string; source: "LPBS" }
+    | { state: "signed_out" | "unavailable" };
 
 /**
  * Stored user information.
@@ -52,6 +69,35 @@ export interface AuthConfig {
     tokenRefreshBufferMs: number;
     /** App display name for auth page */
     appDisplayName: string;
+}
+
+/** A single, scoped LPBS-to-desktop account-link request. */
+export interface DesktopLinkOptions {
+    /** Omit to use the stable installation identity owned by the desktop shell. */
+    installationId?: string;
+    resource: string;
+    audience: string;
+    scopes: string[];
+}
+
+export interface DesktopLinkQuery {
+    resource: string;
+}
+
+export type DesktopLinkState = "linked" | "unlinked" | "expired" | "revoked" | "unavailable";
+
+/** Sanitized status from the LPBS local-link owner; never contains lease bytes. */
+export interface DesktopLinkStatus {
+    state: DesktopLinkState;
+    localPrincipal?: string;
+    businessAccountId?: string;
+    scopes: string[];
+    message?: string;
+}
+
+export interface DesktopDisconnectResult {
+    localCleared: boolean;
+    remoteRevocation: "confirmed" | "uncertain";
 }
 
 // ===== Seam Interfaces =====
@@ -120,6 +166,18 @@ export type WindowFocusCallback = () => void;
  */
 export type ProtocolUrlCallback = (url: string) => void;
 
+/** Result delivered by a process-owned loopback authorization listener. */
+export interface LoopbackAuthorizationResult {
+    code: string;
+    state: string;
+    redirectURI: string;
+}
+
+/** Binds a browser authorization request to an ephemeral loopback listener. */
+export type LoopbackAuthorizationCallback = (
+    buildAuthorizationURL: (redirectURI: string) => string,
+) => Promise<LoopbackAuthorizationResult>;
+
 /**
  * Storage operations needed by auth module.
  * Simplified interface compared to full IAppStorage.
@@ -155,6 +213,25 @@ export interface IAuthManager {
     signIn(options?: { state?: string }): Promise<{ state: string }>;
 
     /**
+     * Connect the current desktop installation to an LPBS business account.
+     * The local proof must come from the declared local identity provider.
+     */
+    connectDesktop(options: DesktopLinkOptions & { state?: string }): Promise<DesktopLinkStatus>;
+
+    /** Query LPBS's proof-authenticated local link record for this resource. */
+    getDesktopLinkStatus(options: DesktopLinkQuery): Promise<DesktopLinkStatus>;
+
+    /** Revoke remotely when reachable, then always clear local auth material. */
+    disconnectDesktop(options: DesktopLinkQuery): Promise<DesktopDisconnectResult>;
+
+    /** Share or clear the current LPBS refresh credential through the credential owner. */
+    setCreditSessionSharing(enabled: boolean): Promise<CreditSessionShareStatus>;
+    /** Read credential-presence status only; never return credential bytes. */
+    getCreditSessionShareStatus(): Promise<CreditSessionShareStatus>;
+    /** Read the current user's wallet through LPBS without exposing credentials. */
+    getCreditBalance(): Promise<CreditBalanceStatus>;
+
+    /**
      * Sign out the user and clear all auth data.
      */
     signOut(): Promise<void>;
@@ -164,6 +241,9 @@ export interface IAuthManager {
      * @returns The access token, or null if not authenticated
      */
     getAccessToken(): Promise<string | null>;
+
+    /** Return the last signed entitlement lease received from LPBS. */
+    getEntitlementLease(): Promise<string | null>;
 
     /**
      * Get the stored user information.
@@ -215,4 +295,24 @@ export interface AuthManagerDependencies {
     onAuthChange: AuthChangeCallback;
     onWindowFocus?: WindowFocusCallback;
     onProtocolUrl?: ProtocolUrlCallback;
+    /** Runs the browser callback on a process-owned loopback listener. */
+    onLoopbackAuthorization?: LoopbackAuthorizationCallback;
+    /** Derives the RFC 7636 S256 challenge from a verifier. */
+    createCodeChallenge?: (verifier: string) => string;
+    /** Store the signed entitlement lease in the platform credential authority. */
+    onStoreEntitlementLease?: (lease: string) => Promise<void>;
+    /** Resolve the signed entitlement lease after an app restart. */
+    onGetEntitlementLease?: () => Promise<string | null>;
+    /** Remove the signed entitlement lease during unlink/sign-out. */
+    onClearEntitlementLease?: () => Promise<void>;
+    /** Explicitly provision the LPBS refresh credential into its declared shared owner identity. */
+    onStoreLPBSCreditRefreshToken?: (refreshToken: string) => Promise<void>;
+    /** Presence-only query against the declared shared credential owner. */
+    onHasLPBSCreditRefreshToken?: () => Promise<boolean>;
+    /** Delete the LPBS refresh credential from the shared owner. */
+    onClearLPBSCreditRefreshToken?: () => Promise<void>;
+    /** Resolve a short-lived proof from the declared local identity provider. */
+    onResolveLocalIdentityProof?: () => Promise<string | null>;
+    /** Resolve or create the installation identity in desktop-owned private config. */
+    onGetDesktopInstallationId?: () => Promise<string>;
 }

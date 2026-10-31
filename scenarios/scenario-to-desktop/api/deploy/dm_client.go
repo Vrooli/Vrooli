@@ -161,7 +161,6 @@ func (c *DMClient) request(ctx context.Context, method, path string, payload int
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, 0, fmt.Errorf("request %s %s: %w", method, path, err)

@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "_metadata": {
+    "description": "Prompt Manager UX performance surfaces",
+    "last_updated": "2026-09-07T00:00:00Z"
+  },
+  "enabled": true,
+  "pages": [
+    {
+      "id": "world",
+      "path": "/world",
+      "label": "World home",
+      "viewport": "desktop",
+      "waitForSelector": "body",
+      "thresholds": {
+        "performance": { "error": 0.75, "warn": 0.85 },
+        "accessibility": { "error": 0.90, "warn": 0.95 },
+        "best-practices": { "error": 0.85, "warn": 0.90 },
+        "seo": { "error": 0.80, "warn": 0.90 }
+      }
+    },
+    {
+      "id": "graph",
+      "path": "/graph",
+      "label": "Dependency graph",
+      "viewport": "desktop",
+      "waitForSelector": "body",
+      "thresholds": {
+        "performance": { "error": 0.75, "warn": 0.85 },
+        "accessibility": { "error": 0.90, "warn": 0.95 },
+        "best-practices": { "error": 0.85, "warn": 0.90 },
+        "seo": { "error": 0.80, "warn": 0.90 }
+      }
+    }
+  ],
+  "global_options": {
+    "lighthouse": {
+      "extends": "lighthouse:default",
+      "settings": {
+        "onlyCategories": ["performance", "accessibility", "best-practices", "seo"],
+        "throttlingMethod": "simulate",
+        "formFactor": "desktop"
+      }
+    },
+    "chrome_flags": ["--headless", "--no-sandbox"],
+    "timeout_ms": 90000
+  }
+}

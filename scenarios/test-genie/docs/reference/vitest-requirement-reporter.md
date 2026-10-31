@@ -21,7 +21,7 @@ Without this reporter, Vitest tests wouldn't integrate with Vrooli's requirement
 ## Installation
 
 ```bash
-pnpm add @vrooli/vitest-requirement-reporter@workspace:*
+pnpm add @vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter
 ```
 
 ## Basic Setup
@@ -222,7 +222,7 @@ Vitest runs
 After modifying this reporter inside the monorepo, run the refresh helper so dependent scenarios reinstall and rebuild with the new code:
 
 ```bash
-./scripts/scenarios/tools/refresh-shared-package.sh vitest-requirement-reporter <scenario|all> [--no-restart]
+vrooli package refresh vitest-requirement-reporter all --no-restart
 ```
 
 ## Troubleshooting

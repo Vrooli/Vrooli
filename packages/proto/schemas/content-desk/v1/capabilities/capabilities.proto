@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package vrooli.content_desk.v1.capabilities;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/capabilities;capabilities_v1";
+
+// CapabilitiesService owns the persisted marketing-capability catalog: what
+// capabilities exist, their evidence, prerequisites, priority, and the
+// separate readiness/qualification state of each. It never owns campaign,
+// draft, claim, publish, or metric state; those stay with their own domains.
+service CapabilitiesService {
+  rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
+  rpc GetCapability(GetCapabilityRequest) returns (GetCapabilityResponse);
+  rpc UpsertCapability(UpsertCapabilityRequest) returns (UpsertCapabilityResponse);
+  rpc RecordQualification(RecordQualificationRequest) returns (RecordQualificationResponse);
+  rpc LinkCapability(LinkCapabilityRequest) returns (LinkCapabilityResponse);
+}
+
+// Capability is one marketing capability and its five separate readiness
+// dimensions. A healthy owner service or an implementation does not establish
+// usable output, so each dimension is stored and read independently.
+message Capability {
+  string id = 1;
+  string name = 2;
+  string medium = 3;
+  repeated string aliases = 4;
+  repeated string channels = 5;
+  string audience_applicability = 6;
+  string delivery_applicability = 7;
+  string producing_operation = 8;
+  repeated string prerequisites = 9;
+  int32 priority = 10;
+  string priority_reason = 11;
+  string priority_scope = 12;
+  string definition_status = 13;
+  string implementation_status = 14;
+  string operational_readiness = 15;
+  string output_quality = 16;
+  string distribution_connectivity = 17;
+  string owner = 18;
+  repeated string source_refs = 19;
+  CapabilityQualification latest_qualification = 20;
+  string next_action = 21;
+  string created_at = 22;
+  string updated_at = 23;
+  // output_quality_source names the owner artifact that established the
+  // read-time output_quality verdict, or "unknown" when the stored inventory
+  // value was kept. output_quality is re-derived at response time from
+  // evidence-linked owner records and is never a persisted second copy.
+  string output_quality_source = 24;
+  // readiness_limitations names why a readiness dimension could not be
+  // re-derived (no linked evidence, unreadable owner record, unavailable
+  // resolver) so an unverified value is never reported as verified.
+  repeated string readiness_limitations = 25;
+  // operational_readiness_source names the owner record that established the
+  // read-time operational_readiness verdict (a qualification artifact/run, the
+  // capability id for a structural verdict), or "unknown" when the stored
+  // inventory value was kept. operational_readiness is re-derived at response
+  // time and is never a persisted second copy.
+  string operational_readiness_source = 26;
+  // distribution_connectivity_source names the owner record that established
+  // the read-time distribution_connectivity verdict (the Channel Manager
+  // account/identity read, the capability id for a structural verdict), or
+  // "unknown" when the stored inventory value was kept.
+  // distribution_connectivity is re-derived at response time and is never a
+  // persisted second copy.
+  string distribution_connectivity_source = 27;
+}
+
+// CapabilityQualification is observed evidence for one capability. A missing
+// qualification reads as the explicit "unknown" sentinel, never as zero.
+message CapabilityQualification {
+  string id = 1;
+  string capability_id = 2;
+  string latest_artifact_id = 3;
+  string latest_run_id = 4;
+  string environment = 5;
+  string validated_at = 6;
+  string observed_at = 7;
+  string freshness_basis = 8;
+  string candidate_identity = 9;
+  int64 max_age_seconds = 10;
+  string limitation = 11;
+  string next_action = 12;
+  string created_at = 13;
+}
+
+// CapabilityLink relates a capability to another owner record without copying
+// that record's state.
+message CapabilityLink {
+  string id = 1;
+  string capability_id = 2;
+  string relation = 3;
+  string target_id = 4;
+  string created_at = 5;
+}
+
+message ListCapabilitiesRequest {
+  string medium = 1;
+}
+
+message ListCapabilitiesResponse {
+  repeated Capability capabilities = 1;
+}
+
+message GetCapabilityRequest {
+  string id = 1;
+  string alias = 2;
+}
+
+message GetCapabilityResponse {
+  Capability capability = 1;
+}
+
+message UpsertCapabilityRequest {
+  Capability capability = 1;
+}
+
+message UpsertCapabilityResponse {
+  Capability capability = 1;
+}
+
+message RecordQualificationRequest {
+  CapabilityQualification qualification = 1;
+}
+
+message RecordQualificationResponse {
+  CapabilityQualification qualification = 1;
+}
+
+message LinkCapabilityRequest {
+  CapabilityLink link = 1;
+}
+
+message LinkCapabilityResponse {
+  CapabilityLink link = 1;
+}

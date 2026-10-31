@@ -1,0 +1,55 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The system may provide cross-goal portfolio analytics covering throughput, cost, and trend dashboards",
+      "id": "SWM-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Portfolio analytics",
+      "validation": [
+        {
+          "notes": "No coverage yet: cross-goal portfolio analytics (throughput/cost/trend dashboards) are not implemented (audit 2026-07-23).",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may support operator-configured auto-accept policies for low-risk reviews with clean evidence",
+      "id": "SWM-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "Green-path auto-accept policies",
+      "validation": [
+        {
+          "notes": "No coverage yet: operator-configured green-path auto-accept policies for low-risk reviews are not implemented (audit 2026-07-23).",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P2",
+      "description": "The system may provide an operator channel to steer a running execution beyond slice-approval signals",
+      "id": "SWM-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Mid-run steering",
+      "validation": [
+        {
+          "notes": "No coverage yet: a mid-run operator steering channel beyond slice-approval signals is not implemented (audit 2026-07-23).",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "legacy.ingest-probe",
+    "name": "IngestProbe",
+    "kind": "component",
+    "domain": "legacy",
+    "description": "Throwaway asset that verified draft-only ingest end to end; retired after the check.",
+    "targets": ["react-vite"],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": { "priority": "P2", "maturity": "deprecated" }
+  }
+}

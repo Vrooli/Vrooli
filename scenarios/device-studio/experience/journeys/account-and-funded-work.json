@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "account-and-funded-work",
+    "title": "Optional account and funded execution",
+    "purpose": "Use optional account-backed work only after identity, funding, privacy and operation authority are independently satisfied.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P0-012"
+    ]
+  },
+  "steps": [
+    {
+      "page": "account",
+      "state": "signed-out",
+      "intent": "Continue local work and understand which optional operation needs account capability.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "account",
+      "state": "linking",
+      "intent": "Connect through the trusted scoped callback path without exposing credentials.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "account",
+      "state": "linked",
+      "intent": "Inspect selected identity and separately verified funding and paid execution capabilities.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "project-settings",
+      "state": "consent-required",
+      "intent": "Choose explicit external-media scope independently from account connection.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "creation",
+      "state": "budget-blocked",
+      "intent": "Resolve funding or enforceable-cap gaps without automatic calls.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "job",
+      "state": "accounting-pending",
+      "intent": "Inspect output and pending settlement without treating unknown charges as zero.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    },
+    {
+      "page": "result",
+      "state": "success",
+      "intent": "Download output with accurate final or pending accounting receipts.",
+      "via": "Planned explicit user action; no runtime automation or completed execution claimed."
+    }
+  ],
+  "claims": [
+    {
+      "id": "account-and-funded-work-intent",
+      "type": "custom",
+      "tier": "aspirational",
+      "statement": "Use optional account-backed work only after identity, funding, privacy and operation authority are independently satisfied.",
+      "rationale": "Draft cross-page intended behavior; not an executed journey or attested result."
+    }
+  ],
+  "x-execution-status": "not-implemented-not-executed"
+}

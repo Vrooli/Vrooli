@@ -1,0 +1,96 @@
+# Product Requirements Document (PRD)
+
+> **Template Version**: 2.0
+> **Canonical Reference**: `scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (`validate scenario treasury`)
+> **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
+
+## 🎯 Overview
+
+- **Purpose**: Adds the permanent capability to let an agent spend and earn money under an authority a human granted, and to prove afterwards that it did. The load-bearing object is a **mandate** — a signed, scoped, expiring grant naming who authorized it, what may be bought, up to how much, from which counterparties, by when, and what evidence closes it. Rails are adapters satisfying one execution contract; the scenario decides *whether a charge sits inside a grant a human made*, never *what to buy*. It is the present tense of a three-scenario set: `offer-desk` holds what should earn (future), this scenario holds what may happen now (present), `money-ledger` holds what happened (past). This scenario can never remember financial position, and `money-ledger` can never cause anything — that separation is what keeps the journal a neutral record and is why outbound spend is not bolted onto it.
+
+- **Primary users / verticals**: Operators running autonomous or semi-autonomous agents who need spend to be bounded rather than trusted; solo founders and small teams whose agents buy infrastructure, domains, and API capacity; self-hosters and privacy-motivated builders who will not hand a treasury to a hosted agent-payments startup; scenario authors who want to charge per call for an endpoint without building accounts, card vaulting, subscriptions, and invoicing first; and compliance-sensitive teams who need every automated payment to carry a replayable authorization trail.
+
+- **Deployment surfaces**: Go API over Connect-RPC split across two services — an agent-facing surface that may request and report, and an operator-only surface that owns policy — plus a typed Go CLI, a React operator console for approval and audit, and rail adapters that reach outward to payment networks and inward from paying callers.
+
+- **Value promise**: Every funded agent-payments platform is hosted SaaS that holds your money. This is the self-hosted position: your agents, your instruments, your keys, your policy, your box. An agent gets spending power without the operator getting a blank cheque, because the authority is a signed object with a cap and an expiry rather than a credential handed over. The same rail runs backwards, so a system that can spend can also earn — which is what makes an agent ecosystem able to fund its own compute rather than only consume budget.
+
+## 🎯 Operational Targets
+
+> Checkboxes auto-update from requirements sync; do not hand-edit them.
+
+### 🔴 P0 – Must ship for viability
+
+- [ ] OT-P0-001 | The mandate contract | The scenario shall admit every spend through exactly one typed grant naming authorizer, cap, counterparty scope and expiry, with each rail an adapter satisfying it and no privileged path
+- [ ] OT-P0-002 | Policy evaluated server-side | When an agent submits a charge, the scenario shall evaluate it against its mandate inside the API, and the agent that read untrusted content shall never hold the decision
+- [ ] OT-P0-003 | Budgets carry caps, scope and gating | A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval
+- [ ] OT-P0-004 | The approval gate is structurally out of agent reach | The agent-facing service shall expose no method that mutates policy, budgets or gating, so a caller holding a valid agent token cannot disable the gate that governs it
+- [ ] OT-P0-005 | Unverifiable callers cannot spend | If agent identity cannot be verified at authorization time, then the scenario shall refuse the spend rather than record it at a degraded evidence grade
+- [ ] OT-P0-006 | Approval is owned in-scenario and relayed when available | The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on
+- [ ] OT-P0-007 | The manual rail is first-class | The scenario shall accept an operator-settled payment as an ordinary rail adapter carrying the same mandate, evidence and emission path as any automated rail
+- [ ] OT-P0-008 | Every settlement emits a money event | When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis
+- [ ] OT-P0-009 | Evidence is retained for every attempt | The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries
+- [ ] OT-P0-010 | Operator funds only | The scenario shall refuse to custody value belonging to any party other than the operator, enforced at the contract boundary rather than by documented convention
+- [ ] OT-P0-011 | Idempotent settlement | When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time
+- [ ] OT-P0-012 | A mandate expires without action | While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect
+
+### 🟠 P1 – Should have post-launch
+
+- [ ] OT-P1-001 | x402 outbound settlement | Where a counterparty endpoint declares an x402 price, the scenario should pay it from an operator-held balance under a mandate carrying a per-call cap
+- [ ] OT-P1-002 | x402 inbound metering | The scenario should let any Vrooli endpoint declare a price and collect payment through a self-hosted facilitator, recording each receipt as inflow
+- [ ] OT-P1-003 | Scoped card rail | The scenario should issue single-use or counterparty-locked cards scoped to a mandate's amount, counterparty and expiry, behind a rail contract that names no vendor
+- [ ] OT-P1-004 | Personal and business books | A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains
+- [ ] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
+- [ ] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
+- [ ] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
+
+### 🟢 P2 – Future / expansion
+
+- [ ] OT-P2-001 | Rail reconciliation | The scenario may match settled charges against a rail's own statement and surface unmatched entries on both sides
+- [ ] OT-P2-002 | AP2 mandate interoperability | The scenario may emit and accept AP2-shaped signed mandates so it can transact with an AP2-speaking counterparty
+- [ ] OT-P2-003 | Browser checkout rail | The scenario may drive a card-shaped web checkout through browser-automation-studio under a mandate whose instrument cannot overspend if the flow is compromised
+- [ ] OT-P2-004 | Price book read from offer-desk | The scenario may read inbound prices from offer-desk rather than declaring them locally, joining what should earn to what a call costs
+- [ ] OT-P2-005 | Advisory spend anomaly signals | The scenario may surface unusual spend patterns against a budget's own history as advisory signals that never block a charge on their own
+- [ ] OT-P2-006 | Mandate templates | The scenario may let an operator save a recurring authorization shape as a named template so common grants do not get hand-built each time
+
+## 🧱 Tech Direction Snapshot
+
+- **Preferred stacks / frameworks**: Go API over Connect-RPC with generated handlers and clients; React + TypeScript + Vite operator console on the `vrooli-default` design kit; typed Go CLI built on cli-core declarative primitives. Two Connect services rather than one — `AgentSpend` (request, report; no policy methods exist on it) and `TreasuryAdmin` (operator realm only). The separation is a codegen-visible contract, not a runtime permission check, because an injected prompt cannot talk its way past an RPC that is absent from the service descriptor.
+
+- **Data + storage expectations**: SQLite, per the scenario default. Single-operator custody and low authorization volume mean the shared-Postgres pattern used by higher-traffic billing surfaces is not warranted. The *discipline* carries over regardless: lock the row, require a caller-supplied idempotency key, and make a retried debit a successful no-op after first commit. The one identified migration trigger is inbound x402 metering, where concurrent external payers are the only traffic this scenario does not control; that is the single condition to watch and is recorded as a durable decision rather than left implicit.
+
+- **Integration strategy**: Rails are adapters behind one execution contract, so no operational target names a payment vendor. Outward, the scenario reaches payment networks and priced endpoints through adapters. Inward, it depends on `agent-manager` for identity verification, `secrets-manager` for instrument credential custody, and `money-ledger` for the record. `notification-hub` is an optional relay, never a dependency. The self-hosted x402 facilitator is preferred over a managed facilitator so the rail is owned rather than rented, consistent with the ecosystem posture of wrapping external tools rather than calling them directly.
+
+- **Non-goals / guardrails**: No financial position, runway, or accounting — that is `money-ledger`'s job and duplicating it would create two authorities over the same numbers. No custody of third-party funds, ever; the moment value is held for someone other than the operator this becomes a regulated activity. No tax treatment or categorisation. No invoicing or receivables. No storage of identity documents — those belong to `document-manager` under its sensitivity and custody spine. No persona or legal-identity modelling — that belongs to the `persona` scenario. No agent workload identity of its own; `agent-manager` already owns the delegation chain, and this scenario consumes it rather than reimplementing it. No policy engine for non-money actuation, even though `device-control`'s lease model is the same shape — two instances is not yet a pattern.
+
+## 🤝 Dependencies & Launch Plan
+
+- **Required resources**: None beyond SQLite for P0. P1 registers the digest-pinned Apache-2.0 Second State Rust x402 facilitator as an optional managed resource on loopback. The selection and rejected alternatives are recorded in `docs/internal/DECISIONS.md`. Its checked-in configuration intentionally contains no network, scheme, RPC route, or signer, so healthy bootstrap is fail-closed and is not evidence of live-payment readiness.
+
+- **Scenario dependencies**: `agent-manager` is a hard runtime dependency on the authorization path — identity verification is a live call, and the fail-closed decision means an outage stops automated spend. `money-ledger` receives every settlement through its existing money-event contract and has no knowledge of this scenario, preserving its neutrality. `secrets-manager` holds instrument credentials so they never enter this scenario's storage, which is what keeps `money-ledger`'s no-credential-storage non-goal intact across the pair. `persona` supplies the transacting identity for any rail that reaches a counterparty expecting a legal person; it is not required for machine-native rails. `notification-hub` is optional. `browser-automation-studio` and `offer-desk` are P2 integrations only.
+
+- **Operational risks**: **Prompt injection is the dominant threat** — a counterparty page that talks an agent into a larger charge, a different recipient, or a disabled gate. Mitigation is structural: the mandate is signed before the agent reads untrusted content, evaluation happens server-side, and the gate has no agent-reachable mutation method. **Agent-manager availability** becomes a spend-path dependency under the fail-closed decision; that is the accepted cost of refusing unverifiable spend. **Custody drift** — the operator-funds-only boundary is easy to erode one feature at a time, so it is a P0 target with contract-level enforcement rather than a documented guideline. **Rail vendor lock-in**, mitigated by keeping every operational target vendor-neutral. **Concurrency under inbound metering**, mitigated by naming the SQLite migration trigger before it is hit rather than after.
+
+- **Launch sequencing**: (1) Mandate, budget, policy evaluation, approval and evidence with the manual rail only — this moves no money and is the correct place to discover the mandate contract is wrong. The first real transaction is a recurring API or cloud top-up, chosen because it is small, already paid for, and repeats, which exercises the standing-mandate and obligation path immediately rather than as an afterthought. (2) x402 in both directions at cent scale on a self-hosted facilitator, which proves the spine and the earning thesis together and is the point to observe SQLite under concurrent inbound payers. (3) The scoped card rail, which is what makes counterparty checkout real. (4) Reconciliation and the P2 interoperability surfaces. `persona` is built in parallel rather than in sequence; nothing in this scenario's P0 waits on it.
+
+## 🎨 UX & Branding
+
+- **Look and feel**: The `vrooli-default` operational-console kit, at the serious end of its range. This is a surface where a misread number moves real money, so density serves scanning rather than impressing: the pending-approval queue is the landing surface, an authorization decision is legible without opening a detail view, and amounts use tabular figures so columns align. Status is encoded in form as well as colour — a pill, a severity stripe, a shape — never colour alone, because a declined charge and an expired mandate must be distinguishable to a colour-blind operator at a glance. Destructive and irreversible controls (freeze, revoke, approve) are visually distinct from navigation and never sit adjacent to it.
+
+- **Accessibility bar**: WCAG 2.2 AA as the floor, verified rather than asserted. Every interactive control reachable and operable by keyboard with a visible focus state; the approval queue navigable and actionable without a pointer, because approval is the one workflow an operator may need to complete from any device. All status conveyed through text or shape in addition to colour, and contrast checked in both light and dark themes rather than only the one designed first. Accessible names on every control that acts on money, stating the amount and counterparty, so a screen-reader user hears what they are approving rather than "button". Motion respects `prefers-reduced-motion`; no animation gates the reading of a value. Live regions announce authorization outcomes so a decision's result is perceivable without a visual diff.
+
+- **Voice and messaging**: Precise and unhedged. A control says exactly what will happen ("Approve $99.00 to Apple", not "Confirm"), and the confirmation states what did happen. Refusals explain which constraint was violated and what would satisfy it — "exceeds the monthly cap by $40; raise the cap or split the charge" rather than "not permitted". Never reassuring about money: no "successfully" where an amount and a counterparty would say more. Declines are first-class content, not error states to be dismissed, because a decline is usually the system working.
+
+- **Branding hooks**: Design-token plumbing from the kit, with a scenario-specific icon set replacing the generic PWA placeholders once product branding exists. The install surface keeps the seeded web app manifest, service worker, maskable icons, relative install asset URLs and safe-area tokens valid; the mobile install path matters here specifically because approval is the workflow most likely to be completed away from a desk.
+
+## 📎 Appendix
+
+**The generalisation decision.** The mandate contract is deliberately about the *shape of an authorization* rather than about any rail's API. A stablecoin transfer, a card authorization, an internal token grant and an operator typing "I paid it" all produce the same thing: a scoped, bounded, attributable permission to move value, followed by evidence of what happened. Standardising that is what lets a later rail arrive as an adapter instead of a rewrite, and it is why no P0 target names a payment vendor. This mirrors `money-ledger`'s own load-bearing decision one direction over.
+
+**Why this is one scenario and not two.** Authorization and settlement are conceptually distinct and the wider industry splits them — mandate protocols authorize, settlement protocols move value. They are merged here for two reasons. First, they are synchronously coupled inside a single money movement, and a network boundary between them buys a distributed-transaction problem (authorize here, charge there, crash between) for no return. Second, settlement without policy is a worse self-hosted version of an existing commodity and would fail the bar that every scenario stand alone. The internal domain seam is kept clean so the split remains available: if the policy engine is ever asked to govern non-money actuation, this becomes an authority service and the cut is already drawn.
+
+**Why earning lives here.** The inbound and outbound directions share one balance, one facilitator, one policy engine and one evidence trail. Separating them would duplicate all four to serve a conceptual distinction no operator experiences. The strategic consequence is the point: charging per request at the protocol edge removes the account, card-vaulting, subscription and invoicing stack a scenario would otherwise need before it could earn anything at all.
+
+**Market position.** The agent-payments category is real and funded, and every entrant is hosted infrastructure that custodies operator money in exchange for convenience. That is a reasonable trade for a company with a finance team and an unreasonable one for a self-hoster, which leaves the self-hosted, operator-custody, rail-neutral position open. The subscription posture follows the ecosystem principle that a subscription buys convenience and integrated access rather than access to capability: the hosted facilitator, managed card issuing and cross-device approval relay are chargeable; the policy engine, the mandate contract and the evidence trail are not, because a self-hoster could run them with their own keys.
+
+**Relationship to `token-economy`.** That scenario should reuse this one's mandate contract rather than invent a second policy engine. A token grant with spend rules is a mandate over a local rail. Divergence would mean maintaining two policy engines and turning the eventual real-value step into a rewrite instead of a new adapter.

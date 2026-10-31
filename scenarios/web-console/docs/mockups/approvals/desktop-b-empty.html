@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Approvals — Desktop empty state</title>
+<style>
+:root{
+  --wc-surface-base:2 6 23; --wc-surface-raised:15 23 42; --wc-surface-input:30 41 59;
+  --wc-text-primary:248 250 252; --wc-text-muted:148 163 184; --wc-text-faint:100 116 139;
+  --wc-border-default:255 255 255; --wc-accent:34 211 238; --wc-accent-fg:15 23 42;
+  --wc-success:74 222 128;
+  --font-sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --r-panel:.5rem;--r-ctrl:.375rem;--r-pill:9999px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:rgb(var(--wc-surface-base));color:rgb(var(--wc-text-primary));font-size:14px;min-height:100vh;padding:24px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.caption{color:rgb(var(--wc-text-faint));font-size:12px}
+.drawer{width:1120px;max-width:100%;height:720px;background:rgb(var(--wc-surface-raised));border:1px solid rgb(var(--wc-border-default)/.1);border-radius:var(--r-panel);overflow:hidden;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(9,18,22,.5)}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid rgb(var(--wc-border-default)/.1)}
+.drawer-head h1{font-size:18px;font-weight:600}
+.count0{background:rgb(var(--wc-surface-input));color:rgb(var(--wc-text-muted));border-radius:var(--r-pill);font-size:12px;font-weight:700;padding:2px 9px}
+.spacer{flex:1}
+.icon-btn{width:36px;height:36px;border-radius:var(--r-ctrl);border:1px solid rgb(var(--wc-border-default)/.1);background:transparent;color:rgb(var(--wc-text-muted));display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px}
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:40px}
+.halo{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 40%, rgb(var(--wc-success)/.22), rgb(var(--wc-success)/0) 70%);
+  box-shadow:0 0 0 1px rgb(var(--wc-success)/.2), 0 0 40px rgb(var(--wc-success)/.15)}
+.halo span{font-size:40px;color:rgb(var(--wc-success))}
+.empty h2{font-size:20px;font-weight:600}
+.empty p{color:rgb(var(--wc-text-muted));max-width:360px;line-height:22px}
+.empty .sub{color:rgb(var(--wc-text-faint));font-size:13px}
+</style>
+</head>
+<body>
+<div class="caption">Desktop · empty state — nothing needs you</div>
+<div class="drawer">
+  <div class="drawer-head"><h1>Approvals</h1><span class="count0">0</span><span class="spacer"></span><button class="icon-btn" title="Refresh">⟳</button><button class="icon-btn" title="Close">✕</button></div>
+  <div class="empty">
+    <div class="halo"><span>✓</span></div>
+    <h2>Nothing needs you</h2>
+    <p>No pending approvals. When agent-manager, deployment-manager, swarm-manager, or autoheal need a human, they will appear here.</p>
+    <p class="sub">Last resolved: "Restart redis on bigmouse" — you approved · 2h ago</p>
+  </div>
+</div>
+</body>
+</html>

@@ -17,18 +17,6 @@ import "time"
 // to complete vs. failing fast on stuck builds. The values below work well
 // for typical scenarios but may need adjustment for specific environments.
 const (
-	// DefaultBuildTimeout is the maximum time to wait for a build to complete.
-	// Builds can take significant time for large Electron apps with multiple platforms.
-	//
-	// Lever impacts:
-	//   Increase: Allow larger apps with multiple platforms to complete; prevents
-	//             false failures on slow machines or when building all platforms.
-	//   Decrease: Fail faster on stuck builds; reduces resource waste but may
-	//             cause false failures on complex builds.
-	//   Range: 10m (single platform, fast machine) to 60m (all platforms, slow machine)
-	//   Default rationale: 30m allows for typical multi-platform builds with some margin.
-	DefaultBuildTimeout = 30 * time.Minute
-
 	// DefaultGenerationTimeout is the maximum time to wait for desktop wrapper generation.
 	//
 	// Lever impacts:
@@ -43,9 +31,10 @@ const (
 	// Lever impacts:
 	//   Increase: Allow apps with slow startup (heavy initialization, large bundles).
 	//   Decrease: Fail faster on apps that hang during startup.
-	//   Range: 30s (simple apps) to 5m (apps with heavy initialization)
-	//   Default rationale: 2m allows for typical Electron app startup with assertions.
-	DefaultSmokeTestTimeout = 2 * time.Minute
+	//   Range: 30s (simple apps) to 7m (isolated targets with lifecycle setup)
+	//   Default rationale: isolated proxy targets may spend up to five minutes in
+	//   lifecycle setup before smoke execution and journey assertions begin.
+	DefaultSmokeTestTimeout = 7 * time.Minute
 
 	// DefaultDeployTimeout is the maximum time to wait for artifact uploads.
 	// Large artifacts to slow endpoints may need this full duration.
@@ -58,7 +47,7 @@ const (
 	DefaultDeployTimeout = 30 * time.Minute
 
 	// DefaultPreflightTimeout is the default timeout for preflight validation.
-	// Can be overridden via Config.PreflightTimeoutSeconds.
+	// Can be overridden via PipelineConfig.PreflightTimeoutSeconds.
 	//
 	// Lever impacts:
 	//   Increase: Allow slow dependency installations or network checks.
@@ -74,14 +63,6 @@ const (
 // TUNING GUIDE: Polling intervals balance responsiveness against CPU/network load.
 // Shorter intervals detect completion faster but increase resource usage.
 const (
-	// DefaultBuildPollInterval is how often to check build status.
-	//
-	// Lever impacts:
-	//   Increase: Reduce CPU load during builds; completion detection slightly delayed.
-	//   Decrease: Detect build completion faster; increases CPU polling overhead.
-	//   Range: 1s (responsive) to 10s (resource-constrained environments)
-	DefaultBuildPollInterval = 2 * time.Second
-
 	// DefaultGenerationPollInterval is how often to check generation status.
 	//
 	// Lever impacts:
@@ -218,9 +199,6 @@ const (
 const (
 	// FrameworkElectron is the Electron desktop framework.
 	FrameworkElectron = "electron"
-
-	// FrameworkTauri is the Tauri desktop framework (future support).
-	FrameworkTauri = "tauri"
 )
 
 // Template type constants.

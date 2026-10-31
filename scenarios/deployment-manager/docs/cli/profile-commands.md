@@ -410,7 +410,8 @@ deployment-manager profile save <id>
   },
   "settings": {
     "env": {"KEY": "value"},
-    "custom": "settings"
+    "custom": "settings",
+    "packaging_strategy": "electron-sidecar"
   },
   "version": 1,
   "created_at": "ISO8601",
@@ -419,6 +420,10 @@ deployment-manager profile save <id>
   "updated_by": "system|user"
 }
 ```
+
+For desktop packaging, `settings.packaging_strategy` pins a registered strategy.
+An explicit strategy on the deployment request takes precedence over this pin;
+the scenario-to-desktop ramp validates the identifier and records the selection.
 
 ---
 

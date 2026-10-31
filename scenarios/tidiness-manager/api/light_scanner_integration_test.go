@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -442,5 +443,34 @@ func TestLightScanner_Integration_ConcurrentScans(t *testing.T) {
 		if result1.TotalLines >= result2.TotalLines {
 			t.Errorf("Concurrent scans may have mixed results: file2 should have more lines than file1")
 		}
+	}
+}
+
+func TestLightScannerIncrementalRetainsWholeLanguageInventory(t *testing.T) {
+	root := filepath.Join(t.TempDir(), fmt.Sprintf("inventory-%d", time.Now().UnixNano()))
+	createTestDir(t, root, "playwright-driver/src", map[string]string{"one.ts": "export const one = 1;\n", "two.ts": "export const two = 2;\n"})
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	scenario := filepath.Base(root)
+	defer db.Exec("DELETE FROM file_metrics WHERE scenario = $1", scenario)
+	for _, name := range []string{"one.ts", "two.ts"} {
+		_, err := db.Exec("INSERT INTO file_metrics(scenario, file_path, line_count, updated_at) VALUES($1,$2,1,$3)", scenario, "playwright-driver/src/"+name, time.Now().UTC().Add(time.Hour))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err := NewLightScanner(root, 30*time.Second).ScanWithOptions(context.Background(), ScanOptions{Incremental: true, DB: db})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.FileMetrics) != 0 {
+		t.Fatalf("unchanged files returned as changed: %+v", result.FileMetrics)
+	}
+	language := result.LanguageMetrics[LanguageTypeScript]
+	if language == nil || language.FileCount != 2 {
+		t.Fatalf("incremental mode lost whole-language coverage: %+v", language)
 	}
 }

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "profile_id": "device-studio-ipad-mini-screen-uv-orientation-180-v2",
+  "source": {
+    "staged_name": "ipad-mini-screen-uv-normalized.glb",
+    "sha256": "16d88943240dffae0e14e4743beefa1ed61e7efb4b5aa6cb00ecf2ac4b63749c",
+    "size_bytes": 1938936,
+    "neutral_screen_sha256": "3cf4703017eeeac32557bf6712cca55514457ff9f20ea6082f2185142b703cf6",
+    "screen_binding": {
+      "node_index": 14,
+      "mesh_index": 10,
+      "primitive_index": 0,
+      "material_index": 10,
+      "texture_index": 1,
+      "image_index": 1,
+      "uv_accessor_index": 36,
+      "uv_buffer_view_index": 17
+    }
+  },
+  "orientation": {
+    "rotation_degrees": 180,
+    "mapping": "(u,v) -> (1-u,1-v)",
+    "node_count": 18,
+    "mesh_count": 13,
+    "vertex_count": 74,
+    "source_uv_min": [
+      0.0,
+      0.0
+    ],
+    "source_uv_max": [
+      1.0,
+      1.0
+    ],
+    "oriented_uv_sha256": "e8661ce4dcfe996a6b4ddfb6c957c1985227ca237120ef4a8070f255c5d3ee62",
+    "source_bin_sha256": "296bdea52cb2d2637acc0f15b806844e530ac839d6ce396e327814a426da679b",
+    "uv_min": [
+      0.0,
+      0.0
+    ],
+    "uv_max": [
+      1.0,
+      1.0
+    ],
+    "uv_to_position_xy_affine": [
+      0.5961164085567833,
+      1.0048372497814544e-08,
+      -0.29804627198521194,
+      -4.755666082475276e-09,
+      0.9008183064541411,
+      -0.46247876816861067
+    ],
+    "max_uv_position_residual_m": 1e-06
+  },
+  "output": {
+    "glb_name": "ipad-mini-screen-uv-oriented-180-v2.glb",
+    "receipt_name": "ipad-screen-uv-orientation.json",
+    "max_bytes": 4194304
+  },
+  "rights_and_claims": {
+    "attribution": "iPad mini 6 2021 by DatSketch, adapted under CC BY 4.0.",
+    "modification": "Starting from the retained neutral UV-normalized v1 derivative, appends one private TEXCOORD_0 view and changes only accessor 36 to map (u,v) to (1-u,1-v). The neutral display image and all geometry remain unchanged.",
+    "limits": "Candidate-only UV orientation correction based on the observed display orientation in native hero-4. Not manufacturer CAD, independently measured device dimensions, physical qualification, or Apple endorsement."
+  }
+}

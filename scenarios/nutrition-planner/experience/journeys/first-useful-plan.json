@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "first-useful-plan",
+    "title": "A first useful plan",
+    "purpose": "Go from a fresh account to a reviewable week and a clear next meal through four short setup steps, without the app inventing personal facts or showing demo food as saved data.",
+    "prd_refs": [
+      "OT-P0-002",
+      "OT-P0-006",
+      "OT-P0-007",
+      "OT-P0-009",
+      "OT-P0-008",
+      "OT-P0-001"
+    ]
+  },
+  "steps": [
+    {
+      "page": "onboarding",
+      "intent": "Choose a food approach and see the exact exclusions it creates, adding allergies separately.",
+      "via": "diet-presets"
+    },
+    {
+      "page": "onboarding",
+      "state": "step-kitchen",
+      "intent": "Pick equipment with the same tiles the Kitchen uses; choosing none is valid.",
+      "via": "equipment-tiles"
+    },
+    {
+      "page": "onboarding",
+      "state": "step-rhythm",
+      "intent": "Answer budget, effort, and variety questions and choose meal slots.",
+      "via": "rhythm-questions"
+    },
+    {
+      "page": "onboarding",
+      "state": "step-ready",
+      "intent": "Review how many meals fit, need review, or are excluded, then apply.",
+      "via": "apply-action"
+    },
+    {
+      "page": "week",
+      "state": "plan-preview",
+      "intent": "Generate a week and review the preview before applying it.",
+      "via": "plan-week-action"
+    },
+    {
+      "page": "today",
+      "intent": "See the next meal with Start cooking and Swap meal.",
+      "via": "meal-hero"
+    }
+  ],
+  "claims": [
+    {
+      "id": "no-invented-personal-facts",
+      "type": "custom",
+      "statement": "Setup never pre-fills targets, allergies, stock, or supplement doses from fixtures or memory.",
+      "tier": "aspirational"
+    },
+    {
+      "id": "first-plan-describes-coverage",
+      "type": "custom",
+      "statement": "A first plan with incomplete data says what was and was not evaluated instead of showing a coverage badge.",
+      "tier": "aspirational"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "scenario-to-desktop",
+  "description": "Experience contract for the scenario-to-desktop console and its desktop evidence journey.",
+  "pages": [],
+  "journeys": []
+}

@@ -1,0 +1,246 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "document-workspace",
+    "title": "Document Workspace",
+    "routes": [
+      "/document"
+    ],
+    "purpose": "Let an operator build a long-form document from converged sections, with feasibility known before work starts and the blast radius of a change visible before it is made.",
+    "prd_refs": [
+      "OT-P0-019",
+      "OT-P0-020",
+      "OT-P0-021",
+      "OT-P0-022"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Whether this document can be generated at all, before any section is attempted"
+    },
+    {
+      "statement": "Which section is active and what context it is carrying"
+    },
+    {
+      "statement": "Which already-committed sections a change would invalidate"
+    },
+    {
+      "statement": "How coherent the assembled document is, as measured numbers"
+    }
+  ],
+  "elements": [
+    {
+      "id": "outline-rail",
+      "role": "navigation",
+      "name": "Outline",
+      "description": "Sections in order with per-section status."
+    },
+    {
+      "id": "section-variation",
+      "role": "region",
+      "name": "Section variations",
+      "description": "The active section's candidate set, reusing the Variation Board contract."
+    },
+    {
+      "id": "context-summary",
+      "role": "region",
+      "name": "Context carried",
+      "description": "What this section carried forward and what was summarized."
+    },
+    {
+      "id": "feasibility-notice",
+      "role": "status",
+      "name": "Feasibility",
+      "description": "The static check verdict against the profile's worst-case section."
+    },
+    {
+      "id": "coherence-report",
+      "role": "region",
+      "name": "Coherence",
+      "description": "Cross-section repetition and style drift as numbers."
+    },
+    {
+      "id": "downstream-impact",
+      "role": "status",
+      "name": "Downstream impact",
+      "description": "Which committed sections carried a changed section's text and would be invalidated by rerolling it."
+    },
+    {
+      "id": "assemble-action",
+      "role": "button",
+      "name": "Assemble",
+      "description": "Assembles committed sections into ordered text plus structure."
+    }
+  ],
+  "states": [
+    {
+      "id": "outline-pending",
+      "description": "The outline candidate set is open and no section exists yet.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "sections-in-progress",
+      "description": "The outline is committed and sections are being converged.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "infeasible-profile",
+      "description": "The profile's worst-case section exceeds the resolved model's context window; generation is refused before any work begins.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "reroll-with-downstream",
+      "description": "An already-committed section is being rerolled and downstream sections carried its text.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "assembled",
+      "description": "Every section is committed and the document is assembled.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "empty",
+      "description": "A new document with no outline yet.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Data for this surface is in flight; skeleton structure is shown rather than a blank frame.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Some data resolved and some did not; what resolved stays usable and what failed is named rather than silently omitted.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Displayed data is known to be out of date relative to its source; the surface says so rather than presenting it as current.",
+      "setup": {
+        "route": "/document"
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The request failed; the specific cause is stated inline and the surface offers the action that retries it.",
+      "setup": {
+        "route": "/document"
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "feasibility-refused-before-work",
+      "type": "state-distinct",
+      "statement": "An infeasible profile is refused before any section is generated, naming the worst-case section and the resolved model's declared window.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "infeasible-profile"
+      ],
+      "elements": [
+        "feasibility-notice"
+      ],
+      "rationale": "Stranding a document partway through is strictly worse than refusing it up front, because prior-section context accumulates as the document advances. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "downstream-impact-named-before-reroll",
+      "type": "element-present",
+      "statement": "Before an already-committed section is rerolled, the sections that carried its text are named.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "reroll-with-downstream"
+      ],
+      "elements": [
+        "downstream-impact",
+        "context-summary"
+      ],
+      "rationale": "Feed-forward context means a change upstream silently invalidates work downstream; the operator must see the blast radius before acting, not discover it after. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "coherence-is-numbers",
+      "type": "element-present",
+      "statement": "Cross-section coherence is reported as measured numbers rather than asserted as a verdict.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "assembled"
+      ],
+      "elements": [
+        "coherence-report"
+      ],
+      "rationale": "Style drift across a document is a number \u2014 variance of per-section feature vectors \u2014 and stating it as a judgement would hide the evidence. (Tier: aspirational until the UI exists and accessibility captures can join these bindings; promote to machine at that point \u2014 the binding testids above are the contract the UI must satisfy.)"
+    },
+    {
+      "id": "outline-is-a-candidate-set",
+      "type": "state-distinct",
+      "statement": "The outline is converged through the same candidate-set affordances as a section, not through a separate editor.",
+      "tier": "aspirational",
+      "viewports": [
+        "desktop",
+        "mobile"
+      ],
+      "states": [
+        "outline-pending"
+      ],
+      "elements": [
+        "outline-rail",
+        "section-variation"
+      ],
+      "rationale": "The outline is an ordinary candidate; giving it a bespoke surface would duplicate the sampling and selection stack in the UI."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "outline-rail": {
+        "testid": "outline-rail"
+      },
+      "section-variation": {
+        "testid": "section-variation"
+      },
+      "context-summary": {
+        "testid": "context-summary"
+      },
+      "feasibility-notice": {
+        "testid": "feasibility-notice"
+      },
+      "coherence-report": {
+        "testid": "coherence-report"
+      },
+      "downstream-impact": {
+        "testid": "downstream-impact"
+      },
+      "assemble-action": {
+        "testid": "assemble-action"
+      }
+    }
+  }
+}

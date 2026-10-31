@@ -23,7 +23,7 @@ func (s *AsyncTrackerService) snapshotOperation(toolCallID string) (*OperationSn
 		ToolName:      op.ToolName,
 		Scenario:      op.Scenario,
 		ExternalRunID: op.ExternalRunID,
-		AsyncBehavior: op.AsyncBehavior, // Pointer to immutable proto struct
+		AsyncBehavior: op.AsyncBehavior, // Pointer to immutable runtime config
 		StartedAt:     op.StartedAt,
 	}
 
@@ -45,7 +45,7 @@ func (s *AsyncTrackerService) snapshotOperation(toolCallID string) (*OperationSn
 		}
 
 		// Apply backoff config if present
-		if backoff := polling.GetBackoff(); backoff != nil {
+		if backoff := polling.Backoff; backoff != nil {
 			if backoff.InitialIntervalSeconds > 0 {
 				initial := time.Duration(backoff.InitialIntervalSeconds) * time.Second
 				if initial >= MinPollInterval {

@@ -2,6 +2,8 @@ package inspect
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 
@@ -346,24 +348,45 @@ Flags:
 	return nil
 }
 
+// Log retrieval bounds. The API caps tail at MaxLogTail and redacts
+// credential-sensitive content before it leaves the target owner; the CLI
+// only bounds what it prints and never scans for secrets itself.
+const (
+	MaxLogTail        = 2000
+	DefaultLogTail    = 100
+	DefaultLogMaxByte = 1 << 20
+)
+
 func runLogs(client *Client, args []string) error {
 	var id string
-	opts := LogsOptions{Tail: 100}
+	opts := LogsOptions{Tail: DefaultLogTail}
 	jsonOutput := false
+	maxBytes := DefaultLogMaxByte
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-h", "--help":
 			fmt.Println(`Usage: scenario-to-cloud inspect logs <deployment-id> [flags]
 
+Bounded, redacted log retrieval: the API caps --tail at 2000 lines and
+redacts credential-sensitive content; --max-bytes bounds the printed output.
+
 Flags:
   --source <name>   Filter by source (scenario name, resource name)
   --level <level>   Filter by level (debug, info, warn, error)
   --search <text>   Search for text in log messages
-  --tail <n>        Number of lines to fetch (default: 100)
+  --tail <n>        Number of lines to fetch (default: 100, max: 2000)
   --since <time>    Fetch logs since (timestamp or duration like "1h")
+  --max-bytes <n>   Maximum bytes to print (default: 1048576)
   --json            Output raw JSON`)
 			return nil
+		case "--max-bytes":
+			if i+1 < len(args) {
+				i++
+				if n, err := strconv.Atoi(args[i]); err == nil && n > 0 {
+					maxBytes = n
+				}
+			}
 		case "--source":
 			if i+1 < len(args) {
 				i++
@@ -382,9 +405,14 @@ Flags:
 		case "--tail":
 			if i+1 < len(args) {
 				i++
-				if n, err := strconv.Atoi(args[i]); err == nil {
-					opts.Tail = n
+				n, err := strconv.Atoi(args[i])
+				if err != nil || n <= 0 {
+					return fmt.Errorf("--tail must be a positive integer, got %q", args[i])
 				}
+				if n > MaxLogTail {
+					return fmt.Errorf("--tail %d exceeds the API bound of %d lines", n, MaxLogTail)
+				}
+				opts.Tail = n
 			}
 		case "--since":
 			if i+1 < len(args) {
@@ -410,20 +438,34 @@ Flags:
 	}
 
 	if jsonOutput {
+		if len(body) > maxBytes {
+			return fmt.Errorf("log response is %d bytes, above --max-bytes %d; narrow --tail, --source or --since", len(body), maxBytes)
+		}
 		cliutil.PrintJSON(body)
 		return nil
 	}
+	return writeLogs(os.Stdout, resp, maxBytes)
+}
 
-	// Pretty print
+// writeLogs prints entries as returned by the API (already redacted) and
+// stops at maxBytes, saying so.
+func writeLogs(w io.Writer, resp LogsResponse, maxBytes int) error {
 	if len(resp.Logs) == 0 {
-		fmt.Println("No logs found matching the criteria.")
+		fmt.Fprintln(w, "No logs found matching the criteria.")
 		return nil
 	}
-
-	fmt.Printf("Logs for Deployment: %s (%d entries)\n", resp.DeploymentID, resp.TotalCount)
-	fmt.Println(strings.Repeat("-", 80))
-
-	for _, log := range resp.Logs {
+	written := 0
+	emit := func(line string) bool {
+		if written+len(line)+1 > maxBytes {
+			return false
+		}
+		fmt.Fprintln(w, line)
+		written += len(line) + 1
+		return true
+	}
+	emit(fmt.Sprintf("Logs for Deployment: %s (%d entries)", resp.DeploymentID, resp.TotalCount))
+	emit(strings.Repeat("-", 80))
+	for i, log := range resp.Logs {
 		levelIcon := " "
 		switch log.Level {
 		case "error":
@@ -435,13 +477,14 @@ Flags:
 		case "debug":
 			levelIcon = "D"
 		}
-		fmt.Printf("[%s] %s [%-15s] %s\n", levelIcon, log.Timestamp, truncate(log.Source, 15), log.Message)
+		if !emit(fmt.Sprintf("[%s] %s [%-15s] %s", levelIcon, log.Timestamp, truncate(log.Source, 15), log.Message)) {
+			fmt.Fprintf(w, "\n... output bounded at %d bytes after %d of %d entries (raise --max-bytes or narrow the query)\n", maxBytes, i, len(resp.Logs))
+			return nil
+		}
 	}
-
 	if resp.HasMore {
-		fmt.Printf("\n... %d more entries available (use --tail to fetch more)\n", resp.TotalCount-len(resp.Logs))
+		fmt.Fprintf(w, "\n... %d more entries available (use --tail, max %d)\n", resp.TotalCount-len(resp.Logs), MaxLogTail)
 	}
-
 	return nil
 }
 

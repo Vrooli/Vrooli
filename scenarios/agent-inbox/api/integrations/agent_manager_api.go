@@ -80,19 +80,12 @@ func (c *AgentManagerClient) createTask(ctx context.Context, message string, cfg
 // createRun creates a new run for an existing task in agent-manager.
 func (c *AgentManagerClient) createRun(ctx context.Context, taskID string, cfg AgentChatConfig) (*domainpb.Run, error) {
 	runMode := domainpb.RunMode_RUN_MODE_IN_PLACE
-	profileKey := "agent-inbox-" + string(cfg.RunnerType)
+	const profileKey = "agent-inbox/default"
 	runReq := &apipb.CreateRunRequest{
 		TaskId:  taskID,
 		RunMode: &runMode,
 		ProfileRef: &apipb.ProfileRef{
 			ProfileKey: profileKey,
-			Defaults: &domainpb.AgentProfile{
-				ProfileKey: profileKey,
-				Name:       profileKey,
-				RunnerType: localRunnerTypeToProto(cfg.RunnerType),
-				Model:      cfg.Model,
-				MaxTurns:   int32(cfg.MaxTurns),
-			},
 		},
 	}
 	runBody, err := protoMarshalOpts.Marshal(runReq)

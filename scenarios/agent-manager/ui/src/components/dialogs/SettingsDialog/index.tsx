@@ -1,7 +1,8 @@
-// Settings dialog with Model Registry, Model Pricing, Maintenance, and Investigation tabs
+// Settings dialog with Role Policy, Permissions, Model Pricing, Investigation, Orchestration, Notifications, and Maintenance tabs
 
 import { useCallback, useRef, useState } from "react";
-import { Button } from "../../ui/button";
+import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import {
   Dialog,
   DialogContent,
@@ -18,17 +19,19 @@ import { OrchestrationTab } from "./OrchestrationTab";
 import type { OrchestrationTabHandle } from "./OrchestrationTab";
 import { MaintenanceTab } from "./MaintenanceTab";
 import { ModelPricingTab } from "./ModelPricingTab";
-import { ModelRegistryTab } from "./ModelRegistryTab";
-import { useModelRegistryEditor } from "../../../hooks/useModelRegistryEditor";
-import { useInvestigationSettings, useMaintenance, useModelRegistry, useRunners } from "../../../hooks/useApi";
+import { RolePolicyTab } from "./RolePolicyTab";
+import { PermissionPolicyTab } from "./PermissionPolicyTab";
+import { useInvestigationSettings, useMaintenance, usePermissionPolicy, useRolePolicyCatalog } from "../../../hooks/useApi";
 import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 const TAB_DESCRIPTIONS: Record<string, string> = {
-  models: "Configure per-runner model lists and preset mappings",
+  roles: "Inspect the active Git-managed role policy catalog and activation state",
+  permissions: "Inspect and reconcile global portable coding-agent permissions",
   pricing: "View and manage model pricing with overrides",
   investigation: "Configure investigation and apply-fix agent behavior",
   orchestration: "Configure run lifecycle, safety, health detection, and termination behavior",
+  notifications: "Choose which alerts reach this phone or browser, and how urgent they must be",
   maintenance: "Purge data and manage service controls",
 };
 
@@ -43,20 +46,13 @@ export function SettingsDialog({
   onOpenChange,
   onPurgeComplete,
 }: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = useState("models");
+  const [activeTab, setActiveTab] = useState("roles");
 
   // API hooks
-  const modelRegistry = useModelRegistry();
-  const runners = useRunners();
+  const rolePolicy = useRolePolicyCatalog({ enabled: open });
+  const permissionPolicy = usePermissionPolicy({ enabled: open });
   const maintenance = useMaintenance();
   const investigationSettings = useInvestigationSettings();
-
-  // Model registry editor
-  const editor = useModelRegistryEditor({
-    data: modelRegistry.data,
-    isActive: open,
-    updateRegistry: modelRegistry.updateRegistry,
-  });
 
   // Investigation ref + dirty state for unified footer
   const investigationRef = useRef<InvestigationTabHandle>(null);
@@ -126,36 +122,24 @@ export function SettingsDialog({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 min-h-0">
             {/* Tab bar — sticky, scrollable on mobile */}
             <div className="px-4 sm:px-6 pb-2 pt-1 shrink-0 border-b border-border">
-              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-5">
-                <TabsTrigger value="models" className="shrink-0">Model Registry</TabsTrigger>
+              <TabsList className="flex w-full overflow-x-auto no-scrollbar sm:grid sm:grid-cols-7">
+                <TabsTrigger value="roles" className="shrink-0">Role Policy</TabsTrigger>
+                <TabsTrigger value="permissions" className="shrink-0">Permissions</TabsTrigger>
                 <TabsTrigger value="pricing" className="shrink-0">Model Pricing</TabsTrigger>
                 <TabsTrigger value="investigation" className="shrink-0">Investigation</TabsTrigger>
                 <TabsTrigger value="orchestration" className="shrink-0">Orchestration</TabsTrigger>
+                <TabsTrigger value="notifications" className="shrink-0">Notifications</TabsTrigger>
                 <TabsTrigger value="maintenance" className="shrink-0">Maintenance</TabsTrigger>
               </TabsList>
             </div>
 
             {/* Scrollable tab content */}
             <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4">
-              <TabsContent value="models" className="mt-0">
-                <ModelRegistryTab
-                  draft={editor.draft}
-                  loading={modelRegistry.loading}
-                  loadError={modelRegistry.error}
-                  error={editor.error}
-                  newRunnerKey={editor.newRunnerKey}
-                  onNewRunnerKeyChange={editor.setNewRunnerKey}
-                  knownRunners={runners.data ?? undefined}
-                  onAddRunner={editor.addRunner}
-                  onRemoveRunner={editor.removeRunner}
-                  onAddFallbackRunner={editor.addFallbackRunner}
-                  onUpdateFallbackRunner={editor.updateFallbackRunner}
-                  onRemoveFallbackRunner={editor.removeFallbackRunner}
-                  onAddModel={editor.addModel}
-                  onRemoveModel={editor.removeModel}
-                  onUpdateModel={editor.updateModel}
-                  onUpdatePreset={editor.updatePreset}
-                />
+              <TabsContent value="roles" className="mt-0">
+                <RolePolicyTab data={rolePolicy.data} loading={rolePolicy.loading} error={rolePolicy.error} />
+              </TabsContent>
+              <TabsContent value="permissions" className="mt-0">
+                <PermissionPolicyTab policy={permissionPolicy} />
               </TabsContent>
               <TabsContent value="pricing" className="mt-0">
                 <ModelPricingTab />
@@ -182,6 +166,9 @@ export function SettingsDialog({
                   onDirtyChange={setOrchestrationDirty}
                 />
               </TabsContent>
+              <TabsContent value="notifications" className="mt-0">
+                <AppNotificationSettings />
+              </TabsContent>
               <TabsContent value="maintenance" className="mt-0">
                 <MaintenanceTab
                   purgePattern={purgePattern}
@@ -195,23 +182,10 @@ export function SettingsDialog({
           </Tabs>
 
           <DialogFooter className="p-4 sm:p-6">
-            {activeTab === "models" && editor.draft && (
-              <>
-                <Button variant="outline" onClick={editor.reset} disabled={!editor.draft}>
-                  Reset
-                </Button>
-                <Button
-                  onClick={editor.save}
-                  disabled={!editor.draft || editor.saving}
-                >
-                  {editor.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
             {activeTab === "orchestration" && orchestrationDirty && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => orchestrationRef.current?.reset()}
                   disabled={orchestrationRef.current?.saving}
                 >
@@ -228,7 +202,7 @@ export function SettingsDialog({
             {activeTab === "investigation" && investigationDirty && (
               <>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   onClick={() => investigationRef.current?.reset()}
                   disabled={investigationRef.current?.saving}
                 >
@@ -242,7 +216,7 @@ export function SettingsDialog({
                 </Button>
               </>
             )}
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="secondary" className="min-h-11 sm:min-h-10" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           </DialogFooter>

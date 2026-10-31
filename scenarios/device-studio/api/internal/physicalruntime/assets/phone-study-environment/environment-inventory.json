@@ -1,0 +1,821 @@
+{
+  "coordinate_convention": "device-studio-right-handed-meters-x-right-y-up-z-front-v1",
+  "export_script_sha256": "1cadc29e06491aae213963d731b7edcc7145ebbb54072baef48522b2ce7564b9",
+  "glb_sha256": "c0f1450af8cc83b237159f2c5208bd964c48fc5dc9fe7f2ac2b2ee5409447f4d",
+  "glb_size_bytes": 421404,
+  "gltf_asset": {
+    "generator": "Khronos glTF Blender I/O v5.2.40",
+    "version": "2.0"
+  },
+  "gltf_extensions": {
+    "required": [],
+    "used": []
+  },
+  "manifest_sha256": "2a11882dfc72c5a4d582558387607859bd3bccc61f9c94767f468b485bab5035",
+  "materials": [
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 0,
+      "name": "Warm plaster backdrop",
+      "pbr": {
+        "baseColorFactor": [
+          0.6800000071525574,
+          0.6299999952316284,
+          0.5600000023841858,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8999999761581421
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 1,
+      "name": "Warm pale timber support legs",
+      "pbr": {
+        "baseColorFactor": [
+          0.3799999952316284,
+          0.28999999165534973,
+          0.20000000298023224,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7200000286102295
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 2,
+      "name": "Pale warm mineral sides",
+      "pbr": {
+        "baseColorFactor": [
+          0.6899999976158142,
+          0.6299999952316284,
+          0.5400000214576721,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7149999737739563
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 3,
+      "name": "Travertine001 top material slot",
+      "pbr": {
+        "baseColorFactor": [
+          0.6499999761581421,
+          0.6000000238418579,
+          0.5,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.7799999713897705
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 4,
+      "name": "Warm ivory glazed ceramic",
+      "pbr": {
+        "baseColorFactor": [
+          0.7799999713897705,
+          0.7300000190734863,
+          0.6499999761581421,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.23999999463558197
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0,
+        0,
+        0
+      ],
+      "index": 5,
+      "name": "Dark tea scale cue",
+      "pbr": {
+        "baseColorFactor": [
+          0.054999999701976776,
+          0.03200000151991844,
+          0.017999999225139618,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0.20000000298023224
+      }
+    },
+    {
+      "emissive_factor_linear_rgb": [
+        0.6240000128746033,
+        0.656000018119812,
+        0.7039999961853027
+      ],
+      "index": 6,
+      "name": "Soft luminous window",
+      "pbr": {
+        "baseColorFactor": [
+          0,
+          0,
+          0,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "nodes": {
+    "RoomBackWall": {
+      "mesh_index": 0,
+      "node_index": 0,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 0,
+          "local_bounds_meters": {
+            "max": [
+              1.2000000476837158,
+              1.0499999523162842,
+              0.017500000074505806
+            ],
+            "min": [
+              -1.2000000476837158,
+              -1.0499999523162842,
+              -0.017500000074505806
+            ]
+          },
+          "material_name": "Warm plaster backdrop",
+          "mode": 4,
+          "position_accessor": 0,
+          "primitive_index": 0,
+          "vertex_count": 384
+        }
+      ],
+      "role": "environment_backdrop",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0,
+        1.7200000286102295,
+        -0.47999998927116394
+      ]
+    },
+    "TableLeg-NE": {
+      "mesh_index": 1,
+      "node_index": 1,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 1,
+          "local_bounds_meters": {
+            "max": [
+              0.02250000089406967,
+              0.36000001430511475,
+              0.02250000089406967
+            ],
+            "min": [
+              -0.02250000089406967,
+              -0.36000001430511475,
+              -0.02250000089406967
+            ]
+          },
+          "material_name": "Warm pale timber support legs",
+          "mode": 4,
+          "position_accessor": 4,
+          "primitive_index": 0,
+          "vertex_count": 448
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0.38999998569488525,
+        0.36000001430511475,
+        -0.30000001192092896
+      ]
+    },
+    "TableLeg-NW": {
+      "mesh_index": 2,
+      "node_index": 2,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 1,
+          "local_bounds_meters": {
+            "max": [
+              0.02250000089406967,
+              0.36000001430511475,
+              0.02250000089406967
+            ],
+            "min": [
+              -0.02250000089406967,
+              -0.36000001430511475,
+              -0.02250000089406967
+            ]
+          },
+          "material_name": "Warm pale timber support legs",
+          "mode": 4,
+          "position_accessor": 8,
+          "primitive_index": 0,
+          "vertex_count": 448
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.38999998569488525,
+        0.36000001430511475,
+        -0.30000001192092896
+      ]
+    },
+    "TableLeg-SE": {
+      "mesh_index": 3,
+      "node_index": 3,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 1,
+          "local_bounds_meters": {
+            "max": [
+              0.02250000089406967,
+              0.36000001430511475,
+              0.02250000089406967
+            ],
+            "min": [
+              -0.02250000089406967,
+              -0.36000001430511475,
+              -0.02250000089406967
+            ]
+          },
+          "material_name": "Warm pale timber support legs",
+          "mode": 4,
+          "position_accessor": 11,
+          "primitive_index": 0,
+          "vertex_count": 448
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0.38999998569488525,
+        0.36000001430511475,
+        0.30000001192092896
+      ]
+    },
+    "TableLeg-SW": {
+      "mesh_index": 4,
+      "node_index": 4,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 1,
+          "local_bounds_meters": {
+            "max": [
+              0.02250000089406967,
+              0.36000001430511475,
+              0.02250000089406967
+            ],
+            "min": [
+              -0.02250000089406967,
+              -0.36000001430511475,
+              -0.02250000089406967
+            ]
+          },
+          "material_name": "Warm pale timber support legs",
+          "mode": 4,
+          "position_accessor": 14,
+          "primitive_index": 0,
+          "vertex_count": 448
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.38999998569488525,
+        0.36000001430511475,
+        0.30000001192092896
+      ]
+    },
+    "TableTop": {
+      "mesh_index": 5,
+      "node_index": 5,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 2,
+          "local_bounds_meters": {
+            "max": [
+              0.4749999940395355,
+              0.01659921184182167,
+              0.38999998569488525
+            ],
+            "min": [
+              -0.4749999940395355,
+              -0.017000000923871994,
+              -0.38999998569488525
+            ]
+          },
+          "material_name": "Pale warm mineral sides",
+          "mode": 4,
+          "position_accessor": 17,
+          "primitive_index": 0,
+          "vertex_count": 434
+        },
+        {
+          "gltf_material_index": 3,
+          "local_bounds_meters": {
+            "max": [
+              0.4745992124080658,
+              0.017000000923871994,
+              0.3884979784488678
+            ],
+            "min": [
+              -0.47349801659584045,
+              0.015434635803103447,
+              -0.3884980380535126
+            ]
+          },
+          "material_name": "Travertine001 top material slot",
+          "mode": 4,
+          "position_accessor": 21,
+          "primitive_index": 1,
+          "vertex_count": 56
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0,
+        0.7329999804496765,
+        0
+      ]
+    },
+    "TeaCup": {
+      "mesh_index": 6,
+      "node_index": 6,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 4,
+          "local_bounds_meters": {
+            "max": [
+              0.1409890502691269,
+              0.8306641578674316,
+              -0.05401095747947693
+            ],
+            "min": [
+              0.06901095807552338,
+              0.75,
+              -0.12598904967308044
+            ]
+          },
+          "material_name": "Warm ivory glazed ceramic",
+          "mode": 4,
+          "position_accessor": 25,
+          "primitive_index": 0,
+          "vertex_count": 6604
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "TeaCupHandle": {
+      "mesh_index": 7,
+      "node_index": 7,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 4,
+          "local_bounds_meters": {
+            "max": [
+              0.026000000536441803,
+              0.004000000189989805,
+              0.026000000536441803
+            ],
+            "min": [
+              -0.026000000536441803,
+              -0.004000000189989805,
+              -0.026000000536441803
+            ]
+          },
+          "material_name": "Warm ivory glazed ceramic",
+          "mode": 4,
+          "position_accessor": 28,
+          "primitive_index": 0,
+          "vertex_count": 2310
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0.70710688829422,
+        0,
+        0,
+        0.7071066498756409
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0.14499999582767487,
+        0.7950000166893005,
+        -0.09000000357627869
+      ]
+    },
+    "TeaSurface": {
+      "mesh_index": 8,
+      "node_index": 8,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 5,
+          "local_bounds_meters": {
+            "max": [
+              0.028999999165534973,
+              0.0005000000237487257,
+              0.028999999165534973
+            ],
+            "min": [
+              -0.028999999165534973,
+              -0.0005000000237487257,
+              -0.028999999165534973
+            ]
+          },
+          "material_name": "Dark tea scale cue",
+          "mode": 4,
+          "position_accessor": 32,
+          "primitive_index": 0,
+          "vertex_count": 384
+        }
+      ],
+      "role": "imported_table_scene_part",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        0.10499999672174454,
+        0.8109999895095825,
+        -0.09000000357627869
+      ]
+    },
+    "WindowFrameRailLower": {
+      "mesh_index": 9,
+      "node_index": 9,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 0,
+          "local_bounds_meters": {
+            "max": [
+              0.3700000047683716,
+              0.012500000186264515,
+              0.017500000074505806
+            ],
+            "min": [
+              -0.3700000047683716,
+              -0.012500000186264515,
+              -0.017500000074505806
+            ]
+          },
+          "material_name": "Warm plaster backdrop",
+          "mode": 4,
+          "position_accessor": 36,
+          "primitive_index": 0,
+          "vertex_count": 384
+        }
+      ],
+      "role": "environment_backdrop",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.5799999833106995,
+        1.2200000286102295,
+        -0.43799999356269836
+      ]
+    },
+    "WindowFrameRailUpper": {
+      "mesh_index": 10,
+      "node_index": 10,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 0,
+          "local_bounds_meters": {
+            "max": [
+              0.3700000047683716,
+              0.012500000186264515,
+              0.017500000074505806
+            ],
+            "min": [
+              -0.3700000047683716,
+              -0.012500000186264515,
+              -0.017500000074505806
+            ]
+          },
+          "material_name": "Warm plaster backdrop",
+          "mode": 4,
+          "position_accessor": 39,
+          "primitive_index": 0,
+          "vertex_count": 384
+        }
+      ],
+      "role": "environment_backdrop",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.5799999833106995,
+        2.2200000286102295,
+        -0.43799999356269836
+      ]
+    },
+    "WindowFrameUprightLeft": {
+      "mesh_index": 11,
+      "node_index": 11,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 0,
+          "local_bounds_meters": {
+            "max": [
+              0.012500000186264515,
+              0.49000000953674316,
+              0.017500000074505806
+            ],
+            "min": [
+              -0.012500000186264515,
+              -0.49000000953674316,
+              -0.017500000074505806
+            ]
+          },
+          "material_name": "Warm plaster backdrop",
+          "mode": 4,
+          "position_accessor": 42,
+          "primitive_index": 0,
+          "vertex_count": 384
+        }
+      ],
+      "role": "environment_backdrop",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.9399999976158142,
+        1.7200000286102295,
+        -0.43799999356269836
+      ]
+    },
+    "WindowFrameUprightRight": {
+      "mesh_index": 12,
+      "node_index": 12,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 0,
+          "local_bounds_meters": {
+            "max": [
+              0.012500000186264515,
+              0.49000000953674316,
+              0.017500000074505806
+            ],
+            "min": [
+              -0.012500000186264515,
+              -0.49000000953674316,
+              -0.017500000074505806
+            ]
+          },
+          "material_name": "Warm plaster backdrop",
+          "mode": 4,
+          "position_accessor": 45,
+          "primitive_index": 0,
+          "vertex_count": 384
+        }
+      ],
+      "role": "environment_backdrop",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.2199999988079071,
+        1.7200000286102295,
+        -0.43799999356269836
+      ]
+    },
+    "WindowLightPanel": {
+      "mesh_index": 13,
+      "node_index": 13,
+      "parent_index": null,
+      "primitives": [
+        {
+          "gltf_material_index": 6,
+          "local_bounds_meters": {
+            "max": [
+              0.3400000035762787,
+              0.46000000834465027,
+              0.004000000189989805
+            ],
+            "min": [
+              -0.3400000035762787,
+              -0.46000000834465027,
+              -0.004000000189989805
+            ]
+          },
+          "material_name": "Soft luminous window",
+          "mode": 4,
+          "position_accessor": 48,
+          "primitive_index": 0,
+          "vertex_count": 24
+        }
+      ],
+      "role": "environment_backdrop",
+      "rotation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "translation": [
+        -0.5799999833106995,
+        1.7200000286102295,
+        -0.45500001311302185
+      ]
+    }
+  },
+  "profile_id": "device-studio-phone-study-environment-export-v1",
+  "scene_scope": "table/cup GLB plus wall, luminous window panel, and four window-frame bars; no phone, camera, light, animation or embedded/external image",
+  "source_table_glb_bytes": 350488,
+  "source_table_glb_sha256": "d03c288c1f6fa401d920c736e1361189066599b0c514f924b9fed8b50ba16587",
+  "status": "geometry_candidate_unreviewed",
+  "support_interface": {
+    "contact_region_part_id": "table-top",
+    "frame_part_id": "table-top",
+    "id": "table-top-flat",
+    "local_frame_translation_meters": [
+      0.0,
+      0.0170000196,
+      0.0
+    ],
+    "world_top_height_meters": 0.7499999814
+  },
+  "triangle_count": 5856,
+  "window_emission_conversion": {
+    "conversion": "multiply the approved Blender emission color by its strength; encode the resulting linear RGB as glTF emissiveFactor with strength 1.0",
+    "export_emissive_factor_linear_rgb": [
+      0.624,
+      0.656,
+      0.704
+    ],
+    "export_strength": 1.0,
+    "name": "Soft luminous window",
+    "profile": "EMISSION_V1",
+    "study_color_linear_rgb": [
+      0.78,
+      0.82,
+      0.88
+    ],
+    "study_strength": 0.8
+  }
+}

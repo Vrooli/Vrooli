@@ -1,0 +1,19 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "landing-page-vps-qualification-coordinator",
+  "displayName": "Landing Page VPS Qualification Coordinator",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 2,
+  "createdAt": "2026-09-13T21:55:35Z",
+  "updatedAt": "2026-10-24T11:52:50Z",
+  "description": "Qualify and mature the complete governed VPS deployment lifecycle for landing-page-business-suite, including distinct SSH and Bridge transports, recovery, security, resource envelope and an honest final readiness decision."
+}

@@ -76,6 +76,32 @@ export default tseslint.config(
 
       // Allow unused vars prefixed with underscore (common pattern for ignored params)
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/test-utils",
+                "**/test-utils/*",
+                "@/test-utils",
+                "@/test-utils/*",
+                "**/features/*/mocks",
+                "**/features/*/mocks/*",
+                "@/features/*/mocks",
+                "@/features/*/mocks/*",
+              ],
+              message: "Production code must not import from test-utils or feature mocks.",
+            },
+          ],
+        },
+      ],
     },
-  }
+  },
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "src/test-utils/**/*.{ts,tsx}", "src/test-setup.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
 );

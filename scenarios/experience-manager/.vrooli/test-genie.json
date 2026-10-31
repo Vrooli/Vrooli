@@ -1,0 +1,559 @@
+{
+  "$schema": "https://vrooli.dev/schemas/test-genie-phase-descriptor.schema.json",
+  "schemaVersion": "1.0.0",
+  "scenario": "experience-manager",
+  "phase": "experience",
+  "displayName": "Experience",
+  "description": "Validates scenario-experience-spec/v1 contracts and experience maturity through experience-manager.",
+  "source": "validation-provider",
+  "runtimeClass": "execution",
+  "orderHint": 14,
+  "timeout": "10m",
+  "findingSource": "ui",
+  "dimensions": [
+    "ui"
+  ],
+  "validation": {
+    "contract": "scenario-validation/v1"
+  },
+  "targets": {
+    "kinds": [
+      "scenario"
+    ],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a scenario experience specification and product interaction surface; the control plane has no scenario experience contract."
+      }
+    ]
+  },
+  "applicability": {
+    "default": "not_applicable",
+    "any": [
+      {
+        "fileExists": "experience/index.json"
+      }
+    ]
+  },
+  "policy": {
+    "selection": "default_when_applicable",
+    "providerReadiness": "required_when_applicable",
+    "providerLifecycle": "start_if_needed",
+    "freshness": "require_live_contract",
+    "resultGating": "gating",
+    "unavailable": "fail"
+  },
+  "runnability": {},
+  "docs": {
+    "path": "scenarios/test-genie/docs/phases/experience/README.md"
+  },
+  "concurrency": {
+    "mode": "provider-serial"
+  },
+  "determinism": {
+    "default": "observational",
+    "reason": "Experience claims are reconciled against accessibility and geometry captures taken from a live UI session. The captures reflect what the browser actually rendered at a given viewport, not what the source declares."
+  },
+  "maturity": {
+    "version": "1.0.0",
+    "capabilities": [
+      {
+        "id": "spec_contract",
+        "label": "Spec Contract",
+        "description": "Experience index, page, journey, route, reference, binding, and tier rules are parseable and internally consistent.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Contract unavailable",
+            "status_label": "Unavailable",
+            "description": "experience/ is absent or unreadable.",
+            "capability_summary": "Experience intent cannot be evaluated.",
+            "next_unlock": "Add an experience/index.json contract."
+          },
+          {
+            "id": "L1",
+            "name": "Contract parseable",
+            "status_label": "Foundation",
+            "description": "The contract parses, but schema or index parity findings remain.",
+            "capability_summary": "Experience intent exists but is not structurally trustworthy.",
+            "next_unlock": "Resolve schema and index parity findings."
+          },
+          {
+            "id": "L2",
+            "name": "References linked",
+            "status_label": "Ready",
+            "description": "Documents parse and cross-file references, PRD refs, bindings, and tier semantics are clean.",
+            "capability_summary": "The experience contract is internally linked.",
+            "next_unlock": "Ground active pages in structure evidence."
+          },
+          {
+            "id": "L3",
+            "name": "Contract clean",
+            "status_label": "Complete",
+            "description": "Parser-era experience findings are clean.",
+            "capability_summary": "Experience intent is a trustworthy machine-checkable contract."
+          }
+        ]
+      },
+      {
+        "id": "structure_reconciliation",
+        "label": "Structure Reconciliation",
+        "description": "Machine-tier claims are reconciled against captured accessibility structure with honest skip semantics.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Capture unavailable",
+            "status_label": "Unavailable",
+            "description": "No usable BAS accessibility capture is available.",
+            "capability_summary": "Machine-tier experience claims cannot be checked against UI structure.",
+            "next_unlock": "Capture the target page accessibility tree."
+          },
+          {
+            "id": "L1",
+            "name": "Bindings joinable",
+            "status_label": "Foundation",
+            "description": "Bindings can be compared with captured structure, but unresolved bindings or uncheckable claims remain.",
+            "capability_summary": "The spec can start grounding in the live UI.",
+            "next_unlock": "Resolve binding and checker coverage gaps."
+          },
+          {
+            "id": "L2",
+            "name": "Claims checked",
+            "status_label": "Ready",
+            "description": "Tier 0-1 machine claims are evaluated against captured structure.",
+            "capability_summary": "Active machine-tier claims have deterministic evidence.",
+            "next_unlock": "Resolve failed or unproven claims."
+          },
+          {
+            "id": "L3",
+            "name": "Structure clean",
+            "status_label": "Complete",
+            "description": "Structure reconciliation findings are clean for active pages.",
+            "capability_summary": "The built UI structure satisfies the machine-tier experience spec."
+          }
+        ]
+      },
+      {
+        "id": "manual_evidence",
+        "label": "Manual Evidence",
+        "description": "Manual-tier claims carry explicit attestations with freshness semantics.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "No attestation evidence",
+            "status_label": "Unavailable",
+            "description": "Manual-tier claims have no usable attestation evidence.",
+            "capability_summary": "Manual experience claims are unproven.",
+            "next_unlock": "Record an attestation with author, rationale, and expiry."
+          },
+          {
+            "id": "L1",
+            "name": "Attestations present",
+            "status_label": "Foundation",
+            "description": "Manual attestations exist but expired or stale evidence remains.",
+            "capability_summary": "Manual claims have reviewable evidence with freshness debt.",
+            "next_unlock": "Refresh expired attestations."
+          },
+          {
+            "id": "L2",
+            "name": "Attestations fresh",
+            "status_label": "Complete",
+            "description": "Manual-tier attestation findings are clean.",
+            "capability_summary": "Manual experience claims are honestly current."
+          }
+        ]
+      },
+      {
+        "id": "perception_advisory",
+        "label": "Perception Advisory",
+        "description": "Deferred perception-tier checks remain advisory until calibrated.",
+        "levels": [
+          {
+            "id": "L0",
+            "name": "Perception unevaluated",
+            "status_label": "Deferred",
+            "description": "Perception-tier checks are not part of v1 gating.",
+            "capability_summary": "Visual saliency and glance judgment are visible only as future seams.",
+            "next_unlock": "Calibrate deterministic perception checks in the P2 tier."
+          },
+          {
+            "id": "L1",
+            "name": "Advisory perception visible",
+            "status_label": "Advisory",
+            "description": "Perception findings are reported as non-gating advisory evidence.",
+            "capability_summary": "Experience-manager can show perception debt without failing suites."
+          }
+        ]
+      }
+    ],
+    "findings": {
+      "experience.registry_invalid": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "The capability registry is invalid or references undeclared vocabulary."
+      },
+      "experience.schema_invalid": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Schema repair needs source-level contract edits."
+      },
+      "experience.oracle_case_uncovered": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Restore a machine-checkable experience claim for every regression-oracle case."
+      },
+      "experience.index_parity": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Index parity repair needs source-level contract edits."
+      },
+      "experience.ref_unresolved": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Choosing the correct referenced page, state, or element requires author intent."
+      },
+      "experience.prd_ref_unmatched": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Choosing the correct operational target is an intent decision."
+      },
+      "experience.binding_orphan": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Binding repair depends on the intended UI element contract."
+      },
+      "experience.tier_violation": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Tier changes alter enforcement intent and need author judgment."
+      },
+      "experience.vacuous_contract": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "A portable contract needs at least one claim backed by an implemented evaluator to earn a validated rung."
+      },
+      "experience.route_unspecced": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Route coverage decisions require product intent."
+      },
+      "experience.state_missing": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "State coverage decisions require design intent."
+      },
+      "experience.binding_unresolved": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Resolving live binding drift depends on the intended selector or markup."
+      },
+      "experience.claim_failed": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "A failed experience claim may require product, design, or implementation changes."
+      },
+      "experience.affordance_missing": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Missing affordances require adding accessible controls or revising the page intent."
+      },
+      "experience.claim_unverifiable": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Checker coverage gaps require choosing a supported claim type or adding validator capability."
+      },
+      "experience.capture_unavailable": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L0",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_INFO",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Capture availability is an operational condition, not an in-place source fix."
+      },
+      "experience.capture_bindings_unjoined": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "A completed capture with zero joined bindings indicates broken document bindings."
+      },
+      "experience.attestation_expired": {
+        "capability_id": "manual_evidence",
+        "local_level_impact": "L1",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Refreshing manual evidence requires a human attestation."
+      },
+      "experience.claim_unproven": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Evidence must be captured or the claim should be retiered deliberately."
+      },
+      "experience.floor_no_document_horizontal_overflow": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Horizontal overflow remediation depends on the page's intended layout and content containment."
+      },
+      "experience.floor_viewport_fill": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Viewport-fill remediation requires shell/layout changes."
+      },
+      "experience.floor_chrome_pinned": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Chrome pinning remediation requires layout and navigation decisions."
+      },
+      "experience.floor_safe_area_tap_targets": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Safe-area remediation requires mobile shell/layout changes."
+      },
+      "experience.floor_single_line_chrome": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Single-line chrome remediation requires navigation content or responsive layout changes."
+      },
+      "experience.floor_tap_target_size": {
+        "capability_id": "structure_reconciliation",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring",
+          "ux"
+        ],
+        "fix_class": "manual",
+        "reason": "Tap-target remediation requires component sizing or hit-area changes."
+      },
+      "experience.importance_mismatch": {
+        "capability_id": "perception_advisory",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Perception calibration is deferred to the P2 tier."
+      },
+      "experience.glance_judge_mismatch": {
+        "capability_id": "perception_advisory",
+        "local_level_impact": "L1",
+        "global_impact": "advisory",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_WARNING",
+        "clean_requirement": "advisory",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Judge-based perception is deferred and non-gating."
+      }
+    },
+    "fallback": {
+      "capability_id": "spec_contract",
+      "local_level_impact": "L0",
+      "global_impact": "unknown",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  }
+}

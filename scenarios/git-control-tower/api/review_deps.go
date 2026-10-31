@@ -1,6 +1,10 @@
 package main
 
-import "context"
+import (
+	"context"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+)
 
 // ReviewTidinessClient is the subset of TidinessManagerClient used by review handlers.
 type ReviewTidinessClient interface {
@@ -11,7 +15,7 @@ type ReviewTidinessClient interface {
 
 // ReviewTestGenieClient is the subset of TestGenieClient used by review handlers.
 type ReviewTestGenieClient interface {
-	ListExecutions(ctx context.Context, scenario string, limit int) (*TestExecutionListResponse, error)
+	ReadRun(ctx context.Context, scenario, runID string) (*runspb.RunInfo, error)
 	ExecuteSuite(ctx context.Context, req TestExecutionRequest) (*TestExecutionResult, error)
 }
 

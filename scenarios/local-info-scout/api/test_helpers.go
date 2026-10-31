@@ -55,7 +55,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 		"POSTGRES_USER":     os.Getenv("POSTGRES_USER"),
 		"POSTGRES_PASSWORD": os.Getenv("POSTGRES_PASSWORD"),
 		"POSTGRES_DB":       os.Getenv("POSTGRES_DB"),
-		"OLLAMA_HOST":       os.Getenv("OLLAMA_HOST"),
 		"SEARXNG_HOST":      os.Getenv("SEARXNG_HOST"),
 	}
 
@@ -67,7 +66,6 @@ func setupTestEnvironment(t *testing.T) *TestEnvironment {
 	setTestEnvWithDefault("POSTGRES_USER", "test")
 	setTestEnvWithDefault("POSTGRES_PASSWORD", "test")
 	setTestEnvWithDefault("POSTGRES_DB", "local_info_scout_test")
-	setTestEnvWithDefault("OLLAMA_HOST", "http://localhost:11434")
 	setTestEnvWithDefault("SEARXNG_HOST", "http://localhost:8280")
 
 	// Try to create a test Redis client using env vars

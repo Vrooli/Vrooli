@@ -2,8 +2,12 @@ package cliutil
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -82,7 +86,7 @@ func TestVerifyIdentity_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "valid-token"}
 	result, err := env.VerifyIdentity()
@@ -115,6 +119,62 @@ func TestVerifyIdentity_Success(t *testing.T) {
 	}
 }
 
+func TestVerifyIdentityUsesExplicitBodyCredentialWithoutAmbientBroker(t *testing.T) {
+	tmp, err := os.MkdirTemp("/tmp", "a108-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(tmp) })
+	t.Setenv("TMPDIR", tmp)
+	t.Setenv(EnvIdentityToken, "ambient-service-credential")
+	t.Setenv("AGENT_MANAGER_API_BASE", "")
+
+	socket := AgentCredentialSocket()
+	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	brokerCalls := make(chan struct{}, 1)
+	broker := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		brokerCalls <- struct{}{}
+		http.Error(w, `{"code":"authority_unavailable"}`, http.StatusForbidden)
+	})}
+	go func() { _ = broker.Serve(listener) }()
+	t.Cleanup(func() { _ = broker.Close() })
+
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/identity/verify" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get(HeaderAgentIdentityToken) != "" || r.Header.Get(HeaderAgentOperationToken) != "" {
+			t.Errorf("identity verification sent ambient proof headers: identity=%t operation=%t", r.Header.Get(HeaderAgentIdentityToken) != "", r.Header.Get(HeaderAgentOperationToken) != "")
+		}
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode request: %v", err)
+		}
+		if body["token"] != "explicit-run-token" {
+			t.Errorf("verification body token = %q, want explicit selected token", body["token"])
+		}
+		_ = json.NewEncoder(w).Encode(VerifyResult{Valid: true, Claims: &VerifiedClaims{RunID: "run-id"}})
+	}))
+	defer api.Close()
+	t.Setenv("AGENT_MANAGER_API_BASE", api.URL)
+
+	result, err := (IdentityEnv{Token: "explicit-run-token"}).VerifyIdentity()
+	if err != nil || result == nil || !result.Valid || result.Claims == nil || result.Claims.RunID != "run-id" {
+		t.Fatalf("explicit body token was not independently verified: result=%+v err=%v", result, err)
+	}
+	select {
+	case <-brokerCalls:
+		t.Fatal("identity verification consulted the ambient credential broker")
+	default:
+	}
+}
+
 func TestVerifyIdentity_InvalidToken(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -126,7 +186,7 @@ func TestVerifyIdentity_InvalidToken(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "bad-token"}
 	result, err := env.VerifyIdentity()
@@ -146,7 +206,7 @@ func TestVerifyIdentity_NetworkError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "some-token"}
 	_, err := env.VerifyIdentity()
@@ -162,7 +222,7 @@ func TestVerifyIdentity_MalformedResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv(EnvAgentManagerBase, server.URL)
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
 
 	env := IdentityEnv{Token: "some-token"}
 	_, err := env.VerifyIdentity()
@@ -180,11 +240,47 @@ func TestVerifyIdentity_EmptyToken(t *testing.T) {
 }
 
 func TestVerifyIdentity_NoBaseURL(t *testing.T) {
-	t.Setenv(EnvAgentManagerBase, "")
+	t.Setenv("AGENT_MANAGER_API_BASE", "")
+	t.Setenv("AGENT_MANAGER_API_URL", "")
+	t.Setenv("AGENT_MANAGER_API_PORT", "")
+
+	originalDetector := detectAgentManagerPort
+	t.Cleanup(func() { detectAgentManagerPort = originalDetector })
+	detectAgentManagerPort = func() string { return "" }
 
 	env := IdentityEnv{Token: "some-token"}
 	_, err := env.VerifyIdentity()
 	if err == nil {
 		t.Fatal("expected error for missing base URL")
+	}
+	if !strings.Contains(err.Error(), "not discoverable") {
+		t.Fatalf("expected discovery guidance, got %v", err)
+	}
+}
+
+func TestVerifyIdentity_UsesLifecyclePortDiscovery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/api/v1/identity/verify" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		json.NewEncoder(w).Encode(VerifyResult{Valid: true, RunStatus: "running"})
+	}))
+	defer server.Close()
+
+	originalDetector := detectAgentManagerPort
+	t.Cleanup(func() { detectAgentManagerPort = originalDetector })
+	detectAgentManagerPort = func() string {
+		return strings.TrimPrefix(server.URL, "http://127.0.0.1:")
+	}
+
+	env := IdentityEnv{Token: "valid-token"}
+	result, err := env.VerifyIdentity()
+	if err != nil {
+		t.Fatalf("VerifyIdentity: %v", err)
+	}
+	if !result.Valid {
+		t.Fatal("expected Valid=true")
 	}
 }

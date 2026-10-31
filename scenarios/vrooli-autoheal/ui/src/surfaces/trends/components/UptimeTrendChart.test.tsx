@@ -1,10 +1,10 @@
 // UptimeTrendChart component tests
 // [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, waitFor } from "@testing-library/react";
 import { UptimeTrendChart } from "./UptimeTrendChart";
 import * as api from "../../../lib/api";
+import { renderWithProviders } from "../../../test-utils";
 
 // Mock the API module
 vi.mock("../../../lib/api", async () => {
@@ -14,38 +14,6 @@ vi.mock("../../../lib/api", async () => {
     fetchUptimeHistory: vi.fn(),
   };
 });
-
-// Mock recharts to avoid SVG rendering issues in tests
-vi.mock("recharts", () => ({
-  ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="responsive-container">{children}</div>
-  ),
-  AreaChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="area-chart">{children}</div>
-  ),
-  Area: () => <div data-testid="area" />,
-  XAxis: () => <div data-testid="x-axis" />,
-  YAxis: () => <div data-testid="y-axis" />,
-  Tooltip: () => <div data-testid="tooltip" />,
-  CartesianGrid: () => <div data-testid="cartesian-grid" />,
-}));
-
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-        gcTime: 0,
-      },
-    },
-  });
-
-const renderWithProviders = (ui: React.ReactElement) => {
-  const queryClient = createTestQueryClient();
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-  );
-};
 
 describe("[REQ:UI-EVENTS-001] UptimeTrendChart", () => {
   beforeEach(() => {
@@ -90,6 +58,7 @@ describe("[REQ:UI-EVENTS-001] UptimeTrendChart", () => {
     await waitFor(() => {
       expect(screen.getByTestId("autoheal-trends-chart")).toBeInTheDocument();
     });
+    expect(screen.getByRole("img", { name: /uptime status trend/i })).toBeInTheDocument();
   });
 
   it("shows empty state when no data available", async () => {

@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { protoFetch } from '../../../shared/api/apiFetch';
-import { parseExecuteScriptResponse } from '../../../shared/api/proto-contracts';
 import type { ModalState, InvestigationScript, ScriptExecution } from '../../../types';
 import { ScriptExecutionStatus } from '../../../types';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
@@ -88,6 +87,7 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
       const requestBody = scriptContent ? JSON.stringify({ content: scriptContent }) : '{}';
 
       try {
+        const { parseExecuteScriptResponse } = await import('../../../shared/api/proto-contracts');
         const data = await protoFetch(
           `/investigations/scripts/${encodeURIComponent(scriptId)}/execute`,
           parseExecuteScriptResponse,
@@ -104,7 +104,7 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
             ...prev,
             scriptResults: {
               ...prev.scriptResults,
-              execution: completedExecution as ScriptExecution
+              execution: completedExecution
             }
           }));
         }
@@ -149,14 +149,17 @@ export const useScriptExecution = (): UseScriptExecutionReturn => {
     }
   }, []);
 
-  const saveScript = useCallback(async (_script: InvestigationScript, _content: string) => {
-    // TODO: Implement actual API call to save script
+  const saveScript = useCallback(async (script: InvestigationScript, content: string): Promise<void> => {
+    if (!script.id || !content.trim()) throw new Error('Script content is required');
+    const { parseGetScriptResponse } = await import('../../../shared/api/proto-contracts');
+    await protoFetch(`/investigations/scripts/${encodeURIComponent(script.id)}`, parseGetScriptResponse, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: script.id, content }),
+    });
     setModalState(prev => ({
       ...prev,
-      scriptEditor: {
-        ...prev.scriptEditor,
-        isOpen: false
-      }
+      scriptEditor: { ...prev.scriptEditor, isOpen: false }
     }));
   }, []);
 

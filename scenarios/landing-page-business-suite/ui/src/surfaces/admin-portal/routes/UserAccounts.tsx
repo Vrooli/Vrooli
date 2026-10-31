@@ -57,7 +57,7 @@ export function UserAccounts() {
   // Load sessions when user is selected
   useEffect(() => {
     if (selectedUser) {
-      loadUserSessions(selectedUser.id);
+      void loadUserSessions(selectedUser.id);
     }
   }, [selectedUser, loadUserSessions]);
 
@@ -65,7 +65,6 @@ export function UserAccounts() {
     <AdminLayout maxWidth="wide">
       <div className={LAYOUT.pageSpacing}>
         <PageHeader
-          variant="icon-title"
           title="User Accounts"
           description="View and manage user accounts, subscriptions, and sessions"
           icon={Users}
@@ -76,7 +75,7 @@ export function UserAccounts() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={loadUsers}
+              onClick={() => { void loadUsers(); }}
               className="gap-2"
               disabled={loading}
             >
@@ -112,7 +111,7 @@ export function UserAccounts() {
                     <input
                       type="text"
                       value={search}
-                      onChange={(e) => setSearch(e.target.value)}
+                      onChange={(e) => { setSearch(e.target.value); }}
                       placeholder="Search by email..."
                       className="w-64 rounded-lg border border-white/10 bg-slate-900/70 py-2 pl-10 pr-4 text-sm text-white placeholder:text-slate-500"
                     />
@@ -161,7 +160,7 @@ export function UserAccounts() {
                               key={user.id}
                               user={user}
                               selected={selectedUser?.id === user.id}
-                              onSelect={() => selectUser(user)}
+                              onSelect={() => { selectUser(user); }}
                             />
                           ))}
                         </tbody>
@@ -179,7 +178,7 @@ export function UserAccounts() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setPage(page - 1)}
+                            onClick={() => { setPage(page - 1); }}
                             disabled={page <= 1}
                           >
                             <ChevronLeft className="h-4 w-4" />
@@ -190,7 +189,7 @@ export function UserAccounts() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setPage(page + 1)}
+                            onClick={() => { setPage(page + 1); }}
                             disabled={page >= totalPages}
                           >
                             <ChevronRight className="h-4 w-4" />
@@ -213,7 +212,7 @@ export function UserAccounts() {
                 loading={detailsLoading}
                 sessionsLoading={sessionsLoading}
                 actionLoading={actionLoading}
-                onClose={() => selectUser(null)}
+                onClose={() => { selectUser(null); }}
                 onRevokeSession={handleRevokeSession}
                 onRevokeAllSessions={handleRevokeAllSessions}
               />
@@ -361,7 +360,7 @@ function UserDetailsPanel({
                 <div className="space-y-2">
                   <DetailRow
                     label="Plan"
-                    value={user.subscription.plan_tier?.charAt(0).toUpperCase() + user.subscription.plan_tier?.slice(1)}
+                    value={user.subscription.plan_tier.charAt(0).toUpperCase() + user.subscription.plan_tier.slice(1)}
                   />
                   <DetailRow
                     label="Status"
@@ -416,7 +415,7 @@ function UserDetailsPanel({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onRevokeAllSessions(user.id)}
+                    onClick={() => { void onRevokeAllSessions(user.id); }}
                     disabled={actionLoading === 'all'}
                     className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
                   >
@@ -509,7 +508,7 @@ function SessionItem({ session, userId, loading, onRevoke }: SessionItemProps) {
       </div>
       {isActive ? (
         <button
-          onClick={() => onRevoke(userId, session.id)}
+          onClick={() => { void onRevoke(userId, session.id); }}
           disabled={loading}
           className="text-slate-400 hover:text-rose-400"
           title="Revoke session"

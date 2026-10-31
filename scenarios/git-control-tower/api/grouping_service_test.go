@@ -58,7 +58,7 @@ func TestSaveGroupingRules_Writes(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "grouping-rules.json")
 
-	deps := GroupingDeps{FS: OSFileIO{}, ConfigPath: configPath}
+	deps := GroupingDeps{AuthContext: authorizedHumanContext(), FS: OSFileIO{}, ConfigPath: configPath}
 	cfg := GroupingRulesConfig{
 		Enabled: true,
 		Rules: []GroupingRule{

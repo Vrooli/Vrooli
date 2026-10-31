@@ -1,0 +1,289 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.capabilities;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/capabilities;capabilitiesv1";
+
+// CapabilitiesService exposes provider-owned operator work as typed metadata
+// and typed actions. Secret input values are accepted only in the action's
+// in-memory Struct and are never copied into responses or evidence.
+service CapabilitiesService {
+  rpc ListCapabilities(ListCapabilitiesRequest) returns (ListCapabilitiesResponse);
+  rpc GetCapabilityStatus(GetCapabilityStatusRequest) returns (GetCapabilityStatusResponse);
+	rpc PreviewCapability(PreviewCapabilityRequest) returns (PreviewCapabilityResponse);
+	rpc ApplyCapability(ApplyCapabilityRequest) returns (ApplyCapabilityResponse);
+	rpc VerifyCapability(VerifyCapabilityRequest) returns (VerifyCapabilityResponse);
+}
+
+message ListCapabilitiesRequest { string target = 1; }
+message GetCapabilityStatusRequest { string target = 1; }
+
+message PreviewCapabilityRequest {
+  string target = 1;
+  ActionRequest action = 2;
+}
+
+message ApplyCapabilityRequest {
+	string target = 1;
+	ActionRequest action = 2;
+}
+
+message VerifyCapabilityRequest {
+	string target = 1;
+	VerificationRequest verification = 2;
+}
+
+message VerificationRequest {
+	string capability_id = 1;
+	CredentialEvidenceRef credential_ref = 2;
+	string target_id = 3;
+	string environment = 4;
+	string account_identity = 5;
+	string operation = 6;
+	map<string, string> context = 7;
+	string effect_class = 8;
+	int32 max_operations = 9;
+	string cleanup_policy = 10;
+	int64 timeout_seconds = 11;
+	string context_digest = 12;
+	string catalog_revision = 13;
+	string configuration_revision = 14;
+	string provider_adapter_version = 15;
+}
+
+message ActionRequest {
+  string capability_id = 1;
+  string idempotency_key = 2;
+  bool confirm = 3;
+  // Free-form provider inputs are constrained by the capability descriptor.
+  // A secret value exists only for the duration of the provider call.
+  google.protobuf.Struct inputs = 4;
+  // Target whose state and permissions the operator reviewed. Providers must
+  // bind effects and evidence to this target rather than silently using local.
+  string target_id = 5;
+}
+
+enum CapabilityState {
+  CAPABILITY_STATE_UNSPECIFIED = 0;
+  CAPABILITY_STATE_DISCOVERED = 1;
+  CAPABILITY_STATE_NEEDS_OPERATOR_INPUT = 2;
+  CAPABILITY_STATE_READY_TO_PREVIEW = 3;
+  CAPABILITY_STATE_APPLYING = 4;
+  CAPABILITY_STATE_VERIFYING = 5;
+  CAPABILITY_STATE_READY = 6;
+  CAPABILITY_STATE_RETRYABLE_FAILURE = 7;
+  CAPABILITY_STATE_DEGRADED = 8;
+  CAPABILITY_STATE_UNSUPPORTED = 9;
+}
+
+message CapabilityCandidate {
+  string id = 1;
+  string kind = 2;
+  string label = 3;
+  string location = 4;
+  string stable_identity = 5;
+  string device_identity = 6;
+  bool writable = 7;
+  string physical_independence = 8;
+  string status = 9;
+  string risk = 10;
+  string remediation = 11;
+  map<string, string> metadata = 12;
+}
+
+message CapabilityInputDescriptor {
+  string id = 1;
+  string kind = 2;
+  string label = 3;
+  string description = 4;
+  bool required = 5;
+  repeated string options = 6;
+  string default_value = 7;
+  repeated CapabilityCandidate candidates = 8;
+  string validation = 9;
+  bool declinable = 10;
+  CapabilityInputConstraints constraints = 11;
+  string credential_logical_id = 12;
+  string credential_field = 13;
+  string provider = 14;
+  string requirement_group = 15;
+  repeated string consumer_refs = 16;
+	repeated string companion_settings = 17;
+	string acquisition_ref = 18;
+  string verification_ref = 19;
+  string recovery_ref = 20;
+  string help_ref = 21;
+	string evidence_policy = 22;
+	repeated string companion_credentials = 23;
+}
+
+message CapabilityInputConstraints {
+  int32 min_length = 1;
+  int32 max_length = 2;
+  string min_duration = 3;
+  string max_duration = 4;
+}
+
+message CapabilityPolicy {
+  bool requires_confirmation = 1;
+  bool idempotent = 2;
+  bool retryable = 3;
+  repeated string protected_roots = 4;
+  string remediation = 5;
+}
+
+message CapabilityEvidenceContract {
+  repeated string kinds = 1;
+  repeated string required_fields = 2;
+  bool secret_free = 3;
+  string freshness = 4;
+  repeated string stages = 5;
+}
+
+message CapabilityDescriptor {
+  string version = 1;
+  string id = 2;
+  string owner = 3;
+  string title = 4;
+  string description = 5;
+  string risk = 6;
+  repeated CapabilityInputDescriptor inputs = 7;
+  repeated string prerequisites = 8;
+  CapabilityPolicy policy = 9;
+  CapabilityEvidenceContract evidence = 10;
+  string remediation = 11;
+  string scope = 12;
+  string purpose = 13;
+  string sensitivity = 14;
+  CapabilityApplicability applicability = 15;
+  string disposition = 16;
+  string disposition_reason = 17;
+  CapabilityPermissionProvenance provenance = 18;
+  CapabilityLifecycle lifecycle = 19;
+  string reference_url = 20;
+}
+
+message CapabilityApplicability {
+  repeated string platforms = 1;
+  repeated string environments = 2;
+  repeated string targets = 3;
+}
+
+message CapabilityPermissionProvenance {
+  string requester = 1;
+  string scope = 2;
+  string grant_source = 3;
+  string revocation_limit = 4;
+}
+
+message CapabilityLifecycle {
+  bool preview = 1;
+  bool apply = 2;
+  bool verify = 3;
+  bool revoke = 4;
+  bool recover = 5;
+  string recovery = 6;
+}
+
+message CapabilityEvidence {
+  string kind = 1;
+  string artifact_identity = 2;
+  string source_generation = 3;
+  string checksum = 4;
+  repeated string coverage = 5;
+  google.protobuf.Timestamp observed_at = 6;
+  bool verified = 7;
+  string remediation = 8;
+  string schema_version = 9;
+  string capability_id = 10;
+  CredentialEvidenceRef credential_ref = 11;
+  string target_id = 12;
+  string environment = 13;
+  string account_identity = 14;
+  string operation = 15;
+  string status = 16;
+  google.protobuf.Timestamp expires_at = 17;
+  repeated string artifact_refs = 18;
+  repeated string limitations = 19;
+  string next_action = 20;
+  string effect_class = 21;
+  int32 effects_used = 22;
+	bool cleanup_completed = 23;
+	string stage = 24;
+	string owner = 25;
+	string context_digest = 26;
+	string catalog_revision = 27;
+	string configuration_revision = 28;
+	string provider_adapter_version = 29;
+}
+
+message CredentialEvidenceRef {
+  string logical_id = 1;
+  string field = 2;
+  string version = 3;
+}
+
+message CapabilityStatus {
+  CapabilityDescriptor descriptor = 1;
+  CapabilityState state = 2;
+  repeated CapabilityCandidate candidates = 3;
+  repeated string missing_inputs = 4;
+  repeated CapabilityEvidence evidence = 5;
+  string remediation = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+message ListCapabilitiesResponse {
+  repeated CapabilityStatus capabilities = 1;
+  int32 count = 2;
+}
+
+message GetCapabilityStatusResponse {
+  repeated CapabilityStatus statuses = 1;
+  int32 count = 2;
+}
+
+message CapabilityMutation {
+  string id = 1;
+  string summary = 2;
+  bool reversible = 3;
+}
+
+message PreviewCapabilityResponse {
+  string capability_id = 1;
+  string plan_id = 2;
+  CapabilityState state = 3;
+  repeated CapabilityMutation mutations = 4;
+  repeated CapabilityCandidate candidates = 5;
+  string remediation = 6;
+  google.protobuf.Timestamp expires_at = 7;
+}
+
+message ApplyCapabilityResponse {
+  string capability_id = 1;
+  CapabilityState state = 2;
+  string outcome = 3;
+  bool retryable = 4;
+  string error_code = 5;
+  string remediation = 6;
+  repeated CapabilityEvidence evidence = 7;
+  repeated CapabilityMutation mutations = 8;
+  google.protobuf.Timestamp completed_at = 9;
+}
+
+message VerifyCapabilityResponse {
+	string capability_id = 1;
+	repeated CapabilityEvidence evidence = 2;
+	string remediation = 3;
+	// Verification failures remain a successful typed operation response so
+	// clients can render the provider-neutral remediation contract instead of
+	// reducing every provider outcome to a transport error.
+	string error_code = 4;
+	bool retryable = 5;
+	int64 retry_after_seconds = 6;
+	string next_action = 7;
+	string outcome = 8;
+}

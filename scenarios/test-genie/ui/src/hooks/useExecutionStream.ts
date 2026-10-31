@@ -83,20 +83,29 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
   }, []);
 
   const reset = useCallback(() => {
-    controllerRef.current?.abort();
+    const controller = controllerRef.current;
+    controllerRef.current = null;
+    controller?.abort();
     setStatus("idle");
     setLogs([]);
     setResult(null);
     setError(null);
   }, []);
 
-  useEffect(() => () => controllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    const controller = controllerRef.current;
+    controllerRef.current = null;
+    controller?.abort();
+  }, []);
 
   const startStream = useCallback(
     async (input: ExecuteSuiteInput) => {
-      controllerRef.current?.abort();
+      const previousController = controllerRef.current;
       const controller = new AbortController();
       controllerRef.current = controller;
+      previousController?.abort();
+
+      const isCurrentRequest = () => controllerRef.current === controller;
 
       setStatus("streaming");
       setLogs([]);
@@ -104,26 +113,10 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
       setError(null);
 
       const url = buildTestGenieApiUrl("/executions/stream");
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-        signal: controller.signal
-      });
-
-      if (!res.ok || !res.body) {
-        const message = !res.ok ? `Request failed with status ${res.status}` : "Streaming not supported";
-        setStatus("error");
-        setError(message);
-        throw new Error(message);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
       let finished = false;
-
       const handleComplete = (data: Record<string, unknown>) => {
+        if (!isCurrentRequest() || finished) return;
+        finished = true;
         const finalResult: SuiteExecutionResult = {
           scenarioName: input.scenarioName,
           success: Boolean(data.success),
@@ -145,10 +138,12 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
         setStatus("completed");
         queryClient.invalidateQueries({ queryKey: ["executions"] });
         queryClient.invalidateQueries({ queryKey: ["health"] });
+        controller.abort();
         options?.onComplete?.(finalResult);
       };
 
       const processEvent = (evt: string, data: Record<string, unknown>) => {
+        if (!isCurrentRequest() || finished) return;
         switch (evt) {
           case "phase_start":
             appendLog({
@@ -186,18 +181,16 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
             break;
           }
           case "error": {
+            finished = true;
             const message = typeof data.message === "string" ? data.message : "Execution failed";
             appendLog({ level: "error", message });
             setError(message);
             setStatus("error");
-            finished = true;
             controller.abort();
             break;
           }
           case "complete":
             handleComplete(data);
-            finished = true;
-            controller.abort();
             break;
           default:
             break;
@@ -205,8 +198,26 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
       };
 
       try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+          signal: controller.signal
+        });
+
+        if (!isCurrentRequest()) return;
+        if (!res.ok || !res.body) {
+          const message = !res.ok ? `Request failed with status ${res.status}` : "Streaming not supported";
+          throw new Error(message);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
         while (true) {
           const { value, done } = await reader.read();
+          if (!isCurrentRequest()) return;
           if (done || finished) {
             break;
           }
@@ -214,7 +225,7 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
           buffer += decoder.decode(value, { stream: true });
 
           let delimiterIndex: number;
-          while ((delimiterIndex = buffer.indexOf("\n\n")) !== -1) {
+          while (!finished && (delimiterIndex = buffer.indexOf("\n\n")) !== -1) {
             const rawEvent = buffer.slice(0, delimiterIndex);
             buffer = buffer.slice(delimiterIndex + 2);
             const parsed = parseSSEEvent(rawEvent);
@@ -223,15 +234,18 @@ export function useExecutionStream(options?: UseExecutionStreamOptions) {
             }
           }
         }
-        if (!finished) {
+        if (isCurrentRequest() && !finished) {
           const message = "Stream ended before completion event";
           setError(message);
           setStatus("error");
           appendLog({ level: "error", message });
         }
       } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
+        if (!isCurrentRequest() || (err instanceof Error && err.name === "AbortError")) {
           return;
+        }
+        if (finished) {
+          throw err;
         }
         const message = err instanceof Error ? err.message : "Stream terminated unexpectedly";
         setError(message);

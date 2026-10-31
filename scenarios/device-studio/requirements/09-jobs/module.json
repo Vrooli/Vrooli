@@ -1,0 +1,199 @@
+{
+  "_metadata": {
+    "module": "jobs",
+    "description": "Durable jobs and reproducible recovery. First-release contract; completion follows requirement-linked behavior and retained protocol evidence.",
+    "schema_version": "1.0.0",
+    "auto_sync_enabled": true
+  },
+  "requirements": [
+    {
+      "id": "DS-JOB-DURABILITY",
+      "title": "The job service shall retain durable attempts and receipts.",
+      "description": "The job service shall persist queued/running/terminal state, owned child attempts, immutable inputs, progress, errors and output receipts before acknowledging durable transitions.",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "jobs",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-JOB-DURABILITY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-JOB-DURABILITY",
+            "planned_automation": "Crash/restart persistence and state-machine tests.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/jobs/sqlite_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/coordinator_integration_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestDispatchUsesPinnedExecutableAndNeverRedispatchesAmbiguousStart, TestSuccessPublishesVerifiedPNGAndTamperFailsAfterNativeQuiescence. This does not establish the full requirement."
+        }
+      ]
+    },
+    {
+      "id": "DS-JOB-CANCEL",
+      "title": "The job service shall cancel only owned work.",
+      "description": "When cancellation is requested, the job service shall stop future submissions, terminate owned local process trees, request supported remote cancellation and retain partial output and reconciliation status.",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "jobs",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-JOB-CANCEL protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-JOB-CANCEL",
+            "planned_automation": "Ownership isolation, process cleanup and cancellation fault injection.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/jobs/sqlite_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCancelAndSuccessHaveOneSerializedWinner. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/coordinator_integration_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCancellationWinningCompletionRaceRetainsUnitUntilQuiescence. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/recovery_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestCancelBeforeNativeStartUsesFreshClaimAndPersistsProof. This does not establish the full requirement."
+        }
+      ]
+    },
+    {
+      "id": "DS-JOB-RECOVERY",
+      "title": "The job service shall handle bounded failure and retry.",
+      "description": "If disk-full, tool failure, invalid output, timeout or restart occurs, the job service shall retain a recoverable state, avoid publishing partial files as final and retry only safe units under the original clock and budget.",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "jobs",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-JOB-RECOVERY protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-JOB-RECOVERY",
+            "planned_automation": "Disk/tool/output failure injection and checkpoint replay tests.",
+            "evidence_status": "not_run"
+          }
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/jobs/sqlite_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestRecoveryClassifiesQueuedLiveAndInterruptedWork, TestRecoveryDoesNotDispatchCheckpointWithoutPersistedQuiescenceProof. This does not establish the full requirement."
+        },
+        {
+          "type": "test",
+          "phase": "unit",
+          "status": "planned",
+          "ref": "api/internal/renderjobs/recovery_test.go",
+          "notes": "Partial evidence only. Specific tagged test case(s): TestTerminalJobRetriesExactUnitReleaseAfterRestart. This does not establish the full requirement."
+        }
+      ]
+    },
+    {
+      "id": "DS-JOB-CACHE",
+      "title": "The cache shall validate the complete render dependency key.",
+      "description": "Before reusing output or a fixed-scene plate, the cache shall compare relevant source/time, asset/UV/rig, scene/light/camera/mask, strategy, renderer/build and color/profile dependencies and reject stale or incompatible entries.",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "jobs",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-JOB-CACHE protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-JOB-CACHE",
+            "planned_automation": "Cache invalidation/property tests and stationary replacement comparison.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    },
+    {
+      "id": "DS-JOB-ACCOUNTING",
+      "title": "The job service shall reconcile logical work and paid attempts.",
+      "description": "The job service shall retain parent/attempt/upstream operation and reservation IDs and reconcile status/usage after retry, restart or lost acknowledgment without double-charging one executed operation.",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "delivery_scope": "committed",
+      "status": "not_implemented",
+      "category": "jobs",
+      "tags": [
+        "accepted-first-release",
+        "unimplemented"
+      ],
+      "validation": [
+        {
+          "type": "manual",
+          "phase": "business",
+          "status": "planned",
+          "ref": "requirements/verification-protocols.md",
+          "notes": "NOT EXECUTED. Follow the named DS-JOB-ACCOUNTING protocol, including its counterexample, and retain actual inputs, commands, receipts, results and reviewer verdict. The protocol is a verification plan, not passing evidence.",
+          "metadata": {
+            "protocol_id": "DS-JOB-ACCOUNTING",
+            "planned_automation": "Accounting replay/reconciliation fault injection against owner mocks and later capped integration.",
+            "evidence_status": "not_run"
+          }
+        }
+      ]
+    }
+  ]
+}

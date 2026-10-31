@@ -1,0 +1,64 @@
+{
+  "description": "Prioritized recommendations with estimated point impact plus a phased action plan (\"do X, worth ~Y points\") surfaced in every score response.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "Every score response (both human-readable and JSON) must include a prioritized list of recommendations. Each recommendation must state a concrete action, its estimated point impact (e.g. '~8 points'), and its phase placement within a multi-phase action plan. The recommendations must be ordered by estimated point impact descending. The phased action plan must group recommendations into sequential phases so that the consumer can see 'do X, worth ~Y points' in a clear, actionable format. Recommendations must be derived purely from the collected signal data and scoring gap analysis — no network calls.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "draft",
+      "title": "Prioritized Recommendations with Point Impact and Phased Action Plan",
+      "validation": [
+        {
+          "notes": "api/internal/scoring/recommendations_test.go [REQ:OT-P0-004]: for a fixture with known gaps, assert returned recommendations list is ordered by estimated_point_impact descending",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/recommendations_test.go: assert each recommendation has non-empty action_text, positive estimated_point_impact, and a phase label",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scoring/recommendations_test.go: assert a perfect-score fixture produces an empty or 'no action needed' recommendations list",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cmd/score/score_integration_test.go: GetScore response includes recommendations array with at least one entry for a scenario with known gaps",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "cli golden test: `score get \u003cscenario\u003e` human output contains a 'Recommendations' section with at least one line matching pattern '~[0-9]+ points'",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Developers receive actionable, prioritized guidance and can immediately understand which improvement yields the highest score gain",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Recommendations"
+}

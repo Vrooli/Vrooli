@@ -2,7 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../../lib/utils";
 
 const modalContentVariants = cva(
-  "relative flex max-h-[calc(100dvh-1rem)] w-full max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-lg border border-border-default/70 bg-surface-elevated shadow-2xl sm:max-h-[90vh] sm:max-w-[calc(100vw-2rem)] sm:rounded-xl",
+  "relative flex max-h-[calc(100dvh-1rem)] w-full max-w-[calc(100%-1rem)] flex-col overflow-hidden rounded-lg border border-border-default/70 bg-surface-elevated shadow-2xl sm:max-h-[90vh] sm:max-w-[calc(100%-2rem)] sm:rounded-xl",
   {
     variants: {
       size: {

@@ -1,0 +1,364 @@
+syntax = "proto3";
+
+package vrooli.ai_gateway.v1.inference;
+
+import "ai-gateway/v1/shared/gateway.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference;inference_v1";
+
+// Usage preserves legacy numeric accounting and states where each value came
+// from. A zero is an observed zero only with PROVIDER_REPORTED provenance.
+enum UsageProvenance {
+  USAGE_PROVENANCE_UNSPECIFIED = 0;
+  USAGE_PROVENANCE_UNKNOWN = 1;
+  USAGE_PROVENANCE_PROVIDER_REPORTED = 2;
+  USAGE_PROVENANCE_GATEWAY_ESTIMATE = 3;
+  USAGE_PROVENANCE_MIXED = 4;
+}
+message Usage {
+  int64 input_tokens = 1;
+  int64 output_tokens = 2;
+  // USD micro-units. Provider-specific credits are not USD cost.
+  int64 cost_micros = 3;
+  UsageProvenance input_tokens_provenance = 4;
+  UsageProvenance output_tokens_provenance = 5;
+  UsageProvenance cost_provenance = 6;
+  // LPBS credits charged for a metered operation. Presence distinguishes a
+  // known zero from unavailable or pending accounting; credits are not USD.
+  optional int64 credits_charged = 7;
+  // Owner-reported credit reconciliation state; empty means unavailable.
+  string accounting_status = 8;
+}
+
+enum InferenceErrorCode {
+  INFERENCE_ERROR_CODE_UNSPECIFIED = 0;
+  INFERENCE_ERROR_CODE_UNAVAILABLE = 1;
+  INFERENCE_ERROR_CODE_INVALID_REQUEST = 2;
+  INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA = 3;
+  INFERENCE_ERROR_CODE_VALIDATION_FAILED = 4;
+  INFERENCE_ERROR_CODE_PROVIDER_FAILED = 5;
+  // INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING means the caller asked for a
+  // sampling control that no remaining candidate's provider can honour. It
+  // names the offending control in `construct` (e.g. "sampling.temperature").
+  // A caller-supplied control is a promise the gateway keeps or refuses; it is
+  // never silently downgraded, matching how a rejected schema is never
+  // degraded to unconstrained generation. A role-declared default that cannot
+  // be honoured is omitted silently instead, because the role author expressed
+  // a preference while the caller made no promise.
+  INFERENCE_ERROR_CODE_UNSUPPORTED_SAMPLING = 6;
+  // INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW means the assembled input plus the
+  // requested output cap cannot fit the resolved provider model window. The
+  // gateway refuses before dispatch and never exposes the window value.
+  INFERENCE_ERROR_CODE_CONTEXT_OVERFLOW = 7;
+}
+
+// InferenceError is a typed failure returned inside a response. It is kept
+// distinct from an empty value so callers can choose whether to abstain or
+// raise while transport-level failures remain reserved for malformed RPCs.
+message InferenceError {
+  InferenceErrorCode code = 1;
+  string message = 2;
+  // construct is the unsupported schema keyword or construct when code is
+  // INFERENCE_ERROR_CODE_UNSUPPORTED_SCHEMA.
+  string construct = 3;
+}
+
+// Turn is an ordered, caller-owned conversation fragment. The gateway never
+// stores turns and there is intentionally no conversation identifier.
+message Turn {
+  string role = 1;
+  string text = 2;
+  repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 3;
+}
+
+// SpendLimit is an owner-enforced maximum, not a price estimate or caller
+// supplied quote. It is accepted only by explicitly budgeted remote roles.
+message SpendLimit {
+  int64 max_cost_micros = 1;
+  string operation_id = 2;
+  string input_fingerprint = 3;
+  repeated string reference_sha256 = 4;
+  int32 image_count = 5;
+  string funding_route = 6;
+}
+
+// SpendAuthorization records the hard-cap policy that the provider owner
+// actually applied. It never claims an estimated price or a provider charge.
+message SpendAuthorization {
+  string authorization_id = 1;
+  string status = 2;
+  int64 max_cost_micros = 3;
+  int32 input_tokens_bound = 4;
+  int32 output_tokens_bound = 5;
+  int32 image_count = 6;
+  string context_source = 7;
+  string operation_id = 8;
+  string input_fingerprint = 9;
+  repeated string reference_sha256 = 10;
+  string funding_route = 11;
+  string account_identity = 12;
+  string model = 13;
+  string provider_controls_sha256 = 14;
+  int32 context_window_tokens = 15;
+}
+
+message RunRequest {
+  string source = 1;
+  string schema_json = 2;
+  string instruction = 3;
+  string role = 4;
+  repeated Turn turns = 5;
+  repeated vrooli.ai_gateway.v1.shared.Attachment attachments = 6;
+  // profile carries the caller's locality stance. The gateway still owns
+  // provider selection and never accepts a concrete model or credential.
+  vrooli.ai_gateway.v1.shared.Profile profile = 7;
+  // sampling is the caller's explicit sampling request. It is honoured only by
+  // roles that declare themselves overridable; sending it to a deterministic
+  // role is INFERENCE_ERROR_CODE_INVALID_REQUEST, not a silent override.
+  // @default the role's declared sampling
+  vrooli.ai_gateway.v1.shared.SamplingControls sampling = 8;
+  // max_output_tokens bounds the response the gateway asks the provider for.
+  // It is request-level rather than role-level because the budget depends on
+  // caller data a role cannot know — one role serves a single draft and a
+  // twenty-candidate set, and sizing for either breaks the other. It is
+  // bidirectional: a caller may send a tighter cap than the role default.
+  // @default the resolved resource role's declared cap, else no cap
+  // @unit tokens
+  int32 max_output_tokens = 9;
+  // max_provider_calls bounds total provider adapter Execute attempts for this Run,
+  // including candidate fallback and schema-repair attempts. Zero preserves
+  // the gateway's existing caller defaults; positive values are validated
+  // against the gateway-wide maximum.
+  // @default legacy gateway policy
+  int32 max_provider_calls = 10;
+  // spend_limit is mandatory for remote device.geometry.* roles and forbidden
+  // for local-only execution. The owner binds it to exact request inputs.
+  SpendLimit spend_limit = 11;
+}
+
+message RunResponse {
+  string value_json = 1;
+  string provider = 2;
+  string model = 3;
+  bool validated = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+  // applied reports what the gateway actually sent and what the resolved role
+  // declares, so provenance records fact rather than the caller's own request.
+  // It is populated on every return path including errors: a refused or
+  // truncated call is exactly when a caller needs to know the cap.
+  vrooli.ai_gateway.v1.shared.AppliedSettings applied = 7;
+  // provider_calls_made counts provider adapter Execute attempts, including
+  // invocations that returned an error. Candidate resolution and pre-dispatch
+  // refusals are not counted; the number is not a provider HTTP-call receipt.
+  int32 provider_calls_made = 8;
+  SpendAuthorization spend_authorization = 9;
+}
+
+message RunBatchItem {
+  string source = 1;
+}
+
+message RunBatchRequest {
+  repeated RunBatchItem items = 1;
+  string schema_json = 2;
+  string instruction = 3;
+  string role = 4;
+}
+
+message RunBatchResponse {
+  // Results preserve the exact order of the request items, including failed
+  // items. Each result has its own provider/model and usage accounting.
+  repeated RunResponse results = 1;
+  Usage usage = 2;
+}
+
+message EmbedRequest {
+  repeated string texts = 1;
+  string role = 2;
+  // Embeddings are deterministic. Presence is rejected as an invalid request.
+  vrooli.ai_gateway.v1.shared.SamplingControls sampling = 3;
+}
+
+message EmbedResponse {
+  repeated EmbeddingVector vectors = 1;
+  string provider = 2;
+  string model = 3;
+  int32 dimension = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+}
+
+message EmbeddingVector {
+  repeated double values = 1;
+}
+
+// DecisionQuestionType is the closed set of decision question shapes. A
+// decision model answers every question with one value from its declared set
+// and never generates text.
+enum DecisionQuestionType {
+  DECISION_QUESTION_TYPE_UNSPECIFIED = 0;
+  // CHOICE picks one of 2-255 labelled options.
+  DECISION_QUESTION_TYPE_CHOICE = 1;
+  // SCORE places the state on 2-10 ordered levels, level 0 first.
+  DECISION_QUESTION_TYPE_SCORE = 2;
+  // NOUL is the probability that a statement holds (yes/no).
+  DECISION_QUESTION_TYPE_NOUL = 3;
+}
+
+message DecisionOption {
+  // label is the value returned when this option is chosen.
+  string label = 1;
+  // description says what the option means; the model reads it.
+  string description = 2;
+}
+
+message DecisionQuestion {
+  // id names the answer. Unique within a request; letters, digits, '_', '.'
+  // and '-', at most 100 characters.
+  string id = 1;
+  DecisionQuestionType type = 2;
+  // instructions say what to decide. Absent, decision models read the id.
+  string instructions = 3;
+  // options are the CHOICE labels, 2-255 distinct, in caller order.
+  repeated DecisionOption options = 4;
+  // levels are the SCORE level descriptions, 2-10, level 0 first.
+  repeated string levels = 5;
+  // true_description and false_description optionally define a NOUL answer.
+  string true_description = 6;
+  string false_description = 7;
+}
+
+// DecideRequest asks typed questions about one state. The gateway owns the
+// candidate walk: a role's decision models first, then the role's declared
+// fallback. Callers never name a provider, model or credential.
+message DecideRequest {
+  // role is a decision role from the inference role catalog, such as
+  // decide.fast.
+  string role = 1;
+  // state is plain text. Exactly one of state and state_json is set.
+  string state = 2;
+  // state_json is a JSON object or array whose structure carries meaning.
+  string state_json = 3;
+  // questions are answered together over the same state, 1-64 per request.
+  repeated DecisionQuestion questions = 4;
+  // profile carries the caller's locality stance; LOCAL_ONLY never leaves the
+  // host and REMOTE_ONLY never runs a local candidate.
+  vrooli.ai_gateway.v1.shared.Profile profile = 5;
+}
+
+message DecisionProbability {
+  // option is the CHOICE label, or the SCORE level index ("0", "1", ...).
+  string option = 1;
+  double probability = 2;
+}
+
+message DecisionAnswer {
+  string question_id = 1;
+  DecisionQuestionType type = 2;
+  // choice is the chosen CHOICE label.
+  string choice = 3;
+  // score is the expected SCORE level, sum of i * p_i; it can fall between
+  // levels.
+  optional double score = 4;
+  // noul is the probability that the NOUL statement holds.
+  optional double noul = 5;
+  // confidence is the normalized top probability (K * p_max - 1) / (K - 1)
+  // for CHOICE and SCORE. Absent for NOUL, and when the answering method
+  // reports no distribution.
+  optional double confidence = 6;
+  // probabilities cover every CHOICE label or SCORE level in declared order.
+  // Empty when the answering method reports no distribution.
+  repeated DecisionProbability probabilities = 7;
+}
+
+enum DecisionMethod {
+  DECISION_METHOD_UNSPECIFIED = 0;
+  // DECISION_MODEL answers come from a non-generative decision model and carry
+  // calibrated probabilities.
+  DECISION_METHOD_DECISION_MODEL = 1;
+  // LLM_ENUM answers come from a generative model constrained to an enum by
+  // the typed classify path. They carry the choice only: no confidence and no
+  // probabilities, because an LLM label is not a calibrated distribution.
+  DECISION_METHOD_LLM_ENUM = 2;
+}
+
+enum DecisionCandidateStatus {
+  DECISION_CANDIDATE_STATUS_UNSPECIFIED = 0;
+  DECISION_CANDIDATE_STATUS_ANSWERED = 1;
+  // SKIPPED candidates were not dispatched: unconfigured credentials, an
+  // unpulled model, a forbidden locality, or a fallback that cannot express
+  // the question types.
+  DECISION_CANDIDATE_STATUS_SKIPPED = 2;
+  // FAILED candidates were dispatched and did not return a valid answer set.
+  DECISION_CANDIDATE_STATUS_FAILED = 3;
+  // NOT_ATTEMPTED candidates follow the one that answered.
+  DECISION_CANDIDATE_STATUS_NOT_ATTEMPTED = 4;
+}
+
+// DecisionCandidate is one row of the walk the gateway performed, in catalog
+// order, so a caller can see why a hosted candidate was not used.
+message DecisionCandidate {
+  string provider = 1;
+  string resource_role = 2;
+  string locality = 3;
+  DecisionCandidateStatus status = 4;
+  // reason is a stable code: unconfigured, unreachable, missing_binary,
+  // locality_forbidden, unsupported_question_types, invalid_answers,
+  // context_overflow, rate_limited, provider_overloaded, timeout or
+  // provider_failed. Empty for ANSWERED and NOT_ATTEMPTED rows.
+  string reason = 5;
+  string detail = 6;
+  // @unit milliseconds
+  int64 latency_ms = 7;
+}
+
+message DecideResponse {
+  // answers follow the request's question order.
+  repeated DecisionAnswer answers = 1;
+  string provider = 2;
+  string model = 3;
+  DecisionMethod method = 4;
+  Usage usage = 5;
+  InferenceError error = 6;
+  // latency_ms is the answering candidate's execution time measured by the
+  // gateway, model load included.
+  // @unit milliseconds
+  int64 latency_ms = 7;
+  repeated DecisionCandidate candidates = 8;
+  // resource_role is the answering candidate's role, which names the upstream
+  // (for example decide.local or decide.jev.edenai).
+  string resource_role = 9;
+  // locality is where the answering candidate ran: local means the state never
+  // left the host. Empty for the LLM enum fallback, whose own walk owns it.
+  string locality = 10;
+}
+
+message DecideBatchItem {
+  string state = 1;
+  string state_json = 2;
+}
+
+// DecideBatchRequest asks the same questions about up to 256 states.
+message DecideBatchRequest {
+  string role = 1;
+  repeated DecisionQuestion questions = 2;
+  repeated DecideBatchItem items = 3;
+  vrooli.ai_gateway.v1.shared.Profile profile = 4;
+}
+
+message DecideBatchResponse {
+  // results preserve the exact order of the request items, failed items
+  // included; each carries its own provider, method, usage and walk.
+  repeated DecideResponse results = 1;
+  Usage usage = 2;
+}
+
+service InferenceService {
+	rpc Run(RunRequest) returns (RunResponse);
+	rpc RunBatch(RunBatchRequest) returns (RunBatchResponse);
+	rpc Embed(EmbedRequest) returns (EmbedResponse);
+	// Decide answers typed choice, score and noul questions about one state.
+	rpc Decide(DecideRequest) returns (DecideResponse);
+	rpc DecideBatch(DecideBatchRequest) returns (DecideBatchResponse);
+}

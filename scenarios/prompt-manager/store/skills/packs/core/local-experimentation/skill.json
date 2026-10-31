@@ -1,0 +1,38 @@
+{
+  "createdAt": "2026-10-20T00:00:00Z",
+  "description": "Run bounded local experiments against a baseline, admit resource and acquisition costs before trials, verify recovery and cleanup, and decide adopt, investigate, or reject from retained evidence.",
+  "entry": "SKILL.md",
+  "icon": "flask-conical",
+  "id": "local-experimentation",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "local-experimentation",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "vrooli capacity",
+      "scenario-dependency-analyzer deps",
+      "search-hub query"
+    ],
+    "scenarios": [
+      "prompt-manager",
+      "scenario-dependency-analyzer"
+    ]
+  },
+  "revision": 13,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "experiment",
+    "benchmark",
+    "capacity",
+    "reproducibility",
+    "local"
+  ],
+  "updatedAt": "2026-10-26T00:00:00Z"
+}

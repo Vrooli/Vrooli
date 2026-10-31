@@ -2,22 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useUnifiedStats } from './useUnifiedStats';
 
-// Mock the WebSocket context
-const mockWebSocketContext = {
-  isConnected: true,
-  lastMessage: null,
-  send: vi.fn(),
-  subscribeToBinaryFrames: vi.fn(() => () => {}),
-};
-
-vi.mock('@/contexts/WebSocketContext', () => ({
-  useWebSocket: () => mockWebSocketContext,
-}));
+vi.mock('@/contexts/WebSocketContext', () => ({useWebSocketMessage: vi.fn()}));
 
 describe('useUnifiedStats', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    mockWebSocketContext.lastMessage = null;
   });
 
   afterEach(() => {
@@ -55,7 +44,7 @@ describe('useUnifiedStats', () => {
       act(() => {
         result.current.recordFrame(1000);
         result.current.recordFrame(2000);
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       expect(result.current.stats.client.totalFrames).toBe(2);
@@ -75,7 +64,7 @@ describe('useUnifiedStats', () => {
       // Record some frames
       act(() => {
         result.current.recordFrame(1000);
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(1000);
       });
 
       expect(result.current.stats.client.totalFrames).toBe(1);

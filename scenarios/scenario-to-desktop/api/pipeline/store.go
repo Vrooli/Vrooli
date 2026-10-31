@@ -23,9 +23,12 @@ func NewInMemoryStore() *InMemoryStore {
 
 // Save creates or updates a pipeline status.
 func (s *InMemoryStore) Save(status *Status) {
+	if status == nil {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.statuses[status.PipelineID] = status
+	s.statuses[status.PipelineID] = cloneStatus(status)
 }
 
 // Get retrieves a pipeline status by ID.
@@ -33,7 +36,10 @@ func (s *InMemoryStore) Get(pipelineID string) (*Status, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	status, ok := s.statuses[pipelineID]
-	return status, ok
+	if !ok {
+		return nil, false
+	}
+	return cloneStatus(status), true
 }
 
 // GetByIdempotencyKey retrieves a pipeline status by idempotency key.
@@ -48,7 +54,7 @@ func (s *InMemoryStore) GetByIdempotencyKey(key string) (*Status, bool) {
 	defer s.mu.RUnlock()
 	for _, status := range s.statuses {
 		if status.IdempotencyKey == key {
-			return status, true
+			return cloneStatus(status), true
 		}
 	}
 	return nil, false
@@ -77,7 +83,7 @@ func (s *InMemoryStore) UpdateStage(pipelineID, stageName string, result *StageR
 	if status.Stages == nil {
 		status.Stages = make(map[string]*StageResult)
 	}
-	status.Stages[stageName] = result
+	status.Stages[stageName] = cloneStageResult(result)
 	return true
 }
 
@@ -98,9 +104,44 @@ func (s *InMemoryStore) List() []*Status {
 	defer s.mu.RUnlock()
 	result := make([]*Status, 0, len(s.statuses))
 	for _, status := range s.statuses {
-		result = append(result, status)
+		result = append(result, cloneStatus(status))
 	}
 	return result
+}
+
+// cloneStatus prevents readers from observing the mutable object owned by the
+// asynchronous executor. The store lock protects the map, not a returned
+// pointer's fields, so every read must receive an independent snapshot.
+func cloneStatus(status *Status) *Status {
+	if status == nil {
+		return nil
+	}
+	clone := *status
+	clone.Transitions = append([]PipelineStateTransition(nil), status.Transitions...)
+	clone.StageOrder = append([]string(nil), status.StageOrder...)
+	if status.Stages != nil {
+		clone.Stages = make(map[string]*StageResult, len(status.Stages))
+		for name, result := range status.Stages {
+			clone.Stages[name] = cloneStageResult(result)
+		}
+	}
+	if status.FinalArtifacts != nil {
+		clone.FinalArtifacts = make(map[string]string, len(status.FinalArtifacts))
+		for name, artifact := range status.FinalArtifacts {
+			clone.FinalArtifacts[name] = artifact
+		}
+	}
+	clone.Config = cloneConfigForExecution(status.Config)
+	return &clone
+}
+
+func cloneStageResult(result *StageResult) *StageResult {
+	if result == nil {
+		return nil
+	}
+	clone := *result
+	clone.Logs = append([]string(nil), result.Logs...)
+	return &clone
 }
 
 // Cleanup removes completed pipelines older than the given duration.

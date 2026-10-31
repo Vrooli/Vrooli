@@ -1,0 +1,9 @@
+{
+  "gate": "release-provenance",
+  "assetId": "__corpus__.release-provenance",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.release_provenance_missing",
+  "description": "A released directory exists without a publish or historical backfill record.",
+  "mutation": "release-provenance"
+}

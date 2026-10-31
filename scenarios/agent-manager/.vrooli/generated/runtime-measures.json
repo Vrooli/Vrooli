@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "scenario": "agent-manager",
+  "source_digests": {
+    "api/internal/measures/measures.go": "sha256:46d2b8bff9ecc59b2301cde6d4a0a457b7cddbc2676f12053ce7b32f4b2f1441"
+  },
+  "bindings": [
+    {
+      "id": "agent-manager/measures/tool-friction",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "ToolFriction",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "summary"
+    },
+    {
+      "id": "agent-manager/measures/run-success-rate",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "RunSuccessRate",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "rate"
+    },
+    {
+      "id": "agent-manager/measures/run-volume",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "RunVolume",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "total_runs"
+    },
+    {
+      "id": "agent-manager/measures/run-duration-statistics",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "RunDurationStatistics",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "average_duration_ms"
+    },
+    {
+      "id": "agent-manager/measures/run-cost",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "RunCost",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "total_cost_usd"
+    },
+    {
+      "id": "agent-manager/measures/run-status-distribution",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "RunStatusDistribution",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "rows"
+    },
+    {
+      "id": "agent-manager/measures/runner-breakdown",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "RunnerBreakdown",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "rows"
+    },
+    {
+      "id": "agent-manager/measures/model-breakdown",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "ModelBreakdown",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "rows"
+    },
+    {
+      "id": "agent-manager/measures/profile-breakdown",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "ProfileBreakdown",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "rows"
+    },
+    {
+      "id": "agent-manager/measures/tool-usage",
+      "service": "agent_manager.v1.measures.MeasuresService",
+      "method": "ToolUsage",
+      "effect": "read",
+      "run_eligible": true,
+      "permissions": [
+        "network:internal"
+      ],
+      "primary_field": "rows"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "manipulation.reorderable-list",
+    "name": "ReorderableList",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "manipulation",
+    "description": "The complete list composition with drag handles, keyboard reordering, drop indicators, animated displacement, persistence, position announcements, and optimistic rollback.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "manipulation.sortable",
+        "reason": "Reorder mechanics, keyboard operation, and rollback are shared."
+      },
+      {
+        "asset": "data-display.list",
+        "reason": "Row semantics and selection are shared."
+      }
+    ]
+  },
+  "requiredCapabilities": [
+    "keyboard-operable",
+    "focus-visible-indicator",
+    "gesture-alternative",
+    "status-announced",
+    "pointer-independence",
+    "reduced-motion",
+    "no-layout-animation",
+    "optimistic-rollback",
+    "empty-state-craft"
+  ],
+  "requiredStates": [
+    "default",
+    "empty",
+    "submitting",
+    "request-error",
+    "retry"
+  ]
+}

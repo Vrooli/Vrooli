@@ -1,0 +1,109 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "evidence",
+    "title": "Evidence",
+    "routes": ["/scenarios/:scenario/pages/:page/evidence"],
+    "purpose": "Prove or disprove each claim with its capture: the screenshot and accessibility-tree evidence behind every verdict, per state.",
+    "prd_refs": ["OT-P0-003"]
+  },
+  "priorities": [
+    { "statement": "The pairing of verdict and evidence is unmistakable — a verdict is never separated from what produced it." },
+    { "statement": "The capture (screenshot) and the accessibility tree are jointly inspectable." },
+    { "statement": "A failing claim leads to a next action, not a dead end." }
+  ],
+  "states": [
+    { "id": "default", "description": "Captures exist; verdicts render beside their evidence." },
+    { "id": "loading" },
+    { "id": "empty", "description": "No captures yet for this page (BAS never ran or was unavailable); explains how to produce them and that skips are not failures." },
+    { "id": "stale", "description": "Evidence predates the current spec revision; verdicts shown but visibly outdated." },
+    { "id": "request-error" }
+  ],
+  "regions": [{"id":"capture-evidence","purpose":"Render the selected capture evidence loading, ready, empty, partial, or failed surface.","component":{"library":{"component":"experience-surface","version":"1.0.3"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "elements": [
+    { "id": "capture-image", "role": "image", "name": "Page capture", "description": "The BAS screenshot for the selected page/state." },
+    { "id": "tree-panel", "role": "region", "name": "Accessibility tree", "description": "The captured a11y tree, focusable per node." },
+    { "id": "verdict-list", "role": "list", "name": "Claim verdicts", "description": "Per-claim verdict with tier and timestamp." },
+    { "id": "evidence-link", "role": "button", "description": "Per-verdict control that focuses the tree node / capture region that produced it." },
+    { "id": "recapture-action", "role": "button", "name": "Recapture" }
+  ],
+  "claims": [
+    {
+      "id": "capture-perceivable",
+      "type": "element-present",
+      "statement": "The page capture is present with a meaningful accessible name identifying page and state.",
+      "tier": "machine",
+      "elements": ["capture-image"],
+      "states": ["default", "stale"]
+    },
+    {
+      "id": "verdicts-perceivable",
+      "type": "element-present",
+      "statement": "Claim verdicts are exposed as a list with tier and timestamp per entry.",
+      "tier": "machine",
+      "elements": ["verdict-list"],
+      "states": ["default", "stale"]
+    },
+    {
+      "id": "no-verdict-without-evidence",
+      "type": "custom",
+      "statement": "No verdict is shown without a working link to the capture region or tree node that produced it — the house principle.",
+      "tier": "manual",
+      "elements": ["verdict-list", "evidence-link"],
+      "rationale": "Attested per release until the evidence linkage is mechanically traversable; then promoted to machine."
+    },
+    {
+      "id": "evidence-link-keyboard",
+      "type": "keyboard-reachable",
+      "statement": "Every evidence link is keyboard reachable from its verdict.",
+      "tier": "manual",
+      "elements": ["evidence-link"],
+      "states": ["default", "stale"],
+      "rationale": "BAS v1 AX joins do not reliably expose this repeated per-verdict focus control as default-state evidence; keep manual until the evidence-link traversal is mechanically checked."
+    },
+    {
+      "id": "stale-marked",
+      "type": "state-distinct",
+      "statement": "Evidence that predates the current spec revision is distinguishable from current evidence.",
+      "tier": "manual",
+      "states": ["stale", "default"],
+      "rationale": "Requires a seeded stale evidence state; default live reconciliation cannot make stale captures reachable yet."
+    },
+    {
+      "id": "empty-explains-skips",
+      "type": "state-covered",
+      "statement": "The no-captures state explains that BAS skips are not failures and how to produce a capture.",
+      "tier": "manual",
+      "states": ["empty"],
+      "rationale": "v1 BAS reconciliation captures only the default state; this empty-state promise needs multi-state capture before it can be machine tier."
+    },
+    {
+      "id": "joint-inspection",
+      "type": "custom",
+      "statement": "On desktop, screenshot and accessibility tree are jointly visible without tab switching.",
+      "tier": "aspirational",
+      "viewports": ["desktop", "wide"],
+      "rationale": "Layout-level intent; candidate for the P2 perception tier or a viewport-scoped structural check."
+    }
+  ],
+  "bindings": {
+    "regions": {"capture-evidence":{"selector":"[data-experience-surface=\"capture-evidence\"]"}},
+    "elements": {
+      "capture-image": { "testid": "evidence-capture" },
+      "tree-panel": { "testid": "evidence-tree" },
+      "verdict-list": { "testid": "evidence-verdicts" },
+      "evidence-link": { "testid": "evidence-link" },
+      "recapture-action": { "testid": "evidence-recapture" }
+    }
+  },
+  "sketch": {
+    "viewport": "desktop",
+    "regions": [
+      { "id": "verdict-rail", "grid": { "x": 0, "y": 0, "w": 4, "h": 10 }, "elements": ["verdict-list", "evidence-link", "recapture-action"] },
+      { "id": "capture-pane", "grid": { "x": 4, "y": 0, "w": 5, "h": 10 }, "elements": ["capture-image"] },
+      { "id": "tree-pane", "grid": { "x": 9, "y": 0, "w": 3, "h": 10 }, "elements": ["tree-panel"] }
+    ]
+  }
+}

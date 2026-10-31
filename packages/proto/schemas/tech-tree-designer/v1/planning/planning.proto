@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.tech_tree_designer.v1.planning;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/planning;planning_v1";
+
+// =============================================================================
+// PLANNING DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Contract-first planning surface. Planned scenarios store real .proto text in
+// Tech Tree Designer before an implementation scaffold exists.
+// =============================================================================
+
+service PlanningService {
+  rpc CreatePlannedScenario(CreatePlannedScenarioRequest) returns (PlannedScenario);
+  rpc ListPlannedScenarios(ListPlannedScenariosRequest) returns (ListPlannedScenariosResponse);
+  rpc GetPlannedScenario(GetPlannedScenarioRequest) returns (PlannedScenario);
+  rpc PutPlannedProtoFile(PutPlannedProtoFileRequest) returns (PlannedProtoFile);
+  rpc DeletePlannedProtoFile(DeletePlannedProtoFileRequest) returns (DeletePlannedProtoFileResponse);
+  rpc ValidatePlannedScenario(ValidatePlannedScenarioRequest) returns (ValidatePlannedScenarioResponse);
+  rpc MaterializePlannedScenario(MaterializePlannedScenarioRequest) returns (MaterializePlannedScenarioResponse);
+}
+
+message PlannedScenario {
+  string slug = 1;
+  string display_name = 2;
+  string sector = 3;
+  string tier = 4;
+  string target_stability = 5;
+  repeated PlannedProtoFile files = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message PlannedProtoFile {
+  string path = 1;
+  string text = 2;
+  string updated_at = 3;
+}
+
+message CreatePlannedScenarioRequest {
+  string slug = 1;
+  string display_name = 2;
+  string sector = 3;
+  string tier = 4;
+  string target_stability = 5;
+}
+
+message ListPlannedScenariosRequest {
+  string sector = 1;
+  string tier = 2;
+}
+
+message ListPlannedScenariosResponse {
+  repeated PlannedScenario scenarios = 1;
+}
+
+message GetPlannedScenarioRequest {
+  string slug = 1;
+}
+
+message PutPlannedProtoFileRequest {
+  string slug = 1;
+  string path = 2;
+  string text = 3;
+}
+
+message DeletePlannedProtoFileRequest {
+  string slug = 1;
+  string path = 2;
+}
+
+message DeletePlannedProtoFileResponse {
+  bool deleted = 1;
+}
+
+message ValidatePlannedScenarioRequest {
+  string slug = 1;
+}
+
+message ValidatePlannedScenarioResponse {
+  string slug = 1;
+  bool passed = 2;
+  repeated PlanFinding findings = 3;
+}
+
+message MaterializePlannedScenarioRequest {
+  string slug = 1;
+}
+
+message MaterializePlannedScenarioResponse {
+  string slug = 1;
+  repeated string written_paths = 2;
+  bool generated = 3;
+}
+
+message PlanFinding {
+  PlanFindingSeverity severity = 1;
+  string code = 2;
+  string location = 3;
+  string message = 4;
+  string suggestion = 5;
+}
+
+enum PlanFindingSeverity {
+  PLAN_FINDING_SEVERITY_UNSPECIFIED = 0;
+  PLAN_FINDING_SEVERITY_ERROR = 1;
+  PLAN_FINDING_SEVERITY_WARNING = 2;
+  PLAN_FINDING_SEVERITY_INFO = 3;
+}

@@ -1,0 +1,35 @@
+{
+  "createdAt": "2026-10-26T00:00:00Z",
+  "description": "Coordinate a broad research effort or several experiments: commission bounded studies, challenge findings and early closure, select consequential follow-ups, resolve shared blockers, and synthesize evidence without delivery-team machinery.",
+  "entry": "SKILL.md",
+  "icon": "compass",
+  "id": "research-coordination",
+  "kind": "skill",
+  "license": "CC-BY-4.0",
+  "modes": [
+    "practice"
+  ],
+  "name": "research-coordination",
+  "origin": {
+    "kind": "authored"
+  },
+  "requires": {
+    "commands": [
+      "search-hub query",
+      "prompt-manager skill read"
+    ],
+    "scenarios": [
+      "prompt-manager"
+    ]
+  },
+  "revision": 1,
+  "schemaVersion": 1,
+  "status": "active",
+  "tags": [
+    "research",
+    "experiment",
+    "coordination",
+    "supervision"
+  ],
+  "updatedAt": "2026-10-26T00:00:00Z"
+}

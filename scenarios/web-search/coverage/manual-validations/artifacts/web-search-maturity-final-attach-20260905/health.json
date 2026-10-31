@@ -1,0 +1,1 @@
+{"status":"healthy","service":"web-search-api","timestamp":"2026-09-05T07:08:28Z","readiness":true,"version":"1.0.0","uptime_seconds":567.138902666,"dependencies":{"database":{"connected":true,"latency_ms":0.054}},"metrics":{"goroutines":16,"heap_mb":2.768096923828125,"uptime_seconds":567.138902666}}

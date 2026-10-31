@@ -1,0 +1,602 @@
+{
+  "metadata": {
+    "name": "e21-device-removal-review-readback",
+    "description": "Review removal of the leased disposable owner device, confirm the warning, and verify owner-scoped list readback.",
+    "requirement": "NOTIFICA-P0-003",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-e21-device-removal-review"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Owner-routed removal of only the disposable fixture device, including explicit review and latest list readback.",
+      "requirement": "NOTIFICA-P0-003",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings-theme",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?view=all&vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-device-removal-review-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open Settings in the same disposable owner fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-settings-page",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/layout.main",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for Settings before setting selected appearance"
+          }
+        }
+      },
+      {
+        "id": "select-light-theme",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settingsPage.themeOption(choice=light)"
+          },
+          "metadata": {
+            "label": "Set the exact selected light appearance"
+          }
+        }
+      },
+      {
+        "id": "open-reach",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/reach?vrooli_test_mode=1&e22_fixture=settings-owner&e22_case=e21-device-removal-review-readback",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE"
+          },
+          "metadata": {
+            "label": "Open the leased disposable owner device fixture"
+          }
+        }
+      },
+      {
+        "id": "wait-fixture-device",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "button[aria-pressed]:has-text(\"Work browser\")",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the exact selected removal target in the owner list"
+          }
+        }
+      },
+      {
+        "id": "select-readiness-target",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "button[aria-pressed]:has-text(\"Travel phone\")"
+          },
+          "metadata": {
+            "label": "Open the disposable Travel phone readiness detail without changing device state"
+          }
+        }
+      },
+      {
+        "id": "wait-readiness-target",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=reach-device-demo-phone]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Wait for the selected Travel phone detail"
+          }
+        }
+      },
+      {
+        "id": "assert-readiness-unknown",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-device-demo-phone]');const text=root?.innerText||'';const body=document.body.innerText||'';const readiness=document.querySelector('[data-testid=reach-device-readiness-unknown]');if(!readiness||!readiness.classList.contains('border-s-4')||!readiness.classList.contains('border-app-warning'))throw new Error('unknown readiness must retain its warning treatment');if(!root||!text.includes('Travel phone')||!text.includes('demo-phone')||!text.includes('demo-mobile')||!text.includes('Unknown \u2014 no exact channel and machine readiness record is available for this device.')||body.includes('fixture://'))throw new Error('readiness detail missing exact identity or current unknown disclosure: '+text);const overflow=document.documentElement.scrollWidth>innerWidth+1;const buttons=[...(root.querySelectorAll('button')||[])].map(b=>{const r=b.getBoundingClientRect();return {id:b.id,label:b.innerText,width:Math.round(r.width),height:Math.round(r.height)}});const below44=buttons.filter(b=>b.width<44||b.height<44);if(overflow||below44.length)throw new Error('readiness detail has a target below 44 CSS px or horizontal overflow: '+JSON.stringify({overflow,below44}));return {device:'demo-phone',machine:'demo-mobile',readiness:'unknown',targets:buttons,below44,overflow}})()"
+          },
+          "metadata": {
+            "label": "Assert unknown readiness stays unassigned and private endpoint data stays hidden"
+          }
+        }
+      },
+      {
+        "id": "scroll-readiness-into-view",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const root=document.querySelector('[data-testid=reach-device-demo-phone]');const target=[...(root?.querySelectorAll('p')||[])].find(e=>e.textContent?.includes('Unknown \u2014 no exact channel and machine readiness record is available for this device.'));if(!root||!target)throw new Error('Readiness unknown detail is absent');target.scrollIntoView({block:'center'});return {scrolledToReadiness:true,viewport:{width:innerWidth,height:innerHeight}}})()"
+          },
+          "metadata": {
+            "label": "Position the selected readiness detail in the phone viewport before capture"
+          }
+        }
+      },
+      {
+        "id": "normalize-readiness-light",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');for(const key of ['left','right'])r.style.setProperty('--safe-area-inset-'+key,'0px');if(innerWidth!==390||innerHeight!==844||r.getAttribute('data-resolved-theme')!=='light')throw new Error('selected light readiness viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme:'light',insets:{top:0,right:0,bottom:0,left:0}}})()"
+          },
+          "metadata": {
+            "label": "Normalize selected light 390 by 844 CSS viewport with zero safe-area insets"
+          }
+        }
+      },
+      {
+        "id": "capture-readiness-unknown-light",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected light NH16-SET-03 Readiness unknown phone state"
+          }
+        }
+      },
+      {
+        "id": "normalize-readiness-dark",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.setAttribute('data-theme','dark');r.setAttribute('data-resolved-theme','dark');for(const key of ['top','right','bottom','left'])r.style.setProperty('--safe-area-inset-'+key,'0px');if(innerWidth!==390||innerHeight!==844||r.getAttribute('data-resolved-theme')!=='dark')throw new Error('selected dark readiness viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme:'dark',insets:{top:0,right:0,bottom:0,left:0}}})()"
+          },
+          "metadata": {
+            "label": "Normalize selected dark 390 by 844 CSS viewport with zero safe-area insets"
+          }
+        }
+      },
+      {
+        "id": "capture-readiness-unknown-dark",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture selected dark NH16-SET-03 Readiness unknown phone state"
+          }
+        }
+      },
+      {
+        "id": "restore-readiness-light",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.setAttribute('data-theme','light');r.setAttribute('data-resolved-theme','light');for(const key of ['top','right','bottom','left'])r.style.setProperty('--safe-area-inset-'+key,'0px');return {theme:'light',fixtureStateUnchanged:true}})()"
+          },
+          "metadata": {
+            "label": "Restore light appearance before the existing disposable removal review"
+          }
+        }
+      },
+      {
+        "id": "select-removal-target",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "button[aria-pressed]:has-text(\"Work browser\")"
+          },
+          "metadata": {
+            "label": "Select Work browser by its exact disposable owner row before removal"
+          }
+        }
+      },
+      {
+        "id": "wait-selected-removal-target",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-device-demo-work\"]",
+            "state": "WAIT_STATE_VISIBLE"
+          },
+          "metadata": {
+            "label": "Confirm the exact Work browser device is selected"
+          }
+        }
+      },
+      {
+        "id": "request-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "#reach-remove-trigger-device-demo-work"
+          },
+          "metadata": {
+            "label": "Open the device removal review"
+          }
+        }
+      },
+      {
+        "id": "assert-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const review=document.querySelector('[data-testid=reach-remove-review]');const text=review?.textContent||'';const heading=review?.querySelector('h1');const buttons=[...(review?.querySelectorAll('button')||[])];const heights=buttons.map(b=>b.getBoundingClientRect().height);for(const expected of ['does not revoke browser permission','Work browser','Device ID','Machine','Channel'])if(!text.includes(expected))throw new Error('removal review missing '+expected);if(document.querySelector('[data-testid=reach-device-device-demo-work]'))throw new Error('device list remains behind focused removal review');if(document.activeElement!==heading)throw new Error('removal review heading did not receive focus');if(heights.length!==2||heights.some(h=>h<44))throw new Error('removal actions below 44 CSS px: '+heights.join(','));return {fixtureDevice:'device-demo-work',reviewed:true,browserPermissionUnchanged:true,headingFocused:true,actionHeights:heights}})()"
+          },
+          "metadata": {
+            "label": "Verify the exact owner device and bounded removal consequence"
+          }
+        }
+      },
+      {
+        "id": "normalize-removal-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.style.setProperty('--safe-area-inset-top','0px');r.style.setProperty('--safe-area-inset-bottom','0px');const theme=r.getAttribute('data-theme');if(innerWidth!==390||innerHeight!==844||theme!=='light')throw new Error('selected viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme,top:0,bottom:0}})()",
+            "store_result": "selectedCaptureState"
+          },
+          "metadata": {
+            "label": "Verify selected phone state and zero safe-area insets"
+          }
+        }
+      },
+      {
+        "id": "normalize-dark-removal-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.setAttribute('data-theme','dark');r.setAttribute('data-resolved-theme','dark');for(const key of ['top','right','bottom','left'])r.style.setProperty('--safe-area-inset-'+key,'0px');if(innerWidth!==390||innerHeight!==844||r.getAttribute('data-resolved-theme')!=='dark')throw new Error('selected dark viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme:'dark',insets:{top:0,right:0,bottom:0,left:0}}})()"
+          },
+          "metadata": {
+            "label": "Set exact selected dark phone theme and zero safe-area insets without changing owner data"
+          }
+        }
+      },
+      {
+        "id": "capture-removal-review-dark",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture dark selected device-removal review before confirming the disposable fixture"
+          }
+        }
+      },
+      {
+        "id": "restore-light-removal-capture",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.setAttribute('data-theme','light');r.setAttribute('data-resolved-theme','light');if(r.getAttribute('data-resolved-theme')!=='light')throw new Error('light review capture restoration failed');return {theme:'light',sameReviewState:Boolean(document.querySelector('[data-testid=reach-remove-review]'))}})()"
+          },
+          "metadata": {
+            "label": "Restore the existing light capture state before the original capture and confirmation"
+          }
+        }
+      },
+      {
+        "id": "capture-removal-review",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the light phone removal review before confirmation"
+          }
+        }
+      },
+      {
+        "id": "confirm-fixture-removal",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const review=document.querySelector('[data-testid=reach-remove-review]');const confirm=review?.querySelector('button[data-rcl-button]');if(!confirm)throw new Error('fixture removal confirmation button missing');confirm.click();return {confirmedDisposableFixture:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm removal using the explicit review action for only the leased fixture ID"
+          }
+        }
+      },
+      {
+        "id": "wait-owner-list-readback",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "[data-testid=\"reach-device-device-demo-work\"]",
+            "state": "WAIT_STATE_HIDDEN"
+          },
+          "metadata": {
+            "label": "Wait until the latest owner-scoped device list no longer contains the fixture ID"
+          }
+        }
+      },
+      {
+        "id": "assert-owner-list-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{if(document.querySelector('[data-testid=reach-device-device-demo-work]'))throw new Error('removed fixture still appears in owner list');const result=document.querySelector('[data-testid=reach-device-removed]');const text=result?.textContent||'';if(!result||!text.includes('Removal confirmed by the latest list')||!text.includes('Travel phone')||!text.includes('demo-phone'))throw new Error(`removal result is incomplete: ${text}`);return {fixtureDevice:'device-demo-work',absentFromLatestOwnerList:true,remainingFixture:'demo-phone',dedicatedResultVisible:true}})()"
+          },
+          "metadata": {
+            "label": "Confirm the removed fixture ID is absent after authoritative refresh"
+          }
+        }
+      },
+      {
+        "id": "capture-removal-readback",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the owner list after disposable device removal readback"
+          }
+        }
+      },
+      {
+        "id": "normalize-dark-removal-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(()=>{const r=document.documentElement;r.setAttribute('data-theme','dark');r.setAttribute('data-resolved-theme','dark');for(const key of ['top','right','bottom','left'])r.style.setProperty('--safe-area-inset-'+key,'0px');if(innerWidth!==390||innerHeight!==844||r.getAttribute('data-resolved-theme')!=='dark')throw new Error('dark removal readback viewport/theme mismatch');return {viewport:{width:innerWidth,height:innerHeight},theme:'dark',insets:{top:0,right:0,bottom:0,left:0},resultStillVisible:Boolean(document.querySelector('[data-testid=reach-device-removed]'))}})()"
+          },
+          "metadata": {
+            "label": "Set exact selected dark phone appearance and zero insets after authoritative removal readback"
+          }
+        }
+      },
+      {
+        "id": "capture-removal-readback-dark",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the dark owner-scoped device removal result with remaining device"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e21-remove-00",
+        "source": "open-reach",
+        "target": "wait-fixture-device",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-01a",
+        "source": "select-removal-target",
+        "target": "wait-selected-removal-target",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-01b",
+        "source": "wait-selected-removal-target",
+        "target": "request-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-02",
+        "source": "request-removal-review",
+        "target": "assert-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-03",
+        "source": "assert-removal-review",
+        "target": "normalize-removal-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-04",
+        "source": "capture-removal-review",
+        "target": "confirm-fixture-removal",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-05",
+        "source": "confirm-fixture-removal",
+        "target": "wait-owner-list-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-06",
+        "source": "wait-owner-list-readback",
+        "target": "assert-owner-list-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-07",
+        "source": "assert-owner-list-readback",
+        "target": "capture-removal-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-08",
+        "source": "capture-removal-readback",
+        "target": "normalize-dark-removal-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-09",
+        "source": "normalize-dark-removal-readback",
+        "target": "capture-removal-readback-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-09",
+        "source": "open-settings-theme",
+        "target": "wait-settings-page",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-10",
+        "source": "wait-settings-page",
+        "target": "select-light-theme",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-11",
+        "source": "select-light-theme",
+        "target": "open-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-dark-01",
+        "source": "normalize-removal-capture",
+        "target": "normalize-dark-removal-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-dark-02",
+        "source": "normalize-dark-removal-capture",
+        "target": "capture-removal-review-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-dark-03",
+        "source": "capture-removal-review-dark",
+        "target": "restore-light-removal-capture",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-remove-dark-04",
+        "source": "restore-light-removal-capture",
+        "target": "capture-removal-review",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-02",
+        "source": "select-readiness-target",
+        "target": "wait-readiness-target",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-03",
+        "source": "wait-readiness-target",
+        "target": "assert-readiness-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-05",
+        "source": "normalize-readiness-light",
+        "target": "capture-readiness-unknown-light",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-06",
+        "source": "capture-readiness-unknown-light",
+        "target": "normalize-readiness-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-07",
+        "source": "normalize-readiness-dark",
+        "target": "capture-readiness-unknown-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-08",
+        "source": "capture-readiness-unknown-dark",
+        "target": "restore-readiness-light",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-09",
+        "source": "restore-readiness-light",
+        "target": "select-removal-target",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-01",
+        "source": "wait-fixture-device",
+        "target": "select-readiness-target",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-02",
+        "source": "select-readiness-target",
+        "target": "wait-readiness-target",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-03",
+        "source": "wait-readiness-target",
+        "target": "assert-readiness-unknown",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-04",
+        "source": "assert-readiness-unknown",
+        "target": "scroll-readiness-into-view",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-05",
+        "source": "scroll-readiness-into-view",
+        "target": "normalize-readiness-light",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-06",
+        "source": "normalize-readiness-light",
+        "target": "capture-readiness-unknown-light",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-07",
+        "source": "capture-readiness-unknown-light",
+        "target": "normalize-readiness-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-08",
+        "source": "normalize-readiness-dark",
+        "target": "capture-readiness-unknown-dark",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-09",
+        "source": "capture-readiness-unknown-dark",
+        "target": "restore-readiness-light",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "e21-readiness-current-10",
+        "source": "restore-readiness-light",
+        "target": "select-removal-target",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

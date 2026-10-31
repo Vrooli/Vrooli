@@ -1,0 +1,179 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "InAMessage",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-testid='time-mention-message'] [data-rcl-time-mention]",
+          "value": "9"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-time-mention][data-kind='clock'] [data-rcl-time-mention-badge][data-state='upcoming']",
+          "value": "1"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-time-mention-tag] [data-night]",
+          "value": "3"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-time-mention][data-tone='lint']",
+          "value": "1"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-time-mention][data-tone='unzoned']",
+          "value": "1"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='time-mention-message'] p div",
+          "value": "0"
+        },
+        {
+          "kind": "text",
+          "value": "08:53:33 UTC"
+        }
+      ],
+      "id": "in-a-message",
+      "mode": "pinned",
+      "name": "In a chat message",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "WithoutSendTime",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "count",
+          "selector": "[data-testid='time-mention-message'] [data-rcl-time-mention]",
+          "value": "8"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-time-mention][data-kind='clock'] [data-rcl-time-mention-badge]",
+          "value": "0"
+        },
+        {
+          "kind": "text",
+          "value": "in 20 minutes"
+        }
+      ],
+      "id": "without-send-time",
+      "mode": "pinned",
+      "name": "Without a send time",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "InAMessage",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Time details",
+          "role": "dialog"
+        },
+        {
+          "kind": "text",
+          "value": "2026-10-29T08:53:33Z"
+        },
+        {
+          "kind": "role",
+          "name": "Relative",
+          "role": "button"
+        },
+        {
+          "kind": "role",
+          "name": "Copy UTC timestamp",
+          "role": "button"
+        }
+      ],
+      "id": "details",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='time-mention-message'] [data-rcl-time-mention]"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Details card",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "InAMessage",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "in 7h 22m"
+        },
+        {
+          "kind": "text",
+          "value": "in 1h 31m"
+        }
+      ],
+      "id": "relative-display",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='time-mention-message'] [data-rcl-time-mention]"
+          }
+        },
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "click",
+          "target": {
+            "name": "Relative",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Switching the display",
+      "role": "anatomy"
+    }
+  ],
+  "title": "Time Mention"
+}

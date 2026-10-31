@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "name": "team-dashboard-state-matrix",
+    "description": "Proves the isolated dashboard fixture seam renders active, paused, blocked, idle, partial-coverage, and unknown-health states without changing persisted team state.",
+    "labels": { "reset": "none", "safety": "read-only", "fixture_only": "true", "routed_isolation": "true" },
+    "requirement": "UX-CAMPAIGN-003",
+    "execution_mode": "observer"
+  },
+  "settings": { "viewport_width": 1440, "viewport_height": 900 },
+  "nodes": [
+    { "id": "active", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=active", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Render active dashboard fixture" } } },
+    { "id": "active-ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/teamDashboard.root", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for active dashboard" } } },
+    { "id": "active-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "healthy" }, "timeout_ms": 15000, "failure_message": "Active dashboard fixture did not render healthy status" }, "metadata": { "label": "Active status visible" } } },
+    { "id": "active-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Active dashboard" } } },
+    { "id": "paused", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=paused", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Render paused dashboard fixture" } } },
+    { "id": "paused-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "paused" }, "timeout_ms": 15000, "failure_message": "Paused dashboard fixture did not render paused status" }, "metadata": { "label": "Paused status visible" } } },
+    { "id": "paused-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Paused dashboard" } } },
+    { "id": "blocked", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=blocked", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Render blocked dashboard fixture" } } },
+    { "id": "blocked-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "blocked" }, "timeout_ms": 15000, "failure_message": "Blocked dashboard fixture did not render blocked status" }, "metadata": { "label": "Blocked status visible" } } },
+    { "id": "blocked-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Blocked dashboard" } } },
+    { "id": "idle", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=idle", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Render idle dashboard fixture" } } },
+    { "id": "idle-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "idle" }, "timeout_ms": 15000, "failure_message": "Idle dashboard fixture did not render idle status" }, "metadata": { "label": "Idle status visible" } } },
+    { "id": "idle-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Idle dashboard" } } },
+    { "id": "partial", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=partial", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Render partial-coverage dashboard fixture" } } },
+    { "id": "partial-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-coverage", "expected": { "string_value": "partial" }, "timeout_ms": 15000, "failure_message": "Partial dashboard fixture did not disclose partial coverage" }, "metadata": { "label": "Partial coverage visible" } } },
+    { "id": "partial-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Partial dashboard" } } },
+    { "id": "unknown", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "prompt-manager", "scenario_path": "/teams/rcl-prompt-manager-ux-design-campaign?tab=dashboard&ux-state=unknown", "wait_until": "NAVIGATE_WAIT_EVENT_LOAD", "timeout_ms": 30000 }, "metadata": { "label": "Render unknown-health dashboard fixture" } } },
+    { "id": "unknown-assert", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/teamDashboard.root", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "data-dashboard-status", "expected": { "string_value": "unknown" }, "timeout_ms": 15000, "failure_message": "Unknown-health dashboard fixture did not render unknown status" }, "metadata": { "label": "Unknown health visible" } } },
+    { "id": "unknown-shot", "action": { "type": "ACTION_TYPE_SCREENSHOT", "screenshot": { "full_page": false }, "metadata": { "label": "Unknown-health dashboard" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "active", "target": "active-ready" }, { "id": "e2", "source": "active-ready", "target": "active-assert" }, { "id": "e3", "source": "active-assert", "target": "active-shot" }, { "id": "e4", "source": "active-shot", "target": "paused" },
+    { "id": "e5", "source": "paused", "target": "paused-assert" }, { "id": "e6", "source": "paused-assert", "target": "paused-shot" }, { "id": "e7", "source": "paused-shot", "target": "blocked" },
+    { "id": "e8", "source": "blocked", "target": "blocked-assert" }, { "id": "e9", "source": "blocked-assert", "target": "blocked-shot" }, { "id": "e10", "source": "blocked-shot", "target": "idle" },
+    { "id": "e11", "source": "idle", "target": "idle-assert" }, { "id": "e12", "source": "idle-assert", "target": "idle-shot" }, { "id": "e13", "source": "idle-shot", "target": "partial" },
+    { "id": "e14", "source": "partial", "target": "partial-assert" }, { "id": "e15", "source": "partial-assert", "target": "partial-shot" }, { "id": "e16", "source": "partial-shot", "target": "unknown" },
+    { "id": "e17", "source": "unknown", "target": "unknown-assert" }, { "id": "e18", "source": "unknown-assert", "target": "unknown-shot" }
+  ]
+}

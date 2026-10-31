@@ -1,0 +1,303 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Delivery matrix",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Answer the operator's first question — which Android targets can I prove right now, what did the last run show, and what is blocking me.",
+    "prd_refs": [
+      "OT-P0-003",
+      "OT-P0-010"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Every target row shows a probed disposition, never an assumed one.",
+      "notes": "A host being Linux does not imply an emulator works. The row reflects what the last probe proved."
+    },
+    {
+      "statement": "An unavailable target names its missing capability and next action inline.",
+      "notes": "'Unavailable' with no reason forces the operator into the CLI to find out why, which defeats the surface."
+    },
+    {
+      "statement": "The gate verdict and the release-readiness summary are both visible without navigating.",
+      "notes": "Discovering at the end of a green matrix that no Play account exists is the failure this surface exists to prevent."
+    },
+    {
+      "statement": "Wherever work executes on a remote node, that node is named.",
+      "notes": "Bridge-dispatched runs fail differently from local ones, and an unnamed remote failure is indistinguishable from a local one."
+    },
+    {
+      "statement": "A passing row carries the grade of the evidence that produced it, even while every strategy reports the same grade.",
+      "notes": "Android has no pixel-grade path today, so this is uniform. Rendering it anyway is what keeps a future lower-tier strategy from arriving as an invisible downgrade to results that already look green."
+    }
+  ],
+  "elements": [
+    {
+      "id": "target-matrix",
+      "role": "table",
+      "name": "Target matrix",
+      "description": "One row per probed target: ramp, device kind, node, disposition, last run."
+    },
+    {
+      "id": "target-disposition",
+      "role": "status",
+      "name": "Target disposition",
+      "description": "The closed-vocabulary disposition for one target row, carrying a text label as well as a status colour."
+    },
+    {
+      "id": "gate-verdict",
+      "role": "status",
+      "name": "Release gate",
+      "description": "The fail-closed gate verdict computed from the matrix."
+    },
+    {
+      "id": "readiness-summary",
+      "role": "status",
+      "name": "Release readiness",
+      "description": "Summary of the Google readiness ladder, shown as a peer of the gate verdict rather than behind navigation."
+    },
+    {
+      "id": "executing-node",
+      "role": "note",
+      "name": "Executing node",
+      "description": "The local host or bridge node that executed or would execute the cell."
+    },
+    {
+      "id": "generate-project",
+      "role": "button",
+      "name": "Generate project",
+      "description": "The primary action when no generated project exists yet."
+    },
+    {
+      "id": "row-promotability",
+      "role": "status",
+      "name": "Evidence grade",
+      "description": "Whether the evidence behind a passing row can gate a release. Every Android strategy is currently semantic, so this reports uniformly — but it is rendered rather than assumed."
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "The matrix as the live system reports it.",
+      "setup": {
+        "route": "/"
+      }
+    },
+    {
+      "id": "loading",
+      "description": "Target inventory is being probed; no dispositions are asserted yet.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "loading"
+        },
+        "settleMs": 0
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No generated project exists yet. Explains how to generate one rather than showing an empty table.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "empty"
+        }
+      }
+    },
+    {
+      "id": "partial",
+      "description": "Targets are listed and at least one is unavailable — the normal working state on a host without the Android SDK, not a degraded one.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "partial"
+        }
+      }
+    },
+    {
+      "id": "stale",
+      "description": "Dispositions are from a probe old enough that they may no longer hold; age is shown rather than the data being silently presented as current.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "stale"
+        }
+      }
+    },
+    {
+      "id": "request-error",
+      "description": "The inventory request failed. The matrix reports the failure rather than rendering an empty or all-unavailable table.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "request-error"
+        }
+      }
+    },
+    {
+      "id": "gate-failed",
+      "description": "A required cell failed. The gate reads failed and names the contributing cell.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "gate-failed"
+        }
+      }
+    },
+    {
+      "id": "physical-attached",
+      "description": "A physical phone is attached to a host node and appears in the matrix as its own row, alongside the emulator targets.",
+      "setup": {
+        "route": "/",
+        "query": {
+          "fixture": "physical-attached"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "id": "both-axes-visible-together",
+      "type": "element-present",
+      "elements": [
+        "gate-verdict",
+        "readiness-summary"
+      ],
+      "states": [
+        "default",
+        "partial",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "The release gate verdict and the release-readiness summary are both present on the matrix without navigating away.",
+      "rationale": "S2A-P0-010. Validation readiness and release readiness are independent axes. Collapsing them is how a fully passing matrix gets read as ready to ship."
+    },
+    {
+      "id": "matrix-readable-without-video",
+      "type": "element-present",
+      "elements": [
+        "target-matrix",
+        "target-disposition"
+      ],
+      "states": [
+        "default",
+        "partial",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "Every verdict on this page is carried by the matrix and its disposition labels, so no recording has to be played to read it.",
+      "rationale": "Journey video is evidence, not interface."
+    },
+    {
+      "id": "execution-node-is-explicit",
+      "type": "element-present",
+      "elements": [
+        "executing-node"
+      ],
+      "states": [
+        "default",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "Every state in which work executes on a node names that node.",
+      "rationale": "S2A-P1-002. Bridge-dispatched runs fail differently from local ones; an unnamed remote failure is indistinguishable from a local one."
+    },
+    {
+      "id": "partial-is-not-a-degraded-state",
+      "type": "state-distinct",
+      "states": [
+        "default",
+        "partial"
+      ],
+      "tier": "machine",
+      "statement": "A matrix with unavailable rows renders distinguishably from a fully available one.",
+      "rationale": "S2A-P0-003. A host without the SDK is the normal starting state; it must be readable as such rather than as breakage."
+    },
+    {
+      "id": "empty-state-offers-generation",
+      "type": "element-present",
+      "elements": [
+        "generate-project"
+      ],
+      "states": [
+        "empty"
+      ],
+      "tier": "machine",
+      "statement": "The empty state presents the generate action rather than an empty table.",
+      "rationale": "An empty table is indistinguishable from a broken probe."
+    },
+    {
+      "id": "disposition-is-not-colour-alone",
+      "type": "custom",
+      "statement": "Every disposition is distinguishable without relying on hue — each carries a shape or text label as well as a status colour.",
+      "tier": "manual",
+      "rationale": "DESIGN.md accessibility floor. 'unsupported' and 'unavailable' are semantically opposite — terminal versus actionable — and must not depend on colour discrimination to tell apart."
+    },
+    {
+      "id": "physical-rows-name-their-host",
+      "type": "element-present",
+      "elements": [
+        "target-matrix",
+        "executing-node"
+      ],
+      "states": [
+        "physical-attached"
+      ],
+      "tier": "machine",
+      "statement": "A physical-device row names the host node through which the device is reached.",
+      "rationale": "S2A-P0-003. A phone is a peripheral of a node rather than a fleet member in its own right. When it goes unreachable the operator needs to know which machine to check, and a row without a host cannot say."
+    },
+    {
+      "id": "row-evidence-grade-is-visible",
+      "type": "element-present",
+      "elements": [
+        "row-promotability"
+      ],
+      "states": [
+        "default",
+        "physical-attached",
+        "gate-failed"
+      ],
+      "tier": "machine",
+      "statement": "Every matrix row that carries a verdict also carries the grade of the evidence behind it.",
+      "rationale": "S2A-P0-010. Evidence grade is a property of a pass. Rendering it while it is uniform is what makes a later non-uniform case visible instead of silent."
+    },
+    {
+      "id": "uniform-grade-is-a-fact-not-an-omission",
+      "type": "custom",
+      "statement": "Android renders evidence grade on every verdict row despite every current strategy being semantic, and declares no pixel-grade state because none exists on this platform.",
+      "tier": "manual",
+      "rationale": "S2A-P0-004. The iOS ramp has a real pixel-grade strategy and therefore a state-distinct claim; Android does not, and inventing one would fabricate a state the system cannot enter. This asymmetry is a deliberate decision, not a gap to be closed by adding symmetry."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "target-matrix": {
+        "testid": "dashboard-target-matrix"
+      },
+      "target-disposition": {
+        "testid": "dashboard-target-disposition"
+      },
+      "gate-verdict": {
+        "testid": "dashboard-gate-verdict"
+      },
+      "readiness-summary": {
+        "testid": "dashboard-readiness-summary"
+      },
+      "executing-node": {
+        "testid": "dashboard-executing-node"
+      },
+      "generate-project": {
+        "testid": "dashboard-generate-project"
+      },
+      "row-promotability": {
+        "testid": "dashboard-row-promotability"
+      }
+    }
+  }
+}

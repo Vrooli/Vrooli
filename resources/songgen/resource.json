@@ -1,0 +1,1382 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "songgen",
+  "display_name": "Local Song Models",
+  "description": "Pinned MiniMax Music3 NF4 and HeartMuLa song generation with isolated workers and owned model retention.",
+  "driver": "managed-service",
+  "cli": {
+    "enabled": true,
+    "command": "resource-songgen",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {
+        "location": "sibling"
+      },
+      "build_metadata": {
+        "location": "sibling"
+      }
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-songgen_${os}_${arch}"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-songgen"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "server/**",
+        "requirements-*.in",
+        "requirements-*.lock",
+        "resource.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "pinned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Model bundles are acquired from pinned hashes. Only the owner uses recorded activity, pins and data-lock fencing for whole-bundle retention; generic filesystem-age deletion is unsafe.",
+        "budget": {
+          "max_bytes": "60GiB",
+          "rationale": "Alarm-only bound for the two selected model bundles; retain downloads across requests."
+        },
+        "subpath": "models"
+      },
+      "outputs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "Per-operation scratch and source bundles under the owned data/outputs directory. Music retains exported takes and receipts. The one-day age floor exceeds all bounded worker lifetimes.",
+        "budget": {
+          "max_age": "1d",
+          "rationale": "Age-only expiry exceeds the bounded two-hour worker deadline; no byte-pressure deletion of active operation stages."
+        },
+        "subpath": "outputs"
+      }
+    }
+  },
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/songgen",
+      "version": "0.3.0-yue2-score",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "bundle_artifact": "resource-songgen_${os}_${arch}",
+      "sha256_by_platform": {
+        "linux-amd64": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201"
+      }
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "CPython PSF-2.0; pinned dependency licenses retained; Apache-2.0 HeartMuLa code; model terms declared per profile",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=8.9"
+          },
+          "layout": "dir",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "minimax-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels/minimax",
+              "lockfile": "requirements-minimax.lock",
+              "index_url": "https://download.pytorch.org/whl/cu126",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
+            },
+            {
+              "role": "heartmula-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels/heartmula",
+              "lockfile": "requirements-heartmula.lock",
+              "index_url": "https://download.pytorch.org/whl/cu126",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
+            },
+            {
+              "role": "heartlib",
+              "kind": "url",
+              "dest": "upstream/heartlib",
+              "bin_path": "heartlib-5858ca8f1ffe58d62be7c007ea55f1033c5ca456",
+              "url": "https://codeload.github.com/HeartMuLa/heartlib/tar.gz/5858ca8f1ffe58d62be7c007ea55f1033c5ca456",
+              "sha256": "1dd055d392f032cbba717e3ff736fd76ee4a76412e1bc67324561db07d96848b",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "server.py",
+              "kind": "local",
+              "source": "server/server.py",
+              "dest": "source/server.py"
+            },
+            {
+              "role": "runtime.py",
+              "kind": "local",
+              "source": "server/runtime.py",
+              "dest": "source/runtime.py"
+            },
+            {
+              "role": "worker.py",
+              "kind": "local",
+              "source": "server/worker.py",
+              "dest": "source/worker.py"
+            },
+            {
+              "role": "backends.py",
+              "kind": "local",
+              "source": "server/backends.py",
+              "dest": "source/backends.py"
+            },
+            {
+              "role": "profiles.json",
+              "kind": "local",
+              "source": "server/profiles.json",
+              "dest": "source/profiles.json"
+            },
+            {
+              "role": "audiocpp",
+              "kind": "url",
+              "dest": "upstream/audiocpp",
+              "url": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.3/audio-v0.9.3-bin-ubuntu-x64-cuda12.8-colab.tar.gz",
+              "sha256": "5be3e8d515fb244387de87958668ebb729d9442de6a53df12e4c718ea918419d",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "audiocpp-cudart",
+              "kind": "url",
+              "dest": "upstream/cudart",
+              "url": "https://github.com/0xShug0/audio.cpp/releases/download/v0.9.3/audio-v0.9.3-cudart-ubuntu-x64-cuda12.8.tar.gz",
+              "sha256": "2fcbaff8078b9eaed47a4a8e879c10dcf1f12fd31f2d52b29214fc9d45cfa198",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "yue2.py",
+              "kind": "local",
+              "source": "server/yue2.py",
+              "dest": "source/yue2.py"
+            }
+          ],
+          "artifact_sha256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "No qualified arm64 CUDA closure."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Medium CUDA pilot only."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Medium CUDA pilot only."
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "minimax-0",
+        "path": "models/minimax/LICENSE",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/LICENSE",
+              "sha256": "b21d12df2adae59dad3fcf80c1d81492654c662342f497d9a9770198c9317e58",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 7373
+      },
+      {
+        "name": "minimax-1",
+        "path": "models/minimax/README.md",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/README.md",
+              "sha256": "d24a3e65f3ab0b3b9852986fc2d63dffbdfb8b0472d502dd3de47a24d41c623a",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 11699
+      },
+      {
+        "name": "minimax-2",
+        "path": "models/minimax/condition_encoder/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/condition_encoder/config.json",
+              "sha256": "1cdea3f36506719128ae4a29cdfff74b1134e607eb4a504ce6d810568fac8263",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 292
+      },
+      {
+        "name": "minimax-3",
+        "path": "models/minimax/condition_encoder/diffusion_pytorch_model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/condition_encoder/diffusion_pytorch_model.safetensors",
+              "sha256": "83179c5eaa9a68a370affe0c1b96c2179f659ea4175666b31071490a202c2a4d",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 100671852
+      },
+      {
+        "name": "minimax-4",
+        "path": "models/minimax/language_model/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/config.json",
+              "sha256": "34ded58fcd5e8181557f1417e76af9f3e95109a5ce113a4771fd16f8625b53c0",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 1596
+      },
+      {
+        "name": "minimax-5",
+        "path": "models/minimax/language_model/generation_config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/generation_config.json",
+              "sha256": "c0f7c1612e174a7bdec9548464a7bf031a0292587033228e6767fb9e5dc367cd",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 158
+      },
+      {
+        "name": "minimax-6",
+        "path": "models/minimax/language_model/model-00001-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/model-00001-of-00004.safetensors",
+              "sha256": "1e95924a158b45b67cfad04fa0f0a352e5a263e69338734d7c1d558be776cc98",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4910103856
+      },
+      {
+        "name": "minimax-7",
+        "path": "models/minimax/language_model/model-00002-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/model-00002-of-00004.safetensors",
+              "sha256": "fde2d335eef7eafa268d35e53d4b040ee51d2f3fa727f9855b4c97d88a2892da",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4915960352
+      },
+      {
+        "name": "minimax-8",
+        "path": "models/minimax/language_model/model-00003-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/model-00003-of-00004.safetensors",
+              "sha256": "6549a831637ab678a573047e7fa8fdf966998c4f45330e6eb7573d67f7b9b4c6",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4983068496
+      },
+      {
+        "name": "minimax-9",
+        "path": "models/minimax/language_model/model-00004-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/model-00004-of-00004.safetensors",
+              "sha256": "a1c9865f357b64d3ae9f428fb98a844831e5a0aee9ed17b19bd7f7be32b964a9",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 2359864688
+      },
+      {
+        "name": "minimax-10",
+        "path": "models/minimax/language_model/model.safetensors.index.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/language_model/model.safetensors.index.json",
+              "sha256": "a8bf9de1e8c0d680f39730a127d74445b4abf505623bd91d5ed4f97c0869cc2a",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 32914
+      },
+      {
+        "name": "minimax-11",
+        "path": "models/minimax/modular_model_index.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/modular_model_index.json",
+              "sha256": "1dc86609cf8855e70cc3f5d085213988094fb59e448aedcda06740d34e386002",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 2391
+      },
+      {
+        "name": "minimax-12",
+        "path": "models/minimax/rvq_depth_decoder/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/rvq_depth_decoder/config.json",
+              "sha256": "b38c7f72d4b2fa8667442071f9e4a63ca5a7b5d0859e5e64ee7f79c4bc64520c",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 274
+      },
+      {
+        "name": "minimax-13",
+        "path": "models/minimax/rvq_depth_decoder/diffusion_pytorch_model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/rvq_depth_decoder/diffusion_pytorch_model.safetensors",
+              "sha256": "80e86ab006bb5c8d4f223205045035a1c77b2bb9c3be9a86d7e740bbafe5ddf0",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 1292055248
+      },
+      {
+        "name": "minimax-14",
+        "path": "models/minimax/scheduler/scheduler_config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/scheduler/scheduler_config.json",
+              "sha256": "b544466124aab333da4874417da0168610067e9c9ff95fcb63d749e4bf891d99",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 483
+      },
+      {
+        "name": "minimax-15",
+        "path": "models/minimax/tokenizer/chat_template.jinja",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/tokenizer/chat_template.jinja",
+              "sha256": "a55ee1b1660128b7098723e0abcd92caa0788061051c62d51cbe87d9cf1974d8",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4168
+      },
+      {
+        "name": "minimax-16",
+        "path": "models/minimax/tokenizer/tokenizer.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/tokenizer/tokenizer.json",
+              "sha256": "b1537fa9e59a537276ecbc2e12d0438edff635a1f4a4948e679774b5feb3e610",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 11423801
+      },
+      {
+        "name": "minimax-17",
+        "path": "models/minimax/tokenizer/tokenizer_config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/tokenizer/tokenizer_config.json",
+              "sha256": "1689852cc9c45010de040c8302a8acdc0d2c4c6c740dd7e9dd0a8c704e16eada",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 377
+      },
+      {
+        "name": "minimax-18",
+        "path": "models/minimax/transformer/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/transformer/config.json",
+              "sha256": "f60856be934127a8b8223510aff2e38a9efd8bbdbc230c3d3339b96e2cb12f00",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 294
+      },
+      {
+        "name": "minimax-19",
+        "path": "models/minimax/transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+              "sha256": "1943baebe93b5d5a57e9e1f603d9cef51a73a55e7a42f52913932dc06dcf10f0",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4959921384
+      },
+      {
+        "name": "minimax-20",
+        "path": "models/minimax/transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+              "sha256": "b2f9e29d241e107e5a281f8b369d6db48eee983917df966c56d7b8dd0bd482c2",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4767750800
+      },
+      {
+        "name": "minimax-21",
+        "path": "models/minimax/transformer/diffusion_pytorch_model.safetensors.index.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/transformer/diffusion_pytorch_model.safetensors.index.json",
+              "sha256": "5a57fc3b98e91ec7f4e9da199b3dc8ce1c67e42824c42bed91c15443c049b991",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 42679
+      },
+      {
+        "name": "minimax-22",
+        "path": "models/minimax/vocoder/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/vocoder/config.json",
+              "sha256": "4161afd07ba7d5b949e29c8a7a005592259fba73e9110b6ece9dfd38d3489eac",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 251
+      },
+      {
+        "name": "minimax-23",
+        "path": "models/minimax/vocoder/diffusion_pytorch_model.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "MiniMax Music3 Model License",
+          "targets": [
+            {
+              "url": "https://huggingface.co/MiniMaxAI/MiniMax-Music3/resolve/fbdf52fbaaca799592917417eb05f1899f1255ec/vocoder/diffusion_pytorch_model.safetensors",
+              "sha256": "daf0bf0560ea978ce7b5ec3e82f420a44429efef18bdfbe3c714d55ceffbe934",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "minimax-music3-nf4",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 216695272
+      },
+      {
+        "name": "heartmula-0",
+        "path": "models/heartmula/checkpoints/HeartMuLa-oss-3B/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/resolve/41f6fc68490e11dc43fdabaa6b5767946408c903/config.json",
+              "sha256": "a05bf0650f560d235fb3a0c109173d44eb3a9b6231fe599968e12706cd20edf4",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 308
+      },
+      {
+        "name": "heartmula-1",
+        "path": "models/heartmula/checkpoints/HeartMuLa-oss-3B/model-00001-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/resolve/41f6fc68490e11dc43fdabaa6b5767946408c903/model-00001-of-00004.safetensors",
+              "sha256": "4815367cdbddc0192abe3dbe81e2ae6a6e8978a39ad4dd1d26a20e445b3aeea6",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4933188000
+      },
+      {
+        "name": "heartmula-2",
+        "path": "models/heartmula/checkpoints/HeartMuLa-oss-3B/model-00002-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/resolve/41f6fc68490e11dc43fdabaa6b5767946408c903/model-00002-of-00004.safetensors",
+              "sha256": "f079416ba4c0570231f7a2830a2e95033336a8b3528d1c033a07923a25f4b5d7",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4932808592
+      },
+      {
+        "name": "heartmula-3",
+        "path": "models/heartmula/checkpoints/HeartMuLa-oss-3B/model-00003-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/resolve/41f6fc68490e11dc43fdabaa6b5767946408c903/model-00003-of-00004.safetensors",
+              "sha256": "b43cd60ff50033fa9a5e08c4eb26edff55d5e95e0a313592804ab026ed3b895d",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4935901576
+      },
+      {
+        "name": "heartmula-4",
+        "path": "models/heartmula/checkpoints/HeartMuLa-oss-3B/model-00004-of-00004.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/resolve/41f6fc68490e11dc43fdabaa6b5767946408c903/model-00004-of-00004.safetensors",
+              "sha256": "07c5f5820c0c00f0b8ad4544ed8a24ae1888f7d8c8a5d8bb3cdaba418a39cf2f",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 950588000
+      },
+      {
+        "name": "heartmula-5",
+        "path": "models/heartmula/checkpoints/HeartMuLa-oss-3B/model.safetensors.index.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLa-oss-3B-happy-new-year/resolve/41f6fc68490e11dc43fdabaa6b5767946408c903/model.safetensors.index.json",
+              "sha256": "a96e28d71e3f767c94a7d25723f7ab77ce2abd06d5495315d9770be0e87e00ca",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 22579
+      },
+      {
+        "name": "heartmula-6",
+        "path": "models/heartmula/checkpoints/HeartCodec-oss/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartCodec-oss-20260123/resolve/f889dab0532cfa4bf459f2a3367eb6d346b8eeda/config.json",
+              "sha256": "b55a505b4cf5cd22bba40aac0d9d5082d560c1c942fe17583aaa95f28e3c08cf",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 981
+      },
+      {
+        "name": "heartmula-7",
+        "path": "models/heartmula/checkpoints/HeartCodec-oss/model-00001-of-00002.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartCodec-oss-20260123/resolve/f889dab0532cfa4bf459f2a3367eb6d346b8eeda/model-00001-of-00002.safetensors",
+              "sha256": "50d2c022468a0e127992d99e02117d2efbad2b10fddc8ceaf09550f154e185d4",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4930472472
+      },
+      {
+        "name": "heartmula-8",
+        "path": "models/heartmula/checkpoints/HeartCodec-oss/model-00002-of-00002.safetensors",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartCodec-oss-20260123/resolve/f889dab0532cfa4bf459f2a3367eb6d346b8eeda/model-00002-of-00002.safetensors",
+              "sha256": "6f319d0f5b31858dfe98bd8fc89d3083cbfff74ac75a0531f1a7b86949197917",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 1707911436
+      },
+      {
+        "name": "heartmula-9",
+        "path": "models/heartmula/checkpoints/HeartCodec-oss/model.safetensors.index.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartCodec-oss-20260123/resolve/f889dab0532cfa4bf459f2a3367eb6d346b8eeda/model.safetensors.index.json",
+              "sha256": "d19153a142865e4a90508294f36c7ec5ab07d33bf0e8b01a0717c75b80ce6a63",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 83875
+      },
+      {
+        "name": "heartmula-10",
+        "path": "models/heartmula/checkpoints/config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLaGen/resolve/2e18e01702011f4f7dc8642b6260967df62417ea/config.json",
+              "sha256": "2fc578fc8d8445fa9d73d1925146d53d25b2e5f5d74b8a19aa5c000e37094f41",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 101
+      },
+      {
+        "name": "heartmula-11",
+        "path": "models/heartmula/checkpoints/gen_config.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLaGen/resolve/2e18e01702011f4f7dc8642b6260967df62417ea/gen_config.json",
+              "sha256": "2fc578fc8d8445fa9d73d1925146d53d25b2e5f5d74b8a19aa5c000e37094f41",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 101
+      },
+      {
+        "name": "heartmula-12",
+        "path": "models/heartmula/checkpoints/tokenizer.json",
+        "acquisition": {
+          "kind": "url",
+          "provenance": {
+            "kind": "none"
+          },
+          "license": "Apache-2.0",
+          "targets": [
+            {
+              "url": "https://huggingface.co/HeartMuLa/HeartMuLaGen/resolve/2e18e01702011f4f7dc8642b6260967df62417ea/tokenizer.json",
+              "sha256": "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4",
+              "layout": "file"
+            }
+          ]
+        },
+        "group": "heartmula-3b",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 9085657
+      },
+      {
+        "name": "yue2-sidecars-yue2-generation-config-json",
+        "path": "models/yue2-q8/sidecars/yue2-generation-config.json",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 466,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-generation-config.json",
+              "sha256": "203830cebde6e3644eb291925362990d198e66c3b6006cd11f1aaa21904bcc61",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-sidecars-yue2-model-config-json",
+        "path": "models/yue2-q8/sidecars/yue2-model-config.json",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 959,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-model-config.json",
+              "sha256": "ad3477bbef890bf98ae196c1e4b44779494a6231c4ab66f32708eabadf265329",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-sidecars-yue2-qwen-tiktoken",
+        "path": "models/yue2-q8/sidecars/yue2-qwen.tiktoken",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 2561218,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-qwen.tiktoken",
+              "sha256": "b2b1b8dfb5cc5f024bafc373121c6aba3f66f9a5a0269e243470a1de16a33186",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-sidecars-yue2-vae-config-json",
+        "path": "models/yue2-q8/sidecars/yue2-vae-config.json",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 1378,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/sidecars/yue2-vae-config.json",
+              "sha256": "f0191bb9694009956de44e0c361a6f1334760be4c8f848e599bde242a54a0970",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-README-md",
+        "path": "models/yue2-q8/README.md",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 9986,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/README.md",
+              "sha256": "49b1045caa920190b768b5b9c16af6095bae5083b9c76768d31f69221e2043eb",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-LICENSE",
+        "path": "models/yue2-q8/LICENSE",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 20309,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/m-a-p/YuE2-3B/resolve/1a96eca688d6ae5d7f0feb88573fec89920fcd19/LICENSE",
+              "sha256": "060985741d20e70613b4c189c7de106cabd3fb2109fbbfb6d705c9d619417dd0",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-yue2-3b-q8_0-gguf",
+        "path": "models/yue2-q8/yue2-3b-q8_0.gguf",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 4264195616,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/yue2-3b-q8_0.gguf",
+              "sha256": "52be345b5155bf9ef0b2411e7df8d1d2b8e13b6d977a2f70c35612ec69b1f591",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "yue2-yue2-vae-f16-gguf",
+        "path": "models/yue2-q8/yue2-vae-f16.gguf",
+        "group": "yue2-q8",
+        "acquisition_mode": "on-demand",
+        "size_bytes": 265218656,
+        "acquisition": {
+          "kind": "url",
+          "license": "CC-BY-NC-4.0; audio.cpp Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://huggingface.co/audio-cpp/Yue2-3B-GGUF/resolve/cca74d8980c00f30ab8d52248a367c01ad633ec2/yue2-vae-f16.gguf",
+              "sha256": "d4f4a05d8f291ae820cd1e43609da3fa91b56465810091a2b08c3350b751719d",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ],
+    "arguments": [
+      "-I",
+      "-B",
+      "-c",
+      "import runpy,sys;sys.path.insert(0,'source');runpy.run_path('source/server.py',run_name='__main__')",
+      "--port",
+      "${RESOURCE_PORT_UPSTREAM}"
+    ],
+    "environment": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "SONGGEN_DATA_DIR": "${RESOURCE_DATA_DIR}",
+      "SONGGEN_STATE_DIR": "${RESOURCE_STATE_DIR}",
+      "SONGGEN_ARTIFACT_DIR": "${RESOURCE_ARTIFACT_DIR}",
+      "SONGGEN_DATA_LOCK_PATH": "${RESOURCE_DATA_LOCK_PATH}",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "SONGGEN_COMPOSED_SHA256": "5c4acbe450e1988a42e83b3aedf13a515ffaa438fdc70bd6fb323fc9fe1f4201"
+    },
+    "attach_health_path": "/health",
+    "shutdown": {
+      "signal": "terminate"
+    },
+    "minimum_data_groups": 1
+  },
+  "acceleration": {
+    "backends": [
+      "cuda"
+    ],
+    "require": "required",
+    "cuda": {},
+    "claim": {
+      "resource_kind": "vram",
+      "default_preferred_bytes": 10737418240,
+      "floor_bytes": 10737418240,
+      "default_priority": "batch",
+      "confidence": "estimated",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 5,
+      "profile": {
+        "steps": [
+          {
+            "label": "isolated",
+            "default_amount_bytes": 10737418240
+          }
+        ],
+        "apply": {
+          "verb": "capacity",
+          "argv": [
+            "degrade",
+            "--to",
+            "{label}"
+          ]
+        },
+        "upshift": false
+      }
+    },
+    "idle_probe": "http://127.0.0.1:18897/live"
+  },
+  "ports": [
+    {
+      "name": "http",
+      "host": 8897,
+      "container": 8880
+    },
+    {
+      "name": "upstream",
+      "host": 18897,
+      "container": 8880
+    }
+  ],
+  "companions": [
+    {
+      "name": "activity-edge",
+      "command": "resource-songgen",
+      "args": [
+        "activity-edge"
+      ],
+      "port": 8897,
+      "required": true
+    }
+  ],
+  "lifecycle": {
+    "start_timeout_seconds": 600,
+    "stop_timeout_seconds": 30,
+    "exclusive_group": "music-generation"
+  },
+  "orchestration": {
+    "startup_order": 562,
+    "startup_timeout_seconds": 600,
+    "dependencies": [],
+    "recovery_attempts": 1,
+    "priority": "medium"
+  },
+  "environment_exports": {
+    "static": {
+      "SONGGEN_HOST": "localhost"
+    },
+    "from_ports": {
+      "SONGGEN_PORT": "http"
+    },
+    "derived": {
+      "SONGGEN_URL": {
+        "template": "http://${SONGGEN_HOST}:${SONGGEN_PORT}"
+      }
+    }
+  },
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8897/health",
+      "kind": "readiness",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8897/live",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ],
+  "requirements": {
+    "ram_mb": 16384,
+    "disk_mb": 65000,
+    "cpu_cores": 4,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "low",
+    "class": "ai",
+    "weight": 5
+  },
+  "category": "ai",
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "prohibited",
+  "hostSafeguards": [
+    {
+      "name": "nvidia_driver",
+      "required": true,
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "reason": "The admitted pilot requires CUDA; no CPU fallback is qualified."
+    }
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Requires a qualified NVIDIA CUDA host, available capacity, pinned artifacts and separate model weights."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "artifact-checksum"
+          ]
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "No qualified native macos runtime is published."
+          ],
+          "evidence": [],
+          "reason": "The pinned runtime is qualified only on Linux amd64."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "architectures": [
+            "amd64"
+          ],
+          "requires": [],
+          "limitations": [
+            "No qualified native windows runtime is published."
+          ],
+          "evidence": [],
+          "reason": "The pinned runtime is qualified only on Linux amd64."
+        }
+      }
+    }
+  }
+}

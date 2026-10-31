@@ -1,0 +1,25 @@
+{
+  "$schema": "../../schemas/program-contract.schema.json",
+  "name": "program-runtime.research-workspace-review",
+  "version": "1",
+  "helpers": {"program": "1"},
+  "purpose": "Inspect guide, checkpoint and current-view presence and sizes for an explicitly authorized research root.",
+  "inputs": {
+    "research_root": {"type": "string", "required": true, "description": "Absolute research root authorized by the caller; not a session identifier."}
+  },
+  "assumptions": ["Caller is authorized to read the named root; local runtime reads are not sandbox confinement."],
+  "invariants": ["No writes or cleanup.", "A path resolving outside the root is not inspected; skipped entries produce partial coverage.", "At most 512 topics and 5000 run entries are inspected; at most eight examples per category are returned.", "Sizes and absent files are review signals, not findings of research quality.", "One bounded JSON envelope is returned."],
+  "bindings": [],
+  "verbs": [],
+  "outputs": {
+    "status": {"enum": ["ok", "partial", "unavailable", "failed"]},
+    "phase": {"enum": ["validate", "collect", "report"]},
+    "signals": {"unique_runs": "Unique canonical run directories inspected.", "largest": "At most eight checkpoint size signals and current-view sizes.", "without_guide": "Inspected runs without a README.md.", "without_checkpoint": "Inspected runs without a CHECKPOINT.md.", "truncated": "The topic or run bound was reached.", "skipped_outside_root": "Paths resolving outside the selected root; coverage is partial."},
+    "errors": {"classes": ["invalid_input", "outside_root", "workspace_unavailable", "incomplete_read", "kernel_runtime"]},
+    "evidence": "Selected root and observed scope."
+  },
+  "budget": {"wall_ms": 30000, "inference_calls": 0, "delegated_runs": 0, "materialize_limit": 16, "output_bytes": 65536},
+  "fixtures": [{"id": "relative-root", "inputs": {"research_root": "relative"}, "expect": {"status": ["failed"]}, "requires": []}],
+  "rung": "S3",
+  "owner_skill": "research-coordination"
+}

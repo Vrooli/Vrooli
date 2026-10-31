@@ -12,6 +12,10 @@ import (
 // that already exists in the store.
 var ErrDuplicateEvent = errors.New("duplicate event_id")
 
+// ErrEventCursorNotFound indicates that a keyset query referenced an event
+// that is no longer present (for example, because retention pruned it).
+var ErrEventCursorNotFound = errors.New("event cursor not found")
+
 // Event is the internal representation of an event in the store.
 type Event struct {
 	ID             int64
@@ -23,15 +27,25 @@ type Event struct {
 	Payload        []byte
 	Metadata       map[string]string
 	CreatedAt      time.Time
+	// ExpiresAt is an optional receipt-specific retention deadline. Generic
+	// events continue to use the service-wide MaxAge policy.
+	ExpiresAt *time.Time
 }
 
 // QueryFilters defines filters for querying events.
 type QueryFilters struct {
+	EventID       string // exact event identity
 	EventType     string // glob pattern
 	Source        string // exact match
+	Target        string // exact match
 	CorrelationID string // exact match
 	Since         int64  // return events with ID > Since
+	BeforeEventID string // with NewestFirst, return events older than this event
+	NewestFirst   bool   // order by durable store ID descending; default is ascending
 	Limit         int    // max results (default 100)
+	WorkKind      string // exact generic work-reference kind
+	WorkID        string // exact generic work-reference ID
+	Visibility    string // public or private; empty means any
 }
 
 // PruneResult reports what the pruning operation removed.

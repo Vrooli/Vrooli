@@ -148,6 +148,7 @@ export const SectionTypeEnumSchema = z.enum([
 export const ContentSectionSchema = z.object({
   id: z.number(),
   variant_id: z.number(),
+  key: z.string().min(1).optional(),
   section_type: SectionTypeEnumSchema,
   content: GenericSectionContentSchema,
   order: z.number(),

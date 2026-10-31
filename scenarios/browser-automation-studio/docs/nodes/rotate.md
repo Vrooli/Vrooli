@@ -1,6 +1,6 @@
 # Rotate Node
 
-`[REQ:BAS-NODE-ROTATE-MOBILE]` reorients the Browserless viewport mid-run so workflows can validate responsive breakpoints, device rotations, and layout persistence for mobile apps.
+`[REQ:BAS-NODE-ROTATE-MOBILE]` reorients the Playwright driver's viewport mid-run so workflows can validate responsive breakpoints, device rotations, and layout persistence for mobile apps.
 
 ## Configuration
 
@@ -13,7 +13,7 @@
 ## Runtime Behavior
 
 1. The automation compiler retains the orientation/angle/wait fields in the contract instruction; validation for allowed combinations happens in the workflow validator.
-2. BrowserlessEngine maps the instruction to `browserless/cdp/scroll_actions.go` where `Emulation.setDeviceMetricsOverride` applies the new dimensions and orientation, emitting viewport metadata for artifacts.
+2. The Playwright driver maps the instruction so that `Emulation.setDeviceMetricsOverride` applies the new dimensions and orientation, emitting viewport metadata for artifacts.
 3. Subsequent Gesture/Scroll/Interaction nodes inherit the updated viewport so coordinates and animations reflect the rotated device.
 
 ## Example

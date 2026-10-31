@@ -9,12 +9,15 @@ if (!UI_PORT && process.argv.includes("serve")) {
   throw new Error("UI_PORT environment variable is required. Run the scenario through the Vrooli lifecycle so it is provided automatically.");
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: "./",
   plugins: [react()],
   resolve: {
     alias: {
-      "@": resolve(__dirname, "./src")
+      "@": resolve(__dirname, "./src"),
+      ...(mode === "profile"
+        ? { "react-dom/client": "react-dom/profiling" }
+        : {}),
     }
   },
   server: {
@@ -35,9 +38,33 @@ export default defineConfig({
       }
     }
   },
+  esbuild: mode === "profile" ? { keepNames: true } : undefined,
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: "./src/test-utils/setupTests.ts",
+    setupFiles: "./src/test-setup.ts",
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary", "json"],
+      reportOnFailure: true,
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/main.tsx",
+        "src/test-setup.ts",
+        "src/test-utils/**",
+        "src/consts/strings.generated.ts",
+        "src/i18n/locales/**",
+        "src/**/generated/**",
+      ],
+      thresholds: {
+        lines: 85,
+        functions: 85,
+        branches: 85,
+        statements: 85,
+      },
+    },
   },
-});
+}));

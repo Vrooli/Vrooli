@@ -1,0 +1,94 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "scenario-to-ios",
+  "generator": "v1.0.0",
+  "manifest_hash": "8b1c3f6f5eaab38e9db1f6dc324e46f137003b118b623f68e770b040778ca118",
+  "commands": [
+    {
+      "path": "ios build",
+      "group": "ios",
+      "command": "build",
+      "binding": "."
+    },
+    {
+      "path": "ios compare",
+      "group": "ios",
+      "command": "compare",
+      "binding": "."
+    },
+    {
+      "path": "ios conformance-plan",
+      "group": "ios",
+      "command": "conformance-plan",
+      "binding": "."
+    },
+    {
+      "path": "ios distribution",
+      "group": "ios",
+      "command": "distribution",
+      "binding": "."
+    },
+    {
+      "path": "ios generate",
+      "group": "ios",
+      "command": "generate",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix",
+      "group": "ios",
+      "command": "matrix",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix-catalog",
+      "group": "ios",
+      "command": "matrix-catalog",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix-create",
+      "group": "ios",
+      "command": "matrix-create",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix-list",
+      "group": "ios",
+      "command": "matrix-list",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix-rerun-failed",
+      "group": "ios",
+      "command": "matrix-rerun-failed",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix-start",
+      "group": "ios",
+      "command": "matrix-start",
+      "binding": "."
+    },
+    {
+      "path": "ios matrix-wait",
+      "group": "ios",
+      "command": "matrix-wait",
+      "binding": "."
+    },
+    {
+      "path": "ios readiness",
+      "group": "ios",
+      "command": "readiness",
+      "binding": "."
+    },
+    {
+      "path": "ios targets",
+      "group": "ios",
+      "command": "targets",
+      "binding": "."
+    }
+  ]
+}

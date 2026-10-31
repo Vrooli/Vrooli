@@ -1,0 +1,304 @@
+syntax = "proto3";
+
+package vrooli.asset_studio.v1.studio;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/asset-studio/v1/studio;studio_v1";
+
+// StudioService is the single P0 spine. It deliberately returns metadata and
+// stable references, never artifact bytes: bytes remain behind Asset Studio's
+// BlobStore seam.
+service StudioService {
+  rpc ListIdentities(ListIdentitiesRequest) returns (ListIdentitiesResponse);
+  rpc CreateIdentity(CreateIdentityRequest) returns (CreateIdentityResponse);
+  rpc ReviseIdentity(ReviseIdentityRequest) returns (ReviseIdentityResponse);
+  rpc ResolveSpec(ResolveSpecRequest) returns (ResolveSpecResponse);
+  rpc CreateRender(CreateRenderRequest) returns (CreateRenderResponse);
+  // RegenerateRender creates a new durable render from an existing render's
+  // immutable resolved intent. It never marks an old output as regenerated.
+  rpc RegenerateRender(RegenerateRenderRequest) returns (RegenerateRenderResponse);
+  // AnalyzeConformance records a producer-owned automated signal. It is
+  // advisory only and never replaces the operator verdict required for release.
+  rpc AnalyzeConformance(AnalyzeConformanceRequest) returns (AnalyzeConformanceResponse);
+  rpc CommissionAgent(CommissionAgentRequest) returns (CommissionAgentResponse);
+  rpc SetCampaignBudget(SetCampaignBudgetRequest) returns (SetCampaignBudgetResponse);
+  rpc GetRender(GetRenderRequest) returns (GetRenderResponse);
+  rpc SelectCandidate(SelectCandidateRequest) returns (SelectCandidateResponse);
+  rpc JudgeConformance(JudgeConformanceRequest) returns (JudgeConformanceResponse);
+  rpc ReleaseAsset(ReleaseAssetRequest) returns (ReleaseAssetResponse);
+  rpc GetReleasedAssetReference(GetReleasedAssetReferenceRequest) returns (GetReleasedAssetReferenceResponse);
+  rpc ImportCanon(ImportCanonRequest) returns (ImportCanonResponse);
+  // IngestExternalAsset admits bytes another scenario produced.
+  //
+  // Every other way an asset comes into existence here runs through
+  // CreateRender, which means Asset Studio produced it. That left a producing
+  // scenario with two bad options: duplicate the disclosure and release rules
+  // in its own code, or ship a model-backed image with no disclosure at all.
+  // Backdrop Studio chose a third — refusing to release model-backed output
+  // rather than mislabel it — and that refusal is the behaviour this RPC
+  // exists to make unnecessary rather than to remove.
+  //
+  // The caller supplies the facts; Asset Studio owns the record. That split is
+  // the point: disclosure has one authority, and it is this one.
+  rpc IngestExternalAsset(IngestExternalAssetRequest) returns (IngestExternalAssetResponse);
+}
+
+message ConditioningReference {
+  string kind = 1;
+  string id = 2;
+  string version = 3;
+}
+message Identity {
+  string id = 1;
+  string name = 2;
+  string kind = 3;
+  int32 version = 4;
+  map<string, string> traits = 5;
+  repeated string reference_images = 6;
+  repeated ConditioningReference conditioning_references = 7;
+  string credential_claims = 8;
+  bool referenced = 9;
+}
+message AssetReference {
+  string id = 1;
+  string status = 2;
+  string alt_text = 3;
+  string disclosure = 4;
+  bool ai_generated = 5;
+  int32 width = 6;
+  int32 height = 7;
+  string media_type = 8;
+  string parent_asset_id = 9;
+  string derivation_operation = 10;
+}
+message ListIdentitiesRequest {
+  string kind = 1;
+}
+message ListIdentitiesResponse {
+  repeated Identity identities = 1;
+}
+message CreateIdentityRequest {
+  Identity identity = 1;
+  string actor_id = 2;
+  string actor_kind = 3;
+}
+message CreateIdentityResponse {
+  Identity identity = 1;
+}
+message ReviseIdentityRequest {
+  Identity identity = 1;
+  string actor_id = 2;
+  string actor_kind = 3;
+}
+message ReviseIdentityResponse {
+  Identity identity = 1;
+}
+message ResolveSpecRequest {
+  string template = 1;
+  map<string, string> fields = 2;
+  repeated string identity_version_ids = 3;
+  string campaign_ref = 4;
+}
+message ResolveSpecResponse {
+  string spec_id = 1;
+  string resolved_payload = 2;
+}
+message CreateRenderRequest {
+  string spec_id = 1;
+  double estimated_cost = 2;
+  int32 candidate_count = 3;
+  // image, video, capture, compose, or refine. Empty remains image for P0
+  // compatibility; producer details remain owned by their capabilities.
+  string producer_kind = 4;
+  // Multiple frames share the spec's immutable identity bindings.
+  int32 frame_count = 5;
+  // Required by derived/refine producers and never interpreted as bytes here.
+  string parent_asset_id = 6;
+  // Capture target only for producer_kind=capture. Asset Studio submits this
+  // to Browser Automation Studio but never drives a browser itself.
+  string capture_url = 7;
+  // Required only when the configured campaign budget would be exceeded.
+  bool confirm_over_budget = 8;
+  string budget_confirmation_actor_id = 9;
+  repeated CompositionSlot composition_slots = 10;
+}
+message CompositionSlot {
+  string name = 1;
+  string asset_id = 2;
+  int32 order = 3;
+}
+message CreateRenderResponse {
+  string render_id = 1;
+  string status = 2;
+  repeated AssetReference candidates = 3;
+}
+message RegenerateRenderRequest {
+  // Source render must have recorded successful provenance. The server checks
+  // that its spec, identity versions, and producer are still available before
+  // accepting a fresh render receipt.
+  string source_render_id = 1;
+  // Required only when a configured campaign budget would be exceeded.
+  bool confirm_over_budget = 2;
+  string budget_confirmation_actor_id = 3;
+}
+message RegenerateRenderResponse {
+  string render_id = 1;
+  string status = 2;
+  string source_render_id = 3;
+}
+message AdvisoryConformance {
+  string asset_id = 1;
+  string source = 2;
+  double score = 3;
+  repeated string notes = 4;
+  string recorded_at = 5;
+}
+message AnalyzeConformanceRequest {
+  string asset_id = 1;
+}
+message AnalyzeConformanceResponse {
+  AdvisoryConformance advisory = 1;
+}
+message AgentCommission {
+  string id = 1;
+  string agent_task_id = 2;
+  string agent_identity = 3;
+  string request = 4;
+  repeated string source_identity_version_ids = 5;
+  string status = 6;
+  string created_at = 7;
+}
+message CommissionAgentRequest {
+  string request = 1;
+  repeated string source_identity_version_ids = 2;
+  string agent_identity = 3;
+}
+message CommissionAgentResponse {
+  AgentCommission commission = 1;
+}
+message CampaignBudget {
+  string campaign_ref = 1;
+  double limit_usd = 2;
+  double spent_usd = 3;
+}
+message SetCampaignBudgetRequest {
+  string campaign_ref = 1;
+  double limit_usd = 2;
+}
+message SetCampaignBudgetResponse {
+  CampaignBudget budget = 1;
+}
+message RenderProvenance {
+  string spec_id = 1;
+  repeated string identity_version_ids = 2;
+  string backend = 3;
+  string model = 4;
+  string seed = 5;
+  string parameters = 6;
+}
+message Render {
+  string id = 1;
+  string status = 2;
+  double estimated_cost = 3;
+  double actual_cost = 4;
+  bool actual_cost_recorded = 5;
+  RenderProvenance provenance = 6;
+  repeated AssetReference candidates = 7;
+  string failure_code = 8;
+  string producer_kind = 9;
+  int32 frame_count = 10;
+  string parent_asset_id = 11;
+}
+message GetRenderRequest {
+  string render_id = 1;
+}
+message GetRenderResponse {
+  Render render = 1;
+}
+message SelectCandidateRequest {
+  string asset_id = 1;
+}
+message SelectCandidateResponse {
+  AssetReference selected = 1;
+}
+message JudgeConformanceRequest {
+  string asset_id = 1;
+  string identity_version_id = 2;
+  string actor_id = 3;
+  string actor_kind = 4;
+  bool passed = 5;
+  string basis = 6;
+}
+message JudgeConformanceResponse {}
+message ReleaseAssetRequest {
+  string asset_id = 1;
+}
+message ReleaseAssetResponse {
+  AssetReference asset = 1;
+}
+message GetReleasedAssetReferenceRequest {
+  string asset_id = 1;
+}
+message GetReleasedAssetReferenceResponse {
+  AssetReference asset = 1;
+}
+// ExternalProvenance is what the producing scenario knows about how its bytes
+// came to exist. It carries no identity record on purpose: Backdrop Studio
+// binds a scaffold and a palette, not a character, and requiring an identity
+// would make this door usable only by the producers that already fit the
+// identity model — which is every producer that did not need the door.
+message ExternalProvenance {
+  // producing_scenario names who made the bytes. It is not decoration: it is
+  // how a released asset is traced back to a generator when its disclosure is
+  // later questioned.
+  string producing_scenario = 1;
+  // strategy is how the image was obtained, in the producer's own vocabulary
+  // ("procedural", "procedural-treated", "guided", "synthesized"). Asset Studio
+  // does not interpret it beyond the one distinction that matters — whether it
+  // declares a model — because a closed enum here would make every new
+  // producer's lane a proto change.
+  string strategy = 2;
+  // model_backed is the producer's assertion that a generative model drew this.
+  // It is separate from `strategy` so the rule below is enforceable without
+  // Asset Studio having to know every producer's strategy names.
+  bool model_backed = 3;
+  string model = 4;
+  string prompt = 5;
+  string negative_prompt = 6;
+  string seed = 7;
+  // conditioning names what steered generation — a scaffold, a reference image
+  // set, a trained adapter, or a look. The existing ConditioningReference is
+  // reused deliberately: it was already general enough, and a second
+  // near-identical type would be the drift this scenario keeps paying for.
+  ConditioningReference conditioning = 8;
+  // parameters is the producer's own sampler settings as JSON, kept opaque.
+  string parameters = 9;
+}
+
+message IngestExternalAssetRequest {
+  bytes image = 1;
+  string media_type = 2;
+  string alt_text = 3;
+  // decorative marks an image that carries no information, which is the only
+  // case where empty alt text is correct rather than missing.
+  bool decorative = 4;
+  int32 width = 5;
+  int32 height = 6;
+  ExternalProvenance provenance = 7;
+  // actor_id and actor_kind record who asked. Release requires an operator
+  // verdict, and an ingress that dropped the actor would leave that verdict
+  // attributed to nobody.
+  string actor_id = 8;
+  string actor_kind = 9;
+}
+message IngestExternalAssetResponse {
+  AssetReference asset = 1;
+}
+
+message ImportCanonRequest {
+  string root = 1;
+}
+message ImportCanonResponse {
+  int32 created = 1;
+  int32 revised = 2;
+  repeated string errors = 3;
+}

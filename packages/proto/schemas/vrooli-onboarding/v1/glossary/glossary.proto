@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.vrooli_onboarding.v1.glossary;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-onboarding/v1/glossary;glossaryv1";
+
+service GlossaryService {
+  // Glossary entries are static documentation and are independent of a target.
+  rpc SearchGlossary(SearchGlossaryRequest) returns (SearchGlossaryResponse);
+  // Searchable configuration metadata never includes current values or secrets.
+  rpc SearchConfiguration(SearchConfigurationRequest) returns (SearchConfigurationResponse);
+}
+
+message SearchGlossaryRequest { string query = 1; }
+
+message GlossaryEntry {
+  string term = 1;
+  string description = 2;
+  string category = 3;
+}
+
+message SearchGlossaryResponse {
+  repeated GlossaryEntry entries = 1;
+  int32 count = 2;
+  string query = 3;
+}
+
+message SearchConfigurationRequest {
+  string query = 1;
+  string target = 2;
+}
+
+message ConfigurationDescriptor {
+  // Stable identifier independent of display labels.
+  string id = 1;
+  string title = 2;
+  string purpose = 3;
+  // Stable wizard route, for example /setup/scenarios.
+  string route = 4;
+  string step_id = 5;
+  // Applicability metadata only; never a configured value.
+  repeated string target_kinds = 6;
+  repeated string tags = 7;
+  repeated string prerequisites = 8;
+  float score = 9;
+}
+
+message SearchConfigurationResponse {
+  repeated ConfigurationDescriptor results = 1;
+  int32 count = 2;
+  string query = 3;
+  string target = 4;
+  bool fallback = 5;
+}

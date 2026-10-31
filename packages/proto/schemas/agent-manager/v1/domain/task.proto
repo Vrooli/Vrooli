@@ -77,6 +77,10 @@ message Task {
 
   // When the task was last updated.
   google.protobuf.Timestamp updated_at = 11;
+
+  // Exact run attempt whose lifecycle is currently projected on this task. Empty
+  // on legacy rows whose current attempt is unresolved.
+  string current_run_id = 12;
 }
 
 // =============================================================================

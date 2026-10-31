@@ -44,10 +44,6 @@ Each violation includes:
 "setup": {
   "steps": [
     {
-      "name": "install-cli",
-      "run": "cd cli && ./install.sh"
-    },
-    {
       "name": "build-api", 
       "run": "cd api && go build -o scenario-name-api ."
     }

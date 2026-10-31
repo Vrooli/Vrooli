@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "inspect-scope-health",
+    "title": "Inspect a scope and its maintenance health",
+    "purpose": "An operator opens the ledger, selects a scope, reviews source versus derived state, and verifies the bounded compaction frontier.",
+    "prd_refs": ["OT-P0-001", "OT-P0-002", "OT-P0-003", "OT-P0-004"]
+  },
+  "steps": [
+    {"page": "dashboard", "state": "default", "intent": "See available scopes and corpus health before selecting a scope.", "via": "scope-list"},
+    {"page": "scope-detail", "state": "default", "intent": "Inspect the scope journal, derived canopy, and maintenance outcome.", "via": "scope-timeline"},
+    {"page": "scope-detail", "state": "frontier-review", "intent": "Review eligible frontier nodes and confirm the recall budget is bounded.", "via": "frontier-table"}
+  ],
+  "claims": [
+    {
+      "id": "journey-preserves-authority-boundary",
+      "type": "custom",
+      "statement": "The journey labels authoritative journal content separately from rebuildable derived state.",
+      "tier": "manual",
+      "states": ["default", "frontier-review"],
+      "rationale": "Source Ledger must make it possible to inspect derived results without confusing them with the append-only corpus authority."
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 package shared
 
 import (
-	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-
 	"scenario-to-cloud/domain"
+
+	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 // TaskInput provides all data needed to build a prompt.
@@ -58,7 +58,7 @@ type AgentResult struct {
 	DurationSeconds int
 
 	// TokensUsed is the number of tokens consumed.
-	TokensUsed int32
+	TokensUsed int64
 
 	// CostEstimate is the estimated cost of the run.
 	CostEstimate float64

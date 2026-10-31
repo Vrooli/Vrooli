@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "judge-channel-activation",
+    "title": "Judge channel activation",
+    "purpose": "Give the monetization reader enough evidence to decide whether the skill-registries channel is working, without inferring reach from a total that hides unmeasured channels.",
+    "prd_refs": [
+      "OT-P1-003",
+      "OT-P1-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "attribution",
+      "state": "default",
+      "intent": "Read installs per plugin and per channel."
+    },
+    {
+      "page": "attribution",
+      "state": "partial",
+      "intent": "Distinguish unmeasured channels from measured zeros."
+    },
+    {
+      "page": "readiness",
+      "state": "default",
+      "intent": "Check how many further capabilities could be published if the channel is working."
+    }
+  ]
+}

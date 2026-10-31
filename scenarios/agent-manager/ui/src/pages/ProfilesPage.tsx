@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -8,7 +9,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
@@ -21,20 +22,21 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { ModelConfigSelector, type ModelSelectionMode } from "../components/ModelConfigSelector";
+import { RoleSelector } from "../components/RoleSelector";
 import { Textarea } from "../components/ui/textarea";
 import { durationMs, type Duration } from "@bufbuild/protobuf/wkt";
-import { runnerTypeLabel } from "../lib/utils";
-import type { AgentProfile, ModelRegistry, ProfileFormData, RunnerStatus, RunnerType } from "../types";
-import { ModelPreset, NetworkAccess, RunnerType as RunnerTypeEnum } from "../types";
-import { runnerTypeToSlug } from "../lib/utils";
+import { profileSandboxModeFormValue } from "../lib/utils";
+import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
+import type { AgentProfile, ProfileFormData } from "../types";
+import { NetworkAccess } from "../types";
 import { ProfileDetail } from "../components/ProfileDetail";
 import { useViewportSize } from "../hooks/useViewportSize";
 import { formatStandardDateTime } from "../lib/dateTime";
 
 import { MasterDetailLayout, ListPanel, DetailPanel } from "../components/patterns/MasterDetail";
+import { useConfirmAction } from "../components/feedback/useConfirmAction";
 import { SearchToolbar, type FilterConfig, type SortOption } from "../components/patterns/SearchToolbar";
-import { ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
+import { BoundedList, ListItem, ListItemTitle, ListItemSubtitle } from "../components/patterns/ListItem";
 
 interface ProfilesPageProps {
   profiles: AgentProfile[];
@@ -44,21 +46,8 @@ interface ProfilesPageProps {
   onUpdateProfile: (id: string, profile: ProfileFormData) => Promise<AgentProfile>;
   onDeleteProfile: (id: string) => Promise<void>;
   onRefresh: () => void;
-  runners?: Record<string, RunnerStatus>;
-  modelRegistry?: ModelRegistry;
+  rolePolicyCatalog?: RolePolicyCatalog;
 }
-
-const RUNNER_TYPES: RunnerType[] = [
-  RunnerTypeEnum.CLAUDE_CODE,
-  RunnerTypeEnum.CODEX,
-  RunnerTypeEnum.OPENCODE,
-];
-
-const RUNNER_TYPE_FILTER_OPTIONS = [
-  { value: String(RunnerTypeEnum.CLAUDE_CODE), label: "Claude Code" },
-  { value: String(RunnerTypeEnum.CODEX), label: "Codex" },
-  { value: String(RunnerTypeEnum.OPENCODE), label: "OpenCode" },
-];
 
 const SORT_OPTIONS: SortOption[] = [
   { value: "newest", label: "Newest First" },
@@ -72,23 +61,33 @@ const durationToMinutes = (duration: Duration | undefined): number => {
   return Math.max(1, Math.round(ms / 60_000));
 };
 
-const resolveModelMode = (model: string | undefined, preset: ModelPreset | undefined): ModelSelectionMode => {
-  if (preset !== undefined && preset !== ModelPreset.UNSPECIFIED) {
-    return "preset";
-  }
-  if (model && model.trim() !== "") {
-    return "model";
-  }
-  return "default";
-};
+type ProfileFormState = ProfileFormData;
 
-const getModelId = (model: string | { id: string }): string => {
-  return typeof model === "string" ? model : model.id;
-};
+interface ProfileListRowProps {
+  profile: AgentProfile;
+  selected: boolean;
+  onSelect: (profileId: string) => void;
+}
 
-type ProfileFormState = ProfileFormData & {
-  modelMode: ModelSelectionMode;
-};
+const ProfileListRow = memo(function ProfileListRow({
+  profile,
+  selected,
+  onSelect,
+}: ProfileListRowProps) {
+  return (
+    <ListItem
+      selected={selected}
+      onClick={() => onSelect(profile.id)}
+      icon={<Settings2 className="h-5 w-5 text-primary flex-shrink-0" />}
+      actions={<Badge variant="secondary">{profile.roleRef}</Badge>}
+    >
+      <ListItemTitle>{profile.name}</ListItemTitle>
+      <ListItemSubtitle>
+        {profile.description || "No description"} | {formatStandardDateTime(profile.createdAt)}
+      </ListItemSubtitle>
+    </ListItem>
+  );
+});
 
 export function ProfilesPage({
   profiles,
@@ -98,26 +97,9 @@ export function ProfilesPage({
   onUpdateProfile,
   onDeleteProfile,
   onRefresh,
-  runners,
-  modelRegistry,
+  rolePolicyCatalog,
 }: ProfilesPageProps) {
   const { isDesktop } = useViewportSize();
-  const getRegistryForRunner = (runnerType: RunnerType) => {
-    return modelRegistry?.runners?.[runnerTypeToSlug(runnerType)];
-  };
-
-  const getModelsForRunner = (runnerType: RunnerType) => {
-    const registry = getRegistryForRunner(runnerType);
-    if (registry?.models?.length) {
-      return registry.models;
-    }
-    const runner = runners?.[runnerType];
-    return runner?.supportedModels ?? [];
-  };
-
-  const getPresetMapForRunner = (runnerType: RunnerType) => {
-    return getRegistryForRunner(runnerType)?.presets ?? {};
-  };
 
   // Selection state
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -132,16 +114,12 @@ export function ProfilesPage({
     name: "",
     profileKey: "",
     description: "",
-    runnerType: RunnerTypeEnum.CLAUDE_CODE,
-    model: "",
-    modelPreset: ModelPreset.UNSPECIFIED,
-    modelMode: "default",
+    roleRef: rolePolicyCatalog?.defaultRole || "code.default",
     maxTurns: 100,
-    requiresSandbox: true,
-    requiresApproval: true,
+    sandboxMode: "protected" as const,
     networkAccess: "localhost" as const,
     timeoutMinutes: 30,
-    fallbackRunnerTypes: [],
+    effort: "",
     features: { enableBrowser: false },
     extraFlags: {},
   });
@@ -150,7 +128,7 @@ export function ProfilesPage({
 
   // Filter/sort/search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [runnerTypeFilter, setRunnerTypeFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("newest");
 
   const selectedProfile = useMemo(
@@ -176,16 +154,12 @@ export function ProfilesPage({
       name: "",
       profileKey: "",
       description: "",
-      runnerType: RunnerTypeEnum.CLAUDE_CODE,
-      model: "",
-      modelPreset: ModelPreset.UNSPECIFIED,
-      modelMode: "default",
+      roleRef: rolePolicyCatalog?.defaultRole || "code.default",
       maxTurns: 100,
-      requiresSandbox: true,
-      requiresApproval: true,
+      sandboxMode: "protected",
       networkAccess: "localhost" as const,
       timeoutMinutes: 30,
-      fallbackRunnerTypes: [],
+      effort: "",
       features: { enableBrowser: false },
       extraFlags: {},
     });
@@ -200,20 +174,16 @@ export function ProfilesPage({
       name: profile.name,
       profileKey: profile.profileKey || "",
       description: profile.description || "",
-      runnerType: profile.runnerType,
-      model: profile.model || "",
-      modelPreset: profile.modelPreset ?? ModelPreset.UNSPECIFIED,
-      modelMode: resolveModelMode(profile.model, profile.modelPreset),
+      roleRef: profile.roleRef,
       maxTurns: profile.maxTurns || 100,
-      requiresSandbox: profile.requiresSandbox,
-      requiresApproval: profile.requiresApproval,
+      sandboxMode: profileSandboxModeFormValue(profile),
       networkAccess: profile.networkAccess === NetworkAccess.NONE ? "none"
         : profile.networkAccess === NetworkAccess.FULL ? "full"
         : "localhost",
       allowedTools: profile.allowedTools,
       deniedTools: profile.deniedTools,
       timeoutMinutes: durationToMinutes(profile.timeout),
-      fallbackRunnerTypes: profile.fallbackRunnerTypes ?? [],
+      effort: profile.effort as ProfileFormData["effort"],
       features: {
         enableBrowser: profile.features?.enableBrowser ?? false,
       },
@@ -231,16 +201,8 @@ export function ProfilesPage({
     try {
       const normalizedProfile: ProfileFormData = {
         ...formData,
-        model:
-          formData.modelMode === "model"
-            ? formData.model?.trim() ?? ""
-            : "",
-        modelPreset:
-          formData.modelMode === "preset"
-            ? formData.modelPreset ?? ModelPreset.FAST
-            : ModelPreset.UNSPECIFIED,
+        roleRef: formData.roleRef.trim(),
         timeoutMinutes: formData.timeoutMinutes ?? 30,
-        fallbackRunnerTypes: formData.fallbackRunnerTypes ?? [],
       };
       if (editingProfile) {
         await onUpdateProfile(editingProfile.id, normalizedProfile);
@@ -256,48 +218,26 @@ export function ProfilesPage({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this profile?")) return;
-    try {
+  const profileActions = useConfirmAction("profile-action");
+  const handleDelete = (id: string) => profileActions.confirm({
+    title: "Delete profile?",
+    description: "Tasks and runs keep their history, but new runs can no longer use this profile.",
+    confirmLabel: "Delete profile",
+    busyLabel: "Deleting…",
+    subject: profiles.find((profile) => profile.id === id)?.name,
+    action: async () => {
       await onDeleteProfile(id);
       if (selectedProfileId === id) {
         setSelectedProfileId(null);
       }
-    } catch (err) {
-      console.error("Failed to delete profile:", err);
-    }
-  };
-
-  const handleAddFallbackRunner = () => {
-    setFormData((prev) => ({
-      ...prev,
-      fallbackRunnerTypes: [...(prev.fallbackRunnerTypes ?? []), RunnerTypeEnum.CLAUDE_CODE],
-    }));
-  };
-
-  const handleFallbackRunnerChange = (index: number, value: string) => {
-    const parsed = Number(value) as RunnerType;
-    setFormData((prev) => {
-      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
-      fallback[index] = parsed;
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
-
-  const handleRemoveFallbackRunner = (index: number) => {
-    setFormData((prev) => {
-      const fallback = [...(prev.fallbackRunnerTypes ?? [])];
-      fallback.splice(index, 1);
-      return { ...prev, fallbackRunnerTypes: fallback };
-    });
-  };
+    },
+  });
 
   const filteredAndSortedProfiles = useMemo(() => {
     let result = [...profiles];
 
-    if (runnerTypeFilter !== "all") {
-      const runnerType = Number(runnerTypeFilter) as RunnerType;
-      result = result.filter((p) => p.runnerType === runnerType);
+    if (roleFilter !== "all") {
+      result = result.filter((p) => p.roleRef === roleFilter);
     }
 
     if (searchQuery.trim()) {
@@ -319,7 +259,7 @@ export function ProfilesPage({
     });
 
     return result;
-  }, [profiles, runnerTypeFilter, searchQuery, sortBy]);
+  }, [profiles, roleFilter, searchQuery, sortBy]);
 
   useEffect(() => {
     if (!isDesktop) return;
@@ -335,14 +275,29 @@ export function ProfilesPage({
     }
   }, [filteredAndSortedProfiles, isDesktop, selectedProfileId]);
 
+  const getProfileKey = useCallback((profile: AgentProfile) => profile.id, []);
+  const handleSelectProfile = useCallback((profileId: string) => {
+    setSelectedProfileId(profileId);
+  }, []);
+  const renderProfileRow = useCallback(
+    (profile: AgentProfile) => (
+      <ProfileListRow
+        profile={profile}
+        selected={selectedProfileId === profile.id}
+        onSelect={handleSelectProfile}
+      />
+    ),
+    [handleSelectProfile, selectedProfileId]
+  );
+
   const filters: FilterConfig[] = [
     {
-      id: "runnerType",
-      label: "Filter by runner type",
-      value: runnerTypeFilter,
-      options: RUNNER_TYPE_FILTER_OPTIONS,
-      onChange: setRunnerTypeFilter,
-      allLabel: "All Runners",
+      id: "roleRef",
+      label: "Filter by role",
+      value: roleFilter,
+      options: (rolePolicyCatalog?.roles ?? []).map((role) => ({ value: role.roleRef, label: role.description || role.roleRef })),
+      onChange: setRoleFilter,
+      allLabel: "All Roles",
     },
   ];
 
@@ -351,9 +306,11 @@ export function ProfilesPage({
       title="Agent Profiles"
       count={filteredAndSortedProfiles.length}
       loading={loading}
+      error={error}
+      onRetry={onRefresh}
       headerActions={
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh}>
+          <Button variant="secondary" size="sm" onClick={onRefresh}>
             <RefreshCw className="h-4 w-4" />
           </Button>
           <Button size="sm" onClick={() => setShowForm(true)} className="gap-1">
@@ -374,45 +331,21 @@ export function ProfilesPage({
         />
       }
       empty={
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Bot className="h-12 w-12 mb-3 opacity-50" />
-          <p className="font-medium">
-            {profiles.length === 0 ? "No Agent Profiles" : "No Matching Profiles"}
-          </p>
-          <p className="text-sm text-center mt-1">
-            {profiles.length === 0
-              ? "Create your first profile to get started"
-              : "Try adjusting your filters"}
-          </p>
-          {profiles.length === 0 && (
-            <Button
-              onClick={() => setShowForm(true)}
-              className="gap-2 mt-4"
-              size="sm"
-            >
-              <Plus className="h-4 w-4" />
-              Create Profile
-            </Button>
-          )}
-        </div>
+        <EmptyState
+          density="compact"
+          icon={<Bot aria-hidden="true" />}
+          title={profiles.length === 0 ? "No Agent Profiles" : "No Matching Profiles"}
+          description={profiles.length === 0 ? "Create your first profile to get started" : "Try adjusting your filters"}
+          actionLabel={profiles.length === 0 ? "Create Profile" : undefined}
+          onAction={() => setShowForm(true)}
+        />
       }
     >
-      {filteredAndSortedProfiles.map((profile) => (
-        <ListItem
-          key={profile.id}
-          selected={selectedProfileId === profile.id}
-          onClick={() => setSelectedProfileId(profile.id)}
-          icon={<Settings2 className="h-5 w-5 text-primary flex-shrink-0" />}
-          actions={
-            <Badge variant="secondary">{runnerTypeLabel(profile.runnerType)}</Badge>
-          }
-        >
-          <ListItemTitle>{profile.name}</ListItemTitle>
-          <ListItemSubtitle>
-            {profile.description || "No description"} | {formatStandardDateTime(profile.createdAt)}
-          </ListItemSubtitle>
-        </ListItem>
-      ))}
+      <BoundedList
+        items={filteredAndSortedProfiles}
+        getKey={getProfileKey}
+        renderItem={renderProfileRow}
+      />
     </ListPanel>
   );
 
@@ -437,21 +370,11 @@ export function ProfilesPage({
     </DetailPanel>
   );
 
-  // Build header content with error banner
-  const headerContent = error ? (
-    <Card className="border-destructive/50 bg-destructive/10">
-      <CardContent className="flex items-center gap-3 py-4">
-        <AlertCircle className="h-4 w-4 text-destructive" />
-        <p className="text-sm text-destructive">{error}</p>
-      </CardContent>
-    </Card>
-  ) : null;
 
   return (
     <>
       <MasterDetailLayout
         storageKey="profiles"
-        headerContent={headerContent}
         listPanel={listPanel}
         detailPanel={detailPanel}
         selectedId={selectedProfileId}
@@ -482,8 +405,7 @@ export function ProfilesPage({
                   </CardContent>
                 </Card>
               )}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
                   <Input
                     id="name"
@@ -494,34 +416,6 @@ export function ProfilesPage({
                     placeholder="e.g., Claude Code Default"
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="runnerType">Runner Type *</Label>
-                  <select
-                    id="runnerType"
-                    value={String(formData.runnerType)}
-                    onChange={(e) => {
-                      const newRunnerType = Number(e.target.value) as RunnerType;
-                      const availableModels = getModelsForRunner(newRunnerType);
-                      const firstModel = availableModels.length > 0 ? getModelId(availableModels[0] ?? "") : "";
-                      setFormData({
-                        ...formData,
-                        runnerType: newRunnerType,
-                        model:
-                          formData.modelMode === "model"
-                            ? firstModel
-                            : formData.model,
-                      });
-                    }}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {RUNNER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {runnerTypeLabel(type)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               <div className="space-y-2">
@@ -549,65 +443,12 @@ export function ProfilesPage({
                 />
               </div>
 
-              <ModelConfigSelector
-                value={{
-                  mode: formData.modelMode,
-                  model: formData.model ?? "",
-                  preset: formData.modelPreset ?? ModelPreset.UNSPECIFIED,
-                }}
-                onChange={(selection) =>
-                  setFormData({
-                    ...formData,
-                    modelMode: selection.mode,
-                    model: selection.model,
-                    modelPreset: selection.preset,
-                  })
-                }
-                models={getModelsForRunner(formData.runnerType)}
-                presetMap={getPresetMapForRunner(formData.runnerType)}
-                label="Model Selection"
+              <RoleSelector
+                catalog={rolePolicyCatalog}
+                value={formData.roleRef}
+                onChange={(roleRef) => setFormData({ ...formData, roleRef })}
+                label="Execution Role"
               />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Fallback Runners</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={handleAddFallbackRunner}>
-                    Add
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ordered runners to try if the primary runner is unavailable.
-                </p>
-                {(formData.fallbackRunnerTypes ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No fallback runners configured.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(formData.fallbackRunnerTypes ?? []).map((runnerType, index) => (
-                      <div key={`fallback-${index}`} className="flex items-center gap-2">
-                        <select
-                          value={String(runnerType)}
-                          onChange={(e) => handleFallbackRunnerChange(index, e.target.value)}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          {RUNNER_TYPES.map((type) => (
-                            <option key={type} value={type}>
-                              {runnerTypeLabel(type)}
-                            </option>
-                          ))}
-                        </select>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleRemoveFallbackRunner(index)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
@@ -641,29 +482,49 @@ export function ProfilesPage({
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="effort">Reasoning Effort</Label>
+                <select
+                  id="effort"
+                  value={formData.effort ?? ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, effort: e.target.value as ProfileFormData["effort"] })
+                  }
+                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                >
+                  <option value="">Runner default</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="xhigh">Extra high</option>
+                  <option value="max">Max</option>
+                </select>
+              </div>
+
               <div className="flex gap-6">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.requiresSandbox}
+                <label className="flex items-center gap-2">
+                  <span className="text-sm">Sandbox Mode</span>
+                  <select
+                    value={formData.sandboxMode ?? "protected"}
                     onChange={(e) =>
-                      setFormData({ ...formData, requiresSandbox: e.target.checked })
+                      setFormData({
+                        ...formData,
+                        sandboxMode: e.target.value as "off" | "tracking" | "protected",
+                      })
                     }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Sandbox</span>
+                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="off">Off</option>
+                    <option value="tracking">Tracking</option>
+                    <option value="protected">Protected</option>
+                  </select>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.requiresApproval}
-                    onChange={(e) =>
-                      setFormData({ ...formData, requiresApproval: e.target.checked })
-                    }
-                    className="h-4 w-4 rounded border-input"
-                  />
-                  <span className="text-sm">Require Approval</span>
-                </label>
+                {/* The "Require Approval" toggle was removed in
+                    agent-sandbox-audit-foundation Phase 3b — operator-gated
+                    apply lives on SandboxConfig.manualReview now. The
+                    "Require Sandbox" boolean was removed in agent-manager
+                    Phase 1: SandboxConfig.mode is the single source of
+                    truth (see DeriveRunMode in domain/decisions.go). */}
                 <label className="flex items-center gap-2">
                   <span className="text-sm">Network Access</span>
                   <select
@@ -680,45 +541,23 @@ export function ProfilesPage({
                 </label>
               </div>
 
-              <div className="flex gap-6">
-                {formData.runnerType === RunnerTypeEnum.CLAUDE_CODE && (
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.features?.enableBrowser ?? false}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          features: { ...formData.features, enableBrowser: e.target.checked },
-                        })
-                      }
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    <span className="text-sm">Browser automation (--chrome)</span>
-                  </label>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Extra CLI Flags</Label>
-                <Input
-                  placeholder="--verbose, --allowedTools"
-                  value={(formData.extraFlags?.[runnerTypeToSlug(formData.runnerType)] ?? []).join(", ")}
-                  onChange={(e) => {
-                    const flags = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
-                    setFormData(prev => ({
-                      ...prev,
-                      extraFlags: { ...prev.extraFlags, [runnerTypeToSlug(prev.runnerType)]: flags },
-                    }));
-                  }}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.features?.enableBrowser ?? false}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      features: { ...formData.features, enableBrowser: e.target.checked },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-input"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Flags validated against runner allowlist on save
-                </p>
-              </div>
+                <span className="text-sm">Request browser automation when the resolved runner supports it</span>
+              </label>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={resetForm}>
+              <Button type="button" variant="secondary" onClick={resetForm}>
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
@@ -732,6 +571,7 @@ export function ProfilesPage({
           </form>
         </DialogContent>
       </Dialog>
+      {profileActions.dialog}
     </>
   );
 }

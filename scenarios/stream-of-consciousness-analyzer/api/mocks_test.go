@@ -374,7 +374,7 @@ type mockSuggestions struct {
 func newMockSuggestions() *mockSuggestions {
 	return &mockSuggestions{
 		providers: []LLMProvider{
-			{Name: "ollama", URL: "http://localhost:11434", Active: true, Fallback: false},
+			{Name: "ollama", URL: OllamaProviderTransport, Active: true, Fallback: false},
 			{Name: "openrouter", URL: "https://openrouter.ai/api/v1", Active: false, Fallback: true},
 		},
 	}

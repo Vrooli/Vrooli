@@ -1,0 +1,590 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.switchboard.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.switchboard.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Machine-readable capability status endpoint.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_list",
+      "path": "/api/v1/channels",
+      "method": "GET",
+      "summary": "List channel availability",
+      "description": "Lists descriptor-backed channels ordered by setup friction.",
+      "category": "channels",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_start_thread",
+      "path": "/api/v1/channels/in-app/threads",
+      "method": "POST",
+      "summary": "Start an in-app conversation",
+      "description": "Opens a new in-app thread with one agent: creates the binding and the durable thread, and returns the thread key the console connects with.",
+      "category": "channels",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_socket",
+      "path": "/api/v1/channels/socket",
+      "method": "GET",
+      "summary": "Connect an in-app conversation",
+      "description": "Connects an in-app conversation over the registered WebSocket adapter.",
+      "category": "channels",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Bidirectional JSON WebSocket transport; messages use the normalized channel envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_rpc_list",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/ListChannels",
+      "method": "POST",
+      "summary": "List channels",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_get",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/GetChannel",
+      "method": "POST",
+      "summary": "Get channel",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_bindings",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/ListBindings",
+      "method": "POST",
+      "summary": "List bindings",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_create_binding",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/CreateBinding",
+      "method": "POST",
+      "summary": "Create binding",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_send_message",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/SendMessage",
+      "method": "POST",
+      "summary": "Send a message through a registered channel adapter",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "gates_create",
+      "path": "/api/v1/gates",
+      "method": "POST",
+      "summary": "Raise a capability gate",
+      "description": "Creates an owner-only, expiring capability approval request.",
+      "category": "gates",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "gates_get",
+      "path": "/api/v1/gates/{id}",
+      "method": "GET",
+      "summary": "Read a capability gate",
+      "description": "",
+      "category": "gates",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "gates_answer",
+      "path": "/api/v1/gates/{id}/answer",
+      "method": "POST",
+      "summary": "Answer a capability gate",
+      "description": "Answers a pending gate with owner authorization enforced by the gate store.",
+      "category": "gates",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_overview",
+      "path": "/api/v1/overview",
+      "method": "GET",
+      "summary": "Operator overview",
+      "description": "Pending gates, recent refusals, channel health, and threads under budget pressure.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_threads_list",
+      "path": "/api/v1/threads",
+      "method": "GET",
+      "summary": "List threads",
+      "description": "Every thread across every channel, newest activity first.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_threads_get",
+      "path": "/api/v1/threads/{id}",
+      "method": "GET",
+      "summary": "Read a thread",
+      "description": "Thread, transcript, roster, gates, and run link.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_contacts_list",
+      "path": "/api/v1/contacts",
+      "method": "GET",
+      "summary": "List contacts",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_contacts_get",
+      "path": "/api/v1/contacts/{id}",
+      "method": "GET",
+      "summary": "Read a contact and its rooms",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_contacts_update",
+      "path": "/api/v1/contacts/{id}",
+      "method": "PUT",
+      "summary": "Change a contact's tier or name",
+      "description": "Owner-authenticated. Reports every room whose ceiling moved.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_list",
+      "path": "/api/v1/agents",
+      "method": "GET",
+      "summary": "Agent roster by reference",
+      "description": "Profiles from prompt-manager joined with bindings, grants, and activity.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_create",
+      "path": "/api/v1/agents",
+      "method": "POST",
+      "summary": "Confirm an agent draft",
+      "description": "Owner-authenticated. Writes the profile through prompt-manager's typed create.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_draft",
+      "path": "/api/v1/agents/draft",
+      "method": "POST",
+      "summary": "Draft an agent",
+      "description": "Typed draft from a description; nothing is written.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_get",
+      "path": "/api/v1/agents/{id}",
+      "method": "GET",
+      "summary": "Read one agent with its activity log",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_gates_list",
+      "path": "/api/v1/gates",
+      "method": "GET",
+      "summary": "List capability gates",
+      "description": "Filter with ?status=pending and ?thread_id=.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_session_login",
+      "path": "/api/v1/session/login",
+      "method": "POST",
+      "summary": "Owner sign-in facade",
+      "description": "Forwards to scenario-authenticator and relays the issued owner token.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_session",
+      "path": "/api/v1/session",
+      "method": "GET",
+      "summary": "Current owner session",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -17,6 +17,8 @@ type ApprovedChangeFile struct {
 	SandboxOwner      string `json:"sandboxOwner,omitempty"`
 	ChangeType        string `json:"changeType,omitempty"`
 	AgentManagerRunID string `json:"agentManagerRunId,omitempty"`
+	ContentDigest     string `json:"contentDigest,omitempty"`
+	EvidenceRevision  string `json:"evidenceRevision,omitempty"`
 }
 
 // ApprovedChangesPreviewRequest requests a commit preview for a subset of files.
@@ -46,4 +48,34 @@ type ProvenanceFile struct {
 	RelativePath string `json:"relativePath"`
 	ChangeType   string `json:"changeType"`
 	AppliedAt    string `json:"appliedAt"`
+	Visibility   string `json:"visibility,omitempty"`
+	ContentDigest string `json:"contentDigest,omitempty"`
+	EvidenceRevision string `json:"evidenceRevision,omitempty"`
+}
+
+// ProvenanceSearchRequest is the bounded, read-only query accepted by the
+// shared provenance corpus. RepoID is explicit so a federated caller cannot
+// accidentally search whichever repository a UI session currently selected.
+type ProvenanceSearchRequest struct {
+	Query  string `json:"query"`
+	RepoID int64  `json:"repoId"`
+	Limit  int    `json:"limit"`
+	Scope  string `json:"scope,omitempty"`
+}
+
+type ProvenanceSearchResponse struct {
+	Available bool                  `json:"available"`
+	Results   []ProvenanceSearchHit `json:"results"`
+	Warning   string                `json:"warning,omitempty"`
+}
+
+type ProvenanceSearchHit struct {
+	ID               string  `json:"id"`
+	Title            string  `json:"title"`
+	Snippet          string  `json:"snippet"`
+	Score            float64 `json:"score"`
+	RunID            string  `json:"runId"`
+	SandboxID        string  `json:"sandboxId"`
+	RelativePath     string  `json:"relativePath"`
+	EvidenceStanding string  `json:"evidenceStanding"`
 }

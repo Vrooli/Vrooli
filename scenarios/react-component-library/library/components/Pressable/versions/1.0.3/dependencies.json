@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 2,
+  "libraryId": "react-component-library:Pressable",
+  "version": "1.0.3",
+  "resolvedAt": "2026-09-02T07:03:55.053Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ControlBase",
+      "major": 1,
+      "observed": "1.1.2",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "major": 1,
+      "observed": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

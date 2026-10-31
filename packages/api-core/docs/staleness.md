@@ -131,6 +131,7 @@ The staleness checker parses `go.mod` to find local dependencies:
 module my-scenario/api
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 replace github.com/vrooli/proto => ../../../packages/proto
 ```
 
@@ -139,7 +140,7 @@ For each local dependency, the following are checked:
 - `go.mod` (dependency changes)
 - `go.sum` (dependency version updates)
 
-Both `packages/api-core` and `packages/proto` are checked for modifications.
+Both `packages/api-core`, `packages/repo-contract-go`, and `packages/proto` are checked for modifications.
 
 ### Parsing Logic
 

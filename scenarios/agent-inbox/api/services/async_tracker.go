@@ -114,8 +114,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-
-	toolspb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-inbox/v1/domain"
 )
 
 // RecoverOperations loads active operations from the database and resumes polling.
@@ -144,7 +142,7 @@ func (s *AsyncTrackerService) RecoverOperations(ctx context.Context) error {
 
 	for _, record := range records {
 		// Reconstruct the AsyncOperation from the record
-		var asyncBehavior toolspb.AsyncBehavior
+		var asyncBehavior AsyncBehavior
 		if err := json.Unmarshal(record.AsyncBehavior, &asyncBehavior); err != nil {
 			log.Printf("[WARN] Failed to unmarshal async behavior for %s: %v", record.ToolCallID, err)
 			continue

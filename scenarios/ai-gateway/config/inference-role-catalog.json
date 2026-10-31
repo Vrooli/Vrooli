@@ -1,0 +1,484 @@
+{
+  "schema_version": 1,
+  "roles": {
+    "embedding.default": {
+      "description": "Deterministic text embeddings resolved through the local embedding model role.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "embedding.default",
+          "model": "policy-resolved",
+          "reason": "The resource owns the embedding model and its declared vector dimension."
+        }
+      ]
+    },
+    "detect.pii.default": {
+      "description": "Detect personally-identifiable information in text and return typed spans. Served by the local pii-detector resource (deterministic regex/checksum pass merged with an NER model). Local-only: PII scanning must not leave the host.",
+      "timeout_ms": 45000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "pii-detector",
+          "resource_role": "pii.small",
+          "model": "policy-resolved",
+          "reason": "The pii-detector resource owns the tiered PII model policy (pii.small default -> pii.default -> pii.large) and always runs the deterministic regex/checksum pass."
+        }
+      ]
+    },
+    "decide.fast": {
+      "description": "Typed choice/score/noul decisions from non-generative decision models: local Laya first, hosted Jev and Clef when their credentials are provisioned, and the classify.fast enum path for choice-only question sets.",
+      "kind": "decision",
+      "timeout_ms": 30000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "model": "policy-resolved",
+          "reason": "Local Laya answers in milliseconds on the GPU and keeps the state on the host."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.edenai",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev through Eden AI; skipped until vrooli/edenai is provisioned."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.typesafe",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev direct; skipped until vrooli/typesafe is provisioned."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.clef.cloudflare",
+          "model": "policy-resolved",
+          "reason": "Hosted Cloudflare Clef-flash; skipped until vrooli/cloudflare-workers-ai is provisioned."
+        },
+        {
+          "provider": "ai-gateway",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Last resort for choice-only questions: the enum-constrained LLM path, which returns labels without calibrated probabilities."
+        }
+      ]
+    },
+    "decide.accurate": {
+      "description": "Decisions that favour accuracy over latency: local Winnow-E4B when pulled, then hosted Jev and Clef, then local Laya, then the classify.fast enum path for choice-only question sets.",
+      "kind": "decision",
+      "timeout_ms": 120000,
+      "candidates": [
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local.accurate",
+          "model": "policy-resolved",
+          "reason": "Winnow-E4B is the most accurate open decision model; skipped until it is pulled (8 GB, ~9 GB VRAM for GPU)."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.edenai",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev through Eden AI."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.jev.typesafe",
+          "model": "policy-resolved",
+          "reason": "Hosted TypeSafe Jev direct."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.clef.cloudflare",
+          "model": "policy-resolved",
+          "reason": "Hosted Cloudflare Clef-flash."
+        },
+        {
+          "provider": "ollaya",
+          "resource_role": "decide.local",
+          "model": "policy-resolved",
+          "reason": "Local Laya keeps decisions available when no accurate candidate can serve."
+        },
+        {
+          "provider": "ai-gateway",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Last resort for choice-only questions through the enum-constrained LLM path."
+        }
+      ]
+    },
+    "classify.fast": {
+      "description": "Low-cost enum classification with a grammar-friendly local first candidate.",
+      "timeout_ms": 45000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "classify.routing",
+          "model": "qwen3.5:4b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Small local classification role; the enum grammar carries most of the constraint."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "classify.routing",
+          "model": "policy-resolved",
+          "reason": "Hosted classification fallback when the local resource is unavailable."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "classify.routing",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter classification fallback when the local resource is unavailable and OpenRouter is not preferred."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "classify.fast",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "extract.structured": {
+      "description": "Schema-constrained extraction with a mid-size local first candidate.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "chat.default",
+          "model": "qwen3.5:9b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Mid-size local generation role; the gateway validates every returned value locally."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback for schemas the local resource cannot reliably produce."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter structured-output fallback."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered structured-output fallback."
+        }
+      ]
+    },
+    "device.geometry.byok": {
+      "description": "Explicit BYOK-only provider route for Device Studio geometry construction; no candidate fallback.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "The caller explicitly selected its owner-managed OpenRouter credential."
+        }
+      ]
+    },
+    "device.geometry.vrooli_credits": {
+      "description": "Explicit Vrooli-credits-only provider route for Device Studio geometry construction; no candidate fallback.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "The caller explicitly selected LPBS metered inference and credit accounting."
+        }
+      ]
+    },
+    "judge.default": {
+      "description": "Deterministic rubric evaluation with a local-first candidate and hosted fallback.",
+      "timeout_ms": 120000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "classify.routing",
+          "model": "qwen3.5:4b",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local judge keeps rubric decisions available without a network dependency."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback when the local judge is unavailable."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter structured-output judge fallback."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "judge.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered judge fallback."
+        }
+      ]
+    },
+    "locate.visual": {
+      "description": "Visual grounding that returns canonical target bounds and confidence without exposing provider coordinates.",
+      "timeout_ms": 90000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Local-first grounding keeps captured frames on the device and uses the measured vision model ladder."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Hosted multimodal grounding fallback for hosts without an available local vision rung."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter visual grounding fallback."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "vision.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered visual grounding fallback."
+        }
+      ]
+    },
+    "device-control.plan": {
+      "description": "Bounded device-control planning over a typed capability and state world model; returns one declared step or a goal-complete verdict.",
+      "timeout_ms": 90000,
+      "sampling": {
+        "temperature": 0.0,
+        "overridable": false
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Local structured inference keeps device state and action planning on the control host."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted structured-output fallback when the local planning resource is unavailable."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter structured planning fallback."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "extract.structured",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed structured planning fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "write.default": {
+      "description": "Natural-prose generation: marketing copy, blog and technical writing, and creative drafts. Local-first, because BYOK local writing is the intended edge; a caller who needs frontier prose quality sets profile REMOTE_ONLY rather than the catalog reordering for everyone.",
+      "timeout_ms": 240000,
+      "sampling": {
+        "temperature": 0.9,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local prose keeps drafts on the host and is the BYOK path a self-hoster gets with no credential."
+        },
+        {
+          "provider": "openrouter",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Hosted fallback where prose quality is the binding constraint; the model stays a resource policy decision."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter prose fallback."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
+        }
+      ]
+    },
+    "write.diverse": {
+      "description": "Diversity-controlled prose generation: one request returns k candidate drafts with verbalized hints. Hosted-first, inverting write.default, because diversity gains are emergent with model capability \u2014 a small local rung would underperform on the technique this role exists to serve. Candidate count is carried by instruction; the schema subset cannot enforce it.",
+      "timeout_ms": 300000,
+      "sampling": {
+        "temperature": 1.0,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "write.diverse",
+          "model": "policy-resolved",
+          "reason": "A k-candidate response is neither short nor cheap, and diversity gain scales with model capability; this is the rung the technique is designed for."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter diversity fallback at a different gateway."
+        },
+        {
+          "provider": "lpbs",
+          "resource_role": "write.diverse",
+          "model": "policy-resolved",
+          "reason": "Subscription-backed metered fallback, ordered ahead of the local rung because capability matters more than locality for this role specifically."
+        },
+        {
+          "provider": "ollama",
+          "resource_role": "write.default",
+          "model": "policy-resolved",
+          "minimum_quantization": "Q4_K_M",
+          "reason": "Local last resort so a host with no credential still gets candidates rather than a failure. Expect measurably lower diversity here; the role's own description says so."
+        }
+      ]
+    },
+    "author.generator": {
+      "description": "Long-form code authoring: a parameterized generator program returned as source, validated by the caller before it is ever run. Hosted-first, because the local candidate is sized for short answers and a generator is neither short nor schema-constrained.",
+      "timeout_ms": 300000,
+      "sampling": {
+        "temperature": 0.2,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "openrouter",
+          "resource_role": "code.default",
+          "model": "policy-resolved",
+          "reason": "A generator is a program: it must stay internally consistent across a few hundred lines. code.default is the provider's exposed code-authoring role, so the concrete model stays a policy decision rather than a slug in a runtime surface."
+        },
+        {
+          "provider": "orcarouter",
+          "resource_role": "code.default",
+          "model": "policy-resolved",
+          "reason": "Hosted OrcaRouter code-authoring fallback."
+        },
+        {
+          "provider": "ollama",
+          "resource_role": "code.local",
+          "model": "policy-resolved",
+          "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at two sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."
+        }
+      ]
+    },
+    "chat.uncensored": {
+      "description": "Explicit-only unrestricted local chat backed by an abliterated model. Callers must name this role deliberately; it is never a default or fallback target, and it has no hosted candidate.",
+      "timeout_ms": 240000,
+      "sampling": {
+        "temperature": 0.7,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "ollama",
+          "resource_role": "chat.uncensored",
+          "model": "policy-resolved",
+          "reason": "Local-only by design: unrestricted generation stays on the host and is reachable only through explicit role selection."
+        }
+      ]
+    },
+    "research.unrestricted": {
+      "description": "Explicit-only hosted unrestricted research chat. Callers must name this role deliberately; it is never a default or fallback target.",
+      "timeout_ms": 240000,
+      "sampling": {
+        "temperature": 0.7,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "abliteration",
+          "resource_role": "research.unrestricted.default",
+          "model": "policy-resolved",
+          "reason": "Abliteration.ai is an explicit research/red-team provider, never a fleet default. Selecting this role is the authorization signal; the credential still gates the call."
+        }
+      ]
+    },
+    "research.unrestricted.flash": {
+      "description": "Explicit-only hosted unrestricted research chat with image input and 1M context, served by abliterated-model-large-flash.",
+      "timeout_ms": 240000,
+      "sampling": {
+        "temperature": 0.7,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "abliteration",
+          "resource_role": "research.unrestricted.flash",
+          "model": "policy-resolved",
+          "reason": "Explicit research/red-team route. Never selected unless the caller names this role."
+        }
+      ]
+    },
+    "research.unrestricted.large": {
+      "description": "Explicit-only hosted unrestricted research chat for harder cyber and reasoning work, served by abliterated-model-large-v2. Text only.",
+      "timeout_ms": 240000,
+      "sampling": {
+        "temperature": 0.7,
+        "overridable": true
+      },
+      "candidates": [
+        {
+          "provider": "abliteration",
+          "resource_role": "research.unrestricted.large",
+          "model": "policy-resolved",
+          "reason": "Explicit research/red-team route. Never selected unless the caller names this role."
+        }
+      ]
+    }
+  }
+}

@@ -3,7 +3,7 @@
  * ANSI escape sequences for rendering colored status messages
  * inside xterm.js terminal instances.
  *
- * Used by useTerminalSocket to display connection/error/exit messages
+ * Used by useTerminalSession to display connection/error/exit messages
  * inline in the terminal. Extracted here so any future terminal-rendering
  * code can reuse the same palette without duplication.
  */

@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"workspace-sandbox/internal/types"
+
+	"github.com/google/uuid"
 )
 
 // [REQ:P0-002] Stable Sandbox Identifier - UUID format validation

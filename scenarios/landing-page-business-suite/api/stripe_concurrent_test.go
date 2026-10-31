@@ -22,7 +22,6 @@ import (
 // webhook processing and user-initiated cancellation.
 func TestConcurrent_WebhookVsUserCancel(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -88,7 +87,8 @@ func TestConcurrent_WebhookVsUserCancel(t *testing.T) {
 	}))
 	defer stripeServer.Close()
 
-	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), stripeServer)
+	cfg := DefaultStripeTestConfig()
+	service := ConfigureStripeService(t, db, cfg, stripeServer)
 
 	const numGoroutines = 5
 	var wg sync.WaitGroup
@@ -117,7 +117,7 @@ func TestConcurrent_WebhookVsUserCancel(t *testing.T) {
 			payload, _ := json.Marshal(event)
 			timestamp := fmt.Sprintf("%d", time.Now().Unix())
 			signedPayload := timestamp + "." + string(payload)
-			mac := hmac.New(sha256.New, []byte("whsec_test_default"))
+			mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
 			mac.Write([]byte(signedPayload))
 			signature := hex.EncodeToString(mac.Sum(nil))
 			signatureHeader := "t=" + timestamp + ",v1=" + signature
@@ -159,7 +159,6 @@ func TestConcurrent_WebhookVsUserCancel(t *testing.T) {
 // webhook events for the same subscription don't create duplicate rows.
 func TestConcurrent_MultipleWebhooksSameSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -212,7 +211,8 @@ func TestConcurrent_MultipleWebhooksSameSubscription(t *testing.T) {
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1000000, 0.001, "credits")
 	insertBundlePrice(t, db, productID, "price_multi", "Multi Plan", "pro", "month", "usd", 5000, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), nil)
+	cfg := DefaultStripeTestConfig()
+	service := ConfigureStripeService(t, db, cfg, nil)
 
 	const numGoroutines = 10
 	var wg sync.WaitGroup
@@ -256,7 +256,7 @@ func TestConcurrent_MultipleWebhooksSameSubscription(t *testing.T) {
 			payload, _ := json.Marshal(event)
 			timestamp := fmt.Sprintf("%d", time.Now().Unix())
 			signedPayload := timestamp + "." + string(payload)
-			mac := hmac.New(sha256.New, []byte("whsec_test_default"))
+			mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
 			mac.Write([]byte(signedPayload))
 			signature := hex.EncodeToString(mac.Sum(nil))
 			signatureHeader := "t=" + timestamp + ",v1=" + signature
@@ -297,7 +297,6 @@ func TestConcurrent_MultipleWebhooksSameSubscription(t *testing.T) {
 // TestConcurrent_CreditsAndSubscription verifies concurrent credit and subscription operations.
 func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	// Create required tables
@@ -353,7 +352,8 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_test", "production", 1000000, 0.001, "credits")
 	insertBundlePrice(t, db, productID, "price_sub", "Sub Plan", "pro", "month", "usd", 5000, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), nil)
+	cfg := DefaultStripeTestConfig()
+	service := ConfigureStripeService(t, db, cfg, nil)
 
 	const numCreditsOps = 5
 	const numSubOps = 5
@@ -370,7 +370,7 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 			defer wg.Done()
 
 			eventID := fmt.Sprintf("evt_credit_%d", i)
-			err := service.addCredits(email, 100, "credit_topup", eventID, map[string]interface{}{
+			err := service.creditWallet.AddCredits(email, 100, "credit_topup", eventID, map[string]interface{}{
 				"test": true,
 			})
 			if err != nil {
@@ -410,7 +410,7 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 			payload, _ := json.Marshal(event)
 			timestamp := fmt.Sprintf("%d", time.Now().Unix())
 			signedPayload := timestamp + "." + string(payload)
-			mac := hmac.New(sha256.New, []byte("whsec_test_default"))
+			mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
 			mac.Write([]byte(signedPayload))
 			signature := hex.EncodeToString(mac.Sum(nil))
 			signatureHeader := "t=" + timestamp + ",v1=" + signature
@@ -450,7 +450,6 @@ func TestConcurrent_CreditsAndSubscription(t *testing.T) {
 // concurrently for the same customer.
 func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	_, err := db.Exec(`
@@ -459,7 +458,7 @@ func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
@@ -528,7 +527,8 @@ func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_conc_email", "production", 1000000, 0.001, "credits")
 	insertBundlePrice(t, db, productID, "price_conc_email", "Pro Plan", "pro", "month", "usd", 2900, false, "", 0, 0, "", 1000000, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{})
 
-	service := ConfigureStripeService(t, db, DefaultStripeTestConfig(), nil)
+	cfg := DefaultStripeTestConfig()
+	service := ConfigureStripeService(t, db, cfg, nil)
 
 	const numRounds = 5
 	var wg sync.WaitGroup
@@ -586,7 +586,7 @@ func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 			payload, _ := json.Marshal(event)
 			timestamp := fmt.Sprintf("%d", time.Now().Unix())
 			signedPayload := timestamp + "." + string(payload)
-			mac := hmac.New(sha256.New, []byte("whsec_test_default"))
+			mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
 			mac.Write([]byte(signedPayload))
 			signature := hex.EncodeToString(mac.Sum(nil))
 			signatureHeader := "t=" + timestamp + ",v1=" + signature
@@ -620,7 +620,6 @@ func TestConcurrent_EmailMigration_DuringPaymentWebhook(t *testing.T) {
 // is processing concurrent authorization requests.
 func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 	db := setupTestDB(t)
-	defer db.Close()
 	resetStripeTestData(t, db)
 
 	_, err := db.Exec(`
@@ -629,7 +628,7 @@ func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 		DROP TABLE IF EXISTS credit_wallets CASCADE;
 		DROP TABLE IF EXISTS subscriptions CASCADE;
 		DROP TABLE IF EXISTS users CASCADE;
-
+ 
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			email VARCHAR(255) UNIQUE NOT NULL,
@@ -675,6 +674,7 @@ func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 			metadata JSONB DEFAULT '{}'::jsonb,
 			display_order INTEGER DEFAULT 0,
 			update_api_key TEXT,
+			update_policy JSONB NOT NULL DEFAULT '{"check_interval_hours":4,"update_mode":"optional","allow_downgrade":false}'::jsonb,
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE(bundle_key, app_key)
@@ -725,7 +725,7 @@ func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 
 	service := ConfigureStripeServiceSimple(t, db)
 	accountSvc := NewAccountService(db, service.planService)
-	downloadSvc := &DownloadService{db: db}
+	downloadSvc := NewDownloadService(db)
 	authorizer := NewDownloadAuthorizer(downloadSvc, accountSvc, "business_suite")
 
 	const numGoroutines = 10
@@ -741,7 +741,7 @@ func TestConcurrent_SubscriptionStatusChange_DuringDownloadAuth(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			<-startCh
-			_, err := authorizer.Authorize("test-app", "windows", email)
+			_, err := authorizer.Authorize(testRequestContext, "test-app", "windows", email)
 			if err == nil {
 				atomic.AddInt64(&authAllowed, 1)
 			} else {

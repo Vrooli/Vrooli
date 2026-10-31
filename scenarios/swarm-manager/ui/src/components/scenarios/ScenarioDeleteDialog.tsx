@@ -11,6 +11,8 @@ import type { SpecSyncPhase } from "../../hooks/useScenarioDetailData";
 
 interface ScenarioDeleteDialogProps {
   isOpen: boolean;
+  /** When true (strong level), the user must type the scenario name to confirm. */
+  requireNameConfirmation: boolean;
   scenarioDisplayName: string;
   scenarioName: string | undefined;
   isDeleteLoading: boolean;
@@ -48,6 +50,7 @@ interface ScenarioDeleteDialogProps {
 
 export function ScenarioDeleteDialog({
   isOpen,
+  requireNameConfirmation,
   scenarioDisplayName,
   scenarioName,
   isDeleteLoading,
@@ -87,7 +90,7 @@ export function ScenarioDeleteDialog({
         onConfirm={onConfirm}
         title="Delete Scenario"
         description={`Are you sure you want to delete "${scenarioDisplayName}"? This will remove the scenario from the catalog.`}
-        confirmationText={scenarioName}
+        confirmationText={requireNameConfirmation ? scenarioName : undefined}
         confirmLabel={specSyncEnabled && archiveOnDelete ? "Sync & Archive" : "Delete Scenario"}
         isLoading={isDeleteLoading || isSpecSyncInProgress}
         checkboxContent={{
@@ -247,6 +250,7 @@ export function ScenarioDeleteDialog({
           dialog: selectors.scenarioDetails.deleteDialog,
           confirmButton: selectors.scenarioDetails.deleteConfirmButton,
           cancelButton: selectors.scenarioDetails.deleteCancelButton,
+          copyButton: selectors.scenarioDetails.deleteCopyButton,
         }}
       />
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "merge-duplicate-catalog-records",
+    "title": "Merge duplicate catalog records",
+    "purpose": "Repair two same-kind catalog rows only after the operator can inspect the survivor, duplicate, moved references, collapsed edges, and audit consequence.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "steps": [
+    {"page": "offers", "state": "merge-duplicate", "intent": "Choose the explicit surviving and duplicate records", "via": "offer-merge-form"},
+    {"page": "offers", "state": "merge-duplicate", "intent": "Review every reference count and collapsed edge before applying", "via": "offer-merge-summary"},
+    {"page": "offers", "state": "merge-duplicate", "intent": "Confirm the audited merge or cancel without mutation", "via": "offer-merge-form"}
+  ]
+}

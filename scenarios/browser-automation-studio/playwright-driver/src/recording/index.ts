@@ -19,7 +19,6 @@
  * │     └─ decisions.ts             - Named decision functions              │
  * │   io/                - Data flow and context setup                      │
  * │     └─ context-initializer.ts   - Context-level setup coordinator       │
- * │     └─ html-injector.ts         - HTML injection route                  │
  * │     └─ event-route.ts           - Page event interception               │
  * │     └─ buffer.ts                - In-memory entry storage               │
  * │   validation/        - Selectors, replay, verification                  │
@@ -27,8 +26,7 @@
  * │     └─ selector-config.ts       - Selector scoring config               │
  * │     └─ replay-service.ts        - Replay preview service                │
  * │     └─ verification.ts          - Script injection verification         │
- * │   testing/           - Diagnostics and self-testing                     │
- * │     └─ self-test.ts             - Automated pipeline testing            │
+ * │   testing/           - Recording diagnostics and verification            │
  * │     └─ diagnostics.ts           - Comprehensive diagnostics             │
  * │                                                                         │
  * │ ROOT FILES (shared utilities):                                          │
@@ -39,7 +37,7 @@
  * │                                                                         │
  * │ ADDING A NEW ACTION TYPE (e.g., 'drag'):                                │
  * │   1. packages/proto/schemas/.../action.proto - Add to ActionType enum   │
- * │   2. ../proto/action-type-utils.ts - Add string ↔ enum mappings         │
+ * │   2. ./action-types.ts - Add required browser event aliases         │
  * │   3. ../handlers/*.ts - Implement handler (preferred)                   │
  * │      OR action-executor.ts - Add executor (if handler not suitable)     │
  * │                                                                         │
@@ -54,8 +52,8 @@
  * Context Setup (once per context)        Recording Sessions (per session)
  * ┌─────────────────────────────────┐     ┌─────────────────────────────────┐
  * │  RecordingContextInitializer    │     │  RecordingPipelineManager       │
- * │  ├─ io/html-injector.ts         │     │  ├─ orchestration/state-machine │
- * │  │   └─ Inject script into HTML │     │  ├─ startRecording()/stop()     │
+ * │  ├─ addInitScript()             │     │  ├─ orchestration/state-machine │
+ * │  │   └─ Inject into main world  │     │  ├─ startRecording()/stop()     │
  * │  └─ io/event-route.ts           │     │  ├─ handleRawEvent()            │
  * │      └─ Page event interception │     │  │   └─ rawBrowserEventTo...()  │
  * └─────────────────────────────────┘     │  └─ verifyPipeline()            │
@@ -172,8 +170,8 @@ export type {
 // =============================================================================
 // ACTION TYPES UTILITIES
 // =============================================================================
-// NOTE: Action type utilities have been consolidated in proto/action-type-utils.ts
-// Import from '../proto/action-type-utils' for: ACTION_TYPE_MAP, SELECTOR_OPTIONAL_ACTIONS,
+// NOTE: Shared action-type compatibility helpers are owned by recording/action-types.ts
+// Import from './action-types' for: ACTION_TYPE_MAP, SELECTOR_OPTIONAL_ACTIONS,
 // normalizeToProtoActionType, actionTypeToString, stringToActionType, etc.
 
 // Recording-specific function (not in proto module)
@@ -192,7 +190,7 @@ export * from './validation/selector-service';
 
 // Context-level setup for recording (binding + init script)
 // The coordinator imports from specialized modules:
-//   - io/html-injector.ts - HTML injection into document responses
+//   - init-script injection into each new document
 //   - io/event-route.ts - Page-level event route setup
 export {
   RecordingContextInitializer,
@@ -221,23 +219,10 @@ export type { EventRouteManager } from './io/event-route';
 // =============================================================================
 
 export {
-  createInjectionStrategy,
-  createInjectionStrategyByName,
-  getStrategyFromEnv,
   isDiagnosticsEnabled as isInjectionDiagnosticsEnabled,
-  selectStrategyForProvider,
-  InjectionStrategyFactory,
+  INJECTION_DIAGNOSTICS_ENV_VAR,
   InitScriptInjectionStrategy,
-  CDPInjectionStrategy,
-  /** @deprecated Use InitScriptInjectionStrategy instead. RouteInjectionStrategy only works with standard Playwright. */
-  RouteInjectionStrategy,
   createInitScriptInjectionStrategy,
-  createCDPInjectionStrategy,
-  /** @deprecated Use createInitScriptInjectionStrategy instead. */
-  createRouteInjectionStrategy,
-  InjectionAutoDetector,
-  createInjectionAutoDetector,
-  detectWorkingStrategy,
   createInitialStats as createInjectionStrategyStats,
 } from './injection';
 
@@ -246,9 +231,6 @@ export type {
   InjectionStrategyName,
   InjectionResult as InjectionStrategyResult,
   InjectionStrategyOptions,
-  InjectionStrategyFactoryOptions,
-  AutoDetectorOptions,
-  AutoDetectionResult,
 } from './injection';
 
 // Init script generation for context.addInitScript()
@@ -281,10 +263,11 @@ export type {
 
 export {
   initRecordingBuffer,
+  assertRecordingAcknowledged,
+  acknowledgeTimelineEntries,
   bufferTimelineEntry,
   getTimelineEntries,
   getTimelineEntryCount,
-  clearTimelineEntries,
   removeRecordingBuffer,
   isEntryBuffered,
   getBufferStats,
@@ -344,20 +327,13 @@ export type {
 } from './validation/verification';
 
 // =============================================================================
-// SELF-TEST (Automated Pipeline Testing)
+// External URL injection verification
 // =============================================================================
 
 export {
-  runRecordingPipelineTest,
   runExternalUrlInjectionTest,
-  TEST_PAGE_HTML,
-  DEFAULT_TEST_URL,
-} from './testing/self-test';
+} from './testing/external-url-injection-test';
 
 export type {
-  PipelineTestResult,
-  PipelineFailurePoint,
-  PipelineStepResult,
-  PipelineTestDiagnostics,
   ExternalUrlTestResult,
-} from './testing/self-test';
+} from './testing/external-url-injection-test';

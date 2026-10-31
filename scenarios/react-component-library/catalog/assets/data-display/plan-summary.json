@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {"variants": {}, "modes": [], "parts": []},
+  "asset": {
+    "id": "data-display.plan-summary",
+    "name": "PlanSummary",
+    "kind": "component",
+    "surface": "raised",
+    "domain": "data-display",
+    "description": "An accept-or-adjust summary card for a proposed action, with direct and implied facts distinguished in form and text.",
+    "targets": ["react-vite"],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {"priority": "P1", "maturity": "verified"}
+  },
+  "dependencies": {
+    "requires": [
+      {"asset": "primitives.card", "reason": "The proposal is presented as one genuinely framed decision surface."},
+      {"asset": "hooks.use-locale", "reason": "User-facing copy resolves through the adopting host locale bridge."}
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": ["accessible-naming", "keyboard-operable", "content-reflow", "non-color-status"],
+  "requiredStates": ["default", "loading", "request-error"]
+}

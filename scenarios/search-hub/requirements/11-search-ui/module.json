@@ -1,0 +1,20 @@
+{
+  "module_id": "MOD-P1-011",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "description": "A direct search UI: query box, bucket/type facets, expand-search, per-result provenance + provider freshness, and loading/error/empty/degraded states. Built on the vrooli-default design kit (react-vite-tailwind adapter).",
+  "requirements": [
+    {
+      "id": "REQ-P1-016",
+      "title": "Faceted search page with provenance + freshness",
+      "prd_ref": "OT-P1-005",
+      "category": "ui",
+      "status": "in_progress",
+      "description": "The UI exposes a query box, bucket/type facets, an expand-search control, per-result provenance (provider + path/id), per-provider freshness/health, and clear loading/error/empty/degraded states.",
+      "validation": [
+        { "type": "test", "phase": "ui", "status": "pending", "notes": "Submitting a query renders grouped/ranked results with provenance; a degraded provider shows its warning." },
+        { "type": "test", "phase": "ui", "status": "pending", "notes": "Type facets and expand-search re-issue the query with the right parameters." }
+      ]
+    }
+  ]
+}

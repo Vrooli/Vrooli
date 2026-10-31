@@ -1,0 +1,19 @@
+{
+  "displayName": "Agent Manager",
+  "icon": "agent-manager",
+  "appDelivery": true,
+  "categories": [
+    { "key": "run-failed", "displayName": "Run failed", "description": "A coding-agent run ended in error.", "defaultEnabled": true, "defaultMinUrgency": "high" },
+    { "key": "run-completed", "displayName": "Run completed", "description": "A coding-agent run finished successfully.", "defaultEnabled": false, "defaultMinUrgency": "low" },
+    { "key": "usage-will-exhaust", "displayName": "Quota runs out early", "description": "A provider subscription window is projected to run out before it resets.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "usage-back-on-track", "displayName": "Quota back on track", "description": "An earlier runs-out warning no longer applies: the window is on track, idle, or has reset.", "defaultEnabled": true, "defaultMinUrgency": "low" },
+    { "key": "usage-at-risk", "displayName": "Quota may run out", "description": "Early heads-up when a window's projection straddles its reset.", "defaultEnabled": false, "defaultMinUrgency": "low" },
+    { "key": "usage-digest", "displayName": "Daily usage digest", "description": "Each morning at 8:00 local: up to 3 live windows, most urgent first, each with its top action.", "defaultEnabled": false, "defaultMinUrgency": "low" },
+    { "key": "usage-mode-ended", "displayName": "Usage mode ended", "description": "A usage mode ended. When its quota window is also back on track, this is the one message you get.", "defaultEnabled": true, "defaultMinUrgency": "low" },
+    { "key": "usage-mode-unreachable", "displayName": "Usage mode can't reach some work", "description": "Much of the usage since a mode started came from work it cannot change, such as desktop apps or tools started outside Vrooli.", "defaultEnabled": true, "defaultMinUrgency": "normal" },
+    { "key": "usage-mode-started", "displayName": "Usage mode started", "description": "A usage mode started somewhere other than from a tapped decision.", "defaultEnabled": false, "defaultMinUrgency": "low" },
+    { "key": "usage-mode-evidence", "displayName": "Usage mode evidence ready", "description": "A usage mode's evidence view has a result: a Learn comparison reached a verdict, or a save mode's model comparison did. Sent once per mode.", "defaultEnabled": false, "defaultMinUrgency": "low" },
+    { "key": "usage-mode-quality-drop", "displayName": "Usage mode quality drop", "description": "The operator\u0027s own failure and correction reports rose under a usage mode beyond chance (proven operator signal, local classifier, no message text). Off by default.", "defaultEnabled": false, "defaultMinUrgency": "normal" },
+    { "key": "authorization-requested", "displayName": "Authorization requested", "description": "An agent session is waiting for human consent in Agent Manager.", "defaultEnabled": true, "defaultMinUrgency": "normal" }
+  ]
+}

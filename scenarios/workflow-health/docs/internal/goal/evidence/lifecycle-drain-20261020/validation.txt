@@ -1,0 +1,27 @@
+Workflow Health provider fence validation
+Date: 2026-10-20
+
+Command: GOMAXPROCS=2 go test -p 1 ./handlers/validation -run 'TestLifecyclePrepareCancellationAfterCloseUsesBoundedRollbackContext|TestLifecycleDrainInventoriesRoutedTestPoolAndUsesRawRunIDForExecutorEvidence' -count=1 -v
+Exit: 0
+Output:
+=== RUN   TestLifecyclePrepareCancellationAfterCloseUsesBoundedRollbackContext
+--- PASS: TestLifecyclePrepareCancellationAfterCloseUsesBoundedRollbackContext (0.15s)
+=== RUN   TestLifecycleDrainInventoriesRoutedTestPoolAndUsesRawRunIDForExecutorEvidence
+--- PASS: TestLifecycleDrainInventoriesRoutedTestPoolAndUsesRawRunIDForExecutorEvidence (0.30s)
+PASS
+ok   workflow-health/handlers/validation 0.465s
+
+Command: GOMAXPROCS=2 go test -p 1 ./handlers/validation ./internal/validationrun ./internal/modules -count=1
+Exit: 0
+Output:
+ok   workflow-health/handlers/validation 1.103s
+ok   workflow-health/internal/validationrun 0.403s
+ok   workflow-health/internal/modules 0.080s
+
+Command: make endpoints
+Exit: 0
+Output: (no output)
+
+Command: git diff --check (scoped to changed Workflow Health API files)
+Exit: 0
+Output: (no output)

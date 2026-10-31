@@ -60,7 +60,7 @@ export function useSkillsState(): UseSkillsStateReturn {
       }
     }
 
-    loadSkills();
+    void loadSkills();
     return () => { mounted = false; };
   }, []);
 
