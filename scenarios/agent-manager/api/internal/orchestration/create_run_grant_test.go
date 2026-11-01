@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/repository"
@@ -33,6 +34,54 @@ type runCreatePairVerifier struct {
 	valid     bool
 }
 
+func TestBaselineRunCreateRespectsApprovalSettingAndScope(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	secret := []byte("test-secret-32-bytes-for-run-identity")
+	runID, taskID := uuid.New(), uuid.New()
+	claims := &identity.Claims{RunID: runID, TaskID: taskID, Subject: grantFixtureApprover,
+		Scopes: []string{"agent-manager:read", "agent-manager:write"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix()}
+	token, err := identity.GenerateToken(claims, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := &domain.Run{ID: runID, TaskID: taskID, Status: domain.RunStatusRunning, OwnerSubject: grantFixtureApprover}
+	store, err := config.NewOrchestrationSettingsStore(t.TempDir() + "/settings.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := &Orchestrator{clock: func() time.Time { return now }, identitySecret: secret,
+		runs: baselineRunRepository{runCreateGrantRunRepository: runCreateGrantRunRepository{run: parent}, tokenHash: identity.HashToken(token)}, orchestrationSettings: store}
+	call := func() (CreateRunRequest, error) {
+		request := CreateRunRequest{RunIdentityToken: token}
+		var callErr error
+		handler := provenance.Middleware(runCreateAgentIdentityVerifier{o: o})(authn.Middleware(authn.Config{})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			callErr = o.authenticateCreateRunCaller(r.Context(), &request)
+			if callErr == nil {
+				callErr = o.revalidateCreateRunCaller(r.Context(), request)
+			}
+		})))
+		r := httptest.NewRequest(http.MethodPost, "/api/v1/runs", nil)
+		r.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+		handler.ServeHTTP(httptest.NewRecorder(), r)
+		return request, callErr
+	}
+	request, err := call()
+	if err != nil || request.caller == nil || request.caller.Kind != "agent-baseline" || request.OwnerSubject != grantFixtureApprover {
+		t.Fatalf("baseline admission = %+v, %v", request.caller, err)
+	}
+	if !reflect.DeepEqual(request.OwnerScopes, claims.Scopes) {
+		t.Fatalf("scope ceiling = %v", request.OwnerScopes)
+	}
+	settings := store.Get()
+	settings.OperationApprovals.RunCreation = true
+	if err := store.Update(settings); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := call(); err == nil {
+		t.Fatal("enabled approval admitted an ungranted caller")
+	}
+}
+
 func (v *runCreatePairVerifier) Verify(token string) (*cliutil.VerifyResult, error) {
 	if token != grantFixtureBaselineToken {
 		return &cliutil.VerifyResult{Error: "invalid"}, nil
@@ -50,6 +99,18 @@ func (v *runCreatePairVerifier) VerifyPair(_ context.Context, baseline, operatio
 type runCreateGrantRunRepository struct {
 	repository.RunRepository
 	run *domain.Run
+}
+
+type baselineRunRepository struct {
+	runCreateGrantRunRepository
+	tokenHash string
+}
+
+func (r baselineRunRepository) GetByTokenHash(_ context.Context, hash string) (*domain.Run, error) {
+	if hash == r.tokenHash {
+		return r.run, nil
+	}
+	return nil, nil
 }
 
 type runCreateAuthorizationRepository struct {

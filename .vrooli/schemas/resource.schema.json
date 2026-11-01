@@ -14,6 +14,11 @@
     "bundling",
     "deployment"
   ],
+  "if": {
+    "required": ["execution"],
+    "properties": { "execution": { "required": ["runner_type"] } }
+  },
+  "then": { "required": ["harness"] },
   "properties": {
     "storage": {
       "$ref": "common.schema.json#/definitions/storageSurface",
@@ -63,6 +68,120 @@
         "rationale": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "description": "Identity and features of a coding-agent harness, read through packages/cli-core/agentcatalog/harness. Runs without a repository use its embedded snapshot, which its drift test keeps equal to these blocks.",
+      "additionalProperties": false,
+      "required": ["id", "binary", "display_name", "icon", "home_isolation", "features"],
+      "properties": {
+        "id": {
+          "description": "Launcher agent ID, as used by capability probes and Web Console.",
+          "$ref": "#/definitions/harnessName"
+        },
+        "aliases": {
+          "type": "array",
+          "description": "Other spellings a launch request may use. The resource name, id and binary always answer.",
+          "items": { "$ref": "#/definitions/harnessName" },
+          "uniqueItems": true
+        },
+        "binary": {
+          "description": "Executable name resolved on PATH, and the name its Vrooli shim is installed under.",
+          "$ref": "#/definitions/harnessName"
+        },
+        "display_name": { "type": "string", "minLength": 1 },
+        "icon": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Icon ID. The artwork stays in each UI."
+        },
+        "session_env": {
+          "type": "array",
+          "description": "Native environment variables carrying the harness's session ID.",
+          "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "uniqueItems": true
+        },
+        "home_isolation": {
+          "type": "object",
+          "description": "How a Web Console pane gets its own harness home.",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "enum": ["none", "env"] },
+            "env": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+            "shared_dir": { "type": "string", "pattern": "^[^/\\\\]+$", "description": "The operator's shared home, relative to the user's home directory." },
+            "state_dir": { "$ref": "#/definitions/harnessName" },
+            "sessions_env": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+            "layout": { "enum": ["allowlist", "mirror"] }
+          },
+          "if": { "properties": { "kind": { "const": "env" } } },
+          "then": { "required": ["env", "shared_dir", "state_dir", "layout"] }
+        },
+        "usage_windows": {
+          "type": "array",
+          "description": "Windows the provider is expected to report. They reserve card space only; a window appears while the provider reports it.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "minutes"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "minutes": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "features": {
+          "type": "object",
+          "description": "What this harness supports. An absent or false feature must not be offered.",
+          "additionalProperties": false,
+          "required": ["provider_selection", "resume", "goal_mode", "mcp", "hooks"],
+          "properties": {
+            "context_limit": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "key", "minimum"],
+              "properties": {
+                "kind": { "enum": ["env", "arg"] },
+                "key": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.-]*$", "description": "An environment variable name for env, a lowercase config key for arg." },
+                "minimum": { "type": "integer", "minimum": 0, "description": "The smallest limit the harness honours, in tokens." }
+              }
+            },
+            "context_window_source": {
+              "enum": ["claude-statusline", "codex-models-cache"],
+              "description": "Where this harness reports model context windows. Without one, every window is unknown."
+            },
+            "usage_mode": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["provider"],
+              "properties": {
+                "provider": { "type": "string", "minLength": 1, "description": "The quota provider a window-reset mode names." }
+              }
+            },
+            "model_selection": {
+              "type": "object",
+              "description": "The verified native launch argument for a model.",
+              "additionalProperties": false,
+              "required": ["flag", "sources"],
+              "properties": {
+                "flag": { "type": "string", "pattern": "^--?[a-z][a-z0-9-]*$" },
+                "sources": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": { "type": "string", "minLength": 1 },
+                  "uniqueItems": true
+                },
+                "prefix_source": { "type": "boolean" }
+              }
+            },
+            "provider_selection": { "type": "boolean" },
+            "resume": { "type": "boolean" },
+            "goal_mode": { "type": "boolean" },
+            "mcp": { "type": "boolean" },
+            "hooks": { "type": "boolean" }
+          }
         }
       }
     },
@@ -475,6 +594,11 @@
               }
             }
           }
+        },
+        "idle_probe": {
+          "type": "string",
+          "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\])(:[0-9]+)?/",
+          "description": "Optional loopback JSON probe with workload_active boolean. False records an unloaded supervisor as placement undetermined; actual GPU process evidence still wins."
         }
       },
       "additionalProperties": false,
@@ -486,9 +610,7 @@
           "if": {
             "properties": {
               "backends": {
-                "contains": {
-                  "enum": ["cuda", "metal", "rocm", "vulkan"]
-                }
+                "contains": { "enum": ["cuda", "metal", "rocm", "vulkan"] }
               }
             },
             "required": ["backends"]
@@ -526,9 +648,7 @@
                 }
               }
             },
-            "required": [
-              "backends"
-            ]
+            "required": ["backends"]
           },
           "then": {
             "required": [
@@ -545,9 +665,7 @@
                 }
               }
             },
-            "required": [
-              "backends"
-            ]
+            "required": ["backends"]
           },
           "then": {
             "required": [
@@ -564,9 +682,7 @@
                 }
               }
             },
-            "required": [
-              "backends"
-            ]
+            "required": ["backends"]
           },
           "then": {
             "required": [
@@ -583,9 +699,7 @@
                 }
               }
             },
-            "required": [
-              "backends"
-            ]
+            "required": ["backends"]
           },
           "then": {
             "required": [
@@ -602,9 +716,7 @@
                 }
               }
             },
-            "required": [
-              "backends"
-            ]
+            "required": ["backends"]
           },
           "then": {
             "required": [
@@ -963,7 +1075,14 @@
       "additionalProperties": false
     },
     "lifecycle": {
-      "type": "object"
+      "type": "object",
+      "properties": {
+        "exclusive_group": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "description": "Managed-private resources in this group serialize lifecycle mutations and refuse a second running member. This never authorizes stopping a peer."
+        }
+      }
     },
     "capabilities": {
       "type": "object"
@@ -1164,6 +1283,10 @@
     }
   },
   "definitions": {
+    "harnessName": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
     "agentHooks": {
       "type": "object",
       "required": ["document_scopes", "events"],
@@ -1194,10 +1317,26 @@
         "reason": {"type": "string"}
       },
       "additionalProperties": false,
-      "allOf": [{
-        "if": {"properties": {"verified_by": {"const": "canary"}}, "required": ["verified_by"]},
-        "then": {"required": ["verified_at", "injection_channel"]}
-      }]
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "verified_by": {
+                "const": "canary"
+              }
+            },
+            "required": [
+              "verified_by"
+            ]
+          },
+          "then": {
+            "required": [
+              "verified_at",
+              "injection_channel"
+            ]
+          }
+        }
+      ]
     },
     "deploymentProfile": {
       "type": "object",
@@ -1259,32 +1398,20 @@
         },
         "requires": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "limitations": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "fallbacks": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "evidence": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "reason": {
           "type": "string",
@@ -1487,6 +1614,7 @@
           "$ref": "acquisition.schema.json#",
           "description": "Declared source, verification, and host-fact selection contract for the managed-service artifact."
         },
+        "minimum_data_groups": {"type": "integer", "minimum": 0, "description": "Minimum complete on-demand data groups required before starting. Runtime-only installation can succeed without groups."},
         "data_artifacts": {
           "type": "array",
           "items": {
@@ -1497,6 +1625,9 @@
               "acquisition"
             ],
             "properties": {
+              "size_bytes": {"type": "integer", "minimum": 0, "description": "Expected file size for bounded presence preflight; acquisition still verifies SHA-256."},
+              "group": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$"},
+              "acquisition_mode": {"type": "string", "enum": ["eager", "on-demand"], "description": "On-demand groups are acquired only by an explicit control-plane data-group request; ordinary install/start skips them."},
               "name": {
                 "type": "string",
                 "minLength": 1
@@ -1704,10 +1835,7 @@
     "hostRequirement": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
+        "name": {"type": "string", "minLength": 1},
         "required": {
           "type": "boolean"
         },
@@ -1717,24 +1845,15 @@
         },
         "when": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "environments": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "platforms": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
+          "items": {"type": "string", "minLength": 1}
         },
         "notes": {
           "type": "string"
@@ -1814,14 +1933,14 @@
                   "label": {
                     "type": "string"
                   },
-                    "default_amount_bytes": {
-                      "type": "integer",
-                      "minimum": 0
+                  "default_amount_bytes": {
+                    "type": "integer",
+                    "minimum": 0
                   }
                 },
                 "required": [
                   "label",
-                    "default_amount_bytes"
+                  "default_amount_bytes"
                 ],
                 "additionalProperties": false
               }

@@ -356,49 +356,13 @@ func (h *AppHandler) CheckAppIframeBridge(c *gin.Context) {
 // GetAppScenarioStatus returns a snapshot of the scenario's orchestrator status.
 func (h *AppHandler) GetAppScenarioStatus(c *gin.Context) {
 	id := c.Param("id")
-
-	result, err := h.appService.GetAppScenarioStatus(c.Request.Context(), id)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrAppIdentifierRequired):
-			status = http.StatusBadRequest
-		case errors.Is(err, services.ErrAppNotFound):
-			status = http.StatusNotFound
-		}
-
-		c.JSON(status, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
+	HandleAppServiceCall(c, id, h.appService.GetAppScenarioStatus)
 }
 
 // CheckAppHealth executes health checks against the previewed app's API and UI endpoints.
 func (h *AppHandler) CheckAppHealth(c *gin.Context) {
 	id := c.Param("id")
-
-	result, err := h.appService.CheckAppHealth(c.Request.Context(), id)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrAppIdentifierRequired):
-			status = http.StatusBadRequest
-		case errors.Is(err, services.ErrAppNotFound):
-			status = http.StatusNotFound
-		}
-
-		c.JSON(status, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
+	HandleAppServiceCall(c, id, h.appService.CheckAppHealth)
 }
 
 // CheckAppLocalhostUsage scans scenario files for localhost references that bypass the proxy.
@@ -487,25 +451,7 @@ func (h *AppHandler) GetAppCompleteDiagnostics(c *gin.Context) {
 // GetAppDocuments lists all available documentation for an application
 func (h *AppHandler) GetAppDocuments(c *gin.Context) {
 	id := c.Param("id")
-
-	docsList, err := h.appService.ListAppDocuments(c.Request.Context(), id)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrAppIdentifierRequired):
-			status = http.StatusBadRequest
-		case errors.Is(err, services.ErrAppNotFound):
-			status = http.StatusNotFound
-		}
-
-		c.JSON(status, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    docsList,
-	})
+	HandleAppServiceCall(c, id, h.appService.ListAppDocuments)
 }
 
 // GetAppDocument retrieves a specific document for an application
@@ -552,48 +498,15 @@ func (h *AppHandler) SearchAppDocuments(c *gin.Context) {
 		return
 	}
 
-	results, err := h.appService.SearchAppDocuments(c.Request.Context(), id, query)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrAppIdentifierRequired):
-			status = http.StatusBadRequest
-		case errors.Is(err, services.ErrAppNotFound):
-			status = http.StatusNotFound
-		}
-
-		c.JSON(status, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    results,
+	HandleAppServiceCall(c, id, func(ctx context.Context, appID string) ([]services.AppDocumentMatch, error) {
+		return h.appService.SearchAppDocuments(ctx, appID, query)
 	})
 }
 
 // CheckAppInteropCompliance evaluates UI interop compliance for a scenario.
 func (h *AppHandler) CheckAppInteropCompliance(c *gin.Context) {
 	id := c.Param("id")
-
-	result, err := h.appService.CheckInteropCompliance(c.Request.Context(), id)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrAppIdentifierRequired):
-			status = http.StatusBadRequest
-		case errors.Is(err, services.ErrAppNotFound):
-			status = http.StatusNotFound
-		}
-
-		c.JSON(status, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
+	HandleAppServiceCall(c, id, h.appService.CheckInteropCompliance)
 }
 
 // NOTE: GetInteropStandards (the scenario-auditor quality endpoint) and
@@ -605,23 +518,5 @@ func (h *AppHandler) CheckAppInteropCompliance(c *gin.Context) {
 // GetAppCompleteness returns completeness score metrics for an application
 func (h *AppHandler) GetAppCompleteness(c *gin.Context) {
 	id := c.Param("id")
-
-	completeness, err := h.appService.GetAppCompleteness(c.Request.Context(), id)
-	if err != nil {
-		status := http.StatusInternalServerError
-		switch {
-		case errors.Is(err, services.ErrAppIdentifierRequired):
-			status = http.StatusBadRequest
-		case errors.Is(err, services.ErrAppNotFound):
-			status = http.StatusNotFound
-		}
-
-		c.JSON(status, errorResponse(err.Error()))
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    completeness,
-	})
+	HandleAppServiceCall(c, id, h.appService.GetAppCompleteness)
 }

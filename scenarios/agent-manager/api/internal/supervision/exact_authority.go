@@ -289,6 +289,9 @@ func ExactEffortActor(ctx context.Context, ref string) (EffortActor, bool, error
 	if !present {
 		return EffortActor{}, false, nil
 	}
+	if _, ordinaryAgentPolicy := value.(interface{ AgentOperationPolicy() }); ordinaryAgentPolicy {
+		return EffortActor{}, false, nil
+	}
 	a, ok := value.(*exactAuthorization)
 	if !ok || a.envelope.Target != exactTarget(ref) {
 		return EffortActor{}, true, ErrExactAuthority

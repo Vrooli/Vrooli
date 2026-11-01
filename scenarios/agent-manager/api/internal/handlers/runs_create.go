@@ -15,6 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
+	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
@@ -307,9 +309,6 @@ func optionalTrimmedString(raw string) *string {
 // or cancelled run, inheriting its task + profile and seeding the prior
 // attempt's transcript and diff so the agent can complete the remaining work.
 func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
-	if h.denyRunInitiatedLifecycleOperation(w, r, "resume-from-failed") {
-		return
-	}
 	var req struct {
 		RunID         string   `json:"runId"`
 		CustomContext string   `json:"customContext,omitempty"`
@@ -324,6 +323,16 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeSimpleError(w, r, "runId", "invalid UUID format")
 		return
+	}
+	// Fresh recovery both manages the source and creates its replacement.
+	if h.denyRunLifecycleOnTarget(w, r, "recover-run", runID.String(), "") {
+		return
+	}
+	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err != nil {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "fresh recovery requires run.create authority"})
+			return
+		}
 	}
 
 	run, err := h.svc.ResumeFromFailedRun(r.Context(), orchestration.ResumeFromFailedRunRequest{

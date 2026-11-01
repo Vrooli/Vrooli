@@ -47,6 +47,27 @@ func TestFindTranscript_Codex(t *testing.T) {
 	}
 }
 
+func TestFindTranscript_CodexPinsSessionAcrossNewerChild(t *testing.T) {
+	runDir := t.TempDir()
+	dir := filepath.Join(runDir, "codex", "sessions", "2026", "10", "31")
+	parent := filepath.Join(dir, "rollout-2026-10-31T00-54-58-parent.jsonl")
+	child := filepath.Join(dir, "rollout-2026-10-31T00-55-38-child.jsonl")
+	writeFile(t, parent)
+	writeFile(t, child)
+	future := time.Now().Add(time.Minute)
+	if err := os.Chtimes(child, future, future); err != nil {
+		t.Fatal(err)
+	}
+	got, err := findTranscript(DiscoverParams{RunnerType: domain.RunnerTypeCodex, RunDir: runDir, SessionID: "parent"})
+	if err != nil || got != parent {
+		t.Fatalf("got %q, %v; want parent %q", got, err, parent)
+	}
+	got, err = findTranscript(DiscoverParams{RunnerType: domain.RunnerTypeCodex, RunDir: runDir, SessionID: "missing"})
+	if err != nil || got != "" {
+		t.Fatalf("missing owner got %q, %v; want no match", got, err)
+	}
+}
+
 func TestFindTranscript_ClaudeSessionIDPinsPath(t *testing.T) {
 	home := t.TempDir()
 	wd := "/work/dir"

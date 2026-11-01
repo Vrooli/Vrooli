@@ -353,6 +353,19 @@ func (h *Handler) authorizeInvestigationHeaders(ctx context.Context, headers htt
 	if len(subject.RunIDs) == 0 || !scopecatalog.Resolve(p.Scopes, "agent-manager:write") {
 		return "", authn.ErrOperation
 	}
+	contextPrincipal, contextPresent := requestidentity.PrincipalFromContext(ctx)
+	if contextPresent && contextPrincipal.Subject == p.Subject && contextPrincipal.Owner == p.Owner {
+		allAllowed := true
+		for _, id := range subject.RunIDs {
+			if !operationPolicyAllowsWithoutGrant(ctx, "agent.investigate", "agent-manager:run/"+id) {
+				allAllowed = false
+				break
+			}
+		}
+		if allAllowed {
+			return p.Subject, nil
+		}
+	}
 	for _, id := range subject.RunIDs {
 		if !p.Grant.Allows("agent.investigate", "agent-manager:run/"+id, time.Now()) {
 			return "", authn.ErrOperation

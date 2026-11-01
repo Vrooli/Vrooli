@@ -3,7 +3,6 @@ package codecs
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,6 +16,8 @@ import (
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
+
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
 // Codex compacts a session only through `codex app-server`: `codex exec
@@ -51,13 +52,21 @@ func (c *Codex) CompactSession(ctx context.Context, req runner.CompactSessionReq
 	}
 
 	result := &runner.CompactSessionResult{}
-	if home := strings.TrimSpace(req.Env["CODEX_HOME"]); home != "" {
-		tokens, err := codexSessionContextTokens(home, sessionID)
-		if err == nil {
-			result.ContextTokens = tokens
-		}
+	reading, err := readCodexSessionRollout(strings.TrimSpace(req.Env["CODEX_HOME"]), sessionID)
+	if err != nil {
+		result.Reason = fmt.Sprintf("the session's rollout could not be read, so its size and goal are unknown: %v", err)
+		return result, nil
 	}
-	if req.MinContextTokens > 0 && result.ContextTokens > 0 && result.ContextTokens < req.MinContextTokens {
+	result.ContextTokens = reading.contextTokens
+	if reading.goalActive {
+		result.Reason = "the session holds an active goal, and resuming it elsewhere could clear it"
+		return result, nil
+	}
+	if req.MinContextTokens > 0 && result.ContextTokens == 0 {
+		result.Reason = "the session's context size is unknown: its rollout has no token count"
+		return result, nil
+	}
+	if req.MinContextTokens > 0 && result.ContextTokens < req.MinContextTokens {
 		result.Reason = fmt.Sprintf("context %d tokens is below the %d-token compaction threshold", result.ContextTokens, req.MinContextTokens)
 		return result, nil
 	}
@@ -286,25 +295,36 @@ func (s *codexAppServerSession) next(ctx context.Context) (codexAppServerMessage
 	}
 }
 
-// codexSessionContextTokens reads the session's latest request size from its
-// rollout: the input tokens of the newest token_count event.
-func codexSessionContextTokens(home, sessionID string) (int64, error) {
+type codexSessionRollout struct {
+	contextTokens int64
+	goalActive    bool
+}
+
+// readCodexSessionRollout reads the session's latest request size, from the
+// rollout's tail, and whether a goal is active, from the whole rollout: a goal
+// record can be far older than the tail. A rollout with no token count reads as
+// a size of zero; one that cannot be found or read is an error.
+func readCodexSessionRollout(home, sessionID string) (codexSessionRollout, error) {
+	var out codexSessionRollout
+	if home == "" {
+		return out, errors.New("no CODEX_HOME for this run")
+	}
 	matches, err := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "*"+sessionID+"*.jsonl"))
 	if err != nil {
-		return 0, err
+		return out, err
 	}
 	if len(matches) == 0 {
-		return 0, fmt.Errorf("no rollout for session %s", sessionID)
+		return out, fmt.Errorf("no rollout for session %s", sessionID)
 	}
 	sort.Strings(matches)
 	f, err := os.Open(matches[len(matches)-1])
 	if err != nil {
-		return 0, err
+		return out, err
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil {
-		return 0, err
+		return out, err
 	}
 	offset := info.Size() - codexRolloutTailBytes
 	if offset < 0 {
@@ -312,29 +332,15 @@ func codexSessionContextTokens(home, sessionID string) (int64, error) {
 	}
 	tail := make([]byte, info.Size()-offset)
 	if _, err := f.ReadAt(tail, offset); err != nil && !errors.Is(err, io.EOF) {
-		return 0, err
+		return out, err
 	}
-	lines := bytes.Split(tail, []byte{'\n'})
-	for i := len(lines) - 1; i >= 0; i-- {
-		if !bytes.Contains(lines[i], []byte(`"token_count"`)) {
-			continue
-		}
-		var event struct {
-			Payload struct {
-				Type string `json:"type"`
-				Info *struct {
-					Last struct {
-						InputTokens int64 `json:"input_tokens"`
-					} `json:"last_token_usage"`
-				} `json:"info"`
-			} `json:"payload"`
-		}
-		if json.Unmarshal(lines[i], &event) != nil || event.Payload.Type != "token_count" || event.Payload.Info == nil {
-			continue
-		}
-		return event.Payload.Info.Last.InputTokens, nil
+	out.contextTokens, _ = agenttranscript.LastContextTokens(tail, agenttranscript.HarnessCodex)
+	var goal agenttranscript.GoalTracker
+	if _, err := goal.Read(f, agenttranscript.HarnessCodex); err != nil {
+		return out, err
 	}
-	return 0, fmt.Errorf("no token count in the rollout tail for session %s", sessionID)
+	out.goalActive = goal.Active()
+	return out, nil
 }
 
 // mergedEnv overlays overrides on base, replacing keys that already exist.

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 // ClaudeStatuslineProvenance labels quota observations read from the
@@ -23,12 +25,20 @@ const ClaudeStatuslineProvenance = "claude-code:statusline"
 // ClaudeStatuslineSamplesEnv matches the resource's sample-path override.
 const ClaudeStatuslineSamplesEnv = "VROOLI_CLAUDE_QUOTA_SAMPLES"
 
-// claudeWindows maps Claude's rate-limit pools to their window length.
-var claudeWindows = map[string]int64{"five_hour": 300, "seven_day": 10080}
-
-// ClaudeWindowMinutes returns the window length of a Claude rate-limit pool,
-// or 0 for an unknown pool.
-func ClaudeWindowMinutes(pool string) int64 { return claudeWindows[pool] }
+// ClaudeWindowMinutes returns the window length of a Claude rate-limit pool from
+// the resource's harness descriptor, or 0 for an unknown pool.
+func ClaudeWindowMinutes(pool string) int64 {
+	descriptor, ok := harness.Active().Lookup("claude-code")
+	if !ok {
+		return 0
+	}
+	for _, window := range descriptor.UsageWindows {
+		if window.ID == pool {
+			return window.Minutes
+		}
+	}
+	return 0
+}
 
 // DefaultClaudeStatuslineSamplesPath is the resource's documented sample file.
 func DefaultClaudeStatuslineSamplesPath() string {
@@ -179,7 +189,7 @@ func claudeStatuslineObservations(sample claudeStatuslineSample, path string, no
 		if w.window.ResetsAt > 0 && ResetElapsed(time.Unix(w.window.ResetsAt, 0), sample.ObservedAt) {
 			continue
 		}
-		percent, minutes := *w.window.UsedPercentage, claudeWindows[w.pool]
+		percent, minutes := *w.window.UsedPercentage, ClaudeWindowMinutes(w.pool)
 		standing := QuotaStandingAvailable
 		if percent >= 100 {
 			standing = QuotaStandingExhausted

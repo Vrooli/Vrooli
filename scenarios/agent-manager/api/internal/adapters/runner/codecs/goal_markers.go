@@ -8,29 +8,17 @@ import (
 	"agent-manager/internal/adapters/runner"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agenttranscript"
 )
 
-// codexGoalStatus parses the event_msg/payload shape emitted by Codex TUI.
+// codexGoalStatus accepts an event_msg thread_goal_updated with an objective and
+// a status in the lifecycle vocabulary. Anything else changes no run state.
 func codexGoalStatus(line string) (runner.GoalMarker, bool) {
-	var envelope struct {
-		Type    string `json:"type"`
-		Payload struct {
-			Type string `json:"type"`
-			Goal struct {
-				Objective  string            `json:"objective"`
-				Status     runner.GoalStatus `json:"status"`
-				Iteration  int               `json:"iteration,omitempty"`
-				LastReason string            `json:"reason,omitempty"`
-			} `json:"goal"`
-		} `json:"payload"`
-	}
-	if json.Unmarshal([]byte(line), &envelope) != nil || envelope.Type != "event_msg" {
+	update, ok := agenttranscript.ParseCodexGoalUpdate([]byte(line))
+	if !ok || update.Envelope != "event_msg" {
 		return runner.GoalMarker{}, false
 	}
-	if envelope.Payload.Type != "thread_goal_updated" {
-		return runner.GoalMarker{}, false
-	}
-	marker := runner.GoalMarker{Objective: strings.TrimSpace(envelope.Payload.Goal.Objective), Status: envelope.Payload.Goal.Status, Iteration: envelope.Payload.Goal.Iteration, LastReason: strings.TrimSpace(envelope.Payload.Goal.LastReason)}
+	marker := runner.GoalMarker{Objective: update.Objective, Status: runner.GoalStatus(update.Status), Iteration: update.Iteration, LastReason: update.Reason}
 	return marker, marker.Objective != "" && marker.Status.Valid()
 }
 
@@ -305,50 +293,18 @@ func nonNullJSON(value json.RawMessage) bool {
 	return len(value) != 0 && strings.TrimSpace(string(value)) != "null"
 }
 
-// claudeGoalStatus parses the attachment goal_status shape emitted by Claude's
-// on-disk interactive transcript. It walks JSON objects only, so assistant
-// prose cannot masquerade as an engine-owned marker.
+// claudeGoalStatus is the first goal_status on a line that names its condition.
 func claudeGoalStatus(line string) (runner.GoalMarker, bool) {
-	var value any
-	if json.Unmarshal([]byte(strings.TrimSpace(line)), &value) != nil {
-		return runner.GoalMarker{}, false
-	}
-	return findClaudeGoalStatus(value)
-}
-
-func findClaudeGoalStatus(value any) (runner.GoalMarker, bool) {
-	if array, ok := value.([]any); ok {
-		for _, child := range array {
-			if marker, found := findClaudeGoalStatus(child); found {
-				return marker, true
-			}
+	statuses, _ := agenttranscript.ParseClaudeGoalStatuses([]byte(line))
+	for _, goal := range statuses {
+		if goal.Condition == "" {
+			continue
 		}
-		return runner.GoalMarker{}, false
-	}
-	object, ok := value.(map[string]any)
-	if !ok {
-		return runner.GoalMarker{}, false
-	}
-	if object["type"] == "goal_status" {
-		condition, _ := object["condition"].(string)
-		met, _ := object["met"].(bool)
-		iteration, _ := object["iterations"].(float64)
-		if iteration == 0 {
-			iteration, _ = object["iteration"].(float64)
+		status := runner.GoalStatusActive
+		if goal.Met {
+			status = runner.GoalStatusComplete
 		}
-		reason, _ := object["reason"].(string)
-		if strings.TrimSpace(condition) != "" {
-			status := runner.GoalStatusActive
-			if met {
-				status = runner.GoalStatusComplete
-			}
-			return runner.GoalMarker{Objective: strings.TrimSpace(condition), Status: status, Iteration: int(iteration), LastReason: strings.TrimSpace(reason)}, true
-		}
-	}
-	for _, child := range object {
-		if marker, ok := findClaudeGoalStatus(child); ok {
-			return marker, true
-		}
+		return runner.GoalMarker{Objective: goal.Condition, Status: status, Iteration: goal.Iteration, LastReason: goal.Reason}, true
 	}
 	return runner.GoalMarker{}, false
 }

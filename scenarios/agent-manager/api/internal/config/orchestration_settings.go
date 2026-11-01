@@ -17,8 +17,41 @@ import (
 type OrchestrationSettings struct {
 	RunExecution       RunExecutionSettings       `json:"runExecution"`
 	SafetyIsolation    SafetyIsolationSettings    `json:"safetyIsolation"`
+	OperationApprovals OperationApprovalSettings  `json:"operationApprovals"`
 	HealthDetection    HealthDetectionSettings    `json:"healthDetection"`
 	ProcessTermination ProcessTerminationSettings `json:"processTermination"`
+}
+
+// OperationApprovalSettings controls additional grants for agent operations.
+// Verified identity, scope, ownership and human-only decisions remain separate.
+type OperationApprovalSettings struct {
+	RunCreation    bool `json:"runCreation"`
+	RunManagement  bool `json:"runManagement"`
+	RunDeletion    bool `json:"runDeletion"`
+	Investigation  bool `json:"investigation"`
+	EffortDelivery bool `json:"effortDelivery"`
+	EffortMetadata bool `json:"effortMetadata"`
+}
+
+// RequiresApproval returns the configured state for an explicitly supported
+// operation. Unknown operations remain governed by their existing policy.
+func (s OperationApprovalSettings) RequiresApproval(operation string) (bool, bool) {
+	switch operation {
+	case "run.create":
+		return s.RunCreation, true
+	case "agent.manage":
+		return s.RunManagement, true
+	case "run.delete":
+		return s.RunDeletion, true
+	case "agent.investigate":
+		return s.Investigation, true
+	case "effort.delivery":
+		return s.EffortDelivery, true
+	case "effort.reconcile":
+		return s.EffortMetadata, true
+	default:
+		return true, false
+	}
 }
 
 // RunExecutionSettings control how agent runs execute.
@@ -47,8 +80,8 @@ type SafetyIsolationSettings struct {
 	// true = safer but slower due to sandbox overhead. Default: true.
 	RequireSandbox bool `json:"requireSandbox"`
 
-	// RequireApproval makes all runs need review before applying changes.
-	// false = auto-apply (use with caution). Default: true.
+	// RequireApproval is a retained legacy setting; run sandbox review instead
+	// uses its resolved manualReview and autoApply configuration.
 	RequireApproval bool `json:"requireApproval"`
 
 	// NetworkAccess controls network access for sandboxed runs.

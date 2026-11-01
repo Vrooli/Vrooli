@@ -9,6 +9,7 @@ import { renderWithProviders } from "../../../test-utils/index.js";
 const settings: OrchestrationSettings = {
   runExecution: { runTimeoutMinutes: 20, maxConcurrentRuns: 2, maxTurns: 8 },
   safetyIsolation: { requireSandbox: true, requireApproval: true, networkAccess: "localhost" },
+  operationApprovals: { runCreation: false, runManagement: false, runDeletion: false, investigation: false, effortDelivery: false, effortMetadata: false },
   healthDetection: { heartbeatIntervalSeconds: 10, staleThresholdSeconds: 60, maxRecoveryAgeSeconds: 120, reconcilerIntervalSeconds: 30 },
   processTermination: { gracePeriodSeconds: 5, killProcessGroup: true, killOrphans: true, orphanGracePeriodSeconds: 10, terminationMaxRetries: 2 },
 };
@@ -18,6 +19,30 @@ test("OrchestrationTab reports loading and unavailable states", () => {
   assert.ok(screen.getByText("Loading orchestration settings..."));
   rerender(createElement(OrchestrationTab, { settings: null, loading: false, error: null, onSave: vi.fn(), onReset: vi.fn() }));
   assert.ok(screen.getByText("No orchestration settings available."));
+});
+
+test("sandbox review setting does not imply it controls run permissions", () => {
+  renderWithProviders(createElement(OrchestrationTab, { settings, loading: false, error: null, onSave: vi.fn(), onReset: vi.fn() }));
+  const control = screen.getByRole("checkbox", { name: /Sandbox change review/i });
+  assert.equal(control.hasAttribute("disabled"), true);
+  assert.ok(screen.getByText(/does not control permission to start or manage runs/i));
+});
+
+test("operation approval controls save the selected policy", async () => {
+  const ref = createRef<OrchestrationTabHandle>();
+  const onSave = vi.fn(async () => undefined);
+  renderWithProviders(createElement(OrchestrationTab, { ref, settings, loading: false, error: null, onSave, onReset: vi.fn() }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Create runs and tasks" }));
+  await act(async () => { await ref.current?.save(); });
+  assert.equal(onSave.mock.calls[0]?.[0].operationApprovals.runCreation, true);
+  assert.equal(onSave.mock.calls[0]?.[0].operationApprovals.runManagement, false);
+});
+
+test("operation permissions are unavailable with an older server", () => {
+  const legacy = { ...settings, operationApprovals: undefined } as unknown as OrchestrationSettings;
+  renderWithProviders(createElement(OrchestrationTab, { settings: legacy, loading: false, error: null, onSave: vi.fn(), onReset: vi.fn() }));
+  assert.equal(screen.getByRole("checkbox", { name: "Create runs and tasks" }).hasAttribute("disabled"), true);
+  assert.ok(screen.getByText(/require an updated Agent Manager server/i));
 });
 
 test("OrchestrationTab validates unsafe recovery windows and saves only a valid dirty draft", async () => {

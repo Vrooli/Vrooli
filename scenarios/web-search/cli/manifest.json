@@ -796,7 +796,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["web-search research status"]}}
         }
         ,{
           "name": "cancel",

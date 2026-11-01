@@ -368,6 +368,12 @@ func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 		writeSimpleError(w, r, "task_id", "invalid UUID format for task ID")
 		return
 	}
+	if principal, ok := requestidentity.PrincipalFromContext(r.Context()); ok && principal.Kind == requestidentity.ActorAgent {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:task/"+id.String()); err != nil {
+			writeJSON(w, http.StatusForbidden, map[string]string{"error": "task deletion requires agent.manage authority"})
+			return
+		}
+	}
 
 	if err := h.svc.DeleteTask(r.Context(), id); err != nil {
 		writeError(w, r, err)

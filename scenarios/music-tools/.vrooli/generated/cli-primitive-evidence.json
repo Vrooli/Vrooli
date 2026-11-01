@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "music-tools",
   "generator": "v1.0.0",
-  "manifest_hash": "32d20cab39e5515d0fd8f0e6974511f14372bd945cf15de9b7fee30e8dbee002",
+  "manifest_hash": "ffe393af333aacb749ac13c28271e1486c06351925413e88e4569f9cd8f23d8b",
   "commands": [
     {
       "path": "compose run",

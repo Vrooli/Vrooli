@@ -19,6 +19,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	requestidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
@@ -81,9 +83,18 @@ func (h *Handler) StopRunByTag(w http.ResponseWriter, r *http.Request) {
 // POST /api/v1/runs/stop-all
 // Body: {"tagPrefix": "ecosystem-", "force": true}
 func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
+	owner, scoped := ownerScopedStopAll(r.Context())
+	if scoped && strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)) != "" {
+		verified, err := h.svc.VerifyIdentityToken(r.Context(), strings.TrimSpace(r.Header.Get(cliutil.HeaderAgentIdentityToken)))
+		p, ok := requestidentity.PrincipalFromContext(r.Context())
+		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil || !ok || verified.Claims.RunID.String() != p.Subject || verified.Claims.Subject != owner {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "run identity is invalid or unavailable"})
+			return
+		}
+	}
 	// Stopping every run needs an agent.manage grant that covers every run
 	// (agent-manager:run/* or agent-manager:*); a grant on named runs does not.
-	if h.denyRunLifecycleOnTarget(w, r, "stop-all", "*", "") {
+	if !scoped && h.denyRunLifecycleOnTarget(w, r, "stop-all", "*", "") {
 		return
 	}
 	body, err := io.ReadAll(r.Body)
@@ -108,8 +119,9 @@ func (h *Handler) StopAllRuns(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := h.svc.StopAllRuns(r.Context(), orchestration.StopAllOptions{
-		TagPrefix: tagPrefix,
-		Force:     req.Force,
+		TagPrefix:    tagPrefix,
+		Force:        req.Force,
+		OwnerSubject: owner,
 	})
 	if err != nil {
 		writeError(w, r, err)

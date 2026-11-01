@@ -49,7 +49,8 @@ type CompactSessionRequest struct {
 	WorkingDir string
 	Env        map[string]string
 	// MinContextTokens skips compaction when the session's current context is
-	// smaller; zero compacts unconditionally.
+	// smaller or unknown; zero sets no size floor. A session whose goal state
+	// cannot be read, or that holds an active goal, is never compacted.
 	MinContextTokens int64
 }
 

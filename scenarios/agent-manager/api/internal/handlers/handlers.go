@@ -31,6 +31,7 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/orchestration"
@@ -41,8 +42,6 @@ import (
 	"agent-manager/internal/storage"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usageattribution"
-
-	agentconfig "agent-manager/internal/config"
 
 	"buf.build/go/protovalidate"
 	"github.com/google/uuid"
@@ -1005,8 +1004,22 @@ func (h *Handler) GetOrchestrationSettings(w http.ResponseWriter, r *http.Reques
 
 // UpdateOrchestrationSettings updates the orchestration settings.
 func (h *Handler) UpdateOrchestrationSettings(w http.ResponseWriter, r *http.Request) {
-	var settings agentconfig.OrchestrationSettings
-	if err := json.NewDecoder(r.Body).Decode(&settings); err != nil {
+	var payload json.RawMessage
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	if err := json.Unmarshal(payload, &config.OrchestrationSettings{}); err != nil {
+		writeSimpleError(w, r, "body", "invalid JSON request body")
+		return
+	}
+	current, err := h.svc.GetOrchestrationSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	settings := *current
+	if err := json.Unmarshal(payload, &settings); err != nil {
 		writeSimpleError(w, r, "body", "invalid JSON request body")
 		return
 	}

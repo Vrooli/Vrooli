@@ -52,6 +52,7 @@ import (
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/cli-core/agentcatalog"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
@@ -127,6 +128,9 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		// The orchestrator is the approval raiser: on a needs-approval outcome the
 		// middleware asks it to raise the operator decision (idempotent, capped).
 		router.Use(handlers.StandingGrantMiddleware(standingAuthority, deps.Orchestrator))
+	}
+	if deps.Orchestrator != nil {
+		router.Use(handlers.OperationApprovalMiddleware(deps.Orchestrator))
 	}
 	router.Use(handlers.AgentOperationMiddleware)
 	if deps.Orchestrator != nil {
@@ -311,15 +315,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 
 	routesLog := obs.Component("routes")
 	if deps.HealthStore != nil {
-		catalogReader := func(context.Context) []agentcatalog.CatalogFreshness {
-			freshness := make([]agentcatalog.CatalogFreshness, 0, 4)
-			for _, runner := range []string{"codex", "claude-code", "opencode", "grok"} {
-				path := filepath.Join(repoRoot, "resources", runner, "model-policy.json")
-				freshness = append(freshness, agentcatalog.ReadCatalogFreshness(runner, path, time.Now().UTC()))
-			}
-			return freshness
-		}
-		handlers.NewHealthAuditHandler(deps.HealthStore).WithCatalogFreshness(catalogReader).WithModelPolicyDrift(deps.ModelPolicyDrift).RegisterRoutes(router)
+		handlers.NewHealthAuditHandler(deps.HealthStore).WithCatalogFreshness(catalogFreshnessReader(repoRoot)).WithModelPolicyDrift(deps.ModelPolicyDrift).RegisterRoutes(router)
 		routesLog.Info("health audit endpoints registered", "path", "/api/v1/health/{models,runners,audit}")
 	}
 	if deps.EventRepository != nil {
@@ -411,4 +407,18 @@ func workspaceSandboxHealthChecker(provider interface {
 		}
 		return nil
 	})
+}
+
+// catalogFreshnessReader covers every harness a resource declares, so a stale
+// catalog of any runner shows in the health audit.
+func catalogFreshnessReader(repoRoot string) func(context.Context) []agentcatalog.CatalogFreshness {
+	return func(context.Context) []agentcatalog.CatalogFreshness {
+		descriptors := harness.Active().All()
+		freshness := make([]agentcatalog.CatalogFreshness, 0, len(descriptors))
+		for _, descriptor := range descriptors {
+			path := filepath.Join(repoRoot, "resources", descriptor.Resource, "model-policy.json")
+			freshness = append(freshness, agentcatalog.ReadCatalogFreshness(descriptor.Resource, path, time.Now().UTC()))
+		}
+		return freshness
+	}
 }

@@ -121,6 +121,16 @@
         "enabled": true,
         "required": false
       },
+      "orcarouter": {
+        "description": "OpenAI-compatible multi-provider gateway for hosted AI access",
+        "enabled": true,
+        "required": false
+      },
+      "abliteration": {
+        "description": "Explicit-only hosted research and red-team models",
+        "enabled": true,
+        "required": false
+      },
       "postgres": {
         "enabled": true,
         "healthCheck": {
@@ -160,6 +170,11 @@
       "pii-detector": {
         "description": "Tiered CPU ONNX-Runtime PII detection (regex/checksum + token-classification NER); small + large tiers run real NER end-to-end",
         "enabled": false,
+        "required": false
+      },
+      "ollaya": {
+        "description": "Local decision-model service (Laya/Winnow behind a TypeSafe-compatible API) plus credential-gated hosted Jev/Clef upstreams; serves ai-gateway's decide.* roles",
+        "enabled": true,
         "required": false
       },
       "reranker": {
@@ -504,6 +519,15 @@
       "notes": "Rewrites a marked block in the operator's shell profile so ~/.vrooli/shims and then ~/.vrooli/bin appear exactly once and first on the interactive PATH, and reports duplicate PATH entries or a shadowing vrooli binary. Needs no privilege and edits only between its own markers. It was registered in the runtime registry and carried a manifest, but was never listed here, so `vrooli setup` reported no such requirement and the block in an operator's profile was whatever an older installer had left.",
       "reason": "Without it the canonical CLI and the coding-agent shims can be installed correctly and still never run, because a stale `go install` copy or an agent's own install directory sits ahead of them on PATH",
       "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "harness_file_ownership",
+      "notes": "Changes the owner of root-owned coding-agent files back to the invoking operator: ~/.local/bin/<agent>, the upstream installer copies and each agent's version directory. Changes ownership only, never contents, and never follows a symlink. Moving a standalone file aside and linking Vrooli's copy stays a user-privileged action in `vrooli resource update`.",
+      "reason": "Web Console reports a root-owned agent file as `needs setup` and shows `sudo vrooli setup --include-optional`; this safeguard is what makes that command repair it",
+      "required": false,
       "when": [
         "setup"
       ]

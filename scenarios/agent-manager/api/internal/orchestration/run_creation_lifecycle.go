@@ -208,6 +208,9 @@ func (o *Orchestrator) StopAllRuns(ctx context.Context, opts StopAllOptions) (*S
 
 	// Stop each run
 	for _, run := range runs {
+		if opts.OwnerSubject != "" && run.OwnerSubject != opts.OwnerSubject {
+			continue
+		}
 		// Skip already stopped runs
 		if run.Status == domain.RunStatusComplete ||
 			run.Status == domain.RunStatusFailed ||

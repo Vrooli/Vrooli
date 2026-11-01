@@ -127,7 +127,8 @@
           "governance": {
             "effect": "read",
             "run_eligible": true
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["music-tools jobs get"]}}
         },
         {
           "name": "cancel",

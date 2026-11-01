@@ -251,6 +251,33 @@
       },
       "additionalProperties": false
     },
+    "build_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "runtime_docs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 6,
+            "pattern": "^docs/[A-Za-z0-9_-][A-Za-z0-9._-]*(/[A-Za-z0-9_-][A-Za-z0-9._-]*)*$"
+          },
+          "description": "Exact repo-relative paths under docs/ that the running scenario serves or embeds as runtime content. The selected file or directory and its descendants are identity inputs. Unlisted docs are ignored."
+        },
+        "exclude_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.-][A-Za-z0-9._/-]*$"
+          },
+          "description": "Exact repo-relative authored paths outside .vrooli excluded from the scenario build identity. Directories exclude their descendants."
+        }
+      },
+      "description": "Scenario build identity inputs. Authored files are included by default except the top-level docs/ tree; runtime-served documentation must be declared in runtime_docs."
+    },
     "dependencies": {
       "type": "object",
       "description": "Scenario and resource dependencies",

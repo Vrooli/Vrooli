@@ -157,7 +157,7 @@ func TestRecoverInteractiveSelectsNewerCodexRolloutBeforeRetainedGoalReplay(t *t
 	persistInteractiveInvocation(t, repos.Runs, run, invocation)
 	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
 	rolloutDir := filepath.Dir(rolloutA)
-	rolloutB := filepath.Join(rolloutDir, "rollout-b.jsonl")
+	rolloutB := filepath.Join(rolloutDir, "rollout-b-"+sessionID+".jsonl")
 	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
 	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
 		t.Fatal(err)
@@ -222,7 +222,7 @@ func TestRecoverInteractiveFinalizesSelectedCodexRolloutAndReturnsCurrentOwner(t
 	invocation := started.Add(2 * time.Second)
 	persistInteractiveInvocation(t, repos.Runs, run, invocation)
 	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b.jsonl")
+	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b-"+sessionID+".jsonl")
 	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
 	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
 		t.Fatal(err)
@@ -338,7 +338,7 @@ func TestRecoverInteractiveDoesNotCommitMismatchedCodexRollout(t *testing.T) {
 	invocation := started.Add(time.Second)
 	persistInteractiveInvocation(t, repos.Runs, run, invocation)
 	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b.jsonl")
+	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b-"+sessionID+".jsonl")
 	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
 	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
 		t.Fatal(err)
@@ -394,7 +394,7 @@ func TestRecoverInteractiveDoesNotSelectNewRolloutWhenPathPersistFails(t *testin
 	invocation := started.Add(time.Second)
 	persistInteractiveInvocation(t, repos.Runs, run, invocation)
 	rolloutA := codexRecoveryTranscriptPath(t, reconciler, run, "rollout-a.jsonl")
-	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b.jsonl")
+	rolloutB := filepath.Join(filepath.Dir(rolloutA), "rollout-b-"+sessionID+".jsonl")
 	oldBody, _ := writeAcceptedRetainedGoalTranscript(t, run, run.ResolvedConfig.Until)
 	if err := os.WriteFile(rolloutA, []byte(oldBody), 0o600); err != nil {
 		t.Fatal(err)
@@ -755,6 +755,7 @@ func codexRecoveryTranscriptPath(t *testing.T, reconciler *Reconciler, run *doma
 	if err != nil {
 		t.Fatal(err)
 	}
+	filename = strings.TrimSuffix(filename, ".jsonl") + "-" + run.SessionID + ".jsonl"
 	path := filepath.Join(dir, "codex", "sessions", "2026", "10", "20", filename)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)

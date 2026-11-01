@@ -489,6 +489,12 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "generated_files": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1},
+              "description": "Exact relative file paths reconstructed by the custom owner beside acquired data. No globs, absolute paths or traversal. The custom owner validates and fences deletion."
+            },
             "command": {
               "type": "string",
               "minLength": 1

@@ -497,8 +497,9 @@ type (
 
 // StopAllOptions specifies which runs to stop in a bulk operation.
 type StopAllOptions struct {
-	TagPrefix string // Only stop runs with this tag prefix (empty = all)
-	Force     bool   // Force termination even if graceful stop fails
+	TagPrefix    string // Only stop runs with this tag prefix (empty = all)
+	Force        bool   // Force termination even if graceful stop fails
+	OwnerSubject string // Restrict bulk management to this verified owner when set.
 }
 
 // StopAllResult contains the outcome of a bulk stop operation.

@@ -1,6 +1,7 @@
 package codecs
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,5 +75,45 @@ func TestGoalMarkerParityAcrossCodecs(t *testing.T) {
 func TestClaudeGoalStatusDoesNotTreatProseAsMarker(t *testing.T) {
 	if _, ok := claudeGoalStatus(`{"type":"assistant","message":{"content":[{"type":"text","text":"goal_status met true"}]}}`); ok {
 		t.Fatal("assistant prose must not become a goal marker")
+	}
+}
+
+// The lines both consumers of agenttranscript are characterized against. Its own
+// test checks the compaction reading of each; this checks the lifecycle reading.
+func TestGoalMarkersOnSharedFixtures(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "..", "..", "packages", "cli-core", "agenttranscript", "testdata", "goal_lines.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixtures []struct {
+		Name      string `json:"name"`
+		Harness   string `json:"harness"`
+		Line      string `json:"line"`
+		Lifecycle string `json:"lifecycle"`
+	}
+	if err := json.Unmarshal(data, &fixtures); err != nil {
+		t.Fatal(err)
+	}
+	if len(fixtures) == 0 {
+		t.Fatal("no goal fixtures")
+	}
+	for _, fixture := range fixtures {
+		t.Run(fixture.Name, func(t *testing.T) {
+			var marker runner.GoalMarker
+			var ok bool
+			switch fixture.Harness {
+			case "codex":
+				marker, ok = codexGoalStatus(fixture.Line)
+			case "claude":
+				marker, ok = claudeGoalStatus(fixture.Line)
+			}
+			got := "none"
+			if ok {
+				got = string(marker.Status)
+			}
+			if got != fixture.Lifecycle {
+				t.Fatalf("lifecycle reading = %s, want %s", got, fixture.Lifecycle)
+			}
+		})
 	}
 }

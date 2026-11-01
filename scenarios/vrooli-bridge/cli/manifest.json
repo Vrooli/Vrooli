@@ -1386,7 +1386,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "verify", "blocks": {"replaces": ["vrooli-bridge gate get"]}}
         },
         {
           "name": "list",
@@ -1576,7 +1577,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "verify", "blocks": {"replaces": ["vrooli-bridge provision get"]}}
         },
         {
           "name": "version",
@@ -1780,7 +1782,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "verify", "blocks": {"replaces": ["vrooli-bridge runs get"]}}
         },
         {
           "name": "abort",
@@ -1833,7 +1836,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["vrooli-bridge runs get"]}}
         }
       ]
     },
@@ -2167,7 +2171,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["vrooli-bridge onboard status"]}}
         },
         {
           "name": "cancel",

@@ -63,3 +63,45 @@ func contains(values []string, want string) bool {
 	}
 	return false
 }
+
+// Web Console relays these exact argv shapes. The check needs only read; every
+// action needs write. [REQ:BRG-P0-004]
+func TestHarnessUpdateRelayIsAdmittedByItsDeclaredEffect(t *testing.T) {
+	manifest, _, err := BuildManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	scopesFor := func(verb string) []string {
+		for _, entry := range manifest {
+			if manifestEntryVerb(entry) == verb {
+				return manifestEntryScopes(entry)
+			}
+		}
+		t.Fatalf("%q is not in the manifest", verb)
+		return nil
+	}
+	read, write := scopesFor("resource update-check"), scopesFor("resource update")
+	if !contains(read, "vrooli-bridge:read") || contains(read, "vrooli-bridge:write") {
+		t.Fatalf("update-check scopes = %v", read)
+	}
+	if !contains(write, "vrooli-bridge:write") {
+		t.Fatalf("update scopes = %v", write)
+	}
+	for _, args := range [][]string{
+		{"codex", "--json", "--on-behalf-of", "op@example.com"},
+		{"codex", "--action", "use-managed-copy", "--json", "--on-behalf-of", "op@example.com"},
+		{"codex", "--action", "link-managed-copy", "--json", "--on-behalf-of", "op@example.com"},
+		{"codex", "--action", "rollback", "--json", "--on-behalf-of", "op@example.com"},
+		{"codex", "--action", "refresh-catalog", "--json", "--on-behalf-of", "op@example.com"},
+	} {
+		if err := Allow(Job{Scenario: "vrooli", Verb: "resource update", Args: args}, write, manifest); err != nil {
+			t.Errorf("write-scoped node refused %v: %v", args, err)
+		}
+		if err := Allow(Job{Scenario: "vrooli", Verb: "resource update", Args: args}, read, manifest); err == nil {
+			t.Errorf("read-scoped node admitted %v", args)
+		}
+	}
+	if err := Allow(Job{Scenario: "vrooli", Verb: "resource update-check", Args: []string{"codex", "--json"}}, read, manifest); err != nil {
+		t.Errorf("read-scoped node refused the check: %v", err)
+	}
+}

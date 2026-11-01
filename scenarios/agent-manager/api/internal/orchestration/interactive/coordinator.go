@@ -804,6 +804,7 @@ func (c *Coordinator) transcriptGrew(run *domain.Run, tc TailContext, boundary i
 			WorkingDir: tc.WorkingDir,
 			RunDir:     tc.RunDir,
 			LaunchedAt: tc.LaunchedAt,
+			SessionID:  run.SessionID,
 		}); err == nil && newest != "" {
 			if newest != path {
 				return true
@@ -990,6 +991,8 @@ func (c *Coordinator) VerifySession(ctx context.Context, run *domain.Run) (bool,
 //   - A failure terminal fails the run with its reason.
 //   - A vanished session with no success terminal fails the run with an explicit
 //     reason so it is never left orphaned.
+//   - An observation error leaves the run active and returns the error so the
+//     owner can reattach without retiring a still-working session.
 //
 // Finalize never deletes the web-console session: it stays live so `run
 // continue` can type a follow-up into it. The Reconciler bounds that retention
@@ -1005,6 +1008,12 @@ func (c *Coordinator) Finalize(ctx context.Context, run *domain.Run, terminal *r
 	}
 	if tailErr != nil && errors.Is(tailErr, context.Canceled) && !errors.Is(tailErr, ErrSessionGone) {
 		return nil
+	}
+	if tailErr != nil && !errors.Is(tailErr, ErrSessionGone) && !errors.Is(tailErr, context.DeadlineExceeded) {
+		// Failure to observe a transcript is not evidence that the agent stopped.
+		// Keep the durable run active so owner recovery can reattach; a terminal
+		// failure here would also let retention archive a still-working session.
+		return fmt.Errorf("interactive transcript observation failed: %w", tailErr)
 	}
 
 	var finalizeErr error

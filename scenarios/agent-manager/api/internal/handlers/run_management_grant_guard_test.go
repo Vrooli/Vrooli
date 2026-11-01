@@ -152,10 +152,16 @@ func TestRunLifecycleOperationGrantUsesCanonicalAuthorization(t *testing.T) {
 type taskCancelAuthoritySpy struct {
 	orchestration.TaskService
 	cancelled []uuid.UUID
+	deleted   []uuid.UUID
 }
 
 func (s *taskCancelAuthoritySpy) CancelTask(_ context.Context, id uuid.UUID) error {
 	s.cancelled = append(s.cancelled, id)
+	return nil
+}
+
+func (s *taskCancelAuthoritySpy) DeleteTask(_ context.Context, id uuid.UUID) error {
+	s.deleted = append(s.deleted, id)
 	return nil
 }
 
@@ -246,12 +252,12 @@ func TestTaskCancelKeepsHumanRouteAndDeniesOtherTaskWrites(t *testing.T) {
 		t.Run(method, func(t *testing.T) {
 			taskID := uuid.New()
 			caller := agent
+			caller.Grant = nil
 			var body io.Reader
 			if method == http.MethodPut {
 				// Task edits with an explicit agent.manage proof have their own
 				// positive coverage; this case verifies the intrinsic path alone
 				// cannot admit an unrelated agent.
-				caller.Grant = nil
 				encoded := encodeProtoJSON(t, &apipb.UpdateTaskRequest{
 					TaskId: taskID.String(),
 					Task:   &domainpb.Task{Title: "Queued brief", ScopePath: "scenarios/demo"},
@@ -268,6 +274,13 @@ func TestTaskCancelKeepsHumanRouteAndDeniesOtherTaskWrites(t *testing.T) {
 	}
 	if len(spy.cancelled) != 1 {
 		t.Fatalf("unrelated task mutation reached TaskService: %#v", spy.cancelled)
+	}
+	deleteID := uuid.New()
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/v1/tasks/"+deleteID.String(), nil).WithContext(coreidentity.WithPrincipal(context.Background(), agent))
+	deleteResponse := httptest.NewRecorder()
+	router.ServeHTTP(deleteResponse, deleteReq)
+	if deleteResponse.Code != http.StatusOK || len(spy.deleted) != 1 || spy.deleted[0] != deleteID {
+		t.Fatalf("covered task deletion: status=%d calls=%v", deleteResponse.Code, spy.deleted)
 	}
 }
 

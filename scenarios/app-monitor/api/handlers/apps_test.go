@@ -142,6 +142,37 @@ func TestGetApp(t *testing.T) {
 	})
 }
 
+func TestDiagnosticHandlersPreserveAppServiceErrorResponses(t *testing.T) {
+	handler := NewAppHandler(services.NewAppService(nil))
+	tests := []struct {
+		name    string
+		handler gin.HandlerFunc
+		query   string
+	}{
+		{name: "scenario status", handler: handler.GetAppScenarioStatus},
+		{name: "health", handler: handler.CheckAppHealth},
+		{name: "documents", handler: handler.GetAppDocuments},
+		{name: "document search", handler: handler.SearchAppDocuments, query: "?q=app"},
+		{name: "interop compliance", handler: handler.CheckAppInteropCompliance},
+		{name: "completeness", handler: handler.GetAppCompleteness},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := setupTestRouter()
+			router.GET("/apps/:id", tt.handler)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/apps/%20"+tt.query, nil))
+
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d: %s", response.Code, http.StatusBadRequest, response.Body.String())
+			}
+			if !strings.Contains(response.Body.String(), `"success":false`) || !strings.Contains(response.Body.String(), `"error":"app identifier is required"`) {
+				t.Fatalf("response = %s, want the original app identifier error", response.Body.String())
+			}
+		})
+	}
+}
+
 func TestStartApp(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	appService := services.NewAppService(nil)

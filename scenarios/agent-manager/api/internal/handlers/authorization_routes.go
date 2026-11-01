@@ -255,14 +255,14 @@ func isRunCreationPath(path string) bool {
 
 func agentOperationRoute(r *http.Request, interactive bool) bool {
 	if r.Method == http.MethodDelete {
-		// DeleteRun admits only an exact run.delete grant on that run
-		// (denyRunInitiatedLifecycleOperation); every other DELETE stays refused.
+		// Run and task deletion each have target-specific policy checks in their
+		// handlers. Other DELETE routes remain outside agent management.
 		route := mux.CurrentRoute(r)
 		if route == nil {
 			return false
 		}
 		template, _ := route.GetPathTemplate()
-		return template == "/api/v1/runs/{id}"
+		return template == "/api/v1/runs/{id}" || template == "/api/v1/tasks/{id}"
 	}
 	if r.Method == http.MethodPut {
 		// The task handler admits only the verified creator orchestrator's exact
@@ -275,10 +275,13 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/investigations",
+	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/runs/resume-from-failed", "/api/v1/investigations",
 		apiconnect.AgentManagerServiceCreateRunProcedure:
 		return true
 	case "/api/v1/runs/stop-all":
+		if _, ok := ownerScopedStopAll(r.Context()); ok {
+			return true
+		}
 		// Global management stays closed to agents except under an approved
 		// agent.manage grant covering every run (agent-manager:run/* or
 		// agent-manager:*). The handler re-checks the same rule.
@@ -354,6 +357,7 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		// WaitWorkflowExecution Connect procedure. Keep adjacent POST actions gated.
 		return true
 	case "/api/v1/runs/{id}/stop", "/api/v1/runs/tag/{tag}/stop", "/api/v1/runs/{id}/continue", "/api/v1/runs/{id}/wake", "/api/v1/runs/{id}/recover", "/api/v1/runs/{id}/park",
+		"/api/v1/runs/{id}/messages/{event_id}/delete",
 		"/api/v1/tasks/{id}/cancel",
 		"/api/v1/investigations/{id}/result", "/api/v1/investigations/{id}/learning-retry":
 		return true

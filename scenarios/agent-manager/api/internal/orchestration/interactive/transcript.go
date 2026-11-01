@@ -25,8 +25,8 @@ type DiscoverParams struct {
 	// HomeDir overrides the user's home directory for claude projects discovery
 	// (tests point it at a fixture tree). Empty uses os.UserHomeDir.
 	HomeDir string
-	// SessionID pins Claude discovery once the first on-disk record has exposed
-	// the runner session id. Empty retains the launch-time discovery heuristic.
+	// SessionID pins discovery to the runner session once its identity is known.
+	// Empty retains the launch-time discovery heuristic.
 	SessionID string
 }
 
@@ -42,10 +42,14 @@ func findTranscript(p DiscoverParams) (string, error) {
 
 	switch p.RunnerType {
 	case domain.RunnerTypeCodex:
-		// $CODEX_HOME/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl — run-scoped
-		// home means at most one rollout, so newest under the fixed depth wins.
+		// Subagents share the run-scoped home. Once known, the owner session ID
+		// is required: a newer child rollout is not a parent rotation.
 		home := homeDirFor(spec, p.RunDir)
-		return newestGlob(filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl"))
+		pattern := filepath.Join(home, "sessions", "*", "*", "*", "rollout-*.jsonl")
+		if id := strings.TrimSpace(p.SessionID); id != "" {
+			return newestGlobSession(pattern, id)
+		}
+		return newestGlob(pattern)
 	case domain.RunnerTypeGrok:
 		// $GROK_HOME/sessions/<url-encoded-cwd>/<session>/updates.jsonl —
 		// run-scoped home, so newest under the fixed depth wins.
@@ -74,6 +78,25 @@ func findTranscript(p DiscoverParams) (string, error) {
 	default:
 		return "", fmt.Errorf("interactive transcript discovery unsupported for runner %q", p.RunnerType)
 	}
+}
+
+func newestGlobSession(pattern, sessionID string) (string, error) {
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return "", fmt.Errorf("glob %q: %w", pattern, err)
+	}
+	var best string
+	var bestMod time.Time
+	for _, path := range matches {
+		if !strings.HasSuffix(filepath.Base(path), "-"+sessionID+".jsonl") {
+			continue
+		}
+		info, err := os.Stat(path)
+		if err == nil && (best == "" || info.ModTime().After(bestMod)) {
+			best, bestMod = path, info.ModTime()
+		}
+	}
+	return best, nil
 }
 
 // SlugifyCwd converts an absolute cwd to claude's projects-dir slug: every

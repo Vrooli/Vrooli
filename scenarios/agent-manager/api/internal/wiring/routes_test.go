@@ -4,9 +4,13 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
+	"agent-manager/internal/domain"
+
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/agentcatalog"
 )
 
 type sandboxHealthStub struct {
@@ -51,5 +55,26 @@ func TestWorkspaceSandboxHealthCheckerAcceptsAvailableProvider(t *testing.T) {
 func TestWorkspaceSandboxHealthCheckerSkipsMissingProvider(t *testing.T) {
 	if checker := workspaceSandboxHealthChecker(nil); checker != nil {
 		t.Fatal("missing provider should not register a health check")
+	}
+}
+
+func TestCatalogFreshnessCoversEveryDeclaredHarness(t *testing.T) {
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	byRunner := map[string]agentcatalog.CatalogFreshness{}
+	for _, freshness := range catalogFreshnessReader(repoRoot)(context.Background()) {
+		byRunner[freshness.Runner] = freshness
+	}
+	for _, runner := range domain.ValidRunnerTypes() {
+		freshness, ok := byRunner[string(runner)]
+		if !ok {
+			t.Errorf("runner %q is missing from catalog freshness", runner)
+			continue
+		}
+		if freshness.Status == "invalid" || freshness.Status == "unknown" {
+			t.Errorf("runner %q catalog cannot be read: %+v", runner, freshness)
+		}
+	}
+	if len(byRunner) != len(domain.ValidRunnerTypes()) {
+		t.Fatalf("Agent Manager's runner types disagree with the harness descriptors: %v vs %v", domain.ValidRunnerTypes(), byRunner)
 	}
 }

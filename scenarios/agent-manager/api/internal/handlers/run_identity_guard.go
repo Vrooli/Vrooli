@@ -153,6 +153,11 @@ func (h *Handler) denyTokenlessAgent(w http.ResponseWriter, r *http.Request, ope
 	if !ok || p.Kind != coreidentity.ActorAgent {
 		return false
 	}
+	if operation == "create-run" {
+		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err == nil {
+			return false
+		}
+	}
 	grantOperation, policy := lifecycleGrant(operation)
 	if grantOperation != "" && target != "" {
 		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", grantOperation, "agent-manager:run/"+target); err == nil {
@@ -175,7 +180,7 @@ func (h *Handler) denyTokenlessAgent(w http.ResponseWriter, r *http.Request, ope
 // Operations without one (run review, global stops) stay operator decisions.
 func lifecycleGrant(operation string) (grantOperation, policy string) {
 	switch operation {
-	case "stop-run", "continue-run", "wake-run", "recover-run", "stop-run-by-tag", "stop-all":
+	case "stop-run", "continue-run", "wake-run", "recover-run", "stop-run-by-tag", "stop-all", "delete-run-message":
 		return "agent.manage", "agent-management"
 	case "delete-run":
 		return "run.delete", "run-deletion"

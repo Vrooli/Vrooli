@@ -18,6 +18,8 @@ type CodexLiveQuotaWindow struct {
 	WindowMinutes int64      `json:"windowMinutes"`
 	UsedPercent   float64    `json:"usedPercent"`
 	ResetsAt      *time.Time `json:"resetsAt,omitempty"`
+	// ObservedAt is set when the window's reading is older than the response.
+	ObservedAt *time.Time `json:"observedAt,omitempty"`
 }
 
 // ReadLiveQuota reads this process's Codex login in a short-lived app-server.

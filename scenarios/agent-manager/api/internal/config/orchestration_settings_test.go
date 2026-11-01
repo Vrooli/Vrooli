@@ -18,6 +18,46 @@ func TestDefaultOrchestrationSettings_IsValid(t *testing.T) {
 	}
 }
 
+func TestOperationApprovalsPersistAndLegacySettingsDefaultOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "orchestration.json")
+	legacy, err := json.Marshal(DefaultOrchestrationSettings())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(legacy, &fields); err != nil {
+		t.Fatal(err)
+	}
+	delete(fields, "operationApprovals")
+	legacy, err = json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	settings := store.Get()
+	if settings.OperationApprovals != (OperationApprovalSettings{}) {
+		t.Fatal("legacy settings must default operation approvals to off")
+	}
+	settings.OperationApprovals.RunCreation = true
+	settings.OperationApprovals.RunManagement = true
+	if err := store.Update(settings); err != nil {
+		t.Fatal(err)
+	}
+	reloaded, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.Get().OperationApprovals != settings.OperationApprovals {
+		t.Fatal("operation approval settings were not persisted")
+	}
+}
+
 // =============================================================================
 // RUN EXECUTION VALIDATION
 // =============================================================================

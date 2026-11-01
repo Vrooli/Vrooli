@@ -237,6 +237,59 @@ func TestTailerLateFile(t *testing.T) {
 // it drains the first rollout file, then switches to a newer rollout that
 // appears under the run-scoped CODEX_HOME and reads its terminal marker
 // (design R4).
+func TestTailerCodexIgnoresChildRollout(t *testing.T) {
+	runDir := t.TempDir()
+	dir := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
+	parent := filepath.Join(dir, "rollout-2026-07-13T10-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
+	child := filepath.Join(dir, "rollout-2026-07-13T11-00-00-child.jsonl")
+	if err := os.WriteFile(parent, []byte(strings.Join(fixture[:len(fixture)-2], "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sink := &collectSink{}
+	tailer := NewTailer(codecParserResolver, WithTailPollInterval(10*time.Millisecond))
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	done := make(chan *runner.TranscriptTerminal, 1)
+	go func() {
+		term, err := tailer.Tail(ctx, TailParams{RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, TranscriptPath: parent, RunDir: runDir, Sink: sink})
+		if err != nil {
+			t.Errorf("Tail error: %v", err)
+		}
+		done <- term
+	}()
+	time.Sleep(60 * time.Millisecond)
+	if err := os.WriteFile(child, []byte(strings.Join(fixture, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case term := <-done:
+		t.Fatalf("child transcript ended parent tail: %+v", term)
+	case <-time.After(100 * time.Millisecond):
+	}
+	f, err := os.OpenFile(parent, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(strings.Join(fixture[len(fixture)-2:], "\n") + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case term := <-done:
+		if term == nil || !term.Success {
+			t.Fatalf("parent terminal = %+v", term)
+		}
+	case <-ctx.Done():
+		t.Fatal("parent tail did not complete")
+	}
+}
+
 func TestTailerCodexRotation(t *testing.T) {
 	runDir := t.TempDir()
 	sessDir := filepath.Join(runDir, "codex", "sessions", "2026", "07", "13")
@@ -249,7 +302,7 @@ func TestTailerCodexRotation(t *testing.T) {
 	head := fixture[:len(fixture)-2]
 	tail := fixture[len(fixture)-2:]
 
-	rolloutA := filepath.Join(sessDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	rolloutA := filepath.Join(sessDir, "rollout-2026-07-13T10-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	if err := os.WriteFile(rolloutA, []byte(strings.Join(head, "\n")+"\n"), 0o644); err != nil {
 		t.Fatalf("write rollout A: %v", err)
 	}
@@ -278,7 +331,7 @@ func TestTailerCodexRotation(t *testing.T) {
 
 	// After the head is drained, a newer rollout file appears (rotation).
 	time.Sleep(60 * time.Millisecond)
-	rolloutB := filepath.Join(sessDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	rolloutB := filepath.Join(sessDir, "rollout-2026-07-13T11-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	if err := os.WriteFile(rolloutB, []byte(strings.Join(tail, "\n")+"\n"), 0o644); err != nil {
 		t.Fatalf("write rollout B: %v", err)
 	}
@@ -304,7 +357,7 @@ func TestTailerRefusesUnpersistedCodexRotation(t *testing.T) {
 	}
 	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
 	head := fixture[:len(fixture)-1]
-	rolloutA := filepath.Join(sessDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	rolloutA := filepath.Join(sessDir, "rollout-2026-07-13T10-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	if err := os.WriteFile(rolloutA, []byte(strings.Join(head, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +365,7 @@ func TestTailerRefusesUnpersistedCodexRotation(t *testing.T) {
 	if err := os.Chtimes(rolloutA, old, old); err != nil {
 		t.Fatal(err)
 	}
-	rolloutB := filepath.Join(sessDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	rolloutB := filepath.Join(sessDir, "rollout-2026-07-13T11-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	if err := os.WriteFile(rolloutB, []byte(strings.Join(fixture, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

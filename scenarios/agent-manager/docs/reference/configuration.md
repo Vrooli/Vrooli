@@ -1,5 +1,33 @@
 # Configuration Reference — Levers (Tunables)
 
+## Agent operation approvals
+
+In **Settings → Orchestration → Operation permissions**, an operator can
+require a separate grant for each of the following verified agent operations.
+All six settings default to off, including when upgrading existing settings.
+The settings API persists them in `config/orchestration.json`.
+
+| Setting | JSON field | Operation |
+|---|---|---|
+| Create runs and tasks | `operationApprovals.runCreation` | `run.create` |
+| Manage runs and tasks | `operationApprovals.runManagement` | `agent.manage` (including deleting a run message) |
+| Delete runs | `operationApprovals.runDeletion` | `run.delete` |
+| Investigate runs | `operationApprovals.investigation` | `agent.investigate` |
+| Manage delivery | `operationApprovals.effortDelivery` | `effort.delivery` |
+| Change effort metadata | `operationApprovals.effortMetadata` | `effort.reconcile` |
+
+Off removes the additional operation grant for verified agents with the needed
+scope and matching owner. It does not remove identity, expiration, ownership,
+execution limits, or other domain checks. On requires a covering grant using the
+canonical evaluator. Human review decisions and settings changes remain human
+actions. Service principals use their separate standing-grant policy; team
+changes and downstream effects retain their own authorization. With management
+approval off, stop-all affects only the verified agent owner's runs; global
+stop-all requires a grant covering all runs. Fresh recovery checks both run
+management for the source and run creation for the replacement. These settings
+do not revoke existing direct-lineage task and run permissions or change sandbox
+review behavior.
+
 Every adjustable threshold in agent-manager lives in a single `config.Levers` struct (`internal/config/levers.go`). New durations, counts, or buffer sizes are added here — never as hard-coded literals scattered through source. This is the **only home for adjustable thresholds**, per the architecture's invariant 4.
 
 The struct splits into fourteen sections; jump to the one that controls the behavior you're tuning.
@@ -48,6 +76,13 @@ which is the value the executor enforces and the run read APIs report.
 
 `heartbeatIntervalSeconds < staleThresholdSeconds < maxRecoveryAgeSeconds` is
 required. Settings updates that violate this ordering are rejected.
+
+The existing `safetyIsolation.requireApproval` field is retained in the saved
+settings but is not applied during run resolution or sandbox finalization. The
+Settings dialog marks this control unavailable. Sandbox application and review
+instead follow the run's resolved sandbox configuration (`manualReview` and
+`autoApply`). This field does not configure operation grants for starting or
+managing runs.
 
 ## Role-policy catalog
 

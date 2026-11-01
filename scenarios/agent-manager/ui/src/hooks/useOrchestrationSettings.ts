@@ -13,6 +13,14 @@ export interface OrchestrationSettings {
     requireApproval: boolean;
     networkAccess: "none" | "localhost" | "full";
   };
+  operationApprovals: {
+    runCreation: boolean;
+    runManagement: boolean;
+    runDeletion: boolean;
+    investigation: boolean;
+    effortDelivery: boolean;
+    effortMetadata: boolean;
+  };
   healthDetection: {
     heartbeatIntervalSeconds: number;
     staleThresholdSeconds: number;

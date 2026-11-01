@@ -262,10 +262,15 @@ func (t *Tailer) Tail(ctx context.Context, p TailParams) (*runner.TranscriptTerm
 			EventSink:  p.Sink,
 			OnAdvance:  p.OnAdvance,
 			OnSessionID: func(sessionID string) error {
-				if p.OnSessionID == nil {
-					return nil
+				if p.OnSessionID != nil {
+					if err := p.OnSessionID(sessionID); err != nil {
+						return err
+					}
 				}
-				return p.OnSessionID(sessionID)
+				if p.SessionID == "" {
+					p.SessionID = sessionID
+				}
+				return nil
 			},
 			OnGoalStatus: func(marker runner.GoalMarker) error {
 				markerCopy := marker

@@ -81,6 +81,9 @@ packages/.proto-descriptor-*/
 **/test-build
 **/api/*-api
 **/api/webconsole
+# UI server binary: `go build` of a scenario's ui/ Go module names the output
+# after the scenario (e.g. ui/landing-page-business-suite-ui). Regenerable.
+**/ui/*-ui
 # Ad-hoc Go build output. `go build` with no -o names the binary after its
 # containing directory, so a bare `go build .` in api/ or cli/ drops an
 # extensionless executable right next to the source. Every compiled binary that
@@ -551,6 +554,11 @@ scripts/main/generated/test-genie
 vrooli
 !cmd/vrooli/
 !cmd/vrooli/**
+# Autoheal's Vrooli packages are source, not compiled CLIs named vrooli.
+!/scenarios/vrooli-autoheal/api/internal/integrations/vrooli/
+!/scenarios/vrooli-autoheal/api/internal/integrations/vrooli/**
+!/scenarios/vrooli-autoheal/api/internal/checks/vrooli/
+!/scenarios/vrooli-autoheal/api/internal/checks/vrooli/**
 
 # Per-clone scenario stale-check sidecar (see internal/scenariostale).
 **/.build-fingerprint.json
@@ -581,8 +589,6 @@ scenarios/**/signing/*.keyring
 scenarios/**/signing/*.key
 # React Component Library scratch output is disposable; durable evidence lives
 # under the scenario's docs/reports directory.
-scenarios/react-component-library/tmp/
-scenarios/react-component-library/ui/.catalog-conformance-*/
 
 # Local delivery captures and rendered design exports. Keep delivery Markdown,
 # authored prototypes, verification scripts, and operational instructions visible.
@@ -680,3 +686,7 @@ scenarios/react-component-library/ui/.catalog-conformance-*/
 # Two small, acceptance-relevant owner receipts are linked from current docs.
 !/docs/internal/delivery-reliability-research/follow-through/evidence/owner-ui-speed-feedback-20261020/ui-served-comparison-20261020.json
 !/docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/known-team-return-20261020/bas-author-flow-parameters/native-consumer-receiving-readback-20261020.json
+
+# scenario-to-desktop's Go target package is source code, not a build target.
+!/scenarios/scenario-to-desktop/api/target/
+!/scenarios/scenario-to-desktop/api/target/*.go

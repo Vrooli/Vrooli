@@ -50,7 +50,7 @@ The projections are the **coverage axis**: enumerable supply, measured as `now /
 
 A coverage gap says *"this does not exist"*; an empirical signal says *"this exists and hurts."* Both should produce ranked gaps on one surface, so a reader needs only `focus next`.
 
-`focus next` now merges both axes through named `GapSource` implementations. Coverage entries retain their projection/status semantics. Empirical entries carry recurrence, an evidence source, and a locator for the newest supporting run. Trials history is the causal lane; agent-manager friction episodes are the observational lane. Each source degrades independently: an unavailable source produces a visible availability reason while healthy sources continue to rank.
+`focus next` now merges both axes through named `GapSource` implementations. Coverage entries retain their projection/status semantics. Empirical entries carry recurrence, an evidence source, and a locator for the newest supporting run. Trials history is the causal lane; agent-manager tool-friction profiles are the observational lane. Each source degrades independently: an unavailable source produces a visible availability reason while healthy sources continue to rank.
 
 An empirical entry is intentionally not a percentage. It reports independent recurrence and traceability because the set of possible frictions has no honest denominator. Unattributed agent-manager observations are excluded from clusters and the dropped count is surfaced as a source degradation entry.
 

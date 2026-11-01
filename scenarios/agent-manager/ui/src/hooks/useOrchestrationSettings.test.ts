@@ -6,6 +6,7 @@ import { useOrchestrationSettings, type OrchestrationSettings } from "./useOrche
 const settings: OrchestrationSettings = {
   runExecution: { runTimeoutMinutes: 20, maxConcurrentRuns: 2, maxTurns: 8 },
   safetyIsolation: { requireSandbox: true, requireApproval: true, networkAccess: "localhost" },
+  operationApprovals: { runCreation: false, runManagement: false, runDeletion: false, investigation: false, effortDelivery: false, effortMetadata: false },
   healthDetection: { heartbeatIntervalSeconds: 10, staleThresholdSeconds: 60, maxRecoveryAgeSeconds: 120, reconcilerIntervalSeconds: 30 },
   processTermination: { gracePeriodSeconds: 5, killProcessGroup: true, killOrphans: true, orphanGracePeriodSeconds: 10, terminationMaxRetries: 2 },
 };

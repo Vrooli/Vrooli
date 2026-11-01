@@ -24,7 +24,8 @@ func TestInstalledCLIHelpAgreesWithDeclaredCapabilities(t *testing.T) {
 	}{
 		{"claude", ClaudeCLICommand, []string{"--help"}, NewClaudeForTest(), []string{"--allowedTools", "--disallowedTools", "--effort"}, true},
 		{"codex", CodexCLICommand, []string{"exec", "--help"}, NewCodexForTest(), []string{}, false},
-		{"grok", GrokCLICommand, []string{"--help"}, NewGrokForTest(), []string{"--allow", "--deny", "--effort"}, true},
+		// Grok 1.0 still accepts --effort but its help no longer lists the values.
+		{"grok", GrokCLICommand, []string{"--help"}, NewGrokForTest(), []string{"--allow", "--deny", "--effort", "--max-turns", "--always-approve", "--cwd", "--resume", "--output-format"}, false},
 		{"opencode", OpenCodeCLICommand, []string{"run", "--help"}, NewOpenCodeForTest(), []string{"--variant"}, false},
 	}
 	for _, tc := range cases {

@@ -37,7 +37,10 @@ type EffortActor struct {
 	// grant for effort.reconcile on this effort; ApprovedBy is the owner.
 	Delegated  bool
 	ApprovedBy string
-	Scopes     []string
+	// PolicyOwner identifies a verified agent's owner when the operator has
+	// disabled the corresponding operation grant requirement.
+	PolicyOwner string
+	Scopes      []string
 	// DeliveryManager controls only an existing enrollment's commission under
 	// an owner-approved effort.delivery grant. It conveys no enrollment rights.
 	DeliveryManager bool
@@ -50,7 +53,7 @@ func (a EffortActor) canReconcileMetadata(e *pb.EffortEnrollment) bool {
 		return a.ID != ""
 	}
 	if a.Delegated {
-		return a.ID != "" && a.ApprovedBy != ""
+		return a.ID != "" && (a.ApprovedBy != "" || (a.PolicyOwner != "" && e != nil && e.AuthorizedBy == a.PolicyOwner))
 	}
 	if !a.MetadataReconciler || a.ID == "" || e == nil {
 		return false
@@ -194,7 +197,7 @@ func validateEffortEnrollment(e *pb.EffortEnrollment) error {
 func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
 	s.deliveryMu.Lock()
 	defer s.deliveryMu.Unlock()
-	if actor.ID == "" || (!actor.Operator && actor.Team == nil && (!actor.DeliveryManager || actor.ApprovedBy == "")) {
+	if actor.ID == "" || (!actor.Operator && actor.Team == nil && (!actor.DeliveryManager || (actor.ApprovedBy == "" && actor.PolicyOwner == ""))) {
 		return nil, errors.New("authenticated operator authority required to enroll or amend")
 	}
 	if req == nil || req.Enrollment == nil || strings.TrimSpace(req.IdempotencyKey) == "" {
@@ -207,6 +210,9 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 		digest += ":team:" + actor.Team.TeamID
 	} else if !actor.Operator {
 		digest += ":effort.delivery:" + actor.ApprovedBy
+		if actor.PolicyOwner != "" {
+			digest += ":policy-owner:" + actor.PolicyOwner
+		}
 	}
 	key := "enroll:" + req.IdempotencyKey
 	replay := &pb.EffortEnrollment{}
@@ -237,6 +243,9 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 		if old == nil || old.Withdrawn || e.Delivery == nil {
 			return nil, errors.New("delivery management requires an existing active enrollment and a commission")
 		}
+		if actor.PolicyOwner != "" && old.AuthorizedBy != actor.PolicyOwner {
+			return nil, errors.New("delivery owner does not match the verified agent owner")
+		}
 		unchanged := proto.Clone(e).(*pb.EffortEnrollment)
 		unchanged.Delivery = old.Delivery
 		if !proto.Equal(unchanged, old) {
@@ -261,8 +270,10 @@ func (s *EffortService) Enroll(ctx context.Context, req *pb.EnrollEffortRequest,
 // all authority, dispatch, subject and withdrawal fields so routine workspace
 // synchronization cannot renew, revoke or replace a grant.
 func (s *EffortService) ReconcileMetadata(ctx context.Context, req *pb.ReconcileEffortMetadataRequest, actor EffortActor) (*pb.EffortEnrollment, error) {
-	if _, present := authn.RequestOperationAuthorityFromContext(ctx); present || actor.exact != nil {
-		if actor.exact == nil || actor.ID != actor.exact.envelope.Executor || actor.ApprovedBy != actor.exact.envelope.Initiator || actor.Operator || actor.Delegated || actor.DeliveryManager || actor.MetadataReconciler || actor.exact.validate(ctx, req) != nil {
+	authority, present := authn.RequestOperationAuthorityFromContext(ctx)
+	_, ordinaryAgentPolicy := authority.(interface{ AgentOperationPolicy() })
+	if (present && !ordinaryAgentPolicy) || actor.exact != nil {
+		if actor.exact == nil || actor.ID != actor.exact.envelope.Executor || actor.ApprovedBy != actor.exact.envelope.Initiator || actor.PolicyOwner != "" || actor.Operator || actor.Delegated || actor.DeliveryManager || actor.MetadataReconciler || actor.exact.validate(ctx, req) != nil {
 			return nil, ErrExactAuthority
 		}
 		repo, ok := s.repo.(*Repository)

@@ -1439,7 +1439,7 @@ func (c *Client) runRelay(request *channelv1.RelayRequest) {
 // capability inventory.
 func changesCapabilities(command string) bool {
 	switch strings.TrimSpace(command) {
-	case "resource install", "resource uninstall":
+	case "resource install", "resource uninstall", "resource update":
 		return true
 	default:
 		return false

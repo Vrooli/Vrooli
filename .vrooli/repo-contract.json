@@ -65,6 +65,9 @@
         "roots": [
           "scenarios/*"
         ],
+        "exclude": [
+          "scenarios/.*"
+        ],
         "marker": ".vrooli/service.json"
       },
       "resource": {
@@ -194,6 +197,15 @@
         "protected": true,
         "cleanup": "never"
       },
+      "evidence": {
+        "path": "evidence",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "agent-manager",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Effort acceptance evidence written by delivery and goal workers under evidence/<effort>/. Agent Manager declares it (storage entry effort_evidence) because effort enrollments are the only lifecycle signal; its owner pruner removes only unreferenced regenerable intermediates of finished efforts, with receipts. Generic cleanup must never touch it."
+      },
       "logs": {
         "path": "logs",
         "kind": "dir",
@@ -237,17 +249,23 @@
         "cleanup": "never",
         "rationale": "Plan source material and execution evidence referenced by durable plans. Plan Manager exposes this existing home location during authoring; relocation preserves citations and evidence."
       },
+      "research": {
+        "path": "research",
+        "kind": "dir",
+        "regenerable": false,
+        "owner": "prompt-manager",
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Canonical retained-research home (docs/internal/research-experimentation/STORAGE.md): topics, runs, cohorts and migration receipts. Prompt Manager owns the research skills that direct writes here and declares the census entry research_home with an alarm-only budget. Research results and evidence are never pruned automatically; regenerable run intermediates are reclaimed only by the researcher or with operator approval."
+      },
       "processes": {
         "path": "processes",
         "kind": "dir",
-        "regenerable": true,
+        "regenerable": false,
         "owner": "control_plane",
-        "cleanup": "storage_manager",
-        "retention": {
-          "max_age": "7d",
-          "keep_count": 3,
-          "protect_active": true
-        }
+        "protected": true,
+        "cleanup": "never",
+        "rationale": "Live process ownership records cannot be recreated safely from directory age or size. The control plane retires stale records using process identity and liveness; generic storage cleanup must never delete this shared authority."
       },
       "runtime_db": {
         "path": "state/runtime.db",
@@ -316,8 +334,8 @@
   },
   "storage": {
     "roots": [
-      { "id": "go-work-dirs", "root": "$VROOLI_HOME/tmp/go-work", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos", "windows"], "rationale": "policy: bounded Go work directories are disposable after six hours" },
-      { "id": "go-build-cache", "root": "$USER_HOME/.cache/go-build", "class": "cache", "tier": "conditional", "max_age": "14d", "max_bytes": "40GiB", "protect": ["trim.txt", "README", "*.lock"], "lease_check": "owner", "platforms": ["linux", "macos", "windows"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": false }, "rationale": "Shared Go outputs remain in use between compile, link and vet without continuously open handles. External deletion requires tool-owner build-use or quiescence proof, unavailable to the generic provider; retention budgets do not authorize deletion. Leave trimming to Go until owner-coordinated reclamation exists." },
+      { "id": "go-work-dirs", "root": "$VROOLI_HOME/tmp/go-work", "class": "tmp", "tier": "safe", "max_age": "6h", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["linux", "macos", "windows"], "rationale": "policy: bounded Go work directories are disposable after six hours once no process holds a handle, cwd, or mapping inside them; name markers such as *.lock and .keep left in a test fixture home are advisory under this check" },
+      { "id": "go-build-cache", "root": "$USER_HOME/.cache/go-build", "class": "cache", "tier": "conditional", "max_age": "14d", "max_bytes": "40GiB", "protect": ["trim.txt", "README", "*.lock"], "lease_check": "owner", "platforms": ["linux", "macos", "windows"], "tool_prune_command": ["go", "clean", "-cache"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": false }, "rationale": "Shared Go outputs remain in use between compile, link and vet without continuously open handles, so external file deletion needs a build-use or quiescence proof the generic file provider cannot give. Owner-coordinated reclamation now exists: `go clean -cache` is Go's own prune command and respects its cache-Close contract, so the tool-prune provider reclaims this root. It stays tier conditional (operator approval, never autonomous) so a build-heavy host does not nuke its build cache every pressure tick." },
       { "id": "uv-cache", "root": "$USER_HOME/.cache/uv", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "8GiB", "protect": [], "lease_check": "none", "platforms": ["linux", "macos"], "tool_prune_command": ["uv", "cache", "prune"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded working-set share for a reproducible Python cache" },
       { "id": "huggingface-cache", "root": "$USER_HOME/.cache/huggingface/hub", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "model_pin", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded downloadable model cache; pinned models require a future lease-aware provider" },
       { "id": "playwright-cache", "root": "$USER_HOME/.cache/ms-playwright", "class": "cache", "tier": "regenerable", "max_age": "30d", "max_bytes": "20GiB", "protect": [], "lease_check": "open_handle", "platforms": ["linux", "macos"], "proof": { "derived": true, "tool_recreates": true, "exact_root": true, "no_lease": true }, "rationale": "policy: bounded browser installation cache" },

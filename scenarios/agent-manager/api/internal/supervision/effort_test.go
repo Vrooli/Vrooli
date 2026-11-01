@@ -15,6 +15,8 @@ import (
 	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -547,6 +549,34 @@ func TestDelegatedEffortMetadataNeedsAnApproverAndKeepsAuthority(t *testing.T) {
 	}
 	if updated.DestinationRef != "path:goal/GOAL.md" || updated.AuthorizedBy != e.AuthorizedBy || len(updated.Subjects) != len(e.Subjects) {
 		t.Fatalf("delegated reconciliation changed more than metadata: %+v", updated)
+	}
+}
+
+type ordinaryAgentPolicyFixture struct{}
+
+func (ordinaryAgentPolicyFixture) AgentOperationPolicy() {}
+func (ordinaryAgentPolicyFixture) AuthorizeOperation(context.Context, identity.Principal, string, string, string) error {
+	return nil
+}
+
+func TestAgentPolicyEffortMetadataRespectsOwnerAndExactAuthority(t *testing.T) {
+	s, _, c := effortFixture(t)
+	e := enrollmentFixture(t, s, c, domain.RunStatusRunning)
+	ctx := authn.WithRequestOperationAuthority(context.Background(), ordinaryAgentPolicyFixture{})
+	if _, present, err := ExactEffortActor(ctx, e.EffortRef); present || err != nil {
+		t.Fatalf("ordinary policy treated as exact authority: present=%v err=%v", present, err)
+	}
+	request := func(key string) *pb.ReconcileEffortMetadataRequest {
+		next := proto.Clone(e).(*pb.EffortEnrollment)
+		next.DestinationRef = "path:goal/GOAL.md"
+		return &pb.ReconcileEffortMetadataRequest{Enrollment: next, ExpectedRevision: e.Revision, IdempotencyKey: key}
+	}
+	if _, err := s.ReconcileMetadata(ctx, request("wrong-owner"), EffortActor{ID: "agent", Delegated: true, PolicyOwner: "someone-else"}); err == nil {
+		t.Fatal("agent changed another owner's effort")
+	}
+	updated, err := s.ReconcileMetadata(ctx, request("same-owner"), EffortActor{ID: "agent", Delegated: true, PolicyOwner: e.AuthorizedBy})
+	if err != nil || updated.DestinationRef != "path:goal/GOAL.md" {
+		t.Fatalf("same-owner metadata update failed: %v", err)
 	}
 }
 

@@ -54,7 +54,17 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 	// only the approved run-creation scopes as its ceiling; never promote or union
 	// baseline scopes. Exact-parent child creation keeps its separate path below.
 	if !serviceCaller && req.OwnerToken == "" && req.ParentRunID == nil {
-		handled, err := o.authenticateGrantedRunCreate(ctx, req)
+		proof, proofErr := provenance.ReverifyOperationProof(ctx)
+		if proofErr != nil {
+			return refuse("offered operation proof is invalid")
+		}
+		if verifiedOwner.Grant != nil || proof != nil {
+			handled, err := o.authenticateGrantedRunCreate(ctx, req)
+			if handled || err != nil {
+				return err
+			}
+		}
+		handled, err := o.authenticateBaselineRunCreate(ctx, req)
 		if handled || err != nil {
 			return err
 		}
@@ -125,6 +135,55 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 	}
 	req.RequestedScopes, req.ExpectedOwnerSubject = narrowing, expected
 	return narrowCreateRunScopes(req)
+}
+
+// authenticateBaselineRunCreate retains a verified caller's owner and scope
+// ceiling when operation approval is disabled. It never treats a run label or
+// unverified principal as authority.
+func (o *Orchestrator) authenticateBaselineRunCreate(ctx context.Context, req *CreateRunRequest) (bool, error) {
+	p, ok := coreidentity.PrincipalFromContext(ctx)
+	if !ok || p.Kind != coreidentity.ActorAgent || !p.IsVerified() || strings.TrimSpace(req.RunIdentityToken) == "" {
+		return false, nil
+	}
+	settings, err := o.GetOrchestrationSettings(ctx)
+	if err != nil || settings == nil || settings.OperationApprovals.RunCreation {
+		return false, nil
+	}
+	if !scopecatalog.Resolve(p.Scopes, "agent-manager:write") {
+		return false, nil // A separately approved operation proof may still apply.
+	}
+	refuse := func() (bool, error) {
+		return true, domain.NewValidationErrorWithCode("authorization", "verified run owner or scope unavailable", domain.ErrCodePolicyScope)
+	}
+	if provenance.ForwardedIdentityToken(ctx) != strings.TrimSpace(req.RunIdentityToken) || o.runs == nil {
+		return refuse()
+	}
+	verified, err := o.VerifyIdentityToken(ctx, strings.TrimSpace(req.RunIdentityToken))
+	if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
+		return refuse()
+	}
+	claims := verified.Claims
+	parent, err := o.runs.Get(ctx, claims.RunID)
+	expires := time.Unix(claims.ExpiresAt, 0).UTC()
+	if err != nil || parent == nil || parent.Status.IsTerminal() || parent.IdentityTokenRevokedAt != nil ||
+		parent.TaskID != claims.TaskID || strings.TrimSpace(claims.Subject) == "" ||
+		parent.OwnerSubject != strings.TrimSpace(claims.Subject) || p.Owner != strings.TrimSpace(claims.Subject) ||
+		!expires.After(o.now()) {
+		return refuse()
+	}
+	if parent.OwnerExpiresAt != nil {
+		if !parent.OwnerExpiresAt.After(o.now()) {
+			return refuse()
+		}
+		if parent.OwnerExpiresAt.Before(expires) {
+			expires = *parent.OwnerExpiresAt
+		}
+	}
+	req.OwnerSubject = strings.TrimSpace(claims.Subject)
+	req.OwnerScopes = identity.IntersectScopes(claims.Scopes, p.Scopes, nil)
+	req.OwnerExpiresAt = &expires
+	req.caller = &domain.CreateRunCaller{Kind: "agent-baseline", Subject: req.OwnerSubject, RunID: claims.RunID}
+	return true, narrowCreateRunScopes(req)
 }
 
 // authenticateGrantedRunCreate recognizes a top-level run.create authorization

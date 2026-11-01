@@ -565,6 +565,27 @@ func TestOrchestrator_StopAllRuns_WithTagPrefix(t *testing.T) {
 	}
 }
 
+func TestOrchestrator_StopAllRunsRespectsOwnerFilter(t *testing.T) {
+	svc, runs := newTestOrchestratorWithLimit(t, 4)
+	ctx := context.Background()
+	task := mustCreateTask(t, svc, ctx, &domain.Task{ID: uuid.New(), Title: "bulk stop", ScopePath: "src/", Status: domain.TaskStatusQueued, CreatedAt: time.Now(), UpdatedAt: time.Now()})
+	foreign := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, OwnerSubject: "another-owner", RunMode: domain.RunModeInPlace, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if err := runs.Create(ctx, foreign); err != nil {
+		t.Fatal(err)
+	}
+	result, err := svc.StopAllRuns(ctx, orchestration.StopAllOptions{OwnerSubject: "owner-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Stopped != 0 || result.Failed != 0 || result.Skipped != 0 {
+		t.Fatalf("foreign run was included: %+v", result)
+	}
+	stored, err := runs.Get(ctx, foreign.ID)
+	if err != nil || stored.Status != domain.RunStatusRunning {
+		t.Fatalf("foreign run changed: %+v, %v", stored, err)
+	}
+}
+
 // TestOrchestrator_ApproveRun_NotFound tests approving non-existent run.
 func TestOrchestrator_ApproveRun_NotFound(t *testing.T) {
 	svc := newTestOrchestrator(t)

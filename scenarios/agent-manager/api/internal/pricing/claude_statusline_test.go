@@ -82,3 +82,11 @@ func TestClaudeStatuslineReaderSkipsWindowsWhoseResetHadPassed(t *testing.T) {
 		t.Fatalf("five_hour=%+v seven_day=%+v", five, seven)
 	}
 }
+
+func TestClaudeWindowMinutesReadsTheResourceDescriptor(t *testing.T) {
+	for pool, want := range map[string]int64{"five_hour": 300, "seven_day": 10080, "unknown": 0} {
+		if got := ClaudeWindowMinutes(pool); got != want {
+			t.Errorf("%s: got %d, want %d", pool, got, want)
+		}
+	}
+}

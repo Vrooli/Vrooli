@@ -193,6 +193,9 @@ func deliveryGrantActor(ctx context.Context, effortRef string) (supervision.Effo
 	if strings.TrimSpace(effortRef) == "" {
 		return supervision.EffortActor{}, true, connect.NewError(connect.CodeInvalidArgument, errors.New("effort reference required"))
 	}
+	if p.Owner != "" && operationPolicyAllowsWithoutGrant(ctx, "effort.delivery", target) {
+		return supervision.EffortActor{ID: p.Subject, DeliveryManager: true, PolicyOwner: p.Owner}, true, nil
+	}
 	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.delivery", target); err != nil {
 		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive grant does not allow effort.delivery on "+target))
 	}
@@ -226,6 +229,9 @@ func effortGrantActor(ctx context.Context, effortRef string, authority pb.WatchA
 	p, ok := requestidentity.PrincipalFromContext(ctx)
 	if !ok || p.Kind != requestidentity.ActorAgent {
 		return supervision.EffortActor{}, false, nil
+	}
+	if authority == pb.WatchAuthority_WATCH_AUTHORITY_OPERATOR && strings.TrimSpace(effortRef) != "" && p.Owner != "" && operationPolicyAllowsWithoutGrant(ctx, "effort.reconcile", EffortGrantTarget(effortRef)) {
+		return supervision.EffortActor{ID: p.Subject, Delegated: true, PolicyOwner: p.Owner}, true, nil
 	}
 	// Supplemental operation authority deliberately stays outside p.Grant.
 	// Recognize both supported credential shapes, then let the canonical

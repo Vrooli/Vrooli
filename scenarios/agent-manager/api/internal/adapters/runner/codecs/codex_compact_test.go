@@ -134,3 +134,82 @@ func TestCodexCompactSessionFailsWithoutACompaction(t *testing.T) {
 		})
 	}
 }
+
+// Compacting resumes the thread in an app-server, which an active goal may not
+// survive; a size or goal the rollout cannot show is a reason to leave it alone.
+func TestCodexCompactSessionLeavesAloneWhatItCannotClear(t *testing.T) {
+	appendRollout := func(t *testing.T, home, line string) {
+		t.Helper()
+		matches, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "*thread-1*.jsonl"))
+		if len(matches) != 1 {
+			t.Fatalf("rollouts = %v", matches)
+		}
+		f, err := os.OpenFile(matches[0], os.O_APPEND|os.O_WRONLY, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if _, err := f.WriteString(line + "\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	activeEvent := `{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"ship","status":"active"}}}`
+	createGoal := `{"type":"response_item","payload":{"type":"custom_tool_call","call_id":"c","name":"exec","input":"await tools.create_goal({objective:\"ship\"})"}}`
+	for _, tc := range []struct {
+		name   string
+		tokens []int
+		lines  []string
+		noHome bool
+		reason string
+		size   int64
+	}{
+		{name: "active goal event", tokens: []int{150_000}, lines: []string{activeEvent}, reason: "active goal", size: 150_000},
+		{name: "goal started by a tool", tokens: []int{150_000}, lines: []string{createGoal}, reason: "active goal", size: 150_000},
+		{name: "no token count", lines: []string{}, reason: "size is unknown"},
+		{name: "zero token count", tokens: []int{0}, reason: "size is unknown"},
+		{name: "no rollout", reason: "could not be read"},
+		{name: "no home", noHome: true, reason: "could not be read"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			codec, home, logPath := newFakeAppServerCodex(t, "ok")
+			if tc.tokens != nil || tc.lines != nil {
+				writeRollout(t, home, "thread-1", tc.tokens...)
+			}
+			for _, line := range tc.lines {
+				appendRollout(t, home, line)
+			}
+			if tc.noHome {
+				home = ""
+			}
+			res, err := codec.CompactSession(context.Background(), compactReq(home, 40_000))
+			if err != nil {
+				t.Fatalf("CompactSession: %v", err)
+			}
+			if res.Compacted || res.ContextTokens != tc.size || !strings.Contains(res.Reason, tc.reason) {
+				t.Fatalf("result = %+v, want a skip naming %q", res, tc.reason)
+			}
+			if _, err := os.Stat(logPath); !os.IsNotExist(err) {
+				t.Fatal("a skipped compaction must not start the app-server")
+			}
+		})
+	}
+}
+
+func TestCodexCompactSessionProceedsAfterAPausedGoal(t *testing.T) {
+	codec, home, _ := newFakeAppServerCodex(t, "ok")
+	writeRollout(t, home, "thread-1", 150_000)
+	matches, _ := filepath.Glob(filepath.Join(home, "sessions", "*", "*", "*", "*thread-1*.jsonl"))
+	data, err := os.ReadFile(matches[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	goal := `{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"ship","status":"active"}}}` + "\n" +
+		`{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"ship","status":"paused"}}}` + "\n"
+	if err := os.WriteFile(matches[0], append([]byte(goal), data...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	res, err := codec.CompactSession(context.Background(), compactReq(home, 40_000))
+	if err != nil || !res.Compacted {
+		t.Fatalf("result = %+v, err = %v", res, err)
+	}
+}

@@ -360,7 +360,7 @@ func TestCoordinatorPersistsCodexRotationPathAndFileCursor(t *testing.T) {
 	}
 	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
 	head := fixture[:len(fixture)-2]
-	rolloutA := filepath.Join(sessionsDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	rolloutA := filepath.Join(sessionsDir, "rollout-2026-07-13T10-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	headBytes := []byte(strings.Join(head, "\n") + "\n")
 	if err := os.WriteFile(rolloutA, headBytes, 0o644); err != nil {
 		t.Fatal(err)
@@ -393,7 +393,7 @@ func TestCoordinatorPersistsCodexRotationPathAndFileCursor(t *testing.T) {
 	}()
 
 	waitFor(t, time.Second, func() bool { return run.TranscriptCursor == int64(len(headBytes)) })
-	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	fullBytes := []byte(strings.Join(fixture, "\n") + "\n")
 	if err := os.WriteFile(rolloutB, fullBytes, 0o644); err != nil {
 		t.Fatal(err)
@@ -745,6 +745,20 @@ func TestCoordinatorFinalizeSemantics(t *testing.T) {
 	}
 }
 
+func TestCoordinatorTranscriptFailureDoesNotEndLiveSession(t *testing.T) {
+	run := newInteractiveRun(domain.RunnerTypeCodex, "")
+	run.WebConsoleSessionID = "s1"
+	coord, _, _ := newTestCoordinator(t, newFakeSessions("s1"), &collectSink{})
+	monitorErr := errors.New("event store unavailable")
+	err := coord.Finalize(context.Background(), run, nil, monitorErr)
+	if !errors.Is(err, monitorErr) {
+		t.Fatalf("got %v, want monitor error", err)
+	}
+	if run.Status != domain.RunStatusRunning || run.EndedAt != nil {
+		t.Fatalf("monitor failure ended live run: status=%s ended=%v", run.Status, run.EndedAt)
+	}
+}
+
 // TestCoordinatorTimeoutPersistsOnExpiredContext proves the timeout terminal is
 // written even though the tail context is already expired when it fires — the
 // live Phase 2 smoke found the run stuck RUNNING because the write inherited the
@@ -904,7 +918,7 @@ func TestCoordinatorRetainsOldTranscriptWhenRotationPersistenceFails(t *testing.
 	}
 	fixture := readCodecFixture(t, "codex_rollout_trace.jsonl")
 	head := fixture[:len(fixture)-1]
-	rolloutA := filepath.Join(sessionsDir, "rollout-2026-07-13T10-00-00-aaaa.jsonl")
+	rolloutA := filepath.Join(sessionsDir, "rollout-2026-07-13T10-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	headBytes := []byte(strings.Join(head, "\n") + "\n")
 	if err := os.WriteFile(rolloutA, headBytes, 0o644); err != nil {
 		t.Fatal(err)
@@ -913,7 +927,7 @@ func TestCoordinatorRetainsOldTranscriptWhenRotationPersistenceFails(t *testing.
 	if err := os.Chtimes(rolloutA, old, old); err != nil {
 		t.Fatal(err)
 	}
-	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-bbbb.jsonl")
+	rolloutB := filepath.Join(sessionsDir, "rollout-2026-07-13T11-00-00-019f46b3-b60d-7373-bf64-b8748b8d5992.jsonl")
 	if err := os.WriteFile(rolloutB, []byte(strings.Join(fixture, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

@@ -415,6 +415,11 @@ mobile; desktop retains the persistent sidebar.
 
 ## Work ladder
 
+- W3 finding (2026-10-31): `safetyIsolation.requireApproval` is persisted but not consumed by run resolution or sandbox finalization. Sandbox application uses each run's `manualReview` and `autoApply`; the Settings dialog now marks the saved option unavailable. This does not change or configure operation grants.
+
+- Rung: W0 — configurable operation approval (2026-10-31).
+- Evidence: the operator requests Agent Manager approval gates be configurable and disabled by default for agent task/run work. `docs/reference/configuration.md` records the operation settings and remaining restrictions; preserve separate human-only decisions and existing identity/scope/owner checks.
+
 - Localized rung: W3 — delivery-stop decision context (2026-10-26).
 - Evidence: native `delivery-nh-redesign-20261024` omitted `big_picture` and `technical_details`; `Note` contained only a generic acceptance warning. Both inbox components already render the existing explanation fields and preserve paragraphs. The focused native handback regression failed on the absent producer context before repair.
 - Repair: terminal handback supplies product/effort identity, stop/clock, option consequences, reported progress, per-surface targets, the single recorded handoff, operator needs, limitations and evidence references through the existing decision fields. The native goal-home snapshot carries the bounded handoff; missing or ambiguous handoffs remain explicitly unknown. The same outcome is persisted before publication; retry preserves stored decision content and identity. Historical published decisions remain unchanged. Focused regression and scenario phase receipts are recorded in the work-record; acceptance of Notification Hub itself remains open.
@@ -652,6 +657,14 @@ Original Nooch E30 and Desktop E3 native admissions failed before worker prompt/
 A team-preparation browser confirmation reached the issuer but failed because the existing verified owner's Agent Manager capability binding omitted prompt-manager:read/write. The pending request remained unapproved. Browser approval GET previously offered Confirm without checking those prerequisites, and POST returned only “required capability not granted.”
 
 The same reviewed-policy scope check now powers a read-only browser preflight and the final issuer error. GET lists missing capabilities and withholds confirmation until eligible; reviewed-policy scope failures retain ErrCapability and name the missing delegated scopes. The early base agent-manager:write gate keeps its existing refusal, while GET preflight also lists that base prerequisite. Independent human/provider, expiry, exact process, frozen ceilings and reviewed target checks are unchanged. Focused regression failed before repair and passes after repair; current race checks include successful eligible fixture approval, no authority on denied approval, browser guidance, origin/agent-header refusal and existing policy/supersession cases. Real remote consent remains a separate human operation.
+
+### Interactive research supervisor transcript ownership — 2026-10-31
+
+- Rung: W3, localized interactive execution defect; no W0–W2 conformance claim.
+- Evidence: run `9f7943d2-5aa0-44a3-bec8-384f1394f160` recorded `replay_event_conflict` immediately after a child was spawned, then falsely ended without a terminal marker while its terminal remained active. Its Codex home contains distinct parent and worker rollouts. The retention owner archived the session two hours after that false terminal status.
+- Cause: Codex transcript rediscovery assumed one rollout per run-scoped home and selected the newest file, including child sessions. Re-reading the parent after a child selection changed parser context and could conflict with immutable events. The coordinator treated an observation error as proof of run termination.
+- Repair: pin Codex rediscovery to the verified runner session and preserve live run state on observation errors for owner recovery. Focused regressions cover a newer child, same-session rotation, rejected rotation persistence, and monitor failure. Production wakeup and full research-window reliability remain separate qualification work.
+- Validation: generated protobuf verifier passed; the complete interactive Go package, focused recovery cases, and focused race tests passed. Test Genie unit run `20261031-131724-f2a9eca6` failed on the pre-existing `TestScenarioSourceFilesStayBelowSizeLimit` and `TestIndexerRelinksLegacySnapshotImportsAndDeletesTheirCopy`; its retained diagnostic reported no recovery test failures. The serving scenario was not reloaded, so live behavior remains unverified.
 
 ## Cleanup History
 
