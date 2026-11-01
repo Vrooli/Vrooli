@@ -48,7 +48,8 @@
     "exactly one binding call per run; no retry, no second query; the groups field is read from that call's meta()",
     "no binding with effect write or destructive is called",
     "ranked rows are at most 6 with snippets cut to 60 characters; nothing else is materialized; the envelope stays under the 4 KB stdout bound",
-    "a reranker outage is verdict answered_degraded with class reranker_absent; it is never zero_result and never sets escalate_to_web",
+    "a reranker outage with usable hits is verdict answered_degraded with class reranker_absent; it is never zero_result and never sets escalate_to_web",
+    "zero hits with a degraded or partial provider leg are unavailable, preserve the provider degradation reason, and never claim a clean zero or escalate as one",
     "the envelope is printed exactly once, on every path"
   ],
   "bindings": [
@@ -84,7 +85,7 @@
       "corpora_count": "count of provider ids the router searched",
       "providers_hit": "provider id to count among the returned rows",
       "degraded": "router reported a degraded leg",
-      "routing_degrade_reason": "router's degrade reason string when degraded",
+      "routing_degrade_reason": "router's degrade reason, or a bounded degraded provider note when the router omits one",
       "partial": "some provider legs had not answered within the timeout",
       "pending_providers": "count of legs still pending when partial",
       "latency_ms": "federated latency of this query as an integer (cast from the protojson int64 string)",
@@ -92,7 +93,7 @@
       "reranker_leg": "which reranker ordered the rows; none when the leg is absent",
       "ordered_by": "ordering the router applied",
       "routing_explanation": "the --explain rationale, cut to 400 characters",
-      "escalate_to_web": "true only when the verdict is zero_result or no_provider_selected and web was not among the types"
+      "escalate_to_web": "true only when the verdict is zero_result or no_provider_selected and web was not among the types; unavailable is not a completed negative"
     },
     "errors": {
       "classes": [

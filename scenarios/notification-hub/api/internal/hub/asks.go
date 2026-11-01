@@ -328,13 +328,13 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 		return AskRecord{}, Notification{}, err
 	}
 	defer tx.Rollback()
-	// The A239 lifecycle ledger covers only Agent Manager run-approval asks.
-	// Other producers and direct/manual asks keep their existing path. A
-	// mismatched Agent Manager type still cannot reuse a ref already reserved
-	// by the exact run-approval withdrawal contract.
+	// The A239 lifecycle ledger covers the withdrawable Agent Manager asks
+	// (withdrawableDecisions). Other producers and direct/manual asks keep their
+	// existing path. A mismatched Agent Manager type still cannot reuse a ref
+	// already reserved by an exact withdrawal contract.
 	if spec.Source == "agent-manager" && spec.IdempotencyKey != "" {
 		var withdrawn bool
-		if spec.SourceEventType == agentManagerRunDecisionRequestEventType {
+		if withdrawableDecision(spec.SourceEventType) {
 			withdrawn, err = reserveDecisionRequestTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType, s.clock.Now().UTC().Format(time.RFC3339Nano))
 		} else {
 			withdrawn, err = checkDecisionRequestLifecycleTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType)

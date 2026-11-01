@@ -89,12 +89,24 @@ def step_classify():  # CLASSIFY · verdict table over the response meta; bounde
     sig = envelope["signals"]
     q = handles["q"]
     meta = q.meta() or {}
+    groups = [g for g in (meta.get("groups") or []) if isinstance(g, dict)]
     _, _, rows_n = EFFORT[effort]
     corpora = list(meta.get("corporaSearched") or [])
     sig["corpora_searched"] = corpora[:6]
     sig["corpora_count"] = len(corpora)
     sig["degraded"] = bool(meta.get("degraded", False))
     sig["routing_degrade_reason"] = meta.get("routingDegradeReason") or None
+    if not sig["routing_degrade_reason"] and sig["degraded"]:
+        provider_notes = []
+        for group in groups:
+            if not group.get("degraded"):
+                continue
+            provider_id = str(group.get("providerId") or "").strip()
+            note = str(group.get("note") or "").strip()
+            if provider_id and note:
+                provider_notes.append(f"{provider_id}: {note}")
+        if provider_notes:
+            sig["routing_degrade_reason"] = "; ".join(provider_notes)[:400]
     sig["partial"] = bool(meta.get("partial", False))
     sig["pending_providers"] = meta.get("pendingProviders")
     lat = meta.get("latencyMs")  # int64 arrives as a protojson string
@@ -112,9 +124,8 @@ def step_classify():  # CLASSIFY · verdict table over the response meta; bounde
     if ranked_count == 0:
         # No fused rows: read the per-provider groups from the same response before calling it zero.
         group_hits = []
-        for g in (meta.get("groups") or []):
-            if isinstance(g, dict):
-                group_hits.extend(h for h in (g.get("hits") or []) if isinstance(h, dict))
+        for g in groups:
+            group_hits.extend(h for h in (g.get("hits") or []) if isinstance(h, dict))
         if group_hits:
             reranker_absent = str(sig["reranker_leg"] or "none") == "none"
             ranked_count = len(group_hits)
@@ -129,7 +140,10 @@ def step_classify():  # CLASSIFY · verdict table over the response meta; bounde
     sig["providers_hit"] = hits
     envelope["evidence"] = [r["id"] for r in sig["ranked"][:5] if r.get("id")]
 
-    if sig["ranked_count"] == 0 and sig["corpora_count"] == 0:
+    if sig["ranked_count"] == 0 and (sig["degraded"] or sig["partial"]):
+        # A searched corpus is not a completed negative when one of its legs did not answer.
+        sig["verdict"] = "unavailable"
+    elif sig["ranked_count"] == 0 and sig["corpora_count"] == 0:
         sig["verdict"] = "no_provider_selected"
     elif sig["ranked_count"] == 0:
         sig["verdict"] = "zero_result"
@@ -138,7 +152,12 @@ def step_classify():  # CLASSIFY · verdict table over the response meta; bounde
     else:
         sig["verdict"] = "answered"
     sig["escalate_to_web"] = sig["verdict"] in ("zero_result", "no_provider_selected") and "web" not in types
-    envelope["status"] = "partial" if sig["verdict"] == "answered_degraded" else "ok"
+    if sig["verdict"] == "answered_degraded":
+        envelope["status"] = "partial"
+    elif sig["verdict"] == "unavailable":
+        envelope["status"] = "unavailable"
+    else:
+        envelope["status"] = "ok"
     if reranker_absent:
         envelope["errors"].append({"class": "reranker_absent", "detail": "no reranker leg; hits read from groups, ordered by provider score, not fused", "where": "classify"})
     if sig["degraded"] or sig["partial"]:

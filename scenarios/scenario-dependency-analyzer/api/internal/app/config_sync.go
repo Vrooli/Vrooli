@@ -15,7 +15,7 @@ import (
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
-func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisResponse, applyResources, applyScenarios bool, depSvc *dependencyService) (map[string]interface{}, error) {
+func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisResponse, applyResources, applyScenarios bool, depSvc *dependencyService, selection ...map[string]struct{}) (map[string]interface{}, error) {
 	if analysis == nil {
 		return nil, fmt.Errorf("analysis is required")
 	}
@@ -37,8 +37,12 @@ func applyDetectedDiffs(scenarioName string, analysis *types.DependencyAnalysisR
 
 	scenariosAdded := []string{}
 	if applyScenarios {
-		scenariosAdded = ctx.applyMissingScenarios(analysis)
-		scenariosAdded = append(scenariosAdded, ctx.applyInterfaceGraphScenarios(scenarioName, depSvc)...)
+		var selected map[string]struct{}
+		if len(selection) > 0 {
+			selected = selection[0]
+		}
+		scenariosAdded = ctx.applyMissingScenarios(analysis, selected)
+		scenariosAdded = append(scenariosAdded, ctx.applyInterfaceGraphScenarios(scenarioName, depSvc, selected)...)
 	}
 
 	changed := len(resourcesAdded) > 0 || len(scenariosAdded) > 0
@@ -61,6 +65,8 @@ type dependencyApplyContext struct {
 	rawConfig    *orderedmap.OrderedMap
 	rawResources *orderedmap.OrderedMap
 	rawScenarios *orderedmap.OrderedMap
+	hadResources bool
+	hadScenarios bool
 }
 
 func newDependencyApplyContext(scenarioName string) (*dependencyApplyContext, error) {
@@ -93,6 +99,8 @@ func newDependencyApplyContext(scenarioName string) (*dependencyApplyContext, er
 
 func (c *dependencyApplyContext) prepareDependencySections() {
 	rawDependencies := ensureOrderedMap(c.rawConfig, "dependencies")
+	_, c.hadResources = rawDependencies.Get("resources")
+	_, c.hadScenarios = rawDependencies.Get("scenarios")
 	c.rawResources = ensureOrderedMap(rawDependencies, "resources")
 	c.rawScenarios = ensureOrderedMap(rawDependencies, "scenarios")
 	rawDependencies.Set("resources", c.rawResources)
@@ -132,7 +140,15 @@ func (c *dependencyApplyContext) applyMissingResources(analysis *types.Dependenc
 	return added
 }
 
-func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.DependencyAnalysisResponse) []string {
+func selectedScenario(name string, selected map[string]struct{}) bool {
+	if len(selected) == 0 {
+		return true
+	}
+	_, ok := selected[name]
+	return ok
+}
+
+func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.DependencyAnalysisResponse, selected map[string]struct{}) []string {
 	missing := driftSet(analysis.ScenarioDiff.Missing)
 	if len(missing) == 0 {
 		return nil
@@ -144,6 +160,9 @@ func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.Dependenc
 
 	added := []string{}
 	for _, dep := range analysis.Scenarios {
+		if !selectedScenario(dep.DependencyName, selected) {
+			continue
+		}
 		if _, ok := missing[dep.DependencyName]; !ok {
 			continue
 		}
@@ -162,7 +181,7 @@ func (c *dependencyApplyContext) applyMissingScenarios(analysis *types.Dependenc
 // scenarios (the persisted store can carry proto-package-name targets that are
 // not scenarios; those are dropped here, exactly as centrality filters them).
 // Discovery-call / CLI shell-out edges remain the AST-facts follow-up's job.
-func (c *dependencyApplyContext) applyInterfaceGraphScenarios(scenarioName string, depSvc *dependencyService) []string {
+func (c *dependencyApplyContext) applyInterfaceGraphScenarios(scenarioName string, depSvc *dependencyService, selected map[string]struct{}) []string {
 	if depSvc == nil || depSvc.store == nil {
 		return nil
 	}
@@ -180,6 +199,9 @@ func (c *dependencyApplyContext) applyInterfaceGraphScenarios(scenarioName strin
 
 	added := []string{}
 	for _, edge := range edges {
+		if !selectedScenario(edge.To, selected) {
+			continue
+		}
 		if edge.From != scenarioName || edge.Kind != "scenario" {
 			continue
 		}
@@ -287,8 +309,14 @@ func (c *dependencyApplyContext) addDetectedScenario(dep types.ScenarioDependenc
 }
 
 func (c *dependencyApplyContext) persist(depSvc *dependencyService) error {
-	reordered := reorderTopLevelKeys(c.rawConfig)
-	if err := writeRawServiceConfigMap(c.scenarioPath, reordered); err != nil {
+	dependencies := ensureOrderedMap(c.rawConfig, "dependencies")
+	if !c.hadResources && len(c.rawResources.Keys()) == 0 {
+		dependencies.Delete("resources")
+	}
+	if !c.hadScenarios && len(c.rawScenarios.Keys()) == 0 {
+		dependencies.Delete("scenarios")
+	}
+	if err := writeRawServiceConfigMap(c.scenarioPath, c.rawConfig); err != nil {
 		return err
 	}
 	if depSvc == nil {
@@ -505,7 +533,7 @@ func writeRawServiceConfigMap(scenarioPath string, cfg *orderedmap.OrderedMap) e
 	if err != nil {
 		return err
 	}
-	payload = bytes.TrimRight(payload, "\n")
+	payload = append(bytes.TrimRight(payload, "\n"), '\n')
 	payload = bytes.ReplaceAll(payload, []byte(`\u003c`), []byte("<"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u003e`), []byte(">"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u0026`), []byte("&"))

@@ -2,6 +2,7 @@ package smoketest
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -367,5 +368,101 @@ func TestIsSafeScenarioName(t *testing.T) {
 				t.Errorf("IsSafeScenarioName(%q) = %v, want %v", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+// A "running" record persisted by a process that has since exited must not
+// claim liveness: reloading reconciles it to a terminal failure with a reason,
+// persists that, and stops it protecting the scenario's staging.
+func TestFileStore_LoadReconcilesInterruptedRuns(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "smoke_tests_v2.json")
+	previous, err := NewStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous.Save(&Status{SmokeTestID: "zombie", ScenarioName: "web-console", Status: "running", StartedAt: time.Now().Add(-48 * time.Hour)})
+	previous.Save(&Status{SmokeTestID: "done", ScenarioName: "web-console", Status: "passed", StartedAt: time.Now().Add(-time.Hour)})
+	if !previous.HasActiveForScenario("web-console") {
+		t.Fatal("a run owned by the live process must count as active")
+	}
+
+	restarted, err := NewStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restarted.HasActiveForScenario("web-console") {
+		t.Fatal("a run from a dead process must not count as active")
+	}
+	if restarted.Interrupted() != 1 {
+		t.Fatalf("interrupted=%d, want 1", restarted.Interrupted())
+	}
+	got, _ := restarted.Get("zombie")
+	if got.Status != "failed" || got.Error != interruptedReason || got.CompletedAt == nil || got.CurrentState != StateFailed {
+		t.Fatalf("zombie not reconciled: %+v", got)
+	}
+	if done, _ := restarted.Get("done"); done.Status != "passed" || done.Error != "" {
+		t.Fatalf("finished run altered: %+v", done)
+	}
+
+	// The reconciliation is durable, not just an in-memory view.
+	again, err := NewStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Interrupted() != 0 {
+		t.Fatalf("reconciliation was not persisted: interrupted=%d", again.Interrupted())
+	}
+	if got, _ := again.Get("zombie"); got.Status != "failed" {
+		t.Fatalf("persisted status=%q, want failed", got.Status)
+	}
+
+	// A new run in the restarted process protects staging again.
+	again.Save(&Status{SmokeTestID: "live", ScenarioName: "web-console", Status: "running", StartedAt: time.Now()})
+	if !again.HasActiveForScenario("web-console") {
+		t.Fatal("a live run must protect its scenario")
+	}
+}
+
+// Finished history is bounded per scenario; unfinished runs are never trimmed.
+func TestFileStore_BoundsFinishedHistoryPerScenario(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "smoke_tests_v2.json")
+	store, err := NewStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Now().Add(-time.Duration(MaxFinishedPerScenario+20) * time.Minute)
+	store.Save(&Status{SmokeTestID: "live", ScenarioName: "app", Status: "running", StartedAt: base.Add(-time.Hour)})
+	for i := 0; i < MaxFinishedPerScenario+10; i++ {
+		store.Save(&Status{SmokeTestID: fmt.Sprintf("app-%03d", i), ScenarioName: "app", Status: "passed", StartedAt: base.Add(time.Duration(i) * time.Minute)})
+	}
+	store.Save(&Status{SmokeTestID: "other", ScenarioName: "other", Status: "failed", StartedAt: base.Add(-2 * time.Hour)})
+
+	reloaded, err := NewStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished := 0
+	for i := 0; i < MaxFinishedPerScenario+10; i++ {
+		_, ok := reloaded.Get(fmt.Sprintf("app-%03d", i))
+		if ok {
+			finished++
+		}
+		if i < 10 && ok {
+			t.Fatalf("oldest finished record app-%03d survived", i)
+		}
+		if i >= 10 && !ok {
+			t.Fatalf("recent finished record app-%03d was trimmed", i)
+		}
+	}
+	if finished != MaxFinishedPerScenario {
+		t.Fatalf("kept %d finished records, want %d", finished, MaxFinishedPerScenario)
+	}
+	if _, ok := reloaded.Get("other"); !ok {
+		t.Fatal("another scenario's history was trimmed")
+	}
+	// "live" was reconciled on reload but must not have been trimmed while
+	// unfinished, even though it is the oldest record for the scenario.
+	if _, ok := store.Get("live"); !ok {
+		t.Fatal("unfinished run was trimmed")
 	}
 }

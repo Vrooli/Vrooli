@@ -128,6 +128,24 @@ func TestScanScenarioRejectsInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestScanSelectedRejectsEmptySelectionAndLegacyRouteRejectsSelector(t *testing.T) {
+	router := analysisTestRouter(fakeAnalysisService{}, fakeScanService{err: types.ErrInvalidScanRequest})
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/sample/scan-selected", strings.NewReader(`{"apply_scenarios":true,"only_scenarios":[]}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("invalid selection status=%d, want 400", recorder.Code)
+	}
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/sample/scan", strings.NewReader(`{"apply_scenarios":true,"only_scenarios":["peer"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("selector on legacy route status=%d, want 400", recorder.Code)
+	}
+}
+
 func analysisTestRouter(analysis services.AnalysisService, scans services.ScanService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

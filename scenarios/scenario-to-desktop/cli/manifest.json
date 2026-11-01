@@ -105,7 +105,8 @@
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
           "architecture": {"primitive": "proto_list"},
           "positionals": [{"name": "pipeline-id", "required": true, "description": "Pipeline ID"}],
-          "flags": [{"name": "timeout", "default": "3600", "description": "Maximum wait in seconds", "bind_waiver": "The CLI uses timeout to control its durable wait call; it is consumed by the wait primitive rather than projected by manifest binding.", "local_only": true}]
+          "flags": [{"name": "timeout", "default": "3600", "description": "Maximum wait in seconds", "bind_waiver": "The CLI uses timeout to control its durable wait call; it is consumed by the wait primitive rather than projected by manifest binding.", "local_only": true}],
+          "semantics": {"kind": "query", "blocks": {"replaces": ["scenario-to-desktop pipeline status"]}}
         },
         {
           "name": "status",
@@ -321,7 +322,7 @@
       "commands": [
         {"name":"create","description":"Create a validation matrix","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
         {"name":"start","description":"Start a validation matrix","binding":{"kind":"local"},"governance":{"effect":"write","run_eligible":true,"permissions":["network:internal","filesystem:write"]}},
-        {"name":"wait","description":"Wait for a validation matrix","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
+        {"name":"wait","description":"Wait for a validation matrix","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}, "semantics": {"kind": "query", "blocks": {"replaces": ["scenario-to-desktop matrix show"]}}},
         {"name":"show","description":"Show a validation matrix","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
         {"name":"list","description":"List validation matrices","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}},
         {"name":"compare","description":"Compare two validation matrices","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true,"permissions":["network:internal"]}}

@@ -249,3 +249,30 @@ func TestConcurrentRequestAndWithdrawalConvergeAfterEventRetry(t *testing.T) {
 	require.Zero(t, answers)
 	require.True(t, askErr == nil || errors.Is(askErr, hub.ErrAskWithdrawn), "the request either committed before withdrawal or was suppressed by it")
 }
+
+func TestInvestigationApprovalAskIsWithdrawnOnlyForItsOwnReason(t *testing.T) {
+	service, _ := testService(t)
+	now := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
+	service.SetClockForTest(fixedClock{now: now})
+	spec := decisionSpec(now, "investigation-request-1")
+	spec.SourceEventType = "agent_manager.investigation.decision_requested.v1"
+	ask, _, err := service.AskWithSpec(context.Background(), spec)
+	require.NoError(t, err)
+
+	runReason, err := service.WithdrawDecisionAsk(context.Background(), hub.DecisionWithdrawal{
+		Source: spec.Source, RequesterRef: spec.IdempotencyKey, SourceEventType: spec.SourceEventType, Reason: "verified_empty_diff",
+	})
+	require.ErrorIs(t, err, hub.ErrInvalidArgument, "a run-review reason cannot close an investigation ask")
+	require.False(t, runReason)
+
+	withdrawn, err := service.WithdrawDecisionAsk(context.Background(), hub.DecisionWithdrawal{
+		Source: spec.Source, RequesterRef: spec.IdempotencyKey, SourceEventType: spec.SourceEventType, Reason: "decided_in_agent_manager",
+	})
+	require.NoError(t, err)
+	require.True(t, withdrawn)
+	got, err := service.GetAsk(context.Background(), ask.ID)
+	require.NoError(t, err)
+	require.Equal(t, hub.AskWithdrawn, got.State)
+	require.Empty(t, got.AnsweredBy)
+	require.Contains(t, got.Reason, "already decided this investigation in Agent Manager")
+}

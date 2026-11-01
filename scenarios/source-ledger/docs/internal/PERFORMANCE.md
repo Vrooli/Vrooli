@@ -36,6 +36,15 @@ Use this document to answer:
 
 ### Three-times corpus measurement
 
+**2026-10-28 qualification:** The earlier benchmark copied only the main
+SQLite file, so committed data in an active WAL could be omitted; the WAL
+state at the time of the 2026-08-08 measurement is unknown. The historical
+numbers below are retained, but do not establish a complete live-corpus
+baseline. The benchmark now takes a consistent SQLite snapshot including WAL
+data and uses that same snapshot for both comparisons. A current scale-one
+screen and its limits are retained in the research cohort's
+`evidence/search-and-usage/recall-wal-snapshot-benchmark.json`.
+
 The disposable Go benchmark `api/cmd/measure-recall` copies the live database,
 retains the 1,294-entry compaction canopy, and adds packed-blob synthetic
 entries until the measured scope is exactly three times its current size. It

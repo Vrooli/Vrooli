@@ -788,7 +788,8 @@
           },
           "architecture": {
             "primitive": "operational"
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["storage-manager cleanup history"]}}
         },
         {
           "name": "history",
@@ -892,7 +893,8 @@
           },
           "architecture": {
             "primitive": "operational"
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["storage-manager recovery history"]}}
         },
         {
           "name": "history",

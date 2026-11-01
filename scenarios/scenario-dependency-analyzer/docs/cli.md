@@ -163,6 +163,7 @@ scenario-dependency-analyzer scan <scenario> [OPTIONS]
 - `--apply` - Apply inferred resources and scenarios
 - `--apply-resources` - Apply only inferred resources
 - `--apply-scenarios` - Apply only inferred scenarios
+- `--only-scenarios <names>` - Restrict `--apply-scenarios` to the listed comma-separated, exact detected scenario names. Cannot be combined with resource application. Missing or undetected names are not invented.
 - `--json` - Raw JSON output
 
 **Examples:**
@@ -175,6 +176,9 @@ scenario-dependency-analyzer scan api-tools --apply
 
 # Scan and apply only resources
 scenario-dependency-analyzer scan chart-gen --apply-resources
+
+# Apply only one detected scenario edge, leaving other detected peers untouched
+scenario-dependency-analyzer scan program-runtime --apply-scenarios --only-scenarios web-console
 
 # Get JSON output
 scenario-dependency-analyzer scan my-scenario --json

@@ -17,6 +17,10 @@ const (
 	DecisionWithdrawalPattern    = "agent_manager.run.decision_withdrawn.v1"
 	DecisionWithdrawalEventType  = DecisionWithdrawalPattern
 	RunApprovalDecisionEventType = "agent_manager.run.decision_requested.v1"
+	// InvestigationWithdrawalEventType closes an investigation approval Ask
+	// once the operator decided it in Agent Manager.
+	InvestigationWithdrawalEventType       = "agent_manager.investigation.decision_withdrawn.v1"
+	InvestigationApprovalDecisionEventType = "agent_manager.investigation.decision_requested.v1"
 	// NotificationRequestPattern subscribes the hub to every domain-neutral
 	// FYI notification any scenario raises through Vrooli Events, for example
 	// personal_planner.reminder.notification.v1.
@@ -38,11 +42,19 @@ type DecisionWithdrawal struct {
 	Reason          string `json:"reason"`
 }
 
-func IsDecisionWithdrawal(eventType string) bool {
-	return strings.TrimSpace(eventType) == DecisionWithdrawalEventType
+// withdrawalRequestType pairs each withdrawal event with the one request type
+// it may close, so a run withdrawal never closes an investigation Ask.
+var withdrawalRequestType = map[string]string{
+	DecisionWithdrawalEventType:      RunApprovalDecisionEventType,
+	InvestigationWithdrawalEventType: InvestigationApprovalDecisionEventType,
 }
 
-func ParseDecisionWithdrawal(raw json.RawMessage) (DecisionWithdrawal, error) {
+func IsDecisionWithdrawal(eventType string) bool {
+	_, ok := withdrawalRequestType[strings.TrimSpace(eventType)]
+	return ok
+}
+
+func ParseDecisionWithdrawal(eventType string, raw json.RawMessage) (DecisionWithdrawal, error) {
 	var withdrawal DecisionWithdrawal
 	if err := json.Unmarshal(raw, &withdrawal); err != nil {
 		return DecisionWithdrawal{}, fmt.Errorf("%w: decision withdrawal payload is not valid JSON", hub.ErrInvalidArgument)
@@ -50,7 +62,8 @@ func ParseDecisionWithdrawal(raw json.RawMessage) (DecisionWithdrawal, error) {
 	withdrawal.RequesterRef = strings.TrimSpace(withdrawal.RequesterRef)
 	withdrawal.SourceEventType = strings.TrimSpace(withdrawal.SourceEventType)
 	withdrawal.Reason = strings.TrimSpace(withdrawal.Reason)
-	if withdrawal.RequesterRef == "" || len(withdrawal.RequesterRef) > 128 || withdrawal.SourceEventType != RunApprovalDecisionEventType || (withdrawal.Reason != "verified_empty_diff" && withdrawal.Reason != "superseded_by_new_review") {
+	_, validReason := hub.WithdrawalReasonText(withdrawal.SourceEventType, withdrawal.Reason)
+	if withdrawal.RequesterRef == "" || len(withdrawal.RequesterRef) > 128 || withdrawal.SourceEventType != withdrawalRequestType[strings.TrimSpace(eventType)] || !validReason {
 		return DecisionWithdrawal{}, fmt.Errorf("%w: decision withdrawal identity or reason is invalid", hub.ErrInvalidArgument)
 	}
 	return withdrawal, nil

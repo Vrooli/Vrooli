@@ -16,10 +16,19 @@ def row(name, reading, target, in_band=None, reason=None):
 guarded = program.guarded
 
 
-def transient(exc):
-    # Only a transient unreachable read lowers the board's status; permanent-reason rows do not.
-    return any(v in str(exc).lower() for v in
-               ('unreachable', 'connection refused', 'bridge unavailable', 'no running runtime ports'))
+def read_failure(where, exc):
+    # Preserve the runtime's typed transport class. Only an unreachable source
+    # lowers board status; permanent read gaps remain visible without implying
+    # that the board failed to report its evidence.
+    status, klass = program.classify(exc)
+    if status == 'unavailable':
+        envelope['status'] = 'partial'
+    envelope['errors'].append({'class': klass, 'where': where, 'detail': str(exc)[:180]})
+    return klass
+
+
+def failure_reason(klass):
+    return 'scenario_unreachable' if klass == 'scenario_unreachable' else 'unreliable:' + klass
 
 
 results = gather(
@@ -33,12 +42,10 @@ board, meters, space, learning = results
 
 # --- ledger account coverage and financial posture, both from the board -----------------
 if isinstance(board, Exception):
-    reason = 'scenario_unreachable' if transient(board) else 'unreliable:binding_error'
+    klass = read_failure('board-show', board)
+    reason = failure_reason(klass)
     row('ledger-account-coverage', None, 'every ACTIVE or TRIGGER_MET node maps to a ledger account', None, reason)
     row('default-alive-posture', None, 'a readable default-alive gap', None, reason)
-    if transient(board):
-        envelope['status'] = 'partial'
-    envelope['errors'].append({'class': 'binding_error', 'where': 'board-show', 'detail': str(board)[:180]})
 else:
     entries = board.head(80)
     total = board.count()
@@ -61,11 +68,9 @@ else:
 
 # --- meter declaration coverage ---------------------------------------------------------
 if isinstance(meters, Exception):
-    reason = 'scenario_unreachable' if transient(meters) else 'unreliable:binding_error'
+    klass = read_failure('meters', meters)
+    reason = failure_reason(klass)
     row('meter-coverage', None, 'no deliverable meter gaps and no undeclared streams', None, reason)
-    if transient(meters):
-        envelope['status'] = 'partial'
-    envelope['errors'].append({'class': 'binding_error', 'where': 'meters', 'detail': str(meters)[:180]})
 else:
     meta = meters.meta()
     gaps = len(meta.get('deliverableMeterGaps') or [])
@@ -78,11 +83,9 @@ else:
 
 # --- obligation denominator confidence ---------------------------------------------------
 if isinstance(space, Exception):
-    reason = 'scenario_unreachable' if transient(space) else 'unreliable:binding_error'
+    klass = read_failure('space', space)
+    reason = failure_reason(klass)
     row('obligation-confidence', None, 'denominator confidence above sketch', None, reason)
-    if transient(space):
-        envelope['status'] = 'partial'
-    envelope['errors'].append({'class': 'binding_error', 'where': 'space', 'detail': str(space)[:180]})
 else:
     confidence = str(space.meta().get('denominatorConfidence') or '')
     row('obligation-confidence', {'cells': space.count(), 'denominator_confidence': confidence or None},
@@ -93,11 +96,9 @@ else:
 
 # --- outcome-linked learning -------------------------------------------------------------
 if isinstance(learning, Exception):
-    reason = 'scenario_unreachable' if transient(learning) else 'unreliable:binding_error'
+    klass = read_failure('learning', learning)
+    reason = failure_reason(klass)
     row('learning', None, None, None, reason)
-    if transient(learning):
-        envelope['status'] = 'partial'
-    envelope['errors'].append({'class': 'binding_error', 'where': 'learning', 'detail': str(learning)[:180]})
 else:
     meta = learning.meta()
     reliable = bool(meta.get('reliable', False))

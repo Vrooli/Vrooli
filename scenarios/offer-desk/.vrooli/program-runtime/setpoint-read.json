@@ -63,6 +63,7 @@
     },
     "errors": {
       "classes": [
+        "scenario_unreachable",
         "binding_error",
         "remote_error",
         "no_governed_binding"

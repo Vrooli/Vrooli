@@ -9,7 +9,35 @@ import (
 	"time"
 )
 
-const agentManagerRunDecisionRequestEventType = "agent_manager.run.decision_requested.v1"
+const (
+	agentManagerRunDecisionRequestEventType           = "agent_manager.run.decision_requested.v1"
+	agentManagerInvestigationDecisionRequestEventType = "agent_manager.investigation.decision_requested.v1"
+)
+
+// withdrawableDecisions lists the Agent Manager requests a producer may
+// withdraw, the reasons each accepts, and the text the closed Ask shows for
+// each reason. Every other decision closes only by an answer or its deadline.
+var withdrawableDecisions = map[string]map[string]string{
+	agentManagerRunDecisionRequestEventType: {
+		"verified_empty_diff":      "requester confirmed no decision is needed",
+		"superseded_by_new_review": "a newer review request superseded this request",
+	},
+	agentManagerInvestigationDecisionRequestEventType: {
+		"decided_in_agent_manager": "the operator already decided this investigation in Agent Manager",
+	},
+}
+
+// WithdrawalReasonText is the closed Ask's text for a valid withdrawal, and
+// whether the request type and reason are withdrawable at all.
+func WithdrawalReasonText(sourceEventType, reason string) (string, bool) {
+	text, ok := withdrawableDecisions[sourceEventType][reason]
+	return text, ok
+}
+
+func withdrawableDecision(sourceEventType string) bool {
+	_, ok := withdrawableDecisions[sourceEventType]
+	return ok
+}
 
 // DecisionWithdrawal identifies the exact decision request that is obsolete.
 // Source and RequesterRef identify one request; SourceEventType prevents a
@@ -69,7 +97,8 @@ func (s *Service) WithdrawDecisionAsk(ctx context.Context, in DecisionWithdrawal
 	ref := strings.TrimSpace(in.RequesterRef)
 	typeName := strings.TrimSpace(in.SourceEventType)
 	reason := strings.TrimSpace(in.Reason)
-	if source != "agent-manager" || ref == "" || len(ref) > 128 || typeName != agentManagerRunDecisionRequestEventType || (reason != "verified_empty_diff" && reason != "superseded_by_new_review") {
+	withdrawalReason, valid := WithdrawalReasonText(typeName, reason)
+	if source != "agent-manager" || ref == "" || len(ref) > 128 || !valid {
 		return false, fmt.Errorf("%w: withdrawal identity or reason is invalid", ErrInvalidArgument)
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -122,10 +151,6 @@ func (s *Service) WithdrawDecisionAsk(ctx context.Context, in DecisionWithdrawal
 		return lifecycleChanged, nil
 	}
 
-	withdrawalReason := "requester confirmed no decision is needed"
-	if reason == "superseded_by_new_review" {
-		withdrawalReason = "a newer review request superseded this request"
-	}
 	result, err := tx.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND source=? AND requester_ref=? AND source_event_type=? AND state IN ('pending','escalated')`, withdrawalReason, now, now, ask.ID, source, ref, typeName)
 	if err != nil {
 		return false, err

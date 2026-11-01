@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -60,7 +60,9 @@ func main() {
 	if err != nil {
 		fatal(fmt.Errorf("baseline measurement: %w", err))
 	}
-	scaled, err := copyDatabase(root)
+	// Compare against the same committed snapshot, even if the live corpus is
+	// changing while the baseline is measured.
+	scaled, err := copyDatabase(current)
 	if err != nil {
 		fatal(err)
 	}
@@ -86,7 +88,8 @@ func main() {
 }
 
 func copyDatabase(path string) (string, error) {
-	source, err := os.Open(path)
+	uri := (&url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}).String()
+	source, err := sql.Open("sqlite", uri)
 	if err != nil {
 		return "", err
 	}
@@ -96,12 +99,12 @@ func copyDatabase(path string) (string, error) {
 		return "", err
 	}
 	targetPath := target.Name()
-	if _, err := io.Copy(target, source); err != nil {
-		_ = target.Close()
+	if err := target.Close(); err != nil {
 		_ = os.Remove(targetPath)
 		return "", err
 	}
-	if err := target.Close(); err != nil {
+	// SQLite creates a consistent snapshot including committed WAL pages.
+	if _, err := source.Exec("VACUUM INTO ?", targetPath); err != nil {
 		_ = os.Remove(targetPath)
 		return "", err
 	}

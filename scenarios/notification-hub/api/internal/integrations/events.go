@@ -255,7 +255,7 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 				writeJSONError(w, http.StatusBadRequest, "event_id and agent-manager source are required")
 				return
 			}
-			withdrawal, parseErr := ParseDecisionWithdrawal(payload.Payload)
+			withdrawal, parseErr := ParseDecisionWithdrawal(payload.EventType, payload.Payload)
 			if parseErr != nil {
 				writeJSONError(w, http.StatusBadRequest, parseErr.Error())
 				return
@@ -535,7 +535,10 @@ func EnsureDecisionSubscription(ctx context.Context, baseURL, target string) err
 // EnsureDecisionWithdrawalSubscription routes producer lifecycle withdrawals
 // through the same signed Events webhook without treating them as answers.
 func EnsureDecisionWithdrawalSubscription(ctx context.Context, baseURL, target string) error {
-	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: "notification-hub-decision-withdrawals", Pattern: DecisionWithdrawalPattern}})
+	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{
+		{Name: "notification-hub-decision-withdrawals", Pattern: DecisionWithdrawalPattern},
+		{Name: "notification-hub-investigation-withdrawals", Pattern: InvestigationWithdrawalEventType},
+	})
 }
 
 // EnsureNotificationSubscription reconciles the subscription that turns every

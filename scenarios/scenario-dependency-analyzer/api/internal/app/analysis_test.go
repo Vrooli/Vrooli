@@ -1,7 +1,9 @@
 package app
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/seams"
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
+	_ "modernc.org/sqlite"
 
 	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 
@@ -615,6 +618,114 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	aiGateway, ok := cfg.Dependencies.Scenarios["ai-gateway"]
 	if !ok || aiGateway.Required || aiGateway.StartupPolicy != "try_start" || !strings.Contains(aiGateway.DegradedBehavior, "verify this scenario's capability contract") {
 		t.Fatalf("ai-gateway inferred optional policy is incorrect: %+v", aiGateway)
+	}
+}
+
+func TestApplyDetectedDiffsOnlySelectedScenario(t *testing.T) {
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+	t.Setenv("API_PORT", "19999")
+	t.Setenv("VROOLI_STORAGE_ROOT", env.TempDir)
+	configureTestScenariosDir(t, env)
+	createTestScenario(t, env, "selector-subject", map[string]types.Resource{})
+	createTestScenario(t, env, "selected-peer", map[string]types.Resource{})
+	createTestScenario(t, env, "other-peer", map[string]types.Resource{})
+	analysis := &types.DependencyAnalysisResponse{
+		Scenarios:    []types.ScenarioDependency{{DependencyName: "selected-peer", AccessMethod: "program_binding"}, {DependencyName: "other-peer", AccessMethod: "program_binding"}},
+		ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "selected-peer"}, {Name: "other-peer"}}},
+	}
+	_, err := applyDetectedDiffs("selector-subject", analysis, false, true, nil, map[string]struct{}{"selected-peer": {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(env.ScenariosDir, "selector-subject", ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg types.Manifest
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cfg.Dependencies.Scenarios["selected-peer"]; !ok {
+		t.Fatal("selected detected peer was not added")
+	}
+	if _, ok := cfg.Dependencies.Scenarios["other-peer"]; ok {
+		t.Fatal("unselected peer was added")
+	}
+}
+
+func TestSelectiveApplyPreservesManifestOrderAndAbsentSections(t *testing.T) {
+	env := setupTestDirectory(t)
+	defer env.Cleanup()
+	t.Setenv("API_PORT", "19999")
+	t.Setenv("VROOLI_STORAGE_ROOT", env.TempDir)
+	configureTestScenariosDir(t, env)
+	createTestScenario(t, env, "order-subject", map[string]types.Resource{})
+	createTestScenario(t, env, "chosen-peer", map[string]types.Resource{})
+	path := filepath.Join(env.ScenariosDir, "order-subject", ".vrooli", "service.json")
+	original := "{\n  \"version\": \"2.0.0\",\n  \"storage\": {},\n  \"service\": {\"name\": \"order-subject\", \"version\": \"1.0.0\"},\n  \"dependencies\": {\"scenarios\": {}},\n  \"generation\": {}\n}\n"
+	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	analysis := &types.DependencyAnalysisResponse{Scenarios: []types.ScenarioDependency{{DependencyName: "chosen-peer", AccessMethod: "program_binding"}}, ScenarioDiff: types.DependencyDiff{Missing: []types.DependencyDrift{{Name: "chosen-peer"}}}}
+	if _, err := applyDetectedDiffs("order-subject", analysis, false, true, nil, map[string]struct{}{"chosen-peer": {}}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	if strings.Index(text, `"storage"`) > strings.Index(text, `"service"`) || strings.Index(text, `"generation"`) < strings.Index(text, `"dependencies"`) {
+		t.Fatalf("top-level order changed: %s", text)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	deps := result["dependencies"].(map[string]any)
+	if _, ok := deps["resources"]; ok {
+		t.Fatalf("absent resources section was inserted: %s", text)
+	}
+	if !strings.HasSuffix(text, "\n") {
+		t.Fatal("manifest lost its trailing newline")
+	}
+}
+
+func TestScanRejectsUnsafeEmptyOrConflictingSelection(t *testing.T) {
+	s := &scanService{}
+	for _, req := range []types.ScanRequest{
+		{ApplyScenarios: true, OnlyScenarios: []string{}},
+		{ApplyScenarios: true, OnlyScenarios: []string{""}},
+		{Apply: true, ApplyScenarios: true, OnlyScenarios: []string{"peer"}},
+		{OnlyScenarios: []string{"peer"}},
+	} {
+		if _, err := s.ScanScenario("subject", req); !errors.Is(err, types.ErrInvalidScanRequest) {
+			t.Errorf("request %+v: error %v, want invalid scan request", req, err)
+		}
+	}
+}
+
+func TestSelectedApplyFiltersInterfaceGraphProposals(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(store.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(db)
+	if err := st.ReplaceGraphEdges([]types.UnifiedGraphEdge{
+		{From: "subject", To: "selected", Kind: "scenario", Source: "go_import", Confidence: 1},
+		{From: "subject", To: "unselected", Kind: "scenario", Source: "go_import", Confidence: 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	c := &dependencyApplyContext{cfg: &types.Manifest{}}
+	added := c.applyInterfaceGraphScenarios("subject", &dependencyService{store: st}, map[string]struct{}{"selected": {}})
+	if len(added) != 1 || added[0] != "selected" {
+		t.Fatalf("added graph edges = %v", added)
 	}
 }
 

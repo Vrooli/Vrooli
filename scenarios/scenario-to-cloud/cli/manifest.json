@@ -3476,7 +3476,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["scenario-to-cloud operation get"]}}
         },
         {
           "name": "resume",

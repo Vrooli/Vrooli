@@ -176,18 +176,35 @@ func TestEnsureSchemasAddsWithdrawalLedgerWithoutChangingExistingAsks(t *testing
 }
 
 func TestEnsureDecisionWithdrawalSubscriptionUsesExactProducerRoute(t *testing.T) {
-	var created map[string]any
+	created := map[string]string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			_, _ = w.Write([]byte(`[]`))
 			return
 		}
 		require.Equal(t, http.MethodPost, r.Method)
-		require.NoError(t, json.NewDecoder(r.Body).Decode(&created))
+		var body map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		created[body["name"].(string)] = body["event_pattern"].(string)
 		w.WriteHeader(http.StatusCreated)
 	}))
 	defer server.Close()
 	require.NoError(t, EnsureDecisionWithdrawalSubscription(context.Background(), server.URL, "https://hub.test/events"))
-	require.Equal(t, "notification-hub-decision-withdrawals", created["name"])
-	require.Equal(t, DecisionWithdrawalPattern, created["event_pattern"])
+	require.Equal(t, map[string]string{
+		"notification-hub-decision-withdrawals":      DecisionWithdrawalPattern,
+		"notification-hub-investigation-withdrawals": InvestigationWithdrawalEventType,
+	}, created)
+}
+
+func TestWithdrawalEventsCloseOnlyTheirOwnRequestType(t *testing.T) {
+	investigation := json.RawMessage(`{"requester_ref":"ref-1","source_event_type":"agent_manager.investigation.decision_requested.v1","reason":"decided_in_agent_manager"}`)
+	got, err := ParseDecisionWithdrawal(InvestigationWithdrawalEventType, investigation)
+	require.NoError(t, err)
+	require.Equal(t, "ref-1", got.RequesterRef)
+	_, err = ParseDecisionWithdrawal(DecisionWithdrawalEventType, investigation)
+	require.ErrorIs(t, err, hub.ErrInvalidArgument, "a run withdrawal event must not close an investigation ask")
+	run := json.RawMessage(`{"requester_ref":"ref-2","source_event_type":"agent_manager.run.decision_requested.v1","reason":"verified_empty_diff"}`)
+	_, err = ParseDecisionWithdrawal(InvestigationWithdrawalEventType, run)
+	require.ErrorIs(t, err, hub.ErrInvalidArgument)
+	require.True(t, IsDecisionWithdrawal(InvestigationWithdrawalEventType))
 }

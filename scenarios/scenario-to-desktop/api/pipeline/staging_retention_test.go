@@ -2,11 +2,12 @@ package pipeline
 
 import (
 	"context"
-	"github.com/vrooli/api-core/retention"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/retention"
 )
 
 // [REQ:STD-INTEGRATION-STAGING-RETENTION]
@@ -16,14 +17,14 @@ func TestStagingRetentionCapacityProtectsLiveWork(t *testing.T) {
 	names := []string{"active", "smoke", "marked", "old", "new"}
 	for i, name := range names {
 		path := filepath.Join(root, "app", name)
-		if err := os.MkdirAll(path, 0755); err != nil {
+		if err := os.MkdirAll(path, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(path, "bundle"), make([]byte, 10), 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(path, "bundle"), make([]byte, 10), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if name == "marked" {
-			if err := os.WriteFile(filepath.Join(path, ".building"), nil, 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(path, ".building"), nil, 0o600); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -37,10 +38,19 @@ func TestStagingRetentionCapacityProtectsLiveWork(t *testing.T) {
 			return &Status{Status: "running"}, true
 		}
 		return &Status{Status: StatusCompleted}, true
-	}, InUse: func(app, path string) bool { return filepath.Base(path) == "smoke" }, KeepLatest: 1}
+	}, InUse: func(app, path string) string {
+		if filepath.Base(path) == "smoke" {
+			return "smoke_test"
+		}
+		return ""
+	}, KeepLatest: 1}
 	result, err := owner.Prune(context.Background(), retention.Budget{Name: "staging", MaxBytes: 40, MaxAge: 7 * 24 * time.Hour})
 	if err != nil || result.Deleted != 1 || result.After.Bytes != 40 {
 		t.Fatalf("result=%+v err=%v", result, err)
+	}
+	want := map[string]int{"smoke_test": 1, ProtectedBuildingMarker: 1, ProtectedPipelineActive: 1}
+	if result.ProtectedTotal() != 3 || result.ProtectedSummary() != "building_marker=1,pipeline_incomplete=1,smoke_test=1" {
+		t.Fatalf("protected=%v, want %v", result.Protected, want)
 	}
 	for _, name := range names {
 		_, err := os.Stat(filepath.Join(root, "app", name))
@@ -58,16 +68,16 @@ func TestStagingRetentionCapacityProtectsLiveWork(t *testing.T) {
 func TestStagingRetentionUnknownGraceAndUnavailableOwner(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "app", "unknown")
-	if err := os.MkdirAll(path, 0755); err != nil {
+	if err := os.MkdirAll(path, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(path, "bundle"), []byte("1234"), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(path, "bundle"), []byte("1234"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	owner := StagingRetention{Root: root, Status: func(string) (*Status, bool) { return nil, false }}
 	budget := retention.Budget{Name: "staging", MaxBytes: 1}
 	result, err := owner.Prune(context.Background(), budget)
-	if err != nil || result.Deleted != 0 || !result.Incomplete {
+	if err != nil || result.Deleted != 0 || !result.Incomplete || result.Protected[ProtectedUnknownGracePeriod] != 1 {
 		t.Fatalf("grace result=%+v err=%v", result, err)
 	}
 	owner.Status = nil

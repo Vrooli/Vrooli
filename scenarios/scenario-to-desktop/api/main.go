@@ -233,6 +233,8 @@ func NewServer(port int) *Server {
 	if err != nil {
 		logger.Warn("domain smoke test store unavailable, using in-memory", "error", err)
 		smokeTestStore = smoketest.NewInMemoryStore()
+	} else if n := smokeTestStore.Interrupted(); n > 0 {
+		logger.Warn("recovered smoke tests interrupted by server restart", "count", n)
 	}
 	cancelManager := smoketest.NewCancelManager()
 	smokeTestLogger := smoketest.NewSlogAdapter(logger)
@@ -370,26 +372,7 @@ func NewServer(port int) *Server {
 		stagingErr = startStagingRetention(lifecycleCtx, filepath.Join(scenarioRoot, "scenario-to-desktop", ".vrooli", "service.json"), stagingRoot,
 			pipeline.StagingRetention{
 				Status: pipelineOrchestrator.GetStatus, KeepLatest: 1,
-				InUse: func(app, path string) bool {
-					if smokeTestStore.HasActiveForScenario(app) {
-						return true
-					}
-					if status, ok := generationBuildStore.Get(filepath.Base(path)); ok && status != nil && status.Status == "building" {
-						return true
-					}
-					for _, status := range buildStore.Snapshot() {
-						if status != nil && status.ScenarioName == app && status.Status == "building" {
-							return true
-						}
-					}
-					for _, session := range liveDesktopService.ListSessions() {
-						view := session.View()
-						if view.ScenarioName == app && view.State != livedesktop.StateStopped && view.State != livedesktop.StateError {
-							return true
-						}
-					}
-					return false
-				},
+				InUse: stagingInUse(smokeTestStore, generationBuildStore, buildStore, liveDesktopService.ListSessions),
 			}, logger)
 	}
 	if stagingErr != nil {

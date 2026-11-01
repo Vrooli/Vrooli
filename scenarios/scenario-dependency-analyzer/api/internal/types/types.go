@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"time"
 
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
@@ -558,10 +559,13 @@ type ScenarioDetailResponse struct {
 }
 
 // ScanRequest controls scan/apply behavior for a scenario.
+var ErrInvalidScanRequest = errors.New("invalid scan request")
+
 type ScanRequest struct {
-	Apply          bool `json:"apply"`
-	ApplyResources bool `json:"apply_resources"`
-	ApplyScenarios bool `json:"apply_scenarios"`
+	Apply          bool     `json:"apply"`
+	ApplyResources bool     `json:"apply_resources"`
+	ApplyScenarios bool     `json:"apply_scenarios"`
+	OnlyScenarios  []string `json:"only_scenarios,omitempty"`
 }
 
 // SecretRequirement identifies a dependency that needs secret configuration

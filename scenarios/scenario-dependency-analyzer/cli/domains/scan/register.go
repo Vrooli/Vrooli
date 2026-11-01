@@ -1,7 +1,9 @@
 package scan
 
 import (
+	"flag"
 	"fmt"
+	"strings"
 
 	"scenario-dependency-analyzer/cli/internal/support"
 
@@ -30,9 +32,11 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	var applyResources bool
 	var applyScenarios bool
 	var jsonOutput bool
+	var onlyScenarios string
 	fs.BoolVar(&apply, "apply", false, "Apply inferred resources and scenarios")
 	fs.BoolVar(&applyResources, "apply-resources", false, "Apply inferred resources")
 	fs.BoolVar(&applyScenarios, "apply-scenarios", false, "Apply inferred scenarios")
+	fs.StringVar(&onlyScenarios, "only-scenarios", "", "Comma-separated exact scenario dependencies to apply with --apply-scenarios")
 	fs.BoolVar(&jsonOutput, "json", false, "Output JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -42,10 +46,32 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: %s scan <scenario> [--apply] [--apply-resources] [--apply-scenarios] [--json]", support.AppName)
 	}
 	scenario := positionals[0]
-	body, err := core.Request("POST", "/scenarios/"+scenario+"/scan", nil, map[string]interface{}{
+	var selection []string
+	onlySpecified := false
+	fs.Visit(func(f *flag.Flag) { onlySpecified = onlySpecified || f.Name == "only-scenarios" })
+	if onlySpecified {
+		if !applyScenarios || apply || applyResources {
+			return fmt.Errorf("--only-scenarios requires --apply-scenarios and cannot apply resources")
+		}
+		for _, value := range strings.Split(onlyScenarios, ",") {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				return fmt.Errorf("--only-scenarios requires nonempty scenario names")
+			}
+			selection = append(selection, value)
+		}
+	}
+	endpoint := "/scenarios/" + scenario + "/scan"
+	if onlySpecified {
+		// A distinct endpoint makes downgrade fail closed: old servers cannot
+		// silently ignore the selector and apply every detected dependency.
+		endpoint += "-selected"
+	}
+	body, err := core.Request("POST", endpoint, nil, map[string]interface{}{
 		"apply":           apply,
 		"apply_resources": applyResources,
 		"apply_scenarios": applyScenarios,
+		"only_scenarios":  selection,
 	})
 	if err != nil {
 		return err

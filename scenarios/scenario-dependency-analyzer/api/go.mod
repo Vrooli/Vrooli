@@ -13,7 +13,7 @@ require (
 	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
-	github.com/vrooli/freshness-go v0.0.0-00010101000000-000000000000
+	github.com/vrooli/freshness-go v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
@@ -56,9 +56,9 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
-	github.com/vrooli/cli-core v0.0.0 // indirect
+	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
-	github.com/vrooli/platform-go v0.0.0 // indirect
+	github.com/vrooli/platform-go v0.0.0
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/net v0.56.0 // indirect

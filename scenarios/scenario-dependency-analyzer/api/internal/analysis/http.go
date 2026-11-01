@@ -27,6 +27,7 @@ func RegisterHTTPRoutes(api gin.IRoutes, analysis services.AnalysisService, scan
 	handler := NewHTTPHandler(analysis, scans)
 	api.GET("/analyze/:scenario", handler.AnalyzeScenario)
 	api.POST("/scenarios/:scenario/scan", handler.ScanScenario)
+	api.POST("/scenarios/:scenario/scan-selected", handler.ScanSelectedScenario)
 }
 
 // AnalyzeScenario returns dependency analysis for one scenario or all scenarios.
@@ -54,6 +55,14 @@ func (h *HTTPHandler) AnalyzeScenario(c *gin.Context) {
 
 // ScanScenario runs a dependency scan and optionally applies detected diffs.
 func (h *HTTPHandler) ScanScenario(c *gin.Context) {
+	h.scanScenario(c, false)
+}
+
+func (h *HTTPHandler) ScanSelectedScenario(c *gin.Context) {
+	h.scanScenario(c, true)
+}
+
+func (h *HTTPHandler) scanScenario(c *gin.Context, selectedOnly bool) {
 	scenarioName := c.Param("scenario")
 	var req types.ScanRequest
 	if c.Request.Body != nil {
@@ -62,9 +71,21 @@ func (h *HTTPHandler) ScanScenario(c *gin.Context) {
 			return
 		}
 	}
+	if selectedOnly && len(req.OnlyScenarios) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "scan-selected requires a nonempty only_scenarios list"})
+		return
+	}
+	if !selectedOnly && req.OnlyScenarios != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only_scenarios requires the scan-selected endpoint"})
+		return
+	}
 
 	result, err := h.scans.ScanScenario(scenarioName, req)
 	if err != nil {
+		if errors.Is(err, types.ErrInvalidScanRequest) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

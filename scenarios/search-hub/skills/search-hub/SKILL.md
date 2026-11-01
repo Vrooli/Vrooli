@@ -78,7 +78,7 @@ Effort, then one step:
 | `ok` | `zero_result` | Corpora were searched, nothing matched. Rephrase in the corpus's own vocabulary (a doc title, a command name), or add `--all`; if `signals.escalate_to_web` is true and the fact is external, go to web-search |
 | `ok` | `no_provider_selected` | No corpus was searched: automatic selection found no eligible provider, or the explicit tokens match none. Read the route explanation and provider state; use valid explicit tokens from §3 to bypass automatic selection |
 | `partial` | `degraded_leg` | Some rows are valid; read `routing_degrade_reason`: `reranker_absent` or `reranker_unavailable` → rows are grouped by provider, not fused, still usable; `unreachable`, `timeout`, `http_error` → one provider's leg is missing; note the provider for §5 |
-| `unavailable` | `scenario_unreachable` | Search Hub is down (§6). Do not conclude absence |
+| `unavailable` | `scenario_unreachable` or `degraded_leg` with no hits | Search Hub is down or a selected provider did not answer. Do not conclude absence or treat the query as a completed zero; preserve the reported provider reason and choose an explicitly safe fallback if one is authorized |
 | `refused` | `no_grant`, `not_run_eligible` | Stop; request through the session path |
 | `failed` | `invalid_input` | `effort` outside the enum, or `types` not a list of strings |
 
