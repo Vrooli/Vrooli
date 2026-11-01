@@ -34,3 +34,56 @@ CREATE TABLE IF NOT EXISTS refresh_token_history (refresh_token_hash VARCHAR(255
 CREATE TABLE IF NOT EXISTS usage_events (id BIGSERIAL PRIMARY KEY, operation_id TEXT UNIQUE, user_identity VARCHAR(255) NOT NULL, app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed', model VARCHAR(255) NOT NULL DEFAULT 'unknown', credits BIGINT NOT NULL, cost_micros BIGINT NOT NULL DEFAULT 0, prompt_tokens BIGINT NOT NULL DEFAULT 0, completion_tokens BIGINT NOT NULL DEFAULT 0, provider VARCHAR(100) NOT NULL DEFAULT 'local', created_at TIMESTAMP NOT NULL DEFAULT NOW());
 CREATE INDEX IF NOT EXISTS idx_usage_events_created ON usage_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_events_app_model ON usage_events(app_bundle_key, model, created_at);
+
+-- Business-account metering is a separate audience from a person's account.
+-- Actor identity remains on each reservation and event for audit attribution.
+CREATE TABLE IF NOT EXISTS business_account_usage_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_account_id TEXT NOT NULL,
+  actor_identity VARCHAR(255) NOT NULL,
+  billing_period VARCHAR(20) NOT NULL,
+  limit_key VARCHAR(100) NOT NULL,
+  usage_amount BIGINT NOT NULL DEFAULT 0,
+  app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed',
+  last_operation_at TIMESTAMP,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  UNIQUE(business_account_id, billing_period, limit_key, app_bundle_key)
+);
+CREATE INDEX IF NOT EXISTS idx_business_account_usage_period ON business_account_usage_records(business_account_id, billing_period, limit_key);
+CREATE TABLE IF NOT EXISTS business_account_credit_reservations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_account_id TEXT NOT NULL,
+  actor_identity VARCHAR(255) NOT NULL,
+  billing_period VARCHAR(20) NOT NULL,
+  limit_key VARCHAR(100) NOT NULL,
+  reserved_amount BIGINT NOT NULL,
+  actual_amount BIGINT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  settled_at TIMESTAMP,
+  app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed',
+  model VARCHAR(255) NOT NULL DEFAULT 'unknown',
+  cost_micros BIGINT NOT NULL DEFAULT 0,
+  prompt_tokens BIGINT NOT NULL DEFAULT 0,
+  completion_tokens BIGINT NOT NULL DEFAULT 0,
+  provider VARCHAR(100) NOT NULL DEFAULT 'openrouter'
+);
+CREATE INDEX IF NOT EXISTS idx_business_account_reservations_active ON business_account_credit_reservations(business_account_id, billing_period, limit_key, status);
+CREATE INDEX IF NOT EXISTS idx_business_account_reservations_expiry ON business_account_credit_reservations(status, expires_at);
+CREATE TABLE IF NOT EXISTS business_account_usage_events (
+  id BIGSERIAL PRIMARY KEY,
+  operation_id TEXT NOT NULL UNIQUE,
+  business_account_id TEXT NOT NULL,
+  actor_identity VARCHAR(255) NOT NULL,
+  app_bundle_key VARCHAR(100) NOT NULL DEFAULT 'unattributed',
+  model VARCHAR(255) NOT NULL DEFAULT 'unknown',
+  credits BIGINT NOT NULL,
+  cost_micros BIGINT NOT NULL DEFAULT 0,
+  prompt_tokens BIGINT NOT NULL DEFAULT 0,
+  completion_tokens BIGINT NOT NULL DEFAULT 0,
+  provider VARCHAR(100) NOT NULL DEFAULT 'openrouter',
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_business_account_usage_events_account ON business_account_usage_events(business_account_id, created_at);

@@ -483,7 +483,7 @@ func NewServer() (*Server, error) {
 	})
 
 	// Create metered inference provider dependencies with rate limiters
-	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService)
+	meteredInferenceDeps := newMeteredInferenceDependencies(meteredInferenceService, usageService, accountService, businessAccounts)
 	meteredInferenceHandler := aihandler.New(meteredInferenceDeps)
 
 	metricsService := domainmetrics.NewServiceWithContextStore(db, strictPresentationExposureStore{routed: routedDB})

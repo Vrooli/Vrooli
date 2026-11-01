@@ -2,6 +2,7 @@ package intelligence
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -28,6 +29,10 @@ type UsageMetadataFinalizer interface {
 
 type UsageCostFinalizer interface {
 	FinalizeReservationWithCost(context.Context, string, int64, string, string, int64, int, int, string) error
+}
+
+type UncertainReservationRetainer interface {
+	RetainUncertainReservation(context.Context, string) error
 }
 
 type CostCapUsageServicer interface {
@@ -67,6 +72,19 @@ type UsageReport struct {
 // lookup or subscription persistence.
 type AccountServicer interface {
 	GetSubscriptionContext(context.Context, string) (*shared.SubscriptionStatus, error)
+	GetSubscriptionForBusinessAccountContext(context.Context, string, string) (*shared.SubscriptionStatus, error)
+}
+
+// BusinessAccountUsageServicer persists the selected billing audience and the
+// authenticated actor as separate identities. Account-scoped inference fails
+// closed when this owner interface is unavailable.
+type BusinessAccountUsageServicer interface {
+	ReserveBusinessAccountCredits(context.Context, string, string, string, string, int64) (string, error)
+	FinalizeBusinessAccountReservationWithCost(context.Context, string, string, int64, string, string, int64, int, int, string) error
+	ReleaseBusinessAccountReservation(context.Context, string, string) error
+	RetainUncertainBusinessAccountReservation(context.Context, string) error
+	RecordBusinessAccountUsage(context.Context, string, string, string, string, int64, string, string, int64, int, int, string) error
+	AdjustBusinessAccountUsage(context.Context, string, string, int64) error
 }
 
 // APIKeyServicer retrieves the provider credential selected by the operator.
@@ -78,13 +96,16 @@ type APIKeyServicer interface {
 
 // AIRequest is one chat-completion request accepted by the gateway.
 type AIRequest struct {
-	Model             string      `json:"model"`
-	Messages          []AIMessage `json:"messages"`
-	Images            []AIImage   `json:"images,omitempty"`
-	Stream            bool        `json:"stream"`
-	MaxTokens         int         `json:"max_tokens,omitempty"`
-	Metadata          AIMetadata  `json:"metadata,omitempty"`
-	SpendLimit        *SpendLimit `json:"spend_limit,omitempty"`
+	Model             string            `json:"model"`
+	Messages          []AIMessage       `json:"messages"`
+	Tools             []json.RawMessage `json:"tools,omitempty"`
+	ToolChoice        json.RawMessage   `json:"tool_choice,omitempty"`
+	BusinessAccountID string            `json:"business_account_id,omitempty"`
+	Images            []AIImage         `json:"images,omitempty"`
+	Stream            bool              `json:"stream"`
+	MaxTokens         int               `json:"max_tokens,omitempty"`
+	Metadata          AIMetadata        `json:"metadata,omitempty"`
+	SpendLimit        *SpendLimit       `json:"spend_limit,omitempty"`
 	spendLimitTrusted bool
 }
 
@@ -92,13 +113,16 @@ type AIRequest struct {
 // select a capability role and constraints; concrete provider model slugs are
 // resolved only by the metered service policy.
 type InferenceRequest struct {
-	Role            string      `json:"role"`
-	Messages        []AIMessage `json:"messages"`
-	ConstraintsJSON string      `json:"constraints_json,omitempty"`
-	MaxTokens       int         `json:"max_tokens,omitempty"`
-	Metadata        AIMetadata  `json:"metadata,omitempty"`
-	Images          []AIImage   `json:"images,omitempty"`
-	SpendLimit      *SpendLimit `json:"spend_limit,omitempty"`
+	Role              string            `json:"role"`
+	Messages          []AIMessage       `json:"messages"`
+	Tools             []json.RawMessage `json:"tools,omitempty"`
+	ToolChoice        json.RawMessage   `json:"tool_choice,omitempty"`
+	BusinessAccountID string            `json:"business_account_id,omitempty"`
+	ConstraintsJSON   string            `json:"constraints_json,omitempty"`
+	MaxTokens         int               `json:"max_tokens,omitempty"`
+	Metadata          AIMetadata        `json:"metadata,omitempty"`
+	Images            []AIImage         `json:"images,omitempty"`
+	SpendLimit        *SpendLimit       `json:"spend_limit,omitempty"`
 }
 
 // SpendLimit carries a caller-authorized maximum into the canonical metered
@@ -119,8 +143,11 @@ type AIImage struct {
 }
 
 type AIMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string               `json:"role"`
+	Content    string               `json:"content"`
+	Name       string               `json:"name,omitempty"`
+	ToolCallID string               `json:"tool_call_id,omitempty"`
+	ToolCalls  []OpenRouterToolCall `json:"tool_calls,omitempty"`
 }
 
 type AIMetadata struct {
@@ -131,7 +158,9 @@ type AIMetadata struct {
 type AIResponse struct {
 	ID                 string                          `json:"id"`
 	Model              string                          `json:"model"`
+	BusinessAccountID  string                          `json:"business_account_id,omitempty"`
 	Content            string                          `json:"content"`
+	ToolCalls          []OpenRouterToolCall            `json:"tool_calls,omitempty"`
 	PromptTokens       int                             `json:"prompt_tokens"`
 	CompletionTokens   int                             `json:"completion_tokens"`
 	TotalTokens        int                             `json:"total_tokens"`
@@ -143,10 +172,11 @@ type AIResponse struct {
 }
 
 type AIStreamEvent struct {
-	Type    string `json:"type"`
-	Content string `json:"content,omitempty"`
-	Error   string `json:"error,omitempty"`
-	Usage   *struct {
+	Type      string                    `json:"type"`
+	Content   string                    `json:"content,omitempty"`
+	ToolCalls []OpenRouterToolCallDelta `json:"tool_calls,omitempty"`
+	Error     string                    `json:"error,omitempty"`
+	Usage     *struct {
 		PromptTokens     int   `json:"prompt_tokens"`
 		CompletionTokens int   `json:"completion_tokens"`
 		TotalTokens      int   `json:"total_tokens"`

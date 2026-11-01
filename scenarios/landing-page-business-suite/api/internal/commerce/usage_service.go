@@ -71,6 +71,40 @@ func (s *UsageService) reservationService() *ReservationService {
 	})
 }
 
+func (s *UsageService) businessAccountUsageService() *BusinessAccountUsageService {
+	return NewBusinessAccountUsageService(BusinessAccountUsageOptions{
+		DB: s.db, Limits: s.limitsSvc, Dialect: s.dialect, Insufficient: s.insufficientCredits, Log: s.logf,
+	})
+}
+
+func (s *UsageService) ReserveBusinessAccountCredits(ctx context.Context, accountID, actorIdentity, tier, limitKey string, amount int64) (string, error) {
+	return s.businessAccountUsageService().ReserveCredits(ctx, accountID, actorIdentity, tier, limitKey, amount)
+}
+
+func (s *UsageService) FinalizeBusinessAccountReservationWithCost(ctx context.Context, accountID, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	return s.businessAccountUsageService().FinalizeReservationWithCost(ctx, accountID, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
+}
+
+func (s *UsageService) ReleaseBusinessAccountReservation(ctx context.Context, accountID, reservationID string) error {
+	return s.businessAccountUsageService().ReleaseReservation(ctx, accountID, reservationID)
+}
+
+func (s *UsageService) RetainUncertainBusinessAccountReservation(ctx context.Context, reservationID string) error {
+	return s.businessAccountUsageService().RetainUncertainReservation(ctx, reservationID)
+}
+
+func (s *UsageService) RecordBusinessAccountUsage(ctx context.Context, accountID, actorIdentity, tier, limitKey string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	return s.businessAccountUsageService().RecordUsage(ctx, accountID, actorIdentity, tier, limitKey, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
+}
+
+func (s *UsageService) AdjustBusinessAccountUsage(ctx context.Context, accountID, limitKey string, adjustment int64) error {
+	return s.businessAccountUsageService().AdjustUsage(ctx, accountID, limitKey, adjustment)
+}
+
+func (s *UsageService) GetBusinessAccountUsageSummary(ctx context.Context, accountID, tier string) (BusinessAccountUsageSummary, error) {
+	return s.businessAccountUsageService().GetUsageSummary(ctx, accountID, tier)
+}
+
 func (s *UsageService) ReserveAndCharge(ctx context.Context, userIdentity, tier, limitKey string, amount int64, metadata UsageReportRequest) error {
 	return s.reservationService().ReserveAndCharge(ctx, userIdentity, tier, limitKey, amount, metadata)
 }

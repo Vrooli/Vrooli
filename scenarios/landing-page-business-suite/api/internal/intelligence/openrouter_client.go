@@ -95,7 +95,8 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 		Model   string `json:"model"`
 		Choices []struct {
 			Message struct {
-				Content string `json:"content"`
+				Content   string               `json:"content"`
+				ToolCalls []OpenRouterToolCall `json:"tool_calls"`
 			} `json:"message"`
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
@@ -117,8 +118,10 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 	// Extract content from first choice
 	content := ""
 	finishReason := ""
+	var toolCalls []OpenRouterToolCall
 	if len(rawResp.Choices) > 0 {
 		content = rawResp.Choices[0].Message.Content
+		toolCalls = rawResp.Choices[0].Message.ToolCalls
 		finishReason = rawResp.Choices[0].FinishReason
 	}
 
@@ -126,6 +129,7 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 		ID:           rawResp.ID,
 		Model:        rawResp.Model,
 		Content:      content,
+		ToolCalls:    toolCalls,
 		FinishReason: finishReason,
 		Usage: OpenRouterUsage{
 			PromptTokens:     rawResp.Usage.PromptTokens,
@@ -139,6 +143,16 @@ func (c *httpOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatReque
 
 // ChatStream implements OpenRouterClient.
 func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterChatRequest, onChunk func(content string)) (*OpenRouterUsage, error) {
+	return c.ChatStreamEvents(ctx, req, func(event OpenRouterStreamEvent) {
+		if onChunk != nil && event.Content != "" {
+			onChunk(event.Content)
+		}
+	})
+}
+
+// ChatStreamEvents streams text and native tool-call deltas without flattening
+// tool arguments into user-visible text.
+func (c *httpOpenRouterClient) ChatStreamEvents(ctx context.Context, req OpenRouterChatRequest, onEvent func(OpenRouterStreamEvent)) (*OpenRouterUsage, error) {
 	req.Stream = true
 	req.Usage = &OpenRouterUsageRequest{Include: true}
 
@@ -198,7 +212,8 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 			Model   string `json:"model"`
 			Choices []struct {
 				Delta struct {
-					Content string `json:"content"`
+					Content   string                    `json:"content"`
+					ToolCalls []OpenRouterToolCallDelta `json:"tool_calls"`
 				} `json:"delta"`
 				FinishReason string `json:"finish_reason"`
 			} `json:"choices"`
@@ -223,11 +238,11 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 		}
 
 		// Extract content delta
-		if len(chunk.Choices) > 0 && chunk.Choices[0].Delta.Content != "" {
+		if len(chunk.Choices) > 0 {
 			content := chunk.Choices[0].Delta.Content
 			fullContent.WriteString(content)
-			if onChunk != nil {
-				onChunk(content)
+			if onEvent != nil && (content != "" || len(chunk.Choices[0].Delta.ToolCalls) > 0) {
+				onEvent(OpenRouterStreamEvent{Content: content, ToolCalls: chunk.Choices[0].Delta.ToolCalls})
 			}
 		}
 
@@ -238,6 +253,7 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 				CompletionTokens: chunk.Usage.CompletionTokens,
 				TotalTokens:      chunk.Usage.TotalTokens,
 				CostMicros:       reportedCostMicros(chunk.Usage.Cost, chunk.Usage.CostDetails.UpstreamInferenceCost),
+				UsageReported:    true,
 				CostReported:     chunk.Usage.Cost != nil || chunk.Usage.CostDetails.UpstreamInferenceCost != nil,
 			}
 		}
@@ -248,6 +264,7 @@ func (c *httpOpenRouterClient) ChatStream(ctx context.Context, req OpenRouterCha
 			"level": "error",
 			"error": err.Error(),
 		})
+		return &usage, fmt.Errorf("read stream: %w", err)
 	}
 
 	// Estimate tokens if not provided in stream

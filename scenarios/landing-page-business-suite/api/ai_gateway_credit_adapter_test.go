@@ -30,13 +30,20 @@ func TestMeteredInferenceCreditAdapterMapsAndDelegatesUsage(t *testing.T) {
 	if err := adapter.ReleaseReservation(context.Background(), reservationID); err != nil {
 		t.Fatalf("release: %v", err)
 	}
+	retainer, ok := adapter.(intelligence.UncertainReservationRetainer)
+	if !ok {
+		t.Fatal("adapter does not expose uncertain reservation retention")
+	}
+	if err := retainer.RetainUncertainReservation(context.Background(), reservationID); err != nil {
+		t.Fatalf("retain uncertain reservation: %v", err)
+	}
 	if err := adapter.AdjustUsage(context.Background(), "customer@example.test", "ai_credits", -29, "refund"); err != nil {
 		t.Fatalf("adjust: %v", err)
 	}
 	if err := adapter.RecordUsage(context.Background(), report); err != nil {
 		t.Fatalf("record: %v", err)
 	}
-	if source.recordReport.Operation != "chat" || source.finalizedAmount != 70 || source.adjustment != -29 {
+	if source.recordReport.Operation != "chat" || source.finalizedAmount != 70 || source.adjustment != -29 || source.retainedID != reservationID {
 		t.Fatalf("source=%#v", source)
 	}
 }
@@ -56,6 +63,7 @@ type fakeMeteredInferenceUsageSource struct {
 	recordReport    commerce.UsageReportRequest
 	finalizedAmount int64
 	adjustment      int64
+	retainedID      string
 }
 
 func (f *fakeMeteredInferenceUsageSource) ReserveAndCharge(_ context.Context, _ string, _ string, _ string, _ int64, report commerce.UsageReportRequest) error {
@@ -73,6 +81,11 @@ func (f *fakeMeteredInferenceUsageSource) FinalizeReservation(_ context.Context,
 }
 
 func (f *fakeMeteredInferenceUsageSource) ReleaseReservation(context.Context, string) error {
+	return f.err
+}
+
+func (f *fakeMeteredInferenceUsageSource) RetainUncertainReservation(_ context.Context, reservationID string) error {
+	f.retainedID = reservationID
 	return f.err
 }
 

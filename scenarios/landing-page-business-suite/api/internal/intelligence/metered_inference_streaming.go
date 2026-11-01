@@ -17,14 +17,14 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 		return fmt.Errorf("%w: %s", ErrModelNotAllowed, req.Model)
 	}
 
-	tier, err := s.getUserTier(ctx, userIdentity)
+	billingIdentity, tier, err := s.billingIdentityAndTier(ctx, userIdentity, req.BusinessAccountID)
 	if err != nil {
 		return fmt.Errorf("failed to get user tier: %w", err)
 	}
 
-	estimate := s.estimateTokens(req.Messages, req.MaxTokens)
+	estimate := s.estimateInferenceTokens(req)
 	estimatedCost := s.calculateCost(req.Model, estimate.prompt, estimate.completion)
-	reservationID, err := s.usageService.ReserveCredits(ctx, userIdentity, tier, "ai_credits", estimatedCost)
+	reservationID, err := s.reserveCredits(ctx, userIdentity, billingIdentity, req.BusinessAccountID, tier, estimatedCost)
 	if err != nil {
 		if errors.Is(err, ErrInsufficientCredits) || strings.Contains(err.Error(), "insufficient") {
 			return ErrInsufficientCredits
@@ -34,7 +34,7 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		s.releaseStreamingReservation(ctx, userIdentity, reservationID)
+		s.releaseStreamingReservation(ctx, userIdentity, req.BusinessAccountID, reservationID)
 		return ErrStreamingNotSupported
 	}
 
@@ -45,23 +45,66 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 
 	client, err := s.getOpenRouterClient(ctx)
 	if err != nil {
-		s.releaseStreamingReservation(ctx, userIdentity, reservationID)
+		s.releaseStreamingReservation(ctx, userIdentity, req.BusinessAccountID, reservationID)
 		return err
 	}
 
 	orMessages := make([]OpenRouterMessage, len(req.Messages))
 	for i, msg := range req.Messages {
-		orMessages[i] = OpenRouterMessage{Role: msg.Role, Content: msg.Content}
+		orMessages[i] = OpenRouterMessage{Role: msg.Role, Content: msg.Content, Name: msg.Name, ToolCallID: msg.ToolCallID, ToolCalls: msg.ToolCalls}
 	}
 
-	usage, err := client.ChatStream(ctx, OpenRouterChatRequest{Model: req.Model, Messages: orMessages}, func(content string) {
-		eventData, _ := json.Marshal(AIStreamEvent{Type: "chunk", Content: content})
+	providerRequest := OpenRouterChatRequest{Model: req.Model, Messages: orMessages, Tools: req.Tools, ToolChoice: req.ToolChoice}
+	emit := func(event OpenRouterStreamEvent) {
+		eventData, _ := json.Marshal(AIStreamEvent{Type: "chunk", Content: event.Content, ToolCalls: event.ToolCalls})
 		fmt.Fprintf(w, "data: %s\n\n", eventData)
 		flusher.Flush()
-	})
+	}
+	var usage *OpenRouterUsage
+	if eventClient, ok := client.(OpenRouterStreamEventClient); ok {
+		usage, err = eventClient.ChatStreamEvents(ctx, providerRequest, emit)
+	} else if len(req.Tools) > 0 {
+		s.releaseStreamingReservation(ctx, userIdentity, req.BusinessAccountID, reservationID)
+		return errors.New("tool-call streaming is unsupported by the configured provider client")
+	} else {
+		usage, err = client.ChatStream(ctx, providerRequest, func(content string) { emit(OpenRouterStreamEvent{Content: content}) })
+	}
 	if err != nil {
-		s.releaseStreamingReservation(ctx, userIdentity, reservationID)
+		if usage != nil && usage.UsageReported && usage.PromptTokens >= 0 && usage.CompletionTokens >= 0 && usage.TotalTokens >= 0 && (usage.PromptTokens > 0 || usage.CompletionTokens > 0) {
+			promptTokens := usage.PromptTokens
+			actualCost := s.calculateCost(req.Model, promptTokens, usage.CompletionTokens)
+			if settleErr := s.finalizeReservationWithCost(ctx, userIdentity, req.BusinessAccountID, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model, usage.CostMicros, promptTokens, usage.CompletionTokens, "openrouter"); settleErr != nil {
+				s.log("partial_stream_finalize_failed", map[string]interface{}{
+					"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "actual_cost": actualCost, "error": settleErr.Error(),
+				})
+				if req.BusinessAccountID != "" {
+					if accountUsage, ok := s.usageService.(BusinessAccountUsageServicer); ok {
+						if retainErr := accountUsage.RetainUncertainBusinessAccountReservation(ctx, reservationID); retainErr != nil {
+							s.log("partial_stream_reservation_retain_failed", map[string]interface{}{"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "error": retainErr.Error(), "security": true})
+						}
+					} else {
+						s.log("partial_stream_reservation_retain_unavailable", map[string]interface{}{"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "security": true})
+					}
+				} else if retainer, ok := s.usageService.(UncertainReservationRetainer); ok {
+					if retainErr := retainer.RetainUncertainReservation(ctx, reservationID); retainErr != nil {
+						s.log("partial_stream_reservation_retain_failed", map[string]interface{}{
+							"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "error": retainErr.Error(), "security": true,
+						})
+					}
+				} else {
+					s.log("partial_stream_reservation_retain_unavailable", map[string]interface{}{
+						"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "security": true,
+					})
+				}
+			}
+		} else {
+			s.releaseStreamingReservation(ctx, userIdentity, req.BusinessAccountID, reservationID)
+		}
 		return fmt.Errorf("streaming failed: %w", err)
+	}
+	if usage == nil {
+		s.releaseStreamingReservation(ctx, userIdentity, req.BusinessAccountID, reservationID)
+		return errors.New("streaming failed: provider returned no usage")
 	}
 
 	promptTokens := usage.PromptTokens
@@ -70,12 +113,20 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 	}
 	actualCost := s.calculateCost(req.Model, promptTokens, usage.CompletionTokens)
 
-	if err := finalizeUsageWithCost(s.usageService, ctx, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model, usage.CostMicros, promptTokens, usage.CompletionTokens, "openrouter"); err != nil {
+	if err := s.finalizeReservationWithCost(ctx, userIdentity, req.BusinessAccountID, reservationID, actualCost, req.Metadata.AppBundleKey, req.Model, usage.CostMicros, promptTokens, usage.CompletionTokens, "openrouter"); err != nil {
 		s.log("finalize_reservation_failed", map[string]interface{}{
 			"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "actual_cost": actualCost, "error": err.Error(),
 		})
-		if fallbackErr := s.usageService.RecordUsage(ctx, UsageReport{
-			UserIdentity: userIdentity, LimitKey: "ai_credits", Amount: actualCost,
+		if strings.TrimSpace(req.BusinessAccountID) != "" {
+			if accountUsage, ok := s.usageService.(BusinessAccountUsageServicer); ok {
+				if retainErr := accountUsage.RetainUncertainBusinessAccountReservation(ctx, reservationID); retainErr != nil {
+					s.log("finalize_reservation_retain_failed", map[string]interface{}{"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "error": retainErr.Error(), "security": true})
+				}
+			} else {
+				s.log("finalize_reservation_retain_unavailable", map[string]interface{}{"level": "error", "user_identity": userIdentity, "reservation_id": reservationID, "security": true})
+			}
+		} else if fallbackErr := s.recordUsage(ctx, userIdentity, req.BusinessAccountID, tier, UsageReport{
+			UserIdentity: billingIdentity, LimitKey: "ai_credits", Amount: actualCost,
 			AppBundleKey: req.Metadata.AppBundleKey, Operation: req.Metadata.Operation,
 			Metadata: map[string]string{
 				"model": req.Model, "provider": "openrouter",
@@ -111,8 +162,8 @@ func (s *MeteredInferenceService) ExecuteChatStream(ctx context.Context, userIde
 	return nil
 }
 
-func (s *MeteredInferenceService) releaseStreamingReservation(ctx context.Context, userIdentity, reservationID string) {
-	if err := s.usageService.ReleaseReservation(ctx, reservationID); err != nil {
+func (s *MeteredInferenceService) releaseStreamingReservation(ctx context.Context, userIdentity, businessAccountID, reservationID string) {
+	if err := s.releaseReservation(ctx, userIdentity, businessAccountID, reservationID); err != nil {
 		s.log("reservation_release_failed", map[string]interface{}{
 			"level": "warn", "user_identity": userIdentity, "reservation_id": reservationID, "error": err.Error(),
 		})

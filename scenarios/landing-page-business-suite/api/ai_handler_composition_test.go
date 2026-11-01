@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"landing-page-business-suite-api/internal/businessaccount"
 	"landing-page-business-suite-api/internal/commerce"
 )
 
@@ -16,14 +17,14 @@ func TestNewMeteredInferenceDependencies_ComposesUsageAndSubscriptionSeams(t *te
 	})
 	account := newAccountServiceWithTestPlanStore(t, db)
 
-	deps := newMeteredInferenceDependencies(nil, usage, account)
+	deps := newMeteredInferenceDependencies(nil, usage, account, businessaccount.NewMemoryRepository())
 	if deps.Service != nil {
 		t.Fatal("expected the supplied nil gateway to remain nil")
 	}
 	if deps.UserRateLimiter == nil || deps.IPRateLimiter == nil {
 		t.Fatal("expected independent user and IP rate limiters")
 	}
-	if deps.IPKeyFunc == nil || deps.UserIdentity == nil || deps.WriteJSONError == nil || deps.Log == nil || deps.LogError == nil {
+	if deps.IPKeyFunc == nil || deps.UserID == nil || deps.UserIdentity == nil || deps.ResolveBusinessAccount == nil || deps.WriteJSONError == nil || deps.Log == nil || deps.LogError == nil {
 		t.Fatal("expected every HTTP composition dependency to be installed")
 	}
 

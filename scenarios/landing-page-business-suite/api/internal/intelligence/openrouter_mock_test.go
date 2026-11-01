@@ -6,9 +6,21 @@ import (
 
 // MockOpenRouterClient is a test-only double for the gateway's provider seam.
 type MockOpenRouterClient struct {
-	ChatFn       func(context.Context, OpenRouterChatRequest) (*OpenRouterChatResponse, error)
-	ChatStreamFn func(context.Context, OpenRouterChatRequest, func(string)) (*OpenRouterUsage, error)
-	VerifyFn     func(context.Context) error
+	ChatFn             func(context.Context, OpenRouterChatRequest) (*OpenRouterChatResponse, error)
+	ChatStreamFn       func(context.Context, OpenRouterChatRequest, func(string)) (*OpenRouterUsage, error)
+	ChatStreamEventsFn func(context.Context, OpenRouterChatRequest, func(OpenRouterStreamEvent)) (*OpenRouterUsage, error)
+	VerifyFn           func(context.Context) error
+}
+
+func (m *MockOpenRouterClient) ChatStreamEvents(ctx context.Context, req OpenRouterChatRequest, onEvent func(OpenRouterStreamEvent)) (*OpenRouterUsage, error) {
+	if m.ChatStreamEventsFn != nil {
+		return m.ChatStreamEventsFn(ctx, req, onEvent)
+	}
+	return m.ChatStream(ctx, req, func(content string) {
+		if onEvent != nil {
+			onEvent(OpenRouterStreamEvent{Content: content})
+		}
+	})
 }
 
 func (m *MockOpenRouterClient) Chat(ctx context.Context, req OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
@@ -38,3 +50,4 @@ func (m *MockOpenRouterClient) VerifyAPIKey(ctx context.Context) error {
 }
 
 var _ OpenRouterClient = (*MockOpenRouterClient)(nil)
+var _ OpenRouterStreamEventClient = (*MockOpenRouterClient)(nil)

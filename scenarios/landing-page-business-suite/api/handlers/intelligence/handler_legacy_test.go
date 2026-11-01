@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"landing-page-business-suite-api/internal/intelligence"
 )
@@ -395,6 +396,45 @@ func TestHandleAIStream_Success(t *testing.T) {
 	body2 := w.Body.String()
 	if !strings.Contains(body2, "data:") {
 		t.Errorf("Expected SSE data events in response, got %s", body2)
+	}
+}
+
+type deadlineResponseWriter struct {
+	*httptest.ResponseRecorder
+	readDeadline  time.Time
+	writeDeadline time.Time
+}
+
+func (w *deadlineResponseWriter) SetReadDeadline(deadline time.Time) error {
+	w.readDeadline = deadline
+	return nil
+}
+
+func (w *deadlineResponseWriter) SetWriteDeadline(deadline time.Time) error {
+	w.writeDeadline = deadline
+	return nil
+}
+
+func TestHandleAIStreamAdjustsRequestDeadlines(t *testing.T) {
+	deps := newTestMeteredInferenceDeps(&MockMeteredInference{})
+	handler := handleAIStream(deps)
+	body, _ := json.Marshal(intelligence.AIRequest{
+		Model:    "openai/gpt-4o",
+		Messages: []intelligence.AIMessage{{Role: "user", Content: "Hello"}},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/stream", bytes.NewReader(body))
+	req = req.WithContext(testUserContext("user-123", "test@example.com"))
+	req.RemoteAddr = "192.168.1.1:12345"
+	w := &deadlineResponseWriter{ResponseRecorder: httptest.NewRecorder()}
+	started := time.Now()
+
+	handler(w, req)
+
+	if w.readDeadline.Before(started.Add(2*time.Minute - time.Second)) {
+		t.Fatalf("read deadline not extended for a slow upload: got %v", w.readDeadline)
+	}
+	if !w.writeDeadline.IsZero() {
+		t.Fatalf("write deadline should be cleared for a long stream: got %v", w.writeDeadline)
 	}
 }
 

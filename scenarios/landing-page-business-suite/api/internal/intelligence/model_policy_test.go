@@ -1,6 +1,9 @@
 package intelligence
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestAllowedModelsReturnsIndependentPolicyCopies(t *testing.T) {
 	first := AllowedModels()
@@ -38,5 +41,18 @@ func TestDefaultRolePoliciesIncludesAudioSummarization(t *testing.T) {
 	}
 	if policy.Model == "" || policy.Pricing.PromptCostPer1K <= 0 || policy.Pricing.CompletionCostPer1K <= 0 {
 		t.Fatalf("audio.summarize policy is incomplete: %+v", policy)
+	}
+}
+
+func TestCodeRoleHasMeteredPolicyAndToolDeclarationsIncreaseReservation(t *testing.T) {
+	policy, ok := DefaultRolePolicies()["code.default"]
+	if !ok || policy.Model != "openai/gpt-4o-mini" || policy.Pricing.PromptCostPer1K <= 0 || policy.Pricing.CompletionCostPer1K <= 0 {
+		t.Fatalf("code.default policy = %+v, want explicit priced model policy", policy)
+	}
+	messages := []AIMessage{{Role: "assistant", ToolCalls: []OpenRouterToolCall{{ID: "call_1", Type: "function", Function: OpenRouterToolFunction{Name: "read_file", Arguments: `{"path":"src/main.go"}`}}}}}
+	base := EstimateInferenceTokens(messages, nil, nil, 500)
+	withTools := EstimateInferenceTokens(messages, []json.RawMessage{json.RawMessage(`{"type":"function","function":{"name":"read_file","parameters":{"type":"object","properties":{"path":{"type":"string"}}}}}`)}, json.RawMessage(`"auto"`), 500)
+	if withTools.Prompt <= base.Prompt {
+		t.Fatalf("prompt reservation estimate without/with tools = %d/%d, want tool declarations counted", base.Prompt, withTools.Prompt)
 	}
 }

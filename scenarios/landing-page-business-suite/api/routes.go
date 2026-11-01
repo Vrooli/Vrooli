@@ -724,11 +724,20 @@ func registerCreditsRoutes(s *Server) {
 	// Credit System: Usage (User Auth + Admin). The write path derives identity
 	// from the verified access token; no shared service credential is accepted.
 	usageDeps := usageHTTPDependencies()
+	usageDeps.UserID = getUserID
+	usageDeps.ResolveBusinessAccount = func(ctx context.Context, userID, email, requestedID string) (string, error) {
+		account, err := s.businessAccounts.ResolveForUser(ctx, userID, email, requestedID)
+		if err != nil {
+			return "", err
+		}
+		return account.ID, nil
+	}
 	s.router.HandleFunc("/api/v1/usage/report", s.requireUserAuth(billinghttp.ReportUsage(s.usageService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/reservations", s.requireUserAuth(billinghttp.ReserveCredits(s.usageService, s.accountService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/reservations/{reservationID}/finalize", s.requireUserAuth(billinghttp.FinalizeReservation(s.usageService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/reservations/{reservationID}/release", s.requireUserAuth(billinghttp.ReleaseReservation(s.usageService, usageDeps))).Methods("POST")
 	s.router.HandleFunc("/api/v1/usage/summary", s.requireUserAuth(billinghttp.GetUsageSummary(s.usageService, s.accountService, usageDeps))).Methods("GET")
+	s.router.HandleFunc("/api/v1/usage/business-account-summary", s.requireUserAuth(billinghttp.GetBusinessAccountUsageSummary(s.usageService, s.accountService, usageDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/check", s.requireUserAuth(billinghttp.CheckLimit(s.usageService, usageDeps))).Methods("GET")
 	s.router.HandleFunc("/api/v1/usage/health", billinghttp.UsageHealth(s.usageService, usageDeps)).Methods("GET") // Unauthenticated for monitoring
 	s.router.HandleFunc("/api/v1/admin/usage", s.requireAdmin(billinghttp.AdminUsageSummary(s.usageService, usageDeps))).Methods("GET")
@@ -753,6 +762,7 @@ func registerAIRoutes(s *Server) {
 	// User auth required for AI operations
 	s.router.HandleFunc("/api/v1/ai/chat", s.requireUserAuth(s.meteredInferenceHandler.Chat())).Methods("POST")
 	s.router.HandleFunc("/api/v1/ai/inference", s.requireUserAuth(s.meteredInferenceHandler.Inference())).Methods("POST")
+	s.router.HandleFunc("/api/v1/ai/inference-stream", s.requireUserAuth(s.meteredInferenceHandler.InferenceStream())).Methods("POST")
 	s.router.HandleFunc("/api/v1/ai/stream", s.requireUserAuth(s.meteredInferenceHandler.Stream())).Methods("POST")
 	s.router.HandleFunc("/api/v1/ai/usage", s.requireUserAuth(s.meteredInferenceHandler.Usage())).Methods("GET")
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
@@ -478,6 +479,7 @@ type MockUsageService struct {
 	ReserveCreditsFn      func(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error)
 	FinalizeReservationFn func(ctx context.Context, reservationID string, actualAmount int64) error
 	ReleaseReservationFn  func(ctx context.Context, reservationID string) error
+	RetainReservationFn   func(ctx context.Context, reservationID string) error
 	AdjustUsageFn         func(ctx context.Context, userIdentity, limitKey string, adjustment int64, reason string) error
 	RecordUsageFn         func(ctx context.Context, req UsageReport) error
 	Calls                 map[string][]interface{}
@@ -508,6 +510,11 @@ func (m *MockUsageService) ReserveCredits(ctx context.Context, userIdentity, tie
 	return "test-reservation-id", nil
 }
 
+func (m *MockUsageService) ReserveBusinessAccountCredits(_ context.Context, accountID, actor, tier, limitKey string, amount int64) (string, error) {
+	m.Calls["ReserveBusinessAccountCredits"] = append(m.Calls["ReserveBusinessAccountCredits"], []interface{}{accountID, actor, tier, limitKey, amount})
+	return "account-test-reservation-id", nil
+}
+
 func (m *MockUsageService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
 	m.Calls["FinalizeReservation"] = append(m.Calls["FinalizeReservation"], []interface{}{reservationID, actualAmount})
 	if m.FinalizeReservationFn != nil {
@@ -521,6 +528,39 @@ func (m *MockUsageService) ReleaseReservation(ctx context.Context, reservationID
 	if m.ReleaseReservationFn != nil {
 		return m.ReleaseReservationFn(ctx, reservationID)
 	}
+	return nil
+}
+
+func (m *MockUsageService) RetainUncertainReservation(ctx context.Context, reservationID string) error {
+	m.Calls["RetainUncertainReservation"] = append(m.Calls["RetainUncertainReservation"], []interface{}{reservationID})
+	if m.RetainReservationFn != nil {
+		return m.RetainReservationFn(ctx, reservationID)
+	}
+	return nil
+}
+
+func (m *MockUsageService) FinalizeBusinessAccountReservationWithCost(_ context.Context, accountID, reservationID string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	m.Calls["FinalizeBusinessAccountReservationWithCost"] = append(m.Calls["FinalizeBusinessAccountReservationWithCost"], []interface{}{accountID, reservationID, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider})
+	return nil
+}
+
+func (m *MockUsageService) ReleaseBusinessAccountReservation(_ context.Context, accountID, reservationID string) error {
+	m.Calls["ReleaseBusinessAccountReservation"] = append(m.Calls["ReleaseBusinessAccountReservation"], []interface{}{accountID, reservationID})
+	return nil
+}
+
+func (m *MockUsageService) RetainUncertainBusinessAccountReservation(_ context.Context, reservationID string) error {
+	m.Calls["RetainUncertainBusinessAccountReservation"] = append(m.Calls["RetainUncertainBusinessAccountReservation"], []interface{}{reservationID})
+	return nil
+}
+
+func (m *MockUsageService) RecordBusinessAccountUsage(_ context.Context, accountID, actor, tier, limitKey string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	m.Calls["RecordBusinessAccountUsage"] = append(m.Calls["RecordBusinessAccountUsage"], []interface{}{accountID, actor, tier, limitKey, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider})
+	return nil
+}
+
+func (m *MockUsageService) AdjustBusinessAccountUsage(_ context.Context, accountID, limitKey string, adjustment int64) error {
+	m.Calls["AdjustBusinessAccountUsage"] = append(m.Calls["AdjustBusinessAccountUsage"], []interface{}{accountID, limitKey, adjustment})
 	return nil
 }
 
@@ -545,7 +585,8 @@ var _ UsageServicer = (*MockUsageService)(nil)
 
 // MockAccountService implements AccountServicer for testing tier lookup.
 type MockAccountService struct {
-	GetSubscriptionFn func(userIdentity string) (*landing_page_business_suite_v1.SubscriptionStatus, error)
+	GetSubscriptionFn         func(userIdentity string) (*landing_page_business_suite_v1.SubscriptionStatus, error)
+	GetBusinessSubscriptionFn func(userIdentity, businessAccountID string) (*landing_page_business_suite_v1.SubscriptionStatus, error)
 }
 
 func (m *MockAccountService) GetSubscriptionContext(_ context.Context, userIdentity string) (*landing_page_business_suite_v1.SubscriptionStatus, error) {
@@ -556,8 +597,39 @@ func (m *MockAccountService) GetSubscriptionContext(_ context.Context, userIdent
 	return &landing_page_business_suite_v1.SubscriptionStatus{PlanTier: &tier}, nil
 }
 
+func (m *MockAccountService) GetSubscriptionForBusinessAccountContext(_ context.Context, userIdentity, businessAccountID string) (*landing_page_business_suite_v1.SubscriptionStatus, error) {
+	if m.GetBusinessSubscriptionFn != nil {
+		return m.GetBusinessSubscriptionFn(userIdentity, businessAccountID)
+	}
+	return m.GetSubscriptionContext(context.Background(), userIdentity)
+}
+
 // Compile-time check
 var _ AccountServicer = (*MockAccountService)(nil)
+
+func TestBillingIdentityAndTierScopesSelectedBusinessAccount(t *testing.T) {
+	accounts := map[string]string{"acct-one": "pro", "acct-two": "free"}
+	accountService := &MockAccountService{GetBusinessSubscriptionFn: func(_ string, id string) (*landing_page_business_suite_v1.SubscriptionStatus, error) {
+		tier := accounts[id]
+		return &landing_page_business_suite_v1.SubscriptionStatus{PlanTier: &tier}, nil
+	}}
+	svc := NewMeteredInferenceService(MeteredInferenceServiceOptions{AccountService: accountService})
+
+	firstIdentity, firstTier, err := svc.billingIdentityAndTier(context.Background(), "buyer@example.com", "acct-one")
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondIdentity, secondTier, err := svc.billingIdentityAndTier(context.Background(), "buyer@example.com", "acct-two")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstIdentity != "buyer@example.com" || secondIdentity != "buyer@example.com" {
+		t.Fatalf("actor attribution was not preserved: %q, %q", firstIdentity, secondIdentity)
+	}
+	if firstTier != "pro" || secondTier != "free" {
+		t.Fatalf("account-specific tiers not selected: %q, %q", firstTier, secondTier)
+	}
+}
 
 // MockAPIKeyService implements APIKeyServicer for testing API key retrieval.
 type MockAPIKeyService struct {
@@ -824,10 +896,17 @@ func TestExecuteChat_OpenRouterFails(t *testing.T) {
 func TestExecuteChatStream_Success(t *testing.T) {
 	mockUsage := NewMockUsageService()
 	mockOpenRouter := &MockOpenRouterClient{}
+	accountService := &MockAccountService{GetBusinessSubscriptionFn: func(_ string, accountID string) (*landing_page_business_suite_v1.SubscriptionStatus, error) {
+		if accountID != "acct-123" {
+			t.Fatalf("subscription lookup account=%q, want acct-123", accountID)
+		}
+		tier := "business-pro"
+		return &landing_page_business_suite_v1.SubscriptionStatus{PlanTier: &tier}, nil
+	}}
 
 	svc := &MeteredInferenceService{
 		usageService:     mockUsage,
-		accountService:   &MockAccountService{},
+		accountService:   accountService,
 		openRouterClient: mockOpenRouter,
 		modelPricing:     defaultModelPricing(),
 		log:              func(event string, fields map[string]interface{}) {},
@@ -836,8 +915,9 @@ func TestExecuteChatStream_Success(t *testing.T) {
 	w := NewMockFlusherResponseWriter()
 
 	err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
-		Model:    "openai/gpt-4o-mini",
-		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+		Model:             "openai/gpt-4o-mini",
+		BusinessAccountID: "acct-123",
+		Messages:          []AIMessage{{Role: "user", Content: "Hello"}},
 	}, w)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -847,12 +927,17 @@ func TestExecuteChatStream_Success(t *testing.T) {
 		t.Error("expected text/event-stream content type")
 	}
 
-	if len(mockUsage.Calls["ReserveCredits"]) == 0 {
-		t.Error("expected ReserveCredits to be called")
+	if len(mockUsage.Calls["ReserveBusinessAccountCredits"]) == 0 {
+		t.Error("expected account-scoped ReserveBusinessAccountCredits to be called")
+	} else {
+		reservation := mockUsage.Calls["ReserveBusinessAccountCredits"][0].([]interface{})
+		if reservation[0] != "acct-123" || reservation[1] != "user@test.com" || reservation[2] != "business-pro" {
+			t.Fatalf("reservation did not preserve account, actor, and tier: %+v", reservation)
+		}
 	}
 
-	if len(mockUsage.Calls["FinalizeReservation"]) == 0 {
-		t.Error("expected FinalizeReservation to be called")
+	if len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]) == 0 {
+		t.Error("expected account-scoped measured settlement")
 	}
 }
 
@@ -887,7 +972,7 @@ func TestExecuteChatStream_StreamFails_ReleasesReservation(t *testing.T) {
 	mockUsage := NewMockUsageService()
 	mockOpenRouter := &MockOpenRouterClient{
 		ChatStreamFn: func(ctx context.Context, req OpenRouterChatRequest, onChunk func(string)) (*OpenRouterUsage, error) {
-			return nil, errors.New("stream failed")
+			return &OpenRouterUsage{CompletionTokens: 3, TotalTokens: 3}, errors.New("stream failed")
 		},
 	}
 
@@ -913,6 +998,185 @@ func TestExecuteChatStream_StreamFails_ReleasesReservation(t *testing.T) {
 	// Should have released the reservation
 	if len(mockUsage.Calls["ReleaseReservation"]) == 0 {
 		t.Error("expected ReleaseReservation to be called on failure")
+	}
+	if len(mockUsage.Calls["FinalizeReservation"]) != 0 {
+		t.Error("must not charge when provider reports no measured usage")
+	}
+}
+
+func TestExecuteChatStream_StreamFailsWithReportedUsage_SettlesPartialUsage(t *testing.T) {
+	mockUsage := NewMockUsageService()
+	mockOpenRouter := &MockOpenRouterClient{
+		ChatStreamFn: func(ctx context.Context, req OpenRouterChatRequest, onChunk func(string)) (*OpenRouterUsage, error) {
+			onChunk("partial")
+			return &OpenRouterUsage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120, UsageReported: true}, errors.New("stream interrupted")
+		},
+	}
+	svc := &MeteredInferenceService{
+		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: mockOpenRouter,
+		modelPricing: defaultModelPricing(), log: func(string, map[string]interface{}) {},
+	}
+
+	err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
+		Model: "openai/gpt-4o-mini", Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}, NewMockFlusherResponseWriter())
+	if err == nil {
+		t.Fatal("expected the interrupted stream error")
+	}
+	if got := len(mockUsage.Calls["FinalizeReservation"]); got != 1 {
+		t.Fatalf("FinalizeReservation calls = %d, want 1", got)
+	}
+	wantCost := CalculateCost(defaultModelPricing(), "openai/gpt-4o-mini", 100, 20)
+	finalizeCall := mockUsage.Calls["FinalizeReservation"][0].([]interface{})
+	if got := finalizeCall[1].(int64); got != wantCost {
+		t.Fatalf("settled credits = %d, want measured token charge %d", got, wantCost)
+	}
+	if got := len(mockUsage.Calls["ReleaseReservation"]); got != 0 {
+		t.Fatalf("ReleaseReservation calls = %d, want 0 after measured usage settlement", got)
+	}
+}
+
+func TestExecuteChatStream_BusinessAccountChargesMeasuredPartialUsage(t *testing.T) {
+	mockUsage := NewMockUsageService()
+	mockOpenRouter := &MockOpenRouterClient{
+		ChatStreamFn: func(_ context.Context, _ OpenRouterChatRequest, onChunk func(string)) (*OpenRouterUsage, error) {
+			onChunk("partial")
+			return &OpenRouterUsage{PromptTokens: 100, CompletionTokens: 20, TotalTokens: 120, CostMicros: 1234, UsageReported: true}, errors.New("stream interrupted")
+		},
+	}
+	svc := &MeteredInferenceService{
+		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: mockOpenRouter,
+		modelPricing: defaultModelPricing(), log: func(string, map[string]interface{}) {},
+	}
+
+	err := svc.ExecuteChatStream(context.Background(), "buyer@example.com", AIRequest{
+		Model: "openai/gpt-4o-mini", BusinessAccountID: "acct-fixture",
+		Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}, NewMockFlusherResponseWriter())
+	if err == nil {
+		t.Fatal("expected the interrupted stream error")
+	}
+	reserve := mockUsage.Calls["ReserveBusinessAccountCredits"]
+	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "buyer@example.com" {
+		t.Fatalf("business-account reservation attribution = %#v", reserve)
+	}
+	settlements := mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]
+	if len(settlements) != 1 {
+		t.Fatalf("account measured settlements = %d, want 1", len(settlements))
+	}
+	settlement := settlements[0].([]interface{})
+	wantCost := CalculateCost(defaultModelPricing(), "openai/gpt-4o-mini", 100, 20)
+	if settlement[0] != "acct-fixture" || settlement[2] != wantCost || settlement[5] != int64(1234) || settlement[6] != 100 || settlement[7] != 20 {
+		t.Fatalf("account partial settlement = %#v, want measured usage %d credits and provider cost 1234 micros", settlement, wantCost)
+	}
+	if len(mockUsage.Calls["ReleaseBusinessAccountReservation"]) != 0 {
+		t.Fatal("measured partial output must not release the account reservation")
+	}
+}
+
+func TestExecuteInferenceStream_CodeRoleForwardsToolsAndSettlesAccountUsage(t *testing.T) {
+	mockUsage := NewMockUsageService()
+	toolSpec := json.RawMessage(`{"type":"function","function":{"name":"read_file","parameters":{"type":"object","properties":{"path":{"type":"string"}}}}}`)
+	provider := &MockOpenRouterClient{
+		ChatStreamEventsFn: func(_ context.Context, request OpenRouterChatRequest, emit func(OpenRouterStreamEvent)) (*OpenRouterUsage, error) {
+			if request.Model != "openai/gpt-4o-mini" || len(request.Tools) != 1 || string(request.Tools[0]) != string(toolSpec) {
+				t.Fatalf("provider request = %#v, want role-resolved model and tool schema", request)
+			}
+			if len(request.Messages) != 1 || request.Messages[0].Role != "user" || request.Messages[0].Content != "inspect src/main.go" {
+				t.Fatalf("provider messages = %#v", request.Messages)
+			}
+			emit(OpenRouterStreamEvent{ToolCalls: []OpenRouterToolCallDelta{{Index: 0, ID: "call_1", Type: "function", Function: OpenRouterToolFunctionDelta{Name: "read_file", Arguments: `{"path":"src/main.go"}`}}}})
+			return &OpenRouterUsage{PromptTokens: 25, CompletionTokens: 8, TotalTokens: 33, UsageReported: true}, nil
+		},
+	}
+	svc := &MeteredInferenceService{
+		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: provider,
+		modelPricing: defaultModelPricing(), rolePolicies: DefaultRolePolicies(), log: func(string, map[string]interface{}) {},
+	}
+	writer := NewMockFlusherResponseWriter()
+	err := svc.ExecuteInferenceStream(context.Background(), "actor@example.com", InferenceRequest{
+		Role: "code.default", BusinessAccountID: "acct-fixture", Messages: []AIMessage{{Role: "user", Content: "inspect src/main.go"}},
+		Tools: []json.RawMessage{toolSpec}, ToolChoice: json.RawMessage(`"auto"`),
+	}, writer)
+	if err != nil {
+		t.Fatalf("ExecuteInferenceStream() error: %v", err)
+	}
+	if !strings.Contains(writer.Body.String(), `"tool_calls":[{"index":0,"id":"call_1"`) {
+		t.Fatalf("SSE did not preserve tool-call delta: %s", writer.Body.String())
+	}
+	reserve := mockUsage.Calls["ReserveBusinessAccountCredits"]
+	if len(reserve) != 1 || reserve[0].([]interface{})[0] != "acct-fixture" || reserve[0].([]interface{})[1] != "actor@example.com" {
+		t.Fatalf("reservation attribution = %#v", reserve)
+	}
+	if got := len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]); got != 1 {
+		t.Fatalf("account settlements = %d, want 1 after measured tool-call stream", got)
+	}
+}
+
+func TestExecuteInference_CodeRoleForwardsToolHistoryAndReturnsToolCall(t *testing.T) {
+	mockUsage := NewMockUsageService()
+	toolSpec := json.RawMessage(`{"type":"function","function":{"name":"read_file","parameters":{"type":"object"}}}`)
+	provider := &MockOpenRouterClient{
+		ChatFn: func(_ context.Context, request OpenRouterChatRequest) (*OpenRouterChatResponse, error) {
+			if len(request.Messages) != 2 || request.Messages[1].Role != "tool" || request.Messages[1].ToolCallID != "call_1" || request.Messages[1].Name != "read_file" {
+				t.Fatalf("tool conversation = %#v", request.Messages)
+			}
+			if len(request.Tools) != 1 || string(request.Tools[0]) != string(toolSpec) {
+				t.Fatalf("tools = %s", request.Tools)
+			}
+			return &OpenRouterChatResponse{
+				ID: "chatcmpl-fixture", Model: request.Model,
+				ToolCalls: []OpenRouterToolCall{{ID: "call_2", Type: "function", Function: OpenRouterToolFunction{Name: "read_file", Arguments: `{"path":"go.mod"}`}}},
+				Usage:     OpenRouterUsage{PromptTokens: 32, CompletionTokens: 6, TotalTokens: 38},
+			}, nil
+		},
+	}
+	svc := &MeteredInferenceService{
+		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: provider,
+		modelPricing: defaultModelPricing(), rolePolicies: DefaultRolePolicies(), log: func(string, map[string]interface{}) {},
+	}
+	response, err := svc.ExecuteInference(context.Background(), "actor@example.com", InferenceRequest{
+		Role: "code.default", BusinessAccountID: "acct-fixture",
+		Messages: []AIMessage{{Role: "assistant", ToolCalls: []OpenRouterToolCall{{ID: "call_1", Type: "function", Function: OpenRouterToolFunction{Name: "read_file", Arguments: `{"path":"src/main.go"}`}}}}, {Role: "tool", Content: "package main", Name: "read_file", ToolCallID: "call_1"}},
+		Tools:    []json.RawMessage{toolSpec}, ToolChoice: json.RawMessage(`"auto"`),
+	})
+	if err != nil {
+		t.Fatalf("ExecuteInference() error: %v", err)
+	}
+	if len(response.ToolCalls) != 1 || response.ToolCalls[0].ID != "call_2" {
+		t.Fatalf("response tool calls = %#v", response.ToolCalls)
+	}
+	if len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]) != 1 {
+		t.Fatalf("account settlements = %d, want 1", len(mockUsage.Calls["FinalizeBusinessAccountReservationWithCost"]))
+	}
+}
+
+func TestExecuteChatStream_PartialSettlementFailureRetainsReservation(t *testing.T) {
+	mockUsage := NewMockUsageService()
+	mockUsage.FinalizeReservationFn = func(context.Context, string, int64) error { return errors.New("settlement unavailable") }
+	mockOpenRouter := &MockOpenRouterClient{
+		ChatStreamFn: func(context.Context, OpenRouterChatRequest, func(string)) (*OpenRouterUsage, error) {
+			return &OpenRouterUsage{PromptTokens: 10, CompletionTokens: 2, TotalTokens: 12, UsageReported: true}, errors.New("stream interrupted")
+		},
+	}
+	svc := &MeteredInferenceService{
+		usageService: mockUsage, accountService: &MockAccountService{}, openRouterClient: mockOpenRouter,
+		modelPricing: defaultModelPricing(), log: func(string, map[string]interface{}) {},
+	}
+
+	if err := svc.ExecuteChatStream(context.Background(), "user@test.com", AIRequest{
+		Model: "openai/gpt-4o-mini", Messages: []AIMessage{{Role: "user", Content: "Hello"}},
+	}, NewMockFlusherResponseWriter()); err == nil {
+		t.Fatal("expected the interrupted stream error")
+	}
+	if got := len(mockUsage.Calls["RetainUncertainReservation"]); got != 1 {
+		t.Fatalf("RetainUncertainReservation calls = %d, want 1", got)
+	}
+	if got := len(mockUsage.Calls["RecordUsage"]); got != 0 {
+		t.Fatalf("RecordUsage calls = %d, want 0 to preserve reservation idempotency", got)
+	}
+	if got := len(mockUsage.Calls["ReleaseReservation"]); got != 0 {
+		t.Fatalf("ReleaseReservation calls = %d, want 0 while settlement is unresolved", got)
 	}
 }
 

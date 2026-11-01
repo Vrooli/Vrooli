@@ -1,5 +1,7 @@
 package intelligence
 
+import "encoding/json"
+
 const (
 	charsPerToken               = 4
 	tokenEstimationSafetyMargin = 1.5
@@ -46,6 +48,7 @@ func DefaultRolePolicies() map[string]RolePolicy {
 	pricing := DefaultModelPricing()
 	return map[string]RolePolicy{
 		"chat.default":                   {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
+		"code.default":                   {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
 		"audio.summarize":                {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
 		"classify.fast":                  {Model: "openai/gpt-4o-mini", Pricing: pricing["openai/gpt-4o-mini"]},
 		"vision.default":                 {Model: "google/gemini-flash-1.5", Pricing: pricing["google/gemini-flash-1.5"]},
@@ -57,7 +60,12 @@ func DefaultRolePolicies() map[string]RolePolicy {
 func EstimateTokens(messages []AIMessage, maxTokens int) TokenEstimate {
 	promptChars := 0
 	for _, message := range messages {
-		promptChars += len(message.Content) + len(message.Role) + messageFramingOverhead
+		promptChars += len(message.Content) + len(message.Role) + len(message.Name) + len(message.ToolCallID) + messageFramingOverhead
+		if message.ToolCalls != nil {
+			if encoded, err := json.Marshal(message.ToolCalls); err == nil {
+				promptChars += len(encoded)
+			}
+		}
 	}
 	prompt := int(float64(promptChars/charsPerToken) * tokenEstimationSafetyMargin)
 	completion := defaultCompletionTokens
@@ -67,6 +75,19 @@ func EstimateTokens(messages []AIMessage, maxTokens int) TokenEstimate {
 		completion = int(float64(completion) * tokenEstimationSafetyMargin)
 	}
 	return TokenEstimate{Prompt: prompt, Completion: completion}
+}
+
+// EstimateInferenceTokens includes tool declarations and tool selection in
+// the reservation estimate. Provider-reported usage remains authoritative at
+// settlement.
+func EstimateInferenceTokens(messages []AIMessage, tools []json.RawMessage, toolChoice json.RawMessage, maxTokens int) TokenEstimate {
+	estimate := EstimateTokens(messages, maxTokens)
+	toolChars := len(toolChoice)
+	for _, tool := range tools {
+		toolChars += len(tool)
+	}
+	estimate.Prompt += int(float64(toolChars/charsPerToken) * tokenEstimationSafetyMargin)
+	return estimate
 }
 
 func CalculateCost(pricing map[string]ModelPricing, model string, promptTokens, completionTokens int) int64 {

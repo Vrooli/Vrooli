@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 
 	"landing-page-business-suite-api/internal/commerce"
 	intelligencecore "landing-page-business-suite-api/internal/intelligence"
@@ -15,6 +16,7 @@ type CommerceUsageSource interface {
 	ReserveCredits(context.Context, string, string, string, int64) (string, error)
 	FinalizeReservation(context.Context, string, int64) error
 	ReleaseReservation(context.Context, string) error
+	RetainUncertainReservation(context.Context, string) error
 	AdjustUsage(context.Context, string, string, int64, string) error
 	RecordUsage(context.Context, commerce.UsageReportRequest) error
 }
@@ -32,6 +34,16 @@ func (s commerceUsageServicer) ReserveAndCharge(ctx context.Context, user, tier,
 
 func (s commerceUsageServicer) ReserveCredits(ctx context.Context, user, tier, key string, amount int64) (string, error) {
 	return s.usage.ReserveCredits(ctx, user, tier, key, amount)
+}
+
+func (s commerceUsageServicer) ReserveBusinessAccountCredits(ctx context.Context, accountID, actor, tier, key string, amount int64) (string, error) {
+	accountUsage, ok := s.usage.(interface {
+		ReserveBusinessAccountCredits(context.Context, string, string, string, string, int64) (string, error)
+	})
+	if !ok {
+		return "", errors.New("business-account usage authority is unavailable")
+	}
+	return accountUsage.ReserveBusinessAccountCredits(ctx, accountID, actor, tier, key, amount)
 }
 
 func (s commerceUsageServicer) FinalizeReservation(ctx context.Context, id string, amount int64) error {
@@ -56,12 +68,66 @@ func (s commerceUsageServicer) FinalizeReservationWithCost(ctx context.Context, 
 	return s.usage.FinalizeReservation(ctx, id, amount)
 }
 
+func (s commerceUsageServicer) FinalizeBusinessAccountReservationWithCost(ctx context.Context, accountID, id string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	accountUsage, ok := s.usage.(interface {
+		FinalizeBusinessAccountReservationWithCost(context.Context, string, string, int64, string, string, int64, int, int, string) error
+	})
+	if !ok {
+		return errors.New("business-account usage authority is unavailable")
+	}
+	return accountUsage.FinalizeBusinessAccountReservationWithCost(ctx, accountID, id, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
+}
+
 func (s commerceUsageServicer) ReleaseReservation(ctx context.Context, id string) error {
 	return s.usage.ReleaseReservation(ctx, id)
 }
 
+func (s commerceUsageServicer) ReleaseBusinessAccountReservation(ctx context.Context, accountID, id string) error {
+	accountUsage, ok := s.usage.(interface {
+		ReleaseBusinessAccountReservation(context.Context, string, string) error
+	})
+	if !ok {
+		return errors.New("business-account usage authority is unavailable")
+	}
+	return accountUsage.ReleaseBusinessAccountReservation(ctx, accountID, id)
+}
+
+func (s commerceUsageServicer) RetainUncertainReservation(ctx context.Context, id string) error {
+	return s.usage.RetainUncertainReservation(ctx, id)
+}
+
+func (s commerceUsageServicer) RetainUncertainBusinessAccountReservation(ctx context.Context, id string) error {
+	accountUsage, ok := s.usage.(interface {
+		RetainUncertainBusinessAccountReservation(context.Context, string) error
+	})
+	if !ok {
+		return errors.New("business-account usage authority is unavailable")
+	}
+	return accountUsage.RetainUncertainBusinessAccountReservation(ctx, id)
+}
+
 func (s commerceUsageServicer) AdjustUsage(ctx context.Context, user, key string, amount int64, reason string) error {
 	return s.usage.AdjustUsage(ctx, user, key, amount, reason)
+}
+
+func (s commerceUsageServicer) RecordBusinessAccountUsage(ctx context.Context, accountID, actor, tier, key string, amount int64, appBundleKey, model string, costMicros int64, promptTokens, completionTokens int, provider string) error {
+	accountUsage, ok := s.usage.(interface {
+		RecordBusinessAccountUsage(context.Context, string, string, string, string, int64, string, string, int64, int, int, string) error
+	})
+	if !ok {
+		return errors.New("business-account usage authority is unavailable")
+	}
+	return accountUsage.RecordBusinessAccountUsage(ctx, accountID, actor, tier, key, amount, appBundleKey, model, costMicros, promptTokens, completionTokens, provider)
+}
+
+func (s commerceUsageServicer) AdjustBusinessAccountUsage(ctx context.Context, accountID, key string, amount int64) error {
+	accountUsage, ok := s.usage.(interface {
+		AdjustBusinessAccountUsage(context.Context, string, string, int64) error
+	})
+	if !ok {
+		return errors.New("business-account usage authority is unavailable")
+	}
+	return accountUsage.AdjustBusinessAccountUsage(ctx, accountID, key, amount)
 }
 
 func (s commerceUsageServicer) RecordUsage(ctx context.Context, report intelligencecore.UsageReport) error {

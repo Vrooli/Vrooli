@@ -402,6 +402,124 @@ func TestOpenRouterClient_ChatStream_TokenEstimation_WhenNotProvided(t *testing.
 	}
 }
 
+type failingStreamRoundTripper struct{ body string }
+
+func (rt failingStreamRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     make(http.Header),
+		Body:       &errorAfterBytesReader{data: []byte(rt.body)},
+	}, nil
+}
+
+type errorAfterBytesReader struct {
+	data []byte
+	done bool
+}
+
+func (r *errorAfterBytesReader) Read(p []byte) (int, error) {
+	if !r.done {
+		r.done = true
+		return copy(p, r.data), nil
+	}
+	return 0, errors.New("fixture stream read failure")
+}
+
+func (r *errorAfterBytesReader) Close() error { return nil }
+
+func TestOpenRouterClient_ChatStream_ReadFailureReturnsReportedUsageWithoutEstimates(t *testing.T) {
+	client := NewOpenRouterClient(OpenRouterClientOptions{
+		APIKey: "test-api-key", BaseURL: "http://openrouter.test",
+		HTTPClient: &http.Client{Transport: failingStreamRoundTripper{body: "data: {\"choices\":[{\"delta\":{\"content\":\"partial response\"}}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":3,\"total_tokens\":15}}\n\n"}},
+	})
+
+	var collected strings.Builder
+	usage, err := client.ChatStream(context.Background(), OpenRouterChatRequest{Model: "gpt-4"}, func(content string) {
+		collected.WriteString(content)
+	})
+	if err == nil || !strings.Contains(err.Error(), "fixture stream read failure") {
+		t.Fatalf("ChatStream() error = %v, want fixture read failure", err)
+	}
+	if collected.String() != "partial response" {
+		t.Fatalf("partial content = %q, want partial response", collected.String())
+	}
+	if usage == nil || !usage.UsageReported {
+		t.Fatalf("usage = %#v, want explicitly reported usage", usage)
+	}
+	if usage.PromptTokens != 12 || usage.CompletionTokens != 3 || usage.TotalTokens != 15 {
+		t.Fatalf("reported usage = %#v, want provider counts 12/3/15", usage)
+	}
+}
+
+func TestOpenRouterClient_ChatStream_ReadFailureWithoutUsageDoesNotEstimate(t *testing.T) {
+	client := NewOpenRouterClient(OpenRouterClientOptions{
+		APIKey: "test-api-key", BaseURL: "http://openrouter.test",
+		HTTPClient: &http.Client{Transport: failingStreamRoundTripper{body: "data: {\"choices\":[{\"delta\":{\"content\":\"partial response long enough to look billable\"}}]}\n\n"}},
+	})
+
+	usage, err := client.ChatStream(context.Background(), OpenRouterChatRequest{Model: "gpt-4"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "fixture stream read failure") {
+		t.Fatalf("ChatStream() error = %v, want fixture read failure", err)
+	}
+	if usage == nil || usage.UsageReported {
+		t.Fatalf("usage = %#v, want no reported usage", usage)
+	}
+	if usage.CompletionTokens != 0 || usage.TotalTokens != 0 {
+		t.Fatalf("unmeasured usage = %#v, want no token estimate", usage)
+	}
+}
+
+func TestOpenRouterClient_ChatStreamEventsRoundTripsToolCallsAndUsage(t *testing.T) {
+	toolSpec := json.RawMessage(`{"type":"function","function":{"name":"read_file","parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}}`)
+	choice := json.RawMessage(`"auto"`)
+	var client OpenRouterClient
+	_, client = newMockOpenRouterServer(t, func(w http.ResponseWriter, r *http.Request) {
+		var request OpenRouterChatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatalf("decode provider request: %v", err)
+		}
+		if len(request.Tools) != 1 || string(request.Tools[0]) != string(toolSpec) {
+			t.Fatalf("tools = %s, want supplied read_file declaration", request.Tools)
+		}
+		if string(request.ToolChoice) != string(choice) {
+			t.Fatalf("tool_choice = %s, want auto", request.ToolChoice)
+		}
+		if len(request.Messages) != 2 || request.Messages[1].ToolCallID != "call_1" {
+			t.Fatalf("tool result history = %#v, want tool_call_id call_1", request.Messages)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\\\"\"}}]}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"src/main.go\\\"}\"}}]}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[],\"usage\":{\"prompt_tokens\":40,\"completion_tokens\":8,\"total_tokens\":48}}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	})
+	eventClient, ok := client.(OpenRouterStreamEventClient)
+	if !ok {
+		t.Fatal("provider client does not expose tool-call streaming")
+	}
+	var events []OpenRouterStreamEvent
+	usage, err := eventClient.ChatStreamEvents(context.Background(), OpenRouterChatRequest{
+		Model: "openai/gpt-4o-mini",
+		Messages: []OpenRouterMessage{
+			{Role: "assistant", Content: "", ToolCalls: []OpenRouterToolCall{{ID: "call_1", Type: "function", Function: OpenRouterToolFunction{Name: "read_file", Arguments: `{"path":"src/main.go"}`}}}},
+			{Role: "tool", Content: `package main`, ToolCallID: "call_1", Name: "read_file"},
+		},
+		Tools: []json.RawMessage{toolSpec}, ToolChoice: choice,
+	}, func(event OpenRouterStreamEvent) { events = append(events, event) })
+	if err != nil {
+		t.Fatalf("ChatStreamEvents() error: %v", err)
+	}
+	if len(events) != 2 || len(events[0].ToolCalls) != 1 || events[0].ToolCalls[0].ID != "call_1" || events[0].ToolCalls[0].Function.Name != "read_file" {
+		t.Fatalf("tool call deltas = %#v", events)
+	}
+	if events[0].ToolCalls[0].Function.Arguments != `{"path":"` || events[1].ToolCalls[0].Function.Arguments != `src/main.go"}` {
+		t.Fatalf("partial tool arguments = %#v, want concatenable JSON fragments", events)
+	}
+	if usage == nil || !usage.UsageReported || usage.PromptTokens != 40 || usage.CompletionTokens != 8 {
+		t.Fatalf("usage = %#v, want provider-reported 40/8 tokens", usage)
+	}
+}
+
 // ============================================================================
 // VerifyAPIKey Tests
 // ============================================================================

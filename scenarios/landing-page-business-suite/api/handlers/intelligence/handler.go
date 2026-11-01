@@ -22,16 +22,18 @@ type Limiter interface {
 // Dependencies are supplied by API composition. The handler package never
 // reads authentication context, creates rate limiters, or reaches root helpers.
 type Dependencies struct {
-	Service          intelligence.MeteredInferenceProvider
-	Usage            func(context.Context, string, string) (UsageSummary, error)
-	SubscriptionTier func(context.Context, string) (string, error)
-	UserRateLimiter  Limiter
-	IPRateLimiter    Limiter
-	IPKeyFunc        func(*http.Request) string
-	UserIdentity     func(context.Context) string
-	WriteJSONError   func(http.ResponseWriter, int, string, string)
-	Log              func(string, map[string]interface{})
-	LogError         func(string, map[string]interface{})
+	Service                intelligence.MeteredInferenceProvider
+	Usage                  func(context.Context, string, string) (UsageSummary, error)
+	SubscriptionTier       func(context.Context, string) (string, error)
+	UserRateLimiter        Limiter
+	IPRateLimiter          Limiter
+	IPKeyFunc              func(*http.Request) string
+	UserID                 func(context.Context) string
+	UserIdentity           func(context.Context) string
+	ResolveBusinessAccount func(context.Context, string, string, string) (string, error)
+	WriteJSONError         func(http.ResponseWriter, int, string, string)
+	Log                    func(string, map[string]interface{})
+	LogError               func(string, map[string]interface{})
 }
 
 // UsageSummary is the transport-neutral usage view needed by AI endpoints.
@@ -101,6 +103,11 @@ func (h *Handler) Chat() http.HandlerFunc {
 			deps.WriteJSONError(w, http.StatusBadRequest, err.Error(), "validation")
 			return
 		}
+		accountID, ok := h.resolveBusinessAccount(w, r, req.BusinessAccountID, false)
+		if !ok {
+			return
+		}
+		req.BusinessAccountID = accountID
 
 		// 6. Execute chat completion (service handles business logic + credits)
 		resp, err := deps.Service.ExecuteChat(r.Context(), userIdentity, req)
@@ -142,6 +149,11 @@ func (h *Handler) Inference() http.HandlerFunc {
 			deps.WriteJSONError(w, http.StatusBadRequest, err.Error(), "validation")
 			return
 		}
+		accountID, ok := h.resolveBusinessAccount(w, r, req.BusinessAccountID, false)
+		if !ok {
+			return
+		}
+		req.BusinessAccountID = accountID
 		service, ok := deps.Service.(*intelligence.MeteredInferenceService)
 		if !ok {
 			deps.WriteJSONError(w, http.StatusServiceUnavailable, "metered inference provider is unavailable", "unavailable")
@@ -156,11 +168,87 @@ func (h *Handler) Inference() http.HandlerFunc {
 		// Do not expose the policy-resolved provider model to consumers.
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id": response.ID, "role": req.Role, "content": response.Content,
+			"tool_calls":    response.ToolCalls,
 			"prompt_tokens": response.PromptTokens, "completion_tokens": response.CompletionTokens,
 			"total_tokens": response.TotalTokens, "credits_charged": response.CreditsCharged,
 			"finish_reason": response.FinishReason, "spend_authorization": response.SpendAuthorization, "accounting_status": response.AccountingStatus, "actual_cost_micros": response.ActualCostMicros,
 		})
 	}
+}
+
+// InferenceStream is the role-based streaming entry point. Unlike legacy
+// user-scoped streaming, it requires an explicit LPBS business account and
+// validates membership before reserving credits or dispatching upstream.
+func (h *Handler) InferenceStream() http.HandlerFunc {
+	deps := h.deps
+	return func(w http.ResponseWriter, r *http.Request) {
+		identity := deps.UserIdentity(r.Context())
+		if identity == "" {
+			deps.WriteJSONError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		if !deps.UserRateLimiter.Allow(identity) || !deps.IPRateLimiter.Allow(deps.IPKeyFunc(r)) {
+			deps.WriteJSONError(w, http.StatusTooManyRequests, "Rate limit exceeded.", "rate_limited")
+			return
+		}
+		var req intelligence.InferenceRequest
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<20))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&req); err != nil {
+			deps.WriteJSONError(w, http.StatusBadRequest, "Invalid request body", "validation")
+			return
+		}
+		if err := ValidateInferenceRequest(&req); err != nil {
+			deps.WriteJSONError(w, http.StatusBadRequest, err.Error(), "validation")
+			return
+		}
+		accountID, ok := h.resolveBusinessAccount(w, r, req.BusinessAccountID, true)
+		if !ok {
+			return
+		}
+		if req.SpendLimit != nil {
+			deps.WriteJSONError(w, http.StatusBadRequest, "spend-limited inference is not supported by account-scoped streaming", "validation")
+			return
+		}
+		service, ok := deps.Service.(*intelligence.MeteredInferenceService)
+		if !ok {
+			deps.WriteJSONError(w, http.StatusServiceUnavailable, "metered inference provider is unavailable", "unavailable")
+			return
+		}
+		req.BusinessAccountID = accountID
+		if err := service.ExecuteInferenceStream(r.Context(), identity, req, w); err != nil {
+			if w.Header().Get("Content-Type") != "text/event-stream" {
+				WriteError(deps, w, err)
+				return
+			}
+			eventData, _ := json.Marshal(intelligence.AIStreamEvent{Type: "error", Error: err.Error()})
+			_, _ = w.Write(append(append([]byte("data: "), eventData...), []byte("\n\n")...))
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+		}
+	}
+}
+
+func (h *Handler) resolveBusinessAccount(w http.ResponseWriter, r *http.Request, requestedID string, required bool) (string, bool) {
+	requestedID = strings.TrimSpace(requestedID)
+	if requestedID == "" {
+		if required {
+			h.deps.WriteJSONError(w, http.StatusBadRequest, "business_account_id is required", "validation")
+			return "", false
+		}
+		return "", true
+	}
+	if h.deps.ResolveBusinessAccount == nil || h.deps.UserID == nil || strings.TrimSpace(h.deps.UserID(r.Context())) == "" {
+		h.deps.WriteJSONError(w, http.StatusServiceUnavailable, "business-account authority unavailable", "unavailable")
+		return "", false
+	}
+	resolvedID, err := h.deps.ResolveBusinessAccount(r.Context(), h.deps.UserID(r.Context()), h.deps.UserIdentity(r.Context()), requestedID)
+	if err != nil || strings.TrimSpace(resolvedID) == "" {
+		h.deps.WriteJSONError(w, http.StatusForbidden, "business account is unavailable to this user", "forbidden")
+		return "", false
+	}
+	return strings.TrimSpace(resolvedID), true
 }
 
 func ValidateInferenceRequest(req *intelligence.InferenceRequest) error {
@@ -171,9 +259,26 @@ func ValidateInferenceRequest(req *intelligence.InferenceRequest) error {
 		return errors.New("at least one message is required")
 	}
 	for _, message := range req.Messages {
-		if strings.TrimSpace(message.Role) == "" || strings.TrimSpace(message.Content) == "" {
-			return errors.New("message role and content are required")
+		if strings.TrimSpace(message.Role) == "" || (strings.TrimSpace(message.Content) == "" && len(message.ToolCalls) == 0) {
+			return errors.New("message role and content or tool calls are required")
 		}
+		if message.Role != "system" && message.Role != "user" && message.Role != "assistant" && message.Role != "tool" {
+			return errors.New("message role must be system, user, assistant, or tool")
+		}
+		if message.Role == "tool" && strings.TrimSpace(message.ToolCallID) == "" {
+			return errors.New("tool messages require tool_call_id")
+		}
+	}
+	if len(req.Tools) > 64 {
+		return errors.New("at most 64 tools may be supplied")
+	}
+	for _, tool := range req.Tools {
+		if len(tool) == 0 || !json.Valid(tool) {
+			return errors.New("each tool must be valid JSON")
+		}
+	}
+	if len(req.ToolChoice) > 0 && !json.Valid(req.ToolChoice) {
+		return errors.New("tool_choice must be valid JSON")
 	}
 	if req.MaxTokens < 0 || req.MaxTokens > maxMaxTokens {
 		return fmt.Errorf("max_tokens must be between 0 and %d", maxMaxTokens)
@@ -204,6 +309,12 @@ func ValidateInferenceRequest(req *intelligence.InferenceRequest) error {
 func (h *Handler) Stream() http.HandlerFunc {
 	deps := h.deps
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Streaming responses can outlive the server's default WriteTimeout.
+		// Keep the request upload bounded while removing the response deadline.
+		controller := http.NewResponseController(w)
+		_ = controller.SetReadDeadline(time.Now().Add(2 * time.Minute))
+		_ = controller.SetWriteDeadline(time.Time{})
+
 		// 1. Get user from context (JWT auth)
 		userIdentity := deps.UserIdentity(r.Context())
 		if userIdentity == "" {
@@ -242,6 +353,11 @@ func (h *Handler) Stream() http.HandlerFunc {
 			deps.WriteJSONError(w, http.StatusBadRequest, err.Error(), "validation")
 			return
 		}
+		accountID, ok := h.resolveBusinessAccount(w, r, req.BusinessAccountID, false)
+		if !ok {
+			return
+		}
+		req.BusinessAccountID = accountID
 
 		// Force streaming mode
 		req.Stream = true

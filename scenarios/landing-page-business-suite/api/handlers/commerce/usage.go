@@ -15,9 +15,55 @@ import (
 // UsageDependencies are API composition concerns used by the usage transport.
 // Metering policy remains owned by internal/commerce.
 type UsageDependencies struct {
-	UserEmail  func(context.Context) string
-	WriteError func(http.ResponseWriter, int, string, string)
-	LogError   func(string, map[string]any)
+	UserEmail              func(context.Context) string
+	UserID                 func(context.Context) string
+	ResolveBusinessAccount func(context.Context, string, string, string) (string, error)
+	WriteError             func(http.ResponseWriter, int, string, string)
+	LogError               func(string, map[string]any)
+}
+
+// GetBusinessAccountUsageSummary resolves membership and subscription from the
+// authenticated account context before returning the account's own metering
+// view. A caller-supplied tier is never treated as authority.
+func GetBusinessAccountUsageSummary(svc *commerce.UsageService, accountSvc *commerce.Service, deps UsageDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userIdentity := deps.UserEmail(r.Context())
+		userID := deps.UserID(r.Context())
+		if userIdentity == "" || userID == "" {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
+		requestedID := strings.TrimSpace(r.URL.Query().Get("business_account_id"))
+		if requestedID == "" || deps.ResolveBusinessAccount == nil || accountSvc == nil {
+			deps.WriteError(w, http.StatusBadRequest, "business_account_id is required", "validation")
+			return
+		}
+		accountID, err := deps.ResolveBusinessAccount(r.Context(), userID, userIdentity, requestedID)
+		if err != nil {
+			deps.WriteError(w, http.StatusForbidden, "Business account access is not available", "forbidden")
+			return
+		}
+		subscription, err := accountSvc.GetSubscriptionForBusinessAccountContext(r.Context(), userIdentity, accountID)
+		if err != nil {
+			deps.LogError("get_business_account_subscription_failed", map[string]any{"error": err.Error(), "business_account_id": accountID})
+			deps.WriteError(w, http.StatusInternalServerError, "Failed to get business account subscription", "server_error")
+			return
+		}
+		tier := "free"
+		if subscription != nil && subscription.PlanTier != nil && strings.TrimSpace(*subscription.PlanTier) != "" {
+			tier = strings.TrimSpace(*subscription.PlanTier)
+		}
+		summary, err := svc.GetBusinessAccountUsageSummary(r.Context(), accountID, tier)
+		if err != nil {
+			deps.LogError("get_business_account_usage_summary_failed", map[string]any{"error": err.Error(), "business_account_id": accountID})
+			deps.WriteError(w, http.StatusInternalServerError, "Failed to get business account usage summary", "server_error")
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(summary); err != nil {
+			deps.LogError("encode_response_failed", map[string]any{"error": err.Error()})
+		}
+	}
 }
 
 func ReportUsage(svc *commerce.UsageService, deps UsageDependencies) http.HandlerFunc {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -80,6 +81,56 @@ func TestChatRejectsUnauthenticatedRequest(t *testing.T) {
 	handler.Chat()(response, httptest.NewRequest(http.MethodPost, "/api/v1/ai/chat", nil))
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
+func TestValidateInferenceRequestAcceptsToolConversationAndBoundsTools(t *testing.T) {
+	request := intelligence.InferenceRequest{
+		Role: "code.default",
+		Messages: []intelligence.AIMessage{
+			{Role: "assistant", ToolCalls: []intelligence.OpenRouterToolCall{{ID: "call_1", Type: "function", Function: intelligence.OpenRouterToolFunction{Name: "read_file", Arguments: `{"path":"a.go"}`}}}},
+			{Role: "tool", ToolCallID: "call_1", Name: "read_file", Content: "package main"},
+		},
+		Tools:      []json.RawMessage{json.RawMessage(`{"type":"function","function":{"name":"read_file"}}`)},
+		ToolChoice: json.RawMessage(`"auto"`),
+	}
+	if err := ValidateInferenceRequest(&request); err != nil {
+		t.Fatalf("valid tool conversation rejected: %v", err)
+	}
+	request.Tools = make([]json.RawMessage, 65)
+	for i := range request.Tools {
+		request.Tools[i] = json.RawMessage(`{}`)
+	}
+	if err := ValidateInferenceRequest(&request); err == nil {
+		t.Fatal("request with more than 64 tools was accepted")
+	}
+}
+
+func TestInferenceRejectsBusinessAccountWithoutMembership(t *testing.T) {
+	resolverCalled := false
+	handler := New(Dependencies{
+		Service:         meteredInferenceStub{},
+		UserRateLimiter: allowLimiter{},
+		IPRateLimiter:   allowLimiter{},
+		IPKeyFunc:       func(*http.Request) string { return "127.0.0.1" },
+		UserID:          func(context.Context) string { return "user-1" },
+		UserIdentity:    func(context.Context) string { return "customer@example.com" },
+		ResolveBusinessAccount: func(_ context.Context, userID, userEmail, requestedID string) (string, error) {
+			resolverCalled = true
+			if userID != "user-1" || userEmail != "customer@example.com" || requestedID != "acct-other" {
+				t.Fatalf("unexpected account resolution input: %q %q %q", userID, userEmail, requestedID)
+			}
+			return "", errors.New("not a member")
+		},
+		WriteJSONError: writeTestError,
+		Log:            func(string, map[string]interface{}) {},
+		LogError:       func(string, map[string]interface{}) {},
+	})
+	body := []byte(`{"role":"coding","business_account_id":"acct-other","messages":[{"role":"user","content":"hello"}]}`)
+	response := httptest.NewRecorder()
+	handler.Inference()(response, httptest.NewRequest(http.MethodPost, "/api/v1/ai/inference", bytes.NewReader(body)))
+	if response.Code != http.StatusForbidden || !resolverCalled {
+		t.Fatalf("status=%d resolverCalled=%t body=%s", response.Code, resolverCalled, response.Body.String())
 	}
 }
 

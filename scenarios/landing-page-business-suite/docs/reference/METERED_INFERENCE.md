@@ -80,6 +80,28 @@ Streaming chat completion via Server-Sent Events (SSE).
 
 **Response:** Server-Sent Events stream
 
+### POST /api/v1/ai/inference-stream
+
+Account-scoped, role-based streaming for callers that must meter against a
+selected LPBS business account. The authenticated user must be a member of the
+requested `business_account_id`; the server resolves the account subscription
+and reserves against that account's `ai_credits` limit. The response uses the
+same LPBS SSE event format as `/stream`. Requests may include tool declarations
+and prior assistant tool calls. Tool-call deltas are returned as structured
+stream events; they are not flattened into assistant text.
+
+The `code.default` role currently resolves to the server-priced
+`openai/gpt-4o-mini` policy. Callers cannot choose a different account model by
+placing a model name in the request. Provider tool-call support and measured
+settlement have fixture coverage. This protocol support alone does not qualify
+or advertise a paid coding-agent route; the calling harness must also bind an
+actual selected account, session, cancellation path, and accounting result.
+
+Authenticated callers can read the same account's current usage and pending
+holds with `GET /api/v1/usage/business-account-summary?business_account_id=…`.
+The endpoint resolves membership and subscription server-side; a caller cannot
+select a tier or bill a different account by editing the response request.
+
 ```
 data: {"type":"chunk","content":"Hello"}
 
@@ -234,8 +256,18 @@ Streaming requests use a reservation-based system to prevent race conditions whe
 - Reservations are created atomically with row-level locking (`SELECT FOR UPDATE`)
 - Pending reservations count toward effective usage for subsequent requests
 - Reservations auto-expire after 10 minutes (background cleanup every 2 minutes)
-- If stream fails, reservation is released (no usage recorded)
-- If finalization fails, falls back to direct usage recording
+- If a failed stream includes provider-reported token usage, the reservation is
+  finalized using those measured tokens and the model's configured rate
+- If a stream fails before token usage is reported, its reservation is released;
+  partial text length is never used to estimate a charge
+- Provider read failures preserve any usage already received and return the
+  stream error so callers do not mistake a partial response for completion
+- If settling measured partial usage fails, retain the reservation for owner
+  reconciliation instead of writing a second, non-reservation usage record
+- For completed streams in the legacy person-scoped path, if finalization fails,
+  fall back to direct usage recording. Account-scoped streams retain the
+  reservation for reconciliation to avoid losing account attribution or
+  double-writing usage.
 
 **Why small overspend windows are acceptable:**
 
