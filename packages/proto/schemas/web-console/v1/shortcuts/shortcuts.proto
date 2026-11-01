@@ -115,6 +115,10 @@ message AgentPreferences {
   uint64 revision = 4;
   // Opaque identity of this profile instance; empty for the built-in fallback.
   string profile_instance = 5;
+  // custom or recent. Empty means custom.
+  string order_mode = 6;
+  // RFC 3339 time of each agent's most recent launch from the launcher.
+  map<string, string> last_launched_at = 7;
 }
 
 message GetAgentPreferencesRequest {}
@@ -128,5 +132,8 @@ message UpdateAgentPreferencesRequest {
   repeated string ordered_agent_ids = 3;
   repeated string hidden_agent_ids = 4;
   string profile_instance = 5;
+  string order_mode = 6;
+  // Records this agent as launched now, on top of the other requested changes.
+  string launched_agent_id = 7;
 }
 message UpdateAgentPreferencesResponse { AgentPreferences preferences = 1; }

@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n3web-console/v1/modelselection/model_selection.proto\x12$vrooli.web_console.v1.modelselection\"T\n\x1aGetRoleModelChoicesRequest\x12\x19\n\x08\x61gent_id\x18\x01 \x01(\tR\x07\x61gentId\x12\x1b\n\ttarget_id\x18\x02 \x01(\tR\x08targetId\"\xd8\x01\n\x0fRoleModelChoice\x12\x14\n\x05model\x18\x01 \x01(\tR\x05model\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12\x1a\n\x08provider\x18\x03 \x01(\tR\x08provider\x12!\n\x0claunch_model\x18\x04 \x01(\tR\x0blaunchModel\x12\x16\n\x06\x65\x66\x66ort\x18\x05 \x01(\tR\x06\x65\x66\x66ort\x12!\n\x0csource_label\x18\x06 \x01(\tR\x0bsourceLabel\x12\x1d\n\nis_default\x18\x07 \x01(\x08R\tisDefault\"\x80\x03\n\x1bGetRoleModelChoicesResponse\x12#\n\rpolicy_status\x18\x01 \x01(\tR\x0cpolicyStatus\x12\"\n\x0c\x61vailability\x18\x02 \x01(\tR\x0c\x61vailability\x12\x16\n\x06runner\x18\x03 \x01(\tR\x06runner\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\x12\x1e\n\nprovenance\x18\x05 \x01(\tR\nprovenance\x12\x1f\n\x0bobserved_at\x18\x06 \x01(\tR\nobservedAt\x12#\n\rpolicy_digest\x18\x07 \x01(\tR\x0cpolicyDigest\x12O\n\x07\x63hoices\x18\x08 \x03(\x0b\x32\x35.vrooli.web_console.v1.modelselection.RoleModelChoiceR\x07\x63hoices\x12\x16\n\x06\x64\x65tail\x18\t \x01(\tR\x06\x64\x65tail\x12\x1d\n\nmodel_flag\x18\n \x01(\tR\tmodelFlag2\xb4\x01\n\x15ModelSelectionService\x12\x9a\x01\n\x13GetRoleModelChoices\x12@.vrooli.web_console.v1.modelselection.GetRoleModelChoicesRequest\x1a\x41.vrooli.web_console.v1.modelselection.GetRoleModelChoicesResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/modelselection;modelselection_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n3web-console/v1/modelselection/model_selection.proto\x12$vrooli.web_console.v1.modelselection\"{\n\x1aGetRoleModelChoicesRequest\x12\x19\n\x08\x61gent_id\x18\x01 \x01(\tR\x07\x61gentId\x12\x1b\n\ttarget_id\x18\x02 \x01(\tR\x08targetId\x12%\n\x0elaunch_command\x18\x03 \x01(\tR\rlaunchCommand\"\xfb\x02\n\x0fRoleModelChoice\x12\x14\n\x05model\x18\x01 \x01(\tR\x05model\x12\x16\n\x06source\x18\x02 \x01(\tR\x06source\x12\x1a\n\x08provider\x18\x03 \x01(\tR\x08provider\x12!\n\x0claunch_model\x18\x04 \x01(\tR\x0blaunchModel\x12\x16\n\x06\x65\x66\x66ort\x18\x05 \x01(\tR\x06\x65\x66\x66ort\x12!\n\x0csource_label\x18\x06 \x01(\tR\x0bsourceLabel\x12\x1d\n\nis_default\x18\x07 \x01(\x08R\tisDefault\x12\x32\n\x15\x63ontext_window_tokens\x18\x08 \x01(\x03R\x13\x63ontextWindowTokens\x12\x30\n\x14\x63ontext_limit_tokens\x18\t \x03(\x03R\x12\x63ontextLimitTokens\x12\x18\n\x07metered\x18\n \x01(\x08R\x07metered\x12!\n\x0c\x64isplay_name\x18\x0b \x01(\tR\x0b\x64isplayName\"\xf9\x03\n\x1bGetRoleModelChoicesResponse\x12#\n\rpolicy_status\x18\x01 \x01(\tR\x0cpolicyStatus\x12\"\n\x0c\x61vailability\x18\x02 \x01(\tR\x0c\x61vailability\x12\x16\n\x06runner\x18\x03 \x01(\tR\x06runner\x12\x12\n\x04role\x18\x04 \x01(\tR\x04role\x12\x1e\n\nprovenance\x18\x05 \x01(\tR\nprovenance\x12\x1f\n\x0bobserved_at\x18\x06 \x01(\tR\nobservedAt\x12#\n\rpolicy_digest\x18\x07 \x01(\tR\x0cpolicyDigest\x12O\n\x07\x63hoices\x18\x08 \x03(\x0b\x32\x35.vrooli.web_console.v1.modelselection.RoleModelChoiceR\x07\x63hoices\x12\x16\n\x06\x64\x65tail\x18\t \x01(\tR\x06\x64\x65tail\x12\x1d\n\nmodel_flag\x18\n \x01(\tR\tmodelFlag\x12#\n\rcatalog_stale\x18\x0b \x01(\x08R\x0c\x63\x61talogStale\x12)\n\x10operator_command\x18\x0c \x01(\tR\x0foperatorCommand\x12\'\n\x0f\x63ommand_literal\x18\r \x01(\x08R\x0e\x63ommandLiteral2\xb4\x01\n\x15ModelSelectionService\x12\x9a\x01\n\x13GetRoleModelChoices\x12@.vrooli.web_console.v1.modelselection.GetRoleModelChoicesRequest\x1a\x41.vrooli.web_console.v1.modelselection.GetRoleModelChoicesResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/modelselection;modelselection_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,11 +33,11 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z^github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/modelselection;modelselection_v1'
   _globals['_GETROLEMODELCHOICESREQUEST']._serialized_start=93
-  _globals['_GETROLEMODELCHOICESREQUEST']._serialized_end=177
-  _globals['_ROLEMODELCHOICE']._serialized_start=180
-  _globals['_ROLEMODELCHOICE']._serialized_end=396
-  _globals['_GETROLEMODELCHOICESRESPONSE']._serialized_start=399
-  _globals['_GETROLEMODELCHOICESRESPONSE']._serialized_end=783
-  _globals['_MODELSELECTIONSERVICE']._serialized_start=786
-  _globals['_MODELSELECTIONSERVICE']._serialized_end=966
+  _globals['_GETROLEMODELCHOICESREQUEST']._serialized_end=216
+  _globals['_ROLEMODELCHOICE']._serialized_start=219
+  _globals['_ROLEMODELCHOICE']._serialized_end=598
+  _globals['_GETROLEMODELCHOICESRESPONSE']._serialized_start=601
+  _globals['_GETROLEMODELCHOICESRESPONSE']._serialized_end=1106
+  _globals['_MODELSELECTIONSERVICE']._serialized_start=1109
+  _globals['_MODELSELECTIONSERVICE']._serialized_end=1289
 # @@protoc_insertion_point(module_scope)

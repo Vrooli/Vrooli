@@ -1,8 +1,11 @@
 package cliutil
 
 import (
+	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -244,5 +247,78 @@ func TestCallerKindString(t *testing.T) {
 		if got := tc.kind.String(); got != tc.want {
 			t.Errorf("CallerKind(%d).String() = %q, want %q", tc.kind, got, tc.want)
 		}
+	}
+}
+
+// resource.json declares each coding agent's detection signal; knownAgentSignals
+// holds the code that matches it, because caller detection must work with no
+// repo on disk. This keeps the two together: every declared signal has a row of
+// the same name, and an environment-variable signal both fires on exactly what
+// it declares and stops when any part is missing.
+func TestKnownAgentSignalsMatchResourceManifests(t *testing.T) {
+	manifests, err := filepath.Glob(filepath.Join("..", "..", "..", "resources", "*", "resource.json"))
+	if err != nil || len(manifests) == 0 {
+		t.Fatalf("resource manifests: %v, %v", manifests, err)
+	}
+	rows := map[string]bool{}
+	for _, row := range knownAgentSignals {
+		rows[row.Name] = true
+	}
+	checked := 0
+	for _, path := range manifests {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifest struct {
+			Name      string `json:"name"`
+			Execution struct {
+				DetectionSignal string `json:"detection_signal"`
+			} `json:"execution"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		signal := manifest.Execution.DetectionSignal
+		if signal == "" {
+			continue
+		}
+		checked++
+		t.Run(manifest.Name, func(t *testing.T) {
+			if !rows[manifest.Name] {
+				t.Fatalf("no knownAgentSignals row named %q for declared signal %q", manifest.Name, signal)
+			}
+			if strings.Contains(signal, "ancestor") {
+				return // a process relationship, covered by the opencode tests
+			}
+			var env [][2]string
+			for _, part := range strings.Split(signal, " AND ") {
+				name, value, equals := strings.Cut(part, "=")
+				if !equals {
+					name, value = strings.TrimSuffix(part, " non-empty"), "x"
+					if name == part {
+						t.Fatalf("detection signal %q has a part this test cannot read: %q", signal, part)
+					}
+				}
+				env = append(env, [2]string{name, value})
+			}
+			clearAllSignalEnv(t)
+			for _, pair := range env {
+				t.Setenv(pair[0], pair[1])
+			}
+			if got := DetectCallerKind(); got != CallerKindExternalAgent {
+				t.Fatalf("declared signal %q detected as %v", signal, got)
+			}
+			for _, pair := range env {
+				t.Setenv(pair[0], "")
+				if got := DetectCallerKind(); got == CallerKindExternalAgent {
+					t.Fatalf("signal %q still detected without %s", signal, pair[0])
+				}
+				t.Setenv(pair[0], pair[1])
+			}
+		})
+	}
+	if checked == 0 {
+		t.Fatal("no resource declares a detection signal")
 	}
 }

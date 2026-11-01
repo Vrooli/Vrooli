@@ -28,6 +28,15 @@ message InspectDeviceResponse {
   map<string, string> unavailable = 11;
   string transport = 12;
   VoiceInspection voice = 13;
+  // Android-reported encoder capabilities; availability does not prove an
+  // encoder will be chosen or achieve a particular frame rate.
+  repeated VideoEncoder video_encoders = 14;
+}
+message VideoEncoder {
+  string mime_type = 1;
+  string name = 2;
+  optional bool software_only = 3;
+  optional bool hardware_accelerated = 4;
 }
 // Reported configuration only: no audio capture or claim of app microphone access.
 message VoiceInspection {

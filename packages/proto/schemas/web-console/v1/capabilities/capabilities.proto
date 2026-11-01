@@ -32,6 +32,39 @@ service CapabilitiesService {
   rpc AgentUpdate(AgentUpdateRequest) returns (AgentUpdateResponse);
   // Live provider readings, associated with a target and explicitly graded.
   rpc AgentUsage(AgentUsageRequest) returns (AgentUsageResponse);
+  // Runs one action offered by AgentUpdate. The control plane owns the work.
+  rpc RunAgentUpdateAction(RunAgentUpdateActionRequest) returns (RunAgentUpdateActionResponse);
+  // Harness identity and features on a target, from each resource's descriptor.
+  rpc ListHarnesses(ListHarnessesRequest) returns (ListHarnessesResponse);
+}
+
+message ListHarnessesRequest {
+  string target_id = 1;
+}
+
+// One usage window a harness is expected to report. It reserves card space and
+// never proves that the provider currently reports the window.
+message HarnessUsageWindow {
+  string id = 1;
+  int64 window_minutes = 2;
+}
+
+message HarnessDescriptor {
+  // The launcher agent ID, such as claude or codex.
+  string agent_id = 1;
+  string resource = 2;
+  string display_name = 3;
+  string icon = 4;
+  repeated HarnessUsageWindow usage_windows = 5;
+  bool supports_context_limit = 6;
+  bool supports_usage_mode = 7;
+  bool supports_model_selection = 8;
+  bool supports_provider_selection = 9;
+}
+
+message ListHarnessesResponse {
+  string target_id = 1;
+  repeated HarnessDescriptor harnesses = 2;
 }
 
 message AgentUsageRequest {
@@ -44,6 +77,8 @@ message AgentUsageWindow {
   int64 window_minutes = 2;
   double used_percent = 3;
   string resets_at = 4;
+  // When this window's reading was taken. Windows can have different ages.
+  string observed_at = 5;
 }
 
 message AgentUsageResponse {
@@ -79,6 +114,47 @@ message AgentUpdateResponse {
   // does not prove that an arbitrary custom launch command uses that binary.
   bool probe_verified = 11;
   string note = 12;
+  // missing, shadowed, unlinked, needs_setup, update_ready, up_to_date or
+  // check_failed. It decides the card indicator and the Manage status.
+  string state = 13;
+  // install, use_managed_copy, link_managed_copy, update, retry, or empty.
+  // A state that the operator must resolve elsewhere sets operator_command.
+  string primary_action = 14;
+  string operator_command = 15;
+  // A plain sentence that explains the state.
+  string reason = 16;
+  repeated AgentUpdateCheck checks = 17;
+  // managed, upstream_installer, standalone, root_owned or unknown.
+  string install_kind = 18;
+  // The version that a rollback restores. Empty when none is available.
+  string rollback_version = 19;
+  // The running version is newer than the one its permission policy reviewed.
+  bool newer_than_reviewed = 20;
+}
+
+// One update precondition. The ID is stable; the message states what was found.
+message AgentUpdateCheck {
+  string id = 1;
+  bool passed = 2;
+  string message = 3;
+}
+
+message RunAgentUpdateActionRequest {
+  string target_id = 1;
+  string agent_id = 2;
+  // install, use_managed_copy, link_managed_copy, update, rollback, retry or
+  // refresh_catalog. refresh_catalog rewrites the local model list from the
+  // installed runner's own evidence and has no remote form.
+  string action = 3;
+}
+
+message RunAgentUpdateActionResponse {
+  bool success = 1;
+  string message = 2;
+  // A fresh observation taken after the action, so the UI can update at once.
+  AgentUpdateResponse update = 3;
+  // Durable Bridge correlation/audit identifier for a remote action.
+  string operation_id = 4;
 }
 
 // CapabilityState is the runtime view of a single capability. Mirrors

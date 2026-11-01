@@ -7,26 +7,19 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
-// codingAgentAliases maps every name a shim may be installed under to the
-// canonical runner name understood by [LaunchCodingAgent]. The keys are the
-// binary names the agents themselves ship, because that is what a shim on PATH
-// has to impersonate.
-var codingAgentAliases = map[string]string{
-	"claude":   "claude-code",
-	"codex":    "codex",
-	"grok":     "grok",
-	"opencode": "opencode",
-	"agy":      "antigravity",
-}
-
 // CodingAgentAliases returns the binary names a shim may be installed under,
-// sorted so installers and tests see a stable order.
+// sorted so installers and tests see a stable order. These are the binaries the
+// harness descriptors declare, because that is what a shim on PATH has to
+// impersonate.
 func CodingAgentAliases() []string {
-	names := make([]string, 0, len(codingAgentAliases))
-	for name := range codingAgentAliases {
-		names = append(names, name)
+	descriptors := harness.Active().All()
+	names := make([]string, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		names = append(names, descriptor.Binary)
 	}
 	sort.Strings(names)
 	return names
@@ -35,8 +28,13 @@ func CodingAgentAliases() []string {
 // CodingAgentForAlias maps an installed shim name (with any executable
 // extension already stripped) to its canonical runner name.
 func CodingAgentForAlias(alias string) (string, bool) {
-	runner, ok := codingAgentAliases[strings.ToLower(strings.TrimSpace(alias))]
-	return runner, ok
+	alias = strings.ToLower(strings.TrimSpace(alias))
+	for _, descriptor := range harness.Active().All() {
+		if descriptor.Binary == alias {
+			return descriptor.Resource, true
+		}
+	}
+	return "", false
 }
 
 // ShimAliasFromArgv0 reports the agent a shim was invoked as, given argv[0].

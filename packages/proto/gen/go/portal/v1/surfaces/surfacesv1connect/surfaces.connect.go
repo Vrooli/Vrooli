@@ -28,6 +28,9 @@ const (
 	// ApplicationCatalogServiceName is the fully-qualified name of the ApplicationCatalogService
 	// service.
 	ApplicationCatalogServiceName = "vrooli.portal.v1.surfaces.ApplicationCatalogService"
+	// ApplicationLifecycleServiceName is the fully-qualified name of the ApplicationLifecycleService
+	// service.
+	ApplicationLifecycleServiceName = "vrooli.portal.v1.surfaces.ApplicationLifecycleService"
 	// DesktopSessionServiceName is the fully-qualified name of the DesktopSessionService service.
 	DesktopSessionServiceName = "vrooli.portal.v1.surfaces.DesktopSessionService"
 	// OperatorSessionServiceName is the fully-qualified name of the OperatorSessionService service.
@@ -54,6 +57,9 @@ const (
 	// ApplicationCatalogServiceResolveApplicationProcedure is the fully-qualified name of the
 	// ApplicationCatalogService's ResolveApplication RPC.
 	ApplicationCatalogServiceResolveApplicationProcedure = "/vrooli.portal.v1.surfaces.ApplicationCatalogService/ResolveApplication"
+	// ApplicationLifecycleServiceActProcedure is the fully-qualified name of the
+	// ApplicationLifecycleService's Act RPC.
+	ApplicationLifecycleServiceActProcedure = "/vrooli.portal.v1.surfaces.ApplicationLifecycleService/Act"
 	// DesktopSessionServiceReconcileOpenProcedure is the fully-qualified name of the
 	// DesktopSessionService's ReconcileOpen RPC.
 	DesktopSessionServiceReconcileOpenProcedure = "/vrooli.portal.v1.surfaces.DesktopSessionService/ReconcileOpen"
@@ -303,6 +309,79 @@ func (UnimplementedApplicationCatalogServiceHandler) ListApplications(context.Co
 
 func (UnimplementedApplicationCatalogServiceHandler) ResolveApplication(context.Context, *connect.Request[surfaces.ResolveApplicationRequest]) (*connect.Response[surfaces.ResolveApplicationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication is not implemented"))
+}
+
+// ApplicationLifecycleServiceClient is a client for the
+// vrooli.portal.v1.surfaces.ApplicationLifecycleService service.
+type ApplicationLifecycleServiceClient interface {
+	Act(context.Context, *connect.Request[surfaces.ApplicationLifecycleRequest]) (*connect.Response[surfaces.ApplicationLifecycleResponse], error)
+}
+
+// NewApplicationLifecycleServiceClient constructs a client for the
+// vrooli.portal.v1.surfaces.ApplicationLifecycleService service. By default, it uses the Connect
+// protocol with the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed
+// requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewApplicationLifecycleServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) ApplicationLifecycleServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	applicationLifecycleServiceMethods := surfaces.File_portal_v1_surfaces_surfaces_proto.Services().ByName("ApplicationLifecycleService").Methods()
+	return &applicationLifecycleServiceClient{
+		act: connect.NewClient[surfaces.ApplicationLifecycleRequest, surfaces.ApplicationLifecycleResponse](
+			httpClient,
+			baseURL+ApplicationLifecycleServiceActProcedure,
+			connect.WithSchema(applicationLifecycleServiceMethods.ByName("Act")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// applicationLifecycleServiceClient implements ApplicationLifecycleServiceClient.
+type applicationLifecycleServiceClient struct {
+	act *connect.Client[surfaces.ApplicationLifecycleRequest, surfaces.ApplicationLifecycleResponse]
+}
+
+// Act calls vrooli.portal.v1.surfaces.ApplicationLifecycleService.Act.
+func (c *applicationLifecycleServiceClient) Act(ctx context.Context, req *connect.Request[surfaces.ApplicationLifecycleRequest]) (*connect.Response[surfaces.ApplicationLifecycleResponse], error) {
+	return c.act.CallUnary(ctx, req)
+}
+
+// ApplicationLifecycleServiceHandler is an implementation of the
+// vrooli.portal.v1.surfaces.ApplicationLifecycleService service.
+type ApplicationLifecycleServiceHandler interface {
+	Act(context.Context, *connect.Request[surfaces.ApplicationLifecycleRequest]) (*connect.Response[surfaces.ApplicationLifecycleResponse], error)
+}
+
+// NewApplicationLifecycleServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewApplicationLifecycleServiceHandler(svc ApplicationLifecycleServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	applicationLifecycleServiceMethods := surfaces.File_portal_v1_surfaces_surfaces_proto.Services().ByName("ApplicationLifecycleService").Methods()
+	applicationLifecycleServiceActHandler := connect.NewUnaryHandler(
+		ApplicationLifecycleServiceActProcedure,
+		svc.Act,
+		connect.WithSchema(applicationLifecycleServiceMethods.ByName("Act")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/vrooli.portal.v1.surfaces.ApplicationLifecycleService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case ApplicationLifecycleServiceActProcedure:
+			applicationLifecycleServiceActHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedApplicationLifecycleServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedApplicationLifecycleServiceHandler struct{}
+
+func (UnimplementedApplicationLifecycleServiceHandler) Act(context.Context, *connect.Request[surfaces.ApplicationLifecycleRequest]) (*connect.Response[surfaces.ApplicationLifecycleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.portal.v1.surfaces.ApplicationLifecycleService.Act is not implemented"))
 }
 
 // DesktopSessionServiceClient is a client for the vrooli.portal.v1.surfaces.DesktopSessionService

@@ -22,9 +22,12 @@ const (
 )
 
 type GetRoleModelChoicesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	TargetId      string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	AgentId  string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	TargetId string                 `protobuf:"bytes,2,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
+	// The shortcut command a launch would start from, to tell whether settings can
+	// apply to it. Empty asks only about the runner.
+	LaunchCommand string `protobuf:"bytes,3,opt,name=launch_command,json=launchCommand,proto3" json:"launch_command,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,15 +76,30 @@ func (x *GetRoleModelChoicesRequest) GetTargetId() string {
 	return ""
 }
 
+func (x *GetRoleModelChoicesRequest) GetLaunchCommand() string {
+	if x != nil {
+		return x.LaunchCommand
+	}
+	return ""
+}
+
 type RoleModelChoice struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Model         string                 `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
-	Source        string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
-	Provider      string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
-	LaunchModel   string                 `protobuf:"bytes,4,opt,name=launch_model,json=launchModel,proto3" json:"launch_model,omitempty"`
-	Effort        string                 `protobuf:"bytes,5,opt,name=effort,proto3" json:"effort,omitempty"`
-	SourceLabel   string                 `protobuf:"bytes,6,opt,name=source_label,json=sourceLabel,proto3" json:"source_label,omitempty"`
-	IsDefault     bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Model       string                 `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
+	Source      string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	Provider    string                 `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
+	LaunchModel string                 `protobuf:"bytes,4,opt,name=launch_model,json=launchModel,proto3" json:"launch_model,omitempty"`
+	Effort      string                 `protobuf:"bytes,5,opt,name=effort,proto3" json:"effort,omitempty"`
+	SourceLabel string                 `protobuf:"bytes,6,opt,name=source_label,json=sourceLabel,proto3" json:"source_label,omitempty"`
+	IsDefault   bool                   `protobuf:"varint,7,opt,name=is_default,json=isDefault,proto3" json:"is_default,omitempty"`
+	// This model's context window in tokens. Zero means unknown, never unlimited.
+	ContextWindowTokens int64 `protobuf:"varint,8,opt,name=context_window_tokens,json=contextWindowTokens,proto3" json:"context_window_tokens,omitempty"`
+	// Compaction limits a launch of this model may request. None exceeds the window.
+	ContextLimitTokens []int64 `protobuf:"varint,9,rep,packed,name=context_limit_tokens,json=contextLimitTokens,proto3" json:"context_limit_tokens,omitempty"`
+	// The choice bills per use, so a stale catalog keeps it unselectable.
+	Metered bool `protobuf:"varint,10,opt,name=metered,proto3" json:"metered,omitempty"`
+	// What the operator reads. `model` stays the catalog ID.
+	DisplayName   string `protobuf:"bytes,11,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -165,22 +183,58 @@ func (x *RoleModelChoice) GetIsDefault() bool {
 	return false
 }
 
+func (x *RoleModelChoice) GetContextWindowTokens() int64 {
+	if x != nil {
+		return x.ContextWindowTokens
+	}
+	return 0
+}
+
+func (x *RoleModelChoice) GetContextLimitTokens() []int64 {
+	if x != nil {
+		return x.ContextLimitTokens
+	}
+	return nil
+}
+
+func (x *RoleModelChoice) GetMetered() bool {
+	if x != nil {
+		return x.Metered
+	}
+	return false
+}
+
+func (x *RoleModelChoice) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
 type GetRoleModelChoicesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ready, stale, unknown, or unsupported.
 	PolicyStatus string `protobuf:"bytes,1,opt,name=policy_status,json=policyStatus,proto3" json:"policy_status,omitempty"`
 	// Provider runtime availability is never implied by static role policy.
-	Availability  string             `protobuf:"bytes,2,opt,name=availability,proto3" json:"availability,omitempty"`
-	Runner        string             `protobuf:"bytes,3,opt,name=runner,proto3" json:"runner,omitempty"`
-	Role          string             `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
-	Provenance    string             `protobuf:"bytes,5,opt,name=provenance,proto3" json:"provenance,omitempty"`
-	ObservedAt    string             `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	PolicyDigest  string             `protobuf:"bytes,7,opt,name=policy_digest,json=policyDigest,proto3" json:"policy_digest,omitempty"`
-	Choices       []*RoleModelChoice `protobuf:"bytes,8,rep,name=choices,proto3" json:"choices,omitempty"`
-	Detail        string             `protobuf:"bytes,9,opt,name=detail,proto3" json:"detail,omitempty"`
-	ModelFlag     string             `protobuf:"bytes,10,opt,name=model_flag,json=modelFlag,proto3" json:"model_flag,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Availability string             `protobuf:"bytes,2,opt,name=availability,proto3" json:"availability,omitempty"`
+	Runner       string             `protobuf:"bytes,3,opt,name=runner,proto3" json:"runner,omitempty"`
+	Role         string             `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Provenance   string             `protobuf:"bytes,5,opt,name=provenance,proto3" json:"provenance,omitempty"`
+	ObservedAt   string             `protobuf:"bytes,6,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	PolicyDigest string             `protobuf:"bytes,7,opt,name=policy_digest,json=policyDigest,proto3" json:"policy_digest,omitempty"`
+	Choices      []*RoleModelChoice `protobuf:"bytes,8,rep,name=choices,proto3" json:"choices,omitempty"`
+	Detail       string             `protobuf:"bytes,9,opt,name=detail,proto3" json:"detail,omitempty"`
+	ModelFlag    string             `protobuf:"bytes,10,opt,name=model_flag,json=modelFlag,proto3" json:"model_flag,omitempty"`
+	// The catalog is past its freshness budget. Unmetered choices stay selectable.
+	CatalogStale bool `protobuf:"varint,11,opt,name=catalog_stale,json=catalogStale,proto3" json:"catalog_stale,omitempty"`
+	// How the operator refreshes a list the RefreshCatalog action cannot. Empty
+	// when the action can.
+	OperatorCommand string `protobuf:"bytes,12,opt,name=operator_command,json=operatorCommand,proto3" json:"operator_command,omitempty"`
+	// The launch command is the operator's own: a wrapper, or one naming its own
+	// model or limit. It runs as written, so a launch cannot apply these settings.
+	CommandLiteral bool `protobuf:"varint,13,opt,name=command_literal,json=commandLiteral,proto3" json:"command_literal,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetRoleModelChoicesResponse) Reset() {
@@ -283,14 +337,36 @@ func (x *GetRoleModelChoicesResponse) GetModelFlag() string {
 	return ""
 }
 
+func (x *GetRoleModelChoicesResponse) GetCatalogStale() bool {
+	if x != nil {
+		return x.CatalogStale
+	}
+	return false
+}
+
+func (x *GetRoleModelChoicesResponse) GetOperatorCommand() string {
+	if x != nil {
+		return x.OperatorCommand
+	}
+	return ""
+}
+
+func (x *GetRoleModelChoicesResponse) GetCommandLiteral() bool {
+	if x != nil {
+		return x.CommandLiteral
+	}
+	return false
+}
+
 var File_web_console_v1_modelselection_model_selection_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_modelselection_model_selection_proto_rawDesc = "" +
 	"\n" +
-	"3web-console/v1/modelselection/model_selection.proto\x12$vrooli.web_console.v1.modelselection\"T\n" +
+	"3web-console/v1/modelselection/model_selection.proto\x12$vrooli.web_console.v1.modelselection\"{\n" +
 	"\x1aGetRoleModelChoicesRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
-	"\ttarget_id\x18\x02 \x01(\tR\btargetId\"\xd8\x01\n" +
+	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12%\n" +
+	"\x0elaunch_command\x18\x03 \x01(\tR\rlaunchCommand\"\xfb\x02\n" +
 	"\x0fRoleModelChoice\x12\x14\n" +
 	"\x05model\x18\x01 \x01(\tR\x05model\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x1a\n" +
@@ -299,7 +375,12 @@ const file_web_console_v1_modelselection_model_selection_proto_rawDesc = "" +
 	"\x06effort\x18\x05 \x01(\tR\x06effort\x12!\n" +
 	"\fsource_label\x18\x06 \x01(\tR\vsourceLabel\x12\x1d\n" +
 	"\n" +
-	"is_default\x18\a \x01(\bR\tisDefault\"\x80\x03\n" +
+	"is_default\x18\a \x01(\bR\tisDefault\x122\n" +
+	"\x15context_window_tokens\x18\b \x01(\x03R\x13contextWindowTokens\x120\n" +
+	"\x14context_limit_tokens\x18\t \x03(\x03R\x12contextLimitTokens\x12\x18\n" +
+	"\ametered\x18\n" +
+	" \x01(\bR\ametered\x12!\n" +
+	"\fdisplay_name\x18\v \x01(\tR\vdisplayName\"\xf9\x03\n" +
 	"\x1bGetRoleModelChoicesResponse\x12#\n" +
 	"\rpolicy_status\x18\x01 \x01(\tR\fpolicyStatus\x12\"\n" +
 	"\favailability\x18\x02 \x01(\tR\favailability\x12\x16\n" +
@@ -315,7 +396,10 @@ const file_web_console_v1_modelselection_model_selection_proto_rawDesc = "" +
 	"\x06detail\x18\t \x01(\tR\x06detail\x12\x1d\n" +
 	"\n" +
 	"model_flag\x18\n" +
-	" \x01(\tR\tmodelFlag2\xb4\x01\n" +
+	" \x01(\tR\tmodelFlag\x12#\n" +
+	"\rcatalog_stale\x18\v \x01(\bR\fcatalogStale\x12)\n" +
+	"\x10operator_command\x18\f \x01(\tR\x0foperatorCommand\x12'\n" +
+	"\x0fcommand_literal\x18\r \x01(\bR\x0ecommandLiteral2\xb4\x01\n" +
 	"\x15ModelSelectionService\x12\x9a\x01\n" +
 	"\x13GetRoleModelChoices\x12@.vrooli.web_console.v1.modelselection.GetRoleModelChoicesRequest\x1aA.vrooli.web_console.v1.modelselection.GetRoleModelChoicesResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/modelselection;modelselection_v1b\x06proto3"
 

@@ -8,6 +8,7 @@ require (
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/term v0.38.0
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -16,7 +17,6 @@ require (
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	golang.org/x/sys v0.44.0 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core

@@ -35,7 +35,7 @@ func TestLaunchCodingAgentMaterializesWebConsoleCodexHome(t *testing.T) {
 		t.Fatalf("LaunchCodingAgent() error = %v", err)
 	}
 
-	gotHome := environmentValue(childEnvironment, webConsoleCodexHomeEnv)
+	gotHome := environmentValue(childEnvironment, "CODEX_HOME")
 	wantHome := filepath.Join(stateRoot, "codex", "session-1")
 	if gotHome != wantHome {
 		t.Fatalf("CODEX_HOME = %q, want %q", gotHome, wantHome)
@@ -76,11 +76,11 @@ func TestPrepareWebConsoleAgentHomePreservesExplicitRunnerHome(t *testing.T) {
 	}
 
 	got := PrepareWebConsoleAgentHome("codex", environment)
-	if value := environmentValue(got, webConsoleCodexHomeEnv); value != explicitHome {
+	if value := environmentValue(got, "CODEX_HOME"); value != explicitHome {
 		t.Fatalf("CODEX_HOME = %q, want explicit %q", value, explicitHome)
 	}
 	wantSessions := filepath.Join(explicitHome, "sessions")
-	if value := environmentValue(got, webConsoleCodexSessionsEnv); value != wantSessions {
+	if value := environmentValue(got, "WC_CODEX_SESSIONS_DIR"); value != wantSessions {
 		t.Fatalf("WC_CODEX_SESSIONS_DIR = %q, want %q", value, wantSessions)
 	}
 	if _, err := os.Stat(filepath.Join(stateRoot, "codex", "session-explicit")); !os.IsNotExist(err) {

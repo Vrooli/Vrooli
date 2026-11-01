@@ -19,7 +19,7 @@ class InspectDeviceRequest(_message.Message):
     def __init__(self, device_id: _Optional[str] = ..., transport: _Optional[str] = ...) -> None: ...
 
 class InspectDeviceResponse(_message.Message):
-    __slots__ = ("device_id", "observed_at", "abis", "memory_total_bytes", "data_total_bytes", "data_available_bytes", "webview_package", "webview_version", "home_component", "low_ram", "unavailable", "transport", "voice")
+    __slots__ = ("device_id", "observed_at", "abis", "memory_total_bytes", "data_total_bytes", "data_available_bytes", "webview_package", "webview_version", "home_component", "low_ram", "unavailable", "transport", "voice", "video_encoders")
     class UnavailableEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -40,6 +40,7 @@ class InspectDeviceResponse(_message.Message):
     UNAVAILABLE_FIELD_NUMBER: _ClassVar[int]
     TRANSPORT_FIELD_NUMBER: _ClassVar[int]
     VOICE_FIELD_NUMBER: _ClassVar[int]
+    VIDEO_ENCODERS_FIELD_NUMBER: _ClassVar[int]
     device_id: str
     observed_at: _timestamp_pb2.Timestamp
     abis: _containers.RepeatedScalarFieldContainer[str]
@@ -53,7 +54,20 @@ class InspectDeviceResponse(_message.Message):
     unavailable: _containers.ScalarMap[str, str]
     transport: str
     voice: VoiceInspection
-    def __init__(self, device_id: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., abis: _Optional[_Iterable[str]] = ..., memory_total_bytes: _Optional[int] = ..., data_total_bytes: _Optional[int] = ..., data_available_bytes: _Optional[int] = ..., webview_package: _Optional[str] = ..., webview_version: _Optional[str] = ..., home_component: _Optional[str] = ..., low_ram: _Optional[bool] = ..., unavailable: _Optional[_Mapping[str, str]] = ..., transport: _Optional[str] = ..., voice: _Optional[_Union[VoiceInspection, _Mapping]] = ...) -> None: ...
+    video_encoders: _containers.RepeatedCompositeFieldContainer[VideoEncoder]
+    def __init__(self, device_id: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., abis: _Optional[_Iterable[str]] = ..., memory_total_bytes: _Optional[int] = ..., data_total_bytes: _Optional[int] = ..., data_available_bytes: _Optional[int] = ..., webview_package: _Optional[str] = ..., webview_version: _Optional[str] = ..., home_component: _Optional[str] = ..., low_ram: _Optional[bool] = ..., unavailable: _Optional[_Mapping[str, str]] = ..., transport: _Optional[str] = ..., voice: _Optional[_Union[VoiceInspection, _Mapping]] = ..., video_encoders: _Optional[_Iterable[_Union[VideoEncoder, _Mapping]]] = ...) -> None: ...
+
+class VideoEncoder(_message.Message):
+    __slots__ = ("mime_type", "name", "software_only", "hardware_accelerated")
+    MIME_TYPE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    SOFTWARE_ONLY_FIELD_NUMBER: _ClassVar[int]
+    HARDWARE_ACCELERATED_FIELD_NUMBER: _ClassVar[int]
+    mime_type: str
+    name: str
+    software_only: bool
+    hardware_accelerated: bool
+    def __init__(self, mime_type: _Optional[str] = ..., name: _Optional[str] = ..., software_only: _Optional[bool] = ..., hardware_accelerated: _Optional[bool] = ...) -> None: ...
 
 class VoiceInspection(_message.Message):
     __slots__ = ("microphone_feature", "assistant_role_holders", "assistant_component", "voice_interaction_component", "voice_interaction_services", "policy_input_types", "unavailable")

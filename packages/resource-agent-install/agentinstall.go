@@ -10,6 +10,9 @@ import (
 	internal "github.com/vrooli/vrooli/internal/resources/agentinstall"
 )
 
+// AntigravityManifestBase is the auto-updater service Antigravity releases through.
+const AntigravityManifestBase = internal.AntigravityManifestBase
+
 type (
 	Spec                     = internal.Spec
 	StatusArgs               = internal.StatusArgs

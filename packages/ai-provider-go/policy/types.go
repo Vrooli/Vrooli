@@ -119,6 +119,7 @@ func (r Role) SupportFor(parameter string) SamplingSupportState {
 // Model is one concrete provider model and its catalog metadata.
 type Model struct {
 	Provider             string                `json:"provider,omitempty"`
+	DisplayName          string                `json:"display_name,omitempty"`
 	Family               string                `json:"family"`
 	Tags                 []string              `json:"tags,omitempty"`
 	Capabilities         []string              `json:"capabilities"`
@@ -336,6 +337,7 @@ type ResolvedPolicyModel struct {
 	SamplingSupport       map[string]SamplingSupportState `json:"sampling_support,omitempty"`
 	MaxTokens             *int                            `json:"max_tokens,omitempty"`
 	Provider              string                          `json:"provider,omitempty"`
+	DisplayName           string                          `json:"display_name,omitempty"`
 	Family                string                          `json:"family,omitempty"`
 	Preference            int                             `json:"preference,omitempty"`
 	RoleProvenance        *Provenance                     `json:"role_provenance,omitempty"`

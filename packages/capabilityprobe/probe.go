@@ -43,7 +43,9 @@ type Observation struct {
 }
 
 // AITools is generated from internal/tools/*/tool.json where capability is
-// ai-cli. Keep this table sorted by ID; the drift test protects the contract.
+// ai-cli. Keep this table sorted by ID; the drift tests protect the contract,
+// including against each resource's harness descriptor. Services that can read
+// the descriptors replace this value at startup.
 var AITools = []Definition{
 	{Capability: "ai-cli", ID: "agy", Label: "Antigravity", Command: "agy", VersionArg: []string{"--version"}},
 	{Capability: "ai-cli", ID: "claude", Label: "Claude Code", Command: "claude", VersionArg: []string{"--version"}},

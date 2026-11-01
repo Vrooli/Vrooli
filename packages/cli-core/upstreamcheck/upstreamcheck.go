@@ -250,29 +250,39 @@ func (h *Handlers) fetchLatest(ctx context.Context, kind SourceKind, id string) 
 }
 
 func getJSON(ctx context.Context, client *http.Client, url string, out any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "vrooli-upstream-check")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	body, err := GetBody(ctx, client, url, "application/json", 1<<20)
 	if err != nil {
 		return err
 	}
 	return json.Unmarshal(body, out)
 }
 
-var semverRe = regexp.MustCompile(`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?`)
-var exactSemverRe = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
+// GetBody fetches url for a version source, failing on a non-2xx status and
+// reading at most limit bytes. accept may be empty.
+func GetBody(ctx context.Context, client *http.Client, url, accept string, limit int64) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+	req.Header.Set("User-Agent", "vrooli-upstream-check")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, limit))
+}
+
+var (
+	semverRe      = regexp.MustCompile(`\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?`)
+	exactSemverRe = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$`)
+)
 
 // ExtractSemver pulls the first MAJOR.MINOR.PATCH token out of a raw
 // version string (e.g. "codex-cli 0.131.0" → "0.131.0").

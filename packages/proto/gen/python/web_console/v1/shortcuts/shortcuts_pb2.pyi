@@ -89,18 +89,29 @@ class DeleteProfileResponse(_message.Message):
     def __init__(self) -> None: ...
 
 class AgentPreferences(_message.Message):
-    __slots__ = ("profile_id", "ordered_agent_ids", "hidden_agent_ids", "revision", "profile_instance")
+    __slots__ = ("profile_id", "ordered_agent_ids", "hidden_agent_ids", "revision", "profile_instance", "order_mode", "last_launched_at")
+    class LastLaunchedAtEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     ORDERED_AGENT_IDS_FIELD_NUMBER: _ClassVar[int]
     HIDDEN_AGENT_IDS_FIELD_NUMBER: _ClassVar[int]
     REVISION_FIELD_NUMBER: _ClassVar[int]
     PROFILE_INSTANCE_FIELD_NUMBER: _ClassVar[int]
+    ORDER_MODE_FIELD_NUMBER: _ClassVar[int]
+    LAST_LAUNCHED_AT_FIELD_NUMBER: _ClassVar[int]
     profile_id: str
     ordered_agent_ids: _containers.RepeatedScalarFieldContainer[str]
     hidden_agent_ids: _containers.RepeatedScalarFieldContainer[str]
     revision: int
     profile_instance: str
-    def __init__(self, profile_id: _Optional[str] = ..., ordered_agent_ids: _Optional[_Iterable[str]] = ..., hidden_agent_ids: _Optional[_Iterable[str]] = ..., revision: _Optional[int] = ..., profile_instance: _Optional[str] = ...) -> None: ...
+    order_mode: str
+    last_launched_at: _containers.ScalarMap[str, str]
+    def __init__(self, profile_id: _Optional[str] = ..., ordered_agent_ids: _Optional[_Iterable[str]] = ..., hidden_agent_ids: _Optional[_Iterable[str]] = ..., revision: _Optional[int] = ..., profile_instance: _Optional[str] = ..., order_mode: _Optional[str] = ..., last_launched_at: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class GetAgentPreferencesRequest(_message.Message):
     __slots__ = ()
@@ -113,18 +124,22 @@ class GetAgentPreferencesResponse(_message.Message):
     def __init__(self, preferences: _Optional[_Union[AgentPreferences, _Mapping]] = ...) -> None: ...
 
 class UpdateAgentPreferencesRequest(_message.Message):
-    __slots__ = ("profile_id", "expected_revision", "ordered_agent_ids", "hidden_agent_ids", "profile_instance")
+    __slots__ = ("profile_id", "expected_revision", "ordered_agent_ids", "hidden_agent_ids", "profile_instance", "order_mode", "launched_agent_id")
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_REVISION_FIELD_NUMBER: _ClassVar[int]
     ORDERED_AGENT_IDS_FIELD_NUMBER: _ClassVar[int]
     HIDDEN_AGENT_IDS_FIELD_NUMBER: _ClassVar[int]
     PROFILE_INSTANCE_FIELD_NUMBER: _ClassVar[int]
+    ORDER_MODE_FIELD_NUMBER: _ClassVar[int]
+    LAUNCHED_AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     profile_id: str
     expected_revision: int
     ordered_agent_ids: _containers.RepeatedScalarFieldContainer[str]
     hidden_agent_ids: _containers.RepeatedScalarFieldContainer[str]
     profile_instance: str
-    def __init__(self, profile_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., ordered_agent_ids: _Optional[_Iterable[str]] = ..., hidden_agent_ids: _Optional[_Iterable[str]] = ..., profile_instance: _Optional[str] = ...) -> None: ...
+    order_mode: str
+    launched_agent_id: str
+    def __init__(self, profile_id: _Optional[str] = ..., expected_revision: _Optional[int] = ..., ordered_agent_ids: _Optional[_Iterable[str]] = ..., hidden_agent_ids: _Optional[_Iterable[str]] = ..., profile_instance: _Optional[str] = ..., order_mode: _Optional[str] = ..., launched_agent_id: _Optional[str] = ...) -> None: ...
 
 class UpdateAgentPreferencesResponse(_message.Message):
     __slots__ = ("preferences",)

@@ -449,19 +449,7 @@ func (h *Handlers) CommitPending(w http.ResponseWriter, r *http.Request) {
 //   - Suggested commit message
 //   - Summary grouped by sandbox
 func (h *Handlers) GetCommitPreview(w http.ResponseWriter, r *http.Request) {
-	projectRoot := r.URL.Query().Get("projectRoot")
-	if projectRoot == "" {
-		projectRoot = h.Config.Driver.ProjectRoot
-	}
-
-	result, err := h.Service.GetCommitPreview(r.Context(), &types.CommitPreviewRequest{
-		ProjectRoot: projectRoot,
-	})
-	if h.HandleDomainError(w, err) {
-		return
-	}
-
-	h.JSONSuccess(w, result)
+	h.writeCommitPreview(w, r, &types.CommitPreviewRequest{ProjectRoot: r.URL.Query().Get("projectRoot")})
 }
 
 // PostCommitPreview returns a preview of what would be committed for a subset of files.
@@ -473,11 +461,15 @@ func (h *Handlers) PostCommitPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.writeCommitPreview(w, r, &req)
+}
+
+func (h *Handlers) writeCommitPreview(w http.ResponseWriter, r *http.Request, req *types.CommitPreviewRequest) {
 	if req.ProjectRoot == "" {
 		req.ProjectRoot = h.Config.Driver.ProjectRoot
 	}
 
-	result, err := h.Service.GetCommitPreview(r.Context(), &req)
+	result, err := h.Service.GetCommitPreview(r.Context(), req)
 	if h.HandleDomainError(w, err) {
 		return
 	}

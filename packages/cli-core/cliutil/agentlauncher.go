@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/usagemode"
 	"github.com/vrooli/envkit-go"
 )
@@ -613,20 +614,16 @@ type codingAgentAttachment struct {
 }
 
 func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
-	switch strings.ToLower(strings.TrimSpace(agent)) {
-	case "claude", "claude-code":
-		return "claude-code", "claude", nil
-	case "codex":
-		return "codex", "codex", nil
-	case "grok":
-		return "grok", "grok", nil
-	case "opencode":
-		return "opencode", "opencode", nil
-	case "agy", "antigravity":
-		return "antigravity", "agy", nil
-	default:
-		return "", "", fmt.Errorf("unsupported coding-agent runner %q (supported: claude-code, codex, grok, opencode, antigravity)", agent)
+	active := harness.Active()
+	if descriptor, ok := active.Lookup(agent); ok {
+		return descriptor.Resource, descriptor.Binary, nil
 	}
+	descriptors := active.All()
+	supported := make([]string, 0, len(descriptors))
+	for _, descriptor := range descriptors {
+		supported = append(supported, descriptor.Resource)
+	}
+	return "", "", fmt.Errorf("unsupported coding-agent runner %q (supported: %s)", agent, strings.Join(supported, ", "))
 }
 
 // attachCodingAgent makes the bounded, best-effort attribution call. Every
@@ -823,14 +820,11 @@ func launcherAttachTimeout(requested time.Duration) time.Duration {
 }
 
 func harnessSessionEnvironments(harnessKind string) []string {
-	switch harnessKind {
-	case "claude-code":
-		return []string{EnvClaudeCodeSessionID, "VROOLI_HARNESS_SESSION_ID"}
-	case "codex":
-		return []string{EnvCodexThreadID, "VROOLI_HARNESS_SESSION_ID"}
-	default:
-		return []string{"VROOLI_HARNESS_SESSION_ID"}
+	var environments []string
+	if descriptor, ok := harness.Active().Lookup(harnessKind); ok {
+		environments = append(environments, descriptor.SessionEnv...)
 	}
+	return append(environments, "VROOLI_HARNESS_SESSION_ID")
 }
 
 func withEnvironmentValue(environment []string, key, value string) []string {

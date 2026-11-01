@@ -584,8 +584,12 @@ type AgentPreferences struct {
 	Revision        uint64                 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	// Opaque identity of this profile instance; empty for the built-in fallback.
 	ProfileInstance string `protobuf:"bytes,5,opt,name=profile_instance,json=profileInstance,proto3" json:"profile_instance,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// custom or recent. Empty means custom.
+	OrderMode string `protobuf:"bytes,6,opt,name=order_mode,json=orderMode,proto3" json:"order_mode,omitempty"`
+	// RFC 3339 time of each agent's most recent launch from the launcher.
+	LastLaunchedAt map[string]string `protobuf:"bytes,7,rep,name=last_launched_at,json=lastLaunchedAt,proto3" json:"last_launched_at,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AgentPreferences) Reset() {
@@ -651,6 +655,20 @@ func (x *AgentPreferences) GetProfileInstance() string {
 		return x.ProfileInstance
 	}
 	return ""
+}
+
+func (x *AgentPreferences) GetOrderMode() string {
+	if x != nil {
+		return x.OrderMode
+	}
+	return ""
+}
+
+func (x *AgentPreferences) GetLastLaunchedAt() map[string]string {
+	if x != nil {
+		return x.LastLaunchedAt
+	}
+	return nil
 }
 
 type GetAgentPreferencesRequest struct {
@@ -742,8 +760,11 @@ type UpdateAgentPreferencesRequest struct {
 	OrderedAgentIds  []string               `protobuf:"bytes,3,rep,name=ordered_agent_ids,json=orderedAgentIds,proto3" json:"ordered_agent_ids,omitempty"`
 	HiddenAgentIds   []string               `protobuf:"bytes,4,rep,name=hidden_agent_ids,json=hiddenAgentIds,proto3" json:"hidden_agent_ids,omitempty"`
 	ProfileInstance  string                 `protobuf:"bytes,5,opt,name=profile_instance,json=profileInstance,proto3" json:"profile_instance,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	OrderMode        string                 `protobuf:"bytes,6,opt,name=order_mode,json=orderMode,proto3" json:"order_mode,omitempty"`
+	// Records this agent as launched now, on top of the other requested changes.
+	LaunchedAgentId string `protobuf:"bytes,7,opt,name=launched_agent_id,json=launchedAgentId,proto3" json:"launched_agent_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *UpdateAgentPreferencesRequest) Reset() {
@@ -807,6 +828,20 @@ func (x *UpdateAgentPreferencesRequest) GetHiddenAgentIds() []string {
 func (x *UpdateAgentPreferencesRequest) GetProfileInstance() string {
 	if x != nil {
 		return x.ProfileInstance
+	}
+	return ""
+}
+
+func (x *UpdateAgentPreferencesRequest) GetOrderMode() string {
+	if x != nil {
+		return x.OrderMode
+	}
+	return ""
+}
+
+func (x *UpdateAgentPreferencesRequest) GetLaunchedAgentId() string {
+	if x != nil {
+		return x.LaunchedAgentId
 	}
 	return ""
 }
@@ -893,24 +928,33 @@ const file_web_console_v1_shortcuts_shortcuts_proto_rawDesc = "" +
 	"\aprofile\x18\x01 \x01(\v2(.vrooli.web_console.v1.shortcuts.ProfileR\aprofile\"&\n" +
 	"\x14DeleteProfileRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x17\n" +
-	"\x15DeleteProfileResponse\"\xce\x01\n" +
+	"\x15DeleteProfileResponse\"\xa1\x03\n" +
 	"\x10AgentPreferences\x12\x1d\n" +
 	"\n" +
 	"profile_id\x18\x01 \x01(\tR\tprofileId\x12*\n" +
 	"\x11ordered_agent_ids\x18\x02 \x03(\tR\x0forderedAgentIds\x12(\n" +
 	"\x10hidden_agent_ids\x18\x03 \x03(\tR\x0ehiddenAgentIds\x12\x1a\n" +
 	"\brevision\x18\x04 \x01(\x04R\brevision\x12)\n" +
-	"\x10profile_instance\x18\x05 \x01(\tR\x0fprofileInstance\"\x1c\n" +
+	"\x10profile_instance\x18\x05 \x01(\tR\x0fprofileInstance\x12\x1d\n" +
+	"\n" +
+	"order_mode\x18\x06 \x01(\tR\torderMode\x12o\n" +
+	"\x10last_launched_at\x18\a \x03(\v2E.vrooli.web_console.v1.shortcuts.AgentPreferences.LastLaunchedAtEntryR\x0elastLaunchedAt\x1aA\n" +
+	"\x13LastLaunchedAtEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x1c\n" +
 	"\x1aGetAgentPreferencesRequest\"r\n" +
 	"\x1bGetAgentPreferencesResponse\x12S\n" +
-	"\vpreferences\x18\x01 \x01(\v21.vrooli.web_console.v1.shortcuts.AgentPreferencesR\vpreferences\"\xec\x01\n" +
+	"\vpreferences\x18\x01 \x01(\v21.vrooli.web_console.v1.shortcuts.AgentPreferencesR\vpreferences\"\xb7\x02\n" +
 	"\x1dUpdateAgentPreferencesRequest\x12\x1d\n" +
 	"\n" +
 	"profile_id\x18\x01 \x01(\tR\tprofileId\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12*\n" +
 	"\x11ordered_agent_ids\x18\x03 \x03(\tR\x0forderedAgentIds\x12(\n" +
 	"\x10hidden_agent_ids\x18\x04 \x03(\tR\x0ehiddenAgentIds\x12)\n" +
-	"\x10profile_instance\x18\x05 \x01(\tR\x0fprofileInstance\"u\n" +
+	"\x10profile_instance\x18\x05 \x01(\tR\x0fprofileInstance\x12\x1d\n" +
+	"\n" +
+	"order_mode\x18\x06 \x01(\tR\torderMode\x12*\n" +
+	"\x11launched_agent_id\x18\a \x01(\tR\x0flaunchedAgentId\"u\n" +
 	"\x1eUpdateAgentPreferencesResponse\x12S\n" +
 	"\vpreferences\x18\x01 \x01(\v21.vrooli.web_console.v1.shortcuts.AgentPreferencesR\vpreferences2\xbb\x06\n" +
 	"\x10ShortcutsService\x12{\n" +
@@ -933,7 +977,7 @@ func file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescData
 }
 
-var file_web_console_v1_shortcuts_shortcuts_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_web_console_v1_shortcuts_shortcuts_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_web_console_v1_shortcuts_shortcuts_proto_goTypes = []any{
 	(*Shortcut)(nil),                       // 0: vrooli.web_console.v1.shortcuts.Shortcut
 	(*Profile)(nil),                        // 1: vrooli.web_console.v1.shortcuts.Profile
@@ -950,6 +994,7 @@ var file_web_console_v1_shortcuts_shortcuts_proto_goTypes = []any{
 	(*GetAgentPreferencesResponse)(nil),    // 12: vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse
 	(*UpdateAgentPreferencesRequest)(nil),  // 13: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest
 	(*UpdateAgentPreferencesResponse)(nil), // 14: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse
+	nil,                                    // 15: vrooli.web_console.v1.shortcuts.AgentPreferences.LastLaunchedAtEntry
 }
 var file_web_console_v1_shortcuts_shortcuts_proto_depIdxs = []int32{
 	0,  // 0: vrooli.web_console.v1.shortcuts.Profile.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
@@ -957,25 +1002,26 @@ var file_web_console_v1_shortcuts_shortcuts_proto_depIdxs = []int32{
 	1,  // 2: vrooli.web_console.v1.shortcuts.ListProfilesResponse.profiles:type_name -> vrooli.web_console.v1.shortcuts.Profile
 	0,  // 3: vrooli.web_console.v1.shortcuts.UpsertProfileRequest.shortcuts:type_name -> vrooli.web_console.v1.shortcuts.Shortcut
 	1,  // 4: vrooli.web_console.v1.shortcuts.UpsertProfileResponse.profile:type_name -> vrooli.web_console.v1.shortcuts.Profile
-	10, // 5: vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse.preferences:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences
-	10, // 6: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse.preferences:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences
-	2,  // 7: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:input_type -> vrooli.web_console.v1.shortcuts.GetEffectiveRequest
-	4,  // 8: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:input_type -> vrooli.web_console.v1.shortcuts.ListProfilesRequest
-	6,  // 9: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:input_type -> vrooli.web_console.v1.shortcuts.UpsertProfileRequest
-	8,  // 10: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:input_type -> vrooli.web_console.v1.shortcuts.DeleteProfileRequest
-	11, // 11: vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences:input_type -> vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest
-	13, // 12: vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences:input_type -> vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest
-	3,  // 13: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:output_type -> vrooli.web_console.v1.shortcuts.GetEffectiveResponse
-	5,  // 14: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:output_type -> vrooli.web_console.v1.shortcuts.ListProfilesResponse
-	7,  // 15: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:output_type -> vrooli.web_console.v1.shortcuts.UpsertProfileResponse
-	9,  // 16: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:output_type -> vrooli.web_console.v1.shortcuts.DeleteProfileResponse
-	12, // 17: vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences:output_type -> vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse
-	14, // 18: vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences:output_type -> vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse
-	13, // [13:19] is the sub-list for method output_type
-	7,  // [7:13] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	15, // 5: vrooli.web_console.v1.shortcuts.AgentPreferences.last_launched_at:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences.LastLaunchedAtEntry
+	10, // 6: vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse.preferences:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences
+	10, // 7: vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse.preferences:type_name -> vrooli.web_console.v1.shortcuts.AgentPreferences
+	2,  // 8: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:input_type -> vrooli.web_console.v1.shortcuts.GetEffectiveRequest
+	4,  // 9: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:input_type -> vrooli.web_console.v1.shortcuts.ListProfilesRequest
+	6,  // 10: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:input_type -> vrooli.web_console.v1.shortcuts.UpsertProfileRequest
+	8,  // 11: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:input_type -> vrooli.web_console.v1.shortcuts.DeleteProfileRequest
+	11, // 12: vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences:input_type -> vrooli.web_console.v1.shortcuts.GetAgentPreferencesRequest
+	13, // 13: vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences:input_type -> vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesRequest
+	3,  // 14: vrooli.web_console.v1.shortcuts.ShortcutsService.GetEffective:output_type -> vrooli.web_console.v1.shortcuts.GetEffectiveResponse
+	5,  // 15: vrooli.web_console.v1.shortcuts.ShortcutsService.ListProfiles:output_type -> vrooli.web_console.v1.shortcuts.ListProfilesResponse
+	7,  // 16: vrooli.web_console.v1.shortcuts.ShortcutsService.UpsertProfile:output_type -> vrooli.web_console.v1.shortcuts.UpsertProfileResponse
+	9,  // 17: vrooli.web_console.v1.shortcuts.ShortcutsService.DeleteProfile:output_type -> vrooli.web_console.v1.shortcuts.DeleteProfileResponse
+	12, // 18: vrooli.web_console.v1.shortcuts.ShortcutsService.GetAgentPreferences:output_type -> vrooli.web_console.v1.shortcuts.GetAgentPreferencesResponse
+	14, // 19: vrooli.web_console.v1.shortcuts.ShortcutsService.UpdateAgentPreferences:output_type -> vrooli.web_console.v1.shortcuts.UpdateAgentPreferencesResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_shortcuts_shortcuts_proto_init() }
@@ -989,7 +1035,7 @@ func file_web_console_v1_shortcuts_shortcuts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_shortcuts_shortcuts_proto_rawDesc), len(file_web_console_v1_shortcuts_shortcuts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file device-control/v1/devices/devices.proto.
  */
 export const file_device_control_v1_devices_devices: GenFile = /*@__PURE__*/
-  fileDesc("CidkZXZpY2UtY29udHJvbC92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SIHZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzIjwKFEluc3BlY3REZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIRCgl0cmFuc3BvcnQYAiABKAki5QQKFUluc3BlY3REZXZpY2VSZXNwb25zZRIRCglkZXZpY2VfaWQYASABKAkSLwoLb2JzZXJ2ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGFiaXMYAyADKAkSHwoSbWVtb3J5X3RvdGFsX2J5dGVzGAQgASgESACIAQESHQoQZGF0YV90b3RhbF9ieXRlcxgFIAEoBEgBiAEBEiEKFGRhdGFfYXZhaWxhYmxlX2J5dGVzGAYgASgESAKIAQESFwoPd2Vidmlld19wYWNrYWdlGAcgASgJEhcKD3dlYnZpZXdfdmVyc2lvbhgIIAEoCRIWCg5ob21lX2NvbXBvbmVudBgJIAEoCRIUCgdsb3dfcmFtGAogASgISAOIAQESXQoLdW5hdmFpbGFibGUYCyADKAsySC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVzcG9uc2UuVW5hdmFpbGFibGVFbnRyeRIRCgl0cmFuc3BvcnQYDCABKAkSQAoFdm9pY2UYDSABKAsyMS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Wb2ljZUluc3BlY3Rpb24aMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19tZW1vcnlfdG90YWxfYnl0ZXNCEwoRX2RhdGFfdG90YWxfYnl0ZXNCFwoVX2RhdGFfYXZhaWxhYmxlX2J5dGVzQgoKCF9sb3dfcmFtIroDCg9Wb2ljZUluc3BlY3Rpb24SHwoSbWljcm9waG9uZV9mZWF0dXJlGAEgASgISACIAQESHgoWYXNzaXN0YW50X3JvbGVfaG9sZGVycxgCIAMoCRIgChNhc3Npc3RhbnRfY29tcG9uZW50GAMgASgJSAGIAQESKAobdm9pY2VfaW50ZXJhY3Rpb25fY29tcG9uZW50GAQgASgJSAKIAQESIgoadm9pY2VfaW50ZXJhY3Rpb25fc2VydmljZXMYBSADKAkSGgoScG9saWN5X2lucHV0X3R5cGVzGAYgAygJElcKC3VuYXZhaWxhYmxlGAcgAygLMkIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuVm9pY2VJbnNwZWN0aW9uLlVuYXZhaWxhYmxlRW50cnkaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19taWNyb3Bob25lX2ZlYXR1cmVCFgoUX2Fzc2lzdGFudF9jb21wb25lbnRCHgocX3ZvaWNlX2ludGVyYWN0aW9uX2NvbXBvbmVudCIUChJMaXN0RGV2aWNlc1JlcXVlc3QiUAoTTGlzdERldmljZXNSZXNwb25zZRI5CgdkZXZpY2VzGAEgAygLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIiQKFENvbm5lY3REZXZpY2VSZXF1ZXN0EgwKBGtpbmQYASABKAkicwoVQ29ubmVjdERldmljZVJlc3BvbnNlEj8KBXJ1bmdzGAEgAygLMjAudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuT25ib2FyZGluZ1J1bmcSGQoRZmlyc3RfbmV4dF9hY3Rpb24YAiABKAkiKwoWUmVjb25uZWN0RGV2aWNlUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkiUwoXUmVjb25uZWN0RGV2aWNlUmVzcG9uc2USOAoGZGV2aWNlGAEgASgLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIroBChRFeGVjdXRlVm9sdW1lUmVxdWVzdBIOCgZkZXZpY2UYASABKAkSDQoFYWN0b3IYAiABKAkSDAoEZ29hbBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSEgoFdmFsdWUYBSABKAFIAIgBARIRCglkaXJlY3Rpb24YBiABKAkSGwoTdmVyaWZpY2F0aW9uX3BvbGljeRgHIAEoCRIUCgxvcGVyYXRpb25faWQYCCABKAlCCAoGX3ZhbHVlIrsCChVFeGVjdXRlVm9sdW1lUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIRCglkZXZpY2VfaWQYAyABKAkSEwoLZGV2aWNlX25hbWUYBCABKAkSJQoEcGxhbhgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSJwoGYmVmb3JlGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBImCgVhZnRlchgHIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSGgoSdmVyaWZpY2F0aW9uX2NsYXNzGAggASgJEhAKCGV2aWRlbmNlGAkgAygJEhkKEXJlY292ZXJ5X2F0dGVtcHRzGAogASgFEhMKC25leHRfYWN0aW9uGAsgASgJIvkDCgZEZXZpY2USCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEhMKC3N0cmF0ZWd5X2lkGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIVCg1oZWFsdGhfcmVhc29uGAYgASgJEhQKDGhvc3Rfbm9kZV9pZBgHIAEoCRJKCgxjYXBhYmlsaXRpZXMYCCADKAsyNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXBhYmlsaXR5U25hcHNob3QSLwoLb2JzZXJ2ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNlcmlhbBgKIAEoCRINCgVtb2RlbBgLIAEoCRISCgpvc192ZXJzaW9uGAwgASgJEhEKCXRyYW5zcG9ydBgNIAEoCRIOCgZoZWFsdGgYDiABKAkSFQoNZmlyc3Rfc2Vlbl9hdBgPIAEoCRIUCgxsYXN0X3NlZW5fYXQYECABKAkSRgoKdHJhbnNwb3J0cxgRIAMoCzIyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlRyYW5zcG9ydFByb2ZpbGUSFAoMaWRlbnRpdHlfa2V5GBIgASgJEhcKD2lkZW50aXR5X3JlYXNvbhgTIAEoCSJdChJDYXBhYmlsaXR5U25hcHNob3QSDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFAoMcHJlcmVxdWlzaXRlGAMgASgJEhMKC25leHRfYWN0aW9uGAQgASgJIu8BChBUcmFuc3BvcnRQcm9maWxlEhMKC3N0cmF0ZWd5X2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEcm9sZRgDIAEoCRIQCghlbmRwb2ludBgEIAEoCRIOCgZoZWFsdGgYBSABKAkSFQoNaGVhbHRoX3JlYXNvbhgGIAEoCRJKCgxjYXBhYmlsaXRpZXMYByADKAsyNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXBhYmlsaXR5U25hcHNob3QSEgoKb3BlcmF0aW9ucxgIIAMoCRIRCgllbmRwb2ludHMYCSADKAkiZgoOT25ib2FyZGluZ1J1bmcSCgoCaWQYASABKAkSFAoMcHJlcmVxdWlzaXRlGAIgASgJEg0KBW93bmVyGAMgASgJEg4KBnN0YXR1cxgEIAEoCRITCgtuZXh0X2FjdGlvbhgFIAEoCTKdBQoNRGV2aWNlU2VydmljZRJ6CgtMaXN0RGV2aWNlcxI0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxpc3REZXZpY2VzUmVxdWVzdBo1LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxpc3REZXZpY2VzUmVzcG9uc2USgAEKDUNvbm5lY3REZXZpY2USNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Db25uZWN0RGV2aWNlUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNvbm5lY3REZXZpY2VSZXNwb25zZRKGAQoPUmVjb25uZWN0RGV2aWNlEjgudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuUmVjb25uZWN0RGV2aWNlUmVxdWVzdBo5LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlJlY29ubmVjdERldmljZVJlc3BvbnNlEoABCg1FeGVjdXRlVm9sdW1lEjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRXhlY3V0ZVZvbHVtZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5FeGVjdXRlVm9sdW1lUmVzcG9uc2USgAEKDUluc3BlY3REZXZpY2USNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkluc3BlY3REZXZpY2VSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2RldmljZXM7ZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
+  fileDesc("CidkZXZpY2UtY29udHJvbC92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SIHZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzIjwKFEluc3BlY3REZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIRCgl0cmFuc3BvcnQYAiABKAkirQUKFUluc3BlY3REZXZpY2VSZXNwb25zZRIRCglkZXZpY2VfaWQYASABKAkSLwoLb2JzZXJ2ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGFiaXMYAyADKAkSHwoSbWVtb3J5X3RvdGFsX2J5dGVzGAQgASgESACIAQESHQoQZGF0YV90b3RhbF9ieXRlcxgFIAEoBEgBiAEBEiEKFGRhdGFfYXZhaWxhYmxlX2J5dGVzGAYgASgESAKIAQESFwoPd2Vidmlld19wYWNrYWdlGAcgASgJEhcKD3dlYnZpZXdfdmVyc2lvbhgIIAEoCRIWCg5ob21lX2NvbXBvbmVudBgJIAEoCRIUCgdsb3dfcmFtGAogASgISAOIAQESXQoLdW5hdmFpbGFibGUYCyADKAsySC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVzcG9uc2UuVW5hdmFpbGFibGVFbnRyeRIRCgl0cmFuc3BvcnQYDCABKAkSQAoFdm9pY2UYDSABKAsyMS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Wb2ljZUluc3BlY3Rpb24SRgoOdmlkZW9fZW5jb2RlcnMYDiADKAsyLi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5WaWRlb0VuY29kZXIaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19tZW1vcnlfdG90YWxfYnl0ZXNCEwoRX2RhdGFfdG90YWxfYnl0ZXNCFwoVX2RhdGFfYXZhaWxhYmxlX2J5dGVzQgoKCF9sb3dfcmFtIpkBCgxWaWRlb0VuY29kZXISEQoJbWltZV90eXBlGAEgASgJEgwKBG5hbWUYAiABKAkSGgoNc29mdHdhcmVfb25seRgDIAEoCEgAiAEBEiEKFGhhcmR3YXJlX2FjY2VsZXJhdGVkGAQgASgISAGIAQFCEAoOX3NvZnR3YXJlX29ubHlCFwoVX2hhcmR3YXJlX2FjY2VsZXJhdGVkIroDCg9Wb2ljZUluc3BlY3Rpb24SHwoSbWljcm9waG9uZV9mZWF0dXJlGAEgASgISACIAQESHgoWYXNzaXN0YW50X3JvbGVfaG9sZGVycxgCIAMoCRIgChNhc3Npc3RhbnRfY29tcG9uZW50GAMgASgJSAGIAQESKAobdm9pY2VfaW50ZXJhY3Rpb25fY29tcG9uZW50GAQgASgJSAKIAQESIgoadm9pY2VfaW50ZXJhY3Rpb25fc2VydmljZXMYBSADKAkSGgoScG9saWN5X2lucHV0X3R5cGVzGAYgAygJElcKC3VuYXZhaWxhYmxlGAcgAygLMkIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuVm9pY2VJbnNwZWN0aW9uLlVuYXZhaWxhYmxlRW50cnkaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19taWNyb3Bob25lX2ZlYXR1cmVCFgoUX2Fzc2lzdGFudF9jb21wb25lbnRCHgocX3ZvaWNlX2ludGVyYWN0aW9uX2NvbXBvbmVudCIUChJMaXN0RGV2aWNlc1JlcXVlc3QiUAoTTGlzdERldmljZXNSZXNwb25zZRI5CgdkZXZpY2VzGAEgAygLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIiQKFENvbm5lY3REZXZpY2VSZXF1ZXN0EgwKBGtpbmQYASABKAkicwoVQ29ubmVjdERldmljZVJlc3BvbnNlEj8KBXJ1bmdzGAEgAygLMjAudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuT25ib2FyZGluZ1J1bmcSGQoRZmlyc3RfbmV4dF9hY3Rpb24YAiABKAkiKwoWUmVjb25uZWN0RGV2aWNlUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkiUwoXUmVjb25uZWN0RGV2aWNlUmVzcG9uc2USOAoGZGV2aWNlGAEgASgLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIroBChRFeGVjdXRlVm9sdW1lUmVxdWVzdBIOCgZkZXZpY2UYASABKAkSDQoFYWN0b3IYAiABKAkSDAoEZ29hbBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSEgoFdmFsdWUYBSABKAFIAIgBARIRCglkaXJlY3Rpb24YBiABKAkSGwoTdmVyaWZpY2F0aW9uX3BvbGljeRgHIAEoCRIUCgxvcGVyYXRpb25faWQYCCABKAlCCAoGX3ZhbHVlIrsCChVFeGVjdXRlVm9sdW1lUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIRCglkZXZpY2VfaWQYAyABKAkSEwoLZGV2aWNlX25hbWUYBCABKAkSJQoEcGxhbhgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSJwoGYmVmb3JlGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBImCgVhZnRlchgHIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSGgoSdmVyaWZpY2F0aW9uX2NsYXNzGAggASgJEhAKCGV2aWRlbmNlGAkgAygJEhkKEXJlY292ZXJ5X2F0dGVtcHRzGAogASgFEhMKC25leHRfYWN0aW9uGAsgASgJIvkDCgZEZXZpY2USCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEhMKC3N0cmF0ZWd5X2lkGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIVCg1oZWFsdGhfcmVhc29uGAYgASgJEhQKDGhvc3Rfbm9kZV9pZBgHIAEoCRJKCgxjYXBhYmlsaXRpZXMYCCADKAsyNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXBhYmlsaXR5U25hcHNob3QSLwoLb2JzZXJ2ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNlcmlhbBgKIAEoCRINCgVtb2RlbBgLIAEoCRISCgpvc192ZXJzaW9uGAwgASgJEhEKCXRyYW5zcG9ydBgNIAEoCRIOCgZoZWFsdGgYDiABKAkSFQoNZmlyc3Rfc2Vlbl9hdBgPIAEoCRIUCgxsYXN0X3NlZW5fYXQYECABKAkSRgoKdHJhbnNwb3J0cxgRIAMoCzIyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlRyYW5zcG9ydFByb2ZpbGUSFAoMaWRlbnRpdHlfa2V5GBIgASgJEhcKD2lkZW50aXR5X3JlYXNvbhgTIAEoCSJdChJDYXBhYmlsaXR5U25hcHNob3QSDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFAoMcHJlcmVxdWlzaXRlGAMgASgJEhMKC25leHRfYWN0aW9uGAQgASgJIu8BChBUcmFuc3BvcnRQcm9maWxlEhMKC3N0cmF0ZWd5X2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEcm9sZRgDIAEoCRIQCghlbmRwb2ludBgEIAEoCRIOCgZoZWFsdGgYBSABKAkSFQoNaGVhbHRoX3JlYXNvbhgGIAEoCRJKCgxjYXBhYmlsaXRpZXMYByADKAsyNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXBhYmlsaXR5U25hcHNob3QSEgoKb3BlcmF0aW9ucxgIIAMoCRIRCgllbmRwb2ludHMYCSADKAkiZgoOT25ib2FyZGluZ1J1bmcSCgoCaWQYASABKAkSFAoMcHJlcmVxdWlzaXRlGAIgASgJEg0KBW93bmVyGAMgASgJEg4KBnN0YXR1cxgEIAEoCRITCgtuZXh0X2FjdGlvbhgFIAEoCTKdBQoNRGV2aWNlU2VydmljZRJ6CgtMaXN0RGV2aWNlcxI0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxpc3REZXZpY2VzUmVxdWVzdBo1LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxpc3REZXZpY2VzUmVzcG9uc2USgAEKDUNvbm5lY3REZXZpY2USNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Db25uZWN0RGV2aWNlUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNvbm5lY3REZXZpY2VSZXNwb25zZRKGAQoPUmVjb25uZWN0RGV2aWNlEjgudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuUmVjb25uZWN0RGV2aWNlUmVxdWVzdBo5LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlJlY29ubmVjdERldmljZVJlc3BvbnNlEoABCg1FeGVjdXRlVm9sdW1lEjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRXhlY3V0ZVZvbHVtZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5FeGVjdXRlVm9sdW1lUmVzcG9uc2USgAEKDUluc3BlY3REZXZpY2USNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkluc3BlY3REZXZpY2VSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2RldmljZXM7ZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.InspectDeviceRequest
@@ -104,6 +104,14 @@ export type InspectDeviceResponse = Message<"vrooli.device_control.v1.devices.In
    * @generated from field: vrooli.device_control.v1.devices.VoiceInspection voice = 13;
    */
   voice?: VoiceInspection | undefined;
+
+  /**
+   * Android-reported encoder capabilities; availability does not prove an
+   * encoder will be chosen or achieve a particular frame rate.
+   *
+   * @generated from field: repeated vrooli.device_control.v1.devices.VideoEncoder video_encoders = 14;
+   */
+  videoEncoders: VideoEncoder[];
 };
 
 /**
@@ -112,6 +120,38 @@ export type InspectDeviceResponse = Message<"vrooli.device_control.v1.devices.In
  */
 export const InspectDeviceResponseSchema: GenMessage<InspectDeviceResponse> = /*@__PURE__*/
   messageDesc(file_device_control_v1_devices_devices, 1);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.VideoEncoder
+ */
+export type VideoEncoder = Message<"vrooli.device_control.v1.devices.VideoEncoder"> & {
+  /**
+   * @generated from field: string mime_type = 1;
+   */
+  mimeType: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: optional bool software_only = 3;
+   */
+  softwareOnly?: boolean | undefined;
+
+  /**
+   * @generated from field: optional bool hardware_accelerated = 4;
+   */
+  hardwareAccelerated?: boolean | undefined;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.VideoEncoder.
+ * Use `create(VideoEncoderSchema)` to create a new message.
+ */
+export const VideoEncoderSchema: GenMessage<VideoEncoder> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 2);
 
 /**
  * Reported configuration only: no audio capture or claim of app microphone access.
@@ -162,7 +202,7 @@ export type VoiceInspection = Message<"vrooli.device_control.v1.devices.VoiceIns
  * Use `create(VoiceInspectionSchema)` to create a new message.
  */
 export const VoiceInspectionSchema: GenMessage<VoiceInspection> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 2);
+  messageDesc(file_device_control_v1_devices_devices, 3);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ListDevicesRequest
@@ -175,7 +215,7 @@ export type ListDevicesRequest = Message<"vrooli.device_control.v1.devices.ListD
  * Use `create(ListDevicesRequestSchema)` to create a new message.
  */
 export const ListDevicesRequestSchema: GenMessage<ListDevicesRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 3);
+  messageDesc(file_device_control_v1_devices_devices, 4);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ListDevicesResponse
@@ -192,7 +232,7 @@ export type ListDevicesResponse = Message<"vrooli.device_control.v1.devices.List
  * Use `create(ListDevicesResponseSchema)` to create a new message.
  */
 export const ListDevicesResponseSchema: GenMessage<ListDevicesResponse> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 4);
+  messageDesc(file_device_control_v1_devices_devices, 5);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ConnectDeviceRequest
@@ -209,7 +249,7 @@ export type ConnectDeviceRequest = Message<"vrooli.device_control.v1.devices.Con
  * Use `create(ConnectDeviceRequestSchema)` to create a new message.
  */
 export const ConnectDeviceRequestSchema: GenMessage<ConnectDeviceRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 5);
+  messageDesc(file_device_control_v1_devices_devices, 6);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ConnectDeviceResponse
@@ -231,7 +271,7 @@ export type ConnectDeviceResponse = Message<"vrooli.device_control.v1.devices.Co
  * Use `create(ConnectDeviceResponseSchema)` to create a new message.
  */
 export const ConnectDeviceResponseSchema: GenMessage<ConnectDeviceResponse> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 6);
+  messageDesc(file_device_control_v1_devices_devices, 7);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ReconnectDeviceRequest
@@ -248,7 +288,7 @@ export type ReconnectDeviceRequest = Message<"vrooli.device_control.v1.devices.R
  * Use `create(ReconnectDeviceRequestSchema)` to create a new message.
  */
 export const ReconnectDeviceRequestSchema: GenMessage<ReconnectDeviceRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 7);
+  messageDesc(file_device_control_v1_devices_devices, 8);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ReconnectDeviceResponse
@@ -265,7 +305,7 @@ export type ReconnectDeviceResponse = Message<"vrooli.device_control.v1.devices.
  * Use `create(ReconnectDeviceResponseSchema)` to create a new message.
  */
 export const ReconnectDeviceResponseSchema: GenMessage<ReconnectDeviceResponse> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 8);
+  messageDesc(file_device_control_v1_devices_devices, 9);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ExecuteVolumeRequest
@@ -317,7 +357,7 @@ export type ExecuteVolumeRequest = Message<"vrooli.device_control.v1.devices.Exe
  * Use `create(ExecuteVolumeRequestSchema)` to create a new message.
  */
 export const ExecuteVolumeRequestSchema: GenMessage<ExecuteVolumeRequest> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 9);
+  messageDesc(file_device_control_v1_devices_devices, 10);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.ExecuteVolumeResponse
@@ -384,7 +424,7 @@ export type ExecuteVolumeResponse = Message<"vrooli.device_control.v1.devices.Ex
  * Use `create(ExecuteVolumeResponseSchema)` to create a new message.
  */
 export const ExecuteVolumeResponseSchema: GenMessage<ExecuteVolumeResponse> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 10);
+  messageDesc(file_device_control_v1_devices_devices, 11);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.Device
@@ -491,7 +531,7 @@ export type Device = Message<"vrooli.device_control.v1.devices.Device"> & {
  * Use `create(DeviceSchema)` to create a new message.
  */
 export const DeviceSchema: GenMessage<Device> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 11);
+  messageDesc(file_device_control_v1_devices_devices, 12);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.CapabilitySnapshot
@@ -523,7 +563,7 @@ export type CapabilitySnapshot = Message<"vrooli.device_control.v1.devices.Capab
  * Use `create(CapabilitySnapshotSchema)` to create a new message.
  */
 export const CapabilitySnapshotSchema: GenMessage<CapabilitySnapshot> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 12);
+  messageDesc(file_device_control_v1_devices_devices, 13);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.TransportProfile
@@ -580,7 +620,7 @@ export type TransportProfile = Message<"vrooli.device_control.v1.devices.Transpo
  * Use `create(TransportProfileSchema)` to create a new message.
  */
 export const TransportProfileSchema: GenMessage<TransportProfile> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 13);
+  messageDesc(file_device_control_v1_devices_devices, 14);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.OnboardingRung
@@ -617,7 +657,7 @@ export type OnboardingRung = Message<"vrooli.device_control.v1.devices.Onboardin
  * Use `create(OnboardingRungSchema)` to create a new message.
  */
 export const OnboardingRungSchema: GenMessage<OnboardingRung> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 14);
+  messageDesc(file_device_control_v1_devices_devices, 15);
 
 /**
  * @generated from service vrooli.device_control.v1.devices.DeviceService

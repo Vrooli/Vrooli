@@ -25,6 +25,58 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ApplicationLifecycleAction int32
+
+const (
+	ApplicationLifecycleAction_APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED ApplicationLifecycleAction = 0
+	ApplicationLifecycleAction_APPLICATION_LIFECYCLE_ACTION_START       ApplicationLifecycleAction = 1
+	ApplicationLifecycleAction_APPLICATION_LIFECYCLE_ACTION_RESTART     ApplicationLifecycleAction = 2
+	ApplicationLifecycleAction_APPLICATION_LIFECYCLE_ACTION_STOP        ApplicationLifecycleAction = 3
+)
+
+// Enum value maps for ApplicationLifecycleAction.
+var (
+	ApplicationLifecycleAction_name = map[int32]string{
+		0: "APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED",
+		1: "APPLICATION_LIFECYCLE_ACTION_START",
+		2: "APPLICATION_LIFECYCLE_ACTION_RESTART",
+		3: "APPLICATION_LIFECYCLE_ACTION_STOP",
+	}
+	ApplicationLifecycleAction_value = map[string]int32{
+		"APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED": 0,
+		"APPLICATION_LIFECYCLE_ACTION_START":       1,
+		"APPLICATION_LIFECYCLE_ACTION_RESTART":     2,
+		"APPLICATION_LIFECYCLE_ACTION_STOP":        3,
+	}
+)
+
+func (x ApplicationLifecycleAction) Enum() *ApplicationLifecycleAction {
+	p := new(ApplicationLifecycleAction)
+	*p = x
+	return p
+}
+
+func (x ApplicationLifecycleAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ApplicationLifecycleAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_portal_v1_surfaces_surfaces_proto_enumTypes[0].Descriptor()
+}
+
+func (ApplicationLifecycleAction) Type() protoreflect.EnumType {
+	return &file_portal_v1_surfaces_surfaces_proto_enumTypes[0]
+}
+
+func (x ApplicationLifecycleAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ApplicationLifecycleAction.Descriptor instead.
+func (ApplicationLifecycleAction) EnumDescriptor() ([]byte, []int) {
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{0}
+}
+
 type ListApplicationsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -311,6 +363,118 @@ func (x *ResolveApplicationResponse) GetObservedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type ApplicationLifecycleRequest struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Scenario      string                     `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Action        ApplicationLifecycleAction `protobuf:"varint,2,opt,name=action,proto3,enum=vrooli.portal.v1.surfaces.ApplicationLifecycleAction" json:"action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplicationLifecycleRequest) Reset() {
+	*x = ApplicationLifecycleRequest{}
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplicationLifecycleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplicationLifecycleRequest) ProtoMessage() {}
+
+func (x *ApplicationLifecycleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplicationLifecycleRequest.ProtoReflect.Descriptor instead.
+func (*ApplicationLifecycleRequest) Descriptor() ([]byte, []int) {
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ApplicationLifecycleRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ApplicationLifecycleRequest) GetAction() ApplicationLifecycleAction {
+	if x != nil {
+		return x.Action
+	}
+	return ApplicationLifecycleAction_APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED
+}
+
+type ApplicationLifecycleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Application   *Application           `protobuf:"bytes,1,opt,name=application,proto3" json:"application,omitempty"`
+	Outcome       string                 `protobuf:"bytes,2,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApplicationLifecycleResponse) Reset() {
+	*x = ApplicationLifecycleResponse{}
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApplicationLifecycleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApplicationLifecycleResponse) ProtoMessage() {}
+
+func (x *ApplicationLifecycleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApplicationLifecycleResponse.ProtoReflect.Descriptor instead.
+func (*ApplicationLifecycleResponse) Descriptor() ([]byte, []int) {
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ApplicationLifecycleResponse) GetApplication() *Application {
+	if x != nil {
+		return x.Application
+	}
+	return nil
+}
+
+func (x *ApplicationLifecycleResponse) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *ApplicationLifecycleResponse) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
 type SourceStatus struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OwnerScenario string                 `protobuf:"bytes,1,opt,name=owner_scenario,json=ownerScenario,proto3" json:"owner_scenario,omitempty"`
@@ -323,7 +487,7 @@ type SourceStatus struct {
 
 func (x *SourceStatus) Reset() {
 	*x = SourceStatus{}
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[5]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -335,7 +499,7 @@ func (x *SourceStatus) String() string {
 func (*SourceStatus) ProtoMessage() {}
 
 func (x *SourceStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[5]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -348,7 +512,7 @@ func (x *SourceStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceStatus.ProtoReflect.Descriptor instead.
 func (*SourceStatus) Descriptor() ([]byte, []int) {
-	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{5}
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SourceStatus) GetOwnerScenario() string {
@@ -380,7 +544,7 @@ type ListRequest struct {
 
 func (x *ListRequest) Reset() {
 	*x = ListRequest{}
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[6]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +556,7 @@ func (x *ListRequest) String() string {
 func (*ListRequest) ProtoMessage() {}
 
 func (x *ListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[6]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +569,7 @@ func (x *ListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequest.ProtoReflect.Descriptor instead.
 func (*ListRequest) Descriptor() ([]byte, []int) {
-	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{6}
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{8}
 }
 
 type ListResponse struct {
@@ -419,7 +583,7 @@ type ListResponse struct {
 
 func (x *ListResponse) Reset() {
 	*x = ListResponse{}
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[7]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +595,7 @@ func (x *ListResponse) String() string {
 func (*ListResponse) ProtoMessage() {}
 
 func (x *ListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[7]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +608,7 @@ func (x *ListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResponse.ProtoReflect.Descriptor instead.
 func (*ListResponse) Descriptor() ([]byte, []int) {
-	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{7}
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListResponse) GetSurfaces() []*v1.SurfaceDescriptor {
@@ -478,7 +642,7 @@ type ResolveRequest struct {
 
 func (x *ResolveRequest) Reset() {
 	*x = ResolveRequest{}
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[8]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +654,7 @@ func (x *ResolveRequest) String() string {
 func (*ResolveRequest) ProtoMessage() {}
 
 func (x *ResolveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[8]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +667,7 @@ func (x *ResolveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveRequest.ProtoReflect.Descriptor instead.
 func (*ResolveRequest) Descriptor() ([]byte, []int) {
-	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{8}
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ResolveRequest) GetDisplayLabel() string {
@@ -532,7 +696,7 @@ type ResolveResponse struct {
 
 func (x *ResolveResponse) Reset() {
 	*x = ResolveResponse{}
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[9]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +708,7 @@ func (x *ResolveResponse) String() string {
 func (*ResolveResponse) ProtoMessage() {}
 
 func (x *ResolveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[9]
+	mi := &file_portal_v1_surfaces_surfaces_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +721,7 @@ func (x *ResolveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveResponse.ProtoReflect.Descriptor instead.
 func (*ResolveResponse) Descriptor() ([]byte, []int) {
-	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{9}
+	return file_portal_v1_surfaces_surfaces_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ResolveResponse) GetMatches() []*v1.SurfaceDescriptor {
@@ -606,6 +770,14 @@ const file_portal_v1_surfaces_surfaces_proto_rawDesc = "" +
 	"\vapplication\x18\x01 \x01(\v2&.vrooli.portal.v1.surfaces.ApplicationR\vapplication\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12;\n" +
 	"\vobserved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\"\x88\x01\n" +
+	"\x1bApplicationLifecycleRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12M\n" +
+	"\x06action\x18\x02 \x01(\x0e25.vrooli.portal.v1.surfaces.ApplicationLifecycleActionR\x06action\"\xbf\x01\n" +
+	"\x1cApplicationLifecycleResponse\x12H\n" +
+	"\vapplication\x18\x01 \x01(\v2&.vrooli.portal.v1.surfaces.ApplicationR\vapplication\x12\x18\n" +
+	"\aoutcome\x18\x02 \x01(\tR\aoutcome\x12;\n" +
+	"\vobserved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"observedAt\"l\n" +
 	"\fSourceStatus\x12%\n" +
 	"\x0eowner_scenario\x18\x01 \x01(\tR\rownerScenario\x12\x14\n" +
@@ -625,13 +797,20 @@ const file_portal_v1_surfaces_surfaces_proto_rawDesc = "" +
 	"\amatches\x18\x01 \x03(\v2\x1c.common.v1.SurfaceDescriptorR\amatches\x12A\n" +
 	"\asources\x18\x02 \x03(\v2'.vrooli.portal.v1.surfaces.SourceStatusR\asources\x12;\n" +
 	"\vobserved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt2\xd2\x01\n" +
+	"observedAt*\xc3\x01\n" +
+	"\x1aApplicationLifecycleAction\x12,\n" +
+	"(APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"APPLICATION_LIFECYCLE_ACTION_START\x10\x01\x12(\n" +
+	"$APPLICATION_LIFECYCLE_ACTION_RESTART\x10\x02\x12%\n" +
+	"!APPLICATION_LIFECYCLE_ACTION_STOP\x10\x032\xd2\x01\n" +
 	"\x15SurfaceCatalogService\x12W\n" +
 	"\x04List\x12&.vrooli.portal.v1.surfaces.ListRequest\x1a'.vrooli.portal.v1.surfaces.ListResponse\x12`\n" +
 	"\aResolve\x12).vrooli.portal.v1.surfaces.ResolveRequest\x1a*.vrooli.portal.v1.surfaces.ResolveResponse2\x9c\x02\n" +
 	"\x19ApplicationCatalogService\x12{\n" +
 	"\x10ListApplications\x122.vrooli.portal.v1.surfaces.ListApplicationsRequest\x1a3.vrooli.portal.v1.surfaces.ListApplicationsResponse\x12\x81\x01\n" +
-	"\x12ResolveApplication\x124.vrooli.portal.v1.surfaces.ResolveApplicationRequest\x1a5.vrooli.portal.v1.surfaces.ResolveApplicationResponse2\xbc\f\n" +
+	"\x12ResolveApplication\x124.vrooli.portal.v1.surfaces.ResolveApplicationRequest\x1a5.vrooli.portal.v1.surfaces.ResolveApplicationResponse2\x95\x01\n" +
+	"\x1bApplicationLifecycleService\x12v\n" +
+	"\x03Act\x126.vrooli.portal.v1.surfaces.ApplicationLifecycleRequest\x1a7.vrooli.portal.v1.surfaces.ApplicationLifecycleResponse2\xbc\f\n" +
 	"\x15DesktopSessionService\x12{\n" +
 	"\rReconcileOpen\x122.vrooli.device_control.v1.desktop.OwnerOpenRequest\x1a6.vrooli.device_control.v1.desktop.OwnerOpenDisposition\x12\x8d\x01\n" +
 	"\x0eListAdmissions\x12<.vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest\x1a=.vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse\x12y\n" +
@@ -664,111 +843,120 @@ func file_portal_v1_surfaces_surfaces_proto_rawDescGZIP() []byte {
 	return file_portal_v1_surfaces_surfaces_proto_rawDescData
 }
 
-var file_portal_v1_surfaces_surfaces_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_portal_v1_surfaces_surfaces_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_portal_v1_surfaces_surfaces_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_portal_v1_surfaces_surfaces_proto_goTypes = []any{
-	(*ListApplicationsRequest)(nil),             // 0: vrooli.portal.v1.surfaces.ListApplicationsRequest
-	(*Application)(nil),                         // 1: vrooli.portal.v1.surfaces.Application
-	(*ListApplicationsResponse)(nil),            // 2: vrooli.portal.v1.surfaces.ListApplicationsResponse
-	(*ResolveApplicationRequest)(nil),           // 3: vrooli.portal.v1.surfaces.ResolveApplicationRequest
-	(*ResolveApplicationResponse)(nil),          // 4: vrooli.portal.v1.surfaces.ResolveApplicationResponse
-	(*SourceStatus)(nil),                        // 5: vrooli.portal.v1.surfaces.SourceStatus
-	(*ListRequest)(nil),                         // 6: vrooli.portal.v1.surfaces.ListRequest
-	(*ListResponse)(nil),                        // 7: vrooli.portal.v1.surfaces.ListResponse
-	(*ResolveRequest)(nil),                      // 8: vrooli.portal.v1.surfaces.ResolveRequest
-	(*ResolveResponse)(nil),                     // 9: vrooli.portal.v1.surfaces.ResolveResponse
-	(*timestamppb.Timestamp)(nil),               // 10: google.protobuf.Timestamp
-	(*v1.SurfaceDescriptor)(nil),                // 11: common.v1.SurfaceDescriptor
-	(*v1.SurfaceRef)(nil),                       // 12: common.v1.SurfaceRef
-	(*desktop.OwnerOpenRequest)(nil),            // 13: vrooli.device_control.v1.desktop.OwnerOpenRequest
-	(*desktop.OwnerListAdmissionsRequest)(nil),  // 14: vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
-	(*desktop.OwnerStopRequest)(nil),            // 15: vrooli.device_control.v1.desktop.OwnerStopRequest
-	(*desktop.OwnerRunFlowRequest)(nil),         // 16: vrooli.device_control.v1.desktop.OwnerRunFlowRequest
-	(*desktop.OwnerPromoteFlowRequest)(nil),     // 17: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
-	(*desktop.OwnerGetSavedFlowRequest)(nil),    // 18: vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
-	(*desktop.OwnerRunSavedFlowRequest)(nil),    // 19: vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
-	(*desktop.OwnerResolveRequest)(nil),         // 20: vrooli.device_control.v1.desktop.OwnerResolveRequest
-	(*desktop.OwnerApplicationsRequest)(nil),    // 21: vrooli.device_control.v1.desktop.OwnerApplicationsRequest
-	(*desktop.OwnerObserveRequest)(nil),         // 22: vrooli.device_control.v1.desktop.OwnerObserveRequest
-	(*desktop.OwnerActRequest)(nil),             // 23: vrooli.device_control.v1.desktop.OwnerActRequest
-	(*accounts.LoginRequest)(nil),               // 24: vrooli.scenario_authenticator.v1.accounts.LoginRequest
-	(*accounts.RegisterRequest)(nil),            // 25: vrooli.scenario_authenticator.v1.accounts.RegisterRequest
-	(*accounts.RefreshRequest)(nil),             // 26: vrooli.scenario_authenticator.v1.accounts.RefreshRequest
-	(*accounts.LogoutRequest)(nil),              // 27: vrooli.scenario_authenticator.v1.accounts.LogoutRequest
-	(*desktop.OwnerOpenDisposition)(nil),        // 28: vrooli.device_control.v1.desktop.OwnerOpenDisposition
-	(*desktop.OwnerListAdmissionsResponse)(nil), // 29: vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
-	(*desktop.OwnerCleanupResponse)(nil),        // 30: vrooli.device_control.v1.desktop.OwnerCleanupResponse
-	(*desktop.FlowRecord)(nil),                  // 31: vrooli.device_control.v1.desktop.FlowRecord
-	(*desktop.SavedDesktopFlow)(nil),            // 32: vrooli.device_control.v1.desktop.SavedDesktopFlow
-	(*desktop.ResolveResponse)(nil),             // 33: vrooli.device_control.v1.desktop.ResolveResponse
-	(*desktop.ApplicationsResponse)(nil),        // 34: vrooli.device_control.v1.desktop.ApplicationsResponse
-	(*desktop.OwnerOpenResponse)(nil),           // 35: vrooli.device_control.v1.desktop.OwnerOpenResponse
-	(*desktop.ObserveResponse)(nil),             // 36: vrooli.device_control.v1.desktop.ObserveResponse
-	(*desktop.ActResponse)(nil),                 // 37: vrooli.device_control.v1.desktop.ActResponse
-	(*desktop.StopResponse)(nil),                // 38: vrooli.device_control.v1.desktop.StopResponse
-	(*accounts.LoginResponse)(nil),              // 39: vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	(*accounts.RegisterResponse)(nil),           // 40: vrooli.scenario_authenticator.v1.accounts.RegisterResponse
-	(*accounts.RefreshResponse)(nil),            // 41: vrooli.scenario_authenticator.v1.accounts.RefreshResponse
-	(*accounts.LogoutResponse)(nil),             // 42: vrooli.scenario_authenticator.v1.accounts.LogoutResponse
+	(ApplicationLifecycleAction)(0),             // 0: vrooli.portal.v1.surfaces.ApplicationLifecycleAction
+	(*ListApplicationsRequest)(nil),             // 1: vrooli.portal.v1.surfaces.ListApplicationsRequest
+	(*Application)(nil),                         // 2: vrooli.portal.v1.surfaces.Application
+	(*ListApplicationsResponse)(nil),            // 3: vrooli.portal.v1.surfaces.ListApplicationsResponse
+	(*ResolveApplicationRequest)(nil),           // 4: vrooli.portal.v1.surfaces.ResolveApplicationRequest
+	(*ResolveApplicationResponse)(nil),          // 5: vrooli.portal.v1.surfaces.ResolveApplicationResponse
+	(*ApplicationLifecycleRequest)(nil),         // 6: vrooli.portal.v1.surfaces.ApplicationLifecycleRequest
+	(*ApplicationLifecycleResponse)(nil),        // 7: vrooli.portal.v1.surfaces.ApplicationLifecycleResponse
+	(*SourceStatus)(nil),                        // 8: vrooli.portal.v1.surfaces.SourceStatus
+	(*ListRequest)(nil),                         // 9: vrooli.portal.v1.surfaces.ListRequest
+	(*ListResponse)(nil),                        // 10: vrooli.portal.v1.surfaces.ListResponse
+	(*ResolveRequest)(nil),                      // 11: vrooli.portal.v1.surfaces.ResolveRequest
+	(*ResolveResponse)(nil),                     // 12: vrooli.portal.v1.surfaces.ResolveResponse
+	(*timestamppb.Timestamp)(nil),               // 13: google.protobuf.Timestamp
+	(*v1.SurfaceDescriptor)(nil),                // 14: common.v1.SurfaceDescriptor
+	(*v1.SurfaceRef)(nil),                       // 15: common.v1.SurfaceRef
+	(*desktop.OwnerOpenRequest)(nil),            // 16: vrooli.device_control.v1.desktop.OwnerOpenRequest
+	(*desktop.OwnerListAdmissionsRequest)(nil),  // 17: vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
+	(*desktop.OwnerStopRequest)(nil),            // 18: vrooli.device_control.v1.desktop.OwnerStopRequest
+	(*desktop.OwnerRunFlowRequest)(nil),         // 19: vrooli.device_control.v1.desktop.OwnerRunFlowRequest
+	(*desktop.OwnerPromoteFlowRequest)(nil),     // 20: vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
+	(*desktop.OwnerGetSavedFlowRequest)(nil),    // 21: vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
+	(*desktop.OwnerRunSavedFlowRequest)(nil),    // 22: vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
+	(*desktop.OwnerResolveRequest)(nil),         // 23: vrooli.device_control.v1.desktop.OwnerResolveRequest
+	(*desktop.OwnerApplicationsRequest)(nil),    // 24: vrooli.device_control.v1.desktop.OwnerApplicationsRequest
+	(*desktop.OwnerObserveRequest)(nil),         // 25: vrooli.device_control.v1.desktop.OwnerObserveRequest
+	(*desktop.OwnerActRequest)(nil),             // 26: vrooli.device_control.v1.desktop.OwnerActRequest
+	(*accounts.LoginRequest)(nil),               // 27: vrooli.scenario_authenticator.v1.accounts.LoginRequest
+	(*accounts.RegisterRequest)(nil),            // 28: vrooli.scenario_authenticator.v1.accounts.RegisterRequest
+	(*accounts.RefreshRequest)(nil),             // 29: vrooli.scenario_authenticator.v1.accounts.RefreshRequest
+	(*accounts.LogoutRequest)(nil),              // 30: vrooli.scenario_authenticator.v1.accounts.LogoutRequest
+	(*desktop.OwnerOpenDisposition)(nil),        // 31: vrooli.device_control.v1.desktop.OwnerOpenDisposition
+	(*desktop.OwnerListAdmissionsResponse)(nil), // 32: vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
+	(*desktop.OwnerCleanupResponse)(nil),        // 33: vrooli.device_control.v1.desktop.OwnerCleanupResponse
+	(*desktop.FlowRecord)(nil),                  // 34: vrooli.device_control.v1.desktop.FlowRecord
+	(*desktop.SavedDesktopFlow)(nil),            // 35: vrooli.device_control.v1.desktop.SavedDesktopFlow
+	(*desktop.ResolveResponse)(nil),             // 36: vrooli.device_control.v1.desktop.ResolveResponse
+	(*desktop.ApplicationsResponse)(nil),        // 37: vrooli.device_control.v1.desktop.ApplicationsResponse
+	(*desktop.OwnerOpenResponse)(nil),           // 38: vrooli.device_control.v1.desktop.OwnerOpenResponse
+	(*desktop.ObserveResponse)(nil),             // 39: vrooli.device_control.v1.desktop.ObserveResponse
+	(*desktop.ActResponse)(nil),                 // 40: vrooli.device_control.v1.desktop.ActResponse
+	(*desktop.StopResponse)(nil),                // 41: vrooli.device_control.v1.desktop.StopResponse
+	(*accounts.LoginResponse)(nil),              // 42: vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	(*accounts.RegisterResponse)(nil),           // 43: vrooli.scenario_authenticator.v1.accounts.RegisterResponse
+	(*accounts.RefreshResponse)(nil),            // 44: vrooli.scenario_authenticator.v1.accounts.RefreshResponse
+	(*accounts.LogoutResponse)(nil),             // 45: vrooli.scenario_authenticator.v1.accounts.LogoutResponse
 }
 var file_portal_v1_surfaces_surfaces_proto_depIdxs = []int32{
-	1,  // 0: vrooli.portal.v1.surfaces.ListApplicationsResponse.applications:type_name -> vrooli.portal.v1.surfaces.Application
-	10, // 1: vrooli.portal.v1.surfaces.ListApplicationsResponse.observed_at:type_name -> google.protobuf.Timestamp
-	1,  // 2: vrooli.portal.v1.surfaces.ResolveApplicationResponse.application:type_name -> vrooli.portal.v1.surfaces.Application
-	10, // 3: vrooli.portal.v1.surfaces.ResolveApplicationResponse.observed_at:type_name -> google.protobuf.Timestamp
-	11, // 4: vrooli.portal.v1.surfaces.ListResponse.surfaces:type_name -> common.v1.SurfaceDescriptor
-	5,  // 5: vrooli.portal.v1.surfaces.ListResponse.sources:type_name -> vrooli.portal.v1.surfaces.SourceStatus
-	10, // 6: vrooli.portal.v1.surfaces.ListResponse.observed_at:type_name -> google.protobuf.Timestamp
-	12, // 7: vrooli.portal.v1.surfaces.ResolveRequest.exact_ref:type_name -> common.v1.SurfaceRef
-	11, // 8: vrooli.portal.v1.surfaces.ResolveResponse.matches:type_name -> common.v1.SurfaceDescriptor
-	5,  // 9: vrooli.portal.v1.surfaces.ResolveResponse.sources:type_name -> vrooli.portal.v1.surfaces.SourceStatus
-	10, // 10: vrooli.portal.v1.surfaces.ResolveResponse.observed_at:type_name -> google.protobuf.Timestamp
-	6,  // 11: vrooli.portal.v1.surfaces.SurfaceCatalogService.List:input_type -> vrooli.portal.v1.surfaces.ListRequest
-	8,  // 12: vrooli.portal.v1.surfaces.SurfaceCatalogService.Resolve:input_type -> vrooli.portal.v1.surfaces.ResolveRequest
-	0,  // 13: vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications:input_type -> vrooli.portal.v1.surfaces.ListApplicationsRequest
-	3,  // 14: vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication:input_type -> vrooli.portal.v1.surfaces.ResolveApplicationRequest
-	13, // 15: vrooli.portal.v1.surfaces.DesktopSessionService.ReconcileOpen:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
-	14, // 16: vrooli.portal.v1.surfaces.DesktopSessionService.ListAdmissions:input_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
-	15, // 17: vrooli.portal.v1.surfaces.DesktopSessionService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	16, // 18: vrooli.portal.v1.surfaces.DesktopSessionService.RunFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunFlowRequest
-	17, // 19: vrooli.portal.v1.surfaces.DesktopSessionService.PromoteFlow:input_type -> vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
-	18, // 20: vrooli.portal.v1.surfaces.DesktopSessionService.GetSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
-	19, // 21: vrooli.portal.v1.surfaces.DesktopSessionService.RunSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
-	20, // 22: vrooli.portal.v1.surfaces.DesktopSessionService.Resolve:input_type -> vrooli.device_control.v1.desktop.OwnerResolveRequest
-	21, // 23: vrooli.portal.v1.surfaces.DesktopSessionService.Applications:input_type -> vrooli.device_control.v1.desktop.OwnerApplicationsRequest
-	13, // 24: vrooli.portal.v1.surfaces.DesktopSessionService.Open:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
-	22, // 25: vrooli.portal.v1.surfaces.DesktopSessionService.Observe:input_type -> vrooli.device_control.v1.desktop.OwnerObserveRequest
-	23, // 26: vrooli.portal.v1.surfaces.DesktopSessionService.Act:input_type -> vrooli.device_control.v1.desktop.OwnerActRequest
-	15, // 27: vrooli.portal.v1.surfaces.DesktopSessionService.Stop:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
-	24, // 28: vrooli.portal.v1.surfaces.OperatorSessionService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
-	25, // 29: vrooli.portal.v1.surfaces.OperatorSessionService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
-	26, // 30: vrooli.portal.v1.surfaces.OperatorSessionService.Refresh:input_type -> vrooli.scenario_authenticator.v1.accounts.RefreshRequest
-	27, // 31: vrooli.portal.v1.surfaces.OperatorSessionService.Logout:input_type -> vrooli.scenario_authenticator.v1.accounts.LogoutRequest
-	7,  // 32: vrooli.portal.v1.surfaces.SurfaceCatalogService.List:output_type -> vrooli.portal.v1.surfaces.ListResponse
-	9,  // 33: vrooli.portal.v1.surfaces.SurfaceCatalogService.Resolve:output_type -> vrooli.portal.v1.surfaces.ResolveResponse
-	2,  // 34: vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications:output_type -> vrooli.portal.v1.surfaces.ListApplicationsResponse
-	4,  // 35: vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication:output_type -> vrooli.portal.v1.surfaces.ResolveApplicationResponse
-	28, // 36: vrooli.portal.v1.surfaces.DesktopSessionService.ReconcileOpen:output_type -> vrooli.device_control.v1.desktop.OwnerOpenDisposition
-	29, // 37: vrooli.portal.v1.surfaces.DesktopSessionService.ListAdmissions:output_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
-	30, // 38: vrooli.portal.v1.surfaces.DesktopSessionService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.OwnerCleanupResponse
-	31, // 39: vrooli.portal.v1.surfaces.DesktopSessionService.RunFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	32, // 40: vrooli.portal.v1.surfaces.DesktopSessionService.PromoteFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
-	32, // 41: vrooli.portal.v1.surfaces.DesktopSessionService.GetSavedFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
-	31, // 42: vrooli.portal.v1.surfaces.DesktopSessionService.RunSavedFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
-	33, // 43: vrooli.portal.v1.surfaces.DesktopSessionService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
-	34, // 44: vrooli.portal.v1.surfaces.DesktopSessionService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
-	35, // 45: vrooli.portal.v1.surfaces.DesktopSessionService.Open:output_type -> vrooli.device_control.v1.desktop.OwnerOpenResponse
-	36, // 46: vrooli.portal.v1.surfaces.DesktopSessionService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
-	37, // 47: vrooli.portal.v1.surfaces.DesktopSessionService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
-	38, // 48: vrooli.portal.v1.surfaces.DesktopSessionService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
-	39, // 49: vrooli.portal.v1.surfaces.OperatorSessionService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	40, // 50: vrooli.portal.v1.surfaces.OperatorSessionService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
-	41, // 51: vrooli.portal.v1.surfaces.OperatorSessionService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
-	42, // 52: vrooli.portal.v1.surfaces.OperatorSessionService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
-	32, // [32:53] is the sub-list for method output_type
-	11, // [11:32] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	2,  // 0: vrooli.portal.v1.surfaces.ListApplicationsResponse.applications:type_name -> vrooli.portal.v1.surfaces.Application
+	13, // 1: vrooli.portal.v1.surfaces.ListApplicationsResponse.observed_at:type_name -> google.protobuf.Timestamp
+	2,  // 2: vrooli.portal.v1.surfaces.ResolveApplicationResponse.application:type_name -> vrooli.portal.v1.surfaces.Application
+	13, // 3: vrooli.portal.v1.surfaces.ResolveApplicationResponse.observed_at:type_name -> google.protobuf.Timestamp
+	0,  // 4: vrooli.portal.v1.surfaces.ApplicationLifecycleRequest.action:type_name -> vrooli.portal.v1.surfaces.ApplicationLifecycleAction
+	2,  // 5: vrooli.portal.v1.surfaces.ApplicationLifecycleResponse.application:type_name -> vrooli.portal.v1.surfaces.Application
+	13, // 6: vrooli.portal.v1.surfaces.ApplicationLifecycleResponse.observed_at:type_name -> google.protobuf.Timestamp
+	14, // 7: vrooli.portal.v1.surfaces.ListResponse.surfaces:type_name -> common.v1.SurfaceDescriptor
+	8,  // 8: vrooli.portal.v1.surfaces.ListResponse.sources:type_name -> vrooli.portal.v1.surfaces.SourceStatus
+	13, // 9: vrooli.portal.v1.surfaces.ListResponse.observed_at:type_name -> google.protobuf.Timestamp
+	15, // 10: vrooli.portal.v1.surfaces.ResolveRequest.exact_ref:type_name -> common.v1.SurfaceRef
+	14, // 11: vrooli.portal.v1.surfaces.ResolveResponse.matches:type_name -> common.v1.SurfaceDescriptor
+	8,  // 12: vrooli.portal.v1.surfaces.ResolveResponse.sources:type_name -> vrooli.portal.v1.surfaces.SourceStatus
+	13, // 13: vrooli.portal.v1.surfaces.ResolveResponse.observed_at:type_name -> google.protobuf.Timestamp
+	9,  // 14: vrooli.portal.v1.surfaces.SurfaceCatalogService.List:input_type -> vrooli.portal.v1.surfaces.ListRequest
+	11, // 15: vrooli.portal.v1.surfaces.SurfaceCatalogService.Resolve:input_type -> vrooli.portal.v1.surfaces.ResolveRequest
+	1,  // 16: vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications:input_type -> vrooli.portal.v1.surfaces.ListApplicationsRequest
+	4,  // 17: vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication:input_type -> vrooli.portal.v1.surfaces.ResolveApplicationRequest
+	6,  // 18: vrooli.portal.v1.surfaces.ApplicationLifecycleService.Act:input_type -> vrooli.portal.v1.surfaces.ApplicationLifecycleRequest
+	16, // 19: vrooli.portal.v1.surfaces.DesktopSessionService.ReconcileOpen:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
+	17, // 20: vrooli.portal.v1.surfaces.DesktopSessionService.ListAdmissions:input_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsRequest
+	18, // 21: vrooli.portal.v1.surfaces.DesktopSessionService.ReadCleanup:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	19, // 22: vrooli.portal.v1.surfaces.DesktopSessionService.RunFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunFlowRequest
+	20, // 23: vrooli.portal.v1.surfaces.DesktopSessionService.PromoteFlow:input_type -> vrooli.device_control.v1.desktop.OwnerPromoteFlowRequest
+	21, // 24: vrooli.portal.v1.surfaces.DesktopSessionService.GetSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerGetSavedFlowRequest
+	22, // 25: vrooli.portal.v1.surfaces.DesktopSessionService.RunSavedFlow:input_type -> vrooli.device_control.v1.desktop.OwnerRunSavedFlowRequest
+	23, // 26: vrooli.portal.v1.surfaces.DesktopSessionService.Resolve:input_type -> vrooli.device_control.v1.desktop.OwnerResolveRequest
+	24, // 27: vrooli.portal.v1.surfaces.DesktopSessionService.Applications:input_type -> vrooli.device_control.v1.desktop.OwnerApplicationsRequest
+	16, // 28: vrooli.portal.v1.surfaces.DesktopSessionService.Open:input_type -> vrooli.device_control.v1.desktop.OwnerOpenRequest
+	25, // 29: vrooli.portal.v1.surfaces.DesktopSessionService.Observe:input_type -> vrooli.device_control.v1.desktop.OwnerObserveRequest
+	26, // 30: vrooli.portal.v1.surfaces.DesktopSessionService.Act:input_type -> vrooli.device_control.v1.desktop.OwnerActRequest
+	18, // 31: vrooli.portal.v1.surfaces.DesktopSessionService.Stop:input_type -> vrooli.device_control.v1.desktop.OwnerStopRequest
+	27, // 32: vrooli.portal.v1.surfaces.OperatorSessionService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
+	28, // 33: vrooli.portal.v1.surfaces.OperatorSessionService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
+	29, // 34: vrooli.portal.v1.surfaces.OperatorSessionService.Refresh:input_type -> vrooli.scenario_authenticator.v1.accounts.RefreshRequest
+	30, // 35: vrooli.portal.v1.surfaces.OperatorSessionService.Logout:input_type -> vrooli.scenario_authenticator.v1.accounts.LogoutRequest
+	10, // 36: vrooli.portal.v1.surfaces.SurfaceCatalogService.List:output_type -> vrooli.portal.v1.surfaces.ListResponse
+	12, // 37: vrooli.portal.v1.surfaces.SurfaceCatalogService.Resolve:output_type -> vrooli.portal.v1.surfaces.ResolveResponse
+	3,  // 38: vrooli.portal.v1.surfaces.ApplicationCatalogService.ListApplications:output_type -> vrooli.portal.v1.surfaces.ListApplicationsResponse
+	5,  // 39: vrooli.portal.v1.surfaces.ApplicationCatalogService.ResolveApplication:output_type -> vrooli.portal.v1.surfaces.ResolveApplicationResponse
+	7,  // 40: vrooli.portal.v1.surfaces.ApplicationLifecycleService.Act:output_type -> vrooli.portal.v1.surfaces.ApplicationLifecycleResponse
+	31, // 41: vrooli.portal.v1.surfaces.DesktopSessionService.ReconcileOpen:output_type -> vrooli.device_control.v1.desktop.OwnerOpenDisposition
+	32, // 42: vrooli.portal.v1.surfaces.DesktopSessionService.ListAdmissions:output_type -> vrooli.device_control.v1.desktop.OwnerListAdmissionsResponse
+	33, // 43: vrooli.portal.v1.surfaces.DesktopSessionService.ReadCleanup:output_type -> vrooli.device_control.v1.desktop.OwnerCleanupResponse
+	34, // 44: vrooli.portal.v1.surfaces.DesktopSessionService.RunFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	35, // 45: vrooli.portal.v1.surfaces.DesktopSessionService.PromoteFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
+	35, // 46: vrooli.portal.v1.surfaces.DesktopSessionService.GetSavedFlow:output_type -> vrooli.device_control.v1.desktop.SavedDesktopFlow
+	34, // 47: vrooli.portal.v1.surfaces.DesktopSessionService.RunSavedFlow:output_type -> vrooli.device_control.v1.desktop.FlowRecord
+	36, // 48: vrooli.portal.v1.surfaces.DesktopSessionService.Resolve:output_type -> vrooli.device_control.v1.desktop.ResolveResponse
+	37, // 49: vrooli.portal.v1.surfaces.DesktopSessionService.Applications:output_type -> vrooli.device_control.v1.desktop.ApplicationsResponse
+	38, // 50: vrooli.portal.v1.surfaces.DesktopSessionService.Open:output_type -> vrooli.device_control.v1.desktop.OwnerOpenResponse
+	39, // 51: vrooli.portal.v1.surfaces.DesktopSessionService.Observe:output_type -> vrooli.device_control.v1.desktop.ObserveResponse
+	40, // 52: vrooli.portal.v1.surfaces.DesktopSessionService.Act:output_type -> vrooli.device_control.v1.desktop.ActResponse
+	41, // 53: vrooli.portal.v1.surfaces.DesktopSessionService.Stop:output_type -> vrooli.device_control.v1.desktop.StopResponse
+	42, // 54: vrooli.portal.v1.surfaces.OperatorSessionService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	43, // 55: vrooli.portal.v1.surfaces.OperatorSessionService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
+	44, // 56: vrooli.portal.v1.surfaces.OperatorSessionService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
+	45, // 57: vrooli.portal.v1.surfaces.OperatorSessionService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
+	36, // [36:58] is the sub-list for method output_type
+	14, // [14:36] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_portal_v1_surfaces_surfaces_proto_init() }
@@ -781,13 +969,14 @@ func file_portal_v1_surfaces_surfaces_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_portal_v1_surfaces_surfaces_proto_rawDesc), len(file_portal_v1_surfaces_surfaces_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   10,
+			NumEnums:      1,
+			NumMessages:   12,
 			NumExtensions: 0,
-			NumServices:   4,
+			NumServices:   5,
 		},
 		GoTypes:           file_portal_v1_surfaces_surfaces_proto_goTypes,
 		DependencyIndexes: file_portal_v1_surfaces_surfaces_proto_depIdxs,
+		EnumInfos:         file_portal_v1_surfaces_surfaces_proto_enumTypes,
 		MessageInfos:      file_portal_v1_surfaces_surfaces_proto_msgTypes,
 	}.Build()
 	File_portal_v1_surfaces_surfaces_proto = out.File

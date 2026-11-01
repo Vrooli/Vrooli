@@ -47,6 +47,12 @@ const (
 	// CapabilitiesServiceAgentUsageProcedure is the fully-qualified name of the CapabilitiesService's
 	// AgentUsage RPC.
 	CapabilitiesServiceAgentUsageProcedure = "/vrooli.web_console.v1.capabilities.CapabilitiesService/AgentUsage"
+	// CapabilitiesServiceRunAgentUpdateActionProcedure is the fully-qualified name of the
+	// CapabilitiesService's RunAgentUpdateAction RPC.
+	CapabilitiesServiceRunAgentUpdateActionProcedure = "/vrooli.web_console.v1.capabilities.CapabilitiesService/RunAgentUpdateAction"
+	// CapabilitiesServiceListHarnessesProcedure is the fully-qualified name of the
+	// CapabilitiesService's ListHarnesses RPC.
+	CapabilitiesServiceListHarnessesProcedure = "/vrooli.web_console.v1.capabilities.CapabilitiesService/ListHarnesses"
 )
 
 // CapabilitiesServiceClient is a client for the
@@ -59,6 +65,10 @@ type CapabilitiesServiceClient interface {
 	AgentUpdate(context.Context, *connect.Request[capabilities.AgentUpdateRequest]) (*connect.Response[capabilities.AgentUpdateResponse], error)
 	// Live provider readings, associated with a target and explicitly graded.
 	AgentUsage(context.Context, *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error)
+	// Runs one action offered by AgentUpdate. The control plane owns the work.
+	RunAgentUpdateAction(context.Context, *connect.Request[capabilities.RunAgentUpdateActionRequest]) (*connect.Response[capabilities.RunAgentUpdateActionResponse], error)
+	// Harness identity and features on a target, from each resource's descriptor.
+	ListHarnesses(context.Context, *connect.Request[capabilities.ListHarnessesRequest]) (*connect.Response[capabilities.ListHarnessesResponse], error)
 }
 
 // NewCapabilitiesServiceClient constructs a client for the
@@ -103,16 +113,30 @@ func NewCapabilitiesServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(capabilitiesServiceMethods.ByName("AgentUsage")),
 			connect.WithClientOptions(opts...),
 		),
+		runAgentUpdateAction: connect.NewClient[capabilities.RunAgentUpdateActionRequest, capabilities.RunAgentUpdateActionResponse](
+			httpClient,
+			baseURL+CapabilitiesServiceRunAgentUpdateActionProcedure,
+			connect.WithSchema(capabilitiesServiceMethods.ByName("RunAgentUpdateAction")),
+			connect.WithClientOptions(opts...),
+		),
+		listHarnesses: connect.NewClient[capabilities.ListHarnessesRequest, capabilities.ListHarnessesResponse](
+			httpClient,
+			baseURL+CapabilitiesServiceListHarnessesProcedure,
+			connect.WithSchema(capabilitiesServiceMethods.ByName("ListHarnesses")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // capabilitiesServiceClient implements CapabilitiesServiceClient.
 type capabilitiesServiceClient struct {
-	get         *connect.Client[capabilities.GetRequest, capabilities.GetResponse]
-	liveness    *connect.Client[capabilities.LivenessRequest, capabilities.LivenessResponse]
-	runAction   *connect.Client[capabilities.RunActionRequest, capabilities.RunActionResponse]
-	agentUpdate *connect.Client[capabilities.AgentUpdateRequest, capabilities.AgentUpdateResponse]
-	agentUsage  *connect.Client[capabilities.AgentUsageRequest, capabilities.AgentUsageResponse]
+	get                  *connect.Client[capabilities.GetRequest, capabilities.GetResponse]
+	liveness             *connect.Client[capabilities.LivenessRequest, capabilities.LivenessResponse]
+	runAction            *connect.Client[capabilities.RunActionRequest, capabilities.RunActionResponse]
+	agentUpdate          *connect.Client[capabilities.AgentUpdateRequest, capabilities.AgentUpdateResponse]
+	agentUsage           *connect.Client[capabilities.AgentUsageRequest, capabilities.AgentUsageResponse]
+	runAgentUpdateAction *connect.Client[capabilities.RunAgentUpdateActionRequest, capabilities.RunAgentUpdateActionResponse]
+	listHarnesses        *connect.Client[capabilities.ListHarnessesRequest, capabilities.ListHarnessesResponse]
 }
 
 // Get calls vrooli.web_console.v1.capabilities.CapabilitiesService.Get.
@@ -140,6 +164,17 @@ func (c *capabilitiesServiceClient) AgentUsage(ctx context.Context, req *connect
 	return c.agentUsage.CallUnary(ctx, req)
 }
 
+// RunAgentUpdateAction calls
+// vrooli.web_console.v1.capabilities.CapabilitiesService.RunAgentUpdateAction.
+func (c *capabilitiesServiceClient) RunAgentUpdateAction(ctx context.Context, req *connect.Request[capabilities.RunAgentUpdateActionRequest]) (*connect.Response[capabilities.RunAgentUpdateActionResponse], error) {
+	return c.runAgentUpdateAction.CallUnary(ctx, req)
+}
+
+// ListHarnesses calls vrooli.web_console.v1.capabilities.CapabilitiesService.ListHarnesses.
+func (c *capabilitiesServiceClient) ListHarnesses(ctx context.Context, req *connect.Request[capabilities.ListHarnessesRequest]) (*connect.Response[capabilities.ListHarnessesResponse], error) {
+	return c.listHarnesses.CallUnary(ctx, req)
+}
+
 // CapabilitiesServiceHandler is an implementation of the
 // vrooli.web_console.v1.capabilities.CapabilitiesService service.
 type CapabilitiesServiceHandler interface {
@@ -150,6 +185,10 @@ type CapabilitiesServiceHandler interface {
 	AgentUpdate(context.Context, *connect.Request[capabilities.AgentUpdateRequest]) (*connect.Response[capabilities.AgentUpdateResponse], error)
 	// Live provider readings, associated with a target and explicitly graded.
 	AgentUsage(context.Context, *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error)
+	// Runs one action offered by AgentUpdate. The control plane owns the work.
+	RunAgentUpdateAction(context.Context, *connect.Request[capabilities.RunAgentUpdateActionRequest]) (*connect.Response[capabilities.RunAgentUpdateActionResponse], error)
+	// Harness identity and features on a target, from each resource's descriptor.
+	ListHarnesses(context.Context, *connect.Request[capabilities.ListHarnessesRequest]) (*connect.Response[capabilities.ListHarnessesResponse], error)
 }
 
 // NewCapabilitiesServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -189,6 +228,18 @@ func NewCapabilitiesServiceHandler(svc CapabilitiesServiceHandler, opts ...conne
 		connect.WithSchema(capabilitiesServiceMethods.ByName("AgentUsage")),
 		connect.WithHandlerOptions(opts...),
 	)
+	capabilitiesServiceRunAgentUpdateActionHandler := connect.NewUnaryHandler(
+		CapabilitiesServiceRunAgentUpdateActionProcedure,
+		svc.RunAgentUpdateAction,
+		connect.WithSchema(capabilitiesServiceMethods.ByName("RunAgentUpdateAction")),
+		connect.WithHandlerOptions(opts...),
+	)
+	capabilitiesServiceListHarnessesHandler := connect.NewUnaryHandler(
+		CapabilitiesServiceListHarnessesProcedure,
+		svc.ListHarnesses,
+		connect.WithSchema(capabilitiesServiceMethods.ByName("ListHarnesses")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.capabilities.CapabilitiesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CapabilitiesServiceGetProcedure:
@@ -201,6 +252,10 @@ func NewCapabilitiesServiceHandler(svc CapabilitiesServiceHandler, opts ...conne
 			capabilitiesServiceAgentUpdateHandler.ServeHTTP(w, r)
 		case CapabilitiesServiceAgentUsageProcedure:
 			capabilitiesServiceAgentUsageHandler.ServeHTTP(w, r)
+		case CapabilitiesServiceRunAgentUpdateActionProcedure:
+			capabilitiesServiceRunAgentUpdateActionHandler.ServeHTTP(w, r)
+		case CapabilitiesServiceListHarnessesProcedure:
+			capabilitiesServiceListHarnessesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -228,4 +283,12 @@ func (UnimplementedCapabilitiesServiceHandler) AgentUpdate(context.Context, *con
 
 func (UnimplementedCapabilitiesServiceHandler) AgentUsage(context.Context, *connect.Request[capabilities.AgentUsageRequest]) (*connect.Response[capabilities.AgentUsageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage is not implemented"))
+}
+
+func (UnimplementedCapabilitiesServiceHandler) RunAgentUpdateAction(context.Context, *connect.Request[capabilities.RunAgentUpdateActionRequest]) (*connect.Response[capabilities.RunAgentUpdateActionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.capabilities.CapabilitiesService.RunAgentUpdateAction is not implemented"))
+}
+
+func (UnimplementedCapabilitiesServiceHandler) ListHarnesses(context.Context, *connect.Request[capabilities.ListHarnessesRequest]) (*connect.Response[capabilities.ListHarnessesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.capabilities.CapabilitiesService.ListHarnesses is not implemented"))
 }

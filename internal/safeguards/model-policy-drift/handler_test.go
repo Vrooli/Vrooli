@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -39,6 +40,30 @@ func TestInspectReportsMeasuredDriftAndNeverAppliesIt(t *testing.T) {
 	}
 }
 
+// A runner with no discovery adapter is stated, not dropped from the count.
+func TestInspectReportsARunnerWithNoDiscoveryAsNotMeasured(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("PROJECT_ROOT", root)
+	models := map[string]any{}
+	for _, runner := range runners {
+		path := filepath.Join(root, "resources", runner, "model-policy.json")
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(`{"provenance":{"source":"fixture","observed_at":"`+time.Now().Format("2006-01-02")+`"},"roles":{"code.default":{"model":"present"}}}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if runner != "antigravity" {
+			models[runner] = []any{"present"}
+		}
+	}
+	status := NewHandler(hostreqkit.SafeguardManifest{Name: "model_policy_drift"}).Inspect(hostreqkit.Host{}, hostreqspec.ResolvedRequirement{Name: "model_policy_drift", Config: map[string]any{"models": models}})
+	notes := strings.Join(status.Notes, "\n")
+	if !strings.Contains(notes, "not_measured runner=antigravity") || !strings.Contains(notes, "measured 4/5 runner catalogs") {
+		t.Fatalf("notes = %s", notes)
+	}
+}
+
 func TestInspectDistinguishesNotMeasured(t *testing.T) {
 	t.Setenv("PROJECT_ROOT", t.TempDir())
 	status := NewHandler(hostreqkit.SafeguardManifest{Name: "model_policy_drift"}).Inspect(hostreqkit.Host{}, hostreqspec.ResolvedRequirement{Name: "model_policy_drift"})
@@ -56,7 +81,7 @@ func TestInspectDoesNotEscalatePartialCatalogWarnings(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		data := `{"provenance":{"source":"fixture","observed_at":"2026-09-28"},"roles":{"code.default":{"model":"gpt-6-luna"}}}`
+		data := `{"provenance":{"source":"fixture","observed_at":"` + time.Now().Format("2006-01-02") + `"},"roles":{"code.default":{"model":"gpt-6-luna"}}}`
 		if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 			t.Fatal(err)
 		}

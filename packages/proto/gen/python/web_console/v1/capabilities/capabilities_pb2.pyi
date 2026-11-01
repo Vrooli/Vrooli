@@ -6,6 +6,50 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ListHarnessesRequest(_message.Message):
+    __slots__ = ("target_id",)
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    target_id: str
+    def __init__(self, target_id: _Optional[str] = ...) -> None: ...
+
+class HarnessUsageWindow(_message.Message):
+    __slots__ = ("id", "window_minutes")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_MINUTES_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    window_minutes: int
+    def __init__(self, id: _Optional[str] = ..., window_minutes: _Optional[int] = ...) -> None: ...
+
+class HarnessDescriptor(_message.Message):
+    __slots__ = ("agent_id", "resource", "display_name", "icon", "usage_windows", "supports_context_limit", "supports_usage_mode", "supports_model_selection", "supports_provider_selection")
+    AGENT_ID_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_FIELD_NUMBER: _ClassVar[int]
+    DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    ICON_FIELD_NUMBER: _ClassVar[int]
+    USAGE_WINDOWS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_CONTEXT_LIMIT_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_USAGE_MODE_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_MODEL_SELECTION_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_PROVIDER_SELECTION_FIELD_NUMBER: _ClassVar[int]
+    agent_id: str
+    resource: str
+    display_name: str
+    icon: str
+    usage_windows: _containers.RepeatedCompositeFieldContainer[HarnessUsageWindow]
+    supports_context_limit: bool
+    supports_usage_mode: bool
+    supports_model_selection: bool
+    supports_provider_selection: bool
+    def __init__(self, agent_id: _Optional[str] = ..., resource: _Optional[str] = ..., display_name: _Optional[str] = ..., icon: _Optional[str] = ..., usage_windows: _Optional[_Iterable[_Union[HarnessUsageWindow, _Mapping]]] = ..., supports_context_limit: _Optional[bool] = ..., supports_usage_mode: _Optional[bool] = ..., supports_model_selection: _Optional[bool] = ..., supports_provider_selection: _Optional[bool] = ...) -> None: ...
+
+class ListHarnessesResponse(_message.Message):
+    __slots__ = ("target_id", "harnesses")
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    HARNESSES_FIELD_NUMBER: _ClassVar[int]
+    target_id: str
+    harnesses: _containers.RepeatedCompositeFieldContainer[HarnessDescriptor]
+    def __init__(self, target_id: _Optional[str] = ..., harnesses: _Optional[_Iterable[_Union[HarnessDescriptor, _Mapping]]] = ...) -> None: ...
+
 class AgentUsageRequest(_message.Message):
     __slots__ = ("target_id", "agent_id")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
@@ -15,16 +59,18 @@ class AgentUsageRequest(_message.Message):
     def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ...) -> None: ...
 
 class AgentUsageWindow(_message.Message):
-    __slots__ = ("pool", "window_minutes", "used_percent", "resets_at")
+    __slots__ = ("pool", "window_minutes", "used_percent", "resets_at", "observed_at")
     POOL_FIELD_NUMBER: _ClassVar[int]
     WINDOW_MINUTES_FIELD_NUMBER: _ClassVar[int]
     USED_PERCENT_FIELD_NUMBER: _ClassVar[int]
     RESETS_AT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     pool: str
     window_minutes: int
     used_percent: float
     resets_at: str
-    def __init__(self, pool: _Optional[str] = ..., window_minutes: _Optional[int] = ..., used_percent: _Optional[float] = ..., resets_at: _Optional[str] = ...) -> None: ...
+    observed_at: str
+    def __init__(self, pool: _Optional[str] = ..., window_minutes: _Optional[int] = ..., used_percent: _Optional[float] = ..., resets_at: _Optional[str] = ..., observed_at: _Optional[str] = ...) -> None: ...
 
 class AgentUsageResponse(_message.Message):
     __slots__ = ("target_id", "agent_id", "match", "reason", "source", "observed_at", "windows")
@@ -53,7 +99,7 @@ class AgentUpdateRequest(_message.Message):
     def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ...) -> None: ...
 
 class AgentUpdateResponse(_message.Message):
-    __slots__ = ("target_id", "agent_id", "resource", "installed", "pinned", "latest", "status", "checked_at", "source_kind", "source_id", "probe_verified", "note")
+    __slots__ = ("target_id", "agent_id", "resource", "installed", "pinned", "latest", "status", "checked_at", "source_kind", "source_id", "probe_verified", "note", "state", "primary_action", "operator_command", "reason", "checks", "install_kind", "rollback_version", "newer_than_reviewed")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -66,6 +112,14 @@ class AgentUpdateResponse(_message.Message):
     SOURCE_ID_FIELD_NUMBER: _ClassVar[int]
     PROBE_VERIFIED_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_ACTION_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
+    INSTALL_KIND_FIELD_NUMBER: _ClassVar[int]
+    ROLLBACK_VERSION_FIELD_NUMBER: _ClassVar[int]
+    NEWER_THAN_REVIEWED_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     agent_id: str
     resource: str
@@ -78,7 +132,47 @@ class AgentUpdateResponse(_message.Message):
     source_id: str
     probe_verified: bool
     note: str
-    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., resource: _Optional[str] = ..., installed: _Optional[str] = ..., pinned: _Optional[str] = ..., latest: _Optional[str] = ..., status: _Optional[str] = ..., checked_at: _Optional[str] = ..., source_kind: _Optional[str] = ..., source_id: _Optional[str] = ..., probe_verified: _Optional[bool] = ..., note: _Optional[str] = ...) -> None: ...
+    state: str
+    primary_action: str
+    operator_command: str
+    reason: str
+    checks: _containers.RepeatedCompositeFieldContainer[AgentUpdateCheck]
+    install_kind: str
+    rollback_version: str
+    newer_than_reviewed: bool
+    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., resource: _Optional[str] = ..., installed: _Optional[str] = ..., pinned: _Optional[str] = ..., latest: _Optional[str] = ..., status: _Optional[str] = ..., checked_at: _Optional[str] = ..., source_kind: _Optional[str] = ..., source_id: _Optional[str] = ..., probe_verified: _Optional[bool] = ..., note: _Optional[str] = ..., state: _Optional[str] = ..., primary_action: _Optional[str] = ..., operator_command: _Optional[str] = ..., reason: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[AgentUpdateCheck, _Mapping]]] = ..., install_kind: _Optional[str] = ..., rollback_version: _Optional[str] = ..., newer_than_reviewed: _Optional[bool] = ...) -> None: ...
+
+class AgentUpdateCheck(_message.Message):
+    __slots__ = ("id", "passed", "message")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PASSED_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    passed: bool
+    message: str
+    def __init__(self, id: _Optional[str] = ..., passed: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+
+class RunAgentUpdateActionRequest(_message.Message):
+    __slots__ = ("target_id", "agent_id", "action")
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    AGENT_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    target_id: str
+    agent_id: str
+    action: str
+    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., action: _Optional[str] = ...) -> None: ...
+
+class RunAgentUpdateActionResponse(_message.Message):
+    __slots__ = ("success", "message", "update", "operation_id")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    message: str
+    update: AgentUpdateResponse
+    operation_id: str
+    def __init__(self, success: _Optional[bool] = ..., message: _Optional[str] = ..., update: _Optional[_Union[AgentUpdateResponse, _Mapping]] = ..., operation_id: _Optional[str] = ...) -> None: ...
 
 class CapabilityState(_message.Message):
     __slots__ = ("id", "name", "description", "dependency_kind", "dependency_slug", "features", "status", "message", "checked_at", "reason_code", "action_kind", "action_label", "operator_command", "feature_status", "feature_reason", "feature_operator_command", "provider_status", "provider_features")

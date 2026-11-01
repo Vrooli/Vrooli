@@ -219,6 +219,7 @@ func resolvedPolicyModel(c Catalog, source, modelRef string, model Model) Resolv
 		DefaultEligible:      model.DefaultEligible,
 		Pricing:              model.Pricing,
 		Provider:             model.Provider,
+		DisplayName:          model.DisplayName,
 		Family:               model.Family,
 		Provenance:           copyProvenanceMap(model.Provenance),
 	}

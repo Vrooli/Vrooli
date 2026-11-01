@@ -54,6 +54,46 @@ func TestProbeWithHonorsCallerDeadlineForHangingCommand(t *testing.T) {
 	}
 }
 
+// This module stays free of dependencies for the agents that embed it, so it
+// cannot read the descriptors through their package. This keeps the table equal
+// to them: a new resource's harness block fails here until the table has it.
+func TestAIToolsMatchesHarnessDescriptors(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	paths, err := filepath.Glob(filepath.Join(filepath.Dir(file), "..", "..", "resources", "*", "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared := map[string]Definition{}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifest struct {
+			Harness *struct {
+				ID          string `json:"id"`
+				Binary      string `json:"binary"`
+				DisplayName string `json:"display_name"`
+			} `json:"harness"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		if manifest.Harness != nil {
+			declared[manifest.Harness.ID] = Definition{Capability: "ai-cli", ID: manifest.Harness.ID, Label: manifest.Harness.DisplayName, Command: manifest.Harness.Binary}
+		}
+	}
+	if len(declared) != len(AITools) {
+		t.Fatalf("descriptors=%v table=%v", declared, AITools)
+	}
+	for _, definition := range AITools {
+		want, ok := declared[definition.ID]
+		if !ok || want.Label != definition.Label || want.Command != definition.Command || want.Capability != definition.Capability {
+			t.Errorf("table entry %+v disagrees with descriptor %+v", definition, want)
+		}
+	}
+}
+
 func TestAIToolsMatchesToolManifests(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(file), "..", "..", "internal", "tools")

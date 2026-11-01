@@ -18,7 +18,7 @@
     "properties": {
       "models": {
         "type": "object",
-        "description": "Optional per-runner live model allowlists, keyed by codex, claude-code, opencode or grok.",
+        "description": "Optional per-runner live model allowlists, keyed by codex, claude-code, opencode, grok or antigravity.",
         "additionalProperties": {
           "type": "array",
           "minItems": 1,

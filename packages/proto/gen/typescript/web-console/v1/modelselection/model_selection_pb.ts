@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/modelselection/model_selection.proto.
  */
 export const file_web_console_v1_modelselection_model_selection: GenFile = /*@__PURE__*/
-  fileDesc("CjN3ZWItY29uc29sZS92MS9tb2RlbHNlbGVjdGlvbi9tb2RlbF9zZWxlY3Rpb24ucHJvdG8SJHZyb29saS53ZWJfY29uc29sZS52MS5tb2RlbHNlbGVjdGlvbiJBChpHZXRSb2xlTW9kZWxDaG9pY2VzUmVxdWVzdBIQCghhZ2VudF9pZBgBIAEoCRIRCgl0YXJnZXRfaWQYAiABKAkikgEKD1JvbGVNb2RlbENob2ljZRINCgVtb2RlbBgBIAEoCRIOCgZzb3VyY2UYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSFAoMbGF1bmNoX21vZGVsGAQgASgJEg4KBmVmZm9ydBgFIAEoCRIUCgxzb3VyY2VfbGFiZWwYBiABKAkSEgoKaXNfZGVmYXVsdBgHIAEoCCKUAgobR2V0Um9sZU1vZGVsQ2hvaWNlc1Jlc3BvbnNlEhUKDXBvbGljeV9zdGF0dXMYASABKAkSFAoMYXZhaWxhYmlsaXR5GAIgASgJEg4KBnJ1bm5lchgDIAEoCRIMCgRyb2xlGAQgASgJEhIKCnByb3ZlbmFuY2UYBSABKAkSEwoLb2JzZXJ2ZWRfYXQYBiABKAkSFQoNcG9saWN5X2RpZ2VzdBgHIAEoCRJGCgdjaG9pY2VzGAggAygLMjUudnJvb2xpLndlYl9jb25zb2xlLnYxLm1vZGVsc2VsZWN0aW9uLlJvbGVNb2RlbENob2ljZRIOCgZkZXRhaWwYCSABKAkSEgoKbW9kZWxfZmxhZxgKIAEoCTK0AQoVTW9kZWxTZWxlY3Rpb25TZXJ2aWNlEpoBChNHZXRSb2xlTW9kZWxDaG9pY2VzEkAudnJvb2xpLndlYl9jb25zb2xlLnYxLm1vZGVsc2VsZWN0aW9uLkdldFJvbGVNb2RlbENob2ljZXNSZXF1ZXN0GkEudnJvb2xpLndlYl9jb25zb2xlLnYxLm1vZGVsc2VsZWN0aW9uLkdldFJvbGVNb2RlbENob2ljZXNSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL21vZGVsc2VsZWN0aW9uO21vZGVsc2VsZWN0aW9uX3YxYgZwcm90bzM");
+  fileDesc("CjN3ZWItY29uc29sZS92MS9tb2RlbHNlbGVjdGlvbi9tb2RlbF9zZWxlY3Rpb24ucHJvdG8SJHZyb29saS53ZWJfY29uc29sZS52MS5tb2RlbHNlbGVjdGlvbiJZChpHZXRSb2xlTW9kZWxDaG9pY2VzUmVxdWVzdBIQCghhZ2VudF9pZBgBIAEoCRIRCgl0YXJnZXRfaWQYAiABKAkSFgoObGF1bmNoX2NvbW1hbmQYAyABKAki9gEKD1JvbGVNb2RlbENob2ljZRINCgVtb2RlbBgBIAEoCRIOCgZzb3VyY2UYAiABKAkSEAoIcHJvdmlkZXIYAyABKAkSFAoMbGF1bmNoX21vZGVsGAQgASgJEg4KBmVmZm9ydBgFIAEoCRIUCgxzb3VyY2VfbGFiZWwYBiABKAkSEgoKaXNfZGVmYXVsdBgHIAEoCBIdChVjb250ZXh0X3dpbmRvd190b2tlbnMYCCABKAMSHAoUY29udGV4dF9saW1pdF90b2tlbnMYCSADKAMSDwoHbWV0ZXJlZBgKIAEoCBIUCgxkaXNwbGF5X25hbWUYCyABKAki3gIKG0dldFJvbGVNb2RlbENob2ljZXNSZXNwb25zZRIVCg1wb2xpY3lfc3RhdHVzGAEgASgJEhQKDGF2YWlsYWJpbGl0eRgCIAEoCRIOCgZydW5uZXIYAyABKAkSDAoEcm9sZRgEIAEoCRISCgpwcm92ZW5hbmNlGAUgASgJEhMKC29ic2VydmVkX2F0GAYgASgJEhUKDXBvbGljeV9kaWdlc3QYByABKAkSRgoHY2hvaWNlcxgIIAMoCzI1LnZyb29saS53ZWJfY29uc29sZS52MS5tb2RlbHNlbGVjdGlvbi5Sb2xlTW9kZWxDaG9pY2USDgoGZGV0YWlsGAkgASgJEhIKCm1vZGVsX2ZsYWcYCiABKAkSFQoNY2F0YWxvZ19zdGFsZRgLIAEoCBIYChBvcGVyYXRvcl9jb21tYW5kGAwgASgJEhcKD2NvbW1hbmRfbGl0ZXJhbBgNIAEoCDK0AQoVTW9kZWxTZWxlY3Rpb25TZXJ2aWNlEpoBChNHZXRSb2xlTW9kZWxDaG9pY2VzEkAudnJvb2xpLndlYl9jb25zb2xlLnYxLm1vZGVsc2VsZWN0aW9uLkdldFJvbGVNb2RlbENob2ljZXNSZXF1ZXN0GkEudnJvb2xpLndlYl9jb25zb2xlLnYxLm1vZGVsc2VsZWN0aW9uLkdldFJvbGVNb2RlbENob2ljZXNSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL21vZGVsc2VsZWN0aW9uO21vZGVsc2VsZWN0aW9uX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.web_console.v1.modelselection.GetRoleModelChoicesRequest
@@ -25,6 +25,14 @@ export type GetRoleModelChoicesRequest = Message<"vrooli.web_console.v1.modelsel
    * @generated from field: string target_id = 2;
    */
   targetId: string;
+
+  /**
+   * The shortcut command a launch would start from, to tell whether settings can
+   * apply to it. Empty asks only about the runner.
+   *
+   * @generated from field: string launch_command = 3;
+   */
+  launchCommand: string;
 };
 
 /**
@@ -72,6 +80,34 @@ export type RoleModelChoice = Message<"vrooli.web_console.v1.modelselection.Role
    * @generated from field: bool is_default = 7;
    */
   isDefault: boolean;
+
+  /**
+   * This model's context window in tokens. Zero means unknown, never unlimited.
+   *
+   * @generated from field: int64 context_window_tokens = 8;
+   */
+  contextWindowTokens: bigint;
+
+  /**
+   * Compaction limits a launch of this model may request. None exceeds the window.
+   *
+   * @generated from field: repeated int64 context_limit_tokens = 9;
+   */
+  contextLimitTokens: bigint[];
+
+  /**
+   * The choice bills per use, so a stale catalog keeps it unselectable.
+   *
+   * @generated from field: bool metered = 10;
+   */
+  metered: boolean;
+
+  /**
+   * What the operator reads. `model` stays the catalog ID.
+   *
+   * @generated from field: string display_name = 11;
+   */
+  displayName: string;
 };
 
 /**
@@ -138,6 +174,29 @@ export type GetRoleModelChoicesResponse = Message<"vrooli.web_console.v1.modelse
    * @generated from field: string model_flag = 10;
    */
   modelFlag: string;
+
+  /**
+   * The catalog is past its freshness budget. Unmetered choices stay selectable.
+   *
+   * @generated from field: bool catalog_stale = 11;
+   */
+  catalogStale: boolean;
+
+  /**
+   * How the operator refreshes a list the RefreshCatalog action cannot. Empty
+   * when the action can.
+   *
+   * @generated from field: string operator_command = 12;
+   */
+  operatorCommand: string;
+
+  /**
+   * The launch command is the operator's own: a wrapper, or one naming its own
+   * model or limit. It runs as written, so a launch cannot apply these settings.
+   *
+   * @generated from field: bool command_literal = 13;
+   */
+  commandLiteral: boolean;
 };
 
 /**

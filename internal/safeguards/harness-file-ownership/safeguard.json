@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../.vrooli/schemas/safeguard.schema.json",
+  "name": "harness_file_ownership",
+  "description": "Hand root-owned coding-agent files under the operator's home back to the operator, so `vrooli resource update` can replace them without elevating",
+  "handler": "harness_file_ownership",
+  "risk": "low",
+  "privilege": "elevated",
+  "bundling": "prohibited",
+  "capability": "ai-cli",
+  "capability_role": "control",
+  "storage": {
+    "entries": {},
+    "rationale": "The safeguard creates no files. It changes the owner of existing coding-agent files and leaves their contents alone."
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Host safeguards mutate host state and cannot ship in a desktop bundle."
+        }
+      }
+    }
+  },
+  "platform_status": {
+    "linux": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "macos": {
+      "status": "unqualified",
+      "evidence": null
+    },
+    "windows": {
+      "status": "not_applicable",
+      "evidence": "Windows user installs have no root-owned file case; the agent installer writes under the user profile with the user's own ACLs.",
+      "review_by": "2027-10-30"
+    }
+  },
+  "risk_class": "restore_absent"
+}

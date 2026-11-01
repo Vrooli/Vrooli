@@ -3,6 +3,7 @@ package agentcatalog
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -76,6 +77,87 @@ func RoleModelChoices(catalog CodingRoleCatalog, roleName string) ([]RoleModelCh
 		choices = append(choices, choiceFor(catalog, role, declared.Model, declared.Source, declared.Effort))
 	}
 	return choices, nil
+}
+
+// RunnerModelChoices is every model a launcher may offer for this runner: the
+// default role's first, then what the runner's coding roles declare, their
+// fallbacks and the catalog's aliases. Two names for one model on one source
+// count once, keeping the first, and anything excluded or restricted away from
+// the default role stays out.
+func RunnerModelChoices(catalog CodingRoleCatalog, defaultRole string) ([]RoleModelChoice, error) {
+	defaultChoices, err := RoleModelChoices(catalog, defaultRole)
+	if err != nil {
+		return nil, err
+	}
+	native := ""
+	for _, choice := range defaultChoices {
+		if choice.Source != "" {
+			native = choice.Source
+			break
+		}
+	}
+	sourceIDs := map[string]bool{}
+	if catalog.Billing != nil {
+		for _, source := range catalog.Billing.Sources {
+			sourceIDs[source.ID] = true
+		}
+	}
+	// A bare model comes through the runner's own source; a prefixed one names its source.
+	sourceFor := func(model string) string {
+		if prefix, _, qualified := strings.Cut(model, "/"); qualified && sourceIDs[prefix] {
+			return prefix
+		}
+		return native
+	}
+	seen := make(map[[2]string]bool)
+	var merged []RoleModelChoice
+	add := func(choice RoleModelChoice) {
+		canonical := choice.CanonicalModel
+		if canonical == "" {
+			canonical = choice.Model
+		}
+		key := [2]string{choice.Source, strings.ToLower(strings.TrimPrefix(canonical, choice.Source+"/"))}
+		if seen[key] || !modelAllowed(catalog, defaultRole, choice.Model, choice.CanonicalModel) {
+			return
+		}
+		seen[key] = true
+		merged = append(merged, choice)
+	}
+	for _, choice := range defaultChoices {
+		add(choice)
+	}
+	roles := make([]string, 0, len(catalog.Roles))
+	family, _, _ := strings.Cut(defaultRole, ".")
+	for name := range catalog.Roles {
+		if name != defaultRole && strings.HasPrefix(name, family+".") {
+			roles = append(roles, name)
+		}
+	}
+	sort.Strings(roles)
+	for _, name := range roles {
+		choices, err := RoleModelChoices(catalog, name)
+		if err != nil {
+			return nil, err
+		}
+		for _, choice := range choices {
+			add(choice)
+		}
+	}
+	for _, name := range append(append([]string(nil), roles...), defaultRole) {
+		role := catalog.Roles[name]
+		for _, model := range role.Fallbacks {
+			add(choiceFor(catalog, role, model, sourceFor(model), nil))
+		}
+	}
+	aliases := make([]string, 0, len(catalog.ModelAliases))
+	for model := range catalog.ModelAliases {
+		aliases = append(aliases, model)
+	}
+	sort.Strings(aliases)
+	for _, model := range aliases {
+		add(choiceFor(catalog, catalog.Roles[defaultRole], model, sourceFor(model), nil))
+	}
+	return merged, nil
 }
 
 // ResolveRoleSelection resolves an exact role/model/source combination. An

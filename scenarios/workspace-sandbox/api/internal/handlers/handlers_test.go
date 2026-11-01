@@ -964,3 +964,44 @@ func TestApplyAtRunEnd_MalformedBody(t *testing.T) {
 		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
+
+func TestCommitPreviewRoutesUseProjectRootFallback(t *testing.T) {
+	var captured []*types.CommitPreviewRequest
+	svc := &sandboxiface.FakeService{
+		GetCommitPreviewFn: func(_ context.Context, req *types.CommitPreviewRequest) (*types.CommitPreviewResult, error) {
+			captured = append(captured, req)
+			return &types.CommitPreviewResult{}, nil
+		},
+	}
+	live := newLive(t, svc, func(h *handlers.Handlers) {
+		h.Config.Driver.ProjectRoot = "/configured"
+	})
+
+	getResponse, _ := live.Do(t, "GET", "/api/v1/commit-preview", nil)
+	postResponse, _ := live.DoJSON(t, "POST", "/api/v1/commit-preview", `{"projectRoot":"/requested"}`)
+	if getResponse.StatusCode != http.StatusOK || postResponse.StatusCode != http.StatusOK {
+		t.Fatalf("GET/POST statuses = %d/%d, want 200/200", getResponse.StatusCode, postResponse.StatusCode)
+	}
+	if len(captured) != 2 || captured[0].ProjectRoot != "/configured" || captured[1].ProjectRoot != "/requested" {
+		t.Fatalf("captured project roots = %+v, want [/configured /requested]", captured)
+	}
+}
+
+func TestTurnCheckpointDelegatesSandboxID(t *testing.T) {
+	testID := uuid.New()
+	var captured *types.TurnCheckpointRequest
+	svc := &sandboxiface.FakeService{
+		TurnCheckpointFn: func(_ context.Context, req *types.TurnCheckpointRequest) (*types.TurnCheckpointResult, error) {
+			captured = req
+			return &types.TurnCheckpointResult{Success: true}, nil
+		},
+	}
+	live := newLive(t, svc)
+	resp, body := live.DoJSON(t, "POST", sandboxesPath(testID, "/turn-checkpoint"), `{"runId":"run-1"}`)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, body)
+	}
+	if captured == nil || captured.SandboxID != testID {
+		t.Fatalf("captured sandbox ID = %v, want %v", captured, testID)
+	}
+}

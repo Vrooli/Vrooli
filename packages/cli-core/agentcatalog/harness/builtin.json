@@ -1,0 +1,158 @@
+[
+  {
+    "resource": "antigravity",
+    "id": "agy",
+    "aliases": [
+      "antigravity"
+    ],
+    "binary": "agy",
+    "display_name": "Antigravity",
+    "icon": "agy",
+    "home_isolation": {
+      "kind": "none"
+    },
+    "features": {
+      "resume": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "resource": "claude-code",
+    "id": "claude",
+    "aliases": [
+      "claude-code"
+    ],
+    "binary": "claude",
+    "display_name": "Claude Code",
+    "icon": "claude",
+    "session_env": [
+      "CLAUDE_CODE_SESSION_ID"
+    ],
+    "home_isolation": {
+      "kind": "none"
+    },
+    "usage_windows": [
+      {
+        "id": "five_hour",
+        "minutes": 300
+      },
+      {
+        "id": "seven_day",
+        "minutes": 10080
+      }
+    ],
+    "features": {
+      "context_limit": {
+        "kind": "env",
+        "key": "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+        "minimum": 100000
+      },
+      "context_window_source": "claude-statusline",
+      "usage_mode": {
+        "provider": "anthropic"
+      },
+      "model_selection": {
+        "flag": "--model",
+        "sources": [
+          "claude-subscription"
+        ]
+      },
+      "resume": true,
+      "goal_mode": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "resource": "codex",
+    "id": "codex",
+    "binary": "codex",
+    "display_name": "Codex",
+    "icon": "codex",
+    "session_env": [
+      "CODEX_THREAD_ID"
+    ],
+    "home_isolation": {
+      "kind": "env",
+      "env": "CODEX_HOME",
+      "shared_dir": ".codex",
+      "state_dir": "codex",
+      "sessions_env": "WC_CODEX_SESSIONS_DIR",
+      "layout": "allowlist"
+    },
+    "usage_windows": [
+      {
+        "id": "weekly",
+        "minutes": 10080
+      }
+    ],
+    "features": {
+      "context_limit": {
+        "kind": "arg",
+        "key": "model_auto_compact_token_limit",
+        "minimum": 0
+      },
+      "context_window_source": "codex-models-cache",
+      "usage_mode": {
+        "provider": "openai"
+      },
+      "model_selection": {
+        "flag": "-m",
+        "sources": [
+          "codex-subscription"
+        ]
+      },
+      "resume": true,
+      "goal_mode": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "resource": "grok",
+    "id": "grok",
+    "binary": "grok",
+    "display_name": "Grok",
+    "icon": "grok",
+    "home_isolation": {
+      "kind": "env",
+      "env": "GROK_HOME",
+      "shared_dir": ".grok",
+      "state_dir": "grok",
+      "layout": "mirror"
+    },
+    "features": {
+      "resume": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
+  {
+    "resource": "opencode",
+    "id": "opencode",
+    "binary": "opencode",
+    "display_name": "OpenCode",
+    "icon": "opencode",
+    "home_isolation": {
+      "kind": "none"
+    },
+    "features": {
+      "model_selection": {
+        "flag": "-m",
+        "sources": [
+          "opencode-go",
+          "openrouter",
+          "ollama",
+          "orcarouter",
+          "abliteration"
+        ],
+        "prefix_source": true
+      },
+      "provider_selection": true,
+      "resume": true,
+      "mcp": true,
+      "hooks": true
+    }
+  }
+]

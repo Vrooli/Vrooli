@@ -34,6 +34,26 @@ message ResolveApplicationRequest {
  bool use_gateway = 2;
 }
 message ResolveApplicationResponse { Application application = 1; string url = 2; google.protobuf.Timestamp observed_at = 3; }
+
+// Explicit operator-authorized lifecycle actions. Catalogue reads never start an app.
+service ApplicationLifecycleService {
+ rpc Act(ApplicationLifecycleRequest) returns (ApplicationLifecycleResponse);
+}
+enum ApplicationLifecycleAction {
+ APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED = 0;
+ APPLICATION_LIFECYCLE_ACTION_START = 1;
+ APPLICATION_LIFECYCLE_ACTION_RESTART = 2;
+ APPLICATION_LIFECYCLE_ACTION_STOP = 3;
+}
+message ApplicationLifecycleRequest {
+ string scenario = 1;
+ ApplicationLifecycleAction action = 2;
+}
+message ApplicationLifecycleResponse {
+ Application application = 1;
+ string outcome = 2;
+ google.protobuf.Timestamp observed_at = 3;
+}
 // @stability stable
 // Authenticated transport to destination-owned desktop admission. Portal never
 // substitutes its local process identity for a caller's bearer credential.

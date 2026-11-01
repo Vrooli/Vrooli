@@ -4,14 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 const (
-	webConsoleSessionIDEnv     = "WC_WEB_CONSOLE_SESSION_ID"
-	webConsoleStateRootEnv     = "WC_SESSION_STATE_ROOT"
-	webConsoleCodexHomeEnv     = "CODEX_HOME"
-	webConsoleGrokHomeEnv      = "GROK_HOME"
-	webConsoleCodexSessionsEnv = "WC_CODEX_SESSIONS_DIR"
+	webConsoleSessionIDEnv = "WC_WEB_CONSOLE_SESSION_ID"
+	webConsoleStateRootEnv = "WC_SESSION_STATE_ROOT"
 )
 
 // PrepareWebConsoleAgentHome materializes the session-scoped home only at the
@@ -27,30 +26,32 @@ func PrepareWebConsoleAgentHome(agent string, environment []string) []string {
 		return environment
 	}
 
-	var home, shared string
-	switch strings.ToLower(strings.TrimSpace(agent)) {
-	case "codex":
-		// An orchestrator may provide a durable run-scoped CODEX_HOME so it
-		// can discover and retain the runner's rollout. Preserve that explicit
-		// contract; only synthesize the Web Console pane home when the caller
-		// did not choose one. Ordinary shell launches still take the isolated
-		// per-pane path below.
-		if explicit := strings.TrimSpace(values[webConsoleCodexHomeEnv]); explicit != "" {
-			return withEnvironmentValue(environment, webConsoleCodexSessionsEnv, filepath.Join(explicit, "sessions"))
+	descriptor, ok := harness.Active().Lookup(agent)
+	if !ok || descriptor.HomeIsolation.Kind != harness.HomeIsolationEnv {
+		return environment
+	}
+	isolation := descriptor.HomeIsolation
+	// An orchestrator may provide a durable run-scoped home so it can discover
+	// and retain the runner's rollout. Preserve that explicit contract; only
+	// synthesize the Web Console pane home when the caller did not choose one.
+	// Ordinary shell launches still take the isolated per-pane path below.
+	if explicit := strings.TrimSpace(values[isolation.Env]); explicit != "" {
+		if isolation.SessionsEnv != "" {
+			return withEnvironmentValue(environment, isolation.SessionsEnv, filepath.Join(explicit, "sessions"))
 		}
-		home = filepath.Join(stateRoot, "codex", sessionID)
-		shared = userHomeDir(".codex")
-		prepareCodexHome(home, shared)
-		environment = withEnvironmentValue(environment, webConsoleCodexHomeEnv, home)
-		environment = withEnvironmentValue(environment, webConsoleCodexSessionsEnv, filepath.Join(home, "sessions"))
-	case "grok":
-		if explicit := strings.TrimSpace(values[webConsoleGrokHomeEnv]); explicit != "" {
-			return environment
-		}
-		home = filepath.Join(stateRoot, "grok", sessionID)
-		shared = userHomeDir(".grok")
-		prepareGrokHome(home, shared)
-		environment = withEnvironmentValue(environment, webConsoleGrokHomeEnv, home)
+		return environment
+	}
+	home := filepath.Join(stateRoot, isolation.StateDir, sessionID)
+	shared := userHomeDir(isolation.SharedDir)
+	switch isolation.Layout {
+	case harness.HomeLayoutAllowlist:
+		prepareAllowlistHome(home, shared)
+	case harness.HomeLayoutMirror:
+		prepareMirrorHome(home, shared)
+	}
+	environment = withEnvironmentValue(environment, isolation.Env, home)
+	if isolation.SessionsEnv != "" {
+		environment = withEnvironmentValue(environment, isolation.SessionsEnv, filepath.Join(home, "sessions"))
 	}
 	return environment
 }
@@ -74,7 +75,7 @@ func userHomeDir(name string) string {
 	return filepath.Join(home, name)
 }
 
-func prepareCodexHome(home, shared string) {
+func prepareAllowlistHome(home, shared string) {
 	if home == "" {
 		return
 	}
@@ -106,7 +107,7 @@ func prepareCodexHome(home, shared string) {
 	}
 }
 
-func prepareGrokHome(home, shared string) {
+func prepareMirrorHome(home, shared string) {
 	if home == "" {
 		return
 	}

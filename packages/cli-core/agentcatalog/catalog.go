@@ -111,6 +111,9 @@ type RoleModel struct {
 type ModelAlias struct {
 	CanonicalModel string `json:"canonical_model"`
 	Provider       string `json:"provider,omitempty"`
+	// DisplayName is the provider's own model name when it publishes one.
+	// Consumers fall back to a humanized canonical id only when it is absent.
+	DisplayName string `json:"display_name,omitempty"`
 }
 
 type Challenger struct {

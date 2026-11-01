@@ -271,6 +271,20 @@ message CreateRequest {
   // LPBS business-account audience selected for account-bound paid inference.
   // It is server-validated and persisted as session attribution; it is not a credential.
   string business_account_id = 20;
+  // Settings for an agent launch. The server composes them onto launch_command
+  // from the harness descriptor; launch_command alone runs as written.
+  AgentLaunch agent_launch = 21;
+}
+
+// AgentLaunch is what the operator chose for one launch. An empty field keeps
+// the harness's own behaviour for it.
+message AgentLaunch {
+  string agent_id = 1;
+  // The catalog ID from GetRoleModelChoices. The server resolves the launch argument.
+  string model = 2;
+  // The choice's source, which tells apart one model offered through two.
+  string provider = 3;
+  int64 context_limit_tokens = 4;
 }
 
 message CreateResponse {

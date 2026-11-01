@@ -5,12 +5,24 @@ from device_control.v1.desktop import desktop_pb2 as _desktop_pb2
 from scenario_authenticator.v1.accounts import accounts_pb2 as _accounts_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class ApplicationLifecycleAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED: _ClassVar[ApplicationLifecycleAction]
+    APPLICATION_LIFECYCLE_ACTION_START: _ClassVar[ApplicationLifecycleAction]
+    APPLICATION_LIFECYCLE_ACTION_RESTART: _ClassVar[ApplicationLifecycleAction]
+    APPLICATION_LIFECYCLE_ACTION_STOP: _ClassVar[ApplicationLifecycleAction]
+APPLICATION_LIFECYCLE_ACTION_UNSPECIFIED: ApplicationLifecycleAction
+APPLICATION_LIFECYCLE_ACTION_START: ApplicationLifecycleAction
+APPLICATION_LIFECYCLE_ACTION_RESTART: ApplicationLifecycleAction
+APPLICATION_LIFECYCLE_ACTION_STOP: ApplicationLifecycleAction
 
 class ListApplicationsRequest(_message.Message):
     __slots__ = ()
@@ -57,6 +69,24 @@ class ResolveApplicationResponse(_message.Message):
     url: str
     observed_at: _timestamp_pb2.Timestamp
     def __init__(self, application: _Optional[_Union[Application, _Mapping]] = ..., url: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ApplicationLifecycleRequest(_message.Message):
+    __slots__ = ("scenario", "action")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    action: ApplicationLifecycleAction
+    def __init__(self, scenario: _Optional[str] = ..., action: _Optional[_Union[ApplicationLifecycleAction, str]] = ...) -> None: ...
+
+class ApplicationLifecycleResponse(_message.Message):
+    __slots__ = ("application", "outcome", "observed_at")
+    APPLICATION_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    application: Application
+    outcome: str
+    observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, application: _Optional[_Union[Application, _Mapping]] = ..., outcome: _Optional[str] = ..., observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class SourceStatus(_message.Message):
     __slots__ = ("owner_scenario", "state", "reason_code")

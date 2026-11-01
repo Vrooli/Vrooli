@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/agentcatalog"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -19,7 +21,18 @@ const (
 	hoursPerDay = 24
 )
 
-var runners = []string{"codex", "claude-code", "opencode", "grok"}
+// runners is every declared harness, by resource name. One with no discovery
+// adapter, which is Antigravity today, is reported as not_measured.
+var runners = declaredRunners()
+
+func declaredRunners() []string {
+	var names []string
+	for _, descriptor := range harness.Builtin().All() {
+		names = append(names, descriptor.Resource)
+	}
+	sort.Strings(names)
+	return names
+}
 
 type catalog struct {
 	Provenance struct {

@@ -12,6 +12,9 @@ service ModelSelectionService {
 message GetRoleModelChoicesRequest {
   string agent_id = 1;
   string target_id = 2;
+  // The shortcut command a launch would start from, to tell whether settings can
+  // apply to it. Empty asks only about the runner.
+  string launch_command = 3;
 }
 
 message RoleModelChoice {
@@ -22,6 +25,14 @@ message RoleModelChoice {
   string effort = 5;
   string source_label = 6;
   bool is_default = 7;
+  // This model's context window in tokens. Zero means unknown, never unlimited.
+  int64 context_window_tokens = 8;
+  // Compaction limits a launch of this model may request. None exceeds the window.
+  repeated int64 context_limit_tokens = 9;
+  // The choice bills per use, so a stale catalog keeps it unselectable.
+  bool metered = 10;
+  // What the operator reads. `model` stays the catalog ID.
+  string display_name = 11;
 }
 
 message GetRoleModelChoicesResponse {
@@ -37,4 +48,12 @@ message GetRoleModelChoicesResponse {
   repeated RoleModelChoice choices = 8;
   string detail = 9;
   string model_flag = 10;
+  // The catalog is past its freshness budget. Unmetered choices stay selectable.
+  bool catalog_stale = 11;
+  // How the operator refreshes a list the RefreshCatalog action cannot. Empty
+  // when the action can.
+  string operator_command = 12;
+  // The launch command is the operator's own: a wrapper, or one naming its own
+  // model or limit. It runs as written, so a launch cannot apply these settings.
+  bool command_literal = 13;
 }
