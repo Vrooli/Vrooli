@@ -46,6 +46,36 @@
     "detection_signal": "OPENCODE_PID matches a calling-process ancestor",
     "hook_surface": "native-permissions"
   },
+  "harness": {
+    "id": "opencode",
+    "aliases": [],
+    "binary": "opencode",
+    "display_name": "OpenCode",
+    "icon": "opencode",
+    "session_env": [],
+    "home_isolation": {
+      "kind": "none"
+    },
+    "usage_windows": [],
+    "features": {
+      "model_selection": {
+        "flag": "-m",
+        "sources": [
+          "opencode-go",
+          "openrouter",
+          "ollama",
+          "orcarouter",
+          "abliteration"
+        ],
+        "prefix_source": true
+      },
+      "provider_selection": true,
+      "resume": true,
+      "goal_mode": false,
+      "mcp": true,
+      "hooks": true
+    }
+  },
   "agent_hooks": {
     "document_scopes": [
       "user",
@@ -97,7 +127,8 @@
         "docs/**",
         "README.md",
         "resource.json",
-        "../../packages/agentharness"
+        "../../packages/agentharness",
+        "../internal/agentapp/**"
       ]
     },
     "source_build": {

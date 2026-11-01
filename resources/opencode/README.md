@@ -35,6 +35,27 @@ binary lacks — governed permissions and an upstream update-check.
 - **operators / governance** use `resource-opencode` for lifecycle,
   `permissions`, and `upstream-check`.
 
+## OpenCode 1 and OpenCode 2
+
+The resource supports both API generations at runtime. Web Console detects the
+installed binary's major version (`opencode --version`) and uses the matching
+HTTP contract: `/session` + `/global/event` for 1.x, and authenticated
+`/api/session` + `/api/event` for 2.x. The version choice lives in
+`scenarios/web-console/api/backends/opencode`; callers keep one interface, so
+session listing, message projection, permissions, activity, and rewind do not
+need version branches of their own.
+
+Configuration stays in the V1 `opencode.json` shape. OpenCode 2 normalizes those
+fields in memory, so both versions read the same generated file and provider
+blocks; do not maintain a second V2-only config. V1 plugin implementations do
+not run in V2. Native `permission` rules still apply after V2 normalization, but
+the dynamic `tool.execute.before` policy runner needs a V2 plugin port; keep
+reporting that posture as `hook_unverified` until a live V2 canary proves it.
+
+The packaged acquisition remains pinned to V1 so existing installs keep working.
+A host that installs the V2 CLI is detected automatically; no resource code
+change or second configuration tree is required.
+
 ## Configuration (single source of truth)
 
 Raw `opencode` reads the default XDG locations, and every Vrooli surface
@@ -56,9 +77,13 @@ syncs the OpenRouter key into `auth.json`.
   authority and written to `auth.json`.
 - **OrcaRouter** and **Abliteration** are written as OpenAI-compatible provider
   blocks when their optional credentials (`ORCAROUTER_API_KEY`, `ABLIT_KEY`) are
-  present. Set `OPENCODE_PROVIDER=orcarouter` or `OPENCODE_PROVIDER=abliteration`
-  to make one the active provider; otherwise they remain available in the
-  picker without changing the default tier order.
+  present. Each block also registers the provider resource's chat-capable
+  models, read from `resource-<provider> policy models --json`. OpenCode only
+  discovers catalogs for its built-in providers, so a custom provider without
+  those model entries rejects every model ID as invalid. Set
+  `OPENCODE_PROVIDER=orcarouter` or `OPENCODE_PROVIDER=abliteration` to make one
+  the active provider; otherwise they remain available in the picker without
+  changing the default tier order.
 - **Ollama** is auto-configured as a keyless local provider
   (OpenAI-compatible, `http://localhost:11434/v1`) when a local daemon is
   reachable and no OpenRouter key is present. `resource-opencode ensure`

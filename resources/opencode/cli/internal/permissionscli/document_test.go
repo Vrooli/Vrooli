@@ -15,11 +15,11 @@ func TestWholeDocumentPlanAndReconcileAreIdempotent(t *testing.T) {
 	if err := os.WriteFile(document, []byte(`{"schema_version":"v1","scope":"user","rules":[{"id":"deny-root","action":"deny","matcher":{"kind":"bash","pattern":"rm -rf /"}}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Plan([]string{"--document", document, "--json"}); err != nil {
+	if err := h.shared().PlanDocument([]string{"--document", document, "--json"}); err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
 	stdout.Reset()
-	if err := h.Reconcile([]string{"--document", document, "--json"}); err != nil {
+	if err := h.shared().ReconcileDocument([]string{"--document", document, "--json"}); err != nil {
 		t.Fatalf("Reconcile: %v", err)
 	}
 	p, err := h.Adapter.Load()
@@ -30,7 +30,7 @@ func TestWholeDocumentPlanAndReconcileAreIdempotent(t *testing.T) {
 		t.Fatalf("deny = %q, want %q", got, want)
 	}
 	stdout.Reset()
-	if err := h.Plan([]string{"--document", document, "--json"}); err != nil {
+	if err := h.shared().PlanDocument([]string{"--document", document, "--json"}); err != nil {
 		t.Fatalf("second Plan: %v", err)
 	}
 	if !strings.Contains(stdout.String(), `"changes": []`) {

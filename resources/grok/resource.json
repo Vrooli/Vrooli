@@ -38,6 +38,29 @@
     "detection_signal": "GROK_AGENT=1",
     "hook_surface": "native-permissions"
   },
+  "harness": {
+    "id": "grok",
+    "aliases": [],
+    "binary": "grok",
+    "display_name": "Grok",
+    "icon": "grok",
+    "session_env": [],
+    "home_isolation": {
+      "kind": "env",
+      "env": "GROK_HOME",
+      "shared_dir": ".grok",
+      "state_dir": "grok",
+      "layout": "mirror"
+    },
+    "usage_windows": [],
+    "features": {
+      "provider_selection": false,
+      "resume": true,
+      "goal_mode": false,
+      "mcp": true,
+      "hooks": true
+    }
+  },
   "agent_hooks": {
     "document_scopes": ["user", "admin"],
     "events": [
@@ -76,7 +99,8 @@
         "docs/**",
         "README.md",
         "resource.json",
-        "../../packages/agentharness"
+        "../../packages/agentharness",
+        "../internal/agentapp/**"
       ]
     },
     "source_build": {

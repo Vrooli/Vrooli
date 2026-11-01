@@ -54,6 +54,27 @@
     "detection_signal": "ANTIGRAVITY_AGENT=1",
     "hook_surface": "native-permissions"
   },
+  "harness": {
+    "id": "agy",
+    "aliases": [
+      "antigravity"
+    ],
+    "binary": "agy",
+    "display_name": "Antigravity",
+    "icon": "agy",
+    "session_env": [],
+    "home_isolation": {
+      "kind": "none"
+    },
+    "usage_windows": [],
+    "features": {
+      "provider_selection": false,
+      "resume": true,
+      "goal_mode": false,
+      "mcp": true,
+      "hooks": true
+    }
+  },
   "agent_hooks": {
     "document_scopes": ["project"],
     "events": [
@@ -91,7 +112,8 @@
         "docs/**",
         "README.md",
         "resource.json",
-        "../../packages/agentharness"
+        "../../packages/agentharness",
+        "../internal/agentapp/**"
       ]
     },
     "source_build": {

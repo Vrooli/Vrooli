@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/vrooli/agentharness"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 const (
@@ -53,6 +54,9 @@ type Input struct {
 		FiveHour *Window `json:"five_hour"`
 		SevenDay *Window `json:"seven_day"`
 	} `json:"rate_limits"`
+	ContextWindow struct {
+		ContextWindowSize int64 `json:"context_window_size"`
+	} `json:"context_window"`
 }
 
 // Window is one rate-limit window: percent used (0-100) and its reset time
@@ -90,6 +94,8 @@ func DefaultSamplesPath() (string, error) {
 // the status line.
 type Feed struct {
 	SamplesPath string
+	// WindowsPath records each model's context window; empty disables it.
+	WindowsPath string
 	StatePath   string
 	Now         func() time.Time
 	Stderr      io.Writer
@@ -104,6 +110,9 @@ func (f Feed) Run(stdin io.Reader, stdout io.Writer) error {
 	if err := json.Unmarshal(raw, &in); err == nil {
 		if recErr := f.record(in); recErr != nil && f.Stderr != nil {
 			_, _ = fmt.Fprintf(f.Stderr, "statusline: record quota sample: %v\n", recErr)
+		}
+		if recErr := f.recordWindow(in); recErr != nil && f.Stderr != nil {
+			_, _ = fmt.Fprintf(f.Stderr, "statusline: record context window: %v\n", recErr)
 		}
 	}
 	if previous := loadState(f.StatePath).previousCommand(); previous != "" {
@@ -145,6 +154,16 @@ func render(in Input) string {
 type marker struct {
 	Key string    `json:"key"`
 	At  time.Time `json:"at"`
+}
+
+// recordWindow keeps what Claude reports for this session's model. Only the
+// model ID is a key: a display name is not something a launch can name.
+func (f Feed) recordWindow(in Input) error {
+	now := time.Now
+	if f.Now != nil {
+		now = f.Now
+	}
+	return harness.RecordModelWindow(f.WindowsPath, in.Model.ID, in.ContextWindow.ContextWindowSize, now())
 }
 
 func (f Feed) record(in Input) error {

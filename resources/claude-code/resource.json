@@ -58,6 +58,53 @@
     "detection_signal": "CLAUDECODE=1",
     "hook_surface": "native-permissions"
   },
+  "harness": {
+    "id": "claude",
+    "aliases": [
+      "claude-code"
+    ],
+    "binary": "claude",
+    "display_name": "Claude Code",
+    "icon": "claude",
+    "session_env": [
+      "CLAUDE_CODE_SESSION_ID"
+    ],
+    "home_isolation": {
+      "kind": "none"
+    },
+    "usage_windows": [
+      {
+        "id": "five_hour",
+        "minutes": 300
+      },
+      {
+        "id": "seven_day",
+        "minutes": 10080
+      }
+    ],
+    "features": {
+      "context_limit": {
+        "kind": "env",
+        "key": "CLAUDE_CODE_AUTO_COMPACT_WINDOW",
+        "minimum": 100000
+      },
+      "context_window_source": "claude-statusline",
+      "usage_mode": {
+        "provider": "anthropic"
+      },
+      "model_selection": {
+        "flag": "--model",
+        "sources": [
+          "claude-subscription"
+        ]
+      },
+      "provider_selection": false,
+      "resume": true,
+      "goal_mode": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
   "agent_hooks": {
     "document_scopes": [
       "user",
@@ -111,7 +158,8 @@
         "docs/**",
         "README.md",
         "resource.json",
-        "../../packages/agentharness"
+        "../../packages/agentharness",
+        "../internal/agentapp/**"
       ]
     },
     "source_build": {

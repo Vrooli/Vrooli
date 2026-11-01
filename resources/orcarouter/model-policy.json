@@ -322,7 +322,8 @@
           "observed_at": "2026-10-30",
           "sample_count": 0
         }
-      }
+      },
+      "display_name": "GPT-4o mini"
     },
     "openai/gpt-6-luna": {
       "provider": "openai",
@@ -356,7 +357,8 @@
           "observed_at": "2026-10-30",
           "sample_count": 0
         }
-      }
+      },
+      "display_name": "GPT-6 Luna"
     },
     "openai/gpt-6.1-sol": {
       "provider": "openai",
@@ -391,7 +393,8 @@
           "observed_at": "2026-10-30",
           "sample_count": 0
         }
-      }
+      },
+      "display_name": "GPT-6.1 Sol"
     },
     "anthropic/claude-sonnet-4.6": {
       "provider": "anthropic",
@@ -428,7 +431,8 @@
           "observed_at": "2026-10-30",
           "sample_count": 0
         }
-      }
+      },
+      "display_name": "Claude Sonnet 4.6"
     },
     "google/gemini-3.1-pro-preview": {
       "provider": "google",
@@ -465,7 +469,8 @@
           "observed_at": "2026-10-30",
           "sample_count": 0
         }
-      }
+      },
+      "display_name": "Gemini 3.1 Pro Preview"
     },
     "deepseek/deepseek-chat": {
       "provider": "deepseek",
@@ -499,7 +504,8 @@
           "observed_at": "2026-10-30",
           "sample_count": 0
         }
-      }
+      },
+      "display_name": "DeepSeek Chat"
     }
   },
   "constraints": {

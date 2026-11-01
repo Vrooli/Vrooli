@@ -6,7 +6,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
+
+// BashToolPatterns writes portable patterns in the Bash(...) rule form that
+// some harnesses store natively.
+func BashToolPatterns(patterns []string) []string {
+	formatted := make([]string, 0, len(patterns))
+	for _, pattern := range patterns {
+		formatted = append(formatted, "Bash("+pattern+")")
+	}
+	return formatted
+}
+
+// PortableBashPatterns undoes BashToolPatterns; any other rule is kept as written.
+func PortableBashPatterns(patterns []string) []string {
+	portable := make([]string, 0, len(patterns))
+	for _, pattern := range patterns {
+		if strings.HasPrefix(pattern, "Bash(") && strings.HasSuffix(pattern, ")") {
+			portable = append(portable, strings.TrimSuffix(strings.TrimPrefix(pattern, "Bash("), ")"))
+			continue
+		}
+		portable = append(portable, pattern)
+	}
+	return portable
+}
 
 // PermissionProjection is the resource-local managed subset expressed in the
 // common three-bucket form. It is intentionally not a native config model.

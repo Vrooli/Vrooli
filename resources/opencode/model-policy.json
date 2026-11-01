@@ -54,71 +54,113 @@
   "model_aliases": {
     "openrouter/deepseek/deepseek-v4.1-flash": {
       "canonical_model": "openrouter/deepseek/deepseek-v4.1-flash",
-      "provider": "openrouter"
+      "provider": "openrouter",
+      "display_name": "DeepSeek V4.1 Flash"
     },
     "openrouter/deepseek/deepseek-v4-flash-0731": {
       "canonical_model": "openrouter/deepseek/deepseek-v4-flash-0731",
-      "provider": "openrouter"
+      "provider": "openrouter",
+      "display_name": "DeepSeek V4 Flash 0731"
     },
     "openrouter/deepseek/deepseek-v4-pro": {
       "canonical_model": "openrouter/deepseek/deepseek-v4-pro",
-      "provider": "openrouter"
+      "provider": "openrouter",
+      "display_name": "DeepSeek V4 Pro"
     },
     "openrouter/anthropic/claude-opus-5": {
       "canonical_model": "openrouter/anthropic/claude-opus-5",
-      "provider": "openrouter"
+      "provider": "openrouter",
+      "display_name": "Claude Opus 5"
     },
     "openrouter/anthropic/claude-opus-4.8": {
       "canonical_model": "openrouter/anthropic/claude-opus-4.8",
-      "provider": "openrouter"
+      "provider": "openrouter",
+      "display_name": "Claude Opus 4.8"
     },
     "openrouter/moonshotai/kimi-k3": {
       "canonical_model": "openrouter/moonshotai/kimi-k3",
-      "provider": "openrouter"
+      "provider": "openrouter",
+      "display_name": "Kimi K3"
     },
     "ollama/gemma4:12b": {
       "canonical_model": "ollama/gemma4:12b",
-      "provider": "ollama"
+      "provider": "ollama",
+      "display_name": "Gemma 4 12B"
     },
     "opencode-go/deepseek-v4.1-flash": {
       "canonical_model": "opencode-go/deepseek-v4.1-flash",
-      "provider": "opencode-go"
+      "provider": "opencode-go",
+      "display_name": "DeepSeek V4.1 Flash"
     },
     "opencode-go/mimo-v2.5": {
       "canonical_model": "opencode-go/mimo-v2.5",
-      "provider": "opencode-go"
+      "provider": "opencode-go",
+      "display_name": "MiMo V2.5"
     },
     "opencode-go/longcat-2.0": {
       "canonical_model": "opencode-go/longcat-2.0",
-      "provider": "opencode-go"
-    },
-    "opencode-go/muse-spark-1.2": {
-      "canonical_model": "opencode-go/muse-spark-1.2",
-      "provider": "opencode-go"
+      "provider": "opencode-go",
+      "display_name": "LongCat-2.0"
     },
     "opencode-go/glm-5.3-flash": {
       "canonical_model": "opencode-go/glm-5.3-flash",
-      "provider": "opencode-go"
+      "provider": "opencode-go",
+      "display_name": "GLM-5.3-Flash"
     },
     "opencode-go/kimi-k2.7-code": {
       "canonical_model": "opencode-go/kimi-k2.7-code",
-      "provider": "opencode-go"
+      "provider": "opencode-go",
+      "display_name": "Kimi K2.7 Code"
     },
     "orcarouter/openai/gpt-4o-mini": {
       "canonical_model": "orcarouter/openai/gpt-4o-mini",
-      "provider": "orcarouter"
+      "provider": "orcarouter",
+      "display_name": "GPT-4o mini"
     },
     "orcarouter/anthropic/claude-sonnet-4.6": {
       "canonical_model": "orcarouter/anthropic/claude-sonnet-4.6",
-      "provider": "orcarouter"
+      "provider": "orcarouter",
+      "display_name": "Claude Sonnet 4.6"
     },
     "orcarouter/deepseek/deepseek-chat": {
       "canonical_model": "orcarouter/deepseek/deepseek-chat",
-      "provider": "orcarouter"
+      "provider": "orcarouter",
+      "display_name": "DeepSeek Chat"
+    },
+    "orcarouter/google/gemini-3.1-pro-preview": {
+      "canonical_model": "orcarouter/google/gemini-3.1-pro-preview",
+      "provider": "orcarouter",
+      "display_name": "Gemini 3.1 Pro Preview"
+    },
+    "orcarouter/openai/gpt-6-luna": {
+      "canonical_model": "orcarouter/openai/gpt-6-luna",
+      "provider": "orcarouter",
+      "display_name": "GPT-6 Luna"
+    },
+    "orcarouter/openai/gpt-6.1-sol": {
+      "canonical_model": "orcarouter/openai/gpt-6.1-sol",
+      "provider": "orcarouter",
+      "display_name": "GPT-6.1 Sol"
     },
     "abliteration/abliterated-model": {
       "canonical_model": "abliteration/abliterated-model",
-      "provider": "abliteration"
+      "provider": "abliteration",
+      "display_name": "Abliterated Model"
+    },
+    "abliteration/abliterated-model-large": {
+      "canonical_model": "abliteration/abliterated-model-large",
+      "provider": "abliteration",
+      "display_name": "Abliterated Large"
+    },
+    "abliteration/abliterated-model-large-flash": {
+      "canonical_model": "abliteration/abliterated-model-large-flash",
+      "provider": "abliteration",
+      "display_name": "Abliterated Large Flash"
+    },
+    "abliteration/abliterated-model-large-v2": {
+      "canonical_model": "abliteration/abliterated-model-large-v2",
+      "provider": "abliteration",
+      "display_name": "Abliterated Large v2"
     }
   },
   "roles": {

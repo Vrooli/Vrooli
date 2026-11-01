@@ -34,7 +34,7 @@ func newTestHandlers(t *testing.T, kind cliutil.CallerKind) (*Handlers, *bytes.B
 
 func TestDenyAsHumanWrites(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"git stash *"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
 	p, err := h.Adapter.Load()
@@ -51,7 +51,7 @@ func TestDenyAsHumanWrites(t *testing.T) {
 
 func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	err := h.Deny([]string{"git stash *"})
+	err := h.shared().Deny([]string{"git stash *"})
 	if err == nil {
 		t.Fatal("expected deny error")
 	}
@@ -66,7 +66,7 @@ func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 
 func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	if err := h.Deny([]string{"-i-was-explicitly-authorized", "git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"-i-was-explicitly-authorized", "git stash *"}); err != nil {
 		t.Fatalf("Deny with override: %v", err)
 	}
 	p, _ := h.Adapter.Load()
@@ -80,7 +80,7 @@ func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"rm -rf /*"}}, "test"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.List(nil); err != nil {
+	if err := h.shared().List(nil); err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "rm -rf /*") {
@@ -90,10 +90,10 @@ func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 
 func TestDriftCheckClean(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"x"}); err != nil {
+	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
-	if err := h.DriftCheck(nil); err != nil {
+	if err := h.shared().DriftCheck(nil); err != nil {
 		t.Fatalf("drift-check clean: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "clean") {
@@ -103,7 +103,7 @@ func TestDriftCheckClean(t *testing.T) {
 
 func TestDriftCheckDetectsHandEdit(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"x"}); err != nil {
+	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 	// Simulate a genuine out-of-band hand-edit: flip the managed entry's
@@ -121,7 +121,7 @@ func TestDriftCheckDetectsHandEdit(t *testing.T) {
 	if err := os.WriteFile(h.Adapter.SettingsPath, []byte(edited), 0o644); err != nil {
 		t.Fatalf("hand edit: %v", err)
 	}
-	if err := h.DriftCheck(nil); err == nil {
+	if err := h.shared().DriftCheck(nil); err == nil {
 		t.Fatal("expected drift error")
 	}
 }
@@ -159,10 +159,10 @@ func TestMigrateStripsLegacyKey(t *testing.T) {
 
 func TestResetClearsAll(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"x"}); err != nil {
+	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Reset(nil); err != nil {
+	if err := h.shared().Reset(nil); err != nil {
 		t.Fatalf("Reset: %v", err)
 	}
 	p, _ := h.Adapter.Load()
@@ -176,7 +176,7 @@ func TestRemoveOnePattern(t *testing.T) {
 	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"a", "b"}}, "test"); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.Remove([]string{"a"}); err != nil {
+	if err := h.shared().Remove([]string{"a"}); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
 	p, _ := h.Adapter.Load()
@@ -188,7 +188,7 @@ func TestRemoveOnePattern(t *testing.T) {
 func TestDoctorRunsAndChecksPin(t *testing.T) {
 	h, stdout, stderr := newTestHandlers(t, cliutil.CallerKindHuman)
 	h.VersionRunner = func(ctx context.Context, args []string) (string, error) { return "opencode 2.5.0", nil }
-	if err := h.Doctor([]string{"-pinned-version", "1.0"}); err != nil {
+	if err := h.shared().Doctor([]string{"-pinned-version", "1.0"}); err != nil {
 		t.Fatalf("Doctor: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "opencode 2.5.0") {
@@ -201,7 +201,7 @@ func TestDoctorRunsAndChecksPin(t *testing.T) {
 
 func TestVrooliAgentAlsoRefused(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindVrooliAgent)
-	err := h.Deny([]string{"x"})
+	err := h.shared().Deny([]string{"x"})
 	if err == nil {
 		t.Fatal("vrooli-agent must also be refused without override")
 	}
@@ -212,10 +212,10 @@ func TestPatternMovesBetweenLists(t *testing.T) {
 	// duplicate a pattern across deny/ask/allow. Moving an existing
 	// pattern to a new bucket should replace, not add.
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"git stash *"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Ask([]string{"git stash *"}); err != nil {
+	if err := h.shared().Ask([]string{"git stash *"}); err != nil {
 		t.Fatalf("Ask: %v", err)
 	}
 	p, _ := h.Adapter.Load()

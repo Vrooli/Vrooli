@@ -2,15 +2,11 @@ package permissions
 
 import "github.com/vrooli/agentharness"
 
-type State = agentharness.PermissionState
-
-const StateSchemaVersion = agentharness.PermissionStateSchemaVersion
-
 func (a *Adapter) StatePath() string {
 	return agentharness.PermissionStateSettingsPath(a.SettingsPath)
 }
 
-func (a *Adapter) LoadState() (*State, error) {
+func (a *Adapter) LoadState() (*agentharness.PermissionState, error) {
 	return agentharness.LoadPermissionState(a.StatePath())
 }
 

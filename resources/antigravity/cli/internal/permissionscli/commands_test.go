@@ -42,7 +42,7 @@ func newTestHandlers(t *testing.T, kind cliutil.CallerKind) (*Handlers, *bytes.B
 
 func TestDenyAsHumanWrites(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"command(rm -rf)"}); err != nil {
+	if err := h.shared().Deny([]string{"command(rm -rf)"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -60,7 +60,7 @@ func TestDenyAsHumanWrites(t *testing.T) {
 
 func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	err := h.Deny([]string{"command(git stash)"})
+	err := h.shared().Deny([]string{"command(git stash)"})
 	if err == nil {
 		t.Fatal("expected deny error")
 	}
@@ -76,7 +76,7 @@ func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 
 func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	if err := h.Deny([]string{"-i-was-explicitly-authorized", "command(git stash)"}); err != nil {
+	if err := h.shared().Deny([]string{"-i-was-explicitly-authorized", "command(git stash)"}); err != nil {
 		t.Fatalf("Deny with override: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -88,7 +88,7 @@ func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 
 func TestVrooliAgentAlsoRefused(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindVrooliAgent)
-	if err := h.Deny([]string{"Bash(x)"}); err == nil {
+	if err := h.shared().Deny([]string{"Bash(x)"}); err == nil {
 		t.Fatal("vrooli-agent must also be refused without override")
 	}
 }
@@ -99,7 +99,7 @@ func TestListIsAllowedForAgents(t *testing.T) {
 	if err := a.Save(permissions.Policy{BashDeny: []string{"command(rm -rf)"}}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.List(nil); err != nil {
+	if err := h.shared().List(nil); err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "command(rm -rf)") {
@@ -109,10 +109,10 @@ func TestListIsAllowedForAgents(t *testing.T) {
 
 func TestDriftCheckCleanThenDetectsHandEdit(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"Bash(x)"}); err != nil {
+	if err := h.shared().Deny([]string{"Bash(x)"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
-	if err := h.DriftCheck(nil); err != nil {
+	if err := h.shared().DriftCheck(nil); err != nil {
 		t.Fatalf("drift-check clean: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "clean") {
@@ -124,17 +124,17 @@ func TestDriftCheckCleanThenDetectsHandEdit(t *testing.T) {
 	if err := a.Save(p); err != nil {
 		t.Fatalf("hand edit: %v", err)
 	}
-	if err := h.DriftCheck(nil); err == nil {
+	if err := h.shared().DriftCheck(nil); err == nil {
 		t.Fatal("expected drift error after hand edit")
 	}
 }
 
 func TestResetClearsAll(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"command(rm -rf)"}); err != nil {
+	if err := h.shared().Deny([]string{"command(rm -rf)"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Reset(nil); err != nil {
+	if err := h.shared().Reset(nil); err != nil {
 		t.Fatalf("Reset: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -150,7 +150,7 @@ func TestRemoveOnePattern(t *testing.T) {
 	if err := a.Save(permissions.Policy{BashDeny: []string{"Bash(a)", "Bash(b)"}}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.Remove([]string{"Bash(a)"}); err != nil {
+	if err := h.shared().Remove([]string{"Bash(a)"}); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
 	p, _ := a.Load()
@@ -161,10 +161,10 @@ func TestRemoveOnePattern(t *testing.T) {
 
 func TestPatternMovesBetweenLists(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"command(git stash)"}); err != nil {
+	if err := h.shared().Deny([]string{"command(git stash)"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Allow([]string{"command(git stash)"}); err != nil {
+	if err := h.shared().Allow([]string{"command(git stash)"}); err != nil {
 		t.Fatalf("Allow: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -179,7 +179,7 @@ func TestPatternMovesBetweenLists(t *testing.T) {
 
 func TestUnknownScopeRejected(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	err := h.Deny([]string{"-scope", "bogus", "Bash(x)"})
+	err := h.shared().Deny([]string{"-scope", "bogus", "Bash(x)"})
 	if err == nil || !strings.Contains(err.Error(), "unknown --scope") {
 		t.Fatalf("expected unknown-scope error, got %v", err)
 	}
@@ -188,7 +188,7 @@ func TestUnknownScopeRejected(t *testing.T) {
 func TestDoctorReportsVersionAndEnforcement(t *testing.T) {
 	h, stdout, stderr := newTestHandlers(t, cliutil.CallerKindHuman)
 	h.VersionRunner = func(ctx context.Context, args []string) (string, error) { return "9.9.9", nil }
-	if err := h.Doctor([]string{"-pinned-version", "1.0.13"}); err != nil {
+	if err := h.shared().Doctor([]string{"-pinned-version", "1.0.13"}); err != nil {
 		t.Fatalf("Doctor: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "9.9.9") {

@@ -111,8 +111,14 @@ type PermissionCommandConfig struct {
 	ListSuffix          func(io.Writer, PermissionAdapter)
 	ShowFields          func(map[string]any, PermissionAdapter, PermissionPolicy)
 	DoctorExtra         func(io.Writer, io.Writer, PermissionAdapter) error
-	Stdout              io.Writer
-	Stderr              io.Writer
+	// PlanDocument compares a whole declared document with the live config. The
+	// returned apply writes the desired policy and its state; reconcile calls it
+	// only after the agent gate and only when the plan shows drift.
+	PlanDocument func(path, scope string) (PermissionPlanResult, func() error, error)
+	// PlanReportsScope adds the scope to the plan's text output.
+	PlanReportsScope bool
+	Stdout           io.Writer
+	Stderr           io.Writer
 }
 
 // PermissionHandlers owns the common permissions command behavior.
@@ -164,6 +170,82 @@ func (h *PermissionHandlers) Commands(extras []cliapp.Command) cliapp.Subcommand
 	commands = append(commands, extras...)
 	commands = append(commands, cliapp.Command{Name: "doctor", Description: command("doctor", "Check installed CLI version against the pinned upstream version"), Run: h.Doctor})
 	return cliapp.SubcommandGroup{Name: "permissions", Description: h.cfg.Description, Subcommands: commands}
+}
+
+// DocumentCommands are the plan and reconcile commands over cfg.PlanDocument.
+func (h *PermissionHandlers) DocumentCommands() []cliapp.Command {
+	return []cliapp.Command{
+		{Name: "plan", Description: "Plan a whole declared portable permission document (JSON)", Run: h.PlanDocument},
+		{Name: "reconcile", Description: "Reconcile a whole declared portable permission document (mutating, JSON)", Run: h.ReconcileDocument},
+	}
+}
+
+// PlanDocument prints a whole document's plan without changing anything.
+func (h *PermissionHandlers) PlanDocument(args []string) error {
+	fs, scope := h.scope("permissions plan")
+	documentPath := fs.String("document", "", "Path to the whole desired permission document, or - for stdin")
+	jsonOut := fs.Bool("json", false, "Emit machine-readable JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if h.scopeEnabled() {
+		scope = fs.Lookup("scope").Value.String()
+	}
+	if *documentPath == "" {
+		return errors.New("--document is required")
+	}
+	result, _, err := h.cfg.PlanDocument(*documentPath, scope)
+	if err != nil {
+		return err
+	}
+	return h.writeDocumentPlan(result, *jsonOut)
+}
+
+// ReconcileDocument applies a whole document when it differs from the live config.
+func (h *PermissionHandlers) ReconcileDocument(args []string) error {
+	fs, scope := h.scope("permissions reconcile")
+	documentPath := fs.String("document", "", "Path to the whole desired permission document, or - for stdin")
+	jsonOut := fs.Bool("json", false, "Emit machine-readable JSON")
+	authorized := fs.Bool("i-was-explicitly-authorized", false, "Override the agent gate (only when a human explicitly authorized this call)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if h.scopeEnabled() {
+		scope = fs.Lookup("scope").Value.String()
+	}
+	if *documentPath == "" {
+		return errors.New("--document is required")
+	}
+	result, apply, err := h.cfg.PlanDocument(*documentPath, scope)
+	if err != nil {
+		return err
+	}
+	if err := h.Gate("permissions reconcile", true, *authorized); err != nil {
+		return err
+	}
+	if result.Drift {
+		if err := apply(); err != nil {
+			return err
+		}
+	}
+	return h.writeDocumentPlan(result, *jsonOut)
+}
+
+func (h *PermissionHandlers) writeDocumentPlan(result PermissionPlanResult, asJSON bool) error {
+	if asJSON {
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprintln(h.cfg.Stdout, string(data))
+		return err
+	}
+	scope := ""
+	if h.cfg.PlanReportsScope {
+		scope = " scope=" + result.Scope
+	}
+	fmt.Fprintf(h.cfg.Stdout, "runner=%s%s drift=%t changes=%d enforcement=%s\n", result.Runner, scope, result.Drift, len(result.Changes), result.Enforcement.Permissions)
+	return nil
 }
 
 func (h *PermissionHandlers) flagSet(name string) *flag.FlagSet {

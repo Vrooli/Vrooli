@@ -4,23 +4,20 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/configcli"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissions"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissionscli"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/statusline"
+	"github.com/vrooli/vrooli/resources/internal/agentapp"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/upstreamcheck"
-	"github.com/vrooli/cli-core/upstreamcheck/upstreamverb"
 	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
-	appName    = "claude-code"
-	appVersion = "0.1.0"
+	appName = "claude-code"
 	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
 	// `permissions doctor` warns when the installed claude CLI version
 	// diverges from this string.
@@ -51,67 +48,37 @@ var (
 	buildSourceRoot  = ""
 )
 
-func main() {
-	app, err := newApp()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := app.CLI.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-}
+func main() { agentapp.Main(newApp) }
 
 func newApp() (*cliapp.ResourceApp, error) {
-	env := cliapp.StandardResourceEnv(appName, cliapp.ResourceEnvOptions{})
-	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{
-		Name:                appName,
-		Version:             appVersion,
-		Description:         "Claude Code resource CLI",
-		SourceRootEnvVars:   env.SourceRootEnvVars,
-		ControlPlaneEnvVars: env.ControlPlaneEnvVars,
-		BuildFingerprint:    buildFingerprint,
-		BuildTimestamp:      buildTimestamp,
-		BuildSourceRoot:     buildSourceRoot,
-	})
-	if err != nil {
-		return nil, err
-	}
-	installSpec := agentinstall.Spec{ResourceName: appName, Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude")}
 	settings := &permissions.Adapter{}
 	if adapter, adapterErr := permissions.DefaultAdapter(); adapterErr == nil {
 		settings = adapter
 	}
 	statusLine := statusline.DefaultHandlers(settings.SettingsPath, settings.HookStateDir)
-	commands := append(app.StandardLifecycleCommands(),
-		cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{installWithStatusLine(agentinstall.DirectInstallCommand(installSpec), statusLine), agentinstall.UpdateCommand(installSpec)}},
-		cliapp.CommandGroup{Title: "Execution", Commands: []cliapp.Command{{
+	return agentapp.New(agentapp.Spec{
+		Name:        appName,
+		Description: "Claude Code resource CLI",
+		Build:       agentapp.Build{Fingerprint: buildFingerprint, Timestamp: buildTimestamp, SourceRoot: buildSourceRoot},
+		DataDir:     []string{".claude"},
+		Posture:     agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}},
+		WrapInstall: func(install cliapp.Command) cliapp.Command { return installWithStatusLine(install, statusLine) },
+		CommandGroups: []cliapp.CommandGroup{{Title: "Execution", Commands: []cliapp.Command{{
 			Name:        "run",
 			Description: "Run the resource-owned Claude Code executable",
 			Usage:       "resource-claude-code run -- <claude arguments>",
 			Run:         runClaude,
-		}}},
-	)
-	app.SetCommandsWithSubgroups(
-		commands,
-		[]cliapp.SubcommandGroup{
-			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
-			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}}}),
-			configcli.Commands(configcli.Default()),
-			statusline.Commands(statusLine),
-			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
-			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
-			upstreamverb.Commands(upstreamcheck.Default(upstreamcheck.Config{
-				DisplayName:   appName,
-				InstalledCmd:  []string{"claude", "--version"},
-				PinnedVersion: upstreamPinnedVersion,
-				SourceKind:    upstreamcheck.SourceNPM,
-				SourceID:      "@anthropic-ai/claude-code",
-			})),
+		}}}},
+		Groups: func(install agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
+			return []cliapp.SubcommandGroup{
+				configcli.Commands(configcli.Default()),
+				statusline.Commands(statusLine),
+				permissionscli.HookCommands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
+				permissionscli.Commands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
+				agentapp.NPMUpstream(install, upstreamPinnedVersion, "@anthropic-ai/claude-code"),
+			}, nil
 		},
-	)
-	return app, nil
+	})
 }
 
 // installWithStatusLine makes the resource install (`vrooli resource install

@@ -1,12 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/vrooli/vrooli/resources/antigravity/cli/internal/permissionscli"
 	"github.com/vrooli/vrooli/resources/antigravity/cli/internal/upstream"
+	"github.com/vrooli/vrooli/resources/internal/agentapp"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
@@ -15,8 +12,7 @@ import (
 )
 
 const (
-	appName    = "antigravity"
-	appVersion = "0.1.0"
+	appName = "antigravity"
 	// upstreamPinnedVersion mirrors resource.json upstream_cli.version_pinned.
 	// `upstream-check` uses it as the known-good baseline; drift warns.
 	upstreamPinnedVersion = "1.0.13"
@@ -28,47 +24,28 @@ var (
 	buildSourceRoot  = ""
 )
 
-func main() {
-	app, err := newApp()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-	if err := app.CLI.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-}
+func main() { agentapp.Main(newApp) }
 
 func newApp() (*cliapp.ResourceApp, error) {
-	env := cliapp.StandardResourceEnv(appName, cliapp.ResourceEnvOptions{})
-	app, err := cliapp.NewResourceApp(cliapp.ResourceOptions{
-		Name:                appName,
-		Version:             appVersion,
-		Description:         "Antigravity CLI resource CLI",
-		SourceRootEnvVars:   env.SourceRootEnvVars,
-		ControlPlaneEnvVars: env.ControlPlaneEnvVars,
-		BuildFingerprint:    buildFingerprint,
-		BuildTimestamp:      buildTimestamp,
-		BuildSourceRoot:     buildSourceRoot,
-	})
-	if err != nil {
-		return nil, err
-	}
-	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "agy", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".gemini")})}}),
-		[]cliapp.SubcommandGroup{
-			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Antigravity permissions and the projected PreToolUse hook require a live canary before being treated as enforced."}}}),
-			// Antigravity is not on npm/GitHub releases — its latest version is
-			// served as a per-platform JSON manifest from the auto-updater
-			// service, so we override the upstream-check fetcher (see
-			// internal/upstream).
-			upstreamverb.Commands(upstream.Handlers(appName, upstreamPinnedVersion)),
-			// Manage Antigravity's native `permissions` allow/deny/ask grants in
-			// ~/.gemini/antigravity-cli/settings.json (see internal/permissions).
-			permissionscli.HookCommands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
-			permissionscli.Commands(permissionscli.Default(appVersion, upstreamPinnedVersion)),
+	return agentapp.New(agentapp.Spec{
+		Name:             appName,
+		Description:      "Antigravity CLI resource CLI",
+		Build:            agentapp.Build{Fingerprint: buildFingerprint, Timestamp: buildTimestamp, SourceRoot: buildSourceRoot},
+		DataDir:          []string{".gemini"},
+		NoModelDiscovery: true,
+		Posture:          agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Antigravity permissions and the projected PreToolUse hook require a live canary before being treated as enforced."}},
+		Groups: func(agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
+			return []cliapp.SubcommandGroup{
+				// Antigravity is not on npm/GitHub releases — its latest version is
+				// served as a per-platform JSON manifest from the auto-updater
+				// service, so we override the upstream-check fetcher (see
+				// internal/upstream).
+				upstreamverb.Commands(upstream.Handlers(appName, upstreamPinnedVersion)),
+				// Manage Antigravity's native `permissions` allow/deny/ask grants in
+				// ~/.gemini/antigravity-cli/settings.json (see internal/permissions).
+				permissionscli.HookCommands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
+				permissionscli.Commands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
+			}, nil
 		},
-	)
-	return app, nil
+	})
 }

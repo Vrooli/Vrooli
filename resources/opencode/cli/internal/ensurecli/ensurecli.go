@@ -6,7 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"strings"
 
+	"github.com/vrooli/cli-core/upstreamcheck"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/configcli"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
@@ -14,9 +18,10 @@ import (
 )
 
 type Handlers struct {
-	Adapter       *permissions.Adapter
-	Stdout        io.Writer
-	Stderr        io.Writer
+	Adapter *permissions.Adapter
+	Config  *configcli.Handlers
+	Stdout  io.Writer
+	Stderr  io.Writer
 }
 
 func Default() *Handlers {
@@ -26,6 +31,7 @@ func Default() *Handlers {
 	}
 	return &Handlers{
 		Adapter: a,
+		Config:  configcli.Default(),
 		Stdout:  os.Stdout,
 		Stderr:  os.Stderr,
 	}
@@ -37,12 +43,32 @@ func Commands(h *Handlers) cliapp.Command {
 	}
 	return cliapp.Command{
 		Name:        "ensure",
-		Description: "Self-heal OpenCode hooks and permissions — installs the Vrooli policy hook and reconciles the permission block",
+		Description: "Self-heal OpenCode config, hooks, and permissions",
 		Run:         h.Ensure,
 	}
 }
 
+func warnIfOpenCodeV2(stderr io.Writer) {
+	path, err := exec.LookPath("opencode")
+	if err != nil {
+		return
+	}
+	out, err := exec.Command(path, "--version").Output()
+	if err != nil {
+		return
+	}
+	if strings.HasPrefix(upstreamcheck.ExtractSemver(string(out)), "2.") {
+		fmt.Fprintln(stderr, "warn: OpenCode 2 detected; native permission rules apply, but the V1 policy plugin hook does not load in V2. Hook enforcement remains unverified.")
+	}
+}
+
 func (h *Handlers) Ensure(args []string) error {
+	warnIfOpenCodeV2(h.Stderr)
+	if h.Config != nil {
+		if err := h.Config.Ensure(nil); err != nil {
+			fmt.Fprintf(h.Stderr, "warn: opencode config: %v\n", err)
+		}
+	}
 	if h.Adapter == nil {
 		return errors.New("OpenCode settings adapter is unavailable")
 	}

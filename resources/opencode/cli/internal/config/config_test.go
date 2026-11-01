@@ -240,6 +240,59 @@ func TestEnsure_CloudKeyKeepsOpenRouterButWritesOllamaBlock(t *testing.T) {
 	}
 }
 
+func TestEnsure_RegistersProviderCatalogModelsForCustomProviders(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:       path,
+		Defaults:         DefaultDefaults(func(string) string { return "" }),
+		HaveAbliteration: true,
+		Resolver:         fakeResolver{listErr: errors.New("connection refused")},
+		ProviderModels: func(_ context.Context, providerID string) ([]ProviderModel, error) {
+			if providerID != abliterationProviderID {
+				t.Fatalf("unexpected provider %q", providerID)
+			}
+			return []ProviderModel{{ID: "abliterated-model", Name: "Abliterated Model"}, {ID: "abliterated-model-large-v2", Name: "Abliterated Large v2"}}, nil
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, mustRead(t, path))
+	models := m["provider"].(map[string]any)[abliterationProviderID].(map[string]any)["models"].(map[string]any)
+	for want, name := range map[string]string{"abliterated-model": "Abliterated Model", "abliterated-model-large-v2": "Abliterated Large v2"} {
+		entry, ok := models[want].(map[string]any)
+		if !ok {
+			t.Errorf("custom provider is missing model %q: %v", want, models)
+			continue
+		}
+		if entry["name"] != name {
+			t.Errorf("%s name = %v, want %q", want, entry["name"], name)
+		}
+	}
+}
+
+func TestEnsure_ProviderCatalogFailureLeavesTheProviderUsableForBuiltIns(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/opencode.json"
+	_, err := Ensure(context.Background(), EnsureOptions{
+		ConfigPath:       path,
+		Defaults:         DefaultDefaults(func(string) string { return "" }),
+		HaveAbliteration: true,
+		Resolver:         fakeResolver{listErr: errors.New("connection refused")},
+		ProviderModels: func(context.Context, string) ([]ProviderModel, error) {
+			return nil, errors.New("resource-abliteration not installed")
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := parse(t, mustRead(t, path))
+	if _, ok := m["provider"].(map[string]any)[abliterationProviderID]; !ok {
+		t.Fatal("a catalog failure must not drop the provider block")
+	}
+}
+
 func TestEnsure_NoKeyLocalReachableSelfHealsToOllama(t *testing.T) {
 	dir := t.TempDir()
 	path := dir + "/opencode.json"
@@ -564,8 +617,8 @@ func TestRender_OpenAICompatibleProviderBlocks(t *testing.T) {
 	out, err := Render(nil, Inputs{
 		Provider: "orcarouter", ChatModel: "openai/gpt-4o-mini", CompletionModel: "openai/gpt-4o-mini", Repoint: true,
 		OpenAIProviders: []OpenAIProvider{
-			{ID: "orcarouter", Name: "OrcaRouter", NPM: "@ai-sdk/openai-compatible", BaseURL: "https://api.orcarouter.ai/v1"},
-			{ID: "abliteration", Name: "Abliteration", NPM: "@ai-sdk/openai-compatible", BaseURL: "https://api.abliteration.ai/v1"},
+			{ID: "orcarouter", Name: "OrcaRouter", NPM: "@ai-sdk/openai-compatible", BaseURL: "https://api.orcarouter.ai/v1", Models: []ProviderModel{{ID: "openai/gpt-4o-mini", Name: "GPT-4o mini"}}},
+			{ID: "abliteration", Name: "Abliteration", NPM: "@ai-sdk/openai-compatible", BaseURL: "https://api.abliteration.ai/v1", Models: []ProviderModel{{ID: "abliterated-model", Name: "Abliterated Model"}, {ID: "abliterated-model-large", Name: "Abliterated Large"}}},
 		},
 	})
 	if err != nil {
@@ -580,6 +633,15 @@ func TestRender_OpenAICompatibleProviderBlocks(t *testing.T) {
 		}
 		if block["options"].(map[string]any)["baseURL"] == "" {
 			t.Errorf("%s baseURL missing", id)
+		}
+		models := block["models"].(map[string]any)
+		if len(models) == 0 {
+			t.Errorf("%s models missing", id)
+		}
+		for _, entry := range models {
+			if entry.(map[string]any)["name"] == nil {
+				t.Errorf("%s model has no provider name: %v", id, entry)
+			}
 		}
 	}
 	if m["model"] != "orcarouter/openai/gpt-4o-mini" {

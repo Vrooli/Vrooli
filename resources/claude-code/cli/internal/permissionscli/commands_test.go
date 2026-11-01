@@ -36,7 +36,7 @@ func newTestHandlers(t *testing.T, kind cliutil.CallerKind) (*Handlers, *bytes.B
 
 func TestDenyAsHumanWrites(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"Bash(git stash*)"}); err != nil {
+	if err := h.shared().Deny([]string{"Bash(git stash*)"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
 	p, err := h.Adapter.Load()
@@ -53,7 +53,7 @@ func TestDenyAsHumanWrites(t *testing.T) {
 
 func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	err := h.Deny([]string{"Bash(git stash*)"})
+	err := h.shared().Deny([]string{"Bash(git stash*)"})
 	if err == nil {
 		t.Fatal("expected deny error")
 	}
@@ -69,7 +69,7 @@ func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 
 func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	if err := h.Deny([]string{"-i-was-explicitly-authorized", "Bash(git stash*)"}); err != nil {
+	if err := h.shared().Deny([]string{"-i-was-explicitly-authorized", "Bash(git stash*)"}); err != nil {
 		t.Fatalf("Deny with override: %v", err)
 	}
 	p, _ := h.Adapter.Load()
@@ -84,7 +84,7 @@ func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"Bash(rm -rf /*)"}, Hooks: true}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.List(nil); err != nil {
+	if err := h.shared().List(nil); err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "Bash(rm -rf /*)") {
@@ -94,10 +94,10 @@ func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 
 func TestDriftCheckClean(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"Bash(x)"}); err != nil {
+	if err := h.shared().Deny([]string{"Bash(x)"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
-	if err := h.DriftCheck(nil); err != nil {
+	if err := h.shared().DriftCheck(nil); err != nil {
 		t.Fatalf("drift-check clean: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "clean") {
@@ -107,7 +107,7 @@ func TestDriftCheckClean(t *testing.T) {
 
 func TestDriftCheckDetectsHandEdit(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"Bash(x)"}); err != nil {
+	if err := h.shared().Deny([]string{"Bash(x)"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 	// Hand-edit: add a pattern out-of-band.
@@ -117,17 +117,17 @@ func TestDriftCheckDetectsHandEdit(t *testing.T) {
 		t.Fatalf("hand edit save: %v", err)
 	}
 	// Note: deliberately NOT calling WriteState, simulating the hand-edit.
-	if err := h.DriftCheck(nil); err == nil {
+	if err := h.shared().DriftCheck(nil); err == nil {
 		t.Fatal("expected drift error")
 	}
 }
 
 func TestResetClearsAll(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"Bash(x)"}); err != nil {
+	if err := h.shared().Deny([]string{"Bash(x)"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Reset(nil); err != nil {
+	if err := h.shared().Reset(nil); err != nil {
 		t.Fatalf("Reset: %v", err)
 	}
 	p, _ := h.Adapter.Load()
@@ -141,7 +141,7 @@ func TestRemoveOnePattern(t *testing.T) {
 	if err := h.Adapter.Save(permissions.Policy{BashDeny: []string{"a", "b"}, Hooks: true}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.Remove([]string{"a"}); err != nil {
+	if err := h.shared().Remove([]string{"a"}); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
 	p, _ := h.Adapter.Load()
@@ -153,7 +153,7 @@ func TestRemoveOnePattern(t *testing.T) {
 func TestDoctorRunsAndChecksPin(t *testing.T) {
 	h, stdout, stderr := newTestHandlers(t, cliutil.CallerKindHuman)
 	h.VersionRunner = func(ctx context.Context, args []string) (string, error) { return "claude 2.5.0", nil }
-	if err := h.Doctor([]string{"-pinned-version", "1.0"}); err != nil {
+	if err := h.shared().Doctor([]string{"-pinned-version", "1.0"}); err != nil {
 		t.Fatalf("Doctor: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "claude 2.5.0") {
@@ -166,7 +166,7 @@ func TestDoctorRunsAndChecksPin(t *testing.T) {
 
 func TestVrooliAgentAlsoRefused(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindVrooliAgent)
-	err := h.Deny([]string{"Bash(x)"})
+	err := h.shared().Deny([]string{"Bash(x)"})
 	if err == nil {
 		t.Fatal("vrooli-agent must also be refused without override")
 	}

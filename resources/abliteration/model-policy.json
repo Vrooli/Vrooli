@@ -166,7 +166,8 @@
         "unit": "per_mtok",
         "input_per_mtok": 1.0,
         "output_per_mtok": 3.0
-      }
+      },
+      "display_name": "Abliterated Model"
     },
     "abliterated-model-large-flash": {
       "provider": "abliteration",
@@ -207,7 +208,8 @@
         "unit": "per_mtok",
         "input_per_mtok": 1.0,
         "output_per_mtok": 2.0
-      }
+      },
+      "display_name": "Abliterated Large Flash"
     },
     "abliterated-model-large": {
       "provider": "abliteration",
@@ -246,7 +248,8 @@
         "unit": "per_mtok",
         "input_per_mtok": 3.0,
         "output_per_mtok": 5.0
-      }
+      },
+      "display_name": "Abliterated Large"
     },
     "abliterated-model-large-v2": {
       "provider": "abliteration",
@@ -285,7 +288,8 @@
         "unit": "per_mtok",
         "input_per_mtok": 3.0,
         "output_per_mtok": 5.0
-      }
+      },
+      "display_name": "Abliterated Large v2"
     }
   },
   "constraints": {

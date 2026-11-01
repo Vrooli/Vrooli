@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
 
 type fixture struct {
@@ -232,6 +234,37 @@ func TestFeedDropsWindowsWhoseResetHasPassed(t *testing.T) {
 	}
 	if samples[2].FiveHour != nil {
 		t.Fatalf("a reset at the observation instant has passed: %+v", samples[2])
+	}
+}
+
+func TestFeedRecordsEachModelsContextWindowDurably(t *testing.T) {
+	dir := t.TempDir()
+	windows := filepath.Join(dir, "windows.json")
+	t.Setenv(harness.ModelWindowsEnv, windows)
+	render := func(input string) {
+		t.Helper()
+		feed := Feed{WindowsPath: windows, Stderr: &bytes.Buffer{}}
+		if err := feed.Run(strings.NewReader(input), &bytes.Buffer{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Claude reports the window with no rate limits at all for a metered login.
+	render(`{"model":{"id":"claude-opus-5-5"},"context_window":{"context_window_size":1000000}}`)
+	render(`{"model":{"id":"claude-haiku-5-5"},"context_window":{"context_window_size":200000}}`)
+	// A render with no usable report leaves what was recorded.
+	render(`{"model":{"id":"claude-opus-5-5"},"context_window":{"context_window_size":0}}`)
+	render(`{"model":{"id":"claude-opus-5-5"}}`)
+	render(`{"model":{"display_name":"Opus"},"context_window":{"context_window_size":5}}`)
+
+	claude := harness.Descriptor{Features: harness.Features{ContextWindowSource: harness.WindowSourceClaudeStatusline}}
+	if got := claude.ContextWindowTokens("claude-opus-5-5"); got != 1000000 {
+		t.Fatalf("opus window = %d", got)
+	}
+	if got := claude.ContextWindowTokens("claude-haiku-5-5"); got != 200000 {
+		t.Fatalf("haiku window = %d", got)
+	}
+	if got := claude.ContextWindowTokens("Opus"); got != 0 {
+		t.Fatalf("a display name must not become a model key, got %d", got)
 	}
 }
 

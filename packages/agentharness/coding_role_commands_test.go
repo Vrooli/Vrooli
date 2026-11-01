@@ -356,3 +356,50 @@ func command(group cliapp.SubcommandGroup, name string) cliapp.Command {
 	}
 	panic("missing command " + name)
 }
+
+func TestCodingPolicyRefreshUpdatesOnlyFromRunnerEvidence(t *testing.T) {
+	path := writeCodingCatalog(t, "codex")
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_CODEX_MODELS", `{"models":["unrelated-model"],"source":"codex debug models"}`)
+	cfg := CodingPolicyConfig{Runner: "codex", CatalogPath: path, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}}
+	if err := codingPolicyRefresh(cfg, nil); !errors.Is(err, agentcatalog.ErrRefreshEvidenceUnavailable) {
+		t.Fatalf("a role the runner does not list must fail the refresh: %v", err)
+	}
+	if after, _ := os.ReadFile(path); string(after) != string(original) {
+		t.Fatal("a failed refresh changed the policy")
+	}
+
+	catalog, err := agentcatalog.ReadCodingRoleCatalog("codex", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	models := []string{"brand-new"}
+	for _, role := range catalog.Roles {
+		models = append(models, role.Model)
+		models = append(models, role.Fallbacks...)
+	}
+	listing, err := json.Marshal(map[string]any{"models": models, "source": "codex debug models"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_CODEX_MODELS", string(listing))
+	var stdout bytes.Buffer
+	cfg.Stdout = &stdout
+	if err := codingPolicyRefresh(cfg, []string{"--json"}); err != nil {
+		t.Fatal(err)
+	}
+	var result agentcatalog.CatalogRefreshResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("output %q: %v", stdout.String(), err)
+	}
+	refreshed, err := agentcatalog.ReadCodingRoleCatalog("codex", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, named := refreshed.ModelAliases["brand-new"]; !named || result.ObservedAt != refreshed.Provenance.ObservedAt {
+		t.Fatalf("result %+v, catalog %+v", result, refreshed.Provenance)
+	}
+}

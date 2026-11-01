@@ -45,7 +45,7 @@ func newTestHandlers(t *testing.T, kind cliutil.CallerKind) (*Handlers, *bytes.B
 
 func TestDenyAsHumanWrites(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"git stash *"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -63,7 +63,7 @@ func TestDenyAsHumanWrites(t *testing.T) {
 
 func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	err := h.Deny([]string{"git stash *"})
+	err := h.shared().Deny([]string{"git stash *"})
 	if err == nil {
 		t.Fatal("expected deny error")
 	}
@@ -79,7 +79,7 @@ func TestDenyAsAgentRefusedWithoutOverride(t *testing.T) {
 
 func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindExternalAgent)
-	if err := h.Deny([]string{"-i-was-explicitly-authorized", "git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"-i-was-explicitly-authorized", "git stash *"}); err != nil {
 		t.Fatalf("Deny with override: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -91,7 +91,7 @@ func TestDenyAsAgentAllowedWithOverride(t *testing.T) {
 
 func TestAdminScopeWritesRequirementsFile(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"-scope", "admin", "git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"-scope", "admin", "git stash *"}); err != nil {
 		t.Fatalf("Deny admin: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeAdmin)
@@ -106,10 +106,10 @@ func TestAdminScopeWritesRequirementsFile(t *testing.T) {
 
 func TestUserAndAdminScopesAreSeparate(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"user-pat"}); err != nil {
+	if err := h.shared().Deny([]string{"user-pat"}); err != nil {
 		t.Fatalf("user Deny: %v", err)
 	}
-	if err := h.Deny([]string{"-scope", "admin", "admin-pat"}); err != nil {
+	if err := h.shared().Deny([]string{"-scope", "admin", "admin-pat"}); err != nil {
 		t.Fatalf("admin Deny: %v", err)
 	}
 	userA, _ := h.AdapterFor(permissions.ScopeUser)
@@ -130,7 +130,7 @@ func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 	if err := a.Save(permissions.Policy{BashDeny: []string{"rm -rf /*"}}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.List(nil); err != nil {
+	if err := h.shared().List(nil); err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "rm -rf /*") {
@@ -140,7 +140,7 @@ func TestListIsAlwaysAllowedForAgents(t *testing.T) {
 
 func TestDriftCheckClean(t *testing.T) {
 	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"x"}); err != nil {
+	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 	if err := h.DriftCheck(nil); err != nil {
@@ -153,7 +153,7 @@ func TestDriftCheckClean(t *testing.T) {
 
 func TestDriftCheckDetectsHandEdit(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"x"}); err != nil {
+	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -169,10 +169,10 @@ func TestDriftCheckDetectsHandEdit(t *testing.T) {
 
 func TestResetClearsAll(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"x"}); err != nil {
+	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Reset(nil); err != nil {
+	if err := h.shared().Reset(nil); err != nil {
 		t.Fatalf("Reset: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)
@@ -188,7 +188,7 @@ func TestRemoveOnePattern(t *testing.T) {
 	if err := a.Save(permissions.Policy{BashDeny: []string{"a", "b"}}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	if err := h.Remove([]string{"a"}); err != nil {
+	if err := h.shared().Remove([]string{"a"}); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
 	p, _ := a.Load()
@@ -200,7 +200,7 @@ func TestRemoveOnePattern(t *testing.T) {
 func TestDoctorMentionsEnforcementCaveat(t *testing.T) {
 	h, stdout, stderr := newTestHandlers(t, cliutil.CallerKindHuman)
 	h.VersionRunner = func(ctx context.Context, args []string) (string, error) { return "codex-cli 2.5.0", nil }
-	if err := h.Doctor([]string{"-pinned-version", "1.0"}); err != nil {
+	if err := h.shared().Doctor([]string{"-pinned-version", "1.0"}); err != nil {
 		t.Fatalf("Doctor: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "codex-cli 2.5.0") {
@@ -216,7 +216,7 @@ func TestDoctorMentionsEnforcementCaveat(t *testing.T) {
 
 func TestVrooliAgentAlsoRefused(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindVrooliAgent)
-	err := h.Deny([]string{"x"})
+	err := h.shared().Deny([]string{"x"})
 	if err == nil {
 		t.Fatal("vrooli-agent must also be refused without override")
 	}
@@ -224,7 +224,7 @@ func TestVrooliAgentAlsoRefused(t *testing.T) {
 
 func TestUnknownScopeRejected(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	err := h.Deny([]string{"-scope", "bogus", "x"})
+	err := h.shared().Deny([]string{"-scope", "bogus", "x"})
 	if err == nil || !strings.Contains(err.Error(), "unknown --scope") {
 		t.Fatalf("expected unknown-scope error, got %v", err)
 	}
@@ -232,10 +232,10 @@ func TestUnknownScopeRejected(t *testing.T) {
 
 func TestPatternMovesBetweenLists(t *testing.T) {
 	h, _, _ := newTestHandlers(t, cliutil.CallerKindHuman)
-	if err := h.Deny([]string{"git stash *"}); err != nil {
+	if err := h.shared().Deny([]string{"git stash *"}); err != nil {
 		t.Fatalf("Deny: %v", err)
 	}
-	if err := h.Ask([]string{"git stash *"}); err != nil {
+	if err := h.shared().Ask([]string{"git stash *"}); err != nil {
 		t.Fatalf("Ask: %v", err)
 	}
 	a, _ := h.AdapterFor(permissions.ScopeUser)

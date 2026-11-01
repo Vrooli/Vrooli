@@ -136,6 +136,16 @@ type OpenAIProvider struct {
 	Name    string
 	NPM     string
 	BaseURL string
+	// Models names the provider's selectable models. OpenCode can discover a
+	// built-in provider's catalog, but a custom OpenAI-compatible provider is
+	// only usable for the model IDs declared here.
+	Models []ProviderModel
+}
+
+// ProviderModel is one selectable model and the provider's own display name.
+type ProviderModel struct {
+	ID   string
+	Name string
 }
 
 // Render produces the new opencode.json bytes from the existing file content
@@ -323,6 +333,25 @@ func writeOpenAIProvider(top map[string]json.RawMessage, provider OpenAIProvider
 		opts["baseURL"] = mustRaw(strings.TrimRight(strings.TrimSpace(provider.BaseURL), "/"))
 	}
 	block["options"] = mustRaw(opts)
+
+	if len(provider.Models) > 0 {
+		models := map[string]json.RawMessage{}
+		if raw, ok := block["models"]; ok && len(raw) > 0 {
+			_ = json.Unmarshal(raw, &models)
+		}
+		for _, model := range provider.Models {
+			id := strings.TrimSpace(model.ID)
+			if id == "" {
+				continue
+			}
+			entry := map[string]any{}
+			if name := strings.TrimSpace(model.Name); name != "" {
+				entry["name"] = name
+			}
+			models[id] = mustRaw(entry)
+		}
+		block["models"] = mustRaw(models)
+	}
 
 	providers[id] = mustRaw(block)
 	top[keyProvider] = mustRaw(providers)

@@ -6,11 +6,9 @@ package permissionscli
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/vrooli/vrooli/resources/grok/cli/internal/permissions"
@@ -37,17 +35,9 @@ func Default(cliVersion, pinnedVersion string) *Handlers {
 	return &Handlers{
 		AdapterFor: permissions.DefaultAdapter, DetectCaller: cliutil.DetectCallerKind,
 		Policy: agentharness.DefaultPolicy(), CLIVersion: cliVersion, PinnedVersion: pinnedVersion,
-		VersionCommand: []string{"grok", "--version"}, VersionRunner: defaultVersionRunner,
-		Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr,
+		VersionCommand: []string{"grok", "--version"},
+		Stdin:          os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr,
 	}
-}
-
-func defaultVersionRunner(ctx context.Context, args []string) (string, error) {
-	if len(args) == 0 {
-		return "", errors.New("empty version command")
-	}
-	out, err := exec.CommandContext(ctx, args[0], args[1:]...).Output()
-	return strings.TrimSpace(string(out)), err
 }
 
 func (h *Handlers) adapter(scopeRaw string) (*permissions.Adapter, error) {
@@ -92,6 +82,7 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 		VersionCommand: h.VersionCommand, VersionRunner: h.VersionRunner, DetectCaller: h.DetectCaller,
 		Policy: h.Policy, ResetPolicy: agentharness.PermissionPolicy{Hooks: true}, Stdout: h.Stdout, Stderr: h.Stderr,
 		ExclusivePatterns: true,
+		PlanDocument:      h.planDocument, PlanReportsScope: true,
 		ListSuffix: func(stdout io.Writer, shared agentharness.PermissionAdapter) {
 			a, err := h.adapter(shared.Scope())
 			if err == nil {
@@ -130,31 +121,8 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	if h == nil {
 		h = Default("", "")
 	}
-	return h.shared().Commands([]cliapp.Command{
-		{Name: "plan", Description: "Plan a whole declared portable permission document (JSON)", Run: h.Plan},
-		{Name: "reconcile", Description: "Reconcile a whole declared portable permission document (mutating, JSON)", Run: h.Reconcile},
-	})
-}
-
-func (h *Handlers) List(args []string) error       { return h.shared().List(args) }
-func (h *Handlers) Show(args []string) error       { return h.shared().Show(args) }
-func (h *Handlers) DriftCheck(args []string) error { return h.shared().DriftCheck(args) }
-func (h *Handlers) Doctor(args []string) error     { return h.shared().Doctor(args) }
-func (h *Handlers) Deny(args []string) error       { return h.shared().Deny(args) }
-func (h *Handlers) Allow(args []string) error      { return h.shared().Allow(args) }
-func (h *Handlers) Ask(args []string) error        { return h.shared().Ask(args) }
-func (h *Handlers) Remove(args []string) error     { return h.shared().Remove(args) }
-func (h *Handlers) Reset(args []string) error      { return h.shared().Reset(args) }
-
-func (h *Handlers) flagSet(name string) (*flag.FlagSet, *string) {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(h.Stderr)
-	scope := fs.String("scope", string(permissions.ScopeUser), "Config scope: user (~/.grok/config.toml) or admin (~/.grok/requirements.toml)")
-	return fs, scope
-}
-
-func (h *Handlers) gate(verb string, mutating, authorized bool) error {
-	return h.shared().Gate(verb, mutating, authorized)
+	shared := h.shared()
+	return shared.Commands(shared.DocumentCommands())
 }
 
 func HookCommands(h *Handlers) cliapp.SubcommandGroup {

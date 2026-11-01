@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -33,7 +34,9 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 }
 
 func (h *Handlers) Run() error {
-	return Feed{SamplesPath: h.SamplesPath, StatePath: h.Settings.StatePath, Stderr: h.Stderr}.Run(h.Stdin, h.Stdout)
+	// An unresolvable home loses only the window record, never the status line.
+	windowsPath, _ := harness.DefaultModelWindowsPath()
+	return Feed{SamplesPath: h.SamplesPath, WindowsPath: windowsPath, StatePath: h.Settings.StatePath, Stderr: h.Stderr}.Run(h.Stdin, h.Stdout)
 }
 
 func (h *Handlers) Install() error {

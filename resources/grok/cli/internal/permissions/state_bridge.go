@@ -6,10 +6,6 @@ import (
 	"github.com/vrooli/agentharness"
 )
 
-type State = agentharness.PermissionState
-
-const StateSchemaVersion = agentharness.PermissionStateSchemaVersion
-
 func (a *Adapter) StatePath() string {
 	name := ".vrooli-permissions-state.json"
 	if a.Scope == ScopeAdmin {
@@ -18,7 +14,7 @@ func (a *Adapter) StatePath() string {
 	return filepath.Join(filepath.Dir(a.SettingsPath), name)
 }
 
-func (a *Adapter) LoadState() (*State, error) {
+func (a *Adapter) LoadState() (*agentharness.PermissionState, error) {
 	return agentharness.LoadPermissionState(a.StatePath())
 }
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 type codingRoleResponse struct {
@@ -67,6 +68,7 @@ func CodingPolicyCommands(cfg CodingPolicyConfig) cliapp.SubcommandGroup {
 		{Name: "choices", Description: "List declared model and source choices for a semantic role", Run: func(args []string) error { return codingPolicyChoices(cfg, args) }},
 		{Name: "select", Description: "Resolve an exact model and source choice for a semantic role", Run: func(args []string) error { return codingPolicySelect(cfg, args) }},
 		{Name: "resolve", Description: "Resolve one semantic coding role", Run: func(args []string) error { return codingPolicyResolve(cfg, args) }},
+		{Name: "refresh", Description: "Update this policy's model vocabulary from the installed runner's own evidence", Run: func(args []string) error { return codingPolicyRefresh(cfg, args) }},
 	}}
 }
 
@@ -221,6 +223,29 @@ func codingPolicyValidate(cfg CodingPolicyConfig, args []string) error {
 	}
 	if !*againstLive {
 		fmt.Fprintf(cfg.Stdout, "valid coding role policy: runner=%s roles=%d path=%s\n", catalog.Runner, len(catalog.Roles), cfg.CatalogPath)
+	}
+	return nil
+}
+
+func codingPolicyRefresh(cfg CodingPolicyConfig, args []string) error {
+	fs := policyFlagSet("policy refresh", cfg.Stderr)
+	jsonOut := fs.Bool("json", false, "Emit JSON")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	result, err := agentcatalog.RefreshCodingRoleCatalogBy(context.Background(), cfg.Runner, cfg.CatalogPath, time.Now().UTC(), cliutil.ResolveCallerActor(""))
+	if err != nil {
+		return err
+	}
+	if *jsonOut {
+		return writeJSON(cfg.Stdout, result)
+	}
+	fmt.Fprintf(cfg.Stdout, "refreshed %s from %s (observed %s)\n", cfg.CatalogPath, result.Evidence, result.ObservedAt)
+	for _, change := range result.Changes {
+		fmt.Fprintf(cfg.Stdout, "changed %s\n", change)
+	}
+	for _, warning := range result.Warnings {
+		fmt.Fprintf(cfg.Stdout, "warning %s\n", warning)
 	}
 	return nil
 }

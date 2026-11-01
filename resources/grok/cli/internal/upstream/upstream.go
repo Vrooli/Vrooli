@@ -13,12 +13,11 @@ package upstream
 import (
 	"context"
 	"fmt"
-	"github.com/vrooli/vrooli/internal/tuning"
-	"io"
 	"net/http"
 	"strings"
 
 	"github.com/vrooli/cli-core/upstreamcheck"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const (
@@ -68,12 +67,12 @@ func FetchLatest(ctx context.Context, client *http.Client, bases []string, chann
 	var lastErr error
 	for _, base := range bases {
 		url := strings.TrimRight(base, "/") + "/" + channel
-		v, err := getText(ctx, client, url)
+		body, err := upstreamcheck.GetBody(ctx, client, url, "", 1<<16)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-		if v = strings.TrimSpace(v); v != "" {
+		if v := strings.TrimSpace(string(body)); v != "" {
 			return v, nil
 		}
 		lastErr = fmt.Errorf("empty version pointer at %s", url)
@@ -82,25 +81,4 @@ func FetchLatest(ctx context.Context, client *http.Client, bases []string, chann
 		lastErr = fmt.Errorf("no channel-pointer sources configured")
 	}
 	return "", lastErr
-}
-
-func getText(ctx context.Context, client *http.Client, url string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "vrooli-upstream-check")
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
-	if err != nil {
-		return "", err
-	}
-	return string(body), nil
 }

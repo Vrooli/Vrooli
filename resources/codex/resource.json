@@ -38,6 +38,52 @@
     "detection_signal": "CODEX_CI=1 AND CODEX_THREAD_ID non-empty",
     "hook_surface": "native-permissions"
   },
+  "harness": {
+    "id": "codex",
+    "aliases": [],
+    "binary": "codex",
+    "display_name": "Codex",
+    "icon": "codex",
+    "session_env": [
+      "CODEX_THREAD_ID"
+    ],
+    "home_isolation": {
+      "kind": "env",
+      "env": "CODEX_HOME",
+      "shared_dir": ".codex",
+      "state_dir": "codex",
+      "sessions_env": "WC_CODEX_SESSIONS_DIR",
+      "layout": "allowlist"
+    },
+    "usage_windows": [
+      {
+        "id": "weekly",
+        "minutes": 10080
+      }
+    ],
+    "features": {
+      "context_limit": {
+        "kind": "arg",
+        "key": "model_auto_compact_token_limit",
+        "minimum": 0
+      },
+      "context_window_source": "codex-models-cache",
+      "usage_mode": {
+        "provider": "openai"
+      },
+      "model_selection": {
+        "flag": "-m",
+        "sources": [
+          "codex-subscription"
+        ]
+      },
+      "provider_selection": false,
+      "resume": true,
+      "goal_mode": true,
+      "mcp": true,
+      "hooks": true
+    }
+  },
   "agent_hooks": {
     "document_scopes": ["user", "project"],
     "events": [
@@ -76,7 +122,8 @@
         "docs/**",
         "README.md",
         "resource.json",
-        "../../packages/agentharness"
+        "../../packages/agentharness",
+        "../internal/agentapp/**"
       ]
     },
     "source_build": {

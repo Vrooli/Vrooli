@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/vrooli/vrooli/resources/codex/cli/internal/permissions"
@@ -37,17 +36,9 @@ func Default(cliVersion, pinnedVersion string) *Handlers {
 	return &Handlers{
 		AdapterFor: permissions.DefaultAdapter, DetectCaller: cliutil.DetectCallerKind,
 		Policy: agentharness.DefaultPolicy(), CLIVersion: cliVersion, PinnedVersion: pinnedVersion,
-		VersionCommand: []string{"codex", "--version"}, VersionRunner: defaultVersionRunner,
-		Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr,
+		VersionCommand: []string{"codex", "--version"},
+		Stdin:          os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr,
 	}
-}
-
-func defaultVersionRunner(ctx context.Context, args []string) (string, error) {
-	if len(args) == 0 {
-		return "", errors.New("empty version command")
-	}
-	out, err := exec.CommandContext(ctx, args[0], args[1:]...).Output()
-	return strings.TrimSpace(string(out)), err
 }
 
 func (h *Handlers) adapter(scopeRaw string) (*permissions.Adapter, error) {
@@ -126,8 +117,6 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	})
 }
 
-func (h *Handlers) List(args []string) error { return h.shared().List(args) }
-func (h *Handlers) Show(args []string) error { return h.shared().Show(args) }
 func (h *Handlers) DriftCheck(args []string) error {
 	fs, scope := h.flagSet("permissions drift-check")
 	if err := fs.Parse(args); err != nil {
@@ -149,13 +138,6 @@ func (h *Handlers) DriftCheck(args []string) error {
 	}
 	return h.shared().DriftCheck(args)
 }
-
-func (h *Handlers) Doctor(args []string) error { return h.shared().Doctor(args) }
-func (h *Handlers) Deny(args []string) error   { return h.shared().Deny(args) }
-func (h *Handlers) Allow(args []string) error  { return h.shared().Allow(args) }
-func (h *Handlers) Ask(args []string) error    { return h.shared().Ask(args) }
-func (h *Handlers) Remove(args []string) error { return h.shared().Remove(args) }
-func (h *Handlers) Reset(args []string) error  { return h.shared().Reset(args) }
 
 func (h *Handlers) flagSet(name string) (*flag.FlagSet, *string) {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)

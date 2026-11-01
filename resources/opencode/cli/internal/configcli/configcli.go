@@ -5,14 +5,21 @@ package configcli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/config"
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/secrets"
+
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -63,13 +70,13 @@ func (h *Handlers) Ensure(args []string) error {
 	ctx := context.Background()
 
 	secretsOpts := secrets.Options{Getenv: getenv, AuthPath: authPath(getenv)}
-	goKey := secrets.ResolveOpenCodeGoKey(secretsOpts)
+	goKey := resolveKey(secretsOpts, "OPENCODE_GO_KEY", "opencode-go")
 	haveGo := secrets.KeyUsable(goKey)
-	orKey := secrets.ResolveOpenRouterKey(secretsOpts)
+	orKey := resolveKey(secretsOpts, "OPENROUTER_API_KEY", "openrouter")
 	haveOpenRouter := secrets.KeyUsable(orKey)
-	orcaRouterKey := secrets.ResolveProviderKey(secretsOpts, "ORCAROUTER_API_KEY", "orcarouter")
+	orcaRouterKey := resolveKey(secretsOpts, "ORCAROUTER_API_KEY", "orcarouter")
 	haveOrcaRouter := secrets.KeyUsable(orcaRouterKey)
-	abliterationKey := secrets.ResolveProviderKey(secretsOpts, "ABLIT_KEY", "abliteration")
+	abliterationKey := resolveKey(secretsOpts, "ABLIT_KEY", "abliteration")
 	haveAbliteration := secrets.KeyUsable(abliterationKey)
 
 	changed, err := config.Ensure(ctx, config.EnsureOptions{
@@ -80,6 +87,7 @@ func (h *Handlers) Ensure(args []string) error {
 		HaveOrcaRouter:   haveOrcaRouter,
 		HaveAbliteration: haveAbliteration,
 		Resolver:         config.ExecResolver{},
+		ProviderModels:   providerModels,
 		Logf: func(format string, a ...any) {
 			fmt.Fprintf(h.Stdout, format+"\n", a...)
 		},
@@ -130,6 +138,79 @@ func (h *Handlers) Ensure(args []string) error {
 		fmt.Fprintln(h.Stdout, "opencode.json already current")
 	}
 	return nil
+}
+
+// resolveKey reads a provider key from the process environment or the OpenCode
+// auth file first. If neither has it, it asks the credential authority, which is
+// where the operator actually provisioned the key. Without this fallback a
+// provider can be configured for Vrooli and still be absent from OpenCode until
+// a lifecycle process happens to inject the value.
+func resolveKey(opts secrets.Options, envVar, providerID string) string {
+	if key := secrets.ResolveProviderKey(opts, envVar, providerID); key != "" {
+		return key
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return ""
+	}
+	client, err := credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority})
+	if err != nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	key, err := client.Resolve(ctx, "vrooli/"+providerID, "api-key")
+	if err != nil || !secrets.KeyUsable(key) {
+		return ""
+	}
+	return strings.TrimSpace(key)
+}
+
+// providerModels asks the owning provider resource for its chat-capable model
+// catalog. The provider policy is the single source of truth, so OpenCode's
+// custom provider block and the launcher's model picker cannot drift apart.
+func providerModels(ctx context.Context, providerID string) ([]config.ProviderModel, error) {
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		return nil, fmt.Errorf("provider id is required")
+	}
+	out, err := exec.CommandContext(ctx, "resource-"+providerID, "policy", "models", "--json").Output()
+	if err != nil {
+		return nil, fmt.Errorf("resource-%s policy models: %w", providerID, err)
+	}
+	var payload struct {
+		Models []struct {
+			Model        string   `json:"model"`
+			DisplayName  string   `json:"display_name"`
+			Endpoints    []string `json:"endpoints"`
+			Capabilities []string `json:"capabilities"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(out, &payload); err != nil {
+		return nil, fmt.Errorf("decode resource-%s model catalog: %w", providerID, err)
+	}
+	seen := map[string]bool{}
+	models := make([]config.ProviderModel, 0, len(payload.Models))
+	for _, item := range payload.Models {
+		model := strings.TrimSpace(item.Model)
+		if model == "" || seen[model] || !servesChat(item.Endpoints, item.Capabilities) {
+			continue
+		}
+		seen[model] = true
+		models = append(models, config.ProviderModel{ID: model, Name: strings.TrimSpace(item.DisplayName)})
+	}
+	return models, nil
+}
+
+func servesChat(endpoints, capabilities []string) bool {
+	for _, values := range [][]string{endpoints, capabilities} {
+		for _, value := range values {
+			if strings.EqualFold(strings.TrimSpace(value), "chat") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func xdgConfigHome(getenv func(string) string) string {

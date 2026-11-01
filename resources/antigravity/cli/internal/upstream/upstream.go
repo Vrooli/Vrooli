@@ -19,13 +19,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/vrooli/internal/tuning"
-	"io"
 	"net/http"
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/cli-core/upstreamcheck"
+	agentinstall "github.com/vrooli/vrooli/packages/resource-agent-install"
 )
 
 const (
@@ -35,7 +36,7 @@ const (
 
 	// ManifestBase is the auto-updater service that serves the per-platform
 	// release manifests.
-	ManifestBase = "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app"
+	ManifestBase = agentinstall.AntigravityManifestBase
 )
 
 // manifest is the flat per-platform release descriptor.
@@ -112,20 +113,7 @@ func FetchLatest(ctx context.Context, client *http.Client, base, platform string
 }
 
 func getManifest(ctx context.Context, client *http.Client, url string) (manifest, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return manifest{}, err
-	}
-	req.Header.Set("User-Agent", "vrooli-upstream-check")
-	resp, err := client.Do(req)
-	if err != nil {
-		return manifest{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return manifest{}, fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	body, err := upstreamcheck.GetBody(ctx, client, url, "", 1<<16)
 	if err != nil {
 		return manifest{}, err
 	}

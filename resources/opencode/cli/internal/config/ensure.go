@@ -87,6 +87,11 @@ type LocalModelLister interface {
 	LocalModels(ctx context.Context, installed []string) ([]LocalModel, error)
 }
 
+// ProviderModelCatalog lists the concrete models a hosted provider resource
+// declares. A custom OpenAI-compatible provider must name its models in
+// opencode.json; OpenCode only discovers catalogs for its built-in providers.
+type ProviderModelCatalog func(ctx context.Context, providerID string) ([]ProviderModel, error)
+
 // EnsureOptions configures Ensure.
 type EnsureOptions struct {
 	ConfigPath       string
@@ -96,6 +101,7 @@ type EnsureOptions struct {
 	HaveOrcaRouter   bool
 	HaveAbliteration bool
 	Resolver         Resolver
+	ProviderModels   ProviderModelCatalog
 	Logf             func(format string, args ...any)
 }
 
@@ -266,8 +272,19 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 			SmallModel: completionModel,
 		}
 	}
+	addOpenAIProvider := func(provider OpenAIProvider) {
+		if opts.ProviderModels != nil {
+			models, err := opts.ProviderModels(ctx, provider.ID)
+			if err != nil {
+				logf("WARNING: could not list %s models for OpenCode: %v", provider.ID, err)
+			} else {
+				provider.Models = models
+			}
+		}
+		in.OpenAIProviders = append(in.OpenAIProviders, provider)
+	}
 	if opts.HaveOrcaRouter {
-		in.OpenAIProviders = append(in.OpenAIProviders, OpenAIProvider{
+		addOpenAIProvider(OpenAIProvider{
 			ID:      orcaRouterProviderID,
 			Name:    orcaRouterName,
 			NPM:     orcaRouterNPM,
@@ -275,7 +292,7 @@ func Ensure(ctx context.Context, opts EnsureOptions) (bool, error) {
 		})
 	}
 	if opts.HaveAbliteration {
-		in.OpenAIProviders = append(in.OpenAIProviders, OpenAIProvider{
+		addOpenAIProvider(OpenAIProvider{
 			ID:      abliterationProviderID,
 			Name:    abliterationName,
 			NPM:     abliterationNPM,
