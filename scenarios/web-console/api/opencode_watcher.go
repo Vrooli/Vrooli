@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -50,10 +51,10 @@ type OpenCodeWatcher struct {
 	server      *Server
 	checkpoints AgentTranscriptCheckpointStore
 
-	// Seams for tests: startServer yields a base URL + stop func; newClient
-	// builds the API client for that URL.
-	startServer func() (string, func(), error)
-	newClient   func(baseURL string) opencode.Client
+	// Seams for tests: startServer yields a server descriptor + stop func;
+	// newClient builds the matching API client.
+	startServer func() (opencode.Server, func(), error)
+	newClient   func(server opencode.Server) opencode.Client
 
 	reconcileInterval time.Duration
 	reconnectBackoff  time.Duration
@@ -74,7 +75,7 @@ func NewOpenCodeWatcher(server *Server) *OpenCodeWatcher {
 		server:            server,
 		checkpoints:       server.agentCheckpointStore,
 		startServer:       spawnOpenCodeServe,
-		newClient:         func(baseURL string) opencode.Client { return opencode.NewHTTPClient(baseURL) },
+		newClient:         opencode.NewClient,
 		reconcileInterval: opencodeReconcileInterval,
 		reconnectBackoff:  opencodeReconnectBackoff,
 		stopCh:            make(chan struct{}),
@@ -95,7 +96,7 @@ func (w *OpenCodeWatcher) Stop() {
 func (w *OpenCodeWatcher) run() {
 	defer w.wg.Done()
 
-	baseURL, stop, err := w.startServer()
+	server, stop, err := w.startServer()
 	if err != nil {
 		log.Printf("opencode-watcher: server unavailable, capture disabled: %v", err)
 		return
@@ -103,9 +104,9 @@ func (w *OpenCodeWatcher) run() {
 	if stop != nil {
 		defer stop()
 	}
-	log.Printf("opencode-watcher: managed server at %s", baseURL)
+	log.Printf("opencode-watcher: managed server at %s (API v%d)", server.URL, server.Major)
 
-	client := w.newClient(baseURL)
+	client := w.newClient(server)
 	w.mu.Lock()
 	w.client = client
 	w.mu.Unlock()
@@ -256,6 +257,17 @@ func (w *OpenCodeWatcher) listCandidateSessions(ctx context.Context, client open
 	return sessions, nil
 }
 
+// paneIsLive keeps dead catalog rows from widening attribution ambiguity. A
+// manager that has not been wired (older test/embedding) keeps the metadata as
+// the only evidence.
+func (w *OpenCodeWatcher) paneIsLive(sessionID string) bool {
+	if w.server == nil || w.server.sessions == nil {
+		return true
+	}
+	_, ok := w.server.sessions.Get(sessionID)
+	return ok
+}
+
 // opencodePaneDirectories returns the distinct cwds of opencode panes that are
 // still awaiting attribution — the directories a session could be started in.
 // Claimed panes reconcile through the claim map, so they need no listing.
@@ -270,11 +282,21 @@ func (w *OpenCodeWatcher) opencodePaneDirectories(ctx context.Context) []string 
 	seen := make(map[string]bool)
 	var directories []string
 	for _, m := range metas {
-		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || m.CWD == "" || seen[m.CWD] {
+		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || !w.paneIsLive(m.ID) {
 			continue
 		}
-		seen[m.CWD] = true
-		directories = append(directories, m.CWD)
+		directory := m.CWD
+		if strings.TrimSpace(directory) == "" {
+			// Older rows could lose the resolved launch directory after the
+			// adapter overwrote the manager's value. An empty value means the
+			// default launch directory, not "every directory".
+			directory = config.ResolveWorkingDir()
+		}
+		if directory == "" || seen[directory] {
+			continue
+		}
+		seen[directory] = true
+		directories = append(directories, directory)
 	}
 	return directories
 }
@@ -304,7 +326,10 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 
 	var panes []sessionstore.Metadata
 	for _, m := range metas {
-		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && !claimedPane[m.ID] {
+		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && !claimedPane[m.ID] && w.paneIsLive(m.ID) {
+			if strings.TrimSpace(m.CWD) == "" {
+				m.CWD = config.ResolveWorkingDir()
+			}
 			panes = append(panes, m)
 		}
 	}
@@ -490,50 +515,63 @@ func (w *OpenCodeWatcher) saveCursor(ocID, wcID string, cur opencode.Cursor) {
 	}
 }
 
-var opencodeListeningRE = regexp.MustCompile(`listening on (http://\S+)`)
+var (
+	opencodeListeningRE = regexp.MustCompile(`listening on (http://\S+)`)
+	opencodePasswordRE  = regexp.MustCompile(`server password (\S+)`)
+	opencodeVersionRE   = regexp.MustCompile(`v?(\d+)\.\d+`)
+)
 
 // spawnOpenCodeServe starts a loopback-only `opencode serve` and returns its
 // base URL plus a stop func. Binds 127.0.0.1 with an OS-chosen port; never
 // exposed beyond loopback. Returns an error (capture stays disabled) when the
 // binary is absent or never prints a listening URL.
-func spawnOpenCodeServe() (string, func(), error) {
+func spawnOpenCodeServe() (opencode.Server, func(), error) {
 	path, err := exec.LookPath("opencode")
 	if err != nil {
-		return "", nil, err
+		return opencode.Server{}, nil, err
 	}
 	launchContext, err := cliutil.ResolveLaunchContext(cliutil.LaunchContextRequest{
 		WorkingDir:  config.ResolveWorkingDir(),
 		Environment: os.Environ(),
 	})
 	if err != nil {
-		return "", nil, fmt.Errorf("resolve opencode context: %w", err)
+		return opencode.Server{}, nil, fmt.Errorf("resolve opencode context: %w", err)
 	}
+	env := cliutil.PrepareLaunchEnvironment(os.Environ(), launchContext)
+	major := opencodeMajorVersion(path, launchContext.WorkingDir, env)
 	cmd := exec.Command(path, "serve", "--hostname", "127.0.0.1", "--port", "0")
 	cmd.Dir = launchContext.WorkingDir
-	cmd.Env = cliutil.PrepareLaunchEnvironment(os.Environ(), launchContext)
+	cmd.Env = env
 	pr, pw, err := os.Pipe()
 	if err != nil {
-		return "", nil, err
+		return opencode.Server{}, nil, err
 	}
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 	if err := cmd.Start(); err != nil {
 		pr.Close()
 		pw.Close()
-		return "", nil, err
+		return opencode.Server{}, nil, err
 	}
 	pw.Close() // parent keeps only the read end
 
 	urlCh := make(chan string, 1)
+	passwordCh := make(chan string, 1)
 	go func() {
 		scanner := bufio.NewScanner(pr)
 		for scanner.Scan() {
-			if m := opencodeListeningRE.FindStringSubmatch(scanner.Text()); m != nil {
+			line := scanner.Text()
+			if m := opencodeListeningRE.FindStringSubmatch(line); m != nil {
 				select {
 				case urlCh <- m[1]:
 				default:
 				}
-				break
+			}
+			if m := opencodePasswordRE.FindStringSubmatch(line); m != nil {
+				select {
+				case passwordCh <- m[1]:
+				default:
+				}
 			}
 		}
 		// Drain the rest so the child never blocks on a full pipe.
@@ -546,11 +584,38 @@ func spawnOpenCodeServe() (string, func(), error) {
 		pr.Close()
 	}
 
+	var url string
 	select {
-	case url := <-urlCh:
-		return url, stop, nil
+	case url = <-urlCh:
 	case <-time.After(15 * time.Second):
 		stop()
-		return "", nil, errOpenCodeServeTimeout
+		return opencode.Server{}, nil, errOpenCodeServeTimeout
 	}
+	server := opencode.Server{URL: url, Major: major}
+	if major >= 2 {
+		select {
+		case server.Password = <-passwordCh:
+		case <-time.After(2 * time.Second):
+			stop()
+			return opencode.Server{}, nil, fmt.Errorf("opencode v%d did not report its server password", major)
+		}
+	}
+	return server, stop, nil
+}
+
+func opencodeMajorVersion(path, dir string, env []string) int {
+	cmd := exec.Command(path, "--version")
+	cmd.Dir = dir
+	cmd.Env = env
+	out, err := cmd.Output()
+	if err != nil {
+		return 1
+	}
+	if match := opencodeVersionRE.FindStringSubmatch(string(out)); match != nil {
+		major, err := strconv.Atoi(match[1])
+		if err == nil && major > 0 {
+			return major
+		}
+	}
+	return 1
 }

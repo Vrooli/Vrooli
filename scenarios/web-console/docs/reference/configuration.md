@@ -128,18 +128,30 @@ UI configuration is centralized in [CODE: ui/src/consts/config.ts]. These are co
 
 ## Launcher Shortcuts
 
-The terminal launcher shows one card per coding agent the selected machine
-reports when ready or unknown, plus the empty shell. The Manage agents view
-contains missing and unsupported agents, installed versions, update checks,
-visibility, ordering, installation recovery, and shortcut editing. Facts come
-from different owners:
+The **New session** drawer asks in this order: which machine (in the header),
+which session type (Agent, Shell or Group), the settings for that type, then
+launch. The approved target is
+[`docs/mockups/launch-drawer-20261030`](../mockups/launch-drawer-20261030/README.md).
+Agent shows a rail of cards for coding agents the selected machine reports as
+ready or unknown, the settings panel for the selected harness, and a footer with a
+one-line summary. A harness is always selected: the last launched among those
+shown, else the first. Shell shows a command field and the profile's commands that
+belong to no agent; agent settings do not apply there, so a typed `claude` runs
+without the drawer's limit, and the panel says so. Group holds the group picker.
+On a desktop the settings sit beside the choice, off the same data. **Manage agents**
+holds missing and unsupported agents, order, visibility, and each harness's page.
+Facts come from different owners:
 
 | Fact | Owner | Where |
 |------|-------|-------|
 | Which agents exist, and their state and version | the machine's capability probe | [CODE: packages/capabilityprobe] via the target catalog |
 | Their display names | the same probe, forwarded intact | `capability:<id>` readiness facts |
 | Their initial order and launch commands | the operator's shortcut profile | `shortcut_profiles`, served by `GetEffective` |
-| Explicit order and visibility | profile-scoped agent preferences | `GetAgentPreferences` and revision-checked `UpdateAgentPreferences` |
+| Explicit order, order mode, visibility and last launch | profile-scoped agent preferences | `GetAgentPreferences` and revision-checked `UpdateAgentPreferences` |
+| Features and declared usage windows | the `harness` block of each `resources/<name>/resource.json` | `ListHarnesses` |
+| Usage readings | Agent Manager live quota | `AgentUsage` |
+| Model list, context window and compaction limits | each resource's model policy and the shared catalog | `GetRoleModelChoices` |
+| State, primary action, checks and rollback | `vrooli resource update`, in the control plane | `AgentUpdate` and `RunAgentUpdateAction` |
 
 The rule is one sentence: **membership from the probe, commands from the profile, optional order and visibility from profile preferences, and built-ins only where the profile is silent.** The built-in verbs
 live in `FALLBACK_COMMANDS` ([CODE: ui/src/components/launcher/agentGrid.ts])
@@ -162,10 +174,63 @@ or nothing for a plain operator command. The server resolves it
 field existed; no consumer pattern-matches command text to guess which agent an
 entry launches.
 
+### Harness cards
+
+A card's height is decided before any reading arrives: every card reserves the
+largest declared window count among visible harnesses (or a larger reported count),
+so it is one height whether loading, loaded or without usage. Declared windows only
+reserve space. Rows are drawn from whatever windows the provider reports, labelled
+from their duration, and a refresh keeps current values until new ones arrive.
+When several quota pools report a duration, the card shows the tightest and notes
+the others; Manage lists each pool. Without descriptors, cards reserve two rows.
+
+A dot marks a harness with an action, and the Manage button counts them across
+shown harnesses. A failed check earns neither.
+
+### Settings
+
+Rows appear only when the harness's descriptor supports them. **Model** lists every
+model the catalog allows for the runner, across its `code.*` roles, fallbacks and
+aliases, each once and with the default marked. Excluded and restricted models stay
+out. `display_name` is what the operator reads; `model` stays the catalog ID.
+**Compact at** offers the selected model's `context_limit_tokens` plus Default, with
+a gauge only for a chosen limit. An unknown window is stated. **Save usage** opens a
+duration choice when turned on and ends the mode when turned off, and the Model row
+shows the lowered model. A stale catalog shows a notice with **Refresh**, the
+`refresh_catalog` action, or `operator_command` for a runner with no evidence reader.
+Choices stay selectable except metered ones.
+
+### Launch composition
+
+The launcher sends the shortcut's `launch_command` and, when settings were chosen, an
+`agent_launch` intent. The server resolves it against the catalog and composes the
+command from the harness descriptor, so no client rewrites command text. It refuses a
+model the catalog does not offer, a limit that model cannot take, and a metered
+choice from a stale list. A plain start of the harness takes settings. A wrapper,
+pipeline, or a command naming its own model or limit is `command_literal`: it runs as
+written, and the panel says the settings do not apply.
+
+### Harness states
+
+| State | Primary action |
+|-------|----------------|
+| `missing` | Install |
+| `shadowed` | Use Vrooli's copy |
+| `unlinked` | Link Vrooli's copy |
+| `needs_setup` | Shows `operator_command` with copy; Web Console never elevates |
+| `update_ready` | Update |
+| `up_to_date` | None |
+| `check_failed` | Retry, which re-reads and never counts as an update |
+
+An action runs once at a time per harness and reports the server's words on failure,
+with a retry. A rollback button appears when the server names a `rollback_version`.
+
 ### Reordering
 
-The launcher’s **Manage agents** view provides drag handles and `Alt` plus
-arrow-key ordering, as well as hide/show controls. Preferences are stored
+The **Manage agents** view has a Custom or Recent order control, and in Custom
+provides drag handles and `Alt` plus arrow-key ordering, as well as a Shown
+switch. Recent orders by each agent's last launch, which the launcher records
+with `launched_agent_id`; agents never launched follow in Custom order. Preferences are stored
 separately from shortcut commands for the effective profile, with a revision
 and profile-instance token. A conflicting write is rejected and the client
 reloads the owner’s state; the operator can retry. Existing shortcut editors
@@ -212,6 +277,36 @@ names the CLI, and `operatorCommandArgs` drops exactly one leading token when it
 does. Passing the whole string through as arguments produced
 `vrooli vrooli resource install codex --json`, which is why local coding-agent
 installs never worked.
+
+### Updating and repairing an agent
+
+`AgentUpdate` reports one state, at most one `primary_action`, the update checks and
+the versions. `RunAgentUpdateAction` runs `install`, `update`, `use_managed_copy`,
+`link_managed_copy`, `rollback` or `retry`. Detection and repair belong to
+`vrooli resource update` in the control plane
+(path:docs/configuration/host/tools.md); Web Console invokes it locally, or relays
+it to a Bridge node as typed argv ([CODE: api/agent_update_actions.go]). A check
+relays the read-scoped `resource update-check`, and an action relays the write-scoped
+`resource update`, so a node needs write scope to change anything.
+
+Only a verified, same-origin, independent human can run an action. An agent's
+forwarded human credential is refused. Reads stay open to anything that can read
+capabilities.
+
+An action runs detached from its request, because a tunnel can drop a slow response
+and an install should not die with it. Actions are serialized per agent per machine:
+repeating the running action rejoins it, and a different one gets
+`failed_precondition`. While one runs, `AgentUpdate` returns no `primary_action`.
+
+The action window is seven minutes, longer than the verb's own six, so the console
+never kills a repair before it can restore what it moved. The handler extends its
+write deadline past `httpWriteTimeout` for this one RPC.
+`TestHarnessActionBudgetContainsItsParts` pins these. Each action invalidates the
+cached observation, then asks the target again. A Bridge node reports through its
+heartbeat, so a remote confirmation can take up to 40 seconds.
+
+A check that fails to verify a version is `check_failed`, with no update indicator.
+A repair state comes from files on the target, so it holds without a fresh probe.
 
 ### Attribution
 

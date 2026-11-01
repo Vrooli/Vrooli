@@ -203,14 +203,53 @@ export function buildAgentGrid({ readiness, shortcuts, installing = [] }: BuildA
   return { agents, commands };
 }
 
-/** True when pressing the card starts a session rather than an install. */
+/** True when the agent can appear in the rail at all. */
 export function cardLaunches(card: AgentCard): boolean {
   return card.state === "ready" || card.state === "unknown";
 }
 
-/** True when the card offers a governed install. */
-export function cardInstalls(card: AgentCard): boolean {
-  return card.state === "missing";
+/**
+ * True when pressing the card can start a session. An unknown local agent still
+ * launches, but a remote server refuses one it cannot verify.
+ */
+export function cardSelectable(card: AgentCard, targetKind: string): boolean {
+  return card.state === "ready" || (card.state === "unknown" && targetKind === "local");
+}
+
+export interface AgentOrderPreferences {
+  orderMode?: "custom" | "recent";
+  orderedAgentIds?: readonly string[];
+  lastLaunchedAt?: Readonly<Record<string, string>>;
+}
+
+const launchedAt = (times: Readonly<Record<string, string>> | undefined, agentID: string): number => {
+  const at = Date.parse(times?.[agentID] ?? "");
+  return Number.isFinite(at) ? at : -Infinity;
+};
+
+/**
+ * Applies the operator's order. Recent puts the latest launch first, and
+ * agents never launched keep custom order after those that were.
+ */
+export function orderAgents(cards: readonly AgentCard[], { orderMode = "custom", orderedAgentIds = [], lastLaunchedAt }: AgentOrderPreferences): AgentCard[] {
+  const positions = new Map(orderedAgentIds.map((id, index) => [id, index]));
+  const custom = cards.map((card, index) => ({ card, index })).sort((a, b) =>
+    (positions.get(a.card.agentID) ?? orderedAgentIds.length + a.index) -
+    (positions.get(b.card.agentID) ?? orderedAgentIds.length + b.index)).map(({ card }) => card);
+  if (orderMode !== "recent") return custom;
+  return custom.map((card, index) => ({ card, index })).sort((a, b) => {
+    const delta = launchedAt(lastLaunchedAt, b.card.agentID) - launchedAt(lastLaunchedAt, a.card.agentID);
+    return delta > 0 ? 1 : delta < 0 ? -1 : a.index - b.index;
+  }).map(({ card }) => card);
+}
+
+/** The harness a drawer opens on: the last launched among those offered, else the first. */
+export function defaultAgentID(offered: readonly AgentCard[], lastLaunchedAt: Readonly<Record<string, string>> | undefined): string | null {
+  let best: AgentCard | undefined;
+  for (const card of offered) {
+    if (!best || launchedAt(lastLaunchedAt, card.agentID) > launchedAt(lastLaunchedAt, best.agentID)) best = card;
+  }
+  return best?.agentID ?? null;
 }
 
 /**

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/usagemode"
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	capsH "web-console/handlers/capabilities"
@@ -31,11 +32,29 @@ const (
 )
 
 var (
-	usageModeMu       sync.Mutex
-	usageModeModelRE  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`)
-	usageModeProvider = map[string]string{"codex": "openai", "claude": "anthropic"}
-	usageModeModelFlg = map[string]string{"codex": "-m", "claude": "--model"}
+	usageModeMu      sync.Mutex
+	usageModeModelRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$`)
 )
+
+// usageModeProvider is the quota provider a window-reset mode names, or empty
+// for a harness that does not support usage modes.
+func usageModeProvider(runner string) string {
+	descriptor, ok := harness.Active().Lookup(runner)
+	if !ok || descriptor.Features.UsageMode == nil {
+		return ""
+	}
+	return descriptor.Features.UsageMode.Provider
+}
+
+// usageModeModelFlag is the launch argument that restores a harness's full-power
+// model, or empty for a harness that does not support usage modes.
+func usageModeModelFlag(runner string) string {
+	descriptor, ok := harness.Active().Lookup(runner)
+	if !ok || descriptor.Features.UsageMode == nil || descriptor.Features.ModelSelection == nil {
+		return ""
+	}
+	return descriptor.Features.ModelSelection.Flag
+}
 
 type usageModeView struct {
 	ID        string `json:"id"`
@@ -72,6 +91,8 @@ type usageModeAgent struct {
 	// sessions. The session's model then depends on the arm its launch is
 	// assigned, so Model stays empty: the launcher cannot say which model it will use.
 	LearnModeID string `json:"learnModeId,omitempty"`
+	// ContextLimitTokens is the compaction limit the active mode applies. Zero means none.
+	ContextLimitTokens int `json:"contextLimitTokens,omitempty"`
 }
 
 type usageModeResponse struct {
@@ -185,9 +206,9 @@ func buildUsageModeResponse(now time.Time, canControl bool) usageModeResponse {
 		agent := usageModeAgent{AgentID: def.ID, Label: def.Label, Runner: runner, LowerModel: tiers.SessionModel, UsualModel: usual}
 		if mode, found := usagemode.Resolve(usagemode.Query{Runner: runner, Now: now}); found {
 			if settings, has := mode.SettingsFor(runner); has && settings.SessionModel != "" {
-				agent.ModeID, agent.Model = mode.ID, settings.SessionModel
-				if settings.SessionModel != usual && usageModeModelRE.MatchString(usual) && usageModeModelFlg[runner] != "" {
-					agent.FullPowerArgs = usageModeModelFlg[runner] + " " + usual
+				agent.ModeID, agent.Model, agent.ContextLimitTokens = mode.ID, settings.SessionModel, settings.ContextLimitTokens
+				if settings.SessionModel != usual && usageModeModelRE.MatchString(usual) && usageModeModelFlag(runner) != "" {
+					agent.FullPowerArgs = usageModeModelFlag(runner) + " " + usual
 				}
 			}
 		} else if learn, joined := usagemode.ResolveLearnSession(runner, now); joined {
@@ -267,7 +288,7 @@ func (s *Server) handleUsageModeStart(w http.ResponseWriter, r *http.Request) {
 		opts.Duration = time.Duration(req.Minutes) * time.Minute
 	case "off":
 	case "reset":
-		provider := usageModeProvider[runner]
+		provider := usageModeProvider(runner)
 		if provider == "" || req.WindowMinutes <= 0 {
 			writeUsageModeError(w, http.StatusBadRequest, "no reset is known for this agent")
 			return

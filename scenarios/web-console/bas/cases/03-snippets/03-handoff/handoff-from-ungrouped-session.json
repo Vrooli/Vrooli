@@ -64,6 +64,18 @@
         }
       },
       {
+        "id": "choose-shell-command",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/launcher.modeShell"
+          },
+          "metadata": {
+            "label": "Choose the Shell session type"
+          }
+        }
+      },
+      {
         "id": "command",
         "action": {
           "type": "ACTION_TYPE_INPUT",
@@ -82,7 +94,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='launcher-custom-launch']"
+            "selector": "@selector/launcher.launch"
           },
           "metadata": {
             "label": "Launch ungrouped session"
@@ -180,7 +192,7 @@
       {
         "id": "e2",
         "source": "new",
-        "target": "command",
+        "target": "choose-shell-command",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
@@ -223,6 +235,12 @@
         "id": "e9",
         "source": "assert-sections",
         "target": "teardown",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-choose-shell-command",
+        "source": "choose-shell-command",
+        "target": "command",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

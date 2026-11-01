@@ -10,6 +10,8 @@
 //	           otherwise lightweight health checkers only.
 //	RunAction — explicit user-initiated scenario lifecycle action for
 //	            declared dependencies only.
+//	AgentUpdate — one agent's install state, eligibility and versions.
+//	RunAgentUpdateAction — one operator-only action on that install.
 package capabilities
 
 import (
@@ -87,6 +89,24 @@ type AgentUpdateResult struct {
 	TargetID, AgentID, Resource                                              string
 	Installed, Pinned, Latest, Status, CheckedAt, SourceKind, SourceID, Note string
 	ProbeVerified                                                            bool
+	State, PrimaryAction, OperatorCommand, Reason, InstallKind               string
+	RollbackVersion                                                          string
+	NewerThanReviewed                                                        bool
+	Checks                                                                   []AgentUpdateCheck
+}
+
+// AgentUpdateCheck is one update precondition; the ID is stable.
+type AgentUpdateCheck struct {
+	ID, Message string
+	Passed      bool
+}
+
+// AgentUpdateActionResult is an action's outcome and the observation after it.
+type AgentUpdateActionResult struct {
+	Success     bool
+	Message     string
+	OperationID string
+	Update      AgentUpdateResult
 }
 
 type AgentUsageWindow struct {
@@ -94,11 +114,30 @@ type AgentUsageWindow struct {
 	WindowMinutes int64
 	UsedPercent   float64
 	ResetsAt      string
+	// ObservedAt is when this window's reading was taken.
+	ObservedAt string
 }
 
 type AgentUsageResult struct {
 	TargetID, AgentID, Match, Reason, Source, ObservedAt string
 	Windows                                              []AgentUsageWindow
+}
+
+// HarnessUsageWindow is a window a harness is expected to report. It only
+// reserves card space.
+type HarnessUsageWindow struct {
+	ID            string
+	WindowMinutes int64
+}
+
+// HarnessDescriptor is one harness's identity and features on a target.
+type HarnessDescriptor struct {
+	AgentID, Resource, DisplayName, Icon string
+	UsageWindows                         []HarnessUsageWindow
+	SupportsContextLimit                 bool
+	SupportsUsageMode                    bool
+	SupportsModelSelection               bool
+	SupportsProviderSelection            bool
 }
 
 // BackendOption mirrors the proto BackendOption message and the
@@ -121,14 +160,39 @@ func Module(svc Service, logger *log.Logger) module.Module {
 		Service: svc,
 		Logger:  logger,
 	}))
+	guarded := guardAgentUpdateActions(svc, connectHandler)
 	return module.Module{
 		Name: "capabilities",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: guarded})
 			r.HandleFunc("/api/v1/capabilities/describe", describe(svc)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type agentUpdateActionGuard interface {
+	GuardAgentUpdateAction(http.ResponseWriter, *http.Request) bool
+}
+
+// guardAgentUpdateActions decides admission where the request still exists:
+// same-origin needs the Host and peer address, which a Connect request hides, and
+// extending the write deadline needs the ResponseWriter. Reads pass untouched. A
+// service with no guard cannot run an action.
+func guardAgentUpdateActions(svc Service, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure {
+			guard, ok := svc.(agentUpdateActionGuard)
+			if !ok {
+				http.Error(w, "agent update actions are not available", http.StatusForbidden)
+				return
+			}
+			if !guard.GuardAgentUpdateAction(w, r) {
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 type registryDescriber interface {

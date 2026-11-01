@@ -1,4 +1,4 @@
-import { librarySelectors } from "./selectors.library.js";
+import { librarySelectors } from "./selectors.library";
 export { librarySelectors };
 // DOC: docs/internal/SEAMS.md
 /** Application selector definitions. Shared behavior lives in @vrooli/ui-selectors.
@@ -105,9 +105,9 @@ const literalSelectors = {
   },
   launcher: {
     dialog: 'terminal-launcher',
-    emptyShell: 'launcher-empty-shell',
     customInput: 'launcher-custom-input',
-    customLaunch: 'launcher-custom-launch',
+    // The drawer's one launch, for an agent or a shell.
+    launch: 'launcher-submit-selection',
     // Destination and appearance disclosure — the dialog now states where the
     // session goes and what it will look like before anything is created.
     destination: 'launcher-destination',
@@ -126,8 +126,9 @@ const literalSelectors = {
     groupRoleEmpty: 'launcher-group-role-empty',
     agentGrid: 'launcher-agent-grid',
     attributedToggle: 'launcher-attributed-toggle',
-    // Group mode: one dialog trip creates a whole group.
-    modeOneSession: 'launcher-mode-one-session',
+    // The session type comes first: Agent, Shell, or a whole Group in one trip.
+    modeAgent: 'launcher-mode-agent',
+    modeShell: 'launcher-mode-shell',
     modeGroup: 'launcher-mode-group',
     templatePicker: 'launcher-template-picker',
     groupName: 'launcher-group-name',

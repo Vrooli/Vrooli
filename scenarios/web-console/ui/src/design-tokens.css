@@ -190,6 +190,8 @@
   --color-scrim: rgba(15, 23, 42, 0.72);
   --color-shell: #020617;
   --color-surface-raised: #172033;
+  --color-warning-foreground: color-mix(in srgb, var(--color-warning) 72%, var(--color-foreground));
+  --color-warning-subtle: color-mix(in srgb, var(--color-warning) 16%, var(--color-surface));
   --control-height: 2.75rem;
   --control-height-lg: 3.25rem;
   --control-height-sm: 2.25rem;

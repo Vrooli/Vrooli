@@ -345,17 +345,13 @@
       "testId": "terminal-launcher",
       "selector": "[data-testid=\"terminal-launcher\"]"
     },
-    "launcher.emptyShell": {
-      "testId": "launcher-empty-shell",
-      "selector": "[data-testid=\"launcher-empty-shell\"]"
-    },
     "launcher.customInput": {
       "testId": "launcher-custom-input",
       "selector": "[data-testid=\"launcher-custom-input\"]"
     },
-    "launcher.customLaunch": {
-      "testId": "launcher-custom-launch",
-      "selector": "[data-testid=\"launcher-custom-launch\"]"
+    "launcher.launch": {
+      "testId": "launcher-submit-selection",
+      "selector": "[data-testid=\"launcher-submit-selection\"]"
     },
     "launcher.destination": {
       "testId": "launcher-destination",
@@ -421,9 +417,13 @@
       "testId": "launcher-attributed-toggle",
       "selector": "[data-testid=\"launcher-attributed-toggle\"]"
     },
-    "launcher.modeOneSession": {
-      "testId": "launcher-mode-one-session",
-      "selector": "[data-testid=\"launcher-mode-one-session\"]"
+    "launcher.modeAgent": {
+      "testId": "launcher-mode-agent",
+      "selector": "[data-testid=\"launcher-mode-agent\"]"
+    },
+    "launcher.modeShell": {
+      "testId": "launcher-mode-shell",
+      "selector": "[data-testid=\"launcher-mode-shell\"]"
     },
     "launcher.modeGroup": {
       "testId": "launcher-mode-group",
@@ -1141,18 +1141,6 @@
       "testId": "overlays.responsive-dialog",
       "selector": "[data-testid=\"overlays.responsive-dialog\"]"
     },
-    "library.navigation.tabs.links": {
-      "testId": "navigation.tabs.Links",
-      "selector": "[data-testid=\"navigation.tabs.Links\"]"
-    },
-    "library.navigation.tabs.settingsTabSessions": {
-      "testId": "navigation.tabs.settings-tab-sessions",
-      "selector": "[data-testid=\"navigation.tabs.settings-tab-sessions\"]"
-    },
-    "library.navigation.tabs.root": {
-      "testId": "navigation.tabs",
-      "selector": "[data-testid=\"navigation.tabs\"]"
-    },
     "library.overlays.bottom-sheet.close": {
       "testId": "overlays.bottom-sheet.close",
       "selector": "[data-testid=\"overlays.bottom-sheet.close\"]"
@@ -1220,6 +1208,10 @@
     "library.patterns.app-notification-settings.appNotifyTurnOn": {
       "testId": "app-notify-turn-on",
       "selector": "[data-testid=\"app-notify-turn-on\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
     }
   },
   "dynamicSelectors": {
@@ -1927,7 +1919,7 @@
     }
   },
   "sources": {
-    "ui/src/consts/selectors.library.ts": "1a0727126108fa53005d2933f5d43222b33eb450ad3964a307739dd9f5fc31ba",
-    "ui/src/consts/selectors.ts": "29df6b6f4a27384358df1b6e02ef4a15044d66855b4316b1038cfc6b8de2987b"
+    "ui/src/consts/selectors.library.ts": "514d96e2e903aa934e22a9b0a969d4a96a09ee35263c5e67452c0c25ff87b820",
+    "ui/src/consts/selectors.ts": "3e4d29624b20780b082711b661c9252a6147b82974bcc095b1f63363a1ef3a19"
   }
 }

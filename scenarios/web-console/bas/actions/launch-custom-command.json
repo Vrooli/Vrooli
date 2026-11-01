@@ -50,6 +50,18 @@
         }
       },
       {
+        "id": "choose-shell-input-command",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/launcher.modeShell"
+          },
+          "metadata": {
+            "label": "Choose the Shell session type"
+          }
+        }
+      },
+      {
         "id": "input-command",
         "action": {
           "type": "ACTION_TYPE_INPUT",
@@ -68,7 +80,7 @@
         "action": {
           "type": "ACTION_TYPE_EVALUATE",
           "evaluate": {
-            "expression": "(() => { const launch = document.querySelector('[data-testid=\"launcher-custom-launch\"]'); if (!(launch instanceof HTMLButtonElement)) throw new Error('launcher custom launch button not found'); launch.click(); })()"
+            "expression": "(() => { const launch = document.querySelector('[data-testid=\"launcher-submit-selection\"]'); if (!(launch instanceof HTMLButtonElement)) throw new Error('launcher custom launch button not found'); launch.click(); })()"
           },
           "metadata": {
             "label": "Launch terminal session"
@@ -103,7 +115,7 @@
       {
         "id": "e2",
         "source": "ensure-launcher-open",
-        "target": "input-command",
+        "target": "choose-shell-input-command",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       },
       {
@@ -116,6 +128,12 @@
         "id": "e4",
         "source": "click-launch",
         "target": "wait-terminal-pane",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-choose-shell-input-command",
+        "source": "choose-shell-input-command",
+        "target": "input-command",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }
     ]

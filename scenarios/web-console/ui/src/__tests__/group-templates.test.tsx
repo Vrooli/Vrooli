@@ -171,18 +171,14 @@ describe("GroupModePanel", () => {
     expect(screen.getByTestId("launcher-group-role-empty")).toBeInTheDocument();
   });
 
-  it("hands the machine control a place beside the template trigger", async () => {
-    render(
-      <GroupModePanel
-        open
-        onCreate={vi.fn()}
-        isCreating={false}
-        disabled={false}
-        machineSlot={<div data-testid="test-machine-slot" />}
-      />,
-    );
+  it("puts its launch in the drawer's footer and names the machine there", async () => {
+    const footer = document.createElement("div");
+    document.body.appendChild(footer);
+    render(<GroupModePanel open onCreate={vi.fn()} isCreating={false} disabled={false} footerHost={footer} machineLabel="This machine" />);
     await waitFor(() => { expect(mockList).toHaveBeenCalled(); });
-    expect(screen.getByTestId("test-machine-slot")).toBeInTheDocument();
+    expect(footer).toContainElement(screen.getByTestId("launcher-create-group"));
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent("This machine");
+    footer.remove();
   });
 
   it("refuses to create a group with no name", async () => {
@@ -280,7 +276,7 @@ describe("GroupTemplatesPanel", () => {
     fireEvent.change(screen.getByTestId("group-template-role-mode-0"), { target: { value: "waiting" } });
     fireEvent.change(screen.getByTestId("group-template-role-prompt-0"), { target: { value: "Review {{payload}}" } });
     // Picking a non-default header color exercises the color onClick.
-    const colorSwatch = screen.getAllByTestId(/^group-template-color-/)[1]!;
+    const colorSwatch = screen.getAllByTestId(/^group-template-color-/)[1] as HTMLElement;
     fireEvent.click(colorSwatch);
     fireEvent.click(screen.getByTestId("group-template-save"));
 

@@ -1225,6 +1225,16 @@
           "internal": true
         },
         {
+          "path": "mockups/launch-drawer-20261030/README.md",
+          "docType": "design-mockups",
+          "title": "Launch drawer target",
+          "description": "Current design target and decisions for the New Session drawer and Manage agents",
+          "audience": ["developers", "agents", "operators"],
+          "maturity": "active",
+          "completion": "optional",
+          "internal": true
+        },
+        {
           "path": "mockups/approvals/README.md",
           "docType": "design-mockups",
           "title": "Approvals inbox mockups",

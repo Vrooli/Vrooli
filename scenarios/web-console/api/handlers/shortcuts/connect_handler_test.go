@@ -32,6 +32,9 @@ func (f fakeShortcutsService) AgentPreferences(context.Context) (AgentPreference
 	return AgentPreferences{ProfileID: "p1"}, f.err
 }
 func (f fakeShortcutsService) UpdateAgentPreferences(_ context.Context, p AgentPreferences, _ uint64) (AgentPreferences, error) {
+	if p.LaunchedAgentID != "" {
+		p.LastLaunchedAt = map[string]string{p.LaunchedAgentID: "recorded"}
+	}
 	return p, f.err
 }
 func TestConnectHandlerShortcuts(t *testing.T) {
@@ -78,6 +81,10 @@ func TestAgentPreferencesConnectContract(t *testing.T) {
 	saved, err := h.UpdateAgentPreferences(context.Background(), connect.NewRequest(&shortcutsv1.UpdateAgentPreferencesRequest{ProfileId: "p1", ExpectedRevision: 7, OrderedAgentIds: []string{"codex"}, HiddenAgentIds: []string{"claude"}}))
 	if err != nil || saved.Msg.GetPreferences().GetHiddenAgentIds()[0] != "claude" {
 		t.Fatalf("save preferences: %v %v", saved, err)
+	}
+	ordered, err := h.UpdateAgentPreferences(context.Background(), connect.NewRequest(&shortcutsv1.UpdateAgentPreferencesRequest{ProfileId: "p1", OrderMode: "recent", LaunchedAgentId: "codex"}))
+	if err != nil || ordered.Msg.GetPreferences().GetOrderMode() != "recent" || ordered.Msg.GetPreferences().GetLastLaunchedAt()["codex"] != "recorded" {
+		t.Fatalf("order mode and launch must cross the wire: %v %v", ordered, err)
 	}
 	for _, tc := range []struct {
 		failure error

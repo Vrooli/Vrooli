@@ -113,6 +113,35 @@ func (s adapterCatalogStub) ListAll(ctx context.Context, state string) ([]contin
 	return records, err
 }
 
+func TestAdapterCreatePersistsResolvedWorkingDirectory(t *testing.T) {
+	ctx := context.Background()
+	cwd := t.TempDir()
+	t.Setenv("WC_DEFAULT_CWD", cwd)
+	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())
+	store := sessionstore.NewInMemory()
+	a := &Adapter{
+		Manager: mgr, Store: store, Events: events.NewLogger(20), Metrics: metrics.New(),
+		Conversations: adapterConversationStub{}, Workspace: workspace.NewMemStore(),
+	}
+
+	created, err := a.Create(ctx, CreateInput{
+		Shell: "/bin/sh", Cols: 80, Rows: 24, Backend: "standard", Origin: "ui",
+		AgentType: "opencode", LaunchCommand: "opencode", ExecuteLaunchCommand: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = mgr.Delete(ctx, created.ID) }()
+
+	meta, err := store.Get(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.CWD != cwd {
+		t.Fatalf("persisted CWD = %q, want %q", meta.CWD, cwd)
+	}
+}
+
 func TestAdapterLiveArchiveAndPolicyLifecycle(t *testing.T) {
 	ctx := context.Background()
 	mgr := session.NewManagerWithFactory(ptyfake.NewFactory())

@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"connectrpc.com/connect"
+	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities/capabilities_v1connect"
 
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
 )
@@ -18,6 +19,7 @@ var (
 	ErrTargetNotFound     = errors.New("target not found")
 	ErrUnavailable        = errors.New("unavailable")
 	ErrFailedPrecondition = errors.New("failed precondition")
+	ErrPermissionDenied   = errors.New("permission denied")
 )
 
 // runActionCode keeps a control-plane status code when the failure came from
@@ -33,6 +35,12 @@ func runActionCode(err error) connect.Code {
 		return connect.CodeUnavailable
 	case errors.Is(err, ErrFailedPrecondition):
 		return connect.CodeFailedPrecondition
+	case errors.Is(err, ErrPermissionDenied):
+		return connect.CodePermissionDenied
+	case errors.Is(err, context.DeadlineExceeded):
+		return connect.CodeDeadlineExceeded
+	case errors.Is(err, context.Canceled):
+		return connect.CodeCanceled
 	default:
 		return connect.CodeInvalidArgument
 	}
@@ -45,6 +53,7 @@ type Deps struct {
 }
 
 type connectHandler struct {
+	capabilitiesconnect.UnimplementedCapabilitiesServiceHandler
 	deps Deps
 }
 
@@ -52,8 +61,40 @@ type agentUpdateReader interface {
 	AgentUpdate(context.Context, string, string) (AgentUpdateResult, error)
 }
 
+type agentUpdateActionRunner interface {
+	RunAgentUpdateAction(ctx context.Context, targetID, agentID, action string) (AgentUpdateActionResult, error)
+}
+
 type agentUsageReader interface {
 	AgentUsage(context.Context, string, string) (AgentUsageResult, error)
+}
+
+type harnessLister interface {
+	ListHarnesses(context.Context, string) ([]HarnessDescriptor, error)
+}
+
+func (h *connectHandler) ListHarnesses(ctx context.Context, req *connect.Request[capabilitiesv1.ListHarnessesRequest]) (*connect.Response[capabilitiesv1.ListHarnessesResponse], error) {
+	lister, ok := h.deps.Service.(harnessLister)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	descriptors, err := lister.ListHarnesses(ctx, req.Msg.GetTargetId())
+	if err != nil {
+		return nil, connect.NewError(runActionCode(err), err)
+	}
+	response := &capabilitiesv1.ListHarnessesResponse{TargetId: req.Msg.GetTargetId()}
+	for _, d := range descriptors {
+		item := &capabilitiesv1.HarnessDescriptor{
+			AgentId: d.AgentID, Resource: d.Resource, DisplayName: d.DisplayName, Icon: d.Icon,
+			SupportsContextLimit: d.SupportsContextLimit, SupportsUsageMode: d.SupportsUsageMode,
+			SupportsModelSelection: d.SupportsModelSelection, SupportsProviderSelection: d.SupportsProviderSelection,
+		}
+		for _, w := range d.UsageWindows {
+			item.UsageWindows = append(item.UsageWindows, &capabilitiesv1.HarnessUsageWindow{Id: w.ID, WindowMinutes: w.WindowMinutes})
+		}
+		response.Harnesses = append(response.Harnesses, item)
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *connectHandler) AgentUsage(ctx context.Context, req *connect.Request[capabilitiesv1.AgentUsageRequest]) (*connect.Response[capabilitiesv1.AgentUsageResponse], error) {
@@ -67,7 +108,7 @@ func (h *connectHandler) AgentUsage(ctx context.Context, req *connect.Request[ca
 	}
 	response := &capabilitiesv1.AgentUsageResponse{TargetId: result.TargetID, AgentId: result.AgentID, Match: result.Match, Reason: result.Reason, Source: result.Source, ObservedAt: result.ObservedAt}
 	for _, w := range result.Windows {
-		response.Windows = append(response.Windows, &capabilitiesv1.AgentUsageWindow{Pool: w.Pool, WindowMinutes: w.WindowMinutes, UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt})
+		response.Windows = append(response.Windows, &capabilitiesv1.AgentUsageWindow{Pool: w.Pool, WindowMinutes: w.WindowMinutes, UsedPercent: w.UsedPercent, ResetsAt: w.ResetsAt, ObservedAt: w.ObservedAt})
 	}
 	return connect.NewResponse(response), nil
 }
@@ -81,11 +122,35 @@ func (h *connectHandler) AgentUpdate(ctx context.Context, req *connect.Request[c
 	if err != nil {
 		return nil, connect.NewError(runActionCode(err), err)
 	}
-	return connect.NewResponse(&capabilitiesv1.AgentUpdateResponse{
+	return connect.NewResponse(agentUpdateToProto(result)), nil
+}
+
+func agentUpdateToProto(result AgentUpdateResult) *capabilitiesv1.AgentUpdateResponse {
+	checks := make([]*capabilitiesv1.AgentUpdateCheck, 0, len(result.Checks))
+	for _, check := range result.Checks {
+		checks = append(checks, &capabilitiesv1.AgentUpdateCheck{Id: check.ID, Passed: check.Passed, Message: check.Message})
+	}
+	return &capabilitiesv1.AgentUpdateResponse{
 		TargetId: result.TargetID, AgentId: result.AgentID, Resource: result.Resource,
 		Installed: result.Installed, Pinned: result.Pinned, Latest: result.Latest, Status: result.Status,
 		CheckedAt: result.CheckedAt, SourceKind: result.SourceKind, SourceId: result.SourceID,
 		ProbeVerified: result.ProbeVerified, Note: result.Note,
+		State: result.State, PrimaryAction: result.PrimaryAction, OperatorCommand: result.OperatorCommand, Reason: result.Reason,
+		Checks: checks, InstallKind: result.InstallKind, RollbackVersion: result.RollbackVersion, NewerThanReviewed: result.NewerThanReviewed,
+	}
+}
+
+func (h *connectHandler) RunAgentUpdateAction(ctx context.Context, req *connect.Request[capabilitiesv1.RunAgentUpdateActionRequest]) (*connect.Response[capabilitiesv1.RunAgentUpdateActionResponse], error) {
+	runner, ok := h.deps.Service.(agentUpdateActionRunner)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := runner.RunAgentUpdateAction(ctx, req.Msg.GetTargetId(), req.Msg.GetAgentId(), req.Msg.GetAction())
+	if err != nil {
+		return nil, connect.NewError(runActionCode(err), err)
+	}
+	return connect.NewResponse(&capabilitiesv1.RunAgentUpdateActionResponse{
+		Success: result.Success, Message: result.Message, OperationId: result.OperationID, Update: agentUpdateToProto(result.Update),
 	}), nil
 }
 

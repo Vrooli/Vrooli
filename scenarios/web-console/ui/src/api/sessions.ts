@@ -74,6 +74,15 @@ export interface PolicyResponse {
 // Closed set of agent kinds the recovery flow knows how to reattach. Mirrors
 // sessionstore.Agent in the API; new runtimes require an explicit change on
 // both sides.
+/** What the operator chose for one launch. The server composes it onto the command. */
+export interface AgentLaunchIntent {
+  agent_id: string;
+  /** The catalog ID, not a display name. */
+  model?: string;
+  provider?: string;
+  context_limit_tokens?: number;
+}
+
 export type AgentType = "none" | "codex" | "claude" | "opencode" | "grok";
 
 // Persistent-session-recovery surface. See
@@ -228,10 +237,10 @@ export function decodeSession(s: ProtoSession | undefined): SessionInfo {
     created_at: s?.createdAt ?? "",
     cols: s?.cols ?? 0,
     rows: s?.rows ?? 0,
-    backend: (s?.backend as BackendID) ?? "standard",
+    backend: (s?.backend ?? "standard") as BackendID,
     survives_restart: s?.survivesRestart ?? false,
     policy: {
-      mode: (policy?.mode as PolicyMode) ?? "never",
+      mode: (policy?.mode ?? "never") as PolicyMode,
       ...(policy?.duration ? { duration: policy.duration } : {}),
     },
     ...(s?.recovered ? { recovered: true } : {}),
@@ -254,7 +263,7 @@ function decodeRecoverable(r: ProtoRecoverable): RecoverableSession {
     created_at: r.createdAt || undefined,
     orphaned_at: r.orphanedAt || undefined,
     last_activity_at: r.lastActivityAt || undefined,
-    agent_type: (r.agentType as AgentType) || undefined,
+    agent_type: (r.agentType || undefined) as AgentType | undefined,
     agent_session_id: r.agentSessionId || undefined,
     launch_command: r.launchCommand || undefined,
     cwd: r.cwd || undefined,
@@ -271,7 +280,7 @@ function decodePolicyView(v: ProtoPolicyView | undefined): PolicyResponse {
   return {
     session_id: v?.sessionId ?? "",
     policy: {
-      mode: (v?.policy?.mode as PolicyMode) ?? "never",
+      mode: (v?.policy?.mode ?? "never") as PolicyMode,
       ...(v?.policy?.duration ? { duration: v.policy.duration } : {}),
     },
     ...(v?.hasExpiry
@@ -309,6 +318,7 @@ export async function createSession(opts?: {
   // PTY (via server-side paste) so the command runs exactly once without the
   // client typing it after the WebSocket connects.
   execute_launch_command?: boolean;
+  agent_launch?: AgentLaunchIntent;
 	agent_type?: AgentType;
 	owner?: string;
 	display_label?: string;
@@ -325,6 +335,12 @@ export async function createSession(opts?: {
     backend: opts?.backend ?? "",
     launchCommand: opts?.launch_command ?? "",
     executeLaunchCommand: opts?.execute_launch_command ?? false,
+    agentLaunch: opts?.agent_launch ? {
+      agentId: opts.agent_launch.agent_id,
+      model: opts.agent_launch.model ?? "",
+      provider: opts.agent_launch.provider ?? "",
+      contextLimitTokens: BigInt(opts.agent_launch.context_limit_tokens ?? 0),
+    } : undefined,
     agentType: opts?.agent_type ?? "",
 		owner: opts?.owner ?? "",
     displayLabel: opts?.display_label ?? "",
@@ -406,7 +422,7 @@ export async function listArchivedSessions(): Promise<{ sessions: ArchivedSessio
       id: session.id,
       archived_at: session.archivedAt,
       created_at: session.createdAt,
-      agent_type: (session.agentType as AgentType) || "none",
+      agent_type: (session.agentType || "none") as AgentType,
       agent_session_id: session.agentSessionId || undefined,
       cwd: session.cwd || undefined,
       pane_name: session.paneName || session.id.slice(0, 8),

@@ -19,7 +19,7 @@ func TestReplyPermissionPostsTheReply(t *testing.T) {
 		_, _ = w.Write([]byte("true"))
 	}))
 	defer srv.Close()
-	if err := NewHTTPClient(srv.URL).ReplyPermission(context.Background(), "per_1", "once"); err != nil {
+	if err := NewHTTPClient(srv.URL).ReplyPermission(context.Background(), "ses_1", "per_1", "once"); err != nil {
 		t.Fatal(err)
 	}
 	if gotRequest != "POST /permission/per_1/reply" || gotBody != `{"reply":"once"}` {
@@ -32,7 +32,7 @@ func TestReplyPermissionReportsARefusedReply(t *testing.T) {
 		w.WriteHeader(http.StatusBadRequest)
 	}))
 	defer srv.Close()
-	if err := NewHTTPClient(srv.URL).ReplyPermission(context.Background(), "per_1", "once"); err == nil {
+	if err := NewHTTPClient(srv.URL).ReplyPermission(context.Background(), "ses_1", "per_1", "once"); err == nil {
 		t.Fatal("a refused reply returned no error")
 	}
 }

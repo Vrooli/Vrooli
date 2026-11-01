@@ -276,6 +276,46 @@ func TestUnknownGoalStatusCountsAsActive(t *testing.T) {
 	}
 }
 
+// A goal an agent starts with the create_goal tool leaves no thread_goal_updated
+// line, and most goals on this host start that way.
+func TestGoalStartedByAToolCallBlocksCompaction(t *testing.T) {
+	f := newCompactionFixture(t)
+	createGoal := `{"type":"response_item","payload":{"type":"custom_tool_call","call_id":"c1","name":"exec","input":"const g = await tools.create_goal({objective:\"ship it\"}); text(JSON.stringify(g));"}}`
+	f.add(t, "g1", "codex", idle(time.Minute), createGoal, codexUsage(150000))
+	event := f.m.Compact(context.Background(), "g1", "bulk")
+	if event.Reason != skipGoal || len(f.drv.typed) != 0 {
+		t.Fatalf("a tool-started goal must block compaction: %+v typed=%v", event, f.drv.typed)
+	}
+	appendLine(t, f.drv.sessions[0].Transcript, codexGoal("paused"))
+	if event = f.m.Compact(context.Background(), "g1", "bulk"); event.Outcome != "compacted" {
+		t.Fatalf("a paused goal may be compacted: %+v", event)
+	}
+}
+
+func TestLateFinishedStatusDoesNotClearANewerGoal(t *testing.T) {
+	f := newCompactionFixture(t)
+	older := `{"type":"event_msg","payload":{"type":"thread_goal_updated","goal":{"objective":"an older goal","status":"complete"}}}`
+	f.add(t, "g1", "codex", idle(time.Minute), codexGoal("active"), older, codexUsage(150000))
+	if event := f.m.Compact(context.Background(), "g1", "bulk"); event.Reason != skipGoal || len(f.drv.typed) != 0 {
+		t.Fatalf("a late status for another objective must not clear the goal: %+v typed=%v", event, f.drv.typed)
+	}
+}
+
+// A transcript that cannot be read to its end may hold a goal past that point.
+func TestUnreadableTranscriptIsNotCompacted(t *testing.T) {
+	f := newCompactionFixture(t)
+	path := f.add(t, "g1", "codex", idle(time.Minute), codexUsage(150000))
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(path, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if event := f.m.Compact(context.Background(), "g1", "bulk"); event.Reason != skipNoReading || len(f.drv.typed) != 0 {
+		t.Fatalf("event = %+v typed=%v", event, f.drv.typed)
+	}
+}
+
 func TestSmallOrUnmeasuredContextIsSkipped(t *testing.T) {
 	f := newCompactionFixture(t)
 	f.add(t, "small", "codex", idle(time.Minute), codexUsage(5000))

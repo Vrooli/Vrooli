@@ -17,7 +17,7 @@ func (a *shortcutsAdapter) AgentPreferences(ctx context.Context) (shortcutsH.Age
 }
 
 func (a *shortcutsAdapter) UpdateAgentPreferences(ctx context.Context, p shortcutsH.AgentPreferences, expected uint64) (shortcutsH.AgentPreferences, error) {
-	result, err := a.s.shortcuts.UpdateAgentPreferences(ctx, AgentPreferences{ProfileID: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIDs: p.OrderedAgentIDs, HiddenAgentIDs: p.HiddenAgentIDs}, expected)
+	result, err := a.s.shortcuts.UpdateAgentPreferences(ctx, AgentPreferences{ProfileID: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIDs: p.OrderedAgentIDs, HiddenAgentIDs: p.HiddenAgentIDs, OrderMode: p.OrderMode, LaunchedAgentID: p.LaunchedAgentID}, expected)
 	if errors.Is(err, ErrAgentPreferencesConflict) {
 		return shortcutsH.AgentPreferences{}, fmt.Errorf("%w: effective profile or preferences changed", shortcutsH.ErrConflict)
 	}
@@ -28,7 +28,7 @@ func (a *shortcutsAdapter) UpdateAgentPreferences(ctx context.Context, p shortcu
 }
 
 func preferencesToTransport(p AgentPreferences) shortcutsH.AgentPreferences {
-	return shortcutsH.AgentPreferences{ProfileID: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIDs: p.OrderedAgentIDs, HiddenAgentIDs: p.HiddenAgentIDs, Revision: p.Revision}
+	return shortcutsH.AgentPreferences{ProfileID: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIDs: p.OrderedAgentIDs, HiddenAgentIDs: p.HiddenAgentIDs, Revision: p.Revision, OrderMode: p.OrderMode, LastLaunchedAt: p.LastLaunchedAt}
 }
 
 // shortcutsAdapter bridges the in-process ShortcutStore to the

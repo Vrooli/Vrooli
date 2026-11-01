@@ -19,7 +19,8 @@ func TestLocalAgentUsageKeepsEvidenceAndNeverClaimsVerified(t *testing.T) {
 		wantWindows                           int
 	}{
 		{"zero is a real value", "likely", now.Format(time.RFC3339), "0", now.Add(time.Hour).Format(time.RFC3339), "likely", 1},
-		{"stale", "likely", now.Add(-time.Hour).Format(time.RFC3339), "30", now.Add(time.Hour).Format(time.RFC3339), "unavailable", 0},
+		{"quiet session within the owner's bound", "likely", now.Add(-time.Hour).Format(time.RFC3339), "30", now.Add(time.Hour).Format(time.RFC3339), "likely", 1},
+		{"past the owner's bound", "likely", now.Add(-7 * time.Hour).Format(time.RFC3339), "30", now.Add(time.Hour).Format(time.RFC3339), "unavailable", 0},
 		{"past reset", "likely", now.Format(time.RFC3339), "30", now.Add(-time.Minute).Format(time.RFC3339), "unavailable", 0},
 		{"absent percent", "likely", now.Format(time.RFC3339), "null", "", "unavailable", 0},
 		{"out of range", "likely", now.Format(time.RFC3339), "101", "", "unavailable", 0},
@@ -38,8 +39,59 @@ func TestLocalAgentUsageKeepsEvidenceAndNeverClaimsVerified(t *testing.T) {
 			if got.Match != tc.wantMatch || len(got.Windows) != tc.wantWindows || got.TargetID != "local" || got.AgentID != "codex" {
 				t.Fatalf("got %+v", got)
 			}
-			if tc.wantMatch == "likely" && (got.Windows[0].UsedPercent != 0 || got.Reason == "Default account") {
+			if tc.wantMatch == "likely" && (got.Reason == "Default account" || got.Windows[0].ObservedAt != tc.observed) {
 				t.Fatalf("missing evidence or uncertainty: %+v", got)
+			}
+			if tc.wantMatch == "unavailable" && got.Reason == "" {
+				t.Fatalf("an unavailable reading must say why: %+v", got)
+			}
+		})
+	}
+}
+
+func usageWindow(percent float64, observedAt, resetsAt string) localUsageWindow {
+	return localUsageWindow{Pool: "subscription", WindowMinutes: 300, UsedPercent: &percent, ObservedAt: observedAt, ResetsAt: resetsAt}
+}
+
+func TestLocalUsageJudgesEachWindowByItsOwnReading(t *testing.T) {
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	at := func(age time.Duration) string { return now.Add(-age).Format(time.RFC3339) }
+	base := capsH.AgentUsageResult{TargetID: "local", AgentID: "claude", Match: "unavailable"}
+
+	fresh, old := usageWindow(0, at(2*time.Hour), ""), usageWindow(86, at(30*time.Minute), "")
+	old.WindowMinutes = 10080
+	aged := usageWindow(50, at(7*time.Hour), "")
+	aged.WindowMinutes = 60
+	got := localUsageResult(base, "Sample.", "statusline", at(30*time.Minute), []localUsageWindow{fresh, old, aged}, now)
+	if got.Match != "likely" || len(got.Windows) != 2 {
+		t.Fatalf("the current windows must survive one aged window: %+v", got)
+	}
+	if got.Windows[0].ObservedAt != at(2*time.Hour) || got.Windows[1].ObservedAt != at(30*time.Minute) {
+		t.Fatalf("each window keeps its own age: %+v", got.Windows)
+	}
+	if got.ObservedAt != at(30*time.Minute) {
+		t.Fatalf("the result carries the newest reading: %q", got.ObservedAt)
+	}
+
+	inherited := usageWindow(10, "", "")
+	if got := localUsageResult(base, "", "app-server", at(time.Minute), []localUsageWindow{inherited}, now); got.Match != "likely" || got.Windows[0].ObservedAt != at(time.Minute) {
+		t.Fatalf("a window without its own time is as old as the response: %+v", got)
+	}
+
+	for name, tc := range map[string]struct {
+		windows []localUsageWindow
+		reason  string
+	}{
+		"aged":        {[]localUsageWindow{usageWindow(1, at(7*time.Hour), "")}, "The latest usage reading is 7 hours old"},
+		"reset":       {[]localUsageWindow{usageWindow(1, at(time.Hour), at(time.Minute))}, "The usage window has reset and no new reading has arrived yet"},
+		"future":      {[]localUsageWindow{usageWindow(1, at(-time.Hour), "")}, "No current usage windows are available"},
+		"no windows":  {nil, "No current usage windows are available"},
+		"bad reading": {[]localUsageWindow{usageWindow(101, at(time.Minute), "")}, "No current usage windows are available"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := localUsageResult(base, "", "", at(time.Minute), tc.windows, now)
+			if got.Match != "unavailable" || got.Reason != tc.reason || len(got.Windows) != 0 {
+				t.Fatalf("got %+v", got)
 			}
 		})
 	}

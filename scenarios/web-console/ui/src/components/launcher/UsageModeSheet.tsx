@@ -1,35 +1,29 @@
 /**
- * Start or end a usage mode. It is opened from the launcher header chip. It
- * reads and writes only Web Console's API, so it works without Agent Manager;
+ * Start or end a usage mode. It is opened from a harness's Save usage row and
+ * from the drawer's overflow menu, which also lists Learn comparisons. It reads and writes only Web Console's API, so it works without Agent Manager;
  * "until reset" is offered only for a quota window whose reset is known.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
+import { formatClockTime } from "../../lib/localeFormat";
 import type { UsageModeStart } from "../../api/usageMode";
+import { handleRadioKeys } from "./radioKeys";
 import { useAgentUsage } from "./useAgentUsage";
 import type { UsageModeController } from "./useUsageMode";
 
 const HOUR_CHOICES = [1, 2, 4];
 const OPTION = "min-h-11 rounded-lg border px-3 text-sm font-medium text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent";
 
-export function clockTime(value: string, locale?: string): string {
-  const at = Date.parse(value);
-  if (!Number.isFinite(at)) return "";
-  const date = new Date(at);
-  // A reset on another day needs the day, or "08:47 PM" reads as tonight.
-  const sameDay = date.toDateString() === new Date().toDateString();
-  return new Intl.DateTimeFormat(locale, sameDay ? { hour: "2-digit", minute: "2-digit" } : { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(date);
-}
-
-export default function UsageModeSheet({ open, onClose, usageMode }: { open: boolean; onClose: () => void; usageMode: UsageModeController }) {
+export default function UsageModeSheet({ open, onClose, usageMode, initialAgentId, modelName = (model) => model }: { open: boolean; onClose: () => void; usageMode: UsageModeController; initialAgentId?: string; modelName?: (catalogId: string) => string }) {
   const { t, i18n } = useTranslation();
   const { state, busy, error } = usageMode;
   const agents = state.agents;
   const [agentId, setAgentId] = useState("");
+  useEffect(() => { if (open && initialAgentId) setAgentId(initialAgentId); }, [initialAgentId, open]);
   const [choice, setChoice] = useState("minutes:120");
   const selected = agents.find((agent) => agent.agentId === agentId) ?? agents[0];
   const readings = useAgentUsage(open && state.canControl && Boolean(selected), "local", selected?.agentId ?? "");
@@ -43,12 +37,12 @@ export default function UsageModeSheet({ open, onClose, usageMode }: { open: boo
   const active = state.modes.filter((mode) => mode.kind !== "learn");
   const comparisons = state.modes.filter((mode) => mode.kind === "learn");
   const untilText = (mode: { untilKind: string; expiresAt?: string }) =>
-    mode.untilKind === "off" || !mode.expiresAt ? t(strings.launcher.usageModeUntilOffShort) : t(strings.launcher.usageModeUntil, { time: clockTime(mode.expiresAt, i18n.resolvedLanguage) });
+    mode.untilKind === "off" || !mode.expiresAt ? t(strings.launcher.usageModeUntilOffShort) : t(strings.launcher.usageModeUntil, { time: formatClockTime(mode.expiresAt, i18n.resolvedLanguage) });
 
   const choices = [
     ...HOUR_CHOICES.map((hours) => ({ key: `minutes:${String(hours * 60)}`, label: t(strings.launcher.usageModeHours, { count: hours }) })),
     ...resets.map((window) => {
-      const time = clockTime(window.resetsAt, i18n.resolvedLanguage);
+      const time = formatClockTime(window.resetsAt, i18n.resolvedLanguage);
       return { key: `reset:${String(window.windowMinutes)}`, label: window.windowMinutes === 10080 ? t(strings.launcher.usageModeUntilWeekly, { time }) : t(strings.launcher.usageModeUntilWindow, { hours: window.windowMinutes / 60, time }) };
     }),
     { key: "off", label: t(strings.launcher.usageModeUntilOff) },
@@ -65,7 +59,7 @@ export default function UsageModeSheet({ open, onClose, usageMode }: { open: boo
 
   return (
     <BottomSheet avoidKeyboard open={open} onClose={onClose} title={t(strings.launcher.usageModeSheetTitle)}
-      closeLabel={t(strings.launcher.usageModeCloseLabel)} testId="usage-mode-sheet">
+      closeLabel={t(strings.launcher.usageModeCloseLabel)} testId="usage-mode-sheet" panelClassName="wc-rcl-theme">
       <div className="space-y-4 p-4">
         <p className="text-sm text-wc-text-muted">{t(strings.launcher.usageModeExplain)}</p>
         {!state.canControl && <p data-testid="usage-mode-operator-only" className="text-sm text-wc-text-secondary">{t(strings.launcher.usageModeOperatorOnly)}</p>}
@@ -74,7 +68,7 @@ export default function UsageModeSheet({ open, onClose, usageMode }: { open: boo
           {active.map((mode) => (
             <div key={mode.id} data-testid={`usage-mode-active-${mode.id}`} className="flex items-center gap-3 rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2">
               <span className="min-w-0 flex-1 text-sm text-wc-text-primary">{agents.find((agent) => agent.runner === mode.runner)?.label ?? mode.runner}<span className="block text-xs text-wc-text-muted">{untilText(mode)}</span></span>
-              {state.canControl && <Button type="button" variant="secondary" size="md" data-testid="usage-mode-end" disabled={busy} className="min-h-11" onClick={() => { void usageMode.end(mode.id); }}>{t(strings.launcher.usageModeEnd)}</Button>}
+              {state.canControl && <Button type="button" variant="secondary" size="md" shape="square" data-testid="usage-mode-end" disabled={busy} className="min-h-11" onClick={() => { void usageMode.end(mode.id); }}>{t(strings.launcher.usageModeEnd)}</Button>}
             </div>))}
         </section>}
         {comparisons.length > 0 && <section aria-label={t(strings.launcher.learnComparisons)} className="space-y-2" data-testid="usage-mode-learn">
@@ -87,21 +81,23 @@ export default function UsageModeSheet({ open, onClose, usageMode }: { open: boo
             </div>))}
         </section>}
         {state.canControl && selected && <section className="space-y-3">
-          <div role="radiogroup" aria-label={t(strings.launcher.usageModeFor)} className="flex flex-wrap gap-2">
+          <div role="radiogroup" aria-label={t(strings.launcher.usageModeFor)} className="flex flex-wrap gap-2"
+            onKeyDown={(event) => { handleRadioKeys(event, (index) => { const agent = agents[index]; if (agent) setAgentId(agent.agentId); }); }}>
             {agents.map((agent) => (
-              <button key={agent.agentId} type="button" role="radio" aria-checked={agent.agentId === selected.agentId} data-testid={`usage-mode-agent-${agent.agentId}`}
+              <button key={agent.agentId} type="button" role="radio" aria-checked={agent.agentId === selected.agentId} tabIndex={agent.agentId === selected.agentId ? 0 : -1} data-testid={`usage-mode-agent-${agent.agentId}`}
                 onClick={() => { setAgentId(agent.agentId); }}
                 className={cn(OPTION, agent.agentId === selected.agentId ? "border-wc-accent bg-wc-accent/10 text-wc-text-primary" : "border-wc-default text-wc-text-secondary")}>{agent.label}</button>))}
           </div>
-          <div role="radiogroup" aria-label={t(strings.launcher.usageModeDuration)} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div role="radiogroup" aria-label={t(strings.launcher.usageModeDuration)} className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+            onKeyDown={(event) => { handleRadioKeys(event, (index) => { const item = choices[index]; if (item) setChoice(item.key); }); }}>
             {choices.map((item) => (
-              <button key={item.key} type="button" role="radio" aria-checked={item.key === effectiveChoice} data-testid={`usage-mode-choice-${item.key.replace(":", "-")}`}
+              <button key={item.key} type="button" role="radio" aria-checked={item.key === effectiveChoice} tabIndex={item.key === effectiveChoice ? 0 : -1} data-testid={`usage-mode-choice-${item.key.replace(":", "-")}`}
                 onClick={() => { setChoice(item.key); }}
                 className={cn(OPTION, item.key === effectiveChoice ? "border-wc-accent bg-wc-accent/10 text-wc-text-primary" : "border-wc-default text-wc-text-secondary")}>{item.label}</button>))}
           </div>
-          <p className="text-xs text-wc-text-muted">{selected.label}: {selected.usualModel} → {selected.lowerModel}</p>
+          <p className="text-xs text-wc-text-muted">{selected.label}: {modelName(selected.usualModel)} → {modelName(selected.lowerModel)}</p>
           {resets.length === 0 && <p className="text-xs text-wc-text-muted">{t(strings.launcher.usageModeResetUnknown)}</p>}
-          <Button type="button" variant="primary" size="md" data-testid="usage-mode-start" disabled={busy} className="min-h-11 w-full" onClick={() => {
+          <Button type="button" variant="primary" size="lg" shape="square" data-testid="usage-mode-start" disabled={busy} className="min-h-11 w-full" onClick={() => {
             const body = request();
             if (body) void usageMode.start(body).then((ok) => { if (ok) onClose(); });
           }}>{t(strings.launcher.usageModeStart)}</Button>

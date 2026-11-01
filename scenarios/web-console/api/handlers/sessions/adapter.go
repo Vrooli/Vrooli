@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
 	"web-console/internal/backend"
+	"web-console/internal/config"
 	"web-console/internal/continuity"
 	"web-console/internal/events"
 	intmetrics "web-console/internal/metrics"
@@ -76,6 +77,9 @@ type CodexCheckpoints interface {
 // Adapter is the production Service implementation. It is constructed in
 // api/main.go with typed deps — no *Server import — and passed to Module.
 type Adapter struct {
+	// ComposeAgentLaunch applies a launch's settings to its command. The harness
+	// descriptor owns how, so a client never rewrites command text.
+	ComposeAgentLaunch  func(ctx context.Context, intent AgentLaunch, command, targetID string) (string, error)
 	NativeUsage         func(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error)
 	NativeThreadState   func(context.Context, *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error)
 	createMu            sync.Mutex
@@ -337,6 +341,16 @@ func lifecycleStateForMetadata(meta sessionstore.Metadata) continuity.State {
 // -----------------------------------------------------------------------------
 
 func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
+	if in.AgentLaunch != nil {
+		if a.ComposeAgentLaunch == nil {
+			return Session{}, fmt.Errorf("%w: agent launch settings are unavailable", ErrFailedPrecondition)
+		}
+		composed, err := a.ComposeAgentLaunch(ctx, *in.AgentLaunch, in.LaunchCommand, in.TargetID)
+		if err != nil {
+			return Session{}, err
+		}
+		in.LaunchCommand = composed
+	}
 	in.BusinessAccountID = strings.TrimSpace(in.BusinessAccountID)
 	var paidBindingSessionID string
 	paidBindingCommitted := false
@@ -542,10 +556,14 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		return Session{}, mapCreateError(err)
 	}
 
-	// The manager may already share this store and have persisted the base row
-	// during creation. Ensure the adapter-owned store has the row as well before
-	// applying enrichment: a provider can exit immediately after launch, and
-	// enrichment must remain attributable even when the runtime handle is gone.
+	// The manager resolves an empty workingDir to the server's launch directory
+	// and persists it. Repeat that resolution here: this adapter-owned Save must
+	// not overwrite the manager's row with an empty CWD, because CWD is half of
+	// the key that lets a watcher attribute an agent's native transcript.
+	launchDir := strings.TrimSpace(in.WorkingDir)
+	if launchDir == "" {
+		launchDir = config.ResolveWorkingDir()
+	}
 	if a.Store != nil {
 		if err := a.Store.Save(ctx, sessionstore.Metadata{
 			ID:                sess.ID,
@@ -556,7 +574,7 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 			Policy:            sess.GetPolicy(),
 			Created:           sess.CreatedAt,
 			Detached:          sess.Backend == backend.Persistent,
-			CWD:               in.WorkingDir,
+			CWD:               launchDir,
 			CreateFingerprint: fingerprint,
 			BusinessAccountID: in.BusinessAccountID,
 			Origin:            intsessions.NormalizeOrigin(in.Origin), Owner: in.Owner, DisplayLabel: in.DisplayLabel,

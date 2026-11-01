@@ -116,7 +116,12 @@ func (h *connectHandler) Create(ctx context.Context, req *connect.Request[sessio
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	digest := sha256.Sum256(raw)
+	var agentLaunch *AgentLaunch
+	if intent := req.Msg.GetAgentLaunch(); intent != nil {
+		agentLaunch = &AgentLaunch{AgentID: intent.GetAgentId(), Model: intent.GetModel(), Provider: intent.GetProvider(), ContextLimitTokens: intent.GetContextLimitTokens()}
+	}
 	in := CreateInput{
+		AgentLaunch:           agentLaunch,
 		RequestedSessionID:    req.Msg.GetRequestedSessionId(),
 		RequestFingerprint:    hex.EncodeToString(digest[:]),
 		Shell:                 req.Msg.GetShell(),

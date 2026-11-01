@@ -32,8 +32,10 @@ func NewConnectHandler(d Deps) *connectHandler {
 // ErrInvalidArgument is the sentinel the Service implementation returns
 // for caller-visible validation failures (unknown scope, blank name,
 // shortcut entry missing label/command). Mapped to CodeInvalidArgument.
-var ErrInvalidArgument = errors.New("invalid argument")
-var ErrConflict = errors.New("preferences conflict")
+var (
+	ErrInvalidArgument = errors.New("invalid argument")
+	ErrConflict        = errors.New("preferences conflict")
+)
 
 func (h *connectHandler) GetAgentPreferences(ctx context.Context, _ *connect.Request[shortcutsv1.GetAgentPreferencesRequest]) (*connect.Response[shortcutsv1.GetAgentPreferencesResponse], error) {
 	p, err := h.deps.Service.AgentPreferences(ctx)
@@ -45,7 +47,7 @@ func (h *connectHandler) GetAgentPreferences(ctx context.Context, _ *connect.Req
 }
 
 func (h *connectHandler) UpdateAgentPreferences(ctx context.Context, req *connect.Request[shortcutsv1.UpdateAgentPreferencesRequest]) (*connect.Response[shortcutsv1.UpdateAgentPreferencesResponse], error) {
-	p, err := h.deps.Service.UpdateAgentPreferences(ctx, AgentPreferences{ProfileID: req.Msg.GetProfileId(), ProfileInstance: req.Msg.GetProfileInstance(), OrderedAgentIDs: req.Msg.GetOrderedAgentIds(), HiddenAgentIDs: req.Msg.GetHiddenAgentIds()}, req.Msg.GetExpectedRevision())
+	p, err := h.deps.Service.UpdateAgentPreferences(ctx, AgentPreferences{ProfileID: req.Msg.GetProfileId(), ProfileInstance: req.Msg.GetProfileInstance(), OrderedAgentIDs: req.Msg.GetOrderedAgentIds(), HiddenAgentIDs: req.Msg.GetHiddenAgentIds(), OrderMode: req.Msg.GetOrderMode(), LaunchedAgentID: req.Msg.GetLaunchedAgentId()}, req.Msg.GetExpectedRevision())
 	if err != nil {
 		if errors.Is(err, ErrConflict) {
 			return nil, connect.NewError(connect.CodeAborted, err)
@@ -60,7 +62,7 @@ func (h *connectHandler) UpdateAgentPreferences(ctx context.Context, req *connec
 }
 
 func preferencesToProto(p AgentPreferences) *shortcutsv1.AgentPreferences {
-	return &shortcutsv1.AgentPreferences{ProfileId: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIds: p.OrderedAgentIDs, HiddenAgentIds: p.HiddenAgentIDs, Revision: p.Revision}
+	return &shortcutsv1.AgentPreferences{ProfileId: p.ProfileID, ProfileInstance: p.ProfileInstance, OrderedAgentIds: p.OrderedAgentIDs, HiddenAgentIds: p.HiddenAgentIDs, Revision: p.Revision, OrderMode: p.OrderMode, LastLaunchedAt: p.LastLaunchedAt}
 }
 
 func (h *connectHandler) GetEffective(ctx context.Context, _ *connect.Request[shortcutsv1.GetEffectiveRequest]) (*connect.Response[shortcutsv1.GetEffectiveResponse], error) {

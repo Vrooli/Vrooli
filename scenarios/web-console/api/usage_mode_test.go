@@ -216,8 +216,10 @@ func (r recoverStore) UpdateAgentInfo(context.Context, string, sessionstore.Agen
 func writeCodexSaveMode(t *testing.T) {
 	t.Helper()
 	expires := time.Now().Add(time.Hour)
-	mode := usagemode.Mode{ID: "um-recover", StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
-		Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "gpt-6-luna", ContextLimitTokens: 180000}}}
+	mode := usagemode.Mode{
+		ID: "um-recover", StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
+		Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "gpt-6-luna", ContextLimitTokens: 180000}},
+	}
 	if err := usagemode.Write(usagemode.File{Modes: []usagemode.Mode{mode}}); err != nil {
 		t.Fatal(err)
 	}
@@ -299,8 +301,10 @@ func TestConcurrentConsoleAndExternalWritersLoseNoMode(t *testing.T) {
 		defer close(done)
 		for i := 0; i < 10; i++ {
 			_ = usagemode.Update(func(f *usagemode.File) error { // another process, e.g. Agent Manager
-				f.Modes = append(f.Modes, usagemode.Mode{ID: fmt.Sprintf("um-ext-%d", i), StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
-					Scope: usagemode.Scope{Role: fmt.Sprintf("role-%d", i)}, Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "x"}}})
+				f.Modes = append(f.Modes, usagemode.Mode{
+					ID: fmt.Sprintf("um-ext-%d", i), StartedAt: time.Now().Add(-time.Minute), Until: usagemode.Until{Kind: usagemode.UntilTime}, ExpiresAt: &expires,
+					Scope: usagemode.Scope{Role: fmt.Sprintf("role-%d", i)}, Runners: map[string]usagemode.RunnerSettings{"codex": {SessionModel: "x"}},
+				})
 				return nil
 			})
 		}
@@ -327,8 +331,10 @@ func TestUsageModeListsALearnComparisonAsSuchAndClaimsNoModel(t *testing.T) {
 			learn.Sessions = &usagemode.SessionBlocks{OptIn: true}
 		}
 		err := usagemode.Update(func(file *usagemode.File) error {
-			file.Modes = append(file.Modes, usagemode.Mode{ID: id, Label: "Learn: code.default", Kind: usagemode.KindLearn, Scope: usagemode.Scope{Runner: "codex", Role: "code.default"},
-				StartedAt: now.Add(-time.Hour), ExpiresAt: &expires, Until: usagemode.Until{Kind: usagemode.UntilTime}, Runners: map[string]usagemode.RunnerSettings{}, Learn: learn})
+			file.Modes = append(file.Modes, usagemode.Mode{
+				ID: id, Label: "Learn: code.default", Kind: usagemode.KindLearn, Scope: usagemode.Scope{Runner: "codex", Role: "code.default"},
+				StartedAt: now.Add(-time.Hour), ExpiresAt: &expires, Until: usagemode.Until{Kind: usagemode.UntilTime}, Runners: map[string]usagemode.RunnerSettings{}, Learn: learn,
+			})
 			return nil
 		})
 		if err != nil {
@@ -359,4 +365,18 @@ func TestUsageModeListsALearnComparisonAsSuchAndClaimsNoModel(t *testing.T) {
 			t.Fatalf("a save mode carries no comparison fields: %+v", mode)
 		}
 	}
+}
+
+func TestUsageModeReportsItsOwnContextLimit(t *testing.T) {
+	usageModeFixture(t)
+	writeCodexSaveMode(t)
+	for _, agent := range buildUsageModeResponse(time.Now(), true).Agents {
+		if agent.AgentID == "codex" {
+			if agent.ContextLimitTokens != 180000 {
+				t.Fatalf("the launcher must state the mode's limit, got %+v", agent)
+			}
+			return
+		}
+	}
+	t.Fatal("codex is not offered")
 }

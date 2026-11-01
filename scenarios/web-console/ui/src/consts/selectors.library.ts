@@ -47,9 +47,6 @@ export const librarySelectors = {
     "root": "overlays.responsive-dialog"
   },
   "navigation.tabs": {
-    "links": "navigation.tabs.Links",
-    "settingsTabSessions": "navigation.tabs.settings-tab-sessions",
-    "root": "navigation.tabs"
   },
   "overlays.bottom-sheet": {
     "close": "overlays.bottom-sheet.close",
@@ -81,6 +78,9 @@ export const librarySelectors = {
     "appNotifyStatus": "app-notify-status",
     "appNotifyTurnOff": "app-notify-turn-off",
     "appNotifyTurnOn": "app-notify-turn-on",
+  },
+  "forms.select": {
+    "root": "forms.select",
   },
 } as const;
 // vrooli:library-selectors end

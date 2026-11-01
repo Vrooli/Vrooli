@@ -27,25 +27,94 @@ const (
 	agentUpdateTTL         = 5 * time.Minute
 	agentUpdateFailureTTL  = 30 * time.Second
 	agentObservationMaxAge = 2 * time.Minute
-	agentUpdateTimeout     = 20 * time.Second
+	// A check runs the agent's --version, reads the release source and asks the
+	// Dependency Analyzer about one exact version.
+	agentUpdateTimeout = 30 * time.Second
+
+	agentUpdateMaxOutput = 512 * 1024
 )
 
-// agentUpdate is an installed-tool observation, not a promise that the
-// governed installer can install the newest upstream release. The executable
-// path stays on the server; the browser gets only the evidence verdict.
+// Update states. `vrooli resource update` owns their meaning; these are the
+// values capabilities.proto promises the browser.
+const (
+	agentStateMissing         = "missing"
+	agentStateShadowed        = "shadowed"
+	agentStateUnlinked        = "unlinked"
+	agentStateNeedsSetup      = "needs_setup"
+	agentStateUpdateReady     = "update_ready"
+	agentStateUpToDate        = "up_to_date"
+	agentStateCheckFailed     = "check_failed"
+	agentActionRetry          = "retry"
+	agentActionRefreshCatalog = "refresh_catalog"
+)
+
+// agentUpdate is an installed-tool observation from the target's control plane.
+// The executable path stays on the server; the browser gets the evidence verdict.
 type agentUpdate struct {
-	TargetID      string               `json:"target_id"`
-	AgentID       string               `json:"agent_id"`
-	Resource      string               `json:"resource"`
-	Installed     string               `json:"installed,omitempty"`
-	Pinned        string               `json:"pinned,omitempty"`
-	Latest        string               `json:"latest,omitempty"`
-	Status        upstreamcheck.Status `json:"status"`
-	CheckedAt     time.Time            `json:"checked_at,omitempty"`
-	SourceKind    string               `json:"source_kind,omitempty"`
-	SourceID      string               `json:"source_id,omitempty"`
-	ProbeVerified bool                 `json:"probe_verified"`
-	Note          string               `json:"note,omitempty"`
+	TargetID          string               `json:"target_id"`
+	AgentID           string               `json:"agent_id"`
+	Resource          string               `json:"resource"`
+	Installed         string               `json:"installed,omitempty"`
+	Pinned            string               `json:"pinned,omitempty"`
+	Latest            string               `json:"latest,omitempty"`
+	Status            upstreamcheck.Status `json:"status"`
+	CheckedAt         time.Time            `json:"checked_at,omitempty"`
+	SourceKind        string               `json:"source_kind,omitempty"`
+	SourceID          string               `json:"source_id,omitempty"`
+	ProbeVerified     bool                 `json:"probe_verified"`
+	Note              string               `json:"note,omitempty"`
+	State             string               `json:"state"`
+	PrimaryAction     string               `json:"primary_action,omitempty"`
+	OperatorCommand   string               `json:"operator_command,omitempty"`
+	Reason            string               `json:"reason,omitempty"`
+	Checks            []harnessUpdateCheck `json:"checks,omitempty"`
+	InstallKind       string               `json:"install_kind,omitempty"`
+	RollbackVersion   string               `json:"rollback_version,omitempty"`
+	NewerThanReviewed bool                 `json:"newer_than_reviewed"`
+}
+
+// harnessUpdateCheck and harnessUpdateReport decode the `vrooli resource update`
+// JSON contract. Web Console invokes the verb and never repeats its detection.
+type harnessUpdateCheck struct {
+	ID      string `json:"id"`
+	Passed  bool   `json:"passed"`
+	Message string `json:"message"`
+}
+
+type harnessUpdateReport struct {
+	Name              string               `json:"name"`
+	State             string               `json:"state"`
+	PrimaryAction     string               `json:"primary_action"`
+	OperatorCommand   string               `json:"operator_command"`
+	Reason            string               `json:"reason"`
+	InstallKind       string               `json:"install_kind"`
+	Installed         string               `json:"installed"`
+	ManagedVersion    string               `json:"managed_version"`
+	ManagedPath       string               `json:"managed_path"`
+	Pinned            string               `json:"pinned"`
+	Latest            string               `json:"latest"`
+	CommandPath       string               `json:"command_path"`
+	OS                string               `json:"os"`
+	Arch              string               `json:"arch"`
+	CheckedAt         time.Time            `json:"checked_at"`
+	RollbackVersion   string               `json:"rollback_version"`
+	NewerThanReviewed bool                 `json:"newer_than_reviewed"`
+	Checks            []harnessUpdateCheck `json:"checks"`
+	Source            struct {
+		Kind string `json:"kind"`
+		ID   string `json:"id"`
+	} `json:"source"`
+}
+
+type harnessUpdateEnvelope struct {
+	Success bool `json:"success"`
+	Update  struct {
+		Action        string              `json:"action"`
+		Success       bool                `json:"success"`
+		Message       string              `json:"message"`
+		PreservedPath string              `json:"preserved_path"`
+		Report        harnessUpdateReport `json:"report"`
+	} `json:"harness_update"`
 }
 
 type agentUpdateEntry struct {
@@ -58,9 +127,10 @@ type agentUpdateFlight struct {
 	err   error
 }
 type agentUpdateCache struct {
-	mu      sync.Mutex
-	items   map[string]agentUpdateEntry
-	pending map[string]*agentUpdateFlight
+	mu         sync.Mutex
+	items      map[string]agentUpdateEntry
+	pending    map[string]*agentUpdateFlight
+	generation uint64
 }
 
 // read coalesces simultaneous requests for one target/agent and bounds cache
@@ -86,12 +156,16 @@ func (c *agentUpdateCache) read(ctx context.Context, key string, load func(conte
 		c.pending = make(map[string]*agentUpdateFlight)
 	}
 	c.pending[key] = flight
+	generation := c.generation
 	c.mu.Unlock()
 	value, err := load(ctx)
 	c.mu.Lock()
 	flight.value, flight.err = value, err
-	delete(c.pending, key)
-	if err == nil {
+	if c.pending[key] == flight {
+		delete(c.pending, key)
+	}
+	// A check that started before an action finished describes the old install.
+	if err == nil && generation == c.generation {
 		if c.items == nil {
 			c.items = make(map[string]agentUpdateEntry)
 		}
@@ -106,7 +180,7 @@ func (c *agentUpdateCache) read(ctx context.Context, key string, load func(conte
 			c.items = make(map[string]agentUpdateEntry)
 		}
 		ttl := agentUpdateTTL
-		if value.Status == upstreamcheck.StatusUnknown {
+		if value.State == agentStateCheckFailed {
 			ttl = agentUpdateFailureTTL
 		}
 		c.items[key] = agentUpdateEntry{value: value, expires: time.Now().Add(ttl)}
@@ -114,6 +188,25 @@ func (c *agentUpdateCache) read(ctx context.Context, key string, load func(conte
 	close(flight.done)
 	c.mu.Unlock()
 	return value, err
+}
+
+// invalidate forgets one target and agent. Any check already running for them
+// finishes for its callers but is not stored, and a later read starts afresh.
+func (c *agentUpdateCache) invalidate(targetID, agentID string) {
+	prefix := targetID + "\x00" + agentID + "\x00"
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.generation++
+	for key := range c.items {
+		if strings.HasPrefix(key, prefix) {
+			delete(c.items, key)
+		}
+	}
+	for key := range c.pending {
+		if strings.HasPrefix(key, prefix) {
+			delete(c.pending, key)
+		}
+	}
 }
 
 func agentResource(agentID string) (string, bool) {
@@ -125,29 +218,39 @@ func agentResource(agentID string) (string, bool) {
 	return "", false
 }
 
+func failedAgentUpdate(targetID, agentID, resource, reason string) agentUpdate {
+	return agentUpdate{TargetID: targetID, AgentID: agentID, Resource: resource, Status: upstreamcheck.StatusUnknown, State: agentStateCheckFailed, PrimaryAction: agentActionRetry, Reason: reason, Note: reason}
+}
+
+// agentUpdateTarget resolves one selected machine. The current catalog must
+// still contain it even if a previous observation is cached.
+func (s *Server) agentUpdateTarget(targetID string) (targetConnection, error) {
+	if targetID == "local" {
+		return targetConnection{Target: targetmodel.Target{ID: "local", Available: true, OS: runtime.GOOS, Architecture: runtime.GOARCH}}, nil
+	}
+	target, ok := s.targetByID(targetID)
+	if !ok {
+		return targetConnection{}, fmt.Errorf("%w: %s", capsH.ErrTargetNotFound, targetID)
+	}
+	return target, nil
+}
+
 func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (agentUpdate, error) {
 	targetID, agentID = strings.TrimSpace(targetID), strings.TrimSpace(agentID)
 	resource, ok := agentResource(agentID)
 	if !ok || targetID == "" {
 		return agentUpdate{}, fmt.Errorf("unknown target or agent")
 	}
-	// The current catalog must still contain the selected target even if a
-	// previous observation is cached.
+	target, err := s.agentUpdateTarget(targetID)
+	if err != nil {
+		return agentUpdate{}, err
+	}
+	if !target.Available {
+		return failedAgentUpdate(targetID, agentID, resource, "The selected machine is unavailable"), nil
+	}
 	// The full local catalog probes every agent. This endpoint only needs the
 	// selected agent, so do not trigger all five potentially slow probes for
 	// each card or let those probes delay the bounded update lookup.
-	var target targetConnection
-	if targetID == "local" {
-		target = targetConnection{Target: targetmodel.Target{ID: "local", Available: true, OS: runtime.GOOS, Architecture: runtime.GOARCH}}
-	} else {
-		target, ok = s.targetByID(targetID)
-		if !ok {
-			return agentUpdate{}, fmt.Errorf("%w: %s", capsH.ErrTargetNotFound, targetID)
-		}
-	}
-	if !target.Available {
-		return agentUpdate{TargetID: targetID, AgentID: agentID, Resource: resource, Status: upstreamcheck.StatusUnknown, Note: "The selected machine is unavailable"}, nil
-	}
 	var observation capabilityprobe.Observation
 	if targetID == "local" {
 		for _, definition := range capabilityprobe.AITools {
@@ -167,12 +270,9 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 			}
 		}
 	}
-	if observation.State != capabilityprobe.Ready || observation.ProbedAt.IsZero() || observation.ProbedAt.After(time.Now()) || time.Since(observation.ProbedAt) > agentObservationMaxAge {
-		return agentUpdate{TargetID: targetID, AgentID: agentID, Resource: resource, Status: upstreamcheck.StatusUnknown, Note: "The installed agent has not been verified on this machine"}, nil
-	}
 	// Probe timestamp changes at every heartbeat. Key on the facts that affect
 	// comparison, not the timestamp, to avoid a fresh network request each time.
-	key := strings.Join([]string{targetID, agentID, target.OS, target.Architecture, observation.Path, observation.Version}, "\x00")
+	key := strings.Join([]string{targetID, agentID, target.OS, target.Architecture, string(observation.State), observation.Path, observation.Version}, "\x00")
 	result, err := s.agentUpdates.read(ctx, key, func(ctx context.Context) (agentUpdate, error) {
 		ctx, cancel := context.WithTimeout(ctx, agentUpdateTimeout)
 		defer cancel()
@@ -183,30 +283,23 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 		} else {
 			data, err = s.remoteAgentUpdate(ctx, target, resource)
 		}
-		unknown := agentUpdate{TargetID: targetID, AgentID: agentID, Resource: resource, Status: upstreamcheck.StatusUnknown}
 		if err != nil {
-			unknown.Note = "Update check unavailable"
-			return unknown, nil
+			return failedAgentUpdate(targetID, agentID, resource, "Update check unavailable"), nil
 		}
-		var envelope struct {
-			Success  bool                          `json:"success"`
-			Upstream upstreamcheck.AggregateReport `json:"upstream_check"`
+		var envelope harnessUpdateEnvelope
+		if len(data) > agentUpdateMaxOutput || json.NewDecoder(bytes.NewReader(data)).Decode(&envelope) != nil || !envelope.Success {
+			return failedAgentUpdate(targetID, agentID, resource, "Update check returned an invalid response"), nil
 		}
-		if len(data) > 512*1024 || json.NewDecoder(bytes.NewReader(data)).Decode(&envelope) != nil || !envelope.Success || len(envelope.Upstream.Resources) != 1 {
-			unknown.Note = "Update check returned an invalid response"
-			return unknown, nil
-		}
-		rep := envelope.Upstream.Resources[0]
+		rep := envelope.Update.Report
 		if rep.Name != resource {
-			unknown.Note = "Update check returned a different resource"
-			return unknown, nil
+			return failedAgentUpdate(targetID, agentID, resource, "Update check returned a different resource"), nil
 		}
-		return projectAgentUpdate(unknown, rep, observation, target.OS, target.Architecture, time.Now().UTC()), nil
+		base := failedAgentUpdate(targetID, agentID, resource, "")
+		return projectAgentUpdate(base, rep, observation, target.OS, target.Architecture, time.Now().UTC()), nil
 	})
 	if err == nil && result.ProbeVerified && (result.CheckedAt.IsZero() || result.CheckedAt.After(time.Now()) || time.Since(result.CheckedAt) > agentUpdateTTL) {
-		result.Status = upstreamcheck.StatusUnknown
-		result.ProbeVerified = false
-		result.Note = "The update observation is out of date"
+		reason := "The update observation is out of date"
+		result.Status, result.ProbeVerified, result.State, result.PrimaryAction, result.Reason, result.Note = upstreamcheck.StatusUnknown, false, agentStateCheckFailed, agentActionRetry, reason, reason
 	}
 	return result, err
 }
@@ -214,15 +307,15 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 type boundedOutput struct{ bytes.Buffer }
 
 func (b *boundedOutput) Write(p []byte) (int, error) {
-	if len(p) > 512*1024-b.Len() {
-		return 0, errors.New("upstream check exceeded output limit")
+	if len(p) > agentUpdateMaxOutput-b.Len() {
+		return 0, errors.New("agent update output exceeded the limit")
 	}
 	return b.Buffer.Write(p)
 }
 
 func localAgentUpdate(ctx context.Context, resource string) ([]byte, error) {
 	var out boundedOutput
-	cmd := exec.CommandContext(ctx, "vrooli", "resource", "upstream-check", resource, "--json")
+	cmd := exec.CommandContext(ctx, "vrooli", "resource", "update-check", resource, "--json")
 	cmd.Stdout = &out
 	if err := cmd.Run(); err != nil {
 		return nil, err
@@ -235,38 +328,112 @@ func (s *Server) readAgentUpdate(ctx context.Context, targetID, agentID string) 
 	if err != nil {
 		return capsH.AgentUpdateResult{}, err
 	}
+	result := agentUpdateResult(update)
+	// While an action runs the observation may be either side of it, and a
+	// second action could only wait or be refused.
+	if s.agentUpdateActions.running(agentUpdateActionKey(update.TargetID, update.AgentID)) {
+		result.PrimaryAction = ""
+		result.Note = "An action on this agent is still running."
+	}
+	return result, nil
+}
+
+func agentUpdateResult(update agentUpdate) capsH.AgentUpdateResult {
 	checked := ""
 	if !update.CheckedAt.IsZero() {
 		checked = update.CheckedAt.UTC().Format(time.RFC3339)
 	}
-	return capsH.AgentUpdateResult{TargetID: update.TargetID, AgentID: update.AgentID, Resource: update.Resource,
+	checks := make([]capsH.AgentUpdateCheck, 0, len(update.Checks))
+	for _, check := range update.Checks {
+		checks = append(checks, capsH.AgentUpdateCheck{ID: check.ID, Passed: check.Passed, Message: check.Message})
+	}
+	return capsH.AgentUpdateResult{
+		TargetID: update.TargetID, AgentID: update.AgentID, Resource: update.Resource,
 		Installed: update.Installed, Pinned: update.Pinned, Latest: update.Latest, Status: string(update.Status),
-		CheckedAt: checked, SourceKind: update.SourceKind, SourceID: update.SourceID, ProbeVerified: update.ProbeVerified, Note: update.Note}, nil
+		CheckedAt: checked, SourceKind: update.SourceKind, SourceID: update.SourceID, ProbeVerified: update.ProbeVerified, Note: update.Note,
+		State: update.State, PrimaryAction: update.PrimaryAction, OperatorCommand: update.OperatorCommand, Reason: update.Reason, Checks: checks,
+		InstallKind: update.InstallKind, RollbackVersion: update.RollbackVersion, NewerThanReviewed: update.NewerThanReviewed,
+	}
 }
 
-func projectAgentUpdate(out agentUpdate, rep upstreamcheck.Report, observation capabilityprobe.Observation, goos, arch string, now time.Time) agentUpdate {
+// probeConfirms reports whether a fresh capability probe saw the same install.
+// The probe uses the API's PATH, which can order the managed link ahead of a
+// copy that shells started by sessions run first, so either of the report's two
+// copies is the same install; a different path or version is not.
+func probeConfirms(rep harnessUpdateReport, observation capabilityprobe.Observation, now time.Time) bool {
+	if observation.ProbedAt.IsZero() || observation.ProbedAt.After(now) || now.Sub(observation.ProbedAt) > agentObservationMaxAge || observation.State != capabilityprobe.Ready || observation.Path == "" {
+		return false
+	}
+	path := filepath.Clean(observation.Path)
+	version := upstreamcheck.ExtractSemver(observation.Version)
+	if version == "" {
+		return false
+	}
+	if rep.CommandPath != "" && path == filepath.Clean(rep.CommandPath) && version == rep.Installed {
+		return true
+	}
+	// A shim on the API's PATH runs the install the report names.
+	if version == rep.Installed && isOperatorShim(path) {
+		return true
+	}
+	return rep.ManagedPath != "" && path == filepath.Clean(rep.ManagedPath) && version == rep.ManagedVersion
+}
+
+func isOperatorShim(path string) bool {
+	return strings.Contains(filepath.ToSlash(filepath.Dir(path)), "/.vrooli/shims")
+}
+
+func projectAgentUpdate(out agentUpdate, rep harnessUpdateReport, observation capabilityprobe.Observation, goos, arch string, now time.Time) agentUpdate {
 	out.Installed, out.Pinned, out.Latest = rep.Installed, rep.Pinned, rep.Latest
 	out.CheckedAt, out.SourceKind, out.SourceID = rep.CheckedAt, rep.Source.Kind, rep.Source.ID
-	out.Note = rep.Note
-	// Both independent observations must be current, identify the same target
-	// platform and executable, and agree on the installed version. Older nodes
-	// lacking these facts are unknown, not implicitly matched.
-	if rep.CheckedAt.IsZero() || rep.CheckedAt.After(now) || now.Sub(rep.CheckedAt) > agentUpdateTTL || observation.ProbedAt.IsZero() || observation.ProbedAt.After(now) || now.Sub(observation.ProbedAt) > agentObservationMaxAge || observation.State != capabilityprobe.Ready || rep.OS == "" || rep.Arch == "" || rep.OS != goos || rep.Arch != arch || rep.ExecutablePath == "" || rep.CommandPath == "" || observation.Path == "" || filepath.Clean(rep.CommandPath) != filepath.Clean(observation.Path) || rep.Installed == "" || upstreamcheck.ExtractSemver(observation.Version) != rep.Installed {
-		out.Status = upstreamcheck.StatusUnknown
-		out.Note = "Cannot verify the installed executable on this machine"
+	out.State, out.PrimaryAction, out.OperatorCommand, out.Reason, out.Note = rep.State, rep.PrimaryAction, rep.OperatorCommand, rep.Reason, ""
+	out.Checks, out.InstallKind, out.RollbackVersion, out.NewerThanReviewed = rep.Checks, rep.InstallKind, rep.RollbackVersion, rep.NewerThanReviewed
+	out.Status = upstreamcheck.Compare(rep.Installed, rep.Latest)
+	refuse := func(reason string) agentUpdate {
+		out.Status, out.ProbeVerified, out.State, out.PrimaryAction, out.OperatorCommand, out.Reason, out.Note = upstreamcheck.StatusUnknown, false, agentStateCheckFailed, agentActionRetry, "", reason, reason
 		return out
 	}
-	out.ProbeVerified = true
-	// Never trust an unrecognized or internally inconsistent status from an
-	// older resource implementation.
-	out.Status = upstreamcheck.Compare(rep.Installed, rep.Latest)
-	if out.Status == upstreamcheck.StatusUnknown && out.Note == "" {
-		out.Note = "Upstream version is unavailable or ambiguous"
+	// A report for another platform or moment does not describe this install.
+	if rep.CheckedAt.IsZero() || rep.CheckedAt.After(now) || now.Sub(rep.CheckedAt) > agentUpdateTTL || rep.OS == "" || rep.Arch == "" || rep.OS != goos || rep.Arch != arch {
+		return refuse("Cannot verify the installed executable on this machine")
+	}
+	out.ProbeVerified = probeConfirms(rep, observation, now)
+	switch rep.State {
+	case agentStateMissing, agentStateShadowed, agentStateUnlinked, agentStateNeedsSetup, agentStateCheckFailed:
+		// These come from the file evidence on the target and offer a repair, not
+		// a version claim, so a lagging heartbeat probe cannot make them false.
+		return out
+	case agentStateUpdateReady:
+		if out.Status != upstreamcheck.StatusBehind {
+			return refuse("Upstream version is unavailable or ambiguous")
+		}
+	case agentStateUpToDate:
+		if out.Status != upstreamcheck.StatusUpToDate && out.Status != upstreamcheck.StatusAhead {
+			return refuse("Upstream version is unavailable or ambiguous")
+		}
+	default:
+		return refuse("Update check returned an unknown state")
+	}
+	if !out.ProbeVerified {
+		return refuse("Cannot verify the installed executable on this machine")
 	}
 	return out
 }
 
 func (s *Server) remoteAgentUpdate(ctx context.Context, target targetConnection, resource string) ([]byte, error) {
+	response, err := s.relayAgentUpdate(ctx, target, "resource update-check", []string{resource, "--json"}, agentUpdateTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if response.Outcome != relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED || response.ExitCode != 0 {
+		return nil, errors.New("target check was not completed")
+	}
+	return response.Data, nil
+}
+
+// relayAgentUpdate runs one typed command on a Bridge node. The relay performs
+// owner authentication, node-scope admission by the verb's effect, and audit.
+func (s *Server) relayAgentUpdate(ctx context.Context, target targetConnection, command string, args []string, window time.Duration) (*relayv1.RelayCallResponse, error) {
 	if target.NodeID == "" {
 		return nil, errors.New("target has no Bridge node")
 	}
@@ -278,15 +445,15 @@ func (s *Server) remoteAgentUpdate(ctx context.Context, target targetConnection,
 			return nil, err
 		}
 	}
-	client := relayconnect.NewRelayServiceClient(authenticatedHTTPClientWithTimeout(freshOwnerAuthorization(ctx, target.OwnerToken), target.ReauthToken, agentUpdateTimeout+time.Second), base)
+	client := relayconnect.NewRelayServiceClient(authenticatedHTTPClientWithTimeout(freshOwnerAuthorization(ctx, target.OwnerToken), target.ReauthToken, window+10*time.Second), base)
 	response, err := client.Call(ctx, connect.NewRequest(&relayv1.RelayCallRequest{
-		NodeId: target.NodeID, Scenario: "vrooli", Command: "resource upstream-check", Args: []string{resource, "--json"}, TimeoutSeconds: int64(agentUpdateTimeout.Seconds()), MaxResponseBytes: 512 * 1024,
+		NodeId: target.NodeID, Scenario: "vrooli", Command: command, Args: args, TimeoutSeconds: int64(window.Seconds()), MaxResponseBytes: agentUpdateMaxOutput,
 	}))
 	if err != nil {
 		return nil, err
 	}
-	if response == nil || response.Msg == nil || response.Msg.Outcome != relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED || response.Msg.ExitCode != 0 {
-		return nil, errors.New("target check was not completed")
+	if response == nil || response.Msg == nil {
+		return nil, errors.New("Bridge returned no result")
 	}
-	return response.Msg.Data, nil
+	return response.Msg, nil
 }

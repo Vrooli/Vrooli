@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ getAgentUsage: vi.fn() }));
@@ -25,6 +25,39 @@ describe("useAgentUsage", () => {
     await waitFor(() => { expect(result.current.usages.codex).toBeNull(); });
     rerender({ target: "next" });
     await waitFor(() => { expect(result.current.usages.codex).toBeNull(); });
+  });
+
+  it("keeps current values through a refresh, until new ones arrive", async () => {
+    api.getAgentUsage.mockResolvedValueOnce({ ...response, observedAt: "first" });
+    const { result } = renderHook(() => useAgentUsage(true, "local", "codex"));
+    await waitFor(() => { expect(result.current.usages.codex?.observedAt).toBe("first"); });
+    let finish!: (value: typeof response) => void;
+    api.getAgentUsage.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
+    act(() => { result.current.refresh(); });
+    await waitFor(() => { expect(result.current.loading).toBe(true); });
+    expect(result.current.usages.codex?.observedAt).toBe("first");
+    act(() => { finish({ ...response, observedAt: "second" }); });
+    await waitFor(() => { expect(result.current.usages.codex?.observedAt).toBe("second"); });
+    expect(result.current.loading).toBe(false);
+  });
+
+  it("keeps the reading it has when a refresh fails", async () => {
+    api.getAgentUsage.mockResolvedValueOnce(response);
+    const { result } = renderHook(() => useAgentUsage(true, "local", "codex"));
+    await waitFor(() => { expect(result.current.usages.codex).toBeTruthy(); });
+    api.getAgentUsage.mockRejectedValueOnce(new Error("offline"));
+    act(() => { result.current.refresh(); });
+    await waitFor(() => { expect(result.current.loading).toBe(false); });
+    expect(result.current.usages.codex).toBeTruthy();
+  });
+
+  it("does not carry a reading across a target change", async () => {
+    api.getAgentUsage.mockResolvedValueOnce(response);
+    const { result, rerender } = renderHook(({ target }) => useAgentUsage(true, target, "codex"), { initialProps: { target: "local" } });
+    await waitFor(() => { expect(result.current.usages.codex).toBeTruthy(); });
+    api.getAgentUsage.mockImplementationOnce(() => new Promise(() => undefined));
+    rerender({ target: "remote" });
+    expect(result.current.usages.codex).toBeUndefined();
   });
 
   it("discards an old target response after target change", async () => {

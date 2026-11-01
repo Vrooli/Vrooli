@@ -230,7 +230,9 @@ CREATE TABLE IF NOT EXISTS shortcut_agent_preferences (
     profile_id TEXT PRIMARY KEY,
     ordered_agent_ids TEXT NOT NULL DEFAULT '[]',
     hidden_agent_ids TEXT NOT NULL DEFAULT '[]',
-    revision INTEGER NOT NULL DEFAULT 0
+    revision INTEGER NOT NULL DEFAULT 0,
+    order_mode TEXT NOT NULL DEFAULT 'custom',
+    last_launched_at TEXT NOT NULL DEFAULT '{}'
 );
 
 -- Tab groups for organizing terminal panes

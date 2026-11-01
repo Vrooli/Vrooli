@@ -188,7 +188,18 @@ type ArchivedSession struct {
 // CreateInput carries the fields a caller may set when creating a session.
 // HasPolicy distinguishes "client explicitly set the policy" from
 // "client omitted policy → use defaults".
+// AgentLaunch is what the operator chose for one launch. The server resolves it
+// against the catalog and composes the command; empty fields keep the harness's
+// own behaviour.
+type AgentLaunch struct {
+	AgentID            string
+	Model              string
+	Provider           string
+	ContextLimitTokens int64
+}
+
 type CreateInput struct {
+	AgentLaunch        *AgentLaunch
 	RequestedSessionID string
 	RequestFingerprint string
 	Shell              string

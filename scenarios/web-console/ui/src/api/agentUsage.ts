@@ -18,6 +18,7 @@ export async function getAgentUsage(
       windowMinutes: Number(window.windowMinutes),
       usedPercent: window.usedPercent,
       resetsAt: window.resetsAt,
+      observedAt: window.observedAt,
     })),
   };
 }

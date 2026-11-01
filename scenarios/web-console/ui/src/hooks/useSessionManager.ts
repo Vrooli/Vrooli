@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
 import { roleFromDTO } from "./useRoleActions";
-import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
+import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType, type AgentLaunchIntent } from "../api/sessions";
 import type { TerminalTarget } from "../api/targets";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { useSessionActivityStore } from "../stores/useSessionActivityStore";
@@ -79,7 +79,7 @@ function clearDeepLinkSessionParam(): void {
 // created session rendered as "bash", hiding a label the API already carried
 // and making a fully labelled workspace read as a list of identical shells.
 export function defaultPaneName(session: Pick<SessionInfo, "shell" | "display_label">): string {
-  const label = session.display_label?.trim();
+  const label = session.display_label.trim();
   if (label) return label;
   // `"".split("/").pop()` is "", not undefined, so `??` alone would render an
   // empty pane name for a session with no shell recorded.
@@ -204,7 +204,7 @@ export function useSessionManager() {
           const layoutSmv = new Map<string, boolean>();
           if (layout) {
             for (const p of layout.panes) {
-              layoutSmv.set(p.session_id, p.supports_messages_view ?? false);
+              layoutSmv.set(p.session_id, p.supports_messages_view);
             }
           }
           setPanes((prev) => (prev.length > 0 ? prev : sessions.map((session) => ({
@@ -228,8 +228,8 @@ export function useSessionManager() {
               themeId: p.theme_id,
               fontSize: p.font_size,
               groupId: p.group_id,
-              supportsMessagesView: p.supports_messages_view ?? false,
-              manuallyUnread: p.manually_unread ?? false,
+              supportsMessagesView: p.supports_messages_view,
+              manuallyUnread: p.manually_unread,
             }));
 
           // Sessions without pane metadata get defaults
@@ -380,6 +380,7 @@ export function useSessionManager() {
 	 target?: TerminalTarget;
 	workingDir?: string;
 	businessAccountId?: string;
+	agentLaunch?: AgentLaunchIntent;
 	 tmuxMouseMode?: boolean;
     ephemeral?: boolean;
   }) => {
@@ -403,6 +404,7 @@ export function useSessionManager() {
 			target_id: opts?.target && opts.target.kind !== "local" ? opts.target.id : undefined,
 			working_dir: opts?.workingDir,
 			business_account_id: opts?.businessAccountId,
+			agent_launch: opts?.agentLaunch,
 			tmux_mouse_mode: opts?.tmuxMouseMode ?? useWorkspaceStore.getState().tmuxMouseMode,
 			owner: opts?.target && opts.target.kind !== "local" ? `target:${opts.target.id}` : undefined,
 			display_label: opts?.target?.label,

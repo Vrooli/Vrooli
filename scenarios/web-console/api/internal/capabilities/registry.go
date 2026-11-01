@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	common_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	"github.com/vrooli/vrooli/scenarios/audio-tools/clients/go/audiotools"
@@ -70,11 +71,20 @@ func KnownForPlatform(goos string) []Def {
 	overlays := map[string]capabilityregistry.Overlay{
 		"audio-tools":   {ID: "audio-tools", Features: append([]string(nil), audioFeatures...), Platform: capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "optional audio capability depends on the selected provider and host media path"}, ActionKind: ActionKindScenarioStart, ActionLabel: "Start Audio Tools", OperatorCommand: "vrooli scenario start audio-tools --json"},
 		"vrooli-bridge": {ID: "vrooli-bridge", Name: "Remote Terminals", Features: []string{"remote_terminal"}, ActionKind: ActionKindScenarioStart, ActionLabel: "Start Bridge", OperatorCommand: "vrooli scenario start vrooli-bridge --json"},
-		"claude-code":   {ID: "claude-code", IntegrationID: "claude", Name: "Claude Code", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Claude Code", OperatorCommand: "vrooli resource install claude-code --json"},
-		"codex":         {ID: "codex", Name: "Codex", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Codex", OperatorCommand: "vrooli resource install codex --json"},
-		"opencode":      {ID: "opencode", Name: "OpenCode", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install OpenCode", OperatorCommand: "vrooli resource install opencode --json"},
-		"grok":          {ID: "grok", Name: "Grok", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Grok", OperatorCommand: "vrooli resource install grok --json"},
-		"antigravity":   {ID: "antigravity", IntegrationID: "agy", Name: "Antigravity", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Antigravity", OperatorCommand: "vrooli resource install antigravity --json"},
+	}
+	// An overlay must name a manifest dependency, so a harness this service does
+	// not declare gets none rather than failing the whole catalogue.
+	declared, _ := capabilityregistry.ProjectManifest(path, nil)
+	for _, def := range declared {
+		descriptor, ok := harness.Active().Lookup(def.DependencySlug)
+		if !ok || def.DependencyKind != DependencyResource {
+			continue
+		}
+		overlay := capabilityregistry.Overlay{ID: descriptor.Resource, Name: descriptor.DisplayName, ActionKind: ActionKindOperatorCommand, ActionLabel: "Install " + descriptor.DisplayName, OperatorCommand: "vrooli resource install " + descriptor.Resource + " --json"}
+		if descriptor.ID != descriptor.Resource {
+			overlay.IntegrationID = descriptor.ID
+		}
+		overlays[descriptor.Resource] = overlay
 	}
 	defs, err := capabilityregistry.ProjectManifest(path, overlays)
 	if err != nil {

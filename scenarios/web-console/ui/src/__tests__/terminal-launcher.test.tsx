@@ -20,6 +20,10 @@ vi.mock("../api/shortcuts", () => ({
     updateAgentPreferences: vi.fn(),
   },
 }));
+vi.mock("../api/capabilities", async () => {
+  const actual = await vi.importActual<typeof import("../api/capabilities")>("../api/capabilities");
+  return { ...actual, capabilitiesClient: { agentUpdate: vi.fn(), agentUsage: vi.fn(), listHarnesses: vi.fn(), runAgentUpdateAction: vi.fn() } };
+});
 vi.mock("../api/modelSelection", () => ({
   modelSelectionClient: { getRoleModelChoices: vi.fn() },
 }));
@@ -30,6 +34,8 @@ vi.mock("../api/monetization", async () => {
 
 import { shortcutsClient as _shortcutsClient } from "../api/shortcuts";
 const shortcutsClient = asMockedClient(_shortcutsClient);
+import { capabilitiesClient as _capabilitiesClient } from "../api/capabilities";
+const capabilitiesClient = asMockedClient(_capabilitiesClient);
 import { modelSelectionClient as _modelSelectionClient } from "../api/modelSelection";
 const modelSelectionClient = asMockedClient(_modelSelectionClient);
 import { getBusinessAccountUsage as _getBusinessAccountUsage, getBusinessAccounts as _getBusinessAccounts } from "../api/monetization";
@@ -37,6 +43,7 @@ const getBusinessAccounts = vi.mocked(_getBusinessAccounts);
 const getBusinessAccountUsage = vi.mocked(_getBusinessAccountUsage);
 
 import TerminalLauncher, { type TerminalTarget } from "../components/TerminalLauncher";
+import { resetHarnessCacheForTests } from "../components/launcher/useHarnesses";
 import type { TargetCatalog } from "../api/targets";
 
 // Entries carry agentId because the server resolves it and sends it; an entry
@@ -56,15 +63,37 @@ function missingCodexTarget(): TerminalTarget {
   };
 }
 
+/** The library Select keeps a native control beside its trigger; drive it directly. */
+const nativeSelect = (testId: string) => {
+  const native = screen.getByTestId(testId).closest("[data-rcl-select-field]")?.querySelector("select");
+  if (!native) throw new Error(`no select for ${testId}`);
+  return native;
+};
+const chooseSelect = (testId: string, value: string) => { fireEvent.change(nativeSelect(testId), { target: { value } }); };
+const roleChoice = (over: Record<string, unknown>) => ({ displayName: typeof over.model === "string" ? over.model : "", model: "", source: "", sourceLabel: "", provider: "", launchModel: "", effort: "", isDefault: false, contextWindowTokens: 0n, contextLimitTokens: [], metered: false, ...over });
+const policyOf = (over: Record<string, unknown>) => ({ operatorCommand: "", commandLiteral: false, policyStatus: "ready", availability: "unknown", runner: "opencode", role: "code.default", modelFlag: "-m", provenance: "resource-owned policy", observedAt: "2026-10-30", detail: "", policyDigest: "digest", catalogStale: false, choices: [], ...over });
+const openrouter = roleChoice({ model: "openrouter/example/model", source: "openrouter", sourceLabel: "OpenRouter", provider: "openrouter", launchModel: "openrouter/example/model", isDefault: true });
+const credits = roleChoice({ model: "coding", source: "vrooli-credits", sourceLabel: "Vrooli credits", provider: "vrooli", launchModel: "vrooli/coding" });
+/** Manage, then one harness's page. */
+const openDetail = (key: string) => {
+  fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+  fireEvent.click(screen.getByTestId(`launcher-manage-open-${key}`));
+};
+
 describe("TerminalLauncher", () => {
   const onClose = vi.fn();
   const onLaunch = vi.fn();
 
   beforeEach(() => {
+    window.localStorage.clear();
     vi.clearAllMocks();
-    shortcutsClient.getAgentPreferences.mockResolvedValue({ preferences: { profileId: "ws-1", profileInstance: "instance-1", revision: 0n, orderedAgentIds: [], hiddenAgentIds: [] } } as never);
-    shortcutsClient.updateAgentPreferences.mockResolvedValue({ preferences: { profileId: "ws-1", profileInstance: "instance-1", revision: 1n, orderedAgentIds: ["codex", "claude"], hiddenAgentIds: [] } } as never);
-    modelSelectionClient.getRoleModelChoices!.mockResolvedValue({ policyStatus: "unsupported", availability: "unknown", choices: [], modelFlag: "", provenance: "", observedAt: "", detail: "", runner: "", role: "" } as never);
+    resetHarnessCacheForTests();
+    capabilitiesClient.agentUpdate.mockRejectedValue(new Error("offline"));
+    capabilitiesClient.agentUsage.mockRejectedValue(new Error("offline"));
+    capabilitiesClient.listHarnesses.mockRejectedValue(new Error("offline"));
+    shortcutsClient.getAgentPreferences.mockResolvedValue({ preferences: { profileId: "ws-1", profileInstance: "instance-1", revision: 0n, orderedAgentIds: [], hiddenAgentIds: [], orderMode: "custom", lastLaunchedAt: {} } } as never);
+    shortcutsClient.updateAgentPreferences.mockResolvedValue({ preferences: { profileId: "ws-1", profileInstance: "instance-1", revision: 1n, orderedAgentIds: ["codex", "claude"], hiddenAgentIds: [], orderMode: "custom", lastLaunchedAt: {} } } as never);
+    modelSelectionClient.getRoleModelChoices.mockResolvedValue(policyOf({ policyStatus: "unsupported", modelFlag: "", provenance: "", observedAt: "", runner: "", role: "" }) as never);
     getBusinessAccounts.mockResolvedValue({ accounts: [] });
     getBusinessAccountUsage.mockResolvedValue({ business_account_id: "", billing_period: "", tier: "", limits: {}, usage: {}, reserved: {}, remaining: {}, display_credits: {} });
   });
@@ -76,20 +105,21 @@ describe("TerminalLauncher", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders modal with 'New Terminal' title when open", () => {
+  it("renders the drawer titled 'New session' when open", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    expect(screen.getByText(strings.terminalLauncher.newTerminal)).toBeTruthy();
+    expect(screen.getByText(strings.terminalLauncher.newSession)).toBeTruthy();
     expect(screen.getByTestId("terminal-launcher")).toBeTruthy();
   });
 
-  it("renders empty shell option", () => {
+  it("offers a shell as a session type that says agent settings do not apply", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    expect(screen.getByTestId("launcher-empty-shell")).toBeTruthy();
-    expect(screen.getByText(strings.terminalLauncher.emptyShell)).toBeTruthy();
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    expect(screen.getByTestId("launcher-shell-hint")).toHaveTextContent(strings.terminalLauncher.shellHint);
+    expect(screen.getByTestId("launcher-submit-selection")).toHaveTextContent(strings.terminalLauncher.launchSelectedShell);
   });
 
   it("opens with the requested machine selected", () => {
@@ -118,14 +148,16 @@ describe("TerminalLauncher", () => {
       />,
     );
     expect(screen.getByTestId("launcher-no-backend").textContent).toContain("no PTY implementation for this platform");
-    expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
+    expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
   });
 
-  it("submits Empty Shell with undefined backend so the server applies its configured default", () => {
+  it("opens a shell with undefined backend so the server applies its configured default", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    fireEvent.click(screen.getByTestId("launcher-empty-shell"));
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(onLaunch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("launcher-submit-selection"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: undefined }));
@@ -144,10 +176,11 @@ describe("TerminalLauncher", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
+    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
     fireEvent.click(screen.getByTestId("launcher-agent-claude-code"));
     expect(onLaunch).not.toHaveBeenCalled();
-    expect(screen.getByTestId("launcher-agent-claude-code")).toHaveAttribute("aria-pressed", "true");
-    await waitFor(() => expect(modelSelectionClient.getRoleModelChoices).toHaveBeenCalledWith({ agentId: "claude", targetId: "local" }));
+    expect(screen.getByTestId("launcher-agent-claude-code")).toHaveAttribute("aria-checked", "true");
+    await waitFor(() => { expect(modelSelectionClient.getRoleModelChoices).toHaveBeenCalledWith({ agentId: "claude", targetId: "local", launchCommand: testShortcuts[0]?.command }); });
     fireEvent.click(screen.getByTestId("launcher-submit-selection"));
     expect(onLaunch).toHaveBeenCalledWith(
       expect.objectContaining({ command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions" }),
@@ -155,25 +188,15 @@ describe("TerminalLauncher", () => {
   });
 
   it("shows the selected agent's policy-backed source and model and submits that exact choice", async () => {
-    modelSelectionClient.getRoleModelChoices!.mockResolvedValueOnce({
-      policyStatus: "ready", availability: "unknown", runner: "opencode", role: "code.default", modelFlag: "-m",
-      provenance: "resource-owned policy", observedAt: "2026-10-30", detail: "", policyDigest: "digest",
-      choices: [
-        { model: "openrouter/example/model", source: "openrouter", sourceLabel: "OpenRouter", provider: "openrouter", launchModel: "openrouter/example/model", effort: "" },
-        { model: "gemma4:12b", source: "ollama", sourceLabel: "Local Ollama", provider: "ollama", launchModel: "ollama/gemma4:12b", effort: "" },
-      ],
-    } as never);
+    modelSelectionClient.getRoleModelChoices.mockResolvedValue(policyOf({ choices: [openrouter, roleChoice({ model: "gemma4:12b", source: "ollama", sourceLabel: "Local Ollama", provider: "ollama", launchModel: "ollama/gemma4:12b" })] }) as never);
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[{ label: "OpenCode", command: "opencode", agentId: "opencode" }]} />);
-    fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
     await screen.findByTestId("launcher-model-source");
-    expect(screen.getByText(strings.terminalLauncher.modelAvailabilityUnknown)).toBeInTheDocument();
-    expect(screen.getByText(strings.terminalLauncher.modelPolicyProvenance)).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("launcher-submit-selection"));
     expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "opencode" }));
-    fireEvent.change(screen.getByTestId("launcher-model-source"), { target: { value: "ollama" } });
-    expect(within(screen.getByTestId("launcher-model-choice")).getAllByRole("option")[1]).toHaveTextContent("gemma4:12b");
+    chooseSelect("launcher-model-source", "ollama");
+    expect(within(nativeSelect("launcher-model-choice")).getAllByRole("option", { hidden: true })[0]).toHaveTextContent("gemma4:12b");
     fireEvent.click(screen.getByTestId("launcher-submit-selection"));
-    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "opencode -m ollama/gemma4:12b" }));
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "opencode", agentLaunch: expect.objectContaining({ agent_id: "opencode", model: "gemma4:12b", provider: "ollama" }) }));
   });
 
   it("requires an explicit business account for the qualified Vrooli credits source", async () => {
@@ -181,28 +204,21 @@ describe("TerminalLauncher", () => {
       { id: "acct-one", display_name: "Studio", role: "owner", created_at: "2026-10-30" },
       { id: "acct-two", display_name: "Research", role: "member", created_at: "2026-10-30" },
     ] });
-    getBusinessAccountUsage.mockImplementation(async (accountId) => ({ business_account_id: accountId, billing_period: "2026-10", tier: "pro", limits: { ai_credits: 1000 }, usage: { ai_credits: 100 }, reserved: { ai_credits: 10 }, remaining: { ai_credits: 890 }, display_credits: { ai_credits: 0.00089 } }));
-    modelSelectionClient.getRoleModelChoices!.mockResolvedValueOnce({
-      policyStatus: "ready", availability: "unknown", runner: "opencode", role: "code.default", modelFlag: "-m",
-      provenance: "resource-owned policy", observedAt: "2026-10-30", detail: "", policyDigest: "digest",
-      choices: [
-        { model: "openrouter/example/model", source: "openrouter", sourceLabel: "OpenRouter", provider: "openrouter", launchModel: "openrouter/example/model", effort: "" },
-        { model: "coding", source: "vrooli-credits", sourceLabel: "Vrooli credits", provider: "vrooli", launchModel: "vrooli/coding", effort: "" },
-      ],
-    } as never);
+    getBusinessAccountUsage.mockImplementation((accountId) => Promise.resolve({ business_account_id: accountId, billing_period: "2026-10", tier: "pro", limits: { ai_credits: 1000 }, usage: { ai_credits: 100 }, reserved: { ai_credits: 10 }, remaining: { ai_credits: 890 }, display_credits: { ai_credits: 0.00089 } }));
+    modelSelectionClient.getRoleModelChoices.mockResolvedValue(policyOf({ choices: [openrouter, credits] }) as never);
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[{ label: "OpenCode", command: "opencode", agentId: "opencode" }]} />);
-    fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
     await screen.findByTestId("launcher-model-source");
-    fireEvent.change(screen.getByTestId("launcher-model-source"), { target: { value: "vrooli-credits" } });
-    const accountSelect = await screen.findByTestId("launcher-business-account");
-    expect(accountSelect).toHaveValue("acct-one");
-    await screen.findByText("890 AI credits remaining · 10 reserved");
-    fireEvent.change(accountSelect, { target: { value: "acct-two" } });
-    await waitFor(() => expect(getBusinessAccountUsage).toHaveBeenLastCalledWith("acct-two"));
-    await screen.findByText("890 AI credits remaining · 10 reserved");
+    chooseSelect("launcher-model-source", "vrooli-credits");
+    await screen.findByTestId("launcher-business-account");
+    expect(nativeSelect("launcher-business-account")).toHaveValue("acct-one");
+    await screen.findByTestId("launcher-business-account-usage");
+    chooseSelect("launcher-business-account", "acct-two");
+    await waitFor(() => { expect(getBusinessAccountUsage).toHaveBeenLastCalledWith("acct-two"); });
+    await screen.findByTestId("launcher-business-account-usage");
     fireEvent.click(screen.getByTestId("launcher-submit-selection"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({
-      command: "opencode -m vrooli/coding",
+      command: "opencode",
+      agentLaunch: expect.objectContaining({ model: "coding", provider: "vrooli-credits" }),
       businessAccountId: "acct-two",
     }));
   });
@@ -212,18 +228,10 @@ describe("TerminalLauncher", () => {
       { id: "acct-one", display_name: "Studio", role: "owner", created_at: "2026-10-30" },
     ] });
     getBusinessAccountUsage.mockRejectedValueOnce(new Error("offline"));
-    modelSelectionClient.getRoleModelChoices!.mockResolvedValueOnce({
-      policyStatus: "ready", availability: "unknown", runner: "opencode", role: "code.default", modelFlag: "-m",
-      provenance: "resource-owned policy", observedAt: "2026-10-30", detail: "", policyDigest: "digest",
-      choices: [
-        { model: "openrouter/example/model", source: "openrouter", sourceLabel: "OpenRouter", provider: "openrouter", launchModel: "openrouter/example/model", effort: "" },
-        { model: "coding", source: "vrooli-credits", sourceLabel: "Vrooli credits", provider: "vrooli", launchModel: "vrooli/coding", effort: "" },
-      ],
-    } as never);
+    modelSelectionClient.getRoleModelChoices.mockResolvedValue(policyOf({ choices: [openrouter, credits] }) as never);
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[{ label: "OpenCode", command: "opencode", agentId: "opencode" }]} />);
-    fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
     await screen.findByTestId("launcher-model-source");
-    fireEvent.change(screen.getByTestId("launcher-model-source"), { target: { value: "vrooli-credits" } });
+    chooseSelect("launcher-model-source", "vrooli-credits");
     await screen.findByTestId("launcher-business-account-usage-error");
     expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
     expect(onLaunch).not.toHaveBeenCalled();
@@ -234,35 +242,28 @@ describe("TerminalLauncher", () => {
       { id: "acct-empty", display_name: "Empty account", role: "owner", created_at: "2026-10-30" },
     ] });
     getBusinessAccountUsage.mockResolvedValueOnce({ business_account_id: "acct-empty", billing_period: "2026-10", tier: "pro", limits: { ai_credits: 1000 }, usage: { ai_credits: 1000 }, reserved: { ai_credits: 0 }, remaining: { ai_credits: 0 }, display_credits: { ai_credits: 0 } });
-    modelSelectionClient.getRoleModelChoices!.mockResolvedValueOnce({
-      policyStatus: "ready", availability: "unknown", runner: "opencode", role: "code.default", modelFlag: "-m",
-      provenance: "resource-owned policy", observedAt: "2026-10-30", detail: "", policyDigest: "digest",
-      choices: [
-        { model: "openrouter/example/model", source: "openrouter", sourceLabel: "OpenRouter", provider: "openrouter", launchModel: "openrouter/example/model", effort: "" },
-        { model: "coding", source: "vrooli-credits", sourceLabel: "Vrooli credits", provider: "vrooli", launchModel: "vrooli/coding", effort: "" },
-      ],
-    } as never);
+    modelSelectionClient.getRoleModelChoices.mockResolvedValue(policyOf({ choices: [openrouter, credits] }) as never);
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[{ label: "OpenCode", command: "opencode", agentId: "opencode" }]} />);
-    fireEvent.click(screen.getByTestId("launcher-agent-opencode"));
     await screen.findByTestId("launcher-model-source");
-    fireEvent.change(screen.getByTestId("launcher-model-source"), { target: { value: "vrooli-credits" } });
-    await screen.findByText("0 AI credits remaining · 0 reserved");
+    chooseSelect("launcher-model-source", "vrooli-credits");
+    await screen.findByTestId("launcher-business-account-usage");
     expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
     expect(onLaunch).not.toHaveBeenCalled();
   });
 
-  it("preserves the custom command draft when a card is selected and cleared", () => {
+  it("keeps the command draft while the operator looks at another session type", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     fireEvent.change(screen.getByTestId("launcher-custom-input"), { target: { value: "my-project command --flag" } });
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+    fireEvent.click(screen.getByTestId("launcher-mode-agent"));
     expect(screen.queryByTestId("launcher-custom-input")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("launcher-clear-selection"));
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(screen.getByTestId("launcher-custom-input")).toHaveValue("my-project command --flag");
   });
 
-  it("selects Empty Shell without showing model controls or launching until submission", () => {
+  it("shows no model controls for a shell and launches only on submission", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
-    fireEvent.click(screen.getByTestId("launcher-empty-shell"));
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(onLaunch).not.toHaveBeenCalled();
     expect(screen.queryByTestId("launcher-model-selection")).not.toBeInTheDocument();
     expect(screen.queryByTestId("launcher-model-source")).not.toBeInTheDocument();
@@ -270,66 +271,47 @@ describe("TerminalLauncher", () => {
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: undefined }));
   });
 
-  it("applies the chosen context limit to that launch only: tight, then back to standard", () => {
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
-    );
-    expect(screen.getByTestId("launcher-context-limit-standard")).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
-    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo" }));
-    fireEvent.click(screen.getByTestId("launcher-context-limit-tight"));
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
-    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex -c model_auto_compact_token_limit=150000 --yolo" }));
-    fireEvent.click(screen.getByTestId("launcher-agent-claude-code"));
-    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
-    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: expect.stringMatching(/^CLAUDE_CODE_AUTO_COMPACT_WINDOW=150000 vrooli agent launch --runner claude /) }));
-    fireEvent.click(screen.getByTestId("launcher-context-limit-standard"));
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
-    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo" }));
-  });
+  const openShell = () => {
+    render(<TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    return screen.getByTestId<HTMLInputElement>("launcher-custom-input");
+  };
 
   it("custom command input launches on Enter key", () => {
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
-    );
-    const input = screen.getByTestId("launcher-custom-input");
+    const input = openShell();
     fireEvent.change(input, { target: { value: "htop" } });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "htop" }));
   });
 
   it("custom command input clears after launch", () => {
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
-    );
-    const input = screen.getByTestId<HTMLInputElement>("launcher-custom-input");
+    const input = openShell();
     fireEvent.change(input, { target: { value: "htop" } });
-    fireEvent.click(screen.getByTestId("launcher-custom-launch"));
+    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
     expect(input.value).toBe("");
   });
 
-  it("does not launch empty or whitespace-only custom command", () => {
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
-    );
-    const input = screen.getByTestId("launcher-custom-input");
+  it("treats a whitespace-only command as a plain shell, never a blank command", () => {
+    const input = openShell();
     fireEvent.change(input, { target: { value: "   " } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(onLaunch).not.toHaveBeenCalled();
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: undefined }));
   });
 
-  it("renders the command bar as one field: prefix, input and launch share a group", () => {
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
-    );
-    const input = screen.getByTestId("launcher-custom-input");
+  // The limit belongs to the agent path. Typing an agent's name here must run
+  // exactly what was typed, and the panel says so rather than implying otherwise.
+  it("sends a typed agent command as written and states that agent settings do not apply", () => {
+    const input = openShell();
+    expect(screen.getByTestId("launcher-shell-hint")).toHaveTextContent(strings.terminalLauncher.shellHint);
+    fireEvent.change(input, { target: { value: "claude" } });
+    fireEvent.click(screen.getByTestId("launcher-submit-selection"));
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "claude" }));
+  });
+
+  it("renders the command bar as one field: prefix and input share a group", () => {
+    const input = openShell();
     const group = input.closest("[data-rcl-input-group]");
     expect(group).not.toBeNull();
-    // Launch is inside the field's border, not a sibling beside it.
-    expect(screen.getByTestId("launcher-custom-launch").closest("[data-rcl-input-group]")).toBe(group);
     // The `$` is a real adornment now, not an absolutely-positioned span with
     // a hand-tuned padding on the input behind it.
     const prefix = group?.querySelector("[data-rcl-input-group-adornment]");
@@ -337,14 +319,6 @@ describe("TerminalLauncher", () => {
     expect(prefix).toHaveAttribute("aria-hidden", "true");
     expect(prefix).toHaveAttribute("data-side", "leading");
     expect(input).not.toHaveClass("ps-7");
-  });
-
-  it("launch button is disabled when custom input is empty", () => {
-    render(
-      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
-    );
-    const btn = screen.getByTestId("launcher-custom-launch");
-    expect(btn.hasAttribute("disabled")).toBe(true);
   });
 
   it("closes when the backdrop is pressed, not when the panel is pressed", () => {
@@ -371,7 +345,7 @@ describe("TerminalLauncher", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
-  it("traps focus inside the launcher, cycling through its native selects", () => {
+  it("traps focus inside the launcher, cycling through its option controls", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
@@ -393,15 +367,12 @@ describe("TerminalLauncher", () => {
     expect(screen.getByText(strings.terminalLauncher.creating)).toBeTruthy();
   });
 
-  it("disables all launch buttons when isCreating is true", () => {
+  it("disables launching and agent choice when isCreating is true", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} isCreating />,
     );
-    const emptyShell = screen.getByTestId("launcher-empty-shell");
-    expect(emptyShell.hasAttribute("disabled")).toBe(true);
-
-    const agentCard = screen.getByTestId("launcher-agent-claude-code");
-    expect(agentCard.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
+    expect(screen.getByTestId("launcher-agent-claude-code")).toBeDisabled();
   });
 
   it("fetches shortcuts via shortcutsClient.getEffective when no prop provided", async () => {
@@ -414,6 +385,7 @@ describe("TerminalLauncher", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} />,
     );
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
 
     await waitFor(() => {
       expect(screen.getByText("Docker")).toBeTruthy();
@@ -457,6 +429,7 @@ describe("TerminalLauncher", () => {
   it("launches the sign-in command from its shortcut row", () => {
     const withSignIn = DEFAULT_SHORTCUTS.filter((entry) => entry.command === "codex login --device-auth");
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={withSignIn} />);
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     fireEvent.click(screen.getByTestId("launcher-shortcut-codex-sign-in"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "codex login --device-auth" }));
   });
@@ -664,13 +637,14 @@ describe("TerminalLauncher", () => {
     expect(screen.queryByTestId("launcher-edit-shortcuts")).toBeNull();
   });
 
-  it("renders one card per agent, plus the empty shell", () => {
+  it("renders one card per agent", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={DEFAULT_SHORTCUTS} />);
     const grid = screen.getByTestId("launcher-agent-grid");
-    // Four agents and the empty shell. The Codex sign-in entry names no agent,
-    // so it belongs in the commands list rather than the grid.
-    expect(within(grid).getAllByRole("button")).toHaveLength(5);
+    // Four agents. The Codex sign-in entry names no agent, so it belongs with
+    // the shell's shortcuts rather than in the rail.
+    expect(within(grid).getAllByRole("radio")).toHaveLength(4);
     expect(screen.getByTestId("launcher-agent-claude-code")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(screen.getByTestId("launcher-shortcut-codex-sign-in")).toBeInTheDocument();
   });
 
@@ -695,15 +669,15 @@ describe("TerminalLauncher", () => {
     };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} />);
     expect(screen.getByTestId("launcher-agent-codex")).not.toHaveTextContent("0.149.1");
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
-    expect(screen.getByTestId("launcher-agent-card-codex")).toHaveTextContent("0.149.1");
+    openDetail("codex");
+    expect(screen.getByTestId("launcher-version")).toHaveTextContent("0.149.1");
   });
 
   // The machine name shared one line with its readiness summary, and the
   // summary was marked shrink-0 — so a machine called anything at all was
   // truncated to a single letter while "darwin/amd64 · 1/5 agents ready" took
   // the row. The name is what is being chosen; it gets its own line.
-  it("gives the machine name its own line, not a share of one", () => {
+  it("gives the machine name its own line in the menu, not a share of one", () => {
     const target: TerminalTarget = {
       id: "bridge-node:mac", kind: "bridge-node", node_id: "mac", label: "matt-macbook-pro",
       os: "darwin", arch: "amd64", available: true, state: "dispatchable",
@@ -714,12 +688,15 @@ describe("TerminalLauncher", () => {
     };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[]} initialTarget={target} availableTargets={[target]} />);
     const trigger = screen.getByTestId("launcher-machine-picker");
-    const name = within(trigger).getByText("matt-macbook-pro");
-    const meta = within(trigger).getByText(/darwin\/amd64/);
+    expect(trigger).toHaveTextContent("matt-macbook-pro");
+    fireEvent.click(trigger);
+    const option = screen.getByRole("option", { name: /matt-macbook-pro/ });
+    const name = within(option).getByText("matt-macbook-pro");
+    const meta = within(option).getByText(/darwin\/amd64/);
     expect(name).not.toBe(meta);
-    // Siblings in a column, so neither can eat the other's width.
+    // Siblings stacked, so neither can eat the other's width.
     expect(name.parentElement).toBe(meta.parentElement);
-    expect(name.parentElement?.className).toContain("flex-col");
+    expect(name).toHaveClass("block");
   });
 
   // A capability that is NOT ready was appended as a bare label, so a row
@@ -735,22 +712,24 @@ describe("TerminalLauncher", () => {
       ],
     };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[]} initialTarget={target} availableTargets={[target]} />);
-    const trigger = screen.getByTestId("launcher-machine-picker");
+    fireEvent.click(screen.getByTestId("launcher-machine-picker"));
+    const option = screen.getByRole("option", { name: /matt-macbook-pro/ });
     // The stub translator returns keys, so the assertion is that the missing
     // agent reaches the row through the "missing" phrasing rather than as a
     // bare label sitting beside the ready count.
-    expect(trigger).toHaveTextContent("launcher.capabilityMissing");
-    expect(trigger).not.toHaveTextContent(/agents ready · Claude Code/);
+    expect(option).toHaveTextContent("launcher.capabilityMissing");
+    expect(option).not.toHaveTextContent(/agents ready · Claude Code/);
   });
 
-  it("explains unknown remote readiness without offering a launch the server will refuse", () => {
+  it("explains unknown remote readiness without offering a launch the server will refuse", async () => {
     const target: TerminalTarget = { id: "bridge-node:mac", kind: "bridge-node", label: "Remote", available: true, readiness: [
       { key: "capability:codex", label: "Codex", passed: false, state: "unknown", detail: "Node runtime is missing" },
     ] };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} initialTarget={target} availableTargets={[target]} />);
     expect(screen.getByTestId("launcher-agent-codex")).toBeDisabled();
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
-    expect(screen.getByTestId("launcher-agent-card-codex")).toHaveTextContent("Node runtime is missing");
+    expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
+    openDetail("codex");
+    expect(await screen.findByTestId("launcher-action-codex")).toHaveTextContent("Node runtime is missing");
     expect(onLaunch).not.toHaveBeenCalled();
   });
 
@@ -766,8 +745,7 @@ describe("TerminalLauncher", () => {
     };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} onInstallCapability={onInstallCapability} />);
     expect(screen.queryByTestId("launcher-agent-codex")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
-    expect(screen.getByTestId("launcher-agent-codex")).toBeDisabled();
+    openDetail("codex");
     fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
     expect(onInstallCapability).toHaveBeenCalledWith("codex", expect.objectContaining({ id: "local" }));
     expect(onLaunch).not.toHaveBeenCalled();
@@ -783,10 +761,9 @@ describe("TerminalLauncher", () => {
       ],
     };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[]} availableTargets={[target]} onInstallCapability={vi.fn().mockResolvedValue({ status: "installed" })} />);
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+    openDetail("agy");
     expect(screen.queryByTestId("launcher-agent-install-agy")).not.toBeInTheDocument();
-    expect(screen.getByTestId("launcher-agent-antigravity")).toBeDisabled();
-    expect(screen.getByTestId("launcher-agent-card-agy")).toHaveTextContent("No darwin/arm64 build published");
+    expect(screen.getByTestId("launcher-action-agy")).toHaveTextContent("No darwin/arm64 build published");
   });
 
   // A failing installer must say so on the card that started it, and must not
@@ -798,11 +775,12 @@ describe("TerminalLauncher", () => {
     const target = missingCodexTarget();
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} onInstallCapability={onInstallCapability} />);
 
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+    openDetail("codex");
     fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
     await waitFor(() => {
       expect(screen.getByTestId("launcher-agent-install-failed-codex")).toBeInTheDocument();
     });
+    fireEvent.click(screen.getByTestId("launcher-management-back"));
     expect(screen.getByTestId("launcher-agent-card-codex")).toHaveAttribute("data-agent-state", "missing");
     consoleError.mockRestore();
   });
@@ -815,7 +793,7 @@ describe("TerminalLauncher", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]}
       onInstallCapability={vi.fn().mockResolvedValue({ status: "installed" })} />);
 
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+    openDetail("codex");
     fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
     await waitFor(() => {
       expect(screen.getByTestId("launcher-agent-installed-codex")).toBeInTheDocument();
@@ -831,10 +809,10 @@ describe("TerminalLauncher", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]}
       onInstallCapability={vi.fn().mockResolvedValue({ status: "unconfirmed", message: "the machine has not reported codex yet" })} />);
 
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+    openDetail("codex");
     fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
-    const rail = await screen.findByTestId("launcher-agent-install-unconfirmed-codex");
-    expect(rail).toHaveAttribute("title", "the machine has not reported codex yet");
+    await screen.findByTestId("launcher-agent-install-unconfirmed-codex");
+    expect(screen.getByTestId("launcher-agent-install-reason-codex")).toHaveTextContent("the machine has not reported codex yet");
     expect(screen.queryByTestId("launcher-agent-installed-codex")).not.toBeInTheDocument();
     expect(screen.queryByTestId("launcher-agent-install-codex")).not.toBeInTheDocument();
   });
@@ -847,10 +825,10 @@ describe("TerminalLauncher", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]}
       onInstallCapability={vi.fn().mockResolvedValue({ status: "not_applicable", message: "no darwin/arm64 build published" })} />);
 
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+    openDetail("codex");
     fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
     const rail = await screen.findByTestId("launcher-agent-install-unsupported-codex");
-    expect(rail).toHaveAttribute("title", "no darwin/arm64 build published");
+    expect(rail).toHaveTextContent("no darwin/arm64 build published");
     expect(screen.queryByTestId("launcher-agent-install-codex")).not.toBeInTheDocument();
     expect(screen.queryByTestId("launcher-agent-installed-codex")).not.toBeInTheDocument();
   });
@@ -862,7 +840,7 @@ describe("TerminalLauncher", () => {
     const target = missingCodexTarget();
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} onInstallCapability={onInstallCapability} />);
 
-    fireEvent.click(screen.getByTestId("launcher-manage-agents"));
+    openDetail("codex");
     fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
     fireEvent.click(await screen.findByTestId("launcher-agent-install-unconfirmed-codex"));
     await waitFor(() => {
@@ -909,7 +887,7 @@ describe("TerminalLauncher", () => {
     shortcutsClient.getEffective.mockResolvedValueOnce({ profileId: "ws-1", scope: "workspace", profileName: "Dev Shortcuts", shortcuts: [
       { $typeName: "vrooli.web_console.v1.shortcuts.Shortcut", label: "Codex", command: "codex --yolo", description: "", agentId: "codex" },
     ] });
-    shortcutsClient.updateAgentPreferences.mockResolvedValueOnce({ preferences: { profileId: "ws-1", profileInstance: "instance-1", revision: 1n, orderedAgentIds: [], hiddenAgentIds: ["codex"] } } as never);
+    shortcutsClient.updateAgentPreferences.mockResolvedValueOnce({ preferences: { profileId: "ws-1", profileInstance: "instance-1", revision: 1n, orderedAgentIds: [], hiddenAgentIds: ["codex"], orderMode: "custom", lastLaunchedAt: {} } } as never);
     const target: TerminalTarget = { id: "local", kind: "local", label: "This machine", available: true, readiness: [{ key: "capability:codex", label: "Codex", passed: true, detail: "", state: "ready" }] };
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} availableTargets={[target]} />);
     await waitFor(() => { expect(shortcutsClient.getAgentPreferences).toHaveBeenCalled(); });
@@ -917,12 +895,13 @@ describe("TerminalLauncher", () => {
     const hide = await screen.findByTestId("launcher-agent-visibility-codex");
     fireEvent.click(hide);
     await waitFor(() => { expect(shortcutsClient.updateAgentPreferences).toHaveBeenCalledWith(expect.objectContaining({ hiddenAgentIds: ["codex"] })); });
-    await waitFor(() => { expect(hide).toHaveTextContent(strings.launcher.hiddenState); });
+    await waitFor(() => { expect(hide).not.toBeChecked(); });
     expect(shortcutsClient.upsertProfile).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("launcher-management-back"));
-    expect(within(screen.getByTestId("launcher-agent-grid")).queryByTestId("launcher-agent-codex")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-agent-codex")).not.toBeInTheDocument();
+    expect(screen.getByTestId("launcher-no-agents")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("launcher-manage-agents"));
-    expect(screen.getByTestId("launcher-agent-visibility-codex")).toHaveTextContent(strings.launcher.hiddenState);
+    expect(screen.getByTestId("launcher-agent-visibility-codex")).not.toBeChecked();
   });
 
   // Reorder edits the operator's stored profile. A caller that supplies the

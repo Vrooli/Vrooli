@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, Folder, FolderPlus, FolderX, Palette, Pencil, Search, SquareSlash, Trash2 } from "lucide-react";
+import { Check, ChevronRight, Folder, FolderPlus, FolderX, Palette, Pencil, Search, SquareSlash, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
@@ -112,7 +112,7 @@ function GroupRow({ testId, selected, name, summary, swatch, muted = false, onSe
       data-testid={testId}
       onClick={onSelect}
       className={cn(
-        "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start transition",
+        "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-wc-accent",
         selected ? "bg-wc-accent/10" : "hover:bg-wc-surface-input",
       )}
     >
@@ -168,7 +168,7 @@ function GroupEditRow({
           title={t(strings.manageGroups.recolorAriaLabel, { name: group.name })}
           aria-expanded={paletteOpen}
           onClick={onTogglePalette}
-          className="group/swatch flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-wc-default transition hover:ring-2 hover:ring-wc-accent/40"
+          className="group/swatch flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-wc-default transition hover:ring-2 hover:ring-wc-accent/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent"
           style={{ backgroundColor: group.color }}
         >
           <Palette className="h-3.5 w-3.5 text-black/50 opacity-0 transition group-hover/swatch:opacity-100" aria-hidden />
@@ -206,7 +206,7 @@ function GroupEditRow({
               title={color}
               onClick={() => { onRecolor(color); }}
               className={cn(
-                "h-6 w-6 rounded-full border border-wc-default transition hover:scale-110",
+                "h-6 w-6 rounded-full border border-wc-default transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent",
                 color === group.color && "ring-2 ring-wc-accent",
               )}
               style={{ backgroundColor: color }}
@@ -368,7 +368,7 @@ export function GroupPickerOverlay({
               aria-pressed={editing}
               onClick={() => { setEditing((prev) => !prev); setPaletteId(null); }}
               className={cn(
-                "flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition",
+                "flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent",
                 editing
                   ? "border-wc-accent bg-wc-accent/10 text-wc-accent"
                   : "border-wc-default bg-wc-surface-input text-wc-text-secondary hover:border-wc-accent hover:text-wc-text-primary",
@@ -412,7 +412,7 @@ export function GroupPickerOverlay({
                   type="button"
                   data-testid="group-picker-close-all-empty"
                   onClick={() => { for (const group of empty) closeGroup(group.id); }}
-                  className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium text-wc-accent transition hover:bg-wc-surface-input"
+                  className="shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium text-wc-accent transition hover:bg-wc-surface-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent"
                 >
                   {t(strings.manageGroups.closeAllEmpty)}
                 </button>,
@@ -466,7 +466,7 @@ export function GroupPickerOverlay({
             data-testid="group-picker-create-submit"
             disabled={!canCreate}
             onClick={submitCreate}
-            className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-start text-sm font-medium text-wc-accent transition hover:bg-wc-surface-input disabled:cursor-not-allowed disabled:text-wc-text-faint disabled:hover:bg-transparent"
+            className="flex min-h-11 w-full items-center gap-2.5 rounded-lg px-2.5 text-start text-sm font-medium text-wc-accent transition hover:bg-wc-surface-input disabled:cursor-not-allowed disabled:text-wc-text-faint disabled:hover:bg-transparent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent"
           >
             <FolderPlus className="h-4 w-4 shrink-0" aria-hidden />
             <span className="min-w-0 flex-1 truncate">
@@ -516,7 +516,7 @@ export default function GroupDestinationTrigger({
   const heading = label ?? t(strings.launcher.destination);
 
   return (
-    <div data-testid="launcher-destination" className="min-w-0 flex-1 basis-[13rem]">
+    <div data-testid="launcher-destination" className="min-w-0">
       <button
         type="button"
         data-testid="launcher-destination-trigger"
@@ -525,27 +525,19 @@ export default function GroupDestinationTrigger({
         aria-expanded={open}
         aria-label={`${heading}: ${selected ? selected.name : t(strings.launcher.noGroup)}`}
         onClick={() => { setOpen(true); }}
-        className="flex min-h-11 w-full items-center gap-2 rounded-lg border bg-wc-surface-input px-3 text-start text-sm transition hover:border-wc-accent disabled:cursor-not-allowed disabled:opacity-50"
-        // The destination wears the group's colour, so "which group" is
-        // legible before the label is read.
-        style={selected ? { borderColor: selected.color } : undefined}
+        className="flex min-h-11 w-full items-center justify-between gap-3 rounded text-start text-[13.5px] text-wc-text-muted transition hover:text-wc-text-secondary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {selected
-          ? (
-            <span
-              className="h-3 w-3 shrink-0 rounded-full"
-              style={{ backgroundColor: selected.color }}
-              aria-hidden
-            />
-          )
-          : <SquareSlash className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />}
-        <span className="min-w-0 flex-1 truncate text-wc-text-primary">
-          {selected ? t(strings.groupPicker.into, { name: selected.name }) : t(strings.launcher.noGroup)}
+        <span className="font-medium">{heading}</span>
+        <span className="flex min-w-0 items-center gap-1.5">
+          {/* The destination wears the group's colour, so "which group" is
+              legible before the label is read. */}
+          {selected && <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: selected.color }} aria-hidden />}
+          <span className="min-w-0 truncate">
+            {selected ? t(strings.groupPicker.into, { name: selected.name }) : t(strings.launcher.noGroup)}
+          </span>
+          {selected && <span className="shrink-0 text-[11px] text-wc-text-faint">{summarize(sizes[selected.id])}</span>}
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 rtl:rotate-180" aria-hidden />
         </span>
-        {selected && (
-          <span className="shrink-0 text-[11px] text-wc-text-faint">{summarize(sizes[selected.id])}</span>
-        )}
-        <ChevronDown className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />
       </button>
 
       <GroupPickerOverlay

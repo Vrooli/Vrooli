@@ -45,7 +45,7 @@ describe("MachinePicker", () => {
     const list = screen.getByTestId("launcher-machine-list");
     expect(list).toHaveAttribute("role", "listbox");
     expect(within(list).getAllByRole("option")).toHaveLength(2);
-    expect(within(list).getByText("Aquila host")).toBeInTheDocument();
+    expect(within(list).getByText("terminalLauncher.localHost")).toBeInTheDocument();
   });
 
   it("selects a machine and closes", () => {

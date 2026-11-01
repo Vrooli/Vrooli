@@ -19,9 +19,11 @@ func (f *fakeRewindClient) ListSessions(context.Context, string) ([]opencode.Ses
 	}
 	return []opencode.Session{*f.seen}, nil
 }
+
 func (f *fakeRewindClient) SessionMessages(context.Context, string) ([]opencode.MessageWithParts, error) {
 	return nil, nil
 }
+
 func (f *fakeRewindClient) SessionStatus(context.Context) (map[string]opencode.SessionStatus, error) {
 	return f.status, nil
 }
@@ -34,8 +36,8 @@ func (f *fakeRewindClient) RevertMessage(_ context.Context, sessionID, messageID
 	}{MessageID: messageID, PartID: partID}}
 	return nil
 }
-func (f *fakeRewindClient) Events(context.Context, func(opencode.Event)) error    { return nil }
-func (f *fakeRewindClient) ReplyPermission(context.Context, string, string) error { return nil }
+func (f *fakeRewindClient) Events(context.Context, func(opencode.Event)) error            { return nil }
+func (f *fakeRewindClient) ReplyPermission(context.Context, string, string, string) error { return nil }
 
 func TestOpenCodeRewindAdapterVerifiesNativeTarget(t *testing.T) {
 	client := &fakeRewindClient{status: map[string]opencode.SessionStatus{"oc-1": {Type: "idle"}}}

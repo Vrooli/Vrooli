@@ -8,8 +8,6 @@ package main
 // live only in this process. See docs/configuration/usage-modes.md.
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,6 +21,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/cli-core/agenttranscript"
 	"web-console/internal/sessionstore"
 	"web-console/session"
 	"web-console/terminal"
@@ -137,15 +136,17 @@ type compactionManager struct {
 }
 
 func newCompactionManager(drv compactDriver) *compactionManager {
-	return &compactionManager{drv: drv, now: time.Now, sleep: time.Sleep,
-		watches: map[string]*compactWatch{}, history: map[string][]compactEvent{}, inflight: map[string]bool{}, goals: map[string]goalScan{}}
+	return &compactionManager{
+		drv: drv, now: time.Now, sleep: time.Sleep,
+		watches: map[string]*compactWatch{}, history: map[string][]compactEvent{}, inflight: map[string]bool{}, goals: map[string]goalScan{},
+	}
 }
 
 // ---- reading the transcript ------------------------------------------------
 
 type goalScan struct {
-	offset int64
-	active bool
+	offset  int64
+	tracker agenttranscript.GoalTracker
 }
 
 type contextReading struct {
@@ -156,7 +157,9 @@ type contextReading struct {
 
 // readTranscriptContext reads the newest request size and whether a goal is
 // active. The goal state is scanned incrementally (a goal event can be old), so
-// each call reads only what was appended since the last one.
+// each call reads only what was appended since the last one. A read that fails
+// part way is returned as an error, so the rest of the transcript is never
+// assumed to hold no goal.
 func (m *compactionManager) readTranscriptContext(cs compactSession) (contextReading, error) {
 	var out contextReading
 	if cs.Transcript == "" {
@@ -181,90 +184,13 @@ func (m *compactionManager) readTranscriptContext(cs compactSession) (contextRea
 	if _, err := file.Seek(scan.offset, io.SeekStart); err != nil {
 		return out, err
 	}
-	reader := bufio.NewReaderSize(file, 1<<20)
-	offset := scan.offset
-	for {
-		line, err := reader.ReadBytes('\n')
-		if err == io.EOF && !bytes.HasSuffix(line, []byte("\n")) {
-			break // a partial last line is read again next time
-		}
-		if len(line) > 0 {
-			offset += int64(len(line))
-			if active, ok := goalActiveInLine(line, cs.Harness); ok {
-				scan.active = active
-			}
-		}
-		if err != nil {
-			break
-		}
-	}
-	scan.offset = offset
+	consumed, err := scan.tracker.Read(file, cs.Harness)
+	scan.offset += consumed
 	m.mu.Lock()
 	m.goals[cs.Transcript] = scan
 	m.mu.Unlock()
-	out.GoalActive = scan.active
-	return out, nil
-}
-
-// goalActiveInLine reports a goal change recorded on one transcript line.
-// Codex records thread_goal_updated; Claude records goal_status. Any Codex
-// status other than paused or finished counts as active, so an unfamiliar
-// status keeps a session from being compacted.
-func goalActiveInLine(line []byte, harness string) (active, ok bool) {
-	switch harness {
-	case "codex":
-		if !bytes.Contains(line, []byte(`"thread_goal_updated"`)) {
-			return false, false
-		}
-		var event struct {
-			Payload struct {
-				Type string `json:"type"`
-				Goal struct {
-					Status string `json:"status"`
-				} `json:"goal"`
-			} `json:"payload"`
-		}
-		if json.Unmarshal(line, &event) != nil || event.Payload.Type != "thread_goal_updated" {
-			return false, false
-		}
-		switch strings.ToLower(event.Payload.Goal.Status) {
-		case "paused", "complete", "completed", "cleared", "abandoned":
-			return false, true
-		}
-		return true, true
-	case "claude":
-		if !bytes.Contains(line, []byte(`"goal_status"`)) {
-			return false, false
-		}
-		var value any
-		if json.Unmarshal(line, &value) != nil {
-			return false, false
-		}
-		return claudeGoalActive(value)
-	}
-	return false, false
-}
-
-func claudeGoalActive(value any) (active, ok bool) {
-	switch v := value.(type) {
-	case []any:
-		for _, child := range v {
-			if a, found := claudeGoalActive(child); found {
-				return a, true
-			}
-		}
-	case map[string]any:
-		if v["type"] == "goal_status" {
-			met, _ := v["met"].(bool)
-			return !met, true
-		}
-		for _, child := range v {
-			if a, found := claudeGoalActive(child); found {
-				return a, true
-			}
-		}
-	}
-	return false, false
+	out.GoalActive = scan.tracker.Active()
+	return out, err
 }
 
 // lastContextTokens finds the request size of the newest response in the last
@@ -277,55 +203,7 @@ func lastContextTokens(file *os.File, size int64, harness string) (int64, bool) 
 	if _, err := file.ReadAt(buf, start); err != nil && err != io.EOF {
 		return 0, false
 	}
-	return lastTokensIn(buf, harness)
-}
-
-func lastTokensIn(buf []byte, harness string) (int64, bool) {
-	lines := bytes.Split(buf, []byte("\n"))
-	for i := len(lines) - 1; i >= 0; i-- {
-		line := lines[i]
-		switch harness {
-		case "claude":
-			if !bytes.Contains(line, []byte(`"usage"`)) || !bytes.Contains(line, []byte(`"assistant"`)) {
-				continue
-			}
-			var entry struct {
-				Type        string `json:"type"`
-				IsSidechain bool   `json:"isSidechain"`
-				Message     struct {
-					Usage struct {
-						Input  int64 `json:"input_tokens"`
-						Read   int64 `json:"cache_read_input_tokens"`
-						Create int64 `json:"cache_creation_input_tokens"`
-					} `json:"usage"`
-				} `json:"message"`
-			}
-			if json.Unmarshal(line, &entry) != nil || entry.Type != "assistant" || entry.IsSidechain {
-				continue
-			}
-			if total := entry.Message.Usage.Input + entry.Message.Usage.Read + entry.Message.Usage.Create; total > 0 {
-				return total, true
-			}
-		case "codex":
-			if !bytes.Contains(line, []byte(`"token_count"`)) {
-				continue
-			}
-			var entry struct {
-				Payload struct {
-					Type string `json:"type"`
-					Info struct {
-						Last struct {
-							Input int64 `json:"input_tokens"`
-						} `json:"last_token_usage"`
-					} `json:"info"`
-				} `json:"payload"`
-			}
-			if json.Unmarshal(line, &entry) == nil && entry.Payload.Type == "token_count" && entry.Payload.Info.Last.Input > 0 {
-				return entry.Payload.Info.Last.Input, true
-			}
-		}
-	}
-	return 0, false
+	return agenttranscript.LastContextTokens(buf, harness)
 }
 
 // compactionRecorded reports whether the transcript gained a compaction record
@@ -343,10 +221,7 @@ func compactionRecorded(path string, offset int64, harness string) bool {
 	if err != nil {
 		return false
 	}
-	if harness == "claude" {
-		return bytes.Contains(data, []byte(`"compact_boundary"`))
-	}
-	return bytes.Contains(data, []byte(`"type":"compacted"`))
+	return agenttranscript.CompactionRecorded(data, harness)
 }
 
 // ---- decisions -------------------------------------------------------------
@@ -507,8 +382,10 @@ func (m *compactionManager) Candidates(ctx context.Context) []compactCandidate {
 			last = &event
 		}
 		m.mu.Unlock()
-		c := compactCandidate{SessionID: cs.ID, Label: cs.Label, Harness: cs.Harness, State: r.state, ContextTokens: r.tokens,
-			GoalActive: r.goal, Eligible: reason == "", SkipReason: reason, Last: last}
+		c := compactCandidate{
+			SessionID: cs.ID, Label: cs.Label, Harness: cs.Harness, State: r.state, ContextTokens: r.tokens,
+			GoalActive: r.goal, Eligible: reason == "", SkipReason: reason, Last: last,
+		}
 		if watch != nil {
 			c.Armed, c.ThresholdTokens = watch.Armed, watch.ThresholdTokens
 		}
@@ -606,7 +483,7 @@ func tokensAfter(cs compactSession, offset int64) (int64, bool) {
 	if err != nil {
 		return 0, false
 	}
-	return lastTokensIn(data, cs.Harness)
+	return agenttranscript.LastContextTokens(data, cs.Harness)
 }
 
 // compactBulkMax bounds one bulk request. Sessions run in parallel, so the
@@ -631,8 +508,10 @@ func (m *compactionManager) CompactIdle(ctx context.Context, ids []string) []com
 	var wg sync.WaitGroup
 	for i, id := range unique {
 		if i >= compactBulkMax {
-			results[i] = compactResult{SessionID: id, compactEvent: compactEvent{At: m.now(), Trigger: "bulk", Outcome: "skipped",
-				Reason: fmt.Sprintf("not started: at most %d sessions are compacted per request", compactBulkMax)}}
+			results[i] = compactResult{SessionID: id, compactEvent: compactEvent{
+				At: m.now(), Trigger: "bulk", Outcome: "skipped",
+				Reason: fmt.Sprintf("not started: at most %d sessions are compacted per request", compactBulkMax),
+			}}
 			continue
 		}
 		wg.Add(1)

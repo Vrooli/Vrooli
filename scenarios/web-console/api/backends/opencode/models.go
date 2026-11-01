@@ -9,6 +9,14 @@
 // cursor on top so restarts and SSE reconnects do not re-append.
 package opencode
 
+// Server identifies a running OpenCode server and which HTTP API it speaks.
+// OpenCode 2 uses /api routes, a new event envelope, and HTTP Basic auth.
+type Server struct {
+	URL      string
+	Password string
+	Major    int
+}
+
 // Session is one entry from `GET /session`.
 type Session struct {
 	ID        string `json:"id"`

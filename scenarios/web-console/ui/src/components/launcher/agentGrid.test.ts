@@ -4,7 +4,9 @@ import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../../consts/shortcuts";
 import type { TargetReadinessFact } from "../../api/targets";
 import {
   buildAgentGrid,
-  cardInstalls,
+  cardSelectable,
+  defaultAgentID,
+  orderAgents,
   cardLaunches,
   moveItem,
   mergeAgentOrder,
@@ -128,13 +130,13 @@ describe("card affordances", () => {
     expect(cardLaunches({ ...base, state: "not-applicable" })).toBe(false);
   });
 
-  // Only "missing" offers an install. Offering one for not-applicable would
-  // put a button on a card whose installer has already refused.
-  it("offers an install only for a missing agent", () => {
+  // An unknown agent still launches locally, but a remote server refuses one it cannot verify.
+  it("only lets a card be chosen when the machine will accept the launch", () => {
     const base = { agentID: "codex", key: "codex", label: "Codex", command: "codex", fromCatalogue: true };
-    expect(cardInstalls({ ...base, state: "missing" })).toBe(true);
-    expect(cardInstalls({ ...base, state: "not-applicable" })).toBe(false);
-    expect(cardInstalls({ ...base, state: "ready" })).toBe(false);
+    expect(cardSelectable({ ...base, state: "ready" }, "bridge-node")).toBe(true);
+    expect(cardSelectable({ ...base, state: "unknown" }, "local")).toBe(true);
+    expect(cardSelectable({ ...base, state: "unknown" }, "bridge-node")).toBe(false);
+    expect(cardSelectable({ ...base, state: "missing" }, "local")).toBe(false);
   });
 });
 
@@ -168,5 +170,29 @@ describe("mergeAgentOrder", () => {
   });
   it("uses the current order when there is no prior preference", () => {
     expect(mergeAgentOrder([], ["codex", "claude"])).toEqual(["codex", "claude"]);
+  });
+});
+
+describe("agent order", () => {
+  const card = (agentID: string) => ({ agentID, key: agentID, label: agentID, command: agentID, state: "ready" as const, fromCatalogue: true });
+  const cards = ["claude", "codex", "grok", "agy"].map(card);
+  const ids = (list: readonly { agentID: string }[]) => list.map((item) => item.agentID);
+
+  it("follows the custom order, with unlisted agents after it", () => {
+    expect(ids(orderAgents(cards, { orderedAgentIds: ["grok", "claude"] }))).toEqual(["grok", "claude", "codex", "agy"]);
+  });
+
+  it("puts the latest launch first in recent order, and never-launched agents after in custom order", () => {
+    expect(ids(orderAgents(cards, {
+      orderMode: "recent",
+      orderedAgentIds: ["agy", "codex", "grok", "claude"],
+      lastLaunchedAt: { claude: "2026-10-01T00:00:00Z", grok: "2026-10-30T00:00:00Z" },
+    }))).toEqual(["grok", "claude", "agy", "codex"]);
+  });
+
+  it("opens on the last launched agent among those offered, else the first", () => {
+    expect(defaultAgentID(cards, {})).toBe("claude");
+    expect(defaultAgentID(cards, { codex: "2026-10-01T00:00:00Z", grok: "2026-10-30T00:00:00Z", gone: "2026-10-31T00:00:00Z" })).toBe("grok");
+    expect(defaultAgentID([], {})).toBeNull();
   });
 });

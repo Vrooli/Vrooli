@@ -21,6 +21,11 @@ type Choice struct {
 	Effort      string
 	SourceLabel string
 	IsDefault   bool
+	// ContextWindowTokens is zero when the window is unknown, never unlimited.
+	ContextWindowTokens int64
+	ContextLimitTokens  []int64
+	Metered             bool
+	DisplayName         string
 }
 
 type Result struct {
@@ -34,29 +39,37 @@ type Result struct {
 	ModelFlag    string
 	Choices      []Choice
 	Detail       string
+	CatalogStale bool
+	// OperatorCommand is how to refresh a list the action cannot.
+	OperatorCommand string
+	// CommandLiteral says the launch command runs as written.
+	CommandLiteral bool
 }
 
 type Service interface {
-	GetRoleModelChoices(context.Context, string, string) Result
+	GetRoleModelChoices(ctx context.Context, agentID, targetID, launchCommand string) Result
 }
 
 type handler struct{ service Service }
 
 func (h *handler) GetRoleModelChoices(ctx context.Context, req *connect.Request[modelselectionv1.GetRoleModelChoicesRequest]) (*connect.Response[modelselectionv1.GetRoleModelChoicesResponse], error) {
-	result := h.service.GetRoleModelChoices(ctx, req.Msg.GetAgentId(), req.Msg.GetTargetId())
+	result := h.service.GetRoleModelChoices(ctx, req.Msg.GetAgentId(), req.Msg.GetTargetId(), req.Msg.GetLaunchCommand())
 	response := &modelselectionv1.GetRoleModelChoicesResponse{
-		PolicyStatus: result.PolicyStatus,
-		Availability: result.Availability,
-		Runner:       result.Runner,
-		Role:         result.Role,
-		Provenance:   result.Provenance,
-		ObservedAt:   result.ObservedAt,
-		PolicyDigest: result.PolicyDigest,
-		ModelFlag:    result.ModelFlag,
-		Detail:       result.Detail,
+		PolicyStatus:    result.PolicyStatus,
+		Availability:    result.Availability,
+		Runner:          result.Runner,
+		Role:            result.Role,
+		Provenance:      result.Provenance,
+		ObservedAt:      result.ObservedAt,
+		PolicyDigest:    result.PolicyDigest,
+		ModelFlag:       result.ModelFlag,
+		Detail:          result.Detail,
+		CatalogStale:    result.CatalogStale,
+		OperatorCommand: result.OperatorCommand,
+		CommandLiteral:  result.CommandLiteral,
 	}
 	for _, choice := range result.Choices {
-		item := &modelselectionv1.RoleModelChoice{Model: choice.Model, Source: choice.Source, Provider: choice.Provider, LaunchModel: choice.LaunchModel, Effort: choice.Effort, SourceLabel: choice.SourceLabel, IsDefault: choice.IsDefault}
+		item := &modelselectionv1.RoleModelChoice{Model: choice.Model, Source: choice.Source, Provider: choice.Provider, LaunchModel: choice.LaunchModel, Effort: choice.Effort, SourceLabel: choice.SourceLabel, IsDefault: choice.IsDefault, ContextWindowTokens: choice.ContextWindowTokens, ContextLimitTokens: choice.ContextLimitTokens, Metered: choice.Metered, DisplayName: choice.DisplayName}
 		response.Choices = append(response.Choices, item)
 	}
 	return connect.NewResponse(response), nil

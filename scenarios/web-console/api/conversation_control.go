@@ -239,7 +239,7 @@ func conversationCapabilities(provider string) HarnessCapability {
 		{ID: "summarize_from_message", Label: "Summarize from message", ChangesConversation: true, RequiresConfirmation: true, Boundary: "through", Consequences: []string{"Conversation history would be summarized."}, UnavailableReason: "Summarization from a message is not verified for this harness."},
 	}
 	if provider == "opencode" {
-		capability.VersionRange = ">=1.18.30 <1.19.0"
+		capability.VersionRange = ">=1.18.30"
 	}
 	if provider != "claude" && provider != "codex" && provider != "grok" && provider != "opencode" {
 		capability.Provider = "unknown"

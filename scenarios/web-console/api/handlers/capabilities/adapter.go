@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"web-console/internal/backend"
@@ -32,6 +33,11 @@ type Adapter struct {
 	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
 	ReadAgentUpdate func(context.Context, string, string) (AgentUpdateResult, error)
 	ReadAgentUsage  func(context.Context, string, string) (AgentUsageResult, error)
+	RunUpdateAction func(ctx context.Context, targetID, agentID, action string) (AgentUpdateActionResult, error)
+	// GuardUpdateAction admits one action request or writes its refusal. Nil
+	// refuses every action.
+	GuardUpdateAction func(http.ResponseWriter, *http.Request) bool
+	ListHarnessesOn   func(context.Context, string) ([]HarnessDescriptor, error)
 	// ConfirmInstall asks the target itself whether a capability is now
 	// present, after an install has run. It is the only evidence this package
 	// accepts that an install worked: an exit code reports that a command ran,
@@ -47,11 +53,34 @@ func (a *Adapter) AgentUsage(ctx context.Context, targetID, agentID string) (Age
 	return a.ReadAgentUsage(ctx, targetID, agentID)
 }
 
+func (a *Adapter) ListHarnesses(ctx context.Context, targetID string) ([]HarnessDescriptor, error) {
+	if a.ListHarnessesOn == nil {
+		return nil, ErrUnavailable
+	}
+	return a.ListHarnessesOn(ctx, targetID)
+}
+
 func (a *Adapter) AgentUpdate(ctx context.Context, targetID, agentID string) (AgentUpdateResult, error) {
 	if a.ReadAgentUpdate == nil {
 		return AgentUpdateResult{}, ErrUnavailable
 	}
 	return a.ReadAgentUpdate(ctx, targetID, agentID)
+}
+
+// GuardAgentUpdateAction applies the configured admission rule.
+func (a *Adapter) GuardAgentUpdateAction(w http.ResponseWriter, r *http.Request) bool {
+	if a.GuardUpdateAction == nil {
+		http.Error(w, "agent update actions are not available", http.StatusForbidden)
+		return false
+	}
+	return a.GuardUpdateAction(w, r)
+}
+
+func (a *Adapter) RunAgentUpdateAction(ctx context.Context, targetID, agentID, action string) (AgentUpdateActionResult, error) {
+	if a.RunUpdateAction == nil {
+		return AgentUpdateActionResult{}, ErrUnavailable
+	}
+	return a.RunUpdateAction(ctx, targetID, agentID, action)
 }
 
 // stampInstallOutcome replaces an installer's own verdict with the target's.

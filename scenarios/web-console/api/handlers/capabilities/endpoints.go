@@ -17,9 +17,19 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Returns provider quota readings with their account-match confidence and source.", Category: "capabilities",
 	},
 	{
+		ID: "capabilities_list_harnesses", Path: capabilitiesconnect.CapabilitiesServiceListHarnessesProcedure,
+		Method: "POST", Summary: "List coding-agent harnesses on a target",
+		Description: "Returns each harness's identity and features from its resource descriptor. A declared usage window only reserves space.", Category: "capabilities",
+	},
+	{
 		ID: "capabilities_agent_update", Path: capabilitiesconnect.CapabilitiesServiceAgentUpdateProcedure,
 		Method: "POST", Summary: "Get target-specific agent update status",
-		Description: "Checks the installed agent against its resource-owned upstream source. A matching probe does not verify a custom launch command.", Category: "capabilities",
+		Description: "Reports the agent's install state, its one primary action and the update preconditions from the target's control plane. A matching probe does not verify a custom launch command.", Category: "capabilities",
+	},
+	{
+		ID: "capabilities_run_agent_update_action", Path: capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure,
+		Method: "POST", Summary: "Run one action on a target's agent install",
+		Description: "Runs install, update, use_managed_copy, link_managed_copy, rollback or retry through the control plane, for the signed-in operator only, and returns a fresh observation. May run for minutes; repeating the request rejoins a running action.", Category: "capabilities",
 	},
 	{
 		ID:          "capabilities_get",

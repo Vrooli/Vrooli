@@ -26,15 +26,25 @@ func (w *OpenCodeWatcher) setPendingPermission(sessionID, requestID string) {
 func (w *OpenCodeWatcher) ReplyPermission(ctx context.Context, sessionID, reply string) error {
 	w.mu.Lock()
 	requestID := w.pendingPermission[sessionID]
+	nativeSessionID := ""
+	for ocID, wcID := range w.claimed {
+		if wcID == sessionID {
+			nativeSessionID = ocID
+			break
+		}
+	}
 	client := w.client
 	w.mu.Unlock()
 	if requestID == "" {
 		return fmt.Errorf("no OpenCode permission request is pending for session %s", sessionID)
 	}
+	if nativeSessionID == "" {
+		return fmt.Errorf("OpenCode session for pane %s is not attributed", sessionID)
+	}
 	if client == nil {
 		return errors.New("the OpenCode server is not connected")
 	}
-	return client.ReplyPermission(ctx, requestID, reply)
+	return client.ReplyPermission(ctx, nativeSessionID, requestID, reply)
 }
 
 // opencodeReplier answers OpenCode permissions for the terminal handler. The

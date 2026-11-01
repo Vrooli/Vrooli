@@ -40,6 +40,12 @@ type AgentPreferences struct {
 	OrderedAgentIDs []string
 	HiddenAgentIDs  []string
 	Revision        uint64
+	// OrderMode is custom or recent. Empty on a write keeps the stored mode.
+	OrderMode string
+	// LastLaunchedAt is each agent's most recent launch, as RFC 3339.
+	LastLaunchedAt map[string]string
+	// LaunchedAgentID records this agent as launched now. It is write-only.
+	LaunchedAgentID string
 }
 
 // Shortcut is the transport-neutral shortcut shape.

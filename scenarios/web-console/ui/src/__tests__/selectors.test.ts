@@ -36,7 +36,8 @@ describe("selectors registry", () => {
   // [REQ:P0-006a] Terminal Launch Flow UI - selector registry
   it("exposes launcher selectors", () => {
     expect(selectors.launcher.dialog).toBe("terminal-launcher");
-    expect(selectors.launcher.emptyShell).toBe("launcher-empty-shell");
+    expect(selectors.launcher.modeShell).toBe("launcher-mode-shell");
+    expect(selectors.launcher.launch).toBe("launcher-submit-selection");
     expect(selectors.launcher.customInput).toBe("launcher-custom-input");
   });
 

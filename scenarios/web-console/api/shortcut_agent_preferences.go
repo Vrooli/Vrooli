@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"modernc.org/sqlite"
 	sqlite3 "modernc.org/sqlite/lib"
@@ -22,10 +23,28 @@ type AgentPreferences struct {
 	OrderedAgentIDs []string
 	HiddenAgentIDs  []string
 	Revision        uint64
+	// OrderMode is AgentOrderCustom or AgentOrderRecent. Empty reads as custom;
+	// on a write it keeps the stored mode, so recording a launch cannot reset it.
+	OrderMode string
+	// LastLaunchedAt holds each agent's most recent launch as RFC 3339 UTC. Only
+	// the server writes it, from LaunchedAgentID.
+	LastLaunchedAt map[string]string
+	// LaunchedAgentID records this agent as launched now. It is write-only.
+	LaunchedAgentID string
 }
 
-var ErrAgentPreferencesConflict = errors.New("shortcut agent preferences changed; refresh and retry")
-var ErrAgentPreferencesInvalid = errors.New("invalid shortcut agent preferences")
+const (
+	AgentOrderCustom = "custom"
+	AgentOrderRecent = "recent"
+)
+
+// maxAgentIDLength bounds every stored capability ID.
+const maxAgentIDLength = 128
+
+var (
+	ErrAgentPreferencesConflict = errors.New("shortcut agent preferences changed; refresh and retry")
+	ErrAgentPreferencesInvalid  = errors.New("invalid shortcut agent preferences")
+)
 
 func preferenceWriteError(err error) error {
 	var sqliteErr *sqlite.Error
@@ -42,18 +61,54 @@ func validateAgentPreferences(p AgentPreferences) error {
 		}
 		seen := make(map[string]bool, len(ids))
 		for _, id := range ids {
-			if id == "" || strings.TrimSpace(id) != id || len(id) > 128 || seen[id] {
-				return fmt.Errorf("%w: agent IDs must be nonempty, unique and at most 128 characters", ErrAgentPreferencesInvalid)
+			if !validAgentID(id) || seen[id] {
+				return fmt.Errorf("%w: agent IDs must be nonempty, unique and at most %d characters", ErrAgentPreferencesInvalid, maxAgentIDLength)
 			}
 			seen[id] = true
 		}
 	}
+	if p.OrderMode != "" && p.OrderMode != AgentOrderCustom && p.OrderMode != AgentOrderRecent {
+		return fmt.Errorf("%w: order mode must be %s or %s", ErrAgentPreferencesInvalid, AgentOrderCustom, AgentOrderRecent)
+	}
+	if p.LaunchedAgentID != "" && !validAgentID(p.LaunchedAgentID) {
+		return fmt.Errorf("%w: launched agent ID must be at most %d characters", ErrAgentPreferencesInvalid, maxAgentIDLength)
+	}
 	return nil
+}
+
+func validAgentID(id string) bool {
+	return id != "" && strings.TrimSpace(id) == id && len(id) <= maxAgentIDLength
+}
+
+// mergeAgentPreferenceWrite applies the fields a write does not fully replace:
+// the order mode stays unless the write names one, and launch times accumulate.
+func mergeAgentPreferenceWrite(next, current AgentPreferences, now time.Time) AgentPreferences {
+	if next.OrderMode == "" {
+		next.OrderMode = current.OrderMode
+	}
+	launched := make(map[string]string, len(current.LastLaunchedAt)+1)
+	for id, at := range current.LastLaunchedAt {
+		launched[id] = at
+	}
+	if next.LaunchedAgentID != "" {
+		launched[next.LaunchedAgentID] = now.UTC().Format(time.RFC3339)
+	}
+	next.LastLaunchedAt = launched
+	next.LaunchedAgentID = ""
+	return next
 }
 
 func cloneAgentPreferences(p AgentPreferences) AgentPreferences {
 	p.OrderedAgentIDs = append([]string{}, p.OrderedAgentIDs...)
 	p.HiddenAgentIDs = append([]string{}, p.HiddenAgentIDs...)
+	if p.OrderMode == "" {
+		p.OrderMode = AgentOrderCustom
+	}
+	launched := make(map[string]string, len(p.LastLaunchedAt))
+	for id, at := range p.LastLaunchedAt {
+		launched[id] = at
+	}
+	p.LastLaunchedAt = launched
 	return p
 }
 
@@ -86,6 +141,7 @@ func (s *ShortcutProfileStore) UpdateAgentPreferences(_ context.Context, p Agent
 	if id != p.ProfileID || instance != p.ProfileInstance || s.preferences[p.ProfileID].Revision != expected {
 		return AgentPreferences{}, ErrAgentPreferencesConflict
 	}
+	p = mergeAgentPreferenceWrite(p, s.preferences[p.ProfileID], time.Now())
 	p.Revision = expected + 1
 	p = cloneAgentPreferences(p)
 	s.preferences[p.ProfileID] = p
@@ -104,9 +160,9 @@ func effectiveProfileID(ctx context.Context, tx *sql.Tx) (string, string, error)
 }
 
 func readAgentPreferences(ctx context.Context, tx *sql.Tx, id string) (AgentPreferences, error) {
-	p := AgentPreferences{ProfileID: id, OrderedAgentIDs: []string{}, HiddenAgentIDs: []string{}}
-	var ordered, hidden string
-	err := tx.QueryRowContext(ctx, `SELECT ordered_agent_ids, hidden_agent_ids, revision FROM shortcut_agent_preferences WHERE profile_id = ?`, id).Scan(&ordered, &hidden, &p.Revision)
+	p := AgentPreferences{ProfileID: id, OrderedAgentIDs: []string{}, HiddenAgentIDs: []string{}, OrderMode: AgentOrderCustom, LastLaunchedAt: map[string]string{}}
+	var ordered, hidden, launched string
+	err := tx.QueryRowContext(ctx, `SELECT ordered_agent_ids, hidden_agent_ids, revision, order_mode, last_launched_at FROM shortcut_agent_preferences WHERE profile_id = ?`, id).Scan(&ordered, &hidden, &p.Revision, &p.OrderMode, &launched)
 	if errors.Is(err, sql.ErrNoRows) {
 		return p, nil
 	}
@@ -117,6 +173,9 @@ func readAgentPreferences(ctx context.Context, tx *sql.Tx, id string) (AgentPref
 		return AgentPreferences{}, err
 	}
 	if err = json.Unmarshal([]byte(hidden), &p.HiddenAgentIDs); err != nil {
+		return AgentPreferences{}, err
+	}
+	if err = json.Unmarshal([]byte(launched), &p.LastLaunchedAt); err != nil {
 		return AgentPreferences{}, err
 	}
 	return p, nil
@@ -169,6 +228,7 @@ func (s *SQLShortcutStore) UpdateAgentPreferences(ctx context.Context, p AgentPr
 	if current.Revision != expected {
 		return AgentPreferences{}, ErrAgentPreferencesConflict
 	}
+	p = mergeAgentPreferenceWrite(p, current, time.Now())
 	ordered, err := json.Marshal(append([]string{}, p.OrderedAgentIDs...))
 	if err != nil {
 		return AgentPreferences{}, err
@@ -177,7 +237,11 @@ func (s *SQLShortcutStore) UpdateAgentPreferences(ctx context.Context, p AgentPr
 	if err != nil {
 		return AgentPreferences{}, err
 	}
-	result, err := tx.ExecContext(ctx, `INSERT INTO shortcut_agent_preferences (profile_id, ordered_agent_ids, hidden_agent_ids, revision) VALUES (?, ?, ?, 1) ON CONFLICT(profile_id) DO UPDATE SET ordered_agent_ids = excluded.ordered_agent_ids, hidden_agent_ids = excluded.hidden_agent_ids, revision = shortcut_agent_preferences.revision + 1 WHERE shortcut_agent_preferences.revision = ?`, id, string(ordered), string(hidden), expected)
+	launched, err := json.Marshal(p.LastLaunchedAt)
+	if err != nil {
+		return AgentPreferences{}, err
+	}
+	result, err := tx.ExecContext(ctx, `INSERT INTO shortcut_agent_preferences (profile_id, ordered_agent_ids, hidden_agent_ids, revision, order_mode, last_launched_at) VALUES (?, ?, ?, 1, ?, ?) ON CONFLICT(profile_id) DO UPDATE SET ordered_agent_ids = excluded.ordered_agent_ids, hidden_agent_ids = excluded.hidden_agent_ids, order_mode = excluded.order_mode, last_launched_at = excluded.last_launched_at, revision = shortcut_agent_preferences.revision + 1 WHERE shortcut_agent_preferences.revision = ?`, id, string(ordered), string(hidden), p.OrderMode, string(launched), expected)
 	if err != nil {
 		return AgentPreferences{}, preferenceWriteError(err)
 	}

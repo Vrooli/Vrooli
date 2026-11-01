@@ -3,10 +3,12 @@ package capabilities
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	internalcaps "web-console/internal/capabilities"
 
 	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
+	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities/capabilities_v1connect"
 )
 
 type fakeService struct {
@@ -105,7 +108,7 @@ type updateService struct{ *fakeService }
 type usageService struct{ *fakeService }
 
 func (*usageService) AgentUsage(_ context.Context, target, agent string) (AgentUsageResult, error) {
-	return AgentUsageResult{TargetID: target, AgentID: agent, Match: "likely", Reason: "account not confirmed", Source: "provider", ObservedAt: "2026-10-29T12:00:00Z", Windows: []AgentUsageWindow{{Pool: "codex", WindowMinutes: 10080, UsedPercent: 0}}}, nil
+	return AgentUsageResult{TargetID: target, AgentID: agent, Match: "likely", Reason: "account not confirmed", Source: "provider", ObservedAt: "2026-10-29T12:00:00Z", Windows: []AgentUsageWindow{{Pool: "codex", WindowMinutes: 10080, UsedPercent: 0, ObservedAt: "2026-10-29T11:00:00Z"}}}, nil
 }
 
 func TestConnectHandlerAgentUsagePreservesMatchAndWindows(t *testing.T) {
@@ -114,13 +117,48 @@ func TestConnectHandlerAgentUsagePreservesMatchAndWindows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.TargetId != "local" || response.Msg.AgentId != "codex" || response.Msg.Match != "likely" || response.Msg.Reason == "" || len(response.Msg.Windows) != 1 || response.Msg.Windows[0].WindowMinutes != 10080 || response.Msg.Windows[0].UsedPercent != 0 {
+	if response.Msg.TargetId != "local" || response.Msg.AgentId != "codex" || response.Msg.Match != "likely" || response.Msg.Reason == "" || len(response.Msg.Windows) != 1 || response.Msg.Windows[0].WindowMinutes != 10080 || response.Msg.Windows[0].UsedPercent != 0 || response.Msg.Windows[0].ObservedAt != "2026-10-29T11:00:00Z" {
 		t.Fatalf("response lost usage evidence: %+v", response.Msg)
 	}
 	h = NewConnectHandler(Deps{Service: &fakeService{}})
 	_, err = h.AgentUsage(context.Background(), connect.NewRequest(&capabilitiesv1.AgentUsageRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Fatalf("without reader: %v", err)
+	}
+}
+
+type harnessService struct{ *fakeService }
+
+func (*harnessService) ListHarnesses(_ context.Context, target string) ([]HarnessDescriptor, error) {
+	if target != "local" {
+		return nil, fmt.Errorf("%w: %s", ErrTargetNotFound, target)
+	}
+	return []HarnessDescriptor{{
+		AgentID: "claude", Resource: "claude-code", DisplayName: "Claude Code", Icon: "claude",
+		UsageWindows:         []HarnessUsageWindow{{ID: "five_hour", WindowMinutes: 300}},
+		SupportsContextLimit: true, SupportsUsageMode: true, SupportsModelSelection: true,
+	}}, nil
+}
+
+func TestConnectHandlerListHarnessesProjectsDescriptors(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &harnessService{fakeService: &fakeService{}}})
+	response, err := h.ListHarnesses(context.Background(), connect.NewRequest(&capabilitiesv1.ListHarnessesRequest{TargetId: "local"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.TargetId != "local" || len(response.Msg.Harnesses) != 1 {
+		t.Fatalf("response: %+v", response.Msg)
+	}
+	got := response.Msg.Harnesses[0]
+	if got.AgentId != "claude" || got.Resource != "claude-code" || got.DisplayName != "Claude Code" || got.Icon != "claude" || !got.SupportsContextLimit || !got.SupportsUsageMode || !got.SupportsModelSelection || got.SupportsProviderSelection || len(got.UsageWindows) != 1 || got.UsageWindows[0].Id != "five_hour" || got.UsageWindows[0].WindowMinutes != 300 {
+		t.Fatalf("descriptor lost a field: %+v", got)
+	}
+	if _, err := h.ListHarnesses(context.Background(), connect.NewRequest(&capabilitiesv1.ListHarnessesRequest{TargetId: "gone"})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("an unknown target: %v", err)
+	}
+	h = NewConnectHandler(Deps{Service: &fakeService{}})
+	if _, err := h.ListHarnesses(context.Background(), connect.NewRequest(&capabilitiesv1.ListHarnessesRequest{TargetId: "local"})); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("without lister: %v", err)
 	}
 }
 
@@ -359,5 +397,124 @@ func TestIntegrationSurfaceProjectsTheRealKnownCatalogue(t *testing.T) {
 	}
 	if len(snapshot.Capabilities) != len(internalcaps.Known) {
 		t.Fatalf("integration surface projected %d capabilities, want %d", len(snapshot.Capabilities), len(internalcaps.Known))
+	}
+}
+
+type updateActionService struct {
+	*fakeService
+	guardAdmits bool
+	calls       int
+	err         error
+}
+
+func (s *updateActionService) GuardAgentUpdateAction(w http.ResponseWriter, _ *http.Request) bool {
+	if !s.guardAdmits {
+		http.Error(w, "operator only", http.StatusForbidden)
+	}
+	return s.guardAdmits
+}
+
+func (s *updateActionService) AgentUpdate(_ context.Context, target, agent string) (AgentUpdateResult, error) {
+	return AgentUpdateResult{TargetID: target, AgentID: agent, State: "update_ready", PrimaryAction: "update"}, nil
+}
+
+func (s *updateActionService) RunAgentUpdateAction(_ context.Context, target, agent, action string) (AgentUpdateActionResult, error) {
+	s.calls++
+	if s.err != nil {
+		return AgentUpdateActionResult{}, s.err
+	}
+	return AgentUpdateActionResult{Success: true, Message: action, OperationID: "op-1", Update: AgentUpdateResult{
+		TargetID: target, AgentID: agent, State: "up_to_date", OperatorCommand: "cmd", Reason: "why", InstallKind: "managed",
+		RollbackVersion: "1.0.0", NewerThanReviewed: true, Checks: []AgentUpdateCheck{{ID: "ownership", Passed: true, Message: "yours"}},
+	}}, nil
+}
+
+func actionClientRequest(t *testing.T, service Service) *http.Response {
+	t.Helper()
+	router := mux.NewRouter()
+	Module(service, log.New(io.Discard, "", 0)).Mount(router)
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
+	response, err := http.Post(server.URL+capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure, "application/json", strings.NewReader(`{"targetId":"local","agentId":"codex","action":"update"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	return response
+}
+
+func TestRunAgentUpdateActionIsGuardedBeforeItRuns(t *testing.T) {
+	refused := &updateActionService{fakeService: &fakeService{}}
+	if response := actionClientRequest(t, refused); response.StatusCode != http.StatusForbidden || refused.calls != 0 {
+		t.Fatalf("status %d, calls %d", response.StatusCode, refused.calls)
+	}
+	if response := actionClientRequest(t, &fakeService{}); response.StatusCode != http.StatusForbidden {
+		t.Fatalf("a service with no guard must refuse: %d", response.StatusCode)
+	}
+	admitted := &updateActionService{fakeService: &fakeService{}, guardAdmits: true}
+	response := actionClientRequest(t, admitted)
+	if response.StatusCode != http.StatusOK || admitted.calls != 1 {
+		t.Fatalf("status %d, calls %d", response.StatusCode, admitted.calls)
+	}
+}
+
+func TestAdapterRefusesActionsWithoutAConfiguredGuard(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	if (&Adapter{}).GuardAgentUpdateAction(recorder, httptest.NewRequest(http.MethodPost, "/", nil)) || recorder.Code != http.StatusForbidden {
+		t.Fatalf("an adapter with no guard admitted: %d", recorder.Code)
+	}
+}
+
+func TestAgentReadsAreNotGuarded(t *testing.T) {
+	refused := &updateActionService{fakeService: &fakeService{}}
+	router := mux.NewRouter()
+	Module(refused, log.New(io.Discard, "", 0)).Mount(router)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	response, err := http.Post(server.URL+capabilitiesconnect.CapabilitiesServiceAgentUpdateProcedure, "application/json", strings.NewReader(`{"targetId":"local","agentId":"codex"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+}
+
+func TestRunAgentUpdateActionProjectsEveryField(t *testing.T) {
+	h := NewConnectHandler(Deps{Service: &updateActionService{fakeService: &fakeService{}}})
+	response, err := h.RunAgentUpdateAction(context.Background(), connect.NewRequest(&capabilitiesv1.RunAgentUpdateActionRequest{TargetId: "local", AgentId: "codex", Action: "update"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	update := response.Msg.GetUpdate()
+	if !response.Msg.Success || response.Msg.Message != "update" || response.Msg.OperationId != "op-1" || update.State != "up_to_date" || update.OperatorCommand != "cmd" || update.Reason != "why" || update.InstallKind != "managed" || update.RollbackVersion != "1.0.0" || !update.NewerThanReviewed || len(update.Checks) != 1 || !update.Checks[0].Passed {
+		t.Fatalf("response = %+v", response.Msg)
+	}
+}
+
+func TestRunAgentUpdateActionErrorCodes(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want connect.Code
+	}{
+		"refused":  {fmt.Errorf("%w: operator only", ErrPermissionDenied), connect.CodePermissionDenied},
+		"busy":     {fmt.Errorf("%w: running", ErrFailedPrecondition), connect.CodeFailedPrecondition},
+		"gone":     {fmt.Errorf("%w: gone", ErrTargetNotFound), connect.CodeNotFound},
+		"deadline": {context.DeadlineExceeded, connect.CodeDeadlineExceeded},
+		"remote":   {connect.NewError(connect.CodePermissionDenied, errors.New("node write scope")), connect.CodePermissionDenied},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			h := NewConnectHandler(Deps{Service: &updateActionService{fakeService: &fakeService{}, err: tc.err}})
+			_, err := h.RunAgentUpdateAction(context.Background(), connect.NewRequest(&capabilitiesv1.RunAgentUpdateActionRequest{}))
+			if connect.CodeOf(err) != tc.want {
+				t.Fatalf("code = %v, want %v", connect.CodeOf(err), tc.want)
+			}
+		})
+	}
+	h := NewConnectHandler(Deps{Service: &fakeService{}})
+	if _, err := h.RunAgentUpdateAction(context.Background(), connect.NewRequest(&capabilitiesv1.RunAgentUpdateActionRequest{})); connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("code = %v", connect.CodeOf(err))
 	}
 }

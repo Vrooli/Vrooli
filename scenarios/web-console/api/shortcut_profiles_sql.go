@@ -127,7 +127,7 @@ func (s *SQLShortcutStore) Delete(ctx context.Context, id string) bool {
 	if n > 0 {
 		// Preserve a revision tombstone to reject a delayed mutation even if a
 		// profile is immediately recreated with the same ID and timestamp.
-		_, err = tx.ExecContext(ctx, `INSERT INTO shortcut_agent_preferences (profile_id, ordered_agent_ids, hidden_agent_ids, revision) VALUES (?, '[]', '[]', 1) ON CONFLICT(profile_id) DO UPDATE SET ordered_agent_ids='[]', hidden_agent_ids='[]', revision=shortcut_agent_preferences.revision+1`, id)
+		_, err = tx.ExecContext(ctx, `INSERT INTO shortcut_agent_preferences (profile_id, ordered_agent_ids, hidden_agent_ids, revision) VALUES (?, '[]', '[]', 1) ON CONFLICT(profile_id) DO UPDATE SET ordered_agent_ids='[]', hidden_agent_ids='[]', order_mode='custom', last_launched_at='{}', revision=shortcut_agent_preferences.revision+1`, id)
 		if err != nil {
 			return false
 		}

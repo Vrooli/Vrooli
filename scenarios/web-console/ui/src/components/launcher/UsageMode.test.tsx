@@ -1,59 +1,89 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders as render, setDesktopViewport } from "../../test-utils";
+import { renderWithProviders as render, setDesktopViewport, setMobileViewport } from "../../test-utils";
 import type { UsageModeAgent, UsageModeState, UsageModeView } from "../../api/usageMode";
-import AgentGridSection, { withModelArgs } from "./AgentGridSection";
+import TerminalLauncher from "../TerminalLauncher";
 import UsageModeSheet from "./UsageModeSheet";
 import { useUsageMode } from "./useUsageMode";
 
 const api = vi.hoisted(() => ({ getUsageMode: vi.fn(), startUsageMode: vi.fn(), endUsageMode: vi.fn() }));
 vi.mock("../../api/usageMode", () => api);
-vi.mock("./useAgentUpdates", () => ({ useAgentUpdates: () => ({ updates: {}, loading: false }) }));
-const usage = vi.hoisted(() => ({ windows: [] as { pool: string; windowMinutes: number; usedPercent: number; resetsAt: string }[] }));
+vi.mock("./useAgentUpdates", () => ({ useAgentUpdates: () => ({ updates: {}, loading: false, runs: {}, run: vi.fn(), retryCheck: vi.fn() }) }));
+vi.mock("./useHarnesses", () => ({ useHarnesses: () => ({ harnesses: {}, known: false }), declaredWindowsFor: () => 0 }));
+const policy = vi.hoisted(() => ({ literal: false }));
+vi.mock("./useModelPolicy", async () => {
+  const actual = await vi.importActual<typeof import("./useModelPolicy")>("./useModelPolicy");
+  return { ...actual, useModelPolicy: () => ({ policy: null, loading: false, failed: false, choices: [], sources: [], sourceChoices: [], stale: false, selectable: false, choose: vi.fn(), usesVrooliCredits: false, literal: policy.literal, reload: vi.fn() }) };
+});
+const usage = vi.hoisted(() => ({ windows: [] as { pool: string; windowMinutes: number; usedPercent: number; resetsAt: string; observedAt: string }[] }));
 vi.mock("./useAgentUsage", () => ({ useAgentUsage: () => ({ usages: { codex: { agentId: "codex", targetId: "local", match: "likely", reason: "", source: "p", observedAt: new Date().toISOString(), windows: usage.windows } }, loading: false, refresh: vi.fn() }) }));
 
 const codex: UsageModeAgent = { agentId: "codex", label: "Codex", runner: "codex", lowerModel: "gpt-6-luna", usualModel: "gpt-6.1-terra" };
 const inMode: UsageModeAgent = { ...codex, modeId: "um-1", model: "gpt-6-luna", fullPowerArgs: "-m gpt-6.1-terra" };
 const mode: UsageModeView = { id: "um-1", label: "Save usage", runner: "codex", startedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 3_600_000).toISOString(), untilKind: "time", kind: "save" };
 const target = { id: "local", kind: "local" as const, label: "This machine", available: true, state: "dispatchable" as const, readiness: [{ key: "capability:codex", label: "Codex", passed: true, state: "ready" as const, detail: "" }] };
-const shortcuts = [{ agentId: "codex", label: "Codex", command: "codex --yolo" }];
 
-describe("usage mode in the launcher grid", () => {
-  it("changes nothing when no mode applies", () => {
-    const onLaunch = vi.fn();
-    render(<AgentGridSection shortcuts={shortcuts} target={target} usageAgents={[codex]} usageModes={[]} disabled={false} onLaunch={onLaunch} />);
+const launchButton = () => screen.getByTestId("launcher-submit-selection");
+
+async function renderDrawer(agents: UsageModeAgent[], modes: UsageModeView[], command = "codex --yolo") {
+  api.getUsageMode.mockResolvedValue({ modes, agents, canControl: true });
+  const onLaunch = vi.fn();
+  render(<TerminalLauncher open onClose={vi.fn()} onLaunch={onLaunch} shortcuts={[{ agentId: "codex", label: "Codex", command }]} availableTargets={[target]} />);
+  await waitFor(() => { expect(api.getUsageMode).toHaveBeenCalled(); });
+  await screen.findByTestId("launcher-save-usage");
+  return onLaunch;
+}
+
+describe("usage mode in the settings panel", () => {
+  beforeEach(() => { vi.resetAllMocks(); setMobileViewport(); });
+
+  it("changes nothing when no mode applies, and offers to start one", async () => {
+    const onLaunch = await renderDrawer([codex], []);
     expect(screen.queryByTestId("launcher-mode-note-codex")).toBeNull();
     expect(screen.queryByTestId("launcher-full-power-codex")).toBeNull();
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    expect(onLaunch).toHaveBeenCalledWith("codex --yolo");
+    expect(screen.getByTestId("launcher-save-usage-switch")).not.toBeChecked();
+    expect(screen.getByTestId("launcher-save-usage")).toHaveTextContent("launcher.usageModeOffHint");
+    fireEvent.click(launchButton());
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "codex --yolo" }));
   });
 
-  it("shows the model a new session will use and why, and launches normally", () => {
-    const onLaunch = vi.fn();
-    render(<AgentGridSection shortcuts={shortcuts} target={target} usageAgents={[inMode]} usageModes={[mode]} disabled={false} onLaunch={onLaunch} />);
-    expect(screen.getByTestId("launcher-mode-note-codex")).toHaveTextContent("launcher.usageModeWillUse");
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    expect(onLaunch).toHaveBeenLastCalledWith("codex --yolo");
+  it("states the lowering and the end time, and launches normally", async () => {
+    const onLaunch = await renderDrawer([inMode], [mode]);
+    expect(screen.getByTestId("launcher-mode-note-codex")).toHaveTextContent("launcher.usageModeLowers");
+    expect(screen.getByTestId("launcher-save-usage-switch")).toBeChecked();
+    expect(screen.getByTestId("launcher-save-usage")).toHaveTextContent("launcher.usageModeOnHint");
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent("gpt-6-luna");
+    fireEvent.click(launchButton());
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo" }));
   });
 
-  it("full power passes the normal default for that launch only", () => {
-    const onLaunch = vi.fn();
-    render(<AgentGridSection shortcuts={shortcuts} target={target} usageAgents={[inMode]} usageModes={[mode]} disabled={false} onLaunch={onLaunch} />);
+  it("opens the sheet for this harness to choose how long, and ends the mode directly", async () => {
+    await renderDrawer([codex], []);
+    fireEvent.click(screen.getByTestId("launcher-save-usage-switch"));
+    expect(await screen.findByTestId("usage-mode-agent-codex")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("full power passes the normal default for that launch only", async () => {
+    const onLaunch = await renderDrawer([inMode], [mode]);
     fireEvent.click(screen.getByTestId("launcher-full-power-codex"));
-    expect(onLaunch).toHaveBeenLastCalledWith("codex --yolo -m gpt-6.1-terra");
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    expect(onLaunch).toHaveBeenLastCalledWith("codex --yolo");
+    expect(screen.getByTestId("launcher-summary")).toHaveTextContent("gpt-6.1-terra");
+    fireEvent.click(launchButton());
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo", agentLaunch: expect.objectContaining({ agent_id: "codex", model: "gpt-6.1-terra" }) }));
+    fireEvent.click(screen.getByTestId("launcher-full-power-codex"));
+    fireEvent.click(launchButton());
+    expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "codex --yolo", agentLaunch: undefined }));
   });
 
-  it("offers no full power when the command already names a model or there is nothing to restore", () => {
-    const { rerender } = render(<AgentGridSection shortcuts={[{ agentId: "codex", label: "Codex", command: "codex -m gpt-6-luna" }]} target={target} usageAgents={[inMode]} usageModes={[mode]} disabled={false} onLaunch={vi.fn()} />);
+  it("offers no full power for a command of the operator's own", async () => {
+    policy.literal = true;
+    await renderDrawer([inMode], [mode], "codex -m gpt-6-luna");
     expect(screen.queryByTestId("launcher-full-power-codex")).toBeNull();
-    rerender(<AgentGridSection shortcuts={shortcuts} target={target} usageAgents={[{ ...inMode, fullPowerArgs: undefined }]} usageModes={[mode]} disabled={false} onLaunch={vi.fn()} />);
-    expect(screen.queryByTestId("launcher-full-power-codex")).toBeNull();
+    policy.literal = false;
   });
 
-  it("routes the model through --arg for the agent launcher form", () => {
-    expect(withModelArgs("vrooli agent launch --runner claude", "--model sonnet")).toBe("vrooli agent launch --runner claude --arg=--model --arg=sonnet");
+  it("offers no full power when there is nothing to restore", async () => {
+    await renderDrawer([{ ...inMode, fullPowerArgs: undefined }], [mode]);
+    expect(screen.queryByTestId("launcher-full-power-codex")).toBeNull();
   });
 });
 
@@ -66,11 +96,13 @@ const state = (over: Partial<UsageModeState>): UsageModeState => ({ modes: [], a
 const learn: UsageModeView = { id: "um-learn", label: "Learn: code.default", runner: "codex", startedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86_400_000).toISOString(), untilKind: "time", kind: "learn", role: "code.default", splitPercent: 50, sessionsOptIn: true };
 
 describe("a Learn comparison in the launcher", () => {
-  it("claims no model when the session's model depends on its arm", () => {
-    render(<AgentGridSection shortcuts={shortcuts} target={target} usageAgents={[{ ...codex, learnModeId: "um-learn" }]} usageModes={[learn]} disabled={false} onLaunch={vi.fn()} />);
+  beforeEach(() => { vi.resetAllMocks(); setMobileViewport(); });
+
+  it("claims no model when the session's model depends on its arm", async () => {
+    await renderDrawer([{ ...codex, learnModeId: "um-learn" }], [learn]);
     const note = screen.getByTestId("launcher-mode-note-codex");
     expect(note).toHaveTextContent("launcher.usageModeLearnArm");
-    expect(note).not.toHaveTextContent("launcher.usageModeWillUse");
+    expect(note).not.toHaveTextContent("launcher.usageModeLowers");
     expect(screen.queryByTestId("launcher-full-power-codex")).toBeNull();
   });
 });
@@ -101,7 +133,7 @@ describe("usage mode sheet", () => {
     await screen.findByTestId("usage-mode-start");
     expect(screen.queryByTestId("usage-mode-choice-reset-10080")).toBeNull();
     unmount();
-    usage.windows = [{ pool: "primary", windowMinutes: 10080, usedPercent: 10, resetsAt: new Date(Date.now() + 86_400_000).toISOString() }];
+    usage.windows = [{ pool: "primary", windowMinutes: 10080, usedPercent: 10, resetsAt: new Date(Date.now() + 86_400_000).toISOString(), observedAt: new Date().toISOString() }];
     render(<Sheet />);
     fireEvent.click(await screen.findByTestId("usage-mode-choice-reset-10080"));
     api.startUsageMode.mockResolvedValue(state({}));

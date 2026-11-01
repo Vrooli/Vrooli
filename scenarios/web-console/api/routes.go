@@ -132,11 +132,12 @@ func (s *Server) setupRoutes() {
 				MaxBytes:       cfg.ArchiveMaxBytes,
 			}
 		},
-		AgentHistorySize:  archivedAgentHistorySize,
-		PruneAgentHistory: pruneArchivedAgentHistory,
-		LifecycleLedger:   internalContinuity.NewSQLLedger(s.db),
-		ContinuityCatalog: internalContinuity.NewSQLCatalogStore(s.db),
-		Remote:            s,
+		AgentHistorySize:   archivedAgentHistorySize,
+		PruneAgentHistory:  pruneArchivedAgentHistory,
+		LifecycleLedger:    internalContinuity.NewSQLLedger(s.db),
+		ContinuityCatalog:  internalContinuity.NewSQLCatalogStore(s.db),
+		Remote:             s,
+		ComposeAgentLaunch: s.composeAgentLaunch,
 	}
 	if s.paidCodingProtocolQualified {
 		sessionAdapter.PaidCodingCredential = newPaidCodingToken
@@ -226,14 +227,17 @@ func (s *Server) setupRoutes() {
 	metricsH.Module(&metricsH.Adapter{Metrics: s.metrics}, nil).Mount(s.router)
 	eventsH.Module(&eventsH.Adapter{Logger: s.events}, nil).Mount(s.router)
 	capabilitiesH.Module(&capabilitiesH.Adapter{
-		Registry:        s.capabilities,
-		BackendRegistry: s.backendRegistry,
-		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
-		RemoteInstall:   s.installCapabilityRemote,
-		ReadAgentUpdate: s.readAgentUpdate,
-		ReadAgentUsage:  s.readAgentUsage,
-		ConfirmInstall:  s.confirmCapabilityInstall,
-		ActionTracker:   capreg.NewActionTracker(),
+		Registry:          s.capabilities,
+		BackendRegistry:   s.backendRegistry,
+		DefaultBackend:    func() string { return string(s.sessions.GetConfig().DefaultBackend) },
+		RemoteInstall:     s.installCapabilityRemote,
+		ReadAgentUpdate:   s.readAgentUpdate,
+		RunUpdateAction:   s.runAgentUpdateAction,
+		GuardUpdateAction: guardAgentUpdateAction,
+		ReadAgentUsage:    s.readAgentUsage,
+		ListHarnessesOn:   s.listHarnesses,
+		ConfirmInstall:    s.confirmCapabilityInstall,
+		ActionTracker:     capreg.NewActionTracker(),
 	}, nil).Mount(s.router)
 
 	audioAdminH.Module(audioAdminH.Deps{

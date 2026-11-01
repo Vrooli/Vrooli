@@ -21,6 +21,9 @@ func TestApplyColumnMigrations_BackfillsOriginToUI(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := db.Exec(`CREATE TABLE shortcut_agent_preferences (profile_id TEXT PRIMARY KEY)`); err != nil {
+		t.Fatal(err)
+	}
 	// oldSessionsTable (from agent_type_migration_test.go) predates the origin
 	// column.
 	if _, err := db.Exec(oldSessionsTable); err != nil {

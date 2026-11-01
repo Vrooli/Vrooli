@@ -105,6 +105,7 @@ type Server struct {
 	idempotency                 *intsessions.IdempotencyCache // replay-safe session creation
 	capabilities                *capabilities.Registry
 	agentUpdates                agentUpdateCache
+	agentUpdateActions          agentUpdateActions
 	workspace                   intworkspace.Store
 	groupTemplates              intgrouptemplates.Store
 	handoffRules                inthandoffrules.Store

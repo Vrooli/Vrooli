@@ -311,6 +311,29 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   --color-on-primary: rgb(var(--wc-accent-fg));
 }
 
+/* The launch drawer's shared controls, tuned through the library's own tokens. */
+.wc-launcher-panel {
+  /* Muted surfaces are quiet tints of the raised sheet, in either palette. */
+  --color-surface-muted: rgb(var(--wc-text-primary) / 0.06);
+}
+.wc-launcher-panel > header {
+  align-items: center;
+  padding-block: 1.25rem 0.75rem;
+}
+@media (min-width: 48rem) {
+  .wc-launcher-panel > header { padding-block: 0.75rem; }
+}
+/* The header carries controls on a phone, so the grabber keeps to the strip above
+   them. At its default height it sits on the machine picker and swallows its taps. */
+.wc-launcher-panel > .rcl-responsive-dialog__grabber { min-block-size: 1.25rem; }
+.wc-launcher-panel > footer {
+  /* The home indicator is the footer's margin, not an addition to it. */
+  padding-block-end: max(0.75rem, var(--rcl-safe-bottom, 0px));
+}
+@media (min-width: 48rem) {
+  .wc-launcher-panel > header { padding-block: 0.75rem; }
+}
+
 /* Subtle progress tracks stay distinct from the accent in both palettes. */
 [data-wc-rcl-theme] {
   --color-border-subtle: rgb(var(--wc-surface-base));

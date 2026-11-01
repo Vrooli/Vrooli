@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Clock, GripVertical, Loader2, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, Clock, GripVertical, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1";
 
@@ -7,7 +8,7 @@ import { listGroupTemplates, type GroupTemplateDTO, type StartMode, type Templat
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
-import { Button } from "../ui/button";
+import { LaunchFooter } from "./LaunchFooter";
 
 // [REQ:P0-014g] Group Templates
 
@@ -25,16 +26,10 @@ interface GroupModePanelProps {
   onCreate: (request: GroupCreationRequest) => void;
   isCreating: boolean;
   disabled: boolean;
-  /**
-   * The machine trigger, rendered beside the template trigger.
-   *
-   * Template and machine are the two one-line decisions this mode opens with,
-   * so they share a row. The launcher owns machine state, so it passes the
-   * control in rather than this panel reaching for it.
-   */
-  machineSlot?: ReactNode;
-  /** Cancel the whole dialog — the footer's left-hand escape. */
-  onCancel?: () => void;
+  /** Where the drawer's footer lives, so this panel's launch sits with the others. */
+  footerHost?: HTMLElement | null;
+  /** The machine, named in the footer's one-line summary. */
+  machineLabel?: string;
   /** Opens the template editor, which owns the saved recipe. */
   onEditTemplates?: () => void;
 }
@@ -109,7 +104,7 @@ function TemplatePicker({
   useEscapeKey(open, () => { setOpen(false); });
 
   return (
-    <div className="relative min-w-0 flex-1 basis-[13rem]">
+    <div className="relative min-w-0">
       <button
         type="button"
         id="launcher-template-picker"
@@ -118,7 +113,7 @@ function TemplatePicker({
         aria-expanded={open}
         aria-label={`${t(strings.launcher.template)}: ${selected ? selected.name : t(strings.launcher.noTemplate)}`}
         onClick={() => { setOpen((prev) => !prev); }}
-        className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm transition hover:border-wc-accent"
+        className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm transition hover:border-wc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent"
         style={selected?.color ? { borderColor: selected.color } : undefined}
       >
         <span
@@ -129,7 +124,7 @@ function TemplatePicker({
         <span className="min-w-0 flex-1 truncate text-wc-text-primary">
           {selected ? selected.name : t(strings.launcher.noTemplate)}
         </span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 text-wc-text-faint transition", open && "rotate-180")} aria-hidden />
+        <ChevronDown className={cn("h-4 w-4 shrink-0 text-wc-text-faint transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent", open && "rotate-180")} aria-hidden />
       </button>
 
       {open && (
@@ -151,7 +146,7 @@ function TemplatePicker({
                 data-testid={`launcher-template-option-${id || "none"}`}
                 onClick={() => { onSelect(id); setOpen(false); }}
                 className={cn(
-                  "flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-start transition",
+                  "flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent",
                   isSelected ? "bg-wc-accent/10" : "hover:bg-wc-surface-input",
                 )}
               >
@@ -191,8 +186,8 @@ export default function GroupModePanel({
   onCreate,
   isCreating,
   disabled,
-  machineSlot,
-  onCancel,
+  footerHost,
+  machineLabel,
   onEditTemplates,
 }: GroupModePanelProps) {
   const { t } = useTranslation();
@@ -249,15 +244,30 @@ export default function GroupModePanel({
   };
 
   const rail = template?.color ?? ACCENT;
-  const canCreate = name.trim().length > 0 && !isCreating && !disabled;
+  const canCreate = name.trim().length > 0 && !disabled;
+  const roleSummary = t(strings.launcher.groupSummaryRoles, { count: roles.length });
+  const footer = (
+    <LaunchFooter
+      testId="launcher-create-group"
+      summary={machineLabel ? `${machineLabel} · ${roleSummary}` : roleSummary}
+      label={t(strings.launcher.startGroup)}
+      disabled={!canCreate}
+      busy={isCreating}
+      busyLabel={t(strings.launcher.creatingGroup)}
+      onLaunch={() => {
+        onCreate({
+          name: name.trim(),
+          color: template?.color ?? "",
+          roles,
+          templateId: template?.id,
+        });
+      }}
+    />
+  );
 
   return (
     <div className="space-y-4">
-      {/* Template and machine: the two one-line decisions, on one line. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <TemplatePicker templates={templates} templateId={templateId} onSelect={chooseTemplate} />
-        {machineSlot}
-      </div>
+      <TemplatePicker templates={templates} templateId={templateId} onSelect={chooseTemplate} />
 
       {/* The name is the one thing an operator must type, so it gets the
           full width and a real label rather than sharing a two-up grid. */}
@@ -289,7 +299,7 @@ export default function GroupModePanel({
             type="button"
             data-testid="launcher-group-role-add"
             onClick={() => { setRoles((prev) => [...prev, blankRole()]); }}
-            className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium text-wc-accent transition hover:bg-wc-surface-input"
+            className="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-medium text-wc-accent transition hover:bg-wc-surface-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent"
           >
             <Plus className="h-3.5 w-3.5" aria-hidden />
             {t(strings.launcher.addRole)}
@@ -334,7 +344,7 @@ export default function GroupModePanel({
                     patchRole(index, { start_mode: (waiting ? "eager" : "waiting") as StartMode });
                   }}
                   className={cn(
-                    "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition",
+                    "flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent",
                     waiting
                       ? "border-dashed border-wc-default text-wc-text-faint hover:text-wc-text-secondary"
                       : "border-wc-accent bg-wc-accent/10 text-wc-accent",
@@ -350,7 +360,7 @@ export default function GroupModePanel({
                   data-testid={`launcher-group-role-remove-${String(index)}`}
                   aria-label={t(strings.launcher.removeRole, { label: role.label })}
                   onClick={() => { setRoles((prev) => prev.filter((_, i) => i !== index)); }}
-                  className="flex h-11 w-9 shrink-0 items-center justify-center rounded-lg text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+                  className="flex h-11 w-9 shrink-0 items-center justify-center rounded-lg text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent"
                 >
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </button>
@@ -393,41 +403,18 @@ export default function GroupModePanel({
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-wc-default pt-3">
-        {onEditTemplates && (
-          <button
-            type="button"
-            data-testid="launcher-edit-templates"
-            onClick={onEditTemplates}
-            className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
-          >
-            <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            {t(strings.launcher.editTemplate)}
-          </button>
-        )}
-        <span className="flex-1" />
-        {onCancel && (
-          <Button variant="outline" size="sm" onClick={onCancel}>{t(strings.roles.cancel)}</Button>
-        )}
-        <Button
-          data-testid="launcher-create-group"
-          size="sm"
-          disabled={!canCreate}
-          onClick={() => {
-            onCreate({
-              name: name.trim(),
-              color: template?.color ?? "",
-              roles,
-              templateId: template?.id,
-            });
-          }}
+      {onEditTemplates && (
+        <button
+          type="button"
+          data-testid="launcher-edit-templates"
+          onClick={onEditTemplates}
+          className="flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent"
         >
-          {isCreating
-            ? <Loader2 className="me-1.5 h-4 w-4 animate-spin" aria-hidden />
-            : <Plus className="me-1.5 h-4 w-4" aria-hidden />}
-          {isCreating ? t(strings.launcher.creatingGroup) : t(strings.launcher.createGroup)}
-        </Button>
-      </div>
+          <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
+          {t(strings.launcher.editTemplate)}
+        </button>
+      )}
+      {footerHost ? createPortal(footer, footerHost) : footer}
     </div>
   );
 }

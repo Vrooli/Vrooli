@@ -34,14 +34,16 @@ type Client interface {
 	// error (nil on a clean EOF).
 	Events(ctx context.Context, onEvent func(Event)) error
 	// ReplyPermission answers a pending permission request with "once",
-	// "always", or "reject".
-	ReplyPermission(ctx context.Context, requestID, reply string) error
+	// "always", or "reject". V1 identifies the request globally; V2 scopes it
+	// to the owning session, so both are passed.
+	ReplyPermission(ctx context.Context, sessionID, requestID, reply string) error
 }
 
 // HTTPClient talks to an `opencode serve` instance over loopback HTTP.
 type HTTPClient struct {
-	BaseURL string
-	HTTP    *http.Client
+	BaseURL  string
+	Password string
+	HTTP     *http.Client
 }
 
 // NewHTTPClient builds a client with sensible per-call timeouts. The event
@@ -54,11 +56,18 @@ func NewHTTPClient(baseURL string) *HTTPClient {
 	}
 }
 
+func setBasicAuth(req *http.Request, password string) {
+	if strings.TrimSpace(password) != "" {
+		req.SetBasicAuth("opencode", password)
+	}
+}
+
 func (c *HTTPClient) getJSON(ctx context.Context, path string, out interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path, nil)
 	if err != nil {
 		return err
 	}
+	setBasicAuth(req, c.Password)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err
@@ -104,6 +113,7 @@ func (c *HTTPClient) AbortSession(ctx context.Context, sessionID string) error {
 	if err != nil {
 		return err
 	}
+	setBasicAuth(req, c.Password)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err
@@ -130,6 +140,7 @@ func (c *HTTPClient) RevertMessage(ctx context.Context, sessionID, messageID, pa
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	setBasicAuth(req, c.Password)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err
@@ -163,6 +174,7 @@ func (c *HTTPClient) streamEvents(ctx context.Context, path string, onEvent func
 		return err
 	}
 	req.Header.Set("Accept", "text/event-stream")
+	setBasicAuth(req, c.Password)
 	// The stream is intentionally long-lived. An explicit zero timeout documents
 	// that cancellation is owned by ctx rather than an implicit default client.
 	streamClient := &http.Client{Timeout: 0}
@@ -210,7 +222,7 @@ func (c *HTTPClient) streamEvents(ctx context.Context, path string, onEvent func
 
 // ReplyPermission answers a pending permission request: POST
 // /permission/{requestID}/reply with {"reply": "once" | "always" | "reject"}.
-func (c *HTTPClient) ReplyPermission(ctx context.Context, requestID, reply string) error {
+func (c *HTTPClient) ReplyPermission(ctx context.Context, _, requestID, reply string) error {
 	body, err := json.Marshal(map[string]string{"reply": reply})
 	if err != nil {
 		return err
@@ -221,6 +233,7 @@ func (c *HTTPClient) ReplyPermission(ctx context.Context, requestID, reply strin
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	setBasicAuth(req, c.Password)
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return err

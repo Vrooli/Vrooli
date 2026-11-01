@@ -302,6 +302,8 @@ func applyColumnMigrations(ctx context.Context, db dbx.Handle) error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS continuity_publication_queue (session_id TEXT PRIMARY KEY, lifecycle_state TEXT NOT NULL, source_fingerprint TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', published_fingerprint TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL)`,
 		`ALTER TABLE continuity_reconciliation_manifests ADD COLUMN previous_json TEXT NOT NULL DEFAULT '{}'`,
+		`ALTER TABLE shortcut_agent_preferences ADD COLUMN order_mode TEXT NOT NULL DEFAULT 'custom'`,
+		`ALTER TABLE shortcut_agent_preferences ADD COLUMN last_launched_at TEXT NOT NULL DEFAULT '{}'`,
 	}
 	for _, m := range migrations {
 		if _, err := db.ExecContext(ctx, m); err != nil {

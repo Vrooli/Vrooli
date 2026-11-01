@@ -6,6 +6,7 @@ import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1";
 
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
+import { formatDateTime } from "../../lib/localeFormat";
 import { slugify } from "../../lib/slugify";
 import type { TerminalTarget, TerminalTargetState } from "../../api/targets";
 
@@ -77,6 +78,7 @@ function metaFor(
   neverSeen: string,
   agentsReady: (ready: number, total: number) => string,
   capabilityMissing: (name: string) => string,
+  localHost: string,
 ): string {
   const platform = [target.os, target.arch].filter(Boolean).join("/");
   const capabilityFacts = target.readiness?.filter((fact) => fact.key.startsWith("capability:")) ?? [];
@@ -90,7 +92,7 @@ function metaFor(
   // agent that is missing in the position a reader takes for the one that is
   // present. A problem has to be phrased as a problem.
   const capabilityFailure = capabilityFacts.find((fact) => fact.state !== "ready");
-  if (target.kind === "local" && !capabilityFacts.length) return "Aquila host";
+  if (target.kind === "local" && !capabilityFacts.length) return localHost;
   if (transportFailure || capabilityFailure || headlessFailure) {
     const missing = capabilityFailure ? capabilityMissing(capabilityFailure.label || capabilityFailure.key.slice("capability:".length)) : undefined;
     return [platform, capabilitySummary, transportFailure?.label, missing, headlessFailure?.detail, headlessFailure?.recovery_action].filter(Boolean).join(" · ");
@@ -102,11 +104,11 @@ function metaFor(
 }
 
 /** The grant chip: what the caller is actually allowed to do here. */
-function grantFor(target: TerminalTarget): string | undefined {
+function grantFor(target: TerminalTarget, noGrant: string): string | undefined {
   if (target.kind === "local") return undefined;
   const scope = target.readiness?.find((fact) => fact.key === "bridge_scope")?.detail;
   if (scope) return scope;
-  return target.available ? undefined : "No grant";
+  return target.available ? undefined : noGrant;
 }
 
 export default function MachinePicker({
@@ -120,7 +122,7 @@ export default function MachinePicker({
   refreshing = false,
   disabled = false,
 }: MachinePickerProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -159,6 +161,7 @@ export default function MachinePicker({
   const neverSeen = t(strings.terminalLauncher.neverSeen);
   const agentsReady = (ready: number, total: number) => t(strings.terminalLauncher.agentsReady, { ready, total });
   const capabilityMissing = (name: string) => t(strings.launcher.capabilityMissing, { name });
+  const localHost = t(strings.terminalLauncher.localHost);
 
   const handleListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (ordered.length === 0) return;
@@ -187,7 +190,9 @@ export default function MachinePicker({
   if (!selected) return null;
 
   return (
-    <div ref={rootRef} className="relative min-w-0 flex-1 basis-[13rem]">
+    <div ref={rootRef} className="relative min-w-0"
+      // Escape closes this menu and stops there, or it would close the drawer too.
+      onKeyDown={(event) => { if (open && event.key === "Escape") { event.stopPropagation(); close(); } }}>
       <button
         ref={triggerRef}
         type="button"
@@ -203,25 +208,17 @@ export default function MachinePicker({
           setActiveIndex(index >= 0 ? index : 0);
           setOpen((prev) => !prev);
         }}
-        className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm text-wc-text-primary transition hover:border-wc-accent disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-h-11 max-w-[11rem] items-center gap-[7px] whitespace-nowrap rounded-[var(--radius-control)] border border-wc-default bg-wc-surface-input px-3 text-[13px] font-medium text-wc-text-primary transition hover:border-wc-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wc-accent disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span className={cn("h-2 w-2 shrink-0 rounded-full", ledClass[toneFor(selected)])} aria-hidden />
-        {/* Two rows, not one. The name and the readiness summary were sharing a
-            single line with the summary marked shrink-0, so a machine called
-            anything at all was truncated to its first letter while "darwin/amd64
-            · 1/5 agents ready" took the rest. The name is the thing being
-            chosen; it gets its own line. */}
-        <span className="flex min-w-0 flex-1 flex-col py-1.5 leading-tight">
-          <span className="truncate">{selected.label}</span>
-          <span className="truncate text-xs text-wc-text-faint">{metaFor(selected, neverSeen, agentsReady, capabilityMissing)}</span>
-        </span>
-        <ChevronDown className={cn("h-4 w-4 shrink-0 text-wc-text-faint transition", open && "rotate-180")} aria-hidden />
+        <span className={cn("h-[7px] w-[7px] shrink-0 rounded-full", ledClass[toneFor(selected)])} aria-hidden />
+        <span className="min-w-0 truncate">{selected.label}</span>
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-wc-text-faint transition", open && "rotate-180")} aria-hidden />
       </button>
 
       {open && (
         <div
           data-testid="launcher-machine-menu"
-          className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl"
+          className="absolute end-0 top-full z-30 mt-1 w-[min(21rem,calc(100vw-5.5rem))] overflow-hidden rounded-lg border border-wc-default bg-wc-surface-raised shadow-xl"
         >
           <div className="flex items-center gap-2 px-3 py-1.5">
             <span className="min-w-0 flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-wc-text-faint">
@@ -235,7 +232,7 @@ export default function MachinePicker({
                 title={t(strings.terminalLauncher.refreshTargets)}
                 disabled={refreshing}
                 onClick={() => { void onRefresh(); }}
-                className="shrink-0 rounded-full p-1.5 text-wc-text-faint transition hover:bg-wc-surface-input hover:text-wc-text-primary disabled:opacity-60"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-wc-text-faint transition hover:bg-wc-surface-input hover:text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent disabled:opacity-60"
               >
                 <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} aria-hidden />
               </button>
@@ -256,7 +253,7 @@ export default function MachinePicker({
           >
             {ordered.map((target, index) => {
               const isSelected = target.id === selected.id;
-              const grant = grantFor(target);
+              const grant = grantFor(target, t(strings.terminalLauncher.noGrant));
               return (
                 <button
                   key={target.id}
@@ -264,7 +261,7 @@ export default function MachinePicker({
                   role="option"
                   aria-selected={isSelected}
                   aria-disabled={!target.available}
-                  title={!target.available ? (target.failure_rung ?? target.recovery_action ?? "This machine cannot host a terminal session") : undefined}
+                  title={!target.available ? (target.failure_rung ?? target.recovery_action ?? t(strings.terminalLauncher.targetCannotHost)) : undefined}
                   disabled={!target.available}
                   tabIndex={index === activeIndex ? 0 : -1}
                   data-active={index === activeIndex}
@@ -272,7 +269,7 @@ export default function MachinePicker({
                   onClick={() => { choose(target.id); }}
                   onFocus={() => { setActiveIndex(index); }}
                   className={cn(
-                    "flex w-full items-center gap-2.5 px-3 py-2 text-start transition",
+                    "flex min-h-11 w-full items-center gap-2.5 px-3 py-2 text-start transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-wc-accent",
                     isSelected ? "bg-wc-accent/10" : "hover:bg-wc-surface-input",
                     !target.available && "cursor-not-allowed opacity-60",
                   )}
@@ -283,7 +280,7 @@ export default function MachinePicker({
                     : <Server className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-wc-text-primary">{target.label}</span>
-                    <span className="block truncate text-[11px] text-wc-text-faint">{metaFor(target, neverSeen, agentsReady, capabilityMissing)}</span>
+                    <span className="block truncate text-[11px] text-wc-text-faint">{metaFor(target, neverSeen, agentsReady, capabilityMissing, localHost)}</span>
                   </span>
                   {isSelected
                     ? <Check className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />
@@ -294,6 +291,12 @@ export default function MachinePicker({
               );
             })}
           </div>
+
+          {selected.kind !== "local" && (
+            <p data-testid="launcher-machine-last-seen" className="border-t border-wc-default px-3 py-2 text-[11px] text-wc-text-muted">
+              {t(strings.terminalLauncher.lastSeen)}: {(selected.last_seen_at && formatDateTime(selected.last_seen_at, i18n.resolvedLanguage)) || neverSeen}
+            </p>
+          )}
 
           {/* Why the list reads the way it does, stated under the list rather
               than in a card above it. */}
@@ -321,7 +324,7 @@ export default function MachinePicker({
                   close();
                   onOpenMachines();
                 }}
-                className="flex min-h-11 flex-1 items-center gap-2 rounded-lg px-2 text-start text-sm text-wc-accent transition hover:bg-wc-surface-input"
+                className="flex min-h-11 flex-1 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-start text-[13px] text-wc-accent transition hover:bg-wc-surface-input focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent"
               >
                 <Plus className="h-4 w-4 shrink-0" aria-hidden />
                 {t(strings.launcher.linkMachine)}
@@ -333,7 +336,7 @@ export default function MachinePicker({
                   close();
                   onOpenMachines();
                 }}
-                className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+                className="flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-[13px] text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-wc-accent"
               >
                 <SlidersHorizontal className="h-4 w-4 shrink-0" aria-hidden />
                 {t(strings.machines.openFromLauncher)}

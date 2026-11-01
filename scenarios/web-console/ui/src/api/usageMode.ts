@@ -12,7 +12,8 @@ export interface UsageModeView {
   runner: string;
   startedAt: string;
   expiresAt?: string;
-  untilKind: "time" | "window_reset" | "off" | string;
+  /** "time", "window_reset" or "off"; open so an unknown kind still reads. */
+  untilKind: string;
   startedBy?: string;
   /** "save" lowers the model; "learn" is a comparison with no settings, whose model depends on the arm. */
   kind: "save" | "learn";
@@ -33,6 +34,8 @@ export interface UsageModeAgent {
   model?: string;
   /** Arguments that pin the normal default for one launch; absent when pointless. */
   fullPowerArgs?: string;
+  /** The compaction limit this agent's active mode applies, when the server reports it. */
+  contextLimitTokens?: number;
   /** Set when a Learn comparison includes this agent's sessions: the model depends on the arm, so none is named. */
   learnModeId?: string;
 }
@@ -85,8 +88,10 @@ export interface CompactCandidate {
 
 export interface CompactEvent {
   at: string;
-  trigger: "manual" | "armed" | "threshold" | "bulk" | string;
-  outcome: "compacted" | "skipped" | "failed" | string;
+  /** "manual", "armed", "threshold" or "bulk"; open as above. */
+  trigger: string;
+  /** "compacted", "skipped" or "failed"; open as above. */
+  outcome: string;
   reason?: string;
   tokensBefore?: number;
   tokensAfter?: number;
@@ -116,9 +121,9 @@ async function compactionRequest<T>(path: string, init?: RequestInit): Promise<T
 const jsonPost = (body: unknown): RequestInit => ({ method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 export const getCompactCandidates = (signal?: AbortSignal) =>
-  compactionRequest<{ candidates: CompactCandidate[] }>("/api/v1/context-compaction/candidates", { method: "GET", signal }).then((body) => body.candidates ?? []);
+  compactionRequest<{ candidates: CompactCandidate[] | null }>("/api/v1/context-compaction/candidates", { method: "GET", signal }).then((body) => body.candidates ?? []);
 export const compactIdleSessions = (sessionIds: string[]) =>
-  compactionRequest<{ results: CompactResult[] }>("/api/v1/context-compaction/compact-idle", jsonPost({ sessionIds })).then((body) => body.results ?? []);
+  compactionRequest<{ results: CompactResult[] | null }>("/api/v1/context-compaction/compact-idle", jsonPost({ sessionIds })).then((body) => body.results ?? []);
 export const getSessionCompaction = (sessionId: string, signal?: AbortSignal) =>
   compactionRequest<SessionCompaction>(`/api/v1/sessions/${encodeURIComponent(sessionId)}/context-compaction`, { method: "GET", signal });
 export const setSessionCompaction = (sessionId: string, body: { action: "compact_when_idle" | "set_threshold" | "cancel"; thresholdTokens?: number }) =>

@@ -2,9 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,7 +50,7 @@ type fakeOpenCodeClient struct {
 	serverDirectory  string
 }
 
-func (f *fakeOpenCodeClient) ReplyPermission(_ context.Context, requestID, reply string) error {
+func (f *fakeOpenCodeClient) ReplyPermission(_ context.Context, _, requestID, reply string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.replies = append(f.replies, requestID+":"+reply)
@@ -149,6 +155,33 @@ func newOpenCodeWatcherTest(t *testing.T) (*Server, *OpenCodeWatcher, string) {
 	return srv, w, sess.ID
 }
 
+func TestOpenCodeWatcherResolvesMissingPaneCWD(t *testing.T) {
+	cwd := t.TempDir()
+	t.Setenv("WC_DEFAULT_CWD", cwd)
+	srv, sess := newCodexTailerTestServer(t)
+	srv.agentCheckpointStore = NewInMemoryAgentTranscriptCheckpointStore()
+	store := sessionstore.NewInMemory()
+	if err := store.Save(context.Background(), sessionstore.Metadata{
+		ID: sess.ID, AgentType: sessionstore.AgentOpenCode, Created: time.Now().Add(-time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	srv.sessionStore = store
+	w := &OpenCodeWatcher{server: srv, checkpoints: srv.agentCheckpointStore, claimed: map[string]string{}}
+	client := &fakeOpenCodeClient{
+		sessions: []opencode.Session{ocSession("ses_a", cwd)},
+		messages: map[string][]opencode.MessageWithParts{
+			"ses_a": {ocUser(10, "hi")},
+		},
+	}
+
+	w.reconcileAll(context.Background(), client)
+
+	if state := srv.conversations.ListSession(context.Background(), sess.ID); len(state.Events) != 1 {
+		t.Fatalf("missing-CWD pane was not attributed: %+v", state.Events)
+	}
+}
+
 func TestOpenCodeWatcher_BackfillAttributesAndReconciles(t *testing.T) {
 	srv, w, paneID := newOpenCodeWatcherTest(t)
 	client := &fakeOpenCodeClient{
@@ -190,6 +223,59 @@ func TestOpenCodeWatcher_BackfillAttributesAndReconciles(t *testing.T) {
 // working directory. A pane started elsewhere is invisible to that unscoped
 // list, and used to be silently uncaptured. The watcher must query the pane's
 // own cwd to find it.
+
+func TestOpenCodeMajorVersion(t *testing.T) {
+	dir := t.TempDir()
+	for version, want := range map[string]int{"1.19.5": 1, "opencode v2.2.5": 2} {
+		path := filepath.Join(dir, strings.ReplaceAll(version, " ", "-"))
+		if err := os.WriteFile(path, []byte("#!/bin/sh\necho '"+version+"'\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if got := opencodeMajorVersion(path, dir, os.Environ()); got != want {
+			t.Errorf("%q major = %d, want %d", version, got, want)
+		}
+	}
+}
+
+func TestOpenCodeWatcherCapturesV2Sessions(t *testing.T) {
+	srv, w, paneID := newOpenCodeWatcherTest(t)
+	created := time.Now().UnixMilli()
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/session":
+			_ = json.NewEncoder(rw).Encode(map[string]any{
+				"data": []map[string]any{{
+					"id": "ses_v2", "title": "v2", "location": map[string]string{"directory": "/work"},
+					"time": map[string]int64{"created": created, "updated": created},
+				}},
+				"cursor": map[string]any{"previous": nil, "next": nil},
+			})
+		case "/api/session/ses_v2/message":
+			_ = json.NewEncoder(rw).Encode(map[string]any{
+				"data": []map[string]any{
+					{"id": "msg_u", "type": "user", "text": "hi from v2", "time": map[string]int64{"created": created + 1}},
+					{"id": "msg_a", "type": "assistant", "time": map[string]int64{"created": created + 2, "completed": created + 3}, "content": []map[string]string{{"type": "text", "text": "hello from v2"}}},
+				},
+				"cursor": map[string]any{"previous": nil, "next": nil},
+			})
+		default:
+			http.NotFound(rw, r)
+		}
+	}))
+	defer server.Close()
+
+	w.reconcileAll(context.Background(), opencode.NewV2HTTPClient(server.URL, ""))
+
+	state := srv.conversations.ListSession(context.Background(), paneID)
+	if len(state.Events) != 2 || state.Events[0].Text != "hi from v2" || state.Events[1].Text != "hello from v2" {
+		t.Fatalf("v2 events = %+v", state.Events)
+	}
+	meta, _ := srv.sessionStore.Get(context.Background(), paneID)
+	if meta.AgentSessionID != "ses_v2" {
+		t.Fatalf("v2 attribution = %q", meta.AgentSessionID)
+	}
+}
+
 func TestOpenCodeWatcher_DiscoversSessionsOutsideServerScope(t *testing.T) {
 	srv, w, paneID := newOpenCodeWatcherTest(t) // pane cwd is /work
 	client := &fakeOpenCodeClient{
@@ -283,11 +369,16 @@ func TestOpenCodeWatcher_FiltersByDirectory(t *testing.T) {
 
 func TestOpenCodeWatcher_SkipsAmbiguousSameDirCandidates(t *testing.T) {
 	srv, w, paneID := newOpenCodeWatcherTest(t)
-	// Add a SECOND opencode pane in the same cwd → a single session matches both
-	// panes and must not be routed to either.
+	// Add a SECOND live opencode pane in the same cwd → a single session matches
+	// both panes and must not be routed to either.
+	second, err := srv.sessions.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = srv.sessions.Delete(context.Background(), second.ID) }()
 	store := srv.sessionStore
 	if err := store.Save(context.Background(), sessionstore.Metadata{
-		ID:        "pane-2",
+		ID:        second.ID,
 		AgentType: sessionstore.AgentOpenCode,
 		CWD:       "/work",
 		Created:   time.Now().Add(-time.Minute),
@@ -305,7 +396,7 @@ func TestOpenCodeWatcher_SkipsAmbiguousSameDirCandidates(t *testing.T) {
 	if state := srv.conversations.ListSession(context.Background(), paneID); len(state.Events) != 0 {
 		t.Fatalf("ambiguous candidate must not be routed; got %+v", state.Events)
 	}
-	if state := srv.conversations.ListSession(context.Background(), "pane-2"); len(state.Events) != 0 {
+	if state := srv.conversations.ListSession(context.Background(), second.ID); len(state.Events) != 0 {
 		t.Fatalf("ambiguous candidate must not be routed; got %+v", state.Events)
 	}
 }
@@ -333,11 +424,13 @@ func TestOpenCodeWatcher_ReconnectsAndReconciles(t *testing.T) {
 	}
 
 	w := &OpenCodeWatcher{
-		server:            srv,
-		checkpoints:       srv.agentCheckpointStore,
-		claimed:           map[string]string{},
-		startServer:       func() (string, func(), error) { return "http://127.0.0.1:0", func() {}, nil },
-		newClient:         func(string) opencode.Client { return client },
+		server:      srv,
+		checkpoints: srv.agentCheckpointStore,
+		claimed:     map[string]string{},
+		startServer: func() (opencode.Server, func(), error) {
+			return opencode.Server{URL: "http://127.0.0.1:0", Major: 1}, func() {}, nil
+		},
+		newClient:         func(opencode.Server) opencode.Client { return client },
 		reconcileInterval: 50 * time.Millisecond,
 		reconnectBackoff:  20 * time.Millisecond,
 		stopCh:            make(chan struct{}),

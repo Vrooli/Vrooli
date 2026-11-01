@@ -5,6 +5,13 @@ import TerminalLauncher from "../components/TerminalLauncher";
 import { createElement } from "react";
 import { shortcutsClient } from "../api/shortcuts";
 
+/** The library Select keeps a native control beside its trigger; drive it directly. */
+const chooseSelect = (testId: string, value: string) => {
+  const native = screen.getByTestId(testId).closest("[data-rcl-select-field]")?.querySelector("select");
+  if (!native) throw new Error(`no select for ${testId}`);
+  fireEvent.change(native, { target: { value } });
+};
+
 // [REQ:P0-006a] Terminal Launch Flow UI
 // [REQ:P0-006b] Configurable Shortcut Entries
 describe("TerminalLauncher", () => {
@@ -51,13 +58,12 @@ describe("TerminalLauncher", () => {
     fireEvent.click(screen.getByTestId("launcher-machine-option-ready"));
     fireEvent.click(screen.getByTestId("launcher-options-toggle"));
     fireEvent.change(screen.getByTestId("launcher-working-dir"), { target: { value: " /tmp " } });
-    fireEvent.change(screen.getByTestId("launcher-backend-select"), { target: { value: "persistent" } });
-    fireEvent.change(screen.getByTestId("launcher-timeout-select"), { target: { value: "preset:1h" } });
-    fireEvent.click(screen.getByTestId("launcher-empty-shell"));
+    chooseSelect("launcher-backend-select", "persistent");
+    chooseSelect("launcher-timeout-select", "preset:1h");
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
     expect(onLaunch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId("launcher-submit-selection"));
-    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "persistent", workingDir: "/tmp" }));
-    fireEvent.click(screen.getByTestId("launcher-clear-selection"));
+    expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "persistent", workingDir: "/tmp", command: undefined }));
     fireEvent.change(screen.getByTestId("launcher-custom-input"), { target: { value: "echo hi" } });
     fireEvent.keyDown(screen.getByTestId("launcher-custom-input"), { key: "Enter" });
     fireEvent.click(screen.getByTestId("launcher-shortcut-list-files"));
@@ -76,7 +82,7 @@ describe("TerminalLauncher", () => {
   it("shows the unavailable and creating states", () => {
     render(createElement(TerminalLauncher, { open: true, onClose: vi.fn(), onLaunch: vi.fn(), isCreating: true, availableTargets: [] }));
     expect(screen.getByTestId("launcher-creating")).toBeInTheDocument();
-    expect(screen.getByTestId("launcher-custom-launch")).toBeDisabled();
+    expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
   });
 
   it("loads effective shortcuts, renders catalog errors, and handles unavailable targets", async () => {
@@ -103,7 +109,7 @@ describe("TerminalLauncher", () => {
       targetCatalog: { status: "registry-error", targets: [remote], message: "registry offline", recovery_action: "retry" },
     }));
 
-    expect(screen.getByTestId("launcher-no-backend")).toHaveTextContent("No terminal backend");
+    expect(screen.getByTestId("launcher-no-backend")).toHaveTextContent("terminalLauncher.noBackend");
     fireEvent.click(screen.getByTestId("launcher-machine-picker"));
     // The catalog's state is a footnote under the list it describes, not a
     // card that owns a quarter of the dialog.
@@ -112,9 +118,9 @@ describe("TerminalLauncher", () => {
     const unavailableOption = screen.getByTestId("launcher-machine-option-offline-node");
     expect(unavailableOption).toBeDisabled();
     expect(unavailableOption).toHaveAttribute("title", "node unreachable");
-    expect(screen.getByTestId("launcher-machine-picker")).toHaveAttribute("aria-label", "launcher.machine: This machine");
-    expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
-    expect(screen.getByTestId("launcher-custom-launch")).toBeDisabled();
+    expect(screen.getByTestId("launcher-machine-picker")).toHaveAttribute("aria-label", "launcher.machine: terminalLauncher.thisMachine");
+    fireEvent.click(screen.getByTestId("launcher-mode-shell"));
+    expect(screen.getByTestId("launcher-submit-selection")).toBeDisabled();
     await waitFor(() => { expect(screen.getByTestId("launcher-shortcut-status")).toBeInTheDocument(); });
     expect(getEffective).toHaveBeenCalled();
     getEffective.mockRestore();
