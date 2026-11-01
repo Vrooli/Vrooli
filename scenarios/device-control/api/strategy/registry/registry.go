@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	identitydomain "device-control/internal/identity"
 	"device-control/strategy"
@@ -83,14 +84,40 @@ func (r *Registry) List(ctx context.Context) []strategy.Declaration {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	out := make([]strategy.Declaration, 0, len(ids))
-	for _, id := range ids {
-		d, err := r.items[id].Describe(ctx)
-		if err != nil {
-			d = strategy.UnavailableDeclaration(id, "strategy probe failed", []strategy.Capability{{Name: strategy.CapInput}, {Name: strategy.CapScreenshot}}, err.Error())
-		}
-		out = append(out, d)
+	out := make([]strategy.Declaration, len(ids))
+	// Independent transports must not consume each other's probe budget.
+	// Keep the work bounded and publish results in deterministic ID order.
+	const maxConcurrentProbes = 8
+	limit := make(chan struct{}, maxConcurrentProbes)
+	var wait sync.WaitGroup
+	for index, id := range ids {
+		wait.Add(1)
+		go func(index int, id string) {
+			defer wait.Done()
+			defer func() {
+				if recover() != nil {
+					out[index] = strategy.UnavailableDeclaration(id, "strategy probe failed", []strategy.Capability{{Name: strategy.CapInput}, {Name: strategy.CapScreenshot}}, "strategy probe panicked")
+				}
+			}()
+			select {
+			case limit <- struct{}{}:
+				defer func() { <-limit }()
+			case <-ctx.Done():
+				out[index] = strategy.UnavailableDeclaration(id, "strategy probe failed", []strategy.Capability{{Name: strategy.CapInput}, {Name: strategy.CapScreenshot}}, ctx.Err().Error())
+				return
+			}
+			if err := ctx.Err(); err != nil {
+				out[index] = strategy.UnavailableDeclaration(id, "strategy probe failed", []strategy.Capability{{Name: strategy.CapInput}, {Name: strategy.CapScreenshot}}, err.Error())
+				return
+			}
+			d, err := r.items[id].Describe(ctx)
+			if err != nil {
+				d = strategy.UnavailableDeclaration(id, "strategy probe failed", []strategy.Capability{{Name: strategy.CapInput}, {Name: strategy.CapScreenshot}}, err.Error())
+			}
+			out[index] = d
+		}(index, id)
 	}
+	wait.Wait()
 	return out
 }
 

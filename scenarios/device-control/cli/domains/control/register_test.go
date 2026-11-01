@@ -270,6 +270,43 @@ func TestCheckedPackageSettingCarriesExpectedValueAndConfirmation(t *testing.T) 
 	}
 }
 
+func TestCaptureCarriesRequiredAudio(t *testing.T) {
+	var received map[string]any
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/devices/phone-1/capture" {
+			t.Fatalf("unexpected route %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write([]byte(`{"disposition":"capability_gap"}`))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var capture cliapp.Command
+	for _, candidate := range Group(core).Subcommands {
+		if candidate.Name == "capture" {
+			capture = candidate
+		}
+	}
+	if capture.RunCtx == nil {
+		t.Fatal("capture command handler missing")
+	}
+	var out bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(capture.Args, []string{"phone-1", "--kind", "recording", "--require-audio", "--json"}, core, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := capture.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if received["require_audio"] != true {
+		t.Fatalf("request lost required audio: %+v", received)
+	}
+}
+
 func TestDeviceObserveDefaultsToFullFrame(t *testing.T) {
 	var received struct {
 		Flow struct {

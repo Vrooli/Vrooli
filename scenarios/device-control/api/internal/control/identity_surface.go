@@ -13,6 +13,8 @@ import (
 // identities. Automatic inventory reconciliation remains stricter: it only
 // merges observations that already share an accepted hardware claim.
 func (s *Service) MergeDevices(ctx context.Context, canonicalID, memberID, claimSpec string) (Device, error) {
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	canonicalID = strings.TrimSpace(canonicalID)
 	memberID = strings.TrimSpace(memberID)
 	kind, value, ok := strings.Cut(strings.TrimSpace(claimSpec), "=")
@@ -42,8 +44,8 @@ func (s *Service) MergeDevices(ctx context.Context, canonicalID, memberID, claim
 	}
 	_ = s.persistObservedTransportProfiles(ctx, merged)
 	s.mu.Lock()
-	if cancel := s.observerCancels[memberID]; cancel != nil {
-		cancel()
+	if job := s.observerCancels[memberID]; job != nil {
+		job.cancel()
 		delete(s.observerCancels, memberID)
 	}
 	if s.db != nil {
@@ -66,6 +68,8 @@ func (s *Service) MergeDevices(ctx context.Context, canonicalID, memberID, claim
 // Historical audit aliases remain durable, so pre-merge records are visible
 // from both identities after the split.
 func (s *Service) SplitDevice(ctx context.Context, canonicalID string) ([]Device, error) {
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	canonicalID = strings.TrimSpace(canonicalID)
 	records, err := s.devices.Split(canonicalID)
 	if err != nil {

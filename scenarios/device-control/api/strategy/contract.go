@@ -21,6 +21,7 @@ const (
 	CapScreenControl   = "screen-control"
 	CapScreenshot      = "screenshot"
 	CapScreenRecording = "screen-recording"
+	CapRecordingAudio  = "recording-audio"
 	CapNetworkControl  = "network-control"
 	CapReverseTCP      = "reverse-tcp"
 	CapDeviceRestart   = "device-restart"
@@ -114,6 +115,13 @@ type RecordingArtifact struct {
 type SessionRecorder interface {
 	StartRecording(context.Context, ClaimClass) (RecordingHandle, error)
 	StopRecording(context.Context, RecordingHandle) (RecordingArtifact, error)
+}
+
+// AudioSessionRecorder explicitly opts into capturing playback audio. A
+// declared audio capability alone is not an executable implementation.
+type AudioSessionRecorder interface {
+	SessionRecorder
+	StartRecordingWithAudio(context.Context, ClaimClass) (RecordingHandle, error)
 }
 
 // PairRequest contains operator-provided pairing material. Secret is never

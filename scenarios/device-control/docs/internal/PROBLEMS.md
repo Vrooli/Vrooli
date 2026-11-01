@@ -719,3 +719,182 @@ were not established. ADB's mDNS inventory advertised the TV only. Reconnect now
 recognizes ADB's text-reported failures even with a successful process exit,
 and advances to discovered endpoints without waiting on that failed transport;
 the serial identity check remains required.
+
+### Phone and playback-audio qualification — 2026-11-01
+
+The owner-connected Moto G7 (Android 10, serial identity distinct from the
+previous Galaxy) passed USB sleep, wake, credential-backed ready/Home, and
+full-frame screenshot checks. Its credential was provisioned through the
+existing host-bound credential authority. A moving Home-focus flow produced
+88 native frames in 6.95 seconds, about 12.7 fps. A package-scoped launcher log
+snapshot returned no matching records, which is not proof of no events.
+
+Android playback capture was exercised with a temporary permissioned app on
+both the Android 11 TV and Android 10 phone. Each required the system projection
+prompt and a foreground capture service. Both recorded a non-silent 440 Hz test
+tone; the TV also captured non-silent audio while YouTube played. A separate
+phone prototype captured a video and PCM audio during one projection session;
+its host-muxed result has approximate start alignment, not validated audio/video
+synchronization. The temporary apps were uninstalled. These experiments do not
+add audio capture to the Device Control recording path. Target-app capture
+policy can also prevent particular playback from being captured.
+
+Evidence now reports whether an audio stream exists, with unknown distinct from
+absent. A stream alone proves neither audibility nor synchronization. Android
+ADB screenrecord and its screenshot fallback are presently video-only.
+
+Wireless promotion of the Moto exposed adbd's asynchronous restart: an immediate
+connection could be refused but its text error was treated as a hardware serial.
+Promotion now retries the listener, waits for the exact transport, verifies the
+hardware serial and requires the network endpoint to be present; inventory uses
+that verified endpoint rather than the old USB serial. Reconnect refreshed the
+physical phone's network endpoint, and subsequent inventory saw USB and wireless
+as available.
+
+The phone was subsequently promoted to classic wireless ADB on its verified
+serial and a wireless screenshot flow passed. Both USB and wireless transports
+were available after inventory refresh. A system-UI package log capture also
+passed. The previous empty launcher-log snapshot remains an observation gap.
+
+Long Android fallback sessions now cap retained screenshot bytes and thin the
+sample sequence when necessary, keeping original capture times and reporting
+only retained samples as evidence. This limits memory use; it cannot raise the
+underlying device capture frame rate.
+
+A follow-up TV projection trial captured the synthetic playback tone and video
+in one session, but the video contained only two frames over 0.89 seconds.
+Host muxing used the recorded API start times and is approximate; it does not
+establish audio/video synchronization. The test app was removed from the TV.
+
+`device capture --kind recording --require-audio` now requires both an
+executable audio recorder and a declared audio capability. A missing or
+uninspectable output audio track degrades evidence. The option currently
+returns `capability_gap` on the tested Android ADB transports: the experimental
+projection owner is not integrated. An audio track may still contain silence.
+
+### Review recording reference provenance — 2026-11-01
+
+New recordings retain the device ID, lease ID and content digest alongside the
+artifact. Review finalization requires each chapter to match the active lease
+and retained bytes. A successor lease may stop an abandoned recording for
+cleanup, but the result remains attributed to its originating lease. Existing
+artifacts without this provenance remain readable,
+but cannot be included in a newly finalized review because their origin cannot
+be verified. These records are local producer metadata, not a hardware-signed
+attestation of device output.
+
+### Inventory refresh can delay lease operations — 2026-11-01
+
+During concurrent full-suite activity, a controlled API trial read `/sessions`
+in 0.02 seconds before issuing an explicit `/devices` inventory refresh; the
+concurrent `/sessions` request and the refresh both exceeded 30 seconds, and a
+subsequent session read took 9.56 seconds. Device Control's health endpoint
+remained responsive during a similar occurrence. Inventory holds the shared
+service mutex while it performs transport and attached-device probes, while
+session reads and release also require that mutex, making lock contention a
+confirmed contributor: an isolated, database-free regression with a delayed
+strategy `Describe` call blocked `ListLiveSessions` until the probe completed
+(the Android projection research run retains `inventory-lock-regression.log`). Database latency and
+queued concurrent refreshes may add to the live delay. Lease state and active
+run cancellation now use a separate mutex, preserving exclusive lease admission
+without waiting for inventory probes. A regression held a probe open while
+reading, validating, releasing and reacquiring a lease; it passed with the race
+detector and the scenario unit phase. Inventory refresh now serializes identity
+mutations with a dedicated lock but releases the general service lock around
+transport and Bridge calls. Ordering tests ensure a forget completes after an
+in-flight refresh, and the full control package passed with the race detector.
+After managed restart, while a live refresh took 19.0 seconds, session reads
+took 3 ms, cached-device reads under 1 ms and a retained screenshot read 4 ms;
+both the TV and phone remained available. A subsequent trace found that
+observer setup still described candidates synchronously under the service lock
+and inventory described base strategies twice. Observer qualification now runs
+in a cancellable, instance-owned task; a stale task cannot remove its
+replacement, and duplicate base probes are removed while endpoint-specific and
+device-scoped probes remain. Full control-package race checks and Test Genie
+unit run `20261101-074733-143db975` passed. After restart, two explicit refreshes
+each completed in approximately 10.0 seconds with both devices available;
+before the observer fix, two comparable requests exceeded 35 seconds each.
+The refresh still reaches its configured timeout, and identity mutations
+intentionally wait for a refresh to preserve ordering.
+
+### Lease-owned flow cancellation — 2026-11-01
+
+A lease's active-run cancellation entry could be overwritten by a second flow,
+and a flow could register after release between lease validation and execution.
+Registration now checks the live lease and installs its cancellation atomically
+under the lease mutex; a second active flow on the same lease is refused. Focused
+regressions failed before the change and pass under the race detector, including
+cancellation of the original run. External recordings can still surround a
+single lease-owned flow; the restriction applies to overlapping flow runs.
+
+### Visual capture contract and sync evidence — 2026-11-01
+
+The prior P0 text claimed that all visual capture was verified redacted and
+that consumers never receive capture bytes. That contradicted the operator's
+full-frame-by-default request and the actual evidence endpoint. The target and
+requirement now describe full-frame defaults, explicit supported redaction,
+and honest metadata; unsupported video redaction is not presented as working.
+Three named evidence regressions pass directly. The requirement remains in
+progress pending trustworthy requirements-sync evidence. Full run
+`20261101-065628-5d6abe1a` incorrectly promoted nonexistent named tests and
+unearned targets; Scenario QA report `knw-1793517723391094766` tracks that
+producer defect. The inaccurate promotions were reversed.
+
+### Native recorder and screenshot-fallback overhead — 2026-11-01
+
+The Android recorder samples screenshots while native video runs, so fallback
+capture may add load even when native output succeeds. A paired SmartTV trial
+with active YouTube playback measured 60 fps before each capture, then 3.02 fps
+with native recording alone and 2.79 fps with concurrent PNG samples. The clips
+contained 21 and 18 frames respectively, and only one screenshot completed in
+the second trial. Those single measurements do not isolate or quantify the
+incremental sampling cost; the native path itself was highly disruptive. Two
+other setup attempts had no playing video and provide no performance evidence.
+No fallback default was changed based on this inconclusive comparison. The
+Android projection research run retains the full trial description and samples.
+
+### Android screenshot integrity — 2026-11-01
+
+The Android capability probe and observer previously accepted a valid image
+header without checking the remaining compressed data; the direct screenshot
+step did not decode it at all. A truncated PNG could therefore be reported as
+available and retained as successful evidence. Both capture paths and the
+capability probe now use the same full-image validation, with a decoded-size
+bound, after removing any supported firmware preamble. The observer reports the
+actual image format. A regression exercises a valid header with incomplete
+image data, and a JPEG fixture checks format reporting. Device Control unit run
+`20261101-155539-c25eeda5` passed; after managed restart, screenshot capture
+succeeded on both the TV and phone. A refresh took 7.0 seconds versus 7.5
+seconds in one pre-change sample, which is not a controlled performance result.
+
+This validates encoded image integrity, not that every displayed layer was
+captured or that a visually blank frame is wrong. Several blank-looking frames
+were observed while the Hisense Device Assistant list was scrolling; their
+cause and relation to actual display content remain unconfirmed.
+
+### Recording setup cancellation — 2026-11-01
+
+Android recording startup previously discarded the caller's context while it
+read and changed display retention settings. A cancelled flow could therefore
+continue starting a recorder or wait indefinitely on an ADB command. Startup
+now uses the caller context for preparation and checks it before starting the
+encoder. If preparation has changed settings, restoration uses an independent
+eight-second deadline; stopping a recording also bounds restoration. Regression
+tests cover pre-cancellation, cancellation during setup, independent bounded
+restoration, and a failed restore. Android adapter race tests and Device Control
+unit run `20261101-160543-af17216b` passed.
+
+After deployment, a phone motion flow produced a 6.97-second native video at
+about 13.35 fps; a TV motion flow produced a 13.28-second video at about 0.68
+fps and was correctly marked degraded. Both devices restored their original
+stay-awake, screen-off timeout, and idle settings. Four-second TV and six-second
+phone recordings of static screens returned zero-duration video and were rejected;
+the cause and whether a still-frame fallback is appropriate remain unverified.
+Neither native recording contained audio. This change does not implement audio
+capture or resolve the TV recording performance problem.
+A later seven-second phone repeat yielded a playable screenshot-fallback clip
+with two source samples (about 0.29 source fps), correctly marked degraded for
+transition evidence. A separate direct seven-second native capture of the phone
+produced seven decoded frames over about 5.88 seconds. These sequential trials
+used different capture paths and do not establish why the earlier Device Control
+recordings had zero duration or isolate the contribution of screenshot sampling.

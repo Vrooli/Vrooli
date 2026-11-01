@@ -157,6 +157,7 @@ and gap reports.
 | `clipboard` | Clipboard | Read or write the device clipboard. |
 | `file-transfer` | File transfer | Move files to or from the device. |
 | `native-recording` | Native video recording | The transport provides its own video capture. |
+| `recording-audio` | Recording with playback audio | The transport implements an explicit audio-recording session; a requested audio track is verified in the result. |
 | `device-logs` | Device logs | Read the device's system or application log stream. |
 | `webview-attach` | WebView attach | Attach a debugger to an application WebView. Required by `bas.*` delegation. |
 | `multi-touch` | Multi-touch pointer streams | Two simultaneous normalized pointer streams are available for gestures such as pinch. |
@@ -211,6 +212,33 @@ video without an audio track. Android playback-capture experiments on Android
 10 and 11 succeeded with system projection consent, but are not yet integrated
 into recording. App capture policy can prevent particular audio from being
 captured even when playback capture itself works.
+
+Review recordings preserve the audio tracks of their input chapters. If only
+some chapters contain an audio track, the review inserts silence for the
+others and reports `audio_track_coverage: some_chapters`; `all_chapters` and
+`no_chapters` describe the other cases. Coverage concerns track presence, not
+whether the source audio was audible. Delayed audio start times are preserved.
+New recording chapters are bound to the device and lease that produced them,
+and review creation checks those identities and the retained content digest.
+Older chapters without this provenance remain readable but cannot be used in
+new review recordings. If a successor lease stops an abandoned recording, its
+output remains attributed to the lease that started it.
+
+Use `device-control device capture <device> --kind recording --require-audio`
+when an audio track is required. It returns a capability gap if no transport
+implements audio recording, rather than silently producing a video-only file.
+If a provider claims audio but the resulting track is absent or cannot be
+inspected, the retained evidence is degraded. An audio track can still be silent.
+
+The intended Android audio/video route needs a device-side capture owner that
+holds one MediaProjection session, requests Android's capture consent, and
+uses a foreground service for playback capture. The host must bind that session
+to the existing device lease, stop it on cancellation, bound retained data, and
+verify cleanup before another recording is admitted. Video and audio timestamps
+must share a measured clock or expose synchronization uncertainty. A requested
+audio capture must not silently become a successful silent recording; a present
+audio stream alone does not establish audible content. This is a target, not a
+claim that the companion or its lifecycle protocol is implemented.
 
 `device-control device inspect <device>` reports Android's video encoder
 inventory when it can read and recognize it. Each entry names the MIME type,

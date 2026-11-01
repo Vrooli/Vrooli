@@ -73,6 +73,12 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		g.Gaps = append(g.Gaps, err.Error())
 	}
 	for _, step := range flow.Steps {
+		if value, present := step.Arguments["require_audio"]; present {
+			if _, ok := value.(bool); !ok || step.Kind != "recording-start" {
+				g.Runnable = false
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires a boolean require_audio on recording-start", step.ID))
+			}
+		}
 		if !knownStepKind(step.Kind) {
 			g.Runnable = false
 			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s uses unsupported kind %q", step.ID, step.Kind))
@@ -88,6 +94,12 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		if (step.Kind == "recording-start" || step.Kind == "recording-stop") && decl.Capabilities[strategy.CapScreenRecording].Status != strategy.StatusAvailable && decl.Capabilities[strategy.CapNativeRecording].Status != strategy.StatusAvailable {
 			g.Runnable = false
 			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapScreenRecording))
+		}
+		if required, _ := step.Arguments["require_audio"].(bool); step.Kind == "recording-start" && required {
+			if _, ok := d.(strategy.AudioSessionRecorder); !ok || decl.Capabilities[strategy.CapRecordingAudio].Status != strategy.StatusAvailable {
+				g.Runnable = false
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires recording with audio", step.ID))
+			}
 		}
 		if step.Kind == "pinch" && decl.Capabilities[strategy.CapMultiTouch].Status != strategy.StatusAvailable {
 			g.Runnable = false
@@ -309,14 +321,25 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		runDuration = time.Duration(flow.MaxDurationMS) * time.Millisecond
 	}
 	runctx, cancelRun := context.WithTimeout(ctx, runDuration)
-	s.mu.Lock()
+	s.sessionMu.Lock()
+	current, held := s.sessions[sess.ID]
+	if !held || current.State != "held" || current.DeviceID != deviceID || current.LeaseToken != sess.LeaseToken || !time.Now().Before(current.ExpiresAt) {
+		s.sessionMu.Unlock()
+		cancelRun()
+		return RunResult{}, fmt.Errorf("lease is no longer held")
+	}
+	if _, active := s.activeCancels[sess.ID]; active {
+		s.sessionMu.Unlock()
+		cancelRun()
+		return RunResult{}, fmt.Errorf("lease already has an active run")
+	}
 	s.activeCancels[sess.ID] = cancelRun
-	s.mu.Unlock()
+	s.sessionMu.Unlock()
 	defer func() {
 		cancelRun()
-		s.mu.Lock()
+		s.sessionMu.Lock()
 		delete(s.activeCancels, sess.ID)
-		s.mu.Unlock()
+		s.sessionMu.Unlock()
 	}()
 	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}, Binding: RunBinding{DeviceID: deviceID, Transport: flow.Transport, LeaseID: sess.ID, ApplicationID: flow.ApplicationID, ApplicationRevision: flow.ApplicationRevision}}
 	stateManager := &sessionsdomain.StateManager{}
@@ -390,6 +413,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		}
 	}
 	recordingHandles := map[string]strategy.RecordingHandle{}
+	recordingAudioRequired := map[string]bool{}
 	recorder, hasRecorder := strat.(strategy.SessionRecorder)
 	markRecordingUncertain := func(handle strategy.RecordingHandle) {
 		if handle.ID == "" {
@@ -398,10 +422,10 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if _, exists := s.externalRecordings[handle.ID]; !exists {
-			s.externalRecordings[handle.ID] = externalRecording{DeviceID: deviceID, Actor: actor, Recorder: recorder, Handle: handle, Uncertain: true}
+			s.externalRecordings[handle.ID] = externalRecording{DeviceID: deviceID, LeaseID: sess.ID, Actor: actor, Recorder: recorder, Handle: handle, Uncertain: true}
 		}
 	}
-	storeRecording := func(step Step, artifact strategy.RecordingArtifact) error {
+	storeRecording := func(step Step, artifact strategy.RecordingArtifact, requireAudio bool) error {
 		redacted, redactErr := evidence.CaptureWithPolicy(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
 		if redactErr != nil {
 			return redactErr
@@ -423,8 +447,14 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		if refErr != nil {
 			return refErr
 		}
-		if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
+		if refErr = s.persistRecording(ctx, id, redacted.Bytes, deviceID, sess.ID); refErr != nil {
 			return refErr
+		}
+		if requireAudio && (ref.AudioTrackPresent == nil || !*ref.AudioTrackPresent) {
+			ref.Disposition = evidence.DispositionDegraded
+			ref.DispositionReason = "requested audio track was absent or could not be verified"
+			result.Evidence = append(result.Evidence, ref)
+			return &strategy.EvidenceUnavailableError{Reason: ref.DispositionReason}
 		}
 		minimumMS, _ := number(step.Arguments["minimum_duration_ms"])
 		if class != evidence.ClaimStatic && (frameCount < 2 || minimumMS > 0 && duration < time.Duration(minimumMS)*time.Millisecond) {
@@ -635,6 +665,9 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 								lastFrame = append([]byte(nil), redacted.Bytes...)
 								result.Evidence = append(result.Evidence, ref)
 								redactionVerified = ref.RedactionVerified
+								if ref.Disposition == evidence.DispositionDegraded {
+									stepErr = &strategy.EvidenceUnavailableError{Reason: ref.DispositionReason}
+								}
 							}
 						}
 					}
@@ -866,9 +899,19 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					}
 					class := strategy.ClaimClass(claimClassForStep(step))
 					var handle strategy.RecordingHandle
-					handle, stepErr = recorder.StartRecording(stepctx, class)
+					requireAudio, _ := step.Arguments["require_audio"].(bool)
+					if requireAudio {
+						if audioRecorder, ok := strat.(strategy.AudioSessionRecorder); ok {
+							handle, stepErr = audioRecorder.StartRecordingWithAudio(stepctx, class)
+						} else {
+							stepErr = fmt.Errorf("strategy does not support recording with audio")
+						}
+					} else {
+						handle, stepErr = recorder.StartRecording(stepctx, class)
+					}
 					if stepErr == nil {
 						recordingHandles[step.ID] = handle
+						recordingAudioRequired[step.ID] = requireAudio
 					}
 				case "recording-stop":
 					if !hasRecorder {
@@ -886,6 +929,8 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					}
 					// Stop may consume a native handle even on error; never replay it.
 					delete(recordingHandles, key)
+					requireAudio := recordingAudioRequired[key]
+					delete(recordingAudioRequired, key)
 					var artifact strategy.RecordingArtifact
 					artifact, stepErr = recorder.StopRecording(stepctx, handle)
 					if stepErr != nil {
@@ -893,7 +938,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						result.Incomplete = true
 					}
 					if stepErr == nil {
-						stepErr = storeRecording(step, artifact)
+						stepErr = storeRecording(step, artifact, requireAudio)
 					}
 				case "device-logs", "framework-logs", "logcat-stop", "clock-sample", "screenshot", "clipboard-read", "screenrecord":
 					var output []byte
@@ -960,7 +1005,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 							ref, refErr := evidence.NewClaimedVideoReference(id, redacted.Bytes, redacted, "native", effectiveFPS, evidence.ClaimClass(claimClassForStep(step)))
 							if refErr != nil {
 								stepErr = refErr
-							} else if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
+							} else if refErr = s.persistRecording(ctx, id, redacted.Bytes, deviceID, sess.ID); refErr != nil {
 								stepErr = refErr
 							} else {
 								result.Evidence = append(result.Evidence, ref)

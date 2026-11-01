@@ -46,6 +46,17 @@ public final class HomeOverrideService extends AccessibilityService {
         }
     };
 
+    /** Record Android's boot broadcast without launching an activity or changing accessibility settings. */
+    public static final class BootReceiver extends BroadcastReceiver {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (intent == null || !Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) return;
+            int boot = Settings.Global.getInt(context.getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+            context.getSharedPreferences("portal-tv", MODE_PRIVATE).edit()
+                    .putInt("home-override-broadcast-boot", boot)
+                    .putLong("home-override-broadcast-time", System.currentTimeMillis()).apply();
+        }
+    }
+
     static boolean connected() { HomeOverrideService service = live; return service != null && service.connected; }
     static boolean foreground() { HomeOverrideService service = live; return service != null && service.foreground; }
     static String lastStockClass() { HomeOverrideService service = live; return service == null ? "unknown" : service.lastStockClass; }

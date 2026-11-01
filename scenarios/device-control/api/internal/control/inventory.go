@@ -42,6 +42,157 @@ func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceRe
 	return s.registry.Verify(ctx, id)
 }
 
+// Devices holds inventoryMu throughout a refresh. Release only the general
+// service lock around external calls, restoring it even if a provider panics.
+func (s *Service) inventoryProbe(probe func()) {
+	s.mu.Unlock()
+	defer s.mu.Lock()
+	probe()
+}
+
+type baseEnumeration struct {
+	done    chan struct{}
+	devices []strategy.Device
+	err     error
+}
+
+type deviceDescription struct {
+	done        chan struct{}
+	declaration strategy.Declaration
+	err         error
+}
+
+func unavailableDeviceDeclaration(base strategy.Declaration) strategy.Declaration {
+	caps := make([]strategy.Capability, 0, len(base.Capabilities))
+	for name, capability := range base.Capabilities {
+		caps = append(caps, strategy.Capability{Name: name, Status: strategy.StatusUnavailable, Reason: "device capability probe failed", NextAction: "Retry the device capability probe", StateClass: capability.StateClass})
+	}
+	return strategy.UnavailableDeclaration(base.StrategyID, "device capability probe failed", caps, "Retry the device capability probe")
+}
+
+// Each discovered serial has an independent capability profile. Start probes
+// together while retaining the original device merge order.
+func startDeviceDescriptions(ctx context.Context, scoped strategy.DeviceScoped, devices []strategy.Device, promotedEndpoints map[string]string, limit chan struct{}) []*deviceDescription {
+	results := make([]*deviceDescription, len(devices))
+	for index, device := range devices {
+		if strings.TrimSpace(device.Serial) == "" {
+			continue
+		}
+		if _, duplicate := promotedEndpoints[strings.TrimSpace(device.Serial)]; duplicate {
+			continue
+		}
+		result := &deviceDescription{done: make(chan struct{})}
+		results[index] = result
+		go func(result *deviceDescription, serial string) {
+			defer close(result.done)
+			defer func() {
+				if recover() != nil {
+					result.err = fmt.Errorf("device capability probe panicked")
+				}
+			}()
+			select {
+			case limit <- struct{}{}:
+				defer func() { <-limit }()
+			case <-ctx.Done():
+				result.err = ctx.Err()
+				return
+			}
+			if err := ctx.Err(); err != nil {
+				result.err = err
+				return
+			}
+			probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+			defer cancel()
+			result.declaration, result.err = scoped.ForDevice(serial).Describe(probeCtx)
+		}(result, device.Serial)
+	}
+	return results
+}
+
+// Probe independent base transports concurrently, then merge their results in
+// declaration order. Endpoint-bound promoted transports are probed separately.
+func (s *Service) enumerateBaseStrategies(ctx context.Context, declarations []strategy.Declaration, limit chan struct{}) []*baseEnumeration {
+	results := make([]*baseEnumeration, len(declarations))
+	for index, declaration := range declarations {
+		base, ok := s.registry.Get(declaration.StrategyID)
+		if !ok {
+			continue
+		}
+		enumerator, ok := base.(strategy.Enumerator)
+		if !ok {
+			continue
+		}
+		result := &baseEnumeration{done: make(chan struct{})}
+		results[index] = result
+		go func(result *baseEnumeration, enumerator strategy.Enumerator) {
+			defer close(result.done)
+			defer func() {
+				if recover() != nil {
+					result.err = fmt.Errorf("strategy enumeration panicked")
+				}
+			}()
+			select {
+			case limit <- struct{}{}:
+				defer func() { <-limit }()
+			case <-ctx.Done():
+				result.err = ctx.Err()
+				return
+			}
+			if err := ctx.Err(); err != nil {
+				result.err = err
+				return
+			}
+			result.devices, result.err = enumerator.Enumerate(ctx)
+		}(result, enumerator)
+	}
+	return results
+}
+
+// Endpoint-bound adapters have independent probes; starting them together avoids
+// spending the entire inventory deadline on whichever device happens to come first.
+type promotedDiscovery struct {
+	done         chan struct{}
+	declaration  strategy.Declaration
+	describeErr  error
+	devices      []strategy.Device
+	enumerateErr error
+}
+
+func startPromotedDiscoveries(ctx context.Context, adapters map[string]strategy.Strategy, limit chan struct{}) map[string]*promotedDiscovery {
+	results := make(map[string]*promotedDiscovery, len(adapters))
+	for id, adapter := range adapters {
+		result := &promotedDiscovery{done: make(chan struct{})}
+		results[id] = result
+		go func(adapter strategy.Strategy, result *promotedDiscovery) {
+			defer close(result.done)
+			defer func() {
+				if recover() != nil {
+					result.describeErr = fmt.Errorf("promoted device probe panicked")
+					result.enumerateErr = result.describeErr
+				}
+			}()
+			select {
+			case limit <- struct{}{}:
+				defer func() { <-limit }()
+			case <-ctx.Done():
+				result.describeErr, result.enumerateErr = ctx.Err(), ctx.Err()
+				return
+			}
+			if err := ctx.Err(); err != nil {
+				result.describeErr, result.enumerateErr = err, err
+				return
+			}
+			probeCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+			result.declaration, result.describeErr = adapter.Describe(probeCtx)
+			cancel()
+			if enumerator, ok := adapter.(strategy.Enumerator); ok {
+				result.devices, result.enumerateErr = enumerator.Enumerate(ctx)
+			}
+		}(adapter, result)
+	}
+	return results
+}
+
 func (s *Service) Devices(ctx context.Context) []Device {
 	if ctx == nil {
 		ctx = context.Background()
@@ -53,10 +204,26 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	inventoryCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.restoreTransportStrategies()
-	declarations := s.registry.List(inventoryCtx)
+	var declarations []strategy.Declaration
+	s.inventoryProbe(func() { declarations = s.registry.List(inventoryCtx) })
+	limit := make(chan struct{}, 8)
+	adapters := make(map[string]strategy.Strategy, len(s.transportStrategies))
+	for id, adapter := range s.transportStrategies {
+		if _, exists := s.devices.Get(id); exists && adapter != nil {
+			adapters[id] = adapter
+		}
+	}
+	var baseResults []*baseEnumeration
+	var promotedResults map[string]*promotedDiscovery
+	s.inventoryProbe(func() {
+		baseResults = s.enumerateBaseStrategies(inventoryCtx, declarations, limit)
+		promotedResults = startPromotedDiscoveries(inventoryCtx, adapters, limit)
+	})
 	declarationByID := make(map[string]strategy.Declaration, len(declarations))
 	for _, declaration := range declarations {
 		declarationByID[declaration.StrategyID] = declaration
@@ -72,7 +239,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 			promotedEndpoints[endpoint] = id
 		}
 	}
-	for _, d := range declarations {
+	for declarationIndex, d := range declarations {
 		enumerating := false
 		if base, ok := s.registry.Get(d.StrategyID); ok {
 			// Enumerate the unscoped adapter as well as any promoted transport
@@ -82,11 +249,12 @@ func (s *Service) Devices(ctx context.Context) []Device {
 			type inventoryStrategy struct {
 				strategy strategy.Strategy
 				promoted bool
+				deviceID string
 			}
 			items := []inventoryStrategy{{strategy: base}}
 			for deviceID, promoted := range s.transportStrategies {
 				if device, exists := s.devices.Get(deviceID); exists && device.StrategyID == d.StrategyID && promoted != nil {
-					items = append(items, inventoryStrategy{strategy: promoted, promoted: true})
+					items = append(items, inventoryStrategy{strategy: promoted, promoted: true, deviceID: deviceID})
 				}
 			}
 			for _, candidate := range items {
@@ -95,23 +263,37 @@ func (s *Service) Devices(ctx context.Context) []Device {
 				// declaration can differ from the base adapter, so use the
 				// effective declaration for the devices it enumerates.
 				declaration := d
-				// Android capability probing performs several bounded ADB probes
-				// (including screen recording and WebView discovery). Keep the
-				// inventory request bounded, but allow a cold emulator or a
-				// wireless phone enough time to answer the complete declaration;
-				// truncating it makes an otherwise usable target look capability-
-				// empty to delivery ramps.
-				probeCtx, cancel := context.WithTimeout(inventoryCtx, 8*time.Second)
-				effective, err := item.Describe(probeCtx)
-				cancel()
-				if err == nil {
-					declaration = effective
+				// The registry already described the base adapter. Endpoint-bound
+				// promoted adapters need their own independent capability probe.
+				if candidate.promoted {
+					result := promotedResults[candidate.deviceID]
+					s.inventoryProbe(func() { <-result.done })
+					if result.describeErr == nil {
+						declaration = result.declaration
+					} else {
+						declaration = unavailableDeviceDeclaration(d)
+					}
 				}
-				if enumerator, ok := item.(strategy.Enumerator); ok {
+				if _, ok := item.(strategy.Enumerator); ok {
 					enumerating = true
-					discovered, enumerateErr := enumerator.Enumerate(inventoryCtx)
+					var discovered []strategy.Device
+					var enumerateErr error
+					if candidate.promoted {
+						result := promotedResults[candidate.deviceID]
+						discovered, enumerateErr = result.devices, result.enumerateErr
+					} else {
+						result := baseResults[declarationIndex]
+						s.inventoryProbe(func() { <-result.done })
+						discovered, enumerateErr = result.devices, result.err
+					}
 					if enumerateErr == nil {
-						for _, discoveredDevice := range discovered {
+						var deviceResults []*deviceDescription
+						if scoped, scopedOK := item.(strategy.DeviceScoped); scopedOK && !candidate.promoted {
+							s.inventoryProbe(func() {
+								deviceResults = startDeviceDescriptions(inventoryCtx, scoped, discovered, promotedEndpoints, limit)
+							})
+						}
+						for deviceIndex, discoveredDevice := range discovered {
 							if !candidate.promoted {
 								if promotedID, duplicate := promotedEndpoints[strings.TrimSpace(discoveredDevice.Serial)]; duplicate {
 									seen[promotedID] = true
@@ -125,15 +307,13 @@ func (s *Service) Devices(ctx context.Context) []Device {
 							// emulator capabilities are not inherited from a phone (or
 							// vice versa). Promoted transports retain their endpoint-
 							// bound declaration above.
-							if !candidate.promoted {
-								if scoped, scopedOK := item.(strategy.DeviceScoped); scopedOK && strings.TrimSpace(discoveredDevice.Serial) != "" {
-									deviceStrategy := scoped.ForDevice(discoveredDevice.Serial)
-									probeCtx, probeCancel := context.WithTimeout(inventoryCtx, 8*time.Second)
-									effective, describeErr := deviceStrategy.Describe(probeCtx)
-									probeCancel()
-									if describeErr == nil {
-										deviceDeclaration = effective
-									}
+							if deviceResults != nil && deviceResults[deviceIndex] != nil {
+								result := deviceResults[deviceIndex]
+								s.inventoryProbe(func() { <-result.done })
+								if result.err == nil {
+									deviceDeclaration = result.declaration
+								} else {
+									deviceDeclaration = unavailableDeviceDeclaration(declaration)
 								}
 							}
 							identityKey := discoveredDevice.IdentityKey
@@ -193,7 +373,10 @@ func (s *Service) Devices(ctx context.Context) []Device {
 		}
 	}
 	if s.attached != nil {
-		attached, err := s.attached.List(inventoryCtx)
+		reader := s.attached
+		var attached []AttachedDevice
+		var err error
+		s.inventoryProbe(func() { attached, err = reader.List(inventoryCtx) })
 		if err != nil {
 			s.bridgeInventoryErr = fmt.Sprintf("list Bridge attached devices: %v", err)
 			// A failed bridge lookup must not manufacture a pseudo-device beside
@@ -386,13 +569,15 @@ func (s *Service) ForgetDevice(id string) bool {
 }
 
 func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	id = strings.TrimSpace(id)
 	forgotten := s.devices.Forget(id)
 	delete(s.transportStrategies, id)
-	if cancel := s.observerCancels[id]; cancel != nil {
-		cancel()
+	if job := s.observerCancels[id]; job != nil {
+		job.cancel()
 		delete(s.observerCancels, id)
 	}
 	delete(s.transportStates, id)
@@ -421,6 +606,8 @@ func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 // PromoteWireless changes transport on an existing USB-onboarded identity
 // only after the strategy verifies the same serial over its wireless endpoint.
 func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error) {
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record, ok := s.devices.Get(strings.TrimSpace(id))
@@ -498,6 +685,8 @@ func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Devic
 		return Device{}, fmt.Errorf("probe onboarded endpoint capabilities: %w", err)
 	}
 
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	identityKey := discovered.IdentityKey
@@ -537,6 +726,8 @@ func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Devic
 // discovery. The stable device identity remains bound to the onboarded serial.
 func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, error) {
 	id = strings.TrimSpace(id)
+	s.inventoryMu.Lock()
+	defer s.inventoryMu.Unlock()
 	s.mu.Lock()
 	s.restoreTransportStrategies()
 	record, ok := s.devices.Get(strings.TrimSpace(id))

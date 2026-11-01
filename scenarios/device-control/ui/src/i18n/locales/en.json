@@ -121,6 +121,7 @@
     },
     "flows": {
       "acquireAndRun": "Acquire lease and run",
+      "audioTrackPartial": "Some chapters have no audio track; those sections contain inserted silence.",
       "audioTrackPresent": "Audio track present; audible sound has not been verified.",
       "audioTrackAbsent": "No audio track in this recording.",
       "audioTrackUnknown": "Audio track status unavailable.",

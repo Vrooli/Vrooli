@@ -3,11 +3,69 @@ package registry
 import (
 	"context"
 	"testing"
+	"time"
 
 	"device-control/strategy"
 
 	"github.com/stretchr/testify/require"
 )
+
+type concurrentProbe struct {
+	id     string
+	ready  chan struct{}
+	blocks bool
+}
+
+type panicProbe struct{}
+
+func (panicProbe) ID() string                                             { return "panic" }
+func (panicProbe) Describe(context.Context) (strategy.Declaration, error) { panic("probe failed") }
+
+func TestListIsolatesPanickingStrategy(t *testing.T) {
+	ready := make(chan struct{})
+	results := New(panicProbe{}, &concurrentProbe{id: "healthy", ready: ready}).List(context.Background())
+	require.Len(t, results, 2)
+	require.Equal(t, "healthy", results[0].StrategyID)
+	require.Equal(t, strategy.StatusAvailable, results[0].Status)
+	require.Equal(t, "panic", results[1].StrategyID)
+	require.Equal(t, strategy.StatusUnavailable, results[1].Status)
+}
+
+func TestListDoesNotStartProbesAfterCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	results := New(panicProbe{}).List(ctx)
+	require.Len(t, results, 1)
+	require.Equal(t, strategy.StatusUnavailable, results[0].Status)
+	require.Contains(t, results[0].NextActions, "context canceled")
+}
+
+func (p *concurrentProbe) ID() string { return p.id }
+func (p *concurrentProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if p.blocks {
+		select {
+		case <-p.ready:
+		case <-ctx.Done():
+			return strategy.Declaration{}, ctx.Err()
+		}
+	} else {
+		close(p.ready)
+	}
+	return strategy.Declaration{StrategyID: p.id, Status: strategy.StatusAvailable}, nil
+}
+
+func TestListProbesStrategiesIndependentlyAndKeepsOrder(t *testing.T) {
+	ready := make(chan struct{})
+	registry := New(&concurrentProbe{id: "a-slow", ready: ready, blocks: true}, &concurrentProbe{id: "z-fast", ready: ready})
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	results := registry.List(ctx)
+	require.Len(t, results, 2)
+	require.Equal(t, "a-slow", results[0].StrategyID)
+	require.Equal(t, "z-fast", results[1].StrategyID)
+	require.Equal(t, strategy.StatusAvailable, results[0].Status)
+	require.Equal(t, strategy.StatusAvailable, results[1].Status)
+}
 
 type fixtureHub struct {
 	serial string

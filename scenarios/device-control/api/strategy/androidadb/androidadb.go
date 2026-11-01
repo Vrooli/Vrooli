@@ -136,9 +136,51 @@ type activeRecording struct {
 const recordingScreenOffTimeout = "1800000"
 
 type recordingScreenshots struct {
-	mu     sync.Mutex
-	frames [][]byte
-	times  []time.Time
+	mu       sync.Mutex
+	frames   [][]byte
+	times    []time.Time
+	bytes    int
+	interval time.Duration
+}
+
+const maxRecordingScreenshotBytes = 64 * 1024 * 1024
+
+// appendSample bounds retained fallback data and progressively thins older
+// samples rather than ending coverage at the point the budget is reached.
+// Timestamps remain attached to their original frames.
+func (s *recordingScreenshots) appendSample(frame []byte, captured time.Time, budget int) {
+	if len(frame) == 0 || len(frame) > budget {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.interval == 0 {
+		s.interval = 500 * time.Millisecond
+	}
+	s.frames = append(s.frames, append([]byte(nil), frame...))
+	s.times = append(s.times, captured)
+	s.bytes += len(frame)
+	for s.bytes > budget && len(s.frames) > 1 {
+		frames := make([][]byte, 0, (len(s.frames)+2)/2)
+		times := make([]time.Time, 0, cap(frames))
+		s.bytes = 0
+		for i := range s.frames {
+			if i%2 == 0 || i == len(s.frames)-1 {
+				frames = append(frames, s.frames[i])
+				times = append(times, s.times[i])
+				s.bytes += len(s.frames[i])
+			}
+		}
+		// Two unusually large frames may exceed the budget even after thinning.
+		if len(frames) == len(s.frames) {
+			s.bytes -= len(frames[0])
+			frames, times = frames[1:], times[1:]
+		}
+		s.frames, s.times = frames, times
+		if s.interval < 30*time.Second {
+			s.interval *= 2
+		}
+	}
 }
 
 type Adapter struct {
@@ -191,7 +233,10 @@ func (a *Adapter) RestoreWireless(endpoint string) strategy.Strategy {
 	return &Adapter{runner: a.runner, serial: identity, identitySerial: identity, endpoint: strings.TrimSpace(endpoint), transport: "wireless", recordings: map[string]activeRecording{}, rendererID: a.rendererID, rendererTarget: a.rendererTarget}
 }
 
-func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (strategy.RecordingHandle, error) {
+func (a *Adapter) StartRecording(ctx context.Context, class strategy.ClaimClass) (strategy.RecordingHandle, error) {
+	if err := ctx.Err(); err != nil {
+		return strategy.RecordingHandle{}, err
+	}
 	processRunner, ok := a.runner.(ProcessRunner)
 	if !ok {
 		return strategy.RecordingHandle{}, fmt.Errorf("android recording requires a process-capable runner")
@@ -201,25 +246,27 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	}
 	id := fmt.Sprintf("android-recording-%d", time.Now().UnixNano())
 	path := "/data/local/tmp/" + id + ".mp4"
-	priorStayAwake, err := a.readStayAwake(context.Background())
+	priorStayAwake, err := a.readStayAwake(ctx)
 	if err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("read display keep-awake state: %w", err)
 	}
-	priorTimeout, err := a.readScreenOffTimeout(context.Background())
+	priorTimeout, err := a.readScreenOffTimeout(ctx)
 	if err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("read screen-off timeout: %w", err)
 	}
-	priorDoze, err := a.readDozeEnabled(context.Background())
+	priorDoze, err := a.readDozeEnabled(ctx)
 	if err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("read doze state: %w", err)
 	}
 	restore := func() error {
-		return errors.Join(a.restoreStayAwake(context.Background(), priorStayAwake), a.setDisplayRetention(context.Background(), priorTimeout, priorDoze))
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		return errors.Join(a.restoreStayAwake(cleanupCtx, priorStayAwake), a.setDisplayRetention(cleanupCtx, priorTimeout, priorDoze))
 	}
-	if err := a.setStayAwake(context.Background(), true); err != nil {
+	if err := a.setStayAwake(ctx, true); err != nil {
 		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("keep display awake for recording: %w", err), restore())
 	}
-	if err := a.setDisplayRetention(context.Background(), recordingScreenOffTimeout, dozeState{}); err != nil {
+	if err := a.setDisplayRetention(ctx, recordingScreenOffTimeout, dozeState{}); err != nil {
 		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("retain display for recording: %w", err), restore())
 	}
 	// Each caller-owned recording is chapter-scoped, so the native encoder has
@@ -227,6 +274,9 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	// normal trailer signal before reading the artifact.
 	// The bitrate is a bounded bandwidth setting; actual quality and frame
 	// rate remain device and content dependent.
+	if err := ctx.Err(); err != nil {
+		return strategy.RecordingHandle{}, errors.Join(err, restore())
+	}
 	process, err := processRunner.Start("adb", a.args("shell", "screenrecord", "--bit-rate", "1000000", path)...)
 	if err != nil {
 		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start adb screenrecord: %w", err), restore())
@@ -270,7 +320,9 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	}
 	defer func() {
 		stopBackground()
-		if err := a.restoreStayAwake(context.Background(), active.priorStayAwake); err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+		if err := a.restoreStayAwake(cleanupCtx, active.priorStayAwake); err != nil {
 			restoreErr := fmt.Errorf("restore display keep-awake state: %w", err)
 			if retErr == nil {
 				retErr = restoreErr
@@ -278,7 +330,7 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 				retErr = errors.Join(retErr, restoreErr)
 			}
 		}
-		if err := a.setDisplayRetention(context.Background(), active.priorTimeout, active.priorDoze); err != nil {
+		if err := a.setDisplayRetention(cleanupCtx, active.priorTimeout, active.priorDoze); err != nil {
 			restoreErr := fmt.Errorf("restore display retention: %w", err)
 			if retErr == nil {
 				retErr = restoreErr
@@ -488,7 +540,14 @@ func (a *Adapter) keepDisplayAwake(stop <-chan struct{}, done chan<- struct{}) {
 
 func (a *Adapter) captureDisplaySamples(stop <-chan struct{}, done chan<- struct{}, samples *recordingScreenshots) {
 	defer close(done)
+	var lastCapture time.Time
 	capture := func() {
+		samples.mu.Lock()
+		interval := samples.interval
+		samples.mu.Unlock()
+		if interval > 0 && !lastCapture.IsZero() && time.Since(lastCapture) < interval {
+			return
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		frame, err := a.runner.Run(ctx, "adb", a.args("exec-out", "screencap", "-p")...)
@@ -499,10 +558,8 @@ func (a *Adapter) captureDisplaySamples(stop <-chan struct{}, done chan<- struct
 		if !displayFrameVisible(frame) {
 			return
 		}
-		samples.mu.Lock()
-		samples.frames = append(samples.frames, append([]byte(nil), frame...))
-		samples.times = append(samples.times, time.Now())
-		samples.mu.Unlock()
+		lastCapture = time.Now()
+		samples.appendSample(frame, lastCapture, maxRecordingScreenshotBytes)
 	}
 	capture()
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -545,6 +602,25 @@ func sanitizeCapturedImage(raw []byte) []byte {
 		}
 	}
 	return raw
+}
+
+// validateCapturedImage checks all compressed image data, not merely the header.
+// Bound decoded size before allocation so a malformed device response cannot
+// exhaust the service while advertising a plausible image header.
+func validateCapturedImage(raw []byte) ([]byte, image.Rectangle, string, error) {
+	data := sanitizeCapturedImage(raw)
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return nil, image.Rectangle{}, "", err
+	}
+	if config.Width <= 0 || config.Height <= 0 || int64(config.Width) > (64*1024*1024)/int64(config.Height) {
+		return nil, image.Rectangle{}, "", fmt.Errorf("screenshot dimensions exceed supported limit")
+	}
+	decoded, format, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, image.Rectangle{}, "", err
+	}
+	return data, decoded.Bounds(), format, nil
 }
 
 func displayFrameVisible(raw []byte) bool {
@@ -1418,7 +1494,7 @@ func (a *Adapter) probeScreenshot(ctx context.Context) (bool, string) {
 	if err != nil {
 		return false, "adb screencap is unavailable; verify the device is authorized"
 	}
-	if _, _, decodeErr := image.DecodeConfig(bytes.NewReader(sanitizeCapturedImage(out))); decodeErr != nil {
+	if _, _, _, decodeErr := validateCapturedImage(out); decodeErr != nil {
 		return false, "adb screencap returned bytes device-control cannot decode as an image; the device may lack a display surface (use Cast/Remote for screenless control)"
 	}
 	return true, "adb screencap is unavailable; verify the device is authorized"
@@ -1887,12 +1963,11 @@ func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
 	if err != nil {
 		return strategy.Frame{}, fmt.Errorf("adb screencap: %w", err)
 	}
-	data = sanitizeCapturedImage(data)
-	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	data, bounds, format, err := validateCapturedImage(data)
 	if err != nil {
 		return strategy.Frame{}, fmt.Errorf("decode adb screenshot: %w", err)
 	}
-	return strategy.Frame{Width: config.Width, Height: config.Height, Scale: 1, Timestamp: time.Now().UTC(), MediaType: "image/png", Bytes: data}, nil
+	return strategy.Frame{Width: bounds.Dx(), Height: bounds.Dy(), Scale: 1, Timestamp: time.Now().UTC(), MediaType: "image/" + format, Bytes: data}, nil
 }
 
 func (a *Adapter) ResolveSemantic(ctx context.Context, target string) (strategy.SemanticResult, error) {
@@ -2310,10 +2385,14 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 		if err != nil && len(out) > 0 {
 			return fmt.Errorf("adb %s: %w: %s", event.Action, err, strings.TrimSpace(string(out)))
 		}
-		if err == nil && event.Output != nil && (event.Action == "device-logs" || event.Action == "logcat-stop" || event.Action == "clock-sample" || event.Action == "screenshot" || event.Action == "clipboard-read") {
-			if event.Action == "screenshot" {
-				out = sanitizeCapturedImage(out)
+		if err == nil && event.Action == "screenshot" {
+			var decodeErr error
+			out, _, _, decodeErr = validateCapturedImage(out)
+			if decodeErr != nil {
+				return fmt.Errorf("decode adb screenshot: %w", decodeErr)
 			}
+		}
+		if err == nil && event.Output != nil && (event.Action == "device-logs" || event.Action == "logcat-stop" || event.Action == "clock-sample" || event.Action == "screenshot" || event.Action == "clipboard-read") {
 			*event.Output = out
 		}
 		return err

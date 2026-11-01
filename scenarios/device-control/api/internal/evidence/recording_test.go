@@ -86,3 +86,21 @@ func TestAssessVideoContentAcceptsVisibleBody(t *testing.T) {
 	require.True(t, assessment.Verified)
 	require.Empty(t, assessment.Reason)
 }
+
+func TestDarkRecordingIsRetainedAsUnverifiedEvidence(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg unavailable")
+	}
+	path := filepath.Join(t.TempDir(), "dark.mp4")
+	output, err := exec.Command("ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=64x64:r=10:d=1", "-c:v", "libx264", "-y", path).CombinedOutput()
+	require.NoError(t, err, string(output))
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	capture, err := CaptureWithPolicy(raw, "video/mp4", DefaultPolicy, false, false, "operator", nil)
+	require.NoError(t, err)
+	ref, err := NewClaimedVideoReference("dark", raw, capture, "native", 10, ClaimTransition)
+	require.NoError(t, err, "dark footage must remain available when it might reflect the actual scene")
+	require.False(t, ref.ContentVerified)
+	require.Equal(t, DispositionDegraded, ref.Disposition)
+	require.Contains(t, ref.DispositionReason, "near black")
+}

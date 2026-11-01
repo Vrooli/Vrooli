@@ -40,7 +40,10 @@ func (s *Service) ForgetLiveRun(id string) error {
 		return ErrLiveRunInconsistent
 	}
 	if result.Binding.LeaseID != "" {
-		if _, active := s.activeCancels[result.Binding.LeaseID]; active {
+		s.sessionMu.Lock()
+		_, active := s.activeCancels[result.Binding.LeaseID]
+		s.sessionMu.Unlock()
+		if active {
 			return ErrLiveRunInProgress
 		}
 	}
@@ -68,7 +71,10 @@ func (s *Service) LiveRunInventory() ([]string, int) {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
-	return ids, len(s.activeCancels)
+	s.sessionMu.Lock()
+	active := len(s.activeCancels)
+	s.sessionMu.Unlock()
+	return ids, active
 }
 
 func (s *Service) RetainRun(ctx context.Context, id string, expiry time.Time) error {

@@ -171,6 +171,7 @@ device-control device screen <device-id> --operation ready --auth-profile <profi
 device-control device screen <device-id> --operation ready --home --json
 device-control device capture <device-id> --kind screenshot --json
 device-control device capture <device-id> --kind recording --seconds 5 --json
+device-control device capture <device-id> --kind recording --seconds 5 --require-audio --json
 device-control device capture <device-id> --kind logs --package com.example.app --json
 device-control flow export <run-id> --json
 ```

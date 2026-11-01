@@ -36,11 +36,12 @@ type ReviewRecordingResult struct {
 // CaptureRequest uses the same evidence and lease owner as ordinary flows.
 // Recording is bounded so a single request can own its complete lifecycle.
 type CaptureRequest struct {
-	Device  string `json:"device"`
-	Actor   string `json:"actor"`
-	Kind    string `json:"kind"`
-	Seconds int    `json:"seconds,omitempty"`
-	Package string `json:"package,omitempty"`
+	Device       string `json:"device"`
+	Actor        string `json:"actor"`
+	Kind         string `json:"kind"`
+	Seconds      int    `json:"seconds,omitempty"`
+	Package      string `json:"package,omitempty"`
+	RequireAudio bool   `json:"require_audio,omitempty"`
 }
 
 func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResult, error) {
@@ -50,6 +51,9 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	}
 	if kind == "recording" && (request.Seconds < 1 || request.Seconds > 30) {
 		return RunResult{}, fmt.Errorf("recording duration must be between 1 and 30 seconds")
+	}
+	if request.RequireAudio && kind != "recording" {
+		return RunResult{}, fmt.Errorf("audio is available only for recording")
 	}
 	if kind == "logs" && strings.TrimSpace(request.Package) == "" {
 		return RunResult{}, fmt.Errorf("application logs require an exact package")
@@ -92,6 +96,11 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 			if !supported || (declaration.Capabilities[strategy.CapNativeRecording].Status != strategy.StatusAvailable && declaration.Capabilities[strategy.CapScreenRecording].Status != strategy.StatusAvailable) {
 				continue
 			}
+			if request.RequireAudio {
+				if _, ok := candidate.(strategy.AudioSessionRecorder); !ok || declaration.Capabilities[strategy.CapRecordingAudio].Status != strategy.StatusAvailable {
+					continue
+				}
+			}
 		} else {
 			_, supported := candidate.(strategy.ApplicationLogReader)
 			if !supported || declaration.Capabilities[strategy.CapDeviceLogs].Status != strategy.StatusAvailable {
@@ -102,13 +111,16 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 		break
 	}
 	if !found {
-		return RunResult{Disposition: "capability_gap", Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "no available transport provides this capture"}}}, nil
+		if request.RequireAudio {
+			return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "no available transport provides recording with audio"}}}, nil
+		}
+		return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "no available transport provides this capture"}}}, nil
 	}
 	flow := Flow{ID: "capture-" + uuid.NewString(), Name: kind + " capture", Transport: transport, RedactSensitiveContent: kind == "logs", MaxDurationMS: 65000}
 	if kind == "screenshot" {
 		flow.Steps = []Step{{ID: "capture", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}, TimeoutMS: 20000}}
 	} else if kind == "recording" {
-		flow.Steps = []Step{{ID: "record", Kind: "recording-start", TimeoutMS: 15000}, {ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, {ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}}}
+		flow.Steps = []Step{{ID: "record", Kind: "recording-start", TimeoutMS: 15000, Arguments: map[string]any{"require_audio": request.RequireAudio}}, {ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, {ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}}}
 	} else {
 		flow.Steps = []Step{{ID: "logs", Kind: "device-logs", RequiredCapabilities: []string{strategy.CapDeviceLogs}, TimeoutMS: 10000, Arguments: map[string]any{"package": strings.TrimSpace(request.Package)}}}
 	}
@@ -116,7 +128,8 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 }
 
 func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, leaseToken string) (strategy.RecordingHandle, error) {
-	if _, err := s.sessionForLease(ctx, deviceID, leaseToken); err != nil {
+	session, err := s.sessionForLease(ctx, deviceID, leaseToken)
+	if err != nil {
 		return strategy.RecordingHandle{}, err
 	}
 	transport := "usb"
@@ -136,7 +149,7 @@ func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, l
 		return strategy.RecordingHandle{}, err
 	}
 	s.mu.Lock()
-	s.externalRecordings[handle.ID] = externalRecording{DeviceID: deviceID, Actor: actor, Recorder: recorder, Handle: handle}
+	s.externalRecordings[handle.ID] = externalRecording{DeviceID: deviceID, LeaseID: session.ID, Actor: actor, Recorder: recorder, Handle: handle}
 	s.mu.Unlock()
 	return handle, nil
 }
@@ -211,7 +224,9 @@ func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, le
 	if err != nil {
 		return ExternalRecordingResult{}, fmt.Errorf("validate external recording: %w", err)
 	}
-	if err := s.persistArtifact(ctx, id, redacted.Bytes, "video"); err != nil {
+	// A successor lease may stop an abandoned handle for cleanup. Its output
+	// remains attributed to the lease that started the recording.
+	if err := s.persistRecording(ctx, id, redacted.Bytes, deviceID, recording.LeaseID); err != nil {
 		return ExternalRecordingResult{}, err
 	}
 	end := duration.Milliseconds()
@@ -238,9 +253,10 @@ func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, le
 // FinalizeReviewRecording concatenates already-retained chapter recordings.
 // It is deliberately a continuation of the same device-control recording
 // mechanism: callers cannot provide arbitrary paths or raw bytes, only
-// producer-issued evidence ids bound to their active device lease.
+// producer-issued evidence ids whose content and provenance match the lease.
 func (s *Service) FinalizeReviewRecording(ctx context.Context, deviceID, actor, leaseToken string, referenceIDs []string) (ReviewRecordingResult, error) {
-	if _, err := s.sessionForLease(ctx, deviceID, leaseToken); err != nil {
+	session, err := s.sessionForLease(ctx, deviceID, leaseToken)
+	if err != nil {
 		return ReviewRecordingResult{}, err
 	}
 	if len(referenceIDs) == 0 {
@@ -252,13 +268,33 @@ func (s *Service) FinalizeReviewRecording(ctx context.Context, deviceID, actor, 
 	}
 	defer os.RemoveAll(workDir)
 	inputs := make([]string, 0, len(referenceIDs))
+	audioTracks := make([]bool, 0, len(referenceIDs))
+	audioCount := 0
 	for index, id := range referenceIDs {
 		data, kind, readErr := s.ArtifactContext(ctx, id)
 		if readErr != nil {
 			return ReviewRecordingResult{}, fmt.Errorf("read chapter recording %q: %w", id, readErr)
 		}
-		if kind != "video" {
+		if err := s.verifyRecordingProvenance(ctx, id, data, deviceID, session.ID); err != nil {
+			return ReviewRecordingResult{}, err
+		}
+		// Artifact kinds are currently kept in memory, so retained recordings
+		// lose their kind when the service restarts. Validate those bytes as a
+		// video rather than rejecting a recoverable producer-owned artifact.
+		if kind == "" {
+			if _, _, _, probeErr := evidence.MeasureVideo(data); probeErr != nil {
+				return ReviewRecordingResult{}, fmt.Errorf("chapter evidence %q has no retained kind and is not a readable video: %w", id, probeErr)
+			}
+		} else if kind != "video" {
 			return ReviewRecordingResult{}, fmt.Errorf("chapter evidence %q is %q, not video", id, kind)
+		}
+		hasAudio, audioErr := evidence.InspectAudioTrack(data)
+		if audioErr != nil {
+			return ReviewRecordingResult{}, fmt.Errorf("inspect audio in chapter %q: %w", id, audioErr)
+		}
+		audioTracks = append(audioTracks, hasAudio)
+		if hasAudio {
+			audioCount++
 		}
 		path := filepath.Join(workDir, fmt.Sprintf("chapter-%04d.mp4", index))
 		if writeErr := os.WriteFile(path, data, 0o600); writeErr != nil {
@@ -272,13 +308,42 @@ func (s *Service) FinalizeReviewRecording(ctx context.Context, deviceID, actor, 
 	for index, input := range inputs {
 		args = append(args, "-i", input)
 		filters = append(filters, fmt.Sprintf("[%d:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v%d]", index, index))
+		if audioCount > 0 {
+			if audioTracks[index] {
+				filters = append(filters, fmt.Sprintf("[%d:a:0]aresample=48000:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo[a%d]", index, index))
+			} else {
+				data, readErr := os.ReadFile(input)
+				if readErr != nil {
+					return ReviewRecordingResult{}, fmt.Errorf("read silent chapter duration: %w", readErr)
+				}
+				_, duration, _, measureErr := evidence.MeasureVideo(data)
+				if measureErr != nil {
+					return ReviewRecordingResult{}, fmt.Errorf("measure silent chapter duration: %w", measureErr)
+				}
+				filters = append(filters, fmt.Sprintf("anullsrc=r=48000:cl=stereo,atrim=duration=%.6f,asetpts=PTS-STARTPTS[a%d]", duration.Seconds(), index))
+			}
+		}
 	}
 	labels := make([]string, 0, len(inputs))
 	for index := range inputs {
 		labels = append(labels, fmt.Sprintf("[v%d]", index))
+		if audioCount > 0 {
+			labels = append(labels, fmt.Sprintf("[a%d]", index))
+		}
 	}
-	filter := strings.Join(filters, ";") + ";" + strings.Join(labels, "") + fmt.Sprintf("concat=n=%d:v=1:a=0[outv]", len(inputs))
-	args = append(args, "-filter_complex", filter, "-map", "[outv]", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath)
+	audioOutputs := 0
+	if audioCount > 0 {
+		audioOutputs = 1
+	}
+	filter := strings.Join(filters, ";") + ";" + strings.Join(labels, "") + fmt.Sprintf("concat=n=%d:v=1:a=%d[outv]", len(inputs), audioOutputs)
+	if audioCount > 0 {
+		filter += "[outa]"
+	}
+	args = append(args, "-filter_complex", filter, "-map", "[outv]")
+	if audioCount > 0 {
+		args = append(args, "-map", "[outa]", "-c:a", "aac")
+	}
+	args = append(args, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", outputPath)
 	if combined, runErr := exec.CommandContext(ctx, "ffmpeg", args...).CombinedOutput(); runErr != nil {
 		return ReviewRecordingResult{}, fmt.Errorf("concatenate chapter recordings: %w (%s)", runErr, strings.TrimSpace(string(combined)))
 	}
@@ -299,7 +364,17 @@ func (s *Service) FinalizeReviewRecording(ctx context.Context, deviceID, actor, 
 	if err != nil {
 		return ReviewRecordingResult{}, fmt.Errorf("validate review recording: %w", err)
 	}
-	if err := s.persistArtifact(ctx, id, redacted.Bytes, "video"); err != nil {
+	if audioCount > 0 && (ref.AudioTrackPresent == nil || !*ref.AudioTrackPresent) {
+		return ReviewRecordingResult{}, fmt.Errorf("review recording audio track is absent or could not be verified")
+	}
+	if audioCount == 0 {
+		ref.AudioTrackCoverage = "no_chapters"
+	} else if audioCount == len(inputs) {
+		ref.AudioTrackCoverage = "all_chapters"
+	} else {
+		ref.AudioTrackCoverage = "some_chapters"
+	}
+	if err := s.persistRecording(ctx, id, redacted.Bytes, deviceID, session.ID); err != nil {
 		return ReviewRecordingResult{}, err
 	}
 	path, err := s.artifactPath(ctx, id)

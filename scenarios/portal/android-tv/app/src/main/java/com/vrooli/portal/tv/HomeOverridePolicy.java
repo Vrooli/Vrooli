@@ -4,6 +4,8 @@ import java.util.ArrayDeque;
 
 /** Bounded routing policy; no Android objects, screen text or remote input. */
 final class HomeOverridePolicy {
+    private static final String GOOGLE_HOME = "com.google.android.apps.tv.launcherx/com.google.android.apps.tv.launcherx.home.HomeActivity";
+    private static final String GOOGLE_PROFILE_CHOOSER = "com.google.android.apps.tv.launcherx/com.google.android.apps.tv.launcherx.profile.chooser.ProfileChooserActivity";
     enum Decision { IGNORE, OPEN_HOME, PAUSE }
     private final ArrayDeque<Long> redirects = new ArrayDeque<>();
     private long lastRedirect = -1;
@@ -17,7 +19,11 @@ final class HomeOverridePolicy {
                     String expectedComponent, String eventPackage, String eventClass, long now) {
         if (expectedComponent == null || eventPackage == null || eventClass == null || now < 0) { stockHomeVisible = false; return Decision.IGNORE; }
         String actualClass = eventClass.startsWith(".") ? eventPackage + eventClass : eventClass;
-        stockHomeVisible = expectedComponent.equals(eventPackage + "/" + actualClass);
+        String actualComponent = eventPackage + "/" + actualClass;
+        // Google TV can route Home straight to its profile chooser without
+        // showing the resolved Home activity. Match only this known pair.
+        stockHomeVisible = expectedComponent.equals(actualComponent)
+                || (GOOGLE_HOME.equals(expectedComponent) && GOOGLE_PROFILE_CHOOSER.equals(actualComponent));
         return wake(enabled, interactive, unlocked, now);
     }
 

@@ -628,6 +628,64 @@ Keep permission, live binding, effective Home and package-manager default
 distinct in Settings and evidence. This target is not a declaration that the
 new lifetime or startup behavior has passed physical acceptance.
 
+### Boot 71 vendor interception — 1 November 2026
+
+A restart of the installed 0.4.18 daily build reproduced the binding failure:
+Android reported boot 71 complete, but Google TV's profile chooser was in front,
+the Home override was enabled and still binding, and its last connected boot
+remained 70. Device Control accepted the one-shot restart in run
+`ec1b8440-3d4c-41ab-a44b-f117d0dd5d16`; its network ADB endpoint required an
+explicit offline reconnect. The system log supplied new cause evidence: Hisense's
+`BootInterface` logged interception of the third-party Portal service before its
+own boot-completed condition, then ActivityManager reported a null process-start
+result and force-stopped Portal. The same vendor policy subsequently intercepted
+provider starts even while Android's `sys.boot_completed` was `1`.
+
+Selecting the Google profile and explicitly launching Portal brought its activity
+to the foreground, but the service remained unbound. Temporarily clearing and
+restoring the exact previously enabled service setting also did not clear the
+pending binding. The setting was restored, and Portal remains usable as an app;
+this is not proof of a working Home override or a fix. These observations identify
+the vendor interception in this boot, but do not explain why the vendor condition
+remains active or establish a reliable device-local recovery mechanism. Do not
+interpret an app process start failure in system server as a Java launcher crash.
+
+### Device Assistant self-launch qualification — 1 November 2026
+
+Hisense Device Assistant owns `allowed_self_launch_3rd_packages`: a direct shell
+edit allowed boot 72 to bind Portal, but Device Assistant later restored its own
+empty value and boot 73 failed again. Do not automate edits to that derived
+setting. Its supported UI is Device Assistant → App Manager → Self-launched
+applications → Management. The daily 0.4.19 launcher declares a non-exported,
+daily-only `BOOT_COMPLETED` receiver; this made Vrooli TV appear in that list.
+The receiver only records boot diagnostics and does not open an activity or
+change accessibility permissions. The owner enabled the Vrooli TV switch alone;
+Device Assistant then wrote a persistent, system-owned list entry for the package.
+To reverse the choice, turn that same switch off; do not use Allow All or Forbid
+All unless the operator intends to change other apps.
+
+Physical restart runs `82be40b5-1a72-47f5-b580-1ab3956bcd87` and
+`1f1c5f54-98c7-4ea8-90e0-03428859ea63` reached boots 74 and 75 with the
+system-owned Vrooli TV entry retained, the accessibility service bound with no
+pending binding, and Vrooli Home resumed. Boot 74 additionally reported the service
+foreground after startup. The system log records the vendor allowing Portal's
+service start. Boot 72 had also routed Home from YouTube after the temporary
+setting, but boot 73 demonstrated why that edit was insufficient. These are
+restart results on this firmware, not proof for cold power loss or other models.
+The `home.broadcast_boot` and `home.broadcast_time_ms` status fields initially
+remained unknown/zero: on boot 75 they later reported boot 75 and a broadcast
+time about 87 seconds after the service-connected timestamp. The receiver did
+run, but its delayed delivery means those fields must not be used to infer an
+immediate startup failure.
+
+The installed 0.4.19 daily artifact was built through Scenario to Android with
+the existing signing identity and installed in place through Device Control
+run `43074659-b8e1-4775-a4dc-9f30e93bde0a`. The owner build, focused manifest
+and Home policy test, and Portal Test Genie unit run `20261101-154711-12c608fd`
+passed. The manifest regression checks that the boot receiver is daily-only,
+non-exported and limited to the boot-completed action. Stock Google TV remains
+installed and accessibility Settings remains the independent escape route.
+
 ## Earlier wake diagnosis — operator report, 22 October 2026
 
 Daily 0.3.6 (code 14) was installed with the optional Home override. The operator
@@ -1147,3 +1205,25 @@ claimed implemented here. Microphone runtime permission, origin-scoped WebView
 permission, audio input availability, provider health and Assistant-role/key
 routing remain separate gates. Do not request all WebView permissions merely
 to enable microphone capture.
+
+## Daily 0.4.18: Google TV profile chooser Home return
+
+On boot 70, the bound and active Home override was observed with Google TV's
+profile chooser in the foreground. Android still resolved stock Home to Google
+Home, while the override's last stock window was the chooser rather than the
+resolved Home activity. The previous exact-component rule ignored that window.
+The policy now treats that specific Google chooser as Home only when Google TV's
+known Home activity is the saved previous Home; it still ignores other Google
+screens and all unrelated launchers. Pause the override to use the Google TV
+profile chooser intentionally.
+
+The owner-built daily 0.4.18 APK/AAB uses the existing signing identity; its
+combined artifact digest is `sha256:895ce76f91ccd4803bc7b71462f2442738c226170dbd52975c3885ba41d4e785`.
+A policy regression failed before the change and passes afterward. In-place
+installation and foreground verification passed in Device Control run
+`d7d9178b-93c2-4176-9fdf-7496b88ca456`; YouTube → Home → Portal passed in run
+`2623ba9b-731e-4052-9f68-3f8450daf787`. An explicit Google chooser launch
+then returned to Portal, with the status provider recording the chooser as its
+last stock window and reporting the override requested, connected and
+foreground. This is not a reboot qualification; the previously observed
+accessibility binding failure after reboot remains unresolved.

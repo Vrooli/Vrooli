@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-09-17T16:42:35-04:00",
+    "last_validated_at": "2026-11-01T02:15:33-05:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -151,29 +151,29 @@
     },
     {
       "id": "DVC-P0-008",
-      "title": "Evidence references with verified redaction",
-      "status": "complete",
+      "title": "Honest capture references and redaction",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "criticality": "P0",
-      "description": "Captures are stored as references carrying checksum, size and creation time, conforming to common/v1 EvidenceRef. Screen frames can contain secrets, so redaction status is verified before any capture leaves the producer, and raw bytes are never handed to a consumer.",
+      "description": "When Device Control retains visual capture, it shall record checksum, size, creation time, and redaction state. It shall preserve the full frame by default and, when explicit redaction is requested, apply only supported regions or report that operation unavailable. It shall not claim that it detected all sensitive content.",
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/evidence/redact_test.go::TestBinaryImageRequiresPixelMasking",
+          "ref": "api/internal/evidence/redact_test.go::TestCaptureDefaultsToUnredactedWhenNotRequested",
           "status": "implemented",
-          "notes": "unit phase — planned test `api/evidence/redaction_test.go::TestCaptureLeavesProducerOnlyAsRedactedReference`. A capture containing a seeded secret must not leave the producer until redaction is verified; consumers receive checksum-addressed references, never bytes or filesystem paths."
+          "notes": "The default visual capture retains the original frame and records that redaction was not requested."
         },
         {
           "type": "test",
-          "ref": "api/internal/evidence/ref_test.go::TestEvidenceSinkRefusesUnverifiedCapture",
+          "ref": "api/internal/evidence/redact_test.go::TestExplicitCaptureRedactionAppliesConfiguredRegionsOnly",
           "status": "implemented",
-          "notes": "Phase 2 producer-boundary test refuses an unverified capture rather than passing it with a warning."
+          "notes": "An explicit region is masked while pixels outside it remain unchanged."
         },
         {
           "type": "test",
-          "ref": "api/internal/control/service_test.go::TestFrameDifferenceFailsWhenActuationIsSuppressed",
+          "ref": "api/internal/evidence/redact_test.go::TestVisualRedactionDoesNotPretendToDetectSensitiveContent",
           "status": "implemented",
-          "notes": "The physical smoke contract fails when actuation is suppressed because before and after frames must differ."
+          "notes": "Visual redaction without regions and unsupported video redaction report unavailability rather than inventing coverage."
         }
       ]
     },
@@ -391,14 +391,14 @@
           "type": "test",
           "ref": "api/internal/control/library_test.go::TestValidatedFlowPersistsAndRepairPreservesChecks",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Behavioral regression passed; broader provider findings remain explicitly recorded in the progress log."
         },
         {
           "type": "test",
           "ref": "api/internal/control/program_contract_test.go::TestGovernedWorkflowPrograms",
           "phase": "unit",
-          "status": "failing"
+          "status": "implemented"
         }
       ]
     }

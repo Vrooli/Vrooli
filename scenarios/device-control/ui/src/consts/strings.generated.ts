@@ -133,6 +133,7 @@ export const strings = {
     },
     flows: {
       acquireAndRun: "pages.flows.acquireAndRun",
+      audioTrackPartial: "pages.flows.audioTrackPartial",
       audioTrackPresent: "pages.flows.audioTrackPresent",
       audioTrackAbsent: "pages.flows.audioTrackAbsent",
       audioTrackUnknown: "pages.flows.audioTrackUnknown",

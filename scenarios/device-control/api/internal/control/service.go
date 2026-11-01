@@ -34,11 +34,15 @@ type routedDB interface {
 }
 
 type Service struct {
-	registry            *strategyregistry.Registry
-	db                  routedDB
-	fileRoots           *filerouting.RoutedRoots
-	attached            AttachedReader
-	mu                  sync.Mutex
+	registry  *strategyregistry.Registry
+	db        routedDB
+	fileRoots *filerouting.RoutedRoots
+	attached  AttachedReader
+	mu        sync.Mutex
+	// Inventory and identity mutations remain ordered while probes run unlocked.
+	inventoryMu sync.Mutex
+	// Lease admission and cancellation must not wait for transport inventory.
+	sessionMu           sync.Mutex
 	sessions            map[string]Session
 	audits              []Audit
 	agents              map[string]AgentRun
@@ -61,7 +65,7 @@ type Service struct {
 	auth                *authdomain.Store
 	stateEvents         *strategy.EventBus
 	observedStates      map[string]any
-	observerCancels     map[string]context.CancelFunc
+	observerCancels     map[string]*observerJob
 	actuationCauses     map[string]actuationCause
 	auditAliases        map[string]map[string]struct{}
 	agentPlanner        internalflows.AgentPlanner
@@ -73,6 +77,7 @@ type Service struct {
 
 type externalRecording struct {
 	DeviceID  string
+	LeaseID   string
 	Actor     string
 	Recorder  strategy.SessionRecorder
 	Handle    strategy.RecordingHandle
@@ -135,104 +140,126 @@ func New(registry *strategyregistry.Registry) *Service {
 		dir = configured
 	}
 	authStore, _ := authdomain.NewStore(nil, nil)
-	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, observerCancels: map[string]context.CancelFunc{}, actuationCauses: map[string]actuationCause{}, auditAliases: map[string]map[string]struct{}{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, transportProfiles: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, runDevices: map[string]string{}, externalRecordings: map[string]externalRecording{}, auth: authStore, stateEvents: strategy.NewEventBus(), observedStates: map[string]any{}, inventoryTimeout: defaultInventoryTimeout, sessionQueryTimeout: 750 * time.Millisecond, pendingPairings: map[string]pendingPairing{}}
+	return &Service{registry: registry, sessions: map[string]Session{}, audits: []Audit{}, agents: map[string]AgentRun{}, devices: devicedomain.NewStore(), artifacts: map[string]string{}, artifactKinds: map[string]string{}, evidenceDir: dir, activeCancels: map[string]context.CancelFunc{}, observerCancels: map[string]*observerJob{}, actuationCauses: map[string]actuationCause{}, auditAliases: map[string]map[string]struct{}{}, transportStrategies: map[string]strategy.Strategy{}, transportStates: map[string]transportState{}, transportProfiles: map[string]transportState{}, anchors: internalflows.NewAnchorStore(), runs: map[string]RunResult{}, flowRuns: map[string]Flow{}, runDevices: map[string]string{}, externalRecordings: map[string]externalRecording{}, auth: authStore, stateEvents: strategy.NewEventBus(), observedStates: map[string]any{}, inventoryTimeout: defaultInventoryTimeout, sessionQueryTimeout: 750 * time.Millisecond, pendingPairings: map[string]pendingPairing{}}
 }
+
+// observerJob identifies one reservation so a cancelled, stale worker cannot
+// remove or replace an observer started for a later incarnation of a device.
+type observerJob struct{ cancel context.CancelFunc }
 
 func (s *Service) startObserverLocked(record devicedomain.Record) {
 	if s.observerCancels[record.ID] != nil {
 		return
 	}
-	type candidate struct {
-		strategyID string
-		endpoint   string
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	job := &observerJob{cancel: cancel}
+	s.observerCancels[record.ID] = job
+	go s.runDeviceObserver(ctx, record, job)
+}
+
+func (s *Service) runDeviceObserver(ctx context.Context, record devicedomain.Record, job *observerJob) {
+	transport := record.StrategyID
+	defer func() {
+		if recover() != nil && ctx.Err() == nil {
+			s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: transport, Attribute: "transport_health", NewValue: "unreachable", StateClass: strategy.EventBearing})
+		}
+		job.cancel()
+		s.mu.Lock()
+		if s.observerCancels[record.ID] == job {
+			delete(s.observerCancels, record.ID)
+		}
+		s.mu.Unlock()
+	}()
+	type candidate struct{ strategyID, endpoint string }
 	candidates := make([]candidate, 0, len(record.Transports)+1)
+	seen := make(map[candidate]bool)
+	add := func(id, endpoint string) {
+		item := candidate{strings.TrimSpace(id), strings.TrimSpace(endpoint)}
+		if item.strategyID != "" && !seen[item] {
+			seen[item] = true
+			candidates = append(candidates, item)
+		}
+	}
 	for _, profile := range record.Transports {
-		strategyID := strings.TrimSpace(profile.StrategyID)
-		if strategyID == "" {
-			strategyID = strings.TrimSpace(profile.Name)
+		id := profile.StrategyID
+		if strings.TrimSpace(id) == "" {
+			id = profile.Name
 		}
-		if strategyID != "" {
-			candidates = append(candidates, candidate{strategyID: strategyID, endpoint: strings.TrimSpace(profile.Endpoint)})
-		}
+		add(id, profile.Endpoint)
 	}
-	if record.StrategyID != "" {
-		candidates = append(candidates, candidate{strategyID: strings.TrimSpace(record.StrategyID), endpoint: strings.TrimSpace(record.Endpoint)})
-	}
+	add(record.StrategyID, record.Endpoint)
 	for _, selected := range candidates {
+		transport = selected.strategyID
+		if ctx.Err() != nil {
+			return
+		}
 		base, ok := s.registry.Get(selected.strategyID)
 		if !ok {
 			continue
 		}
-		if scoped, scopedOK := base.(strategy.DeviceScoped); scopedOK && record.Serial != "" {
+		if scoped, ok := base.(strategy.DeviceScoped); ok && record.Serial != "" {
 			base = scoped.ForDevice(record.Serial)
 		}
-		if endpointScoped, endpointOK := base.(interface {
+		if scoped, ok := base.(interface {
 			ForEndpoint(string) strategy.Strategy
-		}); endpointOK && selected.endpoint != "" {
-			base = endpointScoped.ForEndpoint(selected.endpoint)
+		}); ok && selected.endpoint != "" {
+			base = scoped.ForEndpoint(selected.endpoint)
 		}
 		observer, hasObserver := base.(strategy.StateObserver)
-		declaration, describeErr := base.Describe(context.Background())
-		if describeErr != nil {
+		reader, hasReader := base.(strategy.StateReader)
+		if !hasObserver && !hasReader {
 			continue
 		}
-		mode := declaration.StateObservation.Mode
-		interval := declaration.StateObservation.Interval
+		probeCtx, stopProbe := context.WithTimeout(ctx, 8*time.Second)
+		declaration, err := base.Describe(probeCtx)
+		stopProbe()
+		if err != nil || ctx.Err() != nil {
+			continue
+		}
+		mode, interval := declaration.StateObservation.Mode, declaration.StateObservation.Interval
 		if mode == "" {
 			mode = declaration.ObservationMode
 		}
 		if interval <= 0 {
 			interval = declaration.ObservationInterval
 		}
-		if !hasObserver && mode != "poll" {
-			continue
-		}
 		if !hasObserver {
-			reader, readerOK := base.(strategy.StateReader)
-			if !readerOK {
+			if mode != "poll" {
 				continue
 			}
 			if interval <= 0 {
 				interval = time.Second
 			}
-			ctx, cancel := context.WithCancel(context.Background())
-			s.observerCancels[record.ID] = cancel
-			go s.runPollObserver(ctx, record.ID, selected.strategyID, reader, interval)
+			s.runPollObserver(ctx, record.ID, selected.strategyID, reader, interval)
 			return
 		}
-		ctx, cancel := context.WithCancel(context.Background())
-		s.observerCancels[record.ID] = cancel
-		go func() {
-			backoff := time.Second
-			for {
-				err := observer.ObserveState(ctx, scopedStateSink{service: s, deviceID: record.ID, transport: selected.strategyID})
-				if ctx.Err() != nil {
-					return
+		backoff := time.Second
+		for {
+			err := observer.ObserveState(ctx, scopedStateSink{service: s, deviceID: record.ID, transport: selected.strategyID})
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
+				s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: selected.strategyID, Attribute: "transport_health", OldValue: "available", NewValue: "unreachable", StateClass: strategy.EventBearing, CausationID: uuid.NewString()})
+			} else {
+				s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: selected.strategyID, Attribute: "transport_health", OldValue: "unreachable", NewValue: "available", StateClass: strategy.EventBearing, CausationID: uuid.NewString()})
+			}
+			timer := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				if !timer.Stop() {
+					<-timer.C
 				}
-				if err != nil {
-					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: selected.strategyID, Attribute: "transport_health", OldValue: "available", NewValue: "unreachable", StateClass: strategy.EventBearing, CausationID: uuid.NewString()})
-				} else {
-					s.EmitStateChange(strategy.StateChangeEvent{DeviceID: record.ID, Transport: selected.strategyID, Attribute: "transport_health", OldValue: "unreachable", NewValue: "available", StateClass: strategy.EventBearing, CausationID: uuid.NewString()})
-				}
-				timer := time.NewTimer(backoff)
-				select {
-				case <-ctx.Done():
-					if !timer.Stop() {
-						<-timer.C
-					}
-					return
-				case <-timer.C:
-				}
-				if backoff < 30*time.Second {
-					backoff *= 2
-					if backoff > 30*time.Second {
-						backoff = 30 * time.Second
-					}
+				return
+			case <-timer.C:
+			}
+			if backoff < 30*time.Second {
+				backoff *= 2
+				if backoff > 30*time.Second {
+					backoff = 30 * time.Second
 				}
 			}
-		}()
-		return
+		}
 	}
 }
 
@@ -1029,8 +1056,8 @@ func (s *Service) acquireSession(ctx context.Context, deviceID, actor string, tt
 			return Session{}, fmt.Errorf("ensure session schema: %w", err)
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
 	now := time.Now().UTC()
 	for id, old := range s.sessions {
 		if old.State == "held" && now.After(old.ExpiresAt) {
@@ -1078,8 +1105,8 @@ func (s *Service) ListSessionsContext(ctx context.Context) []Session {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
 	if s.db != nil {
 		timeout := s.sessionQueryTimeout
 		if timeout <= 0 {
@@ -1194,8 +1221,8 @@ func (s *Service) sessionForAccess(ctx context.Context, deviceID, token string, 
 			}
 		}
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
 	now := time.Now().UTC()
 	for _, session := range s.sessions {
 		if session.LeaseToken == token {
@@ -1225,8 +1252,8 @@ func (s *Service) ValidateLease(ctx context.Context, deviceID, token string) err
 }
 
 func (s *Service) finishContext(ctx context.Context, id, state, reason string) (Session, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.sessionMu.Lock()
+	defer s.sessionMu.Unlock()
 	v, ok := s.sessions[id]
 	if !ok {
 		return Session{}, fmt.Errorf("session %q not found", id)

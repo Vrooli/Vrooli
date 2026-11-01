@@ -21,6 +21,8 @@ public final class StatusProvider extends ContentProvider {
         c.addRow(new Object[]{"home.previous", p.getString("previous-home", "unknown")});
         c.addRow(new Object[]{"home.last_stock_class", HomeOverrideService.lastStockClass()});
         c.addRow(new Object[]{"home.boot_seen", Integer.toString(p.getInt("home-override-boot", -1))});
+        c.addRow(new Object[]{"home.broadcast_boot", Integer.toString(p.getInt("home-override-broadcast-boot", -1))});
+        c.addRow(new Object[]{"home.broadcast_time_ms", Long.toString(p.getLong("home-override-broadcast-time", 0))});
         c.addRow(new Object[]{"home.connected_boot", Integer.toString(p.getInt("home-override-connected-boot", -1))});
         c.addRow(new Object[]{"home.last_event", p.getString("home-override-last-event", "unknown")});
         c.addRow(new Object[]{"home.last_event_time_ms", Long.toString(p.getLong("home-override-last-event-time", 0))});

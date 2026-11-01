@@ -120,6 +120,22 @@ func TestScreenshotFallbackPreservesElapsedTime(t *testing.T) {
 	require.InDelta(t, 4, duration, 0.2)
 }
 
+func TestRecordingFallbackSamplesStayBoundedAndKeepTimeline(t *testing.T) {
+	var samples recordingScreenshots
+	start := time.Now()
+	for i := 0; i < 5; i++ {
+		samples.appendSample([]byte{byte(i), 1, 2, 3}, start.Add(time.Duration(i)*time.Second), 12)
+	}
+	require.LessOrEqual(t, samples.bytes, 12)
+	require.Len(t, samples.frames, len(samples.times))
+	require.Equal(t, start, samples.times[0])
+	require.Equal(t, start.Add(4*time.Second), samples.times[len(samples.times)-1])
+	require.Greater(t, samples.interval, 500*time.Millisecond)
+	before := len(samples.frames)
+	samples.appendSample(make([]byte, 13), start.Add(5*time.Second), 12)
+	require.Len(t, samples.frames, before, "a frame larger than the entire budget cannot be retained")
+}
+
 func (r *frameworkLogRunner) RunBounded(_ context.Context, name string, limit int, args ...string) ([]byte, error) {
 	r.call = strings.Join(append([]string{name}, args...), " ")
 	r.limit = limit
@@ -576,8 +592,10 @@ func TestRotateRefusesUnknownRecoverySettings(t *testing.T) {
 }
 
 func TestActuateObservationClipboardAndLogcatVerbsUseExactADBArguments(t *testing.T) {
+	var validFrame bytes.Buffer
+	require.NoError(t, png.Encode(&validFrame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
 	runner := &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 exec-out screencap -p":               []byte("png"),
+		"adb -s serial-1 exec-out screencap -p":               validFrame.Bytes(),
 		"adb -s serial-1 shell cmd clipboard get":             []byte("copied text\n"),
 		"adb -s serial-1 logcat -d -v epoch":                  []byte("08-15 12:00:00.000  1  1 I App: ready\n"),
 		"adb -s serial-1 shell date +%s.%N":                   []byte("1755259200.125000000\n"),
@@ -591,7 +609,7 @@ func TestActuateObservationClipboardAndLogcatVerbsUseExactADBArguments(t *testin
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "logcat-start"}))
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "logcat-stop", Output: &logs}))
 	require.NoError(t, adapter.Actuate(context.Background(), strategy.Actuation{Action: "clock-sample", Output: &clock}))
-	require.Equal(t, []byte("png"), screenshot)
+	require.Equal(t, validFrame.Bytes(), screenshot)
 	require.Equal(t, []byte("copied text\n"), clipboard)
 	require.Contains(t, string(logs), "App: ready")
 	require.Contains(t, string(clock), "1755259200.125000000")
@@ -707,6 +725,38 @@ func TestSanitizeCapturedImageStripsFirmwareLogPreamble(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestScreenshotRejectsTruncatedImageOnEveryPath(t *testing.T) {
+	var encoded bytes.Buffer
+	require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 40, 40))))
+	truncated := encoded.Bytes()[:len(encoded.Bytes())/2]
+	_, _, err := image.DecodeConfig(bytes.NewReader(truncated))
+	require.NoError(t, err, "the fixture must contain a valid header")
+	_, _, err = image.Decode(bytes.NewReader(truncated))
+	require.Error(t, err, "the fixture must omit image data")
+	runner := &scriptedRunner{responses: map[string][]byte{"adb -s serial exec-out screencap -p": truncated}}
+	adapter := NewWithRunner(runner, "serial")
+	_, err = adapter.Observe(context.Background())
+	require.Error(t, err, "observe must reject an incomplete image")
+	var output []byte
+	err = adapter.Actuate(context.Background(), strategy.Actuation{Action: "screenshot", Output: &output})
+	require.Error(t, err, "screenshot action must reject an incomplete image")
+	require.Empty(t, output)
+	available, _ := adapter.probeScreenshot(context.Background())
+	require.False(t, available, "probe must not advertise corrupt captures as available")
+}
+
+func TestObserveReportsActualScreenshotFormat(t *testing.T) {
+	var encoded bytes.Buffer
+	require.NoError(t, jpeg.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 9, 7)), nil))
+	runner := &scriptedRunner{responses: map[string][]byte{"adb -s serial exec-out screencap -p": append([]byte("firmware log\n"), encoded.Bytes()...)}}
+	frame, err := NewWithRunner(runner, "serial").Observe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "image/jpeg", frame.MediaType)
+	require.Equal(t, 9, frame.Width)
+	require.Equal(t, 7, frame.Height)
+	require.Equal(t, encoded.Bytes(), frame.Bytes)
 }
 
 func TestProbeScreenshotRequiresDecodableFrame(t *testing.T) {
@@ -910,6 +960,54 @@ func TestRestartUsesOnlyExactBoundTransportAndReturnsAcceptance(t *testing.T) {
 	runner.errors = map[string]error{"adb -s serial-1 reboot": errors.New("transport refused")}
 	require.ErrorContains(t, adapter.RestartDevice(context.Background()), "transport refused")
 	require.Len(t, runner.calls, 2, "owner must not retry a restart with uncertain effect")
+}
+
+type cancelDuringRecordingSetup struct {
+	*processRunner
+	cancel             context.CancelFunc
+	restoreHasDeadline bool
+}
+
+func (r *cancelDuringRecordingSetup) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if strings.Contains(strings.Join(args, " "), "settings put global stay_on_while_plugged_in 2") {
+		_, r.restoreHasDeadline = ctx.Deadline()
+	}
+	out, err := r.processRunner.Run(ctx, name, args...)
+	if strings.Contains(strings.Join(args, " "), "svc power stayon true") {
+		r.cancel()
+		return out, ctx.Err()
+	}
+	return out, err
+}
+
+func TestRecordingStartHonorsCancellationAndRestoresSettings(t *testing.T) {
+	base := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial shell settings get global stay_on_while_plugged_in": []byte("2\n"),
+		"adb -s serial shell settings get system screen_off_timeout":       []byte("60000\n"),
+		"adb -s serial shell dumpsys deviceidle":                           []byte("mDeepEnabled=true\nmLightEnabled=false\n"),
+	}}, process: &scriptedProcess{}}
+	ctx, cancel := context.WithCancel(context.Background())
+	runner := &cancelDuringRecordingSetup{processRunner: base, cancel: cancel}
+	handle, err := NewWithRunner(runner, "serial").StartRecording(ctx, strategy.ClaimTransition)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Empty(t, handle.ID)
+	calls := strings.Join(base.calls, "\n")
+	require.Contains(t, calls, "settings put global stay_on_while_plugged_in 2")
+	require.Contains(t, calls, "settings put system screen_off_timeout 60000")
+	require.NotContains(t, calls, "screenrecord")
+	require.True(t, runner.restoreHasDeadline, "cleanup must have a bounded independent deadline")
+}
+
+func TestRecordingStartAlreadyCanceledHasNoDeviceEffects(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	runner := &processRunner{scriptedRunner: &scriptedRunner{}, process: &scriptedProcess{}}
+	_, err := NewWithRunner(runner, "serial").StartRecording(ctx, strategy.ClaimTransition)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Empty(t, runner.calls)
 }
 
 func TestRecordingStopReportsArtifactAndRestoreSeparately(t *testing.T) {

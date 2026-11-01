@@ -78,6 +78,7 @@
     "flows": {
       "title": "フロー",
       "acquireAndRun": "リースを取得して実行",
+      "audioTrackPartial": "一部のチャプターには音声トラックがなく、その区間には無音が挿入されています。",
       "audioTrackPresent": "音声トラックがあります。音が聞こえることは未確認です。",
       "audioTrackAbsent": "この録画に音声トラックはありません。",
       "audioTrackUnknown": "音声トラックの状態を確認できません。",

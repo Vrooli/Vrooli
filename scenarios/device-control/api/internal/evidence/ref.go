@@ -8,24 +8,25 @@ import (
 )
 
 type Reference struct {
-	ID                string      `json:"id"`
-	Producer          string      `json:"producer"`
-	Kind              string      `json:"kind"`
-	SHA256            string      `json:"sha256"`
-	Checksum          string      `json:"checksum"`
-	SizeBytes         int64       `json:"size_bytes"`
-	CreatedAt         time.Time   `json:"created_at"`
-	RedactionVerified bool        `json:"redaction_verified"`
-	RecordingMethod   string      `json:"recording_method,omitempty"`
-	EffectiveFPS      float64     `json:"effective_fps,omitempty"`
-	AppliedRules      []string    `json:"applied_rules,omitempty"`
-	OptedOut          bool        `json:"opted_out,omitempty"`
-	ClaimClass        ClaimClass  `json:"claim_class,omitempty"`
-	MinimumUsefulFPS  float64     `json:"minimum_useful_fps,omitempty"`
-	Disposition       Disposition `json:"disposition,omitempty"`
-	DispositionReason string      `json:"disposition_reason,omitempty"`
-	ContentVerified   bool        `json:"content_verified,omitempty"`
-	AudioTrackPresent *bool       `json:"audio_track_present,omitempty"`
+	ID                 string      `json:"id"`
+	Producer           string      `json:"producer"`
+	Kind               string      `json:"kind"`
+	SHA256             string      `json:"sha256"`
+	Checksum           string      `json:"checksum"`
+	SizeBytes          int64       `json:"size_bytes"`
+	CreatedAt          time.Time   `json:"created_at"`
+	RedactionVerified  bool        `json:"redaction_verified"`
+	RecordingMethod    string      `json:"recording_method,omitempty"`
+	EffectiveFPS       float64     `json:"effective_fps,omitempty"`
+	AppliedRules       []string    `json:"applied_rules,omitempty"`
+	OptedOut           bool        `json:"opted_out,omitempty"`
+	ClaimClass         ClaimClass  `json:"claim_class,omitempty"`
+	MinimumUsefulFPS   float64     `json:"minimum_useful_fps,omitempty"`
+	Disposition        Disposition `json:"disposition,omitempty"`
+	DispositionReason  string      `json:"disposition_reason,omitempty"`
+	ContentVerified    bool        `json:"content_verified"`
+	AudioTrackPresent  *bool       `json:"audio_track_present,omitempty"`
+	AudioTrackCoverage string      `json:"audio_track_coverage,omitempty"`
 }
 
 // EvidenceSink is the producer boundary for evidence references. Callers must
@@ -72,7 +73,7 @@ func NewClaimedVideoReference(id string, raw []byte, redaction Result, method st
 	if err != nil {
 		return Reference{}, err
 	}
-	if !content.Verified {
+	if content.SampledFrames == 0 {
 		return Reference{}, fmt.Errorf("video content verification failed: %s", content.Reason)
 	}
 	ref, err := newReference(id, raw, redaction, "video", method, fps)
@@ -84,7 +85,15 @@ func NewClaimedVideoReference(id string, raw []byte, redaction Result, method st
 	ref.MinimumUsefulFPS = a.MinimumUsefulFPS
 	ref.Disposition = a.Disposition
 	ref.DispositionReason = a.Reason
-	ref.ContentVerified = true
+	ref.ContentVerified = content.Verified
+	if !content.Verified {
+		ref.Disposition = DispositionDegraded
+		reason := content.Reason + "; visible content cannot be verified"
+		if ref.DispositionReason != "" {
+			reason += "; " + ref.DispositionReason
+		}
+		ref.DispositionReason = reason
+	}
 	// Track presence is a container fact, not proof of audible, synchronized,
 	// or complete sound. Leave it unknown when inspection is unavailable.
 	if present, err := InspectAudioTrack(raw); err == nil {

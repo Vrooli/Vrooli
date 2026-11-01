@@ -98,6 +98,7 @@ describe("FlowsPage", () => {
     api.runFlow.mockResolvedValue({ run_id: "audio-check", disposition: "passed", chapters: [], evidence: [
       { id: "with-track", kind: "video", size_bytes: 1, redaction_verified: false, audio_track_present: true },
       { id: "unknown-track", kind: "video", size_bytes: 1, redaction_verified: false },
+      { id: "partial-track", kind: "video", size_bytes: 1, redaction_verified: false, audio_track_present: true, audio_track_coverage: "some_chapters" },
     ] });
     const user = userEvent.setup();
     renderWithProviders(<FlowsPage />);
@@ -105,6 +106,7 @@ describe("FlowsPage", () => {
     const review = await screen.findByTestId(selectors.pages.flowRunReview);
     expect(review).toHaveTextContent(strings.pages.flows.audioTrackPresent);
     expect(review).toHaveTextContent(strings.pages.flows.audioTrackUnknown);
+    expect(review).toHaveTextContent(strings.pages.flows.audioTrackPartial);
   });
 
   it("releases the device if execution fails", async () => {

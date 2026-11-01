@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -37,6 +38,448 @@ func testService(t *testing.T) (*Service, *sql.DB) {
 	svc, err := NewWithDB(strategyregistry.New(fake), db)
 	require.NoError(t, err)
 	return svc, db
+}
+
+type slowInventoryProbe struct {
+	*fakes.Strategy
+	started chan struct{}
+	release chan struct{}
+}
+
+type countingInventoryProbe struct {
+	*fakes.Strategy
+	describes atomic.Int32
+}
+
+type coordinatedInventoryProbe struct {
+	*fakes.Strategy
+	ready chan struct{}
+	waits bool
+}
+
+func (p *coordinatedInventoryProbe) Enumerate(ctx context.Context) ([]strategy.Device, error) {
+	if p.waits {
+		select {
+		case <-p.ready:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	} else {
+		close(p.ready)
+	}
+	return []strategy.Device{{ID: p.ID() + "-device", StrategyID: p.ID(), Transport: p.ID(), Health: strategy.StatusAvailable, ObservedAt: time.Now()}}, nil
+}
+
+func TestInventoryEnumeratesIndependentStrategiesConcurrently(t *testing.T) {
+	ready := make(chan struct{})
+	slow := &coordinatedInventoryProbe{Strategy: fakes.New("a-slow", strategy.StatusAvailable), ready: ready, waits: true}
+	fast := &coordinatedInventoryProbe{Strategy: fakes.New("z-fast", strategy.StatusAvailable), ready: ready}
+	svc := New(strategyregistry.New(slow, fast))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	devices := svc.Devices(ctx)
+	ids := make([]string, 0, len(devices))
+	for _, device := range devices {
+		ids = append(ids, device.ID)
+	}
+	require.ElementsMatch(t, []string{"a-slow-device", "z-fast-device"}, ids)
+}
+
+type earlyScopedInventoryProbe struct {
+	*fakes.Strategy
+	ready  chan struct{}
+	scoped bool
+}
+
+func (p *earlyScopedInventoryProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if p.scoped {
+		close(p.ready)
+	}
+	return p.Strategy.Describe(ctx)
+}
+func (p *earlyScopedInventoryProbe) Enumerate(context.Context) ([]strategy.Device, error) {
+	return []strategy.Device{{ID: "early-device", Serial: "serial", StrategyID: p.ID(), Transport: p.ID(), Health: strategy.StatusAvailable, ObservedAt: time.Now()}}, nil
+}
+func (p *earlyScopedInventoryProbe) ForDevice(string) strategy.Strategy {
+	return &earlyScopedInventoryProbe{Strategy: p.Strategy, ready: p.ready, scoped: true}
+}
+
+func TestInventoryProcessesReadyDeviceBeforeOtherDiscoveryFinishes(t *testing.T) {
+	ready := make(chan struct{})
+	early := &earlyScopedInventoryProbe{Strategy: fakes.New("a-early", strategy.StatusAvailable), ready: ready}
+	late := &coordinatedInventoryProbe{Strategy: fakes.New("z-late", strategy.StatusAvailable), ready: ready, waits: true}
+	svc := New(strategyregistry.New(early, late))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	devices := svc.Devices(ctx)
+	ids := make([]string, 0, len(devices))
+	for _, device := range devices {
+		ids = append(ids, device.ID)
+	}
+	require.ElementsMatch(t, []string{"early-device", "z-late-device"}, ids)
+}
+
+type coordinatedScopedProbe struct {
+	*fakes.Strategy
+	ready  chan struct{}
+	serial string
+}
+
+func (p *coordinatedScopedProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if p.serial == "slow" {
+		select {
+		case <-p.ready:
+		case <-ctx.Done():
+			return strategy.Declaration{}, ctx.Err()
+		}
+	} else if p.serial == "fast" {
+		close(p.ready)
+	}
+	declaration, err := p.Strategy.Describe(ctx)
+	if p.serial != "" {
+		declaration.Capabilities = map[string]strategy.Capability{strategy.CapScreenshot: {Name: strategy.CapScreenshot, Status: strategy.StatusAvailable}}
+	}
+	return declaration, err
+}
+func (p *coordinatedScopedProbe) Enumerate(context.Context) ([]strategy.Device, error) {
+	return []strategy.Device{
+		{ID: "slow-device", Serial: "slow", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
+		{ID: "fast-device", Serial: "fast", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
+	}, nil
+}
+func (p *coordinatedScopedProbe) ForDevice(serial string) strategy.Strategy {
+	return &coordinatedScopedProbe{Strategy: p.Strategy, ready: p.ready, serial: serial}
+}
+
+func TestInventoryProbesDevicesIndependently(t *testing.T) {
+	base := fakes.New("scoped", strategy.StatusUnavailable, strategy.CapScreenshot)
+	base.Declaration.Status = strategy.StatusAvailable
+	probe := &coordinatedScopedProbe{Strategy: base, ready: make(chan struct{})}
+	svc := New(strategyregistry.New(probe))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	devices := svc.Devices(ctx)
+	require.Len(t, devices, 2)
+	for _, device := range devices {
+		found := false
+		for _, capability := range device.Capabilities {
+			if capability.Name == strategy.CapScreenshot {
+				found = capability.Status == strategy.StatusAvailable
+			}
+		}
+		require.True(t, found, "device %s did not retain its own screenshot capability", device.ID)
+	}
+}
+
+type failingScopedInventoryProbe struct {
+	*fakes.Strategy
+	serial string
+}
+
+func (p *failingScopedInventoryProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if p.serial == "failed" {
+		return strategy.Declaration{}, errors.New("target probe unavailable")
+	}
+	return p.Strategy.Describe(ctx)
+}
+func (p *failingScopedInventoryProbe) Enumerate(context.Context) ([]strategy.Device, error) {
+	return []strategy.Device{
+		{ID: "failed-device", Serial: "failed", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
+		{ID: "healthy-device", Serial: "healthy", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable},
+	}, nil
+}
+func (p *failingScopedInventoryProbe) ForDevice(serial string) strategy.Strategy {
+	return &failingScopedInventoryProbe{Strategy: p.Strategy, serial: serial}
+}
+
+func TestInventoryDoesNotBorrowCapabilitiesAfterDeviceProbeFailure(t *testing.T) {
+	probe := &failingScopedInventoryProbe{Strategy: fakes.New("scoped", strategy.StatusAvailable, strategy.CapScreenshot)}
+	svc := New(strategyregistry.New(probe))
+	devices := svc.Devices(context.Background())
+	capabilities := make(map[string]string)
+	for _, device := range devices {
+		for _, capability := range device.Capabilities {
+			if capability.Name == strategy.CapScreenshot {
+				capabilities[device.ID] = capability.Status
+			}
+		}
+	}
+	require.Equal(t, strategy.StatusUnavailable, capabilities["failed-device"])
+	require.Equal(t, strategy.StatusAvailable, capabilities["healthy-device"])
+}
+
+type coordinatedPromotedProbe struct {
+	*fakes.Strategy
+	started  *atomic.Int32
+	ready    chan struct{}
+	deviceID string
+}
+
+func (p *coordinatedPromotedProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if p.started.Add(1) == 2 {
+		close(p.ready)
+	}
+	select {
+	case <-p.ready:
+		return p.Strategy.Describe(ctx)
+	case <-ctx.Done():
+		return strategy.Declaration{}, ctx.Err()
+	}
+}
+func (p *coordinatedPromotedProbe) Enumerate(context.Context) ([]strategy.Device, error) {
+	return []strategy.Device{{ID: p.deviceID, Serial: p.deviceID, StrategyID: p.ID(), Transport: "wireless", Health: strategy.StatusAvailable, ObservedAt: time.Now()}}, nil
+}
+
+func TestInventoryProbesPromotedDevicesIndependently(t *testing.T) {
+	base := fakes.New("promoted", strategy.StatusUnavailable, strategy.CapScreenshot)
+	base.Declaration.Status = strategy.StatusAvailable
+	svc := New(strategyregistry.New(base))
+	var started atomic.Int32
+	ready := make(chan struct{})
+	for _, id := range []string{"phone", "tv"} {
+		svc.devices.Upsert(devicedomain.Record{ID: id, Serial: id, StrategyID: "promoted", Transport: "wireless", Health: strategy.StatusAvailable})
+		svc.transportStrategies[id] = &coordinatedPromotedProbe{Strategy: fakes.New("promoted", strategy.StatusAvailable, strategy.CapScreenshot), started: &started, ready: ready, deviceID: id}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	devices := svc.Devices(ctx)
+	capabilities := map[string]string{}
+	for _, device := range devices {
+		for _, capability := range device.Capabilities {
+			if capability.Name == strategy.CapScreenshot {
+				capabilities[device.ID] = capability.Status
+			}
+		}
+	}
+	require.Equal(t, strategy.StatusAvailable, capabilities["phone"])
+	require.Equal(t, strategy.StatusAvailable, capabilities["tv"])
+}
+
+type panickingEnumerator struct{ *fakes.Strategy }
+
+func (*panickingEnumerator) Enumerate(context.Context) ([]strategy.Device, error) {
+	panic("enumeration failed")
+}
+
+func TestInventoryIsolatesPanickingEnumerator(t *testing.T) {
+	broken := &panickingEnumerator{Strategy: fakes.New("broken", strategy.StatusAvailable)}
+	healthy := &countingInventoryProbe{Strategy: fakes.New("healthy", strategy.StatusAvailable)}
+	svc := New(strategyregistry.New(broken, healthy))
+	devices := svc.Devices(context.Background())
+	statuses := make(map[string]string)
+	for _, device := range devices {
+		statuses[device.ID] = device.Health
+	}
+	require.Equal(t, strategy.HealthUnreachable, statuses["unreachable:broken"])
+	require.Equal(t, strategy.StatusAvailable, statuses["counted-device"])
+}
+
+func TestInventoryDoesNotEnumerateAfterCancellation(t *testing.T) {
+	broken := &panickingEnumerator{Strategy: fakes.New("broken", strategy.StatusAvailable)}
+	svc := New(strategyregistry.New(broken))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	results := svc.enumerateBaseStrategies(ctx, []strategy.Declaration{{StrategyID: "broken"}}, make(chan struct{}, 8))
+	require.Len(t, results, 1)
+	<-results[0].done
+	require.ErrorIs(t, results[0].err, context.Canceled)
+}
+
+func (p *countingInventoryProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	p.describes.Add(1)
+	return p.Strategy.Describe(ctx)
+}
+
+func (p *countingInventoryProbe) Enumerate(context.Context) ([]strategy.Device, error) {
+	return []strategy.Device{{ID: "counted-device", StrategyID: p.ID(), Transport: "usb", Health: strategy.StatusAvailable, ObservedAt: time.Now()}}, nil
+}
+
+func TestInventoryDescribesBaseStrategyOnce(t *testing.T) {
+	probe := &countingInventoryProbe{Strategy: fakes.New("counted", strategy.StatusAvailable, strategy.CapScreenshot)}
+	svc := New(strategyregistry.New(probe))
+	devices := svc.Devices(context.Background())
+	require.Len(t, devices, 1)
+	require.Equal(t, "counted-device", devices[0].ID)
+	require.EqualValues(t, 1, probe.describes.Load())
+}
+
+type slowObserverProbe struct {
+	*countingInventoryProbe
+	started chan struct{}
+	release chan struct{}
+}
+
+func (p *slowObserverProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if p.describes.Add(1) > 1 {
+		select {
+		case p.started <- struct{}{}:
+		default:
+		}
+		select {
+		case <-p.release:
+		case <-ctx.Done():
+		}
+	}
+	return p.Strategy.Describe(ctx)
+}
+
+func (p *slowObserverProbe) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{}, nil
+}
+
+func TestObserverProbeDoesNotBlockInventoryOrCachedReads(t *testing.T) {
+	probe := &slowObserverProbe{countingInventoryProbe: &countingInventoryProbe{Strategy: fakes.New("counted", strategy.StatusAvailable)}, started: make(chan struct{}, 1), release: make(chan struct{})}
+	svc := New(strategyregistry.New(probe))
+	done := make(chan struct{})
+	go func() { svc.Devices(context.Background()); close(done) }()
+	<-probe.started
+	read := make(chan struct{})
+	go func() { svc.CachedDevices(); close(read) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		close(probe.release)
+		t.Fatal("observer qualification held inventory open")
+	}
+	select {
+	case <-read:
+	case <-time.After(time.Second):
+		close(probe.release)
+		t.Fatal("observer qualification blocked cached device reads")
+	}
+	close(probe.release)
+}
+
+func TestCancelledObserverCannotRemoveReplacement(t *testing.T) {
+	svc := New(strategyregistry.New())
+	oldCtx, oldCancel := context.WithCancel(context.Background())
+	old := &observerJob{cancel: oldCancel}
+	_, replacementCancel := context.WithCancel(context.Background())
+	defer replacementCancel()
+	replacement := &observerJob{cancel: replacementCancel}
+	svc.observerCancels["device"] = replacement
+	oldCancel()
+	svc.runDeviceObserver(oldCtx, devicedomain.Record{ID: "device"}, old)
+	require.Same(t, replacement, svc.observerCancels["device"])
+}
+
+type panickingObserverProbe struct{ *fakes.Strategy }
+
+func (*panickingObserverProbe) Describe(context.Context) (strategy.Declaration, error) {
+	panic("observer probe failed")
+}
+func (*panickingObserverProbe) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{}, nil
+}
+
+func TestObserverProbePanicReportsUnreachable(t *testing.T) {
+	probe := &panickingObserverProbe{Strategy: fakes.New("panic-observer", strategy.StatusAvailable)}
+	svc := New(strategyregistry.New(probe))
+	subscription := svc.SubscribeStateChanges(2)
+	defer subscription.Cancel()
+	svc.mu.Lock()
+	svc.startObserverLocked(devicedomain.Record{ID: "target", StrategyID: probe.ID()})
+	svc.mu.Unlock()
+	select {
+	case event := <-subscription.Events:
+		require.Equal(t, "target", event.DeviceID)
+		require.Equal(t, "transport_health", event.Attribute)
+		require.Equal(t, "unreachable", event.NewValue)
+	case <-time.After(time.Second):
+		t.Fatal("observer probe panic did not produce a health event")
+	}
+}
+
+func (p *slowInventoryProbe) Describe(ctx context.Context) (strategy.Declaration, error) {
+	select {
+	case p.started <- struct{}{}:
+	default:
+	}
+	select {
+	case <-p.release:
+	case <-ctx.Done():
+	}
+	return p.Strategy.Describe(ctx)
+}
+
+func TestSlowInventoryDoesNotBlockLeaseLifecycle(t *testing.T) {
+	probe := &slowInventoryProbe{Strategy: fakes.New("slow-inventory", strategy.StatusAvailable), started: make(chan struct{}, 1), release: make(chan struct{})}
+	target := fakes.New("lease-target", strategy.StatusAvailable, strategy.CapInput)
+	svc := New(strategyregistry.New(probe, target))
+	session, err := svc.Acquire("lease-target", "operator", time.Minute)
+	require.NoError(t, err)
+	inventoryDone := make(chan struct{})
+	go func() { svc.Devices(context.Background()); close(inventoryDone) }()
+	<-probe.started
+	leaseResult := make(chan error, 1)
+	go func() {
+		if len(svc.ListLiveSessions()) != 1 {
+			leaseResult <- fmt.Errorf("held lease missing")
+			return
+		}
+		if err := svc.ValidateLease(context.Background(), "lease-target", session.LeaseToken); err != nil {
+			leaseResult <- err
+			return
+		}
+		if _, err := svc.Release(session.ID); err != nil {
+			leaseResult <- err
+			return
+		}
+		_, err := svc.Acquire("lease-target", "next", time.Minute)
+		leaseResult <- err
+	}()
+	select {
+	case err := <-leaseResult:
+		close(probe.release)
+		<-inventoryDone
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		close(probe.release)
+		<-inventoryDone
+		t.Fatal("lease lifecycle waited for a slow inventory probe")
+	}
+}
+
+func TestSlowInventoryDoesNotBlockCachedDeviceReads(t *testing.T) {
+	probe := &slowInventoryProbe{Strategy: fakes.New("slow-inventory", strategy.StatusAvailable), started: make(chan struct{}, 1), release: make(chan struct{})}
+	svc := New(strategyregistry.New(probe))
+	done := make(chan struct{})
+	go func() { svc.Devices(context.Background()); close(done) }()
+	<-probe.started
+	read := make(chan struct{})
+	go func() { svc.CachedDevices(); close(read) }()
+	select {
+	case <-read:
+		close(probe.release)
+		<-done
+	case <-time.After(time.Second):
+		close(probe.release)
+		<-done
+		t.Fatal("cached device read waited for a slow inventory probe")
+	}
+}
+
+func TestForgetWaitsForInventoryBeforeRemovingIdentity(t *testing.T) {
+	probe := &slowInventoryProbe{Strategy: fakes.New("slow-inventory", strategy.StatusAvailable), started: make(chan struct{}, 1), release: make(chan struct{})}
+	svc := New(strategyregistry.New(probe))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: "slow-inventory", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	inventoryDone := make(chan struct{})
+	go func() { svc.Devices(context.Background()); close(inventoryDone) }()
+	<-probe.started
+	forgotten := make(chan bool, 1)
+	go func() { forgotten <- svc.ForgetDevice("target") }()
+	select {
+	case <-forgotten:
+		close(probe.release)
+		<-inventoryDone
+		t.Fatal("forget completed before the in-flight inventory")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(probe.release)
+	<-inventoryDone
+	require.True(t, <-forgotten)
+	_, found := svc.devices.Get("target")
+	require.False(t, found)
 }
 
 type flowAuthResolver struct{ value string }
@@ -993,11 +1436,13 @@ func TestDeclaredPollingTransportStartsObservationWithoutCastSpecialCase(t *test
 	svc := New(strategyregistry.New(pollingStateStrategy{}))
 	subscription := svc.SubscribeStateChanges(2)
 	defer subscription.Cancel()
+	svc.mu.Lock()
 	svc.startObserverLocked(devicedomain.Record{ID: "poll-device", StrategyID: "polling-state", Transport: "polling-state", Status: strategy.StatusAvailable})
+	svc.mu.Unlock()
 	defer func() {
 		svc.mu.Lock()
-		if cancel := svc.observerCancels["poll-device"]; cancel != nil {
-			cancel()
+		if job := svc.observerCancels["poll-device"]; job != nil {
+			job.cancel()
 		}
 		svc.mu.Unlock()
 	}()
@@ -1843,6 +2288,42 @@ func TestRunReusesHeldLeaseTokenWithoutConflict(t *testing.T) { // [REQ:DVC-P0-0
 	require.Equal(t, "held", svc.ListSessions()[0].State)
 	_, err = svc.Release(session.ID)
 	require.NoError(t, err)
+}
+
+func TestLeaseRejectsOverlappingRunsAndCancelsOriginal(t *testing.T) {
+	svc, _ := testService(t)
+	session, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	finished := make(chan RunResult, 1)
+	go func() {
+		result, _ := svc.RunWithLease(context.Background(), Flow{Steps: []Step{{ID: "wait", Kind: "wait", TimeoutMS: 5000, Arguments: map[string]any{"settle_ms": float64(5000)}}}}, "fake", "operator", session.LeaseToken)
+		finished <- result
+	}()
+	require.Eventually(t, func() bool {
+		svc.sessionMu.Lock()
+		defer svc.sessionMu.Unlock()
+		return svc.activeCancels[session.ID] != nil
+	}, time.Second, 5*time.Millisecond)
+	_, err = svc.RunWithLease(context.Background(), Flow{Steps: []Step{{ID: "wait", Kind: "wait"}}}, "fake", "operator", session.LeaseToken)
+	require.ErrorContains(t, err, "already has an active run")
+	_, err = svc.Release(session.ID)
+	require.NoError(t, err)
+	select {
+	case result := <-finished:
+		require.Equal(t, "cancelled", result.Disposition)
+	case <-time.After(time.Second):
+		t.Fatal("original run was not cancelled")
+	}
+}
+
+func TestReleasedLeaseCannotRegisterRun(t *testing.T) {
+	svc, _ := testService(t)
+	session, err := svc.Acquire("fake", "operator", time.Minute)
+	require.NoError(t, err)
+	_, err = svc.Release(session.ID)
+	require.NoError(t, err)
+	_, err = svc.execute(context.Background(), Flow{Steps: []Step{{ID: "wait", Kind: "wait"}}}, "fake", "operator", session, false)
+	require.ErrorContains(t, err, "lease is no longer held")
 }
 
 func TestFrameDifferenceFailsWhenActuationIsSuppressed(t *testing.T) { // [REQ:DVC-P0-008]

@@ -2,6 +2,8 @@ package control
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -134,9 +136,36 @@ func (s *Service) artifactPath(ctx context.Context, id string) (string, error) {
 }
 
 func (s *Service) persistArtifact(ctx context.Context, id string, data []byte, kind string) error {
+	return s.persistEvidence(ctx, id, data, kind, nil)
+}
+
+type recordingProvenance struct {
+	DeviceID string `json:"device_id"`
+	LeaseID  string `json:"lease_id"`
+	SHA256   string `json:"sha256"`
+}
+
+func (s *Service) persistRecording(ctx context.Context, id string, data []byte, deviceID, leaseID string) error {
+	if deviceID == "" || leaseID == "" {
+		return fmt.Errorf("recording requires a device and lease identity")
+	}
+	digest := sha256.Sum256(data)
+	return s.persistEvidence(ctx, id, data, "video", &recordingProvenance{DeviceID: deviceID, LeaseID: leaseID, SHA256: hex.EncodeToString(digest[:])})
+}
+
+func (s *Service) persistEvidence(ctx context.Context, id string, data []byte, kind string, provenance *recordingProvenance) error {
 	path, err := s.artifactPath(ctx, id)
 	if err != nil {
 		return fmt.Errorf("create evidence store: %w", err)
+	}
+	if provenance != nil {
+		metadata, err := json.Marshal(provenance)
+		if err != nil {
+			return fmt.Errorf("encode recording provenance: %w", err)
+		}
+		if err := os.WriteFile(path+".provenance", metadata, 0o600); err != nil {
+			return fmt.Errorf("retain recording provenance: %w", err)
+		}
 	}
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("retain evidence: %w", err)
@@ -148,6 +177,30 @@ func (s *Service) persistArtifact(ctx context.Context, id string, data []byte, k
 	s.artifacts[id] = path
 	s.artifactKinds[id] = kind
 	s.mu.Unlock()
+	return nil
+}
+
+func (s *Service) verifyRecordingProvenance(ctx context.Context, id string, data []byte, deviceID, leaseID string) error {
+	// ArtifactContext validates the identifier before this helper is called.
+	s.mu.Lock()
+	path := s.artifacts[id]
+	s.mu.Unlock()
+	if path == "" {
+		var err error
+		path, err = s.artifactPath(ctx, id)
+		if err != nil {
+			return fmt.Errorf("resolve recording provenance: %w", err)
+		}
+	}
+	metadata, err := os.ReadFile(path + ".provenance")
+	if err != nil || len(metadata) > 4096 {
+		return fmt.Errorf("recording %q has no verifiable provenance", id)
+	}
+	var provenance recordingProvenance
+	digest := sha256.Sum256(data)
+	if json.Unmarshal(metadata, &provenance) != nil || provenance.DeviceID != deviceID || provenance.LeaseID != leaseID || provenance.SHA256 != hex.EncodeToString(digest[:]) {
+		return fmt.Errorf("recording %q does not match this device lease or its retained content", id)
+	}
 	return nil
 }
 

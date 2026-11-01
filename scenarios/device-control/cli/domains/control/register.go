@@ -54,12 +54,12 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Device state")
 		}),
-		command("capture", "Capture available device evidence or report an observation gap", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "screenshot, recording, logs, console, or network"}, {Name: "seconds", Default: "5", Description: "recording duration, 1 to 30 seconds"}, {Name: "package", Description: "exact application package for logs"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
+		command("capture", "Capture available device evidence or report an observation gap", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "screenshot, recording, logs, console, or network"}, {Name: "seconds", Default: "5", Description: "recording duration, 1 to 30 seconds"}, {Name: "require-audio", Bool: true, Description: "require a transport that can record audio and verify an audio track"}, {Name: "package", Description: "exact application package for logs"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
 			seconds, err := strconv.Atoi(ctx.Flag("seconds"))
 			if err != nil || seconds < 1 || seconds > 30 {
 				return fmt.Errorf("seconds must be between 1 and 30")
 			}
-			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/capture", map[string]any{"kind": ctx.Flag("kind"), "seconds": seconds, "package": ctx.Flag("package"), "actor": ctx.Flag("actor")}, "Device capture")
+			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/capture", map[string]any{"kind": ctx.Flag("kind"), "seconds": seconds, "package": ctx.Flag("package"), "require_audio": ctx.BoolFlag("require-audio"), "actor": ctx.Flag("actor")}, "Device capture")
 		}),
 		command("screen", "Wake, sleep, or prepare a device and verify its reported state", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "operation", Required: true, Description: "wake, sleep, or ready"}, {Name: "auth-profile", Description: "authentication profile for ready when locked"}, {Name: "home", Bool: true, Description: "request Home after ready; may change the foreground application"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
 			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/screen", map[string]any{"operation": ctx.Flag("operation"), "auth_profile_id": ctx.Flag("auth-profile"), "home": ctx.BoolFlag("home"), "actor": ctx.Flag("actor")}, "Screen operation")
