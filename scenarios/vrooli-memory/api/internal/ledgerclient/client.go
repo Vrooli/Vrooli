@@ -20,6 +20,7 @@ import (
 	sourcefacetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/facets/facets_v1connect"
 	sourceforest "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest"
 	sourceforestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/forest/forest_v1connect"
+	sourcejournal "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	sourcejournalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 	sourcerecallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 	sourcerulesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/rules/rules_v1connect"
@@ -186,4 +187,13 @@ func (c *Client) RunBounded(ctx context.Context, scope string, maxClusters int) 
 		return CompactionResult{}, NormalizeError("compaction", err)
 	}
 	return CompactionResult{CompactedCount: int(resp.Msg.GetCompactedCount()), EligibleFrontierBefore: int(resp.Msg.GetEligibleFrontierBefore()), EligibleFrontierAfter: int(resp.Msg.GetEligibleFrontierAfter()), Target: int(resp.Msg.GetTarget())}, nil
+}
+
+// RetryEmbeddings runs the ledger-owned bounded retry operation for one scope.
+func (c *Client) RetryEmbeddings(ctx context.Context, scope string, limit int) (processed, deferred int, err error) {
+	resp, err := c.Journal.ProcessEmbeddingRetries(ctx, connect.NewRequest(&sourcejournal.ProcessEmbeddingRetriesRequest{Scope: NormalizeScope(scope), Limit: int32(limit)}))
+	if err != nil {
+		return 0, 0, NormalizeError("embedding retry", err)
+	}
+	return int(resp.Msg.GetProcessed()), int(resp.Msg.GetDeferred()), nil
 }

@@ -5,6 +5,7 @@ package maintenance
 
 import (
 	"context"
+	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -36,9 +37,17 @@ const (
 	// request path.
 	DefaultCompactLimit = 2
 	CompactTimeout      = 30 * time.Minute
+	RetryInterval       = 5 * time.Minute
+	RetryPassTimeout    = 60 * time.Second
+	RetryScopeTimeout   = 15 * time.Second
+	RetryScopeLimit     = 2
 )
 
 type (
+	EmbeddingRetrier interface {
+		ListScopes(context.Context) ([]string, error)
+		RetryEmbeddings(context.Context, string, int) (int, int, error)
+	}
 	Outcome struct {
 		Runtime, ImportStatus, ImportError, ProjectionStatus, ProjectionError string
 		ProjectionSizeBytes, ProjectionSizeLines                              int64
@@ -86,14 +95,15 @@ type (
 		Project(context.Context, string, bool) (harness.ProjectionResult, error)
 	}
 	Service struct {
-		store        Store
-		importer     Importer
-		projector    Projector
-		compactor    Compactor
-		clock        schedule.Clock
-		interval     time.Duration
-		compactLimit int
-		running      atomic.Bool
+		store            Store
+		importer         Importer
+		projector        Projector
+		compactor        Compactor
+		embeddingRetrier EmbeddingRetrier
+		clock            schedule.Clock
+		interval         time.Duration
+		compactLimit     int
+		running          atomic.Bool
 	}
 )
 
@@ -110,6 +120,47 @@ func (s *Service) WithCompaction(compactor Compactor, limit int) *Service {
 	s.compactor = compactor
 	s.compactLimit = limit
 	return s
+}
+
+// WithEmbeddingRetries reuses this maintenance pass for bounded queued work.
+func (s *Service) WithEmbeddingRetries(retrier EmbeddingRetrier) *Service {
+	s.embeddingRetrier = retrier
+	return s
+}
+
+// retryEmbeddings shares one whole-pass deadline across all scopes and rotates
+// its starting point so a slow or unavailable scope cannot starve later ones.
+func (s *Service) retryEmbeddings(ctx context.Context) {
+	if s.embeddingRetrier == nil {
+		return
+	}
+	pass, cancel := context.WithTimeout(ctx, RetryPassTimeout)
+	defer cancel()
+	scopes, err := s.embeddingRetrier.ListScopes(pass)
+	if err != nil {
+		log.Printf("maintenance embedding retries: list scopes: %v", err)
+		return
+	}
+	sort.Strings(scopes)
+	if len(scopes) == 0 {
+		return
+	}
+	offset := int((s.clock.Now().Unix() / int64(RetryInterval.Seconds())) % int64(len(scopes)))
+	if offset < 0 {
+		offset += len(scopes)
+	}
+	for i := 0; i < len(scopes) && pass.Err() == nil; i++ {
+		scope := scopes[(i+offset)%len(scopes)]
+		attempt, stop := context.WithTimeout(pass, RetryScopeTimeout)
+		processed, deferred, err := s.embeddingRetrier.RetryEmbeddings(attempt, scope, RetryScopeLimit)
+		stop()
+		if err != nil || deferred > 0 {
+			log.Printf("maintenance embedding retries scope=%q processed=%d deferred=%d error=%v", scope, processed, deferred, err)
+		}
+	}
+	if pass.Err() != nil {
+		log.Printf("maintenance embedding retry pass incomplete: %v", pass.Err())
+	}
 }
 
 func CompactLimitFromEnv(getenv func(string) (string, bool)) (int, error) {
@@ -140,16 +191,44 @@ func (s *Service) Start(ctx context.Context) {
 		return
 	}
 	go func() {
-		// A restart refreshes stores immediately; subsequent runs are ticker-led.
+		// One executor and one timer own both cadences. Harness projection and
+		// compaction retain their configured interval; only pending embeddings are
+		// retried at the shorter cadence.
 		_, _ = s.RunOnce(ctx)
-		ticker := s.clock.NewTicker(s.interval)
-		defer ticker.Stop()
+		now := s.clock.Now()
+		fullDue := now.Add(s.interval)
+		retryDue := now.Add(RetryInterval)
+		delay := func() time.Duration {
+			next := fullDue
+			if s.embeddingRetrier != nil && retryDue.Before(next) {
+				next = retryDue
+			}
+			remaining := next.Sub(s.clock.Now())
+			if remaining < 0 {
+				return 0
+			}
+			return remaining
+		}
+		timer := s.clock.NewTimer(delay())
+		defer timer.Stop()
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C():
-				_, _ = s.RunOnce(ctx)
+			case <-timer.C():
+				now = s.clock.Now()
+				if !now.Before(fullDue) {
+					_, _ = s.RunOnce(ctx)
+					fullDue = s.clock.Now().Add(s.interval)
+					retryDue = s.clock.Now().Add(RetryInterval)
+				} else if s.embeddingRetrier != nil && !now.Before(retryDue) {
+					if s.running.CompareAndSwap(false, true) {
+						s.retryEmbeddings(ctx)
+						s.running.Store(false)
+					}
+					retryDue = s.clock.Now().Add(RetryInterval)
+				}
+				timer.Reset(delay())
 			}
 		}
 	}()
@@ -206,6 +285,8 @@ func (s *Service) RunOnce(ctx context.Context) (bool, error) {
 			return true, err
 		}
 	}
+	s.retryEmbeddings(ctx)
+
 	// Compaction runs last. It is the only step whose duration scales with the
 	// backlog, so putting it ahead of projection would hold every harness memory
 	// file hostage to a long catch-up pass. The canopy this pass grows is picked

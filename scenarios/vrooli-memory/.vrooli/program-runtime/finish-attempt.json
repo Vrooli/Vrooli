@@ -76,13 +76,13 @@
     "attempts": {
       "type": "array",
       "required": false,
-      "description": "Optional parent-first attempt tree. Each child names parent_attempt_id and step_name.",
+      "description": "Optional parent-first tree of 1..33 attempts. Each child names parent_attempt_id and step_name.",
       "default": []
     },
     "observations": {
       "type": "array",
       "required": false,
-      "description": "At most 10 snake-case Observations; IDs filled if omitted, timestamps/provenance explicit.",
+      "description": "At most 128 snake-case Observations; IDs filled if omitted, timestamps/provenance explicit.",
       "default": []
     }
   },
@@ -105,7 +105,7 @@
       "task-record",
       "attempt-observation"
     ],
-    "writes_when": "Only after every input validates; at most one record and ten observes, stopping on first failure."
+    "writes_when": "Only after every input validates; at most 33 attempt records and 128 observations, stopping on first failure or the runtime wall deadline."
   },
   "fixtures": [
     {
@@ -141,5 +141,6 @@
     "recall",
     "tasks.get",
     "validate"
-  ]
+  ],
+  "owner_skill": "vrooli-memory"
 }

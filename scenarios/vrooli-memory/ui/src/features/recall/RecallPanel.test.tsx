@@ -22,7 +22,7 @@ describe("[REQ:VMEM-P1-003] [REQ:VMEM-P1-006] RecallPanel", () => {
     await screen.findByTestId(selectors.recall.list);
     expect(recallMemory).toHaveBeenCalledWith("shared memory", 10);
     await expectNoA11yViolations(ready.container);
-    cleanup();
+    ready.unmount();
 
     vi.mocked(recallMemory).mockResolvedValueOnce([]);
     const empty = renderWithProviders(<RecallPanel />, {
@@ -33,7 +33,7 @@ describe("[REQ:VMEM-P1-003] [REQ:VMEM-P1-006] RecallPanel", () => {
     await screen.findByTestId(selectors.recall.empty);
     await expectNoA11yViolations(empty.container);
 
-    cleanup();
+    empty.unmount();
     vi.mocked(recallMemory).mockRejectedValueOnce(new Error("recall unavailable"));
     renderWithProviders(<RecallPanel />);
     await user.type(screen.getByRole("textbox"), "failure");

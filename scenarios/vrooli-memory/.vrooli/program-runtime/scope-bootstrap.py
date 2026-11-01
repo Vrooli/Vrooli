@@ -11,6 +11,8 @@ for a scope that does not exist yet returns failed with class facets_not_settabl
 Run each call in its own session: session variables persist across submissions.
 """
 
+import json
+
 # ---- inputs: the caller binds a dict named `inputs`; contract defaults otherwise -------
 inputs = program.inputs()
 scope = inputs.get("scope")
@@ -56,21 +58,16 @@ def step_validate():
 def step_collect():  # COLLECT · read what exists
     envelope["phase"] = "collect"
     try:
-        scopes, existing_rules = gather(
-            lambda: vrooli_memory.scopes.list(),
-            lambda: vrooli_memory.rules.list(scope=scope),
-        )
+        scopes = vrooli_memory.scopes.list()
+        existed = scopes.filter(lambda r: r.get("id") == scope).count() > 0
+        known = set()
+        if existed:
+            existing_rules = vrooli_memory.rules.list(scope=scope)
+            known = {r.get("id") for r in existing_rules.head(200) if r.get("scope") == scope}
     except Exception as exc:
         status, klass = program.classify(exc)
         return fail(status, klass, exc, "collect")
-    # rules list ignores --scope (it answers for agent-memory whatever you pass), so the rows are
-    # filtered here on their own scope field; without this a foreign rule id reads as already present.
-    existing_rules = existing_rules.filter(lambda r: r.get("scope") == scope)
-    existed = scopes.filter(lambda r: r.get("id") == scope).count() > 0
     envelope["signals"]["scope_existed"] = existed
-    known = set()
-    for r in existing_rules.head(200):
-        known.add(r.get("id"))
     plan["create_scope"] = not existed
     for r in rules:
         (plan["rules_existing"] if r["id"] in known else plan["rules_to_create"]).append(r)
@@ -143,7 +140,7 @@ def step_act():  # ACT · declared writes only, in order: scope, then rules (cre
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(envelope)
+    print(json.dumps(envelope, ensure_ascii=True, allow_nan=False))
     return None
 
 

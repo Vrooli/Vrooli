@@ -36,13 +36,12 @@ try:
                 and (not legacy or (preference.get("operation") == current.get("operation")
                                     and preference.get("context_key") == current.get("context_key")))):
             matches.append((candidate["entry_id"], preference["option_id"], candidate.get("verdict", "unknown")))
-    weights = {option: 0.0 for option in options}
-    for _, option, verdict in matches:
-        weights[option] += 1.0 if verdict == "supported" else (-1.0 if verdict == "contradicted" else 0.5)
     choices = {option for _, option, _ in matches}
-    selected = max(weights, key=weights.get) if weights and max(weights.values()) > 0 else fallback
+    selected = fallback
     advice = []
-    if len(choices) == 1:
+    if len(choices) == 1 and sum(1.0 if verdict == "supported" else (-1.0 if verdict == "contradicted" else 0.5)
+                                 for _, _, verdict in matches) > 0:
+        selected = next(iter(choices))
         advice = [{"entry_id": entry_id, "decision": "applied",
                    "decision_change": "Selected allowed option " + selected,
                    "verdict": "unknown", "evidence_refs": []} for entry_id, option, _ in matches if option == selected]

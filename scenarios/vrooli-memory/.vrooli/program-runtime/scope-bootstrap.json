@@ -20,7 +20,7 @@
     "facets": {
       "type": "array",
       "default": [],
-      "description": "Facet vocabulary. NOT settable through the binding today (manifest bind_waiver on facets-json); when the scope does not exist and facets are given, the program returns partial/facets_not_settable and the caller creates the scope with the CLI first."
+      "description": "Facet vocabulary. NOT settable through the binding today (manifest bind_waiver on facets-json); when the scope does not exist and facets are given, the program returns failed/facets_not_settable and the caller creates the scope with the CLI first."
     },
     "wake_budget": {
       "type": "integer",
@@ -78,9 +78,7 @@
       "effect": "write"
     }
   ],
-  "verbs": [
-    "gather"
-  ],
+  "verbs": [],
   "outputs": {
     "status": {
       "enum": [

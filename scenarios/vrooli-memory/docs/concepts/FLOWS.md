@@ -26,7 +26,7 @@ outcome, statefulness, and validation level.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Write (`note`) | journal | Agent invokes the note verb. | One immutable journal entry, classified and embedded. | Classification/embedding may fail; entry is appended unclassified and retried. Never cancelled, never lost. | L2 — deterministic, retry-on-inference-failure. |
+| Write (`note`) | journal | Agent invokes the note verb. | One immutable journal entry with completed or durably pending enrichment. | Apply explicit facets/rules. Limit provider enrichment to one two-second budget; persist incomplete work for existing retry operations. | L2 — deterministic, retry-on-inference-failure. |
 | Compaction pass | forest | Frontier exceeds target size (scheduled sweep). | One or more summary nodes; frontier back under target. | Aborts cleanly on inference failure with no partial summary written. Idempotent — a re-run recomputes candidacy from current state. | L3 — scheduled, resumable, no partial writes. |
 | Recall (`recall`) | recall | Agent or operator issues a query. | Ranked hits across all depths with descendants collapsed. | Read-only. No state. | L1 — stateless query. |
 | Wake (`wake`) | recall | Session start, or projection refresh. | Pinned rules + budgeted cover over the frontier. | Read-only. Reports overflow rather than truncating pinned content. | L1 — stateless query. |

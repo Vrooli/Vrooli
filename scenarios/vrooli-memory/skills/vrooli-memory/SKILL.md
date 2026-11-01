@@ -54,24 +54,6 @@ Invoke it with `program-runtime library run <name> --input key=value`.
 Program authors compose these through `lib.vrooli_memory.<name_with_underscores>`.
 The shared workflow contracts live in `path:scenarios/vrooli-memory/.vrooli/program-runtime/README.md`.
 
-### Program contracts
-
-Use these owner-routed programs when the memory task matches a declared shape:
-
-| Program | Purpose | Required inputs |
-|---|---|---|
-| `vrooli-memory.choose-option` | Recommend among prepared options with explicit decisions | `attempt_id`, `options` |
-| `vrooli-memory.compare-outcomes` | Read comparable outcome measurements | `operation`, `context_key` |
-| `vrooli-memory.finish-attempt` | Record an attempt and linked observations | `attempt`, `observations` |
-| `vrooli-memory.inspect-task` | Inspect outcome and pending delivery | `attempt_id`, `resume_token` |
-| `vrooli-memory.prepare-attempt` | Prepare bounded advice for a custom workflow | `task_id`, `operation`, `context_key` |
-| `vrooli-memory.resume-task` | Requeue frozen capture without domain replay | `attempt_id`, `resume_token` |
-| `vrooli-memory.run-task` | Execute a registered learning operation | `operation`, `inputs` |
-| `vrooli-memory.scope-bootstrap` | Create and declare a learning scope once | `scope`, `scenario` |
-
-Invoke one with `program-runtime library run <name> --input key=value`; keep
-attempt identity and capture status distinct.
-
 Task outcome and delivery are separate. Retain the returned attempt receipt.
 Recover capture without repeating the domain operation. An uncertain action needs
 owner evidence before another attempt; a runtime completion is not outcome proof.
@@ -129,7 +111,7 @@ I need memory for a skill or a program
 
 ### 4. Writing an entry
 
-One entry per attempt. The four work-record fields are the contract the next reader relies on; fill all four.
+One entry per attempt. Fill the four work-record fields. Append acknowledges durable source and completed or pending enrichment. Provider work shares a two-second budget; it cannot indefinitely delay persistence. Use the existing journal retry operations when classification or embeddings are needed.
 
 | Field | Content | Example |
 |---|---|---|
@@ -161,13 +143,14 @@ for each actual attempt; retain the exact payload and ID when retrying capture.
 
 - `outcome`: `verified_success`, `failed`, `unavailable`, or `unknown`.
   Success requires `evidenceRefs`; failure requires `failureFingerprint`.
-- `recallStatus`: `matched`, `no_match`, or `unavailable`. Matched requires
-  `advice`; the other states require an empty advice list.
-- Each advice item carries `entryId`, `decision` (`applied` or `rejected`),
+- `recallStatus`: `matched`, `no_match`, `unavailable`, or `not_requested`.
+  Matched requires explicit advice uses. The other states require an empty list.
+- Each advice item carries `entryId`, `decision` (`applied`, `rejected`, or `unassessed`),
   `decisionChange`, `verdict` (`supported`, `contradicted`, `unknown`), and
   `evidenceRefs` for any assessed verdict. Cited memories must exist in the same
-  scope before the attempt begins. Retrieval alone is not use or support.
-- `provenance`: `operator` or `test`. This label is caller-declared; the journal
+  scope before the attempt begins. Retrieval alone is not use or support. An unassessed exposure has an unknown
+  verdict and no decision change or evidence references.
+- `provenance`: `operator`, `agent`, or `test`. This label is caller-declared; the journal
   separately preserves server-derived actor/run attribution. Never label a
   fixture as operator evidence.
 - `contextKey` identifies comparable platform/profile/mode and tool/policy
@@ -237,9 +220,9 @@ Human-first output is the default. Use `--json` only inside a program or when th
 ### 8. Output expectations
 
 A skill that uses this one names its scope and operation entry point.
-An automatically learned program declares `learning_task` in its existing contract;
-Program Runtime composes Memory preparation and completion and owns pending delivery.
-Nested calls share the parent attempt. Do not also declare manual task capture.
+Automatically learned programs use `learn.*` verbs. Program Runtime owns
+preparation, completion and pending delivery. Nested calls share the parent
+attempt. Do not add manual capture around an automatically learned operation.
 A custom capture program declares `memory` (scope, collect/report phases, entry kinds).
 Record each attempt once; retain pending or failed delivery explicitly.
 
@@ -247,7 +230,7 @@ Record each attempt once; retain pending or failed delivery explicitly.
 
 | Symptom | Likely cause | First check | Fix |
 |---|---|---|---|
-| `journal note` fails with an embedding error | Ollama or the embedding provider is down; the note is queued | `vrooli-memory journal retry-embeddings --help`; `vrooli scenario status vrooli-memory` | The entry is journaled; embeddings replay later with `journal retry-embeddings`. Do not re-append |
+| Entry is stored but not enriched | Enrichment is pending | `vrooli-memory journal retry-classifications --help`; `journal retry-embeddings --help` | Run the existing bounded enrichment operation when needed. Do not re-append |
 | `recall wake` returns nothing for a new scope | No entries yet, or no pins and the frontier is empty | `vrooli-memory scopes list` | Expected on day one; write entries; wake fills as the frontier forms |
 | `recall recall` scores are all low | Query subject differs from how entries name it | read three entries' bodies | Name subjects the same way in `--trigger` every time (site then flow) |
 | A rule dry-run matches everything | `--body-pattern` too broad | the dry-run samples | Tighten the pattern; never enable a rule whose samples include unrelated kinds |

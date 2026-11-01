@@ -10,6 +10,7 @@ import (
 	"vrooli-memory/internal/harness"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/scheduletest"
 )
 
@@ -275,4 +276,85 @@ func TestCompactLimitFromEnv(t *testing.T) {
 	require.Zero(t, n)
 	_, err = CompactLimitFromEnv(func(string) (string, bool) { return "many", true })
 	require.Error(t, err)
+}
+
+type fakeEmbeddingRetrier struct {
+	scopes   []string
+	called   []string
+	errScope string
+}
+
+func (f *fakeEmbeddingRetrier) ListScopes(context.Context) ([]string, error) {
+	return append([]string(nil), f.scopes...), nil
+}
+func (f *fakeEmbeddingRetrier) RetryEmbeddings(ctx context.Context, scope string, limit int) (int, int, error) {
+	if _, ok := ctx.Deadline(); !ok {
+		return 0, 0, errors.New("missing deadline")
+	}
+	if limit != RetryScopeLimit {
+		return 0, 0, errors.New("wrong limit")
+	}
+	f.called = append(f.called, scope)
+	if scope == f.errScope {
+		return 0, 1, errors.New("offline")
+	}
+	return 1, 0, nil
+}
+func TestEmbeddingRetriesContinueAcrossScopeFailure(t *testing.T) {
+	retrier := &fakeEmbeddingRetrier{scopes: []string{"b", "a", "c"}, errScope: "a"}
+	svc := NewService(newMemoryStore(), &fakeImporter{}, &fakeProjector{}, scheduletest.New(time.Unix(0, 0)), 0).WithEmbeddingRetries(retrier)
+	svc.retryEmbeddings(context.Background())
+	require.Equal(t, []string{"a", "b", "c"}, retrier.called)
+}
+
+type signalingClock struct {
+	schedule.Clock
+	armed chan struct{}
+}
+
+func (c signalingClock) NewTimer(d time.Duration) schedule.Timer {
+	timer := c.Clock.NewTimer(d)
+	select {
+	case c.armed <- struct{}{}:
+	default:
+	}
+	return timer
+}
+
+type signalingRetrier struct{ calls chan string }
+
+func (f signalingRetrier) ListScopes(context.Context) ([]string, error) {
+	return []string{"scope"}, nil
+}
+func (f signalingRetrier) RetryEmbeddings(_ context.Context, scope string, _ int) (int, int, error) {
+	f.calls <- scope
+	return 1, 0, nil
+}
+
+func TestRetryCadenceDoesNotRepeatHarnessRefresh(t *testing.T) {
+	fake := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	clock := signalingClock{Clock: fake, armed: make(chan struct{}, 1)}
+	var order []string
+	retrier := signalingRetrier{calls: make(chan string, 3)}
+	svc := NewService(newMemoryStore(), &fakeImporter{runtimes: []string{"test"}, order: &order}, &fakeProjector{}, clock, 6*time.Hour).WithEmbeddingRetries(retrier)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	svc.Start(ctx)
+	select {
+	case <-clock.armed:
+	case <-time.After(time.Second):
+		t.Fatal("timer not armed")
+	}
+	select {
+	case <-retrier.calls:
+	case <-time.After(time.Second):
+		t.Fatal("initial retry missing")
+	}
+	fake.Advance(RetryInterval)
+	select {
+	case <-retrier.calls:
+	case <-time.After(time.Second):
+		t.Fatal("retry cadence missing")
+	}
+	require.Equal(t, []string{"import:test"}, order)
 }

@@ -41,10 +41,10 @@ describe("[REQ:VMEM-P1-006] OperatorReview", () => {
     vi.mocked(getFrontier).mockResolvedValue({ nodes: [], eligibleCount: 0, target: 2 });
     vi.mocked(listFacets).mockResolvedValue([]);
     vi.mocked(listPinProposals).mockResolvedValue([]);
-    renderWithProviders(<OperatorReview />);
+    const empty = renderWithProviders(<OperatorReview />);
     await screen.findByText(strings.pages.operator.frontierEmpty);
     await screen.findByText(strings.pages.operator.proposalsEmpty);
-    cleanup();
+    empty.unmount();
 
     vi.mocked(getFrontier).mockRejectedValue(new Error("frontier unavailable"));
     vi.mocked(listFacets).mockRejectedValue(new Error("facets unavailable"));

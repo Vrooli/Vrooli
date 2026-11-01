@@ -59,9 +59,9 @@
     "evidence": "Matched advice entry IDs; not task outcome proof"
   },
   "budget": {
-    "wall_ms": 1000,
+    "wall_ms": 5000,
     "async": true,
-    "async_reason": "The choice read can cross the memory service boundary beyond the one-second synchronous budget; callers wait once for its terminal result.",
+    "async_reason": "Cold kernel setup and the scoped advice read share a finite five-second execution ceiling; callers attach once to the original durable program ID.",
     "inference_calls": 0,
     "delegated_runs": 0,
     "materialize_limit": 1,

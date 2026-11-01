@@ -102,6 +102,14 @@ class ProgramFixture:
             envelope.setdefault("errors", []).append({"class": str(klass), "detail": str(detail)[:240], "where": str(where)})
         return "report"
 
+    def run(self, states, initial):
+        state = initial
+        for _ in range(10):
+            if state is None:
+                return
+            state = states[state]()
+        raise AssertionError("program did not reach its report boundary")
+
     def classify(self, exc):
         if isinstance(exc, (NameError, AttributeError)):
             return ("failed", "kernel_runtime")
@@ -109,7 +117,7 @@ class ProgramFixture:
 
 
 def run(name, values, memory=None, bind=True):
-    namespace = {"inputs": copy.deepcopy(values)}
+    namespace = {"inputs": copy.deepcopy(values), "gather": lambda *tasks: tuple(task() for task in tasks)}
     namespace["program"] = ProgramFixture(namespace)
     if bind:
         namespace["vrooli_memory"] = memory or Memory()
@@ -241,6 +249,23 @@ class FinishTests(unittest.TestCase):
         retry = run("finish-attempt", signals["retry_inputs"], mem)
         self.assertEqual(retry["status"], "ok")
         self.assertEqual(mem.calls[:3], mem.calls[3:])
+
+    def test_nine_node_capture_preserves_partial_acknowledgements_and_exact_retry(self):
+        mem = Memory()
+        root = attempt(attempt_id="nine-node-root")
+        nodes = [root] + [attempt(attempt_id="child-"+str(i), parent_attempt_id=root["attempt_id"], step_name="qualified-launch", attempt_number=i+2) for i in range(8)]
+        mem.fail_call = 7
+        mem.commit_before_failure = True
+        result = run("finish-attempt", {"scope":"learning-test", "attempt":root, "attempts":nodes}, mem)
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["signals"]["task_outcome"], "verified_success")
+        self.assertEqual(len(result["signals"]["attempts"]), 6)
+        self.assertEqual(len(mem.stored), 7)
+        retry = run("finish-attempt", result["signals"]["retry_inputs"], mem)
+        self.assertEqual(retry["status"], "ok")
+        self.assertEqual(len(retry["signals"]["attempts"]), 9)
+        self.assertEqual(len(mem.stored), 9)
+        self.assertEqual(mem.calls[:7], mem.calls[7:14])
 
     def test_lost_receipt_after_commit_exact_retry(self):
         mem = Memory()
@@ -425,9 +450,28 @@ class RuntimeWrapperTests(unittest.TestCase):
         pref = {"operation": "fixture.inspect", "context_key": "ctx", "option_id": "faster"}
         for altered in (dict(pref, option_id="unapproved"), dict(pref, context_key="other"), dict(pref, operation="other")):
             self.assertEqual(choose([altered])["signals"]["selected_id"], "safe")
-        conflict = choose([pref, dict(pref, option_id="safe")])
-        self.assertTrue(conflict["signals"]["conflicting"])
-        self.assertEqual(conflict["signals"]["learning"]["advice"], [])
+        for preferences in ([pref, dict(pref, option_id="safe")],
+                            [pref, pref, dict(pref, option_id="safe")],
+                            [dict(pref, option_id="safe"), pref, pref]):
+            with self.subTest(preferences=preferences):
+                conflict = choose(preferences)
+                self.assertTrue(conflict["signals"]["conflicting"])
+                self.assertEqual(conflict["signals"]["selected_id"], "safe")
+                self.assertEqual(conflict["signals"]["source"], "default")
+                self.assertEqual(conflict["signals"]["learning"]["advice"], [])
+
+    def test_unambiguous_advice_requires_positive_evidence(self):
+        for verdict, selected, source in (("supported", "faster", "advice"),
+                                          ("unknown", "faster", "advice"),
+                                          ("contradicted", "safe", "default")):
+            with self.subTest(verdict=verdict):
+                candidate = {"entry_id": "preference", "body": {"option_id": "faster"}, "verdict": verdict}
+                current = {"prepare": {"signals": {"advice_candidates": [candidate]}}}
+                result = self.invoke("choose-option", {"options": ["safe", "faster"], "default_id": "safe"},
+                                     SimpleNamespace(current=lambda: current))
+                self.assertEqual(result["signals"]["selected_id"], selected)
+                self.assertEqual(result["signals"]["source"], source)
+                self.assertEqual(len(result["signals"]["learning"]["advice"]), int(source == "advice"))
 
     def test_run_keeps_failed_outcome_separate_from_pending_delivery(self):
         tasks = SimpleNamespace(run=lambda **kw: Handle([{"status": "partial", "signals": {"outcome": "failed"}, "learning": {"delivery": "pending"}, "evidence": ["run:1"]}]))
@@ -468,10 +512,6 @@ class ContractTests(unittest.TestCase):
                 self.assertEqual(contract["name"], "vrooli-memory." + name)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 def test_later_feedback_is_delivered_idempotently_with_the_finish_outbox():
     """[REQ:LV-08] Later-run feedback survives disconnect without repeating domain work."""
     memory = Memory()
@@ -486,3 +526,72 @@ def test_later_feedback_is_delivered_idempotently_with_the_finish_outbox():
     assert retried["status"] == "ok"
     assert retried["signals"]["observations"][0]["existing"] is True
     assert len(memory.stored) == 2
+
+
+class ScopeRows(Handle):
+    def filter(self, predicate):
+        return ScopeRows([row for row in self.rows if predicate(row)])
+
+    def head(self, limit):
+        assert 0 <= limit <= 200
+        return copy.deepcopy(self.rows[:limit])
+
+
+class ScopeMemory:
+    def __init__(self, existing=False):
+        self.exists = existing
+        self.calls = []
+        self.scopes = SimpleNamespace(list=self.list_scopes, create=self.create_scope)
+        self.rules = SimpleNamespace(list=self.list_rules, create=self.create_rule)
+
+    def list_scopes(self):
+        return ScopeRows([{"id": "new-usage"}] if self.exists else [])
+
+    def list_rules(self, **kwargs):
+        self.calls.append("list_rules")
+        if not self.exists:
+            raise RuntimeError("scope is not registered")
+        return ScopeRows()
+
+    def create_scope(self, **kwargs):
+        self.calls.append("create_scope")
+        self.exists = True
+
+    def create_rule(self, **kwargs):
+        self.calls.append("create_rule")
+        raise ValueError("unknown facet")
+
+
+class ScopeBootstrapTests(unittest.TestCase):
+    def test_new_scope_is_created_before_any_scope_dependent_read(self):
+        memory = ScopeMemory()
+        out = run("scope-bootstrap", {"scope": "new-usage"}, memory)
+        self.assertEqual(out["status"], "ok")
+        self.assertTrue(out["signals"]["scope_created"])
+        self.assertEqual(memory.calls, ["create_scope"])
+
+    def test_unsupported_facets_do_not_create_a_partial_scope(self):
+        memory = ScopeMemory()
+        out = run("scope-bootstrap", {"scope": "new-usage", "facets": ["episode"]}, memory)
+        self.assertEqual(out["status"], "failed")
+        self.assertEqual(out["errors"][0]["class"], "facets_not_settable")
+        self.assertEqual(memory.calls, [])
+
+    def test_existing_scope_is_not_recreated(self):
+        memory = ScopeMemory(existing=True)
+        out = run("scope-bootstrap", {"scope": "new-usage"}, memory)
+        self.assertEqual(out["status"], "ok")
+        self.assertTrue(out["signals"]["scope_existed"])
+        self.assertEqual(memory.calls, ["list_rules"])
+
+    def test_unknown_facet_keeps_created_scope_and_does_not_enable_rule(self):
+        memory = ScopeMemory()
+        out = run("scope-bootstrap", {"scope": "new-usage", "rules": [{"id": "rule", "facet": "missing", "body_pattern": "x"}]}, memory)
+        self.assertEqual(out["status"], "partial")
+        self.assertTrue(out["signals"]["scope_created"])
+        self.assertEqual(out["errors"][0]["class"], "unknown_facet")
+        self.assertEqual(memory.calls, ["create_scope", "create_rule"])
+
+
+if __name__ == "__main__":
+    unittest.main()

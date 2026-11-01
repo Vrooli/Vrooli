@@ -36,7 +36,7 @@ ports as outbound source ports. See the project-level port allocation reference
 | `VROOLI_MEMORY_MAX_ENTRY_LINES` | `2` | Maximum lines contributed by one ambient memory in the `agent-memory` scope. |
 | `facet_policies.resident_budget` | seeded per facet (`standing-rule=8`, `episode=12`, other resident facets=4) | Data-driven wake and standing-rule curation ceilings. Operators govern the value through the facet policy row; pin requests above the standing-rule ceiling create a trade-off proposal. |
 | `pins.review_at` | 90 days after pin/reconfirmation | Operator-selected quarterly review deadline for a pin. Expiry lapses the pin without deleting the journal entry; reconfirmation updates the deadline without creating another journal row. |
-| `VROOLI_MEMORY_MAINTENANCE_INTERVAL` | `6h` | In-process import-then-projection interval. A restart runs one immediate tick; `0` disables scheduled work. Each runtime operation is bounded at two minutes, and each run records start/end times and per-runtime outcomes. |
+| `VROOLI_MEMORY_MAINTENANCE_INTERVAL` | `6h` | In-process import-then-projection interval. A restart runs one immediate tick; `0` disables scheduled work. Each runtime operation is bounded at two minutes, and each run records start/end times and per-runtime outcomes. The same executor retries queued Source Ledger embeddings every five minutes, with a 60-second pass limit, at most 15 seconds and two entries per visited scope. A long in-progress maintenance pass can delay a retry; the interval is not a completion guarantee. Retry errors and deferred counts are logged. |
 
 ## Scope registry
 

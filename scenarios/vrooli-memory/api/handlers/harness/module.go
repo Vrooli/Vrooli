@@ -46,7 +46,8 @@ func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledge
 		panic(err)
 	}
 	maintenanceService := maintenance.NewService(maintenance.NewSQLiteStore(db.Primary()), importer, projector, clk, interval).
-		WithCompaction(compactor, compactLimit)
+		WithCompaction(compactor, compactLimit).
+		WithEmbeddingRetries(client)
 	path, h := harnessconnect.NewHarnessServiceHandler(NewConnectHandler(importer, projector, logger, maintenanceService))
 	maintenanceService.Start(context.Background())
 	return module.Module{Name: "harness", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h}) }, Endpoints: Endpoints}

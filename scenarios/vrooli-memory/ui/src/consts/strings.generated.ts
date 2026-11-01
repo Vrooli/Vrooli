@@ -12,39 +12,11 @@
 // function takes as its first argument.
 
 export const strings = {
-  $rowKey: "$rowKey",
-  $schema: "$schema",
-  $text: "$text",
-  "Changes saved successfully": {
-    "": "Changes saved successfully.",
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
-  },
-  "Request in progress": "Request in progress",
-  Saved: "Saved",
   app: {
     description: "app.description",
     eyebrow: "app.eyebrow",
     title: "app.title",
   },
-  "aria-label": "aria-label",
-  ascending: "ascending",
-  asset: "asset",
-  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-primary bg-app-primary text-app-primary-foreground",
-  capability: "capability",
-  caption: "caption",
-  children: "children",
-  clsx: "clsx",
-  component: "component",
-  default: "default",
-  defaultValue: "defaultValue",
-  desc: "desc",
-  description: "description",
-  detail: "detail",
-  dialog: "dialog",
-  emptyMessage: "emptyMessage",
-  equals: "equals",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -68,12 +40,6 @@ export const strings = {
     unimplemented: "errors.unimplemented",
     unknown: "errors.unknown",
   },
-  example: "example",
-  export: "export",
-  field: "field",
-  fixture: "fixture",
-  format: "format",
-  header: "header",
   health: {
     error: "health.error",
     loading: "health.loading",
@@ -85,8 +51,6 @@ export const strings = {
     timestampLabel: "health.timestampLabel",
     title: "health.title",
   },
-  iconName: "iconName",
-  id: "id",
   journal: {
     changeFacet: "journal.changeFacet",
     empty: "journal.empty",
@@ -98,8 +62,6 @@ export const strings = {
     unknownTime: "journal.unknownTime",
     unpin: "journal.unpin",
   },
-  kind: "kind",
-  label: "label",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     nav: {
@@ -111,14 +73,9 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
-  libraryId: "libraryId",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  "lucide-react": "lucide-react",
-  mode: "mode",
-  module: "module",
-  name: "name",
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
@@ -162,12 +119,6 @@ export const strings = {
       title: "pages.settings.title",
     },
   },
-  path: "path",
-  placeholder: "placeholder",
-  provenance: "provenance",
-  purpose: "purpose",
-  react: "react",
-  "react-component-library:useEscapeKey": "react-component-library:useEscapeKey",
   recall: {
     empty: "recall.empty",
     loading: "recall.loading",
@@ -178,19 +129,6 @@ export const strings = {
     summary: "recall.summary",
     title: "recall.title",
   },
-  ref: "ref",
-  region: "region",
-  resolvedAt: "resolvedAt",
-  role: "role",
-  schema: "schema",
-  schemaVersion: "schemaVersion",
-  selector: "selector",
-  size: "size",
-  statement: "statement",
-  status: "status",
-  storyRef: "storyRef",
-  "tailwind-merge": "tailwind-merge",
-  testid: "testid",
   theme: {
     choice: {
       dark: "theme.choice.dark",
@@ -199,14 +137,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  tier: "tier",
-  title: "title",
-  tone: "tone",
-  true: "true",
-  type: "type",
-  value: "value",
-  variant: "variant",
-  version: "version",
 } as const;
 
 export type Strings = typeof strings;

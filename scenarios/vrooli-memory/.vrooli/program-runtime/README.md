@@ -131,8 +131,10 @@ canonical JSON array `[scope, task_id, operation, context_key, attempt_number]`.
 Preparation uses exactly the same algorithm. Use a task ID unique within its
 scope and increment the ordinal for a new task execution, not for capture retry.
 
-Observations are bounded to 10. Their `attempt_id` defaults to the resolved
-attempt ID; a different ID is rejected. `disposition`, `provenance`, and
+The attempt tree is bounded to33 parent-first nodes and observations to128,
+with all resolved inputs still bounded to24,000 bytes. An observation defaults
+to the root attempt; it may refer to a node in that tree or use the explicit
+learn.feedback revision for a previously recorded attempt. `disposition`, `provenance`, and
 `observed_at` are explicit; no timestamp or feedback judgment is synthesized.
 Supported dispositions are `supported`, `contradicted`, `insufficient`,
 `unavailable`, `unresolved`, and `unknown`. All except `unknown` require evidence.
@@ -145,8 +147,8 @@ distinct observation IDs. Keep IDs and bodies unchanged when retrying.
 
 All nested inputs validate before any write. The complete resolved retry inputs
 must fit 24,000 JSON bytes with ASCII escaping; oversized calls fail before writes.
-Finish calls `learning.record` once and then `learning.observe` once per
-observation, stopping at the first failure. All writes occur in the report phase.
+Finish calls `learning.record` once per parent-first attempt and then
+`learning.observe` once per observation, stopping at the first failure. All writes occur in the report phase.
 
 The output shape is:
 
@@ -228,3 +230,5 @@ after commit, exact replay, partial observations, conflicts, refusal, no-match,
 unavailable reads, multiple cohorts, optional zero versus unknown, and output
 bounds. These tests do not establish live bridge or owner behavior. The main
 integration tests separately establish bridge, owner, and restart behavior.
+
+Journal append preserves fast enrichment under one aggregate two-second provider budget and persists incomplete work for retry. Finish-attempt uses this bounded owner path; it must not inherit independent long model deadlines for each derived field. Existing classification/embedding retry operations own enrichment. Ordinary binding failures retain acknowledged writes and exact retry inputs; a hard kernel interruption is reconciled through the same program ID and immutable attempt identities, never inferred from client timing.
