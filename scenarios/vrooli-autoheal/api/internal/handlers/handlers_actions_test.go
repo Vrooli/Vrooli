@@ -327,9 +327,20 @@ func TestGetCheckActions_NotHealable(t *testing.T) {
 	router.HandleFunc("/api/v1/checks/{checkId}/actions", h.GetCheckActions)
 	router.ServeHTTP(w, req)
 
-	// Non-healable check should return 404
-	if w.Code != http.StatusNotFound {
-		t.Errorf("GetCheckActions() for non-healable check status = %d, want %d", w.Code, http.StatusNotFound)
+	// A registered observational check exists even when it has no recovery path.
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Actions         []checks.RecoveryAction `json:"actions"`
+		Healable        bool                    `json:"healable"`
+		AutoHealEnabled bool                    `json:"autoHealEnabled"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Actions == nil || len(body.Actions) != 0 || body.Healable || body.AutoHealEnabled {
+		t.Fatalf("observational actions=%+v", body)
 	}
 }
 

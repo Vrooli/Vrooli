@@ -19,7 +19,14 @@ func (h *Handlers) GetCheckActions(w http.ResponseWriter, r *http.Request) {
 	// Get the check and verify it's healable
 	healable, ok := h.registry.GetHealableCheck(checkID)
 	if !ok {
-		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("actions", "healable check", checkID))
+		if _, registered := h.registry.GetCheck(checkID); !registered {
+			apierrors.LogAndRespond(w, apierrors.NewNotFoundError("actions", "check", checkID))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(map[string]any{"checkId": checkID, "actions": []checks.RecoveryAction{}, "healable": false, "autoHealEnabled": false, "reason": "observational check has no registered recovery actions"}); err != nil {
+			apierrors.LogError("get_check_actions", "encode_response", err)
+		}
 		return
 	}
 
@@ -39,8 +46,10 @@ func (h *Handlers) GetCheckActions(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"checkId": checkID,
-		"actions": actions,
+		"checkId":         checkID,
+		"actions":         actions,
+		"healable":        true,
+		"autoHealEnabled": h.registry.IsAutoHealEnabled(checkID),
 	}); err != nil {
 		apierrors.LogError("get_check_actions", "encode_response", err)
 	}

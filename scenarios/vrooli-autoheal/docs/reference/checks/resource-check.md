@@ -16,7 +16,13 @@ Monitors Vrooli resources (PostgreSQL, Redis, Ollama, etc.) via the vrooli CLI.
 Resource checks consume the typed fleet contract from `vrooli resource status
 --json`. A shared in-process snapshot provider refreshes the supervised fleet
 once per bounded TTL and projects only the requested resource into each check.
-It never parses human-oriented output:
+The default freshness window is 60 seconds, starting when the fleet scan begins.
+Post-action recovery still requests an independent deep read. If the scan finishes
+after that window, checks receive an undetermined fallback and refresh backs
+off; the provider does not relabel old observations as fresh or immediately
+start a scan for every waiting check. A single scan can still be expensive
+because the control plane verifies managed artifact trees. It never parses
+human-oriented output:
 
 ```mermaid
 flowchart TD

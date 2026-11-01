@@ -15,6 +15,40 @@ import (
 	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
 )
 
+type expiredDuringReadProvider struct{ now time.Time }
+
+func (p *expiredDuringReadProvider) Snapshot(_ context.Context, _ []string) (integration.ResourceStatusSnapshot, error) {
+	started := p.now
+	p.now = p.now.Add(20 * time.Second)
+	return integration.ResourceStatusSnapshot{ObservedAt: started, ExpiresAt: started.Add(10 * time.Second), Complete: true, Source: integration.SnapshotSourceFleet, ProbeLevel: integration.ProbeLevelFast, Resources: map[string]integration.ResourceStatus{"postgres": {Name: "postgres", Success: true, Installed: true, Running: true}}}, nil
+}
+func (p *expiredDuringReadProvider) DeepStatus(context.Context, string) (integration.ResourceStatus, error) {
+	return integration.ResourceStatus{}, errors.New("unexpected deep read")
+}
+func (p *expiredDuringReadProvider) SnapshotNow() time.Time { return p.now }
+
+func TestResourceChecksAssessSnapshotAgeAfterRead(t *testing.T) {
+	start := time.Date(2026, 10, 30, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name string
+		run  func(*expiredDuringReadProvider) checks.Result
+	}{
+		{"resource", func(p *expiredDuringReadProvider) checks.Result {
+			return NewResourceCheck("postgres", WithResourceStatusProvider(p)).Run(context.Background())
+		}},
+		{"mode drift", func(p *expiredDuringReadProvider) checks.Result {
+			return NewModeDriftCheck("postgres", WithModeDriftStatusProvider(p)).Run(context.Background())
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.run(&expiredDuringReadProvider{now: start})
+			if result.Status != checks.StatusUndetermined {
+				t.Fatalf("expired observation status = %s, want undetermined", result.Status)
+			}
+		})
+	}
+}
+
 // [REQ:RES-MON-006] [REQ:RES-MON-007]
 func TestResourceChecksShareFreshFleetSnapshotAndEscalateAnomaly(t *testing.T) {
 	executor := testutil.NewMockExecutor()

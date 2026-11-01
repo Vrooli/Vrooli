@@ -1,9 +1,9 @@
 package main
 
 import (
+	repocontract "github.com/vrooli/repo-contract-go"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
@@ -50,9 +50,9 @@ func newLoopContractFixtureRepo(t *testing.T) string {
 
 func loopRepoRoot(t *testing.T) string {
 	t.Helper()
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
+	root, err := repocontract.FindRepoRootFromCWD()
+	if err != nil {
+		t.Fatalf("resolve fixture source root: %v", err)
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", ".."))
+	return root
 }

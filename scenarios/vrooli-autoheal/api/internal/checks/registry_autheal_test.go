@@ -798,3 +798,12 @@ func TestConfigProviderIntegration(t *testing.T) {
 	// Just verify it doesn't crash
 	t.Logf("With config provider, got %d results", len(results))
 }
+
+func TestAutoHealNeverSelectsManualDiagnosticsOrReclaim(t *testing.T) {
+	for _, result := range []Result{{CheckID: "system-host-pressure", Status: StatusCritical}, {CheckID: "scenario-test", Status: StatusCritical, Details: map[string]any{"recommendedAction": "report-findings"}}} {
+		actions := []RecoveryAction{{ID: "report-findings", Available: true, ManualOnly: true}, {ID: "reclaim", Available: true, ManualOnly: true}}
+		if got := selectAutoHealAction(result, actions); got != nil {
+			t.Fatalf("selected manual-only action: %+v", got)
+		}
+	}
+}

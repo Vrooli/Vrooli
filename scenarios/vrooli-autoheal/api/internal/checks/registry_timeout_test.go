@@ -766,7 +766,7 @@ func TestExecuteAutoHealAction_HealTrackerPersistsTimeoutCounters(t *testing.T) 
 	reg := newTimeoutPolicyRegistry(t, 50*time.Millisecond, 50*time.Millisecond, 30*time.Second, time.Minute)
 	clk := &fixedClock{current: time.Date(2026, 5, 17, 12, 0, 0, 0, time.UTC)}
 	reg.SetClock(clk)
-	store := &mockHealTrackerStore{saveCh: make(chan string, 1)}
+	store := &mockHealTrackerStore{saveCh: make(chan string, 2)}
 	reg.SetHealTrackerStore(store)
 
 	check := &mockHealableCheck{

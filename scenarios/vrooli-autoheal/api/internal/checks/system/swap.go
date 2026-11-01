@@ -5,11 +5,12 @@ package system
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
-	"strconv"
-	"strings"
+	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
@@ -21,6 +22,7 @@ type SwapCheck struct {
 	procReader        checks.ProcReader
 	hostCollector     hostSnapshotCollector
 	rateReader        func() (float64, error)
+	rateMu            sync.Mutex
 	lastSwapIn        uint64
 	lastSwapOut       uint64
 	lastRateAt        time.Time
@@ -132,6 +134,9 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 	result.Details["warningThreshold"] = c.warningThreshold
 	result.Details["criticalThreshold"] = c.criticalThreshold
 	rate, rateErr := c.readPagingRate()
+	if rateErr == nil && (math.IsNaN(rate) || math.IsInf(rate, 0) || rate < 0) {
+		rateErr = fmt.Errorf("paging rate is invalid")
+	}
 	result.Details["swapTrafficPagesPerSecond"] = rate
 	result.Details["swapTrafficRateAvailable"] = rateErr == nil
 	if rateErr != nil {
@@ -170,8 +175,8 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 	result.Details["nearZeroRateThreshold"] = nearZeroPagesPerSecond
 	result.Details["highRateThreshold"] = highPagesPerSecond
 
-	// Calculate score (inverse of usage)
-	score := 100 - usedPercent
+	// Score current paging, retaining occupancy separately in Details.
+	score := 100 - int(100*math.Min(rate/highPagesPerSecond, 1))
 	if score < 0 {
 		score = 0
 	}
@@ -179,18 +184,18 @@ func (c *SwapCheck) Run(ctx context.Context) checks.Result {
 		Score: &score,
 		SubChecks: []checks.SubCheck{
 			{
-				Name:   "swap",
-				Passed: usedPercent < c.criticalThreshold,
+				Name:   "swap-paging",
+				Passed: rate < highPagesPerSecond,
 				Detail: fmt.Sprintf("%d%% used (%s / %s)", usedPercent, formatBytes(uint64(swapUsed*1024)), formatBytes(uint64(swapTotal*1024))),
 			},
 		},
 	}
 
 	switch {
-	case usedPercent >= c.criticalThreshold || rate >= highPagesPerSecond:
+	case rate >= highPagesPerSecond:
 		result.Status = checks.StatusCritical
 		result.Message = fmt.Sprintf("Swap paging critical: %.1f pages/sec at %d%% swap used", rate, usedPercent)
-	case rate >= nearZeroPagesPerSecond || usedPercent >= c.warningThreshold:
+	case rate >= nearZeroPagesPerSecond:
 		result.Status = checks.StatusWarning
 		result.Message = fmt.Sprintf("Swap paging warning: %.1f pages/sec at %d%% swap used", rate, usedPercent)
 	default:
@@ -209,24 +214,18 @@ func (c *SwapCheck) readPagingRate() (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	var in, out uint64
-	for _, line := range strings.Split(string(raw), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) != 2 {
-			continue
-		}
-		value, parseErr := strconv.ParseUint(fields[1], 10, 64)
-		if parseErr != nil {
-			continue
-		}
-		switch fields[0] {
-		case "pswpin":
-			in = value
-		case "pswpout":
-			out = value
-		}
+	return c.samplePagingRate(raw, time.Now())
+}
+
+func (c *SwapCheck) samplePagingRate(raw []byte, now time.Time) (float64, error) {
+	inCounter, inOK := hostpressure.ParseCounter(string(raw), "pswpin")
+	outCounter, outOK := hostpressure.ParseCounter(string(raw), "pswpout")
+	if !inOK || !outOK || inCounter < 0 || outCounter < 0 {
+		return 0, fmt.Errorf("paging counters are missing or invalid")
 	}
-	now := time.Now()
+	in, out := uint64(inCounter), uint64(outCounter)
+	c.rateMu.Lock()
+	defer c.rateMu.Unlock()
 	if c.lastRateAt.IsZero() || in < c.lastSwapIn || out < c.lastSwapOut {
 		c.lastSwapIn, c.lastSwapOut, c.lastRateAt = in, out, now
 		return 0, fmt.Errorf("paging rate not yet sampled")

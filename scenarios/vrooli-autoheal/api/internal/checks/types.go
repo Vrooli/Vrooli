@@ -165,11 +165,12 @@ func ComputeSummary(results []Result) Summary {
 // RecoveryAction represents a possible recovery action for a health check
 // [REQ:HEAL-ACTION-001]
 type RecoveryAction struct {
-	ID          string `json:"id"`          // Unique identifier, e.g., "start", "restart"
-	Name        string `json:"name"`        // Human-friendly name, e.g., "Start Resource"
-	Description string `json:"description"` // What this action does
-	Dangerous   bool   `json:"dangerous"`   // Requires confirmation before executing
-	Available   bool   `json:"available"`   // Can run in current state (e.g., can't start if already running)
+	ID          string `json:"id"`                   // Unique identifier, e.g., "start", "restart"
+	Name        string `json:"name"`                 // Human-friendly name, e.g., "Start Resource"
+	Description string `json:"description"`          // What this action does
+	Dangerous   bool   `json:"dangerous"`            // Requires confirmation before executing
+	ManualOnly  bool   `json:"manualOnly,omitempty"` // Diagnostic/operator actions are never scheduled as automatic repairs.
+	Available   bool   `json:"available"`            // Can run in current state (e.g., can't start if already running)
 }
 
 // HealTarget is the stable identity of the runtime object an action changes.

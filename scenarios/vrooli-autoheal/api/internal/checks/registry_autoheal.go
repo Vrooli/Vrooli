@@ -524,6 +524,15 @@ func hasHealableDegradation(result Result) bool {
 }
 
 func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryAction {
+	// A successful diagnostic is not a successful repair. Apply this boundary
+	// before recommended-action and specialized selection paths as well.
+	automatic := make([]RecoveryAction, 0, len(actions))
+	for _, action := range actions {
+		if !action.ManualOnly {
+			automatic = append(automatic, action)
+		}
+	}
+	actions = automatic
 	checkID := result.CheckID
 
 	// Policy: orphan cleanup may auto-run the core maintenance cleanup action.

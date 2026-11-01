@@ -198,8 +198,8 @@ func (c *ResourceCheck) run(ctx context.Context, forceDeep bool) checks.Result {
 			}
 			addSnapshotMetrics(result.Details, c.statusProvider)
 		} else {
-			now := snapshotNow(c.statusProvider)
 			snapshot, snapshotErr := c.statusProvider.Snapshot(ctx, []string{c.resourceName})
+			now := snapshotNow(c.statusProvider)
 			addSnapshotDetails(result.Details, snapshot, now)
 			addSnapshotMetrics(result.Details, c.statusProvider)
 			if snapshotErr != nil {

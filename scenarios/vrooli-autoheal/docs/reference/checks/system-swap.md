@@ -35,12 +35,12 @@ observed steady-state paging rates.
 | Status | Meaning |
 |--------|---------|
 | **OK** | Swap level is below 50% with quiet traffic, or a high level has near-zero traffic |
-| **Warning** | Swap level is at least 50%, traffic is active but below the high-rate threshold, or the rate source is unavailable |
-| **Critical** | Swap level is at least 80% or paging traffic is at least 128 pages/sec |
+| **Warning** | Paging traffic is at least 1 and below 128 pages/sec, or its rate source is unavailable/invalid |
+| **Critical** | Paging traffic is at least 128 pages/sec |
 
 ## Why It Matters
 
-High swap usage indicates the system is under memory pressure:
+Swap occupancy records pages parked on disk, including cold pages left from earlier pressure. Current paging traffic, available RAM and memory PSI distinguish present contention from historical occupancy:
 
 - **Performance Impact**: Swapping is orders of magnitude slower than RAM access
 - **Latency Spikes**: Applications experience unpredictable delays
@@ -108,20 +108,18 @@ docker inspect --format '{{.HostConfig.Memory}}' $(docker ps -q)
    ps aux --sort=-%mem | head -10
    ```
 
-3. **Check for memory leaks over time**
+3. **Inspect maintained host findings and owner-safe recovery**
    ```bash
-   # Install smem if needed
-   sudo apt install smem
-
-   # Check proportional set size
-   smem -tk | tail -10
+   vrooli-autoheal check get system-host-pressure
+   vrooli-autoheal check actions system-host-pressure
+   vrooli-autoheal check get system-containment-occupancy
    ```
 
-4. **Clear swap (if needed)**
-   ```bash
-   # Only do this if you have enough free RAM!
-   sudo swapoff -a && sudo swapon -a
-   ```
+   Inspect exact workload ownership before disposing of an abandoned session.
+   Resource recycling remains subject to the control plane's declared ownership,
+   serving-state and pressure brakes. A swap/RSS ratio alone does not establish
+   that an active process is disposable. Do not clear swap, drop caches or restart
+   shared services merely to reduce this gauge.
 
 5. **Check OOM killer logs**
    ```bash
@@ -135,8 +133,8 @@ The check accepts the following options:
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `warningThreshold` | 50 | Warning at this percentage |
-| `criticalThreshold` | 80 | Critical at this percentage |
+| `warningThreshold` | 50 | Legacy occupancy diagnostic/ProcReader fixture threshold; production severity uses paging |
+| `criticalThreshold` | 80 | Legacy occupancy diagnostic/ProcReader fixture threshold; production severity uses paging |
 
 ## Details Returned
 
@@ -161,7 +159,7 @@ The check accepts the following options:
 
 ## Health Score
 
-The health score is calculated as `100 - usedPercent`.
+The production health score is `100 - 100 * min(pagingRate / 128, 1)`, rounded down in the subtraction. Quiet paging therefore scores 100 even when cold swap pages remain occupied. Occupancy remains in the returned details. Legacy ProcReader-only fixtures retain their occupancy assertions; missing production rate evidence warns.
 
 ## No Swap Configured
 

@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -224,9 +225,9 @@ func resolveSetpoint() (setpoint.Setpoint, error) {
 func (c *HostPressureCheck) RecoveryActions(lastResult *checks.Result) []checks.RecoveryAction {
 	available := lastResult != nil && lastResult.Status != checks.StatusOK && c.reclaim != nil
 	return []checks.RecoveryAction{
-		{ID: "report-findings", Name: "Report Host Findings", Description: "Write evidence-backed pressure, ownership, and crash-loop findings", Available: true},
-		{ID: "reclaim", Name: "Reclaim One Evicted Service", Description: "Recycle one idle, Vrooli-managed service through the lifecycle path", Available: available},
-		{ID: "preview-disposal", Name: "Preview Abandoned Workloads", Description: "Prepare an operator-approved disposal preview without removing anything", Available: true},
+		{ID: "report-findings", Name: "Report Host Findings", Description: "Capture current host readings and bounded attribution without changing host state", Available: true, ManualOnly: true},
+		{ID: "reclaim", Name: "Recycle One Non-serving Resource", Description: "Explicitly recycle one declared non-serving resource through the guarded control-plane lifecycle", Available: available, ManualOnly: true},
+		{ID: "preview-disposal", Name: "Preview Abandoned Workloads", Description: "Use vrooli agent reap --orphaned --dry-run --json for an owner-checked preview; this action is not wired", Available: false, ManualOnly: true},
 	}
 }
 
@@ -235,8 +236,23 @@ func (c *HostPressureCheck) ExecuteAction(ctx context.Context, actionID string) 
 	result := checks.ActionResult{ActionID: actionID, CheckID: c.ID(), Timestamp: start}
 	switch actionID {
 	case "report-findings":
+		snapshot := c.collect(ctx)
+		attribution := hostpressure.Attribution(snapshot, nil)
+		holders := hostpressure.Stranded(snapshot.Processes, 2)
+		count := len(holders)
+		if len(holders) > 20 {
+			holders = holders[:20]
+		}
+		snapshot.Processes = nil
+		raw, err := json.Marshal(map[string]any{"diagnostic_only": true, "host_mutated": false, "readings": snapshot, "attribution": attribution, "swap_heavy_holders": holders, "swap_heavy_count": count, "ownership_note": "swap/RSS ratio does not establish idleness, abandonment or disposal authority"})
+		if err != nil {
+			result.Error = err.Error()
+			result.Message = "Host report encoding failed"
+			break
+		}
+		result.Output = string(raw)
 		result.Success = true
-		result.Message = "Host findings are reported by the portable watchdog surface"
+		result.Message = "Host observations captured; no pressure recovery was attempted"
 	case "reclaim":
 		if c.reclaim == nil {
 			result.Message = "Reclaim lifecycle callback is unavailable; no host mutation was attempted"
@@ -252,8 +268,8 @@ func (c *HostPressureCheck) ExecuteAction(ctx context.Context, actionID string) 
 			result.Message = message
 		}
 	case "preview-disposal":
-		result.Success = true
-		result.Message = "Disposal preview requested; operator approval remains required"
+		result.Error = "disposal preview is not wired to an owner operation"
+		result.Message = "Use vrooli agent reap --orphaned --dry-run --json; no host mutation was attempted"
 	default:
 		result.Error = "unknown action"
 	}

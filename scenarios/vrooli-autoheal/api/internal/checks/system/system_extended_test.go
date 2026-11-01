@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	integration "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/integrations/vrooli"
@@ -326,16 +327,30 @@ func TestSwapCheck_PagingRateMatrix(t *testing.T) {
 		{"low usage and quiet", 20, 0, nil, checks.StatusOK},
 		{"low usage and active", 20, 2, nil, checks.StatusWarning},
 		{"low usage and high", 20, 128, nil, checks.StatusCritical},
-		{"warning usage and quiet", 60, 0, nil, checks.StatusWarning},
-		{"critical usage and quiet", 90, 0, nil, checks.StatusCritical},
+		{"warning usage and quiet", 60, 0, nil, checks.StatusOK},
+		{"critical usage and quiet", 90, 0, nil, checks.StatusOK},
 		{"rate unavailable", 20, 0, context.DeadlineExceeded, checks.StatusWarning},
+		{"high occupancy active", 90, 2, nil, checks.StatusWarning},
+		{"high occupancy high traffic", 90, 128, nil, checks.StatusCritical},
+		{"negative rate unavailable", 20, -1, nil, checks.StatusWarning},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := &mockProcReader{memInfo: &checks.MemInfo{SwapTotal: 100, SwapFree: uint64(100 - tc.used)}}
 			c := NewSwapCheck(WithSwapProcReader(reader), WithSwapRateReader(func() (float64, error) { return tc.rate, tc.err }))
-			if got := c.Run(context.Background()).Status; got != tc.want {
-				t.Fatalf("status = %s, want %s", got, tc.want)
+			result := c.Run(context.Background())
+			if result.Status != tc.want {
+				t.Fatalf("status = %s, want %s", result.Status, tc.want)
+			}
+			if tc.want == checks.StatusOK && result.Metrics != nil {
+				if result.Metrics.Score == nil || *result.Metrics.Score != 100 {
+					t.Fatalf("quiet paging score=%+v", result.Metrics.Score)
+				}
+				for _, sub := range result.Metrics.SubChecks {
+					if !sub.Passed {
+						t.Fatalf("quiet paging subcheck failed: %+v", sub)
+					}
+				}
 			}
 		})
 	}
@@ -449,4 +464,22 @@ func TestZombieCheck_WithMock_MultipleZombies(t *testing.T) {
 			t.Errorf("expected zombieCount=3, got %v", result.Details["zombieCount"])
 		}
 	})
+}
+
+func TestSwapPagingCountersMustBeReadableAndBracketted(t *testing.T) {
+	c := NewSwapCheck()
+	t0 := time.Date(2026, 10, 25, 0, 0, 0, 0, time.UTC)
+	if _, err := c.samplePagingRate([]byte("pgfault 100\n"), t0); err == nil {
+		t.Fatal("missing counters accepted")
+	}
+	if _, err := c.samplePagingRate([]byte("pswpin 100\npswpout 200\n"), t0); err == nil {
+		t.Fatal("baseline was accepted as rate")
+	}
+	rate, err := c.samplePagingRate([]byte("pswpin 110\npswpout 210\n"), t0.Add(10*time.Second))
+	if err != nil || rate != 2 {
+		t.Fatalf("rate=%v err=%v, want2", rate, err)
+	}
+	if _, err := c.samplePagingRate([]byte("pswpin 1\npswpout 2\n"), t0.Add(20*time.Second)); err == nil {
+		t.Fatal("counter reset accepted")
+	}
 }

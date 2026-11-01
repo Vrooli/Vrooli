@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -889,3 +890,31 @@ func TestZombieCheck_ExecuteAction(t *testing.T) {
 // =============================================================================
 // Inode Check Mock Tests
 // =============================================================================
+
+func TestHostPressureReportRetainsObservationsWithoutRepairClaim(t *testing.T) {
+	c := NewHostPressureCheck(WithHostPressureReader(func(context.Context) hostpressure.PressureSnapshot {
+		return hostpressure.PressureSnapshot{CapturedAt: time.Date(2026, 10, 25, 0, 0, 0, 0, time.UTC), MemoryAvail: hostpressure.NewRead(123, "fixture"), Processes: []hostpressure.Process{{PID: 12, Name: "active-agent", Resident: 1, Swapped: 1000}}}
+	}))
+	got := c.ExecuteAction(context.Background(), "report-findings")
+	if !got.Success || got.Output == "" {
+		t.Fatalf("missing diagnostic receipt: %+v", got)
+	}
+	var report map[string]any
+	if err := json.Unmarshal([]byte(got.Output), &report); err != nil {
+		t.Fatal(err)
+	}
+	if report["diagnostic_only"] != true || report["host_mutated"] != false {
+		t.Fatalf("invalid receipt=%+v", report)
+	}
+	for _, action := range c.RecoveryActions(&checks.Result{Status: checks.StatusCritical}) {
+		if !action.ManualOnly {
+			t.Fatalf("diagnostic/reclaim unexpectedly automatic: %+v", action)
+		}
+		if action.ID == "preview-disposal" && action.Available {
+			t.Fatal("unimplemented disposal advertised available")
+		}
+	}
+	if got := c.ExecuteAction(context.Background(), "preview-disposal"); got.Success {
+		t.Fatal("unimplemented disposal claimed success")
+	}
+}
