@@ -51,7 +51,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["image-tools jobs get"]}}
         },
         {
           "name": "list",
