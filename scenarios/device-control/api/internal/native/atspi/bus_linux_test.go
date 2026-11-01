@@ -5,6 +5,7 @@ package atspi
 import (
 	"bufio"
 	"context"
+	"device-control/internal/testutil"
 	"github.com/godbus/dbus/v5"
 	"net"
 	"os"
@@ -23,7 +24,7 @@ func TestPrivateBusPeerAuthentication(t *testing.T) {
 	if err != nil {
 		t.Skip("D-Bus fixture unavailable")
 	}
-	path := filepath.Join(t.TempDir(), "bus")
+	path := filepath.Join(testutil.SocketDir(t), "bus")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cmd := exec.CommandContext(ctx, executable, "--session", "--nofork", "--address=unix:path="+path, "--print-address=1")
@@ -73,7 +74,7 @@ func TestPrivateBusPeerAuthentication(t *testing.T) {
 }
 
 func TestBusHandshakeTimeoutAndNoAmbientFallback(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "silent")
+	path := filepath.Join(testutil.SocketDir(t), "silent")
 	listener, err := net.Listen("unix", path)
 	require.NoError(t, err)
 	defer listener.Close()

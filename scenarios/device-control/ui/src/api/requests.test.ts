@@ -5,13 +5,19 @@ import {
   acquireSession,
   auditRecords,
   connectDevice,
+  completePairing,
+  describeDevice,
   killSession,
   listDevices,
   listSessions,
   listStrategies,
+  readDeviceState,
+  reconnectDevice,
   releaseSession,
   runFlow,
+  startPairing,
   validateFlow,
+  watchDeviceEvents,
 } from "./deviceControl";
 import {
   getAuthProfile,
@@ -111,5 +117,39 @@ describe("device-control API request adapters", () => {
     });
     expect((error as Error).message).not.toContain("private internal diagnostic");
     expect((error as Error).message).not.toContain("private-host");
+  });
+
+  it("keeps device identity and pairing data scoped to their requests", async () => {
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })));
+    vi.stubGlobal("fetch", fetchMock);
+    await describeDevice("phone/one");
+    await readDeviceState("phone/one");
+    await reconnectDevice("phone/one");
+    await startPairing("phone/one");
+    await completePairing("phone/one", "pair-1", "123456");
+    const calls = fetchMock.mock.calls as unknown as Array<[string, RequestInit]>;
+    expect(calls.every(([url]) => String(url).includes("phone%2Fone"))).toBe(true);
+    const pairingCall = calls.at(4);
+    expect(pairingCall).toBeDefined();
+    expect(JSON.parse(String(pairingCall?.[1].body))).toEqual({ pairing_id: "pair-1", pin: "123456" });
+    expect(String(pairingCall?.[0])).not.toContain("123456");
+  });
+
+  it("ignores malformed device events and closes the stream on unsubscribe", () => {
+    const close = vi.fn();
+    let source: { onmessage?: (event: { data: string }) => void } = {};
+    vi.stubGlobal("EventSource", class {
+      onmessage?: (event: { data: string }) => void;
+      close = close;
+      constructor() { source = this; }
+    });
+    const onEvent = vi.fn();
+    const unsubscribe = watchDeviceEvents("phone/one", onEvent);
+    source.onmessage?.({ data: "not json" });
+    source.onmessage?.({ data: JSON.stringify({ device_id: "phone/one", attribute: "screen", new_value: "on", causation_id: "request-1" }) });
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ device_id: "phone/one", new_value: "on" }));
+    unsubscribe();
+    expect(close).toHaveBeenCalledOnce();
   });
 });

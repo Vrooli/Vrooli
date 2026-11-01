@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"device-control/internal/testutil"
 	"net"
 	"path/filepath"
 	"testing"
@@ -18,7 +19,7 @@ import (
 
 func admissionPeer(t *testing.T) *net.UnixConn {
 	t.Helper()
-	l, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(t.TempDir(), "peer"), Net: "unix"})
+	l, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(testutil.SocketDir(t), "peer"), Net: "unix"})
 	require.NoError(t, err)
 	t.Cleanup(func() { l.Close() })
 	c, err := net.DialUnix("unix", nil, l.Addr().(*net.UnixAddr))

@@ -32,3 +32,19 @@
 // process-wide state in fakes, and expose concurrency knobs only tests
 // need — production code can't see any of it.
 package testutil
+
+import (
+	"os"
+	"testing"
+)
+
+// SocketDir avoids Unix socket path limits under long managed-run TMPDIRs.
+func SocketDir(t testing.TB) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "portal-sock-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}

@@ -61,7 +61,12 @@ func (s *Service) observeState(deviceID, transport, attribute string, value any)
 }
 
 func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strategy) GapReport {
-	decl, _ := d.Describe(ctx)
+	var decl strategy.Declaration
+	if prober, ok := d.(strategy.CaptureDescriber); ok && simpleCaptureKind(flow) != "" {
+		decl, _ = prober.DescribeCapture(ctx, simpleCaptureKind(flow))
+	} else {
+		decl, _ = d.Describe(ctx)
+	}
 	g := GapReport{Runnable: true, Gaps: []string{}, Warnings: []string{}}
 	if err := validateFlowContract(flow); err != nil {
 		g.Runnable = false
@@ -75,6 +80,10 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		if step.Kind == "semantic-target" && decl.Capabilities[strategy.CapSemanticTree].Status != strategy.StatusAvailable {
 			g.Runnable = false
 			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapSemanticTree))
+		}
+		if step.Kind == "observe" && decl.Capabilities[strategy.CapScreenshot].Status != strategy.StatusAvailable {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, strategy.CapScreenshot))
 		}
 		if (step.Kind == "recording-start" || step.Kind == "recording-stop") && decl.Capabilities[strategy.CapScreenRecording].Status != strategy.StatusAvailable && decl.Capabilities[strategy.CapNativeRecording].Status != strategy.StatusAvailable {
 			g.Runnable = false
@@ -96,6 +105,41 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		}
 	}
 	return g
+}
+
+// Only the exact simple capture shapes use targeted preflight. Complex flows
+// retain the full declaration, including every explicitly required capability.
+func simpleCaptureKind(flow Flow) string {
+	if len(flow.Steps) == 1 {
+		step := flow.Steps[0]
+		kind, cap := "", ""
+		switch step.Kind {
+		case "observe":
+			kind, cap = "screenshot", strategy.CapScreenshot
+		case "device-logs":
+			kind, cap = "logs", strategy.CapDeviceLogs
+		}
+		if kind == "" {
+			return ""
+		}
+		for _, required := range step.RequiredCapabilities {
+			if required != cap {
+				return ""
+			}
+		}
+		return kind
+	}
+	if len(flow.Steps) == 3 && flow.Steps[0].Kind == "recording-start" && flow.Steps[1].Kind == "wait" && flow.Steps[2].Kind == "recording-stop" {
+		for _, step := range flow.Steps {
+			for _, required := range step.RequiredCapabilities {
+				if required != strategy.CapScreenRecording && required != strategy.CapNativeRecording {
+					return ""
+				}
+			}
+		}
+		return "recording"
+	}
+	return ""
 }
 
 const (
@@ -184,7 +228,7 @@ func reverseTCPPorts(step Step) (int, int, error) {
 func validateCondition(condition Condition) error {
 	kind := strings.ToLower(strings.TrimSpace(condition.Kind))
 	switch kind {
-	case "device-unlocked", "screen-on", "frame-different":
+	case "device-unlocked", "screen-on", "screen-off", "frame-different":
 		return nil
 	case "capability", "property-equals":
 		if strings.TrimSpace(condition.Target) == "" {
@@ -347,6 +391,16 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	}
 	recordingHandles := map[string]strategy.RecordingHandle{}
 	recorder, hasRecorder := strat.(strategy.SessionRecorder)
+	markRecordingUncertain := func(handle strategy.RecordingHandle) {
+		if handle.ID == "" {
+			return
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if _, exists := s.externalRecordings[handle.ID]; !exists {
+			s.externalRecordings[handle.ID] = externalRecording{DeviceID: deviceID, Actor: actor, Recorder: recorder, Handle: handle, Uncertain: true}
+		}
+	}
 	storeRecording := func(step Step, artifact strategy.RecordingArtifact) error {
 		redacted, redactErr := evidence.CaptureWithPolicy(artifact.Bytes, "video/mp4", evidence.DefaultPolicy, flow.RedactSensitiveContent, flow.AllowUnredactedCapture, actor, nil)
 		if redactErr != nil {
@@ -355,6 +409,9 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		frameCount, duration, effectiveFPS, measureErr := evidence.MeasureVideo(redacted.Bytes)
 		if measureErr != nil {
 			return measureErr
+		}
+		if artifact.Method == "screenshot-fallback" && artifact.EffectiveFPS > 0 && artifact.EffectiveFPS < effectiveFPS {
+			effectiveFPS = artifact.EffectiveFPS
 		}
 		artifact.FrameCount, artifact.Duration, artifact.EffectiveFPS = frameCount, duration, effectiveFPS
 		id := uuid.NewString()
@@ -369,6 +426,17 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		if refErr = s.persistArtifact(ctx, id, redacted.Bytes, "video"); refErr != nil {
 			return refErr
 		}
+		minimumMS, _ := number(step.Arguments["minimum_duration_ms"])
+		if class != evidence.ClaimStatic && (frameCount < 2 || minimumMS > 0 && duration < time.Duration(minimumMS)*time.Millisecond) {
+			ref.Disposition = evidence.DispositionDegraded
+			ref.DispositionReason = "recording is too short to establish the requested interval"
+			result.Evidence = append(result.Evidence, ref)
+			return &strategy.EvidenceUnavailableError{Reason: fmt.Sprintf("recording contains %d frame(s) over %s; the requested interval was not observed", frameCount, duration)}
+		}
+		if ref.Disposition == evidence.DispositionDegraded {
+			result.Evidence = append(result.Evidence, ref)
+			return &strategy.EvidenceUnavailableError{Reason: ref.DispositionReason}
+		}
 		result.Evidence = append(result.Evidence, ref)
 		return nil
 	}
@@ -378,6 +446,15 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	dispatch := func(stepctx context.Context, event strategy.Actuation) error {
 		if flow.SuppressActuation {
 			return nil
+		}
+		if event.Action == "device-logs" && event.Package != "" && event.Value == "" {
+			if logReader, ok := strat.(strategy.ApplicationLogReader); ok {
+				output, err := logReader.ReadApplicationLogs(stepctx, event.Package)
+				if err == nil && event.Output != nil {
+					*event.Output = output
+				}
+				return err
+			}
 		}
 		if event.Action == "rotate" && restorationState.Orientation == "" {
 			reader, readable := strat.(strategy.StateReader)
@@ -458,13 +535,14 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		stepCausationID = uuid.NewString()
 		var stepErr error
 		redactionVerified := false
+		noEvidence := false
 		executeAttempt := func() error {
 			stepErr = nil
 			redactionVerified = false
 			if requiresVisibleSurface(step.Kind) {
 				if stateReader, stateOK := strat.(strategy.StateReader); stateOK {
 					state, stateErr := stateReader.ReadState(stepctx)
-					if stateErr != nil || state.LockState != "unlocked" || state.ScreenState == "off" {
+					if stateErr != nil || state.LockState != "unlocked" || state.ScreenState != "on" {
 						stepErr = fmt.Errorf("visible surface unavailable: lock state is %q and screen state is %q", state.LockState, state.ScreenState)
 					}
 				}
@@ -531,17 +609,6 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 				case "text":
 					stepErr = dispatch(stepctx, strategy.Actuation{Text: step.Target})
 				case "observe":
-					if stateReader, ok := strat.(strategy.StateReader); ok {
-						state, stateErr := stateReader.ReadState(stepctx)
-						if stateErr != nil {
-							stepErr = stateErr
-							break
-						}
-						if state.LockState == "locked" || state.ScreenState == "off" {
-							stepErr = fmt.Errorf("visible surface unavailable: screen is %s%s", state.LockState, screenStateSuffix(state.ScreenState))
-							break
-						}
-					}
 					observer, observerOK := strat.(strategy.Observer)
 					if !observerOK {
 						stepErr = &strategy.UnsupportedCapabilityError{Capability: strategy.CapScreenshot, Operation: "observe"}
@@ -778,7 +845,18 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					packageName, _ := step.Arguments["package"].(string)
 					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName})
 				case "screen":
-					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+					if flow.SuppressActuation {
+						break
+					}
+					if screen, ok := strat.(strategy.ScreenController); ok && (step.Target == "wake" || step.Target == "sleep") {
+						wanted := "on"
+						if step.Target == "sleep" {
+							wanted = "off"
+						}
+						stepErr = screen.SetScreenState(stepctx, wanted)
+					} else {
+						stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
+					}
 				case "logcat-start", "clipboard-write":
 					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target})
 				case "recording-start":
@@ -806,8 +884,14 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						stepErr = fmt.Errorf("recording %q is not active", key)
 						break
 					}
+					// Stop may consume a native handle even on error; never replay it.
+					delete(recordingHandles, key)
 					var artifact strategy.RecordingArtifact
 					artifact, stepErr = recorder.StopRecording(stepctx, handle)
+					if stepErr != nil {
+						markRecordingUncertain(handle)
+						result.Incomplete = true
+					}
 					if stepErr == nil {
 						stepErr = storeRecording(step, artifact)
 					}
@@ -819,6 +903,13 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 					logPriority, _ := step.Arguments["priority"].(string)
 					stepErr = dispatch(stepctx, strategy.Actuation{Action: step.Kind, Value: step.Target, Package: packageName, Component: component, LogTag: logTag, LogPriority: logPriority, Output: &output})
 					if stepErr == nil && len(output) == 0 {
+						if step.Kind == "device-logs" {
+							noEvidence = true
+							result.Disposition = "no_evidence"
+							chapter.Disposition = "unavailable"
+							chapter.Message = "No application log entries were available in the bounded snapshot."
+							break
+						}
 						stepErr = fmt.Errorf("%s produced no output", step.Kind)
 					}
 					if stepErr == nil && (step.Kind == "device-logs" || step.Kind == "framework-logs" || step.Kind == "logcat-stop" || step.Kind == "clock-sample") {
@@ -951,6 +1042,14 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			}
 		}
 		cancel()
+		var evidenceUnavailable *strategy.EvidenceUnavailableError
+		if errors.As(stepErr, &evidenceUnavailable) {
+			noEvidence = true
+			result.Disposition = "no_evidence"
+			chapter.Disposition = "unavailable"
+			chapter.Message = evidenceUnavailable.Reason
+			stepErr = nil
+		}
 		disconnected := false
 		var availability *strategy.AvailabilityError
 		if stepErr != nil && errors.As(stepErr, &availability) {
@@ -964,6 +1063,9 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			_, _ = s.ReleaseContext(ctx, sess.ID)
 		}
 		outcome := "success"
+		if noEvidence {
+			outcome = "no_evidence"
+		}
 		if stepErr != nil {
 			outcome = "failure"
 			chapter.FailureClass = classifyFlowFailure(stepErr)
@@ -989,8 +1091,26 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 		s.audits = append(s.audits, audit)
 		s.mu.Unlock()
 		result.Chapters = append(result.Chapters, chapter)
-		if stepErr != nil {
+		if stepErr != nil || noEvidence {
 			break
+		}
+	}
+	// A failed, cancelled, or incomplete flow still owns its active recorder.
+	// Stop each remaining handle once under a bounded cleanup context. A failed
+	// stop remains an uncertain owner marker and is never replayed implicitly.
+	for key, handle := range recordingHandles {
+		cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		_, stopErr := recorder.StopRecording(cleanupCtx, handle)
+		cancelCleanup()
+		chapter := Chapter{ID: "cleanup-recording-" + key, Title: "recording cleanup", Disposition: "passed", Message: "recording stopped during cleanup; no recording evidence retained"}
+		if stopErr != nil {
+			markRecordingUncertain(handle)
+			chapter.Disposition, chapter.Message = "failed", "recording stop outcome uncertain: "+stopErr.Error()
+		}
+		result.Chapters = append(result.Chapters, chapter)
+		result.Incomplete = true
+		if result.Disposition == "passed" {
+			result.Disposition = "failed"
 		}
 	}
 	restoreBeforeReturn()
@@ -1046,13 +1166,6 @@ func (s *Service) ExportFlow(id string) (FlowExport, error) {
 	return export, nil
 }
 
-func screenStateSuffix(screen string) string {
-	if screen == "" {
-		return ""
-	}
-	return " and screen is " + screen
-}
-
 func (s *Service) evaluateFlowCondition(ctx context.Context, strat strategy.Strategy, condition Condition, previousFrame, lastFrame []byte) error {
 	switch strings.ToLower(strings.TrimSpace(condition.Kind)) {
 	case "device-unlocked":
@@ -1068,7 +1181,7 @@ func (s *Service) evaluateFlowCondition(ctx context.Context, strat strategy.Stra
 			return fmt.Errorf("lock state is %q", state.LockState)
 		}
 		return nil
-	case "screen-on":
+	case "screen-on", "screen-off":
 		reader, ok := strat.(strategy.StateReader)
 		if !ok {
 			return fmt.Errorf("strategy does not expose state")
@@ -1077,8 +1190,9 @@ func (s *Service) evaluateFlowCondition(ctx context.Context, strat strategy.Stra
 		if err != nil {
 			return err
 		}
-		if state.ScreenState == "off" {
-			return fmt.Errorf("screen is off")
+		want := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(condition.Kind)), "screen-")
+		if state.ScreenState != want {
+			return fmt.Errorf("screen state is %q; %s was not verified", state.ScreenState, want)
 		}
 		return nil
 	case "capability":
@@ -1216,7 +1330,7 @@ func (s *Service) finishCommandReceipt(ctx context.Context, deviceID, transport,
 
 func requiresVisibleSurface(kind string) bool {
 	switch kind {
-	case "observe", "semantic-target", "semantic-assert", "assert-foreground", "recording-start", "screenrecord":
+	case "observe", "screenshot", "semantic-target", "semantic-assert", "assert-foreground", "recording-start", "screenrecord":
 		return true
 	default:
 		return false

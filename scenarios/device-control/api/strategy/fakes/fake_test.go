@@ -18,6 +18,15 @@ func TestFloorOnlyStrategyHasNoScreenOrInputFloorRequirement(t *testing.T) {
 	require.NotContains(t, strategy.StepKinds(s.Declaration), "tap")
 }
 
+func TestScreenControlConformanceRequiresControllerAndStateReader(t *testing.T) {
+	s := New("screen-claim-only", strategy.StatusAvailable, strategy.CapScreenControl)
+	report := strategy.Verify(context.Background(), s)
+	require.Equal(t, strategy.StatusDegraded, report.Status)
+	require.Contains(t, report.Failed, "screen-control: declared capability without ScreenController")
+	require.Contains(t, report.Failed, "screen-control: declared capability without StateReader")
+	require.Empty(t, s.Calls(), "conformance must not wake or sleep a device")
+}
+
 func TestPropertyOnlyValidationStopsOutOfRangeValueBeforeTransport(t *testing.T) {
 	minimum, maximum := 0.0, 100.0
 	s := NewPropertyOnly("light", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Writable: true, Minimum: &minimum, Maximum: &maximum}, 50.0)

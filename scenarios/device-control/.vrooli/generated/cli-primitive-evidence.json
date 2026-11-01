@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "086e6203e5f2f37d33f349da9989b6fd4c6411bfa5ee6ee2c7d2219560858e0b",
+  "manifest_hash": "562cc64a82a51a7949c584ad67bd2dc5f535efb2d9cf825a0fb1116233415f3b",
   "commands": [
     {
       "path": "agent abort",
@@ -199,6 +199,12 @@
       "binding": "."
     },
     {
+      "path": "device capture",
+      "group": "device",
+      "command": "capture",
+      "binding": "."
+    },
+    {
       "path": "device connect",
       "group": "device",
       "command": "connect",
@@ -280,6 +286,12 @@
       "path": "device relations",
       "group": "device",
       "command": "relations",
+      "binding": "."
+    },
+    {
+      "path": "device screen",
+      "group": "device",
+      "command": "screen",
       "binding": "."
     },
     {

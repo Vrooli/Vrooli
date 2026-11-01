@@ -165,13 +165,33 @@ Device Control also exposes live state and replay export through the thin CLI:
 
 ```bash
 device-control device state <device-id> --json
+device-control device screen <device-id> --operation wake --json
+device-control device screen <device-id> --operation sleep --json
+device-control device screen <device-id> --operation ready --auth-profile <profile-id> --json
+device-control device screen <device-id> --operation ready --home --json
+device-control device capture <device-id> --kind screenshot --json
+device-control device capture <device-id> --kind recording --seconds 5 --json
+device-control device capture <device-id> --kind logs --package com.example.app --json
 device-control flow export <run-id> --json
 ```
+
+Screenshots and recordings preserve the full frame by default and are not
+classified for private information. An explicitly redacted image flow must
+provide exact sensitive regions; content-aware video redaction is unavailable.
 
 `device state` returns live foreground, power/lock, orientation, battery,
 thermal, and display data. Fields that cannot be probed retain the exact adb
 command under `unavailable`. `flow export` returns the replayable flow,
 resolution rung metadata, and explicit exclusions for failed steps.
+The screen operation owns and releases its lease, reads the screen before and
+after, and returns `verified` only for the device-reported requested state.
+`ready` also verifies that the device is unlocked; the authentication profile
+is optional when it is already unlocked. It leaves the current app in place
+unless `--home` is explicitly requested; the Home outcome can be unverified
+when a launcher override is active.
+On a stale wireless connection use the identity-verifying `device reconnect`
+operation first. A screenless transport or unknown state returns a failure,
+not a successful wake claim.
 
 `device-control flow runs --json` lists cached completed run IDs and a
 point-in-time active-flow count. It does not prevent new work, include every

@@ -121,6 +121,9 @@
     },
     "flows": {
       "acquireAndRun": "Acquire lease and run",
+      "audioTrackPresent": "Audio track present; audible sound has not been verified.",
+      "audioTrackAbsent": "No audio track in this recording.",
+      "audioTrackUnknown": "Audio track status unavailable.",
       "blockedBeforeExecution": "Blocked before execution",
       "bytes": "bytes",
       "capabilityGapReport": "Capability gap report",

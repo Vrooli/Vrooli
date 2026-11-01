@@ -51,12 +51,17 @@ public final class HomeOverrideService extends AccessibilityService {
     static String lastStockClass() { HomeOverrideService service = live; return service == null ? "unknown" : service.lastStockClass; }
     static void homeArrived() { HomeOverrideService service = live; if (service != null) service.policy.homeArrived(); }
     private boolean requested() { return BuildConfig.HOME_ENABLED && preferences != null && preferences.getBoolean(ENABLED, false); }
+    private void recordLifecycle(String event) {
+        if (preferences != null) preferences.edit().putString("home-override-last-event", event)
+                .putLong("home-override-last-event-time", System.currentTimeMillis()).apply();
+    }
 
     @Override public void onCreate() {
         super.onCreate();
         live = this;
         preferences = getSharedPreferences("portal-tv", MODE_PRIVATE);
         preferences.registerOnSharedPreferenceChangeListener(changed);
+        recordLifecycle("created");
     }
 
     @Override protected void onServiceConnected() {
@@ -71,6 +76,8 @@ public final class HomeOverrideService extends AccessibilityService {
                 receiverRegistered = true;
             }
             boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
+            preferences.edit().putInt("home-override-connected-boot", boot).apply();
+            recordLifecycle("connected");
             bootPending = HomeOverridePolicy.startForBoot(boot, preferences.getInt("home-override-boot", -1));
             if (requested()) { startKeepAlive(); considerWake(); deferWake(); }
         } catch (RuntimeException unavailable) { pause("connect-" + unavailable.getClass().getSimpleName()); }
@@ -159,8 +166,9 @@ public final class HomeOverrideService extends AccessibilityService {
     private void pause(String reason) { if (preferences != null) preferences.edit().putBoolean(ENABLED, false).putString("home-override-pause", reason).commit(); stopKeepAlive(); }
     private void stopKeepAlive() { foreground = false; ++wakeGeneration; stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); }
     @Override public void onInterrupt() { /* No speech, key stream or gesture work. */ }
-    @Override public boolean onUnbind(Intent intent) { connected = false; stopKeepAlive(); return false; }
+    @Override public boolean onUnbind(Intent intent) { recordLifecycle("unbound"); connected = false; stopKeepAlive(); return false; }
     @Override public void onDestroy() {
+        recordLifecycle("destroyed");
         connected = false; if (live == this) live = null;
         handler.removeCallbacksAndMessages(null);
         if (receiverRegistered) unregisterReceiver(wake);

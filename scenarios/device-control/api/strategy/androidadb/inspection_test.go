@@ -16,6 +16,7 @@ func TestInspectionReadsHardwareProviderAndHomeWithoutWrites(t *testing.T) {
 		"adb -s tv shell dumpsys webviewupdate":          []byte("Current WebView package (name, version): (com.google.android.webview, 155.0.8059.43)\n"),
 		"adb -s tv shell cmd package resolve-activity --brief --user 0 -a android.intent.action.MAIN -c android.intent.category.HOME": []byte("com.google.android.apps.tv.launcherx/.HomeActivity\n"),
 		"adb -s tv shell getprop ro.config.low_ram": []byte("true"),
+		"adb -s tv shell dumpsys media.player":      []byte("Encoder infos by media types:\nMedia type 'video/avc':\n  Encoder \"c2.android.avc.encoder\" supports\n    software-only: 1,\n    hw-accelerated: 0 ]\n"),
 	}}
 	profile, err := NewWithRunner(runner, "tv").Inspect(context.Background())
 	require.NoError(t, err)
@@ -26,12 +27,37 @@ func TestInspectionReadsHardwareProviderAndHomeWithoutWrites(t *testing.T) {
 	require.Equal(t, "155.0.8059.43", profile.WebViewVersion)
 	require.Equal(t, "com.google.android.apps.tv.launcherx/com.google.android.apps.tv.launcherx.HomeActivity", profile.HomeComponent)
 	require.True(t, *profile.LowRAM)
+	require.Len(t, profile.VideoEncoders, 1)
+	require.True(t, *profile.VideoEncoders[0].SoftwareOnly)
+	require.False(t, *profile.VideoEncoders[0].HardwareAccelerated)
 	require.Empty(t, profile.Unavailable)
 	require.Contains(t, runner.calls, "adb -s tv shell am get-current-user")
 	for _, call := range runner.calls {
 		require.NotContains(t, call, "settings put")
 		require.NotContains(t, call, "am start")
 	}
+}
+
+func TestVideoEncoderInventoryExcludesDecodersAndUnknownFlags(t *testing.T) {
+	data := `Decoder infos by media types:
+Media type 'video/avc':
+  Encoder "not-an-encoder" supports
+Encoder infos by media types:
+Media type 'video/avc':
+  Encoder "codec.hardware" supports
+    software-only: 0,
+    hw-accelerated: 1 ]
+  Encoder "codec.unknown" supports
+Media type 'audio/avc':
+  Encoder "private-audio" supports
+`
+	encoders := parseVideoEncoders(data)
+	require.Len(t, encoders, 2)
+	require.Equal(t, "video/avc", encoders[0].MIMEType)
+	require.False(t, *encoders[0].SoftwareOnly)
+	require.True(t, *encoders[0].HardwareAccelerated)
+	require.Equal(t, "codec.unknown", encoders[1].Name)
+	require.Nil(t, encoders[1].HardwareAccelerated)
 }
 
 func TestInspectionPreservesUnknownRatherThanZero(t *testing.T) {

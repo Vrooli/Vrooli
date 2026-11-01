@@ -82,16 +82,23 @@ describe("DeviceDetailPage capability composition", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("api_unreachable_or_timeout: Could not reach the API server or the request timed out (HTTP 502)");
   });
 
-  it("sends explicit redaction opt-in and displays applied rules", async () => {
-    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }, { name: "input", status: "available" }] } });
+  it("does not display a frame when capture returned no evidence", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }] } });
     api.readDeviceState.mockResolvedValue({ screen_state: "on" });
-    api.runFlow.mockResolvedValue({ disposition: "passed", evidence: [{ id: "redacted-frame", created_at: "2026-10-22T15:00:00Z", redaction_verified: true, applied_rules: ["status_bar_identifiers", "content_classification_not_performed"] }] });
+    api.runFlow.mockResolvedValue({ disposition: "no_evidence", evidence: [], chapters: [{ id: "screen", disposition: "unavailable", message: "Screen capture is unavailable" }] });
     renderPage("tv");
-    fireEvent.click(await screen.findByRole("checkbox", { name: "Apply configured redaction" }));
-    fireEvent.click(screen.getByRole("button", { name: "Capture screen" }));
-    await waitFor(() => expect(screen.getByTestId(selectors.pages.deviceLiveView).querySelector("img")).toHaveAttribute("src", "/evidence/redacted-frame"));
-    expect(api.runFlow).toHaveBeenCalledWith("tv", "browser-operator", "token", expect.objectContaining({ redact_sensitive_content: true }));
-    expect(screen.getByTestId(selectors.pages.deviceLiveView)).toHaveTextContent("Redacted per configured rules: status_bar_identifiers, content_classification_not_performed");
+    fireEvent.click(await screen.findByRole("button", { name: "Capture screen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Screen capture is unavailable");
+    expect(screen.getByTestId(selectors.pages.deviceLiveView).querySelector("img")).toBeNull();
+  });
+
+  it("explains a missing capture when no chapter provides a reason", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }] } });
+    api.readDeviceState.mockResolvedValue({ screen_state: "on" });
+    api.runFlow.mockResolvedValue({ disposition: "no_evidence", evidence: [] });
+    renderPage("tv");
+    fireEvent.click(await screen.findByRole("button", { name: "Capture screen" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("No verified frame returned");
   });
 
   it("does not enable controls from stale transports", async () => {

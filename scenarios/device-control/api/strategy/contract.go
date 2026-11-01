@@ -18,6 +18,7 @@ const (
 	CapAppLifecycle    = "app-lifecycle"
 	CapPermissions     = "permissions"
 	CapInput           = "input"
+	CapScreenControl   = "screen-control"
 	CapScreenshot      = "screenshot"
 	CapScreenRecording = "screen-recording"
 	CapNetworkControl  = "network-control"
@@ -148,6 +149,12 @@ type Observer interface {
 	Observe(context.Context) (Frame, error)
 }
 
+// CaptureDescriber probes just the modality required for a simple capture.
+// Strategies without this optimization retain the full Describe preflight.
+type CaptureDescriber interface {
+	DescribeCapture(context.Context, string) (Declaration, error)
+}
+
 // InputActuator is an optional input modality. It is intentionally separate
 // from the strategy floor so property-only and sensor-only devices are valid.
 type InputActuator interface {
@@ -212,6 +219,23 @@ type AppLifecycleResult struct {
 	UptimeSeconds          *float64          `json:"uptime_seconds,omitempty"`
 	ProcessExits           []ProcessExit     `json:"process_exits,omitempty"`
 	ApplicationStatus      map[string]string `json:"application_status,omitempty"`
+	Performance            *AppPerformance   `json:"performance,omitempty"`
+}
+
+// AppPerformance is a point-in-time diagnostic, not a claim about physical
+// output. Surface statistics describe the recent Android presentation ring.
+type AppPerformance struct {
+	GraphicsFrames  *int64   `json:"graphics_frames,omitempty"`
+	JankyFrames     *int64   `json:"janky_frames,omitempty"`
+	MissedVsync     *int64   `json:"missed_vsync,omitempty"`
+	GraphicsSinceNS *int64   `json:"graphics_since_ns,omitempty"`
+	SurfaceFrames   int      `json:"surface_frames,omitempty"`
+	SurfaceWindowMS float64  `json:"surface_window_ms,omitempty"`
+	SurfaceAgeMS    *float64 `json:"surface_age_ms,omitempty"`
+	SurfaceFPS      *float64 `json:"surface_fps,omitempty"`
+	SlowIntervals   int      `json:"slow_intervals,omitempty"`
+	SurfaceP95MS    *float64 `json:"surface_p95_ms,omitempty"`
+	SurfaceReason   string   `json:"surface_reason,omitempty"`
 }
 
 type ProcessExit struct {
@@ -400,6 +424,30 @@ type StateReader interface {
 	ReadState(context.Context) (DeviceState, error)
 }
 
+// ScreenController changes the display's requested state without toggling it.
+// StateReader is separately required to verify the result.
+type ScreenController interface {
+	SetScreenState(context.Context, string) error
+}
+
+// KeyguardDismisser requests dismissal without supplying credentials. The
+// caller must verify the lock state and may not infer that a secure lock opened.
+type KeyguardDismisser interface {
+	DismissKeyguard(context.Context) error
+}
+
+// ApplicationLogReader returns a bounded snapshot for one exact application.
+// It does not claim to capture console messages or network requests generally.
+type ApplicationLogReader interface {
+	ReadApplicationLogs(context.Context, string) ([]byte, error)
+}
+
+// HomeNavigator requests the device's normal Home action. Verification of the
+// resulting foreground remains separate because user-defined overrides exist.
+type HomeNavigator interface {
+	GoHome(context.Context) error
+}
+
 type VoiceInspection struct {
 	MicrophoneFeature                             *bool
 	AssistantRoleHolders                          []string
@@ -410,12 +458,18 @@ type VoiceInspection struct {
 
 type DeviceInspection struct {
 	Voice                                                *VoiceInspection
+	VideoEncoders                                        []VideoEncoder
 	ObservedAt                                           time.Time
 	ABIs                                                 []string
 	MemoryTotalBytes, DataTotalBytes, DataAvailableBytes *uint64
 	WebViewPackage, WebViewVersion, HomeComponent        string
 	LowRAM                                               *bool
 	Unavailable                                          map[string]string
+}
+
+type VideoEncoder struct {
+	MIMEType, Name                    string
+	SoftwareOnly, HardwareAccelerated *bool
 }
 
 type Inspector interface {
@@ -689,6 +743,12 @@ type AvailabilityError struct {
 	NextAction string
 }
 
+// EvidenceUnavailableError means the requested observation could not be
+// established; it does not assert that the observed event did not occur.
+type EvidenceUnavailableError struct{ Reason string }
+
+func (e *EvidenceUnavailableError) Error() string { return e.Reason }
+
 type UnsupportedCapabilityError struct {
 	Capability string
 	Operation  string
@@ -753,7 +813,10 @@ func StepKinds(d Declaration) []string {
 		steps = append(steps, "observe")
 	}
 	if d.Capabilities[CapInput].Status == StatusAvailable {
-		steps = append(steps, "tap", "key", "wait", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text", "screen")
+		steps = append(steps, "tap", "key", "wait", "swipe", "long-press", "double-tap", "drag", "fling", "scroll-to", "text")
+	}
+	if d.Capabilities[CapScreenControl].Status == StatusAvailable || d.Capabilities[CapInput].Status == StatusAvailable {
+		steps = append(steps, "screen")
 	}
 	if d.Capabilities[CapMultiTouch].Status == StatusAvailable {
 		steps = append(steps, "pinch")

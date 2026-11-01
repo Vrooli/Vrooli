@@ -3,8 +3,8 @@
   "namespace": "com.vrooli.portal.tv",
   "app_name": "Vrooli TV",
   "target_sdk": 36,
-  "version_code": 30,
-  "version_name": "0.4.12",
+  "version_code": 35,
+  "version_name": "0.4.17",
   "default_profile": "preview",
   "profiles": {
     "preview": {"package_name":"com.vrooli.portal.tv","app_name":"Vrooli TV Preview","home_enabled":false},

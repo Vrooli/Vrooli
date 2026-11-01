@@ -455,6 +455,8 @@ func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error
 	s.transportStrategies[id] = base
 	s.transportStates[id] = state
 	record.Transport = "wireless"
+	record.Endpoint = state.Endpoint
+	record.ObservedAt = state.UpdatedAt
 	record.Status = strategy.StatusAvailable
 	record.Health = strategy.StatusAvailable
 	record.HealthReason = "wireless ADB transport verified against the onboarded serial"

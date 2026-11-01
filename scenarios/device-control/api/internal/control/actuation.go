@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	authdomain "device-control/internal/auth"
 	"device-control/strategy"
 
 	"github.com/google/uuid"
@@ -25,6 +26,250 @@ type DirectActuation struct {
 }
 
 const maxDirectActuationRepeat = 10
+
+// ScreenRequest describes explicit outcomes, never a power toggle. Ready means
+// awake and unlocked; it does not navigate away from the current application.
+type ScreenRequest struct {
+	Device        string `json:"device"`
+	Actor         string `json:"actor"`
+	Operation     string `json:"operation"`
+	AuthProfileID string `json:"auth_profile_id,omitempty"`
+	Home          bool   `json:"home,omitempty"`
+}
+
+type ScreenResult struct {
+	DeviceID  string               `json:"device_id"`
+	Transport string               `json:"transport,omitempty"`
+	Operation string               `json:"operation"`
+	Status    string               `json:"status"`
+	Before    strategy.DeviceState `json:"before"`
+	After     strategy.DeviceState `json:"after"`
+	Detail    string               `json:"detail,omitempty"`
+}
+
+func (s *Service) resolveExactOrUniqueDevice(ctx context.Context, selector string) (Device, error) {
+	selector = strings.TrimSpace(selector)
+	if selector == "" {
+		return Device{}, fmt.Errorf("device is required")
+	}
+	var matches []Device
+	if record, found := s.devices.Get(selector); found {
+		// Exact durable identity is already unambiguous. The selected adapter is
+		// probed below, so a stale record cannot establish availability.
+		matches = append(matches, deviceFromRecord(record))
+	} else {
+		for _, device := range s.Devices(ctx) {
+			if device.ID == selector {
+				matches = []Device{device}
+				break
+			}
+			if strings.EqualFold(device.Name, selector) {
+				matches = append(matches, device)
+			}
+		}
+	}
+	if len(matches) != 1 {
+		return Device{}, fmt.Errorf("device selector must identify exactly one available device")
+	}
+	return matches[0], nil
+}
+
+// Screen performs one semantic operation on an exact identity or unique name.
+// It keeps the lease through verification, and does not interpret delivery as
+// proof of the requested display or authentication state.
+func (s *Service) Screen(ctx context.Context, req ScreenRequest) (result ScreenResult, err error) {
+	op := strings.ToLower(strings.TrimSpace(req.Operation))
+	if op != "wake" && op != "sleep" && op != "ready" {
+		return result, fmt.Errorf("operation must be wake, sleep, or ready")
+	}
+	if req.Home && op != "ready" {
+		return result, fmt.Errorf("home is available only with ready")
+	}
+	device, err := s.resolveExactOrUniqueDevice(ctx, req.Device)
+	if err != nil {
+		return result, err
+	}
+	result = ScreenResult{DeviceID: device.ID, Operation: op, Status: "unavailable"}
+	actor := firstNonEmpty(strings.TrimSpace(req.Actor), "semantic-screen")
+	lease, err := s.AcquireContext(ctx, device.ID, actor, 2*time.Minute)
+	if err != nil {
+		return result, err
+	}
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		if _, releaseErr := s.ReleaseContext(cleanupCtx, lease.ID); releaseErr != nil {
+			result.Status = "unavailable"
+			if err == nil {
+				err = fmt.Errorf("screen operation completed but lease release failed: %w", releaseErr)
+			} else {
+				err = fmt.Errorf("%v; lease release failed: %w", err, releaseErr)
+			}
+		}
+	}()
+	var controller strategy.ScreenController
+	var reader strategy.StateReader
+	var selected strategy.Strategy
+	profiles := device.Transports
+	if len(profiles) == 0 {
+		profiles = []strategy.DeviceTransport{{Name: device.Transport}}
+	}
+	for _, profile := range profiles {
+		candidate, ok := s.strategyForFlow(device.ID, profile.Name)
+		if !ok {
+			continue
+		}
+		c, canControl := candidate.(strategy.ScreenController)
+		r, canRead := candidate.(strategy.StateReader)
+		if !canControl || !canRead {
+			continue
+		}
+		decl, probeErr := candidate.Describe(ctx)
+		if probeErr != nil || decl.Capabilities[strategy.CapScreenControl].Status != strategy.StatusAvailable {
+			continue
+		}
+		controller, reader, selected, result.Transport = c, r, candidate, profile.Name
+		break
+	}
+	if controller == nil {
+		return result, fmt.Errorf("device has no available, state-readable screen-control transport")
+	}
+	result.Before, err = reader.ReadState(ctx)
+	if err != nil {
+		return result, fmt.Errorf("read screen state before operation: %w", err)
+	}
+	want := "on"
+	if op == "sleep" {
+		want = "off"
+	}
+	if result.Before.ScreenState != want {
+		if err = s.ValidateLease(ctx, device.ID, lease.LeaseToken); err != nil {
+			return result, err
+		}
+		err = controller.SetScreenState(ctx, want)
+		audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: device.ID, Transport: result.Transport, LeaseID: lease.ID, Verb: "screen-" + op, Outcome: "success", CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true}
+		if err != nil {
+			audit.Outcome = "failed"
+		}
+		s.persistDirectAudit(ctx, audit)
+		if err != nil {
+			return result, fmt.Errorf("screen command failed: %w", err)
+		}
+	}
+	// Give the device a bounded interval to settle, without repeating an effect.
+	for attempt := 0; attempt < 5; attempt++ {
+		result.After, err = reader.ReadState(ctx)
+		if err == nil && result.After.ScreenState == want {
+			break
+		}
+		if attempt == 4 {
+			return result, fmt.Errorf("screen %s was not verified", want)
+		}
+		select {
+		case <-ctx.Done():
+			return result, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	if op == "ready" {
+		if result.After.LockState == "locked" && req.AuthProfileID == "" {
+			dismisser, supported := selected.(strategy.KeyguardDismisser)
+			if supported {
+				if err = s.ValidateLease(ctx, device.ID, lease.LeaseToken); err != nil {
+					return result, err
+				}
+				err = dismisser.DismissKeyguard(ctx)
+				audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: device.ID, Transport: result.Transport, LeaseID: lease.ID, Verb: "dismiss-keyguard", Outcome: "success", CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true}
+				if err != nil {
+					audit.Outcome = "failed"
+				}
+				s.persistDirectAudit(ctx, audit)
+				if err != nil {
+					return result, fmt.Errorf("keyguard dismissal failed: %w", err)
+				}
+				for attempt := 0; attempt < 5; attempt++ {
+					result.After, err = reader.ReadState(ctx)
+					if err != nil {
+						return result, err
+					}
+					if result.After.LockState == "unlocked" {
+						break
+					}
+					if attempt == 4 {
+						break
+					}
+					select {
+					case <-ctx.Done():
+						return result, ctx.Err()
+					case <-time.After(500 * time.Millisecond):
+					}
+				}
+			}
+		}
+		if result.After.LockState == "locked" && req.AuthProfileID != "" {
+			unlock, unlockErr := s.UnlockDevice(ctx, req.AuthProfileID, device.ID, actor, lease.LeaseToken)
+			if unlockErr != nil {
+				return result, unlockErr
+			}
+			if unlock.Outcome != authdomain.OutcomeUnlocked && unlock.Outcome != authdomain.OutcomeAlreadyUnlocked {
+				return result, fmt.Errorf("unlock was not verified: %s", unlock.Outcome)
+			}
+			result.After, err = reader.ReadState(ctx)
+			if err != nil {
+				return result, err
+			}
+		}
+		if result.After.ScreenState != "on" || result.After.LockState != "unlocked" {
+			return result, fmt.Errorf("ready requires a verified awake and unlocked device; screen=%q lock=%q", result.After.ScreenState, result.After.LockState)
+		}
+		if req.Home {
+			navigator, supported := selected.(strategy.HomeNavigator)
+			if !supported {
+				return result, fmt.Errorf("selected transport does not support the Home action")
+			}
+			expected := ""
+			if inspector, ok := selected.(strategy.Inspector); ok {
+				if info, inspectErr := inspector.Inspect(ctx); inspectErr == nil {
+					expected, _, _ = strings.Cut(info.HomeComponent, "/")
+				}
+			}
+			if err = s.ValidateLease(ctx, device.ID, lease.LeaseToken); err != nil {
+				return result, err
+			}
+			err = navigator.GoHome(ctx)
+			audit := Audit{ID: uuid.NewString(), Actor: actor, DeviceID: device.ID, Transport: result.Transport, LeaseID: lease.ID, Verb: "navigate-home", Outcome: "success", CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true}
+			if err != nil {
+				audit.Outcome = "failed"
+			}
+			s.persistDirectAudit(ctx, audit)
+			if err != nil {
+				return result, fmt.Errorf("home action failed: %w", err)
+			}
+			for attempt := 0; attempt < 5; attempt++ {
+				result.After, err = reader.ReadState(ctx)
+				if err != nil {
+					return result, err
+				}
+				if expected != "" && result.After.ForegroundPackage == expected && result.After.ScreenState == "on" && result.After.LockState == "unlocked" {
+					break
+				}
+				if attempt == 4 {
+					result.Status = "unverified"
+					result.Detail = "Home was requested, but the default Home foreground was not verified; an override may be active."
+					return result, nil
+				}
+				select {
+				case <-ctx.Done():
+					return result, ctx.Err()
+				case <-time.After(500 * time.Millisecond):
+				}
+			}
+		}
+	}
+	result.Status = "verified"
+	result.Detail = "Device-reported screen state verified; physical panel output may require independent confirmation."
+	return result, nil
+}
 
 func (s *Service) ActuateDevice(ctx context.Context, deviceID, actor, leaseToken string, request DirectActuation) (Audit, error) {
 	if strings.TrimSpace(leaseToken) == "" {

@@ -37,6 +37,8 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/devices/{id}/pair/complete", h.completePairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/pair", h.pairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/actuate", h.actuateDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/screen", h.screenDevice).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/devices/{id}/capture", h.captureDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/apps", h.appLifecycle).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/volume", h.volumeDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/merge", h.mergeDevice).Methods(http.MethodPost)
@@ -369,6 +371,36 @@ func (h *handler) appLifecycle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, response)
+}
+
+func (h *handler) captureDevice(w http.ResponseWriter, r *http.Request) {
+	var in internal.CaptureRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "capture request is invalid")
+		return
+	}
+	in.Device = mux.Vars(r)["id"]
+	result, err := h.service.Capture(r.Context(), in)
+	if err != nil {
+		write(w, http.StatusConflict, map[string]any{"result": result, "error": map[string]any{"code": "capture_failed", "message": err.Error()}})
+		return
+	}
+	write(w, http.StatusOK, result)
+}
+
+func (h *handler) screenDevice(w http.ResponseWriter, r *http.Request) {
+	var in internal.ScreenRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "screen request is invalid")
+		return
+	}
+	in.Device = mux.Vars(r)["id"]
+	result, err := h.service.Screen(r.Context(), in)
+	if err != nil {
+		write(w, http.StatusConflict, map[string]any{"result": result, "error": map[string]any{"code": "screen_operation_failed", "message": err.Error()}})
+		return
+	}
+	write(w, http.StatusOK, result)
 }
 
 func (h *handler) volumeDevice(w http.ResponseWriter, r *http.Request) {
@@ -925,6 +957,8 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "devices_pair_complete", Path: "/api/v1/devices/{id}/pair/complete", Method: "POST", Summary: "Complete an owner-present Android TV Remote pairing handshake", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_pair", Path: "/api/v1/devices/{id}/pair", Method: "POST", Summary: "Pair a Google TV Android TV Remote transport", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_actuate", Path: "/api/v1/devices/{id}/actuate", Method: "POST", Summary: "Send one lease-owned direct device command", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_screen", Path: "/api/v1/devices/{id}/screen", Method: "POST", Summary: "Wake, sleep or prepare a device with verified state", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
+	{ID: "devices_capture", Path: "/api/v1/devices/{id}/capture", Method: "POST", Summary: "Capture a still or bounded recording through the flow owner", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_app_lifecycle", Path: "/api/v1/devices/{id}/apps", Method: "POST", Summary: "Run one confirmed, lease-owned app lifecycle operation", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_merge", Path: "/api/v1/devices/{id}/merge", Method: "POST", Summary: "Merge identities under an owner-asserted claim", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_split", Path: "/api/v1/devices/{id}/split", Method: "POST", Summary: "Split a previously merged identity", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},

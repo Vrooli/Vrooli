@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"portal/internal/testutil"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -61,7 +62,7 @@ func TestPortalDesktopRequiresBearerAndUsesAccountNamespace(t *testing.T) {
 			}
 			ownerMux := http.NewServeMux()
 			ownerMux.Handle(path, handler)
-			socket := filepath.Join(t.TempDir(), "owner.sock")
+			socket := filepath.Join(testutil.SocketDir(t), "owner.sock")
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)
 			ownerServer := &http.Server{Handler: ownerMux}

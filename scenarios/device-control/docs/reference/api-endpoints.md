@@ -54,6 +54,21 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ## LAN device operations
 
+`POST /api/v1/devices/{id}/screen` accepts `operation` (`wake`, `sleep`, or
+`ready`), `actor`, optional `auth_profile_id`, and optional `home` for `ready`.
+It owns a device lease, selects a screen-control transport and reports fresh
+device state. Home is an explicit foreground-changing request; a launcher
+override can leave its result unverified.
+
+`POST /api/v1/devices/{id}/capture` accepts `kind` (`screenshot`, `recording`,
+`logs`, `console`, or `network`), `actor`, a 1–30 second `seconds` value for
+recording, and an exact `package` for app logs. It uses the flow and evidence
+owner and returns its disposition and evidence references. Direct console and
+network capture currently return `no_evidence` with the WebView route; they do
+not assert that events were absent. Screenshots and recordings preserve the full frame by default and are not
+classified for private information. Explicit image redaction requires known
+sensitive regions; content-aware video redaction is unavailable.
+
 `GET /api/v1/devices/discover` performs a bounded DNS-SD browse and returns
 every service instance with its transport, endpoint, and TXT-derived identity
 keys. A browse failure returns `health: unreachable` and a named `reason`.

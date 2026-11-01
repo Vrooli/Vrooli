@@ -460,7 +460,7 @@ public final class MainActivity extends Activity {
     private void library(boolean refresh) {
         LinearLayout body = column();
         LinearLayout toolbar = row();
-        EditText search = new EditText(this); search.setSingleLine(true); search.setTextColor(TvTheme.TEXT); search.setTextSize(16); search.setHintTextColor(TvTheme.SECONDARY); search.setHint("Find an experience"); search.setContentDescription("Find an experience"); search.setText(state.filter); search.setSelectAllOnFocus(true); search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
+        EditText search = new EditText(this); search.setSingleLine(true); search.setTextColor(TvTheme.TEXT); search.setTextSize(16); search.setHintTextColor(TvTheme.SECONDARY); search.setHint("Find an app"); search.setContentDescription("Find an app"); search.setText(state.filter); search.setSelectAllOnFocus(true); search.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(0, dp(42), 1); ip.leftMargin = dp(12); toolbar.addView(search, ip);
         Runnable find = () -> { hideKeyboard(search); state.filter = search.getText().toString().trim(); state.scroll.put(LIBRARY, 0); state.focused.remove(LIBRARY); render(false); };
         search.setOnEditorActionListener((v, action, event) -> { if (action == EditorInfo.IME_ACTION_SEARCH) { find.run(); return true; } return false; });
@@ -529,7 +529,7 @@ public final class MainActivity extends Activity {
         remember(tile, "experience:" + identity, (running ? "Open " : "") + label + (favoriteExperiences.contains(identity) ? ", favorite" : "") + (running ? "" : ", Not running"));
         if (android.os.Build.VERSION.SDK_INT >= 30 && !availability.isEmpty()) tile.setStateDescription(availability);
         tile.setOnClickListener(v -> {
-            if (!running) { notice("This experience is not running. Open it on your computer first."); return; }
+            if (!running && !staleCatalogue) { unavailableApp(identity, label); return; }
             savePosition(); openApplication(identity);
         });
         tile.setOnLongClickListener(v -> {
@@ -540,10 +540,77 @@ public final class MainActivity extends Activity {
     private void experienceOptions(JSONObject app) {
         String identity = app.optString("scenario");
         boolean pinned = favoriteExperiences.contains(identity);
-        new AlertDialog.Builder(this).setTitle(app.optString("label")).setItems(new String[]{pinned ? "Remove from favorites" : "Add to favorites"}, (dialog, which) -> {
-            if (pinned) favoriteExperiences.remove(identity); else favoriteExperiences.add(identity);
-            saveList("favorite-experiences", new ArrayList<>(favoriteExperiences)); render(false);
+        String[] options = "portal".equals(identity) ? new String[]{pinned ? "Remove from favorites" : "Add to favorites"} : new String[]{pinned ? "Remove from favorites" : "Add to favorites", "Start app", "Restart app", "Stop app"};
+        new AlertDialog.Builder(this).setTitle(app.optString("label")).setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                if (pinned) favoriteExperiences.remove(identity); else favoriteExperiences.add(identity);
+                saveList("favorite-experiences", new ArrayList<>(favoriteExperiences)); render(false);
+            } else {
+                String action = new String[]{"", "start", "restart", "stop"}[which];
+                if ("start".equals(action)) requestAppAction(identity, action, false);
+                else new AlertDialog.Builder(this).setTitle(("stop".equals(action) ? "Stop " : "Restart ") + app.optString("label", identity) + "?")
+                        .setPositiveButton("Continue", (d, w) -> requestAppAction(identity, action, false)).setNegativeButton("Cancel", null).show();
+            }
         }).setNegativeButton("Cancel", null).show();
+    }
+    private void unavailableApp(String identity, String label) {
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this).setTitle(label).setMessage("This app is not running.")
+                .setNegativeButton("Cancel", null);
+        if (!"portal".equals(identity)) dialog.setPositiveButton("Start app", (d, w) -> requestAppAction(identity, "start", true));
+        dialog.show();
+    }
+    private void requestAppAction(String identity, String action, boolean openAfter) {
+        PortalClient connection = client;
+        if (!connection.secure()) { notice("Connect to Portal over trusted HTTPS to manage apps."); return; }
+        if (!connection.signedIn()) { operatorSignIn(connection, () -> requestAppAction(identity, action, openAfter)); return; }
+        notice("Requesting app " + action + "…");
+        network.execute(() -> {
+            try {
+                JSONObject result = connection.lifecycle(identity, action);
+                JSONObject app = result.getJSONObject("application");
+                String runtime = app.optString("runtimeState");
+                boolean running = "running".equals(runtime);
+                boolean confirmed = "stop".equals(action) ? "stopped".equals(runtime) || "available".equals(runtime) : running;
+                runOnUiThread(() -> {
+                    if (destroyed || connection != client) return;
+                    catalogueCheckedAt = 0; refreshCatalogue();
+                    if (openAfter && running) { savePosition(); openApplication(identity); }
+                    else notice(confirmed ? "App " + action + " completed." : "App status is not yet confirmed. Refresh before retrying.");
+                });
+            } catch (Exception error) {
+                String reason = error.getMessage();
+                runOnUiThread(() -> {
+                    if (destroyed || connection != client) return;
+                    catalogueCheckedAt = 0; refreshCatalogue();
+                    if ("http_401".equals(reason)) notice("Your app management sign-in expired. Sign in again.");
+                    else if ("http_403".equals(reason)) notice("This account cannot manage apps.");
+                    else notice("App action could not be confirmed. Refresh its status before retrying.");
+                });
+            }
+        });
+    }
+    private void operatorSignIn(PortalClient connection, Runnable complete) {
+        LinearLayout inputs = column(); inputs.setPadding(dp(24), 0, dp(24), 0);
+        EditText email = new EditText(this); email.setHint("Email"); email.setSingleLine(true); email.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS); inputs.addView(email);
+        EditText password = new EditText(this); password.setHint("Password"); password.setSingleLine(true); password.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD); inputs.addView(password);
+        new AlertDialog.Builder(this).setTitle("Sign in to manage apps").setView(inputs).setNegativeButton("Cancel", null)
+                .setPositiveButton("Sign in", (d, w) -> authenticateOperator(connection, email.getText().toString().trim(), password.getText().toString(), null, null, complete)).show();
+    }
+    private void authenticateOperator(PortalClient connection, String email, String password, String challenge, String code, Runnable complete) {
+        notice("Signing in…");
+        network.execute(() -> {
+            try {
+                JSONObject result = connection.signIn(email, password, challenge, code);
+                runOnUiThread(() -> {
+                    if (destroyed || connection != client) return;
+                    if (result.optBoolean("mfaRequired")) {
+                        EditText mfa = new EditText(this); mfa.setHint("Authenticator code"); mfa.setInputType(android.text.InputType.TYPE_CLASS_NUMBER); mfa.setSingleLine(true);
+                        new AlertDialog.Builder(this).setTitle("Enter your sign-in code").setView(mfa).setNegativeButton("Cancel", null)
+                                .setPositiveButton("Continue", (d, w) -> authenticateOperator(connection, email, password, result.optString("mfaChallenge"), mfa.getText().toString(), complete)).show();
+                    } else complete.run();
+                });
+            } catch (Exception ignored) { runOnUiThread(() -> { if (!destroyed && connection == client) notice("Sign-in failed. Check your account and connection."); }); }
+        });
     }
     private void beginDiscovery() {
         if (discovering || destroyed) return;
@@ -666,11 +733,18 @@ public final class MainActivity extends Activity {
             boolean active = homeIntegration.selected() || homeIntegration.overrideRequested() && homeIntegration.overrideConnected();
             String status = active ? "Home active" : homeIntegration.overrideRequested() ? homeIntegration.overrideAllowed() ? "Home override disconnected" : "Permission needed" : "Home override paused";
             settingsStatus(body, status, active ? TvTheme.ACCENT : TvTheme.SECONDARY);
+            if (homeIntegration.overrideRequested() && homeIntegration.overrideAllowed() && !homeIntegration.overrideConnected()) {
+                settingsStatus(body, "Android has not connected the Home service. Open Accessibility to reconnect it.", TvTheme.SECONDARY);
+            }
             if (homeIntegration.previousAvailable()) {
                 boolean pause = homeIntegration.overrideRequested() && homeIntegration.overrideConnected();
                 settingsAction(body, "override", pause ? "Pause override" : homeIntegration.overrideRequested() ? "Reconnect override" : "Enable override", pause ? "Open Google TV" : "Vrooli Home", () -> {
                     try { if (pause) homeIntegration.openPrevious(); else homeIntegration.enableOverride(); }
                     catch (Exception ignored) { notice("Open Android Home or accessibility settings."); }
+                });
+                if (homeIntegration.overrideRequested() && !pause) settingsAction(body, "pause-disconnected", "Pause override", "Open Google TV", () -> {
+                    try { homeIntegration.openPrevious(); }
+                    catch (Exception ignored) { notice("Open Android Home settings."); }
                 });
             }
             settingsAction(body, "default-home", "Default Home app", "Android settings", () -> { try { homeIntegration.chooseHome(); } catch (Exception ignored) { notice("Open Android default app settings."); } });
@@ -679,6 +753,7 @@ public final class MainActivity extends Activity {
             String status = server.isEmpty() ? "Not configured" : catalogueError != null ? "Unavailable" : catalogueLoaded && !staleCatalogue ? "Connected" : "Not connected";
             settingsStatus(body, status, "Connected".equals(status) ? TvTheme.ACCENT : TvTheme.SECONDARY);
             settingsAction(body, "address", "Portal address", server.isEmpty() ? "Not set" : server, this::editPortalAddress);
+            if (client.signedIn()) settingsAction(body, "operator-signout", "Sign out of app management", "This TV", () -> { client.signOut(); render(false); });
             settingsAction(body, "discovery", "Find Portal", discovering ? "Searching…" : discoveredOrigins.isEmpty() ? "Home network" : discoveredOrigins.size() + " found", () -> { beginDiscovery(); savePosition(); render(false); });
             if (!discoveredOrigins.isEmpty()) settingsAction(body, "found", "Available Portals", Integer.toString(discoveredOrigins.size()), this::chooseDiscoveredPortal);
             LinearLayout fallback = row(); fallback.setPadding(dp(18), dp(12), dp(18), dp(12));
@@ -757,7 +832,7 @@ public final class MainActivity extends Activity {
         cancelRequest();
         state.appOpened();
         final int generation = ++requestVersion; final PortalClient connection = client;
-        showLoading("Opening experience…", () -> { cancelRequest(); closeWeb(false); });
+        showLoading("Opening app…", () -> { cancelRequest(); closeWeb(false); });
         pending = network.submit(() -> {
             try {
                 JSONObject request = new JSONObject(); request.put("scenario", identity); request.put("useGateway", true);
@@ -765,7 +840,12 @@ public final class MainActivity extends Activity {
                 runOnUiThread(() -> { if (!destroyed && generation == requestVersion) openWeb(address, false); });
             } catch (Exception error) {
                 String message = failure(error);
-                runOnUiThread(() -> { if (!destroyed && generation == requestVersion) showLoading(message, () -> { cancelRequest(); closeWeb(false); }); });
+                boolean unavailable = "http_412".equals(error.getMessage());
+                runOnUiThread(() -> {
+                    if (destroyed || generation != requestVersion) return;
+                    if (unavailable) { closeWeb(false); unavailableApp(identity, identity.replace('-', ' ')); }
+                    else showLoading(message, () -> { cancelRequest(); closeWeb(false); });
+                });
             }
         });
     }
@@ -790,7 +870,7 @@ public final class MainActivity extends Activity {
     @SuppressWarnings("SetJavaScriptEnabled") private void openWeb(String address, boolean signIn) {
         if (!safePage(address)) { showLoading("This address cannot be opened safely.", () -> closeWeb(false)); return; }
         destroyWeb(); webIsSignIn = signIn;
-        showLoading("Opening experience…", () -> { cancelRequest(); closeWeb(true); });
+        showLoading("Opening app…", () -> { cancelRequest(); closeWeb(true); });
         web = new WebView(this);
         if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true);
         WebSettings settings = web.getSettings(); settings.setJavaScriptEnabled(true); settings.setDomStorageEnabled(true); settings.setAllowFileAccess(false); settings.setAllowContentAccess(false); settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
@@ -805,12 +885,12 @@ public final class MainActivity extends Activity {
             @Override public void onPageCommitVisible(WebView view, String url) { if (!failed && view == web && browser != null) { openingPanel.setVisibility(View.GONE); view.requestFocus(); UiTimings.surface(state.page, true, false); } }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return !safePage(request.getUrl().toString()); }
             @Override public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame() && view == web) { failed = true; showLoading("This experience is unavailable. Return to your library to try again.", () -> { cancelRequest(); closeWeb(false); }); android.util.Log.w("PortalTV", "Web page error: " + error.getErrorCode()); }
+                if (request.isForMainFrame() && view == web) { failed = true; showLoading("This app is unavailable. Return to your library to try again.", () -> { cancelRequest(); closeWeb(false); }); android.util.Log.w("PortalTV", "Web page error: " + error.getErrorCode()); }
             }
             @Override public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
-                if (request.isForMainFrame() && view == web && response.getStatusCode() >= 400) { failed = true; showLoading("This experience could not be opened. Your library is still available.", () -> { cancelRequest(); closeWeb(false); }); }
+                if (request.isForMainFrame() && view == web && response.getStatusCode() >= 400) { failed = true; showLoading("This app could not be opened. Your library is still available.", () -> { cancelRequest(); closeWeb(false); }); }
             }
-            @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) { closeWeb(false); notice("The experience closed. Your library is still available."); return true; }
+            @Override public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) { closeWeb(false); notice("The app closed. Your library is still available."); return true; }
         });
         web.setWebChromeClient(new WebChromeClient());
         web.loadUrl(address);

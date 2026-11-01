@@ -20,7 +20,7 @@ identity = learn.task(scope="bas-usage", operation="browser-automation-studio.do
 
 envelope = {"program": "browser-automation-studio.do-task", "version": "6", "status": "failed",
             "phase": "validate", "inputs": {}, "signals": {"result": None, "candidates": [],
-            "reused_workflow": False, "outcome": "unknown", "learning": {"attempt_id": identity.get("attempt_id"),
+            "search_degradations": [], "reused_workflow": False, "outcome": "unknown", "learning": {"attempt_id": identity.get("attempt_id"),
             "task_id": identity.get("task_id"), "key": identity.get("key")}}, "errors": [], "evidence": []}
 
 
@@ -31,10 +31,7 @@ def fail(status, klass, detail, where):
 
 
 def child_result(handle):
-    rows = handle.head(1)
-    if not rows or not isinstance(rows[0], dict):
-        raise ValueError("Child program returned no result envelope")
-    return rows[0]
+    return program.child_envelope(handle, invalid_class="invalid_response", where=envelope.get("phase", "collect"))
 
 
 def option_id(workflow_id, version):
@@ -306,6 +303,17 @@ def route_search():
     candidates = ((result.get("signals") or {}).get("candidates") or [])[:5]
     envelope["signals"]["candidates"] = candidates
     envelope["signals"]["search_status"] = child_status
+    raw_degradations = (result.get("signals") or {}).get("degradations") or []
+    if isinstance(raw_degradations, list):
+        for item in raw_degradations[:8]:
+            if not isinstance(item, dict):
+                continue
+            reason = str(item.get("reason") or "").strip()[:200]
+            leg = str(item.get("leg") or "").strip()[:80]
+            if reason and leg:
+                envelope["signals"]["search_degradations"].append({
+                    "reason": reason, "leg": leg, "retryable": bool(item.get("retryable")),
+                })
     child_errors = result.get("errors") or []
     if not isinstance(child_errors, list):
         child_errors = [{"class": "ambiguous_response", "detail": "Search child returned malformed errors", "where": "find"}]

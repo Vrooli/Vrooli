@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"device-control/internal/testutil"
 	"net"
 	"net/http"
 	"os"
@@ -46,7 +47,7 @@ func TestDesktopUnixTransportAuthenticatesAndExecutesTypedActions(t *testing.T) 
 	c.native = native
 	helper, err := NewDesktopUnixHelper(c, authority)
 	require.NoError(t, err)
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(t.TempDir(), "h.sock"), Net: "unix"})
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(testutil.SocketDir(t), "h.sock"), Net: "unix"})
 	require.NoError(t, err)
 	require.NoError(t, os.Chmod(listener.Addr().String(), 0o600))
 	ctx, cancel := context.WithCancel(context.Background())

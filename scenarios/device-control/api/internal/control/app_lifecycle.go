@@ -31,7 +31,7 @@ type AppLifecycleResponse struct {
 
 func lifecycleNeedsConfirmation(operation string) bool {
 	switch operation {
-	case "home-state", "package-state", "accessibility-state", "foreground-state", "process-state", "app-status":
+	case "home-state", "package-state", "accessibility-state", "foreground-state", "process-state", "app-status", "performance-state":
 		return false
 	default:
 		return true
@@ -88,7 +88,14 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 			return AppLifecycleResponse{}, fmt.Errorf("device configuration requires an unlocked, on-screen device")
 		}
 	}
-	declaration, err := adapter.Describe(ctx)
+	var declaration strategy.Declaration
+	if prober, ok := adapter.(interface {
+		DescribePerformance(context.Context) (strategy.Declaration, error)
+	}); ok && request.Operation == "performance-state" {
+		declaration, err = prober.DescribePerformance(ctx)
+	} else {
+		declaration, err = adapter.Describe(ctx)
+	}
 	if err != nil {
 		return AppLifecycleResponse{}, fmt.Errorf("describe lifecycle strategy: %w", err)
 	}

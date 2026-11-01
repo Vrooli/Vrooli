@@ -3,7 +3,7 @@
   "name": "device-control.do-task",
   "version": "1",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Replay a selected, assertion-bearing device flow revision after exact identity and context checks. Semantic volume requests use device-control.volume.",
   "inputs": {

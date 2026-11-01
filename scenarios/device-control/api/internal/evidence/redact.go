@@ -2,14 +2,11 @@ package evidence
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"image"
 	"image/draw"
 	"image/jpeg"
 	"image/png"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 )
@@ -50,8 +47,6 @@ type Result struct {
 	OptedOut  bool     `json:"opted_out,omitempty"`
 }
 
-const statusBarMaskDivisor = 12
-
 // RedactCapture applies the configured producer-side transform to an encoded
 // screen capture. Verification records that the transform completed; it does
 // not claim that source content was semantically classified.
@@ -70,12 +65,7 @@ func RedactCaptureWithRegions(raw []byte, mediaType string, p Policy, allowUnred
 		return Result{}, err
 	}
 	if isMP4(raw) {
-		result, err := redactVideo(raw, p)
-		if err != nil {
-			return Result{}, err
-		}
-		result.Requested = true
-		return result, nil
+		return Result{}, fmt.Errorf("video redaction is unavailable; content detection is not implemented")
 	}
 	if !IsEncodedImage(raw) {
 		result := RedactFrame(raw, p)
@@ -92,30 +82,15 @@ func RedactCaptureWithRegions(raw []byte, mediaType string, p Policy, allowUnred
 		}
 		return result, nil
 	}
-	decoded, _, err := image.Decode(bytes.NewReader(raw))
-	if err != nil {
-		return Result{}, fmt.Errorf("decode capture for redaction: %w", err)
+	if len(sensitive) == 0 {
+		return Result{}, fmt.Errorf("image redaction requires explicit sensitive regions; content detection is unavailable")
 	}
-	regions := []Region{}
-	if p.PasswordFields || p.OneTimeCodes || p.CredentialPatterns || p.NotificationContent {
-		height := decoded.Bounds().Dy() / statusBarMaskDivisor
-		if height > 0 {
-			regions = append(regions, Region{X0: decoded.Bounds().Min.X, Y0: decoded.Bounds().Min.Y, X1: decoded.Bounds().Max.X, Y1: decoded.Bounds().Min.Y + height})
-		}
-	}
-	regions = append(regions, sensitive...)
-	if len(regions) == 0 {
-		return Result{Bytes: raw, Verified: true, Requested: true, Policy: p, Rules: []string{"status_bar_identifiers_not_present", "content_classification_not_performed"}}, nil
-	}
-	result := RedactImage(raw, mediaType, regions, p)
+	result := RedactImage(raw, mediaType, sensitive, p)
 	if !result.Verified {
-		return Result{}, fmt.Errorf("capture redaction failed")
+		return Result{}, fmt.Errorf("capture redaction failed or a sensitive region is invalid")
 	}
 	result.Requested = true
-	result.Rules = []string{"status_bar_identifiers", "content_classification_not_performed"}
-	if len(sensitive) > 0 {
-		result.Rules = append(result.Rules, "flow_sensitive_regions")
-	}
+	result.Rules = []string{"flow_sensitive_regions", "content_classification_not_performed"}
 	return result, nil
 }
 
@@ -144,47 +119,6 @@ func isMP4(raw []byte) bool {
 	return len(raw) >= 8 && string(raw[4:8]) == "ftyp"
 }
 
-// redactVideo masks only the status-bar band for native recordings. The
-// input/output files are owner-only temporary files and are removed before
-// returning; consumers receive only the resulting bytes.
-func redactVideo(raw []byte, p Policy) (Result, error) {
-	input, err := os.CreateTemp("", "device-control-redact-*.mp4")
-	if err != nil {
-		return Result{}, fmt.Errorf("create video redaction input: %w", err)
-	}
-	inputPath := input.Name()
-	defer os.Remove(inputPath)
-	if err := input.Chmod(0o600); err != nil {
-		_ = input.Close()
-		return Result{}, fmt.Errorf("protect video redaction input: %w", err)
-	}
-	if _, err := input.Write(raw); err != nil {
-		_ = input.Close()
-		return Result{}, fmt.Errorf("write video redaction input: %w", err)
-	}
-	if err := input.Close(); err != nil {
-		return Result{}, fmt.Errorf("close video redaction input: %w", err)
-	}
-	output, err := os.CreateTemp("", "device-control-redacted-*.mp4")
-	if err != nil {
-		return Result{}, fmt.Errorf("create video redaction output: %w", err)
-	}
-	outputPath := output.Name()
-	_ = output.Close()
-	defer os.Remove(outputPath)
-	cmd := exec.CommandContext(context.Background(), "ffmpeg", "-y", "-loglevel", "error", "-i", inputPath, "-vf", fmt.Sprintf("drawbox=x=0:y=0:w=iw:h=ih/%d:color=black:t=fill", statusBarMaskDivisor), "-c:v", "libx264", "-pix_fmt", "yuv420p", outputPath)
-	if combined, err := cmd.CombinedOutput(); err != nil {
-		return Result{}, fmt.Errorf("redact native video: %w (%s)", err, strings.TrimSpace(string(combined)))
-	} else if len(combined) > 0 {
-		return Result{}, fmt.Errorf("redact native video: unexpected ffmpeg output")
-	}
-	redacted, err := os.ReadFile(outputPath)
-	if err != nil {
-		return Result{}, fmt.Errorf("read redacted native video: %w", err)
-	}
-	return Result{Bytes: redacted, Verified: true, Policy: p, Regions: 1, Rules: []string{"status_bar_identifiers", "content_classification_not_performed"}}, nil
-}
-
 func RedactFrame(raw []byte, p Policy) Result {
 	// Pixel-level masking is transport-specific; the producer still stamps a
 	// verified policy result. Metadata/text fixtures are redacted here, while
@@ -203,10 +137,8 @@ func RedactFrame(raw []byte, p Policy) Result {
 
 type Region struct{ X0, Y0, X1, Y1 int }
 
-// RedactImage is the producer boundary for screen captures. A caller must
-// provide detector-approved regions; each region is physically painted before
-// the image is encoded. Raw PNG/JPEG bytes are never stamped verified by the
-// text-only RedactFrame path.
+// RedactImage paints explicit caller-supplied regions. It does not detect
+// private content or imply that other areas are safe to share.
 func RedactImage(raw []byte, _ string, regions []Region, p Policy) Result {
 	decoded, format, err := image.Decode(bytes.NewReader(raw))
 	if err != nil {
@@ -218,9 +150,12 @@ func RedactImage(raw []byte, _ string, regions []Region, p Policy) Result {
 	masked := image.NewRGBA(decoded.Bounds())
 	draw.Draw(masked, masked.Bounds(), decoded, decoded.Bounds().Min, draw.Src)
 	for _, r := range regions {
-		bounds := image.Rect(r.X0, r.Y0, r.X1, r.Y1).Intersect(masked.Bounds())
-		if bounds.Empty() {
-			continue
+		if r.X1 <= r.X0 || r.Y1 <= r.Y0 {
+			return Result{Policy: p}
+		}
+		bounds := image.Rect(r.X0, r.Y0, r.X1, r.Y1)
+		if !bounds.In(masked.Bounds()) {
+			return Result{Policy: p}
 		}
 		draw.Draw(masked, bounds, image.NewUniform(image.Black), image.Point{}, draw.Src)
 	}

@@ -8,7 +8,7 @@ import { selectors } from "../consts/selectors";
 
 type Action = { key?: string; text?: string; media?: string; property?: string; value?: unknown };
 type CapturedFrame = { id: string; created_at: string; redaction_verified: boolean; applied_rules?: string[]; opted_out?: boolean };
-type PanelProps = { device: Device; state: DeviceState; refresh: () => Promise<void>; act: (action: Action, capability: string) => Promise<void>; capture: (redactSensitive: boolean) => Promise<CapturedFrame> };
+type PanelProps = { device: Device; state: DeviceState; refresh: () => Promise<void>; act: (action: Action, capability: string) => Promise<void>; capture: () => Promise<CapturedFrame> };
 
 function capabilities(device: Device): Capability[] {
   const fromTransports = (device.transports ?? []).flatMap((transport) => Object.values(transport.capabilities ?? {}));
@@ -31,13 +31,12 @@ function LiveViewPanel({ capture }: PanelProps) {
   const [frame, setFrame] = useState<CapturedFrame>();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
-  const [redactSensitive, setRedactSensitive] = useState(false);
   const observe = async () => {
     setBusy(true); setFailure("");
-    try { setFrame(await capture(redactSensitive)); } catch (cause) { setFailure(cause instanceof Error ? cause.message : "Capture failed"); }
+    try { setFrame(await capture()); } catch (cause) { setFailure(cause instanceof Error ? cause.message : "Capture failed"); }
     finally { setBusy(false); }
   };
-  return <Card data-testid={selectors.pages.deviceLiveView}><CardHeader><CardTitle>Device screen</CardTitle></CardHeader><CardContent className="space-y-3"><p>Local screen captures are unredacted by default. Optional redaction applies configured image regions and does not classify all screen content.</p><label className="flex items-center gap-2"><input type="checkbox" aria-label="Apply configured redaction" checked={redactSensitive} onChange={(event) => setRedactSensitive(event.currentTarget.checked)} />Apply configured redaction</label><Button disabled={busy} onClick={() => void observe()}>{busy ? "Capturing…" : "Capture screen"}</Button>{failure && <p role="alert">{failure}</p>}{frame && <figure><img className="w-full rounded-md" src={evidenceUrl(frame.id)} alt="Device screen capture" /><figcaption>{frame.redaction_verified ? `Redacted per configured rules: ${(frame.applied_rules ?? []).join(", ")}` : `Unredacted · ${(frame.applied_rules ?? ["redaction_not_requested", "content_classification_not_performed"]).join(", ")} · ${new Date(frame.created_at).toLocaleTimeString()}`}</figcaption></figure>}</CardContent></Card>;
+  return <Card data-testid={selectors.pages.deviceLiveView}><CardHeader><CardTitle>Device screen</CardTitle></CardHeader><CardContent className="space-y-3"><p>Screen captures preserve the full frame.</p><Button disabled={busy} onClick={() => void observe()}>{busy ? "Capturing…" : "Capture screen"}</Button>{failure && <p role="alert">{failure}</p>}{frame && <figure><img className="w-full rounded-md" src={evidenceUrl(frame.id)} alt="Device screen capture" /><figcaption>{frame.redaction_verified ? `Redacted per configured rules: ${(frame.applied_rules ?? []).join(", ")}` : `Unredacted · ${(frame.applied_rules ?? ["redaction_not_requested", "content_classification_not_performed"]).join(", ")} · ${new Date(frame.created_at).toLocaleTimeString()}`}</figcaption></figure>}</CardContent></Card>;
 }
 function SensorPanel({ state }: PanelProps) { return <Card data-testid={selectors.pages.deviceSensorPanel}><CardHeader><CardTitle>Sensors</CardTitle></CardHeader><CardContent>{Object.entries(state.properties ?? {}).map(([name, value]) => <p key={name}>{name}: {String(value.value)}</p>)}</CardContent></Card>; }
 function LogPanel({ state }: PanelProps) { return <Card data-testid={selectors.pages.deviceLogPanel}><CardHeader><CardTitle>Capability diagnostics</CardTitle></CardHeader><CardContent><pre>{JSON.stringify(state.unavailable ?? {}, null, 2)}</pre></CardContent></Card>; }
@@ -150,14 +149,14 @@ function DeviceDetail({ deviceId }: { deviceId: string }) {
     actionQueue.current = operation;
     return operation;
   };
-  const capture = (redactSensitive = false) => {
+  const capture = () => {
     const operation = actionQueue.current.then(async () => {
       if (!isActive()) throw new Error("Device view closed");
       const lease = await getLease();
       const transport = device && transportFor(device, "screenshot");
       if (!transport) throw new Error("No healthy transport supports capture");
       if (!isActive()) throw new Error("Device view closed");
-      const result = await runFlow(deviceId, "browser-operator", lease.lease_token ?? "", { id: "operator-frame", transport: transport === "default" ? undefined : transport, max_duration_ms: 15000, require_unlocked: true, redact_sensitive_content: redactSensitive, steps: [{ id: "screen", kind: "observe" }] });
+      const result = await runFlow(deviceId, "browser-operator", lease.lease_token ?? "", { id: "operator-frame", transport: transport === "default" ? undefined : transport, max_duration_ms: 15000, require_unlocked: true, redact_sensitive_content: false, steps: [{ id: "screen", kind: "observe" }] });
       if (result.disposition !== "passed" || !result.evidence?.[0]) throw new Error(result.chapters?.find((chapter) => chapter.disposition !== "passed")?.message ?? "No verified frame returned");
       return result.evidence[0];
     });

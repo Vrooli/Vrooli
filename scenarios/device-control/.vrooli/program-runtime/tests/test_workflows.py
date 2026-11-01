@@ -3,10 +3,15 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace as NS
 import unittest
 
-ROOT = Path(__file__).parents[1]
+ROOT = Path(__file__).resolve().parents[1]
+KERNEL_HOST = ROOT.parents[2] / "program-runtime" / "kernel" / "host"
+if str(KERNEL_HOST) not in sys.path:
+    sys.path.insert(0, str(KERNEL_HOST))
+from program_helper import ProgramHelper
 class Handle:
     def __init__(self, rows, raw=None): self.rows = rows; self._raw = rows if raw is None else raw
     def head(self, n): return self.rows[:n]
@@ -23,20 +28,32 @@ class Step:
     def note(self, *_): pass
 
 class Learn:
-    def __init__(self): self.started = False; self.feedbacks = []; self.results = []
+    def __init__(self): self.started = False; self.feedbacks = []; self.results = []; self.notes = []; self.outcomes = []
     def task(self, **_): self.started = True; return {}
     def result(self, name, artifact=None):
         self.started = True; self.results.append((name, artifact)); return "prt_feedback_v1_" + str(name)
     def step(self, *_args, **_kwargs): self.started = True; return Step()
-    def note(self, *_args, **_kwargs): self.started = True
-    def outcome(self, *_args, **_kwargs): self.started = True
+    def note(self, *args, **kwargs): self.started = True; self.notes.append((args, kwargs))
+    def outcome(self, *args, **kwargs): self.started = True; self.outcomes.append((args, kwargs))
     def feedback(self, attempt_id, disposition, evidence):
         self.feedbacks.append((attempt_id, disposition, evidence)); return {"delivery": "pending"}
     def choose(self, options, default): self.started = True; return {'selected_id': default, 'learning': {'advice': []}}
 
 class Program:
-    def __init__(self, inputs): self._inputs = inputs
+    def __init__(self, inputs, outputs=None): self._inputs = inputs; self._child_helper = ProgramHelper("2", outputs or {})
     def inputs(self): return self._inputs
+    def child_envelope(self, handle, **kwargs):
+        rows = handle.head(1)
+        if rows and isinstance(rows[0], dict):
+            row = dict(rows[0])
+            row.setdefault("phase", "report")
+            row.setdefault("signals", {})
+            row.setdefault("errors", [])
+            row.setdefault("evidence", [])
+            child = "prepare-task" if kwargs.get("where") == "collect" else ("replay-flow" if self._inputs.get("flow_id") else "author-flow")
+            contract = json.loads((ROOT / (child + ".json")).read_text())["outputs"]
+            handle = NS(head=lambda n: [row][:n], count=lambda: 1, meta=lambda: {"output_contract": contract})
+        return self._child_helper.child_envelope(handle, **kwargs)
     def fail(self, status, klass, detail, where):
         import inspect
         envelope = inspect.currentframe().f_back.f_globals.get('envelope')
@@ -51,7 +68,8 @@ class Program:
 
 class Programs(unittest.TestCase):
     def run_program(self, name, inputs, api, library=None, runtime=None):
-        scope = {'inputs': inputs, 'device_control': api, 'lib': library, 'program_runtime': runtime, 'program': Program(inputs), 'learn': Learn()}
+        outputs = json.loads((ROOT / (name + '.json')).read_text()).get('outputs', {})
+        scope = {'inputs': inputs, 'device_control': api, 'lib': library, 'program_runtime': runtime, 'program': Program(inputs, outputs), 'learn': Learn()}
         with contextlib.redirect_stdout(io.StringIO()) as output:
             exec(compile((ROOT / (name + '.py')).read_text(), name, 'exec'), scope)
         if name in ('author-flow', 'replay-flow'):
@@ -66,6 +84,20 @@ class Programs(unittest.TestCase):
         result = self.run_program('do-task', {'device': 'tv', 'context_key': 'v1', 'actor': 'operator', 'flow_id': 'flow', 'version': 1, 'advice_attempt_id': 'earlier'}, None, library)
         self.assertEqual('ok', result['status'])
         self.assertEqual([('earlier', 'supported', ['assertion:volume'])], self.learning.feedbacks)
+
+    def test_malformed_child_status_cannot_record_verified_success(self):
+        prepared = {'status': 'ok', 'signals': {'device_id': 'tv', 'outcome': 'unknown'}, 'evidence': []}
+        replayed = {'status': 'confused', 'signals': {'outcome': 'verified_success', 'flow_id': 'flow', 'version': 1},
+                    'errors': [], 'evidence': ['assertion:volume']}
+        library = NS(device_control=NS(prepare_task=lambda **_: Handle([prepared]), replay_flow=lambda **_: Handle([replayed])))
+        test = Programs()
+        result = test.run_program('do-task', {'device': 'tv', 'context_key': 'v1', 'actor': 'operator', 'flow_id': 'flow', 'version': 1}, None, library)
+        self.assertEqual('failed', result['status'])
+        self.assertEqual('invalid_response', result['errors'][-1]['class'])
+        self.assertEqual('unknown', result['signals']['outcome'])
+        self.assertEqual('flow', result['signals']['flow_id'])
+        self.assertEqual([], test.learning.notes)
+        self.assertEqual('unknown', test.learning.outcomes[-1][0][0])
 
     def test_verified_replay_hands_back_a_reference_for_later_correction(self):
         """A correction usually arrives after the run; the caller must still be able to name it."""

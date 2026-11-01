@@ -55,7 +55,11 @@ func (c *deviceConnect) InspectDevice(ctx context.Context, req *connect.Request[
 	if v := profile.Voice; v != nil {
 		voice = &devicesv1.VoiceInspection{MicrophoneFeature: v.MicrophoneFeature, AssistantRoleHolders: v.AssistantRoleHolders, AssistantComponent: v.AssistantComponent, VoiceInteractionComponent: v.VoiceInteractionComponent, VoiceInteractionServices: v.VoiceInteractionServices, PolicyInputTypes: v.PolicyInputTypes, Unavailable: v.Unavailable}
 	}
-	return connect.NewResponse(&devicesv1.InspectDeviceResponse{DeviceId: req.Msg.DeviceId, Transport: req.Msg.Transport, ObservedAt: timestamppb.New(profile.ObservedAt), Abis: profile.ABIs, MemoryTotalBytes: profile.MemoryTotalBytes, DataTotalBytes: profile.DataTotalBytes, DataAvailableBytes: profile.DataAvailableBytes, WebviewPackage: profile.WebViewPackage, WebviewVersion: profile.WebViewVersion, HomeComponent: profile.HomeComponent, LowRam: profile.LowRAM, Voice: voice, Unavailable: profile.Unavailable}), nil
+	encoders := make([]*devicesv1.VideoEncoder, 0, len(profile.VideoEncoders))
+	for _, encoder := range profile.VideoEncoders {
+		encoders = append(encoders, &devicesv1.VideoEncoder{MimeType: encoder.MIMEType, Name: encoder.Name, SoftwareOnly: encoder.SoftwareOnly, HardwareAccelerated: encoder.HardwareAccelerated})
+	}
+	return connect.NewResponse(&devicesv1.InspectDeviceResponse{DeviceId: req.Msg.DeviceId, Transport: req.Msg.Transport, ObservedAt: timestamppb.New(profile.ObservedAt), Abis: profile.ABIs, MemoryTotalBytes: profile.MemoryTotalBytes, DataTotalBytes: profile.DataTotalBytes, DataAvailableBytes: profile.DataAvailableBytes, WebviewPackage: profile.WebViewPackage, WebviewVersion: profile.WebViewVersion, HomeComponent: profile.HomeComponent, LowRam: profile.LowRAM, Voice: voice, VideoEncoders: encoders, Unavailable: profile.Unavailable}), nil
 }
 
 func (c *deviceConnect) ListDevices(ctx context.Context, _ *connect.Request[devicesv1.ListDevicesRequest]) (*connect.Response[devicesv1.ListDevicesResponse], error) {
@@ -263,7 +267,7 @@ func runResultProto(result internal.RunResult) *flowsv1.RunResult {
 		out.Resolutions = append(out.Resolutions, &flowsv1.Resolution{Target: res.Target, Rung: res.Rung, Confidence: res.Confidence})
 	}
 	for _, ref := range result.Evidence {
-		out.Evidence = append(out.Evidence, &flowsv1.EvidenceReference{Id: ref.ID, Sha256: ref.SHA256, SizeBytes: ref.SizeBytes, CreatedAt: ref.CreatedAt.Format(time.RFC3339Nano), RedactionVerified: ref.RedactionVerified, RecordingMethod: ref.RecordingMethod, EffectiveFps: ref.EffectiveFPS, Producer: ref.Producer, Kind: ref.Kind, AppliedRules: ref.AppliedRules, OptedOut: ref.OptedOut, ClaimClass: string(ref.ClaimClass), MinimumUsefulFps: ref.MinimumUsefulFPS, Disposition: string(ref.Disposition), DispositionReason: ref.DispositionReason})
+		out.Evidence = append(out.Evidence, &flowsv1.EvidenceReference{Id: ref.ID, Sha256: ref.SHA256, SizeBytes: ref.SizeBytes, CreatedAt: ref.CreatedAt.Format(time.RFC3339Nano), RedactionVerified: ref.RedactionVerified, RecordingMethod: ref.RecordingMethod, EffectiveFps: ref.EffectiveFPS, Producer: ref.Producer, Kind: ref.Kind, AppliedRules: ref.AppliedRules, OptedOut: ref.OptedOut, ClaimClass: string(ref.ClaimClass), MinimumUsefulFps: ref.MinimumUsefulFPS, Disposition: string(ref.Disposition), DispositionReason: ref.DispositionReason, AudioTrackPresent: ref.AudioTrackPresent})
 	}
 	return out
 }

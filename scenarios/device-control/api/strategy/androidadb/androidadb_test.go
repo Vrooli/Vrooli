@@ -9,6 +9,9 @@ import (
 	"image/jpeg"
 	"image/png"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -24,6 +27,36 @@ type scriptedRunner struct {
 	responses map[string][]byte
 	errors    map[string]error
 	calls     []string
+}
+
+func TestScreenControlUsesExplicitAndroidKeys(t *testing.T) {
+	runner := &scriptedRunner{}
+	adapter := NewWithRunner(runner, "serial")
+	require.NoError(t, adapter.SetScreenState(context.Background(), "on"))
+	require.NoError(t, adapter.SetScreenState(context.Background(), "off"))
+	require.Error(t, adapter.SetScreenState(context.Background(), "toggle"))
+	require.NoError(t, adapter.DismissKeyguard(context.Background()))
+	require.NoError(t, adapter.GoHome(context.Background()))
+	require.Equal(t, []string{"adb -s serial shell input keyevent KEYCODE_WAKEUP", "adb -s serial shell input keyevent KEYCODE_SLEEP", "adb -s serial shell wm dismiss-keyguard", "adb -s serial shell input keyevent KEYCODE_HOME"}, runner.calls)
+}
+
+func TestDescribeCaptureProbesOnlyRequestedModality(t *testing.T) {
+	var frame bytes.Buffer
+	require.NoError(t, png.Encode(&frame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb devices -l":                      []byte("List of devices attached\nserial device\n"),
+		"adb -s serial exec-out screencap -p": frame.Bytes(),
+	}}
+	adapter := NewWithRunner(runner, "serial")
+	declaration, err := adapter.DescribeCapture(context.Background(), "screenshot")
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapScreenshot].Status)
+	require.Equal(t, []string{"adb devices -l", "adb -s serial exec-out screencap -p"}, runner.calls)
+	runner.calls = nil
+	declaration, err = adapter.DescribeCapture(context.Background(), "recording")
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapNativeRecording].Status)
+	require.Equal(t, []string{"adb devices -l", "adb -s serial shell screenrecord --help"}, runner.calls)
 }
 
 type scriptedProcess struct{ signaled bool }
@@ -44,6 +77,47 @@ type frameworkLogRunner struct {
 	call   string
 	limit  int
 	err    error
+}
+
+func TestApplicationLogsAreBoundedAndScoped(t *testing.T) {
+	runner := &frameworkLogRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{"adb -s serial shell pidof com.example.app": []byte("123\n")}}, output: []byte("example log")}
+	adapter := NewWithRunner(runner, "serial")
+	output, err := adapter.ReadApplicationLogs(context.Background(), "com.example.app")
+	require.NoError(t, err)
+	require.Equal(t, []byte("example log"), output)
+	require.Equal(t, "adb -s serial logcat -d -v epoch -t 500 --pid 123", runner.call)
+	require.Equal(t, 256*1024, runner.limit)
+	_, err = adapter.ReadApplicationLogs(context.Background(), "--all")
+	require.Error(t, err)
+}
+
+func TestScreenshotFallbackRefusesToInventFrames(t *testing.T) {
+	adapter := NewWithRunner(&scriptedRunner{}, "serial")
+	_, _, err := adapter.encodeScreenshotFallback(&recordingScreenshots{frames: [][]byte{[]byte("one frame")}, times: []time.Time{time.Now()}}, time.Now(), time.Second)
+	require.ErrorContains(t, err, "fewer than two")
+}
+
+func TestScreenshotFallbackPreservesElapsedTime(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg unavailable")
+	}
+	if _, err := exec.LookPath("ffprobe"); err != nil {
+		t.Skip("ffprobe unavailable")
+	}
+	var imageBytes bytes.Buffer
+	require.NoError(t, png.Encode(&imageBytes, image.NewRGBA(image.Rect(0, 0, 8, 8))))
+	started := time.Now()
+	samples := &recordingScreenshots{frames: [][]byte{imageBytes.Bytes(), imageBytes.Bytes(), imageBytes.Bytes()}, times: []time.Time{started.Add(100 * time.Millisecond), started.Add(time.Second), started.Add(3 * time.Second)}}
+	video, count, err := NewWithRunner(&scriptedRunner{}, "serial").encodeScreenshotFallback(samples, started, 4*time.Second)
+	require.NoError(t, err)
+	require.Equal(t, 3, count)
+	path := filepath.Join(t.TempDir(), "fallback.mp4")
+	require.NoError(t, os.WriteFile(path, video, 0o600))
+	out, err := exec.Command("ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", path).Output()
+	require.NoError(t, err)
+	duration, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
+	require.NoError(t, err)
+	require.InDelta(t, 4, duration, 0.2)
 }
 
 func (r *frameworkLogRunner) RunBounded(_ context.Context, name string, limit int, args ...string) ([]byte, error) {
@@ -255,6 +329,39 @@ func TestPromoteWirelessRefusesSerialMismatch(t *testing.T) { // [REQ:DVC-P0-011
 	require.ErrorContains(t, adapter.PromoteWireless(context.Background()), "identity mismatch")
 }
 
+type delayedConnectRunner struct {
+	*scriptedRunner
+	connectAttempts int
+}
+
+func (r *delayedConnectRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	if name == "adb" && strings.Join(args, " ") == "connect 192.168.1.42:5555" {
+		r.connectAttempts++
+		if r.connectAttempts == 1 {
+			return []byte("failed to connect: Connection refused"), nil
+		}
+	}
+	return r.scriptedRunner.Run(ctx, name, args...)
+}
+
+func TestPromoteRetriesListenerStartupAndRequiresExactNetworkTransport(t *testing.T) {
+	base := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell ip route":                     []byte("wlan0 192.168.1.0/24 src 192.168.1.42\n"),
+		"adb connect 192.168.1.42:5555":                      []byte("connected to 192.168.1.42:5555"),
+		"adb -s 192.168.1.42:5555 shell getprop ro.serialno": []byte("serial-1\n"),
+		"adb devices -l":                                     []byte("List of devices attached\nserial-1 device usb:1-1\n"),
+	}}
+	runner := &delayedConnectRunner{scriptedRunner: base}
+	adapter := NewWithRunner(runner, "serial-1")
+	err := adapter.PromoteWireless(context.Background())
+	require.ErrorContains(t, err, "wireless endpoint is not authorized")
+	require.Equal(t, 2, runner.connectAttempts)
+	require.Empty(t, adapter.WirelessEndpoint())
+	base.responses["adb devices -l"] = []byte("List of devices attached\n192.168.1.42:5555 device\n")
+	require.NoError(t, adapter.PromoteWireless(context.Background()))
+	require.Equal(t, "192.168.1.42:5555", adapter.WirelessEndpoint())
+}
+
 func TestRestoredWirelessDescribeUsesSelectedEndpointState(t *testing.T) {
 	var frame bytes.Buffer
 	require.NoError(t, png.Encode(&frame, image.NewRGBA(image.Rect(0, 0, 4, 4))))
@@ -304,6 +411,7 @@ func TestReconnectWirelessDiscoversRotatedTLSEndpoint(t *testing.T) {
 	require.True(t, ok)
 
 	require.NoError(t, restored.ReconnectWireless(context.Background()))
+	require.NotContains(t, runner.calls, "adb -s 192.168.1.179:5555 wait-for-device", "ADB can report a failed connection with exit code zero")
 	require.Equal(t, "192.168.1.42:37123", restored.WirelessEndpoint())
 	require.Equal(t, "wireless", restored.transport)
 }
@@ -395,22 +503,25 @@ func TestInstallReusesPackageDataForUpdateMigration(t *testing.T) {
 
 func TestActuateScreenrecordRequiresAndFillsOutputSink(t *testing.T) {
 	runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
-		"adb -s serial-1 shell dumpsys power":                          []byte("mStayOn=false\n"),
-		"adb -s serial-1 shell settings get system screen_off_timeout": []byte("60000\n"),
-		"adb -s serial-1 shell dumpsys deviceidle":                     []byte("mDeepEnabled=true\nmLightEnabled=true\n"),
+		"adb -s serial-1 shell settings get global stay_on_while_plugged_in": []byte("2\n"),
+		"adb -s serial-1 shell settings get system screen_off_timeout":       []byte("60000\n"),
+		"adb -s serial-1 shell dumpsys deviceidle":                           []byte("mDeepEnabled=true\nmLightEnabled=true\n"),
 	}}, process: &scriptedProcess{}}
 	adapter := NewWithRunner(runner, "serial-1")
 	handle, err := adapter.StartRecording(context.Background(), strategy.ClaimAnimation)
 	require.NoError(t, err)
-	runner.responses["adb -s serial-1 exec-out cat /sdcard/"+handle.ID+".mp4"] = []byte("ftyp-video")
-	runner.responses["adb -s serial-1 shell ls /sdcard/"+handle.ID+".mp4"] = []byte(handle.ID)
+	runner.responses["adb -s serial-1 shell ps -A -o PID,ARGS"] = []byte("123 screenrecord --bit-rate 1000000 /data/local/tmp/" + handle.ID + ".mp4\n456 screenrecord /sdcard/other.mp4\n")
+	runner.responses["adb -s serial-1 exec-out cat /data/local/tmp/"+handle.ID+".mp4"] = []byte("ftyp-video")
+	runner.responses["adb -s serial-1 shell ls /data/local/tmp/"+handle.ID+".mp4"] = []byte(handle.ID)
 	artifact, err := adapter.StopRecording(context.Background(), handle)
 	require.NoError(t, err)
 	require.Equal(t, []byte("ftyp-video"), artifact.Bytes)
 	require.Equal(t, strategy.ClaimAnimation, artifact.ClaimClass)
 	require.True(t, runner.process.signaled)
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell kill -INT 123")
+	require.NotContains(t, strings.Join(runner.calls, "\n"), "pkill")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "shell svc power stayon true")
-	require.Contains(t, strings.Join(runner.calls, "\n"), "shell svc power stayon false")
+	require.Contains(t, strings.Join(runner.calls, "\n"), "shell settings put global stay_on_while_plugged_in 2")
 	require.NotContains(t, strings.Join(runner.calls, "\n"), "shell input keyevent 224")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "shell settings put system screen_off_timeout 1800000")
 	require.Contains(t, strings.Join(runner.calls, "\n"), "shell settings put system screen_off_timeout 60000")
@@ -812,20 +923,21 @@ func TestRecordingStopReportsArtifactAndRestoreSeparately(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runner := &processRunner{scriptedRunner: &scriptedRunner{responses: map[string][]byte{
-				"adb -s serial-1 shell dumpsys power":                          []byte("mStayOn=false\n"),
-				"adb -s serial-1 shell settings get system screen_off_timeout": []byte("60000\n"),
-				"adb -s serial-1 shell dumpsys deviceidle":                     []byte("mDeepEnabled=true\n"),
+				"adb -s serial-1 shell settings get global stay_on_while_plugged_in": []byte("2\n"),
+				"adb -s serial-1 shell settings get system screen_off_timeout":       []byte("60000\n"),
+				"adb -s serial-1 shell dumpsys deviceidle":                           []byte("mDeepEnabled=true\nmLightEnabled=false\n"),
 			}, errors: map[string]error{}}, process: &scriptedProcess{}}
 			adapter := NewWithRunner(runner, "serial-1")
 			handle, err := adapter.StartRecording(context.Background(), strategy.ClaimTransition)
 			require.NoError(t, err)
-			read := "adb -s serial-1 exec-out cat /sdcard/" + handle.ID + ".mp4"
+			read := "adb -s serial-1 exec-out cat /data/local/tmp/" + handle.ID + ".mp4"
 			runner.mu.Lock()
+			runner.responses["adb -s serial-1 shell ps -A -o PID,ARGS"] = []byte("123 screenrecord /data/local/tmp/" + handle.ID + ".mp4\n")
 			runner.responses[read] = []byte("ftyp-video")
 			if tc.failingCommand == "read" {
 				runner.errors[read] = errors.New("injected read failure")
 			} else {
-				runner.errors["adb -s serial-1 shell svc power stayon false"] = errors.New("injected restore failure")
+				runner.errors["adb -s serial-1 shell settings put global stay_on_while_plugged_in 2"] = errors.New("injected restore failure")
 			}
 			runner.mu.Unlock()
 			artifact, err := adapter.StopRecording(context.Background(), handle)
@@ -844,4 +956,52 @@ func TestRecordingStopReportsArtifactAndRestoreSeparately(t *testing.T) {
 			require.ErrorContains(t, err, "not active", "native stop is one-shot")
 		})
 	}
+}
+
+func TestStopOwnedScreenrecordRejectsMissingAndAmbiguousProcesses(t *testing.T) {
+	const ps = "adb -s serial shell ps -A -o PID,ARGS"
+	const path = "/sdcard/owned.mp4"
+	for _, tc := range []struct{ name, output string }{
+		{"missing", "123 screenrecord /sdcard/other.mp4\n"},
+		{"ambiguous", "123 screenrecord /sdcard/owned.mp4\n124 screenrecord /sdcard/owned.mp4\n"},
+		{"different executable", "123 sh /sdcard/owned.mp4\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &scriptedRunner{responses: map[string][]byte{ps: []byte(tc.output)}}
+			err := NewWithRunner(runner, "serial").stopOwnedScreenrecord(context.Background(), path)
+			require.Error(t, err)
+			require.NotContains(t, strings.Join(runner.calls, "\n"), "shell kill")
+		})
+	}
+}
+
+func TestRecordingProcessReportsBoundedEncoderFailure(t *testing.T) {
+	process, err := (commandRunner{}).Start("sh", "-c", "printf 'encoder unavailable' >&2; exit 2")
+	require.NoError(t, err)
+	require.NoError(t, process.Start())
+	require.ErrorContains(t, process.Wait(), "encoder unavailable")
+}
+
+func TestRecordingRetentionRestoresIndependentDozeAndUnsetSettings(t *testing.T) {
+	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial shell dumpsys deviceidle":                           []byte("mLightEnabled=false mDeepEnabled=true\n"),
+		"adb -s serial shell settings get global stay_on_while_plugged_in": []byte("null\n"),
+		"adb -s serial shell settings get system screen_off_timeout":       []byte("null\n"),
+	}}
+	adapter := NewWithRunner(runner, "serial")
+	state, err := adapter.readDozeEnabled(context.Background())
+	require.NoError(t, err)
+	require.True(t, state.deep)
+	require.False(t, state.light)
+	stay, err := adapter.readStayAwake(context.Background())
+	require.NoError(t, err)
+	timeout, err := adapter.readScreenOffTimeout(context.Background())
+	require.NoError(t, err)
+	require.NoError(t, adapter.restoreStayAwake(context.Background(), stay))
+	require.NoError(t, adapter.setDisplayRetention(context.Background(), timeout, state))
+	calls := strings.Join(runner.calls, "\n")
+	require.Contains(t, calls, "settings delete global stay_on_while_plugged_in")
+	require.Contains(t, calls, "settings delete system screen_off_timeout")
+	require.Contains(t, calls, "dumpsys deviceidle enable deep")
+	require.Contains(t, calls, "dumpsys deviceidle disable light")
 }

@@ -164,6 +164,71 @@ and gap reports.
 | `sensor` | Sensor readings | Read typed observations that may change over time. |
 | `media` | Media transport | Play, pause, stop, next, previous, or set absolute volume. |
 | `pairing` | Interactive pairing | Complete a secret-bearing transport pairing exchange without serializing the secret. |
+| `screen-control` | Explicit screen state | Request screen on or off without a toggle. A separate fresh state read is required to verify the result. |
+
+### Wake, sleep, and readiness
+
+`device-control device screen <device-id-or-unique-name> --operation wake|sleep|ready`
+selects a live transport with `screen-control` and a state reader, holds a
+device lease, and verifies the device-reported screen state. `ready` additionally
+requires a verified unlocked state and accepts `--auth-profile <id>` for the
+existing credential-authority-backed unlock. It does not navigate home unless
+`--home` is explicitly requested; this may change the foreground app. The
+default Home foreground is checked when available, and launcher overrides may
+leave the result `unverified`. Locked,
+unknown, unsupported, and unreachable states are not reported as ready.
+Android ADB implements this capability for phones, TV devices and boxes when
+its input probe succeeds; other transports must implement and declare it before
+selection. For an Android device with a locked keyguard and no profile, ready
+may request credential-free keyguard dismissal and then must verify unlocked;
+secure or unknown keyguard states remain unavailable. Device-reported screen state does not independently prove the
+physical panel is lit. Network reachability is not screen-state evidence.
+
+Flows may use a `screen` step targeting `wake` or `sleep` with `screen-on` or
+`screen-off` postconditions. Unknown screen state fails these conditions. Flows
+that require authentication can use `require_unlocked` and an `auth_profile_id`;
+the authentication owner verifies the keyguard and restores the initial lock
+state when the flow ends. Existing frame and recording capabilities remain
+independently probed; Cast and Remote transports do not acquire screenshots
+merely because a related Android transport can capture them.
+
+`device-control device capture <device> --kind screenshot`, `--kind recording
+--seconds 5`, and `--kind logs --package <package>` select a capable transport and use the existing flow/evidence
+owner. Recordings are limited to 1–30 seconds. Screenshots and recordings preserve the full frame by default and do not
+classify its content. Explicit image redaction requires known sensitive regions;
+content-aware video redaction is unavailable.
+If no transport provides the modality, the result is `capability_gap`.
+For transition recordings, one frame or materially less than the requested
+interval is `no_evidence`, even when the encoded stream advertises a high frame
+rate. Screenshot fallback is labeled separately and its effective rate reflects
+captured samples, not duplicated encoder frames.
+
+Recording evidence reports `audio_track_present` when the container can be
+inspected. A present track does not prove that it contains audible or
+synchronized playback; an absent track means the delivered file has no sound.
+The Android ADB `screenrecord` and screenshot fallback paths currently produce
+video without an audio track. Android playback-capture experiments on Android
+10 and 11 succeeded with system projection consent, but are not yet integrated
+into recording. App capture policy can prevent particular audio from being
+captured even when playback capture itself works.
+
+`device-control device inspect <device>` reports Android's video encoder
+inventory when it can read and recognize it. Each entry names the MIME type,
+encoder, and any explicitly reported software-only or hardware-acceleration
+flags. An absent flag is unknown. The inventory does not establish which
+encoder a recording will select, its achieved frame rate, or its effect on
+playback; use performance observations and recording evidence to assess those.
+
+Android application logs are a distinct optional modality; the bounded snapshot
+is limited to one identified application process, 500 logcat lines and 256 KiB.
+An empty snapshot is `no_evidence`; missing or ambiguous processes are not
+treated as proof of no logs. Logs do not
+guarantee JavaScript console messages or network requests. A debuggable WebView
+may be attached through the existing WebView/BAS integration; native-app traffic
+and non-debuggable WebViews do not thereby gain a network-inspection claim.
+Direct `--kind console` and `--kind network` requests currently return
+`no_evidence` with the available WebView route; they do not claim that no
+console messages or requests occurred.
 
 ## App lifecycle control
 
@@ -670,6 +735,17 @@ invalid values and unrecognized output fail closed. The app owns this provider's
 semantics and access protection. No arbitrary URI, write or screen-content
 query is exposed. An absent provider remains unavailable. Launcher-specific
 Home behavior stays in Portal rather than this adapter.
+
+`performance-state` reports exact-package Android graphics counters and, when a
+unique SurfaceView is available, presentation frame rate over at most the last
+five seconds of available timestamps, interval p95,
+and slow intervals. It reports the age and window of the presentation samples;
+stale or ambiguous surfaces do not produce an active frame rate. Graphics
+counters are cumulative since the reported start time, so compare snapshots only
+when that start time matches. These measurements describe Android presentation,
+not independently measured physical display output. Sampling itself has a cost;
+compare a baseline and a capture interval under the same workload. Some apps do
+not expose a SurfaceView or graphics counters, and that is an observation gap.
 
 `process-state` returns at most three
 recognized exact-package process exits on supported Android versions: process

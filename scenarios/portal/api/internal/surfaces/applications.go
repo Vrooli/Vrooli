@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
@@ -21,16 +22,64 @@ type Application struct {
 }
 
 type Applications struct {
-	Run         func(context.Context) ([]byte, error)
-	ResolveURL  func(context.Context, string, string) (string, error)
-	ResolvePort func(context.Context, string, string) (int, error)
-	Branding    *ApplicationBranding
+	Run          func(context.Context) ([]byte, error)
+	ResolveURL   func(context.Context, string, string) (string, error)
+	ResolvePort  func(context.Context, string, string) (int, error)
+	Branding     *ApplicationBranding
+	RunLifecycle func(context.Context, string, string) error
+	lifecycleMu  sync.Mutex
 }
 
 func DefaultApplications() *Applications {
 	return &Applications{Run: func(ctx context.Context) ([]byte, error) {
 		return exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json").Output()
-	}, ResolveURL: discovery.ResolveExternalURL, ResolvePort: discovery.ResolveScenarioPort, Branding: DefaultApplicationBranding()}
+	}, ResolveURL: discovery.ResolveExternalURL, ResolvePort: discovery.ResolveScenarioPort, Branding: DefaultApplicationBranding(), RunLifecycle: func(ctx context.Context, name, action string) error {
+		return exec.CommandContext(ctx, "vrooli", "scenario", action, name, "--json").Run()
+	}}
+}
+
+// Act only accepts an exact, currently inventoried application. The control
+// plane remains the lifecycle owner; an interrupted command has unknown outcome.
+func (a *Applications) Act(ctx context.Context, name, action string) (Application, error) {
+	if !scenarioName.MatchString(name) || name == "portal" || (action != "start" && action != "restart" && action != "stop") {
+		return Application{}, fmt.Errorf("invalid application lifecycle request")
+	}
+	if a.RunLifecycle == nil {
+		return Application{}, fmt.Errorf("application lifecycle unavailable")
+	}
+	if !a.lifecycleMu.TryLock() {
+		return Application{}, fmt.Errorf("another application action is in progress")
+	}
+	defer a.lifecycleMu.Unlock()
+	items, err := a.List(ctx)
+	if err != nil {
+		return Application{}, err
+	}
+	var found bool
+	for _, item := range items {
+		if item.Scenario == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return Application{}, fmt.Errorf("unknown application")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 180*time.Second)
+	defer cancel()
+	if err := a.RunLifecycle(ctx, name, action); err != nil {
+		return Application{}, fmt.Errorf("application action incomplete; refresh its status before retrying")
+	}
+	items, err = a.List(ctx)
+	if err != nil {
+		return Application{}, fmt.Errorf("application action returned but status is unavailable; refresh before retrying")
+	}
+	for _, item := range items {
+		if item.Scenario == name {
+			return item, nil
+		}
+	}
+	return Application{}, fmt.Errorf("application action returned but status is unavailable; refresh before retrying")
 }
 
 var scenarioName = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)

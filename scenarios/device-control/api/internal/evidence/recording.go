@@ -173,6 +173,33 @@ func MeasureVideo(raw []byte) (frameCount int, duration time.Duration, effective
 	return frameCount, duration, float64(frameCount) / durationSeconds, nil
 }
 
+// InspectAudioTrack checks stream presence only; an audio stream can be silent
+// or contain unrelated sound, and is not evidence of successful capture.
+func InspectAudioTrack(raw []byte) (bool, error) {
+	file, err := os.CreateTemp("", "device-control-audio-check-*.mp4")
+	if err != nil {
+		return false, err
+	}
+	path := file.Name()
+	defer os.Remove(path)
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return false, err
+	}
+	if _, err := file.Write(raw); err != nil {
+		_ = file.Close()
+		return false, err
+	}
+	if err := file.Close(); err != nil {
+		return false, err
+	}
+	out, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", path).Output()
+	if err != nil {
+		return false, fmt.Errorf("inspect audio streams: %w", err)
+	}
+	return strings.TrimSpace(string(out)) != "", nil
+}
+
 func Assess(class ClaimClass, effectiveFPS float64) Assessment {
 	if class == "" {
 		class = ClaimTransition

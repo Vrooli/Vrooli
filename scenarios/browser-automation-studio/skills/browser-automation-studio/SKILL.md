@@ -71,6 +71,17 @@ Use these declared programs for reusable browser work and its bounded evidence:
 Invoke one with `program-runtime library run <name> --input key=value`; preserve
 the execution and workflow revision as evidence.
 
+For `browser-automation-studio.find-flows`, `partial` with
+`signals.degradations` means the named Search Hub leg is unsearched. Keep any
+valid saved-workflow or workflow-health candidates, but do not treat an empty
+Search Hub result as evidence that no reusable flow exists. A complete healthy
+empty result remains a valid miss.
+
+For `browser-automation-studio.do-task`, `signals.search_status=partial` means
+the nested find-flows result is incomplete. The parent preserves its candidates
+and `signals.search_degradations`, and stops before workflow selection or
+navigation. Inspect the degraded leg before choosing a candidate.
+
 Repair starts with the failed execution and selected version, then changes the
 smallest cause (for example a navigation selector or wait). The old version
 remains available. Do not replace a failed flow until the candidate passes.

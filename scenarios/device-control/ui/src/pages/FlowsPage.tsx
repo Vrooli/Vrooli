@@ -21,7 +21,7 @@ export function FlowsPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [devicesLoading, setDevicesLoading] = useState(true);
   const [device, setDevice] = useState("");
-  const [run, setRun] = useState<{ disposition: string; chapters: Array<{ id: string; disposition: string; message: string }>; resolutions?: Array<{ target: string; rung: string; confidence: number }>; evidence: Array<{ id: string; kind: string; checksum?: string; size_bytes: number; redaction_verified: boolean; applied_rules?: string[]; recording_method?: string; effective_fps?: number; disposition?: string; disposition_reason?: string }> }>();
+  const [run, setRun] = useState<{ disposition: string; chapters: Array<{ id: string; disposition: string; message: string }>; resolutions?: Array<{ target: string; rung: string; confidence: number }>; evidence: Array<{ id: string; kind: string; checksum?: string; size_bytes: number; redaction_verified: boolean; applied_rules?: string[]; recording_method?: string; effective_fps?: number; audio_track_present?: boolean; disposition?: string; disposition_reason?: string }> }>();
   const [strategy, setStrategy] = useState("");
   const [flow, setFlow] = useState(starter);
   const [report, setReport] = useState<{ runnable?: boolean; gaps?: string[]; warnings?: string[] }>();
@@ -114,6 +114,7 @@ export function FlowsPage() {
                       </p>
                     )}
                     {ref.kind === "image" && <img data-testid={selectors.pages.flowEvidenceImage} src={buildApiUrl(`/api/v1/evidence/${encodeURIComponent(ref.id)}`, { baseUrl: API_BASE })} alt={t(strings.pages.flows.retainedEvidenceAlt, { id: ref.id })} className="mt-2 max-h-80 w-auto rounded border" />}
+                    {ref.kind === "video" && <><p className="text-sm">{t(ref.audio_track_present === true ? strings.pages.flows.audioTrackPresent : ref.audio_track_present === false ? strings.pages.flows.audioTrackAbsent : strings.pages.flows.audioTrackUnknown)}</p><video controls preload="metadata" aria-label={t(strings.pages.flows.retainedEvidenceAlt, { id: ref.id })} src={buildApiUrl(`/api/v1/evidence/${encodeURIComponent(ref.id)}`, { baseUrl: API_BASE })} className="mt-2 max-h-80 w-auto rounded border" /></>}
                   </div>
                 ))}
               </div>

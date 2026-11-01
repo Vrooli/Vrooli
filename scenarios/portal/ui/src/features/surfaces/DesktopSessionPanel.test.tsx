@@ -1,6 +1,6 @@
 // provider-free-exception: The test uses a provider-free or feature-specific harness to isolate its boundary.
 /* eslint-disable @typescript-eslint/require-await, no-restricted-syntax */
-import { desktopRecoveryKey } from "./desktopRecoveryMarker";
+import { desktopRecoveryKey, readDesktopRecovery } from "./desktopRecoveryMarker";
 import { DesktopSessionsProvider, useDesktopSession } from "./useDesktopSession";
 import { OwnerCleanupResponseSchema, OwnerListAdmissionsResponseSchema, OwnerOpenDispositionSchema } from "@vrooli/proto-types/device-control/v1/desktop/desktop_pb";
 import { create } from "@bufbuild/protobuf";
@@ -30,6 +30,42 @@ beforeEach(() => {
  vi.mocked(desktopClient.stop).mockResolvedValue(create(StopResponseSchema));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+
+it("rejects malformed retained desktop references before recovery", () => {
+ const base = { version: 1, actor: { id: "owner", realm: "default" }, unknownOpen: false, sessions: [] as unknown[] };
+ for (const ref of [
+  {},
+  { sessionId: "lease", desktopSessionId: "desktop" },
+  { sessionId: "lease", desktopSessionId: "desktop", surface: { ownerScenario: "device-control", surfaceId: "desktop" } },
+  { sessionId: "lease", desktopSessionId: "desktop", surface: { ownerScenario: "device-control", surfaceId: "desktop", target: { ownerScenario: "vrooli-bridge" } } },
+ ]) {
+  localStorage.setItem(desktopRecoveryKey, JSON.stringify({ ...base, sessions: [ref] }));
+  expect(() => readDesktopRecovery()).toThrow();
+ }
+ const validSurface = { ownerScenario: "device-control", surfaceId: "desktop", target: { ownerScenario: "vrooli-bridge", resourceId: "host" } };
+ for (const pendingOpen of [
+  { requestId: "not-a-uuid" },
+  { requestId: "00000000-0000-0000-0000-000000000000" },
+  { requestId: "11111111-1111-1111-1111-111111111111" },
+  { requestId: "11111111-1111-1111-1111-111111111111", surface: { ownerScenario: "", surfaceId: "desktop", target: { ownerScenario: "vrooli-bridge", resourceId: "host" } }, ttlSeconds: 120 },
+  { requestId: "11111111-1111-1111-1111-111111111111", surface: { ownerScenario: "device-control", surfaceId: "desktop", target: { ownerScenario: "", resourceId: "host" } }, ttlSeconds: 120 },
+  { requestId: "11111111-1111-1111-1111-111111111111", surface: validSurface, ttlSeconds: 0 },
+  { requestId: "11111111-1111-1111-1111-111111111111", surface: validSurface, ttlSeconds: 601 },
+ ]) {
+  localStorage.setItem(desktopRecoveryKey, JSON.stringify({ ...base, version: 2, pendingOpen }));
+  expect(() => readDesktopRecovery()).toThrow("Invalid pending desktop request");
+ }
+ for (const invalid of [
+  { ...base, version: 3 },
+  { ...base, actor: { id: "", realm: "default" } },
+  { ...base, actor: { id: "owner", realm: "x".repeat(257) } },
+  { ...base, unknownOpen: "yes" },
+  { ...base, sessions: Array.from({ length: 2501 }, () => ({})) },
+ ]) {
+  localStorage.setItem(desktopRecoveryKey, JSON.stringify(invalid));
+  expect(() => readDesktopRecovery()).toThrow("Invalid desktop recovery marker");
+ }
+});
 async function login() {
  fireEvent.change(screen.getByLabelText(strings.desktop.email), { target: { value: "owner@example.test" } });
  fireEvent.change(screen.getByLabelText(strings.desktop.password), { target: { value: "password" } });
@@ -488,4 +524,15 @@ it("honors shell Stop requested while Open is pending", async () => {
  await waitFor(() => expect(screen.getByRole("button", { name: strings.desktop.control })).toBeEnabled());
  expect(desktopClient.open).toHaveBeenCalledTimes(1); expect(desktopClient.stop).toHaveBeenCalledTimes(1);
  expect(desktopClient.observe).not.toHaveBeenCalled();
+});
+
+it("clears local credentials even when remote sign-out fails", async () => {
+ vi.mocked(operatorClient.logout).mockRejectedValueOnce(new Error("network unavailable"));
+ render(<DesktopSessionPanel surface={surface} onActive={vi.fn()} />);
+ await login();
+ fireEvent.click(screen.getByRole("button", { name: strings.desktop.signOut }));
+ await screen.findByRole("button", { name: strings.desktop.signIn });
+ expect(operatorClient.logout).toHaveBeenCalledWith({ accessToken: "account-token" });
+ expect(localStorage.getItem(desktopRecoveryKey)).toBeNull();
+ expect(desktopClient.open).not.toHaveBeenCalled();
 });

@@ -10,11 +10,55 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/identity"
+	wire "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/surfaces"
 	domain "portal/internal/surfaces"
 )
+
+type lifecycleVerifier struct{ principal identity.Principal }
+
+func (v lifecycleVerifier) Verify(context.Context, string) (identity.Principal, error) {
+	return v.principal, nil
+}
+
+func TestApplicationLifecycleRequiresVerifiedScopedOperator(t *testing.T) {
+	calls := 0
+	catalog := &domain.Applications{Run: func(context.Context) ([]byte, error) {
+		return []byte(`{"success":true,"scenarios":[{"name":"example","status":"running"}]}`), nil
+	}, RunLifecycle: func(context.Context, string, string) error { calls++; return nil }}
+	principal := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true, Scopes: []string{"vrooli:write"}, ExpiresAt: time.Now().Add(time.Hour)}
+	h := &applicationLifecycleHandler{catalog: catalog, verifier: lifecycleVerifier{principal}}
+	request := func(token string) *connect.Request[wire.ApplicationLifecycleRequest] {
+		r := connect.NewRequest(&wire.ApplicationLifecycleRequest{Scenario: "example", Action: wire.ApplicationLifecycleAction_APPLICATION_LIFECYCLE_ACTION_STOP})
+		if token != "" {
+			r.Header().Set("Authorization", "Bearer "+token)
+		}
+		return r
+	}
+	_, err := h.Act(context.Background(), request(""))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	principal.Scopes = []string{"vrooli:read"}
+	h.verifier = lifecycleVerifier{principal}
+	_, err = h.Act(context.Background(), request("token"))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	principal.Kind = identity.ActorAgent
+	principal.Scopes = []string{"vrooli:write"}
+	h.verifier = lifecycleVerifier{principal}
+	_, err = h.Act(context.Background(), request("token"))
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, calls)
+	principal.Kind = identity.ActorHuman
+	h.verifier = lifecycleVerifier{principal}
+	response, err := h.Act(context.Background(), request("token"))
+	require.NoError(t, err)
+	require.Equal(t, "unverified", response.Msg.Outcome)
+	require.Equal(t, 1, calls)
+}
 
 func TestApplicationArtworkEndpointAndMetadata(t *testing.T) {
 	root := t.TempDir()

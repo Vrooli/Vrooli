@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"portal/internal/testutil"
 	"testing"
 	"time"
 
@@ -32,7 +33,7 @@ func TestDesktopProviderPreservesExactHostAndRejectsWrongOwner(t *testing.T) {
 		t.Run(owner, func(t *testing.T) {
 			now := time.Now()
 			descriptor := targetmodel.SurfaceDescriptor{Ref: targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "companion-host", HostNodeID: "companion-host"}, OwnerScenario: owner, SurfaceID: "desktop"}, Kind: targetmodel.SurfaceDesktop, DisplayLabel: "Desktop session 2", DesktopSessionID: "2", ProtocolVersions: []string{"vrooli.desktop.owner.v1"}, Capabilities: []targetmodel.CapabilityFact{{Capability: "desktop.observe", State: targetmodel.CapabilityUnknown, ReasonCode: "owner_admission_required", ObservedAt: now, ExpiresAt: now.Add(time.Second)}}}
-			socket := filepath.Join(t.TempDir(), "owner.sock")
+			socket := filepath.Join(testutil.SocketDir(t), "owner.sock")
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)
 			_, handler := desktopv1connect.NewDesktopOwnerServiceHandler(desktopCatalogFixture{descriptor: descriptor})

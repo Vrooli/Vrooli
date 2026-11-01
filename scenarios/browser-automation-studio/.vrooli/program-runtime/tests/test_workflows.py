@@ -3,10 +3,15 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace as NS
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
+KERNEL_HOST=ROOT.parents[2]/'program-runtime'/'kernel'/'host'
+if str(KERNEL_HOST) not in sys.path:
+    sys.path.insert(0, str(KERNEL_HOST))
+from program_helper import ProgramHelper
 # The real kernel sandbox and schema checker. Act sections are validated against these, not a
 # stub: a fragment the kernel would reject, or output the caller's verifier rejects, fails here.
 KERNEL_HOST=ROOT.parents[2]/'program-runtime'/'kernel'/'host'
@@ -102,8 +107,15 @@ class Learn:
         return {'selected_id': selected, 'source': 'advice' if hits else 'default', 'why': [], 'learning': {'advice': []}}
 
 class Program:
-    def __init__(self, inputs): self._inputs = inputs
+    def __init__(self, inputs, outputs=None): self._inputs = inputs; self._child_helper=ProgramHelper("2", outputs or {})
     def inputs(self): return self._inputs
+    def child_envelope(self, handle, **kwargs):
+        rows=handle.head(1)
+        if rows and isinstance(rows[0],dict):
+            row=dict(rows[0])
+            row.setdefault('phase','report');row.setdefault('signals',{});row.setdefault('errors',[]);row.setdefault('evidence',[])
+            handle=NS(head=lambda n:[row][:n],count=lambda:1,meta=lambda:{'output_contract':{}})
+        return self._child_helper.child_envelope(handle, **kwargs)
     def attach(self, envelope): self.envelope = envelope
     def fail(self, status, klass, detail, where):
         import inspect
@@ -121,7 +133,8 @@ class Programs(unittest.TestCase):
     def run_program(self,name,inputs,api=None,lib=None,learn=None,ai=None,search_hub_rows=None,workflow_health_rows=None):
         self.learn = learn or Learn()
         self.learn.program = name
-        scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':Program(inputs),'learn':self.learn,'ai':ai,
+        outputs=json.loads((ROOT/(name+'.json')).read_text()).get('outputs',{})
+        scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':Program(inputs,outputs),'learn':self.learn,'ai':ai,
                'search_hub':NS(query=NS(query=lambda **kw:Handle(list(search_hub_rows or [])))),
                'workflow_health':NS(workflows=NS(search=lambda **kw:Handle(list(workflow_health_rows or []))))}
         captured = io.StringIO()

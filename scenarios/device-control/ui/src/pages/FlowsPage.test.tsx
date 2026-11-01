@@ -77,6 +77,60 @@ describe("FlowsPage", () => {
     expect(screen.getByTestId(selectors.pages.flowRunReview)).toHaveTextContent("abc123");
   });
 
+  it("shows a recording and explains degraded evidence without claiming success", async () => {
+    api.runFlow.mockResolvedValue({
+      run_id: "run-video", disposition: "no_evidence", chapters: [],
+      evidence: [{ id: "video/1", kind: "video", size_bytes: 512, redaction_verified: false, audio_track_present: false, disposition: "degraded", disposition_reason: "too few frames" }],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    const review = await screen.findByTestId(selectors.pages.flowRunReview);
+    expect(review).toHaveTextContent("no_evidence");
+    expect(review).toHaveTextContent(strings.pages.flows.degradedEvidence);
+    expect(review).toHaveTextContent(strings.pages.flows.audioTrackAbsent);
+    const video = review.querySelector("video");
+    expect(video).toHaveAttribute("controls");
+    expect(video).toHaveAttribute("src", expect.stringContaining("video%2F1"));
+  });
+
+  it("distinguishes an audio track from an unknown audio status", async () => {
+    api.runFlow.mockResolvedValue({ run_id: "audio-check", disposition: "passed", chapters: [], evidence: [
+      { id: "with-track", kind: "video", size_bytes: 1, redaction_verified: false, audio_track_present: true },
+      { id: "unknown-track", kind: "video", size_bytes: 1, redaction_verified: false },
+    ] });
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    const review = await screen.findByTestId(selectors.pages.flowRunReview);
+    expect(review).toHaveTextContent(strings.pages.flows.audioTrackPresent);
+    expect(review).toHaveTextContent(strings.pages.flows.audioTrackUnknown);
+  });
+
+  it("releases the device if execution fails", async () => {
+    api.runFlow.mockRejectedValue(new Error("capture failed"));
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    expect(await screen.findByTestId(selectors.pages.flowError)).toHaveTextContent("capture failed");
+    expect(api.releaseSession).toHaveBeenCalledWith(session.id);
+    expect(screen.queryByTestId(selectors.pages.flowActiveSession)).not.toBeInTheDocument();
+  });
+
+  it("keeps the emergency control available when stopping a session fails", async () => {
+    let finish: ((value: unknown) => void) | undefined;
+    api.runFlow.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    api.killSession.mockRejectedValue(new Error("stop failed"));
+    const user = userEvent.setup();
+    renderWithProviders(<FlowsPage />);
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.acquireAndRun }));
+    await user.click(await screen.findByRole("button", { name: strings.pages.flows.killActiveSession }));
+    expect(await screen.findByTestId(selectors.pages.flowError)).toHaveTextContent("stop failed");
+    expect(screen.getByRole("button", { name: strings.pages.flows.killActiveSession })).toBeInTheDocument();
+    finish?.({ run_id: "run-1", disposition: "failed", chapters: [], evidence: [] });
+    await waitFor(() => expect(api.releaseSession).toHaveBeenCalledWith(session.id));
+  });
+
   it("does not expose the run-review selector until a run has completed", async () => {
     api.runFlow.mockReturnValue(new Promise(() => undefined));
     const user = userEvent.setup();

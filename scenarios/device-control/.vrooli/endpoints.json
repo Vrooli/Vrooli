@@ -409,6 +409,58 @@
       }
     },
     {
+      "id": "devices_screen",
+      "path": "/api/v1/devices/{id}/screen",
+      "method": "POST",
+      "summary": "Wake, sleep or prepare a device with verified state",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_capture",
+      "path": "/api/v1/devices/{id}/capture",
+      "method": "POST",
+      "summary": "Capture a still or bounded recording through the flow owner",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "devices_app_lifecycle",
       "path": "/api/v1/devices/{id}/apps",
       "method": "POST",

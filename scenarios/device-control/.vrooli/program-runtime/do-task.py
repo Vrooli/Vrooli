@@ -9,10 +9,7 @@ envelope = {"program": "device-control.do-task", "version": "1", "status": "fail
 
 
 def child_result(handle):
-    rows = handle.head(1)
-    if not rows or not isinstance(rows[0], dict):
-        raise ValueError("Child program returned no result envelope")
-    return rows[0]
+    return program.child_envelope(handle, invalid_class="invalid_response", where=envelope.get("phase", "collect"))
 
 
 try:
@@ -31,7 +28,9 @@ try:
             device=inputs["device"], context_key=inputs["context_key"]))
         find_step.outcome((prepared.get("signals") or {}).get("outcome", "unknown"), prepared.get("evidence", []))
     if prepared.get("status") != "ok":
-        envelope.update(status=prepared.get("status", "failed"),
+        prepared_signals = dict(prepared.get("signals") or {})
+        prepared_signals.setdefault("outcome", "unknown")
+        envelope.update(status=prepared.get("status", "failed"), signals=prepared_signals,
                         errors=prepared.get("errors", []), evidence=prepared.get("evidence", []))
     elif not inputs.get("flow_id") and not inputs.get("flow"):
         envelope.update(status="partial", signals={**prepared.get("signals", {}), "outcome": "unknown"},
@@ -62,8 +61,11 @@ try:
                         evidence=child.get("evidence", [])[:10], errors=child.get("errors", [])[:5])
         # Child programs establish completed assertions, not command acknowledgement.
         envelope["signals"]["outcome"] = child.get("signals", {}).get("outcome", "unknown")
+        if envelope["status"] != "ok" and envelope["signals"]["outcome"] == "verified_success":
+            # An incomplete or malformed child cannot authorize a positive learning outcome.
+            envelope["signals"]["outcome"] = "unknown"
         envelope["signals"].setdefault("learning", {}).setdefault("measurements", {})["reused_workflow"] = bool(inputs.get("flow_id"))
-        if envelope["signals"]["outcome"] == "verified_success":
+        if envelope["status"] == "ok" and envelope["signals"]["outcome"] == "verified_success":
             flow_id = child.get("signals", {}).get("flow_id", inputs.get("flow_id", ""))
             version = child.get("signals", {}).get("version", inputs.get("version", 0))
             if flow_id and version:

@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"database/sql"
+	"device-control/internal/testutil"
 	"image/png"
 	"net"
 	"net/http"
@@ -235,7 +236,7 @@ func TestAuthenticatedHelperObservesAndControlsNativeX11(t *testing.T) {
 	require.NoError(t, controller.ActivateHelper(context.Background(), "", 0))
 	helper, err := sessions.NewDesktopUnixHelper(controller, authority)
 	require.NoError(t, err)
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(t.TempDir(), "h.sock"), Net: "unix"})
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(testutil.SocketDir(t), "h.sock"), Net: "unix"})
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)

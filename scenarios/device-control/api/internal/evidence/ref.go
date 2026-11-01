@@ -25,6 +25,7 @@ type Reference struct {
 	Disposition       Disposition `json:"disposition,omitempty"`
 	DispositionReason string      `json:"disposition_reason,omitempty"`
 	ContentVerified   bool        `json:"content_verified,omitempty"`
+	AudioTrackPresent *bool       `json:"audio_track_present,omitempty"`
 }
 
 // EvidenceSink is the producer boundary for evidence references. Callers must
@@ -84,6 +85,11 @@ func NewClaimedVideoReference(id string, raw []byte, redaction Result, method st
 	ref.Disposition = a.Disposition
 	ref.DispositionReason = a.Reason
 	ref.ContentVerified = true
+	// Track presence is a container fact, not proof of audible, synchronized,
+	// or complete sound. Leave it unknown when inspection is unavailable.
+	if present, err := InspectAudioTrack(raw); err == nil {
+		ref.AudioTrackPresent = &present
+	}
 	return ref, nil
 }
 

@@ -32,7 +32,7 @@ envelope = {
     "program": "browser-automation-studio.find-flows", "version": "3",
     "status": "failed", "phase": "validate",
     "inputs": {"task": task, "scenario": scenario or None, "k": k},
-    "signals": {"candidates": [], "sources": {}, "tie_broken_by_ai": False},
+    "signals": {"candidates": [], "sources": {}, "tie_broken_by_ai": False, "degradations": []},
     "errors": [], "evidence": [],
 }
 handles = {}
@@ -52,6 +52,25 @@ def fit_label(overlap, phrase_hit):
     if overlap >= 1:
         return "weak"
     return "none"
+
+
+def search_hub_degradations(meta):
+    """Keep incomplete federated retrieval distinct from a complete empty search."""
+    meta = meta or {}
+    groups = [g for g in (meta.get("groups") or []) if isinstance(g, dict) and g.get("degraded")]
+    incomplete = bool(meta.get("degraded") or meta.get("partial") or groups)
+    if not incomplete:
+        return []
+    items = []
+    for group in groups[:6]:
+        provider = str(group.get("providerId") or "search-hub.provider").strip()[:80]
+        note = str(group.get("note") or "provider leg did not complete").strip()[:160]
+        items.append({"reason": f"{provider}: {note}"[:200], "leg": provider, "retryable": False})
+    if not items:
+        reason = str(meta.get("routingDegradeReason") or
+                     ("partial Search Hub response" if meta.get("partial") else "Search Hub reported degraded retrieval"))[:200]
+        items.append({"reason": reason, "leg": "search-hub.router", "retryable": False})
+    return items
 
 
 # The tagged rows the current normalization section is accounting for; the verifier reads them so
@@ -140,6 +159,8 @@ def step_collect():  # COLLECT · governed reads; each source degrades independe
 
 def step_classify():  # CLASSIFY · deterministic fit first; one ai.classify only for a tie at the k boundary
     envelope["phase"] = "classify"
+    if handles.get("sh") is not None:
+        envelope["signals"]["degradations"] = search_hub_degradations(handles["sh"].meta())
     tt = tokens(task)
     phrase = task.lower()
     del NORMALIZE_SOURCE[:]
@@ -220,7 +241,7 @@ def step_classify():  # CLASSIFY · deterministic fit first; one ai.classify onl
             envelope["errors"].append({"class": "inference_unavailable", "detail": str(exc)[:160], "where": "classify"})
     envelope["signals"]["candidates"] = scored[:k]
     envelope["evidence"] = [c["id"] for c in scored[:k] if c.get("id")]
-    envelope["status"] = "ok" if not envelope["errors"] else "partial"
+    envelope["status"] = "ok" if not envelope["errors"] and not envelope["signals"]["degradations"] else "partial"
     return "report"
 
 

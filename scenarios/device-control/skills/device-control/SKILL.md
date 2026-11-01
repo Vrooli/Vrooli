@@ -39,6 +39,8 @@ Read rows in order; the first matching row is the next step.
 | Situation | One step |
 |---|---|
 | Operation or inputs are unknown | Read `device-control <group> help`. **[S1]** |
+| Wake, sleep, or prepare one device | Run `device-control device screen <exact-id-or-unique-name> --operation wake|sleep|ready --actor <actor> --json`. Ready requires a verified unlocked state; supply `--auth-profile <id>` when needed. It does not navigate home. **[S1]** |
+| Capture a screenshot, short recording, or app logs | Run `device-control device capture <exact-id-or-unique-name> --kind screenshot|recording|logs --actor <actor> --json`; recordings accept `--seconds` from 1 to 30 and logs require `--package`. Inspect the disposition and evidence method. Screenshots and recordings preserve the full frame and are not content-classified by default. **[S1]** |
 | Device is not paired/onboarded | Run `device-control device connect` for its kind and follow the first unavailable rung. **[S1]** |
 | Need one device task with identity resolution and outcome capture | Run `device-control.do-task` with device, context_key, actor, and a selected flow/revision or candidate. **[S4]** |
 | Need a volume change on a device | Run `program-runtime library run device-control.volume --input device=<logical-id-or-unique-name> --input actor=<actor> --input goal='turn down by 50 percent' --input confirm=true`. The service resolves the selected device's declared volume operations, owns the lease, one recovery retry, and honest verification. `confirm=true` is required for this governed write and is never sent to the device. **[S3]** |

@@ -365,6 +365,7 @@
       "learning": "Durable feedback_ref identifying this search; a caller that later finds the candidate set was wrong grades it with learn.feedback without repeating any read.",
       "normalization_source": "Where the row mapping came from: cache | baseline | fallback | model | unavailable. Absent when no owner returned rows.",
       "sources": "row counts per source: workflows_list, workflow_health (null when no scenario was given), search_hub; null when that source failed",
+      "degradations": "bounded {reason, leg, retryable} for incomplete Search Hub legs; treat that leg as unsearched, while retaining valid owner-local candidates",
       "tie_broken_by_ai": "true when ai.classify ran (tie break or lexical-miss fallback)"
     },
     "status": {

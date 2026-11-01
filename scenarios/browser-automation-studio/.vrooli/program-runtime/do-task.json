@@ -3,7 +3,7 @@
   "name": "browser-automation-studio.do-task",
   "version": "6",
   "helpers": {
-    "program": "1"
+    "program": "2"
   },
   "purpose": "Execute an authorized exact workflow or bounded navigation, independently verify requested postconditions, return bounded task output and durable feedback references.",
   "inputs": {
@@ -216,6 +216,7 @@
       "result": "Selected child result signals",
       "candidates": "At most five selection candidates, each with id and version when runnable_by_id",
       "search_status": "status returned by find-flows; partial or non-ok results are not used to select or execute a workflow",
+    "search_degradations": "bounded {reason, leg, retryable} copied from find-flows; a partial child stops selection and navigation while preserving candidates and the reason",
       "recommended_workflow": "On search: {workflow_id, version, option_id, source(advice|default), why[]} from learn.choose over remembered preferences and avoids",
       "learning": "Durable feedback_ref identifies this task or exact artifact for later learn.feedback.",
       "navigation_id": "Navigation started or resumed; pass back as navigation_id to resume",

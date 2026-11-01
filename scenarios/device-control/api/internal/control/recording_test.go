@@ -5,7 +5,10 @@ import (
 	"errors"
 	"sync/atomic"
 
+	devicedomain "device-control/internal/devices"
 	"device-control/strategy"
+	"device-control/strategy/fakes"
+	strategyregistry "device-control/strategy/registry"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +17,153 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestCaptureUsesProbedObserverAndPreservesFullFrame(t *testing.T) {
+	adapter := fakes.New("capture-fixture", strategy.StatusAvailable, strategy.CapScreenshot)
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "screenshot", Actor: "test"})
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Len(t, result.Evidence, 1)
+	require.Equal(t, "image", result.Evidence[0].Kind)
+	require.False(t, result.Evidence[0].RedactionVerified)
+	require.Contains(t, result.Evidence[0].AppliedRules, "redaction_not_requested")
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestCaptureReportsMissingRecordingCapabilityWithoutActuation(t *testing.T) {
+	adapter := fakes.New("capture-fixture", strategy.StatusAvailable, strategy.CapScreenshot)
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "recording", Seconds: 1})
+	require.NoError(t, err)
+	require.Equal(t, "capability_gap", result.Disposition)
+	require.Empty(t, adapter.Calls())
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestCaptureNetworkAndConsoleDoNotClaimAbsentEvents(t *testing.T) {
+	adapter := fakes.New("capture-fixture", strategy.StatusAvailable, strategy.CapScreenshot)
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	for _, kind := range []string{"network", "console"} {
+		result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: kind})
+		require.NoError(t, err)
+		require.Equal(t, "no_evidence", result.Disposition)
+		require.Contains(t, result.Chapters[0].Message, "No conclusion")
+	}
+	require.Empty(t, adapter.Calls())
+}
+
+type appLogFixture struct {
+	*fakes.Strategy
+	output      []byte
+	packageName string
+	err         error
+}
+
+func (f *appLogFixture) ReadApplicationLogs(_ context.Context, pkg string) ([]byte, error) {
+	f.packageName = pkg
+	return f.output, f.err
+}
+
+func TestCaptureUnavailableApplicationLogsAreNotNegativeEvidence(t *testing.T) {
+	adapter := &appLogFixture{Strategy: fakes.New("log-fixture", strategy.StatusAvailable, strategy.CapDeviceLogs), err: &strategy.EvidenceUnavailableError{Reason: "application process is unavailable"}}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "logs", Package: "com.example.app"})
+	require.NoError(t, err)
+	require.Equal(t, "no_evidence", result.Disposition)
+	require.Contains(t, result.Chapters[0].Message, "process is unavailable")
+	require.Empty(t, result.Evidence)
+}
+
+func TestCaptureApplicationLogsKeepsEmptyOutputAsNoEvidence(t *testing.T) {
+	adapter := &appLogFixture{Strategy: fakes.New("log-fixture", strategy.StatusAvailable, strategy.CapDeviceLogs)}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "logs", Package: "com.example.app"})
+	require.NoError(t, err)
+	require.Equal(t, "no_evidence", result.Disposition)
+	require.Equal(t, "no_evidence", svc.runs[result.RunID].Disposition)
+	require.Equal(t, "com.example.app", adapter.packageName)
+	require.Empty(t, result.Evidence)
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+type flowRecordingFixture struct {
+	*fakes.Strategy
+	stops      int
+	stopErr    error
+	cancel     context.CancelFunc
+	cleanupErr error
+	artifact   strategy.RecordingArtifact
+}
+
+func (f *flowRecordingFixture) StartRecording(context.Context, strategy.ClaimClass) (strategy.RecordingHandle, error) {
+	if f.cancel != nil {
+		f.cancel()
+	}
+	return strategy.RecordingHandle{ID: "recording-fixture"}, nil
+}
+func (f *flowRecordingFixture) StopRecording(ctx context.Context, _ strategy.RecordingHandle) (strategy.RecordingArtifact, error) {
+	f.stops++
+	f.cleanupErr = ctx.Err()
+	return f.artifact, f.stopErr
+}
+
+func TestCaptureRejectsOneFrameAsRecordingEvidence(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg is required for video evidence")
+	}
+	path := filepath.Join(t.TempDir(), "one.mp4")
+	require.NoError(t, exec.Command("ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=32x32:r=25", "-frames:v", "1", "-c:v", "libx264", "-pix_fmt", "yuv420p", path).Run())
+	video, err := os.ReadFile(path)
+	require.NoError(t, err)
+	fixture := &flowRecordingFixture{Strategy: fakes.New("recorder", strategy.StatusAvailable, strategy.CapScreenRecording), artifact: strategy.RecordingArtifact{Bytes: video, Method: "native", ClaimClass: strategy.ClaimTransition}}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Capture(context.Background(), CaptureRequest{Device: "target", Kind: "recording", Seconds: 1})
+	require.NoError(t, err)
+	require.Equal(t, "no_evidence", result.Disposition)
+	require.Len(t, result.Evidence, 1)
+	require.Equal(t, "degraded", string(result.Evidence[0].Disposition))
+	require.Equal(t, 1, fixture.stops)
+}
+
+func TestFlowRecordingCleanupSurvivesCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	fixture := &flowRecordingFixture{Strategy: fakes.New("recorder", strategy.StatusAvailable, strategy.CapScreenRecording), cancel: cancel}
+	svc := New(strategyregistry.New(fixture))
+	result, err := svc.Run(ctx, Flow{Steps: []Step{{ID: "start", Kind: "recording-start"}, {ID: "wait", Kind: "wait"}}}, fixture.ID(), "test")
+	require.NoError(t, err)
+	require.Equal(t, "cancelled", result.Disposition)
+	require.Equal(t, 1, fixture.stops)
+	require.NoError(t, fixture.cleanupErr)
+	require.True(t, result.Incomplete)
+}
+
+func TestFlowStopsRecordingWhenLaterStepFails(t *testing.T) {
+	fixture := &flowRecordingFixture{Strategy: fakes.New("recorder", strategy.StatusAvailable, strategy.CapScreenRecording)}
+	svc := New(strategyregistry.New(fixture))
+	result, err := svc.Run(context.Background(), Flow{Steps: []Step{{ID: "start", Kind: "recording-start"}, {ID: "fail", Kind: "wait", Preconditions: []Condition{{Kind: "device-unlocked"}}}}}, fixture.ID(), "test")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Equal(t, 1, fixture.stops)
+}
+
+func TestFlowDoesNotRepeatUncertainRecordingStop(t *testing.T) {
+	fixture := &flowRecordingFixture{Strategy: fakes.New("recorder", strategy.StatusAvailable, strategy.CapScreenRecording), stopErr: errors.New("stop uncertain")}
+	svc := New(strategyregistry.New(fixture))
+	result, err := svc.Run(context.Background(), Flow{Steps: []Step{{ID: "start", Kind: "recording-start"}, {ID: "stop", Kind: "recording-stop", Target: "start"}}}, fixture.ID(), "test")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+	require.Equal(t, 1, fixture.stops)
+	require.True(t, svc.externalRecordings["recording-fixture"].Uncertain)
+	require.True(t, result.Incomplete)
+}
 
 func TestFinalizeReviewRecordingRetainsProducerOwnedReviewCopy(t *testing.T) {
 	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())

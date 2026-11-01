@@ -92,6 +92,14 @@ func Verify(ctx context.Context, s Strategy) ConformanceReport {
 			}
 		}
 	}
+	if d.Capabilities[CapScreenControl].Status == StatusAvailable {
+		if _, ok := s.(ScreenController); !ok {
+			r.Failed = append(r.Failed, "screen-control: declared capability without ScreenController")
+		}
+		if _, ok := s.(StateReader); !ok {
+			r.Failed = append(r.Failed, "screen-control: declared capability without StateReader")
+		}
+	}
 	if len(d.Properties) > 0 {
 		if _, ok := s.(StateReader); !ok {
 			r.Failed = append(r.Failed, "state-reader: property-bearing strategy without StateReader")

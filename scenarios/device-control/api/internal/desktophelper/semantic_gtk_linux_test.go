@@ -43,7 +43,7 @@ func TestSignedHelperInsertsUnicodeIntoGTK(t *testing.T) {
 	if probe.Run() != nil {
 		t.Skip("GTK Python fixture unavailable")
 	}
-	directory, err := os.MkdirTemp("", "a11y-")
+	directory, err := os.MkdirTemp("/tmp", "a11y-")
 	require.NoError(t, err)
 	defer os.RemoveAll(directory)
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

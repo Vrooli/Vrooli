@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"device-control/internal/testutil"
 	"encoding/json"
 	"errors"
 	"image"
@@ -101,7 +102,7 @@ func TestDesktopOwnerProxyKeepsGrantInternalAndReleasesLease(t *testing.T) {
 	svc, db := testService(t)
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
-	dir := t.TempDir()
+	dir := testutil.SocketDir(t)
 	require.NoError(t, os.Chmod(dir, 0o700))
 	surface := targetmodel.SurfaceRef{Target: targetmodel.TargetRef{OwnerScenario: "vrooli-bridge", ResourceID: "host", HostNodeID: "host"}, OwnerScenario: "device-control", SurfaceID: "desktop"}
 	config := desktophelper.Config{StateDirectory: dir, GrantStatusFile: filepath.Join(dir, "grants.json")}

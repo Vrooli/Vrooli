@@ -41,11 +41,14 @@ type Process interface {
 }
 
 type commandProcess struct {
-	cmd   *exec.Cmd
-	stdin io.WriteCloser
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stderr cappedBuffer
 }
 
 func (p *commandProcess) Start() error {
+	p.stderr.limit = 2048
+	p.cmd.Stderr = &p.stderr
 	stdin, err := p.cmd.StdinPipe()
 	if err != nil {
 		return err
@@ -68,7 +71,15 @@ func (p *commandProcess) Kill() error {
 	}
 	return p.cmd.Process.Kill()
 }
-func (p *commandProcess) Wait() error { return p.cmd.Wait() }
+func (p *commandProcess) Wait() error {
+	err := p.cmd.Wait()
+	if err != nil {
+		if detail := strings.TrimSpace(p.stderr.buffer.String()); detail != "" {
+			return fmt.Errorf("%w: %s", err, detail)
+		}
+	}
+	return err
+}
 
 type ProcessRunner interface {
 	Start(string, ...string) (Process, error)
@@ -112,9 +123,9 @@ type activeRecording struct {
 	handle         strategy.RecordingHandle
 	process        Process
 	path           string
-	priorStayAwake bool
+	priorStayAwake string
 	priorTimeout   string
-	priorDoze      bool
+	priorDoze      dozeState
 	keepAliveStop  chan struct{}
 	keepAliveDone  chan struct{}
 	screenshotStop chan struct{}
@@ -127,6 +138,7 @@ const recordingScreenOffTimeout = "1800000"
 type recordingScreenshots struct {
 	mu     sync.Mutex
 	frames [][]byte
+	times  []time.Time
 }
 
 type Adapter struct {
@@ -188,7 +200,7 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 		class = strategy.ClaimTransition
 	}
 	id := fmt.Sprintf("android-recording-%d", time.Now().UnixNano())
-	path := "/sdcard/" + id + ".mp4"
+	path := "/data/local/tmp/" + id + ".mp4"
 	priorStayAwake, err := a.readStayAwake(context.Background())
 	if err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("read display keep-awake state: %w", err)
@@ -201,26 +213,26 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 	if err != nil {
 		return strategy.RecordingHandle{}, fmt.Errorf("read doze state: %w", err)
 	}
-	if err := a.setStayAwake(context.Background(), true); err != nil {
-		return strategy.RecordingHandle{}, fmt.Errorf("keep display awake for recording: %w", err)
+	restore := func() error {
+		return errors.Join(a.restoreStayAwake(context.Background(), priorStayAwake), a.setDisplayRetention(context.Background(), priorTimeout, priorDoze))
 	}
-	if err := a.setDisplayRetention(context.Background(), recordingScreenOffTimeout, false); err != nil {
-		_ = a.setStayAwake(context.Background(), priorStayAwake)
-		return strategy.RecordingHandle{}, fmt.Errorf("retain display for recording: %w", err)
+	if err := a.setStayAwake(context.Background(), true); err != nil {
+		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("keep display awake for recording: %w", err), restore())
+	}
+	if err := a.setDisplayRetention(context.Background(), recordingScreenOffTimeout, dozeState{}); err != nil {
+		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("retain display for recording: %w", err), restore())
 	}
 	// Each caller-owned recording is chapter-scoped, so the native encoder has
 	// no artificial thirty-second ceiling. StopRecording sends the encoder its
 	// normal trailer signal before reading the artifact.
+	// The bitrate is a bounded bandwidth setting; actual quality and frame
+	// rate remain device and content dependent.
 	process, err := processRunner.Start("adb", a.args("shell", "screenrecord", "--bit-rate", "1000000", path)...)
 	if err != nil {
-		_ = a.setStayAwake(context.Background(), priorStayAwake)
-		_ = a.setDisplayRetention(context.Background(), priorTimeout, priorDoze)
-		return strategy.RecordingHandle{}, fmt.Errorf("start adb screenrecord: %w", err)
+		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start adb screenrecord: %w", err), restore())
 	}
 	if err := process.Start(); err != nil {
-		_ = a.setStayAwake(context.Background(), priorStayAwake)
-		_ = a.setDisplayRetention(context.Background(), priorTimeout, priorDoze)
-		return strategy.RecordingHandle{}, fmt.Errorf("start screenrecord process: %w", err)
+		return strategy.RecordingHandle{}, errors.Join(fmt.Errorf("start screenrecord process: %w", err), restore())
 	}
 	handle := strategy.RecordingHandle{ID: id, ClaimClass: class, StartedAt: time.Now().UTC()}
 	keepAliveStop := make(chan struct{})
@@ -237,6 +249,7 @@ func (a *Adapter) StartRecording(_ context.Context, class strategy.ClaimClass) (
 }
 
 func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHandle) (artifact strategy.RecordingArtifact, retErr error) {
+	captureElapsed := time.Since(handle.StartedAt)
 	a.recordingMu.Lock()
 	active, ok := a.recordings[handle.ID]
 	if ok {
@@ -246,12 +259,18 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	if !ok {
 		return strategy.RecordingArtifact{}, fmt.Errorf("recording %q is not active", handle.ID)
 	}
+	var stopBackgroundOnce sync.Once
+	stopBackground := func() {
+		stopBackgroundOnce.Do(func() {
+			close(active.keepAliveStop)
+			<-active.keepAliveDone
+			close(active.screenshotStop)
+			<-active.screenshotDone
+		})
+	}
 	defer func() {
-		close(active.keepAliveStop)
-		<-active.keepAliveDone
-		close(active.screenshotStop)
-		<-active.screenshotDone
-		if err := a.setStayAwake(context.Background(), active.priorStayAwake); err != nil {
+		stopBackground()
+		if err := a.restoreStayAwake(context.Background(), active.priorStayAwake); err != nil {
 			restoreErr := fmt.Errorf("restore display keep-awake state: %w", err)
 			if retErr == nil {
 				retErr = restoreErr
@@ -271,7 +290,9 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 	// Ctrl-C sent to the local adb client is not consistently forwarded by
 	// Samsung's wireless transport. Signal the remote encoder first, then
 	// interrupt the host wrapper so the MP4 trailer is closed promptly.
-	_, _ = a.runner.Run(ctx, "adb", a.args("shell", "pkill", "-INT", "screenrecord")...)
+	if err := a.stopOwnedScreenrecord(ctx, active.path); err != nil {
+		retErr = fmt.Errorf("stop owned screenrecord: %w", err)
+	}
 	if err := active.process.Interrupt(); err != nil {
 		_ = active.process.Kill()
 	}
@@ -300,28 +321,73 @@ func (a *Adapter) StopRecording(ctx context.Context, handle strategy.RecordingHa
 		return strategy.RecordingArtifact{}, fmt.Errorf("read screenrecord artifact %q: adb returned zero bytes", active.path)
 	}
 	_, _ = a.runner.Run(ctx, "adb", a.args("shell", "rm", "-f", active.path)...)
+	stopBackground()
 	nativeVisible := nativeVideoVisible(video)
 	method := "native"
+	sampleFPS := 0.0
 	if !nativeVisible {
-		if fallback, fallbackErr := a.encodeScreenshotFallback(active.screenshots); fallbackErr == nil {
+		if fallback, count, fallbackErr := a.encodeScreenshotFallback(active.screenshots, handle.StartedAt, captureElapsed); fallbackErr == nil {
 			video = fallback
 			method = "screenshot-fallback"
+			if elapsed := captureElapsed.Seconds(); elapsed > 0 {
+				sampleFPS = float64(count) / elapsed
+			}
 		}
 	}
-	duration := time.Since(handle.StartedAt)
-	return strategy.RecordingArtifact{Bytes: video, Method: method, ClaimClass: handle.ClaimClass, Duration: duration, EffectiveFPS: 30}, nil
+	return strategy.RecordingArtifact{Bytes: video, Method: method, ClaimClass: handle.ClaimClass, Duration: captureElapsed, EffectiveFPS: sampleFPS}, retErr
 }
 
-func (a *Adapter) readStayAwake(ctx context.Context) (bool, error) {
-	out, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "power")...)
+// stopOwnedScreenrecord signals only the encoder whose complete argument list
+// ends in this recording's unique path. Ambiguity is not authority to stop
+// another session's encoder.
+func (a *Adapter) stopOwnedScreenrecord(ctx context.Context, path string) error {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "ps", "-A", "-o", "PID,ARGS")...)
 	if err != nil {
-		return false, err
+		return fmt.Errorf("inspect encoder processes: %w", err)
 	}
-	match := regexp.MustCompile(`(?m)^\s*mStayOn=(true|false)\s*$`).FindStringSubmatch(string(out))
-	if len(match) != 2 {
-		return false, fmt.Errorf("dumpsys power did not report mStayOn")
+	var pid string
+	for _, line := range strings.Split(string(out), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 || fields[len(fields)-1] != path || (fields[1] != "screenrecord" && fields[1] != "/system/bin/screenrecord") {
+			continue
+		}
+		n, parseErr := strconv.ParseUint(fields[0], 10, 31)
+		if parseErr != nil || n == 0 || pid != "" {
+			return errors.New("ambiguous encoder process identity")
+		}
+		pid = fields[0]
 	}
-	return match[1] == "true", nil
+	if pid == "" {
+		return errors.New("owned encoder process not found")
+	}
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "kill", "-INT", pid)...); err != nil {
+		return fmt.Errorf("signal owned encoder: %w", err)
+	}
+	return nil
+}
+
+func (a *Adapter) readStayAwake(ctx context.Context) (string, error) {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "get", "global", "stay_on_while_plugged_in")...)
+	if err != nil {
+		return "", err
+	}
+	value := strings.TrimSpace(string(out))
+	if value != "null" {
+		if _, err := strconv.ParseUint(value, 10, 31); err != nil {
+			return "", errors.New("invalid stay-awake setting")
+		}
+	}
+	return value, nil
+}
+
+func (a *Adapter) restoreStayAwake(ctx context.Context, value string) error {
+	operation := "put"
+	args := []string{"shell", "settings", operation, "global", "stay_on_while_plugged_in", value}
+	if value == "null" {
+		args = []string{"shell", "settings", "delete", "global", "stay_on_while_plugged_in"}
+	}
+	_, err := a.runner.Run(ctx, "adb", a.args(args...)...)
+	return err
 }
 
 func (a *Adapter) setStayAwake(ctx context.Context, enabled bool) error {
@@ -341,40 +407,61 @@ func (a *Adapter) readScreenOffTimeout(ctx context.Context) (string, error) {
 		}
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
-}
-
-func (a *Adapter) readDozeEnabled(ctx context.Context) (bool, error) {
-	out, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "deviceidle")...)
-	if err != nil {
-		return false, err
-	}
-	text := string(out)
-	for _, key := range []string{"mDeepEnabled", "mLightEnabled"} {
-		if match := regexp.MustCompile(key + `=(true|false)`).FindStringSubmatch(text); len(match) == 2 {
-			return match[1] == "true", nil
+	value := strings.TrimSpace(string(out))
+	if value != "null" {
+		if _, err := strconv.ParseUint(value, 10, 31); err != nil {
+			return "", errors.New("invalid screen-off timeout setting")
 		}
 	}
-	return false, errors.New("dumpsys deviceidle did not report an enabled state")
+	return value, nil
 }
 
-func (a *Adapter) setDisplayRetention(ctx context.Context, timeout string, dozeEnabled bool) error {
+type dozeState struct{ deep, light bool }
+
+func (a *Adapter) readDozeEnabled(ctx context.Context) (dozeState, error) {
+	out, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "deviceidle")...)
+	if err != nil {
+		return dozeState{}, err
+	}
+	var state dozeState
+	for _, field := range []struct {
+		key string
+		dst *bool
+	}{{"mDeepEnabled", &state.deep}, {"mLightEnabled", &state.light}} {
+		match := regexp.MustCompile(field.key + `=(true|false)`).FindStringSubmatch(string(out))
+		if len(match) != 2 {
+			return dozeState{}, fmt.Errorf("device idle did not report %s", field.key)
+		}
+		*field.dst = match[1] == "true"
+	}
+	return state, nil
+}
+
+func (a *Adapter) setDisplayRetention(ctx context.Context, timeout string, doze dozeState) error {
 	if strings.TrimSpace(timeout) == "" {
 		return errors.New("screen-off timeout is empty")
 	}
-	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "system", "screen_off_timeout", timeout)...); err != nil {
-		return err
+	var result error
+	args := []string{"shell", "settings", "put", "system", "screen_off_timeout", timeout}
+	if timeout == "null" {
+		args = []string{"shell", "settings", "delete", "system", "screen_off_timeout"}
 	}
-	return a.setDoze(ctx, dozeEnabled)
-}
-
-func (a *Adapter) setDoze(ctx context.Context, enabled bool) error {
-	command := "disable"
-	if enabled {
-		command = "enable"
+	if _, err := a.runner.Run(ctx, "adb", a.args(args...)...); err != nil {
+		result = errors.Join(result, err)
 	}
-	_, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "deviceidle", command)...)
-	return err
+	for _, mode := range []struct {
+		name    string
+		enabled bool
+	}{{"deep", doze.deep}, {"light", doze.light}} {
+		action := "disable"
+		if mode.enabled {
+			action = "enable"
+		}
+		if _, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "deviceidle", action, mode.name)...); err != nil {
+			result = errors.Join(result, err)
+		}
+	}
+	return result
 }
 
 // keepDisplayAwake refreshes the non-input stay-awake setting while a native
@@ -414,6 +501,7 @@ func (a *Adapter) captureDisplaySamples(stop <-chan struct{}, done chan<- struct
 		}
 		samples.mu.Lock()
 		samples.frames = append(samples.frames, append([]byte(nil), frame...))
+		samples.times = append(samples.times, time.Now())
 		samples.mu.Unlock()
 	}
 	capture()
@@ -518,7 +606,7 @@ func nativeVideoVisible(raw []byte) bool {
 	}
 	averages := androidVideoLumaPattern.FindAllStringSubmatch(string(out), -1)
 	maximums := androidVideoMaxLumaPattern.FindAllStringSubmatch(string(out), -1)
-	if len(averages) == 0 || len(averages) != len(maximums) {
+	if len(averages) < 2 || len(averages) != len(maximums) {
 		return false
 	}
 	var average float64
@@ -540,40 +628,61 @@ func nativeVideoVisible(raw []byte) bool {
 	return average/float64(len(averages)) > 18 || maximum > 32
 }
 
-func (a *Adapter) encodeScreenshotFallback(samples *recordingScreenshots) ([]byte, error) {
+func (a *Adapter) encodeScreenshotFallback(samples *recordingScreenshots, started time.Time, elapsed time.Duration) ([]byte, int, error) {
 	samples.mu.Lock()
 	frames := append([][]byte(nil), samples.frames...)
+	times := append([]time.Time(nil), samples.times...)
 	samples.mu.Unlock()
-	if len(frames) == 0 {
-		return nil, fmt.Errorf("no visible screenshot frames were captured")
+	if len(frames) != len(times) || elapsed <= 0 {
+		return nil, 0, errors.New("screenshot timing is unavailable")
+	}
+	end := started.Add(elapsed)
+	for len(times) > 0 && times[len(times)-1].After(end) {
+		times, frames = times[:len(times)-1], frames[:len(frames)-1]
+	}
+	if len(frames) < 2 {
+		return nil, 0, fmt.Errorf("fewer than two visible screenshot frames were captured")
 	}
 	dir, err := os.MkdirTemp("", "device-control-recording-fallback-")
 	if err != nil {
-		return nil, fmt.Errorf("create screenshot fallback workspace: %w", err)
+		return nil, 0, fmt.Errorf("create screenshot fallback workspace: %w", err)
 	}
 	defer os.RemoveAll(dir)
+	var manifest strings.Builder
+	manifest.WriteString("ffconcat version 1.0\n")
 	for i, frame := range frames {
 		path := filepath.Join(dir, fmt.Sprintf("frame-%04d.png", i))
 		if err := os.WriteFile(path, frame, 0o600); err != nil {
-			return nil, fmt.Errorf("write screenshot fallback frame: %w", err)
+			return nil, 0, fmt.Errorf("write screenshot fallback frame: %w", err)
 		}
+		begin := times[i]
+		if i == 0 {
+			begin = started
+		}
+		finish := end
+		if i+1 < len(times) {
+			finish = times[i+1]
+		}
+		if !finish.After(begin) {
+			return nil, 0, errors.New("screenshot timestamps are not ordered")
+		}
+		fmt.Fprintf(&manifest, "file 'frame-%04d.png'\nduration %.6f\n", i, finish.Sub(begin).Seconds())
+	}
+	fmt.Fprintf(&manifest, "file 'frame-%04d.png'\n", len(frames)-1)
+	manifestPath := filepath.Join(dir, "frames.ffconcat")
+	if err := os.WriteFile(manifestPath, []byte(manifest.String()), 0o600); err != nil {
+		return nil, 0, fmt.Errorf("write screenshot timing: %w", err)
 	}
 	outputPath := filepath.Join(dir, "recording.mp4")
-	args := []string{"-y", "-loglevel", "error"}
-	if len(frames) == 1 {
-		args = append(args, "-loop", "1", "-i", filepath.Join(dir, "frame-0000.png"), "-t", "2")
-	} else {
-		args = append(args, "-framerate", "2", "-i", filepath.Join(dir, "frame-%04d.png"))
-	}
-	args = append(args, "-c:v", "libx264", "-r", "15", "-pix_fmt", "yuv420p", outputPath)
+	args := []string{"-y", "-loglevel", "error", "-f", "concat", "-safe", "1", "-i", manifestPath, "-t", strconv.FormatFloat(elapsed.Seconds(), 'f', 6, 64), "-c:v", "libx264", "-r", "15", "-pix_fmt", "yuv420p", outputPath}
 	if output, err := exec.Command("ffmpeg", args...).CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("encode screenshot fallback: %w (%s)", err, strings.TrimSpace(string(output)))
+		return nil, 0, fmt.Errorf("encode screenshot fallback: %w (%s)", err, strings.TrimSpace(string(output)))
 	}
 	encoded, err := os.ReadFile(outputPath)
 	if err != nil {
-		return nil, fmt.Errorf("read screenshot fallback: %w", err)
+		return nil, 0, fmt.Errorf("read screenshot fallback: %w", err)
 	}
-	return encoded, nil
+	return encoded, len(frames), nil
 }
 
 func (a *Adapter) WirelessEndpoint() string { return a.endpoint }
@@ -598,8 +707,13 @@ func (a *Adapter) ReconnectWireless(ctx context.Context) error {
 			continue
 		}
 		seen[endpoint] = true
-		if _, err := a.runner.Run(ctx, "adb", "connect", endpoint); err != nil {
+		out, err := a.runner.Run(ctx, "adb", "connect", endpoint)
+		if err != nil {
 			lastErr = fmt.Errorf("connect wireless endpoint: %w", err)
+			continue
+		}
+		if adbConnectFailed(out) {
+			lastErr = fmt.Errorf("connect wireless endpoint %s: %s", endpoint, boundedDiagnostic(out))
 			continue
 		}
 		if err := a.waitForDevice(ctx, endpoint); err != nil {
@@ -706,40 +820,38 @@ func (a *Adapter) PromoteWireless(ctx context.Context) error {
 	if _, err := a.runner.Run(ctx, "adb", a.args("tcpip", wirelessADBPort)...); err != nil {
 		return fmt.Errorf("enable adb tcpip mode: %w", err)
 	}
-	if _, err := a.runner.Run(ctx, "adb", "connect", address+":"+wirelessADBPort); err != nil {
-		return fmt.Errorf("connect wireless adb: %w", err)
-	}
 	endpoint := address + ":" + wirelessADBPort
-	// `adb get-serialno` reports the network endpoint for a wireless target,
-	// not the hardware identity. Read the device property over the verified
-	// endpoint so the stable inventory identity remains tied to the handset.
-	var serialCheck []byte
-	for attempt := 0; attempt < 5; attempt++ {
-		serialCheck, err = a.runner.Run(ctx, "adb", "-s", endpoint, "shell", "getprop", "ro.serialno")
-		if err == nil && strings.TrimSpace(string(serialCheck)) == a.identitySerial {
+	// adbd restarts asynchronously; retry connection failures until the new
+	// listener exists. A successful USB transport is never proof that this
+	// particular network endpoint is connected to the same hardware.
+	var connectErr error
+	for attempt := 0; attempt < 20; attempt++ {
+		var output []byte
+		output, connectErr = a.runner.Run(ctx, "adb", "connect", endpoint)
+		if connectErr == nil && !adbConnectFailed(output) {
 			break
 		}
-		if attempt < 4 {
-			time.Sleep(250 * time.Millisecond)
+		if connectErr == nil {
+			connectErr = fmt.Errorf("%s", boundedDiagnostic(output))
+		}
+		if attempt < 19 {
+			timer := time.NewTimer(250 * time.Millisecond)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			}
 		}
 	}
-	if err != nil || strings.TrimSpace(string(serialCheck)) != a.identitySerial {
-		return fmt.Errorf("wireless adb identity mismatch: expected serial %q, got %q", a.identitySerial, strings.TrimSpace(string(serialCheck)))
+	if connectErr != nil {
+		return fmt.Errorf("connect wireless adb: %w", connectErr)
 	}
-	devices, err := a.runner.Run(ctx, "adb", "devices", "-l")
-	if err != nil {
-		return fmt.Errorf("verify wireless adb identity: %w", err)
+	if err := a.waitForDevice(ctx, endpoint); err != nil {
+		return err
 	}
-	matched := false
-	for _, line := range strings.Split(string(devices), "\n") {
-		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[1] == "device" && (fields[0] == endpoint || fields[0] == a.identitySerial) {
-			matched = true
-			break
-		}
-	}
-	if !matched {
-		return fmt.Errorf("wireless adb identity mismatch: expected serial %q", a.serial)
+	if err := a.verifyWirelessEndpoint(ctx, endpoint); err != nil {
+		return err
 	}
 	a.endpoint = endpoint
 	a.transport = "wireless"
@@ -798,6 +910,16 @@ func (a *Adapter) endpointTransportState(ctx context.Context, endpoint string) (
 // verified endpoint so the durable identity is the device, never the network
 // address. The receiver becomes endpoint-bound and the verified Device is
 // returned for the caller to persist as the device's transport strategy.
+func adbConnectFailed(out []byte) bool {
+	message := strings.ToLower(string(out))
+	for _, failure := range []string{"cannot connect", "failed to connect", "unable to connect", "failed to authenticate"} {
+		if strings.Contains(message, failure) {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *Adapter) ConnectNetwork(ctx context.Context, endpoint string) (strategy.Device, error) {
 	endpoint = strings.TrimSpace(endpoint)
 	if err := validateADBEndpoint(endpoint); err != nil {
@@ -805,7 +927,7 @@ func (a *Adapter) ConnectNetwork(ctx context.Context, endpoint string) (strategy
 	}
 	if out, err := a.runner.Run(ctx, "adb", "connect", endpoint); err != nil {
 		return strategy.Device{}, fmt.Errorf("connect adb endpoint %q: %w: %s", endpoint, err, strings.TrimSpace(string(out)))
-	} else if o := strings.ToLower(string(out)); strings.Contains(o, "cannot connect") || strings.Contains(o, "failed to connect") {
+	} else if adbConnectFailed(out) {
 		return strategy.Device{}, fmt.Errorf("connect adb endpoint %q: %s", endpoint, strings.TrimSpace(string(out)))
 	}
 	if _, err := a.runner.Run(ctx, "adb", "-s", endpoint, "wait-for-device"); err != nil {
@@ -1174,6 +1296,38 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 	return devices, nil
 }
 
+func (a *Adapter) DescribePerformance(ctx context.Context) (strategy.Declaration, error) {
+	return a.DescribeCapture(ctx, "performance")
+}
+
+func (a *Adapter) DescribeCapture(ctx context.Context, kind string) (strategy.Declaration, error) {
+	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "Android phones and emulators through ADB", []string{"linux", "darwin", "windows"}); ok {
+		return unsupported, nil
+	}
+	if ok, next := a.connected(ctx); !ok {
+		return strategy.WithSupportedHostOS(unavailable(next), "linux", "darwin", "windows"), nil
+	}
+	caps := map[string]strategy.Capability{}
+	switch kind {
+	case "performance":
+		_, err := a.runner.Run(ctx, "adb", a.args("shell", "dumpsys", "SurfaceFlinger", "--list")...)
+		caps[strategy.CapAppLifecycle] = strategy.ProbeCapability(strategy.CapAppLifecycle, err == nil, "Android performance diagnostics are unavailable", "Check device diagnostics access", "adb shell dumpsys SurfaceFlinger --list")
+	case "screenshot":
+		available, next := a.probeScreenshot(ctx)
+		caps[strategy.CapScreenshot] = strategy.ProbeCapability(strategy.CapScreenshot, available, next, next, "adb exec-out screencap -p")
+	case "recording":
+		_, err := a.runner.Run(ctx, "adb", a.args("shell", "screenrecord", "--help")...)
+		caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, err == nil, "adb screenrecord is unavailable", "Install a device image with screenrecord support", "adb shell screenrecord --help")
+		caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
+	case "logs":
+		_, err := a.runner.Run(ctx, "adb", a.args("logcat", "-d", "-t", "1")...)
+		caps[strategy.CapDeviceLogs] = strategy.ProbeCapability(strategy.CapDeviceLogs, err == nil, "logcat is unavailable", "Check device log access", "adb logcat -d -t 1")
+	default:
+		return strategy.Declaration{}, fmt.Errorf("unsupported capture modality %q", kind)
+	}
+	return strategy.WithSupportedHostOS(strategy.Declaration{StrategyID: a.ID(), Status: strategy.StatusAvailable, Capabilities: caps}, "linux", "darwin", "windows"), nil
+}
+
 func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "Android phones and emulators through ADB", []string{"linux", "darwin", "windows"}); ok {
 		return unsupported, nil
@@ -1224,6 +1378,9 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		_, err := a.runner.Run(ctx, "adb", a.args(probe.args...)...)
 		caps[probe.name] = strategy.ProbeCapability(probe.name, err == nil, probe.next, probe.next, "adb "+strings.Join(probe.args, " "))
 	}
+	screenCap := caps[strategy.CapInput]
+	screenCap.Name = strategy.CapScreenControl
+	caps[strategy.CapScreenControl] = screenCap
 	_, recordingErr := a.runner.Run(ctx, "adb", a.args("shell", "screenrecord", "--help")...)
 	caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, recordingErr == nil, "adb screenrecord is unavailable on this device image", "Install a device image with screenrecord support", "adb shell screenrecord --help")
 	caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
@@ -1764,6 +1921,54 @@ func (a *Adapter) ResolveSemantic(ctx context.Context, target string) (strategy.
 	}, nil
 }
 
+func (a *Adapter) GoHome(ctx context.Context) error {
+	_, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_HOME")...)
+	return err
+}
+
+func (a *Adapter) ReadApplicationLogs(ctx context.Context, pkg string) ([]byte, error) {
+	if len(pkg) > 256 || !applicationIdentityPattern.MatchString(pkg) {
+		return nil, fmt.Errorf("application logs require one exact package identity")
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	pid, err := a.runner.Run(probeCtx, "adb", a.args("shell", "pidof", pkg)...)
+	if err != nil {
+		return nil, &strategy.EvidenceUnavailableError{Reason: "application process could not be located; no conclusion about its logs"}
+	}
+	fields := strings.Fields(string(pid))
+	if len(fields) != 1 {
+		return nil, &strategy.EvidenceUnavailableError{Reason: "application process identity is unavailable or ambiguous"}
+	}
+	if _, err := strconv.ParseUint(fields[0], 10, 32); err != nil {
+		return nil, fmt.Errorf("application process identity is invalid")
+	}
+	bounded, ok := a.runner.(boundedRunner)
+	if !ok {
+		return nil, fmt.Errorf("bounded application log reading is unavailable")
+	}
+	return bounded.RunBounded(probeCtx, "adb", 256*1024, a.args("logcat", "-d", "-v", "epoch", "-t", "500", "--pid", fields[0])...)
+}
+
+func (a *Adapter) DismissKeyguard(ctx context.Context) error {
+	_, err := a.runner.Run(ctx, "adb", a.args("shell", "wm", "dismiss-keyguard")...)
+	return err
+}
+
+func (a *Adapter) SetScreenState(ctx context.Context, state string) error {
+	var key string
+	switch state {
+	case "on":
+		key = "KEYCODE_WAKEUP"
+	case "off":
+		key = "KEYCODE_SLEEP"
+	default:
+		return fmt.Errorf("screen state must be on or off")
+	}
+	_, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", key)...)
+	return err
+}
+
 func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 	if event.Pointer != nil {
 		x, y, err := a.pointerPixels(ctx, event.Pointer)
@@ -1939,11 +2144,9 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 		case "screen":
 			switch strings.ToLower(strings.TrimSpace(event.Value)) {
 			case "wake":
-				_, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_WAKEUP")...)
-				return err
+				return a.SetScreenState(ctx, "on")
 			case "sleep":
-				_, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_SLEEP")...)
-				return err
+				return a.SetScreenState(ctx, "off")
 			case "unlock":
 				_, err := a.runner.Run(ctx, "adb", a.args("shell", "input", "keyevent", "KEYCODE_WAKEUP")...)
 				if err != nil {
@@ -2143,6 +2346,9 @@ func (a *Adapter) AppLifecycle(ctx context.Context, request strategy.AppLifecycl
 	}
 	if operation == "app-status" {
 		return a.applicationStatus(ctx, request.Package)
+	}
+	if operation == "performance-state" {
+		return a.performanceState(ctx, request.Package)
 	}
 	if operation == "package-enabled-set" {
 		return a.setPackageEnabled(ctx, request)

@@ -19,7 +19,10 @@ const app = createScenarioServer({
     expressApp.use(applicationProxy.router)
     expressApp.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) return next()
-      proxyToApi(req, res, req.originalUrl || req.url, { apiPort }).catch(next)
+      // Lifecycle operations can legitimately take longer than ordinary reads.
+      // A transport timeout leaves their outcome unknown; callers must refresh.
+      const timeout = req.path === '/vrooli.portal.v1.surfaces.ApplicationLifecycleService/Act' ? 190000 : undefined
+      proxyToApi(req, res, req.originalUrl || req.url, { apiPort, timeout }).catch(next)
     })
   },
 })

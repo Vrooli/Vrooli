@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"device-control/internal/testutil"
 	"errors"
 	"net"
 	"path/filepath"
@@ -21,7 +22,7 @@ func desktopPeer(t *testing.T) *net.UnixConn {
 	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
 		t.Skip("Unix peer credential acceptance requires Linux or macOS")
 	}
-	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(t.TempDir(), "peer.sock"), Net: "unix"})
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(testutil.SocketDir(t), "peer.sock"), Net: "unix"})
 	require.NoError(t, err)
 	t.Cleanup(func() { listener.Close() })
 	peer, err := net.DialUnix("unix", nil, listener.Addr().(*net.UnixAddr))

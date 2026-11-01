@@ -145,25 +145,12 @@ def step_classify():  # CLASSIFY · every reading is count or filter in the kern
         digest = friction[0] if friction else {}
         digest_signals = digest.get("signals") or {}
         recurring = digest_signals.get("recurring_count")
-        owner_confidence = digest_signals.get("owner_confidence") or {}
         quality_causes = []
         if digest.get("status") != "ok":
             quality_causes.append("child_status_" + str(digest.get("status") or "missing"))
         if recurring is None:
             quality_causes.append("missing_recurring_count")
-        if digest_signals.get("window_truncated_by_run_limit"):
-            quality_causes.append("window_truncated_by_run_limit")
-        if digest_signals.get("episode_reads_failed"):
-            quality_causes.append("episode_reads_failed")
-        if digest_signals.get("runs_unparseable_timestamp"):
-            quality_causes.append("runs_unparseable_timestamp")
-        if owner_confidence.get("unknown"):
-            quality_causes.append("owner_confidence_unknown")
-        valid = (digest.get("status") == "ok" and recurring is not None
-                 and not digest_signals.get("window_truncated_by_run_limit")
-                 and not digest_signals.get("episode_reads_failed")
-                 and not digest_signals.get("runs_unparseable_timestamp")
-                 and not owner_confidence.get("unknown"))
+        valid = digest.get("status") == "ok" and recurring is not None
         envelope["signals"]["source_details"]["external-friction"] = {
             "child_reference": {
                 "program": child_meta.get("program") or digest.get("program") or "agent-manager.friction-digest",

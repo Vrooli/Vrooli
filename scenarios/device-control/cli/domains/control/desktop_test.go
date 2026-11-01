@@ -19,8 +19,16 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/desktop/desktopv1connect"
 )
 
+func shortSocketDir(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "dc-cli-sock-")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}
+
 func TestDesktopCLIAccountAuthorityNeverFallsBack(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortSocketDir(t)
 	socket := filepath.Join(dir, "owner.sock")
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
@@ -72,7 +80,7 @@ func (desktopCLIObserver) Observe(context.Context, *connectrpc.Request[desktopv1
 }
 
 func TestDesktopCLIUsesUnixOwnerAndPrivateExplicitImageOutput(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortSocketDir(t)
 	socket := filepath.Join(dir, "owner.sock")
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
@@ -125,7 +133,7 @@ func (desktopCLIObserver) Resolve(_ context.Context, r *connectrpc.Request[deskt
 }
 
 func TestDesktopCLIDiscoveryAndResolutionPreserveReferencesAndAmbiguity(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortSocketDir(t)
 	socket := filepath.Join(dir, "owner.sock")
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
@@ -169,7 +177,7 @@ func (desktopCLIObserver) RunSavedFlow(_ context.Context, r *connectrpc.Request[
 }
 
 func TestDesktopCLISavedRevisionRequests(t *testing.T) {
-	dir := t.TempDir()
+	dir := shortSocketDir(t)
 	socket := filepath.Join(dir, "owner.sock")
 	listener, err := net.Listen("unix", socket)
 	require.NoError(t, err)
@@ -228,7 +236,7 @@ func (cleanupCLIHandler) ReadCleanup(_ context.Context, r *connectrpc.Request[de
 func TestDesktopCLIReadCleanupPreservesUnknownAndSelectedAuthority(t *testing.T) {
 	for _, account := range []bool{false, true} {
 		t.Run(fmt.Sprint(account), func(t *testing.T) {
-			dir := t.TempDir()
+			dir := shortSocketDir(t)
 			socket := filepath.Join(dir, "owner.sock")
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)
@@ -280,7 +288,7 @@ func (cleanupCLIHandler) ListAdmissions(_ context.Context, r *connectrpc.Request
 func TestDesktopCLIListAdmissionsPreservesCursorAndSelectedAuthority(t *testing.T) {
 	for _, account := range []bool{false, true} {
 		t.Run(fmt.Sprint(account), func(t *testing.T) {
-			dir := t.TempDir()
+			dir := shortSocketDir(t)
 			socket := filepath.Join(dir, "owner.sock")
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)
@@ -330,7 +338,7 @@ func (cleanupCLIHandler) ReconcileOpen(_ context.Context, r *connectrpc.Request[
 func TestDesktopCLIReconcileOpenPreservesRequestAndSelectedAuthority(t *testing.T) {
 	for _, account := range []bool{false, true} {
 		t.Run(fmt.Sprint(account), func(t *testing.T) {
-			dir := t.TempDir()
+			dir := shortSocketDir(t)
 			socket := filepath.Join(dir, "owner.sock")
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)
@@ -387,7 +395,7 @@ func (cleanupCLIHandler) ReadActivation(_ context.Context, r *connectrpc.Request
 func TestDesktopCLIActivationUsesExplicitAuthorityWithoutReplay(t *testing.T) {
 	for _, account := range []bool{false, true} {
 		t.Run(fmt.Sprint(account), func(t *testing.T) {
-			dir := t.TempDir()
+			dir := shortSocketDir(t)
 			socket := filepath.Join(dir, "o.sock")
 			listener, err := net.Listen("unix", socket)
 			require.NoError(t, err)

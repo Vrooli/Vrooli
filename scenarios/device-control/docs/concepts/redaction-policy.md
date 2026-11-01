@@ -13,11 +13,11 @@ producer transform. The default is `false`; a capture with no transform records
 `redaction_verified: false`, `redaction_not_requested`, and
 `content_classification_not_performed`.
 
-For images, the current transform masks the status-bar band when enabled and any
-sensitive regions explicitly supplied by the flow. It does not scan or classify
-the rest of the screen. Text captures apply configured credential and
-six-digit-code patterns. Video captures mask the status-bar band. Unsupported
-formats or a failed requested transform are refused.
+For images, the transform masks only sensitive regions explicitly supplied by
+the flow. It does not scan or classify the rest of the screen. A request without
+valid regions is refused. Text captures apply configured credential and
+six-digit-code patterns. Automatic video redaction is unavailable; a requested
+video transform is refused rather than claiming the video was protected.
 
 `redaction_verified: true` means only that the declared transform completed. It
 does not mean the content was semantically classified or found free of personal

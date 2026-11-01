@@ -566,6 +566,47 @@ build checks pass; earlier broad Device Control unit failures remain unresolved.
 
 ## Standby repair target — 22 October 2026
 
+### Binding diagnosis — 31 October 2026
+
+The TV was on boot 68 while the override had last acknowledged boot 67. Android
+reported the service configured and enabled, with a bind pending but no live
+binding; app-owned status likewise reported requested and allowed, disconnected,
+and no app-requested pause. The foreground activity was Google TV. The three
+retained process exits were signal terminations; this does not identify their
+sender or establish a Java crash. Recent bounded ActivityManager and
+AccessibilityManagerService logs contained no matching component lines, so they
+do not explain the pending binding. Device Control run
+`fcbeb7c9-bc5d-4da9-9f8f-b31b1fe7c5fd` retains those sanitized summaries.
+
+Daily 0.4.13 adds a pause action even when disconnected and records the last
+service lifecycle callback, its timestamp, and the last connected boot in the
+shell-only status provider. These fields help diagnose later disconnects; they
+do not prove why Android failed to bind or repair reboot persistence. An app
+update can itself cause Android to rebind, so recovery immediately after an
+update is not evidence that the underlying reboot problem is fixed.
+The signed 0.4.13 update was installed in place on boot 68; Device Control
+then observed the service connected and foreground, `home.connected_boot=68`,
+and Vrooli Home as both resumed activity and focused window. This is update
+recovery, not a reboot qualification. The app's stored data was preserved.
+
+The subsequent physical restart advanced the TV to boot 69 and reproduced the
+failure: Google TV's profile chooser appeared, and Android reported the service
+enabled but still binding. Selecting the highlighted profile and launching
+Vrooli manually opened the launcher, but `home.connected` remained false and
+`home.connected_boot` remained 68. Reinstalling the same 0.4.13 artifact did
+not restore binding on boot 69. The service has therefore not passed reboot
+qualification. Device Control restart run: `26276a13-9413-4409-8c1c-05373121869f`.
+An in-place update to the same source at 0.4.14 (code 32) and an exact
+disable/re-enable of the previously configured accessibility service also
+left the binding pending. The original service setting was restored. Vrooli
+was opened manually; that is usable as an app but does not make Home routing
+effective. No stock launcher package was disabled.
+
+Current [Android platform source](https://android.googlesource.com/platform/frameworks/base/+/7243dc6c19f9ca8999fe0a124aa294cd4e68877a/services/accessibility/java/com/android/server/accessibility/AccessibilityUserState.java)
+explicitly accounts for services that can remain stuck in the binding state.
+This is consistent with the observed symptom, but the TV runs a vendor Android
+11 build and the newer source does not establish its exact root cause.
+
 Active-user runtime evidence marks the enabled override as disconnected/crashed.
 The newest application exit is signal termination, not a recorded Java exception;
 the sender and precise kill policy remain unknown. Use Android's standard
@@ -729,6 +770,20 @@ The existing Home/Portal design, no generated substitute branding, shared gatewa
 and owner boundaries remain in force.
 
 ## Build and iterate on the native launcher
+
+### TV app lifecycle target
+
+The Vrooli app menu should offer Start, Restart and Stop, and an unavailable app
+should offer Start. These actions must invoke the control-plane lifecycle for a
+known catalogue identity and show the observed result, including an unknown
+outcome if the connection drops. Discovery remains read-only. The request must
+carry the actual authenticated operator's authority to the operation boundary;
+LAN address, a launcher cookie, and the Portal server's own account are not
+operator identity. The current HTTP LAN fallback provides neither authenticated
+server identity nor confidentiality, so it cannot carry an operator password or
+bearer token. Native account sign-in and lifecycle requests need a verified
+HTTPS origin or an existing authenticated paired transport. Do not silently
+start an app as a side effect of loading its catalogue entry or proxy target.
 
 The source belongs to Portal. Scenario to Android owns source snapshots, Gradle,
 profile projection, signing and retained APK/AAB bytes. Device Control owns

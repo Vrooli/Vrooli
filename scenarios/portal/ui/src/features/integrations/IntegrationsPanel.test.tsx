@@ -60,6 +60,13 @@ describe("IntegrationsPanel deployment profile setup", () => {
     );
   });
 
+  it("names the save button by its own text, not the profile status beside it", () => {
+    renderPanel();
+    expect(screen.getByTestId(selectors.integrations.deploymentProfileSave)).toHaveAccessibleName(
+      strings.integrations.settings.saveProfile,
+    );
+  });
+
   it("refuses an endpoint containing credentials", () => {
     renderPanel();
     fireEvent.change(screen.getByTestId(selectors.integrations.deploymentEndpointInput), {

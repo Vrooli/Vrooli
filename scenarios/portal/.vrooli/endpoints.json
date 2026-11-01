@@ -325,6 +325,38 @@
       "category": "surfaces"
     },
     {
+      "id": "applications_lifecycle",
+      "path": "/vrooli.portal.v1.surfaces.ApplicationLifecycleService/Act",
+      "method": "POST",
+      "summary": "Run an operator-authorized application action",
+      "description": "Run an explicit lifecycle action through the control plane.",
+      "category": "surfaces"
+    },
+    {
+      "id": "application_icon",
+      "path": "/api/v1/applications/{scenario}/icon",
+      "method": "GET",
+      "summary": "Read applied application artwork",
+      "description": "Read only the bounded applied public PNG for an existing scenario.",
+      "category": "surfaces",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Browser-native PNG artwork is consumed directly by image clients."
+      }
+    },
+    {
+      "id": "application_proxy_target",
+      "path": "/api/v1/applications/{scenario}/proxy-target",
+      "method": "GET",
+      "summary": "Resolve an application gateway target",
+      "description": "Discover numeric ports for a known running application; never starts it.",
+      "category": "surfaces",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "The shared application gateway consumes this JSON target contract."
+      }
+    },
+    {
       "id": "desktop_reconcile_open",
       "path": "/vrooli.portal.v1.surfaces.DesktopSessionService/ReconcileOpen",
       "method": "POST",

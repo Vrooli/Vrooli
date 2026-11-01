@@ -72,6 +72,22 @@
           }
         },
         {
+          "name": "capture",
+          "description": "Capture available device evidence or report an observation gap",
+          "positionals": [{"name": "id", "required": true}],
+          "flags": [{"name": "kind", "required": true}, {"name": "seconds", "default": "5"}, {"name": "package"}, {"name": "actor"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
+          "name": "screen",
+          "description": "Wake, sleep, or prepare a device and verify its reported state",
+          "positionals": [{"name": "id", "required": true}],
+          "flags": [{"name": "operation", "required": true}, {"name": "auth-profile"}, {"name": "home", "type": "bool"}, {"name": "actor"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+        },
+        {
           "name": "volume",
           "description": "Execute a semantic volume operation with owned lease and honest verification",
           "positionals": [
@@ -339,7 +355,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["device-control device state"]}}
         },
         {
           "name": "describe",
@@ -523,7 +540,7 @@
         },
         {
           "name": "observe",
-          "description": "Capture a redacted still frame through the existing flow owner",
+          "description": "Capture a still frame through the existing flow owner",
           "positionals": [
             {
               "name": "id",

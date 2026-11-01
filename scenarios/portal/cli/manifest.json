@@ -1407,6 +1407,11 @@
   },
   "omitted": [
     {
+      "service": "ApplicationLifecycleService",
+      "method": "Act",
+      "reason": "TV operator transport. Local CLI lifecycle operations are owned by vrooli scenario start, restart, and stop."
+    },
+    {
       "service": "DesktopSessionService",
       "method": "Open",
       "reason": "Portal browser session transport forwards account authorization to the destination. The native CLI surface is device-control desktop with an explicit owner socket."

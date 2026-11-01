@@ -2,14 +2,11 @@
 
 Authorized local capture follows the existing device lease, evidence access,
 audit, and retention behavior. Images and recordings are unredacted by default.
-Set `redact_sensitive_content: true` on a flow to request the configured
-producer transform; the Device Detail capture panel exposes the same choice as
-an unchecked option.
-
-The current image transform masks the status-bar band and any explicit flow
-regions. Video masks only the status-bar band. Text transforms recognize the
-configured credential and six-digit-code patterns. These transforms do not
-semantically classify the rest of a screen or recording.
+Set `redact_sensitive_content: true` on a flow and provide explicit sensitive
+regions to mask those image areas. The producer does not detect private content,
+and refuses image redaction without valid regions. Automatic video redaction is
+unavailable. Text transforms recognize configured credential and six-digit-code
+patterns. These transforms do not semantically classify screen content.
 
 `redaction_verified` means only that a requested transform completed. With no
 redaction request, metadata records `redaction_verified: false`,

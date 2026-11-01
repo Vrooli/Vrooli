@@ -270,6 +270,47 @@ func TestCheckedPackageSettingCarriesExpectedValueAndConfirmation(t *testing.T) 
 	}
 }
 
+func TestDeviceObserveDefaultsToFullFrame(t *testing.T) {
+	var received struct {
+		Flow struct {
+			Redact bool `json:"redact_sensitive_content"`
+		} `json:"flow"`
+	}
+	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/flows/run" {
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&received); err != nil {
+			t.Fatal(err)
+		}
+		_, _ = w.Write([]byte(`{"disposition":"passed"}`))
+	}))
+	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{Name: "device-control-test", Version: "test", DefaultAPIBase: server.URL, AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var observe cliapp.Command
+	for _, candidate := range Group(core).Subcommands {
+		if candidate.Name == "observe" {
+			observe = candidate
+		}
+	}
+	if observe.RunCtx == nil {
+		t.Fatal("observe command missing")
+	}
+	var out bytes.Buffer
+	ctx, err := cliapp.NewTestRunContextFromArgs(observe.Args, []string{"tv-1", "--actor", "test", "--lease", "test-lease", "--json"}, core, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := observe.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if received.Flow.Redact {
+		t.Fatal("observe should preserve the full frame by default")
+	}
+}
+
 func TestFlowRetainSendsExplicitExpiryAndShowsDeadline(t *testing.T) {
 	server := testutil.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/flows/run1/retained" {

@@ -133,6 +133,228 @@ type flowAuthStrategy struct {
 	restoredStates      []strategy.DeviceState
 }
 
+type screenConditionStrategy struct {
+	*fakes.Strategy
+	state strategy.DeviceState
+}
+
+func (s *screenConditionStrategy) ReadState(context.Context) (strategy.DeviceState, error) {
+	return s.state, nil
+}
+
+func TestScreenOnConditionRequiresPositiveState(t *testing.T) {
+	svc := &Service{}
+	for _, tc := range []struct {
+		state     string
+		wantError bool
+	}{{"on", false}, {"off", true}, {"", true}, {"unknown", true}} {
+		t.Run(fmt.Sprintf("state_%q", tc.state), func(t *testing.T) {
+			adapter := &screenConditionStrategy{Strategy: fakes.New("screen", strategy.StatusAvailable), state: strategy.DeviceState{ScreenState: tc.state}}
+			err := svc.evaluateFlowCondition(context.Background(), adapter, Condition{Kind: "screen-on"}, nil, nil)
+			if tc.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestScreenOffConditionRequiresPositiveState(t *testing.T) {
+	svc := &Service{}
+	for _, tc := range []struct {
+		state     string
+		wantError bool
+	}{{"off", false}, {"on", true}, {"", true}, {"unknown", true}} {
+		t.Run(fmt.Sprintf("state_%q", tc.state), func(t *testing.T) {
+			adapter := &screenConditionStrategy{Strategy: fakes.New("screen", strategy.StatusAvailable), state: strategy.DeviceState{ScreenState: tc.state}}
+			err := svc.evaluateFlowCondition(context.Background(), adapter, Condition{Kind: "screen-off"}, nil, nil)
+			if tc.wantError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestScreenshotDoesNotRunWhenScreenStateUnknown(t *testing.T) {
+	adapter := &screenConditionStrategy{Strategy: fakes.New("screen-fixture", strategy.StatusAvailable, strategy.CapInput, strategy.CapScreenshot), state: strategy.DeviceState{ScreenState: "unknown", LockState: "unlocked"}}
+	svc := New(strategyregistry.New(adapter))
+	result, err := svc.Run(context.Background(), Flow{Steps: []Step{{ID: "capture", Kind: "screenshot"}}}, adapter.ID(), "test")
+	require.NoError(t, err)
+	require.NotEqual(t, "passed", result.Disposition)
+	require.Empty(t, adapter.Calls())
+}
+
+type semanticScreenFixture struct {
+	*fakes.Strategy
+	state  strategy.DeviceState
+	calls  []string
+	ignore bool
+}
+
+type dismissScreenFixture struct {
+	*semanticScreenFixture
+	secure     bool
+	dismissals int
+}
+
+type homeScreenFixture struct {
+	*semanticScreenFixture
+	observed string
+	calls    int
+}
+
+func (s *homeScreenFixture) Inspect(context.Context) (strategy.DeviceInspection, error) {
+	return strategy.DeviceInspection{HomeComponent: "com.example.home/.Main"}, nil
+}
+func (s *homeScreenFixture) GoHome(context.Context) error {
+	s.calls++
+	s.state.ForegroundPackage = s.observed
+	return nil
+}
+
+func TestReadyHomeIsExplicitAndRequiresForegroundEvidence(t *testing.T) {
+	for _, matches := range []bool{true, false} {
+		t.Run(fmt.Sprintf("home_matches_%v", matches), func(t *testing.T) {
+			base := &semanticScreenFixture{Strategy: fakes.New("home-fixture", strategy.StatusAvailable, strategy.CapScreenControl), state: strategy.DeviceState{ScreenState: "on", LockState: "unlocked", ForegroundPackage: "com.example.app"}}
+			adapter := &homeScreenFixture{semanticScreenFixture: base, observed: "com.example.other"}
+			if matches {
+				adapter.observed = "com.example.home"
+			}
+			svc := New(strategyregistry.New(adapter))
+			svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+			_, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "ready"})
+			require.NoError(t, err)
+			require.Zero(t, adapter.calls)
+			result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "ready", Home: true})
+			require.NoError(t, err)
+			require.Equal(t, 1, adapter.calls)
+			if matches {
+				require.Equal(t, "verified", result.Status)
+			} else {
+				require.Equal(t, "unverified", result.Status)
+			}
+		})
+	}
+}
+
+func (s *dismissScreenFixture) DismissKeyguard(context.Context) error {
+	s.dismissals++
+	if !s.secure {
+		s.state.LockState = "unlocked"
+	}
+	return nil
+}
+
+func TestReadyDismissesOnlyWhenVerifiedUnlocked(t *testing.T) {
+	for _, secure := range []bool{false, true} {
+		t.Run(fmt.Sprintf("secure_%v", secure), func(t *testing.T) {
+			base := &semanticScreenFixture{Strategy: fakes.New("screen-fixture", strategy.StatusAvailable, strategy.CapScreenControl), state: strategy.DeviceState{ScreenState: "on", LockState: "locked"}}
+			adapter := &dismissScreenFixture{semanticScreenFixture: base, secure: secure}
+			svc := New(strategyregistry.New(adapter))
+			svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+			result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "ready"})
+			if secure {
+				require.Error(t, err)
+				require.Equal(t, "unavailable", result.Status)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, "verified", result.Status)
+			}
+			require.Equal(t, 1, adapter.dismissals)
+			require.Empty(t, svc.ListLiveSessions())
+		})
+	}
+}
+
+func (s *semanticScreenFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	return s.state, nil
+}
+func (s *semanticScreenFixture) SetScreenState(_ context.Context, state string) error {
+	s.calls = append(s.calls, state)
+	if !s.ignore {
+		s.state.ScreenState = state
+	}
+	return nil
+}
+
+func (s *semanticScreenFixture) Unlock(_ context.Context, request strategy.UnlockRequest) (strategy.UnlockResult, error) {
+	for i := range request.Secret {
+		request.Secret[i] = 0
+	}
+	s.state.LockState = "unlocked"
+	return strategy.UnlockResult{Outcome: authdomain.OutcomeUnlocked, Attempts: 1}, nil
+}
+
+func TestSemanticScreenOperationsVerifyStateAndReleaseLease(t *testing.T) {
+	adapter := &semanticScreenFixture{Strategy: fakes.New("screen-fixture", strategy.StatusAvailable, strategy.CapScreenControl), state: strategy.DeviceState{ScreenState: "off", LockState: "unlocked"}}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Name: "TV", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	for _, tc := range []struct {
+		op, want string
+		calls    int
+	}{{"wake", "on", 1}, {"ready", "on", 1}, {"sleep", "off", 2}} {
+		result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: tc.op})
+		require.NoError(t, err)
+		require.Equal(t, "verified", result.Status)
+		require.Equal(t, tc.want, result.After.ScreenState)
+		require.Len(t, adapter.calls, tc.calls)
+		require.Empty(t, svc.ListLiveSessions())
+	}
+	adapter.state = strategy.DeviceState{ScreenState: "on", LockState: "locked"}
+	result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "ready"})
+	require.Error(t, err)
+	require.Equal(t, "unavailable", result.Status)
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestSemanticScreenRejectsUnverifiedResult(t *testing.T) {
+	adapter := &semanticScreenFixture{Strategy: fakes.New("screen-fixture", strategy.StatusAvailable, strategy.CapScreenControl), state: strategy.DeviceState{ScreenState: "off"}, ignore: true}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "wake"})
+	require.ErrorContains(t, err, "not verified")
+	require.Equal(t, "unavailable", result.Status)
+	require.Equal(t, []string{"on"}, adapter.calls)
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestSemanticScreenRejectsAmbiguousNamesAndMissingCapability(t *testing.T) {
+	adapter := &semanticScreenFixture{Strategy: fakes.New("screen-fixture", strategy.StatusAvailable, strategy.CapScreenControl), state: strategy.DeviceState{ScreenState: "off"}}
+	svc := New(strategyregistry.New(adapter))
+	for _, id := range []string{"one", "two"} {
+		svc.devices.Upsert(devicedomain.Record{ID: id, Name: "Shared", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	}
+	_, err := svc.Screen(context.Background(), ScreenRequest{Device: "Shared", Operation: "wake"})
+	require.Error(t, err)
+	require.Empty(t, adapter.calls)
+	adapter.Declaration.Capabilities[strategy.CapScreenControl] = strategy.Capability{Name: strategy.CapScreenControl, Status: strategy.StatusUnavailable}
+	_, err = svc.Screen(context.Background(), ScreenRequest{Device: "one", Operation: "wake"})
+	require.ErrorContains(t, err, "no available")
+	require.Empty(t, adapter.calls)
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestSemanticReadyUsesVerifiedAuthenticationProfile(t *testing.T) {
+	adapter := &semanticScreenFixture{Strategy: fakes.New("screen-fixture", strategy.StatusAvailable, strategy.CapScreenControl), state: strategy.DeviceState{ScreenState: "off", LockState: "locked"}}
+	svc := New(strategyregistry.New(adapter))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", Kind: "physical", StrategyID: adapter.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	store, err := authdomain.NewStore(nil, &flowAuthResolver{value: "1234"})
+	require.NoError(t, err)
+	svc.auth = store
+	profile, err := store.Create(context.Background(), authdomain.Profile{ID: "profile", DeviceID: "target", Method: authdomain.MethodPIN, CredentialIdentity: authdomain.CredentialNamespace + "target/profile", CredentialField: "unlock", Verification: "fresh_lock_state_unlocked"})
+	require.NoError(t, err)
+	result, err := svc.Screen(context.Background(), ScreenRequest{Device: "target", Operation: "ready", AuthProfileID: profile.ID})
+	require.NoError(t, err)
+	require.Equal(t, "verified", result.Status)
+	require.Equal(t, "on", result.After.ScreenState)
+	require.Equal(t, "unlocked", result.After.LockState)
+	require.NotContains(t, string(mustJSON(t, result)), "1234")
+	require.Empty(t, svc.ListLiveSessions())
+}
+
 func (s *flowAuthStrategy) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	if err := ctx.Err(); err != nil {
 		return strategy.DeviceState{}, err
@@ -1138,6 +1360,7 @@ func TestWirelessTransportStateSurvivesServiceReconstruction(t *testing.T) { // 
 	device, err := svc.PromoteWireless(context.Background(), "wireless-device")
 	require.NoError(t, err)
 	require.Equal(t, "wireless", device.Transport)
+	require.Equal(t, "192.168.1.42:5555", device.Endpoint)
 
 	reloadedStrategy := newPersistentWirelessStrategy()
 	reloaded, err := NewWithDB(strategyregistry.New(reloadedStrategy), db)
@@ -1600,7 +1823,7 @@ func TestLocalCaptureDefaultsUnredactedAndExplicitRedactionIsRecorded(t *testing
 	require.Equal(t, "image", kind)
 	require.Equal(t, defaultRef.SizeBytes, int64(len(stored)))
 
-	redactedResult, err := svc.Run(context.Background(), Flow{RedactSensitiveContent: true, Steps: []Step{{ID: "redacted-screen", Kind: "observe"}}}, "fake", "owner-1")
+	redactedResult, err := svc.Run(context.Background(), Flow{RedactSensitiveContent: true, Steps: []Step{{ID: "redacted-screen", Kind: "observe", Arguments: map[string]any{"sensitive_regions": []any{[]any{float64(0), float64(0), float64(1), float64(1)}}}}}}, "fake", "owner-1")
 	require.NoError(t, err)
 	require.Len(t, redactedResult.Evidence, 1)
 	redactedRef := redactedResult.Evidence[0]

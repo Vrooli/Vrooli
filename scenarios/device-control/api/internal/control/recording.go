@@ -33,6 +33,88 @@ type ReviewRecordingResult struct {
 	Path      string             `json:"path"`
 }
 
+// CaptureRequest uses the same evidence and lease owner as ordinary flows.
+// Recording is bounded so a single request can own its complete lifecycle.
+type CaptureRequest struct {
+	Device  string `json:"device"`
+	Actor   string `json:"actor"`
+	Kind    string `json:"kind"`
+	Seconds int    `json:"seconds,omitempty"`
+	Package string `json:"package,omitempty"`
+}
+
+func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResult, error) {
+	kind := strings.ToLower(strings.TrimSpace(request.Kind))
+	if kind != "screenshot" && kind != "recording" && kind != "logs" && kind != "console" && kind != "network" {
+		return RunResult{}, fmt.Errorf("capture kind must be screenshot, recording, logs, console, or network")
+	}
+	if kind == "recording" && (request.Seconds < 1 || request.Seconds > 30) {
+		return RunResult{}, fmt.Errorf("recording duration must be between 1 and 30 seconds")
+	}
+	if kind == "logs" && strings.TrimSpace(request.Package) == "" {
+		return RunResult{}, fmt.Errorf("application logs require an exact package")
+	}
+	device, err := s.resolveExactOrUniqueDevice(ctx, request.Device)
+	if err != nil {
+		return RunResult{}, err
+	}
+	if kind == "console" || kind == "network" {
+		return RunResult{Disposition: "no_evidence", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "Direct device capture is unavailable; a debuggable WebView may be inspected through the WebView attachment and browser workflow. No conclusion about events is possible."}}}, nil
+	}
+	profiles := device.Transports
+	if len(profiles) == 0 {
+		profiles = []strategy.DeviceTransport{{Name: device.Transport}}
+	}
+	transport := ""
+	found := false
+	for _, profile := range profiles {
+		candidate, ok := s.strategyForFlow(device.ID, profile.Name)
+		if !ok {
+			continue
+		}
+		var declaration strategy.Declaration
+		var probeErr error
+		if prober, ok := candidate.(strategy.CaptureDescriber); ok {
+			declaration, probeErr = prober.DescribeCapture(ctx, kind)
+		} else {
+			declaration, probeErr = candidate.Describe(ctx)
+		}
+		if probeErr != nil || declaration.Status != strategy.StatusAvailable {
+			continue
+		}
+		if kind == "screenshot" {
+			_, supported := candidate.(strategy.Observer)
+			if !supported || declaration.Capabilities[strategy.CapScreenshot].Status != strategy.StatusAvailable {
+				continue
+			}
+		} else if kind == "recording" {
+			_, supported := candidate.(strategy.SessionRecorder)
+			if !supported || (declaration.Capabilities[strategy.CapNativeRecording].Status != strategy.StatusAvailable && declaration.Capabilities[strategy.CapScreenRecording].Status != strategy.StatusAvailable) {
+				continue
+			}
+		} else {
+			_, supported := candidate.(strategy.ApplicationLogReader)
+			if !supported || declaration.Capabilities[strategy.CapDeviceLogs].Status != strategy.StatusAvailable {
+				continue
+			}
+		}
+		transport, found = profile.Name, true
+		break
+	}
+	if !found {
+		return RunResult{Disposition: "capability_gap", Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "no available transport provides this capture"}}}, nil
+	}
+	flow := Flow{ID: "capture-" + uuid.NewString(), Name: kind + " capture", Transport: transport, RedactSensitiveContent: kind == "logs", MaxDurationMS: 65000}
+	if kind == "screenshot" {
+		flow.Steps = []Step{{ID: "capture", Kind: "observe", RequiredCapabilities: []string{strategy.CapScreenshot}, TimeoutMS: 20000}}
+	} else if kind == "recording" {
+		flow.Steps = []Step{{ID: "record", Kind: "recording-start", TimeoutMS: 15000}, {ID: "duration", Kind: "wait", TimeoutMS: int64(request.Seconds+3) * 1000, Arguments: map[string]any{"settle_ms": float64(request.Seconds * 1000)}}, {ID: "stop", Kind: "recording-stop", Target: "record", TimeoutMS: 30000, Arguments: map[string]any{"minimum_duration_ms": float64(request.Seconds * 500)}}}
+	} else {
+		flow.Steps = []Step{{ID: "logs", Kind: "device-logs", RequiredCapabilities: []string{strategy.CapDeviceLogs}, TimeoutMS: 10000, Arguments: map[string]any{"package": strings.TrimSpace(request.Package)}}}
+	}
+	return s.Run(ctx, flow, device.ID, firstNonEmpty(strings.TrimSpace(request.Actor), "device-capture"))
+}
+
 func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, leaseToken string) (strategy.RecordingHandle, error) {
 	if _, err := s.sessionForLease(ctx, deviceID, leaseToken); err != nil {
 		return strategy.RecordingHandle{}, err

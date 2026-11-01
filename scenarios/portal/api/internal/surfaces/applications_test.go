@@ -56,3 +56,25 @@ func TestApplicationsGatewayRequiresKnownRunningTargetAndOwnerPorts(t *testing.T
 	require.Equal(t, map[string]int{"UI_PORT": 20002, "API_PORT": 17000}, target["port_mappings"])
 	require.Equal(t, 2, calls)
 }
+
+func TestLifecycleOnlyRunsExplicitKnownApplications(t *testing.T) {
+	var actions []string
+	apps := &Applications{
+		Run: func(context.Context) ([]byte, error) {
+			return []byte(`{"success":true,"scenarios":[{"name":"example","status":"running"},{"name":"portal","status":"running"}]}`), nil
+		},
+		RunLifecycle: func(_ context.Context, name, action string) error {
+			actions = append(actions, name+":"+action)
+			return nil
+		},
+	}
+	for _, request := range [][2]string{{"../escape", "start"}, {"unknown", "start"}, {"portal", "stop"}, {"example", "delete"}} {
+		_, err := apps.Act(context.Background(), request[0], request[1])
+		require.Error(t, err)
+	}
+	require.Empty(t, actions)
+	app, err := apps.Act(context.Background(), "example", "restart")
+	require.NoError(t, err)
+	require.Equal(t, "running", app.RuntimeState)
+	require.Equal(t, []string{"example:restart"}, actions)
+}

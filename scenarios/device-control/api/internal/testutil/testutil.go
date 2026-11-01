@@ -32,3 +32,20 @@
 // process-wide state in fakes, and expose concurrency knobs only tests
 // need — production code can't see any of it.
 package testutil
+
+import (
+	"os"
+	"testing"
+)
+
+// SocketDir keeps Unix socket paths within platform limits even when the test
+// runner supplies a long TMPDIR. Cleanup is registered before the caller uses it.
+func SocketDir(t testing.TB) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("/tmp", "dc-sock-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	return dir
+}

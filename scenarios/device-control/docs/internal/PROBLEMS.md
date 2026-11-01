@@ -237,10 +237,9 @@ contained the band, so the web-console viewer was not the source of the issue.
 a fixed top-quarter paint operation for every image and video. The policy did
 not first establish that an expanded notification surface existed.
 
-**Fix:** The producer now masks only the status-bar band by default. Detected
-or caller-supplied sensitive regions remain supported and are masked in
-addition to that band. A regression test proves portrait content below the
-status bar remains visible.
+**Historical fix (superseded 2026-10-31):** The producer formerly masked the status-bar band by default; that arbitrary mask was later removed. Caller-supplied sensitive regions remain supported; the producer does not detect
+private screen content. Regression tests check that unspecified areas remain
+unchanged and unsupported redaction is not reported as verified.
 
 **Refs:** `api/internal/evidence/redact.go`,
 `api/internal/evidence/redact_test.go`, user evidence from 2026-08-16.
@@ -632,3 +631,91 @@ endpoint-bound TV records `transport: wireless` instead of an empty value.
 - A wrong-device stop previously erased another device's owner handle before checking it. A failed stop also erased the handle even though Android's recorder consumes its own handle before it can report encoder, artifact, or restoration failure. The owner now preserves an uncertain process-local marker and never replays a stop automatically. This marker is not durable and is not proof of destination cleanup.
 - When the recorder returns video and an error together, the owner applies its existing evidence processing and returns the recovered reference alongside HTTP 409 `recording_stop_uncertain`; the marker and reference remain retrievable during this process lifetime with a valid device lease. Artifact processing failure leaves uncertainty without a reference. On Android the host wrapper being signaled or exiting does not establish that the remote encoder stopped; restoration commands are attempted but failure remains unresolved. No automatic device reconciliation or restart safety is claimed.
 - Focused fake-based owner, HTTP, and Android recorder tests cover wrong-device refusal, failed stop without replay, recovered artifact with restoration failure, artifact-read failure and independent restoration attempts. No live recording was started.
+
+### Screen readiness and verified control — 2026-10-31
+
+- Rung: W3, scoped implementation. A `screen-on` flow condition accepted unknown screen state; the regression now requires positive on/off evidence. Screenshot-bearing flows with a state reader reject an unknown visible surface.
+- Android ADB exposes explicit screen wake and sleep through a shared capability. The semantic screen operation acquires a lease and verifies the result; ready additionally checks the keyguard and may use the existing authentication profile. Screen state is device-reported, not independent physical panel evidence.
+- The owner confirmed physical wake and sleep on the TV, and the semantic wake, sleep and ready operations subsequently changed the TV's reported state as requested. A screenshot and package-scoped log capture also passed on the TV. The saved Android phone endpoint timed out on reconnect.
+- A requested multi-second TV recording produced one encoded frame; FPS alone misclassified it as useful. Recording evidence now requires multiple frames and, for bounded captures, an adequate duration. A failed or cancelled flow stops its active recorder once and retains an uncertainty marker on a failed stop. Screenshot fallback reports its sample rate rather than duplicated encoder FPS. An 8-second native TV trial produced 15 frames over 7.94 seconds (1.89 fps): the retained clip is degraded and the operation reports `no_evidence` for transition quality.
+- Test Genie unit run `20261101-022717-f2e9da7b` failed. Follow-up isolated long Unix socket paths and UI coverage below thresholds; the full API and CLI Go suites pass with a short temporary directory. Workflow-program test fixture contract metadata and relative helper lookup were repaired. The operator authorized managed service restarts; the existing incomplete lifecycle-fence limitation remains as noted above.
+
+### Android TV recording also disrupts playback — 2026-11-01
+
+On the SmartTV 4K, YouTube's active SurfaceView presented about 60 fps for five
+seconds without capture. During a simultaneous nine-second 1080p, 8 Mbps native
+`screenrecord`, it presented about 1.3 fps and the encoder returned 12 frames.
+A separate 640×360, 1 Mbps native recording returned 11 frames in eight seconds;
+a short concurrent presentation sample was about 2.4 fps. These are individual
+trials, not a cross-device performance guarantee. The video impact is separate
+from the resulting file's frame rate. Lowering resolution and bitrate alone did
+not fix this device.
+
+A short repeated-PNG experiment averaged about 47 fps on the presentation
+surface against a 60 fps baseline, but completed only one screenshot during the
+seven-second trial and a later screenshot timed out. This is not a viable
+high-frame-rate replacement. Protected media, device firmware, resource sharing
+and sampling overhead remain possible contributors; these trials do not isolate
+an underlying firmware cause. Device Control's `performance-state` reports
+recent presentation timings and cumulative graphics counters, with their limits,
+for repeatable paired investigations. The native recorder retains its prior
+1 Mbps setting; there is no claim that this setting resolves the issue.
+
+### Android recording ownership and display-state restoration — 2026-11-01
+
+The native recorder previously sent a device-wide `pkill` for `screenrecord`,
+which could interrupt another recording. It now looks up the encoder by the
+unique output path and signals only a single matching PID; missing or ambiguous
+process identity reports an uncertain stop. This is still not durable
+reconciliation after process loss, and process listing and signaling are not an
+atomic OS operation. Android recording now uses shell-owned temporary storage.
+
+The old restoration inferred the saved stay-awake preference from the current
+`mStayOn` state and conflated light and deep idle settings. It now snapshots
+and restores the actual preference and each idle setting independently, including
+unset preferences. A live TV recording restored stay-awake `0`, timeout `600000`,
+and both idle modes enabled. Its visual fallback produced degraded evidence at
+about one source frame per second; the successful restoration is not evidence
+that recording performance is fixed.
+
+Screenshot fallback previously encoded every sample as if it arrived at a fixed
+2 fps, making a six-second capture play back in three seconds when screenshots
+were slow. It now uses sample timestamps and the measured capture duration for
+presentation while separately reporting the actual source rate. A live TV
+six-second capture produced a 6.07-second file with about 0.5 source fps and
+remained degraded; the duplicated output frames do not add motion evidence.
+
+A further paired YouTube trial compared uncompressed ADB screenshots with PNG.
+Normal playback presented 60 fps; during an eight-second raw capture loop it
+presented about 25 fps with five completed captures. After a second 60 fps
+baseline, a PNG loop presented about 45 fps with one completed capture. On the
+launcher, raw screenshots took approximately 0.8 seconds each versus 1.5 for
+PNG, but this speed comes with substantial workload and network differences.
+These short, sequential trials do not prove a general ranking across devices.
+Raw capture is not enabled by default on the strength of this TV experiment.
+
+A follow-up device inventory found no video encoder marked hardware-accelerated
+in this TV's Android `dumpsys media.player` listing. AVC, HEVC, VP8 and VP9
+include Android software encoders. During an independent native screenrecord,
+the device's codec logs identified the selected encoder as
+`c2.android.avc.encoder`, which the inventory marks software-only. This is
+consistent with CPU contention during capture, but does not isolate the full
+cause of playback stutter. A different codec, encoder implementation, device,
+or external capture path has not yet been qualified.
+
+A scoped MediaCodec experiment using Android's existing build tools compared
+software encoders at 640×360 under active YouTube playback. HEVC produced 11
+frames in nine seconds and a concurrent presentation sample was about 2 fps.
+In separate paired trials with 60 fps baselines, VP8 produced 10 frames in nine
+seconds with approximately 12 fps presentation; AVC produced 15 frames with
+approximately 12 fps presentation. A 320×180 AVC trial still produced 15 frames
+and approximately 9.5 fps presentation. These are small sequential samples,
+not an encoder benchmark; none provides acceptable capture or playback. The
+experiment's temporary device code and media files were removed afterward.
+
+The retained Galaxy A03s endpoint `192.168.1.179:34483` timed out on reconnect.
+Its last known address answered ICMP, but identity and current ADB authorization
+were not established. ADB's mDNS inventory advertised the TV only. Reconnect now
+recognizes ADB's text-reported failures even with a successful process exit,
+and advances to discovered endpoints without waiting on that failed transport;
+the serial identity check remains required.
