@@ -74,7 +74,7 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		s.writeSSEError(w, flusher, "execution service unavailable")
 		return
 	}
-	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+	if runID := s.runManager.CoalescedRunID(r.Context(), input.Request); runID != "" {
 		replay, ch, followErr := s.runManager.Follow(r.Context(), input.Request.ScenarioName, runID)
 		if followErr != nil {
 			s.writeSSEError(w, flusher, followErr.Error())
@@ -107,7 +107,7 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 	}
 	applyPreviewPhaseSelection(&input, preview)
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: eta})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, Initiator: r.Context(), EstimatedTotalSeconds: eta})
 	if err != nil {
 		var saturated *runmanager.SaturatedError
 		if errors.As(err, &saturated) {

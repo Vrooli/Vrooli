@@ -33,6 +33,43 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
+func TestCompletePhaseRunPreservesProviderSkip(t *testing.T) {
+	dir := t.TempDir()
+	o := &SuiteOrchestrator{}
+	run := &phaseRunContext{start: time.Now(), timeout: time.Minute, phaseCtx: context.Background(), projectRoot: dir, logPath: filepath.Join(dir, "phase.log"), definition: phasespkg.Definition{Name: "programs", FindingSource: architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS}}
+	got := o.completePhaseRun(run, phasespkg.RunReport{Skipped: true, Observations: []phasespkg.Observation{phasespkg.NewSkipObservation("provider timed out")}}, nil)
+	if got.Status != phaseStatusSkipped || got.Error != "" {
+		t.Fatalf("provider skip became a pass or failure: %+v", got)
+	}
+	if got.FindingSource != "" {
+		t.Fatalf("skipped provider claimed finding coverage: %s", got.FindingSource)
+	}
+	index := sharedruns.NewIndex(dir)
+	runID := "20261030-120000-skipped1"
+	started := time.Now().UTC()
+	if err := index.Append(sharedruns.RunRecord{RunID: runID, Scenario: "fixture", StartedAt: started, Status: sharedruns.StatusInProgress}); err != nil {
+		t.Fatal(err)
+	}
+	result := &SuiteExecutionResult{RunID: runID, ScenarioName: "fixture", StartedAt: started, CompletedAt: time.Now().UTC(), Success: true, Verdict: SuiteVerdictPass, PlannedPhases: []string{"programs"}, Phases: []PhaseExecutionResult{got}}
+	result.PhaseSummary = SummarizePhases(result.Phases)
+	o.finalizeRunRecord(dir, runID, result, buildPhaseResultViews("", result.Phases))
+	record, err := index.Find(runID)
+	if err != nil || len(record.Phases) != 1 || record.Phases[0].Status != phaseStatusSkipped {
+		t.Fatalf("persisted run lost skipped phase: %+v, %v", record, err)
+	}
+	snapshot, err := index.ReadTerminalSnapshot(runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var persisted SuiteExecutionResult
+	if err := json.Unmarshal(snapshot.Result, &persisted); err != nil {
+		t.Fatal(err)
+	}
+	if len(persisted.Phases) != 1 || persisted.Phases[0].Status != phaseStatusSkipped || persisted.PhaseSummary.Skipped != 1 || persisted.PhaseSummary.Passed != 0 {
+		t.Fatalf("terminal result lost skipped phase: %+v", persisted)
+	}
+}
+
 func TestIsLinkedWorktreeDistinguishesPrimaryAndStrictWorktree(t *testing.T) {
 	primary := t.TempDir()
 	runGit := func(args ...string) {

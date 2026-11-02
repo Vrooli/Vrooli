@@ -2091,6 +2091,9 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		classificationSource = phases.ClassificationSourceProvider
 	}
 	remediation := report.Remediation
+	if report.Skipped && runErr == nil {
+		status = phaseStatusSkipped
+	}
 
 	if runErr != nil {
 		status = phaseStatusFailed
@@ -2153,9 +2156,9 @@ func (o *SuiteOrchestrator) completePhaseRun(
 	// Stamp the phase's finding-source token (empty for phases that emit no
 	// findings) so a downstream campaign reaudit can derive which sources
 	// this run covered — even when the phase produced zero findings.
-	if run.definition.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
+	if status != phaseStatusSkipped && run.definition.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
 		result.FindingSource = findingid.SourceToken(run.definition.FindingSource)
-	} else if report.FindingSource != "" {
+	} else if status != phaseStatusSkipped && report.FindingSource != "" {
 		result.FindingSource = report.FindingSource
 	}
 	if len(preObservations) > 0 {

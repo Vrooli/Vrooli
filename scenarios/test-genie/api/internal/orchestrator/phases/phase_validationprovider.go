@@ -261,6 +261,9 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 				}
 				summaryText = summary.String()
 			}
+			if summary.Skipped && result.Error == nil && result.FailureClass == "" {
+				return PhaseResult[shared.Observation]{Skipped: true, Error: result.Error, Observations: result.Observations}
+			}
 			return ExtractWithSummary(
 				result.Success,
 				result.Error,
@@ -279,7 +282,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	report.Metrics = execMetrics
 	report.PhasePresentation = presentation
 	report.FindingsSummary = findingsSummary
-	if provider.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
+	if !report.Skipped && provider.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
 		report.FindingSource = findingid.SourceToken(provider.FindingSource)
 	}
 	writePhasePointer(env, provider.Phase, report, map[string]any{"summary": summary}, logWriter)

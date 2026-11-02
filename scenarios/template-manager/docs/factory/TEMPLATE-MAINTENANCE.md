@@ -162,6 +162,13 @@ deep template validation both fail if any `EXAMPLE-DOMAIN` marker
 survives. `START-HERE.md` points scenario authors at that command, not a
 manual deletion checklist.
 
+The scenario-relative `docs/internal/goal/evidence/` tree contains preserved
+historical artifacts, including source snapshots. Detemplate does not rewrite
+or scan those bytes as live example-domain residue. This boundary is shared by
+the cleanup planner and orientation residue gate; other folders named
+`evidence` remain subject to normal checks. Manifest-directed deletion or JSON
+pruning that would modify this preserved tree is refused before any write.
+
 ## Audience Split
 
 - **Template maintainers** edit files under

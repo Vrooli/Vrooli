@@ -24,6 +24,7 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
 
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/freshness-go/treedigest"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -181,6 +182,7 @@ type activeRun struct {
 	// admissionKey). Immutable after construction, so it is safe to read under
 	// the manager lock during admission.
 	admissionKey           string
+	authorityKey           string
 	caller                 string
 	resources              []string
 	reservationID          string
@@ -268,6 +270,9 @@ type LiveStatus struct {
 // StartOptions configures a run start.
 type StartOptions struct {
 	Input execution.SuiteExecutionInput
+	// Initiator carries only middleware-verified agent credentials into this
+	// server-owned run. Other request values and cancellation are not retained.
+	Initiator context.Context
 	// Caller is a bounded transport identity used only for admission fairness
 	// and aggregate telemetry; it is never persisted in run artifacts.
 	Caller string
@@ -533,18 +538,30 @@ func (m *Manager) AdmissionStatus() AdmissionSnapshot {
 // caller spends a preview token. It preserves identical-request coalescing
 // under preview saturation; divergent requests still go through the bounded
 // preview path and later full admission.
-func (m *Manager) CoalescedRunID(req orchestrator.SuiteExecutionRequest) string {
+func (m *Manager) CoalescedRunID(ctx context.Context, req orchestrator.SuiteExecutionRequest) string {
 	scenario := strings.TrimSpace(req.ScenarioName)
 	key := admissionKey(req)
+	authority := authorityKey(ctx)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, run := range m.runs {
-		if run.scenario == scenario && !isTerminal(run.currentStatus()) && run.admissionKey == key {
+		if run.scenario == scenario && !isTerminal(run.currentStatus()) && run.admissionKey == key && run.authorityKey == authority {
 			atomic.AddUint64(&m.coalescedTotal, 1)
 			return run.runID
 		}
 	}
 	return ""
+}
+
+// Credentials are never persisted. The digest partitions in-memory coalescing
+// by the exact verified credential pair, including an optional operation proof.
+func authorityKey(ctx context.Context) string {
+	token := provenance.ForwardedIdentityToken(ctx)
+	if token == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(token + "\x00" + provenance.ForwardedOperationToken(ctx)))
+	return hex.EncodeToString(sum[:])
 }
 
 // evaluateSuiteAdmission performs the suite-level capacity probe. While the
@@ -839,6 +856,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 		artifactRoot:           artifactRoot,
 		preset:                 preset,
 		admissionKey:           key,
+		authorityKey:           authorityKey(opts.Initiator),
 		caller:                 caller,
 		resources:              exclusiveResources(opts.Input.Request.AdmissionResources),
 		reservationID:          strings.TrimSpace(opts.Input.Request.CollectionReservationID),
@@ -851,7 +869,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 		lastEventAt:            now,
 		etaTotal:               opts.EstimatedTotalSeconds,
 	}
-	runCtx, cancel := context.WithCancel(m.base)
+	runCtx, cancel := context.WithCancel(provenance.CarryVerifiedIdentity(m.base, opts.Initiator))
 	ar.cancel = cancel
 	ar.runCtx = runCtx
 	ar.input = opts.Input
@@ -867,6 +885,12 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 
 	m.mu.Lock()
 	if explicitRunID {
+		if existing := m.runs[runKey(scenario, runID)]; existing != nil && !isTerminal(existing.currentStatus()) && existing.authorityKey != ar.authorityKey {
+			m.mu.Unlock()
+			cancel()
+			m.releaseSuiteLease(ar.suiteLease)
+			return StartResult{}, fmt.Errorf("explicit run %s has different initiating authority", runID)
+		}
 		prior, findErr := sharedruns.NewIndex(artifactRoot).Find(runID)
 		if findErr == nil {
 			if prior.AdmissionIntentDigest == "" || prior.AdmissionIntentDigest != intentDigest {
@@ -902,7 +926,7 @@ func (m *Manager) Start(opts StartOptions) (result StartResult, err error) {
 	}
 	// Coalesce onto an identical in-flight request.
 	for _, other := range inFlight {
-		if other.admissionKey == key && (!explicitRunID || other.runID == runID) {
+		if other.admissionKey == key && other.authorityKey == ar.authorityKey && (!explicitRunID || other.runID == runID) {
 			m.mu.Unlock()
 			cancel()
 			atomic.AddUint64(&m.coalescedTotal, 1)

@@ -45,6 +45,9 @@ func RunPhase[TResult any, TObs StandardObservation](
 	// Extract and convert
 	phaseResult := extract(result)
 	observations := ConvertObservationsGeneric(phaseResult.Observations, ExtractStandardObservation[TObs])
+	if phaseResult.Skipped && phaseResult.Error == nil {
+		return RunReport{Skipped: true, Observations: observations}
+	}
 
 	adapter := RunnerResultAdapter{
 		Success:      phaseResult.Success,
@@ -71,6 +74,7 @@ func RunPhase[TResult any, TObs StandardObservation](
 // This provides a uniform structure for the extraction function.
 type PhaseResult[TObs any] struct {
 	Success      bool
+	Skipped      bool
 	Error        error
 	FailureClass shared.FailureClass
 	Remediation  string

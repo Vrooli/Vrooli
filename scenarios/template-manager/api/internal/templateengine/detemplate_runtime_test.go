@@ -1,6 +1,7 @@
 package templateengine
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,73 @@ import (
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
+
+func TestDetemplatePreservesHistoricalGoalEvidence(t *testing.T) {
+	root, item, info := detemplateFixture(t)
+	rel := "docs/internal/goal/evidence/E1/baseline/api/main.go"
+	original := []byte("package main\nimport notesH \"myapp/handlers/notes\"\n// EXAMPLE-DOMAIN:notes START\nvar historical = notesH.Service\n// EXAMPLE-DOMAIN:notes END\n")
+	path := filepath.Join(item.Path, filepath.FromSlash(rel))
+	writeFile(t, path, string(original))
+	dels := resolveDetemplateDeletions(root, item, info, info.Manifest.ExampleDomain.Paths)
+	edits, dangling, err := planDetemplateEdits(item.Path, "notes", dels)
+	if err != nil || len(dangling) != 0 {
+		t.Fatalf("historical snapshots are not live imports: err=%v, dangling=%v", err, dangling)
+	}
+	if err := applyDetemplateChanges(edits, dels); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, original) {
+		t.Fatalf("cleanup changed preserved evidence: err=%v, got=%q", err, got)
+	}
+	hits, err := scanTreeForText(item.Path, "EXAMPLE-DOMAIN")
+	if err != nil || len(hits) != 0 {
+		t.Fatalf("historical markers must not fail the cleaned scenario: hits=%v, err=%v", hits, err)
+	}
+}
+
+func TestDetemplateStillChecksLiveEvidenceNames(t *testing.T) {
+	for _, rel := range []string{"api/evidence/consumer.go", "docs/internal/goal/evidence-copy/consumer.go", "other/docs/internal/goal/evidence/consumer.go"} {
+		t.Run(rel, func(t *testing.T) {
+			root, item, info := detemplateFixture(t)
+			writeFile(t, filepath.Join(item.Path, filepath.FromSlash(rel)), "package consumer\nimport notesH \"myapp/handlers/notes\"\n// EXAMPLE-DOMAIN:notes START\n// historical-looking comment\n// EXAMPLE-DOMAIN:notes END\n")
+			dels := resolveDetemplateDeletions(root, item, info, info.Manifest.ExampleDomain.Paths)
+			_, dangling, err := planDetemplateEdits(item.Path, "notes", dels)
+			if err != nil || len(dangling) == 0 {
+				t.Fatalf("live imports must still block cleanup: err=%v, dangling=%v", err, dangling)
+			}
+			hits, err := scanTreeForText(item.Path, "EXAMPLE-DOMAIN")
+			found := false
+			for _, hit := range hits {
+				found = found || hit == rel
+			}
+			if err != nil || !found {
+				t.Fatalf("live marker must still fail residue gate: err=%v, hits=%v", err, hits)
+			}
+		})
+	}
+}
+
+func TestDetemplateRefusesExplicitEvidenceMutation(t *testing.T) {
+	for _, rel := range []string{"docs", "docs/internal/goal/evidence", "docs/internal/goal/evidence/E1/snapshot.json"} {
+		t.Run("delete/"+rel, func(t *testing.T) {
+			_, item, _ := detemplateFixture(t)
+			path := filepath.Join(item.Path, "docs/internal/goal/evidence/E1/snapshot.json")
+			writeFile(t, path, `{"notes":"historical"}`)
+			_, _, err := planDetemplateEdits(item.Path, "notes", []detemplateDeletion{{Abs: filepath.Join(item.Path, filepath.FromSlash(rel)), Display: rel}})
+			if err == nil {
+				t.Fatal("explicit deletion overlapping preserved evidence must be refused")
+			}
+		})
+	}
+	_, item, _ := detemplateFixture(t)
+	rel := "docs/internal/goal/evidence/E1/snapshot.json"
+	writeFile(t, filepath.Join(item.Path, rel), `{"notes":"historical"}`)
+	_, err := planDetemplateJSONPrunes(item.Path, []templatecontracts.TemplateJSONPruneEntry{{File: rel, Keys: []string{"notes"}}})
+	if err == nil {
+		t.Fatal("explicit JSON prune of preserved evidence must be refused")
+	}
+}
 
 // writeFile creates parent dirs and writes content (test helper).
 func writeFile(t *testing.T, path, content string) {

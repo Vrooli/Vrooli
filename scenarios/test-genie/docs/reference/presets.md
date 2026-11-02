@@ -85,7 +85,7 @@ test-genie execute my-scenario --preset comprehensive
 | Tidiness | Validates file and function quality checks through tidiness-manager. | 2m |
 | Security | Validates scenarios and the control plane for secrets, Go SAST, Go vulnerability data, and JavaScript dependency risk through one path-first Security Health scanner pipeline. | 10m |
 | Measures | Validates measures coverage and per-measure tiering through measures-health. | 3m |
-| Programs | Validates declared program contracts, sources, and fixture evidence. | 2m |
+| Programs | Validates declared program contracts, sources, and fixture evidence. | 6m |
 | Proto | Validates proto contracts through proto-health. | 2m |
 | AI Conformance | Validates AI-using scenarios for provider-neutral routing, resource boundary hygiene, embedding metadata safety, and AI Gateway adoption readiness. | 90s |
 | Branding | Validates brand identity, design tokens, typography, logos, favicons, contrast, and applied brand markers through brand-manager. | 2m |

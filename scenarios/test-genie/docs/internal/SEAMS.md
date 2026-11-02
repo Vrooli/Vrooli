@@ -67,6 +67,17 @@ not documented below.
 | Execution evidence writer | `internal/executionevidence` (`Writer`, `Manifest`) | Writes size-limited immutable artifacts, digest-backed references, and the versioned run manifest. | `writer_test.go`; orchestrator findings-artifact test. | Establishes one canonical owner for detailed findings and rich evidence; projections retain only counts and references. |
 | Run lifecycle RPC | `internal/app/runs/lifecycle.go` (`StartRun`/`FollowRun`/`WaitRun`/`AbortRun`/`GetRunStatus`) | Connect-RPC handlers over the run manager. Queued/running responses use live state; terminal `WaitRun` and `GetRun` use the same persisted snapshot projector, including the captured descriptor catalog and degraded metadata. | `lifecycle_test.go`, `service_test.go`, and CLI wait/show parity tests. | The owns-the-run control surface consumed by `vrooli scenario test` and `test-genie runs`; one blocking wait detaches safely and never determines execution outcome. |
 
+For agent-initiated runs, the manager carries only the middleware-verified agent
+credential pair in memory into the server-owned context. Downstream owners
+reverify forwarded credentials when called, so expiry or revocation still
+applies to queued and running work. Program Runtime's private agent bridge
+currently carries the baseline identity, not supplemental operation proofs.
+In-flight coalescing also
+requires the same verified credential pair; absent or invalid credentials do
+not coalesce with a verified caller. Credentials are not stored in run evidence,
+and they are not recovered after a server restart. This does not provide a
+human operator credential or authorize operations on its own.
+
 Before any live historical-data migration, run the copy-first rehearsal from
 `scenarios/test-genie/api`:
 

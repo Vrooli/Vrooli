@@ -38,6 +38,19 @@ var detemplateSkipDirs = map[string]struct{}{
 	"coverage": {}, "vendor": {}, ".turbo": {}, ".vrooli": {},
 }
 
+// This exact scenario-relative tree holds immutable historical source and
+// validation artifacts. A directory merely named "evidence" is still live.
+const detemplatePreservedEvidence = "docs/internal/goal/evidence"
+
+func isDetemplatePreserved(root, path string) bool {
+	return underDeleted(filepath.Clean(path), []string{filepath.Join(root, filepath.FromSlash(detemplatePreservedEvidence))})
+}
+
+func skipDetemplateDirectory(root, path string, entry fs.DirEntry) bool {
+	_, skip := detemplateSkipDirs[entry.Name()]
+	return skip || isDetemplatePreserved(root, path)
+}
+
 type detemplateDeletion struct {
 	Display string // scenario-relative, or repo-relative for the relocated proto tree
 	Abs     string
@@ -287,7 +300,11 @@ func generatedProtoDirs(scenarioID, rel string) []string {
 // package after marker removal.
 func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDeletion) ([]detemplateEdit, []templatecontracts.DetemplateDanglingRef, error) {
 	deletedAbs := make([]string, 0, len(deletions))
+	preserved := filepath.Join(scenarioRoot, filepath.FromSlash(detemplatePreservedEvidence))
 	for _, d := range deletions {
+		if isDetemplatePreserved(scenarioRoot, d.Abs) || underDeleted(preserved, []string{filepath.Clean(d.Abs)}) {
+			return nil, nil, fmt.Errorf("detemplate deletion %q overlaps preserved goal evidence", d.Display)
+		}
 		deletedAbs = append(deletedAbs, d.Abs)
 	}
 	tokens := danglingTokens(scenarioRoot, deletions)
@@ -299,7 +316,7 @@ func planDetemplateEdits(scenarioRoot, marker string, deletions []detemplateDele
 			return walkErr
 		}
 		if entry.IsDir() {
-			if _, skip := detemplateSkipDirs[entry.Name()]; skip {
+			if skipDetemplateDirectory(scenarioRoot, path, entry) {
 				return fs.SkipDir
 			}
 			if underDeleted(path, deletedAbs) {
@@ -372,6 +389,9 @@ func planDetemplateJSONPrunes(scenarioRoot string, entries []templatecontracts.T
 	var edits []detemplateEdit
 	for _, e := range entries {
 		abs := filepath.Join(scenarioRoot, filepath.FromSlash(e.File))
+		if isDetemplatePreserved(scenarioRoot, abs) {
+			return nil, fmt.Errorf("detemplate JSON prune %q targets preserved goal evidence", e.File)
+		}
 		info, statErr := os.Stat(abs)
 		if statErr != nil {
 			continue
@@ -560,7 +580,7 @@ func scanTreeForText(root, text string) ([]string, error) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			if _, skip := detemplateSkipDirs[entry.Name()]; skip {
+			if skipDetemplateDirectory(root, path, entry) {
 				return fs.SkipDir
 			}
 			return nil

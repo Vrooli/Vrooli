@@ -190,7 +190,9 @@ func ObservationsToStrings(obs []Observation) []string {
 
 // RunReport captures per-phase execution context that a runner returns.
 type RunReport struct {
-	Err                   error
+	Err error
+	// Skipped means the provider did not perform the phase; it is not a pass.
+	Skipped               bool
 	Observations          []Observation
 	FailureClassification string
 	Remediation           string

@@ -6,7 +6,7 @@ Every declared program has a readable contract, a valid source, and evidence tha
 
 ## The rungs and their gates
 
-L0 means the target cannot be inspected. L1 means declarations are readable. L2 means the declaration and fixture checks are clean. Static checks run by default; fixture checks run when execution is requested.
+L0 means the target cannot be inspected. L1 means declarations are readable. L2 means the declaration and fixture checks are clean. The current programs phase requests fixture execution; Program Runtime also supports static-only validation through its provider contract. The phase allows six minutes so the provider's five-minute fixture budget can finish and return its verdict.
 
 ## What each finding means
 

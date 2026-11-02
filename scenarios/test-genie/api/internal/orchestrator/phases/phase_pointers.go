@@ -50,6 +50,9 @@ func writeDurableChildReference(env workspace.Environment, phaseName, provider s
 // in the run findings artifact, written during run finalization.
 func writePhasePointer(env workspace.Environment, phaseName string, report RunReport, extras map[string]any, logWriter io.Writer) {
 	status := deriveStatus(report.Observations, report.Err, report.FailureClassification)
+	if report.Skipped && report.Err == nil && report.FailureClassification == "" {
+		status = "skipped"
+	}
 
 	payload := map[string]any{
 		"phase":      phaseName,

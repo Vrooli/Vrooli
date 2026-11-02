@@ -120,7 +120,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusInternalServerError, "execution service unavailable")
 		return
 	}
-	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+	if runID := s.runManager.CoalescedRunID(r.Context(), input.Request); runID != "" {
 		status, waitErr := s.runManager.Wait(r.Context(), input.Request.ScenarioName, runID)
 		if waitErr != nil {
 			return
@@ -148,7 +148,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 	}
 	applyPreviewPhaseSelection(&input, preview)
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: eta})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, Initiator: r.Context(), EstimatedTotalSeconds: eta})
 	if err != nil {
 		var busy *runmanager.BusyError
 		if errors.As(err, &busy) {

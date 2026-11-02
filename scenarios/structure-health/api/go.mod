@@ -43,7 +43,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/iancoleman/orderedmap v0.2.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
-	github.com/vrooli/maturity-go v0.0.0-00010101000000-000000000000
+	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 )

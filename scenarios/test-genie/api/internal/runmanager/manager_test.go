@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,10 +22,201 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 	"test-genie/internal/targetmodel"
 
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/freshness-go/treedigest"
 	repocontract "github.com/vrooli/repo-contract-go"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
+
+type authorityExecutor struct {
+	contexts chan context.Context
+	release  chan struct{}
+}
+
+func (e *authorityExecutor) ExecuteWithEvents(ctx context.Context, _ execution.SuiteExecutionInput, _ orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	e.contexts <- ctx
+	<-e.release
+	return &orchestrator.SuiteExecutionResult{Success: true}, nil
+}
+
+func verifiedContext(t *testing.T, token string) context.Context {
+	t.Helper()
+	var got context.Context
+	verifier := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: token}}, nil
+	})
+	handler := provenance.Middleware(verifier)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = r.Context() }))
+	req := httptest.NewRequest(http.MethodPost, "/runs", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	return got
+}
+
+type pairVerifier struct{}
+
+func (pairVerifier) Verify(string) (*cliutil.VerifyResult, error) {
+	return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "same-agent"}}, nil
+}
+
+func (pairVerifier) VerifyPair(_ context.Context, _, operation string) (*cliutil.VerifyPairResult, error) {
+	grant := fmt.Sprintf(`{"id":%q,"approver":"owner","expires_at":%q}`, operation, time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
+	return &cliutil.VerifyPairResult{Valid: true, Operation: &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{Meta: map[string]string{"operation_grant": grant}}}}, nil
+}
+
+func verifiedPairContext(operation string) context.Context {
+	var got context.Context
+	handler := provenance.Middleware(pairVerifier{})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { got = r.Context() }))
+	req := httptest.NewRequest(http.MethodPost, "/runs", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "same-baseline")
+	req.Header.Set(cliutil.HeaderAgentOperationToken, operation)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	return got
+}
+
+func TestDurableRunPreservesAndPartitionsSupplementalProof(t *testing.T) {
+	exec := &authorityExecutor{contexts: make(chan context.Context, 1), release: make(chan struct{})}
+	m := New(exec, t.TempDir())
+	defer func() { close(exec.release); m.Shutdown() }()
+	ctx, cancel := context.WithCancel(verifiedPairContext("proof-a"))
+	input := startInput("demo")
+	input.Request.RunID = "explicit-proof"
+	started, err := m.Start(StartOptions{Input: input, Initiator: ctx})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCtx := <-exec.contexts
+	cancel()
+	if runCtx.Err() != nil || provenance.ForwardedIdentityToken(runCtx) != "same-baseline" || provenance.ForwardedOperationToken(runCtx) != "proof-a" {
+		t.Fatal("durable context did not preserve the verified pair after request cancellation")
+	}
+	if got := m.CoalescedRunID(verifiedPairContext("proof-a"), input.Request); got != started.RunID {
+		t.Fatalf("same pair did not coalesce: %q", got)
+	}
+	if got := m.CoalescedRunID(verifiedPairContext("proof-b"), input.Request); got != "" {
+		t.Fatalf("distinct proof coalesced: %q", got)
+	}
+	if got := m.CoalescedRunID(verifiedContext(t, "same-baseline"), input.Request); got != "" {
+		t.Fatalf("baseline without proof coalesced: %q", got)
+	}
+	if _, err := m.Start(StartOptions{Input: input, Initiator: verifiedPairContext("proof-b")}); err == nil {
+		t.Fatal("distinct proof attached to active run")
+	}
+}
+
+func TestDurableRunCarriesVerifiedAuthorityAndPartitionsCoalescing(t *testing.T) {
+	exec := &authorityExecutor{contexts: make(chan context.Context, 1), release: make(chan struct{})}
+	m := New(exec, t.TempDir())
+	defer func() { close(exec.release); m.Shutdown() }()
+	ctx, cancel := context.WithCancel(verifiedContext(t, "agent-a"))
+	input := startInput("demo")
+	started, err := m.Start(StartOptions{Input: input, Initiator: ctx})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCtx := <-exec.contexts
+	cancel()
+	if runCtx.Err() != nil || provenance.ForwardedIdentityToken(runCtx) != "agent-a" {
+		t.Fatal("durable context lost verified identity or inherited request cancellation")
+	}
+	if got := m.CoalescedRunID(verifiedContext(t, "agent-a"), input.Request); got != started.RunID {
+		t.Fatalf("same authority did not coalesce: %q", got)
+	}
+	if got := m.CoalescedRunID(verifiedContext(t, "agent-b"), input.Request); got != "" {
+		t.Fatalf("different authority coalesced: %q", got)
+	}
+	if got := m.CoalescedRunID(context.Background(), input.Request); got != "" {
+		t.Fatalf("anonymous authority coalesced: %q", got)
+	}
+	var invalid context.Context
+	provenance.Middleware(provenance.VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: false}, nil
+	}))(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { invalid = r.Context() })).ServeHTTP(httptest.NewRecorder(), func() *http.Request {
+		r := httptest.NewRequest(http.MethodPost, "/runs", nil)
+		r.Header.Set(cliutil.HeaderAgentIdentityToken, "invalid")
+		return r
+	}())
+	if got := m.CoalescedRunID(invalid, input.Request); got != "" {
+		t.Fatalf("invalid authority coalesced with verified run: %q", got)
+	}
+	if _, err := m.Start(StartOptions{Input: input, Initiator: verifiedContext(t, "agent-b")}); err == nil {
+		t.Fatal("different authority must not attach to active run")
+	}
+}
+
+func TestQueuedAndRunningAuthorityIsReverifiedAtDownstreamBoundary(t *testing.T) {
+	t.Setenv("TEST_GENIE_MAX_CONCURRENT_RUNS", "1")
+	exec := &authorityExecutor{contexts: make(chan context.Context, 2), release: make(chan struct{}, 2)}
+	root := t.TempDir()
+	m := New(exec, root)
+	defer func() { exec.release <- struct{}{}; exec.release <- struct{}{}; m.Shutdown() }()
+	var valid atomic.Bool
+	valid.Store(true)
+	verifier := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: valid.Load(), Claims: &cliutil.VerifiedClaims{RunID: "owner"}}, nil
+	})
+	server := httptest.NewServer(provenance.Middleware(verifier)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !provenance.FromContext(r.Context()).IsVerifiedAgent() {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})))
+	defer server.Close()
+	client := &http.Client{Transport: provenance.ForwardingTransport{}}
+	check := func(ctx context.Context, want int) {
+		t.Helper()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != want {
+			t.Fatalf("downstream status = %d, want %d", resp.StatusCode, want)
+		}
+	}
+	secret := "test-opaque-credential-never-persisted"
+	initiator := verifiedContext(t, secret)
+	if _, err := m.Start(StartOptions{Input: startInput("running"), Initiator: initiator}); err != nil {
+		t.Fatal(err)
+	}
+	running := <-exec.contexts
+	check(running, http.StatusNoContent)
+	if _, err := m.Start(StartOptions{Input: startInput("queued"), Initiator: initiator}); err != nil {
+		t.Fatal(err)
+	}
+	valid.Store(false) // models either expiration or revocation at the token owner.
+	check(running, http.StatusUnauthorized)
+	exec.release <- struct{}{}
+	select {
+	case queued := <-exec.contexts:
+		check(queued, http.StatusUnauthorized)
+	case <-time.After(5 * time.Second):
+		t.Fatal("queued run did not start")
+	}
+	if err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(data), secret) {
+			t.Errorf("credential persisted in %s", path)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // fakeExecutor is a scriptable stand-in for *execution.SuiteExecutionService. It
 // records an in-progress index entry (like the real orchestrator), emits the
@@ -1191,7 +1384,7 @@ func TestExplicitRunIDReplaysDurableTerminalIntentAndRejectsChanges(t *testing.T
 	m := New(exec, root)
 	input := inputWith("demo", "comprehensive")
 	input.Request.RunID = "validation-explicit-replay"
-	first, err := m.Start(StartOptions{Input: input})
+	first, err := m.Start(StartOptions{Input: input, Initiator: verifiedContext(t, "agent-a")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1206,7 +1399,7 @@ func TestExplicitRunIDReplaysDurableTerminalIntentAndRejectsChanges(t *testing.T
 	secondExec := newFakeExecutor(filepath.Join(root, "demo"))
 	second := New(secondExec, root)
 	defer second.Shutdown()
-	replay, err := second.Start(StartOptions{Input: input})
+	replay, err := second.Start(StartOptions{Input: input, Initiator: verifiedContext(t, "agent-b")})
 	if err != nil || !replay.Coalesced || replay.RunID != first.RunID {
 		t.Fatalf("terminal replay = %+v, %v; want original %q", replay, err, first.RunID)
 	}
@@ -1751,7 +1944,7 @@ func TestCoalescedRunBypassesPreviewSaturation(t *testing.T) {
 		t.Fatalf("fill preview gate: %v", err)
 	}
 	defer release()
-	if got := m.CoalescedRunID(firstInput.Request); got != first.RunID {
+	if got := m.CoalescedRunID(context.Background(), firstInput.Request); got != first.RunID {
 		t.Fatalf("CoalescedRunID = %q, want %q while preview gate is full", got, first.RunID)
 	}
 	close(fake.release)

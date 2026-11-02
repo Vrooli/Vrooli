@@ -95,11 +95,11 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 	if err != nil {
 		return nil, err
 	}
-	if runID := s.runManager.CoalescedRunID(input.Request); runID != "" {
+	if runID := s.runManager.CoalescedRunID(ctx, input.Request); runID != "" {
 		return connect.NewResponse(&runspb.StartRunResponse{RunId: runID, Target: scenario, TargetRef: targetRef, Coalesced: true}), nil
 	}
 
-	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, EstimatedTotalSeconds: etaTotal})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, Caller: caller, Initiator: ctx, EstimatedTotalSeconds: etaTotal})
 	if err != nil {
 		var busy *runmanager.BusyError
 		if errors.As(err, &busy) {

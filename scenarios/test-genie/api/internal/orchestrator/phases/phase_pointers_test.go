@@ -1,21 +1,67 @@
 package phases
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"test-genie/internal/orchestrator/phases/validationprovider"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
+	"connectrpc.com/connect"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
+
+type deadlineValidationClient struct{}
+
+func (deadlineValidationClient) ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	return nil, connect.NewError(connect.CodeDeadlineExceeded, context.DeadlineExceeded)
+}
+
+func TestUnavailableOptionalProviderRemainsSkippedInPhasePointer(t *testing.T) {
+	dir := t.TempDir()
+	env := workspace.Environment{RunID: "skipped-provider", ScenarioName: "fixture", ScenarioDir: dir}
+	var log bytes.Buffer
+	provider := validationprovider.Provider{Phase: "programs", ProviderScenario: "program-runtime", Optional: true, FindingSource: architecturev1.FindingSource_FINDING_SOURCE_PROGRAMS}
+	previousResolve, previousClient := validationprovider.ResolveBaseURL, validationprovider.NewClient
+	validationprovider.ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	validationprovider.NewClient = func(time.Duration, string) validationprovider.Client { return deadlineValidationClient{} }
+	t.Cleanup(func() {
+		validationprovider.ResolveBaseURL, validationprovider.NewClient = previousResolve, previousClient
+	})
+	report := runValidationProviderPhase(context.Background(), env, &log, provider, defaultDelegatedClient)
+	if !report.Skipped || report.Err != nil {
+		t.Fatalf("provider skip became success or failure: %+v", report)
+	}
+	if report.FindingSource != "" {
+		t.Fatalf("skipped provider claimed finding coverage: %s", report.FindingSource)
+	}
+	if bytes.Contains(log.Bytes(), []byte("[SUCCESS]")) {
+		t.Fatalf("skipped provider emitted success: %s", log.String())
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "coverage", "runs", env.RunID, "phase-results", "programs.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Status != "skipped" {
+		t.Fatalf("pointer status = %q, want skipped", payload.Status)
+	}
+}
 
 func TestProviderNativeEvidenceHasCanonicalDetailsPointerWithoutFindings(t *testing.T) {
 	dir := t.TempDir()
