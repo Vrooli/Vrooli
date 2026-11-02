@@ -8,20 +8,26 @@ import (
 	"image/png"
 	"strings"
 	"testing"
+	"time"
+
+	"device-control/strategy"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 type fakeGateway struct {
 	response *inferencev1.RunResponse
 	err      error
 	request  *inferencev1.RunRequest
+	deadline time.Time
 }
 
-func (f *fakeGateway) Run(_ context.Context, req *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
+func (f *fakeGateway) Run(ctx context.Context, req *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
 	f.request = req.Msg
+	f.deadline, _ = ctx.Deadline()
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -172,6 +178,23 @@ func TestGatewayPlannerUsesBoundedTypedContract(t *testing.T) {
 	require.NotContains(t, fake.request.GetSchemaJson(), "maxLength")
 }
 
+func TestGatewayPlannerHonorsEarlierCallerDeadline(t *testing.T) {
+	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: `{"goal_met":true}`}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	deadline, _ := ctx.Deadline()
+	_, err := NewGatewayPlanner(fake).Plan(ctx, AgentWorld{Goal: "inspect"})
+	require.NoError(t, err)
+	require.Equal(t, deadline, fake.deadline)
+}
+
+func TestGatewayPlannerKeepsSemanticScreenContentLocal(t *testing.T) {
+	fake := &fakeGateway{response: &inferencev1.RunResponse{ValueJson: `{"goal_met":true}`}}
+	_, err := NewGatewayPlanner(fake).Plan(context.Background(), AgentWorld{Goal: "inspect screen", Semantics: &strategy.SemanticSnapshot{}})
+	require.NoError(t, err)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, fake.request.GetProfile())
+}
+
 func TestGatewayPlannerRejectsUnknownAndContradictoryModelFields(t *testing.T) {
 	for _, response := range []string{
 		`{"goal_met":true,"step_kind":"media-pause"}`,
@@ -203,6 +226,9 @@ func TestAgentPolicyRequiresExternalConfirmationAndDoesNotTrustRiskLabels(t *tes
 		require.Equal(t, test.risk, AgentStepRisk(test.stepKind, ""))
 	}
 
+	require.Equal(t, "destructive", AgentStepRisk("semantic-target", "Uninstall app"))
+	require.Equal(t, "credential", AgentStepRisk("semantic-target", "Enter password"))
+	require.Equal(t, "", AgentStepRisk("semantic-target", "TV apps"))
 	policy := DefaultAgentPolicy()
 	require.ErrorContains(t, AgentPolicyViolation(policy, AgentPlan{StepKind: "share", Action: "safe"}, false), "confirmation required")
 	require.NoError(t, AgentPolicyViolation(policy, AgentPlan{StepKind: "share", Action: "safe"}, true))

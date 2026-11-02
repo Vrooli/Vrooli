@@ -9,7 +9,7 @@ metadata:
   tags: ["automation", "workflow", "learning"]
   icon: "play"
   status: "active"
-  revision: 55
+  revision: 57
   createdAt: "2026-09-04T00:00:00Z"
   updatedAt: "2026-09-06T00:00:00Z"
   requires:
@@ -41,6 +41,7 @@ Read rows in order; the first matching row is the next step.
 | Operation or inputs are unknown | Read `device-control <group> help`. **[S1]** |
 | Wake, sleep, or prepare one device | Run `device-control device screen <exact-id-or-unique-name> --operation wake|sleep|ready --actor <actor> --json`. Ready requires a verified unlocked state; supply `--auth-profile <id>` when needed. It does not navigate home. **[S1]** |
 | Capture a screenshot, short recording, or app logs | Run `device-control device capture <exact-id-or-unique-name> --kind screenshot|recording|logs --actor <actor> --json`; recordings accept `--seconds` from 1 to 30 and logs require `--package`. Inspect the disposition and evidence method. Screenshots and recordings preserve the full frame and are not content-classified by default. **[S1]** |
+| Inspect controls and labels without a screenshot | Run `device-control device semantics <exact-id-or-unique-name> --json`. Check availability and `truncated`; editable content is omitted, but other labels may be private. **[S1]** |
 | Device is not paired/onboarded | Run `device-control device connect` for its kind and follow the first unavailable rung. **[S1]** |
 | Need one device task with identity resolution and outcome capture | Run `device-control.do-task` with device, context_key, actor, and a selected flow/revision or candidate. **[S4]** |
 | Need a volume change on a device | Run `program-runtime library run device-control.volume --input device=<logical-id-or-unique-name> --input actor=<actor> --input goal='turn down by 50 percent' --input confirm=true`. The service resolves the selected device's declared volume operations, owns the lease, one recovery retry, and honest verification. `confirm=true` is required for this governed write and is never sent to the device. **[S3]** |
@@ -50,8 +51,8 @@ Read rows in order; the first matching row is the next step.
 | Need to inspect a candidate before reuse | Run `device-control flow get` with id and version. Verify its goal, device, context, preconditions and assertions. **[S1]** |
 | Have a new typed flow with an outcome assertion | Run `device-control.author-flow` with flow, device_id, context_key and actor. **[S3]** |
 | Have a repair candidate for a failed saved flow | Run `device-control.author-flow` with the same inputs plus flow_id and expected_version. **[S3]** |
-| No reusable flow exists and bounded AI control is appropriate | Run `device-control agent start` with the requested goal and exact device, using current help. **[S1]** |
-| Successful agent exploration should become reusable | Run `device-control agent promote <id>` to obtain the replay candidate; then export, add an explicit outcome assertion, and validate it through author-flow on the next step. **[S1]** |
+| No reusable flow exists and bounded AI control is appropriate | Run `device-control agent start` with the requested goal and exact device, using current help. Where the outcome is a selected control, supply its exact label with `--expect-selected` for an independent state check. **[S1]** |
+| Successful agent exploration should become reusable | Promotion requires independently verified goal completion and a terminal outcome assertion. If unavailable, author and validate a flow with an explicit assertion; do not treat the model's success claim as proof. **[S1]** |
 | Need the promoted candidate definition | Run `device-control flow export <run-id>`. Export alone does not save or validate a reusable library revision. **[S1]** |
 | Need a live state check | Run `device-control device state <id>`. **[S1]** |
 | Saved wireless endpoint is stale | Run `device-control device reconnect <id>`; it verifies hardware identity. **[S1]** |

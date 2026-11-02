@@ -153,6 +153,7 @@ and gap reports.
 | `app-lifecycle` | App lifecycle | Inventory, inspect, install a verified artifact, launch, focus, stop, uninstall, clear data, and report package state for a named application. |
 | `permission-control` | Permission control | Grant, revoke, or respond to OS permission prompts. |
 | `network-control` | Network control | Toggle or condition the device's connectivity. |
+| `wireless-debugging` | Native wireless debugging | Set and verify Android's paired Wi-Fi debugging setting through an authorized USB transport. Pairing and reachability are separate. |
 | `orientation` | Orientation | Set or read device orientation. |
 | `clipboard` | Clipboard | Read or write the device clipboard. |
 | `file-transfer` | File transfer | Move files to or from the device. |
@@ -192,6 +193,17 @@ the authentication owner verifies the keyguard and restores the initial lock
 state when the flow ends. Existing frame and recording capabilities remain
 independently probed; Cast and Remote transports do not acquire screenshots
 merely because a related Android transport can capture them.
+
+Android ADB also exposes a bounded accessibility observation through
+`device-control device semantics <device>`. It excludes editable and password
+content, reports truncation, and can be unavailable while the device cannot
+produce an idle hierarchy. Agent planning can use a complete snapshot and
+bounded action history locally; semantic targets are checked for uniqueness,
+actionability and policy before the existing flow owner resolves them again.
+The model's assertion that a goal is complete is not independent verification:
+unverified agent runs cannot be promoted into reusable flows.
+The current agent planner receives no screenshot image, even when the device
+can capture one; visual reasoning is not yet supported by that planning path.
 
 `device-control device capture <device> --kind screenshot`, `--kind recording
 --seconds 5`, and `--kind logs --package <package>` select a capable transport and use the existing flow/evidence
@@ -342,6 +354,7 @@ fewer executable steps.
 | `device.uninstall` | `app-lifecycle` |
 | `device.permission` | `permission-control` |
 | `device.network` | `network-control` |
+| `wireless-debugging` / `wireless-debugging-assert` | `wireless-debugging` over authorized USB |
 | `device.orientation` | `orientation` |
 | `device.clipboard` | `clipboard` |
 | `device.push` / `device.pull` | `file-transfer` |
@@ -520,6 +533,7 @@ Exercisable covers three mechanisms — a step **requires** it
 | `app-lifecycle` | `device.install` / `launch` / `stop` / `uninstall` | step |
 | `permission-control` | `device.permission` | step |
 | `network-control` | `device.network` | step |
+| `wireless-debugging` | `wireless-debugging` / `wireless-debugging-assert` | step |
 | `orientation` | `device.orientation` | step |
 | `clipboard` | `device.clipboard` | step |
 | `file-transfer` | `device.push` / `device.pull` | step |

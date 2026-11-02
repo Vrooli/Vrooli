@@ -14,28 +14,29 @@ import (
 )
 
 const (
-	CapSemanticTree    = "semantic-tree"
-	CapAppLifecycle    = "app-lifecycle"
-	CapPermissions     = "permissions"
-	CapInput           = "input"
-	CapScreenControl   = "screen-control"
-	CapScreenshot      = "screenshot"
-	CapScreenRecording = "screen-recording"
-	CapRecordingAudio  = "recording-audio"
-	CapNetworkControl  = "network-control"
-	CapReverseTCP      = "reverse-tcp"
-	CapDeviceRestart   = "device-restart"
-	CapOrientation     = "orientation"
-	CapClipboard       = "clipboard"
-	CapFileTransfer    = "file-transfer"
-	CapDeviceLogs      = "device-logs"
-	CapWebViewAttach   = "webview-attach"
-	CapNativeRecording = "native-recording"
-	CapMultiTouch      = "multi-touch"
-	CapProperty        = "property"
-	CapSensor          = "sensor"
-	CapMedia           = "media"
-	CapPairing         = "pairing"
+	CapSemanticTree      = "semantic-tree"
+	CapAppLifecycle      = "app-lifecycle"
+	CapPermissions       = "permissions"
+	CapInput             = "input"
+	CapScreenControl     = "screen-control"
+	CapScreenshot        = "screenshot"
+	CapScreenRecording   = "screen-recording"
+	CapRecordingAudio    = "recording-audio"
+	CapNetworkControl    = "network-control"
+	CapWirelessDebugging = "wireless-debugging"
+	CapReverseTCP        = "reverse-tcp"
+	CapDeviceRestart     = "device-restart"
+	CapOrientation       = "orientation"
+	CapClipboard         = "clipboard"
+	CapFileTransfer      = "file-transfer"
+	CapDeviceLogs        = "device-logs"
+	CapWebViewAttach     = "webview-attach"
+	CapNativeRecording   = "native-recording"
+	CapMultiTouch        = "multi-touch"
+	CapProperty          = "property"
+	CapSensor            = "sensor"
+	CapMedia             = "media"
+	CapPairing           = "pairing"
 )
 
 const (
@@ -344,6 +345,35 @@ type SemanticResolver interface {
 	ResolveSemantic(context.Context, string) (SemanticResult, error)
 }
 
+// SemanticObserver returns a bounded snapshot of available accessibility nodes.
+// Snapshot contents are device data and are not durable action selectors.
+type SemanticObserver interface {
+	ObserveSemantics(context.Context) (SemanticSnapshot, error)
+}
+
+type SemanticElement struct {
+	ResourceID   string `json:"resource_id,omitempty"`
+	Text         string `json:"text,omitempty"`
+	Description  string `json:"description,omitempty"`
+	Class        string `json:"class,omitempty"`
+	Bounds       [4]int `json:"bounds"`
+	Clickable    bool   `json:"clickable"`
+	Focusable    bool   `json:"focusable"`
+	Focused      bool   `json:"focused"`
+	Selected     *bool  `json:"selected,omitempty"`
+	Checked      *bool  `json:"checked,omitempty"`
+	Scrollable   bool   `json:"scrollable"`
+	Enabled      bool   `json:"enabled"`
+	Editable     bool   `json:"editable"`
+	TextRedacted bool   `json:"text_redacted,omitempty"`
+}
+
+type SemanticSnapshot struct {
+	Elements   []SemanticElement `json:"elements"`
+	Truncated  bool              `json:"truncated"`
+	ObservedAt time.Time         `json:"observed_at"`
+}
+
 // WebViewAttacher exposes the device-owned debugging socket and port-forward
 // seam used by a browser automation client. The client never receives an adb
 // command or a device socket name that it can reinterpret; it receives only
@@ -366,6 +396,22 @@ type SemanticResult struct {
 	Confidence float64   `json:"confidence"`
 }
 
+// WirelessDebuggingState distinguishes Android's paired Wi-Fi debugging from
+// legacy ADB-over-TCP. Nil values mean that mode could not be determined.
+type WirelessDebuggingState struct {
+	NativeSupported  *bool  `json:"native_supported,omitempty"`
+	NativeEnabled    *bool  `json:"native_enabled,omitempty"`
+	LegacyTCPEnabled *bool  `json:"legacy_tcp_enabled,omitempty"`
+	LegacyTCPPort    int    `json:"legacy_tcp_port,omitempty"`
+	Transport        string `json:"transport,omitempty"`
+}
+
+// WirelessDebuggingController changes Android's native paired Wi-Fi debugging
+// setting. Implementations must verify the observed state after a change.
+type WirelessDebuggingController interface {
+	SetWirelessDebugging(context.Context, bool) error
+}
+
 type DeviceState struct {
 	ForegroundPackage string `json:"foreground_package,omitempty"`
 	ScreenState       string `json:"screen_state,omitempty"`
@@ -378,17 +424,18 @@ type DeviceState struct {
 	// RotationSettings retains raw adapter settings for exact cleanup. Missing
 	// entries are unknown; the literal "null" represents an absent Android key.
 	// This private snapshot must never become an API or evidence payload.
-	RotationSettings map[string]string        `json:"-"`
-	BatteryLevel     int                      `json:"battery_level,omitempty"`
-	Charging         bool                     `json:"charging"`
-	ChargingKnown    bool                     `json:"-"`
-	ThermalStatus    string                   `json:"thermal_status,omitempty"`
-	DisplayWidth     int                      `json:"display_width,omitempty"`
-	DisplayHeight    int                      `json:"display_height,omitempty"`
-	DisplayDensity   int                      `json:"display_density,omitempty"`
-	Unavailable      map[string]string        `json:"unavailable,omitempty"`
-	Properties       map[string]PropertyValue `json:"properties,omitempty"`
-	Conflicts        map[string]string        `json:"conflicts,omitempty"`
+	RotationSettings  map[string]string        `json:"-"`
+	BatteryLevel      int                      `json:"battery_level,omitempty"`
+	Charging          bool                     `json:"charging"`
+	ChargingKnown     bool                     `json:"-"`
+	ThermalStatus     string                   `json:"thermal_status,omitempty"`
+	DisplayWidth      int                      `json:"display_width,omitempty"`
+	DisplayHeight     int                      `json:"display_height,omitempty"`
+	DisplayDensity    int                      `json:"display_density,omitempty"`
+	WirelessDebugging *WirelessDebuggingState  `json:"wireless_debugging,omitempty"`
+	Unavailable       map[string]string        `json:"unavailable,omitempty"`
+	Properties        map[string]PropertyValue `json:"properties,omitempty"`
+	Conflicts         map[string]string        `json:"conflicts,omitempty"`
 }
 
 // MarshalJSON does not publish zero-value mobile fields for transports that
@@ -413,6 +460,9 @@ func (s DeviceState) MarshalJSON() ([]byte, error) {
 		payload["charging"] = s.Charging
 	} else {
 		delete(payload, "charging")
+	}
+	if s.BatteryLevel < 0 {
+		delete(payload, "battery_level")
 	}
 	return json.Marshal(payload)
 }

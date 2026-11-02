@@ -25,13 +25,72 @@ func (s *Service) Validate(ctx context.Context, flow Flow, strategyID string) Ga
 	// for wireless devices: the registry's generic android-adb strategy has no
 	// live capabilities until it is bound to the device's restored transport.
 	if strat, ok := s.strategyForFlow(strategyID, flow.Transport); ok {
-		return validateAgainstDeclaration(ctx, flow, strat)
+		report := validateAgainstDeclaration(ctx, flow, strat)
+		_, fallbackReport, fallback := s.preflightUSBForImplicitWireless(ctx, strategyID, flow, report)
+		if fallback {
+			return fallbackReport
+		}
+		if !report.Runnable && strings.TrimSpace(flow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, strategyID) {
+			if recovered, ok := s.strategyForFlow(strategyID, "wireless"); ok {
+				return validateAgainstDeclaration(ctx, flow, recovered)
+			}
+		}
+		return report
 	}
 	d, ok := s.strategyForDevice(strategyID)
 	if !ok {
 		return GapReport{Gaps: []string{"unknown strategy " + strategyID}}
 	}
 	return validateAgainstDeclaration(ctx, flow, d)
+}
+
+// preflightUSBForImplicitWireless only selects the serial-bound USB strategy
+// before execution starts. A requested transport is never silently replaced.
+func (s *Service) preflightUSBForImplicitWireless(ctx context.Context, deviceID string, flow Flow, report GapReport) (strategy.Strategy, GapReport, bool) {
+	if report.Runnable || strings.TrimSpace(flow.Transport) != "" {
+		return nil, report, false
+	}
+	candidate, ok := s.knownSerialAndroidUSB(deviceID)
+	if !ok {
+		return nil, report, false
+	}
+	usbFlow := flow
+	usbFlow.Transport = "usb"
+	if usbReport := validateAgainstDeclaration(ctx, usbFlow, candidate); usbReport.Runnable {
+		return candidate, usbReport, true
+	}
+	return nil, report, false
+}
+
+func (s *Service) knownSerialAndroidUSB(deviceID string) (strategy.Strategy, bool) {
+	record, found := s.devices.Get(deviceID)
+	if !found || !strings.EqualFold(record.Transport, "wireless") || record.StrategyID != "android-adb" || record.Serial == "" {
+		return nil, false
+	}
+	base, baseOK := s.registry.Get(record.StrategyID)
+	if _, scoped := base.(strategy.DeviceScoped); !baseOK || !scoped {
+		return nil, false
+	}
+	for _, profile := range record.Transports {
+		if profile.Name == "usb" && profile.StrategyID == record.StrategyID {
+			return s.strategyForFlow(deviceID, "usb")
+		}
+	}
+	return nil, false
+}
+
+// recoverWirelessBeforeUse reconnects only an existing Android wireless
+// identity. The reconnect owner verifies its serial before changing the saved
+// endpoint; callers must invoke this before any device effect.
+func (s *Service) recoverWirelessBeforeUse(ctx context.Context, deviceID string) bool {
+	record, ok := s.devices.Get(deviceID)
+	if !ok || record.StrategyID != "android-adb" || !strings.EqualFold(record.Transport, "wireless") {
+		return false
+	}
+	reconnectCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	_, err := s.ReconnectWireless(reconnectCtx, deviceID)
+	return err == nil
 }
 
 func observedStateKey(deviceID, transport, attribute string) string {
@@ -73,6 +132,10 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		g.Gaps = append(g.Gaps, err.Error())
 	}
 	for _, step := range flow.Steps {
+		if (step.Kind == "wireless-debugging" || step.Kind == "wireless-debugging-assert") && step.Target != "enable" && step.Target != "disable" {
+			g.Runnable = false
+			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires target enable or disable", step.ID))
+		}
 		if value, present := step.Arguments["require_audio"]; present {
 			if _, ok := value.(bool); !ok || step.Kind != "recording-start" {
 				g.Runnable = false
@@ -113,7 +176,15 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 		}
 		if capability, ok := capabilityForDerivedStep(step.Kind); ok && decl.Capabilities[capability].Status != strategy.StatusAvailable {
 			g.Runnable = false
-			g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s (%s)", step.ID, capability, decl.Capabilities[capability].Reason))
+			detail := decl.Capabilities[capability].Reason
+			if detail == "" {
+				detail = decl.Capabilities[capability].NextAction
+			}
+			if detail == "" {
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s", step.ID, capability))
+			} else {
+				g.Gaps = append(g.Gaps, fmt.Sprintf("step %s requires %s (%s)", step.ID, capability, detail))
+			}
 		}
 	}
 	return g
@@ -281,6 +352,7 @@ func (s *Service) RunWithLease(ctx context.Context, flow Flow, deviceID, actor, 
 }
 
 func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string, sess Session, releaseLease bool) (RunResult, error) {
+	requestedFlow := flow
 	strat, ok := s.strategyForFlow(deviceID, flow.Transport)
 	if !ok {
 		if flow.Transport == "" {
@@ -291,12 +363,25 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	if strings.TrimSpace(flow.Transport) == "" {
 		if record, found := s.devices.Get(deviceID); found {
 			flow.Transport = record.Transport
-			if strings.EqualFold(flow.Transport, "wireless") {
+			if strings.EqualFold(flow.Transport, "wireless") && !s.hasTransportStrategy(deviceID) {
 				flow.Transport = "usb"
 			}
 		}
 	}
 	g := validateAgainstDeclaration(ctx, flow, strat)
+	if candidate, usbReport, fallback := s.preflightUSBForImplicitWireless(ctx, deviceID, requestedFlow, g); fallback {
+		strat, g = candidate, usbReport
+		flow.Transport = "usb"
+	}
+	if !g.Runnable && strings.TrimSpace(requestedFlow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, deviceID) {
+		if candidate, candidateOK := s.strategyForFlow(deviceID, "wireless"); candidateOK {
+			wirelessFlow := requestedFlow
+			wirelessFlow.Transport = "wireless"
+			if wirelessReport := validateAgainstDeclaration(ctx, wirelessFlow, candidate); wirelessReport.Runnable {
+				strat, flow, g = candidate, wirelessFlow, wirelessReport
+			}
+		}
+	}
 	if !g.Runnable {
 		return RunResult{RunID: uuid.NewString(), Disposition: "capability_gap", Chapters: []Chapter{{ID: "preflight", Title: "Capability preflight", Disposition: "failed", Message: strings.Join(g.Gaps, "; ")}}}, nil
 	}
@@ -320,27 +405,11 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	if flow.MaxDurationMS > 0 && time.Duration(flow.MaxDurationMS)*time.Millisecond < runDuration {
 		runDuration = time.Duration(flow.MaxDurationMS) * time.Millisecond
 	}
-	runctx, cancelRun := context.WithTimeout(ctx, runDuration)
-	s.sessionMu.Lock()
-	current, held := s.sessions[sess.ID]
-	if !held || current.State != "held" || current.DeviceID != deviceID || current.LeaseToken != sess.LeaseToken || !time.Now().Before(current.ExpiresAt) {
-		s.sessionMu.Unlock()
-		cancelRun()
-		return RunResult{}, fmt.Errorf("lease is no longer held")
+	runctx, finishRun, err := s.registerSessionOperation(ctx, sess, deviceID, runDuration)
+	if err != nil {
+		return RunResult{}, err
 	}
-	if _, active := s.activeCancels[sess.ID]; active {
-		s.sessionMu.Unlock()
-		cancelRun()
-		return RunResult{}, fmt.Errorf("lease already has an active run")
-	}
-	s.activeCancels[sess.ID] = cancelRun
-	s.sessionMu.Unlock()
-	defer func() {
-		cancelRun()
-		s.sessionMu.Lock()
-		delete(s.activeCancels, sess.ID)
-		s.sessionMu.Unlock()
-	}()
+	defer finishRun()
 	result := RunResult{RunID: uuid.NewString(), Disposition: "passed", Chapters: []Chapter{}, Resolutions: []Resolution{}, Evidence: []evidence.Reference{}, Binding: RunBinding{DeviceID: deviceID, Transport: flow.Transport, LeaseID: sess.ID, ApplicationID: flow.ApplicationID, ApplicationRevision: flow.ApplicationRevision}}
 	stateManager := &sessionsdomain.StateManager{}
 	stateRestorer, hasStateRestorer := strat.(strategy.StateRestorer)
@@ -592,6 +661,26 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			// proves the device is awake and unlocked.
 			if stepErr == nil {
 				switch step.Kind {
+				case "wireless-debugging-assert":
+					reader, supported := strat.(strategy.StateReader)
+					if !supported {
+						stepErr = fmt.Errorf("strategy cannot observe wireless debugging state")
+						break
+					}
+					observed, err := reader.ReadState(stepctx)
+					if err != nil || observed.WirelessDebugging == nil || observed.WirelessDebugging.NativeEnabled == nil || *observed.WirelessDebugging.NativeEnabled != (step.Target == "enable") {
+						stepErr = fmt.Errorf("native wireless debugging expected state was not observed")
+					}
+				case "wireless-debugging":
+					if flow.SuppressActuation {
+						break
+					}
+					controller, supported := strat.(strategy.WirelessDebuggingController)
+					if !supported {
+						stepErr = fmt.Errorf("strategy does not implement native wireless debugging control")
+						break
+					}
+					stepErr = controller.SetWirelessDebugging(stepctx, step.Target == "enable")
 				case "reverse-tcp-remove":
 					remover, ok := strat.(strategy.ReverseTCPRemover)
 					if !ok {
@@ -1034,7 +1123,12 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			}
 			if stepErr == nil {
 				for _, condition := range step.Postconditions {
-					if conditionErr := s.evaluateFlowCondition(stepctx, strat, condition, previousFrame, lastFrame); conditionErr != nil {
+					conditionErr := s.evaluateFlowCondition(stepctx, strat, condition, previousFrame, lastFrame)
+					kind := strings.ToLower(strings.TrimSpace(condition.Kind))
+					if conditionErr != nil && step.Kind == "screen" && (kind == "screen-on" || kind == "screen-off") {
+						conditionErr = s.waitForScreenPostcondition(stepctx, strat, condition, previousFrame, lastFrame, conditionErr)
+					}
+					if conditionErr != nil {
 						stepErr = fmt.Errorf("postcondition %q failed: %w", condition.Kind, conditionErr)
 						break
 					}
@@ -1167,6 +1261,27 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 	return result, nil
 }
 
+// Screen transitions can be reported shortly after the key is accepted. Retry
+// only the observation, never the input effect, within a small bounded window.
+func (s *Service) waitForScreenPostcondition(ctx context.Context, strat strategy.Strategy, condition Condition, previousFrame, lastFrame []byte, lastErr error) error {
+	waitCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	for {
+		timer := time.NewTimer(200 * time.Millisecond)
+		select {
+		case <-waitCtx.Done():
+			timer.Stop()
+			return lastErr
+		case <-timer.C:
+		}
+		if err := s.evaluateFlowCondition(waitCtx, strat, condition, previousFrame, lastFrame); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+	}
+}
+
 type FlowExport struct {
 	RunID    string            `json:"run_id"`
 	Flow     Flow              `json:"flow"`
@@ -1278,7 +1393,7 @@ func (s *Service) evaluateFlowCondition(ctx context.Context, strat strategy.Stra
 
 func retryableFlowStep(kind string) bool {
 	switch kind {
-	case "wait", "property-get", "property-assert", "sensor-read", "semantic-assert", "assert-foreground":
+	case "wait", "property-get", "property-assert", "sensor-read", "semantic-assert", "assert-foreground", "wireless-debugging-assert":
 		// These operations are observational or locally repeatable. Native
 		// effects remain one-shot unless their strategy supplies a stronger
 		// idempotency contract.

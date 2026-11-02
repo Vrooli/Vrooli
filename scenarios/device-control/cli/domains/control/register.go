@@ -54,6 +54,9 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Device state")
 		}),
+		command("semantics", "Read a bounded accessibility snapshot from a device", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}, Flags: []cliapp.Flag{{Name: "lease", Description: "existing device lease; acquired automatically if omitted"}, {Name: "transport", Description: "exact observed transport profile"}, {Name: "actor", Default: "cli", Description: "lease actor"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/semantics", map[string]any{"lease_token": ctx.Flag("lease"), "transport": ctx.Flag("transport"), "actor": ctx.Flag("actor")}, "Device semantics")
+		}),
 		command("capture", "Capture available device evidence or report an observation gap", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "screenshot, recording, logs, console, or network"}, {Name: "seconds", Default: "5", Description: "recording duration, 1 to 30 seconds"}, {Name: "require-audio", Bool: true, Description: "require a transport that can record audio and verify an audio track"}, {Name: "package", Description: "exact application package for logs"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
 			seconds, err := strconv.Atoi(ctx.Flag("seconds"))
 			if err != nil || seconds < 1 || seconds > 30 {
@@ -262,7 +265,7 @@ func SessionGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 func FlowGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "flow", Description: "Validate and run bounded device flows", NeedsAPI: true, Subcommands: append(savedFlowCommands(core), []cliapp.Command{
 		command("validate", "Validate a flow before taking a lease", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "strategy", Required: true, Description: "strategy or device id"}, {Name: "baseline-id"}, {Name: "expected-version"}, {Name: "require-assertion", Bool: true}}}, func(ctx cliapp.RunContext) error { return validateLibraryCandidate(ctx, core) }),
-		command("run", "Run a flow with chaptered evidence", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}, {Name: "transport", Description: "usb (default) or wireless; wireless must be explicit"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/run", true) }),
+		command("run", "Run a flow with chaptered evidence", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "file", Required: true, Description: "flow JSON file"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "lease", Description: "held lease token"}, {Name: "transport", Description: "override the flow or device's selected transport"}}}, func(ctx cliapp.RunContext) error { return flowRequest(ctx, core, "/flows/run", true) }),
 		command("export", "Export a completed run as a replayable flow", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "run-id", Required: true, Description: "completed run id"}}}, func(ctx cliapp.RunContext) error {
 			b, err := core.Request(http.MethodGet, "/flows/"+ctx.Positional("run-id")+"/export", nil, nil)
 			if err != nil {
@@ -335,8 +338,8 @@ func AuditGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 
 func AgentGroup(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "agent", Description: "Run deterministic skill-gated device agents", NeedsAPI: true, Subcommands: []cliapp.Command{
-		command("start", "Start an agent run; refuses without the prompt-manager skill", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "goal", Required: true, Description: "goal"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "skill-available", Bool: true, Description: "confirm the prompt-manager skill is installed"}, {Name: "dry-run", Bool: true, Description: "plan without actuating"}}}, func(ctx cliapp.RunContext) error {
-			return post(ctx, core, "/agents/start", map[string]any{"goal": ctx.Flag("goal"), "device_id": ctx.Flag("device"), "actor": ctx.Flag("actor"), "skill_available": ctx.BoolFlag("skill-available"), "dry_run": ctx.BoolFlag("dry-run")}, "Agent")
+		command("start", "Start an agent run; refuses without the prompt-manager skill", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "goal", Required: true, Description: "goal"}, {Name: "device", Required: true, Description: "device id"}, {Name: "actor", Default: "cli", Description: "audit actor"}, {Name: "skill-available", Bool: true, Description: "confirm the prompt-manager skill is installed"}, {Name: "dry-run", Bool: true, Description: "plan without actuating"}, {Name: "expect-selected", Description: "independently verify this exact control is selected"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/agents/start", map[string]any{"goal": ctx.Flag("goal"), "device_id": ctx.Flag("device"), "actor": ctx.Flag("actor"), "skill_available": ctx.BoolFlag("skill-available"), "dry_run": ctx.BoolFlag("dry-run"), "expect_selected": ctx.Flag("expect-selected")}, "Agent")
 		}),
 		command("abort", "Abort an active agent run", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true}}}, func(ctx cliapp.RunContext) error {
 			b, e := core.Request(http.MethodPost, "/agents/"+ctx.Positional("id")+"/abort", nil, nil)

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "562cc64a82a51a7949c584ad67bd2dc5f535efb2d9cf825a0fb1116233415f3b",
+  "manifest_hash": "0b5a3230caa13ae77e6eeb69c34ef630caea5078607294c1c6837be098edf8a0",
   "commands": [
     {
       "path": "agent abort",
@@ -293,6 +293,11 @@
       "group": "device",
       "command": "screen",
       "binding": "."
+    },
+    {
+      "path": "device semantics",
+      "group": "device",
+      "command": "semantics"
     },
     {
       "path": "device split",

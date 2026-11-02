@@ -615,7 +615,16 @@ func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error
 		return Device{}, fmt.Errorf("unknown device %q", id)
 	}
 	if record.Transport != "usb" {
-		return Device{}, fmt.Errorf("device %q must be onboarded over USB before wireless promotion", id)
+		hasKnownUSB := false
+		for _, profile := range record.Transports {
+			if profile.Name == "usb" && profile.StrategyID == record.StrategyID && record.Serial != "" {
+				hasKnownUSB = true
+				break
+			}
+		}
+		if !hasKnownUSB {
+			return Device{}, fmt.Errorf("device %q must have a known serial-bound USB transport before wireless promotion", id)
+		}
 	}
 	base, ok := s.registry.Get(record.StrategyID)
 	if !ok {
@@ -623,6 +632,8 @@ func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error
 	}
 	if scoped, ok := base.(strategy.DeviceScoped); ok && record.Serial != "" {
 		base = scoped.ForDevice(record.Serial)
+	} else if record.Transport != "usb" {
+		return Device{}, fmt.Errorf("device %q cannot re-promote without a serial-scoped USB strategy", id)
 	}
 	promoter, ok := base.(interface{ PromoteWireless(context.Context) error })
 	if !ok {

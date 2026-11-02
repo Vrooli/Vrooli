@@ -60,6 +60,32 @@ describe("DeviceDetailPage capability composition", () => {
     expect(screen.getByTestId(selectors.pages.deviceLiveView).compareDocumentPosition(screen.getByTestId(selectors.pages.deviceCapabilityMatrix)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("distinguishes unsupported paired debugging from enabled legacy TCP", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "phone", name: "Phone", strategy_id: "android-adb", status: "available", capabilities: [] } });
+    api.readDeviceState.mockResolvedValue({ wireless_debugging: { native_supported: false, legacy_tcp_enabled: true, legacy_tcp_port: 5555, transport: "wireless" } });
+    renderPage("phone");
+    const state = await screen.findByRole("region", { name: "Current device state" });
+    await waitFor(() => expect(state).toHaveTextContent("Paired wireless debuggingNot supported by this Android version"));
+    expect(state).toHaveTextContent("Legacy ADB over TCPEnabled (port 5555)");
+  });
+
+  it("reports unknown debugging states without calling them disabled", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "phone", name: "Phone", strategy_id: "android-adb", status: "available", capabilities: [] } });
+    api.readDeviceState.mockResolvedValue({ wireless_debugging: { native_supported: true } });
+    renderPage("phone");
+    const state = await screen.findByRole("region", { name: "Current device state" });
+    await waitFor(() => expect(state).toHaveTextContent("Paired wireless debuggingUnknown"));
+    expect(state).toHaveTextContent("Legacy ADB over TCPUnknown");
+  });
+
+  it("shows unknown debugging state when Android cannot probe it", async () => {
+    api.describeDevice.mockResolvedValue({ device: { id: "phone", name: "Phone", strategy_id: "android-adb", status: "available", capabilities: [] } });
+    api.readDeviceState.mockResolvedValue({ unavailable: { wireless_debugging: "probe unavailable" } });
+    renderPage("phone");
+    const state = await screen.findByRole("region", { name: "Current device state" });
+    await waitFor(() => expect(state).toHaveTextContent("Paired wireless debuggingUnknown"));
+  });
+
   it("captures an actual frame through the evidence owner", async () => {
     api.describeDevice.mockResolvedValue({ device: { id: "tv", name: "TV", strategy_id: "android-adb", status: "available", capabilities: [{ name: "screenshot", status: "available" }, { name: "input", status: "available" }] } });
     api.readDeviceState.mockResolvedValue({ screen_state: "on" });

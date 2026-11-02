@@ -33,6 +33,7 @@ func Module(s *internal.Service) module.Module {
 		r.HandleFunc("/api/v1/devices/{id}", h.describeDevice).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/devices/{id}", h.forgetDevice).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/devices/{id}/state", h.deviceState).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/devices/{id}/semantics", h.deviceSemantics).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/pair/start", h.startPairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/pair/complete", h.completePairDevice).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/devices/{id}/pair", h.pairDevice).Methods(http.MethodPost)
@@ -241,6 +242,24 @@ func (h *handler) deviceState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, http.StatusOK, state)
+}
+
+func (h *handler) deviceSemantics(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Actor      string `json:"actor"`
+		LeaseToken string `json:"lease_token"`
+		Transport  string `json:"transport"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "semantic observation request is invalid")
+		return
+	}
+	result, err := h.service.ObserveSemantics(r.Context(), mux.Vars(r)["id"], in.Actor, in.LeaseToken, in.Transport)
+	if err != nil {
+		writeError(w, http.StatusConflict, "semantic_observation_unavailable", err.Error())
+		return
+	}
+	write(w, http.StatusOK, result)
 }
 
 func (h *handler) discoverDevices(w http.ResponseWriter, r *http.Request) {
@@ -902,12 +921,13 @@ func (h *handler) startAgent(w http.ResponseWriter, r *http.Request) {
 		SkillAvailable bool   `json:"skill_available"`
 		DryRun         bool   `json:"dry_run"`
 		Confirmed      bool   `json:"confirmed"`
+		ExpectSelected string `json:"expect_selected"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	a, err := h.service.StartAgentWithPolicy(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun, internalflows.DefaultAgentPolicy(), in.Confirmed)
+	a, err := h.service.StartAgentWithOutcome(r.Context(), in.Goal, in.DeviceID, in.Actor, in.SkillAvailable, in.DryRun, internalflows.DefaultAgentPolicy(), in.Confirmed, in.ExpectSelected)
 	if err != nil {
 		writeError(w, http.StatusPreconditionFailed, "agent_unavailable", err.Error())
 		return
@@ -952,6 +972,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "flow_run_retained_delete", Path: "/api/v1/flows/{id}/retained", Method: "DELETE", Summary: "Delete a retained run record", Category: "flows", RESTException: module.ThirdPartyJSONREST("DELETE")},
 	{ID: "devices_list", Path: "/api/v1/devices", Method: "GET", Summary: "List devices and probed capabilities", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "devices_discover", Path: "/api/v1/devices/discover", Method: "GET", Summary: "Browse the LAN for DNS-SD device services", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
+	{ID: "devices_semantics", Path: "/api/v1/devices/{id}/semantics", Method: "POST", Summary: "Read a bounded accessibility snapshot under a device lease", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_state", Path: "/api/v1/devices/{id}/state", Method: "GET", Summary: "Read live device state", Category: "devices", RESTException: module.ThirdPartyJSONREST("GET")},
 	{ID: "devices_pair_start", Path: "/api/v1/devices/{id}/pair/start", Method: "POST", Summary: "Start the owner-present Android TV Remote pairing handshake", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},
 	{ID: "devices_pair_complete", Path: "/api/v1/devices/{id}/pair/complete", Method: "POST", Summary: "Complete an owner-present Android TV Remote pairing handshake", Category: "devices", RESTException: module.ThirdPartyJSONREST("POST")},

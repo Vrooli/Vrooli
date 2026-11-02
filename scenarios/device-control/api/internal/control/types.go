@@ -93,14 +93,20 @@ type (
 	RunResult  = executiondomain.RunResult
 	AgentRun   struct {
 		ID, Goal, DeviceID, Actor, State, Skill string
-		Result                                  RunResult `json:"result"`
-		CreatedAt                               time.Time `json:"created_at"`
-		DryRun                                  bool      `json:"dry_run,omitempty"`
-		PlanningRole                            string    `json:"planning_role,omitempty"`
-		PromptHash                              string    `json:"prompt_hash,omitempty"`
-		PolicyHash                              string    `json:"policy_hash,omitempty"`
-		PlanHashes                              []string  `json:"plan_hashes,omitempty"`
-		PromotedFlowID                          string    `json:"promoted_flow_id,omitempty"`
-		PlannedSteps                            []Step    `json:"-"`
+		Result                                  RunResult          `json:"result"`
+		CreatedAt                               time.Time          `json:"created_at"`
+		DryRun                                  bool               `json:"dry_run,omitempty"`
+		GoalVerified                            bool               `json:"goal_verified"`
+		PlanningRole                            string             `json:"planning_role,omitempty"`
+		PromptHash                              string             `json:"prompt_hash,omitempty"`
+		PolicyHash                              string             `json:"policy_hash,omitempty"`
+		PlanHashes                              []string           `json:"plan_hashes,omitempty"`
+		PromotedFlowID                          string             `json:"promoted_flow_id,omitempty"`
+		ProposedStep                            *AgentProposedStep `json:"proposed_step,omitempty"`
+		PlannedSteps                            []Step             `json:"-"`
+	}
+	AgentProposedStep struct {
+		Kind   string `json:"kind"`
+		Target string `json:"target,omitempty"`
 	}
 )

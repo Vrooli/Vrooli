@@ -3,11 +3,9 @@ package control
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"image"
 	"image/png"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -23,16 +21,11 @@ import (
 // error, so capability probes for unscripted verbs resolve to unavailable
 // without failing the onboarding path.
 type scriptedADBRunner struct {
-	mu        sync.Mutex
 	responses map[string][]byte
-	calls     []string
 }
 
 func (r *scriptedADBRunner) Run(_ context.Context, name string, args ...string) ([]byte, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	key := strings.Join(append([]string{name}, args...), " ")
-	r.calls = append(r.calls, key)
 	if out, ok := r.responses[key]; ok {
 		return out, nil
 	}
@@ -105,6 +98,4 @@ func TestAndroidTVNetworkADBOnboardingAndApplicationLifecycle(t *testing.T) { //
 	})
 	require.NoError(t, err)
 	require.False(t, absent.Result.Installed)
-
-	_ = fmt.Sprint(runner.calls) // retained for debugging on failure
 }

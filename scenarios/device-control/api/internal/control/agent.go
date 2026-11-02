@@ -29,10 +29,20 @@ func (s *Service) StartAgentWithOptions(ctx context.Context, goal, deviceID, act
 // operator decision supplied outside the model response; it cannot be granted
 // by a planner output.
 func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool, policy internalflows.AgentPolicy, confirmed bool) (AgentRun, error) {
+	return s.StartAgentWithOutcome(ctx, goal, deviceID, actor, skillAvailable, dryRun, policy, confirmed, "")
+}
+
+// StartAgentWithOutcome accepts an operator-supplied, independently observable
+// completion condition. The planner cannot change this condition.
+func (s *Service) StartAgentWithOutcome(ctx context.Context, goal, deviceID, actor string, skillAvailable, dryRun bool, policy internalflows.AgentPolicy, confirmed bool, expectSelected string) (AgentRun, error) {
 	if !skillAvailable {
 		return AgentRun{}, fmt.Errorf("agent mode refused: prompt-manager device-control skill is unavailable")
 	}
 	goal = strings.TrimSpace(goal)
+	expectSelected = strings.TrimSpace(expectSelected)
+	if len(expectSelected) > 256 {
+		return AgentRun{}, fmt.Errorf("selected-control expectation exceeds 256 bytes")
+	}
 	if goal == "" {
 		return AgentRun{}, fmt.Errorf("agent goal is required")
 	}
@@ -41,8 +51,31 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 		return AgentRun{}, fmt.Errorf("unknown or unavailable device %q", deviceID)
 	}
 	declaration, err := adapter.Describe(ctx)
+	selectedTransport := ""
+	if record, found := s.devices.Get(deviceID); found {
+		selectedTransport = record.Transport
+	}
+	if err != nil || declaration.Status != strategy.StatusAvailable {
+		if usb, ok := s.knownSerialAndroidUSB(deviceID); ok {
+			if usbDeclaration, probeErr := usb.Describe(ctx); probeErr == nil && usbDeclaration.Status == strategy.StatusAvailable {
+				declaration = usbDeclaration
+				selectedTransport = "usb"
+				err = nil
+			}
+		}
+	}
+	if (err != nil || declaration.Status != strategy.StatusAvailable) && s.recoverWirelessBeforeUse(ctx, deviceID) {
+		if wireless, ok := s.strategyForFlow(deviceID, "wireless"); ok {
+			if recovered, probeErr := wireless.Describe(ctx); probeErr == nil && recovered.Status == strategy.StatusAvailable {
+				declaration, selectedTransport, err = recovered, "wireless", nil
+			}
+		}
+	}
 	if err != nil {
 		return AgentRun{}, err
+	}
+	if selectedTransport != "" {
+		declaration.Transport = selectedTransport
 	}
 	allowed := map[string]bool{}
 	for _, kind := range strategy.StepKinds(declaration) {
@@ -62,6 +95,9 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 	planner := s.agentPlanner
 	s.mu.Unlock()
 	plannedSteps := []Step{}
+	goalVerified := false
+	var proposedStep *AgentProposedStep
+	history := []internalflows.AgentHistory{}
 	planHashes := []string{}
 	promptHash := ""
 	policyHash, _ := internalflows.HashAgentPayload(policy)
@@ -84,11 +120,50 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 				appendChapter(fmt.Sprintf("budget-%d", iteration), "failed", err.Error())
 				break
 			}
-			worldModel := internalflows.AgentWorld{Goal: goal, Capabilities: declaration.Capabilities, StepKinds: strategy.StepKinds(declaration), State: state, FrameOptional: declaration.Capabilities[strategy.CapScreenshot].Status == strategy.StatusAvailable, App: internalflows.AgentAppContext{ApplicationID: declaration.DeviceID, Revision: declaration.StrategyID}, Policy: policy}
-			if promptHash == "" {
-				promptHash, _ = internalflows.HashAgentPayload(worldModel)
+			worldModel := internalflows.AgentWorld{Goal: goal, Capabilities: declaration.Capabilities, StepKinds: strategy.StepKinds(declaration), State: state, FrameAvailable: false, App: internalflows.AgentAppContext{ApplicationID: declaration.DeviceID, Revision: declaration.StrategyID}, Policy: policy}
+			if planner != nil && declaration.Capabilities[strategy.CapSemanticTree].Status == strategy.StatusAvailable {
+				snapshot, observeErr := s.ObserveSemantics(agentCtx, deviceID, actor, "", declaration.Transport)
+				if observeErr == nil {
+					worldModel.Semantics = &snapshot
+					if len(history) > 0 {
+						last := &history[len(history)-1]
+						last.AfterSnapshotHash, _ = internalflows.HashAgentPayload(snapshot.Elements)
+						if last.BeforeSnapshotHash != "" && last.AfterSnapshotHash != "" {
+							changed := last.BeforeSnapshotHash != last.AfterSnapshotHash
+							last.SnapshotChanged = &changed
+						}
+					}
+				} else {
+					worldModel.SemanticUnavailable = "semantic observation unavailable"
+				}
 			}
-			appendChapter(fmt.Sprintf("world-model-%d", iteration), "passed", fmt.Sprintf("bounded world model captured; prompt_hash=%s policy_hash=%s", promptHash, policyHash))
+			worldModel.History = append([]internalflows.AgentHistory(nil), history...)
+			// The planner receives typed state and semantics, not captured image
+			// bytes. Offering observe would let it repeatedly request screenshots
+			// whose contents it cannot actually inspect.
+			if planner != nil {
+				filtered := worldModel.StepKinds[:0]
+				for _, kind := range worldModel.StepKinds {
+					if kind != "observe" {
+						filtered = append(filtered, kind)
+					}
+				}
+				worldModel.StepKinds = filtered
+			}
+			if worldModel.Semantics == nil || worldModel.Semantics.Truncated || declaration.Capabilities[strategy.CapScreenshot].Status != strategy.StatusAvailable {
+				filtered := worldModel.StepKinds[:0]
+				for _, kind := range worldModel.StepKinds {
+					if kind != "semantic-target" {
+						filtered = append(filtered, kind)
+					}
+				}
+				worldModel.StepKinds = filtered
+			}
+			iterationPromptHash, _ := internalflows.HashAgentPayload(worldModel)
+			if promptHash == "" {
+				promptHash = iterationPromptHash
+			}
+			appendChapter(fmt.Sprintf("world-model-%d", iteration), "passed", fmt.Sprintf("bounded world model captured; prompt_hash=%s policy_hash=%s", iterationPromptHash, policyHash))
 
 			var plan internalflows.AgentPlan
 			var planningErr error
@@ -112,8 +187,30 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 			if planHash, hashErr := internalflows.HashAgentPayload(plan); hashErr == nil {
 				planHashes = append(planHashes, planHash)
 			}
+			if plan.StepKind == "semantic-target" {
+				if shouldBlockRepeatedSemanticAction(history, plan) {
+					history[len(history)-1].RepeatBlocked = true
+					appendChapter(fmt.Sprintf("planning-%d", iteration), "passed", "repeated semantic action skipped because the observed snapshot did not change")
+					continue
+				}
+				if err := validateAgentSemanticTarget(worldModel.Semantics, plan.Action); err != nil {
+					appendChapter(fmt.Sprintf("planning-%d", iteration), "failed", err.Error()+"; no actuation executed")
+					result.Disposition = "failed"
+					break
+				}
+			}
 			if plan.GoalMet {
-				appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "planner reported the goal satisfied")
+				if expectSelected != "" {
+					if err := verifySelectedSemanticControl(worldModel.Semantics, expectSelected); err != nil {
+						appendChapter(fmt.Sprintf("goal-%d", iteration), "failed", err.Error())
+						result.Disposition = "failed"
+						break
+					}
+					goalVerified = true
+					appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "operator-specified selected control independently observed")
+				} else {
+					appendChapter(fmt.Sprintf("goal-%d", iteration), "passed", "planner reported the goal satisfied")
+				}
 				completed = true
 				break
 			}
@@ -126,12 +223,48 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 				result.Disposition = disposition
 				break
 			}
+			if plan.StepKind == "semantic-target" {
+				if policyErr := semanticTargetPolicyViolation(policy, worldModel.Semantics, plan.Action, confirmed); policyErr != nil {
+					disposition := "failed"
+					if strings.Contains(policyErr.Error(), "confirmation required") {
+						disposition = "confirmation_required"
+					}
+					appendChapter(fmt.Sprintf("confirmation-%d", iteration), disposition, policyErr.Error()+"; no actuation executed")
+					result.Disposition = disposition
+					break
+				}
+			}
 			if !allowed[plan.StepKind] {
 				appendChapter(fmt.Sprintf("planning-%d", iteration), "failed", fmt.Sprintf("planner proposed undeclared step kind %q; no actuation executed", plan.StepKind))
 				result.Disposition = "failed"
 				break
 			}
 			plannedSteps = append(plannedSteps, agentFlowStep(iteration, plan))
+			if dryRun {
+				// No future state can be observed without performing this step.
+				// Return the proposal instead of repeatedly planning against an
+				// unchanged screen. Text and arbitrary values stay private.
+				preview := AgentProposedStep{Kind: plan.StepKind}
+				if plan.StepKind == "semantic-target" || plan.StepKind == "key" {
+					preview.Target = plannedSteps[len(plannedSteps)-1].Target
+				}
+				proposedStep = &preview
+				appendChapter(fmt.Sprintf("iteration-%d", iteration), "planned", fmt.Sprintf("proposed=%s; no actuation was sent", plan.StepKind))
+				result.Disposition = "planned"
+				break
+			}
+			entry := internalflows.AgentHistory{StepKind: plan.StepKind, Outcome: "completed"}
+			if plan.StepKind == "semantic-target" || strings.HasPrefix(plan.StepKind, "property-") || strings.HasPrefix(plan.StepKind, "media-") {
+				entry.Target = plan.Action
+			}
+			if plan.StepKind == "key" {
+				entry.Target = fmt.Sprint(plan.Value)
+			}
+			if worldModel.Semantics != nil {
+				entry.BeforeSnapshotHash, _ = internalflows.HashAgentPayload(worldModel.Semantics.Elements)
+				entry.VisibleControls, entry.VisibleControlsTruncated = agentVisibleControls(worldModel.Semantics)
+			}
+			history = append(history, entry)
 			if plan.StepKind == "observe" {
 				_, observeErr := s.Run(agentCtx, Flow{ID: uuid.NewString(), Name: "agent-observe", Steps: []Step{{ID: "observe", Kind: "observe", TimeoutMS: 5000}}}, deviceID, actor)
 				if observeErr != nil {
@@ -168,23 +301,34 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 				break
 			}
 			var iterationErr error
-			if dryRun {
-				appendChapter(fmt.Sprintf("iteration-%d", iteration), "passed", fmt.Sprintf("proposed=%s verdict=accepted actuation=dry-run without sending an actuation or writing an actuation audit", plan.StepKind))
+			causation := ""
+			if plan.StepKind == "semantic-target" {
+				flow := Flow{ID: uuid.NewString(), Transport: declaration.Transport, Steps: []Step{agentFlowStep(iteration, plan)}}
+				flowResult, flowErr := s.RunWithLease(agentCtx, flow, deviceID, actor, lease.LeaseToken)
+				if flowErr != nil {
+					iterationErr = flowErr
+				} else if flowResult.Disposition != "passed" {
+					detail := ""
+					if len(flowResult.Chapters) > 0 {
+						detail = flowResult.Chapters[len(flowResult.Chapters)-1].Message
+					}
+					iterationErr = fmt.Errorf("semantic action did not pass: %s: %s", flowResult.Disposition, detail)
+				}
 			} else {
 				direct := directActuationForAgentPlan(plan, declaration.Transport)
 				audit, actuationErr := s.ActuateDevice(agentCtx, deviceID, actor, lease.LeaseToken, direct)
-				if actuationErr != nil {
-					iterationErr = actuationErr
-				} else {
-					state, iterationErr = s.ReadDeviceState(agentCtx, deviceID)
-					if iterationErr == nil {
-						afterHash, _ := internalflows.HashAgentPayload(state)
-						appendChapter(fmt.Sprintf("iteration-%d", iteration), "passed", fmt.Sprintf("proposed=%s verdict=accepted actuation=completed causation_id=%s observed_state_hash=%s", plan.StepKind, audit.CausationID, afterHash))
-					}
+				iterationErr = actuationErr
+				causation = audit.CausationID
+			}
+			if iterationErr == nil {
+				state, iterationErr = s.ReadDeviceState(agentCtx, deviceID)
+				if iterationErr == nil {
+					afterHash, _ := internalflows.HashAgentPayload(state)
+					appendChapter(fmt.Sprintf("iteration-%d", iteration), "passed", fmt.Sprintf("proposed=%s verdict=accepted actuation=completed causation_id=%s observed_state_hash=%s", plan.StepKind, causation, afterHash))
 				}
-				if iterationErr != nil {
-					appendChapter(fmt.Sprintf("iteration-%d", iteration), "failed", fmt.Sprintf("proposed=%s verdict=accepted actuation=failed error=%v", plan.StepKind, iterationErr))
-				}
+			}
+			if iterationErr != nil {
+				appendChapter(fmt.Sprintf("iteration-%d", iteration), "failed", fmt.Sprintf("proposed=%s verdict=accepted actuation=failed error=%v", plan.StepKind, iterationErr))
 			}
 			_, _ = s.ReleaseContext(agentCtx, lease.ID)
 			if iterationErr != nil {
@@ -213,7 +357,10 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 	if result.Disposition == "confirmation_required" {
 		agentState = "awaiting_confirmation"
 	}
-	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: time.Now().UTC(), DryRun: dryRun, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps}
+	if result.Disposition == "planned" {
+		agentState = "planned"
+	}
+	agent := AgentRun{ID: uuid.NewString(), Goal: goal, DeviceID: deviceID, Actor: actor, State: agentState, Skill: "prompt-manager/device-control", Result: result, CreatedAt: time.Now().UTC(), DryRun: dryRun, GoalVerified: goalVerified, PlanningRole: internalflows.AgentPlanRole, PromptHash: promptHash, PolicyHash: policyHash, PlanHashes: append([]string(nil), planHashes...), PlannedSteps: plannedSteps, ProposedStep: proposedStep}
 	s.mu.Lock()
 	s.agents[agent.ID] = agent
 	s.mu.Unlock()
@@ -222,7 +369,7 @@ func (s *Service) StartAgentWithPolicy(ctx context.Context, goal, deviceID, acto
 
 const (
 	maxAgentIterations = 8
-	maxAgentDuration   = 30 * time.Second
+	maxAgentDuration   = 2 * time.Minute
 )
 
 func agentDispositionForContext(err error) string {
@@ -230,6 +377,100 @@ func agentDispositionForContext(err error) string {
 		return "aborted"
 	}
 	return "failed"
+}
+
+// Keep a short local-only summary of the previous screen so the planner can
+// distinguish an unproductive action from returning to an earlier surface.
+func agentVisibleControls(snapshot *strategy.SemanticSnapshot) ([]string, bool) {
+	if snapshot == nil {
+		return nil, false
+	}
+	seen := map[string]bool{}
+	var controls []string
+	for _, element := range snapshot.Elements {
+		if !element.Enabled || element.Editable || (!element.Clickable && !element.Focusable) {
+			continue
+		}
+		label := element.Text
+		if label == "" {
+			label = element.Description
+		}
+		if label == "" {
+			label = element.ResourceID
+		}
+		label = strings.TrimSpace(label)
+		if label == "" || seen[label] {
+			continue
+		}
+		seen[label] = true
+		if len(controls) == 12 {
+			return controls, true
+		}
+		controls = append(controls, label)
+	}
+	return controls, snapshot.Truncated
+}
+
+func shouldBlockRepeatedSemanticAction(history []internalflows.AgentHistory, plan internalflows.AgentPlan) bool {
+	if len(history) == 0 || plan.StepKind != "semantic-target" {
+		return false
+	}
+	last := history[len(history)-1]
+	return last.StepKind == plan.StepKind && last.Target == plan.Action && last.SnapshotChanged != nil && !*last.SnapshotChanged
+}
+
+func validateAgentSemanticTarget(snapshot *strategy.SemanticSnapshot, target string) error {
+	if snapshot == nil || snapshot.Truncated {
+		return fmt.Errorf("complete semantic observation is unavailable")
+	}
+	matches := 0
+	for _, item := range snapshot.Elements {
+		if (item.Text == target || item.Description == target || item.ResourceID == target) && item.Enabled && !item.Editable && (item.Clickable || item.Focusable) {
+			matches++
+		}
+	}
+	if matches != 1 {
+		return fmt.Errorf("semantic target must match exactly one enabled actionable non-editable control")
+	}
+	return nil
+}
+
+func verifySelectedSemanticControl(snapshot *strategy.SemanticSnapshot, target string) error {
+	if snapshot == nil || snapshot.Truncated {
+		return fmt.Errorf("selected-control outcome cannot be verified without a complete semantic observation")
+	}
+	var matched *strategy.SemanticElement
+	for i := range snapshot.Elements {
+		item := &snapshot.Elements[i]
+		if item.Text == target || item.Description == target || item.ResourceID == target {
+			if matched != nil {
+				return fmt.Errorf("selected-control outcome is ambiguous")
+			}
+			matched = item
+		}
+	}
+	if matched == nil || matched.Selected == nil || !*matched.Selected {
+		return fmt.Errorf("selected-control outcome was not observed")
+	}
+	return nil
+}
+
+// Check every visible identifier on the selected control: a harmless resource
+// ID must not hide an explicitly destructive or sensitive label.
+func semanticTargetPolicyViolation(policy internalflows.AgentPolicy, snapshot *strategy.SemanticSnapshot, target string, confirmed bool) error {
+	if err := validateAgentSemanticTarget(snapshot, target); err != nil {
+		return err
+	}
+	for _, item := range snapshot.Elements {
+		if (item.Text == target || item.Description == target || item.ResourceID == target) && item.Enabled && !item.Editable && (item.Clickable || item.Focusable) {
+			for _, label := range []string{item.Text, item.Description, item.ResourceID} {
+				if err := internalflows.AgentPolicyViolation(policy, internalflows.AgentPlan{StepKind: "semantic-target", Action: label}, confirmed); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func directActuationForAgentPlan(plan internalflows.AgentPlan, transport string) DirectActuation {
@@ -255,6 +496,8 @@ func agentFlowStep(iteration int, plan internalflows.AgentPlan) Step {
 	switch {
 	case plan.StepKind == "key":
 		step.Target = fmt.Sprint(plan.Value)
+	case plan.StepKind == "semantic-target":
+		step.Target = plan.Action
 	case strings.HasPrefix(plan.StepKind, "media-"):
 		if plan.Value != nil {
 			step.Arguments["value"] = plan.Value
@@ -281,6 +524,8 @@ func capabilityForAgentStep(stepKind string) string {
 		return strategy.CapProperty
 	case stepKind == "observe":
 		return strategy.CapScreenshot
+	case stepKind == "semantic-target":
+		return strategy.CapSemanticTree
 	default:
 		return ""
 	}
@@ -343,7 +588,7 @@ func (s *Service) PromoteAgent(id string) (AgentRun, error) {
 	if !ok {
 		return AgentRun{}, fmt.Errorf("agent run %q not found", id)
 	}
-	if a.State != "completed" || a.Result.Disposition != "passed" {
+	if a.State != "completed" || a.Result.Disposition != "passed" || a.Result.Incomplete {
 		return AgentRun{}, fmt.Errorf("agent run %q is not eligible for promotion", id)
 	}
 	if a.DryRun {
@@ -354,6 +599,26 @@ func (s *Service) PromoteAgent(id string) (AgentRun, error) {
 	}
 	flowID := "agent-flow-" + a.ID
 	flow := Flow{ID: flowID, Name: "Promoted agent goal: " + a.Goal, Steps: append([]Step(nil), a.PlannedSteps...)}
+	if err := ValidatePromotionCandidate(flow); err != nil {
+		return AgentRun{}, err
+	}
+	// Model completion and agent narrative chapters do not prove that a
+	// reusable flow's assertions ran. Require actual matching flow chapters.
+	for _, step := range flow.Steps {
+		verified := false
+		for _, chapter := range a.Result.Chapters {
+			if chapter.ID == step.ID && chapter.Title == step.Kind && chapter.Disposition == "passed" {
+				verified = true
+				break
+			}
+		}
+		if !verified {
+			return AgentRun{}, fmt.Errorf("promotion requires a verified flow chapter for step %q", step.ID)
+		}
+	}
+	if !a.GoalVerified {
+		return AgentRun{}, fmt.Errorf("promotion requires independently verified goal completion")
+	}
 	s.runs[flowID] = RunResult{RunID: flowID, Disposition: "passed", Chapters: append([]Chapter(nil), a.Result.Chapters...)}
 	s.flowRuns[flowID] = flow
 	a.PromotedFlowID = flowID

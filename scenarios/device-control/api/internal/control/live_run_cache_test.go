@@ -64,7 +64,7 @@ func TestForgetLiveRunRefusesActiveCleanupWithoutCancelling(t *testing.T) {
 
 func TestForgetLiveRunExcludesPromotedAgentEntries(t *testing.T) {
 	s, _ := testService(t)
-	s.agents["agent-1"] = AgentRun{ID: "agent-1", State: "completed", Result: RunResult{Disposition: "passed"}, PlannedSteps: []Step{{ID: "launch", Kind: "launch", Target: "com.example.tv"}}}
+	s.agents["agent-1"] = AgentRun{ID: "agent-1", State: "completed", GoalVerified: true, Result: RunResult{Disposition: "passed", Chapters: []Chapter{{ID: "assert", Title: "assert-foreground", Disposition: "passed"}}}, PlannedSteps: []Step{{ID: "assert", Kind: "assert-foreground", Target: "com.example.tv"}}}
 	promoted, err := s.PromoteAgent("agent-1")
 	require.NoError(t, err)
 	flowID := promoted.PromotedFlowID

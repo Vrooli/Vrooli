@@ -151,7 +151,7 @@ func TestMarkAbsentMarksDesktopTargets(t *testing.T) {
 	require.Equal(t, "display session ended", records[0].HealthReason)
 }
 
-func TestAggregateHealthUsesWorstTransportWithCause(t *testing.T) {
+func TestAggregateHealthReportsPartialAvailabilityWithCause(t *testing.T) {
 	now := time.Date(2026, 9, 6, 20, 0, 0, 0, time.UTC)
 	health, reason := AggregateHealth(Record{
 		Health: "available",
@@ -160,6 +160,15 @@ func TestAggregateHealthUsesWorstTransportWithCause(t *testing.T) {
 			{Name: "remote", Health: "unreachable", HealthReason: "remote certificate expired", ObservedAt: now},
 		},
 	}, now, 15*time.Minute)
-	require.Equal(t, "unreachable", health)
-	require.Equal(t, "remote certificate expired", reason)
+	require.Equal(t, "degraded", health)
+	require.Contains(t, reason, "remote certificate expired")
+	require.Contains(t, reason, "cast transport is available")
+}
+
+func TestAggregateHealthDoesNotTreatUnobservedOrStaleTransportAsAvailable(t *testing.T) {
+	now := time.Date(2026, 9, 6, 20, 0, 0, 0, time.UTC)
+	for _, observed := range []time.Time{{}, now.Add(-16 * time.Minute)} {
+		health, _ := AggregateHealth(Record{Health: "unreachable", Transports: []strategy.DeviceTransport{{Name: "wireless", Health: "available", ObservedAt: observed}}}, now, 15*time.Minute)
+		require.Equal(t, "unreachable", health)
+	}
 }

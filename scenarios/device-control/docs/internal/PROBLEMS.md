@@ -898,3 +898,95 @@ transition evidence. A separate direct seven-second native capture of the phone
 produced seven decoded frames over about 5.88 seconds. These sequential trials
 used different capture paths and do not establish why the earlier Device Control
 recordings had zero duration or isolate the contribution of screenshot sampling.
+
+### Dark recording evidence — 2026-11-01
+
+A decodable near-black recording previously failed evidence creation and was
+lost, even though the scene itself may have been dark. Such recordings are
+now retained with `content_verified: false`, a degraded disposition and a
+reason explaining that visible content could not be verified. A flow reports
+`no_evidence` rather than claiming the visual result passed. The direct and
+session recording paths both propagate degraded status; corrupt or undecodable
+video still fails validation. A synthetic dark-video regression verifies the
+retained bytes and flow disposition. Device Control unit run
+`20261101-162015-a2988eea` and the evidence/control race tests passed. This does
+not determine whether a particular dark device capture faithfully reflects the
+screen, change the screenshot fallback selection, or add audio recording.
+
+### Agent observation and decision-model qualification — 2026-11-01
+
+Android semantic observations now expose bounded accessibility controls through
+the shared lease owner and the CLI; live observations and semantic-target flows
+worked on both the TV and phone. The agent can receive current semantics and
+bounded action history, but its model receives no screenshot image. Its former
+`observe` planning choice captured an image without passing it back to the
+planner; that misleading choice is now withheld from model-backed planning.
+Semantic targeting is limited to unique, enabled, actionable controls and checks
+all visible identifiers against the existing policy gate. This heuristic cannot
+classify every side effect. Unverified model claims cannot promote a flow.
+
+A live TV dry run on the earlier build made an observation, then hit the
+planning deadline; after removing that misleading choice, another dry run
+rejected a key action without the required value. A phone dry run rejected an invented step while its current
+ADB probes were unavailable. Neither is evidence of successful autonomous
+navigation. Local synthetic decision-model trials found severe context
+sensitivity in the fast route and better results in a small accurate-model
+sample. They do not qualify either route for unattended actuation. The
+[experiment and receipts](/home/matthalloran8/.vrooli/research/topics/tv-capabilities/runs/device-decision-prompt-20261101/README.md)
+retain the tests and limits. Device Control still needs independently verified
+agent goal assertions, visual planning support, and broader decision-model
+evaluation before reusable automatic navigation is reliable.
+
+Another dry run exposed an AI Gateway configuration mismatch: the local
+`device-control.plan` candidate named an Ollama resource role that does not
+exist. The candidate now uses the same `chat.default` resource role as the
+gateway's structured extraction route, with gateway schema validation. After
+managed restart, a synthetic local-only planning request returned a validated
+answer from Ollama. A subsequent TV dry run exceeded the former ten-second
+planner deadline; after extending the bounded deadline to 30 seconds, a live
+dry run produced a semantic target but repeatedly planned against the unchanged
+screen. Dry runs now stop at the first proposal, report `planned`, and do not
+claim that the goal was achieved. This route repair does not establish
+real-device agent accuracy or decision-model reliability.
+
+An explicit `--expect-selected` outcome now lets the operator require one
+exact accessibility control to be selected in the current complete snapshot
+before an agent completion claim is verified. On the TV, an agent opened the
+TV apps page and verified its selected tab; a separate check expecting Home
+failed while TV apps was selected. This verifies only the supplied selected
+control condition, not arbitrary goals or reusable-flow promotion. Android
+selection and checked fields remain unknown when not reported.
+
+Wireless reconnect for the phone returned no route to its saved endpoint, and
+a fresh TLS service browse returned no services; neither result establishes why
+the phone is absent. Promoted Android flows now preflight a known serial-bound
+USB profile if implicit wireless preflight cannot satisfy the flow. Explicit
+transport choices are retained and no effect is retried after actuation. State
+reads can fill missing core fields from a secondary transport. The fallback is
+covered by fixtures; it has not been physically tested with the disconnected
+phone and does not yet cover every device operation.
+
+After the Moto G7 (Android 10) was connected over USB, re-promotion refreshed
+and verified its legacy ADB-over-TCP endpoint. Wireless debugging state reported
+native mode unsupported and legacy TCP enabled. Following USB removal, one
+screen-off assertion failed, the address stopped answering, and a subsequent
+ADB shell read hung. The address answered and a wireless screenshot succeeded
+after the phone was awake. This is one intermittent observation; sleep has not
+been established as the cause. Android state and endpoint-identity reads now
+have deadlines, and an all-failed state read is unavailable rather than a
+successful empty observation. Tests cover those boundaries.
+
+Native Android Wireless debugging has separate USB-only enable/disable and
+assertion flow steps with setting readback. Android 10 reports the capability
+gap and supports the separate legacy promotion route. The native flow remains
+unvalidated on a physical Android 11+ device; setting readback does not prove
+pairing or network reachability. Device health now distinguishes partial
+availability from total loss when another transport has fresh evidence.
+
+With USB reconnected, a bounded comparison produced one verified screen-off
+transition; the phone answered network pings at five and fifteen seconds after
+that transition and again after wake. A second screen-off assertion timed out,
+so the second cycle is inconclusive. A separate USB wake passed, but a later
+state read reported the screen off; durable restoration was not established.
+These few observations do not determine why wireless ADB
+became unreachable earlier or establish a causal relationship with sleep.

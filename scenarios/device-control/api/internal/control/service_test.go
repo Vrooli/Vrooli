@@ -40,6 +40,68 @@ func testService(t *testing.T) (*Service, *sql.DB) {
 	return svc, db
 }
 
+type semanticSnapshotFixture struct {
+	*fakes.Strategy
+	calls    int
+	selected *bool
+}
+
+func (f *semanticSnapshotFixture) ObserveSemantics(context.Context) (strategy.SemanticSnapshot, error) {
+	f.calls++
+	return strategy.SemanticSnapshot{Elements: []strategy.SemanticElement{{Text: "Settings", Clickable: true, Enabled: true, Selected: f.selected}}, ObservedAt: time.Now()}, nil
+}
+
+func TestSemanticObservationOwnsOrValidatesLease(t *testing.T) {
+	fixture := &semanticSnapshotFixture{Strategy: fakes.New("semantic", strategy.StatusAvailable, strategy.CapSemanticTree)}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	snapshot, err := svc.ObserveSemantics(context.Background(), "target", "operator", "", "usb")
+	require.NoError(t, err)
+	require.Equal(t, "Settings", snapshot.Elements[0].Text)
+	require.Empty(t, svc.ListLiveSessions(), "automatically acquired lease must be released")
+	_, err = svc.ObserveSemantics(context.Background(), "target", "operator", "invalid", "usb")
+	require.Error(t, err)
+	require.Equal(t, 1, fixture.calls, "invalid lease must not inspect the device")
+}
+
+type blockingSemanticFixture struct {
+	*fakes.Strategy
+	started chan struct{}
+}
+
+func (f *blockingSemanticFixture) ObserveSemantics(ctx context.Context) (strategy.SemanticSnapshot, error) {
+	close(f.started)
+	<-ctx.Done()
+	return strategy.SemanticSnapshot{}, ctx.Err()
+}
+func TestSemanticObservationIsFencedAndCanceledWithLease(t *testing.T) {
+	fixture := &blockingSemanticFixture{Strategy: fakes.New("semantic", strategy.StatusAvailable, strategy.CapSemanticTree), started: make(chan struct{})}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	session, err := svc.AcquireContext(context.Background(), "target", "operator", time.Minute)
+	require.NoError(t, err)
+	completed := make(chan error, 1)
+	go func() {
+		_, err := svc.ObserveSemantics(context.Background(), "target", "operator", session.LeaseToken, "usb")
+		completed <- err
+	}()
+	select {
+	case <-fixture.started:
+	case <-time.After(time.Second):
+		t.Fatal("observation did not start")
+	}
+	_, err = svc.ObserveSemantics(context.Background(), "target", "operator", session.LeaseToken, "usb")
+	require.ErrorContains(t, err, "active run")
+	_, err = svc.ReleaseContext(context.Background(), session.ID)
+	require.NoError(t, err)
+	select {
+	case err := <-completed:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(time.Second):
+		t.Fatal("release did not cancel observation")
+	}
+}
+
 type slowInventoryProbe struct {
 	*fakes.Strategy
 	started chan struct{}
@@ -723,6 +785,37 @@ func (s *semanticScreenFixture) SetScreenState(_ context.Context, state string) 
 	return nil
 }
 
+type delayedScreenFixture struct {
+	*fakes.Strategy
+	calls int
+	reads int
+}
+
+func (f *delayedScreenFixture) SetScreenState(context.Context, string) error {
+	f.calls++
+	return nil
+}
+
+func (f *delayedScreenFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	f.reads++
+	if f.reads == 1 {
+		return strategy.DeviceState{ScreenState: "on"}, nil
+	}
+	return strategy.DeviceState{ScreenState: "off"}, nil
+}
+
+func TestScreenFlowWaitsForObservedTransitionWithoutRepeatingInput(t *testing.T) {
+	fixture := &delayedScreenFixture{Strategy: fakes.New("screen-delay", strategy.StatusAvailable, strategy.CapScreenControl)}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	flow := Flow{Transport: "usb", Steps: []Step{{ID: "sleep", Kind: "screen", Target: "sleep", Postconditions: []Condition{{Kind: "screen-off"}}}}}
+	result, err := svc.Run(context.Background(), flow, "target", "test")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, 1, fixture.calls)
+	require.Equal(t, 2, fixture.reads)
+}
+
 func (s *semanticScreenFixture) Unlock(_ context.Context, request strategy.UnlockRequest) (strategy.UnlockResult, error) {
 	for i := range request.Secret {
 		request.Secret[i] = 0
@@ -1278,7 +1371,7 @@ func TestCancelledAuthFlowRestoresStateWithIndependentCleanupContext(t *testing.
 	require.Equal(t, "restored", result.Restoration[0].Status)
 }
 
-func TestAgentRefusesWithoutSkillAndPromotesPassingRun(t *testing.T) {
+func TestAgentRefusesWithoutSkillAndDoesNotPromoteUnassertedRun(t *testing.T) {
 	svc, _ := testService(t)
 	_, err := svc.StartAgent(context.Background(), "observe the screen", "fake", "operator", false)
 	require.ErrorContains(t, err, "prompt-manager device-control skill is unavailable")
@@ -1286,13 +1379,20 @@ func TestAgentRefusesWithoutSkillAndPromotesPassingRun(t *testing.T) {
 	run, err := svc.StartAgent(context.Background(), "observe the screen", "fake", "operator", true)
 	require.NoError(t, err)
 	require.Equal(t, "completed", run.State)
-	promoted, err := svc.PromoteAgent(run.ID)
-	require.NoError(t, err)
-	require.Equal(t, "promoted", promoted.State)
-	require.NotEmpty(t, promoted.PromotedFlowID)
-	export, err := svc.ExportFlow(promoted.PromotedFlowID)
-	require.NoError(t, err)
-	require.NotEmpty(t, export.Flow.Steps)
+	_, err = svc.PromoteAgent(run.ID)
+	require.ErrorContains(t, err, "terminal outcome assertion", "a successful observation alone does not verify a reusable outcome")
+}
+
+func TestPromoteAgentRejectsUnverifiedModelAssertion(t *testing.T) {
+	svc, _ := testService(t)
+	svc.agents["unverified"] = AgentRun{ID: "unverified", State: "completed", PlannedSteps: []Step{{ID: "iteration-1", Kind: "assert-foreground", Target: "com.example"}}, Result: RunResult{Disposition: "passed", Chapters: []Chapter{{ID: "iteration-1", Title: "Agent iteration-1", Disposition: "passed", Message: "planner reported success"}}}}
+	_, err := svc.PromoteAgent("unverified")
+	require.ErrorContains(t, err, "verified flow chapter")
+	candidate := svc.agents["unverified"]
+	candidate.Result.Chapters[0].Title = "assert-foreground"
+	svc.agents["unverified"] = candidate
+	_, err = svc.PromoteAgent("unverified")
+	require.ErrorContains(t, err, "independently verified goal")
 }
 
 type framelessAgentStrategy struct {
@@ -1318,11 +1418,237 @@ func TestFramelessAgentUsesTypedStateAndDryRunDoesNotActuate(t *testing.T) {
 
 	run, err := svc.StartAgentWithOptions(context.Background(), "pause whatever is playing", "frameless", "operator", true, true)
 	require.NoError(t, err)
-	require.Equal(t, "completed", run.State)
-	require.Equal(t, "passed", run.Result.Disposition)
+	require.Equal(t, "planned", run.State)
+	require.Equal(t, "planned", run.Result.Disposition)
 	require.True(t, run.DryRun)
 	require.Empty(t, strategyUnderTest.commands)
-	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "without sending an actuation")
+	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "no actuation was sent")
+	require.Equal(t, "media-pause", run.ProposedStep.Kind)
+}
+
+type semanticAgentFixture struct{ *semanticSnapshotFixture }
+
+func (*semanticAgentFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{ScreenState: "on", LockState: "unlocked"}, nil
+}
+
+func (*semanticAgentFixture) ResolveSemantic(context.Context, string) (strategy.SemanticResult, error) {
+	return strategy.SemanticResult{Bounds: []float64{0, 0, 1, 1}, Confidence: 1}, nil
+}
+
+type capturingAgentPlanner struct{ worlds []internalflows.AgentWorld }
+
+func (p *capturingAgentPlanner) Plan(_ context.Context, world internalflows.AgentWorld) (internalflows.AgentPlan, error) {
+	p.worlds = append(p.worlds, world)
+	if len(p.worlds) == 1 {
+		return internalflows.AgentPlan{StepKind: "key", Value: "HOME"}, nil
+	}
+	return internalflows.AgentPlan{GoalMet: true}, nil
+}
+func TestAgentPlannerReceivesSemanticSnapshotAndActionHistory(t *testing.T) {
+	fixture := &semanticAgentFixture{semanticSnapshotFixture: &semanticSnapshotFixture{Strategy: fakes.New("semantic-agent", strategy.StatusAvailable, strategy.CapSemanticTree, strategy.CapScreenshot, strategy.CapInput)}}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	planner := &capturingAgentPlanner{}
+	svc.SetAgentPlanner(planner)
+	run, err := svc.StartAgentWithOptions(context.Background(), "open settings", "target", "test", true, false)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State)
+	require.Len(t, planner.worlds, 2)
+	require.NotNil(t, planner.worlds[0].Semantics)
+	require.NotContains(t, planner.worlds[0].StepKinds, "observe", "the planner receives no image to inspect")
+	require.False(t, planner.worlds[0].FrameAvailable)
+	require.Equal(t, "Settings", planner.worlds[0].Semantics.Elements[0].Text)
+	require.Len(t, planner.worlds[1].History, 1)
+	require.Equal(t, "key", planner.worlds[1].History[0].StepKind)
+	require.Equal(t, "HOME", planner.worlds[1].History[0].Target)
+	require.Equal(t, "completed", planner.worlds[1].History[0].Outcome)
+	require.NotEmpty(t, planner.worlds[1].History[0].BeforeSnapshotHash)
+	require.Equal(t, planner.worlds[1].History[0].BeforeSnapshotHash, planner.worlds[1].History[0].AfterSnapshotHash)
+	require.Equal(t, []string{"Settings"}, planner.worlds[1].History[0].VisibleControls)
+	require.NotNil(t, planner.worlds[1].History[0].SnapshotChanged)
+	require.False(t, *planner.worlds[1].History[0].SnapshotChanged)
+	require.Empty(t, svc.ListLiveSessions())
+}
+func TestAgentSemanticTargetRunsThroughFlowOwner(t *testing.T) {
+	fixture := &semanticAgentFixture{semanticSnapshotFixture: &semanticSnapshotFixture{Strategy: fakes.New("semantic-agent", strategy.StatusAvailable, strategy.CapSemanticTree, strategy.CapScreenshot, strategy.CapInput)}}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "semantic-target", Action: "Settings"}, {GoalMet: true}}})
+	run, err := svc.StartAgent(context.Background(), "open settings", "target", "test", true)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State, "%+v", run.Result.Chapters)
+	require.Len(t, fixture.Actuations, 1)
+	require.NotNil(t, fixture.Actuations[0].Pointer)
+	require.Equal(t, "semantic-target", fixture.Actuations[0].Pointer.Kind)
+	require.Equal(t, "Settings", run.PlannedSteps[0].Target)
+	_, err = svc.PromoteAgent(run.ID)
+	require.ErrorContains(t, err, "terminal outcome assertion")
+}
+
+func TestAgentDryRunReturnsFirstProposalWithoutActuation(t *testing.T) {
+	fixture := &semanticAgentFixture{semanticSnapshotFixture: &semanticSnapshotFixture{Strategy: fakes.New("semantic-agent-dry", strategy.StatusAvailable, strategy.CapSemanticTree, strategy.CapScreenshot, strategy.CapInput)}}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	planner := &sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "semantic-target", Action: "Settings"}, {GoalMet: true}}}
+	svc.SetAgentPlanner(planner)
+	run, err := svc.StartAgentWithOptions(context.Background(), "open settings", "target", "test", true, true)
+	require.NoError(t, err)
+	require.Equal(t, "planned", run.State)
+	require.False(t, run.GoalVerified)
+	require.Equal(t, 1, planner.calls)
+	require.Equal(t, "Settings", run.ProposedStep.Target)
+	require.Empty(t, fixture.Actuations)
+	require.Empty(t, svc.ListLiveSessions())
+}
+
+func TestAgentVerifiesOperatorSelectedControlExpectation(t *testing.T) {
+	selected, unselected := true, false
+	for _, tc := range []struct {
+		name     string
+		selected *bool
+		verified bool
+	}{
+		{name: "selected", selected: &selected, verified: true},
+		{name: "not selected", selected: &unselected},
+		{name: "unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := &semanticAgentFixture{semanticSnapshotFixture: &semanticSnapshotFixture{Strategy: fakes.New("selected-agent", strategy.StatusAvailable, strategy.CapSemanticTree, strategy.CapInput), selected: tc.selected}}
+			svc := New(strategyregistry.New(fixture))
+			svc.devices.Upsert(devicedomain.Record{ID: "target", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+			svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{GoalMet: true}}})
+			run, err := svc.StartAgentWithOutcome(context.Background(), "open settings", "target", "test", true, false, internalflows.DefaultAgentPolicy(), false, "Settings")
+			require.NoError(t, err)
+			require.Equal(t, tc.verified, run.GoalVerified)
+			if tc.verified {
+				require.Equal(t, "completed", run.State)
+			} else {
+				require.Equal(t, "failed", run.State)
+			}
+		})
+	}
+	snapshot := &strategy.SemanticSnapshot{Elements: []strategy.SemanticElement{{Text: "Settings", Selected: &selected}, {Text: "Settings", Selected: &selected}}}
+	require.ErrorContains(t, verifySelectedSemanticControl(snapshot, "Settings"), "ambiguous")
+	snapshot.Truncated = true
+	require.ErrorContains(t, verifySelectedSemanticControl(snapshot, "Settings"), "complete")
+}
+
+type wirelessDebugFlowFixture struct {
+	*fakes.Strategy
+	changes []bool
+	enabled bool
+}
+
+func (f *wirelessDebugFlowFixture) SetWirelessDebugging(_ context.Context, enabled bool) error {
+	f.changes = append(f.changes, enabled)
+	f.enabled = enabled
+	return nil
+}
+
+func (f *wirelessDebugFlowFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	value := f.enabled
+	return strategy.DeviceState{WirelessDebugging: &strategy.WirelessDebuggingState{NativeEnabled: &value}}, nil
+}
+
+func TestWirelessDebuggingFlowUsesTypedControllerAndSuppressesActuation(t *testing.T) {
+	fixture := &wirelessDebugFlowFixture{Strategy: fakes.New("debug-device", strategy.StatusAvailable, strategy.CapWirelessDebugging)}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	flow := Flow{Transport: "usb", Steps: []Step{{ID: "enable", Kind: "wireless-debugging", Target: "enable"}}}
+	result, err := svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, []bool{true}, fixture.changes)
+	flow.SuppressActuation = true
+	flow.Steps[0].Target = "disable"
+	result, err = svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, []bool{true}, fixture.changes)
+	flow.Steps[0].Target = "toggle"
+	result, err = svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "capability_gap", result.Disposition)
+}
+
+func TestWirelessDebuggingFlowCanAssertItsOutcome(t *testing.T) {
+	fixture := &wirelessDebugFlowFixture{Strategy: fakes.New("debug-device", strategy.StatusAvailable, strategy.CapWirelessDebugging)}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	flow := Flow{Transport: "usb", Steps: []Step{{ID: "enable", Kind: "wireless-debugging", Target: "enable"}, {ID: "verify", Kind: "wireless-debugging-assert", Target: "enable"}}}
+	require.NoError(t, ValidatePromotionCandidate(flow))
+	result, err := svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	flow.Steps[1].Target = "disable"
+	result, err = svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.Disposition)
+}
+
+func TestReusableWirelessDebuggingDefinitionsRunAndVerify(t *testing.T) {
+	fixture := &wirelessDebugFlowFixture{Strategy: fakes.New("debug-device", strategy.StatusAvailable, strategy.CapWirelessDebugging)}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	for _, name := range []string{"native-wireless-debugging-enable.json", "native-wireless-debugging-disable.json"} {
+		data, err := os.ReadFile(filepath.Join("..", "..", "..", "fixtures", name))
+		require.NoError(t, err)
+		var flow Flow
+		require.NoError(t, json.Unmarshal(data, &flow))
+		require.NoError(t, ValidatePromotionCandidate(flow))
+		result, err := svc.Run(context.Background(), flow, "phone", "test")
+		require.NoError(t, err)
+		require.Equal(t, "passed", result.Disposition, name)
+	}
+	require.Equal(t, []bool{true, false}, fixture.changes)
+}
+
+func TestWirelessDebuggingPreflightExplainsUnsupportedMode(t *testing.T) {
+	fixture := fakes.New("debug-device", strategy.StatusAvailable, strategy.CapWirelessDebugging)
+	fixture.Declaration.Capabilities[strategy.CapWirelessDebugging] = strategy.Capability{Name: strategy.CapWirelessDebugging, Status: strategy.StatusUnavailable, NextAction: "Use legacy wireless promotion on older Android versions"}
+	service := New(strategyregistry.New(fixture))
+	service.devices.Upsert(devicedomain.Record{ID: "phone", StrategyID: fixture.ID(), Transport: "usb", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	result, err := service.Run(context.Background(), Flow{Transport: "usb", Steps: []Step{{ID: "enable", Kind: "wireless-debugging", Target: "enable"}}}, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "capability_gap", result.Disposition)
+	require.Contains(t, result.Chapters[0].Message, "Use legacy wireless promotion")
+}
+
+func TestAgentBlocksImmediateRepeatedSemanticActionWithoutObservedChange(t *testing.T) {
+	unchanged, changed := false, true
+	plan := internalflows.AgentPlan{StepKind: "semantic-target", Action: "Settings"}
+	history := []internalflows.AgentHistory{{StepKind: "semantic-target", Target: "Settings", SnapshotChanged: &unchanged}}
+	require.True(t, shouldBlockRepeatedSemanticAction(history, plan))
+	history[0].SnapshotChanged = &changed
+	require.False(t, shouldBlockRepeatedSemanticAction(history, plan))
+	history[0].SnapshotChanged = nil
+	require.False(t, shouldBlockRepeatedSemanticAction(history, plan))
+	plan.StepKind = "key"
+	require.False(t, shouldBlockRepeatedSemanticAction(history, plan))
+}
+
+func TestAgentSemanticTargetRequiresOneActionableUntruncatedControl(t *testing.T) {
+	snapshot := &strategy.SemanticSnapshot{Elements: []strategy.SemanticElement{{Text: "Settings", Enabled: true, Clickable: true}}}
+	require.NoError(t, validateAgentSemanticTarget(snapshot, "Settings"))
+	snapshot.Elements = append(snapshot.Elements, snapshot.Elements[0])
+	require.Error(t, validateAgentSemanticTarget(snapshot, "Settings"))
+	snapshot.Elements = snapshot.Elements[:1]
+	snapshot.Truncated = true
+	require.Error(t, validateAgentSemanticTarget(snapshot, "Settings"))
+	snapshot.Truncated = false
+	snapshot.Elements[0].Editable = true
+	require.Error(t, validateAgentSemanticTarget(snapshot, "Settings"))
+}
+
+func TestAgentSemanticTargetPolicyChecksControlLabelsWhenSelectedByID(t *testing.T) {
+	snapshot := &strategy.SemanticSnapshot{Elements: []strategy.SemanticElement{{Text: "Uninstall app", ResourceID: "app:id/button1", Enabled: true, Clickable: true}}}
+	policy := internalflows.DefaultAgentPolicy()
+	require.ErrorContains(t, semanticTargetPolicyViolation(policy, snapshot, "app:id/button1", false), "destructive")
+	policy.AllowDestructiveActions = true
+	policy.RequireConfirmationFor = []string{"destructive"}
+	require.ErrorContains(t, semanticTargetPolicyViolation(policy, snapshot, "app:id/button1", false), "confirmation required")
+	require.NoError(t, semanticTargetPolicyViolation(policy, snapshot, "app:id/button1", true))
 }
 
 type sequenceAgentPlanner struct {
@@ -1346,7 +1672,7 @@ func TestAgentUsesBoundedGoalLoopAndRecordsEachWorldModel(t *testing.T) {
 	planner := &sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "media-pause", Action: "pause"}, {GoalMet: true}}}
 	svc.SetAgentPlanner(planner)
 
-	run, err := svc.StartAgentWithOptions(context.Background(), "pause and verify", "frameless-loop", "operator", true, true)
+	run, err := svc.StartAgentWithOptions(context.Background(), "pause and verify", "frameless-loop", "operator", true, false)
 	require.NoError(t, err)
 	require.Equal(t, "completed", run.State)
 	require.Equal(t, "passed", run.Result.Disposition)
@@ -1355,7 +1681,7 @@ func TestAgentUsesBoundedGoalLoopAndRecordsEachWorldModel(t *testing.T) {
 	require.Contains(t, run.Result.Chapters[1].ID, "iteration-1")
 	require.Contains(t, run.Result.Chapters[2].ID, "world-model-2")
 	require.Contains(t, run.Result.Chapters[3].ID, "goal-2")
-	require.Empty(t, strategyUnderTest.commands)
+	require.Len(t, strategyUnderTest.commands, 1)
 }
 
 func TestAgentTerminatesAtBoundedStepBudget(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-FLOW-07]
@@ -1368,14 +1694,14 @@ func TestAgentTerminatesAtBoundedStepBudget(t *testing.T) { // [REQ:DEVICECONTRO
 	}
 	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: plans})
 
-	run, err := svc.StartAgentWithOptions(context.Background(), "unfamiliar task", "budget", "operator", true, true)
+	run, err := svc.StartAgentWithOptions(context.Background(), "unfamiliar task", "budget", "operator", true, false)
 	require.NoError(t, err)
 	require.Equal(t, "failed", run.State)
 	require.Equal(t, "failed", run.Result.Disposition)
 	require.Equal(t, "budget", run.Result.Chapters[len(run.Result.Chapters)-1].ID)
 	require.Contains(t, run.Result.Chapters[len(run.Result.Chapters)-1].Message, "step budget exhausted")
 	require.Len(t, run.PlannedSteps, maxAgentIterations)
-	require.Empty(t, strategyUnderTest.commands)
+	require.Len(t, strategyUnderTest.commands, maxAgentIterations)
 }
 
 func TestAgentRejectsUndeclaredPlannerStepBeforeActuation(t *testing.T) { // [REQ:DEVICECONTROL-EVERYWHERE-FLOW-10]
@@ -1777,6 +2103,82 @@ func TestFlowTransportResolvesWirelessToEndpointBoundStrategy(t *testing.T) { //
 	require.NotSame(t, endpointBound, base)
 }
 
+func TestDefaultWirelessFlowReportsAndUsesWirelessTransport(t *testing.T) {
+	base := fakes.New("fake", strategy.StatusAvailable, strategy.CapInput)
+	wireless := fakes.New("fake-wireless", strategy.StatusAvailable, strategy.CapInput)
+	svc := New(strategyregistry.New(base))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.transportStrategies["phone"] = wireless
+	result, err := svc.Run(context.Background(), Flow{Steps: []Step{{ID: "home", Kind: "key", Target: "HOME"}}}, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, "wireless", result.Binding.Transport)
+	require.Len(t, wireless.Calls(), 1)
+	require.Empty(t, base.Calls())
+	require.Equal(t, "wireless", svc.Audit()[0].Transport)
+}
+
+type serialScopedFlowFixture struct{ *fakes.Strategy }
+
+func (s *serialScopedFlowFixture) ForDevice(serial string) strategy.Strategy {
+	if serial != "serial-1" {
+		return fakes.New("wrong-device", strategy.StatusUnavailable, strategy.CapInput)
+	}
+	return s.Strategy
+}
+
+type serialScopedAgentFixture struct{ *serialScopedFlowFixture }
+
+func (s *serialScopedAgentFixture) ForDevice(serial string) strategy.Strategy {
+	if serial != "serial-1" {
+		return fakes.New("wrong-device", strategy.StatusUnavailable, strategy.CapInput)
+	}
+	return s
+}
+
+func (*serialScopedAgentFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	return strategy.DeviceState{ScreenState: "on", LockState: "unlocked"}, nil
+}
+
+func TestAgentUsesKnownUSBWhenPreferredWirelessIsUnavailable(t *testing.T) {
+	base := &serialScopedAgentFixture{serialScopedFlowFixture: &serialScopedFlowFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}}
+	wireless := fakes.New("wireless", strategy.StatusUnavailable, strategy.CapInput)
+	svc := New(strategyregistry.New(base))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: base.ID()}, {Name: "usb", StrategyID: base.ID()}}})
+	svc.transportStrategies["phone"] = wireless
+	svc.SetAgentPlanner(&sequenceAgentPlanner{plans: []internalflows.AgentPlan{{StepKind: "key", Value: "DPAD_DOWN"}, {GoalMet: true}}})
+	run, err := svc.StartAgent(context.Background(), "move down", "phone", "test", true)
+	require.NoError(t, err)
+	require.Equal(t, "completed", run.State, "%+v", run.Result.Chapters)
+	require.Len(t, base.Calls(), 1)
+	require.Empty(t, wireless.Calls())
+	require.Equal(t, "usb", svc.Audit()[0].Transport)
+}
+
+func TestImplicitWirelessFlowFallsBackToVerifiedSerialUSBOnlyBeforeActuation(t *testing.T) {
+	base := &serialScopedFlowFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}
+	wireless := fakes.New("wireless", strategy.StatusUnavailable, strategy.CapInput)
+	svc := New(strategyregistry.New(base))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: base.ID()}, {Name: "usb", StrategyID: base.ID()}}})
+	svc.transportStrategies["phone"] = wireless
+	flow := Flow{Steps: []Step{{ID: "home", Kind: "key", Target: "HOME"}}}
+	require.True(t, svc.Validate(context.Background(), flow, "phone").Runnable, "validation and execution must select the same available transport")
+	result, err := svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "passed", result.Disposition)
+	require.Equal(t, "usb", result.Binding.Transport)
+	require.Len(t, base.Calls(), 1)
+	require.Empty(t, wireless.Calls())
+	require.Equal(t, "usb", svc.Audit()[0].Transport)
+
+	flow.Transport = "wireless"
+	require.False(t, svc.Validate(context.Background(), flow, "phone").Runnable)
+	result, err = svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "capability_gap", result.Disposition)
+	require.Len(t, base.Calls(), 1, "an explicit wireless request must not silently use USB")
+}
+
 func TestValidateUsesPromotedWirelessDeviceStrategy(t *testing.T) {
 	db, err := sql.Open("sqlite", "file:control-test-wireless-validate-"+t.Name()+"?mode=memory&cache=shared")
 	require.NoError(t, err)
@@ -1915,6 +2317,115 @@ func TestReadDeviceStateMergesStateBearingTransportProperties(t *testing.T) {
 	require.Equal(t, "mdns", state.Properties["volume"].Transport)
 }
 
+func TestReadDeviceStateUsesReachableSecondaryTransportForCoreState(t *testing.T) {
+	minimum, maximum := 0.0, 100.0
+	first := stateReaderOverride{PropertyOnly: fakes.NewPropertyOnly("state-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number", Minimum: &minimum, Maximum: &maximum}, 0), state: strategy.DeviceState{Unavailable: map[string]string{"screen_state": "unreachable", "lock_state": "unreachable", "foreground_package": "unreachable"}}}
+	second := stateReaderOverride{PropertyOnly: fakes.NewPropertyOnly("state-mdns", strategy.PropertyDescriptor{Name: "volume", ValueType: "number", Minimum: &minimum, Maximum: &maximum}, 0), state: strategy.DeviceState{ScreenState: "on", LockState: "unlocked", ForegroundPackage: "com.example.home"}}
+	svc := New(strategyregistry.New(first, second))
+	claim := identitydomain.IdentityClaim{Kind: identitydomain.CastID, Value: "state-device", Evidence: "observed"}
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "state-device", Kind: "physical", Claims: []identitydomain.IdentityClaim{claim}, IdentityKey: "state-device", StrategyID: first.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	svc.devices.UpsertIdentity(devicedomain.Record{ID: "state-device-mdns", Kind: "physical", Claims: []identitydomain.IdentityClaim{claim}, IdentityKey: "state-device", StrategyID: second.ID(), Transport: "mdns", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	state, err := svc.ReadDeviceState(context.Background(), "state-device")
+	require.NoError(t, err)
+	require.Equal(t, "on", state.ScreenState)
+	require.Equal(t, "unlocked", state.LockState)
+	require.Equal(t, "com.example.home", state.ForegroundPackage)
+	require.NotContains(t, state.Unavailable, "screen_state")
+	require.NotContains(t, state.Unavailable, "lock_state")
+	require.NotContains(t, state.Unavailable, "foreground_package")
+}
+
+func TestReadDeviceStateRejectsTransportWithOnlyFailedProbes(t *testing.T) {
+	fixture := stateReaderOverride{PropertyOnly: fakes.NewPropertyOnly("state-rest", strategy.PropertyDescriptor{Name: "brightness", ValueType: "number"}, 0), state: strategy.DeviceState{BatteryLevel: -1, DreamState: "unknown", Unavailable: map[string]string{"screen_state": "unreachable", "battery": "unreachable"}}}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "device", StrategyID: fixture.ID(), Transport: "rest", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable})
+	_, err := svc.ReadDeviceState(context.Background(), "device")
+	require.ErrorContains(t, err, "all state probes unavailable")
+}
+
+type recoveringWirelessStateFixture struct {
+	*fakes.Strategy
+	online     bool
+	fail       bool
+	reconnects int
+}
+
+func (f *recoveringWirelessStateFixture) Describe(ctx context.Context) (strategy.Declaration, error) {
+	if !f.online {
+		return strategy.UnavailableDeclaration(f.ID(), "disconnected", []strategy.Capability{{Name: strategy.CapInput}}, "reconnect"), nil
+	}
+	return f.Strategy.Describe(ctx)
+}
+
+func (f *recoveringWirelessStateFixture) ReadState(context.Context) (strategy.DeviceState, error) {
+	if !f.online {
+		return strategy.DeviceState{}, errors.New("disconnected")
+	}
+	return strategy.DeviceState{ScreenState: "on"}, nil
+}
+
+func (f *recoveringWirelessStateFixture) ReconnectWireless(context.Context) error {
+	f.reconnects++
+	if f.fail {
+		return errors.New("unreachable")
+	}
+	f.online = true
+	return nil
+}
+
+func (*recoveringWirelessStateFixture) WirelessEndpoint() string { return "192.0.2.1:5555" }
+
+func TestReadDeviceStateRecoversWirelessOnceWithoutReplayingActions(t *testing.T) {
+	for _, shouldFail := range []bool{false, true} {
+		fixture := &recoveringWirelessStateFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput), fail: shouldFail}
+		svc := New(strategyregistry.New(fixture))
+		svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: fixture.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: fixture.ID()}}})
+		svc.transportStrategies["phone"] = fixture
+		state, err := svc.ReadDeviceState(context.Background(), "phone")
+		if shouldFail {
+			require.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, "on", state.ScreenState)
+		}
+		require.Equal(t, 1, fixture.reconnects)
+		require.Empty(t, fixture.Calls())
+	}
+}
+
+func TestFlowPreflightRecoversKnownWirelessBeforeSendingAction(t *testing.T) {
+	for _, validateOnly := range []bool{false, true} {
+		fixture := &recoveringWirelessStateFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}
+		svc := New(strategyregistry.New(fixture))
+		svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: fixture.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: fixture.ID()}}})
+		svc.transportStrategies["phone"] = fixture
+		flow := Flow{Steps: []Step{{ID: "down", Kind: "key", Target: "DPAD_DOWN"}}}
+		if validateOnly {
+			require.True(t, svc.Validate(context.Background(), flow, "phone").Runnable)
+			require.Empty(t, fixture.Calls())
+		} else {
+			result, err := svc.Run(context.Background(), flow, "phone", "test")
+			require.NoError(t, err)
+			require.Equal(t, "passed", result.Disposition)
+			require.Equal(t, "wireless", result.Binding.Transport)
+			require.Len(t, fixture.Calls(), 1)
+		}
+		require.Equal(t, 1, fixture.reconnects)
+	}
+}
+
+func TestAgentRecoversKnownWirelessBeforePlanning(t *testing.T) {
+	fixture := &recoveringWirelessStateFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput)}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: fixture.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: fixture.ID()}}})
+	svc.transportStrategies["phone"] = fixture
+	run, err := svc.StartAgentWithOptions(context.Background(), "move down", "phone", "test", true, true)
+	require.NoError(t, err)
+	require.Equal(t, "planned", run.State)
+	require.Equal(t, 1, fixture.reconnects)
+	require.Empty(t, fixture.Calls())
+}
+
 type stateReaderOverride struct {
 	*fakes.PropertyOnly
 	state strategy.DeviceState
@@ -1992,6 +2503,17 @@ func TestWirelessReconnectPersistsRotatedEndpoint(t *testing.T) {
 
 	state := reloaded.transportStates["wireless-device"]
 	require.Equal(t, "192.168.1.43:37123", state.Endpoint)
+}
+
+func TestWirelessPromotionCanRecoverPreviouslyPromotedDeviceViaKnownUSB(t *testing.T) {
+	svc, _ := testService(t)
+	base := newPersistentWirelessStrategy()
+	svc.registry = strategyregistry.New(base)
+	svc.devices.Upsert(devicedomain.Record{ID: "wireless-device", Kind: "physical", Serial: "serial-1", StrategyID: base.ID(), Transport: "wireless", Transports: []strategy.DeviceTransport{{Name: "usb", StrategyID: base.ID()}}})
+	device, err := svc.PromoteWireless(context.Background(), "wireless-device")
+	require.NoError(t, err)
+	require.Equal(t, "wireless", device.Transport)
+	require.Equal(t, "192.168.1.42:5555", device.Endpoint)
 }
 
 func TestRequestStorageUsesRoutedDatabaseAndFileRoots(t *testing.T) { // [REQ:DVC-P0-011]

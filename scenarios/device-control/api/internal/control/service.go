@@ -508,7 +508,76 @@ func (s *Service) loadSessions() error {
 
 func (s *Service) Anchors() *internalflows.AnchorStore { return s.anchors }
 
+// registerSessionOperation atomically fences one bounded operation against
+// lease release and other operations using the same lease.
+func (s *Service) registerSessionOperation(ctx context.Context, session Session, deviceID string, duration time.Duration) (context.Context, func(), error) {
+	operationCtx, cancel := context.WithTimeout(ctx, duration)
+	s.sessionMu.Lock()
+	current, held := s.sessions[session.ID]
+	if !held || current.State != "held" || current.DeviceID != deviceID || current.LeaseToken != session.LeaseToken || !time.Now().Before(current.ExpiresAt) {
+		s.sessionMu.Unlock()
+		cancel()
+		return nil, nil, fmt.Errorf("lease is no longer held")
+	}
+	if _, active := s.activeCancels[session.ID]; active {
+		s.sessionMu.Unlock()
+		cancel()
+		return nil, nil, fmt.Errorf("lease already has an active run")
+	}
+	s.activeCancels[session.ID] = cancel
+	s.sessionMu.Unlock()
+	cleanup := func() {
+		cancel()
+		s.sessionMu.Lock()
+		delete(s.activeCancels, session.ID)
+		s.sessionMu.Unlock()
+	}
+	return operationCtx, cleanup, nil
+}
+
+// ObserveSemantics returns a bounded, ephemeral accessibility snapshot under a
+// device lease. The snapshot is not retained as evidence or an action authority.
+func (s *Service) ObserveSemantics(ctx context.Context, deviceID, actor, leaseToken, transport string) (strategy.SemanticSnapshot, error) {
+	if strings.TrimSpace(leaseToken) == "" {
+		if strings.TrimSpace(actor) == "" {
+			actor = "cli"
+		}
+		session, err := s.AcquireContext(ctx, deviceID, actor, time.Minute)
+		if err != nil {
+			return strategy.SemanticSnapshot{}, err
+		}
+		leaseToken = session.LeaseToken
+		defer func() {
+			cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, _ = s.ReleaseContext(cleanup, session.ID)
+		}()
+	}
+	session, err := s.sessionForAccess(ctx, deviceID, leaseToken, true)
+	if err != nil {
+		return strategy.SemanticSnapshot{}, err
+	}
+	probeCtx, cleanup, err := s.registerSessionOperation(ctx, session, deviceID, 15*time.Second)
+	if err != nil {
+		return strategy.SemanticSnapshot{}, err
+	}
+	defer cleanup()
+	adapter, ok := s.strategyForFlow(deviceID, transport)
+	if !ok {
+		return strategy.SemanticSnapshot{}, fmt.Errorf("device transport unavailable")
+	}
+	observer, ok := adapter.(strategy.SemanticObserver)
+	if !ok {
+		return strategy.SemanticSnapshot{}, &strategy.UnsupportedCapabilityError{Capability: strategy.CapSemanticTree, Operation: "observe"}
+	}
+	return observer.ObserveSemantics(probeCtx)
+}
+
 func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strategy.DeviceState, error) {
+	return s.readDeviceState(ctx, deviceID, true)
+}
+
+func (s *Service) readDeviceState(ctx context.Context, deviceID string, allowReconnect bool) (strategy.DeviceState, error) {
 	record, found := s.devices.Get(deviceID)
 	if !found {
 		return strategy.DeviceState{}, fmt.Errorf("unknown or unavailable device %q", deviceID)
@@ -551,12 +620,12 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 			}
 			continue
 		}
+		if len(state.Unavailable) > 0 && !hasObservedDeviceState(state) {
+			readErrors = append(readErrors, fmt.Sprintf("%s: all state probes unavailable", transport))
+			continue
+		}
 		readCount++
 		if readCount == 1 {
-			combined.ForegroundPackage = state.ForegroundPackage
-			combined.ScreenState = state.ScreenState
-			combined.LockState = state.LockState
-			combined.Orientation = state.Orientation
 			combined.AutoRotate = state.AutoRotate
 			combined.AutoRotateKnown = state.AutoRotateKnown
 			combined.BatteryLevel = state.BatteryLevel
@@ -566,6 +635,49 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 			combined.DisplayWidth = state.DisplayWidth
 			combined.DisplayHeight = state.DisplayHeight
 			combined.DisplayDensity = state.DisplayDensity
+		}
+		// A reachable secondary transport may be the only one able to read a
+		// field, for example after a promoted phone switches back to USB. Do
+		// not let an empty first observation mask that state.
+		mergeKnownString := func(name string, destination *string, value string) {
+			if value == "" || value == "unknown" || state.Unavailable[name] != "" {
+				return
+			}
+			if *destination == "" || *destination == "unknown" {
+				*destination = value
+			}
+			delete(combined.Unavailable, name)
+		}
+		mergeKnownString("foreground_package", &combined.ForegroundPackage, state.ForegroundPackage)
+		mergeKnownString("screen_state", &combined.ScreenState, state.ScreenState)
+		mergeKnownString("lock_state", &combined.LockState, state.LockState)
+		mergeKnownString("orientation", &combined.Orientation, state.Orientation)
+		if observed := state.WirelessDebugging; observed != nil {
+			delete(combined.Unavailable, "wireless_debugging")
+			if combined.WirelessDebugging == nil {
+				copy := *observed
+				copy.Transport = transport
+				combined.WirelessDebugging = &copy
+			} else {
+				current := combined.WirelessDebugging
+				mixed := false
+				if current.NativeSupported == nil && observed.NativeSupported != nil {
+					current.NativeSupported = observed.NativeSupported
+					mixed = true
+				}
+				if current.NativeEnabled == nil && observed.NativeEnabled != nil {
+					current.NativeEnabled = observed.NativeEnabled
+					mixed = true
+				}
+				if current.LegacyTCPEnabled == nil && observed.LegacyTCPEnabled != nil {
+					current.LegacyTCPEnabled = observed.LegacyTCPEnabled
+					current.LegacyTCPPort = observed.LegacyTCPPort
+					mixed = true
+				}
+				if mixed && current.Transport != transport {
+					current.Transport = ""
+				}
+			}
 		}
 		if state.DreamState != "" && (combined.DreamState == "" || combined.DreamState == "unknown" && state.DreamState != "unknown") {
 			combined.DreamState = state.DreamState
@@ -603,6 +715,15 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 			}
 		}
 		for name, reason := range state.Unavailable {
+			if name == "wireless_debugging" && combined.WirelessDebugging != nil {
+				continue
+			}
+			if (name == "foreground_package" && combined.ForegroundPackage != "") ||
+				(name == "screen_state" && combined.ScreenState != "" && combined.ScreenState != "unknown") ||
+				(name == "lock_state" && combined.LockState != "" && combined.LockState != "unknown") ||
+				(name == "orientation" && combined.Orientation != "" && combined.Orientation != "unknown") {
+				continue
+			}
 			if name == "dream_state" && combined.DreamState != "" && combined.DreamState != "unknown" {
 				continue
 			}
@@ -612,6 +733,12 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 		}
 	}
 	if readCount == 0 {
+		// A previously verified wireless endpoint may have disconnected while
+		// the network was temporarily unreachable. Re-establish identity once
+		// before giving up; this retries observation only, never an action.
+		if allowReconnect && s.recoverWirelessBeforeUse(ctx, deviceID) {
+			return s.readDeviceState(ctx, deviceID, false)
+		}
 		return combined, &strategy.AvailabilityError{Reason: fmt.Sprintf("no transport could read state for %q: %s", deviceID, strings.Join(readErrors, "; ")), NextAction: "Use a reachable transport that declares state-bearing properties."}
 	}
 	if len(combined.Unavailable) == 0 {
@@ -621,6 +748,22 @@ func (s *Service) ReadDeviceState(ctx context.Context, deviceID string) (strateg
 		combined.Conflicts = nil
 	}
 	return combined, nil
+}
+
+func hasObservedDeviceState(state strategy.DeviceState) bool {
+	if state.ForegroundPackage != "" || (state.ScreenState != "" && state.ScreenState != "unknown") ||
+		(state.LockState != "" && state.LockState != "unknown") || (state.DreamState != "" && state.DreamState != "unknown") ||
+		state.Orientation != "" || state.AutoRotateKnown || state.ChargingKnown || state.BatteryLevel > 0 ||
+		state.ThermalStatus != "" || state.DisplayWidth > 0 || state.DisplayHeight > 0 || state.DisplayDensity > 0 ||
+		state.WirelessDebugging != nil {
+		return true
+	}
+	for _, property := range state.Properties {
+		if property.Status == strategy.StatusAvailable {
+			return true
+		}
+	}
+	return false
 }
 
 func statePropertyConflict(name string, current, candidate strategy.PropertyValue) (string, bool) {

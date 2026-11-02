@@ -27,10 +27,11 @@ func TestLifecycleResultOmitsUnknownInstalledState(t *testing.T) {
 }
 
 func TestDeviceStateOmitsUnknownMobileBooleans(t *testing.T) {
-	encoded, err := json.Marshal(strategy.DeviceState{Properties: map[string]strategy.PropertyValue{"volume": {Value: 0.7, Status: strategy.StatusAvailable}}})
+	encoded, err := json.Marshal(strategy.DeviceState{BatteryLevel: -1, Properties: map[string]strategy.PropertyValue{"volume": {Value: 0.7, Status: strategy.StatusAvailable}}})
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), "auto_rotate")
 	require.NotContains(t, string(encoded), "charging")
+	require.NotContains(t, string(encoded), "battery_level")
 }
 
 func TestDeviceStatePreservesKnownFalseMobileBooleans(t *testing.T) {

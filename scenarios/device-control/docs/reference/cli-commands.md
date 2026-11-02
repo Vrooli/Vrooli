@@ -165,6 +165,7 @@ Device Control also exposes live state and replay export through the thin CLI:
 
 ```bash
 device-control device state <device-id> --json
+device-control device semantics <device-id> --json
 device-control device screen <device-id> --operation wake --json
 device-control device screen <device-id> --operation sleep --json
 device-control device screen <device-id> --operation ready --auth-profile <profile-id> --json
@@ -174,6 +175,8 @@ device-control device capture <device-id> --kind recording --seconds 5 --json
 device-control device capture <device-id> --kind recording --seconds 5 --require-audio --json
 device-control device capture <device-id> --kind logs --package com.example.app --json
 device-control flow export <run-id> --json
+device-control agent start --device <device-id> --goal 'Open settings' --skill-available --dry-run --json
+device-control agent start --device <device-id> --goal 'Open TV apps' --skill-available --expect-selected 'TV apps' --json
 ```
 
 Screenshots and recordings preserve the full frame by default and are not
@@ -184,6 +187,26 @@ provide exact sensitive regions; content-aware video redaction is unavailable.
 thermal, and display data. Fields that cannot be probed retain the exact adb
 command under `unavailable`. `flow export` returns the replayable flow,
 resolution rung metadata, and explicit exclusions for failed steps.
+`device semantics` returns a bounded, temporary accessibility snapshot with
+labels, identifiers, bounds and actionable state. It acquires and releases a
+lease unless `--lease` supplies an existing one; `--transport` may select a
+transport. Editable and password content is omitted. Check `truncated` before
+assuming the list is complete. Android ADB supports this observation when the
+device can provide an idle accessibility hierarchy; other transports may report
+it unavailable. Labels can still contain private information.
+Android snapshots include `selected` where reported and `checked` for
+checkable controls where reported; an omitted value is unknown, not false.
+An agent dry run stops at its first actionable proposal and returns
+`state: planned` and `proposed_step`; it does not simulate later screen
+changes or verify the goal. A semantic proposal can contain a screen label.
+The normal planner permits 30 seconds per inference and the default agent
+policy permits 90 seconds overall; caller cancellation and shorter policy
+limits still apply.
+`--expect-selected` supplies an exact, operator-chosen outcome: when the model
+reports completion, the current complete semantic snapshot must contain one
+matching control whose reported `selected` state is true. Missing, ambiguous,
+unselected or truncated observations fail verification. Without an explicit
+expectation, model-reported completion is not independently verified.
 The screen operation owns and releases its lease, reads the screen before and
 after, and returns `verified` only for the device-reported requested state.
 `ready` also verifies that the device is unlocked; the authentication profile

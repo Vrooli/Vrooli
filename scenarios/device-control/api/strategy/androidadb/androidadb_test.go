@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -622,6 +623,159 @@ func TestActuateObservationClipboardAndLogcatVerbsUseExactADBArguments(t *testin
 	require.Contains(t, calls, "shell date +%s.%N")
 }
 
+func TestSemanticSnapshotCapturesControlsAndRedactsEditableValues(t *testing.T) {
+	tree := []byte(`<hierarchy><node class="android.widget.Button" resource-id="com.example:id/save" text="Save" clickable="true" enabled="true" bounds="[10,20][90,70]"/><node class="android.widget.EditText" text="secret" content-desc="private" password="true" enabled="true" bounds="[1,2][80,40]"/></hierarchy>`)
+	snapshot, err := parseSemanticSnapshot(tree)
+	require.NoError(t, err)
+	require.Len(t, snapshot.Elements, 2)
+	require.Equal(t, "Save", snapshot.Elements[0].Text)
+	require.Equal(t, [4]int{10, 20, 90, 70}, snapshot.Elements[0].Bounds)
+	require.True(t, snapshot.Elements[0].Clickable)
+	require.True(t, snapshot.Elements[1].TextRedacted)
+	require.Empty(t, snapshot.Elements[1].Text)
+	require.Empty(t, snapshot.Elements[1].Description)
+}
+
+func TestSemanticSnapshotRetainsReportedSelectionAndCheckState(t *testing.T) {
+	tree := []byte(`<hierarchy><node text="Selected" selected="true" checkable="true" checked="false" bounds="[0,0][10,10]"/><node text="Unknown" bounds="[0,10][10,20]"/><node text="Not checkable" checkable="false" checked="false" bounds="[0,20][10,30]"/></hierarchy>`)
+	snapshot, err := parseSemanticSnapshot(tree)
+	require.NoError(t, err)
+	require.NotNil(t, snapshot.Elements[0].Selected)
+	require.True(t, *snapshot.Elements[0].Selected)
+	require.NotNil(t, snapshot.Elements[0].Checked)
+	require.False(t, *snapshot.Elements[0].Checked)
+	require.Nil(t, snapshot.Elements[1].Selected)
+	require.Nil(t, snapshot.Elements[1].Checked)
+	require.Nil(t, snapshot.Elements[2].Checked)
+}
+
+func TestSemanticSnapshotBoundsOutputAndMarksTruncation(t *testing.T) {
+	var tree strings.Builder
+	tree.WriteString("<hierarchy>")
+	for i := 0; i < maxSemanticSnapshotNodes+1; i++ {
+		fmt.Fprintf(&tree, `<node text="%s" enabled="true" bounds="[0,0][10,10]"/>`, strings.Repeat("x", maxSemanticLabelRunes+1))
+	}
+	tree.WriteString("</hierarchy>")
+	snapshot, err := parseSemanticSnapshot([]byte(tree.String()))
+	require.NoError(t, err)
+	require.True(t, snapshot.Truncated)
+	require.Len(t, snapshot.Elements, maxSemanticSnapshotNodes)
+	require.Len(t, []rune(snapshot.Elements[0].Text), maxSemanticLabelRunes)
+	single := fmt.Sprintf(`<hierarchy><node text="%s" enabled="true" bounds="[0,0][10,10]"/></hierarchy>`, strings.Repeat("x", maxSemanticLabelRunes+1))
+	snapshot, err = parseSemanticSnapshot([]byte(single))
+	require.NoError(t, err)
+	require.True(t, snapshot.Truncated, "truncated labels must be disclosed even if no nodes are omitted")
+}
+
+func TestSemanticSnapshotRefusesMissingOrMalformedHierarchy(t *testing.T) {
+	for _, raw := range []string{"ERROR: could not get idle state.", `<hierarchy><node bounds="[0,0][1,1]">`} {
+		_, err := parseSemanticSnapshot([]byte(raw))
+		require.Error(t, err)
+	}
+}
+
+func TestWirelessDebuggingStateDistinguishesNativeAndLegacyModes(t *testing.T) {
+	for _, tc := range []struct {
+		name, sdk, native, port, characteristics string
+		supported, enabled                       *bool
+		legacy                                   *bool
+	}{
+		{name: "android 10 legacy enabled", sdk: "29", port: "5555", supported: boolPtr(false), legacy: boolPtr(true)},
+		{name: "android 13 native disabled", sdk: "33", native: "0", port: "-1", supported: boolPtr(true), enabled: boolPtr(false), legacy: boolPtr(false)},
+		{name: "android 12 TV", sdk: "32", characteristics: "tv", port: "-1", supported: boolPtr(false), legacy: boolPtr(false)},
+		{name: "android 12 phone", sdk: "32", characteristics: "default", native: "1", port: "-1", supported: boolPtr(true), enabled: boolPtr(true), legacy: boolPtr(false)},
+		{name: "android 12 unknown device class", sdk: "32", port: "-1", legacy: boolPtr(false)},
+		{name: "unknown setting", sdk: "33", native: "null", port: "", supported: boolPtr(true)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := &scriptedRunner{responses: map[string][]byte{
+				"adb -s serial-1 shell getprop ro.build.version.sdk":         []byte(tc.sdk),
+				"adb -s serial-1 shell getprop ro.build.characteristics":     []byte(tc.characteristics),
+				"adb -s serial-1 shell settings get global adb_wifi_enabled": []byte(tc.native),
+				"adb -s serial-1 shell getprop service.adb.tcp.port":         []byte(tc.port),
+			}}
+			state := NewWithRunner(runner, "serial-1").readWirelessDebuggingState(context.Background())
+			require.NotNil(t, state)
+			require.Equal(t, tc.supported, state.NativeSupported)
+			require.Equal(t, tc.enabled, state.NativeEnabled)
+			require.Equal(t, tc.legacy, state.LegacyTCPEnabled)
+		})
+	}
+}
+
+type blockedStateRunner struct{}
+
+func (blockedStateRunner) Run(ctx context.Context, _ string, _ ...string) ([]byte, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func TestAndroidStateObservationHonorsDeadline(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	_, err := NewWithRunner(blockedStateRunner{}, "serial-1").ReadState(ctx)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+func boolPtr(value bool) *bool { return &value }
+
+type wirelessSettingRunner struct {
+	sdk, setting string
+	ignoreWrites bool
+	writes       int
+}
+
+func (r *wirelessSettingRunner) Run(_ context.Context, _ string, args ...string) ([]byte, error) {
+	call := strings.Join(args, " ")
+	switch {
+	case strings.HasSuffix(call, "getprop ro.build.version.sdk"):
+		return []byte(r.sdk), nil
+	case strings.HasSuffix(call, "settings get global adb_wifi_enabled"):
+		return []byte(r.setting), nil
+	case strings.Contains(call, "settings put global adb_wifi_enabled "):
+		r.writes++
+		if !r.ignoreWrites {
+			r.setting = args[len(args)-1]
+		}
+		return nil, nil
+	case strings.HasSuffix(call, "getprop service.adb.tcp.port"):
+		return []byte("-1"), nil
+	default:
+		return nil, nil
+	}
+}
+
+func TestNativeWirelessDebuggingRequiresUSBAndVerifiedState(t *testing.T) {
+	runner := &wirelessSettingRunner{sdk: "33", setting: "0"}
+	adapter := NewWithRunner(runner, "serial-1")
+	require.NoError(t, adapter.SetWirelessDebugging(context.Background(), true))
+	require.Equal(t, "1", runner.setting)
+	require.Equal(t, 1, runner.writes)
+	require.NoError(t, adapter.SetWirelessDebugging(context.Background(), true))
+	require.Equal(t, 1, runner.writes, "already enabled must be a no-op")
+	require.NoError(t, adapter.SetWirelessDebugging(context.Background(), false))
+	require.Equal(t, "0", runner.setting)
+	runner.setting = "null"
+	require.NoError(t, adapter.SetWirelessDebugging(context.Background(), true), "an unset setting must be writable and verified")
+	require.Equal(t, "1", runner.setting)
+	runner.setting = "0"
+
+	runner.ignoreWrites = true
+	require.ErrorContains(t, adapter.SetWirelessDebugging(context.Background(), true), "not verified")
+	runner.sdk = "29"
+	require.Error(t, adapter.SetWirelessDebugging(context.Background(), true))
+	before := runner.writes
+	wireless := NewWithRunner(runner, "192.0.2.1:5555")
+	require.ErrorContains(t, wireless.SetWirelessDebugging(context.Background(), true), "USB")
+	require.Equal(t, before, runner.writes)
+}
+
+func TestSemanticTargetRejectsAmbiguousMatches(t *testing.T) {
+	tree := []byte(`<hierarchy><node text="Open" bounds="[0,0][20,20]"/><node text="Open" bounds="[0,30][20,50]"/></hierarchy>`)
+	_, err := findSemanticNode(tree, "Open")
+	require.ErrorContains(t, err, "ambiguous")
+}
+
 func TestSemanticTargetResolvesAccessibilityBoundsAndTapsCenter(t *testing.T) {
 	var screenshot bytes.Buffer
 	require.NoError(t, png.Encode(&screenshot, image.NewRGBA(image.Rect(0, 0, 100, 200))))
@@ -649,6 +803,8 @@ func TestSemanticAssertVerifiesAccessibilityText(t *testing.T) {
 
 func TestReadStateParsesRecordedAndroidProbes(t *testing.T) {
 	runner := &scriptedRunner{responses: map[string][]byte{
+		"adb -s serial-1 shell getprop ro.build.version.sdk":               []byte("29"),
+		"adb -s serial-1 shell getprop service.adb.tcp.port":               []byte("-1"),
 		"adb -s serial-1 shell dumpsys activity activities":                []byte("mResumedActivity: ActivityRecord{u0 com.example.hello/.MainActivity t42}"),
 		"adb -s serial-1 shell dumpsys power":                              []byte("mWakefulness=Awake\nDisplay Power: state=ON"),
 		"adb -s serial-1 shell dumpsys window":                             []byte("mShowingLockscreen=false isStatusBarKeyguard=false"),

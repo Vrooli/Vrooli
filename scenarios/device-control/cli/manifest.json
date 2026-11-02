@@ -1233,6 +1233,10 @@
             {
               "name": "dry-run",
               "bool": true
+            },
+            {
+              "name": "expect-selected",
+              "description": "Independently verify this exact control is selected"
             }
           ],
           "binding": {

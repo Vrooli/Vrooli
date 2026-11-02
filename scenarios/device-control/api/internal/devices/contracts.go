@@ -216,6 +216,7 @@ func AggregateHealth(record Record, now time.Time, maxAge time.Duration) (string
 	bestRank := healthRank(record.Health)
 	best := normalizeHealth(record.Health)
 	reason := strings.TrimSpace(record.HealthReason)
+	availableTransport := ""
 	if best == "" {
 		best = normalizeHealth(record.Status)
 		bestRank = healthRank(best)
@@ -228,6 +229,9 @@ func AggregateHealth(record Record, now time.Time, maxAge time.Duration) (string
 		if !transport.ObservedAt.IsZero() && now.Sub(transport.ObservedAt) > maxAge && healthRank("stale") > healthRank(health) {
 			health = "stale"
 		}
+		if health == "available" && !transport.ObservedAt.IsZero() && now.Sub(transport.ObservedAt) <= maxAge {
+			availableTransport = transport.Name
+		}
 		if healthRank(health) > bestRank {
 			bestRank = healthRank(health)
 			best = health
@@ -236,6 +240,15 @@ func AggregateHealth(record Record, now time.Time, maxAge time.Duration) (string
 				reason = transport.Name + " transport is " + health
 			}
 		}
+	}
+	// Losing one transport does not make a logical device unreachable when a
+	// different transport has a fresh successful observation. Preserve the
+	// failing cause while reporting partial availability honestly.
+	if availableTransport != "" && (best == "unreachable" || best == "stale") {
+		if reason == "" {
+			reason = "another transport is unavailable"
+		}
+		return "degraded", reason + "; " + availableTransport + " transport is available"
 	}
 	if best == "" {
 		best = "unknown"

@@ -42,12 +42,16 @@ function SensorPanel({ state }: PanelProps) { return <Card data-testid={selector
 function LogPanel({ state }: PanelProps) { return <Card data-testid={selectors.pages.deviceLogPanel}><CardHeader><CardTitle>Capability diagnostics</CardTitle></CardHeader><CardContent><pre>{JSON.stringify(state.unavailable ?? {}, null, 2)}</pre></CardContent></Card>; }
 
 function DeviceStatePanel({ state }: { state: DeviceState }) {
+  const debugging = state.wireless_debugging;
+  const nativeDebugging = debugging?.native_supported === false ? "Not supported by this Android version" : debugging?.native_enabled === true ? "Enabled" : debugging?.native_enabled === false ? "Disabled" : "Unknown";
+  const legacyDebugging = debugging?.legacy_tcp_enabled === true ? `Enabled${debugging.legacy_tcp_port ? ` (port ${debugging.legacy_tcp_port})` : ""}` : debugging?.legacy_tcp_enabled === false ? "Disabled" : "Unknown";
   const rows = [
     ["Foreground", state.foreground_package || "unknown"],
     ["Screen", state.screen_state || "unknown"],
     ["Lock", state.lock_state || "unknown"],
     ["Android dream service", state.dream_state || "unknown"],
     ...(state.dream_component ? [["Dream component", state.dream_component]] : []),
+    ...(debugging || state.unavailable?.wireless_debugging ? [["Paired wireless debugging", nativeDebugging], ["Legacy ADB over TCP", legacyDebugging]] : []),
   ];
   return <Card role="region" aria-label="Current device state"><CardHeader><CardTitle>Current device state</CardTitle></CardHeader><CardContent><dl className="grid grid-cols-2 gap-2">{rows.map(([label, value]) => <div key={label}><dt className="text-sm text-app-muted-foreground">{label}</dt><dd>{value}</dd></div>)}</dl></CardContent></Card>;
 }

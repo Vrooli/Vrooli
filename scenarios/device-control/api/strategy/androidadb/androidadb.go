@@ -823,6 +823,8 @@ func (a *Adapter) waitForDevice(ctx context.Context, endpoint string) error {
 }
 
 func (a *Adapter) verifyWirelessEndpoint(ctx context.Context, endpoint string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	serialCheck, err := a.runner.Run(ctx, "adb", "-s", endpoint, "shell", "getprop", "ro.serialno")
 	if err != nil {
 		return fmt.Errorf("verify wireless endpoint: %w", err)
@@ -1457,6 +1459,9 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	screenCap := caps[strategy.CapInput]
 	screenCap.Name = strategy.CapScreenControl
 	caps[strategy.CapScreenControl] = screenCap
+	debugState := a.readWirelessDebuggingState(ctx)
+	nativeAvailable := a.transport == "usb" && debugState != nil && debugState.NativeSupported != nil && *debugState.NativeSupported
+	caps[strategy.CapWirelessDebugging] = strategy.ProbeCapability(strategy.CapWirelessDebugging, nativeAvailable, "native wireless debugging requires a supported Android version and an authorized USB connection", "Connect the device over USB and authorize debugging; use legacy wireless promotion on older Android versions", "Android SDK level and device class; execution must verify the setting")
 	_, recordingErr := a.runner.Run(ctx, "adb", a.args("shell", "screenrecord", "--help")...)
 	caps[strategy.CapNativeRecording] = strategy.ProbeCapability(strategy.CapNativeRecording, recordingErr == nil, "adb screenrecord is unavailable on this device image", "Install a device image with screenrecord support", "adb shell screenrecord --help")
 	caps[strategy.CapScreenRecording] = caps[strategy.CapNativeRecording]
@@ -1513,6 +1518,11 @@ func (a *Adapter) RestartDevice(ctx context.Context) error {
 }
 
 func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
+	// A stale ADB transport can remain listed as connected while a shell
+	// command blocks indefinitely. Bound the whole observation so another
+	// transport can be tried and caller cancellation remains effective.
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
 	state := strategy.DeviceState{Unavailable: map[string]string{}}
 	probe := func(field string, args ...string) string {
 		out, err := a.runner.Run(ctx, "adb", a.args(args...)...)
@@ -1521,6 +1531,10 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 			return ""
 		}
 		return string(out)
+	}
+	state.WirelessDebugging = a.readWirelessDebuggingState(ctx)
+	if state.WirelessDebugging == nil {
+		state.Unavailable["wireless_debugging"] = "Android version and wireless debugging state could not be determined"
 	}
 	activity := probe("foreground_package", "shell", "dumpsys", "activity", "activities")
 	state.ForegroundPackage = foregroundPackage(activity)
@@ -1591,7 +1605,81 @@ func (a *Adapter) ReadState(ctx context.Context) (strategy.DeviceState, error) {
 	if len(state.Unavailable) == 0 {
 		state.Unavailable = nil
 	}
+	if err := ctx.Err(); err != nil {
+		return state, fmt.Errorf("android device state observation: %w", err)
+	}
 	return state, nil
+}
+
+func (a *Adapter) readWirelessDebuggingState(ctx context.Context) *strategy.WirelessDebuggingState {
+	state := &strategy.WirelessDebuggingState{}
+	if raw, err := a.runner.Run(ctx, "adb", a.args("shell", "getprop", "ro.build.version.sdk")...); err == nil {
+		if sdk, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && sdk > 0 {
+			supported := sdk >= 30
+			known := true
+			// Android's documented minimum for TV and Wear is API 33, while
+			// phones support paired wireless debugging from API 30.
+			if sdk >= 30 && sdk < 33 {
+				characteristics, err := a.runner.Run(ctx, "adb", a.args("shell", "getprop", "ro.build.characteristics")...)
+				value := strings.ToLower(strings.TrimSpace(string(characteristics)))
+				if err != nil || value == "" {
+					known = false
+				} else if strings.Contains(value, "tv") || strings.Contains(value, "watch") {
+					supported = false
+				}
+			}
+			if known {
+				state.NativeSupported = &supported
+			}
+			if known && supported {
+				if enabledRaw, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "get", "global", "adb_wifi_enabled")...); err == nil {
+					switch strings.TrimSpace(string(enabledRaw)) {
+					case "0", "1":
+						enabled := strings.TrimSpace(string(enabledRaw)) == "1"
+						state.NativeEnabled = &enabled
+					}
+				}
+			}
+		}
+	}
+	if raw, err := a.runner.Run(ctx, "adb", a.args("shell", "getprop", "service.adb.tcp.port")...); err == nil {
+		if port, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && port >= -1 && port <= 65535 {
+			enabled := port > 0
+			state.LegacyTCPEnabled = &enabled
+			if enabled {
+				state.LegacyTCPPort = port
+			}
+		}
+	}
+	if state.NativeSupported == nil && state.LegacyTCPEnabled == nil {
+		return nil
+	}
+	return state
+}
+
+func (a *Adapter) SetWirelessDebugging(ctx context.Context, enabled bool) error {
+	if a.transport != "usb" || strings.TrimSpace(a.serial) == "" {
+		return fmt.Errorf("native wireless debugging changes require an authorized serial-bound USB transport")
+	}
+	before := a.readWirelessDebuggingState(ctx)
+	if before == nil || before.NativeSupported == nil || !*before.NativeSupported {
+		return &strategy.UnsupportedCapabilityError{Capability: strategy.CapWirelessDebugging, Operation: "set"}
+	}
+	if before.NativeEnabled != nil && *before.NativeEnabled == enabled {
+		return nil
+	}
+	value := "0"
+	if enabled {
+		value = "1"
+	}
+	if _, err := a.runner.Run(ctx, "adb", a.args("shell", "settings", "put", "global", "adb_wifi_enabled", value)...); err != nil {
+		return fmt.Errorf("change native wireless debugging: %w", err)
+	}
+	after := a.readWirelessDebuggingState(ctx)
+	if after == nil || after.NativeEnabled == nil || *after.NativeEnabled != enabled {
+		return fmt.Errorf("native wireless debugging change was not verified; the OS may require network authorization")
+	}
+	return nil
 }
 
 // Unlock performs the narrow Android PIN/numeric-passcode procedure. It does
@@ -2622,13 +2710,113 @@ func (a *Adapter) normalizedPixels(ctx context.Context, x, y float64) (int, int,
 
 var boundsPattern = regexp.MustCompile(`^\[(\d+),(\d+)\]\[(\d+),(\d+)\]$`)
 
+const maxSemanticSnapshotNodes = 200
+const maxSemanticLabelRunes = 160
+
+// parseSemanticSnapshot returns a compact, bounded view without retaining raw
+// accessibility XML. Editable values and password descriptions are omitted.
+func parseSemanticSnapshot(tree []byte) (strategy.SemanticSnapshot, error) {
+	result := strategy.SemanticSnapshot{Elements: []strategy.SemanticElement{}}
+	label := func(value string) string {
+		runes := []rune(strings.TrimSpace(value))
+		if len(runes) > maxSemanticLabelRunes {
+			result.Truncated = true
+			runes = runes[:maxSemanticLabelRunes]
+		}
+		return string(runes)
+	}
+	optionalBool := func(value string) *bool {
+		switch value {
+		case "true":
+			v := true
+			return &v
+		case "false":
+			v := false
+			return &v
+		default:
+			return nil
+		}
+	}
+	decoder := xml.NewDecoder(bytes.NewReader(tree))
+	depth, root := 0, false
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return result, fmt.Errorf("parse accessibility hierarchy: %w", err)
+		}
+		switch element := token.(type) {
+		case xml.StartElement:
+			if depth == 0 {
+				if root || element.Name.Local != "hierarchy" {
+					return result, errors.New("accessibility hierarchy root unavailable")
+				}
+				root = true
+			}
+			depth++
+			if element.Name.Local != "node" {
+				continue
+			}
+			attrs := make(map[string]string, len(element.Attr))
+			for _, attr := range element.Attr {
+				attrs[attr.Name.Local] = attr.Value
+			}
+			x0, y0, x1, y1, err := semanticBoundsRect(attrs, "node")
+			if err != nil || x1 <= x0 || y1 <= y0 {
+				continue
+			}
+			editable := attrs["password"] == "true" || attrs["editable"] == "true" || strings.HasSuffix(attrs["class"], ".EditText")
+			node := strategy.SemanticElement{ResourceID: label(attrs["resource-id"]), Class: label(attrs["class"]), Bounds: [4]int{x0, y0, x1, y1}, Clickable: attrs["clickable"] == "true", Focusable: attrs["focusable"] == "true", Focused: attrs["focused"] == "true", Scrollable: attrs["scrollable"] == "true", Enabled: attrs["enabled"] == "true", Editable: editable}
+			node.Selected = optionalBool(attrs["selected"])
+			if attrs["checkable"] == "true" {
+				node.Checked = optionalBool(attrs["checked"])
+			}
+			if editable {
+				node.TextRedacted = attrs["text"] != "" || attrs["content-desc"] != ""
+			} else {
+				node.Text, node.Description = label(attrs["text"]), label(attrs["content-desc"])
+			}
+			if node.ResourceID == "" && node.Text == "" && node.Description == "" && !node.Clickable && !node.Focusable && !node.Scrollable && !node.Editable {
+				continue
+			}
+			if len(result.Elements) >= maxSemanticSnapshotNodes {
+				result.Truncated = true
+				continue
+			}
+			result.Elements = append(result.Elements, node)
+		case xml.EndElement:
+			depth--
+		}
+	}
+	if !root || depth != 0 {
+		return result, errors.New("accessibility hierarchy is unavailable or incomplete")
+	}
+	result.ObservedAt = time.Now().UTC()
+	return result, nil
+}
+
+func (a *Adapter) ObserveSemantics(ctx context.Context) (strategy.SemanticSnapshot, error) {
+	bounded, ok := a.runner.(boundedRunner)
+	if !ok {
+		return strategy.SemanticSnapshot{}, errors.New("bounded accessibility observation is unavailable")
+	}
+	data, err := bounded.RunBounded(ctx, "adb", 2*1024*1024, a.args("exec-out", "uiautomator", "dump", "/dev/stdout")...)
+	if err != nil {
+		return strategy.SemanticSnapshot{}, fmt.Errorf("capture accessibility hierarchy: %w", err)
+	}
+	return parseSemanticSnapshot(data)
+}
+
 // findSemanticNode resolves a stable Android accessibility identifier. The XML
 // is device-owned input; only matched attributes and numeric bounds are used.
 func findSemanticNode(tree []byte, target string) (map[string]string, error) {
 	if strings.TrimSpace(target) == "" {
 		return nil, fmt.Errorf("accessibility target is required")
 	}
-	decoder := xml.NewDecoder(strings.NewReader(string(tree)))
+	decoder := xml.NewDecoder(bytes.NewReader(tree))
+	var match map[string]string
 	for {
 		token, err := decoder.Token()
 		if err != nil {
@@ -2648,7 +2836,13 @@ func findSemanticNode(tree []byte, target string) (map[string]string, error) {
 		if !semanticValueMatches(values, target) {
 			continue
 		}
-		return values, nil
+		if match != nil {
+			return nil, fmt.Errorf("accessibility target %q is ambiguous in the view hierarchy", target)
+		}
+		match = values
+	}
+	if match != nil {
+		return match, nil
 	}
 	return nil, fmt.Errorf("accessibility target %q was not found in the view hierarchy", target)
 }

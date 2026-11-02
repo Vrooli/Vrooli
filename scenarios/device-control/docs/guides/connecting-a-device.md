@@ -98,9 +98,10 @@ sample; replace the cable before capturing evidence you intend to keep.
 USB is the onboarding and release-evidence transport. After a trusted USB
 onboarding, Android devices may be promoted to wireless ADB with
 `device-control device promote --transport wireless`. Promotion keeps the same
-device id and verifies the recorded serial after connecting. Wireless is useful
-for automation, but pairing is lost after a device reboot; reattach USB and
-promote it again. An unselected transport resolves to the device's current
+device id and verifies the recorded serial after connecting. The legacy TCP
+mode used by promotion can need re-enabling after reboot; reconnect USB and
+promote again when necessary. Android's newer paired Wireless debugging mode
+is separate and its pairing normally persists until revoked. An unselected transport resolves to the device's current
 governed transport: a USB device uses USB, and a device whose current transport
 is a verified wireless/network endpoint (a promoted phone or a network-onboarded
 TV) uses that endpoint-bound strategy rather than the ambient ADB server. Select
@@ -132,6 +133,49 @@ reports an unavailable wireless transport, enable Wireless debugging and
 authorize this host on the phone, then retry. Use
 `device-control flow run --transport wireless` explicitly for subsequent
 wireless flows.
+When all state-bearing transports fail, a state read also attempts this
+identity-verified reconnect once and repeats only the observation. It never
+replays an input or other device action.
+An implicit-transport flow preflight and agent planning can also attempt that
+reconnect before any device action. Flow validation uses the same preflight,
+so it may restore an existing wireless connection; explicit flow transport
+choices are not changed.
+
+`device-control device state <id> --json` reports `wireless_debugging` when
+Android exposes it. `native_supported` reports Android-version and device-class eligibility
+(Android 11+ phones or Android 13+ TVs and watches according to the
+[Android ADB guide](https://developer.android.com/tools/adb)),
+and `native_enabled` reports the paired Wireless debugging setting;
+`legacy_tcp_enabled` and
+`legacy_tcp_port` describe the separate older ADB-over-TCP mode. Missing
+fields are unknown. An enabled setting does not prove that the computer is
+paired, the network is trusted, or a wireless connection is reachable.
+
+For a supported Android device connected and authorized over USB, use the
+ready-to-run [enable flow](../../fixtures/native-wireless-debugging-enable.json)
+or [disable flow](../../fixtures/native-wireless-debugging-disable.json) with
+`device-control flow run --file <definition> --device <id>`. Each flow checks
+the resulting setting, and a passing run can be saved as a device-scoped flow
+revision. Device Control verifies the setting after changing it;
+the OS may require network authorization, vendor support can differ, and
+pairing remains a separate step.
+Older Android devices do not expose this native mode; for them the existing
+`device promote <id> --transport wireless` command uses legacy ADB over TCP
+and verifies the same hardware serial before saving the endpoint. Promotion
+can be repeated through a known serial-bound USB profile to recover a stale
+wireless connection.
+
+For an Android flow without an explicit transport, Device Control first
+preflights the selected wireless transport. If it cannot satisfy the flow and
+the same device has a known serial-bound USB profile, it preflights USB before
+sending any action. An explicit wireless selection is never changed, and an
+action is never replayed on another transport after execution begins. Other
+device operations may still require an explicit reconnect or transport choice;
+this flow fallback cannot enable debugging or make an unreachable network
+endpoint reachable.
+The agent planner also selects the known serial-bound USB profile before
+planning when its preferred wireless adapter is unavailable; it records the
+chosen transport for subsequent observations and actions.
 
 ## Android TV over network ADB
 
