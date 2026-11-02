@@ -140,7 +140,13 @@ type Resolver struct {
 }
 
 func NewResolver(gateway InferenceRunner) *Resolver {
-	return &Resolver{Gateway: gateway, Anchors: NewAnchorStore()}
+	return NewResolverWithAnchors(gateway, NewAnchorStore())
+}
+
+// NewResolverWithAnchors binds visual resolution to the caller's durable anchor
+// store, so learned targets are visible to the same service that manages them.
+func NewResolverWithAnchors(gateway InferenceRunner, anchors *AnchorStore) *Resolver {
+	return &Resolver{Gateway: gateway, Anchors: anchors}
 }
 
 func (r *Resolver) Resolve(ctx context.Context, req Request) (Result, error) {

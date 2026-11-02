@@ -21,6 +21,7 @@ import (
 	"device-control/handlers/desktop"
 	internalclock "device-control/internal/clock"
 	"device-control/internal/desktopwebrtc"
+	"device-control/internal/environment"
 	"device-control/internal/native/macos"
 	"device-control/internal/server"
 )
@@ -28,6 +29,7 @@ import (
 var companionVersion = "0.1.0"
 
 func main() {
+	processEnv := environment.OSReader{}
 	configPath := flag.String("config", "", "user-scoped companion configuration path")
 	flag.Parse()
 	if *configPath != "" {
@@ -45,9 +47,9 @@ func main() {
 		provider = macos.Provider{Backend: backend, CompanionVersion: companionVersion}
 	}
 
-	port := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_COMPANION_PORT"))
+	port := strings.TrimSpace(environment.Value(processEnv, "DEVICE_CONTROL_COMPANION_PORT"))
 	if port == "" {
-		port = strings.TrimSpace(os.Getenv("API_PORT"))
+		port = strings.TrimSpace(environment.Value(processEnv, "API_PORT"))
 	}
 	if port == "" {
 		port = "16465"

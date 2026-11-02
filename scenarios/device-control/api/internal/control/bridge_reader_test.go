@@ -60,8 +60,23 @@ func TestOwnerSessionHTTPClientPreservesLocalSessionScheme(t *testing.T) {
 func TestOwnerTokenFileRejectsGroupReadableCredentials(t *testing.T) {
 	tokenPath := filepath.Join(t.TempDir(), "owner-token")
 	require.NoError(t, os.WriteFile(tokenPath, []byte("owner-session-token"), 0o640))
-	t.Setenv("VROOLI_BRIDGE_TOKEN_FILE", tokenPath)
 
-	_, err := readOwnerTokenFile()
+	_, err := readOwnerTokenFile(BridgeCredentialConfig{OwnerTokenFile: tokenPath})
 	require.ErrorContains(t, err, "must be owner-only")
+}
+
+func TestOwnerTokenFileUsesInjectedConfigAndFallback(t *testing.T) {
+	dir := t.TempDir()
+	bridgePath := filepath.Join(dir, "bridge-token")
+	authPath := filepath.Join(dir, "auth-token")
+	require.NoError(t, os.WriteFile(bridgePath, []byte("bridge-token"), 0o600))
+	require.NoError(t, os.WriteFile(authPath, []byte("auth-token"), 0o600))
+
+	token, err := readOwnerTokenFile(BridgeCredentialConfig{OwnerTokenFile: bridgePath, AuthTokenFile: authPath})
+	require.NoError(t, err)
+	require.Equal(t, "bridge-token", token, "the Bridge-specific path takes precedence")
+
+	token, err = readOwnerTokenFile(BridgeCredentialConfig{AuthTokenFile: authPath})
+	require.NoError(t, err)
+	require.Equal(t, "auth-token", token, "the authenticator path remains a fallback")
 }

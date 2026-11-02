@@ -25,14 +25,15 @@ func (s *Service) Validate(ctx context.Context, flow Flow, strategyID string) Ga
 	// for wireless devices: the registry's generic android-adb strategy has no
 	// live capabilities until it is bound to the device's restored transport.
 	if strat, ok := s.strategyForFlow(strategyID, flow.Transport); ok {
-		report := validateAgainstDeclaration(ctx, flow, strat)
+		report, transportUnavailable := validateAgainstDeclarationDetailed(ctx, flow, strat)
 		_, fallbackReport, fallback := s.preflightUSBForImplicitWireless(ctx, strategyID, flow, report)
 		if fallback {
 			return fallbackReport
 		}
-		if !report.Runnable && strings.TrimSpace(flow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, strategyID) {
+		if transportUnavailable && !report.Runnable && strings.TrimSpace(flow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, strategyID) {
 			if recovered, ok := s.strategyForFlow(strategyID, "wireless"); ok {
-				return validateAgainstDeclaration(ctx, flow, recovered)
+				recoveredReport, _ := validateAgainstDeclarationDetailed(ctx, flow, recovered)
+				return recoveredReport
 			}
 		}
 		return report
@@ -120,6 +121,15 @@ func (s *Service) observeState(deviceID, transport, attribute string, value any)
 }
 
 func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strategy) GapReport {
+	report, _ := validateAgainstDeclarationDetailed(ctx, flow, d)
+	return report
+}
+
+// validateAgainstDeclarationDetailed separates a transport that cannot currently
+// be observed from a healthy transport that lacks a requested capability. Only
+// the former is eligible for automatic reconnect; reconnecting cannot add support
+// for a capability the adapter does not provide.
+func validateAgainstDeclarationDetailed(ctx context.Context, flow Flow, d strategy.Strategy) (GapReport, bool) {
 	var decl strategy.Declaration
 	if prober, ok := d.(strategy.CaptureDescriber); ok && simpleCaptureKind(flow) != "" {
 		decl, _ = prober.DescribeCapture(ctx, simpleCaptureKind(flow))
@@ -187,7 +197,7 @@ func validateAgainstDeclaration(ctx context.Context, flow Flow, d strategy.Strat
 			}
 		}
 	}
-	return g
+	return g, decl.Status != strategy.StatusAvailable
 }
 
 // Only the exact simple capture shapes use targeted preflight. Complex flows
@@ -368,16 +378,16 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 			}
 		}
 	}
-	g := validateAgainstDeclaration(ctx, flow, strat)
+	g, transportUnavailable := validateAgainstDeclarationDetailed(ctx, flow, strat)
 	if candidate, usbReport, fallback := s.preflightUSBForImplicitWireless(ctx, deviceID, requestedFlow, g); fallback {
 		strat, g = candidate, usbReport
 		flow.Transport = "usb"
 	}
-	if !g.Runnable && strings.TrimSpace(requestedFlow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, deviceID) {
+	if transportUnavailable && !g.Runnable && strings.TrimSpace(requestedFlow.Transport) == "" && s.recoverWirelessBeforeUse(ctx, deviceID) {
 		if candidate, candidateOK := s.strategyForFlow(deviceID, "wireless"); candidateOK {
 			wirelessFlow := requestedFlow
 			wirelessFlow.Transport = "wireless"
-			if wirelessReport := validateAgainstDeclaration(ctx, wirelessFlow, candidate); wirelessReport.Runnable {
+			if wirelessReport, _ := validateAgainstDeclarationDetailed(ctx, wirelessFlow, candidate); wirelessReport.Runnable {
 				strat, flow, g = candidate, wirelessFlow, wirelessReport
 			}
 		}
@@ -905,7 +915,7 @@ func (s *Service) execute(ctx context.Context, flow Flow, deviceID, actor string
 						stepErr = observeErr
 						break
 					}
-					resolver := internalflows.NewResolver(nil)
+					resolver := internalflows.NewResolverWithAnchors(nil, s.anchors)
 					resolved, resolveErr := resolver.Resolve(stepctx, internalflows.Request{
 						Target: step.Target,
 						Frame:  internalflows.Frame{Bytes: frame.Bytes, MediaType: frame.MediaType, Width: frame.Width, Height: frame.Height, OriginalWidth: frame.Width, OriginalHeight: frame.Height},

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -24,8 +23,13 @@ var ErrBootstrap = errors.New("desktop helper bootstrap refused")
 // activeWaylandSession reports compositor ownership using session metadata,
 // rather than assuming that DISPLAY means X11.  WAYLAND_DISPLAY can be set by
 // a compositor before XDG_SESSION_TYPE is propagated to a child process.
-func activeWaylandSession() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("XDG_SESSION_TYPE")), "wayland") || strings.TrimSpace(os.Getenv("WAYLAND_DISPLAY")) != ""
+type SessionEnvironment struct {
+	SessionType    string
+	WaylandDisplay string
+}
+
+func activeWaylandSession(session SessionEnvironment) bool {
+	return strings.EqualFold(strings.TrimSpace(session.SessionType), "wayland") || strings.TrimSpace(session.WaylandDisplay) != ""
 }
 
 type Config struct {

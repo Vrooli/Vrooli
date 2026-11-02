@@ -2009,6 +2009,7 @@ func TestBridgeAttachmentMergesWithLocalPhysicalIdentity(t *testing.T) { // [REQ
 	}
 	reader := staticAttachedReader{devices: []AttachedDevice{{ID: "android-stable", Name: "Pixel", HostNodeID: "swarminator", Kind: "android", Transport: "usb", Serial: "serial-1", OSVersion: "13", TrustState: "trusted", Reachability: "reachable"}}}
 	svc := NewWithAttached(strategyregistry.New(adapter), reader)
+	svc.SetHostNodeID("swarminator")
 	devices := svc.Devices(context.Background())
 	require.Len(t, devices, 1)
 	require.Equal(t, "android-stable", devices[0].ID)
@@ -2412,6 +2413,36 @@ func TestFlowPreflightRecoversKnownWirelessBeforeSendingAction(t *testing.T) {
 		}
 		require.Equal(t, 1, fixture.reconnects)
 	}
+}
+
+func TestFlowCapabilityGapDoesNotReconnectHealthyWireless(t *testing.T) {
+	fixture := &recoveringWirelessStateFixture{Strategy: fakes.New("android-adb", strategy.StatusAvailable, strategy.CapInput), online: true}
+	svc := New(strategyregistry.New(fixture))
+	svc.devices.Upsert(devicedomain.Record{ID: "phone", Kind: "physical", Serial: "serial-1", StrategyID: fixture.ID(), Transport: "wireless", Status: strategy.StatusAvailable, Health: strategy.StatusAvailable, Transports: []strategy.DeviceTransport{{Name: "wireless", StrategyID: fixture.ID()}}})
+	svc.transportStrategies["phone"] = fixture
+	flow := Flow{Steps: []Step{{ID: "settings", Kind: "semantic-target", Target: "Settings"}}}
+
+	report := svc.Validate(context.Background(), flow, "phone")
+	require.False(t, report.Runnable)
+	require.Equal(t, 0, fixture.reconnects, "a healthy transport cannot gain semantic-tree support by reconnecting")
+
+	result, err := svc.Run(context.Background(), flow, "phone", "test")
+	require.NoError(t, err)
+	require.Equal(t, "capability_gap", result.Disposition)
+	require.Equal(t, 0, fixture.reconnects)
+	require.Empty(t, fixture.Calls(), "capability preflight must not actuate")
+}
+
+func TestInventoryLockHonorsCanceledReconnectContext(t *testing.T) {
+	svc := New(strategyregistry.New(fakes.New("android-adb", strategy.StatusAvailable)))
+	release, err := svc.lockInventory(context.Background())
+	require.NoError(t, err)
+	defer release()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = svc.ReconnectWireless(ctx, "phone")
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestAgentRecoversKnownWirelessBeforePlanning(t *testing.T) {

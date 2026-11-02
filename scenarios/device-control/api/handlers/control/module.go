@@ -20,9 +20,11 @@ import (
 type ModuleDeps struct{ Service *internal.Service }
 
 func Module(s *internal.Service) module.Module {
-	anchors := internalflows.NewAnchorStore()
+	var anchors *internalflows.AnchorStore
 	if s != nil && s.Anchors() != nil {
 		anchors = s.Anchors()
+	} else {
+		anchors = internalflows.NewAnchorStore()
 	}
 	h := &handler{service: s, anchors: anchors}
 	return module.Module{Name: "device-control", Mount: func(r *mux.Router) {

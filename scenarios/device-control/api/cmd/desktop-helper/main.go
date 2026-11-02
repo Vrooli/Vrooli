@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"device-control/internal/desktophelper"
+	"device-control/internal/environment"
 	"github.com/vrooli/api-core/preflight"
 )
 
@@ -20,12 +21,14 @@ func main() {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	run(ctx)
+	processEnv := environment.OSReader{}
+	session := desktophelper.SessionEnvironment{SessionType: environment.Value(processEnv, "XDG_SESSION_TYPE"), WaylandDisplay: environment.Value(processEnv, "WAYLAND_DISPLAY")}
+	run(ctx, environment.Value(processEnv, "DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"), environment.Value(processEnv, "DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"), session)
 }
 
-func run(ctx context.Context) {
+func run(ctx context.Context, helperConfig, ownerConfig string, session desktophelper.SessionEnvironment) {
 	for ctx.Err() == nil {
-		err := desktophelper.RunBound(ctx, os.Getenv("DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"), os.Getenv("DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"))
+		err := desktophelper.RunBound(ctx, helperConfig, ownerConfig, session)
 		if ctx.Err() != nil {
 			return
 		}

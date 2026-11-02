@@ -23,6 +23,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewWithConfigUsesResolvedEnvironmentValues(t *testing.T) {
+	adapter := NewWithConfig(Config{Serial: "usb:device-1", RequireDefaultServer: true})
+	require.Equal(t, "usb:device-1", adapter.serial)
+	runner, ok := adapter.runner.(commandRunner)
+	require.True(t, ok)
+	require.True(t, runner.requireDefaultADBServer)
+}
+
 type scriptedRunner struct {
 	mu        sync.Mutex
 	responses map[string][]byte

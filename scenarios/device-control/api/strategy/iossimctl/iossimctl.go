@@ -3,18 +3,18 @@ package iossimctl
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"device-control/strategy"
 )
 
-type Adapter struct{}
+type Adapter struct{ udid string }
 
-func New() *Adapter           { return &Adapter{} }
-func (a *Adapter) ID() string { return "ios-simctl" }
+func New() *Adapter { return NewWithUDID("") }
+
+func NewWithUDID(udid string) *Adapter { return &Adapter{udid: strings.TrimSpace(udid)} }
+func (a *Adapter) ID() string          { return "ios-simctl" }
 func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 	if unsupported, ok := strategy.ResolveHostSupport(a.ID(), "iOS Simulator through simctl", []string{"darwin"}); ok {
 		return unsupported, nil
@@ -27,7 +27,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		next := "Install an available iOS Simulator runtime in Xcode."
 		return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "iOS Simulator through simctl", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}}, next), "darwin"), nil
 	}
-	udid := strings.TrimSpace(os.Getenv("IOS_SIMULATOR_UDID"))
+	udid := a.udid
 	if udid == "" {
 		next := "Select a booted simulator by setting IOS_SIMULATOR_UDID before using ios-simctl."
 		return strategy.WithSupportedHostOS(strategy.UnavailableDeclaration(a.ID(), "iOS Simulator through simctl", []strategy.Capability{{Name: strategy.CapInput, Prerequisite: next, NextAction: next}, {Name: strategy.CapScreenshot, Prerequisite: next, NextAction: next}}, next), "darwin"), nil
@@ -49,8 +49,3 @@ func (a *Adapter) Observe(context.Context) (strategy.Frame, error) {
 func (a *Adapter) Actuate(context.Context, strategy.Actuation) error {
 	return fmt.Errorf("simulator is unavailable without a selected macOS simulator")
 }
-
-var (
-	_ = strings.TrimSpace
-	_ = time.Now
-)

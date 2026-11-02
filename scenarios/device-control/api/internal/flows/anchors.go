@@ -45,11 +45,9 @@ type AnchorDB interface {
 }
 
 func NewAnchorStore() *AnchorStore {
-	path := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANCHORS_FILE"))
-	if path == "" {
-		if dir, err := os.UserConfigDir(); err == nil {
-			path = filepath.Join(dir, "vrooli", "device-control", "anchors.json")
-		}
+	path := ""
+	if dir, err := os.UserConfigDir(); err == nil {
+		path = filepath.Join(dir, "vrooli", "device-control", "anchors.json")
 	}
 	return NewAnchorStoreAt(path)
 }

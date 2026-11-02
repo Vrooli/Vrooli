@@ -21,14 +21,28 @@ import (
 	attachedconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/attached_devices/attached_devices_v1connect"
 )
 
-func NewBridgeAttachedReader(httpClient *http.Client, resolveURL func(context.Context, string) (string, error)) AttachedReader {
+type BridgeCredentialConfig struct {
+	OwnerTokenFile string
+	AuthTokenFile  string
+	AuthSocket     string
+}
+
+func NewBridgeAttachedReader(httpClient *http.Client, resolveURL func(context.Context, string) (string, error), credentials BridgeCredentialConfig) AttachedReader {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
 	if resolveURL == nil {
 		resolveURL = discovery.ResolveScenarioURLDefault
 	}
-	return &lazyBridgeAttachedReader{httpClient: &ownerSessionHTTPClient{base: httpClient}, resolveURL: resolveURL}
+	return &lazyBridgeAttachedReader{
+		httpClient: &ownerSessionHTTPClient{
+			base: httpClient,
+			resolveCredential: func(ctx context.Context) (string, string, error) {
+				return resolveBridgeOwnerCredential(ctx, credentials)
+			},
+		},
+		resolveURL: resolveURL,
+	}
 }
 
 type lazyBridgeAttachedReader struct {
@@ -136,7 +150,9 @@ func (c *ownerSessionHTTPClient) ownerCredential(ctx context.Context) (string, s
 
 	resolver := c.resolveCredential
 	if resolver == nil {
-		resolver = resolveBridgeOwnerCredential
+		resolver = func(ctx context.Context) (string, string, error) {
+			return resolveBridgeOwnerCredential(ctx, BridgeCredentialConfig{})
+		}
 	}
 	scheme, token, err := resolver(ctx)
 	if err != nil {
@@ -156,7 +172,7 @@ func (c *ownerSessionHTTPClient) ownerCredential(ctx context.Context) (string, s
 	return scheme, token, nil
 }
 
-func resolveBridgeOwnerCredential(ctx context.Context) (string, string, error) {
+func resolveBridgeOwnerCredential(ctx context.Context, credentials BridgeCredentialConfig) (string, string, error) {
 	// Prefer the enrolled local operator session. It is short-lived and carries
 	// Bridge's local authorization scheme without putting a private key or
 	// long-lived bearer token in the scenario process.
@@ -168,7 +184,7 @@ func resolveBridgeOwnerCredential(ctx context.Context) (string, string, error) {
 	// Explicit token files are the deployment fallback for a control plane that
 	// cannot use a local enrollment. They remain bearer credentials and must be
 	// issued for Bridge's configured audience.
-	if token, err := readOwnerTokenFile(); err != nil {
+	if token, err := readOwnerTokenFile(credentials); err != nil {
 		return "", "", err
 	} else if token != "" {
 		return "Bearer", token, nil
@@ -176,17 +192,17 @@ func resolveBridgeOwnerCredential(ctx context.Context) (string, string, error) {
 	// Preserve the peer-credential fallback for hosts that have not enrolled an
 	// operator session. Bridge deployments must configure the matching audience
 	// for this normal bearer-token path.
-	token, err := exchangeLocalOwnerToken(ctx)
+	token, err := exchangeLocalOwnerToken(ctx, credentials.AuthSocket)
 	if err != nil {
 		return "", "", fmt.Errorf("obtain Bridge owner session: %w", err)
 	}
 	return "Bearer", token, nil
 }
 
-func readOwnerTokenFile() (string, error) {
-	path := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_TOKEN_FILE"))
+func readOwnerTokenFile(credentials BridgeCredentialConfig) (string, error) {
+	path := strings.TrimSpace(credentials.OwnerTokenFile)
 	if path == "" {
-		path = strings.TrimSpace(os.Getenv("VROOLI_AUTH_TOKEN_FILE"))
+		path = strings.TrimSpace(credentials.AuthTokenFile)
 	}
 	if path == "" {
 		return "", nil
@@ -209,8 +225,8 @@ func readOwnerTokenFile() (string, error) {
 	return token, nil
 }
 
-func exchangeLocalOwnerToken(ctx context.Context) (string, error) {
-	socketPath := strings.TrimSpace(os.Getenv("VROOLI_AUTH_SOCKET"))
+func exchangeLocalOwnerToken(ctx context.Context, configuredSocket string) (string, error) {
+	socketPath := strings.TrimSpace(configuredSocket)
 	if socketPath == "" {
 		socketPath = authn.DefaultLocalAuthenticatorSocket()
 	}

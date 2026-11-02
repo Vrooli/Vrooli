@@ -5,10 +5,55 @@ import (
 	"testing"
 	"time"
 
+	"device-control/internal/environment"
 	"device-control/strategy"
+	"device-control/strategy/androidtvremote"
+	"device-control/strategy/homeassistant"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestDefaultWithEnvironmentResolvesConfiguredNetworkStrategies(t *testing.T) {
+	registry := DefaultWithEnvironment(environment.MapReader{
+		"DEVICE_CONTROL_ANDROID_TV_REMOTE_ENDPOINT": "192.0.2.10:6466",
+		"DEVICE_CONTROL_ANDROID_TV_REMOTE_IDENTITY": "tv-serial",
+		"DEVICE_CONTROL_ANDROID_TV_REMOTE_NAME":     "Living Room TV",
+		"DEVICE_CONTROL_GOOGLE_CAST_ENDPOINT":       "192.0.2.11:8009",
+		"DEVICE_CONTROL_GOOGLE_CAST_IDENTITY":       "cast-identity",
+		"DEVICE_CONTROL_GOOGLE_CAST_NAME":           "Cast TV",
+		"HOME_ASSISTANT_URL":                        "http://ha.example:8123",
+		"HOME_ASSISTANT_TOKEN":                      "fixture-token",
+	})
+
+	remote, ok := registry.Get("android-tv-remote")
+	require.True(t, ok)
+	remoteDevices, err := remote.(interface {
+		Enumerate(context.Context) ([]strategy.Device, error)
+	}).Enumerate(context.Background())
+	require.NoError(t, err)
+	require.Len(t, remoteDevices, 1)
+	require.Equal(t, "192.0.2.10:6466", remoteDevices[0].Endpoint)
+	require.Equal(t, "Living Room TV", remoteDevices[0].Name)
+
+	cast, ok := registry.Get("google-cast")
+	require.True(t, ok)
+	castDevices, err := cast.(interface {
+		Enumerate(context.Context) ([]strategy.Device, error)
+	}).Enumerate(context.Background())
+	require.NoError(t, err)
+	require.Len(t, castDevices, 1)
+	require.Equal(t, "192.0.2.11:8009", castDevices[0].Endpoint)
+	require.Equal(t, "Cast TV", castDevices[0].Name)
+
+	ha, ok := registry.Get("home-assistant-rest")
+	require.True(t, ok)
+	declaration, err := ha.(*homeassistant.Strategy).Describe(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, strategy.StatusAvailable, declaration.Status)
+
+	_, ok = remote.(*androidtvremote.Strategy)
+	require.True(t, ok)
+}
 
 type concurrentProbe struct {
 	id     string

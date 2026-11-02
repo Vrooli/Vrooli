@@ -48,7 +48,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
-
 ### 2026-08-17 — Shared workflow provider still cannot resolve the self route
 
 **Symptom:** The fresh Phase 9 run `20260817-112516-aad4c0fe` passes the
@@ -346,6 +345,12 @@ to active.
 **Refs:** `experience/index.json`; `experience/pages/settings.json`;
 `ui/src/pages/SettingsPage.tsx`; requirements `DVC-P1-003`, `DVC-P1-004`, and
 `DVC-P1-010`.
+
+### 2026-11-01 - Inject ambient environment and logger dependencies — resolved
+
+Unit Health run 20261101-182858-e0c84de6 identified direct environment reads and package-level logger fallbacks without injectable seams. Follow-up work introduced `internal/environment.Reader` with production `OSReader` and test `MapReader`; API and sidecar roots resolve settings through that boundary, while `strategy/registry::DefaultWithEnvironment` passes explicit configuration into Android ADB, Android TV Remote, Google Cast, Home Assistant, host desktop, and iOS Simulator adapters. Host desktop session and identity settings are now stable adapter configuration. Tests use map-backed or constructor configuration rather than mutating process environment for these behaviors. Server and middleware require an explicit logger, unused HTTP error helpers were removed, and ERROR-HANDLING.md now documents the endpoint-owned response contract.
+
+Verification: `go test ./... -count=1` and `go test -race ./strategy/... ./internal/environment -count=1` passed. Test Genie unit run 20261101-191437-35a78b94 passed and reports Test Architecture L3 with no MISSING_INJECTABLE_SEAM finding. The run retains 34 LOW_COVERAGE advisories across API, CLI, and UI; they are nonblocking and were not addressed in this seam change. Owner: Device Control API maintainers. Memory work record: b5338888-0030-4901-872d-ea511b1d5af8.
 
 ## Architecture Drift
 
@@ -990,3 +995,19 @@ so the second cycle is inconclusive. A separate USB wake passed, but a later
 state read reported the screen off; durable restoration was not established.
 These few observations do not determine why wireless ADB
 became unreachable earlier or establish a causal relationship with sleep.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: `TestFlowCapabilityGapDoesNotReconnectHealthyWireless` reproduced
+  an unnecessary reconnect when a healthy adapter lacked semantic-tree support;
+  the recovery guard now keys off declaration availability. Replaced the
+  inventory mutex with a context-aware gate because reconnect's timeout could
+  not interrupt lock acquisition. The vision resolver now reads the control
+  service's shared anchor store, and database-backed startup no longer creates
+  and discards a file-backed store. Focused recovery/anchor tests and
+  `go test -race ./internal/control -count=1` pass; handler, control, and flow
+  package tests pass after the changes.
+- Blocker: None for this implementation change; broader transport stability
+  remains an open observation question and is not part of this W3 repair.
+- Measured: 2026-11-01

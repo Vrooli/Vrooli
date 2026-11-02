@@ -262,11 +262,11 @@ func TestFlowDoesNotRepeatUncertainRecordingStop(t *testing.T) {
 }
 
 func TestFinalizeReviewRecordingRetainsProducerOwnedReviewCopy(t *testing.T) {
-	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg is required for the recording producer test")
 	}
 	svc, _ := testService(t)
+	svc.SetEvidenceDir(t.TempDir())
 	session, err := svc.Acquire("fake", "operator", 5*time.Minute)
 	require.NoError(t, err)
 	chapterPath := filepath.Join(t.TempDir(), "chapter.mp4")
@@ -305,8 +305,8 @@ func TestFinalizeReviewRecordingPreservesAudioAndLabelsMissingChapters(t *testin
 	}
 	for _, secondHasAudio := range []bool{true, false} {
 		t.Run(fmt.Sprintf("second-audio-%t", secondHasAudio), func(t *testing.T) {
-			t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 			svc, _ := testService(t)
+			svc.SetEvidenceDir(t.TempDir())
 			session, err := svc.Acquire("fake", "operator", 5*time.Minute)
 			require.NoError(t, err)
 			for index, withAudio := range []bool{true, secondHasAudio} {
@@ -355,8 +355,8 @@ func TestReviewRecordingPreservesDelayedAudioStart(t *testing.T) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg unavailable")
 	}
-	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 	svc, _ := testService(t)
+	svc.SetEvidenceDir(t.TempDir())
 	session, err := svc.Acquire("fake", "operator", 5*time.Minute)
 	require.NoError(t, err)
 	path := filepath.Join(t.TempDir(), "delayed.mp4")
@@ -403,8 +403,8 @@ func TestFinalizeReviewRecordingRejectsUnverifiedProvenance(t *testing.T) {
 		{name: "modified recording", ownerDevice: "fake", tamper: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 			svc, _ := testService(t)
+			svc.SetEvidenceDir(t.TempDir())
 			session, err := svc.Acquire("fake", "operator", time.Minute)
 			require.NoError(t, err)
 			if tc.legacy {
@@ -486,11 +486,11 @@ func (r *partialExternalRecorder) StopRecording(context.Context, strategy.Record
 }
 
 func TestStopRecordingPreservesRedactedArtifactWhenRestorationFails(t *testing.T) {
-	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg required")
 	}
 	svc, _ := testService(t)
+	svc.SetEvidenceDir(t.TempDir())
 	session, err := svc.Acquire("fake", "operator", time.Minute)
 	require.NoError(t, err)
 	path := filepath.Join(t.TempDir(), "partial.mp4")
@@ -516,11 +516,11 @@ func TestStopRecordingPreservesRedactedArtifactWhenRestorationFails(t *testing.T
 }
 
 func TestSuccessorLeaseRetainsOriginalRecordingProvenance(t *testing.T) {
-	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg required")
 	}
 	svc, _ := testService(t)
+	svc.SetEvidenceDir(t.TempDir())
 	session, err := svc.Acquire("fake", "operator", time.Minute)
 	require.NoError(t, err)
 	path := filepath.Join(t.TempDir(), "partial.mp4")

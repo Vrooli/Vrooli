@@ -345,13 +345,13 @@ func TestStopRecordingReturnsRecoveredReferenceAndUncertainStatus(t *testing.T) 
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg required")
 	}
-	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 	path := filepath.Join(t.TempDir(), "clip.mp4")
 	require.NoError(t, exec.Command("ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=32x32:r=5:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", path).Run())
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	recorder := &partialRecordingStrategy{Strategy: fakes.New("fake", strategy.StatusAvailable, strategy.CapInput), data: data}
 	service := internal.New(strategyregistry.New(recorder))
+	service.SetEvidenceDir(t.TempDir())
 	session, err := service.Acquire("fake", "operator", time.Minute)
 	require.NoError(t, err)
 	_, err = service.StartExternalRecording(context.Background(), "fake", "operator", session.LeaseToken)
@@ -381,12 +381,12 @@ func TestStopRecordingReturnsRecoveredReferenceAndUncertainStatus(t *testing.T) 
 }
 
 func TestRunRetentionHTTPShowsSelectedDeadlineOnCaptureListAndRead(t *testing.T) {
-	t.Setenv("DEVICE_CONTROL_EVIDENCE_DIR", t.TempDir())
 	db, err := sql.Open("sqlite", "file:retention-expiry-handler?mode=memory&cache=shared")
 	require.NoError(t, err)
 	defer db.Close()
 	service, err := internal.NewWithDB(strategyregistry.New(fakes.New("fake", strategy.StatusAvailable, strategy.CapInput)), db)
 	require.NoError(t, err)
+	service.SetEvidenceDir(t.TempDir())
 	result, err := service.Run(context.Background(), internal.Flow{Steps: []internal.Step{{ID: "key", Kind: "key", Target: "HOME"}}}, "fake", "operator")
 	require.NoError(t, err)
 	router := mux.NewRouter()

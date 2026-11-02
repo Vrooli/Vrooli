@@ -84,7 +84,7 @@ func (p *commandProcess) Wait() error {
 type ProcessRunner interface {
 	Start(string, ...string) (Process, error)
 }
-type commandRunner struct{}
+type commandRunner struct{ requireDefaultADBServer bool }
 
 type boundedRunner interface {
 	RunBounded(context.Context, string, int, ...string) ([]byte, error)
@@ -199,9 +199,17 @@ func newAdapter(runner Runner, serial string) *Adapter {
 	return &Adapter{runner: runner, serial: serial, identitySerial: serial, transport: transportForSerial(serial), recordings: map[string]activeRecording{}, rendererTarget: discoverWebViewRenderer}
 }
 
-func New() *Adapter {
-	serial := strings.TrimSpace(os.Getenv("ANDROID_SERIAL"))
-	return newAdapter(commandRunner{}, serial)
+type Config struct {
+	Serial               string
+	RequireDefaultServer bool
+}
+
+// New constructs an unbound ADB strategy. Production configuration is passed
+// by registry.DefaultWithEnvironment.
+func New() *Adapter { return NewWithConfig(Config{}) }
+
+func NewWithConfig(config Config) *Adapter {
+	return newAdapter(commandRunner{requireDefaultADBServer: config.RequireDefaultServer}, strings.TrimSpace(config.Serial))
 }
 
 func NewWithRunner(r Runner, serial string) *Adapter {

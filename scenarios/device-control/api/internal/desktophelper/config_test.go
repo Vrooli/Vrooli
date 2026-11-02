@@ -96,14 +96,9 @@ func TestGrantStatusExpiresAndNeverDefaultsToAllow(t *testing.T) {
 }
 
 func TestActiveWaylandSessionNeverUsesX11CompatibilityDisplay(t *testing.T) {
-	t.Setenv("XDG_SESSION_TYPE", "wayland")
-	t.Setenv("WAYLAND_DISPLAY", "")
-	require.True(t, activeWaylandSession())
-	t.Setenv("XDG_SESSION_TYPE", "x11")
-	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
-	require.True(t, activeWaylandSession())
-	t.Setenv("WAYLAND_DISPLAY", "")
-	require.False(t, activeWaylandSession())
+	require.True(t, activeWaylandSession(SessionEnvironment{SessionType: "wayland"}))
+	require.True(t, activeWaylandSession(SessionEnvironment{SessionType: "x11", WaylandDisplay: "wayland-0"}))
+	require.False(t, activeWaylandSession(SessionEnvironment{SessionType: "x11"}))
 }
 
 func TestWaylandConfigUsesNamedPortalBackendInsteadOfXAuthority(t *testing.T) {

@@ -89,6 +89,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `github.com/vrooli/api-core/scheduletest::FakeClock` (`Now`, `Advance`, `Set`). |
 | **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
+### Process environment
+
+| | |
+|---|---|
+| **Seam** | Operator and runtime environment configuration |
+| **Interface** | `internal/environment/reader.go::Reader` (`LookupEnv`) with production `OSReader` and deterministic `MapReader`. |
+| **Production wiring** | API and sidecar command roots use `environment.OSReader`; `strategy/registry::DefaultWithEnvironment` resolves strategy settings once and passes explicit config to adapters. |
+| **Test fake** | `environment.MapReader`; strategy tests use explicit constructor configuration instead of mutating process environment. |
+| **Why it exists** | Adapters use one stable configuration snapshot for identity, discovery, and runtime decisions. Environment-backed behavior can be tested without process-global mutation. |
+
+### Logger
+
+| | |
+|---|---|
+| **Seam** | Request and handler logging |
+| **Interface** | `*log.Logger` supplied through `internal/server::Deps.Logger`; the middleware consumes only `Printf`. |
+| **Production wiring** | `main.go` passes `log.Default()` to `server.New`; `server.New` and `NewLoggingMiddleware` reject a missing logger instead of reaching for a package global. |
+| **Test fake** | Buffer-backed `*log.Logger` in middleware tests; `api-core/connectxtest::NewLogger` in handler tests. |
+| **Why it exists** | Logs remain capturable and deterministic in tests, and startup fails at the composition boundary when logging is not wired. |
+
 ### Pinger (database reachability)
 
 | | |

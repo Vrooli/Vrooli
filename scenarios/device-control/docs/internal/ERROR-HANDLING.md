@@ -241,9 +241,11 @@ on domain error types inline.
 
 Opaque file bytes are not proto payloads. Upload endpoints use REST
 multipart for bytes and return proto-typed metadata. These endpoints
-still use a stable error envelope through `internal/httpx.WriteError`;
-the UI maps `ApiError.code` through the same `errorMessage(...)`
-utility as Connect errors.
+use their endpoint-owned REST error shapes; the UI normalizes their
+`ApiError.code` through the same `errorMessage(...)` utility as Connect
+errors. The old `internal/httpx.WriteError`/`WriteProto` helpers had no
+production callers and were removed so the documented contract does not
+promise a shared envelope that handlers do not use.
 
 Use this split:
 

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"device-control/internal/environment"
 	identitydomain "device-control/internal/identity"
 	"device-control/strategy"
 	"device-control/strategy/androidadb"
@@ -37,20 +38,65 @@ func New(items ...strategy.Strategy) *Registry {
 	return r
 }
 
-func Default() *Registry {
-	return New(androidadb.New(), configuredAndroidTVRemote(), configuredGoogleCast(), homeassistant.NewFromEnv(), hostdesktop.New(), iossimctl.New(), iosxcuitest.New(), iosmirror.New())
+func Default() *Registry { return DefaultWithEnvironment(environment.OSReader{}) }
+
+// DefaultWithEnvironment resolves operator settings once and passes explicit
+// values into strategy adapters. Tests can supply a MapReader without mutating
+// the process environment.
+func DefaultWithEnvironment(env environment.Reader) *Registry {
+	if env == nil {
+		env = environment.MapReader{}
+	}
+	return New(
+		androidadb.NewWithConfig(androidadb.Config{
+			Serial:               strings.TrimSpace(environment.Value(env, "ANDROID_SERIAL")),
+			RequireDefaultServer: hasADBServerOverride(env),
+		}),
+		configuredAndroidTVRemote(env), configuredGoogleCast(env),
+		homeassistant.NewWithEnvironment(env),
+		hostdesktop.NewWithConfig(hostdesktop.Config{
+			Display:          strings.TrimSpace(environment.Value(env, "DISPLAY")),
+			XAuthority:       strings.TrimSpace(environment.Value(env, "XAUTHORITY")),
+			HelperConfigPath: strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_DESKTOP_HELPER_CONFIG")),
+			HostNodeID:       hostNodeID(env),
+			SessionID:        strings.TrimSpace(environment.Value(env, "XDG_SESSION_ID")),
+			SessionType:      strings.TrimSpace(environment.Value(env, "XDG_SESSION_TYPE")),
+			WaylandDisplay:   strings.TrimSpace(environment.Value(env, "WAYLAND_DISPLAY")),
+		}),
+		iossimctl.NewWithUDID(strings.TrimSpace(environment.Value(env, "IOS_SIMULATOR_UDID"))),
+		iosxcuitest.New(), iosmirror.New(),
+	)
+}
+
+func hostNodeID(env environment.Reader) string {
+	if id := strings.TrimSpace(environment.Value(env, "VROOLI_NODE_ID")); id != "" {
+		return id
+	}
+	if id, err := os.Hostname(); err == nil && strings.TrimSpace(id) != "" {
+		return strings.TrimSpace(id)
+	}
+	return "local"
+}
+
+func hasADBServerOverride(env environment.Reader) bool {
+	for _, key := range []string{"ADB_SERVER_SOCKET", "ANDROID_ADB_SERVER_ADDRESS", "ANDROID_ADB_SERVER_PORT"} {
+		if strings.TrimSpace(environment.Value(env, key)) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // Static endpoints are an owner-controlled escape hatch for networks where
 // multicast is filtered. They are intentionally opt-in and carry no pairing
 // material; normal operation remains DNS-SD discovery.
-func configuredAndroidTVRemote() strategy.Strategy {
-	endpoint := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANDROID_TV_REMOTE_ENDPOINT"))
+func configuredAndroidTVRemote(env environment.Reader) strategy.Strategy {
+	endpoint := strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_ANDROID_TV_REMOTE_ENDPOINT"))
 	if endpoint == "" {
 		return androidtvremote.New()
 	}
-	configuredIdentity := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANDROID_TV_REMOTE_IDENTITY"))
-	device := androidtvremote.Device{Serial: configuredIdentity, IdentityKey: configuredIdentity, Endpoint: endpoint, Name: strings.TrimSpace(os.Getenv("DEVICE_CONTROL_ANDROID_TV_REMOTE_NAME"))}
+	configuredIdentity := strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_ANDROID_TV_REMOTE_IDENTITY"))
+	device := androidtvremote.Device{Serial: configuredIdentity, IdentityKey: configuredIdentity, Endpoint: endpoint, Name: strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_ANDROID_TV_REMOTE_NAME"))}
 	if device.Serial == "" {
 		device.Serial = "configured:" + endpoint
 	}
@@ -61,13 +107,13 @@ func configuredAndroidTVRemote() strategy.Strategy {
 	return androidtvremote.New(androidtvremote.WithDevices(device))
 }
 
-func configuredGoogleCast() strategy.Strategy {
-	endpoint := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_GOOGLE_CAST_ENDPOINT"))
+func configuredGoogleCast(env environment.Reader) strategy.Strategy {
+	endpoint := strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_GOOGLE_CAST_ENDPOINT"))
 	if endpoint == "" {
 		return googlecast.New()
 	}
-	configuredIdentity := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_GOOGLE_CAST_IDENTITY"))
-	device := googlecast.Device{ID: configuredIdentity, IdentityKey: configuredIdentity, Endpoint: endpoint, Name: strings.TrimSpace(os.Getenv("DEVICE_CONTROL_GOOGLE_CAST_NAME"))}
+	configuredIdentity := strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_GOOGLE_CAST_IDENTITY"))
+	device := googlecast.Device{ID: configuredIdentity, IdentityKey: configuredIdentity, Endpoint: endpoint, Name: strings.TrimSpace(environment.Value(env, "DEVICE_CONTROL_GOOGLE_CAST_NAME"))}
 	if claim, err := identitydomain.NewClaim(string(identitydomain.CastID), configuredIdentity, "google-cast", "owner-configured"); err == nil {
 		device.IdentityKey = claim.Value
 		device.IdentityKind = string(claim.Kind)

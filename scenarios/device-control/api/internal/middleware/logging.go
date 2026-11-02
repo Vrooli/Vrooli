@@ -16,13 +16,14 @@ type Clock interface {
 }
 
 // NewLoggingMiddleware returns a middleware that logs each request's
-// method, URI, and elapsed duration. Time is read from the injected
-// Clock so tests using scheduletest.FakeClock can assert exact durations
-// without depending on the wall schedule. Logger defaults to log.Default()
-// when nil; tests inject a buffer-backed *log.Logger to capture output.
+// method, URI, and elapsed duration. Time and logging are supplied by the
+// composition root so tests can control both dependencies.
 func NewLoggingMiddleware(clk Clock, logger *log.Logger) func(http.Handler) http.Handler {
+	if clk == nil {
+		panic("middleware.NewLoggingMiddleware requires Clock")
+	}
 	if logger == nil {
-		logger = log.Default()
+		panic("middleware.NewLoggingMiddleware requires Logger")
 	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

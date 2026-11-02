@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 	"time"
 )
@@ -17,13 +16,11 @@ type reverseTCPCreator interface {
 	createReverseTCP(context.Context, string, int, int) error
 }
 
-func (commandRunner) createReverseTCP(ctx context.Context, selector string, devicePort, hostPort int) error {
+func (runner commandRunner) createReverseTCP(ctx context.Context, selector string, devicePort, hostPort int) error {
 	// Do not silently select a different daemon from the CLI operations used for
 	// inspection and removal. Nondefault daemon configurations need qualification.
-	for _, key := range []string{"ADB_SERVER_SOCKET", "ANDROID_ADB_SERVER_ADDRESS", "ANDROID_ADB_SERVER_PORT"} {
-		if os.Getenv(key) != "" {
-			return fmt.Errorf("reverse TCP protocol requires the default local ADB server")
-		}
+	if runner.requireDefaultADBServer {
+		return fmt.Errorf("reverse TCP protocol requires the default local ADB server")
 	}
 	c, err := (&net.Dialer{}).DialContext(ctx, "tcp", "127.0.0.1:5037")
 	if err != nil {

@@ -20,8 +20,7 @@ func TestHostDesktopStrategyCapabilityTier(t *testing.T) { // [REQ:DVC-P1-004]
 	old := strategy.HostOS
 	t.Cleanup(func() { strategy.HostOS = old })
 	strategy.HostOS = "linux"
-	t.Setenv("DISPLAY", "")
-	declaration, err := New().Describe(context.Background())
+	declaration, err := NewWithConfig(Config{}).Describe(context.Background())
 	require.NoError(t, err)
 	require.Contains(t, declaration.SupportedHostOS, "darwin")
 	require.Contains(t, declaration.SupportedHostOS, "windows")
@@ -32,10 +31,7 @@ func TestHostDesktopEnumeratesCapturedLocalTarget(t *testing.T) { // [REQ:DEVICE
 	old := strategy.HostOS
 	t.Cleanup(func() { strategy.HostOS = old })
 	strategy.HostOS = "linux"
-	t.Setenv("DISPLAY", ":test")
-	t.Setenv("VROOLI_NODE_ID", "node-1")
-	t.Setenv("XDG_SESSION_ID", "session-1")
-	a := New()
+	a := NewWithConfig(Config{Display: ":test", HostNodeID: "node-1", SessionID: "session-1"})
 	a.capture = func(context.Context) (strategy.Frame, error) {
 		return strategy.Frame{Width: 8, Height: 6, Bytes: []byte("captured")}, nil
 	}
@@ -53,14 +49,10 @@ func TestHostDesktopUsesManagedHelperDisplayBinding(t *testing.T) {
 	old := strategy.HostOS
 	t.Cleanup(func() { strategy.HostOS = old })
 	strategy.HostOS = "linux"
-	t.Setenv("DISPLAY", "")
-	t.Setenv("XAUTHORITY", "")
 	configPath := filepath.Join(t.TempDir(), "helper.json")
 	config := []byte(`{"display":0,"xauthority_file":"/run/user/1000/gdm/Xauthority"}`)
 	require.NoError(t, os.WriteFile(configPath, config, 0o600))
-	t.Setenv("DEVICE_CONTROL_DESKTOP_HELPER_CONFIG", configPath)
-
-	a := New()
+	a := NewWithConfig(Config{HelperConfigPath: configPath})
 	require.Equal(t, ":0", a.display)
 	require.Equal(t, "/run/user/1000/gdm/Xauthority", a.xauthority)
 }
@@ -69,13 +61,9 @@ func TestHostDesktopIgnoresHelperConfigWithoutDisplayBinding(t *testing.T) {
 	old := strategy.HostOS
 	t.Cleanup(func() { strategy.HostOS = old })
 	strategy.HostOS = "linux"
-	t.Setenv("DISPLAY", "")
-	t.Setenv("XAUTHORITY", "")
 	configPath := filepath.Join(t.TempDir(), "helper.json")
 	require.NoError(t, os.WriteFile(configPath, []byte(`{"xauthority_file":"/run/user/1000/gdm/Xauthority"}`), 0o600))
-	t.Setenv("DEVICE_CONTROL_DESKTOP_HELPER_CONFIG", configPath)
-
-	a := New()
+	a := NewWithConfig(Config{HelperConfigPath: configPath})
 	require.Empty(t, a.display)
 	require.Equal(t, "/run/user/1000/gdm/Xauthority", a.xauthority)
 }
@@ -137,7 +125,6 @@ func TestCaptureReadinessRequiresDecodedPixels(t *testing.T) { // [REQ:DEVICECON
 	strategy.HostOS = "linux"
 	dir := t.TempDir()
 	t.Setenv("PATH", dir)
-	t.Setenv("DISPLAY", ":test")
 	var pixels bytes.Buffer
 	require.NoError(t, png.Encode(&pixels, image.NewRGBA(image.Rect(0, 0, 2, 3))))
 	good := append([]byte(nil), pixels.Bytes()...)
@@ -159,7 +146,7 @@ func TestCaptureReadinessRequiresDecodedPixels(t *testing.T) { // [REQ:DEVICECON
 			require.NoError(t, os.WriteFile(dataPath, tc.content, 0o600))
 			script := "#!/bin/sh\n/bin/cat '" + dataPath + "'\n" + tc.exit + "\n"
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "import"), []byte(script), 0o700))
-			d, err := New().Describe(context.Background())
+			d, err := NewWithConfig(Config{Display: ":test"}).Describe(context.Background())
 			require.NoError(t, err)
 			if tc.ready {
 				require.Equal(t, strategy.StatusAvailable, d.Capabilities[strategy.CapScreenshot].Status)
@@ -180,7 +167,6 @@ func TestCaptureReadinessFallsBackToXWDWhenImportIsUnavailable(t *testing.T) { /
 	strategy.HostOS = "linux"
 	dir := t.TempDir()
 	t.Setenv("PATH", dir+":/usr/bin:/bin")
-	t.Setenv("DISPLAY", ":fallback")
 	var pixels bytes.Buffer
 	require.NoError(t, png.Encode(&pixels, image.NewRGBA(image.Rect(0, 0, 7, 4))))
 	pngPath := filepath.Join(dir, "frame.png")
@@ -195,7 +181,7 @@ func TestCaptureReadinessFallsBackToXWDWhenImportIsUnavailable(t *testing.T) { /
 	writeExecutable("xwd", "printf xwd-frame")
 	writeExecutable("ffmpeg", "/bin/cat >/dev/null\n/bin/cat '"+pngPath+"'")
 
-	declaration, err := New().Describe(context.Background())
+	declaration, err := NewWithConfig(Config{Display: ":fallback"}).Describe(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusAvailable, declaration.Capabilities[strategy.CapScreenshot].Status)
 	require.Contains(t, declaration.Capabilities[strategy.CapScreenshot].ProbeEvidence, "decoded PNG 7x4")
@@ -231,15 +217,13 @@ func TestWaylandSessionDoesNotFallbackToX11(t *testing.T) {
 	old := strategy.HostOS
 	t.Cleanup(func() { strategy.HostOS = old })
 	strategy.HostOS = "linux"
-	t.Setenv("XDG_SESSION_TYPE", "wayland")
-	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
-	t.Setenv("DISPLAY", ":99")
-	d, err := New().Describe(context.Background())
+	a := NewWithConfig(Config{SessionType: "wayland", WaylandDisplay: "wayland-0", Display: ":99"})
+	d, err := a.Describe(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, strategy.StatusUnavailable, d.Capabilities[strategy.CapScreenshot].Status)
 	require.Contains(t, d.Capabilities[strategy.CapScreenshot].Reason, "portal-backed")
 	require.Equal(t, strategy.StatusUnavailable, d.Capabilities[strategy.CapSemanticTree].Status)
-	_, err = New().Observe(context.Background())
+	_, err = a.Observe(context.Background())
 	require.Error(t, err)
 	var availability *strategy.AvailabilityError
 	require.ErrorAs(t, err, &availability)

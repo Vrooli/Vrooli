@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
+	"device-control/internal/environment"
 	"device-control/strategy"
 )
 
@@ -37,18 +37,17 @@ func New(baseURL, token string, client *http.Client) *Strategy {
 	return &Strategy{baseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), token: token, client: client}
 }
 
-// NewFromEnv creates the attach-only adapter from operator configuration. The
-// token is retained only in the adapter instance and is never included in a
-// declaration, device identity, or audit record.
-func NewFromEnv() *Strategy {
-	baseURL := firstNonEmptyEnv("HOME_ASSISTANT_URL", "HOME_ASSISTANT_BASE_URL")
-	token := firstNonEmptyEnv("HOME_ASSISTANT_TOKEN", "HOME_ASSISTANT_ACCESS_TOKEN")
+// NewWithEnvironment creates the attach-only adapter from resolved operator
+// configuration. Secrets remain only in this adapter instance.
+func NewWithEnvironment(env environment.Reader) *Strategy {
+	baseURL := firstNonEmptyEnvironment(env, "HOME_ASSISTANT_URL", "HOME_ASSISTANT_BASE_URL")
+	token := firstNonEmptyEnvironment(env, "HOME_ASSISTANT_TOKEN", "HOME_ASSISTANT_ACCESS_TOKEN")
 	return New(baseURL, token, nil)
 }
 
-func firstNonEmptyEnv(names ...string) string {
+func firstNonEmptyEnvironment(env environment.Reader, names ...string) string {
 	for _, name := range names {
-		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+		if value := strings.TrimSpace(environment.Value(env, name)); value != "" {
 			return value
 		}
 	}

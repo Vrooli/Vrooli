@@ -44,19 +44,9 @@ func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 	require.Contains(t, buf.String(), "150ms", "deterministic duration must appear (150 * time.Millisecond)")
 }
 
-// TestLoggingMiddleware_NilLoggerDefaults verifies the nil-logger
-// fallback documented on NewLoggingMiddleware. Production callers
-// always pass a logger; this guard exists for the case where a
-// scenario forgets to wire it during early bring-up.
-func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
+func TestLoggingMiddlewareRequiresLogger(t *testing.T) {
 	clk := scheduletest.New(time.Time{})
-	mw := middleware.NewLoggingMiddleware(clk, nil)
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/probe", nil)
-	require.NotPanics(t, func() { handler.ServeHTTP(rec, req) })
-	require.Equal(t, http.StatusOK, rec.Code)
+	require.PanicsWithValue(t, "middleware.NewLoggingMiddleware requires Logger", func() {
+		middleware.NewLoggingMiddleware(clk, nil)
+	})
 }

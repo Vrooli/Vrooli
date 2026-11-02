@@ -117,6 +117,19 @@ func TestVisionPromotionReplaysThroughAnchorWithoutGateway(t *testing.T) {
 	require.Nil(t, fake.request)
 }
 
+func TestResolverUsesItsSharedAnchorStoreWithoutRequestOverride(t *testing.T) {
+	fake := &fakeGateway{}
+	anchors := NewAnchorStoreAt("")
+	_, err := anchors.Create("submit", "hello-mobile-input", []float64{0.1, 0.2, 0.3, 0.4}, 0.95)
+	require.NoError(t, err)
+	resolver := NewResolverWithAnchors(fake, anchors)
+
+	result, err := resolver.Resolve(context.Background(), Request{Target: "hello-mobile-input", Frame: testFrame()})
+	require.NoError(t, err)
+	require.Equal(t, VisualAnchorRung, result.Rung)
+	require.Nil(t, fake.request, "resolver should use its shared anchor store before calling the gateway")
+}
+
 func TestPrepareFrameDownscalesBeforeGatewayAndKeepsOriginalDimensions(t *testing.T) {
 	input := image.NewRGBA(image.Rect(0, 0, 2048, 1024))
 	var encoded bytes.Buffer

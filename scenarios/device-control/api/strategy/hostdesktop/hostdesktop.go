@@ -25,27 +25,44 @@ const (
 	maxEncodedCaptureBytes = ((maxCaptureBytes + 2) / 3) * 4
 )
 
-type Adapter struct {
-	display    string
-	xauthority string
-	capture    func(context.Context) (strategy.Frame, error)
-	command    func(context.Context, string, ...string) ([]byte, error)
-	run        func(context.Context, string, ...string) error
+type Config struct {
+	Display          string
+	XAuthority       string
+	HelperConfigPath string
+	HostNodeID       string
+	SessionID        string
+	SessionType      string
+	WaylandDisplay   string
 }
 
-func New() *Adapter {
-	a := &Adapter{display: strings.TrimSpace(os.Getenv("DISPLAY")), xauthority: strings.TrimSpace(os.Getenv("XAUTHORITY"))}
+type Adapter struct {
+	display        string
+	xauthority     string
+	hostNodeID     string
+	sessionID      string
+	sessionType    string
+	waylandDisplay string
+	capture        func(context.Context) (strategy.Frame, error)
+	command        func(context.Context, string, ...string) ([]byte, error)
+	run            func(context.Context, string, ...string) error
+}
+
+func New() *Adapter { return NewWithConfig(Config{}) }
+
+func NewWithConfig(config Config) *Adapter {
+	a := &Adapter{
+		display: strings.TrimSpace(config.Display), xauthority: strings.TrimSpace(config.XAuthority),
+		hostNodeID: strings.TrimSpace(config.HostNodeID), sessionID: strings.TrimSpace(config.SessionID),
+		sessionType: strings.TrimSpace(config.SessionType), waylandDisplay: strings.TrimSpace(config.WaylandDisplay),
+	}
 	if a.display == "" || a.xauthority == "" {
-		// Managed lifecycle startup passes the helper config to the sidecar, but
-		// does not need to duplicate its private display binding in the API
-		// process environment. Reuse only the public display number and the
-		// already-provisioned Xauthority path; malformed config remains an
-		// unavailable probe result rather than an inferred desktop grant.
+		// Reuse the already-provisioned helper binding when the managed API
+		// process does not have a display binding of its own.
 		var binding struct {
 			Display        *uint16 `json:"display"`
 			XAuthorityFile string  `json:"xauthority_file"`
 		}
-		path := strings.TrimSpace(os.Getenv("DEVICE_CONTROL_DESKTOP_HELPER_CONFIG"))
+		path := strings.TrimSpace(config.HelperConfigPath)
 		if path != "" {
 			if data, err := os.ReadFile(path); err == nil && json.Unmarshal(data, &binding) == nil {
 				if a.display == "" && binding.Display != nil {
@@ -78,14 +95,11 @@ func (a *Adapter) Enumerate(ctx context.Context) ([]strategy.Device, error) {
 		}
 		return nil, errors.New(reason)
 	}
-	node := strings.TrimSpace(os.Getenv("VROOLI_NODE_ID"))
-	if node == "" {
-		node, _ = os.Hostname()
-	}
+	node := strings.TrimSpace(a.hostNodeID)
 	if node == "" {
 		node = "local"
 	}
-	session := strings.TrimSpace(os.Getenv("XDG_SESSION_ID"))
+	session := strings.TrimSpace(a.sessionID)
 	if session == "" {
 		session = strings.TrimSpace(a.display)
 	}
@@ -122,7 +136,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 		{Name: strategy.CapSemanticTree, Reason: "native accessibility adapter is not provisioned", NextAction: semanticNext},
 	}, captureNext, inputNext)
 	d = strategy.WithSupportedHostOS(d, supported...)
-	if strategy.HostOS == "linux" && activeWaylandSession() {
+	if strategy.HostOS == "linux" && a.activeWaylandSession() {
 		// A Wayland login may also export DISPLAY for XWayland.  Treating that
 		// compatibility display as an authorized desktop would bypass the
 		// compositor's portal and can target the wrong session.
@@ -155,7 +169,7 @@ func (a *Adapter) Describe(ctx context.Context) (strategy.Declaration, error) {
 }
 
 func (a *Adapter) Observe(ctx context.Context) (strategy.Frame, error) {
-	if strategy.HostOS == "linux" && activeWaylandSession() {
+	if strategy.HostOS == "linux" && a.activeWaylandSession() {
 		return strategy.Frame{}, &strategy.AvailabilityError{Reason: "active Wayland session requires a portal-backed adapter", NextAction: "Select the named GNOME or KDE Wayland backend."}
 	}
 	if strategy.HostOS == "darwin" {
@@ -300,7 +314,7 @@ func decodeFrame(data []byte) (strategy.Frame, error) {
 }
 
 func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
-	if strategy.HostOS == "linux" && activeWaylandSession() {
+	if strategy.HostOS == "linux" && a.activeWaylandSession() {
 		return &strategy.AvailabilityError{Reason: "active Wayland session requires a portal-backed adapter", NextAction: "Select the named GNOME or KDE Wayland backend."}
 	}
 	if strategy.HostOS == "darwin" {
@@ -338,8 +352,8 @@ func (a *Adapter) Actuate(ctx context.Context, event strategy.Actuation) error {
 	return errors.New("host-desktop action is empty")
 }
 
-func activeWaylandSession() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("XDG_SESSION_TYPE")), "wayland") || strings.TrimSpace(os.Getenv("WAYLAND_DISPLAY")) != ""
+func (a *Adapter) activeWaylandSession() bool {
+	return strings.EqualFold(strings.TrimSpace(a.sessionType), "wayland") || strings.TrimSpace(a.waylandDisplay) != ""
 }
 
 func (a *Adapter) runCommand(ctx context.Context, name string, args ...string) error {
@@ -352,10 +366,10 @@ func (a *Adapter) runCommand(ctx context.Context, name string, args ...string) e
 func (a *Adapter) nativeCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	env := os.Environ()
-	if a.display != "" && strings.TrimSpace(os.Getenv("DISPLAY")) == "" {
+	if a.display != "" {
 		env = append(env, "DISPLAY="+a.display)
 	}
-	if a.xauthority != "" && strings.TrimSpace(os.Getenv("XAUTHORITY")) == "" {
+	if a.xauthority != "" {
 		env = append(env, "XAUTHORITY="+a.xauthority)
 	}
 	cmd.Env = env

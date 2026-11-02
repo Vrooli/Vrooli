@@ -24,12 +24,14 @@ import (
 // Run is invoked only by the lifecycle-managed helper executable. The protected
 // bootstrap config is provisioned by the admission owner; it contains no private
 // signing key and cannot mint grants. Missing configuration never enables input.
-func Run(ctx context.Context, path string) error { return RunBound(ctx, path, "") }
+func Run(ctx context.Context, path string, session SessionEnvironment) error {
+	return RunBound(ctx, path, "", session)
+}
 
 // RunBound waits for owner provisioning to match the protected bootstrap before
 // holding the helper lock. This prevents an old generated config from winning
 // a managed restart race during an explicit accessibility rebind.
-func RunBound(ctx context.Context, path, ownerPath string) error {
+func RunBound(ctx context.Context, path, ownerPath string, session SessionEnvironment) error {
 	config, err := LoadConfig(path)
 	if err != nil {
 		return err
@@ -50,7 +52,7 @@ func RunBound(ctx context.Context, path, ownerPath string) error {
 	var native sessions.DesktopNative
 	var closeNative func() error
 	if runtime.GOOS == "linux" {
-		if activeWaylandSession() {
+		if activeWaylandSession(session) {
 			backend, backendErr := wayland.New(ctx, config.WaylandBackend)
 			if backendErr != nil {
 				return ErrBootstrap
@@ -115,7 +117,7 @@ func RunBound(ctx context.Context, path, ownerPath string) error {
 			}
 		}
 	} else {
-		if config.AccessibilitySocket != "" || activeWaylandSession() {
+		if config.AccessibilitySocket != "" || activeWaylandSession(session) {
 			return ErrBootstrap
 		}
 		backend, backendErr := nativehost.NewForSession(config.SessionID)

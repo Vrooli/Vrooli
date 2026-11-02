@@ -272,8 +272,11 @@ func (s *Service) materializePairingDiscovery(ctx context.Context, deviceID stri
 		if serial == "" || strings.TrimSpace(service.Endpoint) == "" {
 			continue
 		}
-		s.inventoryMu.Lock()
-		defer s.inventoryMu.Unlock()
+		unlockInventory, lockErr := s.lockInventory(ctx)
+		if lockErr != nil {
+			return devicedomain.Record{}, lockErr
+		}
+		defer unlockInventory()
 		return s.devices.UpsertIdentity(devicedomain.Record{
 			ID:           service.ID,
 			IdentityKey:  service.IdentityKey,

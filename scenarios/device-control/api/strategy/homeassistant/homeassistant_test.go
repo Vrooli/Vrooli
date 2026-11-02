@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"device-control/internal/environment"
 	"device-control/strategy"
 
 	"github.com/stretchr/testify/require"
@@ -38,10 +39,8 @@ func TestAttachOnlyRESTFixtureEnumeratesTypedEntities(t *testing.T) {
 	require.Equal(t, "21.5", readings[0].Value)
 }
 
-func TestNewFromEnvReadsAttachConfiguration(t *testing.T) {
-	t.Setenv("HOME_ASSISTANT_URL", "http://ha.example:8123/")
-	t.Setenv("HOME_ASSISTANT_TOKEN", "fixture-token")
-	s := NewFromEnv()
+func TestNewWithEnvironmentReadsAttachConfiguration(t *testing.T) {
+	s := NewWithEnvironment(environment.MapReader{"HOME_ASSISTANT_URL": "http://ha.example:8123/", "HOME_ASSISTANT_TOKEN": "fixture-token"})
 	require.Equal(t, "http://ha.example:8123", s.baseURL)
 	require.Equal(t, "fixture-token", s.token)
 	declaration, err := s.Describe(context.Background())

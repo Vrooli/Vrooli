@@ -3,7 +3,6 @@ package control
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -42,7 +41,7 @@ func (s *Service) Verify(ctx context.Context, id string) (strategy.ConformanceRe
 	return s.registry.Verify(ctx, id)
 }
 
-// Devices holds inventoryMu throughout a refresh. Release only the general
+// Devices holds the inventory gate throughout a refresh. Release only the general
 // service lock around external calls, restoring it even if a provider panics.
 func (s *Service) inventoryProbe(probe func()) {
 	s.mu.Unlock()
@@ -204,8 +203,11 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	inventoryCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	s.inventoryMu.Lock()
-	defer s.inventoryMu.Unlock()
+	unlockInventory, err := s.lockInventory(inventoryCtx)
+	if err != nil {
+		return nil
+	}
+	defer unlockInventory()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.restoreTransportStrategies()
@@ -228,10 +230,7 @@ func (s *Service) Devices(ctx context.Context) []Device {
 	for _, declaration := range declarations {
 		declarationByID[declaration.StrategyID] = declaration
 	}
-	hostNodeID := strings.TrimSpace(os.Getenv("VROOLI_NODE_ID"))
-	if hostNodeID == "" {
-		hostNodeID, _ = os.Hostname()
-	}
+	hostNodeID := s.hostNodeID
 	seen := map[string]bool{}
 	promotedEndpoints := make(map[string]string, len(s.transportStates))
 	for id, state := range s.transportStates {
@@ -569,8 +568,11 @@ func (s *Service) ForgetDevice(id string) bool {
 }
 
 func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
-	s.inventoryMu.Lock()
-	defer s.inventoryMu.Unlock()
+	unlockInventory, err := s.lockInventory(ctx)
+	if err != nil {
+		return false
+	}
+	defer unlockInventory()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	id = strings.TrimSpace(id)
@@ -606,8 +608,11 @@ func (s *Service) ForgetDeviceContext(ctx context.Context, id string) bool {
 // PromoteWireless changes transport on an existing USB-onboarded identity
 // only after the strategy verifies the same serial over its wireless endpoint.
 func (s *Service) PromoteWireless(ctx context.Context, id string) (Device, error) {
-	s.inventoryMu.Lock()
-	defer s.inventoryMu.Unlock()
+	unlockInventory, err := s.lockInventory(ctx)
+	if err != nil {
+		return Device{}, err
+	}
+	defer unlockInventory()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record, ok := s.devices.Get(strings.TrimSpace(id))
@@ -696,8 +701,11 @@ func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Devic
 		return Device{}, fmt.Errorf("probe onboarded endpoint capabilities: %w", err)
 	}
 
-	s.inventoryMu.Lock()
-	defer s.inventoryMu.Unlock()
+	unlockInventory, err := s.lockInventory(ctx)
+	if err != nil {
+		return Device{}, err
+	}
+	defer unlockInventory()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	identityKey := discovered.IdentityKey
@@ -737,8 +745,11 @@ func (s *Service) OnboardNetworkADB(ctx context.Context, endpoint string) (Devic
 // discovery. The stable device identity remains bound to the onboarded serial.
 func (s *Service) ReconnectWireless(ctx context.Context, id string) (Device, error) {
 	id = strings.TrimSpace(id)
-	s.inventoryMu.Lock()
-	defer s.inventoryMu.Unlock()
+	unlockInventory, err := s.lockInventory(ctx)
+	if err != nil {
+		return Device{}, err
+	}
+	defer unlockInventory()
 	s.mu.Lock()
 	s.restoreTransportStrategies()
 	record, ok := s.devices.Get(strings.TrimSpace(id))

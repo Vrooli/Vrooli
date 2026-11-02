@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"device-control/internal/capabilities"
 	internalclock "device-control/internal/clock"
+	"device-control/internal/environment"
 	internalflows "device-control/internal/flows"
 	"device-control/internal/modules"
 	"device-control/internal/server"
@@ -57,6 +59,7 @@ func scenarioStorageRoots() (storage.Paths, error) {
 }
 
 func main() {
+	processEnv := environment.OSReader{}
 	configPath := flag.String("config", "", "user-scoped companion configuration path")
 	flag.Parse()
 	if *configPath != "" {
@@ -89,14 +92,25 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 	gateway := internalflows.NewGateway(http.DefaultClient, discovery.ResolveScenarioURLDefault)
-	controlService, err := control.NewWithDBAndAttached(strategyregistry.Default(), db, control.NewBridgeAttachedReader(http.DefaultClient, nil), fileRoots)
+	bridgeCredentials := control.BridgeCredentialConfig{
+		OwnerTokenFile: environment.Value(processEnv, "VROOLI_BRIDGE_TOKEN_FILE"),
+		AuthTokenFile:  environment.Value(processEnv, "VROOLI_AUTH_TOKEN_FILE"),
+		AuthSocket:     environment.Value(processEnv, "VROOLI_AUTH_SOCKET"),
+	}
+	hostNodeID := strings.TrimSpace(environment.Value(processEnv, "VROOLI_NODE_ID"))
+	if hostNodeID == "" {
+		hostNodeID, _ = os.Hostname()
+	}
+	controlService, err := control.NewWithDBAndAttached(strategyregistry.DefaultWithEnvironment(processEnv), db, control.NewBridgeAttachedReader(http.DefaultClient, nil, bridgeCredentials), fileRoots)
 	if err != nil {
 		log.Fatalf("device-control state initialization failed: %v", err)
 	}
+	controlService.SetHostNodeID(hostNodeID)
+	controlService.SetEvidenceDir(environment.Value(processEnv, "DEVICE_CONTROL_EVIDENCE_DIR"))
 	controlService.SetAgentPlanner(internalflows.NewGatewayPlanner(gateway))
 	desktopCtx, stopDesktop := context.WithCancel(context.Background())
 	desktopDone := make(chan struct{})
-	if bootstrap := os.Getenv("DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"); bootstrap != "" {
+	if bootstrap := environment.Value(processEnv, "DEVICE_CONTROL_DESKTOP_OWNER_CONFIG"); bootstrap != "" {
 		go func() {
 			defer close(desktopDone)
 			controlService.RunDesktopOwner(desktopCtx, bootstrap, func(err error) { log.Printf("desktop admission owner unavailable: %v", err) })
@@ -121,7 +135,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.Module(controlService),
 		desktopH.Module(desktopwebrtc.NewManager(desktopProvider)),
-		flowsH.Module(internalflows.NewResolver(gateway)),
+		flowsH.Module(internalflows.NewResolverWithAnchors(gateway, controlService.Anchors())),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
