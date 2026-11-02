@@ -59,6 +59,14 @@ CREATE TABLE IF NOT EXISTS answers (
   note TEXT NOT NULL DEFAULT '',
   late INTEGER NOT NULL DEFAULT 0
 );
+-- Answer attribution is sourced only from the request authenticator. Keeping
+-- it beside the durable Hub answer lets downstream decision verifiers fail
+-- closed for legacy and recipient-fallback answers without a second authority.
+CREATE TABLE IF NOT EXISTS answer_identity (
+  ask_id TEXT PRIMARY KEY REFERENCES answers(ask_id) ON DELETE CASCADE,
+  identity_kind TEXT NOT NULL DEFAULT 'unknown' CHECK (identity_kind IN ('verified_human', 'unknown')),
+  identity_source TEXT NOT NULL DEFAULT '' CHECK (identity_source IN ('', 'cloudflare_access', 'personal_local'))
+);
 CREATE TABLE IF NOT EXISTS escalation_steps (
   id TEXT PRIMARY KEY,
   ask_id TEXT NOT NULL REFERENCES asks(id) ON DELETE CASCADE,

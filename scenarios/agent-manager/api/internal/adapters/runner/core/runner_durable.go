@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // runDurable runs a launched agent through the durable-transcript path:
@@ -89,6 +90,7 @@ type durableRun struct {
 	observedEvents       []*domain.RunEvent
 	errorOutput          strings.Builder
 	terminal             *runner.TranscriptTerminal
+	codingLimit          *cliutil.CodingLimit
 
 	toolLimitTriggered chan struct{}
 	toolLimitOnce      sync.Once
@@ -252,11 +254,16 @@ func (d *durableRun) onEvents(events []*domain.RunEvent) {
 func (d *durableRun) consumeArgs(startAt int64, live bool) runner.ConsumeArgs {
 	in := d.in
 	return runner.ConsumeArgs{
-		RunID:       in.runID,
-		Transcript:  in.transcript.TranscriptPath,
-		StartAt:     startAt,
-		Live:        live,
-		ParseFn:     d.parser.ParseTranscriptLine,
+		RunID:      in.runID,
+		Transcript: in.transcript.TranscriptPath,
+		StartAt:    startAt,
+		Live:       live,
+		ParseFn: func(id uuid.UUID, line string) runner.TranscriptParseResult {
+			if limit, ok := cliutil.DetectCodingLimit(string(d.r.codec.Type()), []byte(line), time.Now()); ok {
+				d.codingLimit = &limit
+			}
+			return d.parser.ParseTranscriptLine(id, line)
+		},
 		EventSink:   in.sink,
 		OnAdvance:   in.transcript.OnAdvance,
 		OnSessionID: d.onSessionID,
@@ -402,8 +409,9 @@ func (d *durableRun) recoverUsage() {
 func (d *durableRun) buildResult(ctx context.Context, waitErr, drainErr error) *runner.ExecuteResult {
 	in := d.in
 	result := &runner.ExecuteResult{
-		Duration: time.Since(in.startTime),
-		Metrics:  d.metrics,
+		Duration:    time.Since(in.startTime),
+		Metrics:     d.metrics,
+		CodingLimit: d.codingLimit,
 	}
 
 	switch {

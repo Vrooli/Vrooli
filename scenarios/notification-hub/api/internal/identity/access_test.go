@@ -16,6 +16,7 @@ import (
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/cloudflareaccess"
+	apiidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 )
 
@@ -122,9 +123,11 @@ func TestAccessAssertionCapturesTheVerifiedHumanForAttribution(t *testing.T) {
 	auth := OwnerAuthenticator{Providers: []authn.Provider{provider}, OwnerSubject: func(context.Context) string { return "operator" }}
 	var owner owneridentity.Identity
 	var answeredBy string
+	var identityKind, identitySource string
 	handler := auth.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		owner, _ = Owner(r.Context(), r.Header, cookieVerifier)
 		answeredBy = AnsweredBy(r.Context())
+		identityKind, identitySource = AnswerIdentity(r.Context())
 	}))
 	req := httptest.NewRequest(http.MethodPost, "/vrooli.notification_hub.v1.conversations.ConversationsService/Answer", nil)
 	req.Header.Set(accessAssertionHeader, fixture.assertion(t, fixture.key, nil))
@@ -135,6 +138,9 @@ func TestAccessAssertionCapturesTheVerifiedHumanForAttribution(t *testing.T) {
 	}
 	if answeredBy != "cf-user-1" {
 		t.Fatalf("answered_by actor = %q, want the verified Access subject cf-user-1", answeredBy)
+	}
+	if identityKind != "verified_human" || identitySource != string(apiidentity.SourceCloudflareAccess) {
+		t.Fatalf("answer identity = %q/%q, want verified human from Cloudflare Access", identityKind, identitySource)
 	}
 }
 
@@ -156,16 +162,22 @@ func TestAccessAttributionFallsBackToEmailWithoutSubject(t *testing.T) {
 	_ = req
 	_ = handler
 	ctx := context.WithValue(context.Background(), ownerContextKey{}, ownerContext{
-		identity: owneridentity.Identity{Subject: "operator"}, actor: "person@example.test",
+		identity: owneridentity.Identity{Subject: "operator"}, actor: "person@example.test", source: apiidentity.SourceCloudflareAccess,
 	})
 	answeredBy = AnsweredBy(ctx)
 	if answeredBy != "person@example.test" {
 		t.Fatalf("answered_by = %q, want the email fallback", answeredBy)
 	}
+	if kind, source := AnswerIdentity(ctx); kind != "verified_human" || source != string(apiidentity.SourceCloudflareAccess) {
+		t.Fatalf("answer identity = %q/%q, want verified Cloudflare human", kind, source)
+	}
 	// A refused owner context yields no attribution.
 	refused := context.WithValue(context.Background(), ownerContextKey{}, ownerContext{refused: true})
 	if got := AnsweredBy(refused); got != "" {
 		t.Fatalf("refused request must have no attribution, got %q", got)
+	}
+	if kind, source := AnswerIdentity(refused); kind != "unknown" || source != "" {
+		t.Fatalf("refused request identity = %q/%q, want unknown", kind, source)
 	}
 }
 

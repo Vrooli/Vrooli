@@ -17,6 +17,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// reconcilerProcessNames is the verified run-tag process subset shared by
+// liveness, orphan discovery and cleanup. Grok has no verified Agent Manager
+// run-tag protocol; Antigravity is not an Agent Manager runner. Descriptor
+// binary names alone must never admit either to process discovery or cleanup.
+var reconcilerProcessNames = []string{"claude", "codex", "opencode"}
+
 // isProcessAlive checks if the process for a run is still running.
 func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 	tag := run.GetTag()
@@ -83,7 +89,7 @@ func (r *Reconciler) scanForProcess(tag string) bool {
 // is alive with the given tag. It checks both command-line --tag arguments and
 // environment variables for precise matching.
 func (r *Reconciler) scanRunnerProcessesByTag(tag string) bool {
-	for _, runnerName := range []string{"claude", "codex", "opencode"} {
+	for _, runnerName := range reconcilerProcessNames {
 		if r.scanRunnerProcessByTag(runnerName, tag) {
 			return true
 		}
@@ -145,14 +151,9 @@ type OrphanProcess struct {
 func (r *Reconciler) detectOrphanProcesses(ctx context.Context, knownTags map[string]*domain.Run) []OrphanProcess {
 	var orphans []OrphanProcess
 
-	// Scan for claude-code processes
-	orphans = append(orphans, r.scanRunnerProcesses("claude", knownTags)...)
-
-	// Scan for codex processes
-	orphans = append(orphans, r.scanRunnerProcesses("codex", knownTags)...)
-
-	// Scan for opencode processes
-	orphans = append(orphans, r.scanRunnerProcesses("opencode", knownTags)...)
+	for _, runnerName := range reconcilerProcessNames {
+		orphans = append(orphans, r.scanRunnerProcesses(runnerName, knownTags)...)
+	}
 
 	return orphans
 }
@@ -391,7 +392,7 @@ func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
 	tag := run.GetTag()
 
 	// Find PIDs matching the tag via runner process scan
-	for _, runnerName := range []string{"claude", "codex", "opencode"} {
+	for _, runnerName := range reconcilerProcessNames {
 		cmd := exec.Command("pgrep", "-af", runnerName)
 		output, err := cmd.Output()
 		if err != nil {

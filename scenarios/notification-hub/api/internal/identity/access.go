@@ -46,6 +46,7 @@ type ownerContext struct {
 	// actor so a multi-human household records who really answered, while the
 	// authorization check keeps using the recipient subject.
 	actor   string
+	source  apiidentity.AuthSource
 	refused bool
 }
 
@@ -96,6 +97,7 @@ func (a OwnerAuthenticator) authenticate(r *http.Request) context.Context {
 	return context.WithValue(ctx, ownerContextKey{}, ownerContext{
 		identity: owneridentity.Identity{Subject: subject, Email: principal.Email, ExpiresAt: principal.ExpiresAt},
 		actor:    actor,
+		source:   principal.Source,
 	})
 }
 

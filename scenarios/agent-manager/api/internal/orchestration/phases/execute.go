@@ -293,6 +293,11 @@ func executePolicySnapshot(ctx context.Context, in ExecuteWithModelFallbackInput
 			attemptInput := in.ExecuteAgentInput
 			attemptInput.Runner = candidateRunner
 			out = ExecuteAgent(ctx, attemptInput)
+			// A subscription exhaustion is owned by the bounded backup path,
+			// not by model-availability fallback to another candidate.
+			if out.Result != nil && out.Result.CodingLimit != nil {
+				return out
+			}
 
 			ce := classifyExecutionOutcome(candidateRunner, out.Result, out.ExecErr)
 			reportHealth(in.ModelHealth, in.Run, out.Result, model, ce)

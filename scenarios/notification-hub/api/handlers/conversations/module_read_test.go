@@ -3,6 +3,7 @@ package conversations_test
 import (
 	"context"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -87,4 +88,38 @@ func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
 	_, err = client.ListAsks(ctx, emptyList)
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeNotFound, connectErr.Code())
+}
+
+func TestGetAskExposesProviderDecisionContextAsTypedOwnerEvidence(t *testing.T) {
+	ctx := context.Background()
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
+	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service.SetDefaultRecipient("alice")
+
+	router := mux.NewRouter()
+	conversationsH.Module(service).Mount(router)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	client := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL)
+	decisionContext := &v1.ProviderDecisionContext{
+		SchemaVersion: 1, CanonicalTermsSha256: strings.Repeat("a", 64),
+		Scope: v1.ProviderDecisionContext_SCOPE_PROVIDER_RULE,
+	}
+	askRequest := connect.NewRequest(&v1.AskRequest{
+		Question: "Review provider rule terms", Options: []*v1.AskOption{{Key: "approve", Label: "Approve"}, {Key: "reject", Label: "Reject"}},
+		Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), SensitivityLabel: "private",
+		IdempotencyKey: "provider-rule-test", ProviderDecisionContext: decisionContext,
+	})
+	askRequest.Header().Set("X-Vrooli-Identity-Subject", "alice")
+	askResponse, err := client.Ask(ctx, askRequest)
+	require.NoError(t, err)
+
+	get, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: askResponse.Msg.GetAskId()}))
+	require.NoError(t, err)
+	gotContext := get.Msg.GetAsk().GetProviderDecisionContext()
+	require.Equal(t, decisionContext.GetSchemaVersion(), gotContext.GetSchemaVersion())
+	require.Equal(t, decisionContext.GetCanonicalTermsSha256(), gotContext.GetCanonicalTermsSha256())
+	require.Equal(t, decisionContext.GetScope(), gotContext.GetScope())
+	require.Equal(t, "unknown", get.Msg.GetAsk().GetAnsweredByIdentityKind())
 }

@@ -587,3 +587,7 @@ Following the architectural invariant 4 (Levers is the only home for adjustable 
 4. Pin the cadence with a unit test that uses a fast override.
 
 If you find yourself adding a `time.Sleep(X)` literal or a `time.NewTicker(X)` literal anywhere in agent-manager source, stop — promote `X` to a lever first.
+
+## Process reconciliation ownership
+
+The periodic reconciliation path discovers tagged processes only for Claude, Codex, and OpenCode, whose Agent Manager run-tag argv/environment semantics are verified. Grok and Antigravity are explicit exclusions; descriptor presence alone does not establish safe process identity. The exhaustive catalog disposition is tested in `internal/orchestration/reconciler_test.go`; this guard documents ownership and does not broaden scan or cleanup behavior.

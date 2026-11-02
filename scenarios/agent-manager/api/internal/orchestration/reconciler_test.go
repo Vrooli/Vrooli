@@ -15,7 +15,37 @@ import (
 	"agent-manager/internal/orchestration/testutil/mocks"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
+
+func TestReconcilerProcessOwnerDispositionCoversCanonicalHarnesses(t *testing.T) {
+	// Explicit owner decisions: a new descriptor requires a reviewed disposition.
+	dispositions := map[string]bool{"claude": true, "codex": true, "opencode": true, "grok": false, "agy": false}
+	descriptors := harness.Builtin().All()
+	remaining := make(map[string]bool)
+	for _, name := range reconcilerProcessNames {
+		if remaining[name] {
+			t.Errorf("duplicate runtime owner entry %q", name)
+		}
+		remaining[name] = true
+	}
+	for _, descriptor := range descriptors {
+		want, decided := dispositions[descriptor.ID]
+		if !decided {
+			t.Errorf("canonical harness %q has no owner disposition", descriptor.ID)
+		}
+		if got := remaining[descriptor.Binary]; got != want {
+			t.Errorf("runtime owner membership for %q: got %v, want %v", descriptor.ID, got, want)
+		}
+		delete(remaining, descriptor.Binary)
+	}
+	if len(remaining) != 0 {
+		t.Errorf("runtime owner entries have no canonical descriptor: %v", remaining)
+	}
+	if len(dispositions) != len(descriptors) {
+		t.Fatalf("owner dispositions=%d canonical descriptors=%d; remove stale decisions or account for new descriptors", len(dispositions), len(descriptors))
+	}
+}
 
 type reconcilerWorkflowRecoveryStub struct{ err error }
 

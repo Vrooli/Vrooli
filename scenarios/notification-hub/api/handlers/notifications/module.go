@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/provenance"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
@@ -129,7 +130,7 @@ func (h *handler) producer(ctx context.Context, headers http.Header) (string, er
 		return subject, nil
 	}
 	var denied provenance.ScopeDeniedError
-	if errors.As(err, &denied) {
+	if errors.As(err, &denied) || errors.Is(err, authn.ErrOperation) || errors.Is(err, authn.ErrCapability) {
 		return "", connect.NewError(connect.CodePermissionDenied, err)
 	}
 	return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or scoped producer identity is required"))

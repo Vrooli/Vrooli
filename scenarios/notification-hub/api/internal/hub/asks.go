@@ -95,42 +95,49 @@ type AskSpec struct {
 	// Correlation is echoed verbatim in the ask-resolved event so the
 	// requester can bind the answer without a lookup.
 	Correlation map[string]string
+	// ProviderDecisionContext is an additive typed binding for provider rule
+	// decisions. Its canonical JSON is persisted inside the ask's correlation
+	// record and is compared during idempotent retries.
+	ProviderDecisionContext *ProviderDecisionContext
 }
 
 // AskRecord is the read model of one ask. Reading it never changes it.
 type AskRecord struct {
-	ID                   string
-	Title                string
-	NotificationID       string
-	Recipient            string
-	Question             string
-	Options              []AskOption
-	Recommended          string
-	RecommendationReason string
-	DefaultAnswer        string
-	Reversible           bool
-	Urgency              string
-	ContextURL           string
-	BigPicture           string
-	TechnicalDetails     string
-	Deadline             string
-	State                string
-	Reason               string
-	Answer               string
-	AnswerLabel          string
-	Note                 string
-	AnsweredBy           string
-	AnsweredAt           string
-	Late                 bool
-	DefaultAppliedAt     string
-	FirstDeliveredAt     string
-	Source               string
-	SourceEventType      string
-	RequesterRef         string
-	Correlation          map[string]string
-	ResolvedAt           string
-	CreatedAt            string
-	UpdatedAt            string
+	ID                       string
+	Title                    string
+	NotificationID           string
+	Recipient                string
+	Question                 string
+	Options                  []AskOption
+	Recommended              string
+	RecommendationReason     string
+	DefaultAnswer            string
+	Reversible               bool
+	Urgency                  string
+	ContextURL               string
+	BigPicture               string
+	TechnicalDetails         string
+	Deadline                 string
+	State                    string
+	Reason                   string
+	Answer                   string
+	AnswerLabel              string
+	AnsweredByIdentityKind   string
+	AnsweredByIdentitySource string
+	Note                     string
+	AnsweredBy               string
+	AnsweredAt               string
+	Late                     bool
+	DefaultAppliedAt         string
+	FirstDeliveredAt         string
+	Source                   string
+	SourceEventType          string
+	RequesterRef             string
+	Correlation              map[string]string
+	ProviderDecisionContext  *ProviderDecisionContext
+	ResolvedAt               string
+	CreatedAt                string
+	UpdatedAt                string
 }
 
 // Open reports whether the ask still waits for an answer.
@@ -147,6 +154,8 @@ func (r AskRecord) Open() bool { return r.State == AskPending || r.State == AskE
 type AnswerInput struct {
 	AskID, Answer, Actor, Note string
 	AnsweredBy                 string
+	AnsweredByIdentityKind     string
+	AnsweredByIdentitySource   string
 }
 
 // ResolutionPublisher is the Vrooli Events publisher seam
@@ -202,6 +211,11 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	spec.Urgency = strings.ToLower(strings.TrimSpace(spec.Urgency))
 	spec.BigPicture = normalizeExplanation(spec.BigPicture)
 	spec.TechnicalDetails = normalizeExplanation(spec.TechnicalDetails)
+	decisionContext, err := normalizeProviderDecisionContext(spec.ProviderDecisionContext)
+	if err != nil {
+		return spec, err
+	}
+	spec.ProviderDecisionContext = decisionContext
 	if !utf8.ValidString(spec.BigPicture) || utf8.RuneCountInString(spec.BigPicture) > maxBigPictureCodePoints {
 		return spec, fmt.Errorf("%w: big_picture must be valid UTF-8 and at most %d Unicode code points", ErrInvalidArgument, maxBigPictureCodePoints)
 	}
@@ -367,9 +381,23 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 	}
 	allowedJSON, _ := json.Marshal(allowed)
 	optionsJSON, _ := json.Marshal(spec.Options)
+	correlation := make(map[string]string, len(spec.Correlation)+1)
+	for key, value := range spec.Correlation {
+		correlation[key] = value
+	}
+	if _, exists := correlation[providerDecisionCorrelationKey]; exists {
+		return AskRecord{}, Notification{}, fmt.Errorf("%w: correlation uses a reserved provider decision key", ErrInvalidArgument)
+	}
+	if spec.ProviderDecisionContext != nil {
+		encodedContext, encodeErr := encodeProviderDecisionContext(spec.ProviderDecisionContext)
+		if encodeErr != nil {
+			return AskRecord{}, Notification{}, encodeErr
+		}
+		correlation[providerDecisionCorrelationKey] = encodedContext
+	}
 	correlationJSON := ""
-	if len(spec.Correlation) > 0 {
-		encoded, _ := json.Marshal(spec.Correlation)
+	if len(correlation) > 0 {
+		encoded, _ := json.Marshal(correlation)
 		if len(encoded) > maxAskCorrelationLen {
 			return AskRecord{}, Notification{}, fmt.Errorf("%w: correlation exceeds %d bytes", ErrInvalidArgument, maxAskCorrelationLen)
 		}
@@ -456,6 +484,7 @@ func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) b
 		existing.Urgency != spec.Urgency || existing.ContextURL != spec.ContextURL ||
 		existing.BigPicture != spec.BigPicture || existing.TechnicalDetails != spec.TechnicalDetails ||
 		existing.SourceEventType != spec.SourceEventType || len(existing.Options) != len(spec.Options) ||
+		!sameProviderDecisionContext(existing.ProviderDecisionContext, spec.ProviderDecisionContext) ||
 		!sameCorrelation(existing.Correlation, spec.Correlation) {
 		return false
 	}
@@ -497,17 +526,18 @@ func sameCorrelation(a, b map[string]string) bool {
 
 const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
   COALESCE(ans.answer, ''), COALESCE(ans.answered_by, ''), COALESCE(ans.answered_at, ''), COALESCE(ans.note, ''), COALESCE(ans.late, 0),
+  COALESCE(ai.identity_kind, ''), COALESCE(ai.identity_source, ''),
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
   COALESCE((SELECT n.requested_by FROM notifications n WHERE n.id = a.notification_id), ''),
   COALESCE((SELECT n.title FROM notifications n WHERE n.id = a.notification_id), '')
-FROM asks a LEFT JOIN answers ans ON ans.ask_id = a.id`
+FROM asks a LEFT JOIN answers ans ON ans.ask_id = a.id LEFT JOIN answer_identity ai ON ai.ask_id = a.id`
 
 func scanAsk(row rowScanner) (AskRecord, error) {
 	var record AskRecord
 	var allowedJSON, optionsJSON, correlationJSON string
 	var reversible, late int
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
-		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.FirstDeliveredAt, &record.Recipient, &record.Title)
+		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.AnsweredByIdentityKind, &record.AnsweredByIdentitySource, &record.FirstDeliveredAt, &record.Recipient, &record.Title)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
 	}
@@ -516,6 +546,9 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	}
 	record.Reversible = reversible != 0
 	record.Late = late != 0
+	if record.AnsweredByIdentityKind == "" {
+		record.AnsweredByIdentityKind = AnswerIdentityKindUnknown
+	}
 	if strings.TrimSpace(optionsJSON) != "" {
 		_ = json.Unmarshal([]byte(optionsJSON), &record.Options)
 	}
@@ -530,10 +563,16 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	if strings.TrimSpace(correlationJSON) != "" {
 		_ = json.Unmarshal([]byte(correlationJSON), &record.Correlation)
 	}
+	if encoded := record.Correlation[providerDecisionCorrelationKey]; encoded != "" {
+		record.ProviderDecisionContext = decodeProviderDecisionContext(encoded)
+		delete(record.Correlation, providerDecisionCorrelationKey)
+	}
 	if record.State == AskDefaulted {
 		record.Answer = record.DefaultAnswer
 		record.AnsweredBy = DefaultAnsweredBy
 		record.AnsweredAt = record.DefaultAppliedAt
+		record.AnsweredByIdentityKind = "system_default"
+		record.AnsweredByIdentitySource = ""
 	}
 	if record.Answer != "" {
 		record.AnswerLabel = optionLabel(record.Options, record.Answer)
@@ -545,6 +584,26 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 // reported as it is stored, and only the background sweep changes state.
 func (s *Service) GetAsk(ctx context.Context, id string) (AskRecord, error) {
 	return scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ?`, strings.TrimSpace(id)))
+}
+
+// GetAskByRequester reads one ask by the immutable requester identity. The
+// source, event type, and requester reference must all match; this is not a
+// list operation and does not change expired or pending asks.
+func (s *Service) GetAskByRequester(ctx context.Context, source, eventType, requesterRef string) (AskRecord, error) {
+	source = strings.TrimSpace(source)
+	eventType = strings.TrimSpace(eventType)
+	requesterRef = strings.TrimSpace(requesterRef)
+	if source == "" || eventType == "" || requesterRef == "" {
+		return AskRecord{}, ErrNotFound
+	}
+	record, err := s.askByRequester(ctx, source, requesterRef)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if record.SourceEventType != eventType {
+		return AskRecord{}, ErrNotFound
+	}
+	return record, nil
 }
 
 // GetAskForRecipient performs the recipient check in the read query itself so
@@ -764,8 +823,17 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	if answeredBy == "" {
 		answeredBy = in.Actor
 	}
+	identityKind := strings.TrimSpace(in.AnsweredByIdentityKind)
+	identitySource := strings.TrimSpace(in.AnsweredByIdentitySource)
+	if identityKind != AnswerIdentityKindHuman || answeredBy == "" ||
+		(identitySource != AnswerIdentitySourceAccess && identitySource != AnswerIdentitySourceLocal) {
+		identityKind, identitySource = AnswerIdentityKindUnknown, ""
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late) VALUES (?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, answer, answeredBy, now, in.Note, boolInt(late)); err != nil {
 		return AskRecord{}, fmt.Errorf("%w: ask already has an answer", ErrAskResolved)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO answer_identity (ask_id, identity_kind, identity_source) VALUES (?, ?, ?)`, record.ID, identityKind, identitySource); err != nil {
+		return AskRecord{}, fmt.Errorf("persist answer identity: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return AskRecord{}, err
@@ -938,22 +1006,25 @@ func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 		EventType: AskResolvedEventType,
 		Occurred:  occurred.UTC(),
 		Payload: map[string]any{
-			"ask_id":            record.ID,
-			"state":             record.State,
-			"answer":            record.Answer,
-			"answer_label":      record.AnswerLabel,
-			"note":              record.Note,
-			"answered_by":       record.AnsweredBy,
-			"answered_at":       record.AnsweredAt,
-			"by_default":        record.State == AskDefaulted,
-			"late":              record.Late,
-			"default_answer":    record.DefaultAnswer,
-			"reason":            record.Reason,
-			"source":            record.Source,
-			"source_event_type": record.SourceEventType,
-			"requester_ref":     record.RequesterRef,
-			"correlation":       correlation,
-			"resolved_at":       record.ResolvedAt,
+			"ask_id":                      record.ID,
+			"state":                       record.State,
+			"answer":                      record.Answer,
+			"answer_label":                record.AnswerLabel,
+			"note":                        record.Note,
+			"answered_by":                 record.AnsweredBy,
+			"answered_by_identity_kind":   record.AnsweredByIdentityKind,
+			"answered_by_identity_source": record.AnsweredByIdentitySource,
+			"answered_at":                 record.AnsweredAt,
+			"by_default":                  record.State == AskDefaulted,
+			"late":                        record.Late,
+			"default_answer":              record.DefaultAnswer,
+			"reason":                      record.Reason,
+			"source":                      record.Source,
+			"source_event_type":           record.SourceEventType,
+			"requester_ref":               record.RequesterRef,
+			"correlation":                 correlation,
+			"provider_decision_context":   record.ProviderDecisionContext,
+			"resolved_at":                 record.ResolvedAt,
 		},
 	}
 }

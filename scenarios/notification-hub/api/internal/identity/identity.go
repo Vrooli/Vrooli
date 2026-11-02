@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/provenance"
@@ -42,13 +43,21 @@ func ProducerSubject(ctx context.Context, headers http.Header, verifier Verifier
 		if !agent.IsVerifiedAgent() {
 			return "", owneridentity.ErrUnauthenticated
 		}
-		if err := agent.RequireScope("notification-hub:write"); err != nil {
-			return "", err
-		}
 		// requested_by is the hub's recipient partition, not the acting run.
 		// Keep verified run attribution in canonical request provenance.
 		if strings.TrimSpace(recipient) == "" {
 			return "", owneridentity.ErrUnauthenticated
+		}
+		if agent.Grant != nil || agent.OperationGrant != nil {
+			// Interactive authority is operation/target bounded, including when
+			// supplied beside an existing zero-scope run. RequireOperation verifies
+			// the live pair and matches each rule through the canonical evaluator.
+			if _, err := authn.RequireOperation(ctx, "notification-hub:write", "notification.send", "notification-hub:recipient/"+recipient); err != nil {
+				return "", err
+			}
+		} else if err := agent.RequireScope("notification-hub:write"); err != nil {
+			// Managed profiles retain their existing scoped producer contract.
+			return "", err
 		}
 		return recipient, nil
 	}
@@ -109,6 +118,17 @@ func AnsweredBy(ctx context.Context) string {
 		return strings.TrimSpace(owner.actor)
 	}
 	return ""
+}
+
+// AnswerIdentity returns server-derived attribution facts for a durable Hub
+// answer. OwnerAuthenticator sets this context only for a verified human
+// principal; bearer/cookie and legacy owner fallback return unknown.
+func AnswerIdentity(ctx context.Context) (kind, source string) {
+	owner, ok := ownerFromContext(ctx)
+	if !ok || owner.refused || strings.TrimSpace(owner.actor) == "" || owner.source == "" {
+		return "unknown", ""
+	}
+	return "verified_human", string(owner.source)
 }
 
 // Token returns the bearer token, or the owner cookie when no bearer is sent.

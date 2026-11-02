@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +22,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
+	apiidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/storage"
+	"notification-hub/internal/identity"
 )
 
 // [REQ:NOTIFICA-P1-003]
@@ -286,6 +289,141 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	var notifications int
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
 	require.Equal(t, 1, notifications)
+}
+
+func TestEventWebhookRejectsProviderDecisionEvenWithSharedHMACAndClaimedGatewaySource(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hub.New(db, nil, nil)
+	secret := "event-secret"
+	for _, source := range []string{"ai-gateway", "other-scenario"} {
+		t.Run(source, func(t *testing.T) {
+			eventID := "provider-rule-digest-v1-" + source
+			body := []byte(`{"event_id":"` + eventID + `","event_type":"ai_gateway.provider_decision.decision_requested.v1","source_scenario":"` + source + `","payload":{"subject":"Review provider terms","question":"Approve these exact provider terms?","options":[{"key":"approve","label":"Approve"},{"key":"reject","label":"Reject"}],"recommended":"reject","recommendation_reason":"Approval requires explicit review.","deadline":"2030-01-01T00:00:00Z","provider_decision_context":{"schema_version":1,"canonical_terms_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","scope":"provider_rule"}}}`)
+			recorder := httptest.NewRecorder()
+			EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, eventID, body))
+			require.Equal(t, http.StatusForbidden, recorder.Code, recorder.Body.String())
+			require.Contains(t, recorder.Body.String(), "dedicated service identity")
+		})
+	}
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&count))
+	require.Zero(t, count, "shared-HMAC provider decision events must not create asks")
+}
+
+func TestEventWebhookRejectsProviderDecisionEventEvenWhenHeaderIdentityMismatches(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	secret := "event-secret"
+	body := []byte(`{"event_id":"body-id","event_type":"ai_gateway.provider_decision.decision_requested.v1","source_scenario":"ai-gateway","payload":{}}`)
+	recorder := httptest.NewRecorder()
+	EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, "header-id", body))
+	require.Equal(t, http.StatusForbidden, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "dedicated service identity")
+	var count int
+	require.NoError(t, database.NewFromPrimary(primary).QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&count))
+	require.Zero(t, count)
+}
+
+type providerDecisionPublishVerifier struct{ principal apiidentity.Principal }
+
+func (v providerDecisionPublishVerifier) Verify(context.Context, string) (apiidentity.Principal, error) {
+	return v.principal, nil
+}
+
+type providerDecisionAskWriterFake struct {
+	recipient string
+	ask       hub.AskRecord
+	calls     int
+}
+
+func (w *providerDecisionAskWriterFake) ResolveRecipient(context.Context) string { return w.recipient }
+
+func (w *providerDecisionAskWriterFake) AskWithSpec(_ context.Context, spec hub.AskSpec) (hub.AskRecord, hub.Notification, error) {
+	w.calls++
+	return w.ask, hub.Notification{}, nil
+}
+
+func providerDecisionPublishPrincipal() apiidentity.Principal {
+	return apiidentity.Principal{
+		Kind: apiidentity.ActorService, Subject: identity.ProviderDecisionSubject,
+		Scopes: []string{identity.ProviderDecisionScope}, Verified: true, Audience: identity.ProviderDecisionAudience,
+	}
+}
+
+func TestProviderDecisionPublishRequiresDedicatedVerifiedServiceIdentity(t *testing.T) {
+	principal := providerDecisionPublishPrincipal()
+	tests := map[string]func(*apiidentity.Principal){
+		"wrong subject":      func(p *apiidentity.Principal) { p.Subject = "other" },
+		"wrong audience":     func(p *apiidentity.Principal) { p.Audience = "scenario-authenticator:default" },
+		"wrong actor":        func(p *apiidentity.Principal) { p.Kind = apiidentity.ActorHuman },
+		"missing capability": func(p *apiidentity.Principal) { p.Scopes = nil },
+		"unverified":         func(p *apiidentity.Principal) { p.Verified = false },
+	}
+	for name, change := range tests {
+		t.Run(name, func(t *testing.T) {
+			p := principal
+			change(&p)
+			service := &providerDecisionAskWriterFake{recipient: "operator@example.test"}
+			req := httptest.NewRequest(http.MethodPost, ProviderDecisionPublishRoute, strings.NewReader(`{"event_id":"event-1","payload":{}}`))
+			req.Header.Set("Authorization", "Bearer test")
+			rec := httptest.NewRecorder()
+			ProviderDecisionPublishHandler(service, providerDecisionPublishVerifier{p}).ServeHTTP(rec, req)
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
+		})
+	}
+}
+
+func TestProviderDecisionPublishCreatesExactDurableHumanAsk(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service.SetOwnerFallback("operator@example.test")
+	eventID := "provider-rule-digest-v1"
+	body := []byte(`{"event_id":"` + eventID + `","payload":{"subject":"Review provider terms","question":"Approve these exact provider terms?","options":[{"key":"approve","label":"Reject"},{"key":"reject","label":"Approve"}],"recommended":"reject","recommendation_reason":"Approval requires explicit review.","deadline":"2030-01-01T00:00:00Z","provider_decision_context":{"schema_version":1,"canonical_terms_sha256":"` + strings.Repeat("a", 64) + `","scope":"provider_rule"}}}`)
+	req := httptest.NewRequest(http.MethodPost, ProviderDecisionPublishRoute, bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer test")
+	rec := httptest.NewRecorder()
+	ProviderDecisionPublishHandler(service, providerDecisionPublishVerifier{providerDecisionPublishPrincipal()}).ServeHTTP(rec, req)
+	require.Equal(t, http.StatusAccepted, rec.Code, rec.Body.String())
+	var response map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	ask, err := service.GetAsk(context.Background(), response["ask_id"])
+	require.NoError(t, err)
+	require.Equal(t, "operator@example.test", ask.Recipient)
+	require.Equal(t, identity.ProviderDecisionSubject, ask.Source)
+	require.Equal(t, ProviderDecisionRequestedEventType, ask.SourceEventType)
+	require.Equal(t, eventID, ask.RequesterRef)
+	require.Equal(t, hub.AskPending, ask.State)
+	require.Equal(t, &hub.ProviderDecisionContext{SchemaVersion: 1, CanonicalTermsSHA256: strings.Repeat("a", 64), Scope: hub.ProviderDecisionScopeRule}, ask.ProviderDecisionContext)
+	require.Equal(t, []hub.AskOption{{Key: "approve", Label: "Approve"}, {Key: "reject", Label: "Reject"}}, ask.Options)
+	require.Empty(t, ask.DefaultAnswer)
+}
+
+func TestProviderDecisionPublishRejectsClientAuthorityAndInvalidIdentity(t *testing.T) {
+	validPayload := `"payload":{"question":"Review?","options":[{"key":"approve"},{"key":"reject"}],"recommended":"reject","provider_decision_context":{"schema_version":1,"canonical_terms_sha256":"` + strings.Repeat("a", 64) + `","scope":"provider_rule"}}`
+	for name, body := range map[string]string{
+		"missing event id":       `{"payload":{}}`,
+		"empty event id":         `{"event_id":"  ","payload":{}}`,
+		"client supplied source": `{"event_id":"event-1","source":"other","payload":{}}`,
+		"invalid payload":        `{"event_id":"event-1","payload":{}}`,
+		"multiple JSON values":   `{"event_id":"event-1",` + validPayload + `} {}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			service := &providerDecisionAskWriterFake{recipient: "operator@example.test"}
+			req := httptest.NewRequest(http.MethodPost, ProviderDecisionPublishRoute, strings.NewReader(body))
+			req.Header.Set("Authorization", "Bearer test")
+			rec := httptest.NewRecorder()
+			ProviderDecisionPublishHandler(service, providerDecisionPublishVerifier{providerDecisionPublishPrincipal()}).ServeHTTP(rec, req)
+			require.Equal(t, http.StatusBadRequest, rec.Code)
+		})
+	}
+
+	rec := httptest.NewRecorder()
+	ProviderDecisionPublishHandler(nil, nil).ServeHTTP(rec, httptest.NewRequest(http.MethodPost, ProviderDecisionPublishRoute, strings.NewReader(`{}`)))
+	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
 
 func TestEventWebhookAcceptsAgentManagerAuthorizationFYI(t *testing.T) {

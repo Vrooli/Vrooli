@@ -19,6 +19,8 @@ import (
 	"github.com/vrooli/cli-core/upstreamcheck"
 )
 
+// runners contains only policies with stable, independently observed live model
+// inventories. Antigravity has generic defaults but no stable live inventory.
 var runners = []string{"codex", "claude-code", "opencode", "grok"}
 
 type Snapshot struct {

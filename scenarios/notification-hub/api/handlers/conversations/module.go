@@ -62,21 +62,22 @@ func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) 
 		}
 	}
 	ask, notification, err := h.service.AskWithSpec(ctx, hub.AskSpec{
-		Recipient:            subject,
-		Question:             req.Msg.GetQuestion(),
-		Options:              options,
-		Recommended:          req.Msg.GetRecommended(),
-		RecommendationReason: req.Msg.GetRecommendationReason(),
-		DefaultAnswer:        req.Msg.GetDefaultAnswer(),
-		Reversible:           req.Msg.GetReversible(),
-		Urgency:              req.Msg.GetUrgency(),
-		ContextURL:           req.Msg.GetContextUrl(),
-		BigPicture:           req.Msg.GetBigPicture(),
-		TechnicalDetails:     req.Msg.GetTechnicalDetails(),
-		Deadline:             deadline,
-		DeadlineSpecified:    true,
-		SensitivityLabel:     req.Msg.GetSensitivityLabel(),
-		IdempotencyKey:       req.Msg.GetIdempotencyKey(),
+		Recipient:               subject,
+		Question:                req.Msg.GetQuestion(),
+		Options:                 options,
+		Recommended:             req.Msg.GetRecommended(),
+		RecommendationReason:    req.Msg.GetRecommendationReason(),
+		DefaultAnswer:           req.Msg.GetDefaultAnswer(),
+		Reversible:              req.Msg.GetReversible(),
+		Urgency:                 req.Msg.GetUrgency(),
+		ContextURL:              req.Msg.GetContextUrl(),
+		BigPicture:              req.Msg.GetBigPicture(),
+		TechnicalDetails:        req.Msg.GetTechnicalDetails(),
+		ProviderDecisionContext: providerDecisionContextFromProto(req.Msg.GetProviderDecisionContext()),
+		Deadline:                deadline,
+		DeadlineSpecified:       true,
+		SensitivityLabel:        req.Msg.GetSensitivityLabel(),
+		IdempotencyKey:          req.Msg.GetIdempotencyKey(),
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -108,12 +109,15 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[v1.AnswerRequ
 	// subject/email) while keeping the recipient-only authorization check keyed on
 	// the recipient subject (actor). AnsweredBy is "" on the bearer/cookie path,
 	// where AnswerAsk falls back to actor — preserving prior behavior.
+	answerIdentityKind, answerIdentitySource := identity.AnswerIdentity(ctx)
 	ask, err := h.service.AnswerAsk(ctx, hub.AnswerInput{
-		AskID:      req.Msg.GetAskId(),
-		Answer:     req.Msg.GetAnswer(),
-		Actor:      actor,
-		AnsweredBy: identity.AnsweredBy(ctx),
-		Note:       req.Msg.GetNote(),
+		AskID:                    req.Msg.GetAskId(),
+		Answer:                   req.Msg.GetAnswer(),
+		Actor:                    actor,
+		AnsweredBy:               identity.AnsweredBy(ctx),
+		AnsweredByIdentityKind:   answerIdentityKind,
+		AnsweredByIdentitySource: answerIdentitySource,
+		Note:                     req.Msg.GetNote(),
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -178,10 +182,40 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		BigPicture: ask.BigPicture, TechnicalDetails: ask.TechnicalDetails, Deadline: ask.Deadline,
 		State: ask.State, Reason: ask.Reason, Answer: ask.Answer, AnswerLabel: ask.AnswerLabel, Note: ask.Note,
 		AnsweredBy: ask.AnsweredBy, AnsweredAt: ask.AnsweredAt, Late: ask.Late, DefaultAppliedAt: ask.DefaultAppliedAt,
+		AnsweredByIdentityKind: ask.AnsweredByIdentityKind, AnsweredByIdentitySource: ask.AnsweredByIdentitySource,
 		FirstDeliveredAt: ask.FirstDeliveredAt, DefaultEligibleAt: h.service.DefaultEligibleAt(ask),
 		Source: ask.Source, SourceEventType: ask.SourceEventType, RequesterRef: ask.RequesterRef,
 		ResolvedAt: ask.ResolvedAt, CreatedAt: ask.CreatedAt, UpdatedAt: ask.UpdatedAt,
+		ProviderDecisionContext: providerDecisionContextToProto(ask.ProviderDecisionContext),
 	}
+}
+
+func providerDecisionContextFromProto(value *v1.ProviderDecisionContext) *hub.ProviderDecisionContext {
+	if value == nil {
+		return nil
+	}
+	scope := ""
+	switch value.GetScope() {
+	case v1.ProviderDecisionContext_SCOPE_PROVIDER_RULE:
+		scope = hub.ProviderDecisionScopeRule
+	case v1.ProviderDecisionContext_SCOPE_PROVIDER_AGREEMENT:
+		scope = hub.ProviderDecisionScopeAgreement
+	}
+	return &hub.ProviderDecisionContext{SchemaVersion: value.GetSchemaVersion(), CanonicalTermsSHA256: value.GetCanonicalTermsSha256(), Scope: scope}
+}
+
+func providerDecisionContextToProto(value *hub.ProviderDecisionContext) *v1.ProviderDecisionContext {
+	if value == nil {
+		return nil
+	}
+	scope := v1.ProviderDecisionContext_SCOPE_UNSPECIFIED
+	switch value.Scope {
+	case hub.ProviderDecisionScopeRule:
+		scope = v1.ProviderDecisionContext_SCOPE_PROVIDER_RULE
+	case hub.ProviderDecisionScopeAgreement:
+		scope = v1.ProviderDecisionContext_SCOPE_PROVIDER_AGREEMENT
+	}
+	return &v1.ProviderDecisionContext{SchemaVersion: value.SchemaVersion, CanonicalTermsSha256: value.CanonicalTermsSHA256, Scope: scope}
 }
 
 func connectError(err error) error {

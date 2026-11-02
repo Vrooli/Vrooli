@@ -50,6 +50,7 @@ import (
 	"agent-manager/internal/orchestration/obs"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // runnerLog returns the runner-core's component-tagged logger,
@@ -300,6 +301,10 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	args := r.codec.BuildArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
+	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
+	if err != nil {
+		return nil, fmt.Errorf("resolve model source: %w", err)
+	}
 	launcher := r.selector.Pick(ctx, req)
 	launcherType := launcherLabel(launcher)
 	sandboxIDStr := ""
@@ -363,6 +368,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	metrics := runner.ExecutionMetrics{}
 	var lastAssistantMessage string
 	var observedEvents []*domain.RunEvent
+	var codingLimit *cliutil.CodingLimit
 	errorOutput := r.spawnStderrAccumulator(proc)
 
 	scanErr := r.scanStream(ctx, scanInputs{
@@ -375,6 +381,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		observedEvents: &observedEvents,
 		maxToolCalls:   req.GetConfig().MaxToolCalls,
 		runnerType:     r.codec.Type(),
+		codingLimit:    &codingLimit,
 	})
 
 	errorOutput.wait()
@@ -390,6 +397,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 
 	duration := time.Since(startTime)
 	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, observedEvents, duration, false)
+	result.CodingLimit = codingLimit
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
@@ -521,6 +529,10 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	args := r.codec.BuildContinueArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(tag, req.Environment)
+	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
+	if err != nil {
+		return nil, fmt.Errorf("resolve model source: %w", err)
+	}
 	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
 
 	launchReq := runner.BuildEnvWrappedLaunchRequest(
@@ -551,6 +563,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	metrics := runner.ExecutionMetrics{}
 	var lastAssistantMessage string
 	var observedEvents []*domain.RunEvent
+	var codingLimit *cliutil.CodingLimit
 	errorOutput := r.spawnStderrAccumulator(proc)
 
 	scanErr := r.scanStream(ctx, scanInputs{
@@ -563,6 +576,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		observedEvents: &observedEvents,
 		maxToolCalls:   req.GetConfig().MaxToolCalls,
 		runnerType:     r.codec.Type(),
+		codingLimit:    &codingLimit,
 	})
 
 	errorOutput.wait()
@@ -582,6 +596,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 
 	duration := time.Since(startTime)
 	result := r.classifyResult(ctx, waitErr, stderr, state, &metrics, observedEvents, duration, true)
+	result.CodingLimit = codingLimit
 
 	if result.Success {
 		runner.EmitStderrAsWarnOnSuccess(req.RunID, req.EventSink, stderr)
@@ -630,6 +645,7 @@ type scanInputs struct {
 	observedEvents *[]*domain.RunEvent
 	maxToolCalls   int
 	runnerType     domain.RunnerType
+	codingLimit    **cliutil.CodingLimit
 }
 
 // scanStream consumes proc.Stdout() line by line, dispatching to the
@@ -645,6 +661,9 @@ func (r *Runner) scanStream(ctx context.Context, in scanInputs) error {
 		line := scanner.Text()
 		if line == "" {
 			continue
+		}
+		if limit, ok := cliutil.DetectCodingLimit(string(r.codec.Type()), []byte(line), time.Now()); ok && in.codingLimit != nil {
+			*in.codingLimit = &limit
 		}
 
 		events, err := r.codec.DecodeStreamLine(in.state, in.runID, line)
@@ -904,6 +923,10 @@ func (r *Runner) executeWithDurableTranscript(
 	args := r.codec.BuildArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
+	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
+	if err != nil {
+		return nil, fmt.Errorf("resolve model source: %w", err)
+	}
 	launcher := r.selector.Pick(ctx, req)
 
 	launchReq := runner.BuildEnvWrappedLaunchRequest(
@@ -965,6 +988,10 @@ func (r *Runner) continueWithDurableTranscript(
 	args := r.codec.BuildContinueArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(tag, req.Environment)
+	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
+	if err != nil {
+		return nil, fmt.Errorf("resolve model source: %w", err)
+	}
 	launcher := r.selector.PickFor(ctx, req.RunID, req.GetConfig(), req.SandboxID, req.EventSink)
 
 	launchReq := runner.BuildEnvWrappedLaunchRequest(

@@ -15,7 +15,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
+	apiidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/scopecatalog"
 	"notification-hub/internal/hub"
+	internalidentity "notification-hub/internal/identity"
 )
 
 type eventPayload struct {
@@ -27,6 +31,163 @@ type eventPayload struct {
 	Urgency          string          `json:"urgency"`
 	SensitivityLabel string          `json:"sensitivity_label"`
 	Payload          json.RawMessage `json:"payload"`
+}
+
+const providerDecisionRequestedEventType = "ai_gateway.provider_decision.decision_requested.v1"
+
+// ProviderDecisionRequestedEventType is the server-owned event identity for
+// provider rule and agreement approval asks.
+const ProviderDecisionRequestedEventType = providerDecisionRequestedEventType
+const ProviderDecisionPublishRoute = "/api/v1/internal/provider-decisions/publish"
+
+type providerDecisionEventBinding struct {
+	SchemaVersion        uint32 `json:"schema_version"`
+	CanonicalTermsSHA256 string `json:"canonical_terms_sha256"`
+	Scope                string `json:"scope"`
+}
+
+func ProviderDecisionAskSpec(recipient, source, eventType, eventID string, raw json.RawMessage, now time.Time) (hub.AskSpec, error) {
+	var binding struct {
+		ProviderDecisionContext providerDecisionEventBinding `json:"provider_decision_context"`
+	}
+	if err := json.Unmarshal(raw, &binding); err != nil {
+		return hub.AskSpec{}, fmt.Errorf("%w: provider decision context is invalid", hub.ErrInvalidArgument)
+	}
+	context := binding.ProviderDecisionContext
+	if context.SchemaVersion != 1 || !validProviderDecisionDigest(context.CanonicalTermsSHA256) ||
+		(context.Scope != hub.ProviderDecisionScopeRule && context.Scope != hub.ProviderDecisionScopeAgreement) {
+		return hub.AskSpec{}, fmt.Errorf("%w: provider decision context is invalid", hub.ErrInvalidArgument)
+	}
+	spec, err := DecisionAskSpec(recipient, source, eventType, eventID, raw, now)
+	if err != nil {
+		return hub.AskSpec{}, err
+	}
+	if len(spec.Options) != 2 || spec.Options[0].Key == spec.Options[1].Key || spec.DefaultAnswer != "" || spec.Reversible || spec.Recommended != "reject" {
+		return hub.AskSpec{}, fmt.Errorf("%w: provider decision asks must require an explicit approve or reject answer", hub.ErrInvalidArgument)
+	}
+	seenApprove, seenReject := false, false
+	for _, option := range spec.Options {
+		switch option.Key {
+		case "approve":
+			seenApprove = true
+		case "reject":
+			seenReject = true
+		default:
+			return hub.AskSpec{}, fmt.Errorf("%w: provider decision answers must be approve and reject", hub.ErrInvalidArgument)
+		}
+	}
+	if !seenApprove || !seenReject {
+		return hub.AskSpec{}, fmt.Errorf("%w: provider decision answers must be approve and reject", hub.ErrInvalidArgument)
+	}
+	// Option labels are operator-facing copy. Keep them server-owned so a
+	// proposal cannot make the "reject" answer appear to approve (or vice versa).
+	spec.Options = []hub.AskOption{
+		{Key: "approve", Label: "Approve"},
+		{Key: "reject", Label: "Reject"},
+	}
+	spec.ProviderDecisionContext = &hub.ProviderDecisionContext{
+		SchemaVersion: context.SchemaVersion, CanonicalTermsSHA256: strings.TrimSpace(context.CanonicalTermsSHA256), Scope: context.Scope,
+	}
+	return spec, nil
+}
+
+func validProviderDecisionDigest(value string) bool {
+	if len(value) != 64 || value != strings.ToLower(value) {
+		return false
+	}
+	for _, character := range value {
+		if !((character >= '0' && character <= '9') || (character >= 'a' && character <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+type providerDecisionProposal struct {
+	EventID string          `json:"event_id"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+type providerDecisionAskWriter interface {
+	ResolveRecipient(context.Context) string
+	AskWithSpec(context.Context, hub.AskSpec) (hub.AskRecord, hub.Notification, error)
+}
+
+// ProviderDecisionPublishHandler creates a provider-rule proposal through the
+// same durable Ask owner as signed event delivery. The service identity may
+// propose a decision, but only the existing human Answer path can resolve it.
+func ProviderDecisionPublishHandler(service providerDecisionAskWriter, verifier authn.TokenVerifier) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", http.MethodPost)
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if service == nil || verifier == nil {
+			http.Error(w, "provider decision publishing unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		principal, err := providerDecisionPrincipal(r, verifier)
+		if err != nil || principal.Kind != apiidentity.ActorService || principal.Subject != internalidentity.ProviderDecisionSubject || !principal.Verified || !scopecatalog.MatchCapability(principal.Scopes, internalidentity.ProviderDecisionScope) || principal.Audience != internalidentity.ProviderDecisionAudience {
+			http.Error(w, "service identity required", http.StatusUnauthorized)
+			return
+		}
+		var input providerDecisionProposal
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&input); err != nil {
+			http.Error(w, "invalid provider decision proposal", http.StatusBadRequest)
+			return
+		}
+		var trailing any
+		if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+			http.Error(w, "invalid provider decision proposal", http.StatusBadRequest)
+			return
+		}
+		eventID := strings.TrimSpace(input.EventID)
+		if eventID == "" || len(eventID) > 128 || len(input.Payload) == 0 || string(input.Payload) == "null" {
+			http.Error(w, "invalid provider decision proposal", http.StatusBadRequest)
+			return
+		}
+		recipient := strings.TrimSpace(service.ResolveRecipient(r.Context()))
+		if recipient == "" {
+			http.Error(w, "provider decision recipient is unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		spec, err := ProviderDecisionAskSpec(recipient, internalidentity.ProviderDecisionSubject, providerDecisionRequestedEventType, eventID, input.Payload, time.Now().UTC())
+		if err != nil {
+			status := http.StatusBadRequest
+			if !errors.Is(err, hub.ErrInvalidArgument) {
+				status = http.StatusInternalServerError
+			}
+			http.Error(w, "invalid provider decision proposal", status)
+			return
+		}
+		ask, _, err := service.AskWithSpec(r.Context(), spec)
+		if err != nil {
+			status := http.StatusInternalServerError
+			if errors.Is(err, hub.ErrInvalidArgument) {
+				status = http.StatusBadRequest
+			} else if errors.Is(err, hub.ErrAskIdentityConflict) {
+				status = http.StatusConflict
+			}
+			http.Error(w, "provider decision proposal could not be stored", status)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]string{"ask_id": ask.ID, "event_id": eventID})
+	})
+}
+
+func providerDecisionPrincipal(r *http.Request, verifier authn.TokenVerifier) (apiidentity.Principal, error) {
+	if r == nil || verifier == nil {
+		return apiidentity.Principal{}, errors.New("provider decision identity verifier unavailable")
+	}
+	value := strings.TrimSpace(r.Header.Get("Authorization"))
+	token, found := strings.CutPrefix(value, "Bearer ")
+	if !found || strings.TrimSpace(token) == "" || strings.ContainsAny(strings.TrimSpace(token), " \t\r\n") {
+		return apiidentity.Principal{}, errors.New("bearer token required")
+	}
+	return verifier.Verify(r.Context(), strings.TrimSpace(token))
 }
 
 type heartbeatAttemptNotification struct {
@@ -212,6 +373,10 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 		}
 		if payload.Title != "" || payload.Body != "" || payload.SensitivityLabel != "" {
 			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%v: producers cannot provide title, body, or sensitivity_label", ErrProducerOwnedCopy))
+			return
+		}
+		if payload.EventType == providerDecisionRequestedEventType {
+			writeJSONError(w, http.StatusForbidden, "provider decision proposals require the dedicated service identity")
 			return
 		}
 		if IsDecisionRequest(payload.EventType) {

@@ -73,6 +73,37 @@ func TestAskWithSpec_PersistsStructuredDecisionAtHighUrgency(t *testing.T) {
 	require.Equal(t, map[string]string{"decision_id": "BAS-D-065"}, got.Correlation)
 }
 
+func TestGetAskByRequesterRequiresExactProviderDecisionIdentity(t *testing.T) {
+	service, _ := testService(t)
+	now := time.Date(2026, time.November, 1, 12, 0, 0, 0, time.UTC)
+	spec := hub.AskSpec{
+		Recipient: "alice", Question: "Approve these provider terms?",
+		Options:     []hub.AskOption{{Key: "approve", Label: "Approve"}, {Key: "reject", Label: "Reject"}},
+		Recommended: "reject", Deadline: now.Add(time.Hour), SensitivityLabel: "private",
+		IdempotencyKey: "provider-event-1", Source: "ai-gateway",
+		SourceEventType: "ai_gateway.provider_decision.decision_requested.v1",
+		ProviderDecisionContext: &hub.ProviderDecisionContext{
+			SchemaVersion: 1, CanonicalTermsSHA256: strings.Repeat("a", 64), Scope: hub.ProviderDecisionScopeRule,
+		},
+	}
+	ask, _, err := service.AskWithSpec(context.Background(), spec)
+	require.NoError(t, err)
+
+	got, err := service.GetAskByRequester(context.Background(), "ai-gateway", "ai_gateway.provider_decision.decision_requested.v1", "provider-event-1")
+	require.NoError(t, err)
+	require.Equal(t, ask.ID, got.ID)
+	require.Equal(t, hub.AskPending, got.State)
+	require.Equal(t, "provider-event-1", got.RequesterRef)
+	require.Equal(t, spec.ProviderDecisionContext, got.ProviderDecisionContext)
+
+	_, err = service.GetAskByRequester(context.Background(), "ai-gateway", "another.event.v1", "provider-event-1")
+	require.ErrorIs(t, err, hub.ErrNotFound)
+	_, err = service.GetAskByRequester(context.Background(), "ai-gateway", "ai_gateway.provider_decision.decision_requested.v1", "missing-event")
+	require.ErrorIs(t, err, hub.ErrNotFound)
+	_, err = service.GetAskByRequester(context.Background(), "", "ai_gateway.provider_decision.decision_requested.v1", "provider-event-1")
+	require.ErrorIs(t, err, hub.ErrNotFound)
+}
+
 // [REQ:NOTIFICA-P1-010]
 func TestAskWithSpec_RejectsUnsafeOrInconsistentDecisions(t *testing.T) {
 	service, _ := testService(t)
@@ -643,14 +674,19 @@ func TestAnswerAsk_RecordsTheVerifiedHumanAsAnsweredBy(t *testing.T) {
 	// distinct per-human subject (a second household member on the shared inbox).
 	answered, err := service.AnswerAsk(context.Background(), hub.AnswerInput{
 		AskID: ask.ID, Answer: "close", Actor: "alice", AnsweredBy: "access:bob@example.test",
+		AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "cloudflare_access",
 	})
 	require.NoError(t, err)
 	require.Equal(t, hub.AskAnswered, answered.State)
 	require.Equal(t, "access:bob@example.test", answered.AnsweredBy, "answered_by must be the verified human, not the recipient subject")
+	require.Equal(t, "verified_human", answered.AnsweredByIdentityKind)
+	require.Equal(t, "cloudflare_access", answered.AnsweredByIdentitySource)
 
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
 	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
 	require.Equal(t, "access:bob@example.test", publisher.snapshot()[0].Payload["answered_by"], "ask.resolved.v1 must carry the real verified human")
+	require.Equal(t, "verified_human", publisher.snapshot()[0].Payload["answered_by_identity_kind"])
+	require.Equal(t, "cloudflare_access", publisher.snapshot()[0].Payload["answered_by_identity_source"])
 
 	// A non-recipient is refused by the recipient-only check even when it presents
 	// a plausible AnsweredBy — authorization is keyed on the recipient, not on

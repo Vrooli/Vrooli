@@ -79,6 +79,16 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### Verified answer attribution
+
+| | |
+|---|---|
+| **Seam** | Request-authenticator evidence attached to a durable operator answer |
+| **Interface** | `internal/identity.OwnerAuthenticator` populates request context; `identity.AnswerIdentity(ctx)` returns `verified_human` plus the authenticated source only for a verified human principal. `hub.AnswerAsk` stores the resulting kind/source beside the answer. |
+| **Production wiring** | `api/main.go` installs the owner authenticator middleware. The conversations Answer handler passes only the server-derived attribution; bearer/cookie fallback is stored as `unknown`, while defaults are projected as `system_default`. |
+| **Test fake** | `internal/identity/access_test.go` exercises Cloudflare Access and fallback paths; `internal/hub/provider_decision_test.go` reads persisted answer attribution through the SQLite-backed Hub. |
+| **Why it exists** | `answered_by` can fall back to the shared recipient subject, so the string alone cannot prove a human answered. Provider decision consumers must require `verified_human` and an allowed authenticator source; missing legacy attribution stays unknown. The typed provider decision context is a wire contract documented in [`ARCHITECTURE.md`](../concepts/ARCHITECTURE.md), not a second authority store. AI Gateway still has no production provider-decision producer/verifier path. |
+
 ### Clock
 
 | | |

@@ -4,6 +4,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -12,7 +13,7 @@ import (
 	"agent-manager/internal/adapters/database"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
-	"errors"
+
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/operatordecision"
 
@@ -84,6 +85,46 @@ func TestNormalizedRulesWildcardForms(t *testing.T) {
 		if _, err := req.normalizedRules(); err == nil {
 			t.Fatalf("expected %q rejected, but it was accepted", tgt)
 		}
+	}
+}
+
+func TestNotificationSendingConsentRequiresCapableOwnerAndRetainsRecipient(t *testing.T) {
+	now := time.Now().UTC()
+	o := authorizationFixture(t, &now)
+	ctx := context.Background()
+	g, err := o.RequestAuthorization(ctx, AuthorizationRequest{
+		PID: os.Getpid(), HarnessKind: "codex", HarnessSession: "notification-consent", DurationSeconds: 3600,
+		Policy: "notification-sending", Targets: []string{"notification-hub:recipient/operator"},
+	})
+	if err != nil {
+		t.Fatalf("prepare sender consent: %v", err)
+	}
+	if token, found, err := o.ResolveAuthorizationCredential(ctx, os.Getpid()); err != nil || found || token != "" {
+		t.Fatal("pending sender consent granted authority")
+	}
+	if _, err := o.ApproveAuthorization(ownerContext(now), g.ID); !errors.Is(err, authn.ErrCapability) || !strings.Contains(err.Error(), "notification-hub:write") {
+		t.Fatalf("approval must require the owner's sender capability: %v", err)
+	}
+	retained, err := o.GetAuthorization(ctx, g.ID)
+	if err != nil || retained.State != domain.AuthorizationPending || retained.Grant != nil {
+		t.Fatal("refused approval changed sender authority")
+	}
+	owner, _ := requestidentity.PrincipalFromContext(ownerContext(now))
+	owner.Scopes = append(owner.Scopes, "notification-hub:write")
+	approved, err := o.ApproveAuthorization(requestidentity.WithPrincipal(ctx, owner), g.ID)
+	if err != nil {
+		t.Fatalf("capable owner approval: %v", err)
+	}
+	if !approved.Grant.Allows("notification.send", "notification-hub:recipient/operator", now) || approved.Grant.Allows("notification.send", "notification-hub:recipient/other", now) || approved.Grant.Allows("conversation.answer", "notification-hub:recipient/operator", now) {
+		t.Fatal("approved sender consent lost its operation/recipient boundary")
+	}
+	token, found, err := o.ResolveAuthorizationCredential(ctx, os.Getpid())
+	if err != nil || !found || token == "" {
+		t.Fatalf("approved sender credential unavailable: %v", err)
+	}
+	verified, err := o.VerifyIdentityToken(ctx, token)
+	if err != nil || !verified.Valid || verified.Claims == nil || len(verified.Claims.Scopes) != 1 || verified.Claims.Scopes[0] != "notification-hub:write" {
+		t.Fatalf("approved sender token did not retain its narrow capability: %v", err)
 	}
 }
 

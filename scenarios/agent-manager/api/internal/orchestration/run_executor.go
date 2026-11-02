@@ -54,6 +54,7 @@ import (
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // ModelHealthReporter is an alias for the canonical phase dependency seam.
@@ -77,6 +78,7 @@ type RunExecutor struct {
 	currentModelExclusions map[domain.RunnerType][]string
 	currentModelAdmission  func(context.Context, domain.ExecutionCandidate, string) (bool, error)
 	clock                  func() time.Time
+	codingBackupReader     func(string, string) (cliutil.CodingBackupRecord, error)
 
 	// Configuration
 	levers config.Levers
@@ -540,6 +542,9 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	// sandbox the wake will re-acquire, do NOT clobber the parked status).
 	if e.detectParked(ctx) {
 		return
+	}
+	if switched, backupOut := e.tryCodingBackup(execCtx, agentRunner, eventSink); switched {
+		e.result, e.execErr = backupOut.Result, backupOut.ExecErr
 	}
 
 	if err := execCtx.Err(); err != nil {

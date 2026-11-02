@@ -18,6 +18,7 @@ import (
 	"agent-manager/internal/fallback"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // Continuation errors
@@ -434,6 +435,9 @@ type Attachment struct {
 
 // ExecuteResult contains the outcome of an agent execution.
 type ExecuteResult struct {
+	// CodingLimit is observed from the native provider's structured stream in
+	// this invocation, never from assistant text or caller input.
+	CodingLimit *cliutil.CodingLimit
 	// Success indicates whether the agent completed without errors.
 	Success bool
 

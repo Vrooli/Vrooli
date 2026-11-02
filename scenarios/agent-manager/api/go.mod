@@ -1,6 +1,6 @@
 module agent-manager
 
-go 1.25.0
+go 1.26.0
 
 require (
 	buf.build/go/protovalidate v1.1.0
@@ -30,20 +30,20 @@ require (
 )
 
 require (
-	github.com/go-chi/chi/v5 v5.0.11 // indirect
+	github.com/go-chi/chi/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	cel.dev/expr v0.24.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
@@ -55,7 +55,7 @@ require (
 	github.com/vrooli/maturity-go v0.0.0
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.32.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
@@ -91,3 +91,93 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace agent-manager/cli => ../cli
+
+replace device-control => ../../device-control/api
+
+replace device-studio => ../../device-studio/api
+
+replace device-studio/cli => ../../device-studio/cli
+
+replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
+
+replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
+
+replace github.com/vrooli/mdns-go => ../../../packages/mdns-go
+
+replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go
+
+replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
+
+replace github.com/vrooli/ssh-core => ../../../packages/ssh-core
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
+
+replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
+
+replace github.com/vrooli/vrooli/packages/delivery-ramp-go => ../../../packages/delivery-ramp-go
+
+replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../audio-tools/clients/go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api => ../../scenario-dependency-analyzer/api
+
+replace github.com/vrooli/vrooli/scenarios/system-monitor/api => ../../system-monitor/api
+
+replace github.com/vrooli/vrooli/scenarios/template-manager/api => ../../template-manager/api
+
+replace github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api => ../../vrooli-autoheal/api
+
+replace github.com/vrooli/vrooli/scenarios/vrooli-events => ../../vrooli-events
+
+replace landing-page-business-suite-api => ../../landing-page-business-suite/api
+
+replace notification-hub => ../../notification-hub/api
+
+replace nutrition-planner => ../../nutrition-planner/api
+
+replace personal-planner => ../../personal-planner/api
+
+replace personal-planner/cli => ../../personal-planner/cli
+
+replace program-runtime => ../../program-runtime/api
+
+replace prompt-manager => ../../prompt-manager/api
+
+replace prompt-manager/cli => ../../prompt-manager/cli
+
+replace react-component-library => ../../react-component-library/api
+
+replace react-component-library/cli => ../../react-component-library/cli
+
+replace scenario-dependency-analyzer/cli => ../../scenario-dependency-analyzer/cli
+
+replace scenario-to-cloud => ../../scenario-to-cloud/api
+
+replace scenario-to-desktop-api => ../../scenario-to-desktop/api
+
+replace scenario-to-desktop/cli => ../../scenario-to-desktop/cli
+
+replace swarm-manager => ../../swarm-manager/api
+
+replace swarm-manager/cli => ../../swarm-manager/cli
+
+replace test-genie => ../../test-genie/api
+
+replace test-genie/cli => ../../test-genie/cli
+
+replace ui-health => ../../ui-health/api
+
+replace unit-health => ../../unit-health/api
+
+replace unit-health/cli => ../../unit-health/cli
+
+replace vrooli-autoheal-langrecover => ../../vrooli-autoheal/langrecover
+
+replace web-console => ../../web-console/api
+
+replace workflow-health => ../../workflow-health/api
+
+replace workspace-sandbox => ../../workspace-sandbox/api

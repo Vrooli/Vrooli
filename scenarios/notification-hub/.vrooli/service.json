@@ -248,7 +248,9 @@
       }
     ]
   },
-  "environment": {},
+  "environment": {
+    "VROOLI_AUTH_PROVIDER_DECISION_AUDIENCE": "scenario-authenticator:notification-hub-provider-decision"
+  },
   "components": {
     "api": {
       "role": "api",

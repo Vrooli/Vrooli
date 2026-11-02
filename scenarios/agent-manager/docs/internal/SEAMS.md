@@ -2007,3 +2007,9 @@ disposition. A missing identity is represented as unknown; it is never
 inferred from timestamps, ports, or log text. Lifecycle restart operations
 remain authoritative in the control-plane operation registry and are not
 duplicated in Agent Manager.
+
+## Owner-specific harness subsets
+
+`resource.json` → `agentcatalog/harness` remains the canonical all-harness catalog. Model-policy drift is a narrower owner: it checks the four policies with stable upstream model inventories; Antigravity (`agy`) is explicitly excluded because its generic defaults do not provide a stable live inventory. The exhaustive descriptor disposition is in `internal/modelpolicydrift/scheduler_test.go` and the owner rationale is beside the tested production `runners` list in `scheduler.go`.
+
+Process reconciliation is narrower still: only Claude, Codex, and OpenCode have verified Agent Manager run-tag argv/environment semantics. Grok has no verified run-tag process protocol, and Antigravity is not an Agent Manager runner; adding either by binary name alone risks discovering or cleaning unrelated processes. `internal/orchestration/reconciler_test.go` accounts for every canonical descriptor, with the owner rule beside the tested production `reconcilerProcessNames` list, shared by liveness, orphan discovery, and cleanup in `reconciler_processes.go`. These dispositions do not change runtime scanning, recovery, or cleanup.

@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
@@ -188,6 +189,11 @@ func main() {
 	}
 	scenarioResolver := discovery.NewResolver(discovery.ResolverConfig{})
 	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: scenarioResolver})
+	providerDecisionAudience := strings.TrimSpace(os.Getenv("VROOLI_AUTH_PROVIDER_DECISION_AUDIENCE"))
+	var providerDecisionVerifier authn.TokenVerifier
+	if providerDecisionAudience != "" {
+		providerDecisionVerifier = authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: providerDecisionAudience})
+	}
 	service.SetEmailSender(hub.NewSMTPSenderFromEnvironment(os.Getenv))
 	service.SetDesktopSender(hub.NewDesktopSender())
 	slog.Info("desktop notification transport selected", "platform", runtime.GOOS)
@@ -283,6 +289,8 @@ func main() {
 		return integrations.DecisionDefaults{Sensitivity: config.DecisionSensitivity, DefaultDeadline: time.Duration(config.DecisionDeadlineSecond) * time.Second}
 	}))
 	rootMux.Handle("/api/v1/integrations/deliveries", integrations.DeliveryProjectionHandler(service))
+	rootMux.Handle(internalidentity.ProviderDecisionRoute, internalidentity.ProviderDecisionLookupHandler(service, providerDecisionVerifier))
+	rootMux.Handle(integrations.ProviderDecisionPublishRoute, integrations.ProviderDecisionPublishHandler(service, providerDecisionVerifier))
 	rootMux.Handle("/api/v1/config/event-integration", integrations.Handler(eventConfig, func(config integrations.LiveConfig) error {
 		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)
 	}))
@@ -303,7 +311,10 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		// Map verified producer provenance to the canonical agent principal for
+		// operation grants. OwnerAuthenticator retains the Hub's owner contract.
+		Authentication: &authn.Config{},
+		Cleanup:        func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

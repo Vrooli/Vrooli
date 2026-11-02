@@ -99,6 +99,18 @@ hand-written JSON schemas. They live in `.proto` files. For
 proto-typed API calls, the `.proto` file also declares the service
 block that generates Connect handlers and clients.
 
+Durable provider decisions carry an optional typed
+`ProviderDecisionContext` on `AskRequest` and `GetAsk`: schema version,
+canonical terms SHA-256, and provider-rule or provider-agreement scope.
+The Hub stores that context with the ask's immutable correlation identity,
+so an idempotent retry cannot rebind the same requester reference to
+different terms. The answer read model also records server-derived
+`answered_by_identity_kind` and authenticator source. A recipient fallback
+is `unknown`; only a verified-human attribution can support a provider
+decision verifier. These fields are evidence, not approval by themselves.
+The AI Gateway production producer/verifier remains unimplemented until its
+provider-rule lifecycle and owner call path exist.
+
 ```
 packages/proto/schemas/notification-hub/v1/<domain>/<file>.proto
        │
