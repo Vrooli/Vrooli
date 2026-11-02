@@ -2,12 +2,15 @@ package services
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/collectors"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/config"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/infrastructure"
+	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/models"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/procsampler"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
@@ -16,6 +19,81 @@ import (
 type fixedPressureCollector struct {
 	collectors.BaseCollector
 	level string
+}
+
+func TestMemoryPressureInvestigationIncludesKernelAccounting(t *testing.T) {
+	when := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	sampler := &fakeSampler{}
+	svc := newPressureService(t, collectors.MemoryPressureNormal, sampler)
+	callsBefore := sampler.calls
+	svc.updateLatestSnapshot("cycle", when, []*collectors.MetricData{{CollectorName: "memory", Timestamp: when, Values: map[string]interface{}{
+		"kernel_unreclaimable_bytes_status": "measured", "kernel_unreclaimable_bytes": float64(13000),
+		"kernel_slab_bytes_status": "unsupported", "kernel_slab_bytes_reason": "not available on this host",
+	}}})
+	investigator := NewNativeInvestigator()
+	investigator.SetMemoryPressureSource(svc.GetMemoryPressure)
+	investigator.SetKernelMemorySource(svc.GetKernelMemory)
+	output, err := investigator.RunNative(context.Background(), "memory-pressure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct {
+		Data struct {
+			MemoryPressure *models.MemoryPressure      `json:"memory_pressure"`
+			KernelMemory   *models.KernelMemoryMetrics `json:"kernel_memory"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(output, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if sampler.calls != callsBefore {
+		t.Fatal("normal investigation must not start another process walk")
+	}
+	if envelope.Data.MemoryPressure == nil || envelope.Data.MemoryPressure.Level != collectors.MemoryPressureNormal {
+		t.Fatalf("pressure missing: %s", output)
+	}
+	if envelope.Data.KernelMemory == nil || envelope.Data.KernelMemory.UnreclaimableBytes.Status != "measured" || envelope.Data.KernelMemory.UnreclaimableBytes.Value != 13000 || !envelope.Data.KernelMemory.UnreclaimableBytes.ObservedAt.Equal(when) {
+		t.Fatalf("kernel observation missing: %s", output)
+	}
+	if envelope.Data.KernelMemory.SlabBytes.Status != "unsupported" || envelope.Data.KernelMemory.SlabBytes.Reason == "" {
+		t.Fatalf("unsupported state lost: %s", output)
+	}
+}
+
+func TestMemoryPressureInvestigationKeepsUnavailableKernelSourceExplicit(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source func(context.Context) (*models.KernelMemoryMetrics, error)
+		want   string
+	}{
+		{"not configured", nil, "unavailable"},
+		{"not sampled", func(context.Context) (*models.KernelMemoryMetrics, error) { return nil, nil }, "not_yet_sampled"},
+		{"failed", func(context.Context) (*models.KernelMemoryMetrics, error) { return nil, errors.New("snapshot failed") }, "failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			investigator := NewNativeInvestigator()
+			investigator.SetMemoryPressureSource(func(context.Context) (*models.MemoryPressure, error) {
+				return &models.MemoryPressure{Level: "normal"}, nil
+			})
+			investigator.SetKernelMemorySource(tc.source)
+			output, err := investigator.RunNative(context.Background(), "memory-pressure")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var envelope struct {
+				Data struct {
+					Status string `json:"kernel_memory_status"`
+					Reason string `json:"kernel_memory_reason"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(output, &envelope); err != nil {
+				t.Fatal(err)
+			}
+			if envelope.Data.Status != tc.want || envelope.Data.Reason == "" {
+				t.Fatalf("missing explicit state: %s", output)
+			}
+		})
+	}
 }
 
 func (c *fixedPressureCollector) Collect(context.Context) (*collectors.MetricData, error) {
@@ -103,5 +181,22 @@ func TestGetMemoryPressure_BeforeFirstSampleIsUnknown(t *testing.T) {
 	}
 	if got.Level != collectors.MemoryPressureUnknown {
 		t.Fatalf("level before sampling = %s, want unknown", got.Level)
+	}
+}
+
+func TestKernelMemoryReachesLiveAndDetailedSnapshots(t *testing.T) {
+	when := time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC)
+	data := &collectors.MetricData{CollectorName: "memory", Timestamp: when, Values: map[string]interface{}{
+		"usage_percent": float64(48), "kernel_unreclaimable_bytes_status": "measured", "kernel_unreclaimable_bytes": float64(13000),
+	}}
+	service := &MonitorService{}
+	service.updateLatestSnapshot("kernel-cycle", when, []*collectors.MetricData{data})
+	if service.latestSnapshot.KernelMemory == nil || service.latestSnapshot.KernelMemory.UnreclaimableBytes.Value != 13000 {
+		t.Fatalf("live snapshot lost kernel bytes: %+v", service.latestSnapshot)
+	}
+	detail := &models.DetailedMetrics{}
+	populateMemoryDetails(detail, data, nil, nil, nil, nil)
+	if detail.MemoryDetails.KernelMemory == nil || detail.MemoryDetails.KernelMemory.UnreclaimableBytes.Value != 13000 {
+		t.Fatalf("detail lost kernel bytes: %+v", detail.MemoryDetails)
 	}
 }

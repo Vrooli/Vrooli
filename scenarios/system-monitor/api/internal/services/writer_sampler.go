@@ -187,6 +187,15 @@ func (s *WriterSampler) dueRoots() []GovernedRoot {
 }
 
 func (s *WriterSampler) record(root GovernedRoot, now time.Time, bytes int64, partial bool) WriterSnapshot {
+	if partial {
+		// A walk cut off by its budget reaches an arbitrary fraction of the
+		// tree, so its byte count is only a lower bound and the difference
+		// between two such counts is noise. Feeding them to the rate window
+		// reported a 52 GB go-build cache as 1-3 GB growing at 45-64 GB/h and
+		// raised false RATE triggers every minute. A partial walk is reported
+		// as such and never moves the rate, the delta, or the hot verdict.
+		return WriterSnapshot{Root: root.Root, RootID: root.ID, Mount: root.Mount, Bytes: bytes, Partial: true, ObservedAt: now}
+	}
 	window := s.state[root.ID]
 	if window == nil {
 		window = newFillRateWindow(6)

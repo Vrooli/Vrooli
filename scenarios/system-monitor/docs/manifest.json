@@ -212,6 +212,33 @@
       "description": "Developer-facing and agent-facing memory",
       "documents": [
         {
+          "path": "internal/DESIGN-ADOPTION.md",
+          "docType": "design-contract",
+          "title": "Vega design adoption and current target",
+          "aliases": [
+            "vega-design",
+            "design-target",
+            "redesign"
+          ],
+          "description": "Selected direction, owner amendments, verified refinements, source precedence and full-redesign acceptance boundaries.",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "visual-design-target",
+            "design-adoption"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented",
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "internal/SEAMS.md",
           "docType": "seams",
           "title": "Seams & Architecture Boundaries",

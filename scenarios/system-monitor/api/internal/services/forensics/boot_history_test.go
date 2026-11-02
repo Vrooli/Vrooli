@@ -61,7 +61,7 @@ func TestBootHistoryClassifiesBoots(t *testing.T) {
 					`{"index":0,"boot_id":"currboot","first_entry":3,"last_entry":4}]`,
 			),
 			// previous boot has shutdown marker
-			"journalctl --no-pager -o json -b prevboot -g Reached target.*Shutdown|systemd-shutdown|Shutdown initiated|Power-Off|Reboot -n 5 -r": []byte(
+			"journalctl --no-pager --all -o json -b prevboot -g Reached target.*Shutdown|systemd-shutdown|Shutdown initiated|Power-Off|Reboot -n 5 -r": []byte(
 				`{"__REALTIME_TIMESTAMP":"2000000","MESSAGE":"Reached target Shutdown."}` + "\n",
 			),
 		},
@@ -93,7 +93,7 @@ func TestBootHistoryFlagsUncleanBoot(t *testing.T) {
 					`{"index":0,"boot_id":"currboot","first_entry":3,"last_entry":4}]`,
 			),
 			// previous boot returns no shutdown markers
-			"journalctl --no-pager -o json -b prevboot -g Reached target.*Shutdown|systemd-shutdown|Shutdown initiated|Power-Off|Reboot -n 5 -r": []byte(""),
+			"journalctl --no-pager --all -o json -b prevboot -g Reached target.*Shutdown|systemd-shutdown|Shutdown initiated|Power-Off|Reboot -n 5 -r": []byte(""),
 		},
 	}
 	r := journal.NewReader(exec)

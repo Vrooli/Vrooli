@@ -39,3 +39,25 @@ func TestMetricCycleKeepsCollectorsTogetherWhenTimesDiffer(t *testing.T) {
 		t.Fatal("duplicate cycle was accepted")
 	}
 }
+
+func TestMemoryRepositoryPreservesKernelMemoryInCurrentAndHistory(t *testing.T) {
+	repo := memory.NewRepository()
+	now := time.Now()
+	err := repo.SaveMetricCycle(context.Background(), "kernel", now, []repository.MetricObservation{{CollectorName: "memory", Values: map[string]interface{}{
+		"status": "measured", "kernel_slab_bytes_status": "measured", "kernel_slab_bytes": float64(0),
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, err := repo.GetLatestMetrics(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, err := repo.GetMetrics(context.Background(), repository.MetricsFilter{})
+	if err != nil || len(history) != 1 {
+		t.Fatalf("history=%v error=%v", history, err)
+	}
+	if current.KernelMemory == nil || history[0].KernelMemory == nil || current.KernelMemory.SlabBytes.Status != "measured" || history[0].KernelMemory.SlabBytes.Status != "measured" || history[0].KernelMemory.SlabBytes.Value != 0 {
+		t.Fatalf("kernel current=%+v history=%+v", current.KernelMemory, history[0].KernelMemory)
+	}
+}

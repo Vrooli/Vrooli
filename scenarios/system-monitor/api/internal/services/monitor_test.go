@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -233,6 +234,9 @@ func TestMonitorService_GetMetricsTimeline_Empty(t *testing.T) {
 	if timeline.WindowSeconds != 120 {
 		t.Errorf("expected WindowSeconds=120, got %d", timeline.WindowSeconds)
 	}
+	if timeline.WindowStart.IsZero() || timeline.WindowEnd.Sub(timeline.WindowStart) != 120*time.Second {
+		t.Errorf("invalid exact timeline bounds: %v to %v", timeline.WindowStart, timeline.WindowEnd)
+	}
 	if timeline.SampleIntervalSeconds != 5 {
 		t.Errorf("expected SampleIntervalSeconds=5, got %d", timeline.SampleIntervalSeconds)
 	}
@@ -266,6 +270,40 @@ func TestMonitorService_GetMetricsTimeline_WithData(t *testing.T) {
 	}
 	if len(timeline.Samples) == 0 {
 		t.Error("expected at least 1 sample after seeding metrics")
+	}
+}
+
+func TestMetricsTimelineUsesRequestedSamplingAcrossWindow(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	repo := memory.NewRepository()
+	for i := 0; i < 30; i++ {
+		if err := repo.SaveMetricCycle(ctx, fmt.Sprintf("cycle-%d", i), now.Add(-time.Duration(i)*time.Minute), []repository.MetricObservation{{CollectorName: "memory", Values: map[string]interface{}{"usage_percent": float64(i)}}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := NewMonitorService(&config.Config{}, repo, infrastructure.NewStaticProvider(), WithMonitorClock(NewStubClock(now)))
+	timeline, err := svc.GetMetricsTimeline(ctx, 30*60, 10*60)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(timeline.Samples) != 3 {
+		t.Fatalf("got %d samples, want three ten-minute buckets", len(timeline.Samples))
+	}
+	if !timeline.Samples[0].Timestamp.Equal(now.Add(-20*time.Minute)) || !timeline.Samples[2].Timestamp.Equal(now) {
+		t.Fatalf("timeline doesn't cover the requested window: %+v", timeline.Samples)
+	}
+}
+
+func TestMetricsTimelineReportsEffectiveBoundedWindow(t *testing.T) {
+	now := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	svc := NewMonitorService(&config.Config{}, memory.NewRepository(), infrastructure.NewStaticProvider(), WithMonitorClock(NewStubClock(now)))
+	timeline, err := svc.GetMetricsTimeline(context.Background(), 86400, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timeline.WindowSeconds != 5000 || !timeline.WindowStart.Equal(now.Add(-5000*time.Second)) {
+		t.Fatalf("bounded window was not reported: %+v", timeline)
 	}
 }
 

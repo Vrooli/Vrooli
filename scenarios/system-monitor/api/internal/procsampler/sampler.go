@@ -29,6 +29,7 @@ var ErrUnsupported = errors.New("procsampler: unsupported on this platform")
 type ProcessSample struct {
 	PID                  int
 	PPID                 int
+	StartTimeTicks       uint64  // Linux process start identity; zero where unavailable
 	Comm                 string  // short name from /proc/<pid>/comm
 	State                string  // native process state when the platform exposes it
 	Cmdline              string  // full command line (nul-joined args rendered with spaces)

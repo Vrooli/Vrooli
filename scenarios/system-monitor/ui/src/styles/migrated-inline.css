@@ -1840,7 +1840,14 @@
 
 .log-row__timestamp { color: var(--color-text-secondary); white-space: nowrap; }
 .log-row__message { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-row__message.is-expanded { overflow-wrap: anywhere; white-space: normal; }
+.log-row__message.is-expanded {
+  max-height: 6em;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
 .log-row__toggle { align-self: start; white-space: nowrap; }
 
 @media (max-width: 48rem) {

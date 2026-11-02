@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "modernc.org/sqlite" // registers the pure-Go "sqlite" database/sql driver
@@ -163,9 +165,14 @@ func Schema() string {
 // Repository implements repository.Repository backed by SQLite.
 type Repository struct {
 	db   *database.RoutedDB
-	mu   sync.RWMutex // Serialize SQLite writes
-	thMu sync.RWMutex
-	th   map[string]*models.Threshold
+	path string
+	// compacting is set while Compact holds the write lock for a full VACUUM;
+	// latest/timeline reads fail fast with ErrMaintenance instead of queueing
+	// behind it, so health checks keep answering from in-memory state.
+	compacting atomic.Bool
+	mu         sync.RWMutex // Serialize SQLite writes
+	thMu       sync.RWMutex
+	th         map[string]*models.Threshold
 }
 
 // NewRepository opens a SQLite database at dbPath and initializes the schema.
@@ -184,7 +191,12 @@ func NewRepository(dbPath string) (*Repository, error) {
 
 	// SQLite pragmas for performance and correctness.
 	primary := db.Primary()
+	// auto_vacuum=INCREMENTAL must precede table creation to take effect on a
+	// new database; an existing NONE-mode database adopts it on its next full
+	// VACUUM (maintenance Compact). Retention then releases freed pages via
+	// ReleaseFreePages instead of leaving the file at its high-water mark.
 	for _, pragma := range []string{
+		"PRAGMA auto_vacuum=INCREMENTAL",
 		"PRAGMA journal_mode=WAL",
 		"PRAGMA busy_timeout=5000",
 		"PRAGMA synchronous=NORMAL",
@@ -202,7 +214,9 @@ func NewRepository(dbPath string) (*Repository, error) {
 		db.Close()
 		return nil, fmt.Errorf("create schema: %w", err)
 	}
-	return NewRepositoryFromDB(db), nil
+	repo := NewRepositoryFromDB(db)
+	repo.path = dbPath
+	return repo, nil
 }
 
 // NewRepositoryFromDB wraps an already-open routed database.
@@ -320,6 +334,9 @@ func metricsSelectSQL(where string) string {
 }
 
 func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFilter) ([]*models.MetricsResponse, error) {
+	if r.compacting.Load() {
+		return nil, repository.ErrMaintenance
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -329,26 +346,22 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 	// Bound the read in SQL, not after loading every matching row: keep only
 	// the newest `limit` cycles by locating the oldest one to include.
 	var cutoff sql.NullString
-	cutoffArgs := append(append([]interface{}{}, args...), limit-1)
-	if err := r.db.QueryRowContext(ctx, metricsCutoffSQL(where), cutoffArgs...).Scan(&cutoff); err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
-	if cutoff.Valid {
-		// Bind the cutoff as a time so the driver renders it in the stored
-		// text layout; the scanned string is RFC3339 and would not compare.
-		cutoffAt, err := parseTime(cutoff.String)
-		if err != nil {
-			return nil, fmt.Errorf("parse metrics cutoff %q: %w", cutoff.String, err)
+	if len(filter.SampleBuckets) == 0 {
+		cutoffArgs := append(append([]interface{}{}, args...), limit-1)
+		if err := r.db.QueryRowContext(ctx, metricsCutoffSQL(where), cutoffArgs...).Scan(&cutoff); err != nil && err != sql.ErrNoRows {
+			return nil, err
 		}
-		where += " AND observed_at >= ?"
-		args = append(args, cutoffAt.UTC())
+		if cutoff.Valid {
+			// Bind the cutoff as a time so the driver renders it in the stored
+			// text layout; the scanned string is RFC3339 and would not compare.
+			cutoffAt, err := parseTime(cutoff.String)
+			if err != nil {
+				return nil, fmt.Errorf("parse metrics cutoff %q: %w", cutoff.String, err)
+			}
+			where += " AND observed_at >= ?"
+			args = append(args, cutoffAt.UTC())
+		}
 	}
-
-	rows, err := r.db.QueryContext(ctx, metricsSelectSQL(where), args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 
 	// Group by explicit cycle identity, never by wall-clock coincidence.
 	type entry struct {
@@ -358,19 +371,56 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 		Timestamp     time.Time
 	}
 	var entries []entry
-	for rows.Next() {
-		var e entry
-		var data string
-		if err := rows.Scan(&e.CycleID, &e.CollectorName, &data, &e.Timestamp); err != nil {
-			return nil, err
+	readRows := func(query string, queryArgs ...interface{}) error {
+		rows, err := r.db.QueryContext(ctx, query, queryArgs...)
+		if err != nil {
+			return err
 		}
-		if err := json.Unmarshal([]byte(data), &e.Values); err != nil {
-			return nil, err
+		defer rows.Close()
+		for rows.Next() {
+			var e entry
+			var data string
+			if err := rows.Scan(&e.CycleID, &e.CollectorName, &data, &e.Timestamp); err != nil {
+				return err
+			}
+			if err := json.Unmarshal([]byte(data), &e.Values); err != nil {
+				return err
+			}
+			entries = append(entries, e)
 		}
-		entries = append(entries, e)
+		return rows.Err()
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
+	if len(filter.SampleBuckets) == 0 {
+		if err := readRows(metricsSelectSQL(where), args...); err != nil {
+			return nil, err
+		}
+	} else {
+		// Each inner SELECT is a backward seek on idx_metrics_observed_at.
+		// Chunk UNION terms to stay below SQLite's compound-select and bind limits.
+		buckets := filter.SampleBuckets
+		if len(buckets) > limit {
+			buckets = buckets[len(buckets)-limit:]
+		}
+		for offset := 0; offset < len(buckets); offset += 200 {
+			end := min(offset+200, len(buckets))
+			parts := make([]string, 0, end-offset)
+			queryArgs := append([]interface{}{}, args...)
+			for _, bucket := range buckets[offset:end] {
+				collector := ""
+				if filter.CollectorName != "" {
+					collector = " AND collector_name = ?"
+				}
+				parts = append(parts, "SELECT cycle_id, observed_at FROM (SELECT cycle_id, observed_at FROM metrics WHERE observed_at > ? AND observed_at <= ?"+collector+" ORDER BY observed_at DESC, cycle_id DESC LIMIT 1)")
+				queryArgs = append(queryArgs, bucket.StartTime.UTC(), bucket.EndTime.UTC())
+				if filter.CollectorName != "" {
+					queryArgs = append(queryArgs, filter.CollectorName)
+				}
+			}
+			query := "SELECT cycle_id, collector_name, metric_data, observed_at FROM metrics" + where + " AND (cycle_id, observed_at) IN (" + strings.Join(parts, " UNION ALL ") + ") ORDER BY observed_at ASC"
+			if err := readRows(query, queryArgs...); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	metricsMap := make(map[string]*models.MetricsResponse)
@@ -404,6 +454,9 @@ func (r *Repository) GetMetrics(ctx context.Context, filter repository.MetricsFi
 }
 
 func (r *Repository) GetLatestMetrics(ctx context.Context) (*models.MetricsResponse, error) {
+	if r.compacting.Load() {
+		return nil, repository.ErrMaintenance
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -1081,6 +1134,7 @@ func hydrateMetricsResponse(resp *models.MetricsResponse, cycleID string, observ
 		resp.CPUModeIowait = cpuModeMetricState(cycleID, observedAt, values, "iowait")
 		resp.CPUModeSteal = cpuModeMetricState(cycleID, observedAt, values, "steal")
 	case "memory":
+		resp.KernelMemory = repository.KernelMemoryFromValues(values, cycleID, observedAt)
 		resp.MemoryState = state
 		if mem, ok := values["usage_percent"].(float64); ok {
 			resp.MemoryUsage = mem

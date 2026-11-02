@@ -290,6 +290,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
         <span className="text-sm font-bold">Cooldown:</span>
         <input
           type="range"
+          aria-label="Automatic trigger cooldown in seconds"
           min="60"
           max="3600"
           step="60"
@@ -429,7 +430,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                     }}
                   />
                 </div>
-                <span className="text-xs font-mono" style={{ color: getProgressColor(pct), flexShrink: 0 }}>
+                <span className="text-xs font-mono" style={{ color: 'var(--color-text)', flexShrink: 0 }}>
                   {formatTriggerReadout(trigger.currentValue, trigger.threshold, trigger.unit)}
                 </span>
               </div>

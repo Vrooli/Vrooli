@@ -142,3 +142,35 @@ func TestWriterSamplerRotatesExpandedChildrenAcrossSamples(t *testing.T) {
 		}
 	}
 }
+
+// A budget-truncated walk reaches an arbitrary fraction of a large tree. Two
+// such lower bounds must never become a growth rate or a hot verdict, and the
+// next complete walk must be compared with the last complete one.
+func TestWriterSamplerNeverDerivesRateOrHotFromPartialWalks(t *testing.T) {
+	const gib = int64(1 << 30)
+	sampler := NewWriterSamplerWithConfig([]GovernedRoot{{ID: "go-build-cache", Root: "/cache", Mount: "/", HotWriterBytesHour: gib}}, WriterSamplerConfig{Interval: time.Minute})
+	walks := []struct {
+		bytes   int64
+		partial bool
+	}{{49 * gib, false}, {1 * gib, true}, {3 * gib, true}, {2 * gib, true}, {49*gib + 100, false}}
+	next := 0
+	sampler.measure = func(context.Context, string) (int64, bool) {
+		walk := walks[next]
+		next++
+		return walk.bytes, walk.partial
+	}
+	start := time.Unix(1000, 0)
+	var snapshots []WriterSnapshot
+	for i := range walks {
+		snapshots = append(snapshots, sampler.Sample(context.Background(), start.Add(time.Duration(i)*time.Minute))...)
+	}
+	for _, snapshot := range snapshots[1:4] {
+		if !snapshot.Partial || snapshot.Hot || snapshot.BytesPerHour != 0 || snapshot.DeltaBytes != 0 {
+			t.Fatalf("partial walk produced growth evidence: %#v", snapshot)
+		}
+	}
+	last := snapshots[4]
+	if last.Partial || last.Hot || last.DeltaBytes != 100 || last.DeltaHours != (4*time.Minute).Hours() {
+		t.Fatalf("complete walk was not compared with the last complete walk: %#v", last)
+	}
+}

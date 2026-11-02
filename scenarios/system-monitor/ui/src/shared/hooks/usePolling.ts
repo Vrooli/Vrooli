@@ -35,15 +35,19 @@ export function usePolling(
     if (!enabled || intervalMs <= 0) return;
 
     let timeoutId: ReturnType<typeof setTimeout>;
+    let cancelled = false;
 
     const tick = async () => {
+      if (cancelled) return;
       try {
         await savedCallback.current();
+        if (cancelled) return;
         // Success: reset to base interval
         if (backoffRef.current?.enabled) {
           currentIntervalRef.current = intervalMs;
         }
       } catch {
+        if (cancelled) return;
         // Failure: double interval up to max
         if (backoffRef.current?.enabled) {
           currentIntervalRef.current = Math.min(
@@ -57,6 +61,6 @@ export function usePolling(
 
     timeoutId = setTimeout(() => { void tick(); }, currentIntervalRef.current);
 
-    return () => { clearTimeout(timeoutId); };
+    return () => { cancelled = true; clearTimeout(timeoutId); };
   }, [intervalMs, enabled]);
 }

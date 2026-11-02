@@ -22,6 +22,9 @@ export interface LogQueryState {
   error: string | null;
   available: boolean;
   reason?: string;
+  loadedPage?: { filters: LogQueryFilters; cursorStack: string[]; currentCursor?: string; nextCursor?: string };
+  retryFilters?: LogQueryFilters;
+  retryCursorStack?: string[];
 }
 
 export const initialState: LogQueryState = {
@@ -37,6 +40,7 @@ export type LogQueryAction =
   | { type: 'set-filter'; patch: Partial<LogQueryFilters> }
   | { type: 'reset-filters' }
   | { type: 'fetch-start' }
+  | { type: 'fetch-cancel' }
   | {
       type: 'fetch-success';
       entries: LogEntry[];
@@ -44,7 +48,9 @@ export type LogQueryAction =
       available: boolean;
       reason?: string;
     }
-  | { type: 'fetch-error'; error: string }
+  | { type: 'fetch-error'; error: string; retryCursorStack?: string[] }
+  | { type: 'restore-loaded' }
+  | { type: 'page-success'; entries: LogEntry[]; nextCursor?: string; cursorStack: string[]; currentCursor?: string }
   | { type: 'next-page' }
   | { type: 'prev-page' };
 
@@ -64,6 +70,7 @@ export function logQueryReducer(state: LogQueryState, action: LogQueryAction): L
         cursorStack: [],
         currentCursor: undefined,
         nextCursor: undefined,
+        retryCursorStack: undefined,
       };
     }
     case 'reset-filters':
@@ -73,10 +80,16 @@ export function logQueryReducer(state: LogQueryState, action: LogQueryAction): L
         cursorStack: [],
         currentCursor: undefined,
         nextCursor: undefined,
+        retryCursorStack: undefined,
       };
     case 'fetch-start':
       return { ...state, isLoading: true, error: null };
+    case 'fetch-cancel':
+      return { ...state, isLoading: false };
     case 'fetch-success':
+      if (!action.available) {
+        return { ...state, isLoading: false, available: false, reason: action.reason };
+      }
       return {
         ...state,
         isLoading: false,
@@ -85,9 +98,29 @@ export function logQueryReducer(state: LogQueryState, action: LogQueryAction): L
         nextCursor: action.nextCursor,
         available: action.available,
         reason: action.reason,
+        loadedPage: { filters: state.filters, cursorStack: state.cursorStack, currentCursor: state.currentCursor, nextCursor: action.nextCursor },
+        retryFilters: undefined,
+        retryCursorStack: undefined,
       };
     case 'fetch-error':
-      return { ...state, isLoading: false, error: action.error };
+      return { ...state, isLoading: false, error: action.error, available: true, reason: undefined, retryCursorStack: action.retryCursorStack };
+    case 'restore-loaded':
+      if (!state.loadedPage) return state;
+      return {
+        ...state, filters: state.loadedPage.filters, cursorStack: state.loadedPage.cursorStack,
+        currentCursor: state.loadedPage.currentCursor, nextCursor: state.loadedPage.nextCursor,
+        retryFilters: state.filters !== state.loadedPage.filters ? state.filters : state.retryFilters,
+        error: null, available: true, reason: undefined, isLoading: false, retryCursorStack: undefined,
+      };
+    case 'page-success':
+      return {
+        ...state, isLoading: false, error: null, available: true, reason: undefined,
+        entries: action.entries, nextCursor: action.nextCursor,
+        cursorStack: action.cursorStack, currentCursor: action.currentCursor,
+        loadedPage: { filters: state.filters, cursorStack: action.cursorStack, currentCursor: action.currentCursor, nextCursor: action.nextCursor },
+        retryFilters: undefined,
+        retryCursorStack: undefined,
+      };
     case 'next-page': {
       if (!state.nextCursor) return state;
       return {

@@ -1,6 +1,6 @@
 import { create } from '@bufbuild/protobuf';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AlertSchema, ListAlertsResponseSchema } from '@vrooli/proto-types/system-monitor/v1/alerts/alerts_pb';
 import { useServerAlerts } from './useServerAlerts';
@@ -64,6 +64,20 @@ describe('useServerAlerts', () => {
     await waitFor(() => expect(result.current.feed.status).toBe('error'));
     expect(result.current.feed.error).toBe('API unreachable');
     expect(result.current.alerts.map(alert => alert.id)).toEqual(['cond_orphaned_agents_host']);
+  });
+
+  it('recovers a failed feed by explicitly refreshing without losing known alerts', async () => {
+    fetchServerAlerts.mockResolvedValueOnce(activeResponse);
+    const { result } = renderHook(() => useServerAlerts(true));
+    await waitFor(() => expect(result.current.feed.status).toBe('ready'));
+    fetchServerAlerts.mockRejectedValueOnce(new Error('offline'));
+    await act(async () => { await result.current.refresh?.(); });
+    expect(result.current.feed.status).toBe('error');
+    expect(result.current.alerts).toHaveLength(1);
+    fetchServerAlerts.mockResolvedValueOnce(activeResponse);
+    await act(async () => { await result.current.refresh?.(); });
+    expect(result.current.feed.status).toBe('ready');
+    expect(result.current.alerts).toHaveLength(1);
   });
 
   it('reports a generic reason when the failure is not an Error', async () => {

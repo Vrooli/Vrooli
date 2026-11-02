@@ -8,7 +8,7 @@ interface BootPickerProps {
 
 export const BootPicker = ({ boots, value, onChange }: BootPickerProps) => (
   <label
-    className="text-xs text-muted"
+    className="logs-compact-filter text-xs text-muted"
     data-sm-style="sm-style-975684b32c"
   >
     Boot
@@ -16,7 +16,7 @@ export const BootPicker = ({ boots, value, onChange }: BootPickerProps) => (
       <option value="">All boots</option>
       {boots.map((b) => (
         <option key={b.bootId || `idx-${b.index}`} value={b.bootId || String(b.index)}>
-          {b.index === 0 ? 'current' : b.index} · {b.bootId.slice(0, 8) || '—'}
+          {b.index === 0 ? 'Current boot' : `${b.index} · ${b.bootId.slice(0, 8) || '—'}`}
         </option>
       ))}
     </select>

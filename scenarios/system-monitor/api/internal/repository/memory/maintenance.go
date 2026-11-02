@@ -50,6 +50,29 @@ func (r *MemoryRepository) PruneMetricsBefore(_ context.Context, cutoff time.Tim
 	return repository.RetentionResult{DeletedRows: deleted, Cutoff: cutoff}, nil
 }
 
+// PruneCollectorMetricsBefore removes one collector's in-memory rows older than cutoff.
+func (r *MemoryRepository) PruneCollectorMetricsBefore(_ context.Context, collector string, cutoff time.Time) (repository.RetentionResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	kept := r.metrics[:0]
+	var deleted int64
+	for _, entry := range r.metrics {
+		if entry.CollectorName == collector && entry.Timestamp.Before(cutoff) {
+			deleted++
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	r.metrics = kept
+	return repository.RetentionResult{DeletedRows: deleted, Cutoff: cutoff}, nil
+}
+
+// ReleaseFreePages is not meaningful for an in-memory repository.
+func (r *MemoryRepository) ReleaseFreePages(_ context.Context, _ int64) (int64, error) {
+	return 0, repository.ErrNotSupported
+}
+
 // SQLiteStats is not meaningful for an in-memory repository.
 func (r *MemoryRepository) SQLiteStats(_ context.Context) (repository.DatabaseStats, error) {
 	return repository.DatabaseStats{}, repository.ErrNotSupported

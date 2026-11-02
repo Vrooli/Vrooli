@@ -144,9 +144,53 @@ Level derivation (`collectors.DeriveMemoryPressureLevel`):
 
 Boundaries are settings (`memory_pressure_*`, see
 [configuration](../reference/configuration.md#alert-evaluation-and-memory-pressure)).
+The memory detail view shows this server-derived verdict, its determining
+reason, observation time, directional swap rates and 60-second PSI stalls.
+Combined swap traffic and swap occupancy remain separate observations: neither
+alone proves thrashing. Missing or failed signal states retain their reasons.
+
 Rates come from the pressure collector's shared counter-rate tracker, so the
 first sample after start is `not_yet_sampled` on every platform. "Sustained"
 is the alert evaluator's job, not the collector's.
+
+**Kernel allocation accounting.** `kernel_memory` is a separate typed object in
+current metrics, detailed memory and the retained metrics timeline. Linux uses
+shared host-inventory `/proc/meminfo` fields `Slab`, `SReclaimable` and
+`SUnreclaim`, converted from kB to bytes, plus physical RAM for context. Each
+field carries its own measured/unavailable state and source observation time.
+Other platforms report unsupported; missing fields remain absent measurements,
+acquisition failures remain failed, and historical rows predating collection
+report not-yet-sampled rather than zero. Existing JSON cycle retention stores
+these gauges without a schema migration. The memory detail view plots the
+retained amounts and shows unreclaimable slab as a share of physical RAM.
+
+These are allocation gauges, not a pressure or leak verdict. Correlate sustained
+growth with workload, stalls and kernel-cache attribution before diagnosing a
+leak. The collector adds no privileged `/proc/slabinfo` probe, automatic cleanup
+or threshold. Non-slab kernel allocations are outside this object.
+The native `memory-pressure` investigation includes the latest scheduler-owned
+kernel accounting alongside the pressure reading, preserving each field's
+availability and source time. A missing or failed kernel source is reported
+explicitly without discarding the pressure result. This is an observation of
+aggregate accounting; it does not identify a cache, allocator, or leak.
+
+The metrics timeline uses the requested interval to select the newest cycle in
+each time bucket. SQLite selects bucket candidates with bounded indexed seeks;
+the memory repository applies the same selection to its retained cycles. The
+response covers at most the newest 1,000 buckets and reports the resulting
+effective window when a finer interval would exceed that limit. Empty buckets
+do not imply zero or continuous coverage.
+
+The native `process-read-activity` investigation is on demand. Linux reads at
+most 4,096 processes twice, separated by two seconds, and ranks at most 20
+matched processes by bytes returned by read-like calls per second, plus a
+separate top 20 by storage-layer bytes. Rates use each process's actual observation
+interval and require matching process start identities and nondecreasing
+counters. The result reports permission failures, exits, unmatched processes
+and truncation. Linux `/proc/<pid>/io` includes waited-for children, so rows can
+overlap; short-lived processes between observations can be missed. Scenario
+owners are heuristic. Other platforms return `unsupported`; no rate is
+invented. This investigation does not run on the regular collection cycle.
 
 **Attribution.** At `elevated` or `critical` the monitor attaches up to five
 contributors from the shared process sampler, ranked by measured fault rate and
@@ -277,3 +321,26 @@ Threshold Evaluation (warning/critical levels)
 - **Aligned scheduler target**: Metrics, thresholds, anomaly checks, health probes, and process attribution should converge toward aligned intervals so system-monitor's own overhead is measurable and bounded.
 - **Interface-driven services**: All service dependencies flow through interfaces for testability
 - **Pluggable collectors**: New metric sources added without modifying existing code
+
+## Metrics maintenance
+
+The retention scheduler prunes the `metrics` table hourly. Every collector keeps
+its rows for `metrics_retention_days` (default 30), except collectors with a
+shorter window in `SYSTEM_MONITOR_COLLECTOR_RETENTION` (default
+`device_graph=48h,network=168h,pressure=168h`). The device graph is served live,
+so its ~125 KB snapshots are forensic history only; reports read at most 7 days
+of network and pressure history. A window longer than the global one is ignored.
+
+New databases use `auto_vacuum=INCREMENTAL`, and each retention pass returns
+freed pages with bounded `PRAGMA incremental_vacuum(1024)` batches, taking the
+write lock per batch. A database created before this mode stays in
+`auto_vacuum=NONE` until one full VACUUM converts it. The owner runs that
+conversion itself from the retention pass when every gate holds: free pages
+are at least 1 GiB and 20% of the file, local time is inside the quiet window
+(`SYSTEM_MONITOR_COMPACTION_WINDOW`, default `2-5`), and the disk holds twice
+the live bytes plus the WAL plus 4 GiB. While the rewrite holds the write lock,
+latest-metrics and timeline reads return `ErrMaintenance` at once, so health
+answers from the in-memory snapshot instead of queueing. Each performed or
+failed conversion writes `state/retention/compaction-receipt.json`.
+`system-monitor maintenance compact apply --confirm` remains an optional way to
+convert immediately.

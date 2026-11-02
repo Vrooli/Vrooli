@@ -35,7 +35,7 @@ export const FilterBar = ({ filters, units, boots, onChange, onReset }: FilterBa
   const commitGrep = () => {
     const parsed = parseGrep(grepDraft);
     setGrepError(parsed.error);
-    if (!parsed.error) onChange({ grep: parsed.pattern });
+    if (!parsed.error && parsed.pattern !== filters.grep) onChange({ grep: parsed.pattern });
   };
 
   const onUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -49,7 +49,7 @@ export const FilterBar = ({ filters, units, boots, onChange, onReset }: FilterBa
       data-sm-style="sm-style-436d528fbb"
     >
       <label
-        className="text-xs text-muted"
+        className="logs-unit-filter text-xs text-muted"
         data-sm-style="sm-style-e240e6f52c"
       >
         Unit
@@ -64,7 +64,7 @@ export const FilterBar = ({ filters, units, boots, onChange, onReset }: FilterBa
       </label>
 
       <label
-        className="text-xs text-muted"
+        className="logs-compact-filter text-xs text-muted"
         data-sm-style="sm-style-975684b32c"
       >
         Priority
@@ -80,16 +80,10 @@ export const FilterBar = ({ filters, units, boots, onChange, onReset }: FilterBa
         </select>
       </label>
 
-      <TimeRangePicker
-        since={filters.since}
-        until={filters.until}
-        onChange={(patch) => { onChange(patch); }}
-      />
-
       <BootPicker boots={boots} value={filters.boot} onChange={(boot) => { onChange({ boot }); }} />
 
       <label
-        className="text-xs text-muted"
+        className="logs-grep-filter text-xs text-muted"
         data-sm-style="sm-style-616fcc4c59"
       >
         Grep (regex)
@@ -110,7 +104,7 @@ export const FilterBar = ({ filters, units, boots, onChange, onReset }: FilterBa
         )}
       </label>
 
-      <label className="text-xs text-muted flex-row-center gap-sm">
+      <label className="logs-kernel-filter text-xs text-muted flex-row-center gap-sm">
         <input
           type="checkbox"
           checked={filters.kernel}
@@ -118,6 +112,17 @@ export const FilterBar = ({ filters, units, boots, onChange, onReset }: FilterBa
         />
         Kernel only
       </label>
+
+      <label className="text-xs text-muted">
+        Limit
+        <input type="number" min={1} max={500} value={filters.limit} onChange={(e) => { onChange({ limit: Number(e.target.value) }); }} />
+      </label>
+
+      <TimeRangePicker
+        since={filters.since}
+        until={filters.until}
+        onChange={(patch) => { onChange(patch); }}
+      />
 
       <button type="button" className="header-button" onClick={onReset}>
         Reset

@@ -59,7 +59,7 @@ describe('SystemSettingsModal', () => {
     render(<SystemSettingsModal isOpen onClose={onClose} />);
     await screen.findByText('System Monitor Settings');
 
-    const numbers = screen.getAllByRole('spinbutton');
+    const numbers = await screen.findAllByRole('spinbutton');
     for (const input of numbers) fireEvent.change(input, { target: { value: '' } });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: 'Reset to Defaults' }));

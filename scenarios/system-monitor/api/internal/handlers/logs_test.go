@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/services/journal"
@@ -62,6 +63,25 @@ func TestLogsHandlerHappyPath(t *testing.T) {
 	}
 	if len(r.lastOpts.Unit) != 1 || r.lastOpts.Unit[0] != "docker" {
 		t.Errorf("unit: %v", r.lastOpts.Unit)
+	}
+}
+
+func TestLogsHandlerPreservesLargeJournalResponse(t *testing.T) {
+	message := strings.Repeat("m", 4*1024*1024+1)
+	metadata := strings.Repeat("e", 5000)
+	raw := `{"__CURSOR":"large-cursor","MESSAGE":"` + message + `","CUSTOM_FIELD":"` + metadata + `"}`
+	reader := &fakeReader{entries: []journal.LogEntry{{Cursor: "large-cursor", Message: message, Raw: raw}}}
+	response := httptest.NewRecorder()
+	NewLogsHandler(reader, slog.Default()).Logs(response, httptest.NewRequest(http.MethodGet, "/api/v1/logs", nil))
+	if response.Code != http.StatusOK {
+		t.Fatalf("status: %d", response.Code)
+	}
+	var decoded LogsResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if !decoded.Available || len(decoded.Entries) != 1 || decoded.Entries[0].Cursor != "large-cursor" || decoded.Entries[0].Message != message || decoded.Entries[0].Raw != raw || decoded.NextCursor == "" {
+		t.Fatal("large record, identity, or page cursor was not preserved")
 	}
 }
 
@@ -136,6 +156,9 @@ func TestLogsHandlerJournalError(t *testing.T) {
 	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	if resp.Available {
 		t.Error("should be unavailable on error")
+	}
+	if resp.Error == "" {
+		t.Error("query failure must be distinguishable from an unavailable source")
 	}
 }
 

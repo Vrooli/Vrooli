@@ -93,7 +93,7 @@ describe('investigation operator panels', () => {
     fireEvent.keyDown(thresholdInput, { key: 'Enter' });
     await waitFor(() => { expect(mocks.apiFetch).toHaveBeenCalledWith('/investigations/triggers/high_cpu/threshold', expect.objectContaining({ method: 'PUT' })); });
 
-    fireEvent.change(screen.getByRole('slider'), { target: { value: '600' } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Automatic trigger cooldown in seconds' }), { target: { value: '600' } });
     await waitFor(() => { expect(mocks.apiFetch).toHaveBeenCalledWith('/investigations/cooldown/period', expect.objectContaining({ method: 'PUT' })); });
     fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
     await waitFor(() => { expect(mocks.apiFetch).toHaveBeenCalledWith('/investigations/cooldown/reset', expect.objectContaining({ method: 'POST' })); });
@@ -132,7 +132,7 @@ describe('investigation operator panels', () => {
     expect(screen.getByTitle('Disable auto-fix')).toBeDisabled();
     fireEvent.click(screen.getByTitle('Enable trigger'));
     await waitFor(() => { expect(mocks.apiFetch).toHaveBeenCalledWith('/investigations/triggers/unknown', expect.objectContaining({ method: 'PUT' })); });
-    expect(screen.getByTitle('Disable auto-fix')).toBeEnabled();
+    await waitFor(() => { expect(screen.getByTitle('Disable auto-fix')).toBeEnabled(); });
   });
 
   it('loads, filters, opens, refreshes, and creates investigation scripts', async () => {

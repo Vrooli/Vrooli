@@ -56,7 +56,7 @@ export const MachinePresenceNote = ({
         <h2 className="machine-note__title">Nothing to read from {machine.name}</h2>
         <p>
           {machine.name} is registered with the bridge but cannot be dispatched to, so system-monitor
-          has no way to ask it for readings. Linking it again from vrooli-bridge restores the channel.
+          has no way to ask it for readings. Inspect its connection in vrooli-bridge and relink it if needed.
         </p>
         {/* The age is the fact that separates "it just went down" from "nobody
             has used this machine in a week", and it changes what a reader does
@@ -86,7 +86,7 @@ export const MachinePresenceNote = ({
 
   return (
     <div className="card machine-note" data-tone="stale" data-testid="machine-presence-note">
-      <h2 className="machine-note__title">Every reading below is frozen at one moment</h2>
+      <h2 className="machine-note__title">{lastSuccessfulFetch ? 'Every reading below is frozen at one moment' : 'No reading has been received'}</h2>
       <p>
         The channel to {machine.name} closed. Vrooli is retrying every {retryIntervalSeconds} seconds
         and will reconnect on its own when the machine is reachable again.

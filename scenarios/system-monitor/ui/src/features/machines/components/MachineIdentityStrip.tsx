@@ -51,7 +51,7 @@ export const MachineIdentityStrip = ({
           {losing ? (
             <span>
               <b>{machine.name}</b> stopped responding
-              {lastSuccessfulFetch ? ` ${agoLabel(lastSuccessfulFetch)}` : ''} &mdash; showing its last reading
+              {lastSuccessfulFetch ? ` ${agoLabel(lastSuccessfulFetch)} — showing its last reading` : ' — no reading has been received'}
             </span>
           ) : unreachable ? (
             <span>

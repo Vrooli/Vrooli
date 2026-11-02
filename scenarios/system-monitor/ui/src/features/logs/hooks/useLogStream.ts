@@ -14,6 +14,8 @@ export interface UseLogStreamOptions {
   intervalMs?: number;
   enabled?: boolean;
   onTick: () => void | Promise<void>;
+  initialPaused?: boolean;
+  initialAtTop?: boolean;
 }
 
 export interface UseLogStreamResult {
@@ -27,9 +29,11 @@ export function useLogStream({
   intervalMs = 10_000,
   enabled = true,
   onTick,
+  initialPaused = false,
+  initialAtTop = true,
 }: UseLogStreamOptions): UseLogStreamResult {
-  const [paused, setPaused] = useState(false);
-  const [atTop, setAtTop] = useState(true);
+  const [paused, setPaused] = useState(initialPaused);
+  const [atTop, setAtTop] = useState(initialAtTop);
 
   usePolling(onTick, intervalMs, enabled && !paused && atTop);
 

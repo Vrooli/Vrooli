@@ -37,12 +37,15 @@
 
 .device-graph-panel__list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--spacing-sm);
 }
 
 .device-graph-panel__device {
   flex-direction: column;
   align-items: stretch;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: var(--spacing-sm) 0;
   border-top: 1px solid var(--color-border);
 }
@@ -50,6 +53,7 @@
 .device-graph-panel__readings,
 .device-graph-panel__rungs {
   display: grid;
+  min-width: 0;
   gap: 0.25rem;
   margin: 0;
   padding: 0;
@@ -727,23 +731,15 @@
   50% { opacity: 0.45; transform: translate(-50%, -50%) scale(0.78); }
 }
 
-.readout-trace__tooltip {
-  position: absolute;
-  top: -4px;
-  transform: translate(-50%, -100%);
-  padding: 3px 7px;
-  border: 1px solid var(--chart-tooltip-border);
-  border-radius: var(--radius-sm);
-  background: var(--chart-tooltip-bg);
-  box-shadow: var(--chart-tooltip-shadow);
+/* Reserve a steady line so hovering never moves the plot under the pointer. */
+.readout-trace__summary {
+  min-height: 1.5em;
   color: var(--color-text-heading);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-variant-numeric: var(--numeric-tabular);
-  line-height: 1.2;
-  white-space: nowrap;
-  pointer-events: none;
-  z-index: 10;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 /* ── Empty state ──
@@ -823,5 +819,36 @@
   .readout-toggle,
   .readout-detail__btn {
     transition: none;
+  }
+}
+
+/* The overview's five histories form one instrument rather than five tiles. */
+.metrics-grid .readout-card { gap: .3rem; }
+.metrics-grid .readout-card__stripe { display: none; }
+.metrics-grid .readout-card__label { color: var(--color-text-heading); font-size: 1.1rem; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.metrics-grid .readout-figure__value { font-size: 2rem; font-weight: 500; }
+.metrics-grid .readout-figure__unit { font-size: .9rem; }
+.metrics-grid .readout-trace__window { letter-spacing: 0; text-transform: none; }
+.metrics-grid .readout-detail { margin-top: .25rem; }
+.readout-trace__axis { display: flex; justify-content: space-between; gap: .5rem; color: var(--color-text-secondary); font-size: .75rem; margin-right: 2rem; }
+.metrics-grid .readout-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-content: start; }
+.metrics-grid .metric-header { grid-column: 1; grid-row: 1; justify-content: flex-start; }
+.metrics-grid .readout-figure { grid-column: 2; grid-row: 1; justify-self: end; align-self: center; }
+.metrics-grid .metric-observed-at, .metrics-grid .readout-reason, .metrics-grid .readout-caption,
+.metrics-grid .overview-chart, .metrics-grid .metric-details, .metrics-grid .readout-detail { grid-column: 1 / -1; }
+.metrics-grid .readout-toggle { min-width: 44px; }
+.metrics-grid .readout-detail__btn { min-height: 44px; }
+@media (max-width: 768px) {
+  .metrics-grid .readout-trace__window, .metrics-grid .readout-caption {
+    font-family: var(--font-body);
+    font-size: .8125rem;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+  .metrics-grid .readout-detail__btn {
+    font-family: var(--font-body);
+    font-size: .875rem;
+    letter-spacing: 0;
+    text-transform: none;
   }
 }

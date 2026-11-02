@@ -59,6 +59,7 @@ func MetricsResponseToProto(m *models.MetricsResponse) *metricspb.MetricsRespons
 		Timestamp:          timestamppb.New(m.Timestamp),
 		Cpu:                metricValue(m.CPUState, m.CPUUsage),
 		Memory:             metricValue(m.MemoryState, m.MemoryUsage),
+		KernelMemory:       kernelMemoryToProto(m.KernelMemory),
 		Connections:        metricValue(m.ConnectionsState, float64(m.TCPConnections)),
 		Gpu:                metricValue(gpuState, dereferenceFloat(m.GPUUsage)),
 		Disk:               metricValue(m.DiskState, m.DiskUsage),
@@ -87,6 +88,12 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 	}
 	samples := make([]*metricspb.MetricTimelineSample, len(m.Samples))
 	for i, s := range m.Samples {
+		// A cycle can omit a slower collector entirely. Preserve absence instead
+		// of turning the nil legacy scalar into a measured zero.
+		var gpu *metricspb.MetricValue
+		if s.GPUState.Status != "" || s.GPUUsage != nil {
+			gpu = metricValue(s.GPUState, dereferenceFloat(s.GPUUsage))
+		}
 		samples[i] = &metricspb.MetricTimelineSample{
 			CycleId:                     s.CycleID,
 			Timestamp:                   timestamppb.New(s.Timestamp),
@@ -97,8 +104,9 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 			SwapUsage:                   s.SwapUsage,
 			Cpu:                         metricValue(s.CPUState, s.CPUUsage),
 			Memory:                      metricValue(s.MemoryState, s.MemoryUsage),
+			KernelMemory:                kernelMemoryToProto(s.KernelMemory),
 			Connections:                 metricValue(s.ConnectionsState, float64(s.TCPConnections)),
-			Gpu:                         metricValue(s.GPUState, dereferenceFloat(s.GPUUsage)),
+			Gpu:                         gpu,
 			Swap:                        metricValue(s.SwapState, dereferenceFloat(s.SwapUsage)),
 			SwapTraffic:                 metricValue(s.SwapTrafficState, 0),
 			MajorFaults:                 metricValue(s.MajorFaultsState, 0),
@@ -118,11 +126,18 @@ func MetricsTimelineResponseToProto(m *models.MetricsTimelineResponse) *metricsp
 			NetworkCloseWaitRate:        metricValue(s.NetworkCloseWaitRate, 0),
 		}
 	}
-	return &metricspb.MetricsTimelineResponse{
+	response := &metricspb.MetricsTimelineResponse{
 		WindowSeconds:         int32(m.WindowSeconds),
 		SampleIntervalSeconds: int32(m.SampleIntervalSeconds),
 		Samples:               samples,
 	}
+	if !m.WindowStart.IsZero() {
+		response.WindowStart = timestamppb.New(m.WindowStart)
+	}
+	if !m.WindowEnd.IsZero() {
+		response.WindowEnd = timestamppb.New(m.WindowEnd)
+	}
+	return response
 }
 
 func DetailedMetricsToProto(m *models.DetailedMetrics) *metricspb.DetailedMetrics {
@@ -265,8 +280,19 @@ func memoryMetricsToProto(m models.MemoryMetrics) *metricspb.MemoryMetrics {
 		Paging:             pagingMetricsToProto(m.Paging),
 		Fragmentation:      fragmentationMetricsToProto(m.Fragmentation),
 		MemoryPressure:     MemoryPressureToProto(m.MemoryPressure),
+		KernelMemory:       kernelMemoryToProto(m.KernelMemory),
 	}
 	return pb
+}
+
+func kernelMemoryToProto(m *models.KernelMemoryMetrics) *metricspb.KernelMemoryMetrics {
+	if m == nil {
+		return nil
+	}
+	return &metricspb.KernelMemoryMetrics{
+		SlabBytes: metricValue(m.SlabBytes, 0), ReclaimableBytes: metricValue(m.ReclaimableBytes, 0),
+		UnreclaimableBytes: metricValue(m.UnreclaimableBytes, 0), HostTotalBytes: metricValue(m.HostTotalBytes, 0),
+	}
 }
 
 // MemoryPressureToProto projects the memory-pressure reading. Every signal
@@ -688,7 +714,15 @@ func messageQueueInfoToProto(m models.MessageQueueInfo) *metricspb.MessageQueueI
 }
 
 func storageIOInfoToProto(m models.StorageIOInfo) *metricspb.StorageIOInfo {
+	if m.ReadRate.Status == "" {
+		m.ReadRate = models.MetricState{Status: "unsupported", Reason: "Disk read rate has no measured source"}
+	}
+	if m.WriteRate.Status == "" {
+		m.WriteRate = models.MetricState{Status: "unsupported", Reason: "Disk write rate has no measured source"}
+	}
 	return &metricspb.StorageIOInfo{
+		ReadRate:       metricValue(m.ReadRate, m.ReadMBPerSec),
+		WriteRate:      metricValue(m.WriteRate, m.WriteMBPerSec),
 		DiskQueueDepth: m.DiskQueueDepth,
 		IoWaitPercent:  m.IOWaitPercent,
 		ReadMbPerSec:   m.ReadMBPerSec,

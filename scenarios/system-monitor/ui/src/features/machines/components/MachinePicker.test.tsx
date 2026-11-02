@@ -102,11 +102,10 @@ describe('MachinePicker', () => {
     expect(screen.queryByTestId('add-machine')).not.toBeInTheDocument();
   });
 
-  it('falls back to the first machine when the selected id is unknown', () => {
+  it('keeps an unknown selected subject visible', () => {
     renderPicker({ selectedMachineID: 'retired' });
-    // Better than an empty control: the picker still names something real
-    // while App reconciles the stale id away.
-    expect(screen.getByTestId('machine-picker')).toHaveTextContent('This machine');
+    expect(screen.getByTestId('machine-picker')).toHaveTextContent('retired');
+    expect(screen.getByTestId('machine-picker')).toHaveAccessibleName(/not in the current list/);
   });
 
   it('closes and reports the choice when a row is clicked', () => {

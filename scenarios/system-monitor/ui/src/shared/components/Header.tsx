@@ -1,5 +1,6 @@
 import { Menu, Moon, Pause, Play, Settings, Sun, Terminal, X } from 'lucide-react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { getProxyInfo } from '@vrooli/api-base';
 import { useEffect, useRef, useState } from 'react';
 import { StatusIndicator } from './StatusIndicator';
 import { AgentDropdown } from './AgentDropdown';
@@ -35,6 +36,8 @@ interface HeaderProps {
   selectedMachineID?: string;
   onSelectMachine?: (machineID: string) => void;
   onAddMachine?: () => void;
+  machineDiscovery?: 'loading' | 'ready' | 'error';
+  onRetryMachines?: () => void;
   terminalDisabledReason?: string;
 }
 
@@ -56,14 +59,36 @@ export const Header = ({
   selectedMachineID = '',
   onSelectMachine,
   onAddMachine,
+  machineDiscovery = 'ready',
+  onRetryMachines,
   terminalDisabledReason
 }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
   const { range, setRange, paused, setPaused } = useTimeRange();
   const location = useLocation();
-  const navigate = useNavigate();
+  const subjectSearch = selectedMachineID ? `?${new URLSearchParams({ machine: selectedMachineID }).toString()}` : '';
+  const proxy = getProxyInfo();
+  const logoBase = (proxy?.primary?.path ?? proxy?.basePath ?? '').replace(/\/+$/, '');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const retryFocusPending = useRef(false);
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      if (retryFocusPending.current && event.target instanceof Element && !event.target.matches('.machine-discovery-fallback')) {
+        retryFocusPending.current = false;
+      }
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => { document.removeEventListener('focusin', onFocusIn); };
+  }, []);
+  useEffect(() => {
+    if (!retryFocusPending.current || machineDiscovery === 'loading') return;
+    retryFocusPending.current = false;
+    headerRef.current?.querySelector<HTMLElement>('[data-testid="machine-picker"], .machine-discovery-fallback')?.focus();
+  }, [machineDiscovery, machines]);
   const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
+  const controlsTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileNavPanelRef = useRef<HTMLElement>(null);
   const currentPath = location.pathname === '/' ? '/' : `/${location.pathname.split('/')[1]}`;
 
@@ -118,20 +143,18 @@ export const Header = ({
   }, [mobileNavOpen]);
 
   const closeMobileNav = () => { setMobileNavOpen(false); };
-  const navigateFromMobileNav = (path: string) => {
-    closeMobileNav();
-    void navigate(path);
-  };
+
 
   return (
-    <header className="app-header">
+    <header className="app-header" ref={headerRef}>
       <div className="app-header-inner">
         <div className="app-header-brand">
           <h1
             className="system-monitor-title icon-text"
             data-sm-style="sm-style-a02ac2f8c1"
           >
-            <span className="system-monitor-title-text">System Monitor</span>
+            <img src={`${logoBase}/public/logo.svg`} alt="" className="vega-logo" />
+            <span className="system-monitor-title-text">Vega</span>
           </h1>
 
           <button
@@ -150,7 +173,7 @@ export const Header = ({
 
         <nav className="app-nav flex-row-center gap-sm" aria-label="Primary navigation" data-sm-style="sm-style-c938f99d82">
           {NAV_ITEMS.map(item => (
-            <NavLink key={item.path} to={item.path} end={item.path === '/'} className="app-nav-link">
+            <NavLink key={item.path} to={{ pathname: item.path, search: subjectSearch }} end={item.path === '/'} className="app-nav-link">
               {item.label}
             </NavLink>
           ))}
@@ -180,10 +203,10 @@ export const Header = ({
                 {NAV_ITEMS.map(item => (
                   <NavLink
                     key={item.path}
-                    to={item.path}
+                    to={{ pathname: item.path, search: subjectSearch }}
                     end={item.path === '/'}
                     className="app-mobile-nav-link"
-                    onClick={() => { navigateFromMobileNav(item.path); }}
+                    onClick={closeMobileNav}
                   >
                     <span>{item.label}</span>
                     {currentPath === item.path && <span className="app-mobile-nav-current">Current</span>}
@@ -195,25 +218,6 @@ export const Header = ({
         )}
 
         <div className="flex-row-center">
-          {/* Instrument-scope: what this app is currently doing. */}
-          <div className="header-group">
-            <AgentDropdown
-              agents={agents}
-              stoppingAgentIds={stoppingAgentIds}
-              agentErrors={agentErrors}
-              onStopAgent={onStopAgent}
-              onRefreshAgents={onRefreshAgents}
-            />
-
-            <StatusIndicator
-              healthStatus={healthStatus}
-              healthError={healthError}
-              onToggleMonitoring={onToggleMonitoring}
-              onRefreshHealth={onRefreshHealth}
-              isLoading={isLoadingHealth}
-            />
-          </div>
-
           {/* View-scope: these change WHAT THE PAGE SHOWS. */}
           <div className="header-group">
             {machines.length > 0 && onSelectMachine ? (
@@ -223,6 +227,12 @@ export const Header = ({
                 onSelectMachine={onSelectMachine}
                 onAddMachine={onAddMachine}
               />
+            ) : onSelectMachine ? (
+              <button type="button" className="header-button machine-discovery-fallback" onClick={() => { retryFocusPending.current = true; onRetryMachines?.(); }} disabled={machineDiscovery === 'loading'}
+                aria-label={`${selectedMachineID || 'This machine'}; ${machineDiscovery === 'loading' ? 'checking machine list' : machineDiscovery === 'error' ? 'machine list unavailable; retry' : 'machine list empty; retry'}`}>
+                <span className="machine-discovery-fallback__subject">{selectedMachineID || 'This machine'}</span>
+                <span>{machineDiscovery === 'loading' ? 'Checking' : 'Retry'}</span>
+              </button>
             ) : null}
             <label className="history-window-control">
               <span className="sr-only">Shared time range</span>
@@ -241,11 +251,38 @@ export const Header = ({
               className="header-button icon-button"
               onClick={() => { setPaused(!paused); }}
               type="button"
-              title={paused ? 'Resume live updates' : 'Pause live updates'}
-              aria-label={paused ? 'Resume live updates' : 'Pause live updates'}
+              title={paused ? 'Resume monitoring view updates' : 'Pause monitoring view updates'}
+              aria-label={paused ? 'Resume monitoring view updates' : 'Pause monitoring view updates'}
             >
               {paused ? <Play size={16} /> : <Pause size={16} />}
             </button>
+          </div>
+
+          <div className="header-more">
+            <button ref={controlsTriggerRef} type="button" className="header-more-trigger" aria-expanded={controlsOpen} aria-controls="vega-shell-controls" onClick={() => { setControlsOpen(value => !value); }}>Controls</button>
+            <div id="vega-shell-controls" className={`header-more-content${controlsOpen ? ' is-open' : ''}`} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); setControlsOpen(false); controlsTriggerRef.current?.focus(); } }}>
+          {/* Instrument-scope: what this app is currently doing. */}
+          <div className="header-group">
+            {selectedMachineID ? (
+              <span className="header-local-only">Agent and collection controls are local to this computer</span>
+            ) : (
+              <>
+            <AgentDropdown
+              agents={agents}
+              stoppingAgentIds={stoppingAgentIds}
+              agentErrors={agentErrors}
+              onStopAgent={onStopAgent}
+              onRefreshAgents={onRefreshAgents}
+            />
+
+            <StatusIndicator
+              healthStatus={healthStatus}
+              healthError={healthError}
+              onToggleMonitoring={onToggleMonitoring}
+              onRefreshHealth={onRefreshHealth}
+              isLoading={isLoadingHealth}
+            />              </>
+            )}
           </div>
 
           {/* App-scope: these change THE APP, not the reading. */}
@@ -263,9 +300,10 @@ export const Header = ({
             <button
               className="header-button icon-button"
               onClick={onOpenSettings}
+              disabled={Boolean(selectedMachineID)}
               type="button"
-              title="Open system settings"
-              aria-label="Open system settings"
+              title={selectedMachineID ? 'Settings are local to this computer' : 'Open system settings'}
+              aria-label={selectedMachineID ? 'Settings are local to this computer' : 'Open system settings'}
             >
               <Settings size={16} />
             </button>
@@ -293,6 +331,7 @@ export const Header = ({
                 </span>
               )}
             </button>
+          </div>            </div>
           </div>
         </div>
       </div>

@@ -263,6 +263,10 @@ type MetricsFilter struct {
 	CollectorName string
 	MetricNames   []string
 	TimeRange     TimeRange
+	// SampleBuckets requests the newest observed cycle in each bounded time
+	// bucket. Buckets are ordered oldest first and are (StartTime, EndTime].
+	// Empty retains the ordinary newest-cycles behavior.
+	SampleBuckets []TimeRange
 	// Limit is the maximum number of collection cycles returned, newest kept.
 	// Zero or negative selects DefaultMetricsLimit; values above
 	// MaxMetricsLimit are clamped. See EffectiveLimit.

@@ -4,6 +4,7 @@ interface RefreshControlProps {
   onRefresh: () => void;
   isLoading: boolean;
   atTop: boolean;
+  globalPaused?: boolean;
 }
 
 export const RefreshControl = ({
@@ -12,6 +13,7 @@ export const RefreshControl = ({
   onRefresh,
   isLoading,
   atTop,
+  globalPaused = false,
 }: RefreshControlProps) => (
   <div className="flex-row-center gap-sm">
     <button
@@ -27,13 +29,15 @@ export const RefreshControl = ({
       type="button"
       className="header-button"
       onClick={onTogglePause}
-      title={paused ? 'Resume auto-refresh' : 'Pause auto-refresh'}
+      disabled={globalPaused}
+      aria-pressed={paused}
+      title={globalPaused ? 'Resume the shared view first' : paused ? 'Resume log updates' : 'Pause log updates'}
     >
-      {paused ? 'Resume' : 'Pause'}
+      {paused ? 'Resume log updates' : 'Pause log updates'}
     </button>
     {!atTop && !paused && (
       <span className="text-xs text-muted" title="Auto-refresh paused while scrolled">
-        (auto-paused)
+        Updates paused while reading; this does not stop host collection.
       </span>
     )}
   </div>

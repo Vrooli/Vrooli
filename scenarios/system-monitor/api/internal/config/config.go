@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -65,6 +66,46 @@ type MonitoringConfig struct {
 	// RollupRetention is how long per-minute rollups are kept
 	// (SYSTEM_MONITOR_ROLLUP_RETENTION).
 	RollupRetention time.Duration
+	// CollectorRetention shortens the metrics window for specific collectors
+	// (SYSTEM_MONITOR_COLLECTOR_RETENTION, e.g. "device_graph=48h,network=168h").
+	// The device graph is served live and its ~125 KB snapshots are only
+	// forensic history; network/pressure history is read by reports for at
+	// most 7 days. Other collectors keep the global metrics_retention_days.
+	CollectorRetention map[string]time.Duration
+}
+
+// DefaultCollectorRetention is the per-collector metrics window applied when
+// SYSTEM_MONITOR_COLLECTOR_RETENTION is unset.
+var DefaultCollectorRetention = map[string]time.Duration{
+	"device_graph": 48 * time.Hour,
+	"network":      7 * 24 * time.Hour,
+	"pressure":     7 * 24 * time.Hour,
+}
+
+// ParseCollectorRetention parses "name=duration,name=duration". Invalid or
+// non-positive entries are skipped; an empty value yields the defaults.
+func ParseCollectorRetention(raw string) map[string]time.Duration {
+	out := map[string]time.Duration{}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		for name, window := range DefaultCollectorRetention {
+			out[name] = window
+		}
+		return out
+	}
+	for _, part := range strings.Split(raw, ",") {
+		name, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok {
+			continue
+		}
+		window, err := time.ParseDuration(strings.TrimSpace(value))
+		name = strings.TrimSpace(name)
+		if err != nil || window <= 0 || name == "" {
+			continue
+		}
+		out[name] = window
+	}
+	return out
 }
 
 // ResourcesConfig contains resource service configurations
@@ -137,6 +178,7 @@ func Load() *Config {
 			ProcSampleTopN:     getEnvAsInt("SYSTEM_MONITOR_PROC_SAMPLE_TOP_N", 50),
 			RawRetention:       getEnvAsDuration("SYSTEM_MONITOR_RAW_RETENTION", 6*time.Hour),
 			RollupRetention:    getEnvAsDuration("SYSTEM_MONITOR_ROLLUP_RETENTION", 30*24*time.Hour),
+			CollectorRetention: ParseCollectorRetention(os.Getenv("SYSTEM_MONITOR_COLLECTOR_RETENTION")),
 		},
 		Resources: ResourcesConfig{
 			NodeRedURL: getEnv("NODE_RED_URL", ""),

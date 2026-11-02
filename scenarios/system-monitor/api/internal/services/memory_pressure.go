@@ -16,6 +16,16 @@ import (
 // operator can act on.
 const memoryPressureContributorLimit = 5
 
+// GetKernelMemory returns the existing scheduler-owned observation without
+// starting another collection. Individual fields carry their own availability.
+func (s *MonitorService) GetKernelMemory(ctx context.Context) (*models.KernelMemoryMetrics, error) {
+	snapshot, err := s.GetCurrentMetricsFresh(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.KernelMemory, nil
+}
+
 // GetMemoryPressure returns the scheduler-owned memory-pressure reading. When
 // the level is elevated or critical it attaches the top paging contributors
 // from the shared process sampler, with scenario ownership attributed.

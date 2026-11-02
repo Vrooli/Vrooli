@@ -45,6 +45,16 @@ describe('Header mobile navigation', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it('opens shell controls and restores focus when dismissed with Escape', () => {
+    renderHeader();
+    const trigger = screen.getByRole('button', { name: 'Controls' });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.keyDown(document.getElementById('vega-shell-controls')!, { key: 'Escape' });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it('wraps Tab focus within the open panel', () => {
     renderHeader();
     fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
@@ -90,6 +100,10 @@ describe('Header mobile navigation', () => {
     // The trigger names the subject without being opened; a reader must never
     // have to open a menu to learn which machine they are looking at.
     expect(screen.getByTestId('machine-picker')).toHaveTextContent('Mac mini');
+    expect(screen.getByText('Agent and collection controls are local to this computer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Settings are local to this computer' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: 'Logs' })).toHaveAttribute('href', '/logs?machine=mac-node');
+    expect(screen.getByRole('heading', { name: 'Vega' }).querySelector('img')).toHaveAttribute('src', '/public/logo.svg');
 
     fireEvent.click(screen.getByTestId('machine-picker'));
 

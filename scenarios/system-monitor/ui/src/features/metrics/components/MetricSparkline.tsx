@@ -1,6 +1,12 @@
-import { useId, useMemo, useState, useCallback, useRef } from 'react';
+import { useEffect, useId, useMemo, useState, useCallback, useRef } from 'react';
 import { formatTime } from '../../../shared/utils/formatters';
 import type { ChartDataPoint } from '../../../types';
+
+export interface ChartInspection {
+  selected: { timestamp: string; raw: number } | null;
+  frozen: { data: ChartDataPoint[]; start?: string; end?: string; interval?: number; label?: string } | null;
+  zoom?: { start: string; end: string } | null;
+}
 
 interface MetricSparklineProps {
   data?: ChartDataPoint[];
@@ -14,6 +20,12 @@ interface MetricSparklineProps {
   precision?: number;
   windowLabel?: string;
   ariaLabel?: string;
+  sampleIntervalSeconds?: number;
+  windowStart?: string;
+  windowEnd?: string;
+  emptyMessage?: string;
+  inspectionStore?: Map<string, ChartInspection>;
+  inspectionKey?: string;
 }
 
 interface ComputedPoint {
@@ -21,6 +33,7 @@ interface ComputedPoint {
   y: number;
   raw: number;
   timestamp: string;
+  segment: number;
 }
 
 /** Vertical inset of the plot band inside the SVG, in viewBox units. */
@@ -33,15 +46,6 @@ const GRID_DIVISIONS = [0, 0.25, 0.5, 0.75, 1] as const;
 const VIEWBOX_WIDTH = 100;
 
 /**
- * Column resolution, expressed in the chart's own coordinate system rather
- * than as a bare vertex count: one vertex per 0.7 viewBox units. On a card
- * around 470px wide that is roughly three device pixels per vertex — fine
- * enough that the downsampling is invisible, coarse enough that the line stops
- * overprinting itself into a solid mass.
- */
-const COLUMN_UNITS = 0.7;
-
-/**
  * A near-constant series has almost no range of its own. Scaling it to the
  * plot height would magnify a rounding wobble into a mountain range and print
  * two near-identical rail bounds as though they framed a real span, so an
@@ -49,147 +53,6 @@ const COLUMN_UNITS = 0.7;
  */
 const MIN_DOMAIN_SPAN_RATIO = 0.1;
 const MIN_DOMAIN_SPAN_ABSOLUTE = 1;
-
-/** Build a smooth SVG path using monotone cubic (Catmull-Rom → bezier) interpolation. */
-function smoothPath(pts: ComputedPoint[]): string {
-  if (pts.length === 0) return '';
-  if (pts.length === 1) {
-    const [p] = pts;
-    if (!p) return '';
-    return `M${p.x},${p.y}`;
-  }
-  if (pts.length === 2) {
-    const [p0, p1] = pts;
-    if (!p0 || !p1) return '';
-    return `M${p0.x},${p0.y}L${p1.x},${p1.y}`;
-  }
-
-  const n = pts.length;
-  const dxArr: number[] = [];
-  const dyArr: number[] = [];
-  const mArr: number[] = [];
-
-  for (let i = 0; i < n - 1; i++) {
-    const cur = pts[i];
-    const next = pts[i + 1];
-    if (!cur || !next) {
-      continue;
-    }
-    const segDx = next.x - cur.x;
-    const segDy = next.y - cur.y;
-    dxArr.push(segDx);
-    dyArr.push(segDy);
-    mArr.push(segDy / (segDx || 1));
-  }
-
-  const slopes = Array.from({ length: n }, () => 0);
-  slopes[0] = mArr[0] ?? 0;
-  slopes[n - 1] = mArr[n - 2] ?? 0;
-  for (let i = 1; i < n - 1; i++) {
-    const prev = mArr[i - 1] ?? 0;
-    const cur = mArr[i] ?? 0;
-    if (prev * cur <= 0) {
-      slopes[i] = 0;
-    } else {
-      slopes[i] = (prev + cur) / 2;
-    }
-  }
-
-  const first = pts[0];
-  if (!first) return '';
-  let d = `M${first.x.toFixed(2)},${first.y.toFixed(2)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const cur = pts[i];
-    const next = pts[i + 1];
-    if (!cur || !next) {
-      continue;
-    }
-    const segLen = (dxArr[i] ?? 0) / 3;
-    const cp1x = cur.x + segLen;
-    const cp1y = cur.y + (slopes[i] ?? 0) * segLen;
-    const cp2x = next.x - segLen;
-    const cp2y = next.y - (slopes[i + 1] ?? 0) * segLen;
-    d += `C${cp1x.toFixed(2)},${cp1y.toFixed(2)},${cp2x.toFixed(2)},${cp2y.toFixed(2)},${next.x.toFixed(2)},${next.y.toFixed(2)}`;
-  }
-  return d;
-}
-
-/**
- * Largest-Triangle-Three-Buckets downsampling.
- *
- * Every vertex it returns is a REAL sample — LTTB selects, it never averages —
- * so the rendered line states only values the host actually reported, and the
- * card can never show an unlabelled aggregate posing as the series. Within
- * each bucket it keeps the sample forming the largest triangle with the
- * previously kept point and the next bucket's centroid, which is the sample
- * that carries the most of the series' visual shape; peaks and troughs survive
- * where a mean would have flattened them.
- *
- * The first and last samples are always retained, so the trace begins and ends
- * on real readings — the endpoint marker the reader ties to the card's
- * headline figure is therefore the true latest sample, never an aggregate.
- */
-function largestTriangleThreeBuckets(points: ComputedPoint[], threshold: number): ComputedPoint[] {
-  const n = points.length;
-  if (threshold >= n || threshold < 3) {
-    return points;
-  }
-
-  const first = points[0];
-  const last = points[n - 1];
-  if (!first || !last) {
-    return points;
-  }
-
-  const sampled: ComputedPoint[] = [first];
-  // Width of one bucket, excluding the two endpoints that are always kept.
-  const bucketSize = (n - 2) / (threshold - 2);
-  let anchor = first;
-
-  for (let i = 0; i < threshold - 2; i++) {
-    // Centroid of the NEXT bucket — the third corner of the triangle.
-    const nextStart = Math.floor((i + 1) * bucketSize) + 1;
-    const nextEnd = Math.min(Math.floor((i + 2) * bucketSize) + 1, n);
-    let avgX = 0;
-    let avgY = 0;
-    let avgCount = 0;
-    for (let j = nextStart; j < nextEnd; j++) {
-      const point = points[j];
-      if (!point) continue;
-      avgX += point.x;
-      avgY += point.y;
-      avgCount += 1;
-    }
-    if (avgCount > 0) {
-      avgX /= avgCount;
-      avgY /= avgCount;
-    } else {
-      avgX = last.x;
-      avgY = last.y;
-    }
-
-    const rangeStart = Math.floor(i * bucketSize) + 1;
-    const rangeEnd = Math.min(Math.floor((i + 1) * bucketSize) + 1, n - 1);
-    let best = points[rangeStart] ?? anchor;
-    let bestArea = -1;
-    for (let j = rangeStart; j < rangeEnd; j++) {
-      const point = points[j];
-      if (!point) continue;
-      const area = Math.abs(
-        (anchor.x - avgX) * (point.y - anchor.y) - (anchor.x - point.x) * (avgY - anchor.y)
-      ) / 2;
-      if (area > bestArea) {
-        bestArea = area;
-        best = point;
-      }
-    }
-    sampled.push(best);
-    anchor = best;
-  }
-
-  sampled.push(last);
-  return sampled;
-}
 
 /**
  * Rail figures: enough precision to be useful, never enough to be noise. The
@@ -213,28 +76,57 @@ export const MetricSparkline = ({
   unit,
   precision = 1,
   windowLabel,
-  ariaLabel
+  ariaLabel,
+  sampleIntervalSeconds,
+  windowStart,
+  windowEnd,
+  emptyMessage = 'No observations in this window',
+  inspectionStore,
+  inspectionKey
 }: MetricSparklineProps) => {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [plotFocused, setPlotFocused] = useState(false);
+  const [tableOpen, setTableOpen] = useState(false);
+  const [zoom, setZoom] = useState<{ start: string; end: string } | null>(() => inspectionKey ? inspectionStore?.get(inspectionKey)?.zoom ?? null : null);
+  const tableSnapshot = useRef<ComputedPoint[]>([]);
+  const [selectedSample, setSelectedSample] = useState<ChartInspection['selected']>(() => inspectionKey ? inspectionStore?.get(inspectionKey)?.selected ?? null : null);
+  const [frozenView, setFrozenView] = useState<ChartInspection['frozen']>(() => inspectionKey ? inspectionStore?.get(inspectionKey)?.frozen ?? null : null);
+  useEffect(() => {
+    if (inspectionStore && inspectionKey) {
+      if (selectedSample && frozenView) inspectionStore.set(inspectionKey, { selected: selectedSample, frozen: frozenView, zoom });
+      else inspectionStore.delete(inspectionKey);
+    }
+  }, [inspectionStore, inspectionKey, selectedSample, frozenView, zoom]);
+  const plottedData = frozenView?.data ?? data;
+  const plottedStart = zoom?.start ?? (frozenView ? frozenView.start : windowStart);
+  const plottedEnd = zoom?.end ?? (frozenView ? frozenView.end : windowEnd);
+  const plottedInterval = frozenView ? frozenView.interval : sampleIntervalSeconds;
+  const plottedLabel = frozenView ? frozenView.label : windowLabel;
+  const selectedTime = selectedSample?.timestamp ?? null;
   const svgRef = useRef<SVGSVGElement>(null);
   const gradientId = useId().replace(/:/g, '-');
   const width = VIEWBOX_WIDTH;
 
   // The resolved vertical domain is needed twice — to place the samples and to
   // label the rail — so it is returned alongside them rather than recomputed.
-  const { points, vertices, isDownsampled, domainMin, domainMax } = useMemo(() => {
+  const { points, vertices, domainMin, domainMax } = useMemo(() => {
     const empty = {
       points: [] as ComputedPoint[],
       vertices: [] as ComputedPoint[],
-      isDownsampled: false,
       domainMin: 0,
       domainMax: 1
     };
-    if (!data.length) {
+    if (!plottedData.length) {
       return empty;
     }
 
-    const values = data.map(point => point.value);
+    const startBound = plottedStart ? Date.parse(plottedStart) : NaN;
+    const endBound = plottedEnd ? Date.parse(plottedEnd) : NaN;
+    const hasBounds = Number.isFinite(startBound) && Number.isFinite(endBound) && endBound > startBound;
+    const valid = plottedData.filter(point => Number.isFinite(point.value) && Number.isFinite(Date.parse(point.timestamp)) && (!hasBounds || (Date.parse(point.timestamp) >= startBound && Date.parse(point.timestamp) <= endBound)))
+      .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+    if (!valid.length) return empty;
+    const values = valid.map(point => point.value);
     let min = Math.min(...values);
     let max = Math.max(...values);
 
@@ -278,31 +170,30 @@ export const MetricSparkline = ({
       return (height - PLOT_PADDING) - normalized * plotHeight;
     };
 
-    const computed = data.map((point, idx) => {
-      const ratio = data.length > 1 ? idx / (data.length - 1) : 1;
+    const firstTime = hasBounds ? startBound : Date.parse(valid[0]!.timestamp);
+    const lastTime = hasBounds ? endBound : Date.parse(valid[valid.length - 1]!.timestamp);
+    const deltas = valid.slice(1).map((point, index) => Date.parse(point.timestamp) - Date.parse(valid[index]!.timestamp)).filter(delta => delta > 0).sort((a, b) => a - b);
+    const typicalMs = plottedInterval ? plottedInterval * 1000 : deltas.length >= 2 ? deltas[Math.floor(deltas.length / 2)]! : 0;
+    let segment = 0;
+    const computed = valid.map((point, idx) => {
+      const time = Date.parse(point.timestamp);
+      const previous = idx > 0 ? Date.parse(valid[idx - 1]!.timestamp) : time;
+      if (point.gapBefore || (typicalMs && time - previous > typicalMs * 1.5)) segment += 1;
       return {
-        x: ratio * width,
-        y: scaleY(point.value),
-        raw: point.value,
-        timestamp: point.timestamp
+        x: lastTime === firstTime ? width : ((time - firstTime) / (lastTime - firstTime)) * width,
+        y: scaleY(point.value), raw: point.value, timestamp: point.timestamp, segment
       };
     });
 
-    // A 60-minute window at the poll interval is hundreds of samples drawn
-    // across a few hundred pixels. One vertex per sample makes an opaque
-    // stroke fill the whole band and the chart stops being a chart. LTTB caps
-    // the vertex count while keeping every vertex a real reading.
-    const maxVertices = Math.max(3, Math.round(width / COLUMN_UNITS));
-    const downsampled = computed.length > maxVertices;
-
+    // Draw every measured observation at its actual timestamp. Gaps remain
+    // separate segments; no client-side sampling hides intermediate values.
     return {
       points: computed,
-      vertices: downsampled ? largestTriangleThreeBuckets(computed, maxVertices) : computed,
-      isDownsampled: downsampled,
+      vertices: computed,
       domainMin: min,
       domainMax: max
     };
-  }, [data, height, valueDomain]);
+  }, [plottedData, height, valueDomain, plottedInterval, plottedStart, plottedEnd]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -346,7 +237,7 @@ export const MetricSparkline = ({
         style={{ height }}
         data-testid="sparkline-empty"
       >
-        <span className="readout-trace__empty-label">Collecting data…</span>
+        <span className="readout-trace__empty-label">{emptyMessage}</span>
         <span className="readout-trace__empty-rule" aria-hidden="true" />
       </div>
     );
@@ -365,13 +256,21 @@ export const MetricSparkline = ({
   const formatValue = (value: number) => value.toFixed(precision);
   const withUnit = (text: string) => (unit ? `${text}${unit}` : text);
 
-  const curvePath = vertices.length === 1
-    ? `M0,${latest.y.toFixed(2)}L${width.toFixed(2)},${latest.y.toFixed(2)}`
-    : smoothPath(vertices);
-
-  // The fill is the line's body, not a bar — it fades to nothing before it
-  // reaches the baseline, so the stroke stays the datum.
-  const areaPath = `${curvePath}L${lastPoint.x.toFixed(2)},${height}L${firstPoint.x.toFixed(2)},${height}Z`;
+  // Straight segments connect observations; gaps and single observations do not
+  // imply values between samples or outside the captured coverage.
+  const groups = vertices.reduce<ComputedPoint[][]>((all, point) => {
+    const current = all[all.length - 1];
+    if (!current || current[0]?.segment !== point.segment) all.push([point]);
+    else current.push(point);
+    return all;
+  }, []);
+  const curvePath = groups.map(group => group.map((point, index) =>
+    `${index ? 'L' : 'M'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('')).join('');
+  const areaPath = groups.filter(group => group.length > 1).map(group => {
+    const start = group[0]!, end = group[group.length - 1]!;
+    return group.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join('') +
+      `L${end.x.toFixed(2)},${height}L${start.x.toFixed(2)},${height}Z`;
+  }).join('');
 
   const plotHeight = height - PLOT_PADDING * 2;
   const yForFraction = (fraction: number) => (height - PLOT_PADDING) - fraction * plotHeight;
@@ -413,14 +312,15 @@ export const MetricSparkline = ({
 
   const tooltip = `Latest ${withUnit(formatValue(latest.raw))} at ${formatTime(latest.timestamp)}`;
 
-  const hoverPoint = hoverIndex !== null ? vertices[hoverIndex] : null;
+  const selectedPoint = selectedTime ? points.find(point => point.timestamp === selectedTime) : undefined;
+  const hoverPoint = selectedPoint ?? (hoverIndex !== null ? vertices[hoverIndex] : plotFocused ? latest : null);
 
   // Only a short unit rides along on the rail; a long one ("connections/s")
   // would out-measure the figure it annotates.
   const trimmedUnit = unit?.trim() ?? '';
   const railUnit = trimmedUnit.length > 0 && trimmedUnit.length <= 2 ? trimmedUnit : '';
 
-  // LTTB always retains the final sample, so the line ends exactly here. This
+  // The line ends at the final sample. This
   // marker is what the reader ties to the card's headline figure, so it is
   // pinned to the true latest reading rather than to anything derived.
   const endpoint = latest;
@@ -429,6 +329,9 @@ export const MetricSparkline = ({
 
   return (
     <div className={className} data-sm-style="sm-style-6344dc8492">
+      <div className="readout-trace__summary" aria-hidden="true">
+        {hoverPoint && <><span>{withUnit(formatValue(hoverPoint.raw))}</span> · <span>{formatTime(hoverPoint.timestamp)}</span></>}
+      </div>
       <div className="readout-trace">
         <div className="readout-trace__plot">
           <svg
@@ -439,7 +342,36 @@ export const MetricSparkline = ({
             className="metric-sparkline-chart"
             role="img"
             aria-label={ariaLabel ?? tooltip}
-            data-render-mode={isDownsampled ? 'lttb' : 'line'}
+            aria-describedby={`${gradientId}-instructions`}
+            data-render-mode="line"
+            tabIndex={0}
+            onFocus={() => { setPlotFocused(true); }}
+            onBlur={() => { setPlotFocused(false); setHoverIndex(null); }}
+            onClick={event => {
+              event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              if (!rect.width) return;
+              const x = ((event.clientX - rect.left) / rect.width) * width;
+              const nearest = points.reduce((best, point) => Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best, points[0]!);
+              setFrozenView(previous => previous ?? { data: [...data], start: windowStart, end: windowEnd, interval: sampleIntervalSeconds, label: windowLabel });
+              setSelectedSample({ timestamp: nearest.timestamp, raw: nearest.raw });
+            }}
+            onKeyDown={event => {
+              if (event.key === 'Escape') { setSelectedSample(null); setFrozenView(null); setZoom(null); return; }
+              if (!['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(event.key)) return;
+              event.preventDefault(); event.stopPropagation();
+              const index = selectedTime ? points.findIndex(point => point.timestamp === selectedTime) : points.length - 1;
+              let next = Math.max(0, Math.min(points.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)));
+              if (event.key === 'PageUp' || event.key === 'PageDown') {
+                const direction = event.key === 'PageUp' ? -1 : 1;
+                const currentSegment = points[index]?.segment;
+                next = index;
+                while (next + direction >= 0 && next + direction < points.length && points[next + direction]?.segment === currentSegment) next += direction;
+                if (next + direction >= 0 && next + direction < points.length) next += direction;
+              }
+              setFrozenView(previous => previous ?? { data: [...data], start: windowStart, end: windowEnd, interval: sampleIntervalSeconds, label: windowLabel });
+              setSelectedSample({ timestamp: points[next]!.timestamp, raw: points[next]!.raw });
+            }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
@@ -450,7 +382,14 @@ export const MetricSparkline = ({
                 <stop offset="100%" stopColor={color} stopOpacity="var(--chart-gradient-end-opacity, 0)" />
               </linearGradient>
             </defs>
-            <g data-testid="sparkline-graticule">{graticule}</g>
+            <g data-testid="sparkline-graticule" aria-hidden="true">
+              {graticule}
+              {[0, 0.25, 0.5, 0.75, 1].map(fraction => (
+                <line key={`time-grid-${fraction}`} x1={fraction * width} x2={fraction * width}
+                  y1={PLOT_PADDING} y2={height - PLOT_PADDING} stroke="var(--chart-grid)"
+                  strokeWidth={1} vectorEffect="non-scaling-stroke" shapeRendering="crispEdges" />
+              ))}
+            </g>
             <path
               d={areaPath}
               fill={`url(#${gradientId})`}
@@ -469,6 +408,9 @@ export const MetricSparkline = ({
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
+            {groups.filter(group => group.length === 1).map(group => (
+              <line key={`${group[0]!.timestamp}-${group[0]!.segment}`} x1={group[0]!.x} x2={group[0]!.x} y1={group[0]!.y - 2} y2={group[0]!.y + 2} stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            ))}
             {thresholdLine}
             {/* Hover hairline */}
             {hoverPoint && (
@@ -487,7 +429,7 @@ export const MetricSparkline = ({
           {/* Dots live in HTML rather than the SVG: the horizontal stretch
               would turn an SVG circle into an ellipse, so there is deliberately
               no <circle> in the chart. */}
-          {hoverIndex === null && (
+          {!hoverPoint && (
             <span
               className="readout-trace__halo"
               data-testid="sparkline-endpoint-halo"
@@ -506,20 +448,7 @@ export const MetricSparkline = ({
             }}
           />
 
-          {/* Hover tooltip label */}
-          {hoverPoint && (
-            <div
-              className="readout-trace__tooltip"
-              style={{ left: asPercent(hoverPoint.x) }}
-            >
-              <span data-sm-style="sm-style-2d5d655385">
-                {withUnit(formatValue(hoverPoint.raw))}
-              </span>
-              <span data-sm-style="sm-style-89cc5f7662">
-                {formatTime(hoverPoint.timestamp)}
-              </span>
-            </div>
-          )}
+
         </div>
 
         {/* Vertical extent, stated. Without it the reader cannot tell whether
@@ -530,11 +459,42 @@ export const MetricSparkline = ({
         </div>
       </div>
 
-      {windowLabel && (
-        <div className="readout-trace__window">
-          {windowLabel}
+      <span id={`${gradientId}-instructions`} className="sr-only">Tap the plot or use left and right arrows to select samples; Page Up and Page Down move between segments. Select a sample to zoom, and press Escape to return to latest.</span>
+      <span className="sr-only" aria-live="polite" aria-atomic="true" data-testid="sparkline-latest-announcement">{plotFocused && !selectedSample ? `Latest observation: ${withUnit(formatValue(latest.raw))} at ${new Date(latest.timestamp).toLocaleString()}` : ''}</span>
+      {plottedStart && plottedEnd && Number.isFinite(Date.parse(plottedStart)) && Number.isFinite(Date.parse(plottedEnd)) && (
+        <div className="readout-trace__axis" aria-label={`Window ${new Date(plottedStart!).toLocaleString()} to ${new Date(plottedEnd!).toLocaleString()}`}>
+          <span>{formatTime(plottedStart)}</span><span>{formatTime((Date.parse(plottedStart) + Date.parse(plottedEnd)) / 2)}</span><span>{formatTime(plottedEnd)}</span>
         </div>
       )}
+      <details onClick={event => { event.stopPropagation(); }} onToggle={event => { const open = event.currentTarget.open; if (open) tableSnapshot.current = points; setTableOpen(open); }}>
+        <summary>View observed samples</summary>
+        {tableOpen && <table>
+          <caption>{ariaLabel ?? 'History'} — observed samples</caption>
+          <thead><tr><th scope="col">Time</th><th scope="col">Value</th></tr></thead>
+          <tbody>{tableSnapshot.current.map((point, index) => <tr key={`${point.timestamp}-${index}`}><td>{new Date(point.timestamp).toLocaleString()}</td><td>{withUnit(formatValue(point.raw))}</td></tr>)}</tbody>
+        </table>}
+      </details>
+      {selectedSample && <div className="readout-caption" role="status">
+        Fixed selection: {withUnit(formatValue(selectedSample.raw))} at {new Date(selectedSample.timestamp).toLocaleString()}
+        {!selectedPoint ? ' — no longer in the displayed samples' : ''}
+      </div>}
+      {selectedTime && <button type="button" onClick={event => { event.stopPropagation(); setSelectedSample(null); setFrozenView(null); setZoom(null); }}>Return to latest</button>}
+      {selectedTime && !zoom && <button className="readout-detail__btn" type="button" onClick={event => {
+        event.stopPropagation();
+        const start = Date.parse(frozenView?.start ?? windowStart ?? points[0]!.timestamp);
+        const end = Date.parse(frozenView?.end ?? windowEnd ?? points[points.length - 1]!.timestamp);
+        const selected = Date.parse(selectedTime);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(selected) || end <= start) return;
+        const span = Math.min(15 * 60_000, (end - start) / 4);
+        const from = Math.max(start, Math.min(selected - span / 2, end - span));
+        setZoom({ start: new Date(from).toISOString(), end: new Date(from + span).toISOString() });
+        svgRef.current?.focus();
+      }}>Zoom around selected sample</button>}
+      {zoom && <div className="readout-caption">Chart zoom: {new Date(zoom.start).toLocaleString()} – {new Date(zoom.end).toLocaleString()} ({Intl.DateTimeFormat().resolvedOptions().timeZone}) <button className="readout-detail__btn" type="button" onClick={event => { event.stopPropagation(); setZoom(null); svgRef.current?.focus(); }}>Reset chart zoom</button></div>}
+      <div className="readout-trace__window">
+        {plottedLabel ? `${plottedLabel} · observed` : 'Observed'} {new Date(firstPoint.timestamp).toLocaleString()} – {new Date(lastPoint.timestamp).toLocaleString()} ({Intl.DateTimeFormat().resolvedOptions().timeZone})
+        {groups.length > 1 ? ` · ${groups.length - 1} gap${groups.length === 2 ? '' : 's'}` : ''}
+      </div>
     </div>
   );
 };

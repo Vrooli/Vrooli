@@ -25,6 +25,19 @@ describe('FilterBar', () => {
     expect(onReset).toHaveBeenCalledOnce();
   });
 
+  it('does not recommit an unchanged grep on blur after Enter', () => {
+    const onChange = vi.fn();
+    const props = { units: [], boots: [], onChange, onReset: vi.fn() };
+    const { rerender } = render(<FilterBar {...props} filters={filters} />);
+    const input = screen.getByPlaceholderText('oom_killer');
+    fireEvent.change(input, { target: { value: 'dbus' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    rerender(<FilterBar {...props} filters={{ ...filters, grep: 'dbus' }} />);
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenCalledWith({ grep: 'dbus' });
+  });
+
   it('shows invalid regex errors and clears a selected unit', () => {
     const onChange = vi.fn();
     render(<FilterBar filters={{ ...filters, units: ['systemd'] }} units={['systemd']} boots={[]} onChange={onChange} onReset={vi.fn()} />);

@@ -97,7 +97,7 @@ function renderBlock(block: Exclude<ReportBlock, { kind: 'field' }>, index: numb
     case 'list':
       return <Fragment key={key}>{renderItems(block.items, key)}</Fragment>;
     case 'code':
-      return <pre key={key} className="report-pre"><code>{block.text}</code></pre>;
+      return <pre key={key} className="report-pre" tabIndex={0}><code>{block.text}</code></pre>;
     case 'paragraph':
       return (
         <p key={key} className="report-paragraph">
@@ -155,7 +155,7 @@ export function ReportBody({ text, className }: ReportBodyProps) {
     index += 1;
   }
 
-  return <div className={cx('report-body', className)}>{rendered}</div>;
+  return <div className={cx('report-body', className)} tabIndex={className?.includes('report-body-inset') || className?.includes('report-body-scroll') ? 0 : undefined}>{rendered}</div>;
 }
 
 export interface ReportInlineProps {

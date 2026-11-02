@@ -9,11 +9,11 @@
 export const getRiskLevelColor = (level?: string): string => {
   switch (level) {
     case 'high':
-      return 'var(--color-error)';
+      return 'var(--color-error-text)';
     case 'medium':
-      return 'var(--color-warning)';
+      return 'var(--color-warning-text)';
     default:
-      return 'var(--color-success)';
+      return 'var(--color-success-text)';
   }
 };
 

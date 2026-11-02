@@ -37,6 +37,8 @@ type RetentionScheduler struct {
 	// raw rows older than rawRetention are downsampled into per-minute rollups,
 	// and rollups older than rollupRetention are pruned. Nil procRepo disables
 	// this (e.g. an in-memory repo without process sampling wired).
+	compactor *AutoCompactor
+
 	procRepo        repository.ProcessSampleRepository
 	rawRetention    time.Duration
 	rollupRetention time.Duration
@@ -69,6 +71,13 @@ func (s *RetentionScheduler) WithProcessRetention(repo repository.ProcessSampleR
 	s.procRepo = repo
 	s.rawRetention = raw
 	s.rollupRetention = rollup
+	return s
+}
+
+// WithAutoCompaction lets each successful retention pass run the owner's
+// one-time conversion VACUUM when its policy gates all hold.
+func (s *RetentionScheduler) WithAutoCompaction(c *AutoCompactor) *RetentionScheduler {
+	s.compactor = c
 	return s
 }
 
@@ -140,6 +149,19 @@ func (s *RetentionScheduler) runOnce(ctx context.Context) {
 	)
 
 	s.runProcessRetention(ctx)
+
+	if s.compactor != nil {
+		receipt, cerr := s.compactor.MaybeCompact(ctx)
+		switch {
+		case cerr != nil:
+			s.log.Error("auto compaction failed", "error", cerr)
+		case receipt.Decision == CompactionPerformed:
+			s.log.Info("auto compaction converted database to incremental auto-vacuum",
+				"reclaimed_bytes", receipt.ReclaimedBytes, "duration_ms", receipt.DurationMillis)
+		case receipt.Decision == CompactionDeferred:
+			s.log.Info("auto compaction deferred", "reason", receipt.Reason)
+		}
+	}
 }
 
 // runProcessRetention downsamples raw per-process rows older than rawRetention

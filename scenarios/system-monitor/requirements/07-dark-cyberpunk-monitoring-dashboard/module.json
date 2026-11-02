@@ -5,11 +5,11 @@
   "requirements": [
     {
       "id": "REQ-P0-007",
-      "title": "Vrooli Operational Console Dashboard",
+      "title": "Vega Workbench / Optical Observatory experience",
       "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "ui",
-      "description": "System must provide a governed, responsive monitoring dashboard using the vrooli-default / Vrooli Operational Console design system with React. This supersedes the former Matrix-theme requirement by the production-readiness decision dated 2026-08-19: the default system is the platform-supported design contract and is already covered by UI governance.",
+      "description": "The Vega UI shall implement the full existing-product redesign under docs/internal/DESIGN-ADOPTION.md: selected Signal Workbench / Optical Observatory A direction, ten routes and shared workspaces, complete phone/desktop workflows, both themes, verified Vega branding, accessible truthful states and independently evidenced refinements. The redesign preserves operational obligations; implementation acceptance requires current evidence.",
       "validation": [
         {
           "type": "test",
@@ -21,7 +21,7 @@
           "type": "test",
           "phase": "unit",
           "status": "failing",
-          "notes": "Verify vrooli-default token consistency"
+          "notes": "Verify current Vega semantic token consistency"
         },
         {
           "type": "test",
@@ -33,7 +33,7 @@
           "type": "test",
           "phase": "performance",
           "status": "implemented",
-          "notes": "UI renders \u003c 2s"
+          "notes": "UI renders < 2s"
         },
         {
           "type": "test",
@@ -45,7 +45,7 @@
           "type": "test",
           "phase": "business",
           "status": "failing",
-          "notes": "UI matches the amended vrooli-default design contract"
+          "notes": "UI matches the current Vega target and applicable adopted refinements; pending new evidence"
         }
       ]
     }

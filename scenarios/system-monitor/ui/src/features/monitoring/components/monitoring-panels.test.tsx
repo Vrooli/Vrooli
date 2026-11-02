@@ -56,10 +56,14 @@ describe('monitoring panels', () => {
     expect(screen.getByText('File Descriptors')).toBeInTheDocument();
     expect(screen.getByText('Operational')).toBeInTheDocument();
     expect(screen.getByText('90 days')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('INFRASTRUCTURE MONITOR'));
+    const header = screen.getByRole('button', { name: 'INFRASTRUCTURE MONITOR', expanded: true });
+    header.focus();
+    expect(header).toHaveFocus();
+    fireEvent.click(header);
     expect(toggle).toHaveBeenCalledOnce();
     cleanup();
     render(<InfrastructureMonitor data={null} isExpanded={false} onToggle={toggle} />);
+    expect(screen.getByRole('button', { name: 'INFRASTRUCTURE MONITOR', expanded: false })).toBeInTheDocument();
     expect(screen.queryByText('Database Pools:')).not.toBeInTheDocument();
   });
 

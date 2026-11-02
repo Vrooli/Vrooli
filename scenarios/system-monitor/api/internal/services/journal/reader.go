@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -91,16 +92,33 @@ func (r *Reader) QueryLogs(ctx context.Context, opts QueryOpts) ([]LogEntry, err
 		return nil, errors.New("journal: nil reader")
 	}
 
+	// journalctl rejects --since with a cursor. Resolve the same systemd time
+	// expression and enforce its inclusive lower bound on the cursor page.
+	var lowerBound *int64
+	if opts.Since != "" && (opts.AfterCursor != "" || opts.Cursor != "") {
+		bound, err := r.resolveJournalTime(ctx, opts.Since)
+		if err != nil {
+			return nil, err
+		}
+		lowerBound = &bound
+		opts.Since = ""
+	}
 	args := buildArgs(opts, true)
 	out, err := r.exec.CombinedOutput(ctx, "journalctl", args...)
 	if err != nil {
+		// journalctl's grep mode returns status 1 with no output when no
+		// entries match. Preserve diagnostic or other exit failures as errors.
+		var exitStatus interface{ ExitCode() int }
+		if opts.Grep != "" && len(bytes.TrimSpace(out)) == 0 && errors.As(err, &exitStatus) && exitStatus.ExitCode() == 1 {
+			return []LogEntry{}, nil
+		}
 		return nil, fmt.Errorf("journalctl %s: %w (output: %s)",
 			strings.Join(args, " "), err, truncate(string(out), 200))
 	}
 
 	entries, jsonErr := parseJSON(out)
 	if jsonErr == nil {
-		return entries, nil
+		return filterSince(entries, lowerBound)
 	}
 
 	textArgs := buildArgs(opts, false)
@@ -108,7 +126,40 @@ func (r *Reader) QueryLogs(ctx context.Context, opts QueryOpts) ([]LogEntry, err
 	if textErr != nil {
 		return nil, fmt.Errorf("journalctl text fallback failed: %w", textErr)
 	}
-	return parseText(textOut), nil
+	return filterSince(parseText(textOut), lowerBound)
+}
+
+func (r *Reader) resolveJournalTime(ctx context.Context, expression string) (int64, error) {
+	out, err := r.exec.CombinedOutput(ctx, "systemd-analyze", "timestamp", "--", expression)
+	if err != nil {
+		return 0, fmt.Errorf("resolve journal since expression: %w (output: %s)", err, truncate(string(out), 200))
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if value, ok := strings.CutPrefix(line, "UNIX seconds: @"); ok {
+			seconds, parseErr := strconv.ParseFloat(strings.TrimSpace(value), 64)
+			if parseErr == nil && !math.IsNaN(seconds) && !math.IsInf(seconds, 0) {
+				return int64(math.Round(seconds * 1e6)), nil
+			}
+		}
+	}
+	return 0, errors.New("could not resolve journal since expression")
+}
+
+func filterSince(entries []LogEntry, lowerBound *int64) ([]LogEntry, error) {
+	if lowerBound == nil {
+		return entries, nil
+	}
+	filtered := make([]LogEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Realtime == 0 {
+			return nil, errors.New("journal entry has no timestamp to enforce since bound")
+		}
+		if entry.Realtime >= *lowerBound {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered, nil
 }
 
 // ListBoots returns parsed `journalctl --list-boots` output.
@@ -136,7 +187,8 @@ func buildArgs(opts QueryOpts, jsonFormat bool) []string {
 	args := []string{"--no-pager"}
 
 	if jsonFormat {
-		args = append(args, "-o", "json")
+		// Without --all journalctl replaces fields over 4096 bytes with null.
+		args = append(args, "--all", "-o", "json")
 	} else {
 		args = append(args, "-o", "short-iso")
 	}
@@ -181,15 +233,15 @@ func buildArgs(opts QueryOpts, jsonFormat bool) []string {
 }
 
 type rawJournalEntry struct {
-	Realtime    string          `json:"__REALTIME_TIMESTAMP"`
-	Cursor      string          `json:"__CURSOR"`
-	BootID      string          `json:"_BOOT_ID"`
-	Hostname    string          `json:"_HOSTNAME"`
-	Unit        string          `json:"_SYSTEMD_UNIT"`
-	UserUnit    string          `json:"_SYSTEMD_USER_UNIT"`
-	Identifier  string          `json:"SYSLOG_IDENTIFIER"`
-	PID         string          `json:"_PID"`
-	Priority    string          `json:"PRIORITY"`
+	Realtime    json.RawMessage `json:"__REALTIME_TIMESTAMP"`
+	Cursor      json.RawMessage `json:"__CURSOR"`
+	BootID      json.RawMessage `json:"_BOOT_ID"`
+	Hostname    json.RawMessage `json:"_HOSTNAME"`
+	Unit        json.RawMessage `json:"_SYSTEMD_UNIT"`
+	UserUnit    json.RawMessage `json:"_SYSTEMD_USER_UNIT"`
+	Identifier  json.RawMessage `json:"SYSLOG_IDENTIFIER"`
+	PID         json.RawMessage `json:"_PID"`
+	Priority    json.RawMessage `json:"PRIORITY"`
 	MessageJSON json.RawMessage `json:"MESSAGE"`
 }
 
@@ -197,12 +249,11 @@ func parseJSON(out []byte) ([]LogEntry, error) {
 	if len(bytes.TrimSpace(out)) == 0 {
 		return nil, nil
 	}
-	scanner := bufio.NewScanner(bytes.NewReader(out))
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	var entries []LogEntry
 	parsedAny := false
-	for scanner.Scan() {
-		line := scanner.Bytes()
+	// The command output is already in memory. Split it without a Scanner
+	// token limit so a long journal record remains structured and complete.
+	for _, line := range bytes.Split(out, []byte{'\n'}) {
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
 		}
@@ -212,10 +263,11 @@ func parseJSON(out []byte) ([]LogEntry, error) {
 			continue
 		}
 		parsedAny = true
-		entries = append(entries, rawToEntry(raw))
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+		entry := rawToEntry(raw)
+		// Preserve the complete journal record, including fields not mapped to
+		// the compact list, for the operator's read-only evidence workspace.
+		entry.Raw = string(line)
+		entries = append(entries, entry)
 	}
 	if !parsedAny && len(entries) > 0 {
 		return nil, errors.New("journal: no entries parsed as JSON")
@@ -225,28 +277,38 @@ func parseJSON(out []byte) ([]LogEntry, error) {
 
 func rawToEntry(r rawJournalEntry) LogEntry {
 	e := LogEntry{
-		Unit: r.Unit, UserUnit: r.UserUnit, Identifier: r.Identifier,
-		Hostname: r.Hostname, BootID: r.BootID, Cursor: r.Cursor,
+		Unit: journalString(r.Unit), UserUnit: journalString(r.UserUnit), Identifier: journalString(r.Identifier),
+		Hostname: journalString(r.Hostname), BootID: journalString(r.BootID), Cursor: journalString(r.Cursor),
 		Priority: -1,
 	}
-	if r.Realtime != "" {
-		if us, err := strconv.ParseInt(r.Realtime, 10, 64); err == nil {
+	if realtime := journalString(r.Realtime); realtime != "" {
+		if us, err := strconv.ParseInt(realtime, 10, 64); err == nil {
 			e.Realtime = us
 			e.Timestamp = time.Unix(us/1_000_000, (us%1_000_000)*1_000).UTC()
 		}
 	}
-	if r.PID != "" {
-		if pid, err := strconv.Atoi(r.PID); err == nil {
+	if pidText := journalString(r.PID); pidText != "" {
+		if pid, err := strconv.Atoi(pidText); err == nil {
 			e.PID = pid
 		}
 	}
-	if r.Priority != "" {
-		if p, err := strconv.Atoi(r.Priority); err == nil {
+	if priority := journalString(r.Priority); priority != "" {
+		if p, err := strconv.Atoi(priority); err == nil {
 			e.Priority = p
 		}
 	}
 	e.Message = decodeMessage(r.MessageJSON)
 	return e
+}
+
+// A repeated or binary journal field is represented as an array. Keep its
+// original value in Raw rather than selecting an arbitrary compact value.
+func journalString(raw json.RawMessage) string {
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return ""
+	}
+	return value
 }
 
 func decodeMessage(raw json.RawMessage) string {

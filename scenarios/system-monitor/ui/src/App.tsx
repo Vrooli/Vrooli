@@ -1,11 +1,13 @@
 // DOC: docs/concepts/ARCHITECTURE.md#ui
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import type { ErrorInfo } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import { BrowserRouter, Link, Routes, Route, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { getProxyInfo } from '@vrooli/api-base';
+import { Database, FileText, Network, MemoryStick } from 'lucide-react';
 import { apiFetch } from './shared/api/apiFetch';
 import { Header } from './shared/components/Header';
 import { MetricsGrid } from './features/metrics/components/MetricsGrid';
+import type { ChartInspection } from './features/metrics/components/MetricSparkline';
 import { DeviceGraphPanel } from './features/metrics/components/DeviceGraphPanel';
 import { AlertPanel } from './shared/components/AlertPanel';
 import { ErrorBoundary } from './shared/components/ErrorBoundary';
@@ -23,7 +25,7 @@ import { TimeRangeProvider, useTimeRange } from './shared/time/TimeRangeContext'
 import { MachineIdentityStrip } from './features/machines/components/MachineIdentityStrip';
 import { LocalOnlyPanels } from './features/machines/components/LocalOnlyPanels';
 import { MachinePresenceNote } from './features/machines/components/MachinePresenceNote';
-import type { DashboardState, CardType, PanelType, Machine } from './types';
+import type { Alert, DashboardState, CardType, PanelType, Machine } from './types';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import './styles/tokens.css';
 import './styles/migrated-inline.css';
@@ -86,8 +88,73 @@ function getRouterBasename(): string {
   return '';
 }
 
+// Deferred workspaces can change height after navigation. Keep the requested
+// destination visible briefly, but never override a subsequent user action.
+export function revealWorkspace(findTarget: () => HTMLElement | null, focusTarget = false): () => void {
+  let frame = 0;
+  let first = true;
+  let stopped = false;
+  const update = () => {
+    frame = 0;
+    const target = findTarget();
+    if (!target) return;
+    if (first && focusTarget) target.focus({ preventScroll: true });
+    const top = target.getBoundingClientRect().top;
+    const headerBottom = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0;
+    if (first || top < headerBottom || top > window.innerHeight - 48) target.scrollIntoView?.({ block: 'start' });
+    first = false;
+  };
+  const schedule = () => { if (!stopped && !frame) frame = window.requestAnimationFrame(update); };
+  const mutations = new MutationObserver(schedule);
+  mutations.observe(document.body, { childList: true, subtree: true });
+  const resize = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+  resize?.observe(document.body);
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    mutations.disconnect();
+    resize?.disconnect();
+    if (frame) window.cancelAnimationFrame(frame);
+    window.clearTimeout(timeout);
+    for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) window.removeEventListener(event, stop);
+  };
+  for (const event of ['wheel', 'touchstart', 'pointerdown', 'keydown']) window.addEventListener(event, stop, { once: true, passive: true });
+  const timeout = window.setTimeout(stop, 5000);
+  schedule();
+  return stop;
+}
+
+// This commits only after its sibling lazy panel has loaded, not when its data is ready.
+function WorkspaceMounted({ id, onMounted }: { id: string; onMounted: (id: string) => void }) {
+  useEffect(() => { onMounted(id); }, [id, onMounted]);
+  return null;
+}
+
+export function WorkspaceFailure({ name, reload = () => window.location.reload() }: { name: string; reload?: () => void }) {
+  return (
+    <div className="card" role="alert">
+      <p>{name} failed to load. Reload the page to try again; unsaved changes may be lost.</p>
+      <button type="button" className="btn btn-action" onClick={reload}>Reload page</button>
+    </div>
+  );
+}
+
 function AppContent() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const overviewReturn = useRef<{ subject: string; scrollY: number; focusLabel?: string; focusAlertId?: string } | null>(null);
+  const workspaceReveal = useRef<(() => void) | null>(null);
+  const pendingWorkspace = useRef<string | null>(null);
+  const [workspaceAnnouncement, setWorkspaceAnnouncement] = useState('');
+  const workspaceMounted = useCallback((id: string) => {
+    if (pendingWorkspace.current === id) {
+      pendingWorkspace.current = null;
+      setWorkspaceAnnouncement(id === 'infrastructure-workspace'
+        ? 'Infrastructure panel loaded. Data may still be loading.'
+        : 'Investigations and reports panel loaded. Data may still be loading.');
+    }
+  }, []);
+  useEffect(() => () => { workspaceReveal.current?.(); }, []);
   const [showDeferredDashboard, setShowDeferredDashboard] = useState(false);
   const [dashboardState, setDashboardState] = useState<DashboardState>({
     lastUpdate: new Date().toISOString(),
@@ -99,12 +166,42 @@ function AppContent() {
 
   const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [machineDiscovery, setMachineDiscovery] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [machineDiscoveryAttempt, setMachineDiscoveryAttempt] = useState(0);
 
   // The machine lives in the URL, not in component state. It is the subject of
   // everything on screen, so it has to survive a reload, be reachable by Back,
   // and be shareable: "look at what minimouse is doing" should be a link.
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedMachineID = searchParams.get('machine') ?? '';
+  useEffect(() => {
+    if (location.pathname !== '/' || selectedMachineID) {
+      pendingWorkspace.current = null;
+      setWorkspaceAnnouncement('');
+      workspaceReveal.current?.();
+    }
+  }, [location.pathname, selectedMachineID]);
+  const chartInspections = useMemo(() => new Map<string, ChartInspection>(), [selectedMachineID]);
+  useEffect(() => {
+    if (location.pathname !== '/' || !overviewReturn.current) return;
+    const context = overviewReturn.current;
+    overviewReturn.current = null;
+    if (context.subject !== selectedMachineID) return;
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: context.scrollY, behavior: 'instant' });
+      if (context.focusLabel) {
+        const controls = Array.from(document.querySelectorAll<HTMLElement>('main button, main a'));
+        const control = context.focusAlertId ? controls.find(item => item.dataset.alertId === context.focusAlertId) : controls.find(item => item.textContent?.trim() === context.focusLabel);
+        control?.focus({ preventScroll: true });
+      }
+    });
+    return () => { window.cancelAnimationFrame(frame); };
+  }, [location.pathname, selectedMachineID]);
+  useEffect(() => {
+    const section = (location.state as { overviewSection?: string } | null)?.overviewSection;
+    if (!section || !location.pathname.startsWith('/metrics/')) return;
+    return revealWorkspace(() => Array.from(document.querySelectorAll<HTMLElement>('[data-detail-section]')).find(element => element.dataset.detailSection === section) ?? null);
+  }, [location.pathname, location.state]);
   const setSelectedMachineID = useCallback((machineID: string) => {
     setSearchParams(previous => {
       const next = new URLSearchParams(previous);
@@ -120,6 +217,7 @@ function AppContent() {
   const { range, paused } = useTimeRange();
   const selectedMachine = machines.find(machine => machine.id === selectedMachineID);
   const viewingRemote = Boolean(selectedMachineID);
+  const unknownSubject = viewingRemote && !selectedMachine;
   // Alerts are evaluated and persisted by the API; the dashboard only reads
   // them. They describe the local host, so they are not fetched for a remote
   // subject.
@@ -134,24 +232,15 @@ function AppContent() {
 
   useEffect(() => {
     let mounted = true;
+    setMachineDiscovery('loading');
     void apiFetch<Machine[]>('/machines').then(next => {
-      if (mounted) setMachines(next ?? []);
+      if (mounted) { setMachines(next ?? []); setMachineDiscovery('ready'); }
     }).catch(() => {
-      // Machine selection is additive; the local dashboard remains usable if
-      // Bridge discovery is unavailable.
+      if (mounted) setMachineDiscovery('error');
+      // The requested subject remains visible when discovery fails.
     });
     return () => { mounted = false; };
-  }, []);
-
-  // A link can name a machine this installation no longer knows. Fall back to
-  // this computer rather than polling a node id that resolves to nothing,
-  // which would render as an outage on a machine that is perfectly fine.
-  useEffect(() => {
-    if (!selectedMachineID || machines.length === 0) return;
-    if (!machines.some(machine => machine.id === selectedMachineID)) {
-      setSelectedMachineID('');
-    }
-  }, [machines, selectedMachineID, setSelectedMachineID]);
+  }, [machineDiscoveryAttempt]);
 
   const {
     metrics,
@@ -159,6 +248,7 @@ function AppContent() {
     detailedMetrics,
     processMonitorData,
     infrastructureData,
+    subsystemErrors,
     investigations,
     metricHistory,
     isLoading,
@@ -186,7 +276,7 @@ function AppContent() {
   // A machine that cannot be dispatched to has no readings to render at all.
   // The identity strip states that and why; four empty metric cards under it
   // would read as measurements of zero.
-  const noReadingsPossible = viewingRemote && Boolean(selectedMachine) && !selectedMachine?.dispatchable;
+  const noReadingsPossible = viewingRemote && (!selectedMachine || !selectedMachine.dispatchable);
 
   const {
     agents,
@@ -210,13 +300,26 @@ function AppContent() {
 
   const hasOpenScriptModal = modalState.scriptEditor.isOpen || modalState.scriptResults.isOpen;
 
-  const openDetailPage = (cardType: CardType) => {
-    void navigate(`/metrics/${cardType}`);
+  const openDetailPage = (cardType: CardType, overviewSection?: string, condition?: { alert: Alert; revalidated: boolean }) => {
+    const active = document.activeElement;
+    overviewReturn.current = { subject: selectedMachineID, scrollY: window.scrollY, focusLabel: active instanceof HTMLButtonElement || active instanceof HTMLAnchorElement ? active.textContent?.trim() : undefined, focusAlertId: active instanceof HTMLElement ? active.dataset.alertId : undefined };
+    const inspection = chartInspections.get(cardType);
+    const sample = inspection?.selected && inspection.frozen ? { selected: inspection.selected, zoom: inspection.zoom, subject: selectedMachineID, target: cardType } : undefined;
+    void navigate({ pathname: `/metrics/${cardType}`, search: window.location.search }, { state: overviewSection || condition || sample ? { overviewSection, sample, condition: condition ? { ...condition, subject: selectedMachineID, target: cardType, windowStart: metricHistory?.windowStart, windowEnd: metricHistory?.windowEnd, evaluatedAt: serverAlerts.feed.evaluatedAt } : undefined } : null });
   };
 
   const handleBackToDashboard = () => {
-    void navigate('/');
+    void navigate({ pathname: '/', search: window.location.search });
   };
+
+  const localOnlyRoute = (name: string, content: ReactNode) => viewingRemote ? (
+    <section className="card" role="status">
+      <h2>{name} is available on this computer</h2>
+      <p>The selected machine {selectedMachine?.name ?? selectedMachineID} does not provide this workspace through Vega. Local evidence is not shown under its name.</p>
+      <button type="button" className="btn btn-action" onClick={() => { setSelectedMachineID(''); }}>View on this computer</button>
+      <button type="button" className="btn btn-action" onClick={handleBackToDashboard}>Back to Overview</button>
+    </section>
+  ) : content;
 
   const handleOpenIncidentSource = (source: 'logs' | 'forensics') => {
     void navigate(`/${source}`);
@@ -313,13 +416,22 @@ function AppContent() {
           onRefreshHealth={refreshHealth}
           isLoadingHealth={isLoading}
           machines={machines}
+          machineDiscovery={machineDiscovery}
+          onRetryMachines={() => { setMachineDiscoveryAttempt(attempt => attempt + 1); }}
           selectedMachineID={selectedMachineID}
           onSelectMachine={setSelectedMachineID}
           onAddMachine={openAddMachine}
           terminalDisabledReason={selectedMachineID ? 'System output is local to this computer; remote terminal actions are not granted by system-monitor.' : undefined}
         />
 
-        {viewingRemote && selectedMachine ? (
+        {unknownSubject ? (
+          <div className="machine-strip" role="status">
+            <div className="machine-strip__bar">
+              <span>{machineDiscovery === 'loading' ? <>Checking machine <b>{selectedMachineID}</b>. No readings are shown yet.</> : machineDiscovery === 'error' ? <>Machine list unavailable; cannot verify <b>{selectedMachineID}</b>. No readings are shown.</> : <>Machine <b>{selectedMachineID}</b> is not available in the current machine list. No readings are shown.</>}</span>
+              <button type="button" className="machine-strip__button" onClick={() => { setSelectedMachineID(''); }}>Back to this computer</button>
+            </div>
+          </div>
+        ) : viewingRemote && selectedMachine ? (
           <MachineIdentityStrip
             machine={selectedMachine}
             isStale={isStale}
@@ -340,11 +452,50 @@ function AppContent() {
         <main className="main-content">
           <div className="container" data-sm-style="sm-style-a8abd88c52">
             <Suspense fallback={<RouteFallback />}>
+            {(() => {
+              const origin = (location.state as { condition?: { alert: Alert; revalidated: boolean; subject: string; target: CardType; windowStart?: string; windowEnd?: string; evaluatedAt?: string } } | null)?.condition;
+              if (!origin || origin.subject !== selectedMachineID || location.pathname !== `/metrics/${origin.target}`) return null;
+              const timedWindow = origin.windowStart && origin.windowEnd && Number.isFinite(Date.parse(origin.windowStart)) && Number.isFinite(Date.parse(origin.windowEnd));
+              return <section className="card mb-lg" aria-label="Originating condition">
+                <h2>Condition selected on Overview</h2>
+                <details>
+                  <summary>{origin.alert.severity.toUpperCase()} · {origin.alert.category} — View condition details</summary>
+                  <p>{origin.alert.message}</p>
+                  {origin.alert.details && <p>{origin.alert.details}</p>}
+                  {origin.evaluatedAt && Number.isFinite(Date.parse(origin.evaluatedAt)) && <p>Last evaluation at navigation: {new Date(origin.evaluatedAt).toLocaleString()}</p>}
+                  <p>{timedWindow ? `Overview window at navigation: ${new Date(origin.windowStart!).toLocaleString()} – ${new Date(origin.windowEnd!).toLocaleString()}` : 'Overview window bounds unavailable at navigation'}</p>
+                </details>
+                <p>{origin.alert.timestamp && Number.isFinite(Date.parse(origin.alert.timestamp)) ? `Active since ${new Date(origin.alert.timestamp).toLocaleString()}` : 'Activation time unavailable'}. {origin.revalidated ? 'Condition status at navigation; it may have changed.' : 'Last known condition; it was not revalidated.'}</p>
+              </section>;
+            })()}
+            {(() => {
+              const sample = (location.state as { sample?: { selected: NonNullable<ChartInspection['selected']>; zoom?: ChartInspection['zoom']; subject: string; target: CardType } } | null)?.sample;
+              if (!sample || sample.subject !== selectedMachineID || location.pathname !== `/metrics/${sample.target}`) return null;
+              const unit = sample.target === 'disk' ? ' MB/s' : sample.target === 'network' ? ' connections' : '%';
+              const value = sample.target === 'network' ? Math.round(sample.selected.raw).toString() : sample.selected.raw.toFixed(1);
+              return <section className="card mb-lg" aria-label="Selected Overview sample">
+                <h2 className="section-heading">Selected Overview sample</h2>
+                <p>{value}{unit} at {new Date(sample.selected.timestamp).toLocaleString()}</p>
+                {sample.zoom && <p>Overview zoom at navigation: {new Date(sample.zoom.start).toLocaleString()} – {new Date(sample.zoom.end).toLocaleString()}</p>}
+                <p>Detail evidence may be newer and is not necessarily from this sample time.</p>
+              </section>;
+            })()}
             <Routes>
               <Route
                 path="/"
                 element={(
                   <>
+                    <section className="overview-heading" aria-labelledby="overview-title">
+                      <div>
+                        <div className="overview-eyebrow">System overview</div>
+                        <h2 id="overview-title">{selectedMachine?.name ?? (selectedMachineID || 'This machine')}</h2>
+                        <div className="overview-subtitle">{metricHistory?.windowSeconds && metricHistory.windowSeconds !== range.seconds ? `Requested ${range.label} · Showing previous ${metricHistory.windowSeconds / 60}-minute history` : range.label} · {metricHistory?.windowStart && metricHistory?.windowEnd ? `${new Date(metricHistory.windowStart).toLocaleString()} – ${new Date(metricHistory.windowEnd).toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})` : 'Window bounds unavailable'} · {paused ? 'View paused' : 'Following updates'}</div>
+                      </div>
+                      <div className="overview-states">
+                        <span>{viewingRemote ? 'Local alert evaluation not shown' : serverAlerts.feed.status === 'ready' ? `${serverAlerts.feed.ruleIssues.length ? 'Evaluation limited' : 'Evaluation ready'}${serverAlerts.feed.evaluatedAt ? ` · ${new Date(serverAlerts.feed.evaluatedAt).toLocaleString()}` : ''}` : `Evaluation ${serverAlerts.feed.status}`}</span>
+                        <span>{healthStatus?.processor_active === true ? 'Collector active' : healthStatus?.processor_active === false ? 'Collector inactive' : 'Collector state unknown'}{viewingRemote ? ' on this computer' : ''}</span>
+                      </div>
+                    </section>
                     {viewingRemote && selectedMachine ? (
                       <section className="mb-lg">
                         <MachinePresenceNote
@@ -358,14 +509,20 @@ function AppContent() {
                       </section>
                     ) : null}
 
-                    {viewingRemote ? null : (
+                    {viewingRemote && selectedMachine && subsystemErrors?.metrics && (
+                      <section className="card mb-lg" role="status">
+                        <p>Readings from {selectedMachine.name} could not be refreshed: {subsystemErrors.metrics.error}. {lastSuccessfulFetch ? 'The last received reading remains visible.' : 'No reading has been received for this machine.'}</p>
+                        <button type="button" className="btn btn-action" onClick={refresh}>Retry readings</button>
+                      </section>
+                    )}
+
+                    {!viewingRemote && (
                       <section className="mb-lg">
-                        <IncidentTimeline
-                          history={metricHistory}
-                          investigations={investigations}
-                          onOpenSource={handleOpenIncidentSource}
-                          onInvestigate={handleInvestigateIncident}
-                        />
+                        <AlertPanel alerts={serverAlerts.alerts} feed={serverAlerts.feed} onInspect={(card, alert, revalidated) => { openDetailPage(card, undefined, { alert, revalidated }); }} onRefresh={() => { void serverAlerts.refresh?.(); }} viewPaused={paused} onInspectOther={() => {
+                          setShowDeferredDashboard(true);
+                          workspaceReveal.current?.();
+                          workspaceReveal.current = revealWorkspace(() => document.getElementById('investigations-workspace'));
+                        }} />
                       </section>
                     )}
 
@@ -373,25 +530,60 @@ function AppContent() {
                     <div className={readingsFrozen ? 'readings-frozen' : undefined}>
                     {/* Real-time Metrics Grid */}
                     <section className="mb-lg">
+                      {!viewingRemote && Boolean(metricHistory?.missingTimestampCount) && (
+                        <p className="overview-subtitle" role="status">{metricHistory!.missingTimestampCount} timeline {metricHistory!.missingTimestampCount === 1 ? 'cycle was' : 'cycles were'} omitted from plots because {metricHistory!.missingTimestampCount === 1 ? 'its timestamp was' : 'their timestamps were'} unavailable.</p>
+                      )}
+                      {!viewingRemote && subsystemErrors?.history && (
+                        <div role="alert" className="card">
+                          <p>History could not be refreshed: {subsystemErrors.history.error}. {metricHistory?.windowStart ? 'The previous history remains visible.' : 'No history has been received.'}</p>
+                          <button type="button" className="btn btn-action" onClick={refresh}>Retry history</button>
+                        </div>
+                      )}
                       <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Metrics failed to render. Try refreshing the page.</div>}>
                         <MetricsGrid
+                          key={selectedMachineID || 'local'}
+                          inspectionStore={chartInspections}
                           metrics={metrics}
                           detailedMetrics={detailedMetrics}
                           expandedCards={dashboardState.expandedCards}
                           onToggleCard={toggleCard}
                           metricHistory={metricHistory}
                           storageIO={infrastructureData?.storageIo}
-                          diskLastUpdated={infrastructureData?.timestamp ? timestampDate(infrastructureData.timestamp)?.toISOString() : undefined}
+                          infrastructureUnavailable={Boolean(subsystemErrors?.infrastructure)}
+                          diskLastUpdated={infrastructureData?.storageIo?.readRate?.observedAt ? timestampDate(infrastructureData.storageIo.readRate.observedAt).toISOString() : undefined}
                           onOpenDetail={openDetailPage}
                           serverAlerts={viewingRemote ? [] : serverAlerts.alerts}
+                          remoteSubject={viewingRemote}
                         />
                       </ErrorBoundary>
                     </section>
 
+                    {!viewingRemote && (
+                      <nav aria-label="Dashboard workspaces" className="overview-workspaces">
+                        <Link aria-label="Processes and ownership" aria-description="CPU and process activity" to={{ pathname: '/metrics/cpu', search: window.location.search }} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); openDetailPage('cpu', 'process-monitor'); } }}><Network aria-hidden="true" /><span>Processes and ownership<small>CPU and process activity</small></span></Link>
+                        <Link aria-label="Memory contributors" aria-description="Memory use by process" to={{ pathname: '/metrics/memory', search: window.location.search }} onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); openDetailPage('memory', 'memory-consumers'); } }}><MemoryStick aria-hidden="true" /><span>Memory contributors<small>Memory use by process</small></span></Link>
+                        <a aria-label="Infrastructure" aria-description="Devices, pools and services" href="#infrastructure-workspace" onClick={event => { const target = document.getElementById('infrastructure-workspace'); pendingWorkspace.current = event.detail === 0 && (!target || target.querySelector('[aria-busy="true"]')) ? 'infrastructure-workspace' : null; setWorkspaceAnnouncement(''); setShowDeferredDashboard(true); workspaceReveal.current?.(); workspaceReveal.current = revealWorkspace(() => document.getElementById('infrastructure-workspace'), event.detail === 0); }}><Database aria-hidden="true" /><span>Infrastructure<small>Devices, pools and services</small></span></a>
+                        <a aria-label="Investigations and reports" aria-description="Investigations and historical reports" href="#investigations-workspace" onClick={event => { const target = document.getElementById('investigations-workspace'); pendingWorkspace.current = event.detail === 0 && (!target || target.querySelector('[aria-busy="true"]')) ? 'investigations-workspace' : null; setWorkspaceAnnouncement(''); setShowDeferredDashboard(true); workspaceReveal.current?.(); workspaceReveal.current = revealWorkspace(() => document.getElementById('investigations-workspace'), event.detail === 0); }}><FileText aria-hidden="true" /><span>Investigations and reports<small>Investigations and historical reports</small></span></a>
+                        <span className="sr-only" role="status" aria-atomic="true">{workspaceAnnouncement}</span>
+                      </nav>
+                    )}
+
                     <section className="mb-lg">
-                      <ErrorBoundary fallback={<div className="card">Device graph failed to render.</div>}>
-                        <DeviceGraphPanel graph={deviceGraph} error={error?.error} />
-                      </ErrorBoundary>
+                      <details className="device-graph-disclosure">
+                        <summary>
+                          <span>Device graph</span>
+                          <span className="device-graph-disclosure__status" aria-live="polite" aria-atomic="true">
+                            {deviceGraph?.available
+                              ? `${deviceGraph.devices.length} devices · ${deviceGraph.subsystems.length} subsystems${subsystemErrors?.deviceGraph ? ` · Last received; refresh failed: ${subsystemErrors.deviceGraph.error}` : ''}`
+                              : deviceGraph ? `Unavailable: ${deviceGraph.unavailableReason || 'host did not provide a graph'}${subsystemErrors?.deviceGraph ? ` · Refresh failed: ${subsystemErrors.deviceGraph.error}` : ''}`
+                                : subsystemErrors?.deviceGraph ? `Unavailable: ${subsystemErrors.deviceGraph.error}`
+                                  : error ? 'Device graph not received' : 'Waiting for device graph'}
+                          </span>
+                        </summary>
+                        <ErrorBoundary fallback={<div className="card">Device graph failed to render.</div>}>
+                          <DeviceGraphPanel graph={deviceGraph} error={subsystemErrors?.deviceGraph?.error} />
+                        </ErrorBoundary>
+                      </details>
                     </section>
 
                     {/* Stated only where readings are actually possible: a
@@ -405,18 +597,23 @@ function AppContent() {
                     </div>
                     )}
 
-                    {/* Alert Panel */}
-                    {!viewingRemote && (
+                    {viewingRemote ? null : (
                       <section className="mb-lg">
-                        <AlertPanel alerts={serverAlerts.alerts} feed={serverAlerts.feed} />
+                        <IncidentTimeline
+                          history={metricHistory}
+                          investigations={investigations}
+                          onOpenSource={handleOpenIncidentSource}
+                          onInvestigate={handleInvestigateIncident}
+                        />
                       </section>
                     )}
+
 
                     {showDeferredDashboard && !selectedMachineID ? (
                       <>
                         {/* Infrastructure Monitor Panel */}
-                        <section className="mb-lg">
-                          <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Infrastructure monitor failed to render.</div>}>
+                        <section id="infrastructure-workspace" className="mb-lg" tabIndex={-1} aria-label="Infrastructure workspace">
+                          <ErrorBoundary fallback={<WorkspaceFailure name="Infrastructure monitor" />}>
                             <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
                               <InfrastructureMonitor
                                 data={infrastructureData}
@@ -424,13 +621,14 @@ function AppContent() {
                                 onToggle={() => { togglePanel('infrastructure'); }}
                                 systemHealth={detailedMetrics?.systemDetails}
                               />
+                              <WorkspaceMounted id="infrastructure-workspace" onMounted={workspaceMounted} />
                             </Suspense>
                           </ErrorBoundary>
                         </section>
 
                         {/* Investigations Section */}
-                        <section className="mb-lg">
-                          <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Investigations section failed to render.</div>}>
+                        <section id="investigations-workspace" className="mb-lg" tabIndex={-1} aria-label="Investigations and reports workspace">
+                          <ErrorBoundary fallback={<WorkspaceFailure name="Investigations section" />}>
                             <Suspense fallback={<LoadingSkeleton variant="card" count={1} />}>
                               <InvestigationsSection
                                 investigations={investigations}
@@ -440,6 +638,7 @@ function AppContent() {
                                 isSpawningAgent={isSpawningAgent}
                                 spawnAgentError={spawnAgentError}
                               />
+                              <WorkspaceMounted id="investigations-workspace" onMounted={workspaceMounted} />
                             </Suspense>
                           </ErrorBoundary>
                         </section>
@@ -460,7 +659,7 @@ function AppContent() {
 
               <Route
                 path="/scripts"
-                element={(
+                element={localOnlyRoute('Scripts', (
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Scripts page failed to render.</div>}>
                     <InvestigationScriptsPage
                       onOpenScriptEditor={openScriptEditor}
@@ -468,7 +667,7 @@ function AppContent() {
                       onSaveScript={saveScript}
                     />
                   </ErrorBoundary>
-                )}
+                ))}
               />
 
               <Route
@@ -525,31 +724,31 @@ function AppContent() {
               />
               <Route
                 path="/forensics"
-                element={(
+                element={localOnlyRoute('Forensics', (
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Forensics page failed to render.</div>}>
                     <ForensicsPage />
                   </ErrorBoundary>
-                )}
+                ))}
               />
               <Route
                 path="/logs"
-                element={(
+                element={localOnlyRoute('Logs', (
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Logs page failed to render.</div>}>
                     <LogsPage />
                   </ErrorBoundary>
-                )}
+                ))}
               />
               <Route
                 path="/capacity"
-                element={(
+                element={localOnlyRoute('Capacity', (
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Capacity page failed to render.</div>}>
                     <CapacityPage />
                   </ErrorBoundary>
-                )}
+                ))}
               />
               <Route
                 path="/metrics/disk"
-                element={(
+                element={localOnlyRoute('Disk detail', (
                   <ErrorBoundary fallback={<div className="card" data-sm-style="sm-style-1769fab70e">Disk detail view failed to render.</div>}>
                     <DiskDetailView
                       detailedMetrics={detailedMetrics}
@@ -559,7 +758,7 @@ function AppContent() {
                       onBack={handleBackToDashboard}
                     />
                   </ErrorBoundary>
-                )}
+                ))}
               />
             </Routes>
             </Suspense>
@@ -578,7 +777,7 @@ function AppContent() {
           </ErrorBoundary>
         ) : null}
 
-        {hasOpenScriptModal ? (
+        {hasOpenScriptModal && !viewingRemote ? (
           <ErrorBoundary fallback={null}>
             <Suspense fallback={null}>
               <ModalsContainer

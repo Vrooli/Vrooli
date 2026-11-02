@@ -33,6 +33,37 @@ describe('shared runtime surfaces', () => {
     expect(disabled).not.toHaveBeenCalled();
   });
 
+  it('does not reschedule an in-flight poll after it is disabled', async () => {
+    vi.useFakeTimers();
+    let finish!: () => void;
+    const callback = vi.fn<() => Promise<void>>().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue(undefined);
+    const { rerender, unmount } = renderHook(({ enabled }) => { usePolling(callback, 100, enabled); }, { initialProps: { enabled: true } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(callback).toHaveBeenCalledTimes(1);
+    rerender({ enabled: false });
+    await act(async () => { finish(); await Promise.resolve(); await vi.advanceTimersByTimeAsync(500); });
+    expect(callback).toHaveBeenCalledTimes(1);
+    rerender({ enabled: true });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(callback).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it('does not let an old rejected poll schedule a second loop after re-enabling', async () => {
+    vi.useFakeTimers();
+    let fail!: (error: Error) => void;
+    const callback = vi.fn<() => Promise<void>>().mockImplementationOnce(() => new Promise((_, reject) => { fail = reject; })).mockResolvedValue(undefined);
+    const { rerender, unmount } = renderHook(({ enabled }) => { usePolling(callback, 100, enabled, { enabled: true, maxIntervalMs: 400 }); }, { initialProps: { enabled: true } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    await act(async () => { fail(new Error('late failure')); await Promise.resolve(); await vi.advanceTimersByTimeAsync(100); });
+    expect(callback).toHaveBeenCalledTimes(2);
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    expect(callback).toHaveBeenCalledTimes(3);
+    unmount();
+  });
+
   it('supports theme persistence, toggling, OS preference changes, and guard errors', () => {
     function ThemeHarness() {
       const { theme, toggleTheme, setTheme } = useTheme();

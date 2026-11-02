@@ -39,6 +39,17 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
     { key: 'fragmentation', points: metricHistory?.fragmentation }
   ]), [metricHistory?.fragmentation]);
 
+  const kernel = memoryDetails?.kernelMemory;
+  const kernelData = useMemo(() => combineFlowSeries([
+    { key: 'slab', points: metricHistory?.kernelSlab },
+    { key: 'reclaimable', points: metricHistory?.kernelReclaimable },
+    { key: 'unreclaimable', points: metricHistory?.kernelUnreclaimable }
+  ]), [metricHistory?.kernelSlab, metricHistory?.kernelReclaimable, metricHistory?.kernelUnreclaimable]);
+  const hostTotal = kernel?.hostTotalBytes?.state;
+  const unreclaimable = kernel?.unreclaimableBytes?.state;
+  const unreclaimableShare = hostTotal?.case === 'measured' && hostTotal.value > 0 && unreclaimable?.case === 'measured'
+    ? `${(Number(unreclaimable.value) / Number(hostTotal.value) * 100).toFixed(1)}% of physical RAM` : undefined;
+
   const swapUsage = memoryDetails?.swapUsage;
   const topProcesses = memoryDetails?.topProcesses;
   const topPagingProcesses = memoryDetails?.topPagingProcesses;
@@ -46,6 +57,9 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
 	const fragmentation = memoryDetails?.fragmentation;
   const swapTrafficState = paging?.swapTrafficPagesPerSecond?.state;
   const swapTraffic = swapTrafficState?.case === 'measured' ? swapTrafficState.value : undefined;
+  const pressure = memoryDetails?.memoryPressure;
+  const pressureColor = pressure?.level === 'critical' ? 'var(--color-error)'
+    : pressure?.level === 'elevated' ? 'var(--color-warning)' : undefined;
 
   const subhead = detailedMetrics?.timestamp
     ? `Updated ${formatProtoTimestamp(detailedMetrics.timestamp)}`
@@ -118,13 +132,44 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
             </div>
           )}
           <div className="card-subtitle">
-            Swap traffic: {swapTraffic === undefined ? 'not yet sampled' : `${Number(swapTraffic).toFixed(1)} pages/sec`}
+            Swap traffic: {swapTraffic === undefined ? (metricStateReason(swapTrafficState) ?? 'not yet sampled') : `${Number(swapTraffic).toFixed(1)} pages/sec`}
           </div>
           <div className="text-muted">
-            {swapTraffic === undefined ? 'Paging flow is unavailable.' : swapTraffic > 128 ? 'Active paging indicates thrashing.' : 'Swap residency is quiet.'}
+            Swap occupancy records pages held in swap. Traffic alone does not establish memory pressure or thrashing.
           </div>
         </div>
 
+        <div className="card flex-col-gap-sm">
+          <h3 className="section-heading">Memory Pressure</h3>
+          <DetailRow label="Pressure level" value={pressure?.level || 'not measured'} valueColor={pressureColor} />
+          <div className="text-muted" role="status">{pressure?.levelReason || 'Memory pressure has not been measured.'}</div>
+          {pressure?.levelSource && <DetailRow label="Pressure source" value={pressure.levelSource} />}
+          {pressure?.observedAt && <DetailRow label="Pressure observed" value={formatProtoTimestamp(pressure.observedAt)} />}
+          <DetailRow label="Swap in" value={pressureSignalLabel(pressure?.signals?.swap_in_bytes_per_second, 'MiB/s')} />
+          <DetailRow label="Swap out" value={pressureSignalLabel(pressure?.signals?.swap_out_bytes_per_second, 'MiB/s')} />
+          <DetailRow label="Memory stalls, some (60s)" value={pressureSignalLabel(pressure?.signals?.psi_some_avg60, '%')} />
+          <DetailRow label="Memory stalls, full (60s)" value={pressureSignalLabel(pressure?.signals?.psi_full_avg60, '%')} />
+        </div>
+
+      </div></DetailSection>
+
+      <DetailSection id="kernel-memory" title="Kernel memory"><div className="card flex-col-gap-sm">
+        <h3 className="section-heading">Kernel Slab Accounting</h3>
+        <DetailRow label="Slab total" value={kernelBytesLabel(kernel?.slabBytes)} />
+        <DetailRow label="Reclaimable slab" value={kernelBytesLabel(kernel?.reclaimableBytes)} />
+        <DetailRow label="Unreclaimable slab" value={kernelBytesLabel(kernel?.unreclaimableBytes)} />
+        {unreclaimableShare && <div className="card-subtitle">{unreclaimableShare}</div>}
+        {kernel?.slabBytes?.observedAt && <DetailRow label="Kernel accounting observed" value={formatProtoTimestamp(kernel.slabBytes.observedAt)} />}
+        <div className="text-muted">Kernel allocation is not a leak diagnosis. Compare growth over time with workload and memory pressure; unreclaimable slab cannot be freed by dropping file caches.</div>
+        <MetricLineChart status={metricHistory === null ? 'loading' : 'ready'}
+          seriesLabel="kernel slab bytes" data={kernelData}
+          lines={[
+            { dataKey: 'slab', name: 'Slab total', color: 'var(--color-info)' },
+            { dataKey: 'reclaimable', name: 'Reclaimable', color: 'var(--color-success)' },
+            { dataKey: 'unreclaimable', name: 'Unreclaimable', color: 'var(--color-warning)' }
+          ]}
+          unit="bytes" valueFormatter={value => formatBytes(value)}
+        />
       </div></DetailSection>
 
       {fragmentation?.maxFreeOrder?.state?.case === 'measured' ? (
@@ -172,6 +217,19 @@ export const MemoryDetailView = ({ metrics, detailedMetrics, metricHistory, onBa
     </MetricDetailLayout>
   );
 };
+
+function kernelBytesLabel(signal: MetricValue | undefined): string {
+  return signal?.state?.case === 'measured' ? formatBytes(Number(signal.state.value))
+    : metricStateReason(signal?.state) ?? 'not yet measured';
+}
+
+function pressureSignalLabel(signal: MetricValue | undefined, unit: 'MiB/s' | '%'): string {
+  if (signal?.state?.case !== 'measured') {
+    return metricStateReason(signal?.state) ?? 'not yet measured';
+  }
+  const value = Number(signal.state.value);
+  return unit === 'MiB/s' ? `${(value / (1024 * 1024)).toFixed(1)} MiB/s` : `${value.toFixed(2)}%`;
+}
 
 function metricStateReason(state: MetricValue['state'] | undefined): string | undefined {
 	if (!state) return undefined;

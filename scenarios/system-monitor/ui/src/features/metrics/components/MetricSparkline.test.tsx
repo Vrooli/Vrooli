@@ -1,20 +1,20 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { describe, expect, it } from 'vitest';
-import { MetricSparkline } from './MetricSparkline';
+import { MetricSparkline, type ChartInspection } from './MetricSparkline';
 
 const point = (timestamp: string, value: number) => ({ timestamp, value });
 
 describe('MetricSparkline', () => {
   it('shows the collection state when no samples exist', () => {
     render(<MetricSparkline ariaLabel="CPU history" />);
-    expect(screen.getByText('Collecting data…')).toBeInTheDocument();
+    expect(screen.getByText('No observations in this window')).toBeInTheDocument();
   });
 
   it('renders one and two point histories with labels and thresholds', () => {
     const one = render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', 12)]} unit="%" windowLabel="1h" ariaLabel="CPU history" />);
     expect(screen.getByRole('img', { name: 'CPU history' })).toBeInTheDocument();
-    expect(screen.getByText('1h')).toBeInTheDocument();
+    expect(screen.getByText(/1h · observed/)).toBeInTheDocument();
     one.unmount();
 
     render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', 10), point('2026-01-01T00:01:00Z', 20)]} threshold={15} valueDomain={[0, 100]} unit="%" />);
@@ -22,7 +22,7 @@ describe('MetricSparkline', () => {
     expect(screen.getByRole('img').querySelector('line')).toBeInTheDocument();
   });
 
-  it('smooths multi-point data and exposes the nearest hover sample', () => {
+  it('exposes the nearest hover sample', () => {
     render(<MetricSparkline data={[
       point('2026-01-01T00:00:00Z', 10),
       point('2026-01-01T00:01:00Z', 30),
@@ -36,22 +36,137 @@ describe('MetricSparkline', () => {
     expect(screen.queryByText('30.0%')).not.toBeInTheDocument();
   });
 
+  it('states observed coverage and gaps even when the requested window is unavailable', () => {
+    render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', 41), { ...point('2026-01-01T00:00:10Z', 0), gapBefore: true }]} unit="%" />);
+    expect(screen.getByText(/Observed .*1 gap/)).toBeInTheDocument();
+    expect(document.querySelector('[data-testid="sparkline-line"]')?.getAttribute('d')?.match(/M/g)).toHaveLength(2);
+  });
+
+  it('reveals the latest observation on focus without fixing the view', () => {
+    const data = [point('2026-01-01T00:00:00Z', 10), point('2026-01-01T00:01:00Z', 30)];
+    const { rerender } = render(<MetricSparkline data={data} unit="%" ariaLabel="CPU history" />);
+    const plot = screen.getByRole('img', { name: 'CPU history' });
+    fireEvent.focus(plot);
+    expect(document.querySelector('.readout-trace__summary')).toHaveTextContent('30.0%');
+    const summary = document.querySelector('.readout-trace__summary')!;
+    expect(summary.compareDocumentPosition(plot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('.readout-trace__tooltip')).not.toBeInTheDocument();
+    expect(plot).toHaveAccessibleDescription(/use left and right arrows/);
+    expect(screen.getByTestId('sparkline-latest-announcement')).toHaveTextContent('Latest observation: 30.0%');
+    expect(screen.queryByRole('button', { name: 'Return to latest' })).not.toBeInTheDocument();
+    rerender(<MetricSparkline data={[...data, point('2026-01-01T00:02:00Z', 40)]} unit="%" ariaLabel="CPU history" />);
+    expect(document.querySelector('.readout-trace__summary')).toHaveTextContent('40.0%');
+    expect(screen.getByTestId('sparkline-latest-announcement')).toHaveTextContent('Latest observation: 40.0%');
+    fireEvent.keyDown(plot, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('sparkline-latest-announcement')).toBeEmptyDOMElement();
+    expect(screen.getByRole('status')).toHaveTextContent('Fixed selection: 30.0%');
+    fireEvent.keyDown(plot, { key: 'Escape' });
+    expect(screen.getByTestId('sparkline-latest-announcement')).toHaveTextContent('Latest observation: 40.0%');
+  });
+
+  it('places samples by time, breaks missing intervals, and supports keyboard inspection', () => {
+    render(<MetricSparkline data={[
+      point('2026-01-01T00:00:00Z', 10), point('2026-01-01T00:01:00Z', 20),
+      point('2026-01-01T00:04:00Z', 30), point('2026-01-01T00:05:00Z', 40),
+    ]} sampleIntervalSeconds={60} unit="%" />);
+    const line = screen.getByTestId('sparkline-line').getAttribute('d') ?? '';
+    expect(line.match(/M/g)).toHaveLength(2);
+    expect(line).toContain('L20.00,');
+    expect(line).toContain('M80.00,');
+    const chart = screen.getByRole('img');
+    fireEvent.keyDown(chart, { key: 'ArrowLeft' });
+    expect(screen.getByText('30.0%')).toBeInTheDocument();
+    fireEvent.keyDown(chart, { key: 'PageUp' });
+    expect(screen.getByRole('status')).toHaveTextContent('20.0%');
+    expect(screen.getByRole('button', { name: 'Return to latest' })).toBeInTheDocument();
+    fireEvent.keyDown(chart, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'Return to latest' })).not.toBeInTheDocument();
+  });
+
+  it('places partial coverage within the exact shared query window', () => {
+    render(<MetricSparkline data={[point('2026-01-01T00:43:00Z', 10), point('2026-01-01T00:50:00Z', 20)]} windowStart="2026-01-01T00:00:00Z" windowEnd="2026-01-01T01:00:00Z" />);
+    const line = screen.getByTestId('sparkline-line').getAttribute('d') ?? '';
+    expect(line).toMatch(/^M71\.67,/);
+    expect(line).toContain('L83.33,');
+    expect(screen.getByLabelText(/^Window /)).toBeInTheDocument();
+  });
+
+  it('holds an inspected view fixed across refresh until returning to latest', () => {
+    const initial = [point('2026-01-01T00:00:00Z', 10), point('2026-01-01T00:01:00Z', 20)];
+    const { rerender } = render(<MetricSparkline data={initial} unit="%" />);
+    fireEvent.keyDown(screen.getByRole('img'), { key: 'ArrowLeft' });
+    rerender(<MetricSparkline data={[...initial, point('2026-01-01T00:02:00Z', 80)]} unit="%" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Fixed selection: 10.0%');
+    expect(screen.getByRole('img').querySelector('title')).toHaveTextContent('Latest 20.0%');
+    fireEvent.click(screen.getByRole('button', { name: 'Return to latest' }));
+    expect(screen.getByRole('img').querySelector('title')).toHaveTextContent('Latest 80.0%');
+  });
+
+  it('zooms around an inspected observation and resets to the shared window', () => {
+    const data = Array.from({ length: 61 }, (_, i) => point(new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString(), i));
+    render(<MetricSparkline data={data} unit="%" windowStart="2026-01-01T00:00:00Z" windowEnd="2026-01-01T01:00:00Z" ariaLabel="CPU history" />);
+    fireEvent.keyDown(screen.getByRole('img', { name: 'CPU history' }), { key: 'ArrowLeft' });
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom around selected sample' }));
+    expect(screen.getByRole('img', { name: 'CPU history' })).toHaveFocus();
+    expect(screen.getByText(/Chart zoom:/)).toBeInTheDocument();
+    const zoomed = screen.getByTestId('sparkline-line').getAttribute('d') ?? '';
+    expect((zoomed.match(/[ML]/g) ?? []).length).toBeLessThan(61);
+    fireEvent.click(screen.getByRole('button', { name: 'Reset chart zoom' }));
+    expect(screen.getByRole('img', { name: 'CPU history' })).toHaveFocus();
+    expect(screen.queryByText(/Chart zoom:/)).not.toBeInTheDocument();
+    expect((screen.getByTestId('sparkline-line').getAttribute('d')?.match(/[ML]/g) ?? []).length).toBe(61);
+    expect(screen.getByRole('status')).toHaveTextContent('Fixed selection: 59.0%');
+  });
+
+  it('restores a zoomed inspection when the chart remounts', () => {
+    const data = Array.from({ length: 61 }, (_, i) => point(new Date(Date.UTC(2026, 0, 1, 0, i)).toISOString(), i));
+    const store = new Map<string, ChartInspection>();
+    const props = { data, unit: '%', windowStart: '2026-01-01T00:00:00Z', windowEnd: '2026-01-01T01:00:00Z', ariaLabel: 'CPU history', inspectionStore: store, inspectionKey: 'cpu' };
+    const first = render(<MetricSparkline {...props} />);
+    fireEvent.keyDown(screen.getByRole('img', { name: 'CPU history' }), { key: 'ArrowLeft' });
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom around selected sample' }));
+    const bounds = screen.getByText(/Chart zoom:/).textContent;
+    first.unmount();
+    render(<MetricSparkline {...props} />);
+    expect(screen.getByText(/Chart zoom:/)).toHaveTextContent(bounds ?? '');
+    expect(screen.getByRole('status')).toHaveTextContent('Fixed selection: 59.0%');
+    fireEvent.click(screen.getByRole('button', { name: 'Return to latest' }));
+    expect(store.has('cpu')).toBe(false);
+  });
+
+  it('selects an observed sample on a touch-style click without a prior hover', () => {
+    render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', 10), point('2026-01-01T00:01:00Z', 20)]} unit="%" />);
+    const chart = screen.getByRole('img');
+    Object.defineProperty(chart, 'getBoundingClientRect', { configurable: true, value: () => ({ left: 0, width: 100 }) });
+    fireEvent.click(chart, { clientX: 0 });
+    expect(screen.getByRole('button', { name: 'Return to latest' })).toBeInTheDocument();
+    expect(document.querySelector('.readout-trace__summary')).toHaveTextContent('10.0%');
+  });
+
+  it('provides an accessible table of observed samples', async () => {
+    render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', 4), point('2026-01-01T00:01:00Z', 8)]} unit="%" ariaLabel="CPU history" />);
+    fireEvent.click(screen.getByText('View observed samples'));
+    expect(await screen.findByRole('table', { name: 'CPU history — observed samples' })).toBeInTheDocument();
+    expect(screen.getByRole('table')).toHaveTextContent('4.0%');
+    expect(screen.getByRole('table')).toHaveTextContent('8.0%');
+  });
+
   it('draws a graticule with a stronger baseline and mid-division', () => {
     render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', 10), point('2026-01-01T00:01:00Z', 20)]} valueDomain={[0, 100]} />);
 
     const graticule = screen.getByTestId('sparkline-graticule');
     const lines = Array.from(graticule.querySelectorAll('line'));
-    expect(lines).toHaveLength(5);
+    expect(lines).toHaveLength(10);
 
     const strong = lines.filter(line => line.getAttribute('stroke') === 'var(--chart-grid-strong)');
     const faint = lines.filter(line => line.getAttribute('stroke') === 'var(--chart-grid)');
     expect(strong).toHaveLength(2);
-    expect(faint).toHaveLength(3);
+    expect(faint).toHaveLength(8);
     for (const line of lines) {
       expect(line.getAttribute('vector-effect')).toBe('non-scaling-stroke');
-      // The graticule is horizontal: same y at both ends.
-      expect(line.getAttribute('y1')).toBe(line.getAttribute('y2'));
     }
+    expect(lines.filter(line => line.getAttribute('y1') === line.getAttribute('y2'))).toHaveLength(5);
+    expect(lines.filter(line => line.getAttribute('x1') === line.getAttribute('x2'))).toHaveLength(5);
   });
 
   it('labels the vertical extent on a rail outside the plot', () => {
@@ -117,30 +232,28 @@ describe('MetricSparkline', () => {
       valueAt(idx),
     ));
 
-  it('downsamples a dense series to a bounded number of real vertices', () => {
+  it('plots every observed sample in a dense series', () => {
     const data = dense(700, idx => (idx % 2 === 0 ? 40 : 70));
     render(<MetricSparkline data={data} valueDomain={[0, 100]} />);
 
     const svg = screen.getByRole('img');
-    expect(svg).toHaveAttribute('data-render-mode', 'lttb');
+    expect(svg).toHaveAttribute('data-render-mode', 'line');
 
     const d = screen.getByTestId('sparkline-line').getAttribute('d') ?? '';
-    const vertices = (d.match(/C/g) ?? []).length + 1;
-    expect(vertices).toBeGreaterThan(1);
-    expect(vertices).toBeLessThanOrEqual(150);
-    expect(vertices).toBeLessThan(700);
+    const vertices = (d.match(/L/g) ?? []).length + 1;
+    expect(vertices).toBe(700);
     // No band: the line alone carries the series.
     expect(screen.queryByTestId('sparkline-envelope')).not.toBeInTheDocument();
   });
 
-  it('keeps a sparse series on the original smooth line', () => {
+  it('keeps a sparse series on straight observed segments', () => {
     render(<MetricSparkline data={dense(20, idx => 40 + idx)} valueDomain={[0, 100]} />);
 
     expect(screen.getByRole('img')).toHaveAttribute('data-render-mode', 'line');
     expect(screen.getByRole('img').querySelector('path[fill^="url("]')).toBeInTheDocument();
   });
 
-  it('starts and ends a downsampled line on the true first and last samples', () => {
+  it('starts and ends a dense line on the true first and last samples', () => {
     // Distinct endpoints so their positions are unambiguous.
     const data = dense(700, idx => (idx === 0 ? 10 : idx === 699 ? 90 : 50));
     render(<MetricSparkline data={data} valueDomain={[0, 100]} />);
@@ -159,7 +272,7 @@ describe('MetricSparkline', () => {
 
     const d = screen.getByTestId('sparkline-line').getAttribute('d') ?? '';
     const ys = [...d.matchAll(/(?:-?[\d.]+),(-?[\d.]+)/g)].map(match => Number(match[1]));
-    // The spike sample itself is selected, so the line reaches the plot ceiling.
+    // The spike sample is plotted, so the line reaches the plot ceiling.
     expect(Math.min(...ys)).toBeCloseTo(4, 5);
   });
 
@@ -183,7 +296,7 @@ describe('MetricSparkline', () => {
     // Every rendered vertex is a real sample, so the read-out is one of them.
     expect(screen.getByText(/^(40\.0|70\.0)%$/)).toBeInTheDocument();
     expect(screen.queryByText(/mean/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/–/)).not.toBeInTheDocument();
+    expect(document.querySelector('.readout-trace__summary')).not.toHaveTextContent('–');
   });
 
   it('gives a near-constant series a readable domain instead of a degenerate axis', () => {
@@ -226,7 +339,7 @@ describe('MetricSparkline', () => {
     render(<MetricSparkline ariaLabel="CPU history" />);
 
     const empty = screen.getByTestId('sparkline-empty');
-    expect(empty).toHaveTextContent('Collecting data…');
+    expect(empty).toHaveTextContent('No observations in this window');
     expect(empty.querySelector('svg')).toBeNull();
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByTestId('sparkline-rail')).not.toBeInTheDocument();
@@ -234,7 +347,7 @@ describe('MetricSparkline', () => {
 
   it('normalizes non-finite and flat domains and supports custom accessibility', () => {
     const { rerender } = render(<MetricSparkline data={[point('2026-01-01T00:00:00Z', Number.NaN)]} valueDomain={[5, 5]} threshold={99} ariaLabel="custom chart" />);
-    expect(screen.getByRole('img', { name: 'custom chart' })).toBeInTheDocument();
+    expect(screen.getByTestId('sparkline-empty')).toBeInTheDocument();
     rerender(<MetricSparkline data={[point('2026-01-01T00:00:00Z', Number.POSITIVE_INFINITY), point('2026-01-01T00:01:00Z', 2)]} threshold={-1} />);
     expect(screen.getByRole('img')).toBeInTheDocument();
   });

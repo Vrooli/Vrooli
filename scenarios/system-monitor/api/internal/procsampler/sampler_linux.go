@@ -176,6 +176,7 @@ func parseStat(line string) (ProcessSample, bool) {
 	sample.stime = atouSafe(rest[12])
 	sample.MajorFaults = atouSafe(rest[9])
 	sample.Threads = atoiSafe(rest[17])
+	sample.StartTimeTicks = atouSafe(rest[19])
 
 	// rss is in pages; convert to KiB using the page size.
 	rssPages := atoiSafe(rest[21])

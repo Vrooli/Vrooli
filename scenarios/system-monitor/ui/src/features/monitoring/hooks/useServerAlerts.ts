@@ -9,6 +9,7 @@ export const SERVER_ALERT_POLL_MS = 15_000;
 export interface ServerAlertsState {
   alerts: Alert[];
   feed: AlertFeed;
+  refresh?: () => Promise<void>;
 }
 
 const initialState: ServerAlertsState = { alerts: [], feed: { status: 'loading', ruleIssues: [] } };
@@ -47,5 +48,6 @@ export function useServerAlerts(enabled: boolean): ServerAlertsState {
 
   usePolling(load, SERVER_ALERT_POLL_MS, enabled, { enabled: true, maxIntervalMs: 120_000 });
 
-  return state;
+  const refresh = useCallback(async () => { await load().catch(() => undefined); }, [load]);
+  return { ...state, refresh };
 }

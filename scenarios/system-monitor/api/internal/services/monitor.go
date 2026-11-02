@@ -469,6 +469,7 @@ func (s *MonitorService) updateLatestSnapshot(cycleID string, observedAt time.Ti
 				response.CPUUsage = value
 			}
 		case "memory":
+			response.KernelMemory = repository.KernelMemoryFromValues(metric.Values, cycleID, metric.Timestamp)
 			response.MemoryState = metricState(metric, "usage_percent", "memory collector unavailable")
 			markObserved(&response.MemoryState)
 			if value, ok := metric.Values["usage_percent"].(float64); ok {
@@ -900,12 +901,33 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 
 	now := s.clock.Now()
 	start := now.Add(-time.Duration(windowSeconds) * time.Second)
+	interval := time.Duration(sampleIntervalSeconds) * time.Second
+	// Return at most the newest 1000 buckets, and report the effective window
+	// when a requested interval would exceed that bound.
+	if int64(windowSeconds) > int64(sampleIntervalSeconds)*repository.DefaultMetricsLimit {
+		maxWindow := time.Duration(int64(sampleIntervalSeconds)*repository.DefaultMetricsLimit) * time.Second
+		start = now.Add(-maxWindow)
+		windowSeconds = int(maxWindow / time.Second)
+	}
+	var buckets []repository.TimeRange
+	for end := now; end.After(start); {
+		begin := end.Add(-interval)
+		if begin.Before(start) {
+			begin = start
+		}
+		buckets = append(buckets, repository.TimeRange{StartTime: begin, EndTime: end})
+		end = begin
+	}
+	for i, j := 0, len(buckets)-1; i < j; i, j = i+1, j-1 {
+		buckets[i], buckets[j] = buckets[j], buckets[i]
+	}
 
 	results, err := s.repo.GetMetrics(ctx, repository.MetricsFilter{
 		TimeRange: repository.TimeRange{
 			StartTime: start,
 			EndTime:   now,
 		},
+		SampleBuckets: buckets,
 	})
 	if err != nil {
 		return nil, err
@@ -933,6 +955,7 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 			CPUModeIowait:               m.CPUModeIowait,
 			CPUModeSteal:                m.CPUModeSteal,
 			MemoryState:                 m.MemoryState,
+			KernelMemory:                m.KernelMemory,
 			ConnectionsState:            m.ConnectionsState,
 			GPUState:                    m.GPUState,
 			SwapState:                   m.SwapState,
@@ -946,6 +969,8 @@ func (s *MonitorService) GetMetricsTimeline(ctx context.Context, windowSeconds, 
 	}
 
 	return &models.MetricsTimelineResponse{
+		WindowStart:           start,
+		WindowEnd:             now,
 		WindowSeconds:         windowSeconds,
 		SampleIntervalSeconds: sampleIntervalSeconds,
 		Samples:               samples,
@@ -1234,7 +1259,8 @@ func populateMemoryDetails(detailed *models.DetailedMetrics, memData, diskData, 
 	}
 
 	detailed.MemoryDetails = models.MemoryMetrics{
-		Usage: getFloat64Value(memData.Values, "usage_percent"),
+		Usage:        getFloat64Value(memData.Values, "usage_percent"),
+		KernelMemory: repository.KernelMemoryFromValues(memData.Values, "", memData.Timestamp),
 	}
 
 	if swapInfo, ok := memData.Values["swap"].(map[string]interface{}); ok {

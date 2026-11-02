@@ -52,7 +52,7 @@ func Run(cfg *config.Config) error {
 	}
 
 	alertSvc := services.NewAlertService(cfg, repo)
-	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewStaticProvider())
+	monitorSvc := services.NewMonitorService(cfg, repo, infrastructure.NewMeasuredProvider())
 
 	agentSvc := agentmanager.NewAgentService(agentmanager.AgentServiceConfig{
 		ProfileName: cfg.AgentManager.ProfileName,
@@ -71,6 +71,7 @@ func Run(cfg *config.Config) error {
 	scriptSvc := services.NewCatalogScriptService(catalog, services.ResolveRuntimeStateBasePath())
 	nativeInvestigator := services.NewNativeInvestigator()
 	nativeInvestigator.SetMemoryPressureSource(monitorSvc.GetMemoryPressure)
+	nativeInvestigator.SetKernelMemorySource(monitorSvc.GetKernelMemory)
 	scriptSvc.SetNativeRunner(nativeInvestigator)
 	var runHistory *investigations.Service
 	if sqliteRepo, ok := repo.(*sqliterepo.Repository); ok {
@@ -96,9 +97,15 @@ func Run(cfg *config.Config) error {
 	// Metrics lifecycle: maintenance service + settings-driven retention scheduler.
 	// The scheduler also drives per-process raw-then-rollup retention (additive
 	// to the metrics-blob retention) on the same cadence.
-	maintenanceSvc := services.NewMetricsMaintenanceService(repo)
+	maintenanceSvc := services.NewMetricsMaintenanceService(repo, services.WithCollectorRetention(cfg.Monitoring.CollectorRetention))
 	retentionScheduler := services.NewRetentionScheduler(maintenanceSvc, settingsMgr, apiLog.With("service", "retention")).
 		WithProcessRetention(repo, cfg.Monitoring.RawRetention, cfg.Monitoring.RollupRetention)
+	if receiptPath, err := services.AutoCompactionReceiptPath(); err == nil {
+		policy := services.ParseCompactionWindow(os.Getenv("SYSTEM_MONITOR_COMPACTION_WINDOW"), services.DefaultAutoCompactionPolicy())
+		retentionScheduler.WithAutoCompaction(services.NewAutoCompactor(repo, policy, receiptPath))
+	} else {
+		apiLog.Warn("auto compaction disabled: receipt path unavailable", "error", err)
+	}
 	retentionScheduler.Start()
 
 	// Disk-pressure lifecycle: evaluate the configured threshold on a schedule

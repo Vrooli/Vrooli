@@ -23,6 +23,13 @@ type NativeInvestigationRunner interface {
 type NativeInvestigator struct {
 	sampler        procsampler.Sampler
 	memoryPressure func(ctx context.Context) (*models.MemoryPressure, error)
+	kernelMemory   func(ctx context.Context) (*models.KernelMemoryMetrics, error)
+}
+
+// SetKernelMemorySource supplies the existing scheduler-owned observation;
+// investigations must not launch a new privileged or expensive host scan.
+func (n *NativeInvestigator) SetKernelMemorySource(source func(context.Context) (*models.KernelMemoryMetrics, error)) {
+	n.kernelMemory = source
 }
 
 // SetMemoryPressureSource wires the monitor's memory-pressure read into the
@@ -55,7 +62,23 @@ func (n *NativeInvestigator) RunNative(ctx context.Context, query string) ([]byt
 			return nil, fmt.Errorf("memory-pressure source is not configured")
 		}
 		reading, err := n.memoryPressure(ctx)
-		return marshalNative(map[string]any{"investigation": query, "memory_pressure": reading}, err)
+		if err != nil {
+			return nil, err
+		}
+		result := map[string]any{"investigation": query, "memory_pressure": reading, "kernel_memory_status": "not_yet_sampled", "kernel_memory_reason": "kernel accounting has not been sampled"}
+		if n.kernelMemory == nil {
+			result["kernel_memory_status"], result["kernel_memory_reason"] = "unavailable", "kernel accounting source is not configured"
+		} else if kernel, kernelErr := n.kernelMemory(ctx); kernelErr != nil {
+			result["kernel_memory_status"], result["kernel_memory_reason"] = "failed", kernelErr.Error()
+		} else if kernel != nil {
+			result["kernel_memory"] = kernel
+			result["kernel_memory_status"] = "available"
+			delete(result, "kernel_memory_reason")
+		}
+		return marshalNative(result, nil)
+	case "process-read-activity":
+		result, err := procsampler.InvestigateReadActivity(ctx)
+		return marshalNative(result, err)
 	case "process-genealogy":
 		return n.processGenealogy(ctx)
 	case "zombies":

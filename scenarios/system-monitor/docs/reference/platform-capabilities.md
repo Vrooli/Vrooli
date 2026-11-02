@@ -16,6 +16,7 @@ reported as `unsupported`; it is never reported as a measured zero.
 | Network counters | native interface/proc data | native interface backend | native interface backend | Counts or interval rates; first rate is unavailable. |
 | Disk usage | native statfs | native statfs | native volume API | Instantaneous percent 0–100. |
 | Process sampling | `/proc` sampler | capability-dependent | capability-dependent | First process rate is unavailable; RSS is bytes. |
+| On-demand process read activity | Two bounded `/proc/<pid>/io` observations | explicit unsupported | explicit unsupported | Rows use process start identity and actual per-process elapsed time. Permission failures, exits and the process cap make coverage partial. |
 | GPU utilization | vendor/native backend when available | vendor/native backend when available | vendor/native backend when available | Unsupported if no backend; percent and bytes. |
 
 Cross-builds verify that supported target packages compile. Native smoke tests

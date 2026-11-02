@@ -10,7 +10,7 @@ interface TimeRangePickerProps {
  * a date picker — the input passes straight through.
  */
 export const TimeRangePicker = ({ since, until, onChange }: TimeRangePickerProps) => (
-  <div className="flex-row-center gap-sm">
+  <div className="logs-time-filter flex-row-center gap-sm">
     <label className="text-xs text-muted" data-sm-style="sm-style-924f08a902">
       Since
       <input

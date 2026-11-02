@@ -97,3 +97,38 @@ func TestMaintenanceService_RunScheduledRetention(t *testing.T) {
 		t.Errorf("DeletedRows = %d, want 2", res.DeletedRows)
 	}
 }
+
+func TestMaintenanceService_RunScheduledRetentionAppliesShorterCollectorWindows(t *testing.T) {
+	now := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	repo := memory.NewRepository()
+	save := func(collector string, age time.Duration) {
+		t.Helper()
+		if err := repo.SaveMetricCycle(context.Background(), fmt.Sprintf("%s-%d", collector, age), now.Add(-age), []repository.MetricObservation{{CollectorName: collector, Values: map[string]interface{}{"v": 1.0}}}); err != nil {
+			t.Fatalf("SaveMetricCycle: %v", err)
+		}
+	}
+	day := 24 * time.Hour
+	save("device_graph", 3*day) // older than its 2d window -> pruned
+	save("device_graph", 1*day) // inside its window -> kept
+	save("cpu", 3*day)          // no override, inside global 30d -> kept
+	save("network", 40*day)     // override longer than global is ignored; global prunes it
+
+	svc := NewMetricsMaintenanceService(repo,
+		WithMaintenanceClock(NewStubClock(now)),
+		WithCollectorRetention(map[string]time.Duration{"device_graph": 2 * day, "network": 60 * day}),
+	)
+	res, err := svc.RunScheduledRetention(context.Background(), Settings{MetricsRetentionDays: 30})
+	if err != nil {
+		t.Fatalf("RunScheduledRetention: %v", err)
+	}
+	if res.DeletedRows != 2 {
+		t.Errorf("DeletedRows = %d, want 2 (old device_graph + 40d network)", res.DeletedRows)
+	}
+	remaining, err := repo.GetMetrics(context.Background(), repository.MetricsFilter{Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(remaining) != 2 {
+		t.Errorf("remaining cycles = %d, want 2 (recent device_graph + cpu)", len(remaining))
+	}
+}

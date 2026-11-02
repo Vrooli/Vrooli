@@ -56,6 +56,8 @@ export interface ModalState {
 export interface ChartDataPoint {
   timestamp: string;
   value: number;
+  /** An intervening collection cycle did not measure this series. */
+  gapBefore?: boolean;
   label?: string;
 }
 
@@ -71,6 +73,10 @@ export interface GPUCardDetails {
 }
 
 export interface MetricHistory {
+  /** Timeline cycles omitted from plots because their timestamp was absent. */
+  missingTimestampCount?: number;
+  windowStart?: string;
+  windowEnd?: string;
   windowSeconds: number;
   sampleIntervalSeconds: number;
 	cpu: ChartDataPoint[];
@@ -90,6 +96,9 @@ export interface MetricHistory {
   swapTraffic?: ChartDataPoint[];
   majorFaults?: ChartDataPoint[];
   fragmentation?: ChartDataPoint[];
+  kernelSlab?: ChartDataPoint[];
+  kernelReclaimable?: ChartDataPoint[];
+  kernelUnreclaimable?: ChartDataPoint[];
   network: ChartDataPoint[];
   gpu?: ChartDataPoint[];
   diskUsage?: ChartDataPoint[];

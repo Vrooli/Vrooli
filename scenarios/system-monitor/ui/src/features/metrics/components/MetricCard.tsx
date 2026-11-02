@@ -11,6 +11,7 @@ import type {
 import type { MetricValue } from '@vrooli/proto-types/system-monitor/v1/metrics/metrics_pb';
 import { timestampDate } from '@bufbuild/protobuf/wkt';
 import { MetricSparkline } from './MetricSparkline';
+import type { ChartInspection } from './MetricSparkline';
 import { expansionMap } from './expansions';
 import { formatWindowLabel } from '../../../shared/utils/formatters';
 
@@ -20,17 +21,25 @@ interface MetricCardProps {
   unit: string;
   value?: number | null;
   metric?: MetricValue;
+  valueObservedAt?: string;
+  secondaryText?: string;
+  emptyHistoryMessage?: string;
+  currentUnavailableReason?: string;
   isExpanded: boolean;
   onToggle: () => void;
   details?: CPUMetrics | MemoryMetrics | NetworkMetrics | DiskCardDetails | GPUCardDetails;
   alertCount: number;
   history?: ChartDataPoint[];
   historyWindowSeconds?: number;
+  windowStart?: string;
+  windowEnd?: string;
+  sampleIntervalSeconds?: number;
   valueDomain?: [number, number];
   threshold?: number;
   historyUnit?: string;
   onOpenDetails?: () => void;
   detailButtonLabel?: string;
+  inspectionStore?: Map<string, ChartInspection>;
 }
 
 /**
@@ -57,97 +66,39 @@ export const MetricCard = ({
   unit,
   value,
   metric,
+  valueObservedAt,
+  secondaryText,
+  emptyHistoryMessage,
+  currentUnavailableReason,
   isExpanded,
   onToggle,
   details,
   alertCount,
   history,
   historyWindowSeconds,
+  windowStart,
+  windowEnd,
+  sampleIntervalSeconds,
   valueDomain,
   threshold,
   historyUnit,
   onOpenDetails,
-  detailButtonLabel = 'View detail'
+  detailButtonLabel = 'View detail',
+  inspectionStore
 }: MetricCardProps) => {
   const state = metric?.state;
   const metricMeasured = state?.case === 'measured' ? state.value : undefined;
-  const metricReason = state?.case === 'unsupportedReason' || state?.case === 'failedError' ? state.value : undefined;
+  const metricReason = currentUnavailableReason ?? (state?.case === 'unsupportedReason' || state?.case === 'failedError' ? state.value : undefined);
   const hasNumericValue = typeof metricMeasured === 'number'
     ? Number.isFinite(metricMeasured)
     : typeof value === 'number' && Number.isFinite(value);
   const resolvedValue = hasNumericValue ? (typeof metricMeasured === 'number' ? metricMeasured : value ?? null) : null;
-  const isUnavailable = Boolean(metric && state?.case !== 'measured');
-  const observedAt = metric?.observedAt ? timestampDate(metric.observedAt).toLocaleTimeString() : undefined;
+  const isUnavailable = Boolean(currentUnavailableReason || (metric && state?.case !== 'measured'));
+  const observedAt = metric?.observedAt ? timestampDate(metric.observedAt).toLocaleTimeString() : valueObservedAt ? new Date(valueObservedAt).toLocaleTimeString() : undefined;
 
-  /**
-   * The authored attention thresholds, by card. Network is absent ON PURPOSE:
-   * its value is a connection count and nobody has declared what "too many"
-   * is on this host. An absent entry means "ungraded", never "fine".
-   */
-  const defaultThresholds: Partial<Record<CardType, number>> = {
-    cpu: 75,
-    memory: 80,
-    disk: 80,
-    gpu: 85
-  };
-
-  const authoredThreshold = typeof threshold === 'number' ? threshold : defaultThresholds[type];
-  /** Whether this card's value is on a 0-100 percentage scale. */
-  const isPercentage = unit === '%';
-
-  /**
-   * `null` — not `0` — when nothing was measured. A zero-length bar is a
-   * fabricated reading of zero, which is a different and false claim from
-   * "this was never read"; callers must render the unread treatment instead.
-   */
-  const getProgressValue = (): number | null => {
-    if (!hasNumericValue || resolvedValue === null || isUnavailable) {
-      return null;
-    }
-    // The track is a 0-100 percentage track. Clamping a connection count of
-    // 551 onto it drew a permanently full bar that meant nothing, so a
-    // non-percentage metric gets no bar rather than a misleading one.
-    if (!isPercentage) {
-      return null;
-    }
-    return Math.min(resolvedValue, 100);
-  };
-
-  /**
-   * Severity is graded against a bar that is APPROPRIATE TO THE UNIT.
-   *
-   * This previously compared every value against 70 and 90 regardless of what
-   * the number meant. Three of the five cards are percentages, so that read
-   * correctly — but the network card's value is a CONNECTION COUNT, and a host
-   * with 551 open connections therefore sat permanently at `critical` with a
-   * red stripe and a red figure. It was not reporting a busy host; it was
-   * comparing connections against percent.
-   *
-   * So: a percentage grades on the percentage bars. Anything else grades only
-   * against an explicitly authored `threshold`, and if none exists the card
-   * reports `ungraded` — read, trustworthy, but with nothing to judge it
-   * against. It deliberately does NOT fall through to `nominal`, because
-   * "nobody set a limit" and "it is within limits" are different claims and
-   * only one of them is true here.
-   */
-  const getSeverity = (): Severity => {
-    if (isUnavailable || !hasNumericValue || resolvedValue === null) {
-      return 'unread';
-    }
-    if (isPercentage) {
-      if (resolvedValue >= 90) return 'critical';
-      if (resolvedValue >= 70) return 'elevated';
-      return 'nominal';
-    }
-    if (typeof authoredThreshold === 'number') {
-      if (resolvedValue >= authoredThreshold) return 'elevated';
-      return 'nominal';
-    }
-    return 'ungraded';
-  };
-
-  const severity = getSeverity();
-  const progressValue = getProgressValue();
+  // A current quantity is not a server condition. Do not infer severity from
+  // fixed client-side bands; the separate alert badge carries server state.
+  const severity: Severity = isUnavailable || !hasNumericValue ? 'unread' : 'ungraded';
 
   /**
    * One rule for the whole grid: the trace is always the neutral series
@@ -160,7 +111,7 @@ export const MetricCard = ({
    */
   const sparklineColor = 'var(--chart-line-1)';
 
-  const sparklineThreshold = authoredThreshold;
+  const sparklineThreshold = threshold;
 
   /**
    * A connection count is an integer, and `#` is a symbol rather than a unit.
@@ -190,7 +141,7 @@ export const MetricCard = ({
   // A collector that reported "unsupported" or "failed" has no current reading,
   // so its history is stale by definition. Drawing it under the failure reason
   // reads as live telemetry contradicting its own error message.
-  const showTrace = !isUnavailable && Boolean(history && history.length > 0);
+  const showTrace = Boolean(history && history.length > 0);
 
   const renderExpandedContent = () => {
     if (!isExpanded || !details) return null;
@@ -255,7 +206,7 @@ export const MetricCard = ({
         role={hasNumericValue && !isUnavailable ? 'meter' : 'status'}
         aria-label={isUnavailable || !hasNumericValue ? `${label}: ${metricReason ?? 'not measured'}` : `${label}: ${spokenValue}`}
         aria-valuemin={hasNumericValue && !isUnavailable ? 0 : undefined}
-        aria-valuemax={hasNumericValue && !isUnavailable && type !== 'network' ? 100 : undefined}
+        aria-valuemax={hasNumericValue && !isUnavailable && unit === '%' ? 100 : undefined}
         aria-valuenow={hasNumericValue && !isUnavailable && resolvedValue !== null ? resolvedValue : undefined}
       />
       {isUnavailable && (
@@ -264,42 +215,28 @@ export const MetricCard = ({
         </span>
       )}
       {observedAt && <div className="metric-observed-at readout-caption">Measured {observedAt}</div>}
+      {secondaryText && <div className="readout-caption">{secondaryText}</div>}
 
-      {showTrace ? (
-        <div data-sm-style="sm-style-254feda622">
-          <MetricSparkline
-            data={history}
-            color={sparklineColor}
-            valueDomain={valueDomain}
-            threshold={sparklineThreshold}
-            unit={sparklineUnit}
-            precision={historyUnit ? 1 : valuePrecision}
-            windowLabel={formatWindowLabel(historyWindowSeconds)}
-            ariaLabel={`${label} history${resolvedValue !== null ? `, latest ${spokenValue}` : ', not measured'}`}
-          />
-        </div>
-      ) : progressValue !== null ? (
-        <div className="metric-bar">
-          <div
-            className="metric-fill"
-            style={{ width: `${progressValue}%` }}
-          />
-        </div>
-      ) : severity === 'ungraded' ? (
-        /*
-         * Read, but not on a 0-100 scale, so there is no track to fill. It
-         * must NOT fall through to the unread bar below: that treatment means
-         * "never measured", and this value was measured — it simply has no
-         * percentage to plot. Rendering nothing is the honest option.
-         */
-        null
-      ) : (
-        <div
-          className="metric-bar readout-bar--unread"
-          data-testid="metric-unread-bar"
-          aria-hidden="true"
+      <div className="overview-chart" data-sm-style="sm-style-254feda622">
+        {isUnavailable && showTrace ? <div className="readout-caption">Historical observations; current reading unavailable</div> : null}
+        <MetricSparkline
+          inspectionStore={inspectionStore}
+          inspectionKey={type}
+          data={history}
+          emptyMessage={emptyHistoryMessage}
+          windowStart={windowStart}
+          windowEnd={windowEnd}
+          height={112}
+          sampleIntervalSeconds={sampleIntervalSeconds}
+          color={sparklineColor}
+          valueDomain={valueDomain}
+          threshold={sparklineThreshold}
+          unit={sparklineUnit}
+          precision={historyUnit ? 1 : valuePrecision}
+          windowLabel={formatWindowLabel(historyWindowSeconds)}
+          ariaLabel={`${label} history`}
         />
-      )}
+      </div>
 
       {renderExpandedContent()}
 

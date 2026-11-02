@@ -70,6 +70,7 @@ describe('ReportBody', () => {
     const { container } = render(<ReportBody text={'```bash\nps aux | head\nuptime\n```'} />);
     const pre = container.querySelector('pre.report-pre');
     expect(pre?.textContent).toBe('ps aux | head\nuptime');
+    expect(pre).toHaveAttribute('tabindex', '0');
     expect(container.textContent).not.toContain('```');
   });
 
@@ -124,6 +125,7 @@ describe('ReportBody', () => {
   it('applies caller classes alongside its own', () => {
     const { container } = render(<ReportBody text="a line" className="report-body-inset" />);
     expect(container.firstElementChild?.className).toBe('report-body report-body-inset');
+    expect(container.firstElementChild).toHaveAttribute('tabindex', '0');
   });
 });
 

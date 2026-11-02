@@ -35,7 +35,7 @@ export function priorityColor(priority: number): string {
     case 'error':
       return 'var(--color-error)';
     case 'warning':
-      return 'var(--color-warning)';
+      return 'var(--color-warning-text)';
     case 'notice':
     case 'info':
       return 'var(--color-info)';

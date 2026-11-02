@@ -58,6 +58,8 @@ describe('shared UI utility functions', () => {
     expect(formatWindowLabel()).toBeUndefined();
     expect(formatWindowLabel(30)).toBe('Past 30s');
     expect(formatWindowLabel(300)).toBe('Past 5m');
+    expect(formatWindowLabel(3600)).toBe('Past 1h');
+    expect(formatWindowLabel(86400)).toBe('Past 24h');
     expect(formatWindowLabel(90)).toBe('Past 1.5m');
     expect(formatTimeLabel('bad')).toBe('bad');
     expect(formatTime('bad')).toBe('bad');

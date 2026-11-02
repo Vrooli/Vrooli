@@ -13,6 +13,67 @@ vi.mock('./MetricRenderHelpers', () => ({
 }));
 
 describe('MemoryDetailView', () => {
+  it('shows kernel slab accounting and its retained trend without declaring a leak', () => {
+    render(<MemoryDetailView metrics={null} onBack={vi.fn()}
+      detailedMetrics={{ memoryDetails: { usage: 48, kernelMemory: {
+        slabBytes: { state: { case: 'measured', value: 18 * 1024 ** 3 } },
+        reclaimableBytes: { state: { case: 'measured', value: 5 * 1024 ** 3 } },
+        unreclaimableBytes: { state: { case: 'measured', value: 13 * 1024 ** 3 } },
+        hostTotalBytes: { state: { case: 'measured', value: 64 * 1024 ** 3 } }
+      } } } as never}
+      metricHistory={{ kernelSlab: [{ timestamp: 'now', value: 18 * 1024 ** 3 }], kernelUnreclaimable: [{ timestamp: 'now', value: 13 * 1024 ** 3 }] } as never} />);
+    expect(screen.getByText('Slab total')).toBeInTheDocument();
+    expect(screen.getByText('20.3% of physical RAM')).toBeInTheDocument();
+    const chart = screen.getAllByTestId('chart').find(node => node.getAttribute('data-series-label') === 'kernel slab bytes');
+    expect(chart).toHaveTextContent('13958643712');
+    expect(screen.getByText(/not a leak diagnosis/i)).toBeInTheDocument();
+  });
+
+  it('preserves unsupported kernel slab state instead of displaying zero', () => {
+    render(<MemoryDetailView metrics={null} onBack={vi.fn()} metricHistory={null}
+      detailedMetrics={{ memoryDetails: { usage: 48, kernelMemory: {
+        slabBytes: { state: { case: 'unsupportedReason', value: 'Linux slab accounting unavailable on darwin' } }
+      } } } as never} />);
+    expect(screen.getByText('Linux slab accounting unavailable on darwin')).toBeInTheDocument();
+  });
+
+  it('uses the server pressure verdict instead of declaring thrashing from swap traffic', () => {
+    render(<MemoryDetailView metrics={null} metricHistory={null} onBack={vi.fn()}
+      detailedMetrics={{ memoryDetails: {
+        usage: 48, swapUsage: { used: 38n, total: 69n, percent: 55 },
+        paging: { swapTrafficPagesPerSecond: { state: { case: 'measured', value: 5000 } } },
+        memoryPressure: { level: 'normal', levelReason: 'PSI and swap-in are below elevated boundaries', levelSource: 'linux psi + swap-in rate',
+          signals: { swap_in_bytes_per_second: { state: { case: 'measured', value: 0 } }, swap_out_bytes_per_second: { state: { case: 'measured', value: 20480000 } } } }
+      } } as never} />);
+    expect(screen.queryByText(/indicates thrashing/)).not.toBeInTheDocument();
+    expect(screen.getByText('normal')).toBeInTheDocument();
+    expect(screen.getByText('PSI and swap-in are below elevated boundaries')).toBeInTheDocument();
+    expect(screen.getByText('19.5 MiB/s')).toBeInTheDocument();
+  });
+
+  it('shows critical pressure even when swap traffic is quiet', () => {
+    render(<MemoryDetailView metrics={null} metricHistory={null} onBack={vi.fn()}
+      detailedMetrics={{ memoryDetails: { usage: 48,
+        paging: { swapTrafficPagesPerSecond: { state: { case: 'measured', value: 0 } } },
+        memoryPressure: { level: 'critical', levelReason: 'memory PSI full avg60 8.00% >= 5.00%', signals: {} }
+      } } as never} />);
+    expect(screen.getByText('critical')).toBeInTheDocument();
+    expect(screen.getByText('memory PSI full avg60 8.00% >= 5.00%')).toBeInTheDocument();
+    expect(screen.queryByText('Swap residency is quiet.')).not.toBeInTheDocument();
+  });
+
+  it('preserves unavailable paging reasons without reporting a healthy pressure level', () => {
+    render(<MemoryDetailView metrics={null} metricHistory={null} onBack={vi.fn()}
+      detailedMetrics={{ memoryDetails: { usage: 48,
+        paging: { swapTrafficPagesPerSecond: { state: { case: 'failedError', value: 'vmstat read failed' } } },
+        memoryPressure: { level: 'unknown', levelReason: 'pressure signals unavailable', signals: {} }
+      } } as never} />);
+    expect(screen.getByText(/vmstat read failed/)).toBeInTheDocument();
+    expect(screen.getByText('unknown')).toBeInTheDocument();
+    expect(screen.getByText('pressure signals unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('normal')).not.toBeInTheDocument();
+  });
+
   it('renders measured details and optional sections', () => {
     const onBack = vi.fn();
     render(<MemoryDetailView

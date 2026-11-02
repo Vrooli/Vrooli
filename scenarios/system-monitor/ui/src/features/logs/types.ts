@@ -31,6 +31,7 @@ export type LogDirection = 'forward' | 'reverse';
 export interface LogsResponse {
   available: boolean;
   reason?: string;
+  error?: string;
   entries?: LogEntry[];
   nextCursor?: string;
   direction?: LogDirection;

@@ -41,6 +41,7 @@ func NewLogsHandler(reader JournalReader, log *slog.Logger) *LogsHandler {
 type LogsResponse struct {
 	Available   bool               `json:"available"`
 	Reason      string             `json:"reason,omitempty"`
+	Error       string             `json:"error,omitempty"`
 	Entries     []journal.LogEntry `json:"entries,omitempty"`
 	NextCursor  string             `json:"nextCursor,omitempty"`
 	Direction   string             `json:"direction,omitempty"`
@@ -96,6 +97,7 @@ func (h *LogsHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		httputil.JSON(w, LogsResponse{ //nolint:errcheck
 			Reason:      "journal query failed: " + err.Error(),
+			Error:       "journal query failed: " + err.Error(),
 			GeneratedAt: now,
 		})
 		return

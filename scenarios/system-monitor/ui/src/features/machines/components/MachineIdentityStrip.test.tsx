@@ -95,7 +95,7 @@ describe('MachineIdentityStrip', () => {
 
   it('omits the elapsed phrase when there has never been a reading', () => {
     renderWithProviders(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={null} />);
-    expect(screen.getByRole('status')).toHaveTextContent('minimouse stopped responding — showing its last reading');
+    expect(screen.getByRole('status')).toHaveTextContent('minimouse stopped responding — no reading has been received');
   });
 
   it('separates cannot-be-reached from stopped-answering', () => {

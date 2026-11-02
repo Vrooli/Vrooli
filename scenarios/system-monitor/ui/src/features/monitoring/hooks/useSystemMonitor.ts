@@ -1,7 +1,6 @@
 // DOC: docs/internal/SEAMS.md#ui-lifecycle-and-shared-utility-seams
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { timestampMs } from '@bufbuild/protobuf/wkt';
-import { buildUrl as buildApiUrl } from '../../../lib/api-client';
 import { protoFetch, toApiError } from '../../../shared/api/apiFetch';
 import { parseMetricsResponse } from '../../../shared/api/current-metrics-contract';
 import { useToast } from '../../../shared/components/ToastProvider';
@@ -35,7 +34,7 @@ export interface SystemHealthStatus {
   checks?: Record<string, unknown>;
 }
 
-export type Subsystem = 'metrics' | 'detailedMetrics' | 'deviceGraph' | 'processes' | 'infrastructure' | 'investigations';
+export type Subsystem = 'metrics' | 'history' | 'detailedMetrics' | 'deviceGraph' | 'processes' | 'infrastructure' | 'investigations';
 
 interface UseSystemMonitorReturn {
   metrics: MetricsResponse | null;
@@ -63,8 +62,6 @@ interface UseSystemMonitorReturn {
   refreshMetrics: () => void;
 }
 
-type MaintenanceState = 'active' | 'inactive' | string;
-
 interface UseSystemMonitorOptions {
   enabled?: boolean;
   node?: string;
@@ -72,6 +69,8 @@ interface UseSystemMonitorOptions {
 
 export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemMonitorOptions = {}): UseSystemMonitorReturn => {
   const pollingEnabled = options.enabled ?? true;
+  const viewEpochRef = useRef({ enabled: pollingEnabled, generation: 0 });
+  const [stateGeneration, setStateGeneration] = useState(0);
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [deviceGraph, setDeviceGraph] = useState<DeviceGraph | null>(null);
   const [detailedMetrics, setDetailedMetrics] = useState<DetailedMetrics | null>(null);
@@ -84,15 +83,18 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   const [lastAttemptAt, setLastAttemptAt] = useState<Date | null>(null);
   const [consecutiveFailures, setConsecutiveFailures] = useState(0);
   const isStale = consecutiveFailures >= 3;
-  const [uiBoostActive, setUiBoostActive] = useState(false);
   const mountedRef = useRef(true);
   const abortRef = useRef<AbortController | null>(null);
-  const maintenanceStateRef = useRef<{ previous: MaintenanceState | null; activated: boolean }>({
-    previous: null,
-    activated: false
-  });
   const { showApiError } = useToast();
   const lastMetricsErrorRef = useRef<string | null>(null);
+  const subjectRef = useRef({ node: options.node, generation: 0 });
+  const diskGapRef = useRef(false);
+  const lastDiskObservationRef = useRef<string | null>(null);
+  const gpuGapRef = useRef(false);
+  const lastGpuObservationRef = useRef<string | null>(null);
+  if (subjectRef.current.node !== options.node) {
+    subjectRef.current = { node: options.node, generation: subjectRef.current.generation + 1 };
+  }
   const remoteNodeSelectedRef = useRef(false);
   remoteNodeSelectedRef.current = Boolean(options.node);
 
@@ -138,122 +140,78 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   }, [subsystemErrors, showApiError]);
 
   const { healthStatus, healthError, checkHealth, refreshHealth, toggleMonitoring } = useHealthCheck();
-  const setMetricsError = useCallback((err: APIError | null) => { setSubsystemError('metrics', err); }, [setSubsystemError]);
-  const { metricHistory, fetchMetricsTimeline, clearHistory, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setMetricsError);
+  const setHistoryError = useCallback((err: APIError | null) => { setSubsystemError('history', err); }, [setSubsystemError]);
+  const { metricHistory, fetchMetricsTimeline, clearHistory, invalidatePending, appendGpuPoint, appendDiskPoints, appendDiskUsagePoint } = useMetricHistory(setHistoryError);
+  // A response started under the previous view state must not update the new one.
+  if (viewEpochRef.current.enabled !== pollingEnabled) {
+    viewEpochRef.current = { enabled: pollingEnabled, generation: viewEpochRef.current.generation + 1 };
+    invalidatePending();
+  }
+  useEffect(() => { if (!pollingEnabled) setIsLoading(false); }, [pollingEnabled]);
   const remoteNodeSelected = Boolean(options.node);
   // Remote readings cross a relay, so they are polled less often than local
   // ones. The value is named because surfaces quote it back to the reader.
   const metricsPollIntervalMs = remoteNodeSelected ? 15000 : 5000;
 
   const fetchMetrics = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     const params = new URLSearchParams();
-    if (uiBoostActive) params.set('fresh', '1');
     if (options.node) params.set('node', options.node);
     const query = params.toString();
     const url = `/metrics/current${query ? `?${query}` : ''}`;
     try {
       const data = await protoFetch(url, parseMetricsResponse);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setMetrics(data);
       setSubsystemError('metrics', null);
       setLastSuccessfulFetch(new Date());
       setConsecutiveFailures(0);
-      if (typeof data.gpuUsage === 'number' && Number.isFinite(data.gpuUsage)) {
-        appendGpuPoint(toIsoString(data.timestamp), data.gpuUsage);
+      const gpuAt = data.gpu?.observedAt;
+      if (gpuAt && data.gpu?.state.case === 'measured' && Number.isFinite(data.gpu.state.value)) {
+        const observedAt = toIsoString(gpuAt);
+        if (!lastGpuObservationRef.current || observedAt > lastGpuObservationRef.current) {
+          appendGpuPoint(observedAt, data.gpu.state.value, gpuGapRef.current);
+          lastGpuObservationRef.current = observedAt;
+          gpuGapRef.current = false;
+        }
+      } else {
+        gpuGapRef.current = true;
       }
     } catch (err) {
       console.debug(`API call failed for ${url}:`, err);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
+      gpuGapRef.current = true;
       setSubsystemError('metrics', toApiError(err));
       setConsecutiveFailures(prev => prev + 1);
     }
-  }, [options.node, uiBoostActive, appendGpuPoint, setSubsystemError]);
+  }, [options.node, appendGpuPoint, setSubsystemError]);
 
   const fetchDeviceGraph = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     try {
       const { parseDeviceGraph } = await import('../../../shared/api/current-metrics-contract');
       const query = options.node ? `?node=${encodeURIComponent(options.node)}` : '';
       const data = await protoFetch(`/metrics/devices${query}`, parseDeviceGraph);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setDeviceGraph(data);
       setSubsystemError('deviceGraph', null);
     } catch (err) {
       console.debug('API call failed for /metrics/devices:', err);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setSubsystemError('deviceGraph', toApiError(err));
     }
   }, [options.node, setSubsystemError]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const activateMonitoring = async () => {
-      const {
-        parseGetMaintenanceStateResponse,
-        parseSetMaintenanceStateResponse,
-      } = await import('../../../shared/api/proto-contracts');
-      let currentState: MaintenanceState = 'inactive';
-      try {
-        const state = await protoFetch('/maintenance/state', parseGetMaintenanceStateResponse);
-        if (cancelled) return;
-        currentState = state.maintenanceState || 'inactive';
-      } catch (err) {
-        console.debug('API call failed for /maintenance/state:', err);
-        if (cancelled) return;
-      }
-
-      maintenanceStateRef.current.previous = currentState;
-
-      if (currentState !== 'active') {
-        try {
-          const resp = await protoFetch('/maintenance/state', parseSetMaintenanceStateResponse, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ maintenanceState: 'active' }),
-          });
-          if (resp.success) {
-            maintenanceStateRef.current.activated = true;
-          }
-        } catch (postError) {
-          console.warn('Failed to activate monitoring:', postError);
-        }
-      }
-
-      if (!cancelled) {
-        setUiBoostActive(true);
-      }
-    };
-
-    const activationTimer = window.setTimeout(() => {
-      activateMonitoring().catch((err: unknown) => { console.error('Failed to activate monitoring:', err); });
-    }, 2200);
-
-    const stateRef = maintenanceStateRef.current;
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(activationTimer);
-      const previous = stateRef.previous;
-      if (stateRef.activated && previous && previous !== 'active') {
-        fetch(buildApiUrl('/maintenance/state'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ maintenanceState: previous })
-        }).catch((unmountError: unknown) => {
-          console.warn('Failed to restore monitoring state:', unmountError);
-        });
-      }
-    };
-  }, []);
-
   const fetchDetailedMetrics = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     if (remoteNodeSelected) return;
     try {
       const { parseDetailedMetrics } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/detailed', parseDetailedMetrics);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setDetailedMetrics(data);
       setSubsystemError('detailedMetrics', null);
       const diskPercent = data.memoryDetails?.diskUsage?.percent;
@@ -262,55 +220,68 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       }
     } catch (err) {
       console.debug('API call failed for /metrics/detailed:', err);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setSubsystemError('detailedMetrics', toApiError(err));
     }
   }, [appendDiskUsagePoint, remoteNodeSelected, setSubsystemError]);
 
   const fetchProcessMonitorData = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     if (remoteNodeSelected) return;
     try {
       const { parseProcessMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/processes', parseProcessMonitorData);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setProcessMonitorData(data);
       setSubsystemError('processes', null);
     } catch (err) {
       console.debug('API call failed for /metrics/processes:', err);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setSubsystemError('processes', toApiError(err));
     }
   }, [remoteNodeSelected, setSubsystemError]);
 
   const fetchInfrastructureData = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     if (remoteNodeSelected) return;
     try {
       const { parseInfrastructureMonitorData } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/metrics/infrastructure', parseInfrastructureMonitorData);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setInfrastructureData(data);
       setSubsystemError('infrastructure', null);
-      const { storageIo, timestamp } = data;
-      if (storageIo) {
-        const readRate = Number(storageIo.readMbPerSec);
-        const writeRate = Number(storageIo.writeMbPerSec);
-        if (Number.isFinite(readRate) || Number.isFinite(writeRate)) {
-          appendDiskPoints(toIsoString(timestamp), readRate, writeRate);
+      const read = data.storageIo?.readRate?.state;
+      const write = data.storageIo?.writeRate?.state;
+      const readAt = data.storageIo?.readRate?.observedAt;
+      const writeAt = data.storageIo?.writeRate?.observedAt;
+      if (readAt && writeAt && readAt.seconds === writeAt.seconds && readAt.nanos === writeAt.nanos && read?.case === 'measured' && write?.case === 'measured' && Number.isFinite(read.value) && Number.isFinite(write.value)) {
+        const observedAt = toIsoString(readAt);
+        if (!lastDiskObservationRef.current || observedAt > lastDiskObservationRef.current) {
+          appendDiskPoints(observedAt, read.value, write.value, diskGapRef.current);
+          lastDiskObservationRef.current = observedAt;
+          diskGapRef.current = false;
         }
+      } else {
+        diskGapRef.current = true;
       }
     } catch (err) {
       console.debug('API call failed for /metrics/infrastructure:', err);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
+      diskGapRef.current = true;
       setSubsystemError('infrastructure', toApiError(err));
     }
   }, [appendDiskPoints, remoteNodeSelected, setSubsystemError]);
 
   const fetchInvestigations = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     if (remoteNodeSelected) return;
     try {
       const { parseInvestigations } = await import('../../../shared/api/proto-contracts');
       const data = await protoFetch('/investigations?limit=10', parseInvestigations);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       const sorted = [...data].sort((a, b) => {
         const aTime = a.startTime ? timestampMs(a.startTime) : NaN;
         const bTime = b.startTime ? timestampMs(b.startTime) : NaN;
@@ -326,27 +297,32 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
       setSubsystemError('investigations', null);
     } catch (err) {
       console.debug('API call failed for /investigations:', err);
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
       setSubsystemError('investigations', toApiError(err));
     }
   }, [remoteNodeSelected, setSubsystemError]);
 
   const refreshMetrics = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     // Stamped before the request rather than after it: the countdown a reader
     // sees must be the schedule the loop is actually keeping, and the next tick
     // is scheduled relative to this attempt whether or not it succeeds.
     setLastAttemptAt(new Date());
     await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
-    if (!remoteNodeSelected) {
+    if (generation === subjectRef.current.generation && viewEpoch === viewEpochRef.current.generation && !remoteNodeSelected) {
       await Promise.all([
         fetchDetailedMetrics(),
+        fetchInfrastructureData(),
         fetchMetricsTimeline(historyWindowSeconds)
       ]);
     }
-  }, [fetchDetailedMetrics, fetchDeviceGraph, fetchMetrics, fetchMetricsTimeline, historyWindowSeconds, remoteNodeSelected]);
+  }, [fetchDetailedMetrics, fetchDeviceGraph, fetchMetrics, fetchInfrastructureData, fetchMetricsTimeline, historyWindowSeconds, remoteNodeSelected]);
 
   const fetchDeferredData = useCallback(async () => {
-    if (remoteNodeSelected) return;
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
+    if (remoteNodeSelected || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
     await Promise.all([
       fetchDetailedMetrics(),
       fetchProcessMonitorData(),
@@ -365,10 +341,12 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   ]);
 
   const refresh = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     setIsLoading(true);
 
     const isHealthy = await checkHealth();
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
     if (!isHealthy) {
       setSubsystemError('metrics', {
         error: 'API server is not responding',
@@ -381,12 +359,12 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
 
     await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
 
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
     setIsLoading(false);
 
     await fetchDeferredData();
 
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
   }, [
     checkHealth,
     setSubsystemError,
@@ -396,10 +374,12 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   ]);
 
   const refreshInitial = useCallback(async () => {
+    const generation = subjectRef.current.generation;
+    const viewEpoch = viewEpochRef.current.generation;
     setIsLoading(true);
 
     const isHealthy = await checkHealth();
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
     if (!isHealthy) {
       setSubsystemError('metrics', {
         error: 'API server is not responding',
@@ -412,7 +392,7 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
 
     await Promise.all([fetchMetrics(), fetchDeviceGraph()]);
 
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || (generation !== subjectRef.current.generation || viewEpoch !== viewEpochRef.current.generation)) return;
     setIsLoading(false);
   }, [checkHealth, fetchDeviceGraph, fetchMetrics, setSubsystemError]);
 
@@ -420,19 +400,24 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   // histories or detailed panels while the selected target is remote; those
   // values cannot be silently presented as if they belonged to that machine.
   useEffect(() => {
+    diskGapRef.current = false;
+    lastDiskObservationRef.current = null;
+    gpuGapRef.current = false;
+    lastGpuObservationRef.current = null;
     setMetrics(null);
     setDeviceGraph(null);
     setIsLoading(true);
     setConsecutiveFailures(0);
     setLastSuccessfulFetch(null);
     setLastAttemptAt(null);
+    clearHistory();
+    setSubsystemErrors({});
+    setStateGeneration(subjectRef.current.generation);
     if (!remoteNodeSelected) return;
     setDetailedMetrics(null);
     setProcessMonitorData(null);
     setInfrastructureData(null);
     setInvestigations([]);
-    clearHistory();
-    setSubsystemErrors({});
     // Keyed on the node id, not on `remoteNodeSelected`: moving between two
     // remote machines is also a change of subject, and leaving the previous
     // machine's readings on screen under the new machine's name is the exact
@@ -442,9 +427,10 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
   // Initial load
   useEffect(() => {
     let cancelled = false;
+    const viewEpoch = viewEpochRef.current.generation;
     void refreshInitial();
     const deferredTimer = window.setTimeout(() => {
-      if (!cancelled) {
+      if (!cancelled && viewEpoch === viewEpochRef.current.generation) {
         void fetchDeferredData();
       }
     }, 2200);
@@ -462,28 +448,30 @@ export const useSystemMonitor = (historyWindowSeconds = 120, options: UseSystemM
     if (remoteNodeSelected) return;
     Promise.all([
       fetchProcessMonitorData(),
-      fetchInfrastructureData(),
       fetchInvestigations(),
       checkHealth()
     ]).catch((err: unknown) => { console.error('Failed to fetch detailed data:', err); });
-  }, [fetchProcessMonitorData, fetchInfrastructureData, fetchInvestigations, checkHealth, remoteNodeSelected]);
+  }, [fetchProcessMonitorData, fetchInvestigations, checkHealth, remoteNodeSelected]);
   usePolling(fetchDetailedAll, 60000, pollingEnabled, { enabled: true, maxIntervalMs: 300000 });
 
+  // A new subject renders before the reset effect runs. Never expose the old
+  // subject's evidence during that render, even for a single commit.
+  const subjectReady = stateGeneration === subjectRef.current.generation;
   return {
-    metrics,
-    deviceGraph,
-    detailedMetrics,
-    processMonitorData,
-    infrastructureData,
-    investigations,
-    metricHistory,
-    isLoading,
-    error,
-    subsystemErrors,
-    isStale,
-    retryAttempt: consecutiveFailures,
-    lastSuccessfulFetch,
-    lastAttemptAt,
+    metrics: subjectReady ? metrics : null,
+    deviceGraph: subjectReady ? deviceGraph : null,
+    detailedMetrics: subjectReady ? detailedMetrics : null,
+    processMonitorData: subjectReady ? processMonitorData : null,
+    infrastructureData: subjectReady ? infrastructureData : null,
+    investigations: subjectReady ? investigations : [],
+    metricHistory: subjectReady ? metricHistory : null,
+    isLoading: subjectReady ? isLoading : true,
+    error: subjectReady ? error : null,
+    subsystemErrors: subjectReady ? subsystemErrors : {},
+    isStale: subjectReady && isStale,
+    retryAttempt: subjectReady ? consecutiveFailures : 0,
+    lastSuccessfulFetch: subjectReady ? lastSuccessfulFetch : null,
+    lastAttemptAt: subjectReady ? lastAttemptAt : null,
     retryIntervalSeconds: metricsPollIntervalMs / 1000,
     healthStatus,
     healthError,

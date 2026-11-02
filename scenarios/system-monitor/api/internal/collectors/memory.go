@@ -35,10 +35,13 @@ func (c *MemoryCollector) Collect(ctx context.Context) (*MetricData, error) {
 	if collectorOS != runtime.GOOS {
 		return unsupportedMetricData(c.GetName(), "memory"), nil
 	}
-	snapshot, _ := c.snapshots.Snapshot(ctx)
+	snapshot, snapshotErr := c.snapshots.Snapshot(ctx)
 	reading := collectPlatformMemory(ctx, c, snapshot)
 	topProcesses, _ := GetTopProcessesByMemory(5)
 	values := map[string]interface{}{"top_processes": topProcesses}
+	for key, value := range kernelMemoryValues(snapshot, snapshotErr, runtime.GOOS) {
+		values[key] = value
+	}
 	if reading.status == "measured" {
 		values["usage_percent"] = reading.usage
 		for key, value := range reading.details {

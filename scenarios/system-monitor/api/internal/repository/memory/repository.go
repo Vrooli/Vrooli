@@ -150,6 +150,7 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 
 		// Memory metrics
 		if entry.CollectorName == "memory" {
+			response.KernelMemory = repository.KernelMemoryFromValues(entry.Values, entry.CycleID, entry.Timestamp)
 			if memoryMetricMeasured(entry.Values) {
 				if mem, ok := entry.Values["usage_percent"].(float64); ok {
 					response.MemoryUsage = mem
@@ -200,8 +201,25 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter repository.Met
 
 	// Sort by timestamp
 	sort.Slice(results, func(i, j int) bool {
+		if results[i].Timestamp.Equal(results[j].Timestamp) {
+			return results[i].CycleID < results[j].CycleID
+		}
 		return results[i].Timestamp.Before(results[j].Timestamp)
 	})
+	if len(filter.SampleBuckets) > 0 {
+		buckets := filter.SampleBuckets
+		if len(buckets) > filter.EffectiveLimit() {
+			buckets = buckets[len(buckets)-filter.EffectiveLimit():]
+		}
+		selected := make([]*models.MetricsResponse, 0, len(buckets))
+		for _, bucket := range buckets {
+			index := sort.Search(len(results), func(i int) bool { return results[i].Timestamp.After(bucket.EndTime) }) - 1
+			if index >= 0 && results[index].Timestamp.After(bucket.StartTime) {
+				selected = append(selected, results[index])
+			}
+		}
+		results = selected
+	}
 
 	// Keep the newest cycles; the limit is always bounded.
 	if limit := filter.EffectiveLimit(); len(results) > limit {
@@ -328,6 +346,7 @@ func (r *MemoryRepository) GetLatestMetrics(ctx context.Context) (*models.Metric
 			response.CPUState = memoryMetricState(entry.CycleID, entry.Timestamp, collector, entry.Values, "usage_percent")
 			response.CPUUsage, _ = entry.Values["usage_percent"].(float64)
 		case "memory":
+			response.KernelMemory = repository.KernelMemoryFromValues(entry.Values, entry.CycleID, entry.Timestamp)
 			response.MemoryState = memoryMetricState(entry.CycleID, entry.Timestamp, collector, entry.Values, "usage_percent")
 			response.MemoryUsage, _ = entry.Values["usage_percent"].(float64)
 		case "network":

@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@bufbuild/protobuf": "^2.11.0",
+    "@monaco-editor/react": "4.7.0",
     "@types/node": "^24.3.1",
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vrooli/api-base": "file:../../../packages/api-base",
@@ -10,6 +11,7 @@
     "clsx": "^2.1.1",
     "express": "^4.21.2",
     "lucide-react": "^0.543.0",
+    "monaco-editor": "0.56.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.18.0",
@@ -43,19 +45,24 @@
   },
   "name": "system-monitor-ui-react",
   "packageManager": "pnpm@10.14.0+sha512.ad27a79641b49c3e481a16a805baa71817a04bbe06a38d17e60e2eaee83f6a146c6a688125f5792e48dd5ba30e7da52a5cda4c3992b9ccf333f9ce223af84748",
+  "pnpm": {
+    "overrides": {
+      "dompurify": "3.4.17"
+    }
+  },
   "private": true,
   "scripts": {
     "build": "vite build",
     "build:profile": "vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
-    "type-check": "tsc -b",
     "preview": "vite preview",
     "start": "vrooli lifecycle protect -- vite",
     "test": "vitest run --config vite.config.ts",
     "test:coverage": "vitest run --config vite.config.ts --coverage",
     "test:unit": "vitest run --config vitest.config.ts",
-    "test:unit:watch": "vitest --config vitest.config.ts"
+    "test:unit:watch": "vitest --config vitest.config.ts",
+    "type-check": "tsc -b"
   },
   "type": "module",
   "version": "1.0.0"

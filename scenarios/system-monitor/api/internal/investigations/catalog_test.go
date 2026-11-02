@@ -15,11 +15,14 @@ func TestLoadBuiltinCatalogWithoutRepoRoot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := len(catalog.Entries()); got != 7 {
-		t.Fatalf("catalog entries = %d, want 7", got)
+	if got := len(catalog.Entries()); got != 8 {
+		t.Fatalf("catalog entries = %d, want 8", got)
 	}
 	if _, ok := catalog.Get("memory-pressure"); !ok {
 		t.Fatal("built-in catalog has no memory-pressure investigation; sustained memory-pressure escalation has nothing to run")
+	}
+	if entry, ok := catalog.Get("process-read-activity"); !ok || entry.Mode != ModeNative || entry.Query != "process-read-activity" {
+		t.Fatalf("portable process-read investigation missing: %+v", entry)
 	}
 }
 

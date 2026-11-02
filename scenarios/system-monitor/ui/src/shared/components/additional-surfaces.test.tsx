@@ -19,7 +19,8 @@ describe('additional operator surfaces', () => {
     const { rerender } = render(<AlertPanel alerts={[]} />);
     expect(screen.getByText('NO ACTIVE ALERTS')).toBeInTheDocument();
     rerender(<AlertPanel alerts={[{ id: 'a', severity: 'critical', category: 'CPU', message: 'hot', timestamp: '2026-01-01T00:00:00Z' } as never]} />);
-    expect(screen.getByText('[CRITICAL] CPU')).toBeInTheDocument();
+    expect(screen.getByText('CRITICAL')).toBeInTheDocument();
+    expect(screen.getByText('CPU')).toBeInTheDocument();
     expect(screen.getByText('hot')).toBeInTheDocument();
 
     rerender(<NotProvisionedCard title="Pstore" />);
@@ -34,8 +35,8 @@ describe('additional operator surfaces', () => {
 
     rerender(<RefreshControl paused={false} atTop={false} isLoading={false} onRefresh={refresh} onTogglePause={toggle} />);
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
-    expect(screen.getByText('(auto-paused)')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pause log updates' }));
+    expect(screen.getByText(/Updates paused while reading/)).toBeInTheDocument();
     rerender(<RefreshControl paused={false} atTop isLoading onRefresh={refresh} onTogglePause={toggle} />);
     expect(screen.getByRole('button', { name: 'Refreshing…' })).toBeDisabled();
 
@@ -96,7 +97,7 @@ describe('additional operator surfaces', () => {
       healthStatus={null} healthError="offline" onToggleMonitoring={callbacks.toggle} onRefreshHealth={callbacks.refresh} isLoadingHealth={false}
     />);
     fireEvent.change(screen.getByLabelText('Shared time range'), { target: { value: '24h' } });
-    fireEvent.click(screen.getByLabelText('Pause live updates'));
+    fireEvent.click(screen.getByLabelText('Pause monitoring view updates'));
     fireEvent.click(screen.getByTitle(/Switch to light mode/));
     fireEvent.click(screen.getByTitle('Open system settings'));
     fireEvent.click(screen.getByTitle('Toggle system output'));

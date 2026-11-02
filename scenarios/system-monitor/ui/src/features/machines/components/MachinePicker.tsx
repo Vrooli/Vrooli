@@ -44,7 +44,8 @@ export const MachinePicker = ({
   useEscapeKey(close, open);
 
   const ordered = useMemo(() => sortMachinesForPicker(machines), [machines]);
-  const selected = ordered.find(machine => machine.id === selectedMachineID) ?? ordered[0];
+  const selected = ordered.find(machine => machine.id === selectedMachineID);
+  const selectedName = selected?.name ?? (selectedMachineID || 'This machine');
   const selectedPresence = selected ? describeMachine(selected) : null;
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export const MachinePicker = ({
         data-remote={selectedPresence && !selectedPresence.isLocal ? 'true' : 'false'}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={`Machine: ${selected?.name ?? 'none'}. Change the machine this app is reading.`}
+        aria-label={`Machine: ${selectedName}${selected ? '' : ', not in the current list'}. Change the machine this app is reading.`}
         onClick={() => {
           // Open onto the current selection, set before the menu mounts, so the
           // first arrow keypress moves from where the reader already is.
@@ -98,7 +99,7 @@ export const MachinePicker = ({
         }}
       >
         <span className={`machine-led machine-led--${selectedPresence?.tone ?? 'local'}`} aria-hidden="true" />
-        <span className="machine-picker__name">{selected?.name}</span>
+        <span className="machine-picker__name">{selectedName}</span>
         <ChevronDown size={13} aria-hidden="true" className="machine-picker__caret" />
       </button>
 

@@ -10,3 +10,7 @@ var ErrNotFound = errors.New("not found")
 // repository backend cannot perform (for example, compaction on an in-memory
 // repository).
 var ErrNotSupported = errors.New("operation not supported by this repository")
+
+// ErrMaintenance is returned by reads that would otherwise wait behind an
+// in-progress owner compaction. Callers fall back to in-memory state.
+var ErrMaintenance = errors.New("database compaction in progress")

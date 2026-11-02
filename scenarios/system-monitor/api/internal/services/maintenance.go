@@ -11,6 +11,10 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 )
 
+// releaseBatchPages bounds one incremental_vacuum transaction (4 MiB at the
+// default page size) so collection writes interleave with page release.
+const releaseBatchPages = 1024
+
 // ErrConfirmationRequired is returned by destructive maintenance operations
 // invoked without explicit confirmation.
 var ErrConfirmationRequired = errors.New("confirmation required for destructive operation")
@@ -26,6 +30,10 @@ var ErrInvalidRetentionDays = errors.New("retention days must be greater than 0"
 type MetricsMaintenanceService struct {
 	repo  repository.MaintenanceRepository
 	clock Clock
+	// collectorRetention holds per-collector windows that are shorter than
+	// the global metrics window. Entries at or above the global window are
+	// ignored: the global prune already covers them.
+	collectorRetention map[string]time.Duration
 }
 
 // MaintenanceOption configures a MetricsMaintenanceService.
@@ -34,6 +42,19 @@ type MaintenanceOption func(*MetricsMaintenanceService)
 // WithMaintenanceClock sets the clock used for cutoff computation.
 func WithMaintenanceClock(c Clock) MaintenanceOption {
 	return func(s *MetricsMaintenanceService) { s.clock = c }
+}
+
+// WithCollectorRetention sets per-collector retention windows. A collector
+// keeps its rows for min(global window, its own window).
+func WithCollectorRetention(windows map[string]time.Duration) MaintenanceOption {
+	return func(s *MetricsMaintenanceService) {
+		s.collectorRetention = make(map[string]time.Duration, len(windows))
+		for name, window := range windows {
+			if name != "" && window > 0 {
+				s.collectorRetention[name] = window
+			}
+		}
+	}
 }
 
 // NewMetricsMaintenanceService creates a maintenance service over repo.
@@ -130,14 +151,32 @@ func (s *MetricsMaintenanceService) RunScheduledRetention(ctx context.Context, s
 	if days <= 0 {
 		days = defaultSettings.MetricsRetentionDays
 	}
+	global := time.Duration(days) * 24 * time.Hour
 	res, err := s.repo.PruneMetricsBefore(ctx, s.Cutoff(days))
 	if err != nil {
 		return repository.RetentionResult{}, fmt.Errorf("scheduled retention prune: %w", err)
+	}
+	now := s.clock.Now()
+	for collector, window := range s.collectorRetention {
+		if window >= global {
+			continue
+		}
+		cres, cerr := s.repo.PruneCollectorMetricsBefore(ctx, collector, now.Add(-window))
+		if cerr != nil {
+			return res, fmt.Errorf("scheduled %s retention prune: %w", collector, cerr)
+		}
+		res.DeletedRows += cres.DeletedRows
 	}
 	if settings.CompactAfterRetention {
 		if _, cerr := s.repo.Compact(ctx); cerr != nil && !errors.Is(cerr, repository.ErrNotSupported) {
 			return res, fmt.Errorf("scheduled compaction: %w", cerr)
 		}
+		return res, nil
+	}
+	// Without a full compaction, hand pages freed by this prune back to the
+	// filesystem so the file tracks live data instead of its high-water mark.
+	if _, rerr := s.repo.ReleaseFreePages(ctx, releaseBatchPages); rerr != nil && !errors.Is(rerr, repository.ErrNotSupported) {
+		return res, fmt.Errorf("release free pages: %w", rerr)
 	}
 	return res, nil
 }

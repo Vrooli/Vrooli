@@ -10,6 +10,9 @@ interface InfrastructureMonitorProps {
   systemHealth?: SystemHealth | null;
 }
 
+// Status fills and borders use accent tokens; text needs their contrast-safe counterparts.
+const textColor = (color: string) => color.replace(/--color-(success|warning|error)\)/, '--color-$1-text)');
+
 export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth }: InfrastructureMonitorProps) => {
   const fdInfo = systemHealth?.fileDescriptors;
   const inotifyWatchers = systemHealth?.inotifyWatchers;
@@ -19,18 +22,14 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
 
   return (
     <section className="monitoring-panel collapsible card">
-      <div
-        className={`panel-header clickable monitor-panel-header ${isExpanded ? 'monitor-panel-header-expanded' : ''}`}
-        onClick={onToggle}
-      >
-        <h2 className="icon-text monitor-heading">
-          <Zap size={20} />
-          INFRASTRUCTURE MONITOR
-        </h2>
-        <span className="expand-arrow text-accent">
-          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-        </span>
-      </div>
+      <h2 className={`monitor-heading ${isExpanded ? 'monitor-panel-header-expanded' : ''}`}>
+        <button type="button" className="panel-header monitor-panel-header" aria-expanded={isExpanded} onClick={onToggle}>
+          <span className="icon-text"><Zap size={20} aria-hidden="true" /> INFRASTRUCTURE MONITOR</span>
+          <span className="expand-arrow text-accent" aria-hidden="true">
+            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          </span>
+        </button>
+      </h2>
 
       {isExpanded && (
         <div className="panel-content">
@@ -53,7 +52,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           </div>
                         </div>
                         <span style={{
-                          color: getHealthColor(pool.healthy)
+                          color: textColor(getHealthColor(pool.healthy))
                         }}>
                           {pool.healthy ? '●' : '●'}
                         </span>
@@ -78,7 +77,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                           </div>
                         </div>
                         <span style={{
-                          color: getStatusColor(pool.leakRisk ?? '')
+                          color: textColor(getStatusColor(pool.leakRisk ?? ''))
                         }}>
                           {pool.leakRisk}
                         </span>
@@ -129,7 +128,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                       <div className="stat-item">
                         <span className="stat-label">Failed:</span>
                         <span className="stat-value" style={{
-                          color: (data.messageQueues?.backgroundJobs?.failed ?? 0) > 0 ? 'var(--color-error)' : 'var(--color-success)'
+                          color: (data.messageQueues?.backgroundJobs?.failed ?? 0) > 0 ? 'var(--color-error-text)' : 'var(--color-success-text)'
                         }}>
                           {data.messageQueues?.backgroundJobs?.failed ?? '—'}
                         </span>
@@ -147,7 +146,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                         <div className="kernel-resource-card">
                           <div className="kernel-resource-header">
                             <span>File Descriptors</span>
-                            <span style={{ color: getUtilizationColor(fdInfo.percent) }}>
+                            <span style={{ color: textColor(getUtilizationColor(fdInfo.percent)) }}>
                               {fdInfo.percent.toFixed(1)}%
                             </span>
                           </div>
@@ -161,7 +160,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                         <div className="kernel-resource-card">
                           <div className="kernel-resource-header">
                             <span>Inotify Watches</span>
-                            <span style={{ color: watcherPercent !== undefined ? getUtilizationColor(watcherPercent) : 'var(--color-text-secondary)' }}>
+                            <span style={{ color: watcherPercent !== undefined ? textColor(getUtilizationColor(watcherPercent)) : 'var(--color-text-secondary)' }}>
                               {watcherPercent !== undefined ? `${watcherPercent.toFixed(1)}%` : '—'}
                             </span>
                           </div>
@@ -224,7 +223,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                               </div>
                               <div data-sm-style="sm-style-905bfede49">
                                 <div style={{
-                                  color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)',
+                                  color: service.status === 'healthy' ? 'var(--color-success-text)' : 'var(--color-error-text)',
                                   fontWeight: 600
                                 }}>
                                   {service.status}
@@ -269,7 +268,7 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle, systemHealth
                                     Status: {cert.status}
                                   </div>
                                 </div>
-                                <div style={{ textAlign: 'right', color: expiryColor, fontWeight: 600 }}>
+                                <div style={{ textAlign: 'right', color: textColor(expiryColor), fontWeight: 600 }}>
                                   {cert.daysToExpiry} days
                                 </div>
                               </div>

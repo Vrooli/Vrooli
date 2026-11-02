@@ -1,12 +1,15 @@
 // provider-free-exception: App is the root component and owns BrowserRouter plus all application providers.
 import { act, fireEvent, render, screen, waitFor, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from './App';
+import App, { revealWorkspace, WorkspaceFailure } from './App';
+import { fromJson } from '@bufbuild/protobuf';
+import { GraphSchema } from '@vrooli/proto-types/system-monitor/v1/devicegraph/devicegraph_pb';
 
 type Parser = (value: unknown) => unknown;
 
 const mocks = vi.hoisted(() => ({
   useSystemMonitor: vi.fn(),
+  useServerAlerts: vi.fn(),
   useInvestigationAgents: vi.fn(),
   useScriptExecution: vi.fn(),
   protoFetch: vi.fn(),
@@ -21,6 +24,10 @@ const mocks = vi.hoisted(() => ({
   fetchBoots: vi.fn(),
 }));
 
+vi.mock('./features/monitoring/hooks/useServerAlerts', async importOriginal => {
+  const actual = await importOriginal<typeof import('./features/monitoring/hooks/useServerAlerts')>();
+  return { useServerAlerts: (enabled: boolean) => mocks.useServerAlerts.getMockImplementation() ? mocks.useServerAlerts(enabled) : actual.useServerAlerts(enabled) };
+});
 vi.mock('./features/monitoring/hooks/useSystemMonitor', () => ({
   useSystemMonitor: mocks.useSystemMonitor,
 }));
@@ -139,6 +146,7 @@ const fleet = [
 ];
 
 function installFixtures() {
+  mocks.useServerAlerts.mockReset();
   // The dashboard asks for the fleet on mount. An unmocked apiFetch resolves to
   // undefined, which the machine control cannot tell apart from "no machines".
   mocks.apiFetch.mockImplementation((path: string) =>
@@ -210,6 +218,14 @@ async function openPath(path: string) {
 }
 
 describe('App production surfaces', () => {
+  it('offers an explicit reload when a workspace cannot render', () => {
+    const reload = vi.fn();
+    render(<WorkspaceFailure name="Investigations section" reload={reload} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('unsaved changes may be lost');
+    expect(reload).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Reload page' }));
+    expect(reload).toHaveBeenCalledOnce();
+  });
   beforeEach(() => {
     installFixtures();
     Object.defineProperty(window, 'innerWidth', { value: 1440, configurable: true });
@@ -221,6 +237,73 @@ describe('App production surfaces', () => {
     vi.clearAllMocks();
   });
 
+  it('discloses the complete device graph without inventing a count for unknown states', async () => {
+    const base = mocks.useSystemMonitor();
+    const view = render(<App />);
+    expect(await screen.findByText('Waiting for device graph')).toBeInTheDocument();
+    expect(screen.getByText('Waiting for device graph')).toHaveAttribute('aria-live', 'polite');
+    const summary = screen.getByText('Device graph', { selector: 'summary > span' }).closest('summary')!;
+    expect(summary.parentElement).not.toHaveAttribute('open');
+    mocks.useSystemMonitor.mockReturnValue({ ...base, error: { error: 'unrelated metrics failure' } });
+    view.rerender(<App />);
+    expect(screen.getByText('Device graph not received')).toBeInTheDocument();
+    expect(summary).not.toHaveTextContent('unrelated metrics failure');
+    mocks.useSystemMonitor.mockReturnValue({ ...base, subsystemErrors: { deviceGraph: { error: 'device read failed' } } });
+    view.rerender(<App />);
+    expect(screen.getByText('Unavailable: device read failed')).toBeInTheDocument();
+    const unavailable = fromJson(GraphSchema, { available: false, unavailableReason: 'not supported' });
+    mocks.useSystemMonitor.mockReturnValue({ ...base, deviceGraph: unavailable });
+    view.rerender(<App />);
+    expect(screen.getByText('Unavailable: not supported')).toBeInTheDocument();
+    const empty = fromJson(GraphSchema, { available: true, devices: [], subsystems: [] });
+    mocks.useSystemMonitor.mockReturnValue({ ...base, deviceGraph: empty });
+    view.rerender(<App />);
+    expect(screen.getByText('0 devices · 0 subsystems')).toBeInTheDocument();
+    mocks.useSystemMonitor.mockReturnValue({ ...base, deviceGraph: empty, subsystemErrors: { deviceGraph: { error: 'refresh failed' } } });
+    view.rerender(<App />);
+    expect(screen.getByText('0 devices · 0 subsystems · Last received; refresh failed: refresh failed')).toBeInTheDocument();
+    fireEvent.click(summary);
+    expect(summary.parentElement).toHaveAttribute('open');
+    expect(screen.getByText('No graded devices were observed.')).toBeVisible();
+    mocks.useSystemMonitor.mockReturnValue({ ...base, deviceGraph: empty });
+    view.rerender(<App />);
+    expect(screen.getByText('0 devices · 0 subsystems')).toBeInTheDocument();
+    fireEvent.click(summary);
+    expect(summary.parentElement).not.toHaveAttribute('open');
+  });
+
+  it('carries the selected condition snapshot into detail and restores its action on return', async () => {
+    mocks.useServerAlerts.mockReturnValue({ alerts: [{ id: 'cpu-other', category: 'cpu_other', severity: 'critical', message: 'Other CPU condition', timestamp: '2026-02-02T00:01:00Z', resolved: false }, { id: 'cpu-alert', category: 'cpu_usage', severity: 'critical', message: 'CPU elevated', timestamp: '2026-02-02T00:00:00Z', resolved: false }], feed: { status: 'error', error: 'offline', ruleIssues: [] } });
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    render(<App />);
+    const action = screen.getAllByRole('button', { name: 'Inspect cpu' })[1]!;
+    action.focus();
+    fireEvent.click(action);
+    const context = await screen.findByRole('region', { name: 'Originating condition' }, { timeout: 5000 });
+    expect(context).toHaveTextContent('CRITICAL · cpu_usage');
+    fireEvent.click(screen.getByText('CRITICAL · cpu_usage — View condition details'));
+    expect(context).toHaveTextContent('CPU elevated');
+    expect(context).toHaveTextContent('Last known condition; it was not revalidated.');
+    expect(context).toHaveTextContent('Overview window bounds unavailable at navigation');
+    fireEvent.click(await screen.findByRole('button', { name: /Back To Dashboard/i }));
+    await waitFor(() => { expect(screen.getAllByRole('button', { name: 'Inspect cpu' })[1]).toHaveFocus(); });
+    expect(screen.queryByRole('region', { name: 'Originating condition' })).not.toBeInTheDocument();
+    scroll.mockRestore();
+  });
+
+  it('records the evaluated condition and observation window at navigation', async () => {
+    const base = mocks.useSystemMonitor();
+    mocks.useSystemMonitor.mockReturnValue({ ...base, metricHistory: { ...history, windowStart: '2026-02-01T23:00:00Z', windowEnd: '2026-02-02T00:00:00Z' } });
+    mocks.useServerAlerts.mockReturnValue({ alerts: [{ id: 'cpu-alert', category: 'cpu_usage', severity: 'critical', message: 'CPU elevated', timestamp: '2026-02-01T23:57:00Z', resolved: false }], feed: { status: 'ready', evaluatedAt: '2026-02-02T00:00:00Z', ruleIssues: [] } });
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect cpu' }));
+    const context = await screen.findByRole('region', { name: 'Originating condition' }, { timeout: 5000 });
+    expect(context).toHaveTextContent('Condition status at navigation; it may have changed.');
+    expect(context).toHaveTextContent('Last evaluation at navigation:');
+    expect(context).toHaveTextContent('Overview window at navigation:');
+    expect(context).not.toHaveTextContent('bounds unavailable');
+  });
+
   it('makes the machine the subject of the app, and puts it in the URL', async () => {
     render(<App />);
 
@@ -230,7 +313,7 @@ describe('App production surfaces', () => {
     fireEvent.click(await screen.findByRole('option', { name: /minimouse/ }));
 
     // The subject is stated for as long as it is not this computer.
-    const strip = await screen.findByRole('status');
+    const strip = (await screen.findAllByRole('status')).find(element => element.textContent?.includes('Viewing minimouse'));
     expect(strip).toHaveTextContent('Viewing minimouse — darwin/amd64, not this computer');
 
     // In the URL, so a reload keeps the subject and the view is shareable.
@@ -241,20 +324,223 @@ describe('App production surfaces', () => {
     expect(await screen.findByTestId('machine-picker')).toHaveTextContent('This machine');
   });
 
+  it('keeps the subject visible and retries machine discovery after failure', async () => {
+    window.history.replaceState({}, '', '/logs');
+    mocks.apiFetch.mockImplementationOnce(() => Promise.reject(new Error('unavailable')));
+    render(<App />);
+    const retry = await screen.findByRole('button', { name: 'This machine; machine list unavailable; retry' });
+    fireEvent.click(retry);
+    const picker = await screen.findByTestId('machine-picker');
+    expect(picker).toHaveTextContent('This machine');
+    await waitFor(() => expect(picker).toHaveFocus());
+    expect(window.location.pathname).toBe('/logs');
+  });
+
+  it('does not steal focus if the operator moves away while discovery retries', async () => {
+    let resolveRetry!: (value: typeof fleet) => void;
+    mocks.apiFetch.mockImplementationOnce(() => Promise.reject(new Error('unavailable')))
+      .mockImplementationOnce(() => new Promise(resolve => { resolveRetry = resolve; }));
+    render(<App />);
+    const retry = await screen.findByRole('button', { name: 'This machine; machine list unavailable; retry' });
+    retry.focus();
+    fireEvent.click(retry);
+    const range = screen.getByLabelText('Shared time range');
+    range.focus();
+    await act(async () => { resolveRetry(fleet); });
+    expect(await screen.findByTestId('machine-picker')).toBeInTheDocument();
+    expect(range).toHaveFocus();
+  });
+
+  it('retains a remote subject and withholds local Logs while discovery recovers', async () => {
+    window.history.replaceState({}, '', '/logs?machine=minimouse-id');
+    mocks.apiFetch.mockImplementationOnce(() => Promise.reject(new Error('unavailable')));
+    render(<App />);
+    const retry = await screen.findByRole('button', { name: 'minimouse-id; machine list unavailable; retry' });
+    expect(screen.getByText(/Local evidence is not shown under its name/)).toBeInTheDocument();
+    expect(mocks.fetchLogs).not.toHaveBeenCalled();
+    fireEvent.click(retry);
+    expect(await screen.findByTestId('machine-picker')).toHaveTextContent('minimouse');
+    expect(window.location.search).toBe('?machine=minimouse-id');
+    expect(mocks.fetchLogs).not.toHaveBeenCalled();
+  });
+
+  it('releases an inspected chart when the subject changes', async () => {
+    render(<App />);
+    const chart = screen.getByRole('img', { name: 'CPU USAGE history' });
+    fireEvent.keyDown(chart, { key: 'ArrowLeft' });
+    expect(screen.getByRole('button', { name: 'Return to latest' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId('machine-picker'));
+    fireEvent.click(await screen.findByRole('option', { name: /minimouse/ }));
+    expect(screen.queryByRole('button', { name: 'Return to latest' })).not.toBeInTheDocument();
+  });
+
+  it('restores the fixed chart inspection after returning from resource detail', async () => {
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    render(<App />);
+    fireEvent.keyDown(screen.getByRole('img', { name: 'CPU USAGE history' }), { key: 'ArrowLeft' });
+    const selection = screen.getByText(/Fixed selection:/, { selector: 'div.readout-caption' }).textContent;
+    const detail = screen.getByRole('button', { name: 'Open CPU detail' });
+    detail.focus();
+    fireEvent.click(detail);
+    const sampleContext = await screen.findByRole('region', { name: 'Selected Overview sample' }, { timeout: 5000 });
+    expect(sampleContext).toHaveTextContent('22.0%');
+    expect(sampleContext).toHaveTextContent('Detail evidence may be newer and is not necessarily from this sample time.');
+    fireEvent.click(await screen.findByRole('button', { name: /Back To Dashboard/i }));
+    expect(await screen.findByText(/Fixed selection:/, { selector: 'div.readout-caption' })).toHaveTextContent(selection ?? '');
+    await waitFor(() => { expect(screen.getByRole('button', { name: 'Open CPU detail' })).toHaveFocus(); });
+    expect(scroll).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Return to latest' }));
+    expect(screen.queryByText(/Fixed selection:/, { selector: 'div.readout-caption' })).not.toBeInTheDocument();
+    scroll.mockRestore();
+  });
+
+  it('keeps selected sample and zoom as reference only for their subject', async () => {
+    const base = mocks.useSystemMonitor();
+    mocks.useSystemMonitor.mockReturnValue({ ...base, metricHistory: { ...history, windowStart: '2026-02-01T23:00:00Z', windowEnd: '2026-02-02T00:00:00Z', cpu: [{ timestamp: '2026-02-01T23:20:00Z', value: 42 }, { timestamp: '2026-02-01T23:40:00Z', value: 18 }] } });
+    render(<App />);
+    fireEvent.keyDown(screen.getByRole('img', { name: 'CPU USAGE history' }), { key: 'ArrowLeft' });
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom around selected sample' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open CPU detail' }));
+    const sample = await screen.findByRole('region', { name: 'Selected Overview sample' }, { timeout: 5000 });
+    expect(sample).toHaveTextContent('42.0%');
+    expect(sample).toHaveTextContent('Overview zoom at navigation:');
+    expect(sample).toHaveTextContent('Detail evidence may be newer and is not necessarily from this sample time.');
+    fireEvent.click(await screen.findByTestId('machine-picker'));
+    fireEvent.click(await screen.findByRole('option', { name: /minimouse/ }));
+    expect(screen.queryByRole('region', { name: 'Selected Overview sample' })).not.toBeInTheDocument();
+  });
+
   it('opens on the machine the link names', async () => {
     window.history.replaceState({}, '', '/?machine=minimouse-id');
     render(<App />);
-    expect(await screen.findByRole('status')).toHaveTextContent('Viewing minimouse');
+    await waitFor(() => { expect(screen.getAllByRole('status').some(element => element.textContent?.includes('Viewing minimouse'))).toBe(true); });
   });
 
-  it('falls back to this computer when a link names a machine that is gone', async () => {
+  it('explains a remote reading failure and offers retry before a first sample', async () => {
+    const current = mocks.useSystemMonitor();
+    const refresh = vi.fn();
+    mocks.useSystemMonitor.mockReturnValue({ ...current, metrics: null, lastSuccessfulFetch: null, subsystemErrors: { metrics: { error: 'remote node is not available' } }, refresh });
+    window.history.replaceState({}, '', '/?machine=minimouse-id');
+    render(<App />);
+    expect(await screen.findByText(/No reading has been received for this machine/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry readings' }));
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a history failure visible independently of current readings and offers retry', async () => {
+    const current = mocks.useSystemMonitor();
+    const refresh = vi.fn();
+    mocks.useSystemMonitor.mockReturnValue({ ...current, metricHistory: { ...history, windowStart: '2026-02-01T23:00:00Z' }, subsystemErrors: { history: { error: 'timeline unavailable' } }, refresh });
+    render(<App />);
+    expect(await screen.findByText(/History could not be refreshed: timeline unavailable. The previous history remains visible/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry history' }));
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it('explains untimed timeline cycles omitted from local plots', async () => {
+    const current = mocks.useSystemMonitor();
+    mocks.useSystemMonitor.mockReturnValue({ ...current, metricHistory: { ...history, missingTimestampCount: 2 } });
+    render(<App />);
+    expect(await screen.findByText('2 timeline cycles were omitted from plots because their timestamps were unavailable.')).toBeInTheDocument();
+  });
+
+  it('exposes dashboard workspace links on the local overview', () => {
+    render(<App />);
+    expect(screen.getByRole('link', { name: 'Processes and ownership' })).toHaveAttribute('href', '/metrics/cpu');
+    expect(screen.getByRole('link', { name: 'Processes and ownership' })).toHaveAccessibleDescription('CPU and process activity');
+    expect(screen.getByRole('link', { name: 'Memory contributors' })).toHaveAttribute('href', '/metrics/memory');
+    expect(screen.getByRole('link', { name: 'Memory contributors' })).toHaveAccessibleDescription('Memory use by process');
+    expect(screen.getByRole('link', { name: 'Infrastructure' })).toHaveAttribute('href', '#infrastructure-workspace');
+    expect(screen.getByRole('link', { name: 'Infrastructure' })).toHaveAccessibleDescription('Devices, pools and services');
+    expect(screen.getByRole('link', { name: 'Investigations and reports' })).toHaveAttribute('href', '#investigations-workspace');
+    expect(screen.getByRole('link', { name: 'Investigations and reports' })).toHaveAccessibleDescription('Investigations and historical reports');
+  });
+
+  it('opens the ownership workspace at the existing process section', async () => {
+    const scroll = vi.fn();
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scroll;
+    render(<App />);
+    fireEvent.click(screen.getByRole('link', { name: 'Processes and ownership' }));
+    await waitFor(() => { expect(document.querySelector('[data-detail-section="process-monitor"]')).toBeInTheDocument(); });
+    await waitFor(() => { expect(scroll).toHaveBeenCalled(); });
+    HTMLElement.prototype.scrollIntoView = original;
+  });
+
+  it('keeps a delayed workspace visible until the user takes control', async () => {
+    const target = document.createElement('section');
+    target.scrollIntoView = vi.fn();
+    target.getBoundingClientRect = () => ({ top: window.innerHeight + 100 } as DOMRect);
+    document.body.appendChild(target);
+    const stop = revealWorkspace(() => target);
+    await waitFor(() => { expect(target.scrollIntoView).toHaveBeenCalledTimes(1); });
+    target.appendChild(document.createElement('p'));
+    await waitFor(() => { expect(target.scrollIntoView).toHaveBeenCalledTimes(2); });
+    window.dispatchEvent(new Event('wheel'));
+    target.appendChild(document.createElement('p'));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(target.scrollIntoView).toHaveBeenCalledTimes(2);
+    stop();
+    target.remove();
+  });
+
+  it('focuses a delayed keyboard destination without reclaiming focus after user input', async () => {
+    const target = document.createElement('section');
+    target.tabIndex = -1;
+    target.scrollIntoView = vi.fn();
+    let mounted = false;
+    const stop = revealWorkspace(() => mounted ? target : null, true);
+    document.body.appendChild(target);
+    mounted = true;
+    target.appendChild(document.createElement('p'));
+    await waitFor(() => expect(target).toHaveFocus());
+    const other = document.createElement('button');
+    document.body.appendChild(other);
+    window.dispatchEvent(new Event('keydown'));
+    other.focus();
+    target.appendChild(document.createElement('p'));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(other).toHaveFocus();
+    stop();
+    target.remove();
+    other.remove();
+  });
+
+  it('announces a requested lazy workspace panel without claiming its data is ready', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('link', { name: 'Investigations and reports' }), { detail: 0 });
+    expect(await screen.findByText('Investigations and reports panel loaded. Data may still be loading.')).toHaveAttribute('role', 'status');
+    fireEvent.click(screen.getByRole('link', { name: 'Logs', exact: true }));
+    await waitFor(() => expect(window.location.pathname).toBe('/logs'));
+    await waitFor(() => expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument());
+    fireEvent.click(await screen.findByRole('link', { name: 'Dashboard', exact: true }));
+    await waitFor(() => expect(window.location.pathname).toBe('/'));
+    expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument();
+  });
+
+  it('does not retain a local workspace announcement after changing subject', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('link', { name: 'Investigations and reports' }), { detail: 0 });
+    expect(await screen.findByText('Investigations and reports panel loaded. Data may still be loading.')).toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId('machine-picker'));
+    fireEvent.click(await screen.findByRole('option', { name: /minimouse/ }));
+    await waitFor(() => expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument());
+    fireEvent.click(await screen.findByTestId('machine-picker'));
+    fireEvent.click(await screen.findByRole('option', { name: /This machine/ }));
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.queryByText('Investigations and reports panel loaded. Data may still be loading.')).not.toBeInTheDocument();
+  });
+
+  it('retains an unknown subject until the operator deliberately returns locally', async () => {
     window.history.replaceState({}, '', '/?machine=retired-node');
     render(<App />);
 
-    // Polling a node id that resolves to nothing would render as an outage on a
-    // machine that is fine, so the app corrects the subject instead.
-    await waitFor(() => { expect(window.location.search).toBe(''); });
-    expect(await screen.findByTestId('machine-picker')).toHaveTextContent('This machine');
+    expect(await screen.findByRole('status')).toHaveTextContent('retired-node');
+    await waitFor(() => { expect(screen.getByRole('status')).toHaveTextContent('No readings are shown.'); });
+    expect(window.location.search).toBe('?machine=retired-node');
+    expect(screen.queryByText(/OPEN CPU DETAIL/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to this computer' }));
+    expect(window.location.search).toBe('');
   });
 
   it('does not describe this computer under another machine\'s name', async () => {
@@ -267,6 +553,19 @@ describe('App production surfaces', () => {
     expect(screen.queryByText('Incident timeline')).not.toBeInTheDocument();
     expect(screen.queryByText(/ACTIVE ALERTS/i)).not.toBeInTheDocument();
     expect(await screen.findByTestId('local-only-panels')).toHaveTextContent('not shown for minimouse');
+  });
+
+  it.each([
+    ['/logs', 'Logs'], ['/forensics', 'Forensics'], ['/capacity', 'Capacity'],
+    ['/scripts', 'Scripts'], ['/metrics/disk', 'Disk detail'],
+  ])('keeps %s local-only for a remote subject and offers deliberate return', async (path, name) => {
+    window.history.replaceState({}, '', `${path}?machine=minimouse-id`);
+    render(<App />);
+    expect(await screen.findByRole('heading', { name: `${name} is available on this computer` })).toBeInTheDocument();
+    expect(window.location.search).toBe('?machine=minimouse-id');
+    fireEvent.click(screen.getByRole('button', { name: 'View on this computer' }));
+    await waitFor(() => { expect(window.location.search).toBe(''); });
+    await waitFor(() => { expect(screen.queryByRole('heading', { name: `${name} is available on this computer` })).not.toBeInTheDocument(); });
   });
 
   it('shows no readings at all for a machine it cannot reach', async () => {
@@ -284,9 +583,9 @@ describe('App production surfaces', () => {
   it('renders the live dashboard and deferred operator sections', async () => {
     render(<App />);
 
-    expect(screen.getByText('System Monitor')).toBeInTheDocument();
+    expect(screen.getByText('Vega')).toBeInTheDocument();
     expect(screen.getByText('CPU USAGE')).toBeInTheDocument();
-    expect(screen.getByText('67.0')).toBeInTheDocument();
+    expect(screen.getByText(/67.0% space used/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('INFRASTRUCTURE MONITOR')).toBeInTheDocument(), { timeout: 5000 });
     await waitFor(() => expect(screen.getByText('PLAYBACK REPORTS')).toBeInTheDocument(), { timeout: 5000 });
     expect(screen.getByText('No threshold crossings or investigations in this window. Signals will appear here when attention is required.')).toBeInTheDocument();
@@ -317,8 +616,9 @@ describe('App production surfaces', () => {
     const user = await import('@testing-library/user-event').then(module => module.default.setup());
     render(<App />);
     await user.selectOptions(screen.getByLabelText('Shared time range'), '24h');
-    await user.click(screen.getByRole('button', { name: 'Pause live updates' }));
-    expect(screen.getByRole('button', { name: 'Resume live updates' })).toBeInTheDocument();
+    expect(screen.getByText(/Requested 24 hours · Showing previous 60-minute history/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Pause monitoring view updates' }));
+    expect(screen.getByRole('button', { name: 'Resume monitoring view updates' })).toBeInTheDocument();
     await user.click(screen.getByTitle('Toggle system output'));
     await user.click(screen.getByTitle('Open system settings'));
     await waitFor(() => expect(screen.getByText('System Monitor Settings')).toBeInTheDocument(), { timeout: 5000 });

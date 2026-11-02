@@ -20,6 +20,11 @@ type mockResp struct {
 	Error  error
 }
 
+type mockExitError int
+
+func (e mockExitError) Error() string { return "journalctl exited" }
+func (e mockExitError) ExitCode() int { return int(e) }
+
 type mockCall struct {
 	Name string
 	Args []string
@@ -76,7 +81,7 @@ func TestBuildArgs(t *testing.T) {
 		Tail: 50, Reverse: true, Boot: "-1", AfterCursor: "abc",
 	}, true)
 	want := []string{
-		"--no-pager", "-o", "json",
+		"--no-pager", "--all", "-o", "json",
 		"-u", "docker",
 		"-k",
 		"-b", "-1",
@@ -121,6 +126,85 @@ func TestQueryLogsJSON(t *testing.T) {
 	}
 }
 
+func TestQueryLogsRetainsUnmappedJournalMetadata(t *testing.T) {
+	r, m := newReaderWithMock()
+	raw := `{"__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":"hello","_EXE":"/usr/bin/example","CUSTOM_FIELD":"evidence"}`
+	m.DefaultResponse = mockResp{Output: []byte(raw + "\n")}
+	entries, err := r.QueryLogs(context.Background(), QueryOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Message != "hello" || entries[0].Raw != raw {
+		t.Fatalf("complete record not retained: %+v", entries)
+	}
+}
+
+func TestQueryLogsRetainsLargeMessageAndMetadata(t *testing.T) {
+	r, m := newReaderWithMock()
+	message := strings.Repeat("m", 4*1024*1024+1)
+	metadata := strings.Repeat("e", 5000)
+	raw := `{"__CURSOR":"long-record","MESSAGE":"` + message + `","CUSTOM_FIELD":"` + metadata + `"}`
+	m.DefaultResponse = mockResp{Output: []byte(raw + "\n")}
+	entries, err := r.QueryLogs(context.Background(), QueryOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Cursor != "long-record" || entries[0].Message != message || entries[0].Raw != raw {
+		t.Fatal("large journal message or raw metadata was not retained")
+	}
+	if len(m.Calls) != 1 || !strings.Contains(strings.Join(m.Calls[0].Args, " "), "--all") {
+		t.Fatal("full journal fields must be requested without falling back to text")
+	}
+}
+
+func TestCursorPageEnforcesSinceWithoutPassingIncompatibleArguments(t *testing.T) {
+	r, m := newReaderWithMock()
+	m.Responses["systemd-analyze timestamp -- yesterday"] = mockResp{Output: []byte("   UNIX seconds: @1714900000.000000\n")}
+	m.DefaultResponse = mockResp{Output: []byte(strings.Join([]string{
+		`{"__REALTIME_TIMESTAMP":"1714900001000000","__CURSOR":"new","MESSAGE":"inside"}`,
+		`{"__REALTIME_TIMESTAMP":"1714899999000000","__CURSOR":"old","MESSAGE":"outside"}`,
+	}, "\n"))}
+	entries, err := r.QueryLogs(context.Background(), QueryOpts{Since: "yesterday", Until: "now", AfterCursor: "cursor", Reverse: true, Tail: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Message != "inside" {
+		t.Fatalf("entries: %+v", entries)
+	}
+	args := strings.Join(m.Calls[1].Args, " ")
+	if strings.Contains(args, "--since") || !strings.Contains(args, "--until now") || !strings.Contains(args, "--after-cursor cursor") || !strings.Contains(args, "-r") {
+		t.Fatalf("unexpected cursor arguments: %s", args)
+	}
+}
+
+func TestCursorPageRejectsUnresolvedSince(t *testing.T) {
+	r, m := newReaderWithMock()
+	m.DefaultResponse = mockResp{Error: errors.New("invalid time")}
+	if _, err := r.QueryLogs(context.Background(), QueryOpts{Since: "bad time", AfterCursor: "cursor"}); err == nil {
+		t.Fatal("expected an error rather than dropping the lower bound")
+	}
+	if len(m.Calls) != 1 || m.Calls[0].Name != "systemd-analyze" {
+		t.Fatalf("calls: %+v", m.Calls)
+	}
+}
+
+func TestGrepNoMatchesIsEmptyButFailuresRemainErrors(t *testing.T) {
+	r, m := newReaderWithMock()
+	m.DefaultResponse = mockResp{Error: mockExitError(1)}
+	entries, err := r.QueryLogs(context.Background(), QueryOpts{Grep: "no-match"})
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("empty query: entries=%v err=%v", entries, err)
+	}
+	m.DefaultResponse = mockResp{Error: mockExitError(1), Output: []byte("Bad pattern")}
+	if _, err = r.QueryLogs(context.Background(), QueryOpts{Grep: "["}); err == nil {
+		t.Fatal("invalid regex must remain an error")
+	}
+	m.DefaultResponse = mockResp{Error: mockExitError(2)}
+	if _, err = r.QueryLogs(context.Background(), QueryOpts{Grep: "x"}); err == nil {
+		t.Fatal("other failures must remain errors")
+	}
+}
+
 func TestQueryLogsBinaryMessage(t *testing.T) {
 	r, m := newReaderWithMock()
 	m.DefaultResponse = mockResp{Output: []byte(`{"__REALTIME_TIMESTAMP":"1714900000000000","MESSAGE":[104,105]}` + "\n")}
@@ -144,7 +228,7 @@ func TestQueryLogsErrorIncludesArgv(t *testing.T) {
 
 func TestQueryLogsTextFallback(t *testing.T) {
 	r, m := newReaderWithMock()
-	m.Responses["journalctl --no-pager -o json -u docker"] = mockResp{Output: []byte("not json\n")}
+	m.Responses["journalctl --no-pager --all -o json -u docker"] = mockResp{Output: []byte("not json\n")}
 	m.Responses["journalctl --no-pager -o short-iso -u docker"] = mockResp{
 		Output: []byte("2026-05-07T10:15:23+0000 vrooli dockerd[1234]: hello\n"),
 	}
@@ -231,5 +315,23 @@ func TestQueryLogsNilReader(t *testing.T) {
 	var r *Reader
 	if _, err := r.QueryLogs(context.Background(), QueryOpts{}); err == nil {
 		t.Fatal("nil reader should error")
+	}
+}
+
+func TestDuplicateJournalFieldPreservesStructuredRecord(t *testing.T) {
+	line := `{"__CURSOR":"duplicate-cursor","MESSAGE":"complete message","_SYSTEMD_UNIT":["alpha.service","beta.service"],"CUSTOM":"preserved"}`
+	entries, err := parseJSON([]byte(line + "\n"))
+	if err != nil {
+		t.Fatalf("parse journal entry: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("got %d entries, want 1", len(entries))
+	}
+	entry := entries[0]
+	if entry.Cursor != "duplicate-cursor" || entry.Message != "complete message" || entry.Raw != line {
+		t.Fatalf("structured evidence was lost: %+v", entry)
+	}
+	if entry.Unit != "" {
+		t.Fatalf("ambiguous unit must not be guessed: %q", entry.Unit)
 	}
 }

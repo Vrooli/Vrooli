@@ -125,16 +125,21 @@ describe('MetricCard metric states', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
   });
 
-  it('renders an unread track instead of a fabricated zero-length bar', () => {
+  it('renders an empty history instead of a fabricated zero-length bar', () => {
     const { container } = renderCard();
 
-    const unread = screen.getByTestId('metric-unread-bar');
+    const unread = screen.getByTestId('sparkline-empty');
     expect(unread).toBeInTheDocument();
     expect(container.querySelector('.metric-fill')).toBeNull();
     expect(container.querySelector('.readout-card')).toHaveAttribute('data-severity', 'unread');
   });
 
-  it('never draws a trace beneath an unavailable collector', () => {
+  it('explains unavailable remote history without implying collection is starting', () => {
+    render(<MetricCard type="cpu" label="CPU" unit="%" isExpanded={false} onToggle={() => undefined} alertCount={0} emptyHistoryMessage="History unavailable for this remote machine" />);
+    expect(screen.getByText('History unavailable for this remote machine')).toBeInTheDocument();
+  });
+
+  it('preserves dated history and labels an unavailable current reading', () => {
     render(
       <MetricCard
         type="gpu"
@@ -155,12 +160,11 @@ describe('MetricCard metric states', () => {
     );
 
     expect(screen.getByText('GPU collector unavailable')).toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('sparkline-rail')).not.toBeInTheDocument();
-    expect(screen.getByTestId('metric-unread-bar')).toBeInTheDocument();
+    expect(screen.getByRole('img')).toBeInTheDocument();
+    expect(screen.getByText('Historical observations; current reading unavailable')).toBeInTheDocument();
   });
 
-  it('carries severity on a non-colour channel driven by the same thresholds', () => {
+  it('does not infer server condition severity from a current quantity', () => {
     const severityFor = (value: number) => {
       const { container, unmount } = render(
         <MetricCard
@@ -178,9 +182,9 @@ describe('MetricCard metric states', () => {
       return severity;
     };
 
-    expect(severityFor(12)).toBe('nominal');
-    expect(severityFor(70)).toBe('elevated');
-    expect(severityFor(90)).toBe('critical');
+    expect(severityFor(12)).toBe('ungraded');
+    expect(severityFor(70)).toBe('ungraded');
+    expect(severityFor(90)).toBe('ungraded');
   });
 
   it('composes the figure and its unit as one lockup', () => {
@@ -277,7 +281,7 @@ describe('MetricCard metric states', () => {
           alertCount={0}
         />,
       );
-      expect(container.querySelector('.readout-card')).toHaveAttribute('data-severity', 'critical');
+      expect(container.querySelector('.readout-card')).toHaveAttribute('data-severity', 'ungraded');
       expect(container.querySelector('[data-testid="sparkline-line"]')?.getAttribute('stroke'))
         .toBe('var(--chart-line-1)');
       cleanup();
@@ -329,7 +333,7 @@ describe('MetricCard metric states', () => {
     expect(screen.queryByTestId('metric-unread-bar')).not.toBeInTheDocument();
   });
 
-  it('still grades a percentage metric against the percentage bars', () => {
+  it('does not grade a percentage metric without a server condition', () => {
     render(
       <MetricCard
         type="cpu"
@@ -341,6 +345,6 @@ describe('MetricCard metric states', () => {
         alertCount={0}
       />,
     );
-    expect(document.querySelector('.readout-card')).toHaveAttribute('data-severity', 'critical');
+    expect(document.querySelector('.readout-card')).toHaveAttribute('data-severity', 'ungraded');
   });
 });
