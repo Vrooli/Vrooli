@@ -20,6 +20,20 @@ type modeTrackingExecutor struct {
 	writes []bool
 }
 
+type failTerminalUpdateExecutor struct {
+	SQLExecutor
+}
+
+func (e *failTerminalUpdateExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(query)), "UPDATE JOBS") && len(args) > 0 {
+		state, _ := args[0].(string)
+		if state == string(StateFailed) || state == string(StateCanceled) {
+			return nil, errors.New("injected terminal update failure")
+		}
+	}
+	return e.SQLExecutor.ExecContext(ctx, query, args...)
+}
+
 func (e *modeTrackingExecutor) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	if strings.HasPrefix(strings.TrimSpace(strings.ToUpper(query)), "INSERT INTO JOBS") || strings.HasPrefix(strings.TrimSpace(strings.ToUpper(query)), "UPDATE JOBS") {
 		e.mu.Lock()
@@ -221,6 +235,96 @@ func TestSubmitWaitFailure(t *testing.T) {
 	}
 }
 
+func TestFailedRunnerPersistsOnlyGatewayExecutionEvidence(t *testing.T) {
+	evidence := `{"schema_version":1,"complete":false,"requested_variations":2,"variations":[{"index":0,"outcome":"succeeded","gateway_execution_id":"gw-1","gateway_status":"SUCCEEDED","cost_state":"known","cost_usd":0},{"index":1,"outcome":"outcome_unknown","gateway_execution_id":"gw-2","cost_state":"unknown"}]}`
+	m := startManager(t, Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+		return Result{Ref: "out/should-not-surface.png", Meta: map[string]string{
+			MetaGatewayExecutionEvidence: evidence,
+			"cost_usd":                   "0",
+			"cost_provenance":            "provider_reported_v1",
+			"result_refs":                "out/a.png,out/b.png",
+			"unrelated_backend_metadata": "must-not-copy",
+		}}, errors.New("second variation failed")
+	}})
+	job, err := m.Submit(context.Background(), Spec{Operation: "text_to_image", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateFailed || final.ResultRef != "" {
+		t.Fatalf("failed job state/ref = %s/%q", final.State, final.ResultRef)
+	}
+	if len(final.Meta) != 1 || final.Meta[MetaGatewayExecutionEvidence] != evidence {
+		t.Fatalf("failed metadata = %#v", final.Meta)
+	}
+	loaded, err := m.st.get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.State != StateFailed || loaded.ResultRef != "" || loaded.Meta[MetaGatewayExecutionEvidence] != evidence {
+		t.Fatalf("persisted job = %+v", loaded)
+	}
+}
+
+func TestCanceledRunnerPersistsGatewayEvidence(t *testing.T) {
+	started := make(chan struct{})
+	evidence := `{"schema_version":1,"complete":false,"requested_variations":1,"variations":[{"index":0,"outcome":"outcome_unknown","gateway_execution_id":"gw-canceled","cost_state":"unknown"}]}`
+	m := startManager(t, Config{Runner: func(ctx context.Context, _ Job, _ func(int, string)) (Result, error) {
+		close(started)
+		<-ctx.Done()
+		return Result{Meta: map[string]string{MetaGatewayExecutionEvidence: evidence}}, ctx.Err()
+	}})
+	job, err := m.Submit(context.Background(), Spec{Operation: "text_to_image", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-started
+	if err := m.Cancel(job.ID); err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateCanceled || final.ResultRef != "" || final.Meta[MetaGatewayExecutionEvidence] != evidence {
+		t.Fatalf("canceled job = %+v", final)
+	}
+}
+
+func TestTerminalUpdateFailureDoesNotClaimDurableEvidence(t *testing.T) {
+	db := newJobsDB(t)
+	wrapped := &failTerminalUpdateExecutor{SQLExecutor: db}
+	evidence := `{"schema_version":1,"complete":false,"requested_variations":1,"variations":[{"index":0,"outcome":"failed","cost_state":"unknown"}]}`
+	m := New(wrapped, Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+		return Result{Meta: map[string]string{MetaGatewayExecutionEvidence: evidence}}, errors.New("failed")
+	}})
+	if err := m.Start(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(m.Close)
+	job, err := m.Submit(context.Background(), Spec{Operation: "text_to_image", Lane: LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if final.State != StateFailed || final.Meta[MetaGatewayExecutionEvidence] != evidence {
+		t.Fatalf("in-memory terminal result = %+v", final)
+	}
+	loaded, err := m.st.get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.State != StateRunning || loaded.Meta[MetaGatewayExecutionEvidence] != "" {
+		t.Fatalf("expected previous durable RUNNING row after injected failed update; got %+v", loaded)
+	}
+}
+
 func TestCancelRunningJob(t *testing.T) {
 	release := make(chan struct{})
 	started := make(chan struct{})
@@ -273,6 +377,9 @@ func TestCancelQueuedJob(t *testing.T) {
 	}
 	if done.State != StateCanceled {
 		t.Fatalf("queued cancel: %+v", done)
+	}
+	if done.ResultRef != "" || len(done.Meta) != 0 {
+		t.Fatalf("queued cancellation unexpectedly has result metadata: %+v", done)
 	}
 	close(block)
 	if _, err := m.Wait(context.Background(), blocker.ID); err != nil {

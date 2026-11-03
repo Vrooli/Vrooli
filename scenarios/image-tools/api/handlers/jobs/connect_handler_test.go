@@ -71,6 +71,24 @@ func TestGetJobOK(t *testing.T) {
 	}
 }
 
+func TestGetFailedJobExposesPartialGatewayEvidenceWithoutResultRefs(t *testing.T) {
+	evidence := `{"schema_version":1,"complete":false,"requested_variations":1,"variations":[{"index":0,"outcome":"failed","gateway_execution_id":"gw-1","gateway_status":"FAILED","cost_state":"known","cost_usd":0}]}`
+	h := newHandler(&fakeManager{job: internaljobs.Job{
+		ID: "j-failed", Operation: "text_to_image", Lane: internaljobs.LaneNetwork, State: internaljobs.StateFailed,
+		Meta: map[string]string{internaljobs.MetaGatewayExecutionEvidence: evidence},
+	}})
+	resp, err := h.GetJob(context.Background(), connect.NewRequest(&jobsv1.GetJobRequest{Id: "j-failed"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.Job.State != jobsv1.JobState_JOB_STATE_FAILED || resp.Msg.Job.ResultRef != "" || len(resp.Msg.Job.ResultRefs) != 0 {
+		t.Fatalf("failed job wire result = %+v", resp.Msg.Job)
+	}
+	if resp.Msg.Job.ResultMeta[internaljobs.MetaGatewayExecutionEvidence] != evidence {
+		t.Fatalf("failed job result metadata = %#v", resp.Msg.Job.ResultMeta)
+	}
+}
+
 func TestGetJobNotFound(t *testing.T) {
 	h := newHandler(&fakeManager{getErr: internaljobs.ErrNotFound})
 	_, err := h.GetJob(context.Background(), connect.NewRequest(&jobsv1.GetJobRequest{Id: "x"}))

@@ -2,8 +2,10 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -29,32 +31,53 @@ const aiGatewayScenario = "ai-gateway"
 // It is a named constant because the producer here and the consumer on the
 // submit edge are in different packages, and a string literal in two places is
 // a contract nobody can see.
-const MetaCostUSD = "cost_usd"
+const (
+	MetaCostUSD                    = "cost_usd"
+	MetaCostProvenance             = "cost_provenance"
+	ProviderReportedCostProvenance = "provider_reported_v1"
+	MetaGatewayExecutionAttempt    = "_gateway_execution_attempt_v1"
+)
+
+type gatewayExecutionAttempt struct {
+	Outcome     string   `json:"outcome"`
+	ExecutionID string   `json:"gateway_execution_id,omitempty"`
+	Status      string   `json:"gateway_status,omitempty"`
+	CostState   string   `json:"cost_state"`
+	CostUSD     *float64 `json:"cost_usd,omitempty"`
+}
+
+type gatewayExecutionEvidenceVariation struct {
+	Index       int      `json:"index"`
+	Outcome     string   `json:"outcome"`
+	ExecutionID string   `json:"gateway_execution_id,omitempty"`
+	Status      string   `json:"gateway_status,omitempty"`
+	CostState   string   `json:"cost_state"`
+	CostUSD     *float64 `json:"cost_usd,omitempty"`
+}
+
+type gatewayExecutionEvidence struct {
+	SchemaVersion       int                                 `json:"schema_version"`
+	Complete            bool                                `json:"complete"`
+	RequestedVariations int                                 `json:"requested_variations"`
+	Variations          []gatewayExecutionEvidenceVariation `json:"variations"`
+}
 
 // parseCostUSD reads the cost a backend reported. The second return separates
 // "reported nothing" from "reported zero", which is the same distinction the
 // writer above is careful to preserve.
 func parseCostUSD(meta map[string]string) (float64, bool) {
+	if meta[MetaCostProvenance] != ProviderReportedCostProvenance {
+		return 0, false
+	}
 	raw, ok := meta[MetaCostUSD]
 	if !ok {
 		return 0, false
 	}
 	cost, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
-	if err != nil {
+	if err != nil || math.IsNaN(cost) || math.IsInf(cost, 0) || cost < 0 {
 		return 0, false
 	}
 	return cost, true
-}
-
-// addCostUSD accumulates one more variation's charge onto a run record. A
-// request for four variations is four backend calls and four charges; recording
-// only the first would understate a cloud bill by the variation count.
-func addCostUSD(meta map[string]string, extra float64) {
-	if meta == nil {
-		return
-	}
-	running, _ := parseCostUSD(meta)
-	meta[MetaCostUSD] = strconv.FormatFloat(running+extra, 'f', -1, 64)
 }
 
 // mediaGenerationRequest is the provider-neutral request image-tools sends to
@@ -81,7 +104,38 @@ type mediaGenerationResult struct {
 	// nowhere else to look — so a consumer that discards it forces every
 	// downstream cost question to be answered by guessing. Zero is a genuine
 	// measurement for a route that cost nothing, not a missing value.
-	CostUSD float64
+	CostUSD          float64
+	CostKnown        bool
+	ExecutionID      string
+	GatewayStatus    string
+	GatewayErrorCode string
+	Outcome          string
+}
+
+func gatewayAttemptMeta(result mediaGenerationResult, outcomeOverride string) map[string]string {
+	if result.Outcome == "" && result.ExecutionID == "" {
+		return nil
+	}
+	outcome := result.Outcome
+	if outcomeOverride != "" {
+		outcome = outcomeOverride
+	}
+	entry := gatewayExecutionAttempt{
+		Outcome:     outcome,
+		ExecutionID: strings.TrimSpace(result.ExecutionID),
+		Status:      strings.TrimSpace(result.GatewayStatus),
+		CostState:   "unknown",
+	}
+	if result.CostKnown && outcome != "outcome_unknown" {
+		cost := result.CostUSD
+		entry.CostState = "known"
+		entry.CostUSD = &cost
+	}
+	encoded, err := json.Marshal(entry)
+	if err != nil {
+		return nil
+	}
+	return map[string]string{MetaGatewayExecutionAttempt: string(encoded)}
 }
 
 type mediaGateway interface {
@@ -107,16 +161,17 @@ func newAIGatewayMediaClient() *aiGatewayMediaClient {
 }
 
 func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGenerationRequest) (mediaGenerationResult, error) {
+	result := mediaGenerationResult{Outcome: "failed"}
 	if c == nil || c.resolve == nil || c.httpClient == nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway media client is not configured")
+		return result, fmt.Errorf("ai: AI Gateway media client is not configured")
 	}
 	baseURL, err := c.resolve(ctx)
 	if err != nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: resolve AI Gateway: %w", err)
+		return result, fmt.Errorf("ai: resolve AI Gateway: %w", err)
 	}
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway discovery returned an empty URL")
+		return result, fmt.Errorf("ai: AI Gateway discovery returned an empty URL")
 	}
 
 	request := &sharedv1.GatewayRequest{
@@ -130,7 +185,7 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 		RequestId:    uuid.NewString(),
 	}
 	if request.Role == "" || request.Operation == "" {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway media request requires operation and role")
+		return result, fmt.Errorf("ai: AI Gateway media request requires operation and role")
 	}
 
 	submit := &routingv1.SubmitMediaRequest{
@@ -150,36 +205,55 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 	client := routingconnect.NewRoutingServiceClient(c.httpClient, baseURL)
 	submitted, err := client.SubmitMedia(ctx, connect.NewRequest(submit))
 	if err != nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: submit AI Gateway media request: %w", err)
+		result.Outcome = "outcome_unknown"
+		return result, fmt.Errorf("ai: submit AI Gateway media request: %w", err)
 	}
 	if submitted.Msg == nil || submitted.Msg.GetExecution() == nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway returned no media execution")
+		result.Outcome = "outcome_unknown"
+		return result, fmt.Errorf("ai: AI Gateway returned no media execution")
 	}
 	executionID := submitted.Msg.GetExecution().GetExecutionId()
 	if executionID == "" {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway returned an empty media execution id")
+		result.Outcome = "outcome_unknown"
+		return result, fmt.Errorf("ai: AI Gateway returned an empty media execution id")
 	}
+	result.ExecutionID = executionID
 
 	// WaitMediaExecution is the durable server-owned wait edge. This is one
 	// blocking call, not client-side polling; the gateway owns provider latency,
 	// retries, cancellation, and terminal receipt state.
 	waited, err := client.WaitMediaExecution(ctx, connect.NewRequest(&routingv1.WaitMediaExecutionRequest{ExecutionId: executionID}))
 	if err != nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: wait AI Gateway media execution %q: %w", executionID, err)
+		result.Outcome = "outcome_unknown"
+		return result, fmt.Errorf("ai: wait AI Gateway media execution %q: %w", executionID, err)
 	}
 	if waited.Msg == nil || waited.Msg.GetExecution() == nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway returned no terminal media execution")
+		result.Outcome = "outcome_unknown"
+		return result, fmt.Errorf("ai: AI Gateway returned no terminal media execution")
 	}
 	execution := waited.Msg.GetExecution()
+	result.GatewayStatus = execution.GetStatus().String()
+	result.GatewayErrorCode = execution.GetErrorCode()
+	if execution.ActualCostUsd != nil && execution.GetErrorCode() != "outcome_unknown" {
+		result.CostUSD = execution.GetActualCostUsd()
+		result.CostKnown = true
+	}
 	if execution.GetStatus() != routingv1.MediaExecutionStatus_MEDIA_EXECUTION_STATUS_SUCCEEDED {
+		result.Outcome = "failed"
+		if execution.GetErrorCode() == "outcome_unknown" {
+			result.Outcome = "outcome_unknown"
+			result.CostUSD = 0
+			result.CostKnown = false
+		}
 		detail := strings.TrimSpace(execution.GetErrorMessage())
 		if detail == "" {
 			detail = execution.GetStatus().String()
 		}
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway media execution %q ended in %s: %s", executionID, execution.GetStatus().String(), detail)
+		return result, fmt.Errorf("ai: AI Gateway media execution %q ended in %s: %s", executionID, execution.GetStatus().String(), detail)
 	}
+	result.Outcome = "succeeded"
 	if _, err := os.Stat(req.OutputPath); err != nil {
-		return mediaGenerationResult{}, fmt.Errorf("ai: AI Gateway succeeded without writing %q: %w", req.OutputPath, err)
+		return result, fmt.Errorf("ai: AI Gateway succeeded without writing %q: %w", req.OutputPath, err)
 	}
 
 	mediaType := ""
@@ -189,12 +263,10 @@ func (c *aiGatewayMediaClient) Generate(ctx context.Context, req mediaGeneration
 			break
 		}
 	}
-	return mediaGenerationResult{
-		MediaType: mediaType,
-		Model:     strings.TrimSpace(execution.GetResolvedModel()),
-		Warnings:  append([]string(nil), execution.GetWarnings()...),
-		CostUSD:   execution.GetActualCostUsd(),
-	}, nil
+	result.MediaType = mediaType
+	result.Model = strings.TrimSpace(execution.GetResolvedModel())
+	result.Warnings = append([]string(nil), execution.GetWarnings()...)
+	return result, nil
 }
 
 // aiGatewayProvider is image-tools' final BYOK rung. It retains the existing
@@ -263,13 +335,17 @@ func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (
 		OutputPath: req.Output.LocalPath,
 	})
 	if err != nil {
-		return backends.Result{}, fmt.Errorf("ai: AI Gateway image generation: %w", err)
+		outcomeOverride := ""
+		if result.Outcome == "succeeded" {
+			outcomeOverride = "failed"
+		}
+		return backends.Result{Meta: gatewayAttemptMeta(result, outcomeOverride)}, fmt.Errorf("ai: AI Gateway image generation: %w", err)
 	}
 	if info, statErr := os.Stat(req.Output.LocalPath); statErr != nil || info.Size() == 0 {
 		if statErr == nil {
 			statErr = io.ErrUnexpectedEOF
 		}
-		return backends.Result{}, fmt.Errorf("ai: AI Gateway output is empty: %w", statErr)
+		return backends.Result{Meta: gatewayAttemptMeta(result, "failed")}, fmt.Errorf("ai: AI Gateway output is empty: %w", statErr)
 	}
 	meta := map[string]string{
 		"backend": models.BackendOpenRouter,
@@ -285,9 +361,15 @@ func (p *aiGatewayProvider) Execute(ctx context.Context, req backends.Request) (
 	// Always recorded, including when it is zero: "this route cost nothing" and
 	// "nobody asked what this route cost" are different facts, and a caller
 	// deciding whether to escalate needs to tell them apart.
-	meta[MetaCostUSD] = strconv.FormatFloat(result.CostUSD, 'f', -1, 64)
+	if result.CostKnown {
+		meta[MetaCostUSD] = strconv.FormatFloat(result.CostUSD, 'f', -1, 64)
+		meta[MetaCostProvenance] = ProviderReportedCostProvenance
+	}
 	if len(result.Warnings) > 0 {
 		meta["warnings"] = strings.Join(result.Warnings, "; ")
+	}
+	for key, value := range gatewayAttemptMeta(result, "succeeded") {
+		meta[key] = value
 	}
 	return backends.Result{OutputRef: req.Output.LocalPath, Tier: backends.TierBYOK, Meta: meta}, nil
 }

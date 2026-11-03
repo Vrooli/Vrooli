@@ -45,8 +45,9 @@ func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backend
 
 // fakeSubmitter records submitted specs and returns a synthetic job.
 type fakeSubmitter struct {
-	last  internaljobs.Spec
-	calls int
+	last   internaljobs.Spec
+	calls  int
+	getJob internaljobs.Job
 }
 
 func (f *fakeSubmitter) Submit(_ context.Context, spec internaljobs.Spec) (internaljobs.Job, error) {
@@ -56,10 +57,44 @@ func (f *fakeSubmitter) Submit(_ context.Context, spec internaljobs.Spec) (inter
 }
 
 func (f *fakeSubmitter) GetByClientOperation(_ context.Context, id string) (internaljobs.Job, error) {
+	if f.getJob.ID != "" {
+		if id != f.last.ClientOperationID {
+			return internaljobs.Job{}, internaljobs.ErrNotFound
+		}
+		return f.getJob, nil
+	}
 	if id != f.last.ClientOperationID || id == "" {
 		return internaljobs.Job{}, internaljobs.ErrNotFound
 	}
 	return internaljobs.Job{ID: "job-1", Operation: f.last.Operation, State: internaljobs.StateQueued, Payload: f.last.Payload, EstimatedSeconds: f.last.EstimatedSeconds, ClientOperationID: id, RequestFingerprint: f.last.RequestFingerprint}, nil
+}
+
+func TestOperationReadbackExposesFailedGatewayEvidence(t *testing.T) {
+	r, sub := newTestServer(t, true)
+	id := uuid.NewString()
+	evidence := `{"schema_version":1,"complete":false,"requested_variations":1,"variations":[{"index":0,"outcome":"outcome_unknown","gateway_execution_id":"gw-1","cost_state":"unknown"}]}`
+	payload, err := json.Marshal(internalai.Payload{Operation: "text_to_image", ModelID: "retained-model"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sub.last.ClientOperationID = id
+	sub.getJob = internaljobs.Job{
+		ID: id, Operation: "text_to_image", State: internaljobs.StateFailed,
+		ClientOperationID: id, Payload: payload,
+		Meta: map[string]string{internaljobs.MetaGatewayExecutionEvidence: evidence},
+	}
+	read := httptest.NewRecorder()
+	r.ServeHTTP(read, httptest.NewRequest(http.MethodGet, "/api/v1/ai/operations/"+id, nil))
+	if read.Code != http.StatusOK {
+		t.Fatalf("readback status=%d body=%s", read.Code, read.Body.String())
+	}
+	var status operationStatus
+	if err := json.Unmarshal(read.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status.State != "failed" || status.ResultRef != "" || status.ResultMeta[internaljobs.MetaGatewayExecutionEvidence] != evidence {
+		t.Fatalf("operation status = %+v", status)
+	}
 }
 
 func TestSubmitImageOperationRetryUsesSourceBytesAndSurvivesModelUnload(t *testing.T) {

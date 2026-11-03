@@ -107,6 +107,10 @@ Return the current record for one job.
 | **Errors** | `not_found` — no job with that id |
 | **CLI** | `image-tools jobs get <id>` |
 
+`Job.result_meta` on failed/canceled AI jobs can include the namespaced
+`gateway_execution_evidence_v1` partial receipt record. It is not a successful
+result or complete cost total; `result_ref`/`result_refs` remain empty.
+
 ### `POST /vrooli.image_tools.v1.jobs.JobsService/WaitJob`
 
 Block server-side until the job reaches a terminal state, then return it.

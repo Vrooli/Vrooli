@@ -8,6 +8,10 @@ package jobs
 
 import "time"
 
+// MetaGatewayExecutionEvidence is the only runner metadata the manager may
+// retain when an AI job finalizes as failed or canceled.
+const MetaGatewayExecutionEvidence = "gateway_execution_evidence_v1"
+
 // State is a job's lifecycle state.
 type State string
 
@@ -79,8 +83,9 @@ type Job struct {
 	Error     string // failure detail when State == failed
 	ResultRef string // output ref (blob key / path) when succeeded
 	// Meta is the backend's record of the run: which model served it, which
-	// tier it ran on, what the route cost. Set only on success, and only by
-	// backends that report it. See Result.Meta.
+	// tier it ran on, and what the route cost. Successful jobs retain backend
+	// metadata. Failed/canceled jobs retain only the approved partial Gateway
+	// execution-evidence entry, when present. See Result.Meta.
 	Meta               map[string]string
 	Payload            []byte
 	ClientOperationID  string

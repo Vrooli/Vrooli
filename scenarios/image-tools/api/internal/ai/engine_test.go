@@ -27,9 +27,12 @@ type fakeProvider struct {
 	ops      []string
 	out      []byte
 	meta     map[string]string
+	metas    []map[string]string
 	lastReq  backends.Request
 	execN    int
 	failWith error
+	failOn   int
+	failMeta map[string]string
 }
 
 func TestOutputFormatRetainsGeometryArchive(t *testing.T) {
@@ -51,7 +54,9 @@ func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backend
 	p.lastReq = req
 	p.execN++
 	if p.failWith != nil {
-		return backends.Result{}, p.failWith
+		if p.failOn == 0 || p.execN == p.failOn {
+			return backends.Result{Meta: p.failMeta}, p.failWith
+		}
 	}
 	out := p.out
 	if out == nil {
@@ -60,7 +65,118 @@ func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backend
 	if err := os.WriteFile(req.Output.LocalPath, out, 0o600); err != nil {
 		return backends.Result{}, err
 	}
-	return backends.Result{OutputRef: req.Output.LocalPath, Meta: p.meta}, nil
+	meta := p.meta
+	if p.execN <= len(p.metas) && p.execN > 0 {
+		meta = p.metas[p.execN-1]
+	}
+	return backends.Result{OutputRef: req.Output.LocalPath, Meta: meta}, nil
+}
+
+func TestRunFailureRetainsGatewayVariationEvidenceAndMarksUnstarted(t *testing.T) {
+	firstAttempt, err := json.Marshal(gatewayExecutionAttempt{Outcome: "succeeded", ExecutionID: "gw-first", Status: "SUCCEEDED", CostState: "known", CostUSD: ptrCost(0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	failedAttempt, err := json.Marshal(gatewayExecutionAttempt{Outcome: "outcome_unknown", ExecutionID: "gw-second", CostState: "unknown"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fp := &fakeProvider{
+		metas: []map[string]string{
+			{MetaGatewayExecutionAttempt: string(firstAttempt), MetaCostUSD: "0", MetaCostProvenance: ProviderReportedCostProvenance},
+			{MetaGatewayExecutionAttempt: string(failedAttempt)},
+		},
+		failOn:   2,
+		failWith: errors.New("gateway wait interrupted"),
+		failMeta: map[string]string{MetaGatewayExecutionAttempt: string(failedAttempt)},
+	}
+	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
+	runner := eng.BuildRunners()["text_to_image"]
+	payload, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 3, Params: map[string]string{"prompt": "partial evidence"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := runner(context.Background(), internaljobs.Job{Operation: "text_to_image", Payload: payload}, func(int, string) {})
+	if err == nil {
+		t.Fatal("expected second variation failure")
+	}
+	if len(result.Meta) != 1 {
+		t.Fatalf("failed result metadata = %#v", result.Meta)
+	}
+	var evidence gatewayExecutionEvidence
+	if err := json.Unmarshal([]byte(result.Meta[internaljobs.MetaGatewayExecutionEvidence]), &evidence); err != nil {
+		t.Fatal(err)
+	}
+	if evidence.SchemaVersion != 1 || evidence.Complete || evidence.RequestedVariations != 3 || len(evidence.Variations) != 3 {
+		t.Fatalf("evidence header = %+v", evidence)
+	}
+	if first := evidence.Variations[0]; first.Outcome != "succeeded" || first.ExecutionID != "gw-first" || first.CostState != "known" || first.CostUSD == nil || *first.CostUSD != 0 {
+		t.Fatalf("first variation evidence = %+v", first)
+	}
+	if second := evidence.Variations[1]; second.Outcome != "outcome_unknown" || second.ExecutionID != "gw-second" || second.CostState != "unknown" || second.CostUSD != nil {
+		t.Fatalf("second variation evidence = %+v", second)
+	}
+	if third := evidence.Variations[2]; third.Outcome != "not_started" || third.CostState != "unknown" || third.CostUSD != nil {
+		t.Fatalf("third variation evidence = %+v", third)
+	}
+}
+
+func ptrCost(value float64) *float64 { return &value }
+
+func TestVariationCostRequiresEveryProviderReportedContribution(t *testing.T) {
+	tests := []struct {
+		name  string
+		metas []map[string]string
+		want  string
+	}{
+		{name: "all known including zero", metas: []map[string]string{
+			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance},
+			{MetaCostUSD: "0", MetaCostProvenance: ProviderReportedCostProvenance},
+			{MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+		}, want: "0.4"},
+		{name: "unknown first", metas: []map[string]string{
+			{}, {MetaCostUSD: "0.2", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+		}},
+		{name: "unknown middle", metas: []map[string]string{
+			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance}, {}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+		}},
+		{name: "unknown last", metas: []map[string]string{
+			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.2", MetaCostProvenance: ProviderReportedCostProvenance}, {},
+		}},
+		{name: "malformed contribution", metas: []map[string]string{
+			{MetaCostUSD: "0.1", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "NaN", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+		}},
+		{name: "unmarked amount is unknown", metas: []map[string]string{
+			{MetaCostUSD: "0.1"}, {MetaCostUSD: "0.2", MetaCostProvenance: ProviderReportedCostProvenance}, {MetaCostUSD: "0.3", MetaCostProvenance: ProviderReportedCostProvenance},
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fp := &fakeProvider{metas: tc.metas}
+			eng, _, modelID := newTestEngine(t, "text_to_image", fp)
+			runner := eng.BuildRunners()["text_to_image"]
+			payload, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 3, Params: map[string]string{"prompt": "cost test"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := runner(context.Background(), internaljobs.Job{Operation: "text_to_image", Payload: payload}, func(int, string) {})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.want == "" {
+				if _, ok := result.Meta[MetaCostUSD]; ok {
+					t.Fatalf("partial or unmarked cost published: %#v", result.Meta)
+				}
+				if _, ok := result.Meta[MetaCostProvenance]; ok {
+					t.Fatalf("provenance published without complete cost: %#v", result.Meta)
+				}
+				return
+			}
+			if result.Meta[MetaCostUSD] != tc.want || result.Meta[MetaCostProvenance] != ProviderReportedCostProvenance {
+				t.Fatalf("aggregated cost metadata = %#v", result.Meta)
+			}
+		})
+	}
 }
 
 type failingProbe struct{ err error }

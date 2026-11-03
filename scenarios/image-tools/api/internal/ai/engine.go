@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -368,6 +369,10 @@ func (e *Engine) BuildRunners() map[string]OpRunner {
 
 func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit func(progress int, message string)) (result internaljobs.Result, runErr error) {
 	jobContext := ctx
+	requestedVariations := 0
+	nextVariation := 0
+	var gatewayVariations []gatewayExecutionEvidenceVariation
+	gatewayEvidenceObserved := false
 	defer func() {
 		if runErr != nil {
 			if cause := context.Cause(ctx); cause != nil && cause != context.Canceled {
@@ -378,6 +383,20 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 				if cause := context.Cause(jobContext); !errors.Is(runErr, cause) {
 					runErr = errors.Join(runErr, cause)
 				}
+			}
+		}
+		if runErr != nil && gatewayEvidenceObserved {
+			for index := nextVariation; index < requestedVariations; index++ {
+				gatewayVariations = append(gatewayVariations, gatewayExecutionEvidenceVariation{
+					Index: index, Outcome: "not_started", CostState: "unknown",
+				})
+			}
+			evidence := gatewayExecutionEvidence{
+				SchemaVersion: 1, Complete: false, RequestedVariations: requestedVariations,
+				Variations: gatewayVariations,
+			}
+			if encoded, err := json.Marshal(evidence); err == nil {
+				result = internaljobs.Result{Meta: map[string]string{internaljobs.MetaGatewayExecutionEvidence: string(encoded)}}
 			}
 		}
 	}()
@@ -538,15 +557,19 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if variations < 1 {
 		variations = 1
 	}
+	requestedVariations = variations
 	outKeys := make([]string, 0, variations)
 	// meta is the backend's own record of the run — the model that served it,
 	// the tier it ran on and what the route cost. It is carried out of the
 	// engine rather than dropped at persistOutput, because a caller billed for
 	// a cloud generation has no other way to learn the charge.
 	var meta map[string]string
+	aggregatedCost := 0.0
+	allVariationCostsKnown := true
 	for i := 0; i < variations; i++ {
 		select {
 		case <-ctx.Done():
+			nextVariation = i
 			return internaljobs.Result{}, ctx.Err()
 		default:
 		}
@@ -569,9 +592,21 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			emit(lo+int(frac*float64(hi-lo)), message)
 		}
 		key, runMeta, err := e.runOnce(ctx, op, model, bsel, tmpDir, inputs, pl, i, progress)
+		if attempt, ok := gatewayEvidenceVariationFromMeta(i, runMeta); ok {
+			gatewayVariations = append(gatewayVariations, attempt)
+			gatewayEvidenceObserved = true
+		}
 		if err != nil {
+			if !gatewayEvidenceObserved && bsel.Tier == backends.TierBYOK && bsel.Provider.Name() == models.BackendOpenRouter {
+				gatewayVariations = append(gatewayVariations, gatewayExecutionEvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
+				gatewayEvidenceObserved = true
+			} else if gatewayEvidenceObserved && (len(gatewayVariations) == 0 || gatewayVariations[len(gatewayVariations)-1].Index != i) {
+				gatewayVariations = append(gatewayVariations, gatewayExecutionEvidenceVariation{Index: i, Outcome: "failed", CostState: "unknown"})
+			}
+			nextVariation = i + 1
 			return internaljobs.Result{}, err
 		}
+		nextVariation = i + 1
 		// The first variation's record is the job's record: every variation runs
 		// the same model on the same tier, and a per-variation cost is summed
 		// below rather than overwritten.
@@ -580,13 +615,32 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			// map belongs to the provider that produced it.
 			meta = make(map[string]string, len(runMeta))
 			for k, v := range runMeta {
+				if k == MetaGatewayExecutionAttempt {
+					continue
+				}
 				meta[k] = v
 			}
-		} else if cost, ok := parseCostUSD(runMeta); ok {
-			addCostUSD(meta, cost)
+		}
+		if cost, ok := parseCostUSD(runMeta); ok {
+			aggregatedCost += cost
+			if math.IsInf(aggregatedCost, 0) || math.IsNaN(aggregatedCost) {
+				allVariationCostsKnown = false
+			}
+		} else {
+			allVariationCostsKnown = false
 		}
 		outKeys = append(outKeys, key)
 		emit(hi, fmt.Sprintf("produced %d/%d", i+1, variations))
+	}
+	if meta == nil && allVariationCostsKnown {
+		meta = make(map[string]string)
+	}
+	if allVariationCostsKnown {
+		meta[MetaCostUSD] = strconv.FormatFloat(aggregatedCost, 'f', -1, 64)
+		meta[MetaCostProvenance] = ProviderReportedCostProvenance
+	} else if meta != nil {
+		delete(meta, MetaCostUSD)
+		delete(meta, MetaCostProvenance)
 	}
 
 	primary := outKeys[0]
@@ -739,13 +793,35 @@ func (e *Engine) runOnce(ctx context.Context, op string, model models.Model, bse
 	}
 	res, err := bsel.Provider.Execute(ctx, req)
 	if err != nil {
-		return "", nil, err
+		return "", res.Meta, err
 	}
 	key, err := e.persistOutput(ctx, outPath, res.Meta)
 	if err != nil {
-		return "", nil, err
+		return "", markGatewayAttemptFailed(res.Meta), err
 	}
 	return key, res.Meta, nil
+}
+
+func markGatewayAttemptFailed(meta map[string]string) map[string]string {
+	raw := strings.TrimSpace(meta[MetaGatewayExecutionAttempt])
+	if raw == "" {
+		return meta
+	}
+	var attempt gatewayExecutionAttempt
+	if err := json.Unmarshal([]byte(raw), &attempt); err != nil {
+		return meta
+	}
+	attempt.Outcome = "failed"
+	encoded, err := json.Marshal(attempt)
+	if err != nil {
+		return meta
+	}
+	copyMeta := make(map[string]string, len(meta))
+	for key, value := range meta {
+		copyMeta[key] = value
+	}
+	copyMeta[MetaGatewayExecutionAttempt] = string(encoded)
+	return copyMeta
 }
 
 func collectInputs(in inputFiles) []string {
@@ -776,6 +852,33 @@ func (e *Engine) persistOutput(ctx context.Context, outPath string, meta map[str
 		return "", fmt.Errorf("ai: store output: %w", err)
 	}
 	return key, nil
+}
+
+func gatewayEvidenceVariationFromMeta(index int, meta map[string]string) (gatewayExecutionEvidenceVariation, bool) {
+	raw := strings.TrimSpace(meta[MetaGatewayExecutionAttempt])
+	if raw == "" {
+		return gatewayExecutionEvidenceVariation{}, false
+	}
+	var attempt gatewayExecutionAttempt
+	if err := json.Unmarshal([]byte(raw), &attempt); err != nil {
+		return gatewayExecutionEvidenceVariation{}, false
+	}
+	switch attempt.Outcome {
+	case "succeeded", "failed", "outcome_unknown", "not_started":
+	default:
+		attempt.Outcome = "outcome_unknown"
+	}
+	entry := gatewayExecutionEvidenceVariation{
+		Index: index, Outcome: attempt.Outcome,
+		ExecutionID: strings.TrimSpace(attempt.ExecutionID), Status: strings.TrimSpace(attempt.Status),
+		CostState: "unknown",
+	}
+	if attempt.CostState == "known" && attempt.CostUSD != nil && !math.IsNaN(*attempt.CostUSD) && !math.IsInf(*attempt.CostUSD, 0) && *attempt.CostUSD >= 0 && attempt.Outcome != "outcome_unknown" {
+		cost := *attempt.CostUSD
+		entry.CostState = "known"
+		entry.CostUSD = &cost
+	}
+	return entry, true
 }
 
 func outputFormat(data []byte, meta map[string]string) (mime, ext string) {

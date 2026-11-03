@@ -59,6 +59,24 @@ the Level it lists when its domain is built.
 - Requirements: OT-P0-009 (queue), OT-P0-011 (fallback), OT-P0-010
   (storage), OT-P1-006 (callbacks).
 
+For a completed job with multiple dispatched variations, `result_meta` contains
+`cost_usd` and `cost_provenance=provider_reported_v1` only when every variation
+has a valid provider-reported contribution. A known zero counts; one missing or
+malformed contribution omits the aggregate. Existing unmarked metadata remains
+unknown and unchanged.
+
+For orderly FAILED/CANCELED AI-generation finalization, `result_meta` may carry
+the additive `gateway_execution_evidence_v1` JSON value. It records ordered
+per-variation outcome, accepted Gateway execution ID/status, and `cost_state`;
+`cost_usd` exists only for known provider cost, including zero. These jobs never
+publish an aggregate total, provenance marker, or successful result refs. A
+cancelled Wait after accepted Submit keeps the execution ID but leaves outcome
+and cost unknown; an ambiguous Submit invents no ID. Variations not started are
+explicitly marked `not_started`. Queued cancellation stays empty. This evidence
+is guaranteed only after orderly terminal persistence: process death after
+Submit and before the terminal job update can still lose it, and a failed DB
+update is not durable evidence. No automatic Retry/Submit is added.
+
 ### Model install/enable/select lifecycle
 
 - Owner domain: models.

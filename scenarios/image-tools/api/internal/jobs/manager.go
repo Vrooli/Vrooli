@@ -3,8 +3,10 @@ package jobs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -453,11 +455,42 @@ func (m *Manager) execute(entry *jobEntry) {
 		entry.job.ResultRef = result.Ref
 		entry.job.Meta = result.Meta
 	}
+	if entry.job.State == StateFailed || entry.job.State == StateCanceled {
+		entry.job.Meta = failedExecutionEvidence(result.Meta)
+		entry.job.ResultRef = ""
+	}
 	final := entry.job
 	entry.mu.Unlock()
 
 	_ = m.st.update(storeCtx, final)
 	m.finalizeEntry(entry, final)
+}
+
+// failedExecutionEvidence narrows failed/canceled runner metadata to the one
+// additive D33 contract key. Validate its envelope and reject success-only
+// fields so backend cost or output metadata cannot leak into an incomplete job.
+func failedExecutionEvidence(meta map[string]string) map[string]string {
+	raw := strings.TrimSpace(meta[MetaGatewayExecutionEvidence])
+	if raw == "" {
+		return nil
+	}
+	var envelope map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
+		return nil
+	}
+	for _, forbidden := range []string{"cost_usd", "cost_provenance", "result_ref", "result_refs"} {
+		if _, exists := envelope[forbidden]; exists {
+			return nil
+		}
+	}
+	var header struct {
+		SchemaVersion int  `json:"schema_version"`
+		Complete      bool `json:"complete"`
+	}
+	if err := json.Unmarshal([]byte(raw), &header); err != nil || header.SchemaVersion != 1 || header.Complete {
+		return nil
+	}
+	return map[string]string{MetaGatewayExecutionEvidence: raw}
 }
 
 // finalizeEntry records the terminal state, emits a final event, and closes the

@@ -970,7 +970,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools health show"]}}
         }
       ]
     },
@@ -1475,7 +1476,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools experiment get"]}}
         },
         {
           "name": "list",
@@ -1581,7 +1583,8 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "semantics": {"kind": "query", "blocks": {"replaces": ["audio-tools experiment get"]}}
         },
         {
           "name": "report",
