@@ -71,6 +71,7 @@ database reachability.
 | Idempotency keys | settlement | SQLite | `api/internal/settlement/schema.sql` | 180 days after terminal outcome. | Caller-supplied and required. Retention must outlive any plausible client retry window. |
 | Evidence records | evidence | SQLite | `api/internal/evidence/schema.sql` | Indefinite; append-only, never rewritten. | Joins mandate, approval, request, rail response and receipt. Covers declines and expiries equally. |
 | Ledger emissions | ledger | SQLite | `api/internal/ledger/schema.sql` | Indefinite. | Emission log with its own idempotency, so a retry cannot double-post downstream. |
+| Base receipt checks and transfer observations | baseusdc | SQLite | `api/internal/baseusdc/schema.sql` | Append-only; retained with Treasury financial evidence. | Records each operator-requested check outcome and exact provider-reported native-USDC transfer observations. This is chain evidence, not a USD valuation, Money Ledger posting, budget credit, or spend authorization. No provider URL or raw RPC response is stored. |
 
 Deliberately **not** stored here:
 
@@ -206,3 +207,14 @@ new data shape is added.
 `research_wallets` retains immutable ID/book/operator/network, public address and uncompressed public key, opaque credential reference, creation time, independent key/passphrase mint witnesses and encrypted recovery metadata. `api/internal/wallet/schema.sql` owns this schema; its repository owns SQL and custody-operation serialization. A random public namespace separates fresh repositories, while a scope digest binds the reference to wallet/book/operator/network. A database restore preserves the existing reference.
 
 Scalar and recovery passphrase exist only in Credential Authority; no plaintext key is present in SQLite, API responses or research artifacts. Recovery blobs are owner-held authenticated ciphertext under the routed data root, with restrictive permissions and SHA256 metadata. Restoring a missing scalar first checks the staged encrypted entry against the immutable public binding. The same-host passphrase is not independent off-host recovery. The authoritative dynamic inventory now recognizes the exact wallet namespace and both generated fields in source; isolated collection/export/restore checks pass. Live owner publication and off-host export/restore must be qualified before funding. Test-mode requests refuse live credential operations; ordinary unit tests inject isolated authority stores.
+
+`baseusdc.receipt_checks` and its embedded transfer observations append each
+operator-triggered Base native-USDC check. The rows retain the wallet/operator
+binding, normalized transaction hash, provider identity, check outcome and
+time; successful checks also retain the exact atomic token amount, six-decimal
+asset identity, log index, inclusion block/hash, provider finalized-head
+claim, and observation time. A later check adds evidence; it does not rewrite
+an earlier inclusion. This is one provider's observation history, not
+independent consensus proof or a guarantee that a past block remains canonical.
+No USD valuation is inferred. The audit rows remain operator-realm only and
+are included in the Treasury database backup target.

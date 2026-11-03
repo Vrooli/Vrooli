@@ -20,9 +20,17 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
-var ErrInvalid = errors.New("invalid settlement")
+var (
+	ErrInvalid    = errors.New("invalid settlement")
+	ErrInProgress = errors.New("settlement call is still in progress; operator reconciliation is required after process interruption")
+)
 
 const RetentionWindow = 180 * 24 * time.Hour
+
+const (
+	BasisX402PreflightOnly = "x402_preflight_only"
+	BasisX402PaymentReady  = "x402_payment_prepared"
+)
 
 type Outcome string
 
@@ -82,10 +90,21 @@ type Service struct {
 	clock          schedule.Clock
 	freezes        FreezeReader
 	locks          keyLocks
+	recoveryVault  recoveryCredentialVault
+}
+
+type recoveryCredentialVault interface {
+	StoreSettlementRecoveryInput(context.Context, string, string) (string, error)
+	ResolveSettlementRecoveryInput(context.Context, string) (string, error)
+	DeleteSettlementRecoveryInput(context.Context, string) error
+	DeleteUnreferencedSettlementRecoveryInput(context.Context, string) error
 }
 
 func NewService(repository Repository, authorizations Authorizations, instruments Instruments, rails Rails, verifier identity.Verifier, clock schedule.Clock, freezes ...FreezeReader) *Service {
 	service := &Service{repository: repository, authorizations: authorizations, instruments: instruments, rails: rails, verifier: verifier, clock: clock}
+	if vault, ok := instruments.(recoveryCredentialVault); ok {
+		service.recoveryVault = vault
+	}
 	if len(freezes) > 0 {
 		service.freezes = freezes[0]
 	}
@@ -146,7 +165,10 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 		if authErr != nil || !operator && auth.RequestingAgent != verifiedSubject {
 			return Record{}, fmt.Errorf("%w: settlement identity does not own the authorization", ErrInvalid)
 		}
-		return s.recoverInterruptedCall(ctx, existing)
+		if existing.Outcome == OutcomeCalling {
+			return existing, ErrInProgress
+		}
+		return s.repairAuthorization(ctx, existing)
 	} else if !errors.Is(err, ErrNotFound) {
 		return Record{}, err
 	}
@@ -194,6 +216,9 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 		Currency: auth.Currency, Counterparty: auth.Counterparty, Outcome: OutcomeReady,
 		CreatedAt: now, UpdatedAt: now, RetainUntil: now.Add(RetentionWindow),
 	}
+	if candidate.Rail == "x402" {
+		candidate.Basis = BasisX402PreflightOnly
+	}
 	claim, err := s.repository.Claim(ctx, candidate)
 	if err != nil {
 		return Record{}, err
@@ -202,15 +227,43 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 		return Record{}, err
 	}
 	if !claim.Claimed {
-		return s.recoverInterruptedCall(ctx, claim.Record)
+		if claim.Record.Outcome == OutcomeCalling {
+			return claim.Record, ErrInProgress
+		}
+		return s.repairAuthorization(ctx, claim.Record)
 	}
 
 	railReply, callErr := adapter.Settle(ctx, rail.SettleCommand{
 		SettlementID: claim.Record.ID, AuthorizationID: auth.ID, MandateReference: auth.MandateID,
 		InstrumentID: scoped.Instrument.ID, IdempotencyKey: in.IdempotencyKey, AmountMinor: auth.AmountMinor,
 		Currency: auth.Currency, Counterparty: auth.Counterparty, Credential: scoped.Value, Attestation: in.Attestation,
+		RecordRecoveryInput: func(recordCtx context.Context, digest, payload string) error {
+			if s.recoveryVault == nil {
+				return errors.New("protected x402 recovery credential vault unavailable")
+			}
+			reference, storeErr := s.recoveryVault.StoreSettlementRecoveryInput(recordCtx, claim.Record.ID, payload)
+			if storeErr != nil {
+				return storeErr
+			}
+			if recordErr := s.repository.RecordX402RecoveryInput(recordCtx, claim.Record.ID, digest, reference); recordErr != nil {
+				_ = s.recoveryVault.DeleteSettlementRecoveryInput(context.WithoutCancel(recordCtx), reference)
+				return recordErr
+			}
+			return nil
+		},
 	})
 	outcome, normalized, resultErr := normalizeRailResult(railReply, false)
+	recoveryReference := ""
+	if candidate.Rail == "x402" {
+		if prepared, getErr := s.repository.Get(ctx, claim.Record.ID); getErr == nil && prepared.Basis == BasisX402PaymentReady {
+			recoveryReference = prepared.ReceiptReference
+			// Use the protected reference from the calling fence, never the payload.
+			if outcome == OutcomeUnknown {
+				normalized.ExternalID = prepared.ExternalID
+				normalized.ReceiptReference = prepared.ReceiptReference
+			}
+		}
+	}
 	if callErr != nil {
 		outcome = OutcomeUnknown
 		normalized.Detail = "rail response unavailable: " + callErr.Error()
@@ -240,12 +293,21 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 	if err != nil {
 		return Record{}, fmt.Errorf("record rail outcome: %w", err)
 	}
-	return s.repairAuthorization(durableCtx, completed)
+	completed, err = s.repairAuthorization(durableCtx, completed)
+	if err != nil {
+		return completed, err
+	}
+	if candidate.Rail == "x402" && outcome != OutcomeUnknown && s.recoveryVault != nil && recoveryReference != "" {
+		if err := s.recoveryVault.DeleteSettlementRecoveryInput(context.WithoutCancel(durableCtx), recoveryReference); err != nil {
+			return completed, fmt.Errorf("settlement completed but protected replay credential cleanup failed: %w", err)
+		}
+	}
+	return completed, nil
 }
 
-// ResolveUnknown is deliberately the only operation that can transition an
-// unknown record. A retry of Settle only returns the unknown record and never
-// invokes the adapter again.
+// ResolveUnknown is the operator reconciliation operation for durable unknown
+// outcomes and confirmed interrupted calling fences. A retry of Settle never
+// invokes the adapter again for either state.
 func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error) {
 	if err := s.validateDependencies(false); err != nil {
 		return Record{}, err
@@ -262,7 +324,16 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 		return Record{}, err
 	}
 	if current.Outcome != OutcomeUnknown {
-		return Record{}, fmt.Errorf("%w: only unknown settlements can be queried", ErrInvalid)
+		if current.Outcome != OutcomeCalling {
+			return Record{}, fmt.Errorf("%w: only calling or unknown settlements can be queried", ErrInvalid)
+		}
+		current, err = s.recoverInterruptedCall(ctx, current)
+		if err != nil {
+			return Record{}, err
+		}
+		if current.Outcome != OutcomeUnknown {
+			return current, nil
+		}
 	}
 	adapter, err := s.rails.Get(current.Rail)
 	if err != nil {
@@ -275,11 +346,27 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 	if scoped.Instrument.MandateID != current.MandateID || scoped.Instrument.Rail != current.Rail || scoped.Instrument.Counterparty != current.Counterparty {
 		return current, fmt.Errorf("%w: instrument scope no longer covers the unknown settlement", ErrInvalid)
 	}
-	railReply, err := adapter.QueryOutcome(ctx, rail.Query{SettlementID: current.ID, MandateReference: current.MandateID, InstrumentID: current.InstrumentID, ExternalID: current.ExternalID, ReceiptReference: current.ReceiptReference, IdempotencyKey: current.IdempotencyKey, Counterparty: current.Counterparty, Credential: scoped.Value})
+	recoveryInput := current.ReceiptReference
+	if current.Rail == "x402" {
+		if current.Basis != BasisX402PaymentReady || s.recoveryVault == nil {
+			return current, fmt.Errorf("%w: protected x402 replay authorization is unavailable", ErrInvalid)
+		}
+		recoveryInput, err = s.recoveryVault.ResolveSettlementRecoveryInput(ctx, current.ReceiptReference)
+		if err != nil {
+			return current, fmt.Errorf("resolve protected x402 replay authorization: %w", err)
+		}
+	}
+	railReply, err := adapter.QueryOutcome(ctx, rail.Query{SettlementID: current.ID, MandateReference: current.MandateID, InstrumentID: current.InstrumentID, ExternalID: current.ExternalID, ReceiptReference: recoveryInput, IdempotencyKey: current.IdempotencyKey, Counterparty: current.Counterparty, Credential: scoped.Value})
 	if err != nil {
 		return current, fmt.Errorf("query rail outcome: %w", err)
 	}
 	outcome, normalized, resultErr := normalizeRailResult(railReply, true)
+	if current.Rail == "x402" && outcome == OutcomeUnknown {
+		// QueryOutcome necessarily received the signed input in memory. Keep the
+		// protected reference in SQLite if the result is still inconclusive.
+		normalized.ExternalID = current.ExternalID
+		normalized.ReceiptReference = current.ReceiptReference
+	}
 	if resultErr != nil {
 		return current, fmt.Errorf("validate rail query result: %w", resultErr)
 	}
@@ -309,7 +396,16 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 	if err != nil {
 		return Record{}, err
 	}
-	return s.repairAuthorization(durableCtx, completed)
+	completed, err = s.repairAuthorization(durableCtx, completed)
+	if err != nil {
+		return completed, err
+	}
+	if current.Rail == "x402" && s.recoveryVault != nil {
+		if err := s.recoveryVault.DeleteSettlementRecoveryInput(context.WithoutCancel(durableCtx), current.ReceiptReference); err != nil {
+			return completed, fmt.Errorf("settlement resolved but protected replay credential cleanup failed: %w", err)
+		}
+	}
+	return completed, nil
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Record, error) {
@@ -338,23 +434,57 @@ func (s *Service) repairAuthorization(ctx context.Context, value Record) (Record
 }
 
 // recoverInterruptedCall turns an orphaned durable call fence into an unknown
-// outcome. The per-key process lock means a calling row observed here cannot
-// belong to another goroutine in this API process: it survived an interrupted
-// execution. Treasury must never guess that no side effect occurred or invoke
-// the rail again, so the hold stays in place until explicit reconciliation.
+// outcome, or a versioned x402 preflight-only fence into a definite failure.
+// The per-key process lock excludes another caller in this API process. The
+// operator confirmation is still required because a separate Treasury process
+// could share the database. Treasury never guesses that no side effect occurred
+// or invokes Settle again; the hold stays in place until reconciliation.
 func (s *Service) recoverInterruptedCall(ctx context.Context, value Record) (Record, error) {
 	if value.Outcome != OutcomeCalling {
 		return s.repairAuthorization(ctx, value)
 	}
 	now := s.clock.Now().UTC()
-	recovered, err := s.repository.Complete(context.WithoutCancel(ctx), value.ID, OutcomeUnknown, RailResult{
-		Basis:  "interrupted_execution",
-		Detail: "Treasury recovered a durable rail-call fence without a conclusive response; the external side effect may have occurred and was not retried",
-	}, now.Format(time.RFC3339Nano), now.Add(RetentionWindow).Format(time.RFC3339Nano))
+	outcome := OutcomeUnknown
+	result := RailResult{
+		ExternalID:       value.ExternalID,
+		ReceiptReference: value.ReceiptReference,
+		Basis:            "interrupted_execution",
+		Detail:           "Treasury recovered a durable rail-call fence without a conclusive response; the external side effect may have occurred and was not retried",
+	}
+	if value.Rail == "x402" && value.Basis == BasisX402PaymentReady {
+		result.Basis = BasisX402PaymentReady
+	}
+	if value.Rail == "x402" && value.Basis == BasisX402PreflightOnly && value.ExternalID == "" && value.ReceiptReference == "" {
+		// New x402 calls persist this phase before adapter work. The paid request
+		// is strictly after signed-payload persistence, so this versioned state
+		// proves a crash here happened before any payment dispatch. Empty-basis
+		// legacy rows remain unknown because their dispatch cutpoint is unclear.
+		outcome = OutcomeFailed
+		result.Basis = "x402_dispatch_not_started"
+		result.Detail = "Treasury recovered an x402 call that had not durably prepared a signed payment; no paid request was dispatched"
+		if s.recoveryVault != nil {
+			if cleanupErr := s.recoveryVault.DeleteUnreferencedSettlementRecoveryInput(context.WithoutCancel(ctx), value.ID); cleanupErr != nil {
+				return Record{}, fmt.Errorf("delete unreferenced x402 recovery credential: %w", cleanupErr)
+			}
+		}
+	}
+	var artifacts []CompletionArtifacts
+	if outcome == OutcomeFailed {
+		auth, getErr := s.authorizations.Get(context.WithoutCancel(ctx), value.AuthorizationID)
+		if getErr != nil {
+			return Record{}, fmt.Errorf("load authorization for pre-dispatch recovery: %w", getErr)
+		}
+		completedArtifacts, artifactErr := completionArtifacts(auth, value, result, outcome)
+		if artifactErr != nil {
+			return Record{}, fmt.Errorf("construct pre-dispatch recovery evidence: %w", artifactErr)
+		}
+		artifacts = append(artifacts, completedArtifacts)
+	}
+	recovered, err := s.repository.Complete(context.WithoutCancel(ctx), value.ID, outcome, result, now.Format(time.RFC3339Nano), now.Add(RetentionWindow).Format(time.RFC3339Nano), artifacts...)
 	if err != nil {
 		return Record{}, fmt.Errorf("recover interrupted settlement as unknown: %w", err)
 	}
-	return recovered, nil
+	return s.repairAuthorization(ctx, recovered)
 }
 
 func sameRequest(value Record, in SettleInput) error {

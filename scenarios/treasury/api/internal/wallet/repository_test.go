@@ -81,6 +81,12 @@ func TestPublicVectorRecoveryPortabilityWithSourceUnavailable(t *testing.T) {
 	clear(sourceStore)
 	require.NoError(t, os.RemoveAll(sourceRoot))
 	require.NoDirExists(t, sourceRoot)
+	manifest, err := ca.InspectRecovery(portable, exportPassphrase)
+	require.NoError(t, err)
+	require.Equal(t, []ca.RecoveryEntry{
+		{Identity: identity, Field: keyField},
+		{Identity: identity, Field: recoveryField},
+	}, manifest.Entries)
 
 	newTarget := func(t *testing.T) (*Service, *ca.Authority, *noMintTestCustody, string) {
 		t.Helper()
@@ -134,6 +140,13 @@ func TestPublicVectorRecoveryPortabilityWithSourceUnavailable(t *testing.T) {
 		again, err := s.Recover(ctx, in.ID, in.Network, in.OperatorIdentity)
 		require.NoError(t, err)
 		require.Equal(t, w, again)
+		const proofNonce = "public-host-loss-proof-nonce-0001"
+		proof, err := s.Prove(ctx, in.ID, in.Network, in.OperatorIdentity, proofNonce)
+		require.NoError(t, err)
+		require.True(t, proof.Verified)
+		require.Equal(t, w.Address, proof.Wallet.Address)
+		require.True(t, Verify(proof, proofNonce))
+		require.False(t, Verify(proof, "different-public-proof-nonce-0002"))
 		_, err = s.Get(ctx, in.ID, "eip155:8453", in.OperatorIdentity)
 		require.ErrorIs(t, err, ErrMismatch)
 		_, err = s.Get(ctx, in.ID, in.Network, "other-operator")

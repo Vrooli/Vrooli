@@ -176,6 +176,37 @@
           "notes": "The generated agent-facing service exposes computed headroom without accepting a caller-owned balance. [REQ:TRS-P1-007]"
         }
       ]
+    },
+    {
+      "id": "TRS-P1-008",
+      "title": "Durable external wallet receipt evidence",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-008",
+      "criticality": "P1",
+      "description": "When an operator checks a Base native-USDC transaction for a Treasury wallet, Treasury shall retain the result and exact provider-reported transfer observations for operator readback, without creating a fiat posting or spending authority",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/baseusdc/service_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A successful check, pending or unavailable result, repeated check, and transaction re-inclusion under a different block hash remain attributable and readable by only the bound operator; no check writes Money Ledger or Treasury allocation. [REQ:TRS-P1-008]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/treasuryadmin/wallet_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "TreasuryAdmin returns and reads receipt evidence only for a verified operator and the operator-bound wallet. [REQ:TRS-P1-008]"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/treasuryadmin/receipt_evidence_integration_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "A TreasuryAdmin receipt check and readback survive a new API handler and reopening the SQLite database while preserving exact token units and provider finality claims. The test uses synthetic provider evidence. [REQ:TRS-P1-008]"
+        }
+      ]
     }
   ]
 }

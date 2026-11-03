@@ -2,9 +2,11 @@ package settlement
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -35,7 +37,7 @@ func (r *SQLiteRepository) Claim(ctx context.Context, value Record) (ClaimResult
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	result, err := tx.ExecContext(ctx, `INSERT INTO settlements(id,authorization_id,mandate_id,instrument_id,rail,idempotency_key,amount_minor,currency,counterparty,outcome,external_id,receipt_reference,basis,detail,occurred_at,created_at,updated_at,retain_until) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, value.ID, value.AuthorizationID, value.MandateID, value.InstrumentID, value.Rail, value.IdempotencyKey, value.AmountMinor, value.Currency, value.Counterparty, string(OutcomeReady), "", "", "", "", "", value.CreatedAt.Format(time.RFC3339Nano), value.UpdatedAt.Format(time.RFC3339Nano), value.RetainUntil.Format(time.RFC3339Nano))
+	result, err := tx.ExecContext(ctx, `INSERT INTO settlements(id,authorization_id,mandate_id,instrument_id,rail,idempotency_key,amount_minor,currency,counterparty,outcome,external_id,receipt_reference,basis,detail,occurred_at,created_at,updated_at,retain_until) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING`, value.ID, value.AuthorizationID, value.MandateID, value.InstrumentID, value.Rail, value.IdempotencyKey, value.AmountMinor, value.Currency, value.Counterparty, string(OutcomeReady), "", "", value.Basis, "", "", value.CreatedAt.Format(time.RFC3339Nano), value.UpdatedAt.Format(time.RFC3339Nano), value.RetainUntil.Format(time.RFC3339Nano))
 	if err != nil {
 		return ClaimResult{}, fmt.Errorf("insert settlement claim: %w", err)
 	}
@@ -65,6 +67,41 @@ func (r *SQLiteRepository) Claim(ctx context.Context, value Record) (ClaimResult
 		return ClaimResult{}, fmt.Errorf("commit settlement claim: %w", err)
 	}
 	return ClaimResult{Record: stored, Claimed: claimed}, nil
+}
+
+// RecordX402RecoveryInput stores only a protected Credential Authority
+// reference and digest before an x402 paid request can be dispatched.
+func (r *SQLiteRepository) RecordX402RecoveryInput(ctx context.Context, id, digest, reference string) error {
+	if strings.TrimSpace(id) == "" || len(digest) != len("sha256:")+sha256.Size*2 || !strings.HasPrefix(digest, "sha256:") || strings.TrimSpace(reference) == "" {
+		return errors.New("record x402 recovery input: settlement id, sha256 digest and protected reference are required")
+	}
+	tx, err := r.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return fmt.Errorf("begin x402 recovery input: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	result, err := tx.ExecContext(ctx, `UPDATE settlements SET external_id=?,receipt_reference=?,basis=? WHERE id=? AND rail='x402' AND outcome='calling' AND basis='x402_preflight_only' AND external_id='' AND receipt_reference=''`, digest, reference, BasisX402PaymentReady, id)
+	if err != nil {
+		return fmt.Errorf("persist x402 recovery input: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		current, getErr := scanRecord(tx.QueryRowContext(ctx, selectSettlement+` WHERE id=?`, id))
+		if getErr != nil {
+			return getErr
+		}
+		if current.Rail != "x402" || current.Outcome != OutcomeCalling || current.Basis != BasisX402PaymentReady || current.ExternalID != digest || current.ReceiptReference != reference {
+			return errors.New("record x402 recovery input: settlement is not an empty calling fence or input conflicts")
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit x402 recovery input: %w", err)
+	}
+	return nil
 }
 
 func (r *SQLiteRepository) Complete(ctx context.Context, id string, outcome Outcome, result RailResult, updatedAt, retainUntil string, artifactValues ...CompletionArtifacts) (Record, error) {

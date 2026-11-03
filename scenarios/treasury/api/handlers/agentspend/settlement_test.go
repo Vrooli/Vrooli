@@ -84,6 +84,21 @@ func TestReportOutcomeUsesDurableServerOwnedSettlement(t *testing.T) {
 	require.EqualValues(t, 1, adapter.calls.Load())
 }
 
+func TestAgentSpendChargeRedactsPendingX402PaymentSignature(t *testing.T) {
+	payload := "signed-payment-authorization"
+	value := settlement.Record{
+		ID: "settlement-1", Rail: "x402", Outcome: settlement.OutcomeUnknown,
+		ExternalID: "sha256:payload-digest", ReceiptReference: payload,
+		CreatedAt:   time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC),
+		UpdatedAt:   time.Date(2026, 8, 18, 12, 0, 1, 0, time.UTC),
+		RetainUntil: time.Date(2027, 2, 14, 12, 0, 0, 0, time.UTC),
+	}
+
+	response := settlementToProto(value)
+	require.Empty(t, response.GetReceiptReference(), "a pending signed payment is replay authority")
+	require.Equal(t, value.ExternalID, response.GetExternalId())
+}
+
 type handlerCredentialResolver struct{}
 
 func (handlerCredentialResolver) Resolve(context.Context, string, string) (string, error) {

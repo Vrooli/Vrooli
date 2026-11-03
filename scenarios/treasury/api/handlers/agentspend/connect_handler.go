@@ -224,7 +224,13 @@ func settlementToProto(value settlement.Record) *settlementv1.Charge {
 	case settlement.OutcomeUnknown:
 		outcome = settlementv1.ChargeOutcome_CHARGE_OUTCOME_UNKNOWN
 	}
-	result := &settlementv1.Charge{Id: value.ID, AuthorizationId: value.AuthorizationID, MandateId: value.MandateID, InstrumentId: value.InstrumentID, Rail: value.Rail, IdempotencyKey: value.IdempotencyKey, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Outcome: outcome, ExternalId: value.ExternalID, ReceiptReference: value.ReceiptReference, Basis: value.Basis, Detail: value.Detail, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), RetainUntil: timestamppb.New(value.RetainUntil)}
+	receiptReference := value.ReceiptReference
+	if value.Rail == "x402" && value.Outcome == settlement.OutcomeUnknown {
+		// A pending x402 Credential Authority reference locates replay
+		// authorization. Keep it private to Treasury's service boundary.
+		receiptReference = ""
+	}
+	result := &settlementv1.Charge{Id: value.ID, AuthorizationId: value.AuthorizationID, MandateId: value.MandateID, InstrumentId: value.InstrumentID, Rail: value.Rail, IdempotencyKey: value.IdempotencyKey, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Outcome: outcome, ExternalId: value.ExternalID, ReceiptReference: receiptReference, Basis: value.Basis, Detail: value.Detail, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), RetainUntil: timestamppb.New(value.RetainUntil)}
 	if !value.OccurredAt.IsZero() {
 		result.OccurredAt = timestamppb.New(value.OccurredAt)
 	}

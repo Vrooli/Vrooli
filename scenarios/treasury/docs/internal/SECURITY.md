@@ -28,11 +28,13 @@ Use this document to answer:
 | Authorizations and holds | high | authorization | Reveal spending intent and pattern. |
 | Charges and outcomes | high | settlement | Financial record of what moved. |
 | Evidence records | high | evidence | The most sensitive artefact here: an evidence record joins who authorized, what was bought, from whom, and for how much. Operator-realm read only. |
+| Pending x402 signed payment authorization | high | Credential Authority | Exact signed payload is held only in Credential Authority under a settlement-scoped identity. SQLite stores its digest and logical reference. Recovery resolves it only in process memory, and terminal outcomes delete it. Never log or expose it; agent and operator RPC results redact the reference. Interrupted-call reconciliation also requires an operator-authenticated confirmation that the prior process stopped. |
 | Instrument records | high | instrument | Reference and scope only. Never credential material. |
 | Idempotency keys | medium | settlement | Not secret, but predicting one could let a caller probe whether a charge occurred. Treat as unguessable. |
 | Books and beneficiary identity | medium | book | Business-identifying. |
 | Ledger emissions | medium | ledger | Amount, counterparty and basis; no narrative or reasoning. |
 | Relay attempts | low | approval | Delivery telemetry. |
+| Base receipt checks and observations | medium | baseusdc | Public chain facts linked to an operator wallet; retained for financial evidence. Operator-realm read only. |
 
 **Deliberately not held, and why that is a security property rather than a
 limitation:**
@@ -145,3 +147,14 @@ Signing is software execution with the scalar temporarily available to the Treas
 Owner tests challenge wrong network/message/key/scope, missing keys, lost recovery passphrases, damaged ciphertext, partial metadata failures, fresh database handles and independent-connection serialization. An actual HTTP test uses only temporary SQLite/files, TEST custody and a fake operator token. Public scalar1 vectors qualify derivation/protocol compatibility only and must never receive funds.
 
 Production provisioning remains unqualified. The current encrypted recovery bundle keeps its passphrase in the same host credential owner, so `independent_recovery_verified` remains false. Authoritative dynamic credential inventory/export coverage and independently held off-host recovery material require separate owner qualification. Host-keystore restore, permitted operator commissioning ingress and a fundable address have not been demonstrated by these isolated tests. Do not replace these missing proofs with an operator bearer resolved into an alternate agent transport.
+
+Base native-USDC receipt checks are operator-only through TreasuryAdmin.
+Treasury stores the operator and wallet binding, transaction hash,
+provider-reported outcome, and successful transfer observations in its routed
+SQLite database. A bounded exact-hash read returns this history only after
+the caller is re-authorized and the wallet is rebound to that operator. The
+record contains no RPC endpoint, raw provider payload, signing material, or
+recovery secret. These rows are financial evidence and must be included in
+the same independent off-host backup and restore exercise as wallet custody
+metadata. They do not establish consensus finality, USD value, ledger
+acceptance, budget credit, or spend authority.

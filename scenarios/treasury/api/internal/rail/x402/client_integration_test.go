@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -54,4 +56,112 @@ func TestOutboundPayAndRetryReturnsFacilitatorReceipt(t *testing.T) {
 	require.EqualValues(t, 1, signer.calls.Load())
 	require.EqualValues(t, 2, attempts.Load())
 	require.NotNil(t, signer.typed["message"])
+}
+
+func TestOutboundPersistsExactPayloadBeforePaidDispatch(t *testing.T) {
+	var endpoint string
+	var recordedDigest, recordedPayload string
+	var recordedMu sync.Mutex
+	var paidRequests atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get(paymentSignatureHeader) == "" {
+			writer.Header().Set(paymentRequiredHeader, paymentRequiredValue(t, endpoint, "10000"))
+			writer.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+		paidRequests.Add(1)
+		recordedMu.Lock()
+		digest, payload := recordedDigest, recordedPayload
+		recordedMu.Unlock()
+		require.NotEmpty(t, payload, "recovery payload must be durable before dispatch")
+		require.NotEmpty(t, digest)
+		require.Equal(t, payload, request.Header.Get(paymentSignatureHeader))
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	endpoint = server.URL + "/priced"
+	adapter, err := New(server.Client(), &fixtureSigner{})
+	require.NoError(t, err)
+	cmd := command(t, endpoint, 1)
+	cmd.RecordRecoveryInput = func(_ context.Context, digest, payload string) error {
+		recordedMu.Lock()
+		defer recordedMu.Unlock()
+		recordedDigest, recordedPayload = digest, payload
+		return nil
+	}
+
+	result, err := adapter.Settle(context.Background(), cmd)
+	require.Error(t, err)
+	require.Equal(t, rail.OutcomeUnknown, result.Outcome)
+	recordedMu.Lock()
+	digest, payload := recordedDigest, recordedPayload
+	recordedMu.Unlock()
+	require.Equal(t, digest, result.ExternalID)
+	require.Equal(t, payload, result.ReceiptReference)
+	require.EqualValues(t, 1, paidRequests.Load())
+}
+
+func TestOutboundDoesNotDispatchWhenRecoveryInputCannotBePersisted(t *testing.T) {
+	var endpoint string
+	var attempts atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		attempts.Add(1)
+		if request.Header.Get(paymentSignatureHeader) != "" {
+			t.Error("paid request was sent despite recovery persistence failure")
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		writer.Header().Set(paymentRequiredHeader, paymentRequiredValue(t, endpoint, "10000"))
+		writer.WriteHeader(http.StatusPaymentRequired)
+	}))
+	defer server.Close()
+	endpoint = server.URL + "/priced"
+	adapter, err := New(server.Client(), &fixtureSigner{})
+	require.NoError(t, err)
+	cmd := command(t, endpoint, 1)
+	cmd.RecordRecoveryInput = func(context.Context, string, string) error { return errors.New("disk unavailable") }
+
+	result, err := adapter.Settle(context.Background(), cmd)
+	require.NoError(t, err)
+	require.Equal(t, rail.OutcomeFailed, result.Outcome)
+	require.Equal(t, "x402_recovery_not_durable", result.Basis)
+	require.EqualValues(t, 1, attempts.Load(), "only the initial 402 price fetch is allowed")
+}
+
+func TestQueryOutcomeRejectsChangedEndpointPathBeforeReplay(t *testing.T) {
+	var endpoint string
+	var attempts atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		attempts.Add(1)
+		if request.Header.Get(paymentSignatureHeader) == "" {
+			writer.Header().Set(paymentRequiredHeader, paymentRequiredValue(t, endpoint, "10000"))
+			writer.WriteHeader(http.StatusPaymentRequired)
+			return
+		}
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	endpoint = server.URL + "/priced/original"
+	adapter, err := New(server.Client(), &fixtureSigner{})
+	require.NoError(t, err)
+	cmd := command(t, endpoint, 1)
+	first, err := adapter.Settle(context.Background(), cmd)
+	require.Error(t, err)
+	require.Equal(t, rail.OutcomeUnknown, first.Outcome)
+	requestsBeforeQuery := attempts.Load()
+
+	credential := Credential{
+		EndpointURL: server.URL + "/priced/rotated", SignerURL: "http://127.0.0.1:8545",
+		Account: "0x1111111111111111111111111111111111111111", Networks: []string{"eip155:8453"},
+		Assets: map[string]AssetPolicy{"0x2222222222222222222222222222222222222222": {Decimals: 6, Currency: "USD"}},
+	}
+	credentialJSON, err := json.Marshal(credential)
+	require.NoError(t, err)
+	_, err = adapter.QueryOutcome(context.Background(), rail.Query{
+		ExternalID: first.ExternalID, ReceiptReference: first.ReceiptReference,
+		IdempotencyKey: cmd.IdempotencyKey, Counterparty: cmd.Counterparty, Credential: string(credentialJSON),
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exact endpoint")
+	require.Equal(t, requestsBeforeQuery, attempts.Load(), "changed path must be rejected before replay HTTP")
 }

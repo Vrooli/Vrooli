@@ -22,7 +22,7 @@ type serviceSpec struct {
 }
 
 var groups = map[string][]serviceSpec{
-	"wallet":        {{name: adminService, methods: []string{"TreasuryAdmin.CreateResearchWallet", "TreasuryAdmin.GetResearchWallet", "TreasuryAdmin.ProveResearchWallet", "TreasuryAdmin.QualifyResearchWalletRecovery", "TreasuryAdmin.RecoverResearchWallet"}}},
+	"wallet":        {{name: adminService, methods: []string{"TreasuryAdmin.CreateResearchWallet", "TreasuryAdmin.GetResearchWallet", "TreasuryAdmin.VerifyBaseUSDCReceipt", "TreasuryAdmin.ListBaseUSDCReceiptChecks", "TreasuryAdmin.ProveResearchWallet", "TreasuryAdmin.QualifyResearchWalletRecovery", "TreasuryAdmin.RecoverResearchWallet"}}},
 	"book":          {{name: adminService, methods: []string{"TreasuryAdmin.CreateBook", "TreasuryAdmin.GetBook"}}},
 	"authorization": {{name: agentService, methods: []string{"AgentSpend.ProposeCharge", "AgentSpend.GetAuthorization"}}},
 	"mandate": {
@@ -42,14 +42,16 @@ var groups = map[string][]serviceSpec{
 }
 
 var readMethods = map[string]bool{
-	"TreasuryAdmin.GetResearchWallet": true,
-	"AgentSpend.GetAuthorization":     true,
-	"AgentSpend.GetBudgetHeadroom":    true,
-	"AgentSpend.ListMandates":         true,
-	"TreasuryAdmin.GetBook":           true,
-	"TreasuryAdmin.ListApprovals":     true,
-	"TreasuryAdmin.ListMandates":      true,
-	"TreasuryAdmin.GetFreezeStatus":   true,
+	"TreasuryAdmin.GetResearchWallet":         true,
+	"TreasuryAdmin.VerifyBaseUSDCReceipt":     true,
+	"TreasuryAdmin.ListBaseUSDCReceiptChecks": true,
+	"AgentSpend.GetAuthorization":             true,
+	"AgentSpend.GetBudgetHeadroom":            true,
+	"AgentSpend.ListMandates":                 true,
+	"TreasuryAdmin.GetBook":                   true,
+	"TreasuryAdmin.ListApprovals":             true,
+	"TreasuryAdmin.ListMandates":              true,
+	"TreasuryAdmin.GetFreezeStatus":           true,
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte, groupName string) (cliapp.SubcommandGroup, error) {

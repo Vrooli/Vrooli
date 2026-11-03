@@ -18,7 +18,8 @@ Scenarios that are compelling on their own AND deployable with today's capabilit
 
 | Scenario | Why it's a headliner | Deployability today |
 |---|---|---|
-| `web-console` | Standalone appeal: lets a solo operator manage their own infrastructure without learning cloud-provider UIs. Compelling pitch on its own. | Deployable |
+| `web-console` | Standalone appeal: lets a solo operator manage their own infrastructure without learning cloud-provider UIs. Compelling pitch on its own. Marketed as **Aquila**. | Deployable |
+| `system-monitor` | Standalone appeal: real-time CPU/memory/GPU/storage monitoring with AI anomaly investigations. Complements Aquila directly — anyone running agents wants to see what those agents do to the machine — and it ships agent-facing skills, opening the **agentic deployment ramp** (a desktop app that also instruments the buyer's agents). Marketed as **Vega**. Operator-decided second headliner, 2026-09-17. | Deployable |
 | `git-control-tower` | Standalone appeal: a powerful Git workflow surface. Can operate without its optional dependencies (agent-manager, etc.). Strong acquisition draw for developers. | Deployable |
 
 Additional headliners are not pre-nominated. Depth-layer scenarios promote into the headliner set only when their prereqs ship and they cross the standalone-appeal + deployable-today bar. Catalog-strategist proposes each promotion via a `catalog-promotion` decision when it detects a crossing; the operator decides.
@@ -72,7 +73,7 @@ The business bundle ships first among base bundles because:
 2. **Capability alignment is strongest today.** Vrooli's core strengths — code generation, agent orchestration, local-first automation — map directly to the bundle's scenarios.
 3. **Revenue from this bundle funds everything else.** Lifestyle bundle needs capabilities not yet built; waiting for business-bundle cash flow is the pragmatic path.
 
-Within the bundle, `web-console` and `git-control-tower` ship as initial headliners because they meet both criteria (standalone appeal + deployable today). Depth-layer scenarios promote into the headliner set as they become ready.
+Within the bundle, `web-console` and `git-control-tower` ship as initial headliners because they meet both criteria (standalone appeal + deployable today). `system-monitor` (Vega) is the second *marketed* deliverable by operator decision (2026-09-17): it complements Aquila for the same buyer, and its bundled agent skills open the agentic deployment ramp — the first offer where the deliverable includes instruments for the buyer's agents, not only a human UI. Depth-layer scenarios promote into the headliner set as they become ready.
 
 ## Financial-planning overlap
 

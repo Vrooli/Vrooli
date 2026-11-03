@@ -2,6 +2,8 @@ package instrument
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -36,6 +38,46 @@ func (r *CredentialClientResolver) Store(ctx context.Context, reference, field, 
 	}
 	_, err = r.client.Provision(ctx, credentialclient.ProvisionRequest{Identity: string(identity), Field: field, Value: value})
 	return err
+}
+
+func settlementRecoveryIdentity(id string) string {
+	digest := sha256.Sum256([]byte(id))
+	return "vrooli/treasury/x402-recovery/" + hex.EncodeToString(digest[:])
+}
+
+// StoreSettlementRecoveryInput keeps replay authorization inside Credential
+// Authority and returns only its logical address for the settlement record.
+func (r *CredentialClientResolver) StoreSettlementRecoveryInput(ctx context.Context, id, payload string) (string, error) {
+	identity := settlementRecoveryIdentity(id)
+	_, err := r.client.Provision(ctx, credentialclient.ProvisionRequest{Identity: identity, Field: "signed-payment", Value: payload})
+	if err != nil {
+		return "", err
+	}
+	return identity, nil
+}
+
+func (r *CredentialClientResolver) ResolveSettlementRecoveryInput(ctx context.Context, reference string) (string, error) {
+	identity, err := credentialauthority.ParseIdentity(reference)
+	if err != nil {
+		return "", fmt.Errorf("invalid recovery credential reference")
+	}
+	return r.client.Resolve(ctx, string(identity), "signed-payment")
+}
+
+func (r *CredentialClientResolver) DeleteSettlementRecoveryInput(ctx context.Context, reference string) error {
+	identity, err := credentialauthority.ParseIdentity(reference)
+	if err != nil {
+		return fmt.Errorf("invalid recovery credential reference")
+	}
+	return r.client.Delete(ctx, string(identity), "signed-payment")
+}
+
+func (r *CredentialClientResolver) Delete(ctx context.Context, reference, field string) error {
+	identity, err := credentialauthority.ParseIdentity(reference)
+	if err != nil {
+		return fmt.Errorf("invalid credential reference")
+	}
+	return r.client.Delete(ctx, string(identity), field)
 }
 
 var (

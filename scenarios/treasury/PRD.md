@@ -43,6 +43,7 @@
 - [ ] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
 - [ ] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
 - [ ] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
+- [ ] OT-P1-008 | Durable external wallet receipt evidence | When an operator checks a Base native-USDC transaction for a Treasury wallet, the scenario should retain each check result and its exact provider-reported transfer observations for operator readback without creating a fiat posting or spending authority
 
 ### 🟢 P2 – Future / expansion
 

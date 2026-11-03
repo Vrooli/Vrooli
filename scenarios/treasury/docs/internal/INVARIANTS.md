@@ -42,8 +42,12 @@ later callers return the same durable terminal or unknown record.
 `settlement.SQLiteRepository.Claim` performs insert plus `ready -> calling` in
 one serializable transaction. Terminal completion, immutable evidence, and the
 Money Ledger outbox row commit together. An x402 response lost after signature
-dispatch retains the exact signed payload and its digest; unknown resolution
-may replay that payload but may never sign a replacement.
+dispatch retains the exact signed payload in Credential Authority and its
+digest plus logical reference under the `calling` fence before the paid HTTP
+request. Unknown resolution loads that exact payload in memory and may replay
+it but may never sign a replacement. New x402 calls carry a preflight-only
+phase marker; an interrupted call with that marker and no recovery reference is
+known to have stopped before paid dispatch. Legacy unmarked calls stay unknown.
 
 **Safe retry.** Repeat `Settle` with the identical settlement id,
 authorization id, instrument id, and idempotency key. For an x402 `unknown`,
@@ -55,7 +59,10 @@ retry an x402 payment with newly generated authorization timing/nonce, or infer
 failure from an HTTP timeout.
 
 **Evidence.** `path:api/internal/settlement/sqlite_test.go` and
-`path:api/internal/rail/x402/client_integration_test.go`. Requirements:
+`path:api/internal/rail/x402/client_integration_test.go`. The x402 payload is
+provisioned to Credential Authority before paid dispatch by
+`RecordX402RecoveryInput`; SQLite never stores the payload. Terminal completion
+removes the protected value after recording the terminal receipt. Requirements:
 `TRS-P0-011`, `TRS-P1-001`.
 
 ### oneInboundAdmissionPerSignedPayload

@@ -2,7 +2,9 @@ package settlement_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -97,6 +99,47 @@ func TestConcurrentRetrySettlesExactlyOnce(t *testing.T) {
 	require.Equal(t, 1, count)
 }
 
+// Settlement and authorization projection are separate durable owners. If
+// projection fails after settlement completion, an idempotent retry repairs it
+// without invoking the rail again.
+func TestRetryRepairsAuthorizationAfterProjectionFailure(t *testing.T) {
+	fake := &adapter{settleResult: settledResult()}
+	fixture := newFixture(t, fake)
+	projection := &failOnceAuthorizationProjection{Authorizations: fixture.authorizations}
+	fixture.service = settlement.NewService(fixture.settlements, projection, fixture.instruments, fixture.registry, identityVerifier{}, fixture.clock)
+
+	_, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.ErrorContains(t, err, "project settlement to authorization")
+	stored, err := fixture.settlements.Get(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeSettled, stored.Outcome)
+	auth, err := fixture.authorizations.Get(context.Background(), "auth-1")
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictApproved, auth.Verdict, "failed projection leaves the original hold for retry")
+
+	retried, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeSettled, retried.Outcome)
+	asserted, err := fixture.authorizations.Get(context.Background(), "auth-1")
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictSettled, asserted.Verdict)
+	require.Zero(t, asserted.HoldMinor)
+	require.EqualValues(t, 1, fake.settleCalls.Load(), "projection repair must not repeat the external call")
+	require.EqualValues(t, 2, projection.attempts.Load())
+}
+
+type failOnceAuthorizationProjection struct {
+	settlement.Authorizations
+	attempts atomic.Int64
+}
+
+func (p *failOnceAuthorizationProjection) Settle(ctx context.Context, id string) (authorization.Record, error) {
+	if p.attempts.Add(1) == 1 {
+		return authorization.Record{}, errors.New("simulated authorization store outage")
+	}
+	return p.Authorizations.Settle(ctx, id)
+}
+
 // [REQ:TRS-P0-011] A lost response remains unknown on every Settle retry and
 // can become failed only after the adapter's Query returns a definite failure.
 func TestUnknownCanFailOnlyFromRailQuery(t *testing.T) {
@@ -170,14 +213,159 @@ func TestInterruptedCallingFenceBecomesUnknownWithoutRetry(t *testing.T) {
 	require.Equal(t, settlement.OutcomeCalling, claim.Record.Outcome)
 
 	recovered, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.ErrorIs(t, err, settlement.ErrInProgress)
+	require.Equal(t, settlement.OutcomeCalling, recovered.Outcome)
+	require.Zero(t, fixture.adapter.settleCalls.Load(), "an interrupted external call must never be repeated")
+	recovered, err = fixture.service.ResolveUnknown(context.Background(), fixture.input.ID)
 	require.NoError(t, err)
 	require.Equal(t, settlement.OutcomeUnknown, recovered.Outcome)
 	require.Equal(t, "interrupted_execution", recovered.Basis)
-	require.Zero(t, fixture.adapter.settleCalls.Load(), "an interrupted external call must never be repeated")
 	auth, err := fixture.authorizations.Get(context.Background(), "auth-1")
 	require.NoError(t, err)
 	require.Equal(t, authorization.VerdictApproved, auth.Verdict)
 	require.EqualValues(t, 250, auth.HoldMinor, "unknown outcome retains the authorization hold")
+}
+
+// [REQ:TRS-P0-011] A crash after x402 recovery data is committed but before
+// the adapter reply is recorded remains resolvable by replaying the same
+// signed authorization and idempotency key.
+func TestInterruptedX402CallRetainsAndReplaysExactRecoveryInput(t *testing.T) {
+	payload := "exact-synthetic-x402-signature"
+	digestBytes := sha256.Sum256([]byte(payload))
+	digest := "sha256:" + hex.EncodeToString(digestBytes[:])
+	fake := &adapter{
+		name:                      "x402",
+		recordRecoveryBeforeCrash: true,
+		crashAfterRecoveryInput:   true,
+		queryResults: []rail.Result{{
+			Outcome: rail.OutcomeSettled, ExternalID: "0xconfirmed", ReceiptReference: digest,
+			Basis: "x402_facilitator_replay_confirmation", Detail: "synthetic exact-payload query confirmation", OccurredAt: time.Date(2026, 8, 18, 12, 0, 1, 0, time.UTC),
+		}},
+	}
+	fixture := newFixture(t, fake)
+
+	require.Panics(t, func() { _, _ = fixture.service.Settle(context.Background(), fixture.input) })
+	orphan, err := fixture.settlements.Get(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeCalling, orphan.Outcome)
+	require.Equal(t, digest, orphan.ExternalID)
+	require.NotEqual(t, payload, orphan.ReceiptReference)
+	require.Contains(t, orphan.ReceiptReference, "x402-recovery")
+	require.EqualValues(t, 1, fake.settleCalls.Load())
+
+	recovered, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.ErrorIs(t, err, settlement.ErrInProgress)
+	require.Equal(t, settlement.OutcomeCalling, recovered.Outcome)
+	require.EqualValues(t, 1, fake.settleCalls.Load(), "Settle retry must not dispatch again")
+
+	resolved, err := fixture.service.ResolveUnknown(context.Background(), orphan.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeSettled, resolved.Outcome)
+	require.Equal(t, "0xconfirmed", resolved.ExternalID)
+	require.EqualValues(t, 1, fake.queryCalls.Load())
+	require.EqualValues(t, 1, fake.dispatchCalls.Load(), "query must replay/resolve without a second initial dispatch")
+	fake.mu.Lock()
+	query := fake.query
+	fake.mu.Unlock()
+	require.Equal(t, digest, query.ExternalID)
+	require.Equal(t, payload, query.ReceiptReference)
+	require.Equal(t, fixture.input.IdempotencyKey, query.IdempotencyKey)
+	auth, err := fixture.authorizations.Get(context.Background(), "auth-1")
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictSettled, auth.Verdict)
+	require.Zero(t, auth.HoldMinor)
+	_, retained := recoveryInputs.Load(orphan.ReceiptReference)
+	require.False(t, retained, "terminal reconciliation removes the protected replay authorization")
+}
+
+// A newly versioned x402 call that dies before preparing recovery data cannot
+// have sent its paid request. Legacy calls without the marker stay unknown.
+func TestInterruptedX402PreflightOnlyCallFailsWithoutPayment(t *testing.T) {
+	fake := &adapter{name: "x402", crashBeforeRecoveryInput: true}
+	fixture := newFixture(t, fake)
+	require.Panics(t, func() { _, _ = fixture.service.Settle(context.Background(), fixture.input) })
+	orphan, err := fixture.settlements.Get(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.BasisX402PreflightOnly, orphan.Basis)
+	require.Empty(t, orphan.ExternalID)
+	require.Empty(t, orphan.ReceiptReference)
+
+	recovered, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.ErrorIs(t, err, settlement.ErrInProgress)
+	recovered, err = fixture.service.ResolveUnknown(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeFailed, recovered.Outcome)
+	require.Equal(t, "x402_dispatch_not_started", recovered.Basis)
+	require.Zero(t, fake.dispatchCalls.Load())
+	auth, err := fixture.authorizations.Get(context.Background(), "auth-1")
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictReleased, auth.Verdict)
+	require.Zero(t, auth.HoldMinor)
+}
+
+// A process can stop after Credential Authority stores the signed payload but
+// before SQLite records its reference. The durable preflight marker proves no
+// request was dispatched, so recovery must remove that orphan before release.
+func TestInterruptedX402BeforeReferenceCommitDeletesOrphan(t *testing.T) {
+	fake := &adapter{name: "x402", recordRecoveryBeforeCrash: true}
+	fixture := newFixture(t, fake)
+	fixture.service = settlement.NewService(recordRecoveryPanicRepository{Repository: fixture.settlements}, fixture.authorizations, fixture.instruments, fixture.registry, identityVerifier{}, fixture.clock)
+
+	require.Panics(t, func() { _, _ = fixture.service.Settle(context.Background(), fixture.input) })
+	stored, err := fixture.settlements.Get(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.BasisX402PreflightOnly, stored.Basis)
+	require.Empty(t, stored.ReceiptReference, "SQLite never committed the CA reference")
+	identity := "vrooli/treasury/x402-recovery/" + func() string {
+		digest := sha256.Sum256([]byte(fixture.input.ID))
+		return hex.EncodeToString(digest[:])
+	}()
+	_, exists := recoveryInputs.Load(identity)
+	require.True(t, exists, "the simulated interrupted process left an unreferenced CA value")
+
+	recovered, err := fixture.service.ResolveUnknown(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeFailed, recovered.Outcome)
+	_, exists = recoveryInputs.Load(identity)
+	require.False(t, exists, "recovery deletes the orphaned replay authorization")
+	require.Zero(t, fake.dispatchCalls.Load())
+	auth, err := fixture.authorizations.Get(context.Background(), "auth-1")
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictReleased, auth.Verdict)
+}
+
+type recordRecoveryPanicRepository struct{ settlement.Repository }
+
+func (recordRecoveryPanicRepository) RecordX402RecoveryInput(context.Context, string, string, string) error {
+	panic("simulated process interruption before SQLite reference commit")
+}
+
+func TestInterruptedLegacyX402CallWithoutPhaseMarkerRemainsUnknown(t *testing.T) {
+	fake := &adapter{name: "x402"}
+	fixture := newFixture(t, fake)
+	claim, err := fixture.settlements.Claim(context.Background(), settlement.Record{
+		ID: fixture.input.ID, AuthorizationID: fixture.input.AuthorizationID, MandateID: "mandate-1",
+		InstrumentID: fixture.input.InstrumentID, Rail: "x402", IdempotencyKey: fixture.input.IdempotencyKey,
+		AmountMinor: 250, Currency: "USD", Counterparty: "api.example",
+		CreatedAt: fixture.now, UpdatedAt: fixture.now, RetainUntil: fixture.now.Add(settlement.RetentionWindow),
+	})
+	require.NoError(t, err)
+	require.True(t, claim.Claimed)
+
+	recovered, err := fixture.service.Settle(context.Background(), fixture.input)
+	require.ErrorIs(t, err, settlement.ErrInProgress)
+	require.Equal(t, settlement.OutcomeCalling, recovered.Outcome)
+	recovered, err = fixture.service.ResolveUnknown(context.Background(), fixture.input.ID)
+	require.Error(t, err, "legacy x402 has no exact retained replay authorization")
+	recovered, err = fixture.settlements.Get(context.Background(), fixture.input.ID)
+	require.NoError(t, err)
+	require.Equal(t, settlement.OutcomeUnknown, recovered.Outcome)
+	require.Empty(t, recovered.ExternalID)
+	require.Empty(t, recovered.ReceiptReference)
+	auth, err := fixture.authorizations.Get(context.Background(), "auth-1")
+	require.NoError(t, err)
+	require.Equal(t, authorization.VerdictApproved, auth.Verdict)
+	require.EqualValues(t, 250, auth.HoldMinor)
 }
 
 // [REQ:TRS-P1-006] A kill switch engaged after authorization but before rail
@@ -265,8 +453,27 @@ func newFixture(t *testing.T, railAdapter *adapter) fixture {
 
 type credentialResolver struct{}
 
-func (credentialResolver) Resolve(context.Context, string, string) (string, error) {
+var recoveryInputs sync.Map
+
+func (credentialResolver) Resolve(_ context.Context, reference, field string) (string, error) {
+	if field == "signed-payment" {
+		value, ok := recoveryInputs.Load(reference)
+		if !ok {
+			return "", errors.New("missing synthetic recovery value")
+		}
+		return value.(string), nil
+	}
 	return "in-memory-test-secret", nil
+}
+
+func (credentialResolver) Store(_ context.Context, ref, field, payload string) error {
+	recoveryInputs.Store(ref, payload)
+	return nil
+}
+
+func (credentialResolver) Delete(_ context.Context, ref, field string) error {
+	recoveryInputs.Delete(ref)
+	return nil
 }
 
 type identityVerifier struct{}
@@ -279,16 +486,21 @@ func (identityVerifier) Verify(_ context.Context, token string) (identity.Claims
 }
 
 type adapter struct {
-	settleCalls  atomic.Int64
-	queryCalls   atomic.Int64
-	settleResult rail.Result
-	settleErr    error
-	queryResults []rail.Result
-	queryErr     error
-	cancel       context.CancelFunc
-	mu           sync.Mutex
-	name         string
-	command      rail.SettleCommand
+	settleCalls               atomic.Int64
+	queryCalls                atomic.Int64
+	settleResult              rail.Result
+	settleErr                 error
+	queryResults              []rail.Result
+	queryErr                  error
+	cancel                    context.CancelFunc
+	recordRecoveryBeforeCrash bool
+	crashBeforeRecoveryInput  bool
+	crashAfterRecoveryInput   bool
+	dispatchCalls             atomic.Int64
+	query                     rail.Query
+	mu                        sync.Mutex
+	name                      string
+	command                   rail.SettleCommand
 }
 
 func (a *adapter) Name() string {
@@ -303,6 +515,24 @@ func (a *adapter) Settle(_ context.Context, command rail.SettleCommand) (rail.Re
 	a.mu.Lock()
 	a.command = command
 	a.mu.Unlock()
+	if a.crashBeforeRecoveryInput {
+		panic("simulated process interruption during x402 preflight")
+	}
+	if a.recordRecoveryBeforeCrash {
+		if command.RecordRecoveryInput == nil {
+			return rail.Result{}, errors.New("missing recovery recorder")
+		}
+		payload := "exact-synthetic-x402-signature"
+		digestBytes := sha256.Sum256([]byte(payload))
+		digest := "sha256:" + hex.EncodeToString(digestBytes[:])
+		if err := command.RecordRecoveryInput(context.Background(), digest, payload); err != nil {
+			return rail.Result{}, err
+		}
+	}
+	if a.crashAfterRecoveryInput {
+		a.dispatchCalls.Add(1)
+		panic("simulated process interruption after possible x402 dispatch")
+	}
 	if command.MandateReference == "" || a.Name() != "manual" && command.Credential == "" {
 		return rail.Result{}, errors.New("missing governed execution scope")
 	}
@@ -319,6 +549,7 @@ func (a *adapter) QueryOutcome(_ context.Context, query rail.Query) (rail.Result
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.query = query
 	if a.queryErr != nil {
 		return rail.Result{}, a.queryErr
 	}

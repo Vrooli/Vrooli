@@ -39,7 +39,10 @@
     {
       "name": "ledger",
       "description": "Inspect the durable Money Ledger emission boundary.",
-      "commands": [{"name": "describe", "description": "Describe the ledger domain boundary.", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}}]
+      "commands": [
+        {"name": "describe", "description": "Describe the ledger domain boundary.", "binding": {"kind": "local"}, "governance": {"effect": "read", "run_eligible": true}},
+        {"name": "emissions-list", "description": "Read durable Money Ledger emission status, optionally filtered by exact source identity or delivery state.", "flags": [{"name": "external-id"}, {"name": "status"}, {"name": "limit"}], "binding": {"kind": "connect-rpc", "service": "LedgerService", "method": "ListEmissions"}, "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}}
+      ]
     },
     {
       "name": "authorization",
@@ -307,6 +310,42 @@
             "permissions": [
               "network:internal"
             ]
+          }
+        },
+        {
+          "name": "receipt-check",
+          "description": "Read a Base native-USDC transfer receipt for a Treasury wallet without posting or allocation.",
+          "flags": [
+            {"name": "wallet-id", "required": true},
+            {"name": "transaction-hash", "required": true}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "VerifyBaseUSDCReceipt"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "receipt-checks",
+          "description": "Read retained Base native-USDC receipt checks for a Treasury wallet and transaction.",
+          "flags": [
+            {"name": "wallet-id", "required": true},
+            {"name": "transaction-hash", "required": true}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TreasuryAdmin",
+            "method": "ListBaseUSDCReceiptChecks"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
           }
         },
         {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -34,6 +35,7 @@ type DB interface {
 
 type Repository interface {
 	Pending(context.Context, int) ([]Emission, error)
+	List(context.Context, string, string, int) ([]Emission, error)
 	GetBySettlement(context.Context, string) (Emission, error)
 	MarkFailure(context.Context, string, string) error
 	MarkAccepted(context.Context, string, time.Time) error
@@ -53,6 +55,49 @@ func (r *SQLiteRepository) Pending(ctx context.Context, limit int) ([]Emission, 
 	}
 	defer rows.Close()
 	var values []Emission
+	for rows.Next() {
+		value, err := scanEmission(rows)
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, value)
+	}
+	return values, rows.Err()
+}
+
+// List returns a bounded operator read of durable emission state. Exact external
+// identity filtering lets an operator correlate one source occurrence across
+// Treasury and Money Ledger without reading the whole journal.
+func (r *SQLiteRepository) List(ctx context.Context, externalID, status string, limit int) ([]Emission, error) {
+	status = strings.ToLower(strings.TrimSpace(status))
+	if status != "" && status != string(StatusQueued) && status != string(StatusAccepted) {
+		return nil, fmt.Errorf("unsupported ledger emission status %q", status)
+	}
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	query := selectEmission
+	conditions := make([]string, 0, 2)
+	args := make([]any, 0, 3)
+	if externalID = strings.TrimSpace(externalID); externalID != "" {
+		conditions = append(conditions, "external_id=?")
+		args = append(args, externalID)
+	}
+	if status != "" {
+		conditions = append(conditions, "status=?")
+		args = append(args, status)
+	}
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += " ORDER BY created_at DESC,id DESC LIMIT ?"
+	args = append(args, limit)
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	values := make([]Emission, 0)
 	for rows.Next() {
 		value, err := scanEmission(rows)
 		if err != nil {

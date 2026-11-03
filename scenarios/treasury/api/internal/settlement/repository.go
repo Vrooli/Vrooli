@@ -25,5 +25,6 @@ type Repository interface {
 	Get(context.Context, string) (Record, error)
 	GetByIdempotencyKey(context.Context, string) (Record, error)
 	Claim(context.Context, Record) (ClaimResult, error)
+	RecordX402RecoveryInput(context.Context, string, string, string) error
 	Complete(context.Context, string, Outcome, RailResult, string, string, ...CompletionArtifacts) (Record, error)
 }

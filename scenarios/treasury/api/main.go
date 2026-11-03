@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"treasury/internal/approval"
+	"treasury/internal/baseusdc"
 	"treasury/internal/book"
 	"treasury/internal/capabilities"
 	"treasury/internal/identity"
@@ -44,6 +45,7 @@ import (
 	agentspendH "treasury/handlers/agentspend"
 	capsH "treasury/handlers/capabilities"
 	healthH "treasury/handlers/health"
+	ledgeradminH "treasury/handlers/ledgeradmin"
 	treasuryadminH "treasury/handlers/treasuryadmin"
 	x402gateH "treasury/handlers/x402gate"
 )
@@ -239,12 +241,35 @@ func main() {
 			return fileRootPath(ctx, fileRoots, storage.ClassData, rel)
 		})
 	}
+	baseRPCURL := strings.TrimSpace(os.Getenv("TREASURY_BASE_RPC_URL"))
+	baseProviderID := "base-mainnet-public-rpc"
+	if baseRPCURL == "" {
+		baseRPCURL = baseusdc.DefaultRPCURL
+	} else {
+		baseProviderID = "operator-configured-base-rpc"
+	}
+	var baseReceiptVerifier *baseusdc.Verifier
+	baseRPC, baseRPCErr := baseusdc.NewHTTPRPC(baseRPCURL, nil)
+	if baseRPCErr == nil {
+		baseReceiptVerifier, baseRPCErr = baseusdc.NewVerifier(baseRPC, baseProviderID, clock.Now)
+	}
+	if baseRPCErr != nil {
+		log.Printf("Base native-USDC receipt checks unavailable: operator RPC configuration is invalid")
+	}
+	adminServices := make([]any, 0, 2)
+	if walletService != nil {
+		adminServices = append(adminServices, walletService)
+	}
+	if baseReceiptVerifier != nil {
+		adminServices = append(adminServices, baseusdc.NewService(baseusdc.NewSQLiteStore(db), baseReceiptVerifier, baseProviderID, clock.Now))
+	}
 	srv := server.New(
 		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "treasury-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver),
-		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, mandateSigner, walletService),
+		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, mandateSigner, adminServices...),
+		ledgeradminH.Module(db, operatorAuthorizer),
 		x402gateH.Module(x402Gate, operatorAuthorizer),
 	)
 

@@ -133,6 +133,9 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 	if err != nil {
 		return failed("x402_signing_refused", "no payment was dispatched: "+err.Error()), nil
 	}
+	if command.RecordRecoveryInput == nil || command.RecordRecoveryInput(ctx, paymentDigest(payload), payload) != nil {
+		return failed("x402_recovery_not_durable", "the signed payment was not sent because durable replay recovery could not be prepared"), nil
+	}
 	paid, err := a.request(ctx, endpoint, payload, command.IdempotencyKey)
 	if err != nil {
 		return unknown(payload, "paid request response unavailable: "+err.Error()), err
@@ -173,6 +176,9 @@ func (a *Adapter) QueryOutcome(ctx context.Context, query rail.Query) (rail.Resu
 	if payload == "" || paymentDigest(payload) != strings.TrimSpace(query.ExternalID) {
 		return rail.Result{}, fmt.Errorf("%w: exact signed payload and matching digest are required", ErrInvalid)
 	}
+	if err := validateReplayEndpoint(payload, endpoint); err != nil {
+		return rail.Result{}, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
 	response, err := a.request(ctx, endpoint, payload, query.IdempotencyKey)
 	if err != nil {
 		return rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: query.ExternalID, ReceiptReference: payload, Basis: "x402_replay_inconclusive", Detail: err.Error()}, nil
@@ -186,6 +192,25 @@ func (a *Adapter) QueryOutcome(ctx context.Context, query rail.Query) (rail.Resu
 		return rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: query.ExternalID, ReceiptReference: payload, Basis: "x402_replay_inconclusive", Detail: "paid replay lacked a conclusive settlement receipt"}, nil
 	}
 	return rail.Result{Outcome: rail.OutcomeSettled, ExternalID: settled.Transaction, ReceiptReference: paymentDigest(payload), Basis: "x402_facilitator_replay_confirmation", OccurredAt: a.now().UTC(), Detail: "exact signed payment replay returned a settlement receipt"}, nil
+}
+
+func validateReplayEndpoint(payload, endpoint string) error {
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return fmt.Errorf("decode retained x402 payment: %w", err)
+	}
+	var retained struct {
+		X402Version int           `json:"x402Version"`
+		Resource    *resourceInfo `json:"resource"`
+	}
+	decoder := json.NewDecoder(io.LimitReader(bytes.NewReader(decoded), maxResponseBytes))
+	if err := decoder.Decode(&retained); err != nil {
+		return fmt.Errorf("parse retained x402 payment: %w", err)
+	}
+	if retained.X402Version != 2 || retained.Resource == nil || retained.Resource.URL != endpoint {
+		return errors.New("retained payment resource URL does not match the current exact endpoint")
+	}
+	return nil
 }
 
 func (a *Adapter) request(ctx context.Context, endpoint, payment, idempotencyKey string) (*http.Response, error) {

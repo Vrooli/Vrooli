@@ -46,6 +46,10 @@ type SettleCommand struct {
 	Counterparty     string
 	Credential       string
 	Attestation      *Attestation
+	// RecordRecoveryInput must durably retain replay data before an adapter
+	// dispatches a payment whose outcome may require exact replay. Adapters that
+	// do not need replay data leave it unused.
+	RecordRecoveryInput func(context.Context, string, string) error
 }
 
 type Query struct {

@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"treasury/internal/approval"
 	"treasury/internal/authorization"
+	"treasury/internal/baseusdc"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/instrument"
@@ -41,6 +43,7 @@ type Instruments interface {
 
 type Settlements interface {
 	SettleOperator(context.Context, settlement.SettleInput, string) (settlement.Record, error)
+	ResolveUnknown(context.Context, string) (settlement.Record, error)
 }
 
 type Authorizations interface {
@@ -75,8 +78,14 @@ type Wallets interface {
 	Recover(context.Context, string, string, string) (wallet.Wallet, error)
 }
 
+type BaseUSDCReceiptService interface {
+	Verify(context.Context, string, wallet.Wallet, string) (baseusdc.Check, error)
+	List(context.Context, string, string, string, int) ([]baseusdc.Check, error)
+}
+
 type connectHandler struct {
 	wallets        Wallets
+	baseUSDC       BaseUSDCReceiptService
 	authorizer     operatorauth.Authorizer
 	approvals      Approvals
 	instruments    Instruments
@@ -93,6 +102,8 @@ func NewConnectHandler(authorizer operatorauth.Authorizer, services ...any) auth
 		switch value := service.(type) {
 		case Wallets:
 			handler.wallets = value
+		case BaseUSDCReceiptService:
+			handler.baseUSDC = value
 		case Approvals:
 			handler.approvals = value
 		case Instruments:
@@ -543,6 +554,30 @@ func (h *connectHandler) ReportManualOutcome(ctx context.Context, request *conne
 	return connect.NewResponse(&authorizationv1.ReportManualOutcomeResponse{Authorization: authorizationToProto(auth), Settlement: settlementToProto(charge)}), nil
 }
 
+func (h *connectHandler) ResolveUnknownSettlement(ctx context.Context, request *connect.Request[authorizationv1.ResolveUnknownSettlementRequest]) (*connect.Response[authorizationv1.ResolveUnknownSettlementResponse], error) {
+	if request == nil || request.Msg == nil || strings.TrimSpace(request.Msg.GetSettlementId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("settlement_id is required"))
+	}
+	if err := h.authorize(ctx, request); err != nil {
+		return nil, err
+	}
+	if !request.Msg.GetConfirmPriorProcessStopped() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("confirm_prior_process_stopped is required before reconciliation"))
+	}
+	if h.settlements == nil || h.authorizations == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("settlement services unavailable"))
+	}
+	charge, err := h.settlements.ResolveUnknown(ctx, request.Msg.GetSettlementId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	auth, err := h.authorizations.Get(ctx, charge.AuthorizationID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&authorizationv1.ResolveUnknownSettlementResponse{Authorization: authorizationToProto(auth), Settlement: settlementToProto(charge)}), nil
+}
+
 func authorizationToProto(value authorization.Record) *authorizationv1.AuthorizationRecord {
 	verdict := authorizationv1.AuthorizationVerdict_AUTHORIZATION_VERDICT_UNSPECIFIED
 	switch value.Verdict {
@@ -574,7 +609,11 @@ func settlementToProto(value settlement.Record) *settlementv1.Charge {
 	case settlement.OutcomeUnknown:
 		outcome = settlementv1.ChargeOutcome_CHARGE_OUTCOME_UNKNOWN
 	}
-	result := &settlementv1.Charge{Id: value.ID, AuthorizationId: value.AuthorizationID, MandateId: value.MandateID, InstrumentId: value.InstrumentID, Rail: value.Rail, IdempotencyKey: value.IdempotencyKey, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Outcome: outcome, ExternalId: value.ExternalID, ReceiptReference: value.ReceiptReference, Basis: value.Basis, Detail: value.Detail, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), RetainUntil: timestamppb.New(value.RetainUntil)}
+	receiptReference := value.ReceiptReference
+	if value.Rail == "x402" && value.Outcome == settlement.OutcomeUnknown {
+		receiptReference = ""
+	}
+	result := &settlementv1.Charge{Id: value.ID, AuthorizationId: value.AuthorizationID, MandateId: value.MandateID, InstrumentId: value.InstrumentID, Rail: value.Rail, IdempotencyKey: value.IdempotencyKey, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Outcome: outcome, ExternalId: value.ExternalID, ReceiptReference: receiptReference, Basis: value.Basis, Detail: value.Detail, CreatedAt: timestamppb.New(value.CreatedAt), UpdatedAt: timestamppb.New(value.UpdatedAt), RetainUntil: timestamppb.New(value.RetainUntil)}
 	if !value.OccurredAt.IsZero() {
 		result.OccurredAt = timestamppb.New(value.OccurredAt)
 	}

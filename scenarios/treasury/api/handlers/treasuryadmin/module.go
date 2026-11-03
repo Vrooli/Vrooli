@@ -3,6 +3,7 @@ package treasuryadmin
 import (
 	"treasury/internal/approval"
 	"treasury/internal/authorization"
+	"treasury/internal/baseusdc"
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	"treasury/internal/evidence"
@@ -22,7 +23,7 @@ import (
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 )
 
-func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer, wallets ...Wallets) module.Module {
+func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer, optionalServices ...any) module.Module {
 	authorizations := authorization.NewSQLiteRepository(db)
 	evidenceRecorder := evidence.NewRecorder(evidence.NewSQLiteRecorder(db))
 	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorizations, relay, clock, evidenceRecorder)
@@ -32,7 +33,7 @@ func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock sch
 	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clock, cardIssuers)
 	settlements := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, nil, clock, budgets)
 	services := []any{books, budgets, mandates, approvals, instruments, settlements, authorizations}
-	for _, service := range wallets {
+	for _, service := range optionalServices {
 		if service != nil {
 			services = append(services, service)
 		}
@@ -44,5 +45,5 @@ func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock sch
 }
 
 func Schema() string {
-	return rail.Schema() + "\n" + approval.Schema() + "\n" + instrument.Schema() + "\n" + wallet.Schema()
+	return rail.Schema() + "\n" + approval.Schema() + "\n" + instrument.Schema() + "\n" + wallet.Schema() + "\n" + baseusdc.Schema()
 }

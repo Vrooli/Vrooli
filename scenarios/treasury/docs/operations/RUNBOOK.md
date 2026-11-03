@@ -156,6 +156,53 @@ For an operator commissioning session, start with Base Sepolia (`eip155:84532`) 
 
 After creation, read the binding again, produce a fixed non-payment proof with a fresh 16–128 character alphanumeric/underscore/hyphen nonce, verify its address/public key/message/network, then qualify encrypted recovery. Reopening the owner must return the same public address/reference/recovery hash. A wrong-network read must refuse. These operations do not create any spending budget or authorize an outgoing transfer.
 
-`same_host_encrypted_verified` means the encrypted bundle was persisted and its scoped contents restored in transient owner memory and matched to the address. It does not mean a replacement host can recover it. Qualify the authoritative credential inventory/export and an independent off-host passphrase/ciphertext restore before publishing funding instructions. Wallet metadata and encrypted bundles live under the scenario's owned data root; plaintext keys/passphrases must remain in Credential Authority. `wallet recover` restores only a missing, previously witnessed scalar after staged encrypted contents match the recorded address; it refuses an existing mismatched key or lost passphrase. Qualification and missing-key recovery reject a changed qualified bundle by its recorded checksum before opening its envelope. RPC/CLI generation and focused consumer checks passed; production commissioning and host recovery remain unverified. Preserve older wallet records and custody references when creating a replacement wallet ID; never replace a key behind an existing address binding.
+`same_host_encrypted_verified` means the encrypted bundle was persisted and its scoped contents restored in transient owner memory and matched to the address. It does not mean a replacement host can recover it. Once an operator has commissioned the wallet, the control-plane Credential Authority can create an encrypted recovery bundle that includes configured Treasury wallet credentials:
+
+```bash
+vrooli credentials recovery export --all \
+  --output <private-path-on-approved-off-host-volume>/vrooli-recovery.bundle
+vrooli credentials recovery verify \
+  --input <private-path-on-approved-off-host-volume>/vrooli-recovery.bundle
+```
+
+`--all` covers all configured credentials in the current inventory, not only Treasury. Treat the bundle accordingly; enter a strong operator-held passphrase at the secure prompt and store that passphrase separately from the bundle. Never put it in this runbook, a command argument, or the bundle's directory. The `verify` command checks the encrypted bundle; it does not prove a replacement-host restore, wallet-address match, or owner-only signing. Test restore only in the approved replacement-host recovery exercise, then confirm Treasury returns the same wallet binding and a fresh operator control proof verifies. Separately use Data Backup Manager to back up and restore Treasury metadata and its encrypted wallet recovery file to a clean compatible target. Do not mark recovery READY until both credential and data restore evidence pass.
+
+`wallet recover` restores only a missing, previously witnessed scalar after staged encrypted contents match the recorded address; it refuses an existing mismatched key or lost passphrase. Qualification and missing-key recovery reject a changed qualified bundle by its recorded checksum before opening its envelope. RPC/CLI generation and focused consumer checks passed; production commissioning and host recovery remain unverified. Preserve older wallet records and custody references when creating a replacement wallet ID; never replace a key behind an existing address binding.
 
 For future Base funding, Circle-native mainnet USDC is `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` with six decimals. Sepolia's test token is a distinct contract and has no research purchasing value. A balance read is a snapshot; a transfer requires an exact canonical occurrence and owner/valuation evidence before Money Ledger acceptance or Treasury allocation. Direct outgoing transactions need native ETH gas; sponsored ERC3009 support requires its own qualified provider path. Current wallet qualification supplies no receiving address approved for funding.
+
+### Inspect an inbound Base USDC transfer
+
+After the operator has independently qualified wallet recovery and selected
+the exact transaction in Coinbase's Base app, an authenticated Treasury
+operator can run:
+
+```bash
+treasury wallet receipt-check --wallet-id <wallet-id> --transaction-hash 0x<64-hex>
+```
+
+This read checks the operator-bound Treasury wallet, Base mainnet chain ID,
+Circle's native USDC contract, successful receipt, exact ERC-20 `Transfer`
+logs to that wallet, canonical block hash, and the RPC's `finalized` head. It
+returns exact six-decimal atomic units and provider/finality evidence. By
+default it uses the public Base RPC; `TREASURY_BASE_RPC_URL` can select an
+operator-managed HTTPS endpoint. HTTP is accepted only for loopback. The RPC
+client allows only `eth_chainId`, `eth_getTransactionReceipt`, and
+`eth_getBlockByNumber`, refuses redirects, and does not log the endpoint.
+
+Treasury appends each check result and successful transfer observation to its
+own database. Read the retained history for the same operator, wallet, and
+transaction with:
+
+```bash
+treasury wallet receipt-checks --wallet-id <wallet-id> --transaction-hash 0x<64-hex>
+```
+
+`included` means the provider has not yet placed the block at or below its
+finalized head; wait and check again. Each check is retained as a new
+observation, so later evidence does not overwrite an earlier inclusion. Even
+`finalized` is one RPC provider's report, not independent consensus proof. A
+successful receipt check does not prove off-host wallet recovery, value the
+token in USD, create an accounting posting, add budget credit, authorize
+spending, or make the funding handoff READY. The exact atomic token amount
+remains separate from any USD valuation or Money Ledger entry.

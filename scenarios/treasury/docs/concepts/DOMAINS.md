@@ -42,6 +42,7 @@ belong in [`DATA.md`](DATA.md).
 | ledger | Emit settled movement to `money-ledger`. | Keep the journal complete without giving it any knowledge of this scenario. | Emission log, emission idempotency. | gateway | service | Money Event, Basis, Emission | `api/internal/ledger/` |
 | identity | Verify the calling agent and resolve its authority. | Refuse spend that cannot be attributed, rather than recording it at a weaker grade. | No durable data; caches nothing across requests. | gateway | policy | Verified Claims, Fail Closed | `api/internal/identity/` |
 | wallet | Bind a receive-only EVM address to the operator custody book. | Allow research funding setup without granting spending or exposing keys. | Public address/network/book/operator metadata, credential mint witness, encrypted recovery metadata. | service | custody, query | Research Wallet, Address Control | `api/internal/wallet/`, operator-only TreasuryAdmin RPCs |
+| baseusdc | Verify and retain operator-requested Base native-USDC receipt observations. | Preserve provider evidence for later accounting review without assigning USD value or spending authority. | Append-only check attempts and exact provider-reported transfer observations, linked by wallet ID. | service | query | Base Receipt Evidence | `api/internal/baseusdc/`, operator-only TreasuryAdmin RPCs |
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/treasury/v1/shared/health.proto` |
 
 ## Domain Details
@@ -237,7 +238,7 @@ belong in [`DATA.md`](DATA.md).
   admits this scenario as one anonymous adapter through the contract every
   source satisfies.
 - API: `api/internal/ledger/`.
-- CLI: `treasury ledger emissions list`.
+- CLI: `treasury ledger emissions-list [--external-id <key>] [--status queued|accepted]` (operator-authenticated readback).
 - UI: emission status on a settled charge.
 - Storage: `ledger_emissions`; see [`DATA.md`](DATA.md).
 - Requirements: `TRS-P0-008`.

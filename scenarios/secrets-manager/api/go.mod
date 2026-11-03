@@ -1,6 +1,6 @@
 module secrets-manager-api
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
@@ -13,16 +13,18 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
-	golang.org/x/crypto v0.54.0
+	golang.org/x/crypto v0.57.0
 	modernc.org/sqlite v1.50.1
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
-	github.com/felixge/httpsnoop v1.0.3 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/klauspost/compress v1.17.4 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
@@ -39,7 +41,7 @@ require (
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli/packages/proto v0.0.0
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	google.golang.org/protobuf v1.36.11
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -65,3 +67,21 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
+
+replace nutrition-planner => ../../nutrition-planner/api
+
+replace workflow-health => ../../workflow-health/api

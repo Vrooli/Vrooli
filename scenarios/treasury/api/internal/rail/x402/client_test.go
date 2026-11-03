@@ -51,7 +51,7 @@ func command(t *testing.T, endpoint string, capMinor int64) rail.SettleCommand {
 		SettlementID: "settlement-1", AuthorizationID: "auth-1", MandateReference: "mandate-1",
 		InstrumentID: "instrument-1", IdempotencyKey: "settle-key-1", AmountMinor: capMinor,
 		Currency: "USD", Counterparty: strings.Split(strings.TrimPrefix(endpoint, "http://"), ":")[0],
-		Credential: string(credential),
+		Credential: string(credential), RecordRecoveryInput: func(context.Context, string, string) error { return nil },
 	}
 }
 

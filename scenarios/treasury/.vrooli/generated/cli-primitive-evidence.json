@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "a65ada2a0bb1e05daf924cd3da2b914e6e106681804dbc691004c217900315b3",
+  "manifest_hash": "05b81f3ba3a94862a05735b5b1babd0fe3694fe054de0b24960cb805f2ea07a5",
   "commands": [
     {
       "path": "approval list",
@@ -203,6 +203,18 @@
       "group": "wallet",
       "command": "qualify-recovery",
       "binding": "TreasuryAdmin.QualifyResearchWalletRecovery"
+    },
+    {
+      "path": "wallet receipt-check",
+      "group": "wallet",
+      "command": "receipt-check",
+      "binding": "TreasuryAdmin.VerifyBaseUSDCReceipt"
+    },
+    {
+      "path": "wallet receipt-checks",
+      "group": "wallet",
+      "command": "receipt-checks",
+      "binding": "TreasuryAdmin.ListBaseUSDCReceiptChecks"
     },
     {
       "path": "wallet recover",

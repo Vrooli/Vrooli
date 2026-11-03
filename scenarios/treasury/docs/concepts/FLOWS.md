@@ -34,6 +34,7 @@ workflow model.
 | Settlement | settlement | An approved authorization is executed. | Settled, failed or unknown. | States; exactly-once under retry; the hard case is the unknown-outcome window. | Level 5 measured |
 | Standing mandate recurrence | mandate | A recurrence boundary is reached. | A new authorization, or a stopped obligation. | States; cancellation must beat the next charge. | Level 3 measured |
 | Ledger emission | ledger | A charge reaches a terminal outcome. | A money event accepted downstream. | Retries; idempotent; must not block settlement. | Level 3 measured |
+| Base receipt evidence | baseusdc | An operator checks a Base transaction for a bound wallet. | An append-only check result and zero or more exact transfer observations. | Rechecks append new evidence; prior block inclusion is not rewritten. | TRS-P1-008 validation in progress |
 | Freeze propagation | budget | An operator freezes a scope. | Authorization refused at that scope. | Effect must precede the next authorization, not the next settlement. | Level 2 measured |
 
 ## Flow Details

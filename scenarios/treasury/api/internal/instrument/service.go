@@ -64,6 +64,48 @@ type Service struct {
 	clock       schedule.Clock
 }
 
+// StoreSettlementRecoveryInput uses the same Credential Authority resolver
+// that owns provider credentials. No signed authorization enters app storage.
+func (s *Service) StoreSettlementRecoveryInput(ctx context.Context, id, payload string) (string, error) {
+	writer, ok := s.resolver.(CredentialWriter)
+	if !ok {
+		return "", fmt.Errorf("credential resolver cannot store recovery inputs")
+	}
+	identity := settlementRecoveryIdentity(id)
+	if err := writer.Store(ctx, identity, "signed-payment", payload); err != nil {
+		return "", err
+	}
+	return identity, nil
+}
+
+func (s *Service) ResolveSettlementRecoveryInput(ctx context.Context, reference string) (string, error) {
+	return s.resolver.Resolve(ctx, reference, "signed-payment")
+}
+
+func (s *Service) DeleteSettlementRecoveryInput(ctx context.Context, reference string) error {
+	deleter, ok := s.resolver.(interface {
+		Delete(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("credential resolver cannot delete recovery inputs")
+	}
+	return deleter.Delete(ctx, reference, "signed-payment")
+}
+
+// DeleteUnreferencedSettlementRecoveryInput removes the deterministic CA
+// identity for a call that crashed after credential provisioning but before
+// SQLite committed its reference. The x402 adapter has not dispatched payment
+// at this cut because reference persistence is a required precondition.
+func (s *Service) DeleteUnreferencedSettlementRecoveryInput(ctx context.Context, settlementID string) error {
+	deleter, ok := s.resolver.(interface {
+		Delete(context.Context, string, string) error
+	})
+	if !ok {
+		return fmt.Errorf("credential resolver cannot delete recovery inputs")
+	}
+	return deleter.Delete(ctx, settlementRecoveryIdentity(settlementID), "signed-payment")
+}
+
 func NewService(repository Repository, mandates Mandates, rails Rails, resolver CredentialResolver, clock schedule.Clock) *Service {
 	return &Service{repository: repository, mandates: mandates, rails: rails, resolver: resolver, clock: clock}
 }

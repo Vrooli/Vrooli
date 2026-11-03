@@ -114,6 +114,12 @@ func TestEveryMethodSeparatesAgentAndOperatorRealms(t *testing.T) {
 			_, err := client.ReportManualOutcome(context.Background(), request)
 			return err
 		}},
+		{name: "ResolveUnknownSettlement", operatorCode: connect.CodeFailedPrecondition, call: func(set func(http.Header)) error {
+			request := connect.NewRequest(&authorizationv1.ResolveUnknownSettlementRequest{SettlementId: "settlement-1"})
+			set(request.Header())
+			_, err := client.ResolveUnknownSettlement(context.Background(), request)
+			return err
+		}},
 	}
 
 	for _, method := range methods {

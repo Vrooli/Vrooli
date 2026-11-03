@@ -22,6 +22,10 @@ func (r *memoryRepository) Pending(context.Context, int) ([]ledger.Emission, err
 	return []ledger.Emission{r.value}, nil
 }
 
+func (r *memoryRepository) List(context.Context, string, string, int) ([]ledger.Emission, error) {
+	return []ledger.Emission{r.value}, nil
+}
+
 func (r *memoryRepository) GetBySettlement(context.Context, string) (ledger.Emission, error) {
 	return r.value, nil
 }
