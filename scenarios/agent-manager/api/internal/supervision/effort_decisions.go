@@ -22,6 +22,10 @@ import (
 
 // Decision states and answer channels; see effortdecision.
 const (
+	// Limit network publication work performed by a single scheduler tick.
+	decisionPublicationPageSize = 20
+	decisionPublicationBudget   = 3 * time.Second
+
 	DecisionPending   = effortdecision.Pending
 	DecisionAnswered  = effortdecision.Answered
 	DecisionDefaulted = effortdecision.Defaulted
@@ -51,6 +55,12 @@ var (
 // (api-core eventbus.Client in production). It is an alias for the shared
 // operatordecision.Publisher.
 type DecisionPublisher = operatordecision.Publisher
+
+// decisionDeliveryReconciler fills a missing owner queue row for a previously
+// published event; it never resets an existing delivery or its retry budget.
+type decisionDeliveryReconciler interface {
+	ReconcileDecisionDelivery(context.Context, string) error
+}
 
 // SetDecisionPublisher wires the Vrooli Events publisher. Without one,
 // decisions are stored and stay unpublished until a publisher is set.
@@ -134,6 +144,48 @@ type decisionCursor struct {
 	FilterHome string `json:"filter_home"`
 	Effort     string `json:"effort"`
 	Unrecorded bool   `json:"unrecorded"`
+}
+
+// DecisionPublicationCursor persists the sweep position across owner restarts.
+// A missing row means the next sweep begins at the newest decision.
+func (r *Repository) DecisionPublicationCursor(ctx context.Context) (*decisionCursor, error) {
+	var raw string
+	err := r.db.QueryRowContext(ctx, `SELECT cursor_json FROM supervision_decision_publication_cursor WHERE singleton=1`).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var cursor decisionCursor
+	if err := json.Unmarshal([]byte(raw), &cursor); err != nil {
+		return nil, fmt.Errorf("invalid decision publication cursor: %w", err)
+	}
+	if cursor.Created == "" || cursor.ID == "" || cursor.Home == "" || cursor.FilterHome != "" || cursor.Effort != "" || cursor.Unrecorded {
+		return nil, errors.New("invalid decision publication cursor scope or identity")
+	}
+	return &cursor, nil
+}
+
+func (r *Repository) SaveDecisionPublicationCursor(ctx context.Context, cursor *decisionCursor) error {
+	if cursor == nil {
+		_, err := r.db.ExecContext(ctx, `DELETE FROM supervision_decision_publication_cursor WHERE singleton=1`)
+		return err
+	}
+	raw, err := json.Marshal(cursor)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, `INSERT INTO supervision_decision_publication_cursor(singleton,cursor_json) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET cursor_json=excluded.cursor_json`, string(raw))
+	return err
+}
+
+func (r *Repository) DecisionPublicationPosition(ctx context.Context, d *pb.EffortDecision) (*decisionCursor, error) {
+	var created string
+	if err := r.db.QueryRowContext(ctx, `SELECT created_at FROM supervision_effort_decisions WHERE goal_home=? AND decision_id=?`, d.GoalHome, d.DecisionId).Scan(&created); err != nil {
+		return nil, err
+	}
+	return &decisionCursor{Created: created, ID: d.DecisionId, Home: d.GoalHome}, nil
 }
 
 func (r *Repository) ListEffortDecisionPage(ctx context.Context, home, effortRef string, limit int, after *decisionCursor) ([]*pb.EffortDecision, *decisionCursor, error) {
@@ -374,21 +426,47 @@ func (s *EffortService) publishDecision(ctx context.Context, d *pb.EffortDecisio
 // published. The event id is deterministic, so a retry after a lost
 // acknowledgement is deduplicated by Vrooli Events and the hub.
 func (s *EffortService) publishPendingDecisions(ctx context.Context) error {
+	return s.publishPendingDecisionsWithBudget(ctx, decisionPublicationBudget)
+}
+
+func (s *EffortService) publishPendingDecisionsWithBudget(ctx context.Context, budget time.Duration) error {
 	if s.decisionPublisher == nil {
 		return nil
 	}
 	s.decisionMu.Lock()
 	defer s.decisionMu.Unlock()
-	decisions, err := s.repo.ListEffortDecisions(ctx, "", "", 200)
+	cursor, err := s.repo.DecisionPublicationCursor(ctx)
 	if err != nil {
 		return err
 	}
-	for _, d := range decisions {
+	decisions, next, err := s.repo.ListEffortDecisionPage(ctx, "", "", decisionPublicationPageSize, cursor)
+	if err != nil {
+		return err
+	}
+	deadline := time.Now().Add(budget)
+	var reconcileErrors []error
+	for i, d := range decisions {
 		if d.PublishedAt == nil && d.State == DecisionPending {
 			s.publishDecision(ctx, d)
+		} else if d.State == DecisionPending && d.EventId != "" {
+			if reconciler, ok := s.decisionPublisher.(decisionDeliveryReconciler); ok {
+				if err := reconciler.ReconcileDecisionDelivery(ctx, d.EventId); err != nil {
+					reconcileErrors = append(reconcileErrors, fmt.Errorf("reconcile decision delivery %s: %w", d.DecisionId, err))
+				}
+			}
+		}
+		if i+1 < len(decisions) && time.Now().After(deadline) {
+			// Store the exact immutable database ordering, rather than the
+			// decision's payload timestamp, so the next tick continues after
+			// this row even when a slow Events service consumes the budget.
+			next, err = s.repo.DecisionPublicationPosition(ctx, d)
+			if err != nil {
+				return err
+			}
+			break
 		}
 	}
-	return nil
+	return errors.Join(append(reconcileErrors, s.repo.SaveDecisionPublicationCursor(ctx, next))...)
 }
 
 // ListDecisions lists decisions for a goal home or effort.

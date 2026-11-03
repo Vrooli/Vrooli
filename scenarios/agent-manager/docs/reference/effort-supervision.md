@@ -248,6 +248,7 @@ the native commission limit; team heartbeat concurrency is a separate boundary.
 | `run report <id> [--children] [--weights sol=10,luna=1]` | Non-cache tokens weighted by model tier (operator heuristic `operator-non-cache-v2-2026-10-27`: Sol 10, Terra 5, Luna 1; unmatched models are unknown and disable spend comparisons). This is non-cache-token policy, not billing or measured subscription quota. Usage that is not final is listed, never counted as zero. |
 | `effort epoch-check <epoch-file> [--acceptance] [--runs ids] [--spend-threshold n] [--wake-key key]` | Parses an epoch file and prints the step-back triggers, typed exit gates and measured yield. It exits 3 for a flatline strategy review; estimate overruns report optimization and continue with exit 0; `--wake-key` wakes the orchestrator parked on that key (producer `children`). An accepted epoch never exits 3 or wakes. `--acceptance` is the orchestrator's check (exit 4). Spend uses the same weighting as `usage run`. Slice-log lines need `<time> \| <what changed> \| exit metric=<v>`; line counts default to zero, unknown `key=value` fields are ignored, and `ack=` takes free text whose `D<n>` IDs count as acknowledged. See [Goal-home commands](#goal-home-commands). |
 | `effort lint <goal home>` | Checks the goal-home rules the orchestrator owns; exit 4 on a failing rule. |
+| `effort decisions-page --effort-ref <ref> [--page-size <n>] [--page-token <token>]` | Read one bounded decision page through the owner; follow its continuation token to cover the selected effort's history. |
 | `effort handoff set <goal home> (--file F \| --stdin)` | Replaces the single `## Handoff` of `STATUS.md`; exit 4 when refused. |
 | `effort park <goal home> [--run <id>] [--timeout D] [--json]` | Parks the verified calling orchestrator for as long as goal state allows; an explicit run must match its verified identity. Inspect the JSON park status and await handle; exit 4 when refused. |
 
@@ -431,6 +432,19 @@ create an operator decision or claim that work was accepted.
 one `agent_manager.effort.decision_requested.v1` event (notification-hub asks
 the operator once) and adds a `[decision <id>]` item under `## Needs operator`.
 An identical re-raise changes nothing; a changed one is refused (use a new id).
+A bounded owner sweep also retries unpublished pending decisions across all
+history using a database checkpoint; it resumes after restart and wraps back
+to revisit failed publications. For published decisions still pending, the
+sweep also asks Events to reconcile the exact retained event against Notification
+Hub's named decision subscription. This fills a missing queue row if the
+subscription appeared after publication; existing rows and dead-letter history
+are preserved. A pruned event or unavailable subscriber is reported as an
+error and retried on a later sweep. A sweep yields between attempts after its time
+budget, retaining its precise position so slow Events calls do not hold the
+decision lock for a whole page. Each production publication also has its own
+timeout. Event publication is not proof that
+Notification Hub created or delivered an ask; reconcile the ask and receipt
+through their owner before making a delivery claim.
 A default needs `--reversible`; notification-hub applies it only after the
 question was delivered. notification-hub's `ask.resolved` event records the
 answer, appends an `operator_answer` signal and wakes a parked orchestrator of

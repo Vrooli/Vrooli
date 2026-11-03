@@ -58,6 +58,28 @@ func decisionServer(t *testing.T, decisions ...*pb.EffortDecision) (*Services, *
 	return NewServices(api), server
 }
 
+func TestEffortDecisionsPageUsesExactEffortAndCursor(t *testing.T) {
+	services, server := decisionServer(t, decisionFixture("pending", "", "", "", time.Time{}))
+	app := &App{services: services}
+	if err := app.cmdEffort([]string{"decisions-page", "--effort-ref", "effort:example", "--page-size", "7", "--page-token", "opaque-token", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	requests := server.Requests()
+	if len(requests) != 1 || requests[0].Path != apiconnect.AgentManagerServiceListEffortDecisionsProcedure {
+		t.Fatalf("expected exactly one owner page read: %+v", requests)
+	}
+	var req pb.ListEffortDecisionsRequest
+	if err := protojson.Unmarshal([]byte(requests[0].Body), &req); err != nil {
+		t.Fatal(err)
+	}
+	if req.GetEffortRef() != "effort:example" || req.GetLimit() != 7 || req.GetPageToken() != "opaque-token" {
+		t.Fatalf("wrong page request: %+v", &req)
+	}
+	if err := app.cmdEffort([]string{"decisions-page", "--json"}); err == nil {
+		t.Fatal("an unscoped decision-page read must be refused")
+	}
+}
+
 func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
 	home := copyBASGoalHome(t, nil)
 	before, _ := os.ReadFile(filepath.Join(home, goalhome.StatusFile))

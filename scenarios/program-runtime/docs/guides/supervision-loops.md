@@ -23,7 +23,8 @@ supervision decision. **`unavailable` is unknown, never zero.**
 | Retained delivery-effort obligations | `agent-manager.supervision-observation-read` | One bounded effort-board page; follow its continuation token and preserve partial, stale, and unknown states. It does not dispatch work or prove completion. |
 | Runtime measure summaries / failure shapes / reachable bindings | `program-runtime.fleet-fanout`, `program-runtime.failure-triage`, `program-runtime.registry-sweep` | |
 | Agent run efficiency / setpoint / one-subject diagnosis | `agent-manager.efficiency-report`, `agent-manager.setpoint-read`, `agent-manager.investigate` + `investigation-evidence` | agent-manager-owned; reuse, don't re-author. |
-| Selected research threads, runs and changed event counts | `program-runtime.research-supervision-read` | Caller supplies exact identities. Optional per-run cursors select one page of counts without payloads; `has_more` means more pages remain. Missing receipts, stale imports and missing sources are not proof of health. |
+| Selected research threads, runs and changed event counts | `program-runtime.research-supervision-read` | Caller supplies exact identities. Owner reports expose duration, event gaps, repeated calls, model, aggregate tokens and time-accounting as leads for the supervisor; they do not grade productivity. Optional cursors select one page of event counts; `has_more` means more pages remain. Missing receipts, stale imports and missing sources are not proof of health. Separate owner accounting exposes non-cache and cache tokens with completeness flags; missing accounting stays unknown. |
+| Research attention and retained decisions | `program-runtime.research-attention-index`, `program-runtime.research-attention-delivery` | Pass an authorized `research_root` and, where enrolled, exact `effort_ref` to `research-supervision-read`. The first reads only the explicit actionable section; the second joins one owner decision page to exact Hub asks and receipts. Follow `next_page_token` as `decision_page_token` until empty. Set `include_effort_board=true` when its slower free-form needs-operator projection is needed. An unmatched ID is unlinked or unobserved, not proof a decision does not exist. The snapshot cannot detect needs never recorded, and neither read wakes or notifies anyone. |
 | Research workspace navigation signals | `program-runtime.research-workspace-review` | Pass an authorized absolute research root. Bounded missing-file and size signals are prompts to inspect, not judgments of research quality. |
 
 ## The supervision cycle
@@ -51,6 +52,12 @@ For the next bounded event page, pass the returned `next_cursor` for that same r
 Inspect `has_more`, coverage and errors before accepting any observation. Event counts
 do not establish live import freshness, event significance, or absence of unobserved
 receipts. No program here wakes a supervisor or enforces a research cutoff.
+
+## Sustained research: execution ownership
+
+A bounded read or delegation program is not an always-on supervisor. `watch-set` starts up to eight declared workflows and collects each once; its declared wall budget is ten minutes. A managed Agent Manager supervisor can instead park on an owner-supported review timer and wake to review changed work; its durable workflow engine owns its execution and restart reconciliation. Attached chats do not acquire managed park/wake semantics. See `scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md` and the research-coordination observation guide for qualification and limits.
+
+Program Runtime marks in-flight programs interrupted after its own restart and does not replay their effects. Reconcile the original operation before retrying. A terminal selected run in `research-supervision-read` is a review signal, not proof a study is idle. Native reads can be denied across sessions; missing identity, freshness, event coverage and receipts remain unknown. No observation packet or one successful wake proves a staffed research window, deadline enforcement, automatic recovery, or research quality. Qualify those through a bounded end-to-end trial of the actual managed route before promising them.
 
 ## Deliberately NOT a program (honest boundaries)
 

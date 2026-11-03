@@ -75,6 +75,13 @@ func (a *App) cmdEffort(args []string) error {
 		path = apiconnect.AgentManagerServiceGetEffortBoardProcedure
 		request = &pb.GetEffortBoardRequest{EffortRef: *ref, PageSize: uint32(*limit), PageToken: *cursor}
 		response = &pb.EffortBoard{}
+	case "decisions-page":
+		if strings.TrimSpace(*ref) == "" {
+			return errors.New("effort decisions-page requires --effort-ref")
+		}
+		path = apiconnect.AgentManagerServiceListEffortDecisionsProcedure
+		request = &pb.ListEffortDecisionsRequest{EffortRef: strings.TrimSpace(*ref), Limit: int32(*limit), PageToken: *cursor}
+		response = &pb.ListEffortDecisionsResponse{}
 	case "compact":
 		// The compact owner read uses the same single joined AM projection as
 		// board. It only changes presentation, so detail references can be
@@ -171,6 +178,11 @@ func printEffortResponse(command string, jsonOut bool, response proto.Message, b
 	case *pb.ListEffortsResponse:
 		for _, e := range out.Efforts {
 			fmt.Printf("%s  %s  revision=%d withdrawn=%t\n", e.EffortRef, e.DisplayName, e.Revision, e.Withdrawn)
+		}
+		printEffortPage(out.NextPageToken)
+	case *pb.ListEffortDecisionsResponse:
+		for _, decision := range out.Decisions {
+			fmt.Println(decisionLine(decision))
 		}
 		printEffortPage(out.NextPageToken)
 	case *pb.EffortEnrollment:

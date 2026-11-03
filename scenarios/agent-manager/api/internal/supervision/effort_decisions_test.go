@@ -30,6 +30,17 @@ type recordingPublisher struct {
 	fail   error
 }
 
+type reconcilingPublisher struct {
+	recordingPublisher
+	reconciled []string
+	err        error
+}
+
+func (p *reconcilingPublisher) ReconcileDecisionDelivery(_ context.Context, eventID string) error {
+	p.reconciled = append(p.reconciled, eventID)
+	return p.err
+}
+
 func (p *recordingPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -201,6 +212,196 @@ func TestRaiseDecisionRetriesAnUnpublishedEventOnTick(t *testing.T) {
 	}
 	if publisher.count() != 1 {
 		t.Fatalf("the retry must publish exactly once: %d", publisher.count())
+	}
+}
+
+func TestDecisionPublicationSweepContinuesPastNewerHistoryAfterRestart(t *testing.T) {
+	s, repo, controller := effortFixture(t)
+	ctx := context.Background()
+	publisher := &recordingPublisher{}
+	s.SetDecisionPublisher(publisher)
+	created := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	for i := 0; i < 201; i++ {
+		id, state := fmt.Sprintf("a-%03d", i), DecisionAnswered
+		if i == 200 {
+			id, state = "z-unpublished", DecisionPending
+		}
+		d := &pb.EffortDecision{GoalHome: decisionHome, DecisionId: id, Question: "Continue?", State: state, CreatedAt: created, EventId: id}
+		if _, err := repo.InsertEffortDecision(ctx, d, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	scheduler := NewScheduler(repo, nil, func(err error) { t.Errorf("initial owner recovery: %v", err) })
+	scheduler.SetEffortService(s)
+	if _, err := scheduler.RecoverOnce(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// A new service and scheduler simulate owner restart while retaining the database.
+	restarted := NewEffortService(repo, controller, EffortDiscoveryConfig{Root: t.TempDir()})
+	tick := 0
+	restarted.now = func() time.Time { return repo.now().Add(time.Duration(tick) * time.Minute) }
+	restarted.SetDecisionPublisher(publisher)
+	recovered := NewScheduler(repo, nil, func(err error) { t.Errorf("restarted owner recovery: %v", err) })
+	recovered.SetEffortService(restarted)
+	for tick = 0; tick < 10; tick++ {
+		if _, err := recovered.RecoverOnce(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stored, _, err := repo.GetEffortDecision(ctx, decisionHome, "z-unpublished")
+	if err != nil || stored.GetPublishedAt() == nil || publisher.count() != 1 {
+		t.Fatalf("older pending decision must be published after bounded continuation and restart: decision=%+v count=%d err=%v", stored, publisher.count(), err)
+	}
+}
+
+func TestDecisionPublicationSweepRetriesFailedPublicationAfterWrapping(t *testing.T) {
+	s, repo, _ := effortFixture(t)
+	ctx := context.Background()
+	publisher := &recordingPublisher{fail: errors.New("event service unavailable")}
+	s.SetDecisionPublisher(publisher)
+	created := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	for i := 0; i < 201; i++ {
+		state := DecisionAnswered
+		if i == 0 {
+			state = DecisionPending
+		}
+		id := fmt.Sprintf("decision-%03d", i)
+		d := &pb.EffortDecision{GoalHome: decisionHome, DecisionId: id, Question: "Continue?", State: state, CreatedAt: created, EventId: id}
+		if _, err := repo.InsertEffortDecision(ctx, d, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	failed, _, err := repo.GetEffortDecision(ctx, decisionHome, "decision-000")
+	if err != nil || failed.GetPublishedAt() != nil || failed.GetPublishError() == "" {
+		t.Fatalf("failed publication must remain pending with evidence: %+v %v", failed, err)
+	}
+	publisher.fail = nil
+	for range 11 { // finish the first scan, then revisit its failed first page
+		if err := s.publishPendingDecisions(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if publisher.count() != 1 {
+		t.Fatalf("failed publication must retry once after wrapping, got %d", publisher.count())
+	}
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.count() != 1 {
+		t.Fatalf("published decision must not be published again: %d", publisher.count())
+	}
+}
+
+func TestDecisionPublicationSweepRejectsCorruptCursor(t *testing.T) {
+	s, repo, _ := effortFixture(t)
+	ctx := context.Background()
+	publisher := &recordingPublisher{}
+	s.SetDecisionPublisher(publisher)
+	if _, err := repo.db.ExecContext(ctx, `INSERT INTO supervision_decision_publication_cursor(singleton,cursor_json) VALUES(1,'not-json')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.publishPendingDecisions(ctx); err == nil {
+		t.Fatal("a corrupt checkpoint must be reported, not silently reset")
+	}
+	if publisher.count() != 0 {
+		t.Fatalf("a corrupt checkpoint must not publish from an invented position: %d", publisher.count())
+	}
+}
+
+func TestDecisionPublicationSweepBoundsEachTick(t *testing.T) {
+	s, repo, _ := effortFixture(t)
+	ctx := context.Background()
+	publisher := &recordingPublisher{}
+	s.SetDecisionPublisher(publisher)
+	created := timestamppb.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	for i := 0; i < decisionPublicationPageSize+1; i++ {
+		id := fmt.Sprintf("decision-%03d", i)
+		d := &pb.EffortDecision{GoalHome: decisionHome, DecisionId: id, Question: "Continue?", State: DecisionPending, CreatedAt: created, EventId: id}
+		if _, err := repo.InsertEffortDecision(ctx, d, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.count() != decisionPublicationPageSize {
+		t.Fatalf("first tick published %d, want bounded page %d", publisher.count(), decisionPublicationPageSize)
+	}
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.count() != decisionPublicationPageSize+1 {
+		t.Fatalf("next tick must publish remaining item: %d", publisher.count())
+	}
+}
+
+func TestDecisionPublicationSweepContinuesAfterTimeBudgetAndRestart(t *testing.T) {
+	s, repo, controller := effortFixture(t)
+	ctx := context.Background()
+	publisher := &recordingPublisher{fail: errors.New("slow Events outage")}
+	s.SetDecisionPublisher(publisher)
+	for _, id := range []string{"first", "second", "third"} {
+		d := &pb.EffortDecision{GoalHome: decisionHome, DecisionId: id, State: DecisionPending, EventId: id, CreatedAt: timestamppb.Now()}
+		if _, err := repo.InsertEffortDecision(ctx, d, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An already-exhausted budget deterministically exercises the point at
+	// which a slow publish gives the decision lock back to other operations.
+	if err := s.publishPendingDecisionsWithBudget(ctx, -time.Nanosecond); err != nil {
+		t.Fatal(err)
+	}
+	cursor, err := repo.DecisionPublicationCursor(ctx)
+	if err != nil || cursor == nil {
+		t.Fatalf("unfinished page must retain its exact position: %+v %v", cursor, err)
+	}
+	failed, _, err := repo.GetEffortDecision(ctx, cursor.Home, cursor.ID)
+	if err != nil || failed.GetPublishError() == "" {
+		t.Fatalf("failed attempt must remain available for a later sweep: %+v %v", failed, err)
+	}
+	publisher.fail = nil
+	restarted := NewEffortService(repo, controller, EffortDiscoveryConfig{Root: t.TempDir()})
+	restarted.SetDecisionPublisher(publisher)
+	if err := restarted.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.count() != 2 {
+		t.Fatalf("restart must continue after the failed row, got %d publications", publisher.count())
+	}
+	if err := restarted.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if publisher.count() != 3 {
+		t.Fatalf("wrapping must retry the failed row, got %d publications", publisher.count())
+	}
+}
+
+func TestDecisionSweepRepairsPublishedPendingDeliveryAndReportsFailure(t *testing.T) {
+	s, repo, _ := effortFixture(t)
+	ctx := context.Background()
+	publisher := &reconcilingPublisher{err: errors.New("Events route unavailable")}
+	s.SetDecisionPublisher(publisher)
+	for _, state := range []string{DecisionPending, DecisionAnswered} {
+		d := &pb.EffortDecision{GoalHome: decisionHome, DecisionId: state, State: state, EventId: "event-" + state, CreatedAt: timestamppb.Now(), PublishedAt: timestamppb.Now()}
+		if _, err := repo.InsertEffortDecision(ctx, d, state); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.publishPendingDecisions(ctx); err == nil {
+		t.Fatal("failed queue repair must be visible to the scheduler")
+	}
+	if len(publisher.reconciled) != 1 || publisher.reconciled[0] != "event-pending" {
+		t.Fatalf("wrong repairs: %v", publisher.reconciled)
+	}
+	publisher.err = nil
+	if err := s.publishPendingDecisions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(publisher.reconciled) != 2 {
+		t.Fatalf("pending event was not retried after wrap: %v", publisher.reconciled)
 	}
 }
 
@@ -628,5 +829,4 @@ func TestDecisionRecoveryPaginationIncludesOldRecordedPolicyAndRejectsChangedSco
 	if projected.State != "partial" || !strings.Contains(strings.Join(projected.Limitations, " "), "exceeds this board projection") {
 		t.Fatalf("truncated decision history looked complete: %+v", projected)
 	}
-
 }

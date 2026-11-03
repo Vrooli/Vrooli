@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "notification-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "0341ed108b6d7952f9afaa577669e470ae137c8841a604528b3fb0bafdde5d1a",
+  "manifest_hash": "81044d527a0a6ee7362b7ade26086ab57f4ebe85ce6ea73c70189327c9951306",
   "commands": [
     {
       "path": "channels status",

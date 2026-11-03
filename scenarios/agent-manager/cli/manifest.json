@@ -3795,6 +3795,18 @@
       "description": "Goal-home commands for orchestrated delivery efforts (epoch checks, lint, handoff, park)",
       "commands": [
         {
+          "name": "decisions-page",
+          "description": "Read one bounded page of decisions for an exact effort",
+          "flags": [
+            {"name": "effort-ref", "required": true, "description": "Exact enrolled effort reference"},
+            {"name": "page-size", "bind": {"field": "limit"}, "description": "Maximum owner rows (1-100)"},
+            {"name": "page-token", "description": "Opaque continuation token from the previous page"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "ListEffortDecisions"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
           "name": "board",
           "description": "Read one bounded owner projection of enrolled efforts and their current goal-home/runtime evidence",
           "flags": [
@@ -5472,11 +5484,6 @@
     {
       "service": "AgentManagerService",
       "method": "EnrollEffort",
-      "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
-    },
-    {
-      "service": "AgentManagerService",
-      "method": "ListEffortDecisions",
       "reason": "Existing hand-registered CLI/owner API surface; intentionally not exposed as a workflow-manifest command in this bounded migration."
     },
     {

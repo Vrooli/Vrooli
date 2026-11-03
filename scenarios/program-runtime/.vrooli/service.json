@@ -193,6 +193,15 @@
         "versionRange": ">=0.0.1",
         "description": "Native thread and goal state for explicitly selected research subjects."
       },
+      "notification-hub": {
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Research decision delivery evidence is read through governed Notification Hub bindings.",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Research decision delivery remains unknown when Notification Hub is unavailable.",
+        "versionRange": ">=1.0.0",
+        "description": "Owner of operator asks and notification delivery receipts."
+      },
       "visited-tracker": {
         "required": false,
         "startup_policy": "try_start",

@@ -35,6 +35,9 @@ type EffortRepository interface {
 	SaveEffortDecision(context.Context, *pb.EffortDecision) error
 	ListEffortDecisionPage(ctx context.Context, home, effortRef string, limit int, after *decisionCursor) ([]*pb.EffortDecision, *decisionCursor, error)
 	ListEffortDecisions(ctx context.Context, home, effortRef string, limit int) ([]*pb.EffortDecision, error)
+	DecisionPublicationCursor(context.Context) (*decisionCursor, error)
+	DecisionPublicationPosition(context.Context, *pb.EffortDecision) (*decisionCursor, error)
+	SaveDecisionPublicationCursor(context.Context, *decisionCursor) error
 }
 
 var effortJSON = protojson.MarshalOptions{UseProtoNames: true}
@@ -51,6 +54,7 @@ func (r *Repository) EffortRegistryOffset(ctx context.Context) (int, error) {
 	}
 	return offset, err
 }
+
 func (r *Repository) SaveEffortRegistryOffset(ctx context.Context, offset int) error {
 	_, err := r.db.ExecContext(ctx, `INSERT INTO supervision_effort_registry_cursor(singleton,run_offset) VALUES(1,?) ON CONFLICT(singleton) DO UPDATE SET run_offset=excluded.run_offset`, offset)
 	return err
@@ -94,6 +98,7 @@ func (r *Repository) GetEffort(ctx context.Context, ref string) (*pb.EffortEnrol
 	err = effortRead.Unmarshal([]byte(observation), o)
 	return e, o, err
 }
+
 func (r *Repository) ListEfforts(ctx context.Context, after string, limit int) ([]*pb.EffortEnrollment, error) {
 	rows, err := r.db.QueryxContext(ctx, `SELECT enrollment_json FROM supervision_efforts WHERE effort_ref>? ORDER BY effort_ref LIMIT ?`, after, limit)
 	if err != nil {
@@ -114,6 +119,7 @@ func (r *Repository) ListEfforts(ctx context.Context, after string, limit int) (
 	}
 	return result, rows.Err()
 }
+
 func (r *Repository) ReplayEffortOperation(ctx context.Context, key, digest string, out proto.Message) (bool, error) {
 	var stored, b string
 	err := r.db.QueryRowContext(ctx, `SELECT request_digest,result_json FROM supervision_effort_transitions WHERE operation_key=?`, key).Scan(&stored, &b)
@@ -128,6 +134,7 @@ func (r *Repository) ReplayEffortOperation(ctx context.Context, key, digest stri
 	}
 	return true, effortRead.Unmarshal([]byte(b), out)
 }
+
 func (r *Repository) SaveEffort(ctx context.Context, e *pb.EffortEnrollment, o *pb.EffortBoardRow, expected uint64, key, digest string) error {
 	b, err := effortJSON.Marshal(e)
 	if err != nil {
@@ -174,10 +181,12 @@ func (r *Repository) saveEffortTx(ctx context.Context, tx *sql.Tx, e *pb.EffortE
 	}
 	return nil
 }
+
 func (r *Repository) recordEffortTransition(ctx context.Context, tx *sql.Tx, key, digest string, b []byte) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO supervision_effort_transitions(operation_key,request_digest,result_json,occurred_at) VALUES(?,?,?,?)`, key, digest, string(b), formatTime(r.now().UTC()))
 	return err
 }
+
 func (r *Repository) GetEffortDiscovery(ctx context.Context) (*pb.EffortDiscovery, error) {
 	var b string
 	err := r.db.QueryRowContext(ctx, `SELECT discovery_json FROM supervision_effort_discovery WHERE singleton=1`).Scan(&b)
@@ -191,6 +200,7 @@ func (r *Repository) GetEffortDiscovery(ctx context.Context) (*pb.EffortDiscover
 	err = effortRead.Unmarshal([]byte(b), d)
 	return d, err
 }
+
 func (r *Repository) SaveEffortDiscovery(ctx context.Context, d *pb.EffortDiscovery) error {
 	b, err := effortJSON.Marshal(d)
 	if err != nil {

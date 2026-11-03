@@ -2,9 +2,40 @@ package wiring
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
+	"sync"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
+
+// recoveringEventsSecret caches a successfully resolved signing secret while
+// allowing later requests to recover from a startup credential outage.
+func recoveringEventsSecret(initial string, resolve func() (string, error)) func() string {
+	var mu sync.Mutex
+	secret := strings.TrimSpace(initial)
+	return func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		if secret == "" {
+			if value, err := resolve(); err == nil {
+				secret = strings.TrimSpace(value)
+			}
+		}
+		return secret
+	}
+}
+
+func recoveringEventsWebhook(secret func() string, handler func(string) http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		value := secret()
+		if value == "" {
+			http.Error(w, "event verification temporarily unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		handler(value).ServeHTTP(w, r)
+	})
+}
 
 const (
 	eventsWebhookIdentity = "vrooli/vrooli-events"

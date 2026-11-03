@@ -571,14 +571,14 @@
       "cell_ref": "substrate/SB20",
       "projection": "substrate",
       "target_kind": "memory-stall",
-      "deadband": "memory PSI some.avg10 remains below 10%; the runtime supervisor refuses to start a recovery while the host is above the bar",
+      "deadband": "memory PSI some.avg10 remains below 20%; the runtime supervisor refuses to start a recovery while the host is at or above the bar",
       "sustain": "one read",
       "actuator": "runtime-recovery-gate",
-      "decision_ref": "2026-09-02-polite-host",
+      "decision_ref": "reliability-target-update:2026-11-02-host-build-admission",
       "unit": "percent",
-      "max": 10.0,
+      "max": 20.0,
       "gradeable": true,
-      "ratification_note": "Lifted from the runtime supervisor's compiled DefaultPressureSomeAvg10 on 2026-09-02 so the third pressure reader shares the setpoint; the gate is instantaneous by design (a recovery attempted into a stalling host makes the stall worse), so the sustain is one read."
+      "ratification_note": "Raised by operator instruction after repeated real RAM-admission denials at 13.95% and 17.80% memory PSI during concurrent build activity. The 20% ceiling clears those observed build windows while retaining the shared runtime-recovery and RAM-admission stop above the ceiling; ordinary fit, ledger, and reclaim checks still apply. The gate remains instantaneous because recovery attempted into a stalling host makes the stall worse."
     },
     {
       "id": "substrate-containment-ceiling-occupancy",

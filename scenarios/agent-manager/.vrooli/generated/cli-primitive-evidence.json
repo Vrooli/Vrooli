@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "ee059762b9eae9188f29fbbd0d6e7438adbccd92e4d6f34cf524af378e1d6e95",
+  "manifest_hash": "eadbd39b51728e5bc81f522b64ae46117717db62f8cd4c5a5fbd83c6d68bbf4c",
   "commands": [
     {
       "path": "conversation context",
@@ -389,6 +389,13 @@
       "group": "role-policy",
       "command": "validate",
       "binding": "."
+    },
+    {
+      "path": "run accounting",
+      "group": "run",
+      "command": "accounting",
+      "binding": "AgentManagerService.GetRunAccounting",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "run apply-investigation",

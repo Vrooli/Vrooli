@@ -758,20 +758,21 @@ func EnsureEventSubscriptions(ctx context.Context, baseURL, target string, specs
 		DeliveryTarget string `json:"delivery_target"`
 		Enabled        bool   `json:"enabled"`
 	}
-	_ = json.NewDecoder(response.Body).Decode(&existing)
+	if err := json.NewDecoder(response.Body).Decode(&existing); err != nil {
+		return fmt.Errorf("decode event subscriptions: %w", err)
+	}
 	for _, spec := range specs {
 		pattern := strings.TrimSpace(spec.Pattern)
 		var update int64
 		satisfied := false
 		for _, item := range existing {
-			if !item.Enabled || item.DeliveryTarget != target {
-				continue
-			}
-			if item.EventPattern == pattern {
+			if (item.Name == spec.Name || (item.Name == "" && spec.Name == eventSubscriptionName)) && item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
 				satisfied = true
 				break
 			}
-			if update == 0 && (item.Name == spec.Name || (item.Name == "" && spec.Name == eventSubscriptionName)) {
+		}
+		for _, item := range existing {
+			if update == 0 && (item.Name == spec.Name || (item.Name == "" && spec.Name == eventSubscriptionName && item.DeliveryTarget == target)) {
 				update = item.ID
 			}
 		}

@@ -20,6 +20,44 @@ type recordingPublisher struct {
 	events []eventbus.DomainEvent
 }
 
+type selectiveResolutionPublisher struct{ published []string }
+
+func (p *selectiveResolutionPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
+	ref, _ := event.Payload["requester_ref"].(string)
+	if ref != "healthy" {
+		return errors.New("subscriber unavailable")
+	}
+	p.published = append(p.published, ref)
+	return nil
+}
+
+func TestResolutionOutboxContinuesPastFailedPageAfterRestart(t *testing.T) {
+	service, db := testService(t)
+	ctx := context.Background()
+	for i := 0; i < 51; i++ {
+		id, ref := fmt.Sprintf("ask-%03d", i), fmt.Sprintf("failed-%03d", i)
+		if i == 50 {
+			ref = "healthy"
+		}
+		_, err := db.ExecContext(ctx, `INSERT INTO asks(id,notification_id,question,allowed_answers,deadline,state,created_at,updated_at,resolved_at,requester_ref) VALUES(?,?,?,?,'2026-01-02T00:00:00Z','expired','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z','2026-01-01T00:00:00Z',?)`, id, "notification-"+id, "Question?", "[]", ref)
+		require.NoError(t, err)
+	}
+	publisher := &selectiveResolutionPublisher{}
+	service.SetResolutionPublisher(publisher)
+	require.Error(t, service.PublishPendingResolutions(ctx))
+	require.Empty(t, publisher.published)
+	// Recreate the owner service against the same database to verify that the
+	// continuation is durable, not merely a process-local offset.
+	restarted := hub.New(db, nil, nil)
+	restarted.SetResolutionPublisher(publisher)
+	require.NoError(t, restarted.PublishPendingResolutions(ctx))
+	require.Equal(t, []string{"healthy"}, publisher.published)
+	var published string
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT resolution_published_at FROM asks WHERE id='ask-050'`).Scan(&published))
+	require.NotEmpty(t, published)
+	require.Error(t, restarted.PublishPendingResolutions(ctx), "failed earlier resolutions must remain eligible after wrapping")
+}
+
 func (p *recordingPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()

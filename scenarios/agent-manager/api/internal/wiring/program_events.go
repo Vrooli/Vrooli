@@ -38,10 +38,15 @@ func reconcileEventSubscription(ctx context.Context, name, pattern, target strin
 	if err != nil {
 		return err
 	}
+	return reconcileEventSubscriptionAt(ctx, base, name, pattern, target)
+}
+
+func reconcileEventSubscriptionAt(ctx context.Context, base, name, pattern, target string) error {
 	base = strings.TrimRight(base, "/")
 	client := &http.Client{Timeout: 10 * time.Second}
 	var existing []struct {
 		ID             int64  `json:"id"`
+		Name           string `json:"name"`
 		EventPattern   string `json:"event_pattern"`
 		DeliveryTarget string `json:"delivery_target"`
 		Enabled        bool   `json:"enabled"`
@@ -70,7 +75,12 @@ func reconcileEventSubscription(ctx context.Context, name, pattern, target strin
 		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
 			return nil
 		}
-		if item.Enabled && item.DeliveryTarget == target {
+	}
+	for _, item := range existing {
+		// The named subscription belongs to this integration even when the
+		// scenario port changed or the row was disabled. Never overwrite a
+		// different subscription merely because its target matches.
+		if item.Name == name {
 			return putSubscription(ctx, client, base, item.ID, body)
 		}
 	}
@@ -88,6 +98,28 @@ func reconcileEventSubscription(ctx context.Context, name, pattern, target strin
 		return fmt.Errorf("create event subscription returned %s", resp.Status)
 	}
 	return nil
+}
+
+// retryEventSubscriptions keeps subscriptions reconciled after startup as
+// well as after an Events restart or a removed/disabled subscription.
+func retryEventSubscriptions(ctx context.Context, interval time.Duration, checks ...func(context.Context) error) {
+	for len(checks) > 0 {
+		for _, check := range checks {
+			if ctx.Err() != nil {
+				return
+			}
+			attempt, cancel := context.WithTimeout(ctx, 15*time.Second)
+			_ = check(attempt)
+			cancel()
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
 }
 
 func putSubscription(ctx context.Context, client *http.Client, base string, id int64, body []byte) error {

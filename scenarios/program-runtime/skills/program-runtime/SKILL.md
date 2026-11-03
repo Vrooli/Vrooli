@@ -51,7 +51,8 @@ Is the task one command against one scenario?
 ├─ YES → run that scenario's CLI directly. No session, no program.                        [S1]
 └─ NO → does a governed binding exist for every operation it needs?
     ├─ Unsure → program-runtime bindings list | bindings unbound (closed-set reason)        [S1]
-    │           a needed operation is unbound → stop; file W1 against its owner (report-bug)
+    │           an operation is unbound → trace its owner; repair in scope or use an
+    │           authorized alternative, otherwise retain the exact gap (report-bug)
     └─ YES → what shape is the work?
         ├─ Reads across 2+ scenarios, counts or keys only
         │     ├─ you need running/health state for a named scenario set → run program-runtime.supervision-sweep   [S3]
@@ -75,13 +76,15 @@ Is the task one command against one scenario?
         │       inference_spend_exceeded → raise the ceiling on a NEW session or stop
         ├─ Join, sort, or aggregate rows before reading them
         │     → copy the shape of program-runtime.handle-shaping into your program          [S3]
-        ├─ Genuinely agentic work (an Agent Manager workflow must run)
+        ├─ A bounded batch of Agent Manager workflows (not a durable supervisor)
         │     ├─ one or two runs → run program-runtime.delegated-run                        [S3]
         │     └─ 3–8 runs plus an outcome label → run program-runtime.watch-set              [S3]
         │       workflow_rejected → the owner does not declare that key: fix the request,
         │       never retry the same key; delegated_run_spend_exceeded → stop and journal;
-        │       scenario_unreachable → agent-manager or the bridge is down (delegation-live
-        │       is an improve row; do not work around it)
+        │       For sustained supervision, Agent Manager owns managed runs, wake and recovery;
+        │       these finite programs do not supply a durable supervisor. See supervision-loops.md.
+        │       scenario_unreachable → inspect the actual owner failure; repair it or choose
+        │       another authorized route when appropriate. Reconcile uncertain effects first.
         ├─ Why do my programs keep failing?
         │     → run program-runtime.failure-triage; branch on signals.top[0]                [S3]
         │       inspect signals.evidence_by_shape[shape]; then read that sample program

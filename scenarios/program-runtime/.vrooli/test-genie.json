@@ -9,7 +9,7 @@
   "orderHint": 17,
   "timeout": "360s",
   "findingSource": "programs",
-  "validation": {"contract": "scenario-validation/v1", "includeExecution": true},
+  "validation": {"contract": "scenario-validation/v1", "includeExecution": true, "detailCommand": "program-runtime programs portfolio --scenario {{scenario}} --json"},
   "targets": {"kinds": ["scenario"], "selection": "enumerate"},
   "applicability": {"default": "applies"},
   "policy": {"selection": "default_when_applicable", "providerReadiness": "best_effort", "providerLifecycle": "start_if_needed", "freshness": "require_live_contract", "resultGating": "advisory", "unavailable": "skip_without_failing"},

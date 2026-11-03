@@ -81,7 +81,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		},
 		"ConversationsService.ListAsks": func(ctx cliapp.RunContext) error {
 			limit, _ := strconv.Atoi(ctx.Flag("limit"))
-			resp, callErr := client.ListAsks(context.Background(), connect.NewRequest(&v1.ListAsksRequest{OpenOnly: ctx.BoolFlag("open"), Limit: int32(limit)}))
+			resp, callErr := client.ListAsks(context.Background(), connect.NewRequest(&v1.ListAsksRequest{OpenOnly: ctx.BoolFlag("open"), Limit: int32(limit), Cursor: ctx.Flag("cursor"), Query: ctx.Flag("query")}))
 			if callErr != nil {
 				return cliapp.WrapAPIError("list asks", callErr, nil)
 			}

@@ -107,7 +107,7 @@ func TestTaskBridgeRequiresTheOwningVerifiedRun(t *testing.T) {
 	require.Contains(t, otherResponse.Body.String(), "program does not belong to session")
 }
 
-func TestKernelTaskCheckpointForwardsVerifiedOwnerAndRejectsOtherRun(t *testing.T) {
+func TestKernelTaskCheckpointRefusesPersistentSession(t *testing.T) {
 	ctx := context.Background()
 	t.Setenv("PROGRAM_RUNTIME_LEARNING_STATE_DIR", t.TempDir())
 	db := dbtest.NewSQLite(t)
@@ -170,32 +170,11 @@ print(json.dumps({"attempt_id": identity["attempt_id"], "task_id": identity["tas
 	submit.ServeHTTP(response, request)
 	require.Equal(t, http.StatusAccepted, response.Code, response.Body.String())
 	require.NotNil(t, completed)
-	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, completed.Status, completed.FailureDetail)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_FAILED, completed.Status, completed.FailureDetail)
+	require.Contains(t, completed.FailureDetail, "TaskAuthorityUnavailable")
 	require.Equal(t, "run-owner", completed.GetCallerRunId())
 	require.True(t, completed.GetCallerIdentityVerified())
 
-	var output map[string]string
-	require.NoError(t, json.Unmarshal([]byte(completed.GetStdout()), &output))
-	require.NotEmpty(t, output["attempt_id"])
-	require.NotEmpty(t, output["task_id"])
-	record, err := store.Get(ctx, output["attempt_id"])
-	require.NoError(t, err, "the actual kernel checkpoint must persist through the bridge")
-	require.Equal(t, completed.GetId(), record.ProgramID)
-
-	body, err := json.Marshal(map[string]any{
-		"session_id": session.ID,
-		"program_id": completed.GetId(),
-		"operation":  contract.ID,
-		"digest":     contract.Digest,
-	})
-	require.NoError(t, err)
-	otherRun := httptest.NewRequest(http.MethodPost, "/internal/program-runtime/tasks/resolve", bytes.NewReader(body))
-	otherRun.Header.Set("Content-Type", "application/json")
-	otherRun.Header.Set(cliutil.HeaderAgentIdentityToken, "other-token")
-	denied := httptest.NewRecorder()
-	mux.ServeHTTP(denied, otherRun)
-	require.Equal(t, http.StatusForbidden, denied.Code, denied.Body.String())
-	require.Contains(t, denied.Body.String(), "program does not belong to session")
 }
 
 func archivedFixture(t *testing.T, repo *library.Repository, id, source string, declaration []byte) contracts.Contract {

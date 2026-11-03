@@ -275,20 +275,31 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			secret = resolved
 		}
 	}
-	if secret != "" {
-		router.Handle(handlers.ProgramEventWebhookPath, handlers.ProgramEventWebhook(deps.DB, secret)).Methods(http.MethodPost)
-		router.Handle(handlers.DecisionEventWebhookPath, handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret, deps.DecisionEffects...)).Methods(http.MethodPost)
+	{
+		getSecret := recoveringEventsSecret(secret, resolveEventsWebhookSecret)
+		router.Handle(handlers.ProgramEventWebhookPath, recoveringEventsWebhook(getSecret, func(secret string) http.Handler {
+			return handlers.ProgramEventWebhook(deps.DB, secret)
+		})).Methods(http.MethodPost)
+		router.Handle(handlers.DecisionEventWebhookPath, recoveringEventsWebhook(getSecret, func(secret string) http.Handler {
+			return handlers.DecisionResolvedWebhook(deps.SupervisionService, deps.Orchestrator, secret, deps.DecisionEffects...)
+		})).Methods(http.MethodPost)
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				if err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+handlers.ProgramEventWebhookPath); err != nil {
-					obs.Component("routes").Warn("program-runtime event subscription reconciliation failed", obs.KeyError, err.Error())
-				}
-				if err := ReconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+handlers.DecisionEventWebhookPath); err != nil {
-					obs.Component("routes").Warn("decision answer event subscription reconciliation failed", obs.KeyError, err.Error())
-				}
-			}()
+			go retryEventSubscriptions(context.Background(), 30*time.Second,
+				func(ctx context.Context) error {
+					err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+handlers.ProgramEventWebhookPath)
+					if err != nil {
+						obs.Component("routes").Warn("program-runtime event subscription reconciliation failed; will retry", obs.KeyError, err.Error())
+					}
+					return err
+				},
+				func(ctx context.Context) error {
+					err := ReconcileDecisionEventSubscription(ctx, "http://127.0.0.1:"+port+handlers.DecisionEventWebhookPath)
+					if err != nil {
+						obs.Component("routes").Warn("decision answer event subscription reconciliation failed; will retry", obs.KeyError, err.Error())
+					}
+					return err
+				},
+			)
 		}
 	}
 	if deps.CapabilityRegistry != nil {

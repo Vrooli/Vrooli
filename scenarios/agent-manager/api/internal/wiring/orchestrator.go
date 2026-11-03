@@ -240,7 +240,7 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 
 	modelResolver, probeCfg := modelHealthProbeConfig(registry, bootLog)
 	eventRepo := eventlog.NewSQLiteRepository(db)
-	supervisionService, supervisionScheduler, err := wireSupervision(db, repos, orch, eventRepo, awaitRegistry, quotaObservationStore, receiptsClient)
+	supervisionService, supervisionScheduler, err := wireSupervision(db, repos, orch, eventRepo, awaitRegistry, quotaObservationStore)
 	if err != nil {
 		return OrchestratorDependencies{}, err
 	}
@@ -277,8 +277,10 @@ func NewOrchestrator(db *database.DB, hub *handlers.WebSocketHub, logger *logrus
 	}
 	interventionStore, interventionClassifier := interventions.NewStore(db), interventions.NewClassifier()
 	usageModeNotifier.Quality = interventions.ModeQuality{Store: interventionStore, Gate: interventions.ProvenSignalGate, Measured: interventions.SignalHoldout}
-	interventionJob := &interventions.Job{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Log: obs.Component("interventions"),
-		Signals: &interventions.SignalJob{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Enabled: interventions.SignalsEnabled, Log: obs.Component("operator-signals")}}
+	interventionJob := &interventions.Job{
+		Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Log: obs.Component("interventions"),
+		Signals: &interventions.SignalJob{Store: interventionStore, Events: eventStore, Classifier: interventionClassifier, Enabled: interventions.SignalsEnabled, Log: obs.Component("operator-signals")},
+	}
 	bootLog.Info("orchestrator initialized", "storage", "sqlite", "sandbox", sandboxURL)
 	return OrchestratorDependencies{OwnerIdentity: ownerIdentity, Orchestrator: orch, StatsRepository: repos.Stats, PricingService: pricingService, PricingRepository: pricingRepository, Reconciler: reconciler, AwaitRegistry: awaitRegistry, WorkflowNudger: workflowNudger, TranscriptImporter: newTranscriptIndex(orch, repos.TranscriptIndex, runStateResolver, levers), ClaudeQuotaFeed: &pricing.ClaudeStatuslineReader{Path: pricing.DefaultClaudeStatuslineSamplesPath(), Store: quotaObservationStore}, UsageAlerts: usageAlerts, UsageModes: usageModes, UsageModeNotifier: usageModeNotifier, Interventions: interventionJob, OutcomeLedger: &outcomeledger.Job{Store: database.NewRunLedgerRepository(db, orch.TranscriptParserVersion)}, ModelHealthProbe: NewModelHealthProbe(healthStore, nil, modelResolver, probeCfg), ModelPolicyDrift: modelPolicyDrift, DecisionPublisher: decisionPublisher, RolePolicyState: roleState, PermissionPolicyState: permissionState, PermissionPolicy: permissionPolicy, HealthStore: healthStore, EventRepository: eventRepo, SupervisionService: supervisionService, SupervisionScheduler: supervisionScheduler, WatchActionAuthorizer: actionAuthorizer, InvocationReadModel: repos.InvocationReadModel, WorkspaceSandbox: sandboxProvider}, nil
 }
@@ -397,7 +399,7 @@ func modelHealthProbeConfig(registry *runner.DefaultRegistry, bootLog *slog.Logg
 
 // wireSupervision assembles the cohort supervision service, its policy store,
 // scheduler and effort service, and registers its await waiter.
-func wireSupervision(db *database.DB, repos *database.Repositories, orch *orchestration.Orchestrator, eventRepo *eventlog.SQLiteRepository, awaitRegistry *orchestration.AwaitRegistry, quotaObservationStore pricing.QuotaObservationRepository, receiptsClient eventbus.Client) (*supervision.Service, *supervision.Scheduler, error) {
+func wireSupervision(db *database.DB, repos *database.Repositories, orch *orchestration.Orchestrator, eventRepo *eventlog.SQLiteRepository, awaitRegistry *orchestration.AwaitRegistry, quotaObservationStore pricing.QuotaObservationRepository) (*supervision.Service, *supervision.Scheduler, error) {
 	supervisionRepo := supervision.NewRepository(db)
 	supervisionPolicies := supervision.NewPolicyStore(db, supervision.NewSourceLedgerOutcomeSink())
 	if _, err := supervisionPolicies.EnsureInitialActive(context.Background(), supervision.DefaultSupervisionPolicy(), "agent-manager-bootstrap"); err != nil {
@@ -431,10 +433,10 @@ func wireSupervision(db *database.DB, repos *database.Repositories, orch *orches
 	supervisionService.Efforts.SetSpendReader(orch)
 	orch.SetGoalHomeParkSource(supervisionService.Efforts)
 	orch.SetDeliveryEfforts(supervisionService.Efforts)
-	if receiptsClient.Enabled() {
-		// Operator decisions (DL-5) publish decision_requested events here.
-		supervisionService.Efforts.SetDecisionPublisher(receiptsClient)
-	}
+	// Decision publication must recover when Events appears after startup.
+	// A disabled eventbus.Client is an intentional no-op for optional telemetry,
+	// but it must not be mistaken for a delivered operator decision.
+	supervisionService.Efforts.SetDecisionPublisher(newDecisionPublisher())
 	supervisionScheduler.SetEffortService(supervisionService.Efforts)
 	supervisionService.SetSchedulerKick(supervisionScheduler.Kick)
 	awaitRegistry.RegisterWaiter(orchestration.NewSupervisionWaiter(supervisionService))

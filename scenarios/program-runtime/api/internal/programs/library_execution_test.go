@@ -458,7 +458,7 @@ func TestImprovementEvidenceComposesOwnerPrograms(t *testing.T) {
 		}
 		specs = append(specs, LibrarySpec{Name: entry.scenario + "." + entry.name, Scenario: entry.scenario, Contract: true, Current: true, Version: 1, Source: string(source), Declaration: declaration, Digest: strings.Repeat("a", 64)})
 	}
-	for _, mode := range []string{"success", "evidence-unavailable", "attention-unavailable"} {
+	for _, mode := range []string{"success", "evidence-unavailable", "attention-unavailable", "accounting-unavailable"} {
 		t.Run(mode, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.HasSuffix(r.URL.Path, "/reachability") {
@@ -471,7 +471,7 @@ func TestImprovementEvidenceComposesOwnerPrograms(t *testing.T) {
 					return
 				}
 				id, _ := req["binding_id"].(string)
-				if mode == "evidence-unavailable" && strings.HasPrefix(id, "agent-manager/") || mode == "attention-unavailable" && strings.HasPrefix(id, "visited-tracker/") {
+				if mode == "evidence-unavailable" && strings.HasPrefix(id, "agent-manager/") || mode == "accounting-unavailable" && id == "agent-manager/run/accounting" || mode == "attention-unavailable" && strings.HasPrefix(id, "visited-tracker/") {
 					http.Error(w, "connection refused", 503)
 					return
 				}
@@ -481,6 +481,8 @@ func TestImprovementEvidenceComposesOwnerPrograms(t *testing.T) {
 					fmt.Fprint(w, `{"candidates":[{"fileId":"file","path":"consumer.py","revision":"abc","score":10}],"observedAt":"2026-09-06T12:00:00Z","campaignRevision":"1"}`)
 				case "agent-manager/run/report":
 					fmt.Fprint(w, `{"status":"failed","exitCode":1,"eventsAvailability":{"state":"available"},"receiptsAvailability":{"state":"available"},"tools":[],"workReferences":[]}`)
+				case "agent-manager/run/accounting":
+					fmt.Fprint(w, `{"terminal":true,"tokensKnown":true,"nonCacheTokens":"42","cacheReadTokens":"100","chargeMeasured":false}`)
 				default:
 					http.Error(w, "unexpected binding", 400)
 				}
@@ -489,6 +491,7 @@ func TestImprovementEvidenceComposesOwnerPrograms(t *testing.T) {
 			runner := libraryTestRunner(t, specs, []BindingSpec{
 				{ID: "visited-tracker/attention/preview", Scenario: "visited-tracker", Group: "attention", Command: "preview", Effect: "read", Reachable: true, RowsField: "candidates"},
 				{ID: "agent-manager/run/report", Scenario: "agent-manager", Group: "run", Command: "report", Effect: "read", Reachable: true, MetaFields: []string{"status", "exitCode", "eventsAvailability", "receiptsAvailability"}, RowFieldCandidates: []string{"tools", "workReferences"}},
+				{ID: "agent-manager/run/accounting", Scenario: "agent-manager", Group: "run", Command: "accounting", Effect: "read", Reachable: true, MetaFields: []string{"terminal", "tokensKnown", "nonCacheTokens", "cacheReadTokens", "chargeMeasured"}},
 			}, server.URL+"/execute")
 			expected := "ok"
 			if mode != "success" {
@@ -569,5 +572,174 @@ assert "value that must not be printed" not in json.dumps(result)
 print("bounded scoped fanout verified")`)
 	if err != nil || !strings.Contains(result.Stdout, "bounded scoped fanout verified") || calls.Load() != 3 {
 		t.Fatalf("result=%+v calls=%d err=%v", result, calls.Load(), err)
+	}
+}
+
+func TestInvestigationEvidencePreservesUsageAndUnknowns(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Join(root, "scenarios", "agent-manager", ".vrooli", "program-runtime", "investigation-evidence")
+	source, err := os.ReadFile(base + ".py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	declaration, err := os.ReadFile(base + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := LibrarySpec{Name: "agent-manager.investigation-evidence", Scenario: "agent-manager", Contract: true, Current: true, Version: 1, Source: string(source), Declaration: declaration, Digest: strings.Repeat("a", 64)}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/reachability") {
+			fmt.Fprint(w, `{"agent-manager":{"reachable":true}}`)
+			return
+		}
+		var req map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if req["binding_id"] == "agent-manager/run/accounting" {
+			fmt.Fprint(w, `{"terminal":true,"tokensKnown":false,"nonCacheTokens":"42","cacheReadTokens":"100","chargeMeasured":false}`)
+			return
+		}
+		fmt.Fprint(w, `{"status":"complete","durationMs":"1200","longestEventGapMs":"500","repeatedToolCalls":3,"tokens":"42","timeAccounting":{"toolExecutingMs":"200"},"eventsAvailability":{"state":"available"},"receiptsAvailability":{"state":"unobserved"},"tools":[],"workReferences":[]}`)
+	}))
+	defer server.Close()
+	runner := libraryTestRunner(t, []LibrarySpec{spec}, []BindingSpec{{ID: "agent-manager/run/report", Scenario: "agent-manager", Group: "run", Command: "report", Effect: "read", Reachable: true, MetaFields: []string{"status", "durationMs", "longestEventGapMs", "repeatedToolCalls", "tokens", "timeAccounting", "eventsAvailability", "receiptsAvailability"}, RowFieldCandidates: []string{"tools", "workReferences"}}, {ID: "agent-manager/run/accounting", Scenario: "agent-manager", Group: "run", Command: "accounting", Effect: "read", Reachable: true, MetaFields: []string{"terminal", "tokensKnown", "nonCacheTokens", "cacheReadTokens", "chargeMeasured"}}}, server.URL+"/execute")
+	result, err := runLibraryTest(t, runner, `r=lib.agent_manager.investigation_evidence(run_ids=["run"]).head(1)[0]
+assert r["status"] == "partial", r
+s=r["signals"]["subjects"][0]
+a=s["report"]
+assert a["duration_ms"] == "1200" and a["repeated_tool_calls"] == 3, a
+assert a["reported_tokens"] == "42", a
+assert s["accounting"]["tokensKnown"] is False and s["accounting"]["nonCacheTokens"] == "42", s
+assert s["accounting"]["chargeMeasured"] is False, s
+assert a["time_accounting"]["toolExecutingMs"] == "200" and a["time_accounting"]["idleWaitingMs"] is None, a
+assert s["source_freshness"] == "unknown" and s["report_availability"] == "partial", s
+print("supervision evidence verified")`)
+	if err != nil || !strings.Contains(result.Stdout, "supervision evidence verified") {
+		t.Fatalf("result=%+v err=%v", result, err)
+	}
+}
+
+func TestInvestigationEvidenceKeepsEitherAvailableProjection(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Join(root, "scenarios", "agent-manager", ".vrooli", "program-runtime", "investigation-evidence")
+	source, err := os.ReadFile(base + ".py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	declaration, err := os.ReadFile(base + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := LibrarySpec{Name: "agent-manager.investigation-evidence", Scenario: "agent-manager", Contract: true, Current: true, Version: 1, Source: string(source), Declaration: declaration, Digest: strings.Repeat("a", 64)}
+	for _, mode := range []string{"report-missing", "accounting-missing", "both-missing", "both-present"} {
+		t.Run(mode, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/reachability") {
+					fmt.Fprint(w, `{"agent-manager":{"reachable":true}}`)
+					return
+				}
+				var req map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					http.Error(w, err.Error(), 400)
+					return
+				}
+				id, _ := req["binding_id"].(string)
+				if mode == "both-missing" || mode == "report-missing" && id == "agent-manager/run/report" || mode == "accounting-missing" && id == "agent-manager/run/accounting" {
+					http.Error(w, "unavailable", 503)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if id == "agent-manager/run/accounting" {
+					fmt.Fprint(w, `{"terminal":true,"tokensKnown":true,"nonCacheTokens":"42"}`)
+					return
+				}
+				fmt.Fprint(w, `{"status":"complete","eventsAvailability":{"state":"available"},"receiptsAvailability":{"state":"available"},"tools":[],"workReferences":[]}`)
+			}))
+			defer server.Close()
+			bindings := []BindingSpec{{ID: "agent-manager/run/report", Scenario: "agent-manager", Group: "run", Command: "report", Effect: "read", Reachable: true, MetaFields: []string{"status", "eventsAvailability", "receiptsAvailability"}, RowFieldCandidates: []string{"tools", "workReferences"}}, {ID: "agent-manager/run/accounting", Scenario: "agent-manager", Group: "run", Command: "accounting", Effect: "read", Reachable: true, MetaFields: []string{"terminal", "tokensKnown", "nonCacheTokens"}}}
+			runner := libraryTestRunner(t, []LibrarySpec{spec}, bindings, server.URL+"/execute")
+			source := fmt.Sprintf(`r=lib.agent_manager.investigation_evidence(run_ids=["run"]).head(1)[0]
+mode=%q
+s=r["signals"]["subjects"][0]
+if mode == "both-present":
+ assert r["status"] == "ok" and s["availability"] == "complete", r
+elif mode == "both-missing":
+ assert r["status"] == "unavailable" and r["signals"]["available"] == 0 and s["availability"] == "unknown", r
+else:
+ assert r["status"] == "partial" and r["signals"]["available"] == 1 and s["availability"] == "partial", r
+ if mode == "report-missing": assert s["accounting"]["nonCacheTokens"] == "42" and s["report_availability"] == "unknown", s
+ if mode == "accounting-missing": assert s["report"]["status"] == "complete" and s["accounting_availability"] == "unknown", s
+print("partial evidence preserved")`, mode)
+			result, err := runLibraryTest(t, runner, source)
+			if err != nil || !strings.Contains(result.Stdout, "partial evidence preserved") {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+		})
+	}
+}
+
+func TestNativeThreadStateRequiresMatchingUniqueSubjects(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := filepath.Join(root, "scenarios", "web-console", ".vrooli", "program-runtime", "native-thread-state")
+	source, err := os.ReadFile(base + ".py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	declaration, err := os.ReadFile(base + ".json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := LibrarySpec{Name: "web-console.native-thread-state", Scenario: "web-console", Contract: true, Current: true, Version: 1, Source: string(source), Declaration: declaration, Digest: strings.Repeat("a", 64)}
+	for _, mode := range []string{"valid", "duplicate", "wrong", "missing", "unavailable"} {
+		t.Run(mode, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.HasSuffix(r.URL.Path, "/reachability") {
+					fmt.Fprint(w, `{"web-console":{"reachable":true}}`)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				switch mode {
+				case "valid":
+					fmt.Fprint(w, `{"threads":[{"threadId":"b","status":"idle","goalAvailable":true},{"threadId":"a","status":"active","goalAvailable":true}]}`)
+				case "duplicate":
+					fmt.Fprint(w, `{"threads":[{"threadId":"a","status":"active","goalAvailable":true},{"threadId":"a","status":"active","goalAvailable":true}]}`)
+				case "wrong":
+					fmt.Fprint(w, `{"threads":[{"threadId":"a","status":"active","goalAvailable":true},{"threadId":"c","status":"active","goalAvailable":true}]}`)
+				case "missing":
+					fmt.Fprint(w, `{"threads":[{"threadId":"a","status":"active","goalAvailable":true}]}`)
+				case "unavailable":
+					fmt.Fprint(w, `{"threads":[{"threadId":"a","status":"active","goalAvailable":true},{"threadId":"b","status":"unavailable"}]}`)
+				}
+			}))
+			defer server.Close()
+			runner := libraryTestRunner(t, []LibrarySpec{spec}, []BindingSpec{{ID: "web-console/session/native-thread-state", Scenario: "web-console", Group: "session", Command: "native-thread-state", Effect: "read", Reachable: true, RowsField: "threads"}}, server.URL+"/execute")
+			script := fmt.Sprintf(`r=lib.web_console.native_thread_state(session_id="session",threads=["a","b"]).head(1)[0]
+mode=%q
+rows=r["signals"]["threads"]
+assert [x["threadId"] for x in rows] == ["a","b"], r
+if mode == "valid": assert r["status"] == "ok" and not r["errors"], r
+else:
+ assert r["status"] == "partial", r
+ if mode in ("duplicate","wrong","missing"): assert any(x["class"] == "invalid_response" for x in r["errors"]), r
+ if mode == "duplicate": assert rows[0]["status"] == "unavailable", r
+ if mode in ("wrong","missing"): assert rows[1]["status"] == "unavailable" and rows[0]["status"] == "active", r
+print("native identities verified")`, mode)
+			result, err := runLibraryTest(t, runner, script)
+			if err != nil || !strings.Contains(result.Stdout, "native identities verified") {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+		})
 	}
 }

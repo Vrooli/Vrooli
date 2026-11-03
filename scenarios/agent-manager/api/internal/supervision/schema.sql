@@ -299,6 +299,11 @@ CREATE TABLE IF NOT EXISTS supervision_effort_decisions (
 );
 CREATE INDEX IF NOT EXISTS idx_supervision_effort_decisions_event ON supervision_effort_decisions(event_id);
 CREATE INDEX IF NOT EXISTS idx_supervision_effort_decisions_effort ON supervision_effort_decisions(effort_ref);
+-- Publication sweep checkpoints are independent from client-facing list cursors.
+CREATE TABLE IF NOT EXISTS supervision_decision_publication_cursor (
+    singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+    cursor_json TEXT NOT NULL
+);
 
 -- Protected exact-action setup is inert until independent owner approval and
 -- pinned-key activation. Schema installation creates no keys/grants/identities.

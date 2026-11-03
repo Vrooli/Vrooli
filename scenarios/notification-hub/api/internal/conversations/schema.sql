@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS asks (
   resolution_published_at TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
+-- Continue a bounded outbox sweep even when older resolutions keep failing.
+CREATE TABLE IF NOT EXISTS resolution_outbox_cursor (
+  singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+  resolved_at TEXT NOT NULL,
+  ask_id TEXT NOT NULL
+);
 -- Empty requester_ref values predate event identity and remain outside this
 -- constraint. Nonempty identities must be owned by exactly one Ask, even when
 -- concurrent producers choose different notification recipients/keys.

@@ -92,7 +92,7 @@ them, so no import-graph edge should be expected as evidence.
 
 ## Event Subscription Reconciliation
 
-At startup the API reconciles three named subscriptions in `vrooli-events`,
+The API continuously reconciles named subscriptions in `vrooli-events`,
 all delivered to `POST /api/v1/integrations/events`:
 
 | Name | Pattern | Purpose |

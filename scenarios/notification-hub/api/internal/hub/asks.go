@@ -961,35 +961,53 @@ func (s *Service) PublishPendingResolutions(ctx context.Context) error {
 	}
 	s.resolutions.drain.Lock()
 	defer s.resolutions.drain.Unlock()
-	rows, err := s.db.QueryContext(ctx, `SELECT id FROM asks WHERE resolved_at != '' AND resolution_published_at = '' ORDER BY resolved_at ASC LIMIT 50`)
+	var afterTime, afterID string
+	err := s.db.QueryRowContext(ctx, `SELECT resolved_at, ask_id FROM resolution_outbox_cursor WHERE singleton=1`).Scan(&afterTime, &afterID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id, resolved_at FROM asks WHERE resolved_at != '' AND resolution_published_at = '' AND (?='' OR resolved_at > ? OR (resolved_at=? AND id>?)) ORDER BY resolved_at ASC, id ASC LIMIT 50`, afterTime, afterTime, afterTime, afterID)
 	if err != nil {
 		return err
 	}
 	var ids []string
+	lastTime := ""
 	for rows.Next() {
-		var id string
-		if scanErr := rows.Scan(&id); scanErr != nil {
+		var id, resolved string
+		if scanErr := rows.Scan(&id, &resolved); scanErr != nil {
 			rows.Close()
 			return scanErr
 		}
 		ids = append(ids, id)
+		lastTime = resolved
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
 	}
 	if err := rows.Close(); err != nil {
 		return err
 	}
+	var publishErrors []error
 	for _, id := range ids {
 		record, err := s.GetAsk(ctx, id)
 		if err != nil {
 			return err
 		}
 		if err := publisher.PublishDomainEvent(ctx, AskResolvedEvent(record)); err != nil {
-			return fmt.Errorf("publish %s for ask %s: %w", AskResolvedEventType, id, err)
+			publishErrors = append(publishErrors, fmt.Errorf("publish %s for ask %s: %w", AskResolvedEventType, id, err))
+			continue
 		}
 		if _, err := s.db.ExecContext(ctx, `UPDATE asks SET resolution_published_at=? WHERE id=? AND resolved_at=?`, s.clock.Now().UTC().Format(time.RFC3339Nano), id, record.ResolvedAt); err != nil {
 			return err
 		}
 	}
-	return nil
+	if len(ids) == 50 {
+		_, err = s.db.ExecContext(ctx, `INSERT INTO resolution_outbox_cursor(singleton, resolved_at, ask_id) VALUES(1,?,?) ON CONFLICT(singleton) DO UPDATE SET resolved_at=excluded.resolved_at, ask_id=excluded.ask_id`, lastTime, ids[len(ids)-1])
+	} else {
+		_, err = s.db.ExecContext(ctx, `DELETE FROM resolution_outbox_cursor WHERE singleton=1`)
+	}
+	return errors.Join(append(publishErrors, err)...)
 }
 
 // AskResolvedEvent is the requester notification for one resolution. The

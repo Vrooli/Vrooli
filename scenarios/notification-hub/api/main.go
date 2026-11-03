@@ -226,31 +226,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("event integration config initialization failed: %v", err)
 	}
-	if err := integrations.EnsureEventSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL, eventConfig.Get().Pattern); err != nil {
-		slog.Error("vrooli-events subscription reconciliation failed", "error", err)
-	} else {
-		slog.Info("vrooli-events subscription reconciled", "pattern", eventConfig.Get().Pattern)
+	// A missing Events service at startup is transient. Rediscover an absent
+	// default and maintain each subscription independently; never replace an
+	// explicitly configured endpoint with an inferred one.
+	eventsBase := func(ctx context.Context) string {
+		if base := eventConfig.Get().EventsAPIBase; base != "" {
+			return base
+		}
+		base, _ := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+		return base
 	}
-	if err := integrations.EnsureDecisionSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
-		slog.Error("vrooli-events decision subscription reconciliation failed", "error", err)
-	} else {
-		slog.Info("vrooli-events decision subscription reconciled", "pattern", integrations.DecisionRequestPattern)
-	}
-	if err := integrations.EnsureDecisionWithdrawalSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
-		slog.Error("vrooli-events decision-withdrawal subscription reconciliation failed", "error", err)
-	} else {
-		slog.Info("vrooli-events decision-withdrawal subscription reconciled", "pattern", integrations.DecisionWithdrawalPattern)
-	}
-	if err := integrations.EnsureNotificationSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
-		slog.Error("vrooli-events notification subscription reconciliation failed", "error", err)
-	} else {
-		slog.Info("vrooli-events notification subscription reconciled", "pattern", integrations.NotificationRequestPattern)
-	}
-	if err := integrations.EnsureHeartbeatAttemptSubscription(context.Background(), eventConfig.Get().EventsAPIBase, eventConfig.Get().WebhookURL); err != nil {
-		slog.Error("vrooli-events prompt-manager heartbeat subscription reconciliation failed", "error", err)
-	} else {
-		slog.Info("vrooli-events prompt-manager heartbeat subscription reconciled", "pattern", integrations.HeartbeatAttemptEventPattern)
-	}
+	go integrations.RetrySubscriptions(context.Background(), 30*time.Second, func(ctx context.Context, kind string) error {
+		config := eventConfig.Get()
+		base := eventsBase(ctx)
+		var err error
+		switch kind {
+		case "incident":
+			err = integrations.EnsureEventSubscription(ctx, base, config.WebhookURL, config.Pattern)
+		case "decision":
+			err = integrations.EnsureDecisionSubscription(ctx, base, config.WebhookURL)
+		case "withdrawal":
+			err = integrations.EnsureDecisionWithdrawalSubscription(ctx, base, config.WebhookURL)
+		case "notification":
+			err = integrations.EnsureNotificationSubscription(ctx, base, config.WebhookURL)
+		case "heartbeat":
+			err = integrations.EnsureHeartbeatAttemptSubscription(ctx, base, config.WebhookURL)
+		}
+		if err != nil {
+			slog.Warn("vrooli-events subscription reconciliation failed; will retry", "kind", kind, "error", err)
+		}
+		return err
+	}, "incident", "decision", "withdrawal", "notification", "heartbeat")
 	// The webhook verifies with the publisher's own signing secret: the
 	// environment override, then the credential authority. The value is
 	// never logged.
@@ -260,7 +266,7 @@ func main() {
 		slog.Warn("vrooli-events webhook secret unavailable; signed event deliveries are rejected until it resolves", "error", err)
 	})
 	slog.Info("vrooli-events webhook secret", "resolved", webhookSecret() != "")
-	service.SetResolutionPublisher(integrations.EventsPublisher{BaseURL: func() string { return eventConfig.Get().EventsAPIBase }})
+	service.SetResolutionPublisher(integrations.EventsPublisher{BaseURL: func() string { return eventsBase(context.Background()) }})
 	configureAskDefaultFloor(service)
 
 	srv := server.New(

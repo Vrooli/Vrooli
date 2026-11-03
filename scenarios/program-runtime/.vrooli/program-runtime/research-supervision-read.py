@@ -10,17 +10,33 @@ def step_validate():
     threads = inputs.get("threads", [])
     runs = inputs.get("run_ids", [])
     session = inputs.get("session_id", "")
+    effort = inputs.get("effort_ref", "")
+    research_root = inputs.get("research_root", "")
+    decision_token = inputs.get("decision_page_token", "")
+    include_board = inputs.get("include_effort_board", False)
     cursors = inputs.get("event_cursors", {})
     for label, values, maximum in (("threads", threads, 16), ("run_ids", runs, 8)):
         if not isinstance(values, list) or len(values) > maximum or any(not isinstance(x, str) or not x.strip() or len(x) > 128 for x in values) or len(set(values)) != len(values):
             return program.fail("failed", "invalid_input", label + " must be a bounded list of unique nonempty IDs", "validate")
-    if not threads and not runs:
-        return program.fail("failed", "invalid_input", "provide at least one explicit thread or run ID", "validate")
+    if not isinstance(effort, str) or len(effort) > 512:
+        return program.fail("failed", "invalid_input", "effort_ref must be a bounded string", "validate")
+    if not isinstance(research_root, str) or len(research_root) > 1024:
+        return program.fail("failed", "invalid_input", "research_root must be a bounded string", "validate")
+    if not isinstance(decision_token, str) or len(decision_token) > 4096 or not isinstance(include_board, bool) or ((decision_token or include_board) and not effort.strip()):
+        return program.fail("failed", "invalid_input", "decision continuation and board review require an effort_ref", "validate")
+    if not threads and not runs and not effort.strip() and not research_root.strip():
+        return program.fail("failed", "invalid_input", "provide at least one explicit thread, run ID, effort reference or research root", "validate")
     if threads and (not isinstance(session, str) or not session.strip() or len(session) > 256):
         return program.fail("failed", "invalid_input", "threads require a bounded authorized session_id", "validate")
     if not isinstance(cursors, dict) or any(key not in runs or (value is not None and (isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 9223372036854775807)) for key, value in cursors.items()):
         return program.fail("failed", "invalid_input", "event_cursors must map selected run IDs to nonnegative int64 sequences or null", "validate")
     envelope["inputs"] = {"threads": list(threads), "run_ids": list(runs), "event_cursors": dict(cursors)}
+    if effort:
+        envelope["inputs"]["effort_ref"] = effort
+        envelope["inputs"]["decision_page_token"] = decision_token
+        envelope["inputs"]["include_effort_board"] = include_board
+    if research_root:
+        envelope["inputs"]["research_root"] = research_root
     if threads:
         envelope["inputs"]["session_id"] = session
     return "collect"
@@ -115,6 +131,12 @@ def step_collect():
         envelope["signals"]["sources"]["run_evidence"] = {"status": "not_requested"}
     if envelope["inputs"]["event_cursors"]:
         read_event_pages(envelope["inputs"]["event_cursors"])
+    if envelope["inputs"].get("effort_ref"):
+        read_child("attention_delivery", lambda: lib.program_runtime.research_attention_delivery(effort_ref=envelope["inputs"]["effort_ref"], decision_page_token=envelope["inputs"]["decision_page_token"], include_board=envelope["inputs"]["include_effort_board"]))
+    if envelope["inputs"].get("research_root"):
+        read_child("attention_index", lambda: lib.program_runtime.research_attention_index(research_root=envelope["inputs"]["research_root"]))
+    else:
+        envelope["signals"]["sources"]["attention_index"] = {"status": "not_requested"}
     sources = envelope["signals"]["sources"].values()
     envelope["status"] = "ok" if all(source["status"] == "ok" for source in sources) else "partial"
     return "report"
@@ -141,11 +163,33 @@ def step_report():
             continue
         report = row.get("report") if isinstance(row.get("report"), dict) else {}
         status = report.get("status")
-        if isinstance(status, str) and status.lower() in ("failed", "cancelled"):
+        if isinstance(status, str) and status.lower() in ("complete", "completed", "failed", "cancelled"):
             attention.append({"source": "run_evidence", "subject": row.get("run_id", ""), "signal": "run_" + status.lower(), "freshness": row.get("source_freshness", "unknown")})
     for page in sources.get("event_pages", {}).get("pages", []):
         if page.get("has_more") is True:
             attention.append({"source": "event_pages", "subject": page.get("run_id", ""), "signal": "event_backlog"})
+    delivery = sources.get("attention_delivery", {})
+    if delivery and delivery.get("status") in ("unknown", "unavailable", "failed", "refused"):
+        attention.append({"source": "attention_delivery", "subject": envelope["inputs"].get("effort_ref", ""), "signal": "delivery_review_unavailable"})
+    for item in delivery.get("signals", {}).get("items", []):
+        if item.get("delivery") not in ("not_pending",) and not item.get("delivered_receipt"):
+            attention.append({"source": "attention_delivery", "subject": item.get("decision_id", ""), "signal": item.get("delivery", "unknown")})
+        if item.get("resolution"):
+            attention.append({"source": "attention_delivery", "subject": item.get("decision_id", ""), "signal": item["resolution"]})
+    index = sources.get("attention_index", {})
+    if index:
+        if index.get("status") != "ok":
+            signal = "index_not_requested" if index.get("status") == "not_requested" else "index_unavailable"
+            attention.append({"source": "attention_index", "subject": "", "signal": signal})
+        else:
+            items = delivery.get("signals", {}).get("items", [])
+            by_id = {item.get("decision_id"): item for item in items if isinstance(item, dict)}
+            for item_id in index.get("signals", {}).get("actionable_ids", []):
+                decision = by_id.get(item_id)
+                if decision is None:
+                    attention.append({"source": "attention_index", "subject": item_id, "signal": "decision_unlinked_or_unobserved"})
+                elif decision.get("delivery") == "not_pending":
+                    attention.append({"source": "attention_index", "subject": item_id, "signal": "decision_not_pending"})
     envelope["signals"]["attention"] = attention
     # print adds one newline to the captured output.
     limit = 65535
