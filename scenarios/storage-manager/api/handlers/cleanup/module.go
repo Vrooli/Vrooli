@@ -380,6 +380,7 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		InstanceLiveness:          hostfs.NewInstanceRegistryLiveness(scenarioProcessRecordsRoot(home)),
 		InstanceNamespaceRoots:    instanceNamespaceRoots(),
 		KnownScenarios:            knownScenarioSlugs(repoRoot),
+		HarnessResourceRoot:       repoRoot,
 		InstanceStorageQuarantine: filepath.Join(home, ".vrooli", "state", "storage-manager", "quarantine", "instances"),
 	})
 	if err != nil {

@@ -2,6 +2,17 @@
 
 ## Open Issues
 
+## Work ladder
+
+- Rung: W3, localized delivery recovery implementation.
+- Evidence: event admission queues only subscriptions present at admission; a
+  newly restored subscriber previously had no row for the retained event, and
+  dead-letter retry requires an existing row. The exact-event reconciliation
+  operation adds the missing row without replacing delivery history. General
+  historical replay remains deferred below.
+- Validation: targeted API race tests and the scoped Test Genie unit run.
+- Measured: 2026-11-03.
+
 ### P1 — Policy engine complete except runtime rate limit counters
 Access control rules, CRUD API, evaluation engine, violation logging, circuit breaker manual override, and SSE policy push channel are all implemented. Still missing: runtime rate limit counter enforcement (in-memory sliding window).
 

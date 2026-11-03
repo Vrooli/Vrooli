@@ -96,20 +96,20 @@ describe('shared runtime surfaces', () => {
 
   it('falls back to OS preference and honors preference change events', async () => {
     localStorage.setItem('system-monitor-theme', 'invalid');
-    let handler: ((event: MediaQueryListEvent) => void) | undefined;
+    let handler: ((event: Pick<MediaQueryListEvent, 'matches'>) => void) | undefined;
     Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => ({
       matches: true,
-      addEventListener: (_name: string, callback: (event: MediaQueryListEvent) => void) => { handler = callback; },
+      addEventListener: (_name: string, callback: (event: Pick<MediaQueryListEvent, 'matches'>) => void) => { handler = callback; },
       removeEventListener: vi.fn(),
     }) });
     function ThemeValue() { return <span>{useTheme().theme}</span>; }
     render(<ThemeProvider><ThemeValue /></ThemeProvider>);
     expect(screen.getByText('light')).toBeInTheDocument();
     localStorage.removeItem('system-monitor-theme');
-    await act(async () => { handler?.({ matches: true } as MediaQueryListEvent); await Promise.resolve(); });
+    await act(async () => { handler?.({ matches: true }); await Promise.resolve(); });
     expect(screen.getByText('dark')).toBeInTheDocument();
     localStorage.setItem('system-monitor-theme', 'dark');
-    act(() => { handler?.({ matches: true } as MediaQueryListEvent); });
+    act(() => { handler?.({ matches: true }); });
     expect(screen.getByText('dark')).toBeInTheDocument();
     vi.unstubAllGlobals();
   });

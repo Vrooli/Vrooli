@@ -154,3 +154,28 @@ history, freshness, and pressure projections live in
 `api/internal/services/monitor_metricqueries.go`. Linux per-core baseline,
 counter-reset, and core-set behavior lives in `api/internal/collectors/platform_cpu_linux.go`
 so those observation rules can be tested without reading host procfs files.
+
+## Persistence projection seam
+
+`api/internal/repository/metric_projection.go` owns the API projection from a
+collector observation to `MetricsResponse` and `MetricState`. SQLite and memory
+repositories delegate to this projector so their storage encoding cannot drift
+into different field coverage or observation semantics. SQLite schema/setup
+stays in `repository.go`; cycle/history queries and record persistence are
+separate in `metrics.go` and `records.go`. The memory adapter separates cycle
+projection from record persistence in `repository.go` and `records.go`. The
+cross-backend contract test lives at `api/internal/repository/repository_conformance_test.go`.
+
+## Background service lifecycle
+
+`api/internal/services/service_loop.go` owns the shared stopped → running →
+stopping → stopped lifecycle for restartable background loops. Alert evaluation
+and scheduled retention provide only their loop bodies; the helper enforces one
+active generation, cancellation, join receipts, and safe restart after exit.
+Services with additional owned work, such as threshold recovery waiters, retain
+their specialized shutdown coordination around their own lifecycle.
+
+`ReportService` passes the request context through time-range discovery,
+historical reads, and report persistence. Daily and weekly windows share one
+start-time selector; unavailable history falls back to the requested window,
+while cancellation stops report generation.

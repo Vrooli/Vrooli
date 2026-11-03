@@ -1,6 +1,6 @@
 module github.com/vrooli/vrooli/scenarios/vrooli-events/api
 
-go 1.25.0
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.19.2
@@ -14,7 +14,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -29,8 +29,8 @@ require (
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
 	github.com/vrooli/vrooli v0.0.0-00010101000000-000000000000 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

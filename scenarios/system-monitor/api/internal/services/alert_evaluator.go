@@ -129,8 +129,7 @@ type AlertEvaluator struct {
 	evaluatedAt time.Time
 
 	evaluated chan struct{}
-	cancel    context.CancelFunc
-	done      chan struct{}
+	lifecycle serviceLoop
 }
 
 // AlertEvaluatorOption configures an AlertEvaluator.
@@ -207,11 +206,7 @@ func (e *AlertEvaluator) interval() time.Duration {
 
 // Start launches the evaluation loop on the threshold-check interval.
 func (e *AlertEvaluator) Start() {
-	ctx, cancel := context.WithCancel(context.Background())
-	e.cancel = cancel
-	e.done = make(chan struct{})
-	go func() {
-		defer close(e.done)
+	e.lifecycle.Start(func(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
@@ -220,16 +215,18 @@ func (e *AlertEvaluator) Start() {
 				e.RunOnce(ctx)
 			}
 		}
-	}()
+	})
 }
 
 // Stop halts the loop and waits for it to exit.
 func (e *AlertEvaluator) Stop() {
-	if e.cancel == nil {
-		return
-	}
-	e.cancel()
-	<-e.done
+	_ = e.StopContext(context.Background())
+}
+
+// StopContext cancels the current evaluation and waits for its terminal
+// receipt. A context error reports that the in-flight evaluation is unresolved.
+func (e *AlertEvaluator) StopContext(ctx context.Context) error {
+	return e.lifecycle.Stop(ctx)
 }
 
 func stateKey(ruleID, key string) string { return ruleID + "\x00" + key }

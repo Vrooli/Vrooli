@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { renderWithProviders as render } from '../../test-utils/renderWithProviders';
 import { ReportBody, ReportInline } from './ReportBody';
 
+declare global {
+  interface Window {
+    __owned?: boolean;
+  }
+}
+
 describe('ReportBody', () => {
   it('renders nothing for empty or absent text', () => {
     const { container, rerender } = render(<ReportBody text="" />);
@@ -102,7 +108,7 @@ describe('ReportBody', () => {
     const { container } = render(<ReportBody text={payload} />);
     expect(container.querySelector('script')).toBeNull();
     expect(container.textContent).toContain('<script>window.__owned = true;</script>');
-    expect((window as unknown as Record<string, unknown>).__owned).toBeUndefined();
+    expect(window.__owned).toBeUndefined();
   });
 
   it('renders an <img onerror=...> payload as literal text and never as an element', () => {
@@ -113,7 +119,7 @@ describe('ReportBody', () => {
     expect(container.innerHTML).not.toContain('<img');
     expect(container.innerHTML).toContain('&lt;img src=x onerror=');
     expect(container.textContent).toContain('<img src=x onerror="window.__owned = true">');
-    expect((window as unknown as Record<string, unknown>).__owned).toBeUndefined();
+    expect(window.__owned).toBeUndefined();
   });
 
   it('escapes markup that arrives inside a fenced block', () => {

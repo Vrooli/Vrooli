@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { parseInline, parseReport, reportToPlainText, type ReportSpan } from './parseReport';
 
+type ParsedBlock = ReturnType<typeof parseReport>[number];
+
+function blockOfKind<Kind extends ParsedBlock['kind']>(
+  blocks: ParsedBlock[],
+  kind: Kind,
+): Extract<ParsedBlock, { kind: Kind }> {
+  const block = blocks.find((candidate): candidate is Extract<ParsedBlock, { kind: Kind }> => candidate.kind === kind);
+  if (!block) throw new Error(`Expected ${kind} report block`);
+  return block;
+}
+
 /** Flatten spans to the characters a reader would see. */
 function seen(spans: ReportSpan[]): string {
   return spans.map((span) => (span.type === 'strong' ? seen(span.spans) : span.text)).join('');
@@ -75,7 +86,7 @@ describe('parseReport', () => {
     const blocks = parseReport('**Scripts Executed**: \n- ran cpu-probe.sh\n- ran io-probe.sh');
     expect(blocks).toHaveLength(1);
     expect(blocks[0]).toMatchObject({ kind: 'field', label: 'Scripts Executed' });
-    const field = blocks[0] as Extract<(typeof blocks)[number], { kind: 'field' }>;
+    const field = blockOfKind(blocks, 'field');
     expect(field.items.map(seen)).toEqual(['ran cpu-probe.sh', 'ran io-probe.sh']);
   });
 
@@ -87,14 +98,14 @@ describe('parseReport', () => {
   it('reads headings and strips the bold the agent wraps them in', () => {
     const blocks = parseReport('### **Investigation Summary**');
     expect(blocks[0]).toMatchObject({ kind: 'heading', level: 3 });
-    const heading = blocks[0] as Extract<(typeof blocks)[number], { kind: 'heading' }>;
+    const heading = blockOfKind(blocks, 'heading');
     expect(seen(heading.spans)).toBe('Investigation Summary');
   });
 
   it('reads ordered list items', () => {
     const blocks = parseReport('1. first\n2) second');
     expect(blocks).toHaveLength(1);
-    const list = blocks[0] as Extract<(typeof blocks)[number], { kind: 'list' }>;
+    const list = blockOfKind(blocks, 'list');
     expect(list.items.map(seen)).toEqual(['first', 'second']);
   });
 
@@ -110,13 +121,13 @@ describe('parseReport', () => {
   it('keeps consecutive prose lines together and splits on a blank line', () => {
     const blocks = parseReport('line one\nline two\n\nline three');
     expect(blocks).toHaveLength(2);
-    const first = blocks[0] as Extract<(typeof blocks)[number], { kind: 'paragraph' }>;
+    const first = blockOfKind(blocks, 'paragraph');
     expect(first.lines.map(seen)).toEqual(['line one', 'line two']);
   });
 
   it('falls unrecognised syntax through as readable text instead of dropping it', () => {
     const blocks = parseReport('> a blockquote\n| a | table |\n[link](http://x)');
-    const paragraph = blocks[0] as Extract<(typeof blocks)[number], { kind: 'paragraph' }>;
+    const paragraph = blockOfKind(blocks, 'paragraph');
     expect(paragraph.lines.map(seen)).toEqual(['> a blockquote', '| a | table |', '[link](http://x)']);
   });
 

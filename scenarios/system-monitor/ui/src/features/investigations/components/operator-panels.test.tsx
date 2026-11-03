@@ -1,11 +1,14 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { InvestigationSchema, InvestigationStatus } from '@vrooli/proto-types/system-monitor/v1/investigations/investigations_pb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import type { Investigation, InvestigationScript } from '../../../types';
+import type { InvestigationScript } from '../../../types';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
 import { InvestigationsPanel } from './InvestigationsPanel';
+import { InvestigationScriptSchema } from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 const mocks = vi.hoisted(() => ({
   protoFetch: vi.fn(),
@@ -35,10 +38,10 @@ vi.mock('../../../shared/components/ToastProvider', () => ({
 const timestamp = timestampFromDate(new Date('2026-01-01T00:00:00Z'));
 
 const scripts: InvestigationScript[] = [
-  { id: 'disk-check', name: 'Disk check', description: 'Inspect disk pressure', category: 'storage', author: 'system', enabled: true, executionMode: 'native' },
-  { id: 'cpu-check', name: 'CPU check', description: 'Inspect CPU pressure', category: 'performance', author: 'system', enabled: true, executionMode: 'native' },
-  { id: 'disabled', name: 'Disabled check', description: 'Not available', category: 'system', author: 'system', enabled: false, executionMode: 'shell', skipReason: 'tool missing' },
-] as unknown as InvestigationScript[];
+  create(InvestigationScriptSchema, { id: 'disk-check', name: 'Disk check', description: 'Inspect disk pressure', category: 'storage', author: 'system', enabled: true, executionMode: 'native' }),
+  create(InvestigationScriptSchema, { id: 'cpu-check', name: 'CPU check', description: 'Inspect CPU pressure', category: 'performance', author: 'system', enabled: true, executionMode: 'native' }),
+  create(InvestigationScriptSchema, { id: 'disabled', name: 'Disabled check', description: 'Not available', category: 'system', author: 'system', enabled: false, executionMode: 'shell', skipReason: 'tool missing' }),
+];
 
 describe('investigation operator panels', () => {
   afterEach(() => {
@@ -108,15 +111,21 @@ describe('investigation operator panels', () => {
 
   it('renders investigation metadata, empty states, and trigger failures', async () => {
     mocks.apiFetch.mockResolvedValue({});
-    const investigation = {
-      id: 'inv-1', status: 'completed', startTime: timestamp, findings: 'Disk is healthy', progress: 70, confidenceScore: 8,
-      details: { operation_mode: 'auto-fix', risk_level: 'low', agent_model: 'model-x', agent_resource: 'ollama', user_note: 'check storage', auto_fix: true },
-    } as unknown as Investigation;
+    const investigation = create(InvestigationSchema, {
+      id: 'inv-1', status: InvestigationStatus.COMPLETED, startTime: timestamp,
+      findings: 'Disk is healthy', progress: 70, confidenceScore: 0.8,
+      details: {
+        operation_mode: 'auto-fix', risk_level: 'low', agent_model: 'model-x',
+        agent_resource: 'ollama', user_note: 'check storage', auto_fix: true,
+      },
+    });
     render(<InvestigationsPanel investigations={[investigation]} />);
     expect(screen.getByText('Investigation inv-1')).toBeInTheDocument();
+    expect(screen.getByText('completed')).toBeInTheDocument();
     expect(screen.getByText('Auto-Fix')).toBeInTheDocument();
     expect(screen.getByText('Disk is healthy')).toBeInTheDocument();
     expect(screen.getByText('Progress: 70%')).toBeInTheDocument();
+    expect(screen.getByText('80%')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'RUN ANOMALY CHECK' }));
     await waitFor(() => { expect(mocks.apiFetch).toHaveBeenCalledWith('/investigations/trigger', expect.objectContaining({ method: 'POST' })); });
 

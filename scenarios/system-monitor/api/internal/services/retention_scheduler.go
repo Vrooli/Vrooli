@@ -49,8 +49,7 @@ type RetentionScheduler struct {
 	lastErr     error
 	lastDeleted int64
 
-	cancel context.CancelFunc
-	done   chan struct{}
+	lifecycle serviceLoop
 }
 
 // NewRetentionScheduler creates a scheduler. A nil logger defaults to logx.Default().
@@ -84,13 +83,7 @@ func (s *RetentionScheduler) WithAutoCompaction(c *AutoCompactor) *RetentionSche
 // Start launches the scheduler. Retention runs once immediately when
 // retention_run_on_startup is enabled, then on the configured interval.
 func (s *RetentionScheduler) Start() {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.cancel = cancel
-	s.done = make(chan struct{})
-
-	go func() {
-		defer close(s.done)
-
+	s.lifecycle.Start(func(ctx context.Context) {
 		if s.settings.GetSettings().RetentionRunOnStartup {
 			s.runOnce(ctx)
 		}
@@ -105,16 +98,18 @@ func (s *RetentionScheduler) Start() {
 				s.runOnce(ctx)
 			}
 		}
-	}()
+	})
 }
 
 // Stop halts the scheduler and waits for the loop to exit.
 func (s *RetentionScheduler) Stop() {
-	if s.cancel == nil {
-		return
-	}
-	s.cancel()
-	<-s.done
+	_ = s.StopContext(context.Background())
+}
+
+// StopContext cancels the current pass and waits for the scheduler loop to
+// finish. A context error means the pass has not yet produced a terminal receipt.
+func (s *RetentionScheduler) StopContext(ctx context.Context) error {
+	return s.lifecycle.Stop(ctx)
 }
 
 // currentInterval reads the live retention interval from settings.

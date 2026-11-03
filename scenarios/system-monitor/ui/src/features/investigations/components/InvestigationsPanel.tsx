@@ -14,6 +14,18 @@ interface InvestigationsPanelProps {
   embedded?: boolean;
 }
 
+const investigationStatusLabel = (status: InvestigationStatus): string => {
+  switch (status) {
+    case InvestigationStatus.QUEUED: return 'queued';
+    case InvestigationStatus.IN_PROGRESS: return 'in progress';
+    case InvestigationStatus.COMPLETED: return 'completed';
+    case InvestigationStatus.FAILED: return 'failed';
+    case InvestigationStatus.STOPPED: return 'stopped';
+    case InvestigationStatus.CANCELLED: return 'cancelled';
+    default: return 'unknown';
+  }
+};
+
 export const InvestigationsPanel = ({ investigations, embedded = false }: InvestigationsPanelProps) => {
   const { showApiError } = useToast();
 
@@ -30,7 +42,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     }
   };
 
-  const getStatusBadgeClass = (status: InvestigationStatus | string) => {
+  const getStatusBadgeClass = (status: InvestigationStatus) => {
     if (status === InvestigationStatus.COMPLETED) return 'badge-success';
     if (status === InvestigationStatus.IN_PROGRESS) return 'badge-warning';
     if (status === InvestigationStatus.FAILED) return 'badge-error';
@@ -39,10 +51,10 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
 
   const renderInvestigationCard = (investigation: Investigation, options?: { compact?: boolean }) => {
     const compact = options?.compact ?? false;
-    const details = investigation.details ?? {};
     const formattedStart = investigation.startTime
       ? timestampDate(investigation.startTime).toLocaleString()
       : 'Unknown';
+    const details = investigation.details ?? {};
     const operationMode = str(details['operation_mode']) ?? 'report-only';
     const riskLevel = str(details['risk_level']);
     const agentModel = str(details['agent_model']);
@@ -51,6 +63,9 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     const autoFix = bool(details['auto_fix']) ?? false;
     const progress = typeof investigation.progress === 'number' ? investigation.progress : undefined;
     const confidenceScore = typeof investigation.confidenceScore === 'number' ? investigation.confidenceScore : undefined;
+    const confidencePercent = confidenceScore !== undefined && Number.isFinite(confidenceScore)
+      ? Math.round(Math.max(0, Math.min(1, confidenceScore)) * 100)
+      : undefined;
 
     const riskColor = getRiskLevelColor(riskLevel);
 
@@ -68,7 +83,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
               <span className="badge badge-success">Auto-Fix</span>
             )}
             <span className={`badge ${getStatusBadgeClass(investigation.status)}`}>
-              {investigation.status}
+              {investigationStatusLabel(investigation.status)}
             </span>
           </div>
         </div>
@@ -107,22 +122,22 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
           </div>
         )}
 
-        {typeof confidenceScore === 'number' && !Number.isNaN(confidenceScore) && (
+        {confidencePercent !== undefined && (
           <div className="investigation-confidence">
             <span className="text-xs text-muted">Confidence:</span>
             <div className="investigation-confidence-bar">
               <div style={{
-                width: `${Math.max(0, Math.min(10, confidenceScore)) * 10}%`,
+                width: `${confidencePercent}%`,
                 height: '100%',
-                background: confidenceScore >= 8
+                background: confidencePercent >= 80
                   ? 'var(--color-success)'
-                  : confidenceScore >= 6
+                  : confidencePercent >= 60
                   ? 'var(--color-warning)'
                   : 'var(--color-error)',
                 transition: 'width var(--transition-normal)'
               }} />
             </div>
-            <span className="text-xs text-accent">{confidenceScore}/10</span>
+            <span className="text-xs text-accent">{confidencePercent}%</span>
           </div>
         )}
       </div>

@@ -316,6 +316,17 @@ error are not returned.
 }
 ```
 
+### POST /subscriptions/:id/deliveries/reconcile — Fill one missing delivery
+
+For an event that was retained before a matching webhook subscription existed,
+`POST /api/v1/subscriptions/:id/deliveries/reconcile` accepts one exact
+`event_id`. Events verifies the enabled subscription and its filters, loads the
+retained event itself, and inserts a missing delivery row. An existing row is
+left untouched, including its payload, status and retry history. An absent or
+pruned event returns 404; a disabled or nonmatching subscription returns 409.
+This is a bounded missing-row repair, not a time-range replay or a dead-letter
+retry. The latter uses the separate operation below.
+
 ### POST /subscriptions/:id/deliveries/retry — Retry one dead-lettered delivery
 
 Requeue one exact durable delivery after its target is repaired. This operation

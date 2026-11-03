@@ -33,6 +33,7 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/subscriptions/{id}/health", s.handleGetSubscriptionHealth)
 	mux.HandleFunc("GET /api/v1/subscriptions/{id}/deliveries/{eventID}", s.handleGetSubscriptionDelivery)
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliveries/retry", s.handleRetrySubscriptionDelivery)
+	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliveries/reconcile", s.handleReconcileSubscriptionDelivery)
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/test", s.handleTestSubscription)
 	mux.HandleFunc("POST /api/v1/subscriptions/{id}/deliver", s.handleDeliverSubscription)
 

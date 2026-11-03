@@ -1,15 +1,19 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { describe, expect, it, vi } from 'vitest';
 import { ScriptEditorModal } from './ScriptEditorModal';
 import { ScriptResultsModal } from './ScriptResultsModal';
 import { ScriptExecutionStatus } from '../../../types';
-import type { InvestigationScript, ScriptExecution } from '../../../types';
+import type { ScriptExecution } from '../../../types';
+import { InvestigationScriptSchema } from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 vi.mock('../../../shared/components/LazyScriptHighlighter', () => ({ ScriptHighlighter: ({ content }: { content: string }) => <pre>{content}</pre> }));
 
-const script = { id: 'check', name: 'Check', description: 'Check system', category: 'performance', author: 'test', enabled: true } as unknown as InvestigationScript;
+const script = create(InvestigationScriptSchema, {
+  id: 'check', name: 'Check', description: 'Check system', category: 'performance', author: 'test', enabled: true,
+});
 const ts = timestampFromDate(new Date('2026-01-01T00:00:00Z'));
 
 describe('investigation modals', () => {

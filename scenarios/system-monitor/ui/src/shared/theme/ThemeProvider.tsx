@@ -30,7 +30,7 @@ function getInitialTheme(): Theme {
   } catch {
     // localStorage unavailable
   }
-  if (window.matchMedia?.('(prefers-color-scheme: light)').matches) {
+  if (window.matchMedia('(prefers-color-scheme: light)').matches) {
     return 'light';
   }
   return 'dark';
@@ -50,21 +50,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
-    applyTheme(t);
-  }, [applyTheme]);
+  }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      return next;
-    });
-  }, [applyTheme]);
+    setThemeState(prev => prev === 'dark' ? 'light' : 'dark');
+  }, []);
 
-  // Apply theme on mount
+  // Keep document and storage synchronized from the single authoritative state.
   useEffect(() => {
     applyTheme(theme);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [applyTheme, theme]);
 
   // Listen for OS preference changes
   useEffect(() => {

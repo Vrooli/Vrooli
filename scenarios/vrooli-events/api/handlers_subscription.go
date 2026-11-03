@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
 )
 
@@ -36,6 +37,58 @@ func (s *Server) handleCreateSubscription(w http.ResponseWriter, r *http.Request
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]any{"id": id})
+}
+
+// handleReconcileSubscriptionDelivery fills an absent queue row for one
+// retained event, using only the Events-owned payload and existing subscription
+// filters. Existing rows, including dead letters, are never reset or replaced.
+func (s *Server) handleReconcileSubscriptionDelivery(w http.ResponseWriter, r *http.Request) {
+	id, sub, ok := requireByID(w, r, "id", s.subStore.Get, ErrCodeSubRead, "subscription")
+	if !ok {
+		return
+	}
+	var request struct {
+		EventID string `json:"event_id"`
+	}
+	if !decodeJSONBody(w, r, &request) {
+		return
+	}
+	if request.EventID == "" || strings.TrimSpace(request.EventID) != request.EventID {
+		writeError(w, http.StatusBadRequest, ErrCodeValidation, "exact event_id is required")
+		return
+	}
+	if !sub.Enabled || sub.DeliveryType != subscription.DeliveryWebhook {
+		writeError(w, http.StatusConflict, ErrCodeValidation, "subscription is disabled or not a webhook")
+		return
+	}
+	events, err := s.store.Query(r.Context(), store.QueryFilters{EventID: request.EventID, Limit: 1})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodeSubRead, "failed to read event")
+		return
+	}
+	if len(events) != 1 || events[0].EventID != request.EventID {
+		writeError(w, http.StatusNotFound, ErrCodeNotFound, "event not retained")
+		return
+	}
+	if !matchesWebhook(sub, events[0]) {
+		writeError(w, http.StatusConflict, ErrCodeValidation, "event does not match subscription")
+		return
+	}
+	queue, ok := s.subStore.(subscription.QueueStore)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, ErrCodeSubWrite, "durable delivery queue is unavailable")
+		return
+	}
+	payload, err := webhookPayload(events[0])
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodeSubWrite, "failed to encode retained event")
+		return
+	}
+	if err := queue.Enqueue(r.Context(), id, request.EventID, payload); err != nil {
+		writeError(w, http.StatusInternalServerError, ErrCodeSubWrite, "failed to reconcile delivery")
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"status": "reconciled", "subscription_id": id, "event_id": request.EventID})
 }
 
 // handleListSubscriptions lists subscriptions with optional filters.

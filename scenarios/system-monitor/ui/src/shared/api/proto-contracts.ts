@@ -49,7 +49,7 @@ import { GetCapacityOverviewResponseSchema, ListCapacityClaimsResponseSchema, Re
 const PROTO_JSON_OPTIONS = { ignoreUnknownFields: true } as const;
 
 /** Validate values at the untyped API boundary before handing them to protobuf. */
-function toProtoJsonValue(value: unknown, path = '$', ancestors = new WeakSet<object>()): JsonValue {
+function toProtoJsonValue(value: unknown, path = '$', ancestors = new WeakSet()): JsonValue {
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number' && Number.isFinite(value)) return value;
 

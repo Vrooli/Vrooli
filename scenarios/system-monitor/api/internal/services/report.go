@@ -49,7 +49,10 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 	reportID := fmt.Sprintf("report_%s_%d", reportType, s.clock.Now().Unix())
 
 	// Determine time range based on report type
-	timeRange := s.calculateTimeRange(reportType)
+	timeRange, err := s.calculateTimeRange(ctx, reportType)
+	if err != nil {
+		return nil, apierrors.Internal("Unable to determine report time range", err)
+	}
 
 	// Gather historical metrics from repository
 	historicalMetrics, err := s.gatherHistoricalMetrics(ctx, timeRange)
@@ -122,43 +125,25 @@ func (s *ReportService) GenerateReport(ctx context.Context, reportType string) (
 }
 
 // calculateTimeRange determines the time range for the report
-func (s *ReportService) calculateTimeRange(reportType string) repository.TimeRange {
+func (s *ReportService) calculateTimeRange(ctx context.Context, reportType string) (repository.TimeRange, error) {
 	now := s.clock.Now()
-
-	// Get earliest metrics time to ensure we don't request data before collection started
-	earliest, err := s.repo.GetEarliestMetricTime(context.Background())
-	if err == nil {
-		// Determine the intended start time
-		var intendedStart time.Time
-		switch reportType {
-		case "daily":
-			intendedStart = now.AddDate(0, 0, -1) // Last 24 hours
-		case "weekly":
-			intendedStart = now.AddDate(0, 0, -7) // Last 7 days
-		default:
-			intendedStart = now.AddDate(0, 0, -1) // Default to daily
-		}
-
-		// Use the later of intended start or earliest available data
-		if earliest.After(intendedStart) {
-			return repository.TimeRange{StartTime: earliest, EndTime: now}
-		}
-		return repository.TimeRange{StartTime: intendedStart, EndTime: now}
+	start := reportStart(now, reportType)
+	// Clamp the requested window to the first retained sample when available.
+	earliest, err := s.repo.GetEarliestMetricTime(ctx)
+	if err != nil && ctx.Err() != nil {
+		return repository.TimeRange{}, ctx.Err()
 	}
-
-	// Fallback to standard time ranges if we can't get earliest time
-	switch reportType {
-	case "daily":
-		start := now.AddDate(0, 0, -1) // Last 24 hours
-		return repository.TimeRange{StartTime: start, EndTime: now}
-	case "weekly":
-		start := now.AddDate(0, 0, -7) // Last 7 days
-		return repository.TimeRange{StartTime: start, EndTime: now}
-	default:
-		// Default to daily
-		start := now.AddDate(0, 0, -1)
-		return repository.TimeRange{StartTime: start, EndTime: now}
+	if err == nil && earliest.After(start) {
+		start = earliest
 	}
+	return repository.TimeRange{StartTime: start, EndTime: now}, nil
+}
+
+func reportStart(now time.Time, reportType string) time.Time {
+	if reportType == "weekly" {
+		return now.AddDate(0, 0, -7)
+	}
+	return now.AddDate(0, 0, -1)
 }
 
 // gatherHistoricalMetrics retrieves all metrics within the time range

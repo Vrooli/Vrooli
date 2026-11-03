@@ -11,6 +11,8 @@ import { LogRow } from '../../features/logs/components/LogRow';
 import { useTimeRange } from '../time/TimeRangeContext';
 import { DetailRow } from './DetailRow';
 import { Header } from './Header';
+import { create } from '@bufbuild/protobuf';
+import { GpuCapacitySchema } from '@vrooli/proto-types/system-monitor/v1/capacity/capacity_pb';
 
 describe('additional operator surfaces', () => {
   it('renders alert, unavailable, GPU contention, refresh, and log variants', () => {
@@ -18,7 +20,7 @@ describe('additional operator surfaces', () => {
     const toggle = vi.fn();
     const { rerender } = render(<AlertPanel alerts={[]} />);
     expect(screen.getByText('NO ACTIVE ALERTS')).toBeInTheDocument();
-    rerender(<AlertPanel alerts={[{ id: 'a', severity: 'critical', category: 'CPU', message: 'hot', timestamp: '2026-01-01T00:00:00Z' } as never]} />);
+    rerender(<AlertPanel alerts={[{ id: 'a', severity: 'critical', category: 'CPU', message: 'hot', timestamp: '2026-01-01T00:00:00Z', resolved: false }]} />);
     expect(screen.getByText('CRITICAL')).toBeInTheDocument();
     expect(screen.getByText('CPU')).toBeInTheDocument();
     expect(screen.getByText('hot')).toBeInTheDocument();
@@ -28,9 +30,9 @@ describe('additional operator surfaces', () => {
     rerender(<NotProvisionedCard title="Pstore" reason="disabled by policy" />);
     expect(screen.getByText('disabled by policy')).toBeInTheDocument();
 
-    rerender(<GpuContentionCard gpu={{ index: 0, name: '', totalBytes: 0, usedBytes: 0, claimedBytes: 0, freeBytes: 0 } as never} />);
+    rerender(<GpuContentionCard gpu={create(GpuCapacitySchema)} />);
     expect(screen.getByText('GPU 0 · unknown')).toBeInTheDocument();
-    rerender(<GpuContentionCard gpu={{ index: 1, name: 'A10', totalBytes: 1000, usedBytes: 500, claimedBytes: 1200, freeBytes: 500 } as never} />);
+    rerender(<GpuContentionCard gpu={create(GpuCapacitySchema, { index: 1, name: 'A10', totalBytes: 1000n, usedBytes: 500n, claimedBytes: 1200n, freeBytes: 500n })} />);
     expect(screen.getByText(/GPU 1 · A10/)).toBeInTheDocument();
 
     rerender(<RefreshControl paused={false} atTop={false} isLoading={false} onRefresh={refresh} onTogglePause={toggle} />);
@@ -40,7 +42,7 @@ describe('additional operator surfaces', () => {
     rerender(<RefreshControl paused={false} atTop isLoading onRefresh={refresh} onTogglePause={toggle} />);
     expect(screen.getByRole('button', { name: 'Refreshing…' })).toBeDisabled();
 
-    rerender(<LogRow entry={{ timestamp: '', priority: 7, unit: '', userUnit: 'user', identifier: 'id', message: '', raw: 'raw' } as never} />);
+    rerender(<LogRow entry={{ timestamp: '', realtime: 0, priority: 7, unit: '', userUnit: 'user', identifier: 'id', message: '', raw: 'raw' }} />);
     expect(screen.getByText('user')).toBeInTheDocument();
     expect(screen.getByText('raw')).toBeInTheDocument();
   });

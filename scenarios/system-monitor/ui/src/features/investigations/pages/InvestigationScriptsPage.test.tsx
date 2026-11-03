@@ -1,8 +1,10 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { create } from '@bufbuild/protobuf';
+import { timestampFromDate } from '@bufbuild/protobuf/wkt';
 import { renderWithProviders as render } from '../../../test-utils/renderWithProviders';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InvestigationScriptsPage } from './InvestigationScriptsPage';
-import type { InvestigationScript } from '../../../types';
+import { InvestigationScriptSchema } from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 const mocks = vi.hoisted(() => ({ protoFetch: vi.fn() }));
 vi.mock('../../../shared/api/apiFetch', () => ({ protoFetch: mocks.protoFetch }));
@@ -10,11 +12,16 @@ vi.mock('../../../shared/components/LazyScriptHighlighter', () => ({
   ScriptHighlighter: ({ content }: { content: string }) => <pre>{content}</pre>,
 }));
 
-const script = {
+const script = create(InvestigationScriptSchema, {
   id: 'disk-check', name: 'Disk check', description: 'Inspect disk pressure', category: 'storage', author: 'system',
-  enabled: true, executionMode: 'native', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-02T00:00:00Z',
-} as unknown as InvestigationScript;
-const secondScript = { ...script, id: 'network-check', name: 'Network check', description: 'Inspect network', category: 'network', enabled: false, executionMode: 'shell' } as unknown as InvestigationScript;
+  enabled: true, executionMode: 'native',
+  createdAt: timestampFromDate(new Date('2026-01-01T00:00:00Z')),
+  updatedAt: timestampFromDate(new Date('2026-01-02T00:00:00Z')),
+});
+const secondScript = create(InvestigationScriptSchema, {
+  id: 'network-check', name: 'Network check', description: 'Inspect network', category: 'network', author: 'system',
+  enabled: false, executionMode: 'shell',
+});
 
 describe('InvestigationScriptsPage', () => {
   afterEach(() => {

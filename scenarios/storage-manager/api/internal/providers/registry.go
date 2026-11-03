@@ -118,6 +118,9 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			PreviewAction:      "apt-metadata-clean",
 		}, deps.ProcessRunner),
 	}
+	if deps.HarnessResourceRoot != "" {
+		providers = append(providers, NewHarnessLifecycleProvider(deps.FileSystem, deps.Clock, deps.HarnessResourceRoot))
+	}
 	if deps.DockerImageLedger != nil {
 		providers = append(providers, NewDockerUnusedImagesProvider(deps.Docker, deps.DockerImageLedger, deps.Broker))
 	}
@@ -244,6 +247,7 @@ type BuiltInDeps struct {
 	InstanceNamespaceRoots    []InstanceNamespaceRoot
 	KnownScenarios            []string
 	InstanceStorageQuarantine string
+	HarnessResourceRoot       string
 	Saturated                 func(context.Context) (bool, error)
 	// RemovalLedger makes reclamations attributable. A built-in that deletes
 	// install-root artifacts refuses to run without it.

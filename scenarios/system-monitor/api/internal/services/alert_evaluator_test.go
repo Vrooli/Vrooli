@@ -106,6 +106,24 @@ func newEvaluatorHarness(t *testing.T, rules ...AlertRule) *evaluatorHarness {
 	}
 }
 
+func TestAlertEvaluatorStopContextAndIdempotentStart(t *testing.T) {
+	h := newEvaluatorHarness(t)
+	h.eval.Start()
+	h.eval.Start() // A duplicate start must not create a second loop.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := h.eval.StopContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("StopContext error = %v, want canceled context", err)
+	}
+	if err := h.eval.StopContext(context.Background()); err != nil {
+		t.Fatalf("join evaluator after canceled wait: %v", err)
+	}
+	h.eval.Start()
+	if err := h.eval.StopContext(context.Background()); err != nil {
+		t.Fatalf("stop restarted evaluator: %v", err)
+	}
+}
+
 // pass advances the clock and runs one evaluation, keeping the metric
 // snapshot fresh so the snapshot rule stays clear.
 func (h *evaluatorHarness) pass(t *testing.T, advance time.Duration) {

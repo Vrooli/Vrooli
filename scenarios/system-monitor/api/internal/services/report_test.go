@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -12,6 +13,14 @@ import (
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/repository/memory"
 )
+
+type canceledReportRangeRepository struct {
+	*memory.MemoryRepository
+}
+
+func (r canceledReportRangeRepository) GetEarliestMetricTime(ctx context.Context) (time.Time, error) {
+	return time.Time{}, ctx.Err()
+}
 
 // failingListsRepo wraps a memory repository but returns errors
 // for ListInvestigations and ListAlerts.
@@ -80,5 +89,36 @@ func TestGenerateReport_WarningsOnPartialFailure(t *testing.T) {
 	}
 	if report.InvestigationsCount != 0 {
 		t.Errorf("expected 0 investigations count with failed fetch, got %d", report.InvestigationsCount)
+	}
+}
+
+func TestGenerateReportPropagatesCanceledRangeLookup(t *testing.T) {
+	repo := canceledReportRangeRepository{MemoryRepository: memory.NewRepository()}
+	svc := NewReportService(&config.Config{}, repo)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := svc.GenerateReport(ctx, "daily")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("GenerateReport error = %v, want context.Canceled", err)
+	}
+}
+
+func TestReportStartSelectsWeeklyWindowAndDefaultsToDaily(t *testing.T) {
+	now := time.Date(2026, 2, 1, 12, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name     string
+		typeName string
+		days     int
+	}{
+		{name: "daily", typeName: "daily", days: 1},
+		{name: "weekly", typeName: "weekly", days: 7},
+		{name: "unknown", typeName: "custom", days: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got, want := reportStart(now, tc.typeName), now.AddDate(0, 0, -tc.days); !got.Equal(want) {
+				t.Fatalf("reportStart(%q) = %s, want %s", tc.typeName, got, want)
+			}
+		})
 	}
 }

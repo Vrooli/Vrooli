@@ -1,21 +1,23 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { timestampFromDate } from '@bufbuild/protobuf/wkt';
+import { create } from '@bufbuild/protobuf';
 import { ScriptExecutionStatus } from '../../../types';
 import { useScriptExecution } from './useScriptExecution';
-import type { InvestigationScript } from '../../../types';
+import { InvestigationScriptSchema } from '@vrooli/proto-types/system-monitor/v1/scripts/scripts_pb';
 
 const mocks = vi.hoisted(() => ({ protoFetch: vi.fn() }));
 vi.mock('../../../shared/api/apiFetch', () => ({ protoFetch: mocks.protoFetch }));
 
-const script = {
+const script = create(InvestigationScriptSchema, {
   id: 'disk-check',
   name: 'Disk check',
   description: 'Inspect disk pressure',
   category: 'storage',
   author: 'system',
   enabled: true,
-} as unknown as InvestigationScript;
+  executionMode: 'native',
+});
 
 describe('useScriptExecution', () => {
   beforeEach(() => {

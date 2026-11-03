@@ -3,7 +3,7 @@ import { formatTime } from '../../../../shared/utils/formatters';
 import { GpuDeviceCard } from '../GpuDeviceCard';
 
 interface GpuExpansionProps {
-  details: GPUCardDetails;
+  details: Partial<GPUCardDetails>;
 }
 
 export const GpuExpansion = ({ details }: GpuExpansionProps) => {
