@@ -4100,6 +4100,18 @@
       "publishedAt": "2026-10-29T05:27:10Z"
     },
     {
+      "libraryId": "react-component-library:IntegrationsOverview",
+      "version": "1.1.0",
+      "draftVersion": "1.1.0-draft.1",
+      "publishedAt": "2026-11-02T03:51:33Z"
+    },
+    {
+      "libraryId": "react-component-library:IntegrationsOverview",
+      "version": "1.1.1",
+      "draftVersion": "1.1.1-draft.1",
+      "publishedAt": "2026-11-02T03:57:23Z"
+    },
+    {
       "libraryId": "react-component-library:JsonViewer",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -6092,6 +6104,30 @@
       "publishedAt": "2026-10-19T20:22:38Z"
     },
     {
+      "libraryId": "react-component-library:Select",
+      "version": "1.3.17",
+      "draftVersion": "1.3.17-draft.1",
+      "publishedAt": "2026-10-31T04:06:34Z"
+    },
+    {
+      "libraryId": "react-component-library:Select",
+      "version": "1.3.18",
+      "draftVersion": "1.3.18-draft.1",
+      "publishedAt": "2026-10-31T04:11:48Z"
+    },
+    {
+      "libraryId": "react-component-library:Select",
+      "version": "1.3.19",
+      "draftVersion": "1.3.19-draft.1",
+      "publishedAt": "2026-10-31T04:30:07Z"
+    },
+    {
+      "libraryId": "react-component-library:Select",
+      "version": "1.3.20",
+      "draftVersion": "1.3.20-draft.1",
+      "publishedAt": "2026-10-31T04:50:45Z"
+    },
+    {
       "libraryId": "react-component-library:SelectionControl",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -6144,6 +6180,24 @@
       "version": "1.0.8",
       "draftVersion": "1.0.8-draft.1",
       "publishedAt": "2026-08-31T05:48:38Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-10-31T04:30:16Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-10-31T04:50:55Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-10-31T04:52:58Z"
     },
     {
       "libraryId": "react-component-library:SelectionStore",
@@ -7140,6 +7194,18 @@
       "version": "1.3.2",
       "draftVersion": "1.3.2-draft.1",
       "publishedAt": "2026-09-08T20:07:36Z"
+    },
+    {
+      "libraryId": "react-component-library:Tabs",
+      "version": "1.3.3",
+      "draftVersion": "1.3.3-draft.1",
+      "publishedAt": "2026-10-31T04:29:55Z"
+    },
+    {
+      "libraryId": "react-component-library:Tabs",
+      "version": "1.3.4",
+      "draftVersion": "1.3.4-draft.1",
+      "publishedAt": "2026-10-31T05:01:06Z"
     },
     {
       "libraryId": "react-component-library:TargetSwitcher",

@@ -7,6 +7,7 @@
 package capabilities_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -588,8 +589,12 @@ type AgentUpdateResponse struct {
 	RollbackVersion string `protobuf:"bytes,19,opt,name=rollback_version,json=rollbackVersion,proto3" json:"rollback_version,omitempty"`
 	// The running version is newer than the one its permission policy reviewed.
 	NewerThanReviewed bool `protobuf:"varint,20,opt,name=newer_than_reviewed,json=newerThanReviewed,proto3" json:"newer_than_reviewed,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Independent harness facts. Sign-in stays unknown unless a harness probe proves otherwise.
+	InstallState  string `protobuf:"bytes,21,opt,name=install_state,json=installState,proto3" json:"install_state,omitempty"`
+	SignInState   string `protobuf:"bytes,22,opt,name=sign_in_state,json=signInState,proto3" json:"sign_in_state,omitempty"`
+	UpdateState   string `protobuf:"bytes,23,opt,name=update_state,json=updateState,proto3" json:"update_state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentUpdateResponse) Reset() {
@@ -762,6 +767,27 @@ func (x *AgentUpdateResponse) GetNewerThanReviewed() bool {
 	return false
 }
 
+func (x *AgentUpdateResponse) GetInstallState() string {
+	if x != nil {
+		return x.InstallState
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetSignInState() string {
+	if x != nil {
+		return x.SignInState
+	}
+	return ""
+}
+
+func (x *AgentUpdateResponse) GetUpdateState() string {
+	if x != nil {
+		return x.UpdateState
+	}
+	return ""
+}
+
 // One update precondition. The ID is stable; the message states what was found.
 type AgentUpdateCheck struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -827,10 +853,13 @@ type RunAgentUpdateActionRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	TargetId string                 `protobuf:"bytes,1,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	AgentId  string                 `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	// install, use_managed_copy, link_managed_copy, update, rollback, retry or
+	// install, use_managed_copy, link_managed_copy, update, rollback, retry,
+	// doctor, preview_cleanup, uninstall or
 	// refresh_catalog. refresh_catalog rewrites the local model list from the
 	// installed runner's own evidence and has no remote form.
-	Action        string `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	Action string `protobuf:"bytes,3,opt,name=action,proto3" json:"action,omitempty"`
+	// Required for uninstall: exact identity returned by preview_cleanup.
+	CleanupPlanId string `protobuf:"bytes,4,opt,name=cleanup_plan_id,json=cleanupPlanId,proto3" json:"cleanup_plan_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -886,6 +915,13 @@ func (x *RunAgentUpdateActionRequest) GetAction() string {
 	return ""
 }
 
+func (x *RunAgentUpdateActionRequest) GetCleanupPlanId() string {
+	if x != nil {
+		return x.CleanupPlanId
+	}
+	return ""
+}
+
 type RunAgentUpdateActionResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Success bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
@@ -893,7 +929,8 @@ type RunAgentUpdateActionResponse struct {
 	// A fresh observation taken after the action, so the UI can update at once.
 	Update *AgentUpdateResponse `protobuf:"bytes,3,opt,name=update,proto3" json:"update,omitempty"`
 	// Durable Bridge correlation/audit identifier for a remote action.
-	OperationId   string `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	OperationId   string              `protobuf:"bytes,4,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	CleanupPlan   *HarnessCleanupPlan `protobuf:"bytes,5,opt,name=cleanup_plan,json=cleanupPlan,proto3" json:"cleanup_plan,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -956,6 +993,13 @@ func (x *RunAgentUpdateActionResponse) GetOperationId() string {
 	return ""
 }
 
+func (x *RunAgentUpdateActionResponse) GetCleanupPlan() *HarnessCleanupPlan {
+	if x != nil {
+		return x.CleanupPlan
+	}
+	return nil
+}
+
 // CapabilityState is the runtime view of a single capability. Mirrors
 // the Go CapabilityState struct field-for-field.
 type CapabilityState struct {
@@ -985,7 +1029,9 @@ type CapabilityState struct {
 	// Feature slugs served by each provider. Values are comma-separated when a
 	// provider serves more than one feature. This keeps consumer gates generic
 	// without requiring a second vendor/provider catalogue in the UI.
-	ProviderFeatures map[string]string `protobuf:"bytes,18,rep,name=provider_features,json=providerFeatures,proto3" json:"provider_features,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ProviderFeatures map[string]string     `protobuf:"bytes,18,rep,name=provider_features,json=providerFeatures,proto3" json:"provider_features,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Uses             []*v1.IntegrationUse  `protobuf:"bytes,19,rep,name=uses,proto3" json:"uses,omitempty"`
+	Installation     *v1.LocalInstallation `protobuf:"bytes,20,opt,name=installation,proto3" json:"installation,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1142,6 +1188,20 @@ func (x *CapabilityState) GetProviderStatus() map[string]string {
 func (x *CapabilityState) GetProviderFeatures() map[string]string {
 	if x != nil {
 		return x.ProviderFeatures
+	}
+	return nil
+}
+
+func (x *CapabilityState) GetUses() []*v1.IntegrationUse {
+	if x != nil {
+		return x.Uses
+	}
+	return nil
+}
+
+func (x *CapabilityState) GetInstallation() *v1.LocalInstallation {
+	if x != nil {
+		return x.Installation
 	}
 	return nil
 }
@@ -1586,11 +1646,72 @@ func (x *RunActionResponse) GetOperationId() string {
 	return ""
 }
 
+// Exact managed paths to remove and independently installed paths preserved.
+type HarnessCleanupPlan struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Remove        []string               `protobuf:"bytes,2,rep,name=remove,proto3" json:"remove,omitempty"`
+	Preserved     []string               `protobuf:"bytes,3,rep,name=preserved,proto3" json:"preserved,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HarnessCleanupPlan) Reset() {
+	*x = HarnessCleanupPlan{}
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HarnessCleanupPlan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HarnessCleanupPlan) ProtoMessage() {}
+
+func (x *HarnessCleanupPlan) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_capabilities_capabilities_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HarnessCleanupPlan.ProtoReflect.Descriptor instead.
+func (*HarnessCleanupPlan) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *HarnessCleanupPlan) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *HarnessCleanupPlan) GetRemove() []string {
+	if x != nil {
+		return x.Remove
+	}
+	return nil
+}
+
+func (x *HarnessCleanupPlan) GetPreserved() []string {
+	if x != nil {
+		return x.Preserved
+	}
+	return nil
+}
+
 var File_web_console_v1_capabilities_capabilities_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\n" +
-	".web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"3\n" +
+	".web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\x1a\x1ccommon/v1/integrations.proto\"3\n" +
 	"\x14ListHarnessesRequest\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\"K\n" +
 	"\x12HarnessUsageWindow\x12\x0e\n" +
@@ -1630,7 +1751,7 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\awindows\x18\a \x03(\v24.vrooli.web_console.v1.capabilities.AgentUsageWindowR\awindows\"L\n" +
 	"\x12AgentUpdateRequest\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
-	"\bagent_id\x18\x02 \x01(\tR\aagentId\"\xb3\x05\n" +
+	"\bagent_id\x18\x02 \x01(\tR\aagentId\"\x9f\x06\n" +
 	"\x13AgentUpdateResponse\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x1a\n" +
@@ -1654,21 +1775,25 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x06checks\x18\x11 \x03(\v24.vrooli.web_console.v1.capabilities.AgentUpdateCheckR\x06checks\x12!\n" +
 	"\finstall_kind\x18\x12 \x01(\tR\vinstallKind\x12)\n" +
 	"\x10rollback_version\x18\x13 \x01(\tR\x0frollbackVersion\x12.\n" +
-	"\x13newer_than_reviewed\x18\x14 \x01(\bR\x11newerThanReviewed\"T\n" +
+	"\x13newer_than_reviewed\x18\x14 \x01(\bR\x11newerThanReviewed\x12#\n" +
+	"\rinstall_state\x18\x15 \x01(\tR\finstallState\x12\"\n" +
+	"\rsign_in_state\x18\x16 \x01(\tR\vsignInState\x12!\n" +
+	"\fupdate_state\x18\x17 \x01(\tR\vupdateState\"T\n" +
 	"\x10AgentUpdateCheck\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"m\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x95\x01\n" +
 	"\x1bRunAgentUpdateActionRequest\x12\x1b\n" +
 	"\ttarget_id\x18\x01 \x01(\tR\btargetId\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\x16\n" +
-	"\x06action\x18\x03 \x01(\tR\x06action\"\xc6\x01\n" +
+	"\x06action\x18\x03 \x01(\tR\x06action\x12&\n" +
+	"\x0fcleanup_plan_id\x18\x04 \x01(\tR\rcleanupPlanId\"\xa1\x02\n" +
 	"\x1cRunAgentUpdateActionResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12O\n" +
 	"\x06update\x18\x03 \x01(\v27.vrooli.web_console.v1.capabilities.AgentUpdateResponseR\x06update\x12!\n" +
-	"\foperation_id\x18\x04 \x01(\tR\voperationId\"\xd1\n" +
-	"\n" +
+	"\foperation_id\x18\x04 \x01(\tR\voperationId\x12Y\n" +
+	"\fcleanup_plan\x18\x05 \x01(\v26.vrooli.web_console.v1.capabilities.HarnessCleanupPlanR\vcleanupPlan\"\xdc\v\n" +
 	"\x0fCapabilityState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1691,7 +1816,9 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x0efeature_reason\x18\x0f \x03(\v2F.vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntryR\rfeatureReason\x12\x89\x01\n" +
 	"\x18feature_operator_command\x18\x10 \x03(\v2O.vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntryR\x16featureOperatorCommand\x12p\n" +
 	"\x0fprovider_status\x18\x11 \x03(\v2G.vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntryR\x0eproviderStatus\x12v\n" +
-	"\x11provider_features\x18\x12 \x03(\v2I.vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntryR\x10providerFeatures\x1a@\n" +
+	"\x11provider_features\x18\x12 \x03(\v2I.vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntryR\x10providerFeatures\x12:\n" +
+	"\x04uses\x18\x13 \x03(\v2&.common.v1.integrations.IntegrationUseR\x04uses\x12M\n" +
+	"\finstallation\x18\x14 \x01(\v2).common.v1.integrations.LocalInstallationR\finstallation\x1a@\n" +
 	"\x12FeatureStatusEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
@@ -1739,7 +1866,11 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"actionKind\x12W\n" +
 	"\fcapabilities\x18\x06 \x03(\v23.vrooli.web_console.v1.capabilities.CapabilityStateR\fcapabilities\x12\x1c\n" +
 	"\ttimestamp\x18\a \x01(\tR\ttimestamp\x12!\n" +
-	"\foperation_id\x18\b \x01(\tR\voperationId2\x8e\a\n" +
+	"\foperation_id\x18\b \x01(\tR\voperationId\"Z\n" +
+	"\x12HarnessCleanupPlan\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06remove\x18\x02 \x03(\tR\x06remove\x12\x1c\n" +
+	"\tpreserved\x18\x03 \x03(\tR\tpreserved2\x8e\a\n" +
 	"\x13CapabilitiesService\x12f\n" +
 	"\x03Get\x12..vrooli.web_console.v1.capabilities.GetRequest\x1a/.vrooli.web_console.v1.capabilities.GetResponse\x12u\n" +
 	"\bLiveness\x123.vrooli.web_console.v1.capabilities.LivenessRequest\x1a4.vrooli.web_console.v1.capabilities.LivenessResponse\x12x\n" +
@@ -1762,7 +1893,7 @@ func file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_capabilities_capabilities_proto_rawDescData
 }
 
-var file_web_console_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_web_console_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_web_console_v1_capabilities_capabilities_proto_goTypes = []any{
 	(*ListHarnessesRequest)(nil),         // 0: vrooli.web_console.v1.capabilities.ListHarnessesRequest
 	(*HarnessUsageWindow)(nil),           // 1: vrooli.web_console.v1.capabilities.HarnessUsageWindow
@@ -1784,11 +1915,14 @@ var file_web_console_v1_capabilities_capabilities_proto_goTypes = []any{
 	(*LivenessResponse)(nil),             // 17: vrooli.web_console.v1.capabilities.LivenessResponse
 	(*RunActionRequest)(nil),             // 18: vrooli.web_console.v1.capabilities.RunActionRequest
 	(*RunActionResponse)(nil),            // 19: vrooli.web_console.v1.capabilities.RunActionResponse
-	nil,                                  // 20: vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
-	nil,                                  // 21: vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
-	nil,                                  // 22: vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
-	nil,                                  // 23: vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
-	nil,                                  // 24: vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
+	(*HarnessCleanupPlan)(nil),           // 20: vrooli.web_console.v1.capabilities.HarnessCleanupPlan
+	nil,                                  // 21: vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
+	nil,                                  // 22: vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
+	nil,                                  // 23: vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
+	nil,                                  // 24: vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
+	nil,                                  // 25: vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
+	(*v1.IntegrationUse)(nil),            // 26: common.v1.integrations.IntegrationUse
+	(*v1.LocalInstallation)(nil),         // 27: common.v1.integrations.LocalInstallation
 }
 var file_web_console_v1_capabilities_capabilities_proto_depIdxs = []int32{
 	1,  // 0: vrooli.web_console.v1.capabilities.HarnessDescriptor.usage_windows:type_name -> vrooli.web_console.v1.capabilities.HarnessUsageWindow
@@ -1796,34 +1930,37 @@ var file_web_console_v1_capabilities_capabilities_proto_depIdxs = []int32{
 	5,  // 2: vrooli.web_console.v1.capabilities.AgentUsageResponse.windows:type_name -> vrooli.web_console.v1.capabilities.AgentUsageWindow
 	9,  // 3: vrooli.web_console.v1.capabilities.AgentUpdateResponse.checks:type_name -> vrooli.web_console.v1.capabilities.AgentUpdateCheck
 	8,  // 4: vrooli.web_console.v1.capabilities.RunAgentUpdateActionResponse.update:type_name -> vrooli.web_console.v1.capabilities.AgentUpdateResponse
-	20, // 5: vrooli.web_console.v1.capabilities.CapabilityState.feature_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
-	21, // 6: vrooli.web_console.v1.capabilities.CapabilityState.feature_reason:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
-	22, // 7: vrooli.web_console.v1.capabilities.CapabilityState.feature_operator_command:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
-	23, // 8: vrooli.web_console.v1.capabilities.CapabilityState.provider_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
-	24, // 9: vrooli.web_console.v1.capabilities.CapabilityState.provider_features:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
-	12, // 10: vrooli.web_console.v1.capabilities.GetResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	13, // 11: vrooli.web_console.v1.capabilities.GetResponse.session_backends:type_name -> vrooli.web_console.v1.capabilities.BackendOption
-	12, // 12: vrooli.web_console.v1.capabilities.LivenessResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	12, // 13: vrooli.web_console.v1.capabilities.RunActionResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	14, // 14: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:input_type -> vrooli.web_console.v1.capabilities.GetRequest
-	16, // 15: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:input_type -> vrooli.web_console.v1.capabilities.LivenessRequest
-	18, // 16: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:input_type -> vrooli.web_console.v1.capabilities.RunActionRequest
-	7,  // 17: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate:input_type -> vrooli.web_console.v1.capabilities.AgentUpdateRequest
-	4,  // 18: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage:input_type -> vrooli.web_console.v1.capabilities.AgentUsageRequest
-	10, // 19: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAgentUpdateAction:input_type -> vrooli.web_console.v1.capabilities.RunAgentUpdateActionRequest
-	0,  // 20: vrooli.web_console.v1.capabilities.CapabilitiesService.ListHarnesses:input_type -> vrooli.web_console.v1.capabilities.ListHarnessesRequest
-	15, // 21: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:output_type -> vrooli.web_console.v1.capabilities.GetResponse
-	17, // 22: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:output_type -> vrooli.web_console.v1.capabilities.LivenessResponse
-	19, // 23: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:output_type -> vrooli.web_console.v1.capabilities.RunActionResponse
-	8,  // 24: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate:output_type -> vrooli.web_console.v1.capabilities.AgentUpdateResponse
-	6,  // 25: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage:output_type -> vrooli.web_console.v1.capabilities.AgentUsageResponse
-	11, // 26: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAgentUpdateAction:output_type -> vrooli.web_console.v1.capabilities.RunAgentUpdateActionResponse
-	3,  // 27: vrooli.web_console.v1.capabilities.CapabilitiesService.ListHarnesses:output_type -> vrooli.web_console.v1.capabilities.ListHarnessesResponse
-	21, // [21:28] is the sub-list for method output_type
-	14, // [14:21] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	20, // 5: vrooli.web_console.v1.capabilities.RunAgentUpdateActionResponse.cleanup_plan:type_name -> vrooli.web_console.v1.capabilities.HarnessCleanupPlan
+	21, // 6: vrooli.web_console.v1.capabilities.CapabilityState.feature_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
+	22, // 7: vrooli.web_console.v1.capabilities.CapabilityState.feature_reason:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
+	23, // 8: vrooli.web_console.v1.capabilities.CapabilityState.feature_operator_command:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
+	24, // 9: vrooli.web_console.v1.capabilities.CapabilityState.provider_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
+	25, // 10: vrooli.web_console.v1.capabilities.CapabilityState.provider_features:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
+	26, // 11: vrooli.web_console.v1.capabilities.CapabilityState.uses:type_name -> common.v1.integrations.IntegrationUse
+	27, // 12: vrooli.web_console.v1.capabilities.CapabilityState.installation:type_name -> common.v1.integrations.LocalInstallation
+	12, // 13: vrooli.web_console.v1.capabilities.GetResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	13, // 14: vrooli.web_console.v1.capabilities.GetResponse.session_backends:type_name -> vrooli.web_console.v1.capabilities.BackendOption
+	12, // 15: vrooli.web_console.v1.capabilities.LivenessResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	12, // 16: vrooli.web_console.v1.capabilities.RunActionResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	14, // 17: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:input_type -> vrooli.web_console.v1.capabilities.GetRequest
+	16, // 18: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:input_type -> vrooli.web_console.v1.capabilities.LivenessRequest
+	18, // 19: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:input_type -> vrooli.web_console.v1.capabilities.RunActionRequest
+	7,  // 20: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate:input_type -> vrooli.web_console.v1.capabilities.AgentUpdateRequest
+	4,  // 21: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage:input_type -> vrooli.web_console.v1.capabilities.AgentUsageRequest
+	10, // 22: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAgentUpdateAction:input_type -> vrooli.web_console.v1.capabilities.RunAgentUpdateActionRequest
+	0,  // 23: vrooli.web_console.v1.capabilities.CapabilitiesService.ListHarnesses:input_type -> vrooli.web_console.v1.capabilities.ListHarnessesRequest
+	15, // 24: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:output_type -> vrooli.web_console.v1.capabilities.GetResponse
+	17, // 25: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:output_type -> vrooli.web_console.v1.capabilities.LivenessResponse
+	19, // 26: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:output_type -> vrooli.web_console.v1.capabilities.RunActionResponse
+	8,  // 27: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUpdate:output_type -> vrooli.web_console.v1.capabilities.AgentUpdateResponse
+	6,  // 28: vrooli.web_console.v1.capabilities.CapabilitiesService.AgentUsage:output_type -> vrooli.web_console.v1.capabilities.AgentUsageResponse
+	11, // 29: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAgentUpdateAction:output_type -> vrooli.web_console.v1.capabilities.RunAgentUpdateActionResponse
+	3,  // 30: vrooli.web_console.v1.capabilities.CapabilitiesService.ListHarnesses:output_type -> vrooli.web_console.v1.capabilities.ListHarnessesResponse
+	24, // [24:31] is the sub-list for method output_type
+	17, // [17:24] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_capabilities_capabilities_proto_init() }
@@ -1837,7 +1974,7 @@ func file_web_console_v1_capabilities_capabilities_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_capabilities_capabilities_proto_rawDesc), len(file_web_console_v1_capabilities_capabilities_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   25,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -195,7 +195,7 @@ message MediaExecution {
   string completed_at = 6;
   RouteEvidence route_evidence = 7;
   repeated MediaOutput outputs = 8;
-  double actual_cost_usd = 9;
+  optional double actual_cost_usd = 9;
   string resolved_model = 10;
   string seed = 11;
   repeated string warnings = 12;

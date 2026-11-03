@@ -22,16 +22,18 @@ class ValidateFlowRequest(_message.Message):
     def __init__(self, flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., strategy_id: _Optional[str] = ..., baseline_id: _Optional[str] = ..., expected_version: _Optional[int] = ..., require_assertion: _Optional[bool] = ...) -> None: ...
 
 class RunFlowRequest(_message.Message):
-    __slots__ = ("flow", "device_id", "actor", "lease_token")
+    __slots__ = ("flow", "device_id", "actor", "lease_token", "confirmed")
     FLOW_FIELD_NUMBER: _ClassVar[int]
     DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
     LEASE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    CONFIRMED_FIELD_NUMBER: _ClassVar[int]
     flow: _flow_pb2.Flow
     device_id: str
     actor: str
     lease_token: str
-    def __init__(self, flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ..., lease_token: _Optional[str] = ...) -> None: ...
+    confirmed: bool
+    def __init__(self, flow: _Optional[_Union[_flow_pb2.Flow, _Mapping]] = ..., device_id: _Optional[str] = ..., actor: _Optional[str] = ..., lease_token: _Optional[str] = ..., confirmed: _Optional[bool] = ...) -> None: ...
 
 class CapabilityGapReport(_message.Message):
     __slots__ = ("runnable", "gaps", "warnings")
@@ -82,7 +84,7 @@ class RunBinding(_message.Message):
     def __init__(self, device_id: _Optional[str] = ..., transport: _Optional[str] = ..., lease_id: _Optional[str] = ..., lease_epoch: _Optional[int] = ..., application_id: _Optional[str] = ..., application_revision: _Optional[str] = ...) -> None: ...
 
 class Chapter(_message.Message):
-    __slots__ = ("id", "title", "disposition", "message", "evidence_ids", "failure_class", "attempts")
+    __slots__ = ("id", "title", "disposition", "message", "evidence_ids", "failure_class", "attempts", "artifact_install")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
@@ -90,6 +92,7 @@ class Chapter(_message.Message):
     EVIDENCE_IDS_FIELD_NUMBER: _ClassVar[int]
     FAILURE_CLASS_FIELD_NUMBER: _ClassVar[int]
     ATTEMPTS_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_INSTALL_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     disposition: str
@@ -97,7 +100,32 @@ class Chapter(_message.Message):
     evidence_ids: _containers.RepeatedScalarFieldContainer[str]
     failure_class: str
     attempts: int
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., disposition: _Optional[str] = ..., message: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ..., failure_class: _Optional[str] = ..., attempts: _Optional[int] = ...) -> None: ...
+    artifact_install: ArtifactInstallProof
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., disposition: _Optional[str] = ..., message: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ..., failure_class: _Optional[str] = ..., attempts: _Optional[int] = ..., artifact_install: _Optional[_Union[ArtifactInstallProof, _Mapping]] = ...) -> None: ...
+
+class ArtifactInstallProof(_message.Message):
+    __slots__ = ("immutable_ref", "artifact_checksum", "apk_checksum", "package_name", "version_name", "version_code", "install_accepted", "installed", "installed_version", "post_install_verified")
+    IMMUTABLE_REF_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    APK_CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    VERSION_NAME_FIELD_NUMBER: _ClassVar[int]
+    VERSION_CODE_FIELD_NUMBER: _ClassVar[int]
+    INSTALL_ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_VERSION_FIELD_NUMBER: _ClassVar[int]
+    POST_INSTALL_VERIFIED_FIELD_NUMBER: _ClassVar[int]
+    immutable_ref: str
+    artifact_checksum: str
+    apk_checksum: str
+    package_name: str
+    version_name: str
+    version_code: int
+    install_accepted: bool
+    installed: bool
+    installed_version: str
+    post_install_verified: bool
+    def __init__(self, immutable_ref: _Optional[str] = ..., artifact_checksum: _Optional[str] = ..., apk_checksum: _Optional[str] = ..., package_name: _Optional[str] = ..., version_name: _Optional[str] = ..., version_code: _Optional[int] = ..., install_accepted: _Optional[bool] = ..., installed: _Optional[bool] = ..., installed_version: _Optional[str] = ..., post_install_verified: _Optional[bool] = ...) -> None: ...
 
 class Resolution(_message.Message):
     __slots__ = ("target", "rung", "confidence")
@@ -110,7 +138,7 @@ class Resolution(_message.Message):
     def __init__(self, target: _Optional[str] = ..., rung: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class EvidenceReference(_message.Message):
-    __slots__ = ("id", "sha256", "size_bytes", "created_at", "redaction_verified", "recording_method", "effective_fps", "producer", "kind", "applied_rules", "opted_out", "claim_class", "minimum_useful_fps", "disposition", "disposition_reason")
+    __slots__ = ("id", "sha256", "size_bytes", "created_at", "redaction_verified", "recording_method", "effective_fps", "producer", "kind", "applied_rules", "opted_out", "claim_class", "minimum_useful_fps", "disposition", "disposition_reason", "audio_track_present", "audio_track_coverage")
     ID_FIELD_NUMBER: _ClassVar[int]
     SHA256_FIELD_NUMBER: _ClassVar[int]
     SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
@@ -126,6 +154,8 @@ class EvidenceReference(_message.Message):
     MINIMUM_USEFUL_FPS_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_FIELD_NUMBER: _ClassVar[int]
     DISPOSITION_REASON_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_TRACK_PRESENT_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_TRACK_COVERAGE_FIELD_NUMBER: _ClassVar[int]
     id: str
     sha256: str
     size_bytes: int
@@ -141,7 +171,9 @@ class EvidenceReference(_message.Message):
     minimum_useful_fps: float
     disposition: str
     disposition_reason: str
-    def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ..., producer: _Optional[str] = ..., kind: _Optional[str] = ..., applied_rules: _Optional[_Iterable[str]] = ..., opted_out: _Optional[bool] = ..., claim_class: _Optional[str] = ..., minimum_useful_fps: _Optional[float] = ..., disposition: _Optional[str] = ..., disposition_reason: _Optional[str] = ...) -> None: ...
+    audio_track_present: bool
+    audio_track_coverage: str
+    def __init__(self, id: _Optional[str] = ..., sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., created_at: _Optional[str] = ..., redaction_verified: _Optional[bool] = ..., recording_method: _Optional[str] = ..., effective_fps: _Optional[float] = ..., producer: _Optional[str] = ..., kind: _Optional[str] = ..., applied_rules: _Optional[_Iterable[str]] = ..., opted_out: _Optional[bool] = ..., claim_class: _Optional[str] = ..., minimum_useful_fps: _Optional[float] = ..., disposition: _Optional[str] = ..., disposition_reason: _Optional[str] = ..., audio_track_present: _Optional[bool] = ..., audio_track_coverage: _Optional[str] = ...) -> None: ...
 
 class SavedFlow(_message.Message):
     __slots__ = ("id", "version", "device_id", "context_key", "source_run_id", "flow", "created_at")

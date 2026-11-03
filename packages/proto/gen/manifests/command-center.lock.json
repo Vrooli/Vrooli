@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "command-center",
-  "input_digest": "sha256:9b9aa940b8a159306320c6379b8c31a83408f4b78bae546573abb6cb807f4666",
+  "input_digest": "sha256:5f4a6060f0037c4769a44f6bcf87f056354d756304593fa3b5c134809b0767db",
   "input_files": [
     "schemas/command-center/v1/integrations/integrations.proto",
     "schemas/command-center/v1/walk/walk.proto",

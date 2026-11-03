@@ -280,7 +280,7 @@ class PreviewCryptoObservationRequest(_message.Message):
     def __init__(self, network: _Optional[str] = ..., asset_id: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., decimals: _Optional[int] = ..., state: _Optional[_Union[CryptoObservationState, str]] = ..., leg_kind: _Optional[_Union[CryptoLegKind, str]] = ..., source_reference: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., block_hash: _Optional[str] = ..., leg_index: _Optional[int] = ..., book_id: _Optional[str] = ..., account_id: _Optional[str] = ..., address: _Optional[str] = ...) -> None: ...
 
 class PreviewCryptoObservationResponse(_message.Message):
-    __slots__ = ("network", "asset_id", "atomic_amount", "decimals", "source_reported_state", "leg_kind", "source_reference", "occurrence_key", "disposition", "posting_state", "budget_state", "holds", "book_account_status", "candidate_effect_atomic", "correction_requires_original_receipt", "address")
+    __slots__ = ("network", "asset_id", "atomic_amount", "decimals", "source_reported_state", "leg_kind", "source_reference", "occurrence_key", "disposition", "posting_state", "budget_state", "holds", "book_account_status", "candidate_effect_atomic", "correction_requires_original_receipt", "address", "inclusion_revision")
     NETWORK_FIELD_NUMBER: _ClassVar[int]
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     ATOMIC_AMOUNT_FIELD_NUMBER: _ClassVar[int]
@@ -297,6 +297,7 @@ class PreviewCryptoObservationResponse(_message.Message):
     CANDIDATE_EFFECT_ATOMIC_FIELD_NUMBER: _ClassVar[int]
     CORRECTION_REQUIRES_ORIGINAL_RECEIPT_FIELD_NUMBER: _ClassVar[int]
     ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    INCLUSION_REVISION_FIELD_NUMBER: _ClassVar[int]
     network: str
     asset_id: str
     atomic_amount: str
@@ -313,4 +314,5 @@ class PreviewCryptoObservationResponse(_message.Message):
     candidate_effect_atomic: str
     correction_requires_original_receipt: bool
     address: str
-    def __init__(self, network: _Optional[str] = ..., asset_id: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., decimals: _Optional[int] = ..., source_reported_state: _Optional[_Union[CryptoObservationState, str]] = ..., leg_kind: _Optional[_Union[CryptoLegKind, str]] = ..., source_reference: _Optional[str] = ..., occurrence_key: _Optional[str] = ..., disposition: _Optional[str] = ..., posting_state: _Optional[str] = ..., budget_state: _Optional[str] = ..., holds: _Optional[_Iterable[str]] = ..., book_account_status: _Optional[str] = ..., candidate_effect_atomic: _Optional[str] = ..., correction_requires_original_receipt: _Optional[bool] = ..., address: _Optional[str] = ...) -> None: ...
+    inclusion_revision: str
+    def __init__(self, network: _Optional[str] = ..., asset_id: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., decimals: _Optional[int] = ..., source_reported_state: _Optional[_Union[CryptoObservationState, str]] = ..., leg_kind: _Optional[_Union[CryptoLegKind, str]] = ..., source_reference: _Optional[str] = ..., occurrence_key: _Optional[str] = ..., disposition: _Optional[str] = ..., posting_state: _Optional[str] = ..., budget_state: _Optional[str] = ..., holds: _Optional[_Iterable[str]] = ..., book_account_status: _Optional[str] = ..., candidate_effect_atomic: _Optional[str] = ..., correction_requires_original_receipt: _Optional[bool] = ..., address: _Optional[str] = ..., inclusion_revision: _Optional[str] = ...) -> None: ...

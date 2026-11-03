@@ -1,4 +1,5 @@
 from google.api import annotations_pb2 as _annotations_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping
@@ -7,7 +8,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class SystemSettings(_message.Message):
-    __slots__ = ("active", "metric_collection_interval", "anomaly_detection_interval", "threshold_check_interval", "cooldown_period_seconds", "cpu_threshold", "memory_threshold", "disk_threshold", "metrics_retention_days", "retention_check_interval_seconds", "retention_run_on_startup", "compact_after_retention", "disk_high_percent", "disk_critical_percent", "disk_escalation_cooldown_seconds", "disk_escalation_debounce_ticks", "disk_fast_fill_jump_percent", "cpu_high_percent", "cpu_critical_percent", "cpu_escalation_cooldown_seconds", "cpu_escalation_debounce_ticks", "cpu_sustained_window_ticks", "cpu_pressure_threshold", "alert_sustain_seconds", "memory_pressure_some_avg60_elevated_percent", "memory_pressure_full_avg60_critical_percent", "memory_pressure_swap_in_elevated_bytes_per_second", "memory_pressure_swap_in_critical_bytes_per_second")
+    __slots__ = ("active", "metric_collection_interval", "anomaly_detection_interval", "threshold_check_interval", "cooldown_period_seconds", "cpu_threshold", "memory_threshold", "disk_threshold", "metrics_retention_days", "retention_check_interval_seconds", "retention_run_on_startup", "compact_after_retention", "disk_high_percent", "disk_critical_percent", "disk_escalation_cooldown_seconds", "disk_escalation_debounce_ticks", "disk_fast_fill_jump_percent", "cpu_high_percent", "cpu_critical_percent", "cpu_escalation_cooldown_seconds", "cpu_escalation_debounce_ticks", "cpu_sustained_window_ticks", "cpu_pressure_threshold", "alert_sustain_seconds", "memory_pressure_some_avg60_elevated_percent", "memory_pressure_full_avg60_critical_percent", "memory_pressure_swap_in_elevated_bytes_per_second", "memory_pressure_swap_in_critical_bytes_per_second", "memory_critical_percent", "tcp_connections_warning", "tcp_connections_critical", "tcp_growth_window_seconds", "tcp_growth_floor", "tcp_growth_min_samples", "tcp_growth_factor", "gpu_usage_warning_percent", "metrics_snapshot_stale_intervals", "orphaned_agent_age_seconds", "orphaned_agent_memory_bytes", "auto_investigate_critical_rules")
+    class AutoInvestigateCriticalRulesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: bool
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[bool] = ...) -> None: ...
     ACTIVE_FIELD_NUMBER: _ClassVar[int]
     METRIC_COLLECTION_INTERVAL_FIELD_NUMBER: _ClassVar[int]
     ANOMALY_DETECTION_INTERVAL_FIELD_NUMBER: _ClassVar[int]
@@ -36,6 +44,18 @@ class SystemSettings(_message.Message):
     MEMORY_PRESSURE_FULL_AVG60_CRITICAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
     MEMORY_PRESSURE_SWAP_IN_ELEVATED_BYTES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
     MEMORY_PRESSURE_SWAP_IN_CRITICAL_BYTES_PER_SECOND_FIELD_NUMBER: _ClassVar[int]
+    MEMORY_CRITICAL_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    TCP_CONNECTIONS_WARNING_FIELD_NUMBER: _ClassVar[int]
+    TCP_CONNECTIONS_CRITICAL_FIELD_NUMBER: _ClassVar[int]
+    TCP_GROWTH_WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    TCP_GROWTH_FLOOR_FIELD_NUMBER: _ClassVar[int]
+    TCP_GROWTH_MIN_SAMPLES_FIELD_NUMBER: _ClassVar[int]
+    TCP_GROWTH_FACTOR_FIELD_NUMBER: _ClassVar[int]
+    GPU_USAGE_WARNING_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    METRICS_SNAPSHOT_STALE_INTERVALS_FIELD_NUMBER: _ClassVar[int]
+    ORPHANED_AGENT_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ORPHANED_AGENT_MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
+    AUTO_INVESTIGATE_CRITICAL_RULES_FIELD_NUMBER: _ClassVar[int]
     active: bool
     metric_collection_interval: int
     anomaly_detection_interval: int
@@ -64,7 +84,19 @@ class SystemSettings(_message.Message):
     memory_pressure_full_avg60_critical_percent: float
     memory_pressure_swap_in_elevated_bytes_per_second: float
     memory_pressure_swap_in_critical_bytes_per_second: float
-    def __init__(self, active: _Optional[bool] = ..., metric_collection_interval: _Optional[int] = ..., anomaly_detection_interval: _Optional[int] = ..., threshold_check_interval: _Optional[int] = ..., cooldown_period_seconds: _Optional[int] = ..., cpu_threshold: _Optional[float] = ..., memory_threshold: _Optional[float] = ..., disk_threshold: _Optional[float] = ..., metrics_retention_days: _Optional[int] = ..., retention_check_interval_seconds: _Optional[int] = ..., retention_run_on_startup: _Optional[bool] = ..., compact_after_retention: _Optional[bool] = ..., disk_high_percent: _Optional[float] = ..., disk_critical_percent: _Optional[float] = ..., disk_escalation_cooldown_seconds: _Optional[int] = ..., disk_escalation_debounce_ticks: _Optional[int] = ..., disk_fast_fill_jump_percent: _Optional[float] = ..., cpu_high_percent: _Optional[float] = ..., cpu_critical_percent: _Optional[float] = ..., cpu_escalation_cooldown_seconds: _Optional[int] = ..., cpu_escalation_debounce_ticks: _Optional[int] = ..., cpu_sustained_window_ticks: _Optional[int] = ..., cpu_pressure_threshold: _Optional[float] = ..., alert_sustain_seconds: _Optional[int] = ..., memory_pressure_some_avg60_elevated_percent: _Optional[float] = ..., memory_pressure_full_avg60_critical_percent: _Optional[float] = ..., memory_pressure_swap_in_elevated_bytes_per_second: _Optional[float] = ..., memory_pressure_swap_in_critical_bytes_per_second: _Optional[float] = ...) -> None: ...
+    memory_critical_percent: float
+    tcp_connections_warning: int
+    tcp_connections_critical: int
+    tcp_growth_window_seconds: int
+    tcp_growth_floor: int
+    tcp_growth_min_samples: int
+    tcp_growth_factor: float
+    gpu_usage_warning_percent: float
+    metrics_snapshot_stale_intervals: int
+    orphaned_agent_age_seconds: int
+    orphaned_agent_memory_bytes: int
+    auto_investigate_critical_rules: _containers.ScalarMap[str, bool]
+    def __init__(self, active: _Optional[bool] = ..., metric_collection_interval: _Optional[int] = ..., anomaly_detection_interval: _Optional[int] = ..., threshold_check_interval: _Optional[int] = ..., cooldown_period_seconds: _Optional[int] = ..., cpu_threshold: _Optional[float] = ..., memory_threshold: _Optional[float] = ..., disk_threshold: _Optional[float] = ..., metrics_retention_days: _Optional[int] = ..., retention_check_interval_seconds: _Optional[int] = ..., retention_run_on_startup: _Optional[bool] = ..., compact_after_retention: _Optional[bool] = ..., disk_high_percent: _Optional[float] = ..., disk_critical_percent: _Optional[float] = ..., disk_escalation_cooldown_seconds: _Optional[int] = ..., disk_escalation_debounce_ticks: _Optional[int] = ..., disk_fast_fill_jump_percent: _Optional[float] = ..., cpu_high_percent: _Optional[float] = ..., cpu_critical_percent: _Optional[float] = ..., cpu_escalation_cooldown_seconds: _Optional[int] = ..., cpu_escalation_debounce_ticks: _Optional[int] = ..., cpu_sustained_window_ticks: _Optional[int] = ..., cpu_pressure_threshold: _Optional[float] = ..., alert_sustain_seconds: _Optional[int] = ..., memory_pressure_some_avg60_elevated_percent: _Optional[float] = ..., memory_pressure_full_avg60_critical_percent: _Optional[float] = ..., memory_pressure_swap_in_elevated_bytes_per_second: _Optional[float] = ..., memory_pressure_swap_in_critical_bytes_per_second: _Optional[float] = ..., memory_critical_percent: _Optional[float] = ..., tcp_connections_warning: _Optional[int] = ..., tcp_connections_critical: _Optional[int] = ..., tcp_growth_window_seconds: _Optional[int] = ..., tcp_growth_floor: _Optional[int] = ..., tcp_growth_min_samples: _Optional[int] = ..., tcp_growth_factor: _Optional[float] = ..., gpu_usage_warning_percent: _Optional[float] = ..., metrics_snapshot_stale_intervals: _Optional[int] = ..., orphaned_agent_age_seconds: _Optional[int] = ..., orphaned_agent_memory_bytes: _Optional[int] = ..., auto_investigate_critical_rules: _Optional[_Mapping[str, bool]] = ...) -> None: ...
 
 class GetSettingsRequest(_message.Message):
     __slots__ = ()

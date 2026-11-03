@@ -23,6 +23,16 @@
     "1.0.0",
     "1.0.7"
   ],
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:SelectionControl"
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:SelectionControl",
+  "displayName": "Selection Control",
+  "description": "Reusable selection control primitive implementation for the React component library.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -769,11 +769,12 @@ func (x *DuplicateResult) GetHashBits() int32 {
 }
 
 // QualityResult is the structured output of the pure-Go `quality_assessment`
-// op: no-reference image-quality heuristics (sharpness, exposure, contrast) and
-// a derived overall score. No model — runs on any host.
+// op: decoded pixel dimensions, no-reference image-quality heuristics
+// (sharpness, exposure, contrast), and a derived overall score. No model —
+// runs on any host.
 type QualityResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// OverallScore is a 0..1 quality estimate (higher = better).
+	// OverallScore is a 0..1 heuristic estimate, not a calibrated probability.
 	OverallScore float64 `protobuf:"fixed64,1,opt,name=overall_score,json=overallScore,proto3" json:"overall_score,omitempty"`
 	// Sharpness is the variance of the Laplacian (higher = sharper); 0..~large.
 	Sharpness float64 `protobuf:"fixed64,2,opt,name=sharpness,proto3" json:"sharpness,omitempty"`
@@ -786,7 +787,10 @@ type QualityResult struct {
 	// Exposure is a human label: "well-exposed", "underexposed", or "overexposed".
 	Exposure string `protobuf:"bytes,6,opt,name=exposure,proto3" json:"exposure,omitempty"`
 	// Notes carries human-readable quality observations (e.g. "low contrast").
-	Notes         []string `protobuf:"bytes,7,rep,name=notes,proto3" json:"notes,omitempty"`
+	Notes []string `protobuf:"bytes,7,rep,name=notes,proto3" json:"notes,omitempty"`
+	// WidthPx and HeightPx are decoded source-image dimensions in pixels.
+	WidthPx       int32 `protobuf:"varint,8,opt,name=width_px,json=widthPx,proto3" json:"width_px,omitempty"`
+	HeightPx      int32 `protobuf:"varint,9,opt,name=height_px,json=heightPx,proto3" json:"height_px,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -868,6 +872,20 @@ func (x *QualityResult) GetNotes() []string {
 		return x.Notes
 	}
 	return nil
+}
+
+func (x *QualityResult) GetWidthPx() int32 {
+	if x != nil {
+		return x.WidthPx
+	}
+	return 0
+}
+
+func (x *QualityResult) GetHeightPx() int32 {
+	if x != nil {
+		return x.HeightPx
+	}
+	return 0
 }
 
 // AnalyzeResponse is the protojson body returned by the analyze edge: the
@@ -1077,7 +1095,7 @@ const file_image_tools_v1_analysis_analysis_proto_rawDesc = "" +
 	"\x0fDuplicateResult\x12\x1b\n" +
 	"\tphash_hex\x18\x01 \x01(\tR\bphashHex\x12\x1b\n" +
 	"\tahash_hex\x18\x02 \x01(\tR\bahashHex\x12\x1b\n" +
-	"\thash_bits\x18\x03 \x01(\x05R\bhashBits\"\xd8\x01\n" +
+	"\thash_bits\x18\x03 \x01(\x05R\bhashBits\"\x90\x02\n" +
 	"\rQualityResult\x12#\n" +
 	"\roverall_score\x18\x01 \x01(\x01R\foverallScore\x12\x1c\n" +
 	"\tsharpness\x18\x02 \x01(\x01R\tsharpness\x12\x16\n" +
@@ -1087,7 +1105,9 @@ const file_image_tools_v1_analysis_analysis_proto_rawDesc = "" +
 	"brightness\x12\x1a\n" +
 	"\bcontrast\x18\x05 \x01(\x01R\bcontrast\x12\x1a\n" +
 	"\bexposure\x18\x06 \x01(\tR\bexposure\x12\x14\n" +
-	"\x05notes\x18\a \x03(\tR\x05notes\"\x94\x03\n" +
+	"\x05notes\x18\a \x03(\tR\x05notes\x12\x19\n" +
+	"\bwidth_px\x18\b \x01(\x05R\awidthPx\x12\x1b\n" +
+	"\theight_px\x18\t \x01(\x05R\bheightPx\"\x94\x03\n" +
 	"\x0fAnalyzeResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12=\n" +
 	"\x03ocr\x18\x02 \x01(\v2).vrooli.image_tools.v1.analysis.OCRResultH\x00R\x03ocr\x12@\n" +

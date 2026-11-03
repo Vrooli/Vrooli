@@ -556,6 +556,8 @@ type Integration struct {
 	Origin         string                 `protobuf:"bytes,12,opt,name=origin,proto3" json:"origin,omitempty"`
 	Criticality    Criticality            `protobuf:"varint,13,opt,name=criticality,proto3,enum=common.v1.integrations.Criticality" json:"criticality,omitempty"`
 	Platform       *PlatformVerdict       `protobuf:"bytes,14,opt,name=platform,proto3" json:"platform,omitempty"`
+	Uses           []*IntegrationUse      `protobuf:"bytes,15,rep,name=uses,proto3" json:"uses,omitempty"`
+	Installation   *LocalInstallation     `protobuf:"bytes,16,opt,name=installation,proto3" json:"installation,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -688,6 +690,151 @@ func (x *Integration) GetPlatform() *PlatformVerdict {
 	return nil
 }
 
+func (x *Integration) GetUses() []*IntegrationUse {
+	if x != nil {
+		return x.Uses
+	}
+	return nil
+}
+
+func (x *Integration) GetInstallation() *LocalInstallation {
+	if x != nil {
+		return x.Installation
+	}
+	return nil
+}
+
+// Consumer-owned purpose with an identity independent of the provider.
+type IntegrationUse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Group         string                 `protobuf:"bytes,4,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *IntegrationUse) Reset() {
+	*x = IntegrationUse{}
+	mi := &file_common_v1_integrations_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *IntegrationUse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*IntegrationUse) ProtoMessage() {}
+
+func (x *IntegrationUse) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_integrations_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use IntegrationUse.ProtoReflect.Descriptor instead.
+func (*IntegrationUse) Descriptor() ([]byte, []int) {
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *IntegrationUse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *IntegrationUse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *IntegrationUse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *IntegrationUse) GetGroup() string {
+	if x != nil {
+		return x.Group
+	}
+	return ""
+}
+
+// An observed installation on this machine or inside the app bundle.
+// Hosted services do not publish model/protocol versions here.
+type LocalInstallation struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Location      string                 `protobuf:"bytes,1,opt,name=location,proto3" json:"location,omitempty"`
+	Version       string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	Selected      bool                   `protobuf:"varint,3,opt,name=selected,proto3" json:"selected,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LocalInstallation) Reset() {
+	*x = LocalInstallation{}
+	mi := &file_common_v1_integrations_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LocalInstallation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LocalInstallation) ProtoMessage() {}
+
+func (x *LocalInstallation) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_integrations_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LocalInstallation.ProtoReflect.Descriptor instead.
+func (*LocalInstallation) Descriptor() ([]byte, []int) {
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LocalInstallation) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *LocalInstallation) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *LocalInstallation) GetSelected() bool {
+	if x != nil {
+		return x.Selected
+	}
+	return false
+}
+
 type Feature struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -699,7 +846,7 @@ type Feature struct {
 
 func (x *Feature) Reset() {
 	*x = Feature{}
-	mi := &file_common_v1_integrations_proto_msgTypes[2]
+	mi := &file_common_v1_integrations_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +858,7 @@ func (x *Feature) String() string {
 func (*Feature) ProtoMessage() {}
 
 func (x *Feature) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[2]
+	mi := &file_common_v1_integrations_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +871,7 @@ func (x *Feature) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Feature.ProtoReflect.Descriptor instead.
 func (*Feature) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{2}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Feature) GetId() string {
@@ -761,7 +908,7 @@ type LifecycleState struct {
 
 func (x *LifecycleState) Reset() {
 	*x = LifecycleState{}
-	mi := &file_common_v1_integrations_proto_msgTypes[3]
+	mi := &file_common_v1_integrations_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +920,7 @@ func (x *LifecycleState) String() string {
 func (*LifecycleState) ProtoMessage() {}
 
 func (x *LifecycleState) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[3]
+	mi := &file_common_v1_integrations_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +933,7 @@ func (x *LifecycleState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleState.ProtoReflect.Descriptor instead.
 func (*LifecycleState) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{3}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LifecycleState) GetStatus() LifecycleStatus {
@@ -837,7 +984,7 @@ type FeatureState struct {
 
 func (x *FeatureState) Reset() {
 	*x = FeatureState{}
-	mi := &file_common_v1_integrations_proto_msgTypes[4]
+	mi := &file_common_v1_integrations_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -849,7 +996,7 @@ func (x *FeatureState) String() string {
 func (*FeatureState) ProtoMessage() {}
 
 func (x *FeatureState) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[4]
+	mi := &file_common_v1_integrations_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -862,7 +1009,7 @@ func (x *FeatureState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FeatureState.ProtoReflect.Descriptor instead.
 func (*FeatureState) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{4}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FeatureState) GetFeatureId() string {
@@ -913,7 +1060,7 @@ type ActionPolicy struct {
 
 func (x *ActionPolicy) Reset() {
 	*x = ActionPolicy{}
-	mi := &file_common_v1_integrations_proto_msgTypes[5]
+	mi := &file_common_v1_integrations_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -925,7 +1072,7 @@ func (x *ActionPolicy) String() string {
 func (*ActionPolicy) ProtoMessage() {}
 
 func (x *ActionPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[5]
+	mi := &file_common_v1_integrations_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -938,7 +1085,7 @@ func (x *ActionPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionPolicy.ProtoReflect.Descriptor instead.
 func (*ActionPolicy) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{5}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ActionPolicy) GetKind() ActionKind {
@@ -984,7 +1131,7 @@ type ListIntegrationsRequest struct {
 
 func (x *ListIntegrationsRequest) Reset() {
 	*x = ListIntegrationsRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[6]
+	mi := &file_common_v1_integrations_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -996,7 +1143,7 @@ func (x *ListIntegrationsRequest) String() string {
 func (*ListIntegrationsRequest) ProtoMessage() {}
 
 func (x *ListIntegrationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[6]
+	mi := &file_common_v1_integrations_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1009,7 +1156,7 @@ func (x *ListIntegrationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIntegrationsRequest.ProtoReflect.Descriptor instead.
 func (*ListIntegrationsRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{6}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{8}
 }
 
 type ListIntegrationsResponse struct {
@@ -1022,7 +1169,7 @@ type ListIntegrationsResponse struct {
 
 func (x *ListIntegrationsResponse) Reset() {
 	*x = ListIntegrationsResponse{}
-	mi := &file_common_v1_integrations_proto_msgTypes[7]
+	mi := &file_common_v1_integrations_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1034,7 +1181,7 @@ func (x *ListIntegrationsResponse) String() string {
 func (*ListIntegrationsResponse) ProtoMessage() {}
 
 func (x *ListIntegrationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[7]
+	mi := &file_common_v1_integrations_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1047,7 +1194,7 @@ func (x *ListIntegrationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListIntegrationsResponse.ProtoReflect.Descriptor instead.
 func (*ListIntegrationsResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{7}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListIntegrationsResponse) GetIntegrations() []*Integration {
@@ -1073,7 +1220,7 @@ type GetIntegrationRequest struct {
 
 func (x *GetIntegrationRequest) Reset() {
 	*x = GetIntegrationRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[8]
+	mi := &file_common_v1_integrations_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1085,7 +1232,7 @@ func (x *GetIntegrationRequest) String() string {
 func (*GetIntegrationRequest) ProtoMessage() {}
 
 func (x *GetIntegrationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[8]
+	mi := &file_common_v1_integrations_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1098,7 +1245,7 @@ func (x *GetIntegrationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIntegrationRequest.ProtoReflect.Descriptor instead.
 func (*GetIntegrationRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{8}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetIntegrationRequest) GetIntegrationId() string {
@@ -1118,7 +1265,7 @@ type GetIntegrationResponse struct {
 
 func (x *GetIntegrationResponse) Reset() {
 	*x = GetIntegrationResponse{}
-	mi := &file_common_v1_integrations_proto_msgTypes[9]
+	mi := &file_common_v1_integrations_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1277,7 @@ func (x *GetIntegrationResponse) String() string {
 func (*GetIntegrationResponse) ProtoMessage() {}
 
 func (x *GetIntegrationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[9]
+	mi := &file_common_v1_integrations_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1290,7 @@ func (x *GetIntegrationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIntegrationResponse.ProtoReflect.Descriptor instead.
 func (*GetIntegrationResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{9}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetIntegrationResponse) GetIntegration() *Integration {
@@ -1168,7 +1315,7 @@ type RefreshIntegrationsRequest struct {
 
 func (x *RefreshIntegrationsRequest) Reset() {
 	*x = RefreshIntegrationsRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[10]
+	mi := &file_common_v1_integrations_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1180,7 +1327,7 @@ func (x *RefreshIntegrationsRequest) String() string {
 func (*RefreshIntegrationsRequest) ProtoMessage() {}
 
 func (x *RefreshIntegrationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[10]
+	mi := &file_common_v1_integrations_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1193,7 +1340,7 @@ func (x *RefreshIntegrationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshIntegrationsRequest.ProtoReflect.Descriptor instead.
 func (*RefreshIntegrationsRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{10}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{12}
 }
 
 type RunIntegrationActionRequest struct {
@@ -1208,7 +1355,7 @@ type RunIntegrationActionRequest struct {
 
 func (x *RunIntegrationActionRequest) Reset() {
 	*x = RunIntegrationActionRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[11]
+	mi := &file_common_v1_integrations_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1220,7 +1367,7 @@ func (x *RunIntegrationActionRequest) String() string {
 func (*RunIntegrationActionRequest) ProtoMessage() {}
 
 func (x *RunIntegrationActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[11]
+	mi := &file_common_v1_integrations_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1233,7 +1380,7 @@ func (x *RunIntegrationActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunIntegrationActionRequest.ProtoReflect.Descriptor instead.
 func (*RunIntegrationActionRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{11}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RunIntegrationActionRequest) GetIntegrationId() string {
@@ -1277,7 +1424,7 @@ type RunIntegrationActionResponse struct {
 
 func (x *RunIntegrationActionResponse) Reset() {
 	*x = RunIntegrationActionResponse{}
-	mi := &file_common_v1_integrations_proto_msgTypes[12]
+	mi := &file_common_v1_integrations_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1436,7 @@ func (x *RunIntegrationActionResponse) String() string {
 func (*RunIntegrationActionResponse) ProtoMessage() {}
 
 func (x *RunIntegrationActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[12]
+	mi := &file_common_v1_integrations_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1449,7 @@ func (x *RunIntegrationActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunIntegrationActionResponse.ProtoReflect.Descriptor instead.
 func (*RunIntegrationActionResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{12}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RunIntegrationActionResponse) GetIntegrationId() string {
@@ -1351,7 +1498,7 @@ type ConnectionScope struct {
 
 func (x *ConnectionScope) Reset() {
 	*x = ConnectionScope{}
-	mi := &file_common_v1_integrations_proto_msgTypes[13]
+	mi := &file_common_v1_integrations_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1363,7 +1510,7 @@ func (x *ConnectionScope) String() string {
 func (*ConnectionScope) ProtoMessage() {}
 
 func (x *ConnectionScope) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[13]
+	mi := &file_common_v1_integrations_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1376,7 +1523,7 @@ func (x *ConnectionScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionScope.ProtoReflect.Descriptor instead.
 func (*ConnectionScope) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{13}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ConnectionScope) GetName() string {
@@ -1411,7 +1558,7 @@ type ConnectionBinding struct {
 
 func (x *ConnectionBinding) Reset() {
 	*x = ConnectionBinding{}
-	mi := &file_common_v1_integrations_proto_msgTypes[14]
+	mi := &file_common_v1_integrations_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1570,7 @@ func (x *ConnectionBinding) String() string {
 func (*ConnectionBinding) ProtoMessage() {}
 
 func (x *ConnectionBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[14]
+	mi := &file_common_v1_integrations_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1583,7 @@ func (x *ConnectionBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionBinding.ProtoReflect.Descriptor instead.
 func (*ConnectionBinding) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{14}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ConnectionBinding) GetScenarioSlug() string {
@@ -1483,7 +1630,7 @@ type Connection struct {
 
 func (x *Connection) Reset() {
 	*x = Connection{}
-	mi := &file_common_v1_integrations_proto_msgTypes[15]
+	mi := &file_common_v1_integrations_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1495,7 +1642,7 @@ func (x *Connection) String() string {
 func (*Connection) ProtoMessage() {}
 
 func (x *Connection) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[15]
+	mi := &file_common_v1_integrations_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1508,7 +1655,7 @@ func (x *Connection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Connection.ProtoReflect.Descriptor instead.
 func (*Connection) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{15}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Connection) GetId() string {
@@ -1625,7 +1772,7 @@ type ListConnectionsRequest struct {
 
 func (x *ListConnectionsRequest) Reset() {
 	*x = ListConnectionsRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[16]
+	mi := &file_common_v1_integrations_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1637,7 +1784,7 @@ func (x *ListConnectionsRequest) String() string {
 func (*ListConnectionsRequest) ProtoMessage() {}
 
 func (x *ListConnectionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[16]
+	mi := &file_common_v1_integrations_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1650,7 +1797,7 @@ func (x *ListConnectionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConnectionsRequest.ProtoReflect.Descriptor instead.
 func (*ListConnectionsRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{16}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListConnectionsRequest) GetConnectorId() string {
@@ -1670,7 +1817,7 @@ type ListConnectionsResponse struct {
 
 func (x *ListConnectionsResponse) Reset() {
 	*x = ListConnectionsResponse{}
-	mi := &file_common_v1_integrations_proto_msgTypes[17]
+	mi := &file_common_v1_integrations_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +1829,7 @@ func (x *ListConnectionsResponse) String() string {
 func (*ListConnectionsResponse) ProtoMessage() {}
 
 func (x *ListConnectionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[17]
+	mi := &file_common_v1_integrations_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,7 +1842,7 @@ func (x *ListConnectionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConnectionsResponse.ProtoReflect.Descriptor instead.
 func (*ListConnectionsResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{17}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListConnectionsResponse) GetConnections() []*Connection {
@@ -1721,7 +1868,7 @@ type GetConnectionRequest struct {
 
 func (x *GetConnectionRequest) Reset() {
 	*x = GetConnectionRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[18]
+	mi := &file_common_v1_integrations_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1733,7 +1880,7 @@ func (x *GetConnectionRequest) String() string {
 func (*GetConnectionRequest) ProtoMessage() {}
 
 func (x *GetConnectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[18]
+	mi := &file_common_v1_integrations_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1746,7 +1893,7 @@ func (x *GetConnectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConnectionRequest.ProtoReflect.Descriptor instead.
 func (*GetConnectionRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{18}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetConnectionRequest) GetConnectionId() string {
@@ -1765,7 +1912,7 @@ type GetConnectionResponse struct {
 
 func (x *GetConnectionResponse) Reset() {
 	*x = GetConnectionResponse{}
-	mi := &file_common_v1_integrations_proto_msgTypes[19]
+	mi := &file_common_v1_integrations_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1777,7 +1924,7 @@ func (x *GetConnectionResponse) String() string {
 func (*GetConnectionResponse) ProtoMessage() {}
 
 func (x *GetConnectionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[19]
+	mi := &file_common_v1_integrations_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1790,7 +1937,7 @@ func (x *GetConnectionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConnectionResponse.ProtoReflect.Descriptor instead.
 func (*GetConnectionResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{19}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetConnectionResponse) GetConnection() *Connection {
@@ -1824,7 +1971,7 @@ type ConnectionMutationRequest struct {
 
 func (x *ConnectionMutationRequest) Reset() {
 	*x = ConnectionMutationRequest{}
-	mi := &file_common_v1_integrations_proto_msgTypes[20]
+	mi := &file_common_v1_integrations_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1836,7 +1983,7 @@ func (x *ConnectionMutationRequest) String() string {
 func (*ConnectionMutationRequest) ProtoMessage() {}
 
 func (x *ConnectionMutationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[20]
+	mi := &file_common_v1_integrations_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1849,7 +1996,7 @@ func (x *ConnectionMutationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionMutationRequest.ProtoReflect.Descriptor instead.
 func (*ConnectionMutationRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{20}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ConnectionMutationRequest) GetConnectionId() string {
@@ -1918,7 +2065,7 @@ type ConnectionMutationResponse struct {
 
 func (x *ConnectionMutationResponse) Reset() {
 	*x = ConnectionMutationResponse{}
-	mi := &file_common_v1_integrations_proto_msgTypes[21]
+	mi := &file_common_v1_integrations_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1930,7 +2077,7 @@ func (x *ConnectionMutationResponse) String() string {
 func (*ConnectionMutationResponse) ProtoMessage() {}
 
 func (x *ConnectionMutationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_integrations_proto_msgTypes[21]
+	mi := &file_common_v1_integrations_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1943,7 +2090,7 @@ func (x *ConnectionMutationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConnectionMutationResponse.ProtoReflect.Descriptor instead.
 func (*ConnectionMutationResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_integrations_proto_rawDescGZIP(), []int{21}
+	return file_common_v1_integrations_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ConnectionMutationResponse) GetConnection() *Connection {
@@ -1967,7 +2114,7 @@ const file_common_v1_integrations_proto_rawDesc = "" +
 	"\x1ccommon/v1/integrations.proto\x12\x16common.v1.integrations\"l\n" +
 	"\x0fPlatformVerdict\x12A\n" +
 	"\asupport\x18\x01 \x01(\x0e2'.common.v1.integrations.PlatformSupportR\asupport\x12\x16\n" +
-	"\x06reason\x18\x02 \x01(\tR\x06reason\"\x8f\x05\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\x9a\x06\n" +
 	"\vIntegration\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1983,7 +2130,18 @@ const file_common_v1_integrations_proto_rawDesc = "" +
 	"\x06action\x18\v \x01(\v2$.common.v1.integrations.ActionPolicyR\x06action\x12\x16\n" +
 	"\x06origin\x18\f \x01(\tR\x06origin\x12E\n" +
 	"\vcriticality\x18\r \x01(\x0e2#.common.v1.integrations.CriticalityR\vcriticality\x12C\n" +
-	"\bplatform\x18\x0e \x01(\v2'.common.v1.integrations.PlatformVerdictR\bplatform\"i\n" +
+	"\bplatform\x18\x0e \x01(\v2'.common.v1.integrations.PlatformVerdictR\bplatform\x12:\n" +
+	"\x04uses\x18\x0f \x03(\v2&.common.v1.integrations.IntegrationUseR\x04uses\x12M\n" +
+	"\finstallation\x18\x10 \x01(\v2).common.v1.integrations.LocalInstallationR\finstallation\"l\n" +
+	"\x0eIntegrationUse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x14\n" +
+	"\x05group\x18\x04 \x01(\tR\x05group\"e\n" +
+	"\x11LocalInstallation\x12\x1a\n" +
+	"\blocation\x18\x01 \x01(\tR\blocation\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\x12\x1a\n" +
+	"\bselected\x18\x03 \x01(\bR\bselected\"i\n" +
 	"\aFeature\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12)\n" +
 	"\x10contract_version\x18\x02 \x01(\tR\x0fcontractVersion\x12#\n" +
@@ -2171,7 +2329,7 @@ func file_common_v1_integrations_proto_rawDescGZIP() []byte {
 }
 
 var file_common_v1_integrations_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_common_v1_integrations_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_common_v1_integrations_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_common_v1_integrations_proto_goTypes = []any{
 	(DependencyKind)(0),                  // 0: common.v1.integrations.DependencyKind
 	(LifecycleStatus)(0),                 // 1: common.v1.integrations.LifecycleStatus
@@ -2183,75 +2341,79 @@ var file_common_v1_integrations_proto_goTypes = []any{
 	(ConnectionActionKind)(0),            // 7: common.v1.integrations.ConnectionActionKind
 	(*PlatformVerdict)(nil),              // 8: common.v1.integrations.PlatformVerdict
 	(*Integration)(nil),                  // 9: common.v1.integrations.Integration
-	(*Feature)(nil),                      // 10: common.v1.integrations.Feature
-	(*LifecycleState)(nil),               // 11: common.v1.integrations.LifecycleState
-	(*FeatureState)(nil),                 // 12: common.v1.integrations.FeatureState
-	(*ActionPolicy)(nil),                 // 13: common.v1.integrations.ActionPolicy
-	(*ListIntegrationsRequest)(nil),      // 14: common.v1.integrations.ListIntegrationsRequest
-	(*ListIntegrationsResponse)(nil),     // 15: common.v1.integrations.ListIntegrationsResponse
-	(*GetIntegrationRequest)(nil),        // 16: common.v1.integrations.GetIntegrationRequest
-	(*GetIntegrationResponse)(nil),       // 17: common.v1.integrations.GetIntegrationResponse
-	(*RefreshIntegrationsRequest)(nil),   // 18: common.v1.integrations.RefreshIntegrationsRequest
-	(*RunIntegrationActionRequest)(nil),  // 19: common.v1.integrations.RunIntegrationActionRequest
-	(*RunIntegrationActionResponse)(nil), // 20: common.v1.integrations.RunIntegrationActionResponse
-	(*ConnectionScope)(nil),              // 21: common.v1.integrations.ConnectionScope
-	(*ConnectionBinding)(nil),            // 22: common.v1.integrations.ConnectionBinding
-	(*Connection)(nil),                   // 23: common.v1.integrations.Connection
-	(*ListConnectionsRequest)(nil),       // 24: common.v1.integrations.ListConnectionsRequest
-	(*ListConnectionsResponse)(nil),      // 25: common.v1.integrations.ListConnectionsResponse
-	(*GetConnectionRequest)(nil),         // 26: common.v1.integrations.GetConnectionRequest
-	(*GetConnectionResponse)(nil),        // 27: common.v1.integrations.GetConnectionResponse
-	(*ConnectionMutationRequest)(nil),    // 28: common.v1.integrations.ConnectionMutationRequest
-	(*ConnectionMutationResponse)(nil),   // 29: common.v1.integrations.ConnectionMutationResponse
+	(*IntegrationUse)(nil),               // 10: common.v1.integrations.IntegrationUse
+	(*LocalInstallation)(nil),            // 11: common.v1.integrations.LocalInstallation
+	(*Feature)(nil),                      // 12: common.v1.integrations.Feature
+	(*LifecycleState)(nil),               // 13: common.v1.integrations.LifecycleState
+	(*FeatureState)(nil),                 // 14: common.v1.integrations.FeatureState
+	(*ActionPolicy)(nil),                 // 15: common.v1.integrations.ActionPolicy
+	(*ListIntegrationsRequest)(nil),      // 16: common.v1.integrations.ListIntegrationsRequest
+	(*ListIntegrationsResponse)(nil),     // 17: common.v1.integrations.ListIntegrationsResponse
+	(*GetIntegrationRequest)(nil),        // 18: common.v1.integrations.GetIntegrationRequest
+	(*GetIntegrationResponse)(nil),       // 19: common.v1.integrations.GetIntegrationResponse
+	(*RefreshIntegrationsRequest)(nil),   // 20: common.v1.integrations.RefreshIntegrationsRequest
+	(*RunIntegrationActionRequest)(nil),  // 21: common.v1.integrations.RunIntegrationActionRequest
+	(*RunIntegrationActionResponse)(nil), // 22: common.v1.integrations.RunIntegrationActionResponse
+	(*ConnectionScope)(nil),              // 23: common.v1.integrations.ConnectionScope
+	(*ConnectionBinding)(nil),            // 24: common.v1.integrations.ConnectionBinding
+	(*Connection)(nil),                   // 25: common.v1.integrations.Connection
+	(*ListConnectionsRequest)(nil),       // 26: common.v1.integrations.ListConnectionsRequest
+	(*ListConnectionsResponse)(nil),      // 27: common.v1.integrations.ListConnectionsResponse
+	(*GetConnectionRequest)(nil),         // 28: common.v1.integrations.GetConnectionRequest
+	(*GetConnectionResponse)(nil),        // 29: common.v1.integrations.GetConnectionResponse
+	(*ConnectionMutationRequest)(nil),    // 30: common.v1.integrations.ConnectionMutationRequest
+	(*ConnectionMutationResponse)(nil),   // 31: common.v1.integrations.ConnectionMutationResponse
 }
 var file_common_v1_integrations_proto_depIdxs = []int32{
 	5,  // 0: common.v1.integrations.PlatformVerdict.support:type_name -> common.v1.integrations.PlatformSupport
 	0,  // 1: common.v1.integrations.Integration.dependency_kind:type_name -> common.v1.integrations.DependencyKind
-	10, // 2: common.v1.integrations.Integration.features:type_name -> common.v1.integrations.Feature
-	11, // 3: common.v1.integrations.Integration.lifecycle:type_name -> common.v1.integrations.LifecycleState
-	13, // 4: common.v1.integrations.Integration.action:type_name -> common.v1.integrations.ActionPolicy
+	12, // 2: common.v1.integrations.Integration.features:type_name -> common.v1.integrations.Feature
+	13, // 3: common.v1.integrations.Integration.lifecycle:type_name -> common.v1.integrations.LifecycleState
+	15, // 4: common.v1.integrations.Integration.action:type_name -> common.v1.integrations.ActionPolicy
 	4,  // 5: common.v1.integrations.Integration.criticality:type_name -> common.v1.integrations.Criticality
 	8,  // 6: common.v1.integrations.Integration.platform:type_name -> common.v1.integrations.PlatformVerdict
-	1,  // 7: common.v1.integrations.LifecycleState.status:type_name -> common.v1.integrations.LifecycleStatus
-	2,  // 8: common.v1.integrations.FeatureState.status:type_name -> common.v1.integrations.FeatureStatus
-	3,  // 9: common.v1.integrations.ActionPolicy.kind:type_name -> common.v1.integrations.ActionKind
-	9,  // 10: common.v1.integrations.ListIntegrationsResponse.integrations:type_name -> common.v1.integrations.Integration
-	9,  // 11: common.v1.integrations.GetIntegrationResponse.integration:type_name -> common.v1.integrations.Integration
-	12, // 12: common.v1.integrations.GetIntegrationResponse.features:type_name -> common.v1.integrations.FeatureState
-	3,  // 13: common.v1.integrations.RunIntegrationActionRequest.action:type_name -> common.v1.integrations.ActionKind
-	3,  // 14: common.v1.integrations.RunIntegrationActionResponse.action:type_name -> common.v1.integrations.ActionKind
-	6,  // 15: common.v1.integrations.Connection.status:type_name -> common.v1.integrations.ConnectionStatus
-	21, // 16: common.v1.integrations.Connection.scopes:type_name -> common.v1.integrations.ConnectionScope
-	22, // 17: common.v1.integrations.Connection.bindings:type_name -> common.v1.integrations.ConnectionBinding
-	7,  // 18: common.v1.integrations.Connection.supported_actions:type_name -> common.v1.integrations.ConnectionActionKind
-	23, // 19: common.v1.integrations.ListConnectionsResponse.connections:type_name -> common.v1.integrations.Connection
-	23, // 20: common.v1.integrations.GetConnectionResponse.connection:type_name -> common.v1.integrations.Connection
-	23, // 21: common.v1.integrations.ConnectionMutationResponse.connection:type_name -> common.v1.integrations.Connection
-	24, // 22: common.v1.integrations.ConnectionService.ListConnections:input_type -> common.v1.integrations.ListConnectionsRequest
-	26, // 23: common.v1.integrations.ConnectionService.GetConnection:input_type -> common.v1.integrations.GetConnectionRequest
-	28, // 24: common.v1.integrations.ConnectionService.CreateConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 25: common.v1.integrations.ConnectionService.ProbeConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 26: common.v1.integrations.ConnectionService.RefreshConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 27: common.v1.integrations.ConnectionService.RotateConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 28: common.v1.integrations.ConnectionService.BindConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 29: common.v1.integrations.ConnectionService.UnbindConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 30: common.v1.integrations.ConnectionService.RevokeConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	28, // 31: common.v1.integrations.ConnectionService.DeleteConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
-	25, // 32: common.v1.integrations.ConnectionService.ListConnections:output_type -> common.v1.integrations.ListConnectionsResponse
-	27, // 33: common.v1.integrations.ConnectionService.GetConnection:output_type -> common.v1.integrations.GetConnectionResponse
-	29, // 34: common.v1.integrations.ConnectionService.CreateConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 35: common.v1.integrations.ConnectionService.ProbeConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 36: common.v1.integrations.ConnectionService.RefreshConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 37: common.v1.integrations.ConnectionService.RotateConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 38: common.v1.integrations.ConnectionService.BindConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 39: common.v1.integrations.ConnectionService.UnbindConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 40: common.v1.integrations.ConnectionService.RevokeConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	29, // 41: common.v1.integrations.ConnectionService.DeleteConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
-	32, // [32:42] is the sub-list for method output_type
-	22, // [22:32] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	10, // 7: common.v1.integrations.Integration.uses:type_name -> common.v1.integrations.IntegrationUse
+	11, // 8: common.v1.integrations.Integration.installation:type_name -> common.v1.integrations.LocalInstallation
+	1,  // 9: common.v1.integrations.LifecycleState.status:type_name -> common.v1.integrations.LifecycleStatus
+	2,  // 10: common.v1.integrations.FeatureState.status:type_name -> common.v1.integrations.FeatureStatus
+	3,  // 11: common.v1.integrations.ActionPolicy.kind:type_name -> common.v1.integrations.ActionKind
+	9,  // 12: common.v1.integrations.ListIntegrationsResponse.integrations:type_name -> common.v1.integrations.Integration
+	9,  // 13: common.v1.integrations.GetIntegrationResponse.integration:type_name -> common.v1.integrations.Integration
+	14, // 14: common.v1.integrations.GetIntegrationResponse.features:type_name -> common.v1.integrations.FeatureState
+	3,  // 15: common.v1.integrations.RunIntegrationActionRequest.action:type_name -> common.v1.integrations.ActionKind
+	3,  // 16: common.v1.integrations.RunIntegrationActionResponse.action:type_name -> common.v1.integrations.ActionKind
+	6,  // 17: common.v1.integrations.Connection.status:type_name -> common.v1.integrations.ConnectionStatus
+	23, // 18: common.v1.integrations.Connection.scopes:type_name -> common.v1.integrations.ConnectionScope
+	24, // 19: common.v1.integrations.Connection.bindings:type_name -> common.v1.integrations.ConnectionBinding
+	7,  // 20: common.v1.integrations.Connection.supported_actions:type_name -> common.v1.integrations.ConnectionActionKind
+	25, // 21: common.v1.integrations.ListConnectionsResponse.connections:type_name -> common.v1.integrations.Connection
+	25, // 22: common.v1.integrations.GetConnectionResponse.connection:type_name -> common.v1.integrations.Connection
+	25, // 23: common.v1.integrations.ConnectionMutationResponse.connection:type_name -> common.v1.integrations.Connection
+	26, // 24: common.v1.integrations.ConnectionService.ListConnections:input_type -> common.v1.integrations.ListConnectionsRequest
+	28, // 25: common.v1.integrations.ConnectionService.GetConnection:input_type -> common.v1.integrations.GetConnectionRequest
+	30, // 26: common.v1.integrations.ConnectionService.CreateConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 27: common.v1.integrations.ConnectionService.ProbeConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 28: common.v1.integrations.ConnectionService.RefreshConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 29: common.v1.integrations.ConnectionService.RotateConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 30: common.v1.integrations.ConnectionService.BindConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 31: common.v1.integrations.ConnectionService.UnbindConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 32: common.v1.integrations.ConnectionService.RevokeConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	30, // 33: common.v1.integrations.ConnectionService.DeleteConnection:input_type -> common.v1.integrations.ConnectionMutationRequest
+	27, // 34: common.v1.integrations.ConnectionService.ListConnections:output_type -> common.v1.integrations.ListConnectionsResponse
+	29, // 35: common.v1.integrations.ConnectionService.GetConnection:output_type -> common.v1.integrations.GetConnectionResponse
+	31, // 36: common.v1.integrations.ConnectionService.CreateConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 37: common.v1.integrations.ConnectionService.ProbeConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 38: common.v1.integrations.ConnectionService.RefreshConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 39: common.v1.integrations.ConnectionService.RotateConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 40: common.v1.integrations.ConnectionService.BindConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 41: common.v1.integrations.ConnectionService.UnbindConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 42: common.v1.integrations.ConnectionService.RevokeConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	31, // 43: common.v1.integrations.ConnectionService.DeleteConnection:output_type -> common.v1.integrations.ConnectionMutationResponse
+	34, // [34:44] is the sub-list for method output_type
+	24, // [24:34] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_integrations_proto_init() }
@@ -2265,7 +2427,7 @@ func file_common_v1_integrations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_integrations_proto_rawDesc), len(file_common_v1_integrations_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

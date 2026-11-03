@@ -15,6 +15,9 @@ message GetRoleModelChoicesRequest {
   // The shortcut command a launch would start from, to tell whether settings can
   // apply to it. Empty asks only about the runner.
   string launch_command = 3;
+  // Selected billing account; LPBS verifies membership before issuing the
+  // device credential used to evaluate paid model eligibility.
+  string business_account_id = 4;
 }
 
 message RoleModelChoice {
@@ -33,6 +36,8 @@ message RoleModelChoice {
   bool metered = 10;
   // What the operator reads. `model` stays the catalog ID.
   string display_name = 11;
+  // Eligibility was checked with the billing authority for this response.
+  bool policy_current = 12;
 }
 
 message GetRoleModelChoicesResponse {
@@ -56,4 +61,6 @@ message GetRoleModelChoicesResponse {
   // The launch command is the operator's own: a wrapper, or one naming its own
   // model or limit. It runs as written, so a launch cannot apply these settings.
   bool command_literal = 13;
+  // A native per-session provider adapter exists; this does not grant billing eligibility.
+  bool source_configuration_supported = 14;
 }

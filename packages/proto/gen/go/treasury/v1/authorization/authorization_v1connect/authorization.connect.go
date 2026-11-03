@@ -58,6 +58,12 @@ const (
 	// TreasuryAdminProveResearchWalletProcedure is the fully-qualified name of the TreasuryAdmin's
 	// ProveResearchWallet RPC.
 	TreasuryAdminProveResearchWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ProveResearchWallet"
+	// TreasuryAdminVerifyBaseUSDCReceiptProcedure is the fully-qualified name of the TreasuryAdmin's
+	// VerifyBaseUSDCReceipt RPC.
+	TreasuryAdminVerifyBaseUSDCReceiptProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/VerifyBaseUSDCReceipt"
+	// TreasuryAdminListBaseUSDCReceiptChecksProcedure is the fully-qualified name of the
+	// TreasuryAdmin's ListBaseUSDCReceiptChecks RPC.
+	TreasuryAdminListBaseUSDCReceiptChecksProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListBaseUSDCReceiptChecks"
 	// TreasuryAdminQualifyResearchWalletRecoveryProcedure is the fully-qualified name of the
 	// TreasuryAdmin's QualifyResearchWalletRecovery RPC.
 	TreasuryAdminQualifyResearchWalletRecoveryProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/QualifyResearchWalletRecovery"
@@ -118,6 +124,9 @@ const (
 	// TreasuryAdminReportManualOutcomeProcedure is the fully-qualified name of the TreasuryAdmin's
 	// ReportManualOutcome RPC.
 	TreasuryAdminReportManualOutcomeProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ReportManualOutcome"
+	// TreasuryAdminResolveUnknownSettlementProcedure is the fully-qualified name of the TreasuryAdmin's
+	// ResolveUnknownSettlement RPC.
+	TreasuryAdminResolveUnknownSettlementProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ResolveUnknownSettlement"
 )
 
 // AgentSpendClient is a client for the vrooli.treasury.v1.authorization.AgentSpend service.
@@ -300,6 +309,8 @@ type TreasuryAdminClient interface {
 	CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
+	VerifyBaseUSDCReceipt(context.Context, *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error)
+	ListBaseUSDCReceiptChecks(context.Context, *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error)
 	QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	CreateBook(context.Context, *connect.Request[authorization.CreateBookRequest]) (*connect.Response[authorization.CreateBookResponse], error)
@@ -321,6 +332,7 @@ type TreasuryAdminClient interface {
 	UnfreezeAll(context.Context, *connect.Request[authorization.UnfreezeAllRequest]) (*connect.Response[authorization.UnfreezeAllResponse], error)
 	RegisterInstrument(context.Context, *connect.Request[authorization.RegisterInstrumentRequest]) (*connect.Response[authorization.RegisterInstrumentResponse], error)
 	ReportManualOutcome(context.Context, *connect.Request[authorization.ReportManualOutcomeRequest]) (*connect.Response[authorization.ReportManualOutcomeResponse], error)
+	ResolveUnknownSettlement(context.Context, *connect.Request[authorization.ResolveUnknownSettlementRequest]) (*connect.Response[authorization.ResolveUnknownSettlementResponse], error)
 }
 
 // NewTreasuryAdminClient constructs a client for the vrooli.treasury.v1.authorization.TreasuryAdmin
@@ -350,6 +362,18 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+TreasuryAdminProveResearchWalletProcedure,
 			connect.WithSchema(treasuryAdminMethods.ByName("ProveResearchWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyBaseUSDCReceipt: connect.NewClient[authorization.VerifyBaseUSDCReceiptRequest, authorization.VerifyBaseUSDCReceiptResponse](
+			httpClient,
+			baseURL+TreasuryAdminVerifyBaseUSDCReceiptProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("VerifyBaseUSDCReceipt")),
+			connect.WithClientOptions(opts...),
+		),
+		listBaseUSDCReceiptChecks: connect.NewClient[authorization.ListBaseUSDCReceiptChecksRequest, authorization.ListBaseUSDCReceiptChecksResponse](
+			httpClient,
+			baseURL+TreasuryAdminListBaseUSDCReceiptChecksProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ListBaseUSDCReceiptChecks")),
 			connect.WithClientOptions(opts...),
 		),
 		qualifyResearchWalletRecovery: connect.NewClient[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse](
@@ -478,6 +502,12 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(treasuryAdminMethods.ByName("ReportManualOutcome")),
 			connect.WithClientOptions(opts...),
 		),
+		resolveUnknownSettlement: connect.NewClient[authorization.ResolveUnknownSettlementRequest, authorization.ResolveUnknownSettlementResponse](
+			httpClient,
+			baseURL+TreasuryAdminResolveUnknownSettlementProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ResolveUnknownSettlement")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -486,6 +516,8 @@ type treasuryAdminClient struct {
 	createResearchWallet          *connect.Client[authorization.CreateResearchWalletRequest, authorization.ResearchWalletResponse]
 	getResearchWallet             *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
 	proveResearchWallet           *connect.Client[authorization.ProveResearchWalletRequest, authorization.ProveResearchWalletResponse]
+	verifyBaseUSDCReceipt         *connect.Client[authorization.VerifyBaseUSDCReceiptRequest, authorization.VerifyBaseUSDCReceiptResponse]
+	listBaseUSDCReceiptChecks     *connect.Client[authorization.ListBaseUSDCReceiptChecksRequest, authorization.ListBaseUSDCReceiptChecksResponse]
 	qualifyResearchWalletRecovery *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
 	recoverResearchWallet         *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
 	createBook                    *connect.Client[authorization.CreateBookRequest, authorization.CreateBookResponse]
@@ -507,6 +539,7 @@ type treasuryAdminClient struct {
 	unfreezeAll                   *connect.Client[authorization.UnfreezeAllRequest, authorization.UnfreezeAllResponse]
 	registerInstrument            *connect.Client[authorization.RegisterInstrumentRequest, authorization.RegisterInstrumentResponse]
 	reportManualOutcome           *connect.Client[authorization.ReportManualOutcomeRequest, authorization.ReportManualOutcomeResponse]
+	resolveUnknownSettlement      *connect.Client[authorization.ResolveUnknownSettlementRequest, authorization.ResolveUnknownSettlementResponse]
 }
 
 // CreateResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet.
@@ -522,6 +555,17 @@ func (c *treasuryAdminClient) GetResearchWallet(ctx context.Context, req *connec
 // ProveResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet.
 func (c *treasuryAdminClient) ProveResearchWallet(ctx context.Context, req *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error) {
 	return c.proveResearchWallet.CallUnary(ctx, req)
+}
+
+// VerifyBaseUSDCReceipt calls vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt.
+func (c *treasuryAdminClient) VerifyBaseUSDCReceipt(ctx context.Context, req *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error) {
+	return c.verifyBaseUSDCReceipt.CallUnary(ctx, req)
+}
+
+// ListBaseUSDCReceiptChecks calls
+// vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks.
+func (c *treasuryAdminClient) ListBaseUSDCReceiptChecks(ctx context.Context, req *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error) {
+	return c.listBaseUSDCReceiptChecks.CallUnary(ctx, req)
 }
 
 // QualifyResearchWalletRecovery calls
@@ -630,12 +674,20 @@ func (c *treasuryAdminClient) ReportManualOutcome(ctx context.Context, req *conn
 	return c.reportManualOutcome.CallUnary(ctx, req)
 }
 
+// ResolveUnknownSettlement calls
+// vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement.
+func (c *treasuryAdminClient) ResolveUnknownSettlement(ctx context.Context, req *connect.Request[authorization.ResolveUnknownSettlementRequest]) (*connect.Response[authorization.ResolveUnknownSettlementResponse], error) {
+	return c.resolveUnknownSettlement.CallUnary(ctx, req)
+}
+
 // TreasuryAdminHandler is an implementation of the vrooli.treasury.v1.authorization.TreasuryAdmin
 // service.
 type TreasuryAdminHandler interface {
 	CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
+	VerifyBaseUSDCReceipt(context.Context, *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error)
+	ListBaseUSDCReceiptChecks(context.Context, *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error)
 	QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	RecoverResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	CreateBook(context.Context, *connect.Request[authorization.CreateBookRequest]) (*connect.Response[authorization.CreateBookResponse], error)
@@ -657,6 +709,7 @@ type TreasuryAdminHandler interface {
 	UnfreezeAll(context.Context, *connect.Request[authorization.UnfreezeAllRequest]) (*connect.Response[authorization.UnfreezeAllResponse], error)
 	RegisterInstrument(context.Context, *connect.Request[authorization.RegisterInstrumentRequest]) (*connect.Response[authorization.RegisterInstrumentResponse], error)
 	ReportManualOutcome(context.Context, *connect.Request[authorization.ReportManualOutcomeRequest]) (*connect.Response[authorization.ReportManualOutcomeResponse], error)
+	ResolveUnknownSettlement(context.Context, *connect.Request[authorization.ResolveUnknownSettlementRequest]) (*connect.Response[authorization.ResolveUnknownSettlementResponse], error)
 }
 
 // NewTreasuryAdminHandler builds an HTTP handler from the service implementation. It returns the
@@ -682,6 +735,18 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 		TreasuryAdminProveResearchWalletProcedure,
 		svc.ProveResearchWallet,
 		connect.WithSchema(treasuryAdminMethods.ByName("ProveResearchWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminVerifyBaseUSDCReceiptHandler := connect.NewUnaryHandler(
+		TreasuryAdminVerifyBaseUSDCReceiptProcedure,
+		svc.VerifyBaseUSDCReceipt,
+		connect.WithSchema(treasuryAdminMethods.ByName("VerifyBaseUSDCReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminListBaseUSDCReceiptChecksHandler := connect.NewUnaryHandler(
+		TreasuryAdminListBaseUSDCReceiptChecksProcedure,
+		svc.ListBaseUSDCReceiptChecks,
+		connect.WithSchema(treasuryAdminMethods.ByName("ListBaseUSDCReceiptChecks")),
 		connect.WithHandlerOptions(opts...),
 	)
 	treasuryAdminQualifyResearchWalletRecoveryHandler := connect.NewUnaryHandler(
@@ -810,6 +875,12 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 		connect.WithSchema(treasuryAdminMethods.ByName("ReportManualOutcome")),
 		connect.WithHandlerOptions(opts...),
 	)
+	treasuryAdminResolveUnknownSettlementHandler := connect.NewUnaryHandler(
+		TreasuryAdminResolveUnknownSettlementProcedure,
+		svc.ResolveUnknownSettlement,
+		connect.WithSchema(treasuryAdminMethods.ByName("ResolveUnknownSettlement")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.treasury.v1.authorization.TreasuryAdmin/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TreasuryAdminCreateResearchWalletProcedure:
@@ -818,6 +889,10 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 			treasuryAdminGetResearchWalletHandler.ServeHTTP(w, r)
 		case TreasuryAdminProveResearchWalletProcedure:
 			treasuryAdminProveResearchWalletHandler.ServeHTTP(w, r)
+		case TreasuryAdminVerifyBaseUSDCReceiptProcedure:
+			treasuryAdminVerifyBaseUSDCReceiptHandler.ServeHTTP(w, r)
+		case TreasuryAdminListBaseUSDCReceiptChecksProcedure:
+			treasuryAdminListBaseUSDCReceiptChecksHandler.ServeHTTP(w, r)
 		case TreasuryAdminQualifyResearchWalletRecoveryProcedure:
 			treasuryAdminQualifyResearchWalletRecoveryHandler.ServeHTTP(w, r)
 		case TreasuryAdminRecoverResearchWalletProcedure:
@@ -860,6 +935,8 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 			treasuryAdminRegisterInstrumentHandler.ServeHTTP(w, r)
 		case TreasuryAdminReportManualOutcomeProcedure:
 			treasuryAdminReportManualOutcomeHandler.ServeHTTP(w, r)
+		case TreasuryAdminResolveUnknownSettlementProcedure:
+			treasuryAdminResolveUnknownSettlementHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -879,6 +956,14 @@ func (UnimplementedTreasuryAdminHandler) GetResearchWallet(context.Context, *con
 
 func (UnimplementedTreasuryAdminHandler) ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ProveResearchWallet is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) VerifyBaseUSDCReceipt(context.Context, *connect.Request[authorization.VerifyBaseUSDCReceiptRequest]) (*connect.Response[authorization.VerifyBaseUSDCReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.VerifyBaseUSDCReceipt is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) ListBaseUSDCReceiptChecks(context.Context, *connect.Request[authorization.ListBaseUSDCReceiptChecksRequest]) (*connect.Response[authorization.ListBaseUSDCReceiptChecksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ListBaseUSDCReceiptChecks is not implemented"))
 }
 
 func (UnimplementedTreasuryAdminHandler) QualifyResearchWalletRecovery(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
@@ -963,4 +1048,8 @@ func (UnimplementedTreasuryAdminHandler) RegisterInstrument(context.Context, *co
 
 func (UnimplementedTreasuryAdminHandler) ReportManualOutcome(context.Context, *connect.Request[authorization.ReportManualOutcomeRequest]) (*connect.Response[authorization.ReportManualOutcomeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ReportManualOutcome is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) ResolveUnknownSettlement(context.Context, *connect.Request[authorization.ResolveUnknownSettlementRequest]) (*connect.Response[authorization.ResolveUnknownSettlementResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ResolveUnknownSettlement is not implemented"))
 }

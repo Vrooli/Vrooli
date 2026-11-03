@@ -2,8 +2,8 @@
 // @generated from file treasury/v1/ledger/ledger.proto (package vrooli.treasury.v1.ledger, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/ledger/ledger.proto.
  */
 export const file_treasury_v1_ledger_ledger: GenFile = /*@__PURE__*/
-  fileDesc("Ch90cmVhc3VyeS92MS9sZWRnZXIvbGVkZ2VyLnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyIvABCg5MZWRnZXJFbWlzc2lvbhIKCgJpZBgBIAEoCRIRCgljaGFyZ2VfaWQYAiABKAkSEwoLZXh0ZXJuYWxfaWQYAyABKAkSEgoKYWRhcHRlcl9pZBgEIAEoCRIUCgxhbW91bnRfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSDQoFYmFzaXMYByABKAkSLgoKZmV0Y2hlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLYWNjZXB0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQk1aS2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHJlYXN1cnkvdjEvbGVkZ2VyO2xlZGdlcl92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ch90cmVhc3VyeS92MS9sZWRnZXIvbGVkZ2VyLnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyIsMDCg5MZWRnZXJFbWlzc2lvbhIKCgJpZBgBIAEoCRIRCgljaGFyZ2VfaWQYAiABKAkSEwoLZXh0ZXJuYWxfaWQYAyABKAkSEgoKYWRhcHRlcl9pZBgEIAEoCRIUCgxhbW91bnRfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSDQoFYmFzaXMYByABKAkSLgoKZmV0Y2hlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLYWNjZXB0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnN0YXR1cxgKIAEoCRIQCghhdHRlbXB0cxgLIAEoBRISCgpsYXN0X2Vycm9yGAwgASgJEhUKDXNldHRsZW1lbnRfaWQYDSABKAkSEgoKYWNjb3VudF9pZBgOIAEoCRIPCgdib29rX2lkGA8gASgJEi8KC29jY3VycmVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpjcmVhdGVkX2F0GBEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJKChRMaXN0RW1pc3Npb25zUmVxdWVzdBITCgtleHRlcm5hbF9pZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDQoFbGltaXQYAyABKAUiVQoVTGlzdEVtaXNzaW9uc1Jlc3BvbnNlEjwKCWVtaXNzaW9ucxgBIAMoCzIpLnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuTGVkZ2VyRW1pc3Npb24ygwEKDUxlZGdlclNlcnZpY2UScgoNTGlzdEVtaXNzaW9ucxIvLnZyb29saS50cmVhc3VyeS52MS5sZWRnZXIuTGlzdEVtaXNzaW9uc1JlcXVlc3QaMC52cm9vbGkudHJlYXN1cnkudjEubGVkZ2VyLkxpc3RFbWlzc2lvbnNSZXNwb25zZUJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL2xlZGdlcjtsZWRnZXJfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.treasury.v1.ledger.LedgerEmission
@@ -62,6 +62,46 @@ export type LedgerEmission = Message<"vrooli.treasury.v1.ledger.LedgerEmission">
    * @generated from field: google.protobuf.Timestamp accepted_at = 9;
    */
   acceptedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string status = 10;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 attempts = 11;
+   */
+  attempts: number;
+
+  /**
+   * @generated from field: string last_error = 12;
+   */
+  lastError: string;
+
+  /**
+   * @generated from field: string settlement_id = 13;
+   */
+  settlementId: string;
+
+  /**
+   * @generated from field: string account_id = 14;
+   */
+  accountId: string;
+
+  /**
+   * @generated from field: string book_id = 15;
+   */
+  bookId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp occurred_at = 16;
+   */
+  occurredAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 17;
+   */
+  createdAt?: Timestamp | undefined;
 };
 
 /**
@@ -70,4 +110,67 @@ export type LedgerEmission = Message<"vrooli.treasury.v1.ledger.LedgerEmission">
  */
 export const LedgerEmissionSchema: GenMessage<LedgerEmission> = /*@__PURE__*/
   messageDesc(file_treasury_v1_ledger_ledger, 0);
+
+/**
+ * @generated from message vrooli.treasury.v1.ledger.ListEmissionsRequest
+ */
+export type ListEmissionsRequest = Message<"vrooli.treasury.v1.ledger.ListEmissionsRequest"> & {
+  /**
+   * Exact source identity, for example treasury:<occurrence-id>.
+   *
+   * @generated from field: string external_id = 1;
+   */
+  externalId: string;
+
+  /**
+   * Optional: queued or accepted. Empty returns all states.
+   *
+   * @generated from field: string status = 2;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.ListEmissionsRequest.
+ * Use `create(ListEmissionsRequestSchema)` to create a new message.
+ */
+export const ListEmissionsRequestSchema: GenMessage<ListEmissionsRequest> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 1);
+
+/**
+ * @generated from message vrooli.treasury.v1.ledger.ListEmissionsResponse
+ */
+export type ListEmissionsResponse = Message<"vrooli.treasury.v1.ledger.ListEmissionsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.treasury.v1.ledger.LedgerEmission emissions = 1;
+   */
+  emissions: LedgerEmission[];
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.ledger.ListEmissionsResponse.
+ * Use `create(ListEmissionsResponseSchema)` to create a new message.
+ */
+export const ListEmissionsResponseSchema: GenMessage<ListEmissionsResponse> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_ledger_ledger, 2);
+
+/**
+ * @generated from service vrooli.treasury.v1.ledger.LedgerService
+ */
+export const LedgerService: GenService<{
+  /**
+   * @generated from rpc vrooli.treasury.v1.ledger.LedgerService.ListEmissions
+   */
+  listEmissions: {
+    methodKind: "unary";
+    input: typeof ListEmissionsRequestSchema;
+    output: typeof ListEmissionsResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_treasury_v1_ledger_ledger, 0);
 

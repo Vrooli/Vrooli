@@ -24,9 +24,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/
 // on the shared Manager and return a JobRef. This service owns the lifecycle
 // verbs every op shares: inspect, block-once wait, list, cancel, and watch.
 //
-// Heavy GPU jobs are serialized (one at a time) while cheap CPU jobs run
-// concurrently; the lane is reported on each Job so operators can see why a job
-// is queued.
+// Local AI work uses one serialized scheduler queue; lightweight CPU work and
+// remote work use separate pools. Job.scheduling_queue reports that queue class
+// without claiming which device executed the operation.
 //
 // Consumed by:
 //   - API: handlers/jobs/connect_handler.go implements JobsServiceHandler.
@@ -74,14 +74,27 @@ enum JobState {
   JOB_STATE_CANCELED = 5;
 }
 
-// JobLane selects the execution lane. GPU jobs are serialized to avoid VRAM
-// contention; CPU jobs run concurrently.
+// JobLane is the legacy execution-lane hint retained for wire compatibility.
+// JOB_LANE_GPU historically names the serialized local queue; it does not prove
+// that a job executed on GPU hardware. Prefer Job.scheduling_queue.
 enum JobLane {
   JOB_LANE_UNSPECIFIED = 0;
   JOB_LANE_GPU = 1;
   JOB_LANE_CPU = 2;
   // JOB_LANE_NETWORK carries remote-tier work on its own bounded pool.
   JOB_LANE_NETWORK = 3;
+}
+
+// JobQueue identifies the scheduler queue that accepted a job. It describes
+// concurrency policy, not the device or backend that executed the operation.
+enum JobQueue {
+  JOB_QUEUE_UNSPECIFIED = 0;
+  // Local inference and other local work share one serialized worker.
+  JOB_QUEUE_LOCAL_SERIAL = 1;
+  // Lightweight CPU work can run concurrently in the CPU worker pool.
+  JOB_QUEUE_CPU_POOL = 2;
+  // Remote work uses its own bounded pool.
+  JOB_QUEUE_NETWORK_POOL = 3;
 }
 
 // Job is the persisted, observable record of a submitted unit of work.
@@ -92,8 +105,9 @@ message Job {
   // The operation this job runs (e.g. "upscale", "resize"). Informational.
   string operation = 2;
 
-  // Execution lane (gpu serialized / cpu concurrent).
-  JobLane lane = 3;
+  // Deprecated compatibility hint. Prefer scheduling_queue; this field does
+  // not identify the execution device.
+  JobLane lane = 3 [deprecated = true];
 
   // Current lifecycle state.
   JobState state = 4;
@@ -145,6 +159,10 @@ message Job {
   // first entry for callers that only read one; a multi-variation run has one
   // entry per variation.
   repeated string result_refs = 15;
+
+  // Scheduler queue and concurrency class. This is not an execution-device
+  // claim; inspect request/result metadata for backend execution evidence.
+  JobQueue scheduling_queue = 16;
 }
 
 // JobRequest is the typed echo of the submitted request.

@@ -128,6 +128,10 @@ message PreviewCryptoObservationResponse {
  string candidate_effect_atomic = 14;
  bool correction_requires_original_receipt = 15;
  string address = 16;
+ // Block-specific chain evidence revision for an economic occurrence. This
+ // changes when a transaction is re-included in a different block; the
+ // occurrence_key remains stable across that change.
+ string inclusion_revision = 17;
 }
 
 service IngestService {

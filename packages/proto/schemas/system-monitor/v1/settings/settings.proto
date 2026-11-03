@@ -96,6 +96,25 @@ message SystemSettings {
   double memory_pressure_full_avg60_critical_percent = 26;
   double memory_pressure_swap_in_elevated_bytes_per_second = 27;
   double memory_pressure_swap_in_critical_bytes_per_second = 28;
+
+  // Explicit alert boundaries and evidence windows. Notification enablement
+  // is owned per category by Notification Hub, not duplicated here.
+  double memory_critical_percent = 29;
+  int32 tcp_connections_warning = 30;
+  int32 tcp_connections_critical = 31;
+  int32 tcp_growth_window_seconds = 32;
+  int32 tcp_growth_floor = 33;
+  int32 tcp_growth_min_samples = 34;
+  double tcp_growth_factor = 35;
+  double gpu_usage_warning_percent = 36;
+  int32 metrics_snapshot_stale_intervals = 37;
+  int32 orphaned_agent_age_seconds = 38;
+  int64 orphaned_agent_memory_bytes = 39;
+
+  // Whether sustained critical conditions for each rule automatically run
+  // the rule's native catalog investigation. Notification preferences remain
+  // separately controlled by Notification Hub categories.
+  map<string, bool> auto_investigate_critical_rules = 40;
 }
 
 // =============================================================================

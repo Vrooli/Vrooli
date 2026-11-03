@@ -24,6 +24,7 @@ message RunFlowRequest {
   string device_id = 2;
   string actor = 3;
   string lease_token = 4;
+  bool confirmed = 5;
 }
 message CapabilityGapReport {
   bool runnable = 1;
@@ -57,6 +58,19 @@ message Chapter {
  repeated string evidence_ids = 5;
  string failure_class = 6;
  int32 attempts = 7;
+ ArtifactInstallProof artifact_install = 8;
+}
+message ArtifactInstallProof {
+ string immutable_ref = 1;
+ string artifact_checksum = 2;
+ string apk_checksum = 3;
+ string package_name = 4;
+ string version_name = 5;
+ int64 version_code = 6;
+ bool install_accepted = 7;
+ bool installed = 8;
+ string installed_version = 9;
+ bool post_install_verified = 10;
 }
 message Resolution {
   string target = 1;
@@ -79,6 +93,11 @@ message EvidenceReference {
   double minimum_useful_fps = 13;
   string disposition = 14;
   string disposition_reason = 15;
+  // Stream presence only; it does not prove audible or synchronized sound.
+  optional bool audio_track_present = 16;
+  // For concatenated reviews: all_chapters, some_chapters or no_chapters.
+  // This describes stream coverage, not audibility.
+  string audio_track_coverage = 17;
 }
 
 

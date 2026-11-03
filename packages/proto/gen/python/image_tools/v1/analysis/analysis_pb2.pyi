@@ -129,7 +129,7 @@ class DuplicateResult(_message.Message):
     def __init__(self, phash_hex: _Optional[str] = ..., ahash_hex: _Optional[str] = ..., hash_bits: _Optional[int] = ...) -> None: ...
 
 class QualityResult(_message.Message):
-    __slots__ = ("overall_score", "sharpness", "blurry", "brightness", "contrast", "exposure", "notes")
+    __slots__ = ("overall_score", "sharpness", "blurry", "brightness", "contrast", "exposure", "notes", "width_px", "height_px")
     OVERALL_SCORE_FIELD_NUMBER: _ClassVar[int]
     SHARPNESS_FIELD_NUMBER: _ClassVar[int]
     BLURRY_FIELD_NUMBER: _ClassVar[int]
@@ -137,6 +137,8 @@ class QualityResult(_message.Message):
     CONTRAST_FIELD_NUMBER: _ClassVar[int]
     EXPOSURE_FIELD_NUMBER: _ClassVar[int]
     NOTES_FIELD_NUMBER: _ClassVar[int]
+    WIDTH_PX_FIELD_NUMBER: _ClassVar[int]
+    HEIGHT_PX_FIELD_NUMBER: _ClassVar[int]
     overall_score: float
     sharpness: float
     blurry: bool
@@ -144,7 +146,9 @@ class QualityResult(_message.Message):
     contrast: float
     exposure: str
     notes: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, overall_score: _Optional[float] = ..., sharpness: _Optional[float] = ..., blurry: _Optional[bool] = ..., brightness: _Optional[float] = ..., contrast: _Optional[float] = ..., exposure: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ...) -> None: ...
+    width_px: int
+    height_px: int
+    def __init__(self, overall_score: _Optional[float] = ..., sharpness: _Optional[float] = ..., blurry: _Optional[bool] = ..., brightness: _Optional[float] = ..., contrast: _Optional[float] = ..., exposure: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ..., width_px: _Optional[int] = ..., height_px: _Optional[int] = ...) -> None: ...
 
 class AnalyzeResponse(_message.Message):
     __slots__ = ("job_id", "ocr", "nsfw", "probe", "duplicate", "quality")

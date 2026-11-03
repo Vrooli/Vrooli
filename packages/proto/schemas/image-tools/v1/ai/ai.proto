@@ -18,7 +18,7 @@ import "image-tools/v1/selection/selection.proto";
 // ops domain, these are heavy and model-backed — they run through a standalone
 // (non-ComfyUI) backend selected by hardware-fit, fall back Local-GPU →
 // Local-CPU → BYOK, and execute asynchronously on the durable job Manager's
-// GPU-serialized lane.
+// serialized local queue. The scheduler queue does not claim the execution device.
 //
 // Transport split (see docs/concepts/ARCHITECTURE.md):
 //   - DISCOVERY is Connect-RPC: AIService.ListAIOperations returns the op

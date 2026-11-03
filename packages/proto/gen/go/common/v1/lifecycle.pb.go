@@ -259,13 +259,17 @@ func (x *LifecycleStatusRequest) GetRevision() int64 {
 }
 
 type LifecycleDrainRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OperationId   string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	FenceToken    string                 `protobuf:"bytes,2,opt,name=fence_token,json=fenceToken,proto3" json:"fence_token,omitempty"`
-	Timeout       *durationpb.Duration   `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	Revision      int64                  `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	OperationId string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	FenceToken  string                 `protobuf:"bytes,2,opt,name=fence_token,json=fenceToken,proto3" json:"fence_token,omitempty"`
+	Timeout     *durationpb.Duration   `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	Revision    int64                  `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Wait only for provider-owned work to quiesce; does not authorize replacement.
+	QuiesceComponents bool `protobuf:"varint,5,opt,name=quiesce_components,json=quiesceComponents,proto3" json:"quiesce_components,omitempty"`
+	// Local control-plane completion after waiting the pinned launch incarnation.
+	ComponentExits []*LifecycleManagedComponent `protobuf:"bytes,6,rep,name=component_exits,json=componentExits,proto3" json:"component_exits,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *LifecycleDrainRequest) Reset() {
@@ -326,6 +330,72 @@ func (x *LifecycleDrainRequest) GetRevision() int64 {
 	return 0
 }
 
+func (x *LifecycleDrainRequest) GetQuiesceComponents() bool {
+	if x != nil {
+		return x.QuiesceComponents
+	}
+	return false
+}
+
+func (x *LifecycleDrainRequest) GetComponentExits() []*LifecycleManagedComponent {
+	if x != nil {
+		return x.ComponentExits
+	}
+	return nil
+}
+
+type LifecycleManagedComponent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Generation    string                 `protobuf:"bytes,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LifecycleManagedComponent) Reset() {
+	*x = LifecycleManagedComponent{}
+	mi := &file_common_v1_lifecycle_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LifecycleManagedComponent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LifecycleManagedComponent) ProtoMessage() {}
+
+func (x *LifecycleManagedComponent) ProtoReflect() protoreflect.Message {
+	mi := &file_common_v1_lifecycle_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LifecycleManagedComponent.ProtoReflect.Descriptor instead.
+func (*LifecycleManagedComponent) Descriptor() ([]byte, []int) {
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LifecycleManagedComponent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *LifecycleManagedComponent) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
 type LifecycleResumeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OperationId   string                 `protobuf:"bytes,1,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
@@ -337,7 +407,7 @@ type LifecycleResumeRequest struct {
 
 func (x *LifecycleResumeRequest) Reset() {
 	*x = LifecycleResumeRequest{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[3]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -349,7 +419,7 @@ func (x *LifecycleResumeRequest) String() string {
 func (*LifecycleResumeRequest) ProtoMessage() {}
 
 func (x *LifecycleResumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[3]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -362,7 +432,7 @@ func (x *LifecycleResumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleResumeRequest.ProtoReflect.Descriptor instead.
 func (*LifecycleResumeRequest) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{3}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *LifecycleResumeRequest) GetOperationId() string {
@@ -398,7 +468,7 @@ type LifecycleWorkItem struct {
 
 func (x *LifecycleWorkItem) Reset() {
 	*x = LifecycleWorkItem{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[4]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +480,7 @@ func (x *LifecycleWorkItem) String() string {
 func (*LifecycleWorkItem) ProtoMessage() {}
 
 func (x *LifecycleWorkItem) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[4]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +493,7 @@ func (x *LifecycleWorkItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleWorkItem.ProtoReflect.Descriptor instead.
 func (*LifecycleWorkItem) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{4}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *LifecycleWorkItem) GetId() string {
@@ -466,7 +536,7 @@ type LifecycleBlocker struct {
 
 func (x *LifecycleBlocker) Reset() {
 	*x = LifecycleBlocker{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[5]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -478,7 +548,7 @@ func (x *LifecycleBlocker) String() string {
 func (*LifecycleBlocker) ProtoMessage() {}
 
 func (x *LifecycleBlocker) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[5]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -491,7 +561,7 @@ func (x *LifecycleBlocker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleBlocker.ProtoReflect.Descriptor instead.
 func (*LifecycleBlocker) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{5}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *LifecycleBlocker) GetCode() string {
@@ -523,32 +593,39 @@ func (x *LifecycleBlocker) GetObserved() bool {
 }
 
 type LifecycleStanding struct {
-	state              protoimpl.MessageState    `protogen:"open.v1"`
-	Provider           string                    `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
-	ProviderInstanceId string                    `protobuf:"bytes,2,opt,name=provider_instance_id,json=providerInstanceId,proto3" json:"provider_instance_id,omitempty"`
-	Scenario           string                    `protobuf:"bytes,3,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	InstanceId         string                    `protobuf:"bytes,4,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
-	OperationId        string                    `protobuf:"bytes,5,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
-	FenceToken         string                    `protobuf:"bytes,6,opt,name=fence_token,json=fenceToken,proto3" json:"fence_token,omitempty"`
-	Revision           int64                     `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`
-	Phase              LifecycleMaintenancePhase `protobuf:"varint,8,opt,name=phase,proto3,enum=common.v1.LifecycleMaintenancePhase" json:"phase,omitempty"`
-	AdmissionClosed    bool                      `protobuf:"varint,9,opt,name=admission_closed,json=admissionClosed,proto3" json:"admission_closed,omitempty"`
-	Admitting          int32                     `protobuf:"varint,10,opt,name=admitting,proto3" json:"admitting,omitempty"`
-	Remaining          int32                     `protobuf:"varint,11,opt,name=remaining,proto3" json:"remaining,omitempty"`
-	InventoryComplete  bool                      `protobuf:"varint,12,opt,name=inventory_complete,json=inventoryComplete,proto3" json:"inventory_complete,omitempty"`
-	Drained            bool                      `protobuf:"varint,13,opt,name=drained,proto3" json:"drained,omitempty"`
-	Work               []*LifecycleWorkItem      `protobuf:"bytes,14,rep,name=work,proto3" json:"work,omitempty"`
-	Blockers           []*LifecycleBlocker       `protobuf:"bytes,15,rep,name=blockers,proto3" json:"blockers,omitempty"`
-	ObservedAt         *timestamppb.Timestamp    `protobuf:"bytes,16,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
-	ExpiresAt          *timestamppb.Timestamp    `protobuf:"bytes,17,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	Interlock          string                    `protobuf:"bytes,18,opt,name=interlock,proto3" json:"interlock,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	state              protoimpl.MessageState       `protogen:"open.v1"`
+	Provider           string                       `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
+	ProviderInstanceId string                       `protobuf:"bytes,2,opt,name=provider_instance_id,json=providerInstanceId,proto3" json:"provider_instance_id,omitempty"`
+	Scenario           string                       `protobuf:"bytes,3,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	InstanceId         string                       `protobuf:"bytes,4,opt,name=instance_id,json=instanceId,proto3" json:"instance_id,omitempty"`
+	OperationId        string                       `protobuf:"bytes,5,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
+	FenceToken         string                       `protobuf:"bytes,6,opt,name=fence_token,json=fenceToken,proto3" json:"fence_token,omitempty"`
+	Revision           int64                        `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`
+	Phase              LifecycleMaintenancePhase    `protobuf:"varint,8,opt,name=phase,proto3,enum=common.v1.LifecycleMaintenancePhase" json:"phase,omitempty"`
+	AdmissionClosed    bool                         `protobuf:"varint,9,opt,name=admission_closed,json=admissionClosed,proto3" json:"admission_closed,omitempty"`
+	Admitting          int32                        `protobuf:"varint,10,opt,name=admitting,proto3" json:"admitting,omitempty"`
+	Remaining          int32                        `protobuf:"varint,11,opt,name=remaining,proto3" json:"remaining,omitempty"`
+	InventoryComplete  bool                         `protobuf:"varint,12,opt,name=inventory_complete,json=inventoryComplete,proto3" json:"inventory_complete,omitempty"`
+	Drained            bool                         `protobuf:"varint,13,opt,name=drained,proto3" json:"drained,omitempty"`
+	Work               []*LifecycleWorkItem         `protobuf:"bytes,14,rep,name=work,proto3" json:"work,omitempty"`
+	Blockers           []*LifecycleBlocker          `protobuf:"bytes,15,rep,name=blockers,proto3" json:"blockers,omitempty"`
+	ObservedAt         *timestamppb.Timestamp       `protobuf:"bytes,16,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	ExpiresAt          *timestamppb.Timestamp       `protobuf:"bytes,17,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Interlock          string                       `protobuf:"bytes,18,opt,name=interlock,proto3" json:"interlock,omitempty"`
+	ManagedComponents  []*LifecycleManagedComponent `protobuf:"bytes,19,rep,name=managed_components,json=managedComponents,proto3" json:"managed_components,omitempty"`
+	// True only while closed under this fence and provider-owned work is terminal.
+	// Component processes may still be alive; final drained remains required.
+	ComponentStopReady bool `protobuf:"varint,20,opt,name=component_stop_ready,json=componentStopReady,proto3" json:"component_stop_ready,omitempty"`
+	// True while the control plane must request the provider's separate
+	// quiescence stage before final drain, even if no OS components are listed.
+	QuiescencePending bool `protobuf:"varint,21,opt,name=quiescence_pending,json=quiescencePending,proto3" json:"quiescence_pending,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *LifecycleStanding) Reset() {
 	*x = LifecycleStanding{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[6]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +637,7 @@ func (x *LifecycleStanding) String() string {
 func (*LifecycleStanding) ProtoMessage() {}
 
 func (x *LifecycleStanding) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[6]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +650,7 @@ func (x *LifecycleStanding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleStanding.ProtoReflect.Descriptor instead.
 func (*LifecycleStanding) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{6}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *LifecycleStanding) GetProvider() string {
@@ -702,6 +779,27 @@ func (x *LifecycleStanding) GetInterlock() string {
 	return ""
 }
 
+func (x *LifecycleStanding) GetManagedComponents() []*LifecycleManagedComponent {
+	if x != nil {
+		return x.ManagedComponents
+	}
+	return nil
+}
+
+func (x *LifecycleStanding) GetComponentStopReady() bool {
+	if x != nil {
+		return x.ComponentStopReady
+	}
+	return false
+}
+
+func (x *LifecycleStanding) GetQuiescencePending() bool {
+	if x != nil {
+		return x.QuiescencePending
+	}
+	return false
+}
+
 type LifecyclePrepareResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Standing      *LifecycleStanding     `protobuf:"bytes,1,opt,name=standing,proto3" json:"standing,omitempty"`
@@ -711,7 +809,7 @@ type LifecyclePrepareResponse struct {
 
 func (x *LifecyclePrepareResponse) Reset() {
 	*x = LifecyclePrepareResponse{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[7]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +821,7 @@ func (x *LifecyclePrepareResponse) String() string {
 func (*LifecyclePrepareResponse) ProtoMessage() {}
 
 func (x *LifecyclePrepareResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[7]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +834,7 @@ func (x *LifecyclePrepareResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecyclePrepareResponse.ProtoReflect.Descriptor instead.
 func (*LifecyclePrepareResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{7}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *LifecyclePrepareResponse) GetStanding() *LifecycleStanding {
@@ -755,7 +853,7 @@ type LifecycleStatusResponse struct {
 
 func (x *LifecycleStatusResponse) Reset() {
 	*x = LifecycleStatusResponse{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[8]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -767,7 +865,7 @@ func (x *LifecycleStatusResponse) String() string {
 func (*LifecycleStatusResponse) ProtoMessage() {}
 
 func (x *LifecycleStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[8]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -780,7 +878,7 @@ func (x *LifecycleStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleStatusResponse.ProtoReflect.Descriptor instead.
 func (*LifecycleStatusResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{8}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *LifecycleStatusResponse) GetStanding() *LifecycleStanding {
@@ -799,7 +897,7 @@ type LifecycleDrainResponse struct {
 
 func (x *LifecycleDrainResponse) Reset() {
 	*x = LifecycleDrainResponse{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[9]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +909,7 @@ func (x *LifecycleDrainResponse) String() string {
 func (*LifecycleDrainResponse) ProtoMessage() {}
 
 func (x *LifecycleDrainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[9]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +922,7 @@ func (x *LifecycleDrainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleDrainResponse.ProtoReflect.Descriptor instead.
 func (*LifecycleDrainResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{9}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *LifecycleDrainResponse) GetStanding() *LifecycleStanding {
@@ -843,7 +941,7 @@ type LifecycleResumeResponse struct {
 
 func (x *LifecycleResumeResponse) Reset() {
 	*x = LifecycleResumeResponse{}
-	mi := &file_common_v1_lifecycle_proto_msgTypes[10]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -855,7 +953,7 @@ func (x *LifecycleResumeResponse) String() string {
 func (*LifecycleResumeResponse) ProtoMessage() {}
 
 func (x *LifecycleResumeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_v1_lifecycle_proto_msgTypes[10]
+	mi := &file_common_v1_lifecycle_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +966,7 @@ func (x *LifecycleResumeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LifecycleResumeResponse.ProtoReflect.Descriptor instead.
 func (*LifecycleResumeResponse) Descriptor() ([]byte, []int) {
-	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{10}
+	return file_common_v1_lifecycle_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *LifecycleResumeResponse) GetStanding() *LifecycleStanding {
@@ -892,13 +990,20 @@ const file_common_v1_lifecycle_proto_rawDesc = "" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1f\n" +
 	"\vfence_token\x18\x02 \x01(\tR\n" +
 	"fenceToken\x12\x1a\n" +
-	"\brevision\x18\x03 \x01(\x03R\brevision\"\xac\x01\n" +
+	"\brevision\x18\x03 \x01(\x03R\brevision\"\xaa\x02\n" +
 	"\x15LifecycleDrainRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1f\n" +
 	"\vfence_token\x18\x02 \x01(\tR\n" +
 	"fenceToken\x123\n" +
 	"\atimeout\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\atimeout\x12\x1a\n" +
-	"\brevision\x18\x04 \x01(\x03R\brevision\"x\n" +
+	"\brevision\x18\x04 \x01(\x03R\brevision\x12-\n" +
+	"\x12quiesce_components\x18\x05 \x01(\bR\x11quiesceComponents\x12M\n" +
+	"\x0fcomponent_exits\x18\x06 \x03(\v2$.common.v1.LifecycleManagedComponentR\x0ecomponentExits\"O\n" +
+	"\x19LifecycleManagedComponent\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\tR\n" +
+	"generation\"x\n" +
 	"\x16LifecycleResumeRequest\x12!\n" +
 	"\foperation_id\x18\x01 \x01(\tR\voperationId\x12\x1f\n" +
 	"\vfence_token\x18\x02 \x01(\tR\n" +
@@ -913,7 +1018,7 @@ const file_common_v1_lifecycle_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12H\n" +
 	"\vdisposition\x18\x03 \x01(\x0e2&.common.v1.LifecycleBlockerDispositionR\vdisposition\x12\x1a\n" +
-	"\bobserved\x18\x04 \x01(\bR\bobserved\"\xeb\x05\n" +
+	"\bobserved\x18\x04 \x01(\bR\bobserved\"\xa1\a\n" +
 	"\x11LifecycleStanding\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x120\n" +
 	"\x14provider_instance_id\x18\x02 \x01(\tR\x12providerInstanceId\x12\x1a\n" +
@@ -937,7 +1042,10 @@ const file_common_v1_lifecycle_proto_rawDesc = "" +
 	"observedAt\x129\n" +
 	"\n" +
 	"expires_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1c\n" +
-	"\tinterlock\x18\x12 \x01(\tR\tinterlock\"T\n" +
+	"\tinterlock\x18\x12 \x01(\tR\tinterlock\x12S\n" +
+	"\x12managed_components\x18\x13 \x03(\v2$.common.v1.LifecycleManagedComponentR\x11managedComponents\x120\n" +
+	"\x14component_stop_ready\x18\x14 \x01(\bR\x12componentStopReady\x12-\n" +
+	"\x12quiescence_pending\x18\x15 \x01(\bR\x11quiescencePending\"T\n" +
 	"\x18LifecyclePrepareResponse\x128\n" +
 	"\bstanding\x18\x01 \x01(\v2\x1c.common.v1.LifecycleStandingR\bstanding\"S\n" +
 	"\x17LifecycleStatusResponse\x128\n" +
@@ -976,49 +1084,52 @@ func file_common_v1_lifecycle_proto_rawDescGZIP() []byte {
 }
 
 var file_common_v1_lifecycle_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_common_v1_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_common_v1_lifecycle_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_common_v1_lifecycle_proto_goTypes = []any{
-	(LifecycleMaintenancePhase)(0),   // 0: common.v1.LifecycleMaintenancePhase
-	(LifecycleBlockerDisposition)(0), // 1: common.v1.LifecycleBlockerDisposition
-	(*LifecyclePrepareRequest)(nil),  // 2: common.v1.LifecyclePrepareRequest
-	(*LifecycleStatusRequest)(nil),   // 3: common.v1.LifecycleStatusRequest
-	(*LifecycleDrainRequest)(nil),    // 4: common.v1.LifecycleDrainRequest
-	(*LifecycleResumeRequest)(nil),   // 5: common.v1.LifecycleResumeRequest
-	(*LifecycleWorkItem)(nil),        // 6: common.v1.LifecycleWorkItem
-	(*LifecycleBlocker)(nil),         // 7: common.v1.LifecycleBlocker
-	(*LifecycleStanding)(nil),        // 8: common.v1.LifecycleStanding
-	(*LifecyclePrepareResponse)(nil), // 9: common.v1.LifecyclePrepareResponse
-	(*LifecycleStatusResponse)(nil),  // 10: common.v1.LifecycleStatusResponse
-	(*LifecycleDrainResponse)(nil),   // 11: common.v1.LifecycleDrainResponse
-	(*LifecycleResumeResponse)(nil),  // 12: common.v1.LifecycleResumeResponse
-	(*durationpb.Duration)(nil),      // 13: google.protobuf.Duration
-	(*timestamppb.Timestamp)(nil),    // 14: google.protobuf.Timestamp
+	(LifecycleMaintenancePhase)(0),    // 0: common.v1.LifecycleMaintenancePhase
+	(LifecycleBlockerDisposition)(0),  // 1: common.v1.LifecycleBlockerDisposition
+	(*LifecyclePrepareRequest)(nil),   // 2: common.v1.LifecyclePrepareRequest
+	(*LifecycleStatusRequest)(nil),    // 3: common.v1.LifecycleStatusRequest
+	(*LifecycleDrainRequest)(nil),     // 4: common.v1.LifecycleDrainRequest
+	(*LifecycleManagedComponent)(nil), // 5: common.v1.LifecycleManagedComponent
+	(*LifecycleResumeRequest)(nil),    // 6: common.v1.LifecycleResumeRequest
+	(*LifecycleWorkItem)(nil),         // 7: common.v1.LifecycleWorkItem
+	(*LifecycleBlocker)(nil),          // 8: common.v1.LifecycleBlocker
+	(*LifecycleStanding)(nil),         // 9: common.v1.LifecycleStanding
+	(*LifecyclePrepareResponse)(nil),  // 10: common.v1.LifecyclePrepareResponse
+	(*LifecycleStatusResponse)(nil),   // 11: common.v1.LifecycleStatusResponse
+	(*LifecycleDrainResponse)(nil),    // 12: common.v1.LifecycleDrainResponse
+	(*LifecycleResumeResponse)(nil),   // 13: common.v1.LifecycleResumeResponse
+	(*durationpb.Duration)(nil),       // 14: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),     // 15: google.protobuf.Timestamp
 }
 var file_common_v1_lifecycle_proto_depIdxs = []int32{
-	13, // 0: common.v1.LifecycleDrainRequest.timeout:type_name -> google.protobuf.Duration
-	1,  // 1: common.v1.LifecycleBlocker.disposition:type_name -> common.v1.LifecycleBlockerDisposition
-	0,  // 2: common.v1.LifecycleStanding.phase:type_name -> common.v1.LifecycleMaintenancePhase
-	6,  // 3: common.v1.LifecycleStanding.work:type_name -> common.v1.LifecycleWorkItem
-	7,  // 4: common.v1.LifecycleStanding.blockers:type_name -> common.v1.LifecycleBlocker
-	14, // 5: common.v1.LifecycleStanding.observed_at:type_name -> google.protobuf.Timestamp
-	14, // 6: common.v1.LifecycleStanding.expires_at:type_name -> google.protobuf.Timestamp
-	8,  // 7: common.v1.LifecyclePrepareResponse.standing:type_name -> common.v1.LifecycleStanding
-	8,  // 8: common.v1.LifecycleStatusResponse.standing:type_name -> common.v1.LifecycleStanding
-	8,  // 9: common.v1.LifecycleDrainResponse.standing:type_name -> common.v1.LifecycleStanding
-	8,  // 10: common.v1.LifecycleResumeResponse.standing:type_name -> common.v1.LifecycleStanding
-	2,  // 11: common.v1.LifecycleMaintenanceService.Prepare:input_type -> common.v1.LifecyclePrepareRequest
-	3,  // 12: common.v1.LifecycleMaintenanceService.Status:input_type -> common.v1.LifecycleStatusRequest
-	4,  // 13: common.v1.LifecycleMaintenanceService.Drain:input_type -> common.v1.LifecycleDrainRequest
-	5,  // 14: common.v1.LifecycleMaintenanceService.Resume:input_type -> common.v1.LifecycleResumeRequest
-	9,  // 15: common.v1.LifecycleMaintenanceService.Prepare:output_type -> common.v1.LifecyclePrepareResponse
-	10, // 16: common.v1.LifecycleMaintenanceService.Status:output_type -> common.v1.LifecycleStatusResponse
-	11, // 17: common.v1.LifecycleMaintenanceService.Drain:output_type -> common.v1.LifecycleDrainResponse
-	12, // 18: common.v1.LifecycleMaintenanceService.Resume:output_type -> common.v1.LifecycleResumeResponse
-	15, // [15:19] is the sub-list for method output_type
-	11, // [11:15] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	14, // 0: common.v1.LifecycleDrainRequest.timeout:type_name -> google.protobuf.Duration
+	5,  // 1: common.v1.LifecycleDrainRequest.component_exits:type_name -> common.v1.LifecycleManagedComponent
+	1,  // 2: common.v1.LifecycleBlocker.disposition:type_name -> common.v1.LifecycleBlockerDisposition
+	0,  // 3: common.v1.LifecycleStanding.phase:type_name -> common.v1.LifecycleMaintenancePhase
+	7,  // 4: common.v1.LifecycleStanding.work:type_name -> common.v1.LifecycleWorkItem
+	8,  // 5: common.v1.LifecycleStanding.blockers:type_name -> common.v1.LifecycleBlocker
+	15, // 6: common.v1.LifecycleStanding.observed_at:type_name -> google.protobuf.Timestamp
+	15, // 7: common.v1.LifecycleStanding.expires_at:type_name -> google.protobuf.Timestamp
+	5,  // 8: common.v1.LifecycleStanding.managed_components:type_name -> common.v1.LifecycleManagedComponent
+	9,  // 9: common.v1.LifecyclePrepareResponse.standing:type_name -> common.v1.LifecycleStanding
+	9,  // 10: common.v1.LifecycleStatusResponse.standing:type_name -> common.v1.LifecycleStanding
+	9,  // 11: common.v1.LifecycleDrainResponse.standing:type_name -> common.v1.LifecycleStanding
+	9,  // 12: common.v1.LifecycleResumeResponse.standing:type_name -> common.v1.LifecycleStanding
+	2,  // 13: common.v1.LifecycleMaintenanceService.Prepare:input_type -> common.v1.LifecyclePrepareRequest
+	3,  // 14: common.v1.LifecycleMaintenanceService.Status:input_type -> common.v1.LifecycleStatusRequest
+	4,  // 15: common.v1.LifecycleMaintenanceService.Drain:input_type -> common.v1.LifecycleDrainRequest
+	6,  // 16: common.v1.LifecycleMaintenanceService.Resume:input_type -> common.v1.LifecycleResumeRequest
+	10, // 17: common.v1.LifecycleMaintenanceService.Prepare:output_type -> common.v1.LifecyclePrepareResponse
+	11, // 18: common.v1.LifecycleMaintenanceService.Status:output_type -> common.v1.LifecycleStatusResponse
+	12, // 19: common.v1.LifecycleMaintenanceService.Drain:output_type -> common.v1.LifecycleDrainResponse
+	13, // 20: common.v1.LifecycleMaintenanceService.Resume:output_type -> common.v1.LifecycleResumeResponse
+	17, // [17:21] is the sub-list for method output_type
+	13, // [13:17] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_lifecycle_proto_init() }
@@ -1032,7 +1143,7 @@ func file_common_v1_lifecycle_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_lifecycle_proto_rawDesc), len(file_common_v1_lifecycle_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

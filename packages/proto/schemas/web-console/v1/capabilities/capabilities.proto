@@ -4,6 +4,8 @@ package vrooli.web_console.v1.capabilities;
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities;capabilities_v1";
 
+import "common/v1/integrations.proto";
+
 // =============================================================================
 // CAPABILITIES DOMAIN — runtime capability probes
 // =============================================================================
@@ -130,6 +132,10 @@ message AgentUpdateResponse {
   string rollback_version = 19;
   // The running version is newer than the one its permission policy reviewed.
   bool newer_than_reviewed = 20;
+  // Independent harness facts. Sign-in stays unknown unless a harness probe proves otherwise.
+  string install_state = 21;
+  string sign_in_state = 22;
+  string update_state = 23;
 }
 
 // One update precondition. The ID is stable; the message states what was found.
@@ -142,10 +148,13 @@ message AgentUpdateCheck {
 message RunAgentUpdateActionRequest {
   string target_id = 1;
   string agent_id = 2;
-  // install, use_managed_copy, link_managed_copy, update, rollback, retry or
+  // install, use_managed_copy, link_managed_copy, update, rollback, retry,
+  // doctor, preview_cleanup, uninstall or
   // refresh_catalog. refresh_catalog rewrites the local model list from the
   // installed runner's own evidence and has no remote form.
   string action = 3;
+  // Required for uninstall: exact identity returned by preview_cleanup.
+  string cleanup_plan_id = 4;
 }
 
 message RunAgentUpdateActionResponse {
@@ -155,6 +164,7 @@ message RunAgentUpdateActionResponse {
   AgentUpdateResponse update = 3;
   // Durable Bridge correlation/audit identifier for a remote action.
   string operation_id = 4;
+  HarnessCleanupPlan cleanup_plan = 5;
 }
 
 // CapabilityState is the runtime view of a single capability. Mirrors
@@ -191,6 +201,8 @@ message CapabilityState {
   // provider serves more than one feature. This keeps consumer gates generic
   // without requiring a second vendor/provider catalogue in the UI.
   map<string, string> provider_features = 18;
+  repeated common.v1.integrations.IntegrationUse uses = 19;
+  common.v1.integrations.LocalInstallation installation = 20;
 }
 
 // BackendOption mirrors the api.BackendDescriptor struct. Surfaced on
@@ -237,4 +249,11 @@ message RunActionResponse {
   string timestamp = 7;
   // Durable Bridge correlation/audit identifier for a remote action.
   string operation_id = 8;
+}
+
+// Exact managed paths to remove and independently installed paths preserved.
+message HarnessCleanupPlan {
+  string id = 1;
+  repeated string remove = 2;
+  repeated string preserved = 3;
 }

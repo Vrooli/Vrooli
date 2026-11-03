@@ -168,6 +168,22 @@ class ReportManualOutcomeResponse(_message.Message):
     settlement: _settlement_pb2.Charge
     def __init__(self, authorization: _Optional[_Union[AuthorizationRecord, _Mapping]] = ..., settlement: _Optional[_Union[_settlement_pb2.Charge, _Mapping]] = ...) -> None: ...
 
+class ResolveUnknownSettlementRequest(_message.Message):
+    __slots__ = ("settlement_id", "confirm_prior_process_stopped")
+    SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIRM_PRIOR_PROCESS_STOPPED_FIELD_NUMBER: _ClassVar[int]
+    settlement_id: str
+    confirm_prior_process_stopped: bool
+    def __init__(self, settlement_id: _Optional[str] = ..., confirm_prior_process_stopped: _Optional[bool] = ...) -> None: ...
+
+class ResolveUnknownSettlementResponse(_message.Message):
+    __slots__ = ("authorization", "settlement")
+    AUTHORIZATION_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_FIELD_NUMBER: _ClassVar[int]
+    authorization: AuthorizationRecord
+    settlement: _settlement_pb2.Charge
+    def __init__(self, authorization: _Optional[_Union[AuthorizationRecord, _Mapping]] = ..., settlement: _Optional[_Union[_settlement_pb2.Charge, _Mapping]] = ...) -> None: ...
+
 class CreateBookRequest(_message.Message):
     __slots__ = ("book",)
     BOOK_FIELD_NUMBER: _ClassVar[int]
@@ -425,3 +441,41 @@ class ProveResearchWalletResponse(_message.Message):
     PROOF_FIELD_NUMBER: _ClassVar[int]
     proof: _wallet_pb2.ControlProof
     def __init__(self, proof: _Optional[_Union[_wallet_pb2.ControlProof, _Mapping]] = ...) -> None: ...
+
+class VerifyBaseUSDCReceiptRequest(_message.Message):
+    __slots__ = ("wallet_id", "transaction_hash")
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    wallet_id: str
+    transaction_hash: str
+    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ...) -> None: ...
+
+class VerifyBaseUSDCReceiptResponse(_message.Message):
+    __slots__ = ("transfers", "check_id", "check_outcome", "provider_id", "checked_at")
+    TRANSFERS_FIELD_NUMBER: _ClassVar[int]
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    CHECK_OUTCOME_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    transfers: _containers.RepeatedCompositeFieldContainer[_wallet_pb2.BaseUSDCTransferObservation]
+    check_id: str
+    check_outcome: str
+    provider_id: str
+    checked_at: _timestamp_pb2.Timestamp
+    def __init__(self, transfers: _Optional[_Iterable[_Union[_wallet_pb2.BaseUSDCTransferObservation, _Mapping]]] = ..., check_id: _Optional[str] = ..., check_outcome: _Optional[str] = ..., provider_id: _Optional[str] = ..., checked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+
+class ListBaseUSDCReceiptChecksRequest(_message.Message):
+    __slots__ = ("wallet_id", "transaction_hash", "limit")
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSACTION_HASH_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    wallet_id: str
+    transaction_hash: str
+    limit: int
+    def __init__(self, wallet_id: _Optional[str] = ..., transaction_hash: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+
+class ListBaseUSDCReceiptChecksResponse(_message.Message):
+    __slots__ = ("checks",)
+    CHECKS_FIELD_NUMBER: _ClassVar[int]
+    checks: _containers.RepeatedCompositeFieldContainer[_wallet_pb2.BaseUSDCReceiptCheck]
+    def __init__(self, checks: _Optional[_Iterable[_Union[_wallet_pb2.BaseUSDCReceiptCheck, _Mapping]]] = ...) -> None: ...

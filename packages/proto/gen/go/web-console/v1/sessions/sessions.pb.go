@@ -1487,8 +1487,10 @@ type AgentLaunch struct {
 	// The choice's source, which tells apart one model offered through two.
 	Provider           string `protobuf:"bytes,3,opt,name=provider,proto3" json:"provider,omitempty"`
 	ContextLimitTokens int64  `protobuf:"varint,4,opt,name=context_limit_tokens,json=contextLimitTokens,proto3" json:"context_limit_tokens,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Maximum credits this explicitly selected paid session may spend.
+	MaxCredits    int64 `protobuf:"varint,5,opt,name=max_credits,json=maxCredits,proto3" json:"max_credits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AgentLaunch) Reset() {
@@ -1545,6 +1547,13 @@ func (x *AgentLaunch) GetProvider() string {
 func (x *AgentLaunch) GetContextLimitTokens() int64 {
 	if x != nil {
 		return x.ContextLimitTokens
+	}
+	return 0
+}
+
+func (x *AgentLaunch) GetMaxCredits() int64 {
+	if x != nil {
+		return x.MaxCredits
 	}
 	return 0
 }
@@ -4044,12 +4053,14 @@ const file_web_console_v1_sessions_sessions_proto_rawDesc = "" +
 	"\x14requested_session_id\x18\x12 \x01(\tR\x12requestedSessionId\x127\n" +
 	"\x18agent_run_identity_token\x18\x13 \x01(\tR\x15agentRunIdentityToken\x12.\n" +
 	"\x13business_account_id\x18\x14 \x01(\tR\x11businessAccountId\x12N\n" +
-	"\fagent_launch\x18\x15 \x01(\v2+.vrooli.web_console.v1.sessions.AgentLaunchR\vagentLaunch\"\x8c\x01\n" +
+	"\fagent_launch\x18\x15 \x01(\v2+.vrooli.web_console.v1.sessions.AgentLaunchR\vagentLaunch\"\xad\x01\n" +
 	"\vAgentLaunch\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x14\n" +
 	"\x05model\x18\x02 \x01(\tR\x05model\x12\x1a\n" +
 	"\bprovider\x18\x03 \x01(\tR\bprovider\x120\n" +
-	"\x14context_limit_tokens\x18\x04 \x01(\x03R\x12contextLimitTokens\"S\n" +
+	"\x14context_limit_tokens\x18\x04 \x01(\x03R\x12contextLimitTokens\x12\x1f\n" +
+	"\vmax_credits\x18\x05 \x01(\x03R\n" +
+	"maxCredits\"S\n" +
 	"\x0eCreateResponse\x12A\n" +
 	"\asession\x18\x01 \x01(\v2'.vrooli.web_console.v1.sessions.SessionR\asession\"\r\n" +
 	"\vListRequest\"\x96\x02\n" +

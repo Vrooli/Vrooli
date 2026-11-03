@@ -25,6 +25,13 @@ class JobLane(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     JOB_LANE_GPU: _ClassVar[JobLane]
     JOB_LANE_CPU: _ClassVar[JobLane]
     JOB_LANE_NETWORK: _ClassVar[JobLane]
+
+class JobQueue(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    JOB_QUEUE_UNSPECIFIED: _ClassVar[JobQueue]
+    JOB_QUEUE_LOCAL_SERIAL: _ClassVar[JobQueue]
+    JOB_QUEUE_CPU_POOL: _ClassVar[JobQueue]
+    JOB_QUEUE_NETWORK_POOL: _ClassVar[JobQueue]
 JOB_STATE_UNSPECIFIED: JobState
 JOB_STATE_QUEUED: JobState
 JOB_STATE_RUNNING: JobState
@@ -35,9 +42,13 @@ JOB_LANE_UNSPECIFIED: JobLane
 JOB_LANE_GPU: JobLane
 JOB_LANE_CPU: JobLane
 JOB_LANE_NETWORK: JobLane
+JOB_QUEUE_UNSPECIFIED: JobQueue
+JOB_QUEUE_LOCAL_SERIAL: JobQueue
+JOB_QUEUE_CPU_POOL: JobQueue
+JOB_QUEUE_NETWORK_POOL: JobQueue
 
 class Job(_message.Message):
-    __slots__ = ("id", "operation", "lane", "state", "progress", "message", "error", "result_ref", "estimated_seconds", "created_at", "started_at", "finished_at", "result_meta", "request", "result_refs")
+    __slots__ = ("id", "operation", "lane", "state", "progress", "message", "error", "result_ref", "estimated_seconds", "created_at", "started_at", "finished_at", "result_meta", "request", "result_refs", "scheduling_queue")
     class ResultMetaEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -60,6 +71,7 @@ class Job(_message.Message):
     RESULT_META_FIELD_NUMBER: _ClassVar[int]
     REQUEST_FIELD_NUMBER: _ClassVar[int]
     RESULT_REFS_FIELD_NUMBER: _ClassVar[int]
+    SCHEDULING_QUEUE_FIELD_NUMBER: _ClassVar[int]
     id: str
     operation: str
     lane: JobLane
@@ -75,7 +87,8 @@ class Job(_message.Message):
     result_meta: _containers.ScalarMap[str, str]
     request: JobRequest
     result_refs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., operation: _Optional[str] = ..., lane: _Optional[_Union[JobLane, str]] = ..., state: _Optional[_Union[JobState, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_meta: _Optional[_Mapping[str, str]] = ..., request: _Optional[_Union[JobRequest, _Mapping]] = ..., result_refs: _Optional[_Iterable[str]] = ...) -> None: ...
+    scheduling_queue: JobQueue
+    def __init__(self, id: _Optional[str] = ..., operation: _Optional[str] = ..., lane: _Optional[_Union[JobLane, str]] = ..., state: _Optional[_Union[JobState, str]] = ..., progress: _Optional[int] = ..., message: _Optional[str] = ..., error: _Optional[str] = ..., result_ref: _Optional[str] = ..., estimated_seconds: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., result_meta: _Optional[_Mapping[str, str]] = ..., request: _Optional[_Union[JobRequest, _Mapping]] = ..., result_refs: _Optional[_Iterable[str]] = ..., scheduling_queue: _Optional[_Union[JobQueue, str]] = ...) -> None: ...
 
 class JobRequest(_message.Message):
     __slots__ = ("operation", "model_id", "backend", "tier", "role", "prompt", "negative_prompt", "seed", "width", "height", "variations", "adapters")

@@ -33,6 +33,14 @@ type LedgerEmission struct {
 	Basis         string                 `protobuf:"bytes,7,opt,name=basis,proto3" json:"basis,omitempty"`
 	FetchedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=fetched_at,json=fetchedAt,proto3" json:"fetched_at,omitempty"`
 	AcceptedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
+	Status        string                 `protobuf:"bytes,10,opt,name=status,proto3" json:"status,omitempty"`
+	Attempts      int32                  `protobuf:"varint,11,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	LastError     string                 `protobuf:"bytes,12,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	SettlementId  string                 `protobuf:"bytes,13,opt,name=settlement_id,json=settlementId,proto3" json:"settlement_id,omitempty"`
+	AccountId     string                 `protobuf:"bytes,14,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	BookId        string                 `protobuf:"bytes,15,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,11 +138,173 @@ func (x *LedgerEmission) GetAcceptedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *LedgerEmission) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *LedgerEmission) GetAttempts() int32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *LedgerEmission) GetLastError() string {
+	if x != nil {
+		return x.LastError
+	}
+	return ""
+}
+
+func (x *LedgerEmission) GetSettlementId() string {
+	if x != nil {
+		return x.SettlementId
+	}
+	return ""
+}
+
+func (x *LedgerEmission) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *LedgerEmission) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *LedgerEmission) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+func (x *LedgerEmission) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListEmissionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Exact source identity, for example treasury:<occurrence-id>.
+	ExternalId string `protobuf:"bytes,1,opt,name=external_id,json=externalId,proto3" json:"external_id,omitempty"`
+	// Optional: queued or accepted. Empty returns all states.
+	Status        string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Limit         int32  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEmissionsRequest) Reset() {
+	*x = ListEmissionsRequest{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEmissionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEmissionsRequest) ProtoMessage() {}
+
+func (x *ListEmissionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEmissionsRequest.ProtoReflect.Descriptor instead.
+func (*ListEmissionsRequest) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListEmissionsRequest) GetExternalId() string {
+	if x != nil {
+		return x.ExternalId
+	}
+	return ""
+}
+
+func (x *ListEmissionsRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *ListEmissionsRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+type ListEmissionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Emissions     []*LedgerEmission      `protobuf:"bytes,1,rep,name=emissions,proto3" json:"emissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEmissionsResponse) Reset() {
+	*x = ListEmissionsResponse{}
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEmissionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEmissionsResponse) ProtoMessage() {}
+
+func (x *ListEmissionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_ledger_ledger_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEmissionsResponse.ProtoReflect.Descriptor instead.
+func (*ListEmissionsResponse) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_ledger_ledger_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListEmissionsResponse) GetEmissions() []*LedgerEmission {
+	if x != nil {
+		return x.Emissions
+	}
+	return nil
+}
+
 var File_treasury_v1_ledger_ledger_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_ledger_ledger_proto_rawDesc = "" +
 	"\n" +
-	"\x1ftreasury/v1/ledger/ledger.proto\x12\x19vrooli.treasury.v1.ledger\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\x02\n" +
+	"\x1ftreasury/v1/ledger/ledger.proto\x12\x19vrooli.treasury.v1.ledger\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x04\n" +
 	"\x0eLedgerEmission\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tcharge_id\x18\x02 \x01(\tR\bchargeId\x12\x1f\n" +
@@ -148,7 +318,29 @@ const file_treasury_v1_ledger_ledger_proto_rawDesc = "" +
 	"\n" +
 	"fetched_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tfetchedAt\x12;\n" +
 	"\vaccepted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"acceptedAtBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1b\x06proto3"
+	"acceptedAt\x12\x16\n" +
+	"\x06status\x18\n" +
+	" \x01(\tR\x06status\x12\x1a\n" +
+	"\battempts\x18\v \x01(\x05R\battempts\x12\x1d\n" +
+	"\n" +
+	"last_error\x18\f \x01(\tR\tlastError\x12#\n" +
+	"\rsettlement_id\x18\r \x01(\tR\fsettlementId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x0e \x01(\tR\taccountId\x12\x17\n" +
+	"\abook_id\x18\x0f \x01(\tR\x06bookId\x12;\n" +
+	"\voccurred_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x129\n" +
+	"\n" +
+	"created_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"e\n" +
+	"\x14ListEmissionsRequest\x12\x1f\n" +
+	"\vexternal_id\x18\x01 \x01(\tR\n" +
+	"externalId\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n" +
+	"\x15ListEmissionsResponse\x12G\n" +
+	"\temissions\x18\x01 \x03(\v2).vrooli.treasury.v1.ledger.LedgerEmissionR\temissions2\x83\x01\n" +
+	"\rLedgerService\x12r\n" +
+	"\rListEmissions\x12/.vrooli.treasury.v1.ledger.ListEmissionsRequest\x1a0.vrooli.treasury.v1.ledger.ListEmissionsResponseBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1b\x06proto3"
 
 var (
 	file_treasury_v1_ledger_ledger_proto_rawDescOnce sync.Once
@@ -162,19 +354,26 @@ func file_treasury_v1_ledger_ledger_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_ledger_ledger_proto_rawDescData
 }
 
-var file_treasury_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_treasury_v1_ledger_ledger_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_treasury_v1_ledger_ledger_proto_goTypes = []any{
 	(*LedgerEmission)(nil),        // 0: vrooli.treasury.v1.ledger.LedgerEmission
-	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
+	(*ListEmissionsRequest)(nil),  // 1: vrooli.treasury.v1.ledger.ListEmissionsRequest
+	(*ListEmissionsResponse)(nil), // 2: vrooli.treasury.v1.ledger.ListEmissionsResponse
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_treasury_v1_ledger_ledger_proto_depIdxs = []int32{
-	1, // 0: vrooli.treasury.v1.ledger.LedgerEmission.fetched_at:type_name -> google.protobuf.Timestamp
-	1, // 1: vrooli.treasury.v1.ledger.LedgerEmission.accepted_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 0: vrooli.treasury.v1.ledger.LedgerEmission.fetched_at:type_name -> google.protobuf.Timestamp
+	3, // 1: vrooli.treasury.v1.ledger.LedgerEmission.accepted_at:type_name -> google.protobuf.Timestamp
+	3, // 2: vrooli.treasury.v1.ledger.LedgerEmission.occurred_at:type_name -> google.protobuf.Timestamp
+	3, // 3: vrooli.treasury.v1.ledger.LedgerEmission.created_at:type_name -> google.protobuf.Timestamp
+	0, // 4: vrooli.treasury.v1.ledger.ListEmissionsResponse.emissions:type_name -> vrooli.treasury.v1.ledger.LedgerEmission
+	1, // 5: vrooli.treasury.v1.ledger.LedgerService.ListEmissions:input_type -> vrooli.treasury.v1.ledger.ListEmissionsRequest
+	2, // 6: vrooli.treasury.v1.ledger.LedgerService.ListEmissions:output_type -> vrooli.treasury.v1.ledger.ListEmissionsResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_ledger_ledger_proto_init() }
@@ -188,9 +387,9 @@ func file_treasury_v1_ledger_ledger_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_ledger_ledger_proto_rawDesc), len(file_treasury_v1_ledger_ledger_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   3,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_treasury_v1_ledger_ledger_proto_goTypes,
 		DependencyIndexes: file_treasury_v1_ledger_ledger_proto_depIdxs,

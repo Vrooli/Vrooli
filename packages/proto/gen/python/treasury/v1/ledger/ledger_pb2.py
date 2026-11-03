@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ftreasury/v1/ledger/ledger.proto\x12\x19vrooli.treasury.v1.ledger\x1a\x1fgoogle/protobuf/timestamp.proto\"\xca\x02\n\x0eLedgerEmission\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n\tcharge_id\x18\x02 \x01(\tR\x08\x63hargeId\x12\x1f\n\x0b\x65xternal_id\x18\x03 \x01(\tR\nexternalId\x12\x1d\n\nadapter_id\x18\x04 \x01(\tR\tadapterId\x12!\n\x0c\x61mount_minor\x18\x05 \x01(\x03R\x0b\x61mountMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\x14\n\x05\x62\x61sis\x18\x07 \x01(\tR\x05\x62\x61sis\x12\x39\n\nfetched_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tfetchedAt\x12;\n\x0b\x61\x63\x63\x65pted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nacceptedAtBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ftreasury/v1/ledger/ledger.proto\x12\x19vrooli.treasury.v1.ledger\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x04\n\x0eLedgerEmission\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n\tcharge_id\x18\x02 \x01(\tR\x08\x63hargeId\x12\x1f\n\x0b\x65xternal_id\x18\x03 \x01(\tR\nexternalId\x12\x1d\n\nadapter_id\x18\x04 \x01(\tR\tadapterId\x12!\n\x0c\x61mount_minor\x18\x05 \x01(\x03R\x0b\x61mountMinor\x12\x1a\n\x08\x63urrency\x18\x06 \x01(\tR\x08\x63urrency\x12\x14\n\x05\x62\x61sis\x18\x07 \x01(\tR\x05\x62\x61sis\x12\x39\n\nfetched_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tfetchedAt\x12;\n\x0b\x61\x63\x63\x65pted_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nacceptedAt\x12\x16\n\x06status\x18\n \x01(\tR\x06status\x12\x1a\n\x08\x61ttempts\x18\x0b \x01(\x05R\x08\x61ttempts\x12\x1d\n\nlast_error\x18\x0c \x01(\tR\tlastError\x12#\n\rsettlement_id\x18\r \x01(\tR\x0csettlementId\x12\x1d\n\naccount_id\x18\x0e \x01(\tR\taccountId\x12\x17\n\x07\x62ook_id\x18\x0f \x01(\tR\x06\x62ookId\x12;\n\x0boccurred_at\x18\x10 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAt\x12\x39\n\ncreated_at\x18\x11 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\"e\n\x14ListEmissionsRequest\x12\x1f\n\x0b\x65xternal_id\x18\x01 \x01(\tR\nexternalId\x12\x16\n\x06status\x18\x02 \x01(\tR\x06status\x12\x14\n\x05limit\x18\x03 \x01(\x05R\x05limit\"`\n\x15ListEmissionsResponse\x12G\n\temissions\x18\x01 \x03(\x0b\x32).vrooli.treasury.v1.ledger.LedgerEmissionR\temissions2\x83\x01\n\rLedgerService\x12r\n\rListEmissions\x12/.vrooli.treasury.v1.ledger.ListEmissionsRequest\x1a\x30.vrooli.treasury.v1.ledger.ListEmissionsResponseBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,5 +34,11 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/ledger;ledger_v1'
   _globals['_LEDGEREMISSION']._serialized_start=96
-  _globals['_LEDGEREMISSION']._serialized_end=426
+  _globals['_LEDGEREMISSION']._serialized_end=722
+  _globals['_LISTEMISSIONSREQUEST']._serialized_start=724
+  _globals['_LISTEMISSIONSREQUEST']._serialized_end=825
+  _globals['_LISTEMISSIONSRESPONSE']._serialized_start=827
+  _globals['_LISTEMISSIONSRESPONSE']._serialized_end=923
+  _globals['_LEDGERSERVICE']._serialized_start=926
+  _globals['_LEDGERSERVICE']._serialized_end=1057
 # @@protoc_insertion_point(module_scope)

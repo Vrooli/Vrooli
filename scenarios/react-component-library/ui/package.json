@@ -69,7 +69,7 @@
   "scripts": {
     "build": "pnpm experience:check && pnpm pins:check && pnpm tokens:check && pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build",
     "build:preview-kits": "node scripts/build-preview-kits.mjs",
-    "build:profile": "pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build --mode profile",
+    "build:profile": "pnpm experience:check && pnpm pins:check && pnpm tokens:check && pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build --mode profile",
     "catalog:check": "pnpm tokens:check && pnpm run exports:check && pnpm run type-check:catalog && pnpm run lint:catalog",
     "dev": "vrooli lifecycle protect -- vite",
     "exports:check": "node ../../../packages/react-component-library/tooling/sync-exports.mjs --check",

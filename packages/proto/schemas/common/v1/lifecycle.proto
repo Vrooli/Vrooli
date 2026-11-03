@@ -51,6 +51,15 @@ message LifecycleDrainRequest {
   string fence_token = 2;
   google.protobuf.Duration timeout = 3;
   int64 revision = 4;
+  // Wait only for provider-owned work to quiesce; does not authorize replacement.
+  bool quiesce_components = 5;
+  // Local control-plane completion after waiting the pinned launch incarnation.
+  repeated LifecycleManagedComponent component_exits = 6;
+}
+
+message LifecycleManagedComponent {
+  string name = 1;
+  string generation = 2;
 }
 
 message LifecycleResumeRequest {
@@ -92,6 +101,13 @@ message LifecycleStanding {
   google.protobuf.Timestamp observed_at = 16;
   google.protobuf.Timestamp expires_at = 17;
   string interlock = 18;
+  repeated LifecycleManagedComponent managed_components = 19;
+  // True only while closed under this fence and provider-owned work is terminal.
+  // Component processes may still be alive; final drained remains required.
+  bool component_stop_ready = 20;
+  // True while the control plane must request the provider's separate
+  // quiescence stage before final drain, even if no OS components are listed.
+  bool quiescence_pending = 21;
 }
 
 message LifecyclePrepareResponse { LifecycleStanding standing = 1; }

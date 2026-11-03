@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/wallet/wallet.proto.
  */
 export const file_treasury_v1_wallet_wallet: GenFile = /*@__PURE__*/
-  fileDesc("Ch90cmVhc3VyeS92MS93YWxsZXQvd2FsbGV0LnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEud2FsbGV0IpoCCgZXYWxsZXQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIZChFvcGVyYXRvcl9pZGVudGl0eRgDIAEoCRIPCgduZXR3b3JrGAQgASgJEg8KB2FkZHJlc3MYBSABKAkSEgoKcHVibGljX2tleRgGIAEoCRIZChFjdXN0b2R5X3JlZmVyZW5jZRgHIAEoCRIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9yZWNvdmVyeV9zdGF0dXMYCSABKAkSFwoPcmVjb3Zlcnlfc2hhMjU2GAogASgJEiUKHWluZGVwZW5kZW50X3JlY292ZXJ5X3ZlcmlmaWVkGAsgASgIIocBCgxDb250cm9sUHJvb2YSMQoGd2FsbGV0GAEgASgLMiEudnJvb2xpLnRyZWFzdXJ5LnYxLndhbGxldC5XYWxsZXQSDwoHbWVzc2FnZRgCIAEoCRIRCglzaWduYXR1cmUYAyABKAkSDgoGc2NoZW1lGAQgASgJEhAKCHZlcmlmaWVkGAUgASgIQk1aS2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHJlYXN1cnkvdjEvd2FsbGV0O3dhbGxldF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ch90cmVhc3VyeS92MS93YWxsZXQvd2FsbGV0LnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEud2FsbGV0IpoCCgZXYWxsZXQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIZChFvcGVyYXRvcl9pZGVudGl0eRgDIAEoCRIPCgduZXR3b3JrGAQgASgJEg8KB2FkZHJlc3MYBSABKAkSEgoKcHVibGljX2tleRgGIAEoCRIZChFjdXN0b2R5X3JlZmVyZW5jZRgHIAEoCRIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9yZWNvdmVyeV9zdGF0dXMYCSABKAkSFwoPcmVjb3Zlcnlfc2hhMjU2GAogASgJEiUKHWluZGVwZW5kZW50X3JlY292ZXJ5X3ZlcmlmaWVkGAsgASgIIocBCgxDb250cm9sUHJvb2YSMQoGd2FsbGV0GAEgASgLMiEudnJvb2xpLnRyZWFzdXJ5LnYxLndhbGxldC5XYWxsZXQSDwoHbWVzc2FnZRgCIAEoCRIRCglzaWduYXR1cmUYAyABKAkSDgoGc2NoZW1lGAQgASgJEhAKCHZlcmlmaWVkGAUgASgIIuMDChtCYXNlVVNEQ1RyYW5zZmVyT2JzZXJ2YXRpb24SFAoMZWNvbm9taWNfa2V5GAEgASgJEhoKEmluY2x1c2lvbl9yZXZpc2lvbhgCIAEoCRIRCgl3YWxsZXRfaWQYAyABKAkSDwoHbmV0d29yaxgEIAEoCRIQCghhc3NldF9pZBgFIAEoCRIQCghkZWNpbWFscxgGIAEoDRIMCgRmcm9tGAcgASgJEgoKAnRvGAggASgJEhUKDWF0b21pY19hbW91bnQYCSABKAkSGAoQdHJhbnNhY3Rpb25faGFzaBgKIAEoCRIRCglsb2dfaW5kZXgYCyABKAQSFAoMYmxvY2tfbnVtYmVyGAwgASgEEhIKCmJsb2NrX2hhc2gYDSABKAkSLgoKYmxvY2tfdGltZRgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIZmluYWxpdHkYDyABKAkSHQoVZmluYWxpemVkX2hlYWRfbnVtYmVyGBAgASgEEhsKE2ZpbmFsaXplZF9oZWFkX2hhc2gYESABKAkSEwoLcHJvdmlkZXJfaWQYEiABKAkSLwoLb2JzZXJ2ZWRfYXQYEyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpUCChRCYXNlVVNEQ1JlY2VpcHRDaGVjaxIKCgJpZBgBIAEoCRIRCgl3YWxsZXRfaWQYAiABKAkSDwoHbmV0d29yaxgDIAEoCRIYChB0cmFuc2FjdGlvbl9oYXNoGAQgASgJEhMKC3Byb3ZpZGVyX2lkGAUgASgJEg8KB291dGNvbWUYBiABKAkSEgoKZXJyb3JfY29kZRgHIAEoCRIuCgpjaGVja2VkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJJCgl0cmFuc2ZlcnMYCSADKAsyNi52cm9vbGkudHJlYXN1cnkudjEud2FsbGV0LkJhc2VVU0RDVHJhbnNmZXJPYnNlcnZhdGlvbkJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL3dhbGxldDt3YWxsZXRfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Receive-only custody metadata. No field confers signing or spending authority.
@@ -121,4 +121,175 @@ export type ControlProof = Message<"vrooli.treasury.v1.wallet.ControlProof"> & {
  */
 export const ControlProofSchema: GenMessage<ControlProof> = /*@__PURE__*/
   messageDesc(file_treasury_v1_wallet_wallet, 1);
+
+/**
+ * A provider-reported Base native-USDC Transfer occurrence. This is exact
+ * token quantity and chain evidence only; it is not a fiat valuation, journal
+ * posting, budget credit, or allocation.
+ *
+ * @generated from message vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+ */
+export type BaseUSDCTransferObservation = Message<"vrooli.treasury.v1.wallet.BaseUSDCTransferObservation"> & {
+  /**
+   * @generated from field: string economic_key = 1;
+   */
+  economicKey: string;
+
+  /**
+   * @generated from field: string inclusion_revision = 2;
+   */
+  inclusionRevision: string;
+
+  /**
+   * @generated from field: string wallet_id = 3;
+   */
+  walletId: string;
+
+  /**
+   * @generated from field: string network = 4;
+   */
+  network: string;
+
+  /**
+   * @generated from field: string asset_id = 5;
+   */
+  assetId: string;
+
+  /**
+   * @generated from field: uint32 decimals = 6;
+   */
+  decimals: number;
+
+  /**
+   * @generated from field: string from = 7;
+   */
+  from: string;
+
+  /**
+   * @generated from field: string to = 8;
+   */
+  to: string;
+
+  /**
+   * @generated from field: string atomic_amount = 9;
+   */
+  atomicAmount: string;
+
+  /**
+   * @generated from field: string transaction_hash = 10;
+   */
+  transactionHash: string;
+
+  /**
+   * @generated from field: uint64 log_index = 11;
+   */
+  logIndex: bigint;
+
+  /**
+   * @generated from field: uint64 block_number = 12;
+   */
+  blockNumber: bigint;
+
+  /**
+   * @generated from field: string block_hash = 13;
+   */
+  blockHash: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp block_time = 14;
+   */
+  blockTime?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string finality = 15;
+   */
+  finality: string;
+
+  /**
+   * @generated from field: uint64 finalized_head_number = 16;
+   */
+  finalizedHeadNumber: bigint;
+
+  /**
+   * @generated from field: string finalized_head_hash = 17;
+   */
+  finalizedHeadHash: string;
+
+  /**
+   * @generated from field: string provider_id = 18;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp observed_at = 19;
+   */
+  observedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.
+ * Use `create(BaseUSDCTransferObservationSchema)` to create a new message.
+ */
+export const BaseUSDCTransferObservationSchema: GenMessage<BaseUSDCTransferObservation> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_wallet_wallet, 2);
+
+/**
+ * A durable record of one operator-requested read from the configured Base
+ * RPC. Provider claims remain observations, not consensus or fiat accounting.
+ *
+ * @generated from message vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
+ */
+export type BaseUSDCReceiptCheck = Message<"vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string wallet_id = 2;
+   */
+  walletId: string;
+
+  /**
+   * @generated from field: string network = 3;
+   */
+  network: string;
+
+  /**
+   * @generated from field: string transaction_hash = 4;
+   */
+  transactionHash: string;
+
+  /**
+   * @generated from field: string provider_id = 5;
+   */
+  providerId: string;
+
+  /**
+   * @generated from field: string outcome = 6;
+   */
+  outcome: string;
+
+  /**
+   * @generated from field: string error_code = 7;
+   */
+  errorCode: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp checked_at = 8;
+   */
+  checkedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.treasury.v1.wallet.BaseUSDCTransferObservation transfers = 9;
+   */
+  transfers: BaseUSDCTransferObservation[];
+};
+
+/**
+ * Describes the message vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.
+ * Use `create(BaseUSDCReceiptCheckSchema)` to create a new message.
+ */
+export const BaseUSDCReceiptCheckSchema: GenMessage<BaseUSDCReceiptCheck> = /*@__PURE__*/
+  messageDesc(file_treasury_v1_wallet_wallet, 3);
 

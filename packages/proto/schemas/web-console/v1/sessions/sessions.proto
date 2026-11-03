@@ -285,6 +285,8 @@ message AgentLaunch {
   // The choice's source, which tells apart one model offered through two.
   string provider = 3;
   int64 context_limit_tokens = 4;
+  // Maximum credits this explicitly selected paid session may spend.
+  int64 max_credits = 5;
 }
 
 message CreateResponse {

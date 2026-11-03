@@ -1,3 +1,4 @@
+from common.v1 import integrations_pb2 as _integrations_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -99,7 +100,7 @@ class AgentUpdateRequest(_message.Message):
     def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ...) -> None: ...
 
 class AgentUpdateResponse(_message.Message):
-    __slots__ = ("target_id", "agent_id", "resource", "installed", "pinned", "latest", "status", "checked_at", "source_kind", "source_id", "probe_verified", "note", "state", "primary_action", "operator_command", "reason", "checks", "install_kind", "rollback_version", "newer_than_reviewed")
+    __slots__ = ("target_id", "agent_id", "resource", "installed", "pinned", "latest", "status", "checked_at", "source_kind", "source_id", "probe_verified", "note", "state", "primary_action", "operator_command", "reason", "checks", "install_kind", "rollback_version", "newer_than_reviewed", "install_state", "sign_in_state", "update_state")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     RESOURCE_FIELD_NUMBER: _ClassVar[int]
@@ -120,6 +121,9 @@ class AgentUpdateResponse(_message.Message):
     INSTALL_KIND_FIELD_NUMBER: _ClassVar[int]
     ROLLBACK_VERSION_FIELD_NUMBER: _ClassVar[int]
     NEWER_THAN_REVIEWED_FIELD_NUMBER: _ClassVar[int]
+    INSTALL_STATE_FIELD_NUMBER: _ClassVar[int]
+    SIGN_IN_STATE_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_STATE_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     agent_id: str
     resource: str
@@ -140,7 +144,10 @@ class AgentUpdateResponse(_message.Message):
     install_kind: str
     rollback_version: str
     newer_than_reviewed: bool
-    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., resource: _Optional[str] = ..., installed: _Optional[str] = ..., pinned: _Optional[str] = ..., latest: _Optional[str] = ..., status: _Optional[str] = ..., checked_at: _Optional[str] = ..., source_kind: _Optional[str] = ..., source_id: _Optional[str] = ..., probe_verified: _Optional[bool] = ..., note: _Optional[str] = ..., state: _Optional[str] = ..., primary_action: _Optional[str] = ..., operator_command: _Optional[str] = ..., reason: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[AgentUpdateCheck, _Mapping]]] = ..., install_kind: _Optional[str] = ..., rollback_version: _Optional[str] = ..., newer_than_reviewed: _Optional[bool] = ...) -> None: ...
+    install_state: str
+    sign_in_state: str
+    update_state: str
+    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., resource: _Optional[str] = ..., installed: _Optional[str] = ..., pinned: _Optional[str] = ..., latest: _Optional[str] = ..., status: _Optional[str] = ..., checked_at: _Optional[str] = ..., source_kind: _Optional[str] = ..., source_id: _Optional[str] = ..., probe_verified: _Optional[bool] = ..., note: _Optional[str] = ..., state: _Optional[str] = ..., primary_action: _Optional[str] = ..., operator_command: _Optional[str] = ..., reason: _Optional[str] = ..., checks: _Optional[_Iterable[_Union[AgentUpdateCheck, _Mapping]]] = ..., install_kind: _Optional[str] = ..., rollback_version: _Optional[str] = ..., newer_than_reviewed: _Optional[bool] = ..., install_state: _Optional[str] = ..., sign_in_state: _Optional[str] = ..., update_state: _Optional[str] = ...) -> None: ...
 
 class AgentUpdateCheck(_message.Message):
     __slots__ = ("id", "passed", "message")
@@ -153,29 +160,33 @@ class AgentUpdateCheck(_message.Message):
     def __init__(self, id: _Optional[str] = ..., passed: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class RunAgentUpdateActionRequest(_message.Message):
-    __slots__ = ("target_id", "agent_id", "action")
+    __slots__ = ("target_id", "agent_id", "action", "cleanup_plan_id")
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     target_id: str
     agent_id: str
     action: str
-    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., action: _Optional[str] = ...) -> None: ...
+    cleanup_plan_id: str
+    def __init__(self, target_id: _Optional[str] = ..., agent_id: _Optional[str] = ..., action: _Optional[str] = ..., cleanup_plan_id: _Optional[str] = ...) -> None: ...
 
 class RunAgentUpdateActionResponse(_message.Message):
-    __slots__ = ("success", "message", "update", "operation_id")
+    __slots__ = ("success", "message", "update", "operation_id", "cleanup_plan")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     UPDATE_FIELD_NUMBER: _ClassVar[int]
     OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    CLEANUP_PLAN_FIELD_NUMBER: _ClassVar[int]
     success: bool
     message: str
     update: AgentUpdateResponse
     operation_id: str
-    def __init__(self, success: _Optional[bool] = ..., message: _Optional[str] = ..., update: _Optional[_Union[AgentUpdateResponse, _Mapping]] = ..., operation_id: _Optional[str] = ...) -> None: ...
+    cleanup_plan: HarnessCleanupPlan
+    def __init__(self, success: _Optional[bool] = ..., message: _Optional[str] = ..., update: _Optional[_Union[AgentUpdateResponse, _Mapping]] = ..., operation_id: _Optional[str] = ..., cleanup_plan: _Optional[_Union[HarnessCleanupPlan, _Mapping]] = ...) -> None: ...
 
 class CapabilityState(_message.Message):
-    __slots__ = ("id", "name", "description", "dependency_kind", "dependency_slug", "features", "status", "message", "checked_at", "reason_code", "action_kind", "action_label", "operator_command", "feature_status", "feature_reason", "feature_operator_command", "provider_status", "provider_features")
+    __slots__ = ("id", "name", "description", "dependency_kind", "dependency_slug", "features", "status", "message", "checked_at", "reason_code", "action_kind", "action_label", "operator_command", "feature_status", "feature_reason", "feature_operator_command", "provider_status", "provider_features", "uses", "installation")
     class FeatureStatusEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -229,6 +240,8 @@ class CapabilityState(_message.Message):
     FEATURE_OPERATOR_COMMAND_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_STATUS_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FEATURES_FIELD_NUMBER: _ClassVar[int]
+    USES_FIELD_NUMBER: _ClassVar[int]
+    INSTALLATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     description: str
@@ -247,7 +260,9 @@ class CapabilityState(_message.Message):
     feature_operator_command: _containers.ScalarMap[str, str]
     provider_status: _containers.ScalarMap[str, str]
     provider_features: _containers.ScalarMap[str, str]
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., dependency_kind: _Optional[str] = ..., dependency_slug: _Optional[str] = ..., features: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., reason_code: _Optional[str] = ..., action_kind: _Optional[str] = ..., action_label: _Optional[str] = ..., operator_command: _Optional[str] = ..., feature_status: _Optional[_Mapping[str, str]] = ..., feature_reason: _Optional[_Mapping[str, str]] = ..., feature_operator_command: _Optional[_Mapping[str, str]] = ..., provider_status: _Optional[_Mapping[str, str]] = ..., provider_features: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    uses: _containers.RepeatedCompositeFieldContainer[_integrations_pb2.IntegrationUse]
+    installation: _integrations_pb2.LocalInstallation
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., dependency_kind: _Optional[str] = ..., dependency_slug: _Optional[str] = ..., features: _Optional[_Iterable[str]] = ..., status: _Optional[str] = ..., message: _Optional[str] = ..., checked_at: _Optional[str] = ..., reason_code: _Optional[str] = ..., action_kind: _Optional[str] = ..., action_label: _Optional[str] = ..., operator_command: _Optional[str] = ..., feature_status: _Optional[_Mapping[str, str]] = ..., feature_reason: _Optional[_Mapping[str, str]] = ..., feature_operator_command: _Optional[_Mapping[str, str]] = ..., provider_status: _Optional[_Mapping[str, str]] = ..., provider_features: _Optional[_Mapping[str, str]] = ..., uses: _Optional[_Iterable[_Union[_integrations_pb2.IntegrationUse, _Mapping]]] = ..., installation: _Optional[_Union[_integrations_pb2.LocalInstallation, _Mapping]] = ...) -> None: ...
 
 class BackendOption(_message.Message):
     __slots__ = ("id", "display_name", "description", "survives_restart", "available", "reason")
@@ -322,3 +337,13 @@ class RunActionResponse(_message.Message):
     timestamp: str
     operation_id: str
     def __init__(self, success: _Optional[bool] = ..., status: _Optional[str] = ..., message: _Optional[str] = ..., capability_id: _Optional[str] = ..., action_kind: _Optional[str] = ..., capabilities: _Optional[_Iterable[_Union[CapabilityState, _Mapping]]] = ..., timestamp: _Optional[str] = ..., operation_id: _Optional[str] = ...) -> None: ...
+
+class HarnessCleanupPlan(_message.Message):
+    __slots__ = ("id", "remove", "preserved")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    REMOVE_FIELD_NUMBER: _ClassVar[int]
+    PRESERVED_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    remove: _containers.RepeatedScalarFieldContainer[str]
+    preserved: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., remove: _Optional[_Iterable[str]] = ..., preserved: _Optional[_Iterable[str]] = ...) -> None: ...

@@ -224,6 +224,307 @@ func (x *ControlProof) GetVerified() bool {
 	return false
 }
 
+// A provider-reported Base native-USDC Transfer occurrence. This is exact
+// token quantity and chain evidence only; it is not a fiat valuation, journal
+// posting, budget credit, or allocation.
+type BaseUSDCTransferObservation struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	EconomicKey         string                 `protobuf:"bytes,1,opt,name=economic_key,json=economicKey,proto3" json:"economic_key,omitempty"`
+	InclusionRevision   string                 `protobuf:"bytes,2,opt,name=inclusion_revision,json=inclusionRevision,proto3" json:"inclusion_revision,omitempty"`
+	WalletId            string                 `protobuf:"bytes,3,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
+	Network             string                 `protobuf:"bytes,4,opt,name=network,proto3" json:"network,omitempty"`
+	AssetId             string                 `protobuf:"bytes,5,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	Decimals            uint32                 `protobuf:"varint,6,opt,name=decimals,proto3" json:"decimals,omitempty"`
+	From                string                 `protobuf:"bytes,7,opt,name=from,proto3" json:"from,omitempty"`
+	To                  string                 `protobuf:"bytes,8,opt,name=to,proto3" json:"to,omitempty"`
+	AtomicAmount        string                 `protobuf:"bytes,9,opt,name=atomic_amount,json=atomicAmount,proto3" json:"atomic_amount,omitempty"`
+	TransactionHash     string                 `protobuf:"bytes,10,opt,name=transaction_hash,json=transactionHash,proto3" json:"transaction_hash,omitempty"`
+	LogIndex            uint64                 `protobuf:"varint,11,opt,name=log_index,json=logIndex,proto3" json:"log_index,omitempty"`
+	BlockNumber         uint64                 `protobuf:"varint,12,opt,name=block_number,json=blockNumber,proto3" json:"block_number,omitempty"`
+	BlockHash           string                 `protobuf:"bytes,13,opt,name=block_hash,json=blockHash,proto3" json:"block_hash,omitempty"`
+	BlockTime           *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=block_time,json=blockTime,proto3" json:"block_time,omitempty"`
+	Finality            string                 `protobuf:"bytes,15,opt,name=finality,proto3" json:"finality,omitempty"`
+	FinalizedHeadNumber uint64                 `protobuf:"varint,16,opt,name=finalized_head_number,json=finalizedHeadNumber,proto3" json:"finalized_head_number,omitempty"`
+	FinalizedHeadHash   string                 `protobuf:"bytes,17,opt,name=finalized_head_hash,json=finalizedHeadHash,proto3" json:"finalized_head_hash,omitempty"`
+	ProviderId          string                 `protobuf:"bytes,18,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	ObservedAt          *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *BaseUSDCTransferObservation) Reset() {
+	*x = BaseUSDCTransferObservation{}
+	mi := &file_treasury_v1_wallet_wallet_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BaseUSDCTransferObservation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BaseUSDCTransferObservation) ProtoMessage() {}
+
+func (x *BaseUSDCTransferObservation) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_wallet_wallet_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BaseUSDCTransferObservation.ProtoReflect.Descriptor instead.
+func (*BaseUSDCTransferObservation) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_wallet_wallet_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BaseUSDCTransferObservation) GetEconomicKey() string {
+	if x != nil {
+		return x.EconomicKey
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetInclusionRevision() string {
+	if x != nil {
+		return x.InclusionRevision
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetWalletId() string {
+	if x != nil {
+		return x.WalletId
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetDecimals() uint32 {
+	if x != nil {
+		return x.Decimals
+	}
+	return 0
+}
+
+func (x *BaseUSDCTransferObservation) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetAtomicAmount() string {
+	if x != nil {
+		return x.AtomicAmount
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetTransactionHash() string {
+	if x != nil {
+		return x.TransactionHash
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetLogIndex() uint64 {
+	if x != nil {
+		return x.LogIndex
+	}
+	return 0
+}
+
+func (x *BaseUSDCTransferObservation) GetBlockNumber() uint64 {
+	if x != nil {
+		return x.BlockNumber
+	}
+	return 0
+}
+
+func (x *BaseUSDCTransferObservation) GetBlockHash() string {
+	if x != nil {
+		return x.BlockHash
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetBlockTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.BlockTime
+	}
+	return nil
+}
+
+func (x *BaseUSDCTransferObservation) GetFinality() string {
+	if x != nil {
+		return x.Finality
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetFinalizedHeadNumber() uint64 {
+	if x != nil {
+		return x.FinalizedHeadNumber
+	}
+	return 0
+}
+
+func (x *BaseUSDCTransferObservation) GetFinalizedHeadHash() string {
+	if x != nil {
+		return x.FinalizedHeadHash
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *BaseUSDCTransferObservation) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
+}
+
+// A durable record of one operator-requested read from the configured Base
+// RPC. Provider claims remain observations, not consensus or fiat accounting.
+type BaseUSDCReceiptCheck struct {
+	state           protoimpl.MessageState         `protogen:"open.v1"`
+	Id              string                         `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WalletId        string                         `protobuf:"bytes,2,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
+	Network         string                         `protobuf:"bytes,3,opt,name=network,proto3" json:"network,omitempty"`
+	TransactionHash string                         `protobuf:"bytes,4,opt,name=transaction_hash,json=transactionHash,proto3" json:"transaction_hash,omitempty"`
+	ProviderId      string                         `protobuf:"bytes,5,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Outcome         string                         `protobuf:"bytes,6,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	ErrorCode       string                         `protobuf:"bytes,7,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	CheckedAt       *timestamppb.Timestamp         `protobuf:"bytes,8,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	Transfers       []*BaseUSDCTransferObservation `protobuf:"bytes,9,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BaseUSDCReceiptCheck) Reset() {
+	*x = BaseUSDCReceiptCheck{}
+	mi := &file_treasury_v1_wallet_wallet_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BaseUSDCReceiptCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BaseUSDCReceiptCheck) ProtoMessage() {}
+
+func (x *BaseUSDCReceiptCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_treasury_v1_wallet_wallet_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BaseUSDCReceiptCheck.ProtoReflect.Descriptor instead.
+func (*BaseUSDCReceiptCheck) Descriptor() ([]byte, []int) {
+	return file_treasury_v1_wallet_wallet_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BaseUSDCReceiptCheck) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetWalletId() string {
+	if x != nil {
+		return x.WalletId
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetTransactionHash() string {
+	if x != nil {
+		return x.TransactionHash
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
+func (x *BaseUSDCReceiptCheck) GetCheckedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return nil
+}
+
+func (x *BaseUSDCReceiptCheck) GetTransfers() []*BaseUSDCTransferObservation {
+	if x != nil {
+		return x.Transfers
+	}
+	return nil
+}
+
 var File_treasury_v1_wallet_wallet_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_wallet_wallet_proto_rawDesc = "" +
@@ -249,7 +550,45 @@ const file_treasury_v1_wallet_wallet_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
 	"\tsignature\x18\x03 \x01(\tR\tsignature\x12\x16\n" +
 	"\x06scheme\x18\x04 \x01(\tR\x06scheme\x12\x1a\n" +
-	"\bverified\x18\x05 \x01(\bR\bverifiedBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet;wallet_v1b\x06proto3"
+	"\bverified\x18\x05 \x01(\bR\bverified\"\xc9\x05\n" +
+	"\x1bBaseUSDCTransferObservation\x12!\n" +
+	"\feconomic_key\x18\x01 \x01(\tR\veconomicKey\x12-\n" +
+	"\x12inclusion_revision\x18\x02 \x01(\tR\x11inclusionRevision\x12\x1b\n" +
+	"\twallet_id\x18\x03 \x01(\tR\bwalletId\x12\x18\n" +
+	"\anetwork\x18\x04 \x01(\tR\anetwork\x12\x19\n" +
+	"\basset_id\x18\x05 \x01(\tR\aassetId\x12\x1a\n" +
+	"\bdecimals\x18\x06 \x01(\rR\bdecimals\x12\x12\n" +
+	"\x04from\x18\a \x01(\tR\x04from\x12\x0e\n" +
+	"\x02to\x18\b \x01(\tR\x02to\x12#\n" +
+	"\ratomic_amount\x18\t \x01(\tR\fatomicAmount\x12)\n" +
+	"\x10transaction_hash\x18\n" +
+	" \x01(\tR\x0ftransactionHash\x12\x1b\n" +
+	"\tlog_index\x18\v \x01(\x04R\blogIndex\x12!\n" +
+	"\fblock_number\x18\f \x01(\x04R\vblockNumber\x12\x1d\n" +
+	"\n" +
+	"block_hash\x18\r \x01(\tR\tblockHash\x129\n" +
+	"\n" +
+	"block_time\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tblockTime\x12\x1a\n" +
+	"\bfinality\x18\x0f \x01(\tR\bfinality\x122\n" +
+	"\x15finalized_head_number\x18\x10 \x01(\x04R\x13finalizedHeadNumber\x12.\n" +
+	"\x13finalized_head_hash\x18\x11 \x01(\tR\x11finalizedHeadHash\x12\x1f\n" +
+	"\vprovider_id\x18\x12 \x01(\tR\n" +
+	"providerId\x12;\n" +
+	"\vobserved_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\"\xf3\x02\n" +
+	"\x14BaseUSDCReceiptCheck\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\twallet_id\x18\x02 \x01(\tR\bwalletId\x12\x18\n" +
+	"\anetwork\x18\x03 \x01(\tR\anetwork\x12)\n" +
+	"\x10transaction_hash\x18\x04 \x01(\tR\x0ftransactionHash\x12\x1f\n" +
+	"\vprovider_id\x18\x05 \x01(\tR\n" +
+	"providerId\x12\x18\n" +
+	"\aoutcome\x18\x06 \x01(\tR\aoutcome\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\a \x01(\tR\terrorCode\x129\n" +
+	"\n" +
+	"checked_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\x12T\n" +
+	"\ttransfers\x18\t \x03(\v26.vrooli.treasury.v1.wallet.BaseUSDCTransferObservationR\ttransfersBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet;wallet_v1b\x06proto3"
 
 var (
 	file_treasury_v1_wallet_wallet_proto_rawDescOnce sync.Once
@@ -263,20 +602,26 @@ func file_treasury_v1_wallet_wallet_proto_rawDescGZIP() []byte {
 	return file_treasury_v1_wallet_wallet_proto_rawDescData
 }
 
-var file_treasury_v1_wallet_wallet_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_treasury_v1_wallet_wallet_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_treasury_v1_wallet_wallet_proto_goTypes = []any{
-	(*Wallet)(nil),                // 0: vrooli.treasury.v1.wallet.Wallet
-	(*ControlProof)(nil),          // 1: vrooli.treasury.v1.wallet.ControlProof
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*Wallet)(nil),                      // 0: vrooli.treasury.v1.wallet.Wallet
+	(*ControlProof)(nil),                // 1: vrooli.treasury.v1.wallet.ControlProof
+	(*BaseUSDCTransferObservation)(nil), // 2: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+	(*BaseUSDCReceiptCheck)(nil),        // 3: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck
+	(*timestamppb.Timestamp)(nil),       // 4: google.protobuf.Timestamp
 }
 var file_treasury_v1_wallet_wallet_proto_depIdxs = []int32{
-	2, // 0: vrooli.treasury.v1.wallet.Wallet.created_at:type_name -> google.protobuf.Timestamp
+	4, // 0: vrooli.treasury.v1.wallet.Wallet.created_at:type_name -> google.protobuf.Timestamp
 	0, // 1: vrooli.treasury.v1.wallet.ControlProof.wallet:type_name -> vrooli.treasury.v1.wallet.Wallet
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 2: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.block_time:type_name -> google.protobuf.Timestamp
+	4, // 3: vrooli.treasury.v1.wallet.BaseUSDCTransferObservation.observed_at:type_name -> google.protobuf.Timestamp
+	4, // 4: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.checked_at:type_name -> google.protobuf.Timestamp
+	2, // 5: vrooli.treasury.v1.wallet.BaseUSDCReceiptCheck.transfers:type_name -> vrooli.treasury.v1.wallet.BaseUSDCTransferObservation
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_treasury_v1_wallet_wallet_proto_init() }
@@ -290,7 +635,7 @@ func file_treasury_v1_wallet_wallet_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_treasury_v1_wallet_wallet_proto_rawDesc), len(file_treasury_v1_wallet_wallet_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

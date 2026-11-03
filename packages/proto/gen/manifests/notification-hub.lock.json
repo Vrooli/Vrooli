@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "notification-hub",
-  "input_digest": "sha256:2c1f6c98ab8b820cd33ec0fe55c48e98b4d6da961d0f82418654f48ff7da1e38",
+  "input_digest": "sha256:6faa44e649bc48c907ddcc322ac0769cb58bfb1ff9bb48a1c0499f961327da3a",
   "input_files": [
     "schemas/notification-hub/v1/appdelivery/appdelivery.proto",
     "schemas/notification-hub/v1/conversations/conversations.proto",
@@ -28,7 +28,7 @@
   "outputs": {
     "gen/go/notification-hub/v1/appdelivery/appdelivery.pb.go": "sha256:5273631383d0385f878d177c221ae3df544f3256dabe30f08033983738b21afb",
     "gen/go/notification-hub/v1/appdelivery/appdelivery_v1connect/appdelivery.connect.go": "sha256:23b704dce36121fdc24de7cc7489700e6ab63f394ad54b966a4f0594ad5a9ae3",
-    "gen/go/notification-hub/v1/conversations/conversations.pb.go": "sha256:cadc58bcb48cc3d8edd556a69ee9628580c7f872aab58d3b12d560e30d1bcbe6",
+    "gen/go/notification-hub/v1/conversations/conversations.pb.go": "sha256:b984a6c8f723d95dad945cbd3a15f1e82707c6a60adb31679346bb5102fa16e9",
     "gen/go/notification-hub/v1/conversations/conversations_v1connect/conversations.connect.go": "sha256:44b786d9f84669f1ddd1893d3f4c5c4436d36205c90f4d574026b12f4a184afd",
     "gen/go/notification-hub/v1/delivery/delivery.pb.go": "sha256:8aabe842f720dc8d2a2f7020409f3fd45ed0c46a2818699eaca235f85b239569",
     "gen/go/notification-hub/v1/delivery/delivery_v1connect/delivery.connect.go": "sha256:16182a82e29027360862e7e7376d36d31433f24706a8290cb4ca96b65a4fc584",
@@ -47,8 +47,8 @@
     "gen/python/notification_hub/v1/appdelivery/appdelivery_pb2.py": "sha256:57e3317fca134695654ce90f7a65702b587aaeed89a8fad94a94c78015487b39",
     "gen/python/notification_hub/v1/appdelivery/appdelivery_pb2.pyi": "sha256:9d1ead2ae883ea68402a465abf49d973dba63cc2ed8135cebbaa341b7edfe0dd",
     "gen/python/notification_hub/v1/appdelivery/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/notification_hub/v1/conversations/conversations_pb2.py": "sha256:44993722a0a6b7385a89a396d03954bc01b02992de0e4c095089e9c1bb001f7b",
-    "gen/python/notification_hub/v1/conversations/conversations_pb2.pyi": "sha256:0a95256acd4022fefd1720090fc862cdd1151d08752f6cb7a30cdb6b280cb2ad",
+    "gen/python/notification_hub/v1/conversations/conversations_pb2.py": "sha256:cebeb743320021fae83f7c87b6f61ccfa368a2dfa4a3eced1ce4866cdd39e651",
+    "gen/python/notification_hub/v1/conversations/conversations_pb2.pyi": "sha256:aff515e91dcf410d9f336dee595dbc7e76003b1d2dbdd301a219e917c9c82cb0",
     "gen/python/notification_hub/v1/conversations/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/notification_hub/v1/delivery/delivery_pb2.py": "sha256:03d77f4a9f64124badc49e4e5dd2a49f4a9d66cbaa226dbdbc620dffa4e24f41",
     "gen/python/notification_hub/v1/delivery/delivery_pb2.pyi": "sha256:e525df276e6f329fcde81cb24d9385cba147d04350b7ce31429bb1e6d6304a87",
@@ -74,7 +74,7 @@
     "gen/python/notification_hub/v1/shared/types_pb2.py": "sha256:68c7f7ea73c487a281e532abb39478e8f8ba495d9ad8fe0856390e58bd243b09",
     "gen/python/notification_hub/v1/shared/types_pb2.pyi": "sha256:e7350e7cab9a06a2c8c8960c96cecc4b6e3f7019b97328512edbccf7bbdc397d",
     "gen/typescript/notification-hub/v1/appdelivery/appdelivery_pb.ts": "sha256:7a14b9d502bad6e7734964d01801182894dea8cd5ef423b6a68f065ac312e75f",
-    "gen/typescript/notification-hub/v1/conversations/conversations_pb.ts": "sha256:52aef038bd615dbfe9f03d726f888c8ad7b75d1a0690c60330a6f62e9b0369d5",
+    "gen/typescript/notification-hub/v1/conversations/conversations_pb.ts": "sha256:e6edc8417e61edc55667f82c4bb0b697a69483b3afd0b9dfdb185a0f30042322",
     "gen/typescript/notification-hub/v1/delivery/delivery_pb.ts": "sha256:d2f6157b800452a9730591b61e829037c18f845282c81269c62ac57af6a014e4",
     "gen/typescript/notification-hub/v1/identity/identity_pb.ts": "sha256:a8f459c38c32c33b42fa6b38153fc7151c09d5a7662b73851af3752ddfe32ac9",
     "gen/typescript/notification-hub/v1/notifications/notifications_pb.ts": "sha256:952b01dd9f7690c6711171c7406d7d32dab6ae060c0dadef32a7ad8c43fe2826",

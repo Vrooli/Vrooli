@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file common/v1/lifecycle.proto.
  */
 export const file_common_v1_lifecycle: GenFile = /*@__PURE__*/
-  fileDesc("Chljb21tb24vdjEvbGlmZWN5Y2xlLnByb3RvEgljb21tb24udjEidAoXTGlmZWN5Y2xlUHJlcGFyZVJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIaChJlbWVyZ2VuY3lfb3ZlcnJpZGUYAyABKAgSFwoPb3ZlcnJpZGVfcmVhc29uGAQgASgJIlUKFkxpZmVjeWNsZVN0YXR1c1JlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhMKC2ZlbmNlX3Rva2VuGAIgASgJEhAKCHJldmlzaW9uGAMgASgDIoABChVMaWZlY3ljbGVEcmFpblJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhMKC2ZlbmNlX3Rva2VuGAIgASgJEioKB3RpbWVvdXQYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEAoIcmV2aXNpb24YBCABKAMiVQoWTGlmZWN5Y2xlUmVzdW1lUmVxdWVzdBIUCgxvcGVyYXRpb25faWQYASABKAkSEwoLZmVuY2VfdG9rZW4YAiABKAkSEAoIcmV2aXNpb24YAyABKAMiYAoRTGlmZWN5Y2xlV29ya0l0ZW0SCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRIOCgZzdGF0dXMYAyABKAkSIQoZcGh5c2ljYWxfZXhlY3V0b3JfcHJlc2VudBgEIAEoCCKAAQoQTGlmZWN5Y2xlQmxvY2tlchIMCgRjb2RlGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSOwoLZGlzcG9zaXRpb24YAyABKA4yJi5jb21tb24udjEuTGlmZWN5Y2xlQmxvY2tlckRpc3Bvc2l0aW9uEhAKCG9ic2VydmVkGAQgASgIIpgEChFMaWZlY3ljbGVTdGFuZGluZxIQCghwcm92aWRlchgBIAEoCRIcChRwcm92aWRlcl9pbnN0YW5jZV9pZBgCIAEoCRIQCghzY2VuYXJpbxgDIAEoCRITCgtpbnN0YW5jZV9pZBgEIAEoCRIUCgxvcGVyYXRpb25faWQYBSABKAkSEwoLZmVuY2VfdG9rZW4YBiABKAkSEAoIcmV2aXNpb24YByABKAMSMwoFcGhhc2UYCCABKA4yJC5jb21tb24udjEuTGlmZWN5Y2xlTWFpbnRlbmFuY2VQaGFzZRIYChBhZG1pc3Npb25fY2xvc2VkGAkgASgIEhEKCWFkbWl0dGluZxgKIAEoBRIRCglyZW1haW5pbmcYCyABKAUSGgoSaW52ZW50b3J5X2NvbXBsZXRlGAwgASgIEg8KB2RyYWluZWQYDSABKAgSKgoEd29yaxgOIAMoCzIcLmNvbW1vbi52MS5MaWZlY3ljbGVXb3JrSXRlbRItCghibG9ja2VycxgPIAMoCzIbLmNvbW1vbi52MS5MaWZlY3ljbGVCbG9ja2VyEi8KC29ic2VydmVkX2F0GBAgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GBEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIRCglpbnRlcmxvY2sYEiABKAkiSgoYTGlmZWN5Y2xlUHJlcGFyZVJlc3BvbnNlEi4KCHN0YW5kaW5nGAEgASgLMhwuY29tbW9uLnYxLkxpZmVjeWNsZVN0YW5kaW5nIkkKF0xpZmVjeWNsZVN0YXR1c1Jlc3BvbnNlEi4KCHN0YW5kaW5nGAEgASgLMhwuY29tbW9uLnYxLkxpZmVjeWNsZVN0YW5kaW5nIkgKFkxpZmVjeWNsZURyYWluUmVzcG9uc2USLgoIc3RhbmRpbmcYASABKAsyHC5jb21tb24udjEuTGlmZWN5Y2xlU3RhbmRpbmciSQoXTGlmZWN5Y2xlUmVzdW1lUmVzcG9uc2USLgoIc3RhbmRpbmcYASABKAsyHC5jb21tb24udjEuTGlmZWN5Y2xlU3RhbmRpbmcq6QEKGUxpZmVjeWNsZU1haW50ZW5hbmNlUGhhc2USKwonTElGRUNZQ0xFX01BSU5URU5BTkNFX1BIQVNFX1VOU1BFQ0lGSUVEEAASJAogTElGRUNZQ0xFX01BSU5URU5BTkNFX1BIQVNFX09QRU4QARInCiNMSUZFQ1lDTEVfTUFJTlRFTkFOQ0VfUEhBU0VfQ0xPU0lORxACEicKI0xJRkVDWUNMRV9NQUlOVEVOQU5DRV9QSEFTRV9EUkFJTkVEEAMSJwojTElGRUNZQ0xFX01BSU5URU5BTkNFX1BIQVNFX1JFU1VNRUQQBCrTAQobTGlmZWN5Y2xlQmxvY2tlckRpc3Bvc2l0aW9uEi0KKUxJRkVDWUNMRV9CTE9DS0VSX0RJU1BPU0lUSU9OX1VOU1BFQ0lGSUVEEAASKgomTElGRUNZQ0xFX0JMT0NLRVJfRElTUE9TSVRJT05fQkxPQ0tJTkcQARIuCipMSUZFQ1lDTEVfQkxPQ0tFUl9ESVNQT1NJVElPTl9PVkVSUklERUFCTEUQAhIpCiVMSUZFQ1lDTEVfQkxPQ0tFUl9ESVNQT1NJVElPTl9VTktOT1dOEAMy4QIKG0xpZmVjeWNsZU1haW50ZW5hbmNlU2VydmljZRJSCgdQcmVwYXJlEiIuY29tbW9uLnYxLkxpZmVjeWNsZVByZXBhcmVSZXF1ZXN0GiMuY29tbW9uLnYxLkxpZmVjeWNsZVByZXBhcmVSZXNwb25zZRJPCgZTdGF0dXMSIS5jb21tb24udjEuTGlmZWN5Y2xlU3RhdHVzUmVxdWVzdBoiLmNvbW1vbi52MS5MaWZlY3ljbGVTdGF0dXNSZXNwb25zZRJMCgVEcmFpbhIgLmNvbW1vbi52MS5MaWZlY3ljbGVEcmFpblJlcXVlc3QaIS5jb21tb24udjEuTGlmZWN5Y2xlRHJhaW5SZXNwb25zZRJPCgZSZXN1bWUSIS5jb21tb24udjEuTGlmZWN5Y2xlUmVzdW1lUmVxdWVzdBoiLmNvbW1vbi52MS5MaWZlY3ljbGVSZXN1bWVSZXNwb25zZUJDWkFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbW1vbi92MTtjb21tb252MWIGcHJvdG8z", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
+  fileDesc("Chljb21tb24vdjEvbGlmZWN5Y2xlLnByb3RvEgljb21tb24udjEidAoXTGlmZWN5Y2xlUHJlcGFyZVJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEg4KBnJlYXNvbhgCIAEoCRIaChJlbWVyZ2VuY3lfb3ZlcnJpZGUYAyABKAgSFwoPb3ZlcnJpZGVfcmVhc29uGAQgASgJIlUKFkxpZmVjeWNsZVN0YXR1c1JlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhMKC2ZlbmNlX3Rva2VuGAIgASgJEhAKCHJldmlzaW9uGAMgASgDItsBChVMaWZlY3ljbGVEcmFpblJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhMKC2ZlbmNlX3Rva2VuGAIgASgJEioKB3RpbWVvdXQYAyABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEAoIcmV2aXNpb24YBCABKAMSGgoScXVpZXNjZV9jb21wb25lbnRzGAUgASgIEj0KD2NvbXBvbmVudF9leGl0cxgGIAMoCzIkLmNvbW1vbi52MS5MaWZlY3ljbGVNYW5hZ2VkQ29tcG9uZW50Ij0KGUxpZmVjeWNsZU1hbmFnZWRDb21wb25lbnQSDAoEbmFtZRgBIAEoCRISCgpnZW5lcmF0aW9uGAIgASgJIlUKFkxpZmVjeWNsZVJlc3VtZVJlcXVlc3QSFAoMb3BlcmF0aW9uX2lkGAEgASgJEhMKC2ZlbmNlX3Rva2VuGAIgASgJEhAKCHJldmlzaW9uGAMgASgDImAKEUxpZmVjeWNsZVdvcmtJdGVtEgoKAmlkGAEgASgJEgwKBGtpbmQYAiABKAkSDgoGc3RhdHVzGAMgASgJEiEKGXBoeXNpY2FsX2V4ZWN1dG9yX3ByZXNlbnQYBCABKAgigAEKEExpZmVjeWNsZUJsb2NrZXISDAoEY29kZRgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEjsKC2Rpc3Bvc2l0aW9uGAMgASgOMiYuY29tbW9uLnYxLkxpZmVjeWNsZUJsb2NrZXJEaXNwb3NpdGlvbhIQCghvYnNlcnZlZBgEIAEoCCKUBQoRTGlmZWN5Y2xlU3RhbmRpbmcSEAoIcHJvdmlkZXIYASABKAkSHAoUcHJvdmlkZXJfaW5zdGFuY2VfaWQYAiABKAkSEAoIc2NlbmFyaW8YAyABKAkSEwoLaW5zdGFuY2VfaWQYBCABKAkSFAoMb3BlcmF0aW9uX2lkGAUgASgJEhMKC2ZlbmNlX3Rva2VuGAYgASgJEhAKCHJldmlzaW9uGAcgASgDEjMKBXBoYXNlGAggASgOMiQuY29tbW9uLnYxLkxpZmVjeWNsZU1haW50ZW5hbmNlUGhhc2USGAoQYWRtaXNzaW9uX2Nsb3NlZBgJIAEoCBIRCglhZG1pdHRpbmcYCiABKAUSEQoJcmVtYWluaW5nGAsgASgFEhoKEmludmVudG9yeV9jb21wbGV0ZRgMIAEoCBIPCgdkcmFpbmVkGA0gASgIEioKBHdvcmsYDiADKAsyHC5jb21tb24udjEuTGlmZWN5Y2xlV29ya0l0ZW0SLQoIYmxvY2tlcnMYDyADKAsyGy5jb21tb24udjEuTGlmZWN5Y2xlQmxvY2tlchIvCgtvYnNlcnZlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKZXhwaXJlc19hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJaW50ZXJsb2NrGBIgASgJEkAKEm1hbmFnZWRfY29tcG9uZW50cxgTIAMoCzIkLmNvbW1vbi52MS5MaWZlY3ljbGVNYW5hZ2VkQ29tcG9uZW50EhwKFGNvbXBvbmVudF9zdG9wX3JlYWR5GBQgASgIEhoKEnF1aWVzY2VuY2VfcGVuZGluZxgVIAEoCCJKChhMaWZlY3ljbGVQcmVwYXJlUmVzcG9uc2USLgoIc3RhbmRpbmcYASABKAsyHC5jb21tb24udjEuTGlmZWN5Y2xlU3RhbmRpbmciSQoXTGlmZWN5Y2xlU3RhdHVzUmVzcG9uc2USLgoIc3RhbmRpbmcYASABKAsyHC5jb21tb24udjEuTGlmZWN5Y2xlU3RhbmRpbmciSAoWTGlmZWN5Y2xlRHJhaW5SZXNwb25zZRIuCghzdGFuZGluZxgBIAEoCzIcLmNvbW1vbi52MS5MaWZlY3ljbGVTdGFuZGluZyJJChdMaWZlY3ljbGVSZXN1bWVSZXNwb25zZRIuCghzdGFuZGluZxgBIAEoCzIcLmNvbW1vbi52MS5MaWZlY3ljbGVTdGFuZGluZyrpAQoZTGlmZWN5Y2xlTWFpbnRlbmFuY2VQaGFzZRIrCidMSUZFQ1lDTEVfTUFJTlRFTkFOQ0VfUEhBU0VfVU5TUEVDSUZJRUQQABIkCiBMSUZFQ1lDTEVfTUFJTlRFTkFOQ0VfUEhBU0VfT1BFThABEicKI0xJRkVDWUNMRV9NQUlOVEVOQU5DRV9QSEFTRV9DTE9TSU5HEAISJwojTElGRUNZQ0xFX01BSU5URU5BTkNFX1BIQVNFX0RSQUlORUQQAxInCiNMSUZFQ1lDTEVfTUFJTlRFTkFOQ0VfUEhBU0VfUkVTVU1FRBAEKtMBChtMaWZlY3ljbGVCbG9ja2VyRGlzcG9zaXRpb24SLQopTElGRUNZQ0xFX0JMT0NLRVJfRElTUE9TSVRJT05fVU5TUEVDSUZJRUQQABIqCiZMSUZFQ1lDTEVfQkxPQ0tFUl9ESVNQT1NJVElPTl9CTE9DS0lORxABEi4KKkxJRkVDWUNMRV9CTE9DS0VSX0RJU1BPU0lUSU9OX09WRVJSSURFQUJMRRACEikKJUxJRkVDWUNMRV9CTE9DS0VSX0RJU1BPU0lUSU9OX1VOS05PV04QAzLhAgobTGlmZWN5Y2xlTWFpbnRlbmFuY2VTZXJ2aWNlElIKB1ByZXBhcmUSIi5jb21tb24udjEuTGlmZWN5Y2xlUHJlcGFyZVJlcXVlc3QaIy5jb21tb24udjEuTGlmZWN5Y2xlUHJlcGFyZVJlc3BvbnNlEk8KBlN0YXR1cxIhLmNvbW1vbi52MS5MaWZlY3ljbGVTdGF0dXNSZXF1ZXN0GiIuY29tbW9uLnYxLkxpZmVjeWNsZVN0YXR1c1Jlc3BvbnNlEkwKBURyYWluEiAuY29tbW9uLnYxLkxpZmVjeWNsZURyYWluUmVxdWVzdBohLmNvbW1vbi52MS5MaWZlY3ljbGVEcmFpblJlc3BvbnNlEk8KBlJlc3VtZRIhLmNvbW1vbi52MS5MaWZlY3ljbGVSZXN1bWVSZXF1ZXN0GiIuY29tbW9uLnYxLkxpZmVjeWNsZVJlc3VtZVJlc3BvbnNlQkNaQWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY29tbW9uL3YxO2NvbW1vbnYxYgZwcm90bzM", [file_google_protobuf_duration, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message common.v1.LifecyclePrepareRequest
@@ -96,6 +96,20 @@ export type LifecycleDrainRequest = Message<"common.v1.LifecycleDrainRequest"> &
    * @generated from field: int64 revision = 4;
    */
   revision: bigint;
+
+  /**
+   * Wait only for provider-owned work to quiesce; does not authorize replacement.
+   *
+   * @generated from field: bool quiesce_components = 5;
+   */
+  quiesceComponents: boolean;
+
+  /**
+   * Local control-plane completion after waiting the pinned launch incarnation.
+   *
+   * @generated from field: repeated common.v1.LifecycleManagedComponent component_exits = 6;
+   */
+  componentExits: LifecycleManagedComponent[];
 };
 
 /**
@@ -104,6 +118,28 @@ export type LifecycleDrainRequest = Message<"common.v1.LifecycleDrainRequest"> &
  */
 export const LifecycleDrainRequestSchema: GenMessage<LifecycleDrainRequest> = /*@__PURE__*/
   messageDesc(file_common_v1_lifecycle, 2);
+
+/**
+ * @generated from message common.v1.LifecycleManagedComponent
+ */
+export type LifecycleManagedComponent = Message<"common.v1.LifecycleManagedComponent"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string generation = 2;
+   */
+  generation: string;
+};
+
+/**
+ * Describes the message common.v1.LifecycleManagedComponent.
+ * Use `create(LifecycleManagedComponentSchema)` to create a new message.
+ */
+export const LifecycleManagedComponentSchema: GenMessage<LifecycleManagedComponent> = /*@__PURE__*/
+  messageDesc(file_common_v1_lifecycle, 3);
 
 /**
  * @generated from message common.v1.LifecycleResumeRequest
@@ -130,7 +166,7 @@ export type LifecycleResumeRequest = Message<"common.v1.LifecycleResumeRequest">
  * Use `create(LifecycleResumeRequestSchema)` to create a new message.
  */
 export const LifecycleResumeRequestSchema: GenMessage<LifecycleResumeRequest> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 3);
+  messageDesc(file_common_v1_lifecycle, 4);
 
 /**
  * @generated from message common.v1.LifecycleWorkItem
@@ -162,7 +198,7 @@ export type LifecycleWorkItem = Message<"common.v1.LifecycleWorkItem"> & {
  * Use `create(LifecycleWorkItemSchema)` to create a new message.
  */
 export const LifecycleWorkItemSchema: GenMessage<LifecycleWorkItem> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 4);
+  messageDesc(file_common_v1_lifecycle, 5);
 
 /**
  * @generated from message common.v1.LifecycleBlocker
@@ -194,7 +230,7 @@ export type LifecycleBlocker = Message<"common.v1.LifecycleBlocker"> & {
  * Use `create(LifecycleBlockerSchema)` to create a new message.
  */
 export const LifecycleBlockerSchema: GenMessage<LifecycleBlocker> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 5);
+  messageDesc(file_common_v1_lifecycle, 6);
 
 /**
  * @generated from message common.v1.LifecycleStanding
@@ -289,6 +325,27 @@ export type LifecycleStanding = Message<"common.v1.LifecycleStanding"> & {
    * @generated from field: string interlock = 18;
    */
   interlock: string;
+
+  /**
+   * @generated from field: repeated common.v1.LifecycleManagedComponent managed_components = 19;
+   */
+  managedComponents: LifecycleManagedComponent[];
+
+  /**
+   * True only while closed under this fence and provider-owned work is terminal.
+   * Component processes may still be alive; final drained remains required.
+   *
+   * @generated from field: bool component_stop_ready = 20;
+   */
+  componentStopReady: boolean;
+
+  /**
+   * True while the control plane must request the provider's separate
+   * quiescence stage before final drain, even if no OS components are listed.
+   *
+   * @generated from field: bool quiescence_pending = 21;
+   */
+  quiescencePending: boolean;
 };
 
 /**
@@ -296,7 +353,7 @@ export type LifecycleStanding = Message<"common.v1.LifecycleStanding"> & {
  * Use `create(LifecycleStandingSchema)` to create a new message.
  */
 export const LifecycleStandingSchema: GenMessage<LifecycleStanding> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 6);
+  messageDesc(file_common_v1_lifecycle, 7);
 
 /**
  * @generated from message common.v1.LifecyclePrepareResponse
@@ -313,7 +370,7 @@ export type LifecyclePrepareResponse = Message<"common.v1.LifecyclePrepareRespon
  * Use `create(LifecyclePrepareResponseSchema)` to create a new message.
  */
 export const LifecyclePrepareResponseSchema: GenMessage<LifecyclePrepareResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 7);
+  messageDesc(file_common_v1_lifecycle, 8);
 
 /**
  * @generated from message common.v1.LifecycleStatusResponse
@@ -330,7 +387,7 @@ export type LifecycleStatusResponse = Message<"common.v1.LifecycleStatusResponse
  * Use `create(LifecycleStatusResponseSchema)` to create a new message.
  */
 export const LifecycleStatusResponseSchema: GenMessage<LifecycleStatusResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 8);
+  messageDesc(file_common_v1_lifecycle, 9);
 
 /**
  * @generated from message common.v1.LifecycleDrainResponse
@@ -347,7 +404,7 @@ export type LifecycleDrainResponse = Message<"common.v1.LifecycleDrainResponse">
  * Use `create(LifecycleDrainResponseSchema)` to create a new message.
  */
 export const LifecycleDrainResponseSchema: GenMessage<LifecycleDrainResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 9);
+  messageDesc(file_common_v1_lifecycle, 10);
 
 /**
  * @generated from message common.v1.LifecycleResumeResponse
@@ -364,7 +421,7 @@ export type LifecycleResumeResponse = Message<"common.v1.LifecycleResumeResponse
  * Use `create(LifecycleResumeResponseSchema)` to create a new message.
  */
 export const LifecycleResumeResponseSchema: GenMessage<LifecycleResumeResponse> = /*@__PURE__*/
-  messageDesc(file_common_v1_lifecycle, 10);
+  messageDesc(file_common_v1_lifecycle, 11);
 
 /**
  * @generated from enum common.v1.LifecycleMaintenancePhase

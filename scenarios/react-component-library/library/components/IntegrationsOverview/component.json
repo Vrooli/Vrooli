@@ -31,7 +31,7 @@
     "0.1.0"
   ],
   "kind": "control",
-  "latest": "1.0.6",
+  "latest": "1.1.1",
   "libraryId": "react-component-library:IntegrationsOverview",
   "retiredMajorAliases": [
     "0"

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "money-ledger",
-  "input_digest": "sha256:2c0372a7fdbb91ae6384d63f531014c6f0306e821ec203bdfb80f2ba74e82f32",
+  "input_digest": "sha256:1576ed9fb0cba7fbbeab1270fe9911d0fd23163f184fba456c543f61faaf2234",
   "input_files": [
     "schemas/money-ledger/v1/capabilities/capabilities.proto",
     "schemas/money-ledger/v1/ingest/ingest.proto",
@@ -24,7 +24,7 @@
   },
   "outputs": {
     "gen/go/money-ledger/v1/capabilities/capabilities.pb.go": "sha256:385643b003cf81ddcbc313b7fd91646a6c7b0700fc7888a10445859c7f84e9c0",
-    "gen/go/money-ledger/v1/ingest/ingest.pb.go": "sha256:6e8dffecd941c1b3fda7d6539d7b0efe36cde06afb6fcb384f5d09f68f3444ee",
+    "gen/go/money-ledger/v1/ingest/ingest.pb.go": "sha256:eea40f40868cbd2eb4bf005e6b28ea4572db982cb58bd3f48e4d31adb098e57a",
     "gen/go/money-ledger/v1/ingest/ingest_v1connect/ingest.connect.go": "sha256:0857f3b5caece429dea8012752896c64f406e182b027317223ccb6bc75fb0624",
     "gen/go/money-ledger/v1/ledger/ledger.pb.go": "sha256:3ff25565e3ee1c1071569184190f1d43c164ba440d275686fefe7936af1768d2",
     "gen/go/money-ledger/v1/ledger/ledger_v1connect/ledger.connect.go": "sha256:a7fcb2d2e646dc6cd20fcb07bf9680ec5437933032ab041fc281b9cebfd01652",
@@ -35,8 +35,8 @@
     "gen/python/money_ledger/v1/capabilities/capabilities_pb2.py": "sha256:13743a235cf28f34a1def73df513709fb6b1834eff78362749da5c7167e78ecc",
     "gen/python/money_ledger/v1/capabilities/capabilities_pb2.pyi": "sha256:b3ae7d413bb526c018e7d42df4b359a4770a944f6ab28fd55c76f3a1868eb07f",
     "gen/python/money_ledger/v1/capabilities/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/money_ledger/v1/ingest/ingest_pb2.py": "sha256:608c60821dbe21715557e142dc8cb71e1cc86a758340f418aa92f16ca3315267",
-    "gen/python/money_ledger/v1/ingest/ingest_pb2.pyi": "sha256:5cd1dd50aa28f6dba1b4e131ccba56c4c05e3d0a768270c38170cb8dd63d50ac",
+    "gen/python/money_ledger/v1/ingest/ingest_pb2.py": "sha256:f906619deea09900db14c3a5a3972941f6188f7084b2cca46ae78b1c335b5305",
+    "gen/python/money_ledger/v1/ingest/ingest_pb2.pyi": "sha256:d13fdee552b99692d2b6ec63b98b7a09082198306e273a088de26a2326d9dadb",
     "gen/python/money_ledger/v1/ingest/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/money_ledger/v1/ledger/ledger_pb2.py": "sha256:1f7a2370da62ddd230e65cab3b6c1cf1d3334562d82dcf1ca07836a46b5fd410",
     "gen/python/money_ledger/v1/ledger/ledger_pb2.pyi": "sha256:a90a70f7382756145a54f0c7f3e7014d48b80b76e658431f371af0ca1b5dd979",
@@ -50,7 +50,7 @@
     "gen/python/money_ledger/v1/shared/ledger_types_pb2.pyi": "sha256:a88173a04d63a874b5b97bbf9be599c432b5fbb2e48ede35e0a8f88ad53b1977",
     "gen/python/money_ledger/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/typescript/money-ledger/v1/capabilities/capabilities_pb.ts": "sha256:bd872bb8c7a899492c2c056d3755b7aec9c60a537cee235125e18c434b3584ad",
-    "gen/typescript/money-ledger/v1/ingest/ingest_pb.ts": "sha256:676c6f4d70fdc3604f1005a8c33e1ec3eed9b70ec16a240d6434d3a51c58190b",
+    "gen/typescript/money-ledger/v1/ingest/ingest_pb.ts": "sha256:06711099d3aff35fd22fa0e31227c728e33699c8db627a9b62e8b93d106bd3ab",
     "gen/typescript/money-ledger/v1/ledger/ledger_pb.ts": "sha256:e15faba66eaa00f956ee81678b3945d5bd1a8b5019761ca7fd988701284d6a0e",
     "gen/typescript/money-ledger/v1/shared/errors_pb.ts": "sha256:f0a471ca87de70115ec0757ab8fd246eab70f36978c4dbc8ff528de92c9fcf47",
     "gen/typescript/money-ledger/v1/shared/health_pb.ts": "sha256:3be7c4d2e7e82655725e07860d85f10d6e460f0621ff5f941c0088e30f9683cc",

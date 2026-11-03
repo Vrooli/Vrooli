@@ -28,8 +28,11 @@ type GetRoleModelChoicesRequest struct {
 	// The shortcut command a launch would start from, to tell whether settings can
 	// apply to it. Empty asks only about the runner.
 	LaunchCommand string `protobuf:"bytes,3,opt,name=launch_command,json=launchCommand,proto3" json:"launch_command,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Selected billing account; LPBS verifies membership before issuing the
+	// device credential used to evaluate paid model eligibility.
+	BusinessAccountId string `protobuf:"bytes,4,opt,name=business_account_id,json=businessAccountId,proto3" json:"business_account_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetRoleModelChoicesRequest) Reset() {
@@ -83,6 +86,13 @@ func (x *GetRoleModelChoicesRequest) GetLaunchCommand() string {
 	return ""
 }
 
+func (x *GetRoleModelChoicesRequest) GetBusinessAccountId() string {
+	if x != nil {
+		return x.BusinessAccountId
+	}
+	return ""
+}
+
 type RoleModelChoice struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Model       string                 `protobuf:"bytes,1,opt,name=model,proto3" json:"model,omitempty"`
@@ -99,7 +109,9 @@ type RoleModelChoice struct {
 	// The choice bills per use, so a stale catalog keeps it unselectable.
 	Metered bool `protobuf:"varint,10,opt,name=metered,proto3" json:"metered,omitempty"`
 	// What the operator reads. `model` stays the catalog ID.
-	DisplayName   string `protobuf:"bytes,11,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,11,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// Eligibility was checked with the billing authority for this response.
+	PolicyCurrent bool `protobuf:"varint,12,opt,name=policy_current,json=policyCurrent,proto3" json:"policy_current,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -211,6 +223,13 @@ func (x *RoleModelChoice) GetDisplayName() string {
 	return ""
 }
 
+func (x *RoleModelChoice) GetPolicyCurrent() bool {
+	if x != nil {
+		return x.PolicyCurrent
+	}
+	return false
+}
+
 type GetRoleModelChoicesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ready, stale, unknown, or unsupported.
@@ -233,8 +252,10 @@ type GetRoleModelChoicesResponse struct {
 	// The launch command is the operator's own: a wrapper, or one naming its own
 	// model or limit. It runs as written, so a launch cannot apply these settings.
 	CommandLiteral bool `protobuf:"varint,13,opt,name=command_literal,json=commandLiteral,proto3" json:"command_literal,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// A native per-session provider adapter exists; this does not grant billing eligibility.
+	SourceConfigurationSupported bool `protobuf:"varint,14,opt,name=source_configuration_supported,json=sourceConfigurationSupported,proto3" json:"source_configuration_supported,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *GetRoleModelChoicesResponse) Reset() {
@@ -358,15 +379,23 @@ func (x *GetRoleModelChoicesResponse) GetCommandLiteral() bool {
 	return false
 }
 
+func (x *GetRoleModelChoicesResponse) GetSourceConfigurationSupported() bool {
+	if x != nil {
+		return x.SourceConfigurationSupported
+	}
+	return false
+}
+
 var File_web_console_v1_modelselection_model_selection_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_modelselection_model_selection_proto_rawDesc = "" +
 	"\n" +
-	"3web-console/v1/modelselection/model_selection.proto\x12$vrooli.web_console.v1.modelselection\"{\n" +
+	"3web-console/v1/modelselection/model_selection.proto\x12$vrooli.web_console.v1.modelselection\"\xab\x01\n" +
 	"\x1aGetRoleModelChoicesRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x1b\n" +
 	"\ttarget_id\x18\x02 \x01(\tR\btargetId\x12%\n" +
-	"\x0elaunch_command\x18\x03 \x01(\tR\rlaunchCommand\"\xfb\x02\n" +
+	"\x0elaunch_command\x18\x03 \x01(\tR\rlaunchCommand\x12.\n" +
+	"\x13business_account_id\x18\x04 \x01(\tR\x11businessAccountId\"\xa2\x03\n" +
 	"\x0fRoleModelChoice\x12\x14\n" +
 	"\x05model\x18\x01 \x01(\tR\x05model\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x1a\n" +
@@ -380,7 +409,8 @@ const file_web_console_v1_modelselection_model_selection_proto_rawDesc = "" +
 	"\x14context_limit_tokens\x18\t \x03(\x03R\x12contextLimitTokens\x12\x18\n" +
 	"\ametered\x18\n" +
 	" \x01(\bR\ametered\x12!\n" +
-	"\fdisplay_name\x18\v \x01(\tR\vdisplayName\"\xf9\x03\n" +
+	"\fdisplay_name\x18\v \x01(\tR\vdisplayName\x12%\n" +
+	"\x0epolicy_current\x18\f \x01(\bR\rpolicyCurrent\"\xbf\x04\n" +
 	"\x1bGetRoleModelChoicesResponse\x12#\n" +
 	"\rpolicy_status\x18\x01 \x01(\tR\fpolicyStatus\x12\"\n" +
 	"\favailability\x18\x02 \x01(\tR\favailability\x12\x16\n" +
@@ -399,7 +429,8 @@ const file_web_console_v1_modelselection_model_selection_proto_rawDesc = "" +
 	" \x01(\tR\tmodelFlag\x12#\n" +
 	"\rcatalog_stale\x18\v \x01(\bR\fcatalogStale\x12)\n" +
 	"\x10operator_command\x18\f \x01(\tR\x0foperatorCommand\x12'\n" +
-	"\x0fcommand_literal\x18\r \x01(\bR\x0ecommandLiteral2\xb4\x01\n" +
+	"\x0fcommand_literal\x18\r \x01(\bR\x0ecommandLiteral\x12D\n" +
+	"\x1esource_configuration_supported\x18\x0e \x01(\bR\x1csourceConfigurationSupported2\xb4\x01\n" +
 	"\x15ModelSelectionService\x12\x9a\x01\n" +
 	"\x13GetRoleModelChoices\x12@.vrooli.web_console.v1.modelselection.GetRoleModelChoicesRequest\x1aA.vrooli.web_console.v1.modelselection.GetRoleModelChoicesResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/modelselection;modelselection_v1b\x06proto3"
 

@@ -7,17 +7,19 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class GetRoleModelChoicesRequest(_message.Message):
-    __slots__ = ("agent_id", "target_id", "launch_command")
+    __slots__ = ("agent_id", "target_id", "launch_command", "business_account_id")
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     TARGET_ID_FIELD_NUMBER: _ClassVar[int]
     LAUNCH_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    BUSINESS_ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
     agent_id: str
     target_id: str
     launch_command: str
-    def __init__(self, agent_id: _Optional[str] = ..., target_id: _Optional[str] = ..., launch_command: _Optional[str] = ...) -> None: ...
+    business_account_id: str
+    def __init__(self, agent_id: _Optional[str] = ..., target_id: _Optional[str] = ..., launch_command: _Optional[str] = ..., business_account_id: _Optional[str] = ...) -> None: ...
 
 class RoleModelChoice(_message.Message):
-    __slots__ = ("model", "source", "provider", "launch_model", "effort", "source_label", "is_default", "context_window_tokens", "context_limit_tokens", "metered", "display_name")
+    __slots__ = ("model", "source", "provider", "launch_model", "effort", "source_label", "is_default", "context_window_tokens", "context_limit_tokens", "metered", "display_name", "policy_current")
     MODEL_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
@@ -29,6 +31,7 @@ class RoleModelChoice(_message.Message):
     CONTEXT_LIMIT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     METERED_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
+    POLICY_CURRENT_FIELD_NUMBER: _ClassVar[int]
     model: str
     source: str
     provider: str
@@ -40,10 +43,11 @@ class RoleModelChoice(_message.Message):
     context_limit_tokens: _containers.RepeatedScalarFieldContainer[int]
     metered: bool
     display_name: str
-    def __init__(self, model: _Optional[str] = ..., source: _Optional[str] = ..., provider: _Optional[str] = ..., launch_model: _Optional[str] = ..., effort: _Optional[str] = ..., source_label: _Optional[str] = ..., is_default: _Optional[bool] = ..., context_window_tokens: _Optional[int] = ..., context_limit_tokens: _Optional[_Iterable[int]] = ..., metered: _Optional[bool] = ..., display_name: _Optional[str] = ...) -> None: ...
+    policy_current: bool
+    def __init__(self, model: _Optional[str] = ..., source: _Optional[str] = ..., provider: _Optional[str] = ..., launch_model: _Optional[str] = ..., effort: _Optional[str] = ..., source_label: _Optional[str] = ..., is_default: _Optional[bool] = ..., context_window_tokens: _Optional[int] = ..., context_limit_tokens: _Optional[_Iterable[int]] = ..., metered: _Optional[bool] = ..., display_name: _Optional[str] = ..., policy_current: _Optional[bool] = ...) -> None: ...
 
 class GetRoleModelChoicesResponse(_message.Message):
-    __slots__ = ("policy_status", "availability", "runner", "role", "provenance", "observed_at", "policy_digest", "choices", "detail", "model_flag", "catalog_stale", "operator_command", "command_literal")
+    __slots__ = ("policy_status", "availability", "runner", "role", "provenance", "observed_at", "policy_digest", "choices", "detail", "model_flag", "catalog_stale", "operator_command", "command_literal", "source_configuration_supported")
     POLICY_STATUS_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
     RUNNER_FIELD_NUMBER: _ClassVar[int]
@@ -57,6 +61,7 @@ class GetRoleModelChoicesResponse(_message.Message):
     CATALOG_STALE_FIELD_NUMBER: _ClassVar[int]
     OPERATOR_COMMAND_FIELD_NUMBER: _ClassVar[int]
     COMMAND_LITERAL_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_CONFIGURATION_SUPPORTED_FIELD_NUMBER: _ClassVar[int]
     policy_status: str
     availability: str
     runner: str
@@ -70,4 +75,5 @@ class GetRoleModelChoicesResponse(_message.Message):
     catalog_stale: bool
     operator_command: str
     command_literal: bool
-    def __init__(self, policy_status: _Optional[str] = ..., availability: _Optional[str] = ..., runner: _Optional[str] = ..., role: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[str] = ..., policy_digest: _Optional[str] = ..., choices: _Optional[_Iterable[_Union[RoleModelChoice, _Mapping]]] = ..., detail: _Optional[str] = ..., model_flag: _Optional[str] = ..., catalog_stale: _Optional[bool] = ..., operator_command: _Optional[str] = ..., command_literal: _Optional[bool] = ...) -> None: ...
+    source_configuration_supported: bool
+    def __init__(self, policy_status: _Optional[str] = ..., availability: _Optional[str] = ..., runner: _Optional[str] = ..., role: _Optional[str] = ..., provenance: _Optional[str] = ..., observed_at: _Optional[str] = ..., policy_digest: _Optional[str] = ..., choices: _Optional[_Iterable[_Union[RoleModelChoice, _Mapping]]] = ..., detail: _Optional[str] = ..., model_flag: _Optional[str] = ..., catalog_stale: _Optional[bool] = ..., operator_command: _Optional[str] = ..., command_literal: _Optional[bool] = ..., source_configuration_supported: _Optional[bool] = ...) -> None: ...

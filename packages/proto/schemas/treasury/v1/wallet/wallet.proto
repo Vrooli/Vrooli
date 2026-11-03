@@ -25,3 +25,42 @@ message ControlProof {
   string scheme = 4;
   bool verified = 5;
 }
+
+// A provider-reported Base native-USDC Transfer occurrence. This is exact
+// token quantity and chain evidence only; it is not a fiat valuation, journal
+// posting, budget credit, or allocation.
+message BaseUSDCTransferObservation {
+  string economic_key = 1;
+  string inclusion_revision = 2;
+  string wallet_id = 3;
+  string network = 4;
+  string asset_id = 5;
+  uint32 decimals = 6;
+  string from = 7;
+  string to = 8;
+  string atomic_amount = 9;
+  string transaction_hash = 10;
+  uint64 log_index = 11;
+  uint64 block_number = 12;
+  string block_hash = 13;
+  google.protobuf.Timestamp block_time = 14;
+  string finality = 15;
+  uint64 finalized_head_number = 16;
+  string finalized_head_hash = 17;
+  string provider_id = 18;
+  google.protobuf.Timestamp observed_at = 19;
+}
+
+// A durable record of one operator-requested read from the configured Base
+// RPC. Provider claims remain observations, not consensus or fiat accounting.
+message BaseUSDCReceiptCheck {
+  string id = 1;
+  string wallet_id = 2;
+  string network = 3;
+  string transaction_hash = 4;
+  string provider_id = 5;
+  string outcome = 6;
+  string error_code = 7;
+  google.protobuf.Timestamp checked_at = 8;
+  repeated BaseUSDCTransferObservation transfers = 9;
+}

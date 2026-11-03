@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/jobs/jobs.proto.
  */
 export const file_image_tools_v1_jobs_jobs: GenFile = /*@__PURE__*/
-  fileDesc("Ch5pbWFnZS10b29scy92MS9qb2JzL2pvYnMucHJvdG8SGnZyb29saS5pbWFnZV90b29scy52MS5qb2JzIsUECgNKb2ISCgoCaWQYASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEjEKBGxhbmUYAyABKA4yIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JMYW5lEjMKBXN0YXRlGAQgASgOMiQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iU3RhdGUSEAoIcHJvZ3Jlc3MYBSABKAUSDwoHbWVzc2FnZRgGIAEoCRINCgVlcnJvchgHIAEoCRISCgpyZXN1bHRfcmVmGAggASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAkgASgFEi4KCmNyZWF0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnN0YXJ0ZWRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2ZpbmlzaGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJECgtyZXN1bHRfbWV0YRgNIAMoCzIvLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYi5SZXN1bHRNZXRhRW50cnkSNwoHcmVxdWVzdBgOIAEoCzImLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYlJlcXVlc3QSEwoLcmVzdWx0X3JlZnMYDyADKAkaMQoPUmVzdWx0TWV0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi2gEKCkpvYlJlcXVlc3QSEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJEg8KB2JhY2tlbmQYAyABKAkSDAoEdGllchgEIAEoCRIMCgRyb2xlGAUgASgJEg4KBnByb21wdBgGIAEoCRIXCg9uZWdhdGl2ZV9wcm9tcHQYByABKAkSDAoEc2VlZBgIIAEoAxINCgV3aWR0aBgJIAEoBRIOCgZoZWlnaHQYCiABKAUSEgoKdmFyaWF0aW9ucxgLIAEoBRIQCghhZGFwdGVycxgMIAMoCSKfAQoNUHJvZ3Jlc3NFdmVudBIOCgZqb2JfaWQYASABKAkSMwoFc3RhdGUYAiABKA4yJC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JTdGF0ZRIQCghwcm9ncmVzcxgDIAEoBRIPCgdtZXNzYWdlGAQgASgJEiYKAmF0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIbCg1HZXRKb2JSZXF1ZXN0EgoKAmlkGAEgASgJIj4KDkdldEpvYlJlc3BvbnNlEiwKA2pvYhgBIAEoCzIfLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYiIcCg5XYWl0Sm9iUmVxdWVzdBIKCgJpZBgBIAEoCSI/Cg9XYWl0Sm9iUmVzcG9uc2USLAoDam9iGAEgASgLMh8udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iIiAKD0xpc3RKb2JzUmVxdWVzdBINCgVsaW1pdBgBIAEoBSJBChBMaXN0Sm9ic1Jlc3BvbnNlEi0KBGpvYnMYASADKAsyHy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IiHgoQQ2FuY2VsSm9iUmVxdWVzdBIKCgJpZBgBIAEoCSJBChFDYW5jZWxKb2JSZXNwb25zZRIsCgNqb2IYASABKAsyHy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IiHQoPV2F0Y2hKb2JSZXF1ZXN0EgoKAmlkGAEgASgJKpkBCghKb2JTdGF0ZRIZChVKT0JfU1RBVEVfVU5TUEVDSUZJRUQQABIUChBKT0JfU1RBVEVfUVVFVUVEEAESFQoRSk9CX1NUQVRFX1JVTk5JTkcQAhIXChNKT0JfU1RBVEVfU1VDQ0VFREVEEAMSFAoQSk9CX1NUQVRFX0ZBSUxFRBAEEhYKEkpPQl9TVEFURV9DQU5DRUxFRBAFKl0KB0pvYkxhbmUSGAoUSk9CX0xBTkVfVU5TUEVDSUZJRUQQABIQCgxKT0JfTEFORV9HUFUQARIQCgxKT0JfTEFORV9DUFUQAhIUChBKT0JfTEFORV9ORVRXT1JLEAMyiQQKC0pvYnNTZXJ2aWNlEl8KBkdldEpvYhIpLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkdldEpvYlJlcXVlc3QaKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5HZXRKb2JSZXNwb25zZRJiCgdXYWl0Sm9iEioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuV2FpdEpvYlJlcXVlc3QaKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5XYWl0Sm9iUmVzcG9uc2USZQoITGlzdEpvYnMSKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5MaXN0Sm9ic1JlcXVlc3QaLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5MaXN0Sm9ic1Jlc3BvbnNlEmgKCUNhbmNlbEpvYhIsLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkNhbmNlbEpvYlJlcXVlc3QaLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5DYW5jZWxKb2JSZXNwb25zZRJkCghXYXRjaEpvYhIrLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLldhdGNoSm9iUmVxdWVzdBopLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLlByb2dyZXNzRXZlbnQwAUJMWkpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2pvYnM7am9ic192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Ch5pbWFnZS10b29scy92MS9qb2JzL2pvYnMucHJvdG8SGnZyb29saS5pbWFnZV90b29scy52MS5qb2JzIokFCgNKb2ISCgoCaWQYASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEjUKBGxhbmUYAyABKA4yIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JMYW5lQgIYARIzCgVzdGF0ZRgEIAEoDjIkLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYlN0YXRlEhAKCHByb2dyZXNzGAUgASgFEg8KB21lc3NhZ2UYBiABKAkSDQoFZXJyb3IYByABKAkSEgoKcmVzdWx0X3JlZhgIIAEoCRIZChFlc3RpbWF0ZWRfc2Vjb25kcxgJIAEoBRIuCgpjcmVhdGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpzdGFydGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtmaW5pc2hlZF9hdBgMIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASRAoLcmVzdWx0X21ldGEYDSADKAsyLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IuUmVzdWx0TWV0YUVudHJ5EjcKB3JlcXVlc3QYDiABKAsyJi52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JSZXF1ZXN0EhMKC3Jlc3VsdF9yZWZzGA8gAygJEj4KEHNjaGVkdWxpbmdfcXVldWUYECABKA4yJC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2JRdWV1ZRoxCg9SZXN1bHRNZXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASLaAQoKSm9iUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDwoHYmFja2VuZBgDIAEoCRIMCgR0aWVyGAQgASgJEgwKBHJvbGUYBSABKAkSDgoGcHJvbXB0GAYgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgHIAEoCRIMCgRzZWVkGAggASgDEg0KBXdpZHRoGAkgASgFEg4KBmhlaWdodBgKIAEoBRISCgp2YXJpYXRpb25zGAsgASgFEhAKCGFkYXB0ZXJzGAwgAygJIp8BCg1Qcm9ncmVzc0V2ZW50Eg4KBmpvYl9pZBgBIAEoCRIzCgVzdGF0ZRgCIAEoDjIkLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYlN0YXRlEhAKCHByb2dyZXNzGAMgASgFEg8KB21lc3NhZ2UYBCABKAkSJgoCYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIhsKDUdldEpvYlJlcXVlc3QSCgoCaWQYASABKAkiPgoOR2V0Sm9iUmVzcG9uc2USLAoDam9iGAEgASgLMh8udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuSm9iIhwKDldhaXRKb2JSZXF1ZXN0EgoKAmlkGAEgASgJIj8KD1dhaXRKb2JSZXNwb25zZRIsCgNqb2IYASABKAsyHy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Kb2IiIAoPTGlzdEpvYnNSZXF1ZXN0Eg0KBWxpbWl0GAEgASgFIkEKEExpc3RKb2JzUmVzcG9uc2USLQoEam9icxgBIAMoCzIfLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYiIeChBDYW5jZWxKb2JSZXF1ZXN0EgoKAmlkGAEgASgJIkEKEUNhbmNlbEpvYlJlc3BvbnNlEiwKA2pvYhgBIAEoCzIfLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLkpvYiIdCg9XYXRjaEpvYlJlcXVlc3QSCgoCaWQYASABKAkqmQEKCEpvYlN0YXRlEhkKFUpPQl9TVEFURV9VTlNQRUNJRklFRBAAEhQKEEpPQl9TVEFURV9RVUVVRUQQARIVChFKT0JfU1RBVEVfUlVOTklORxACEhcKE0pPQl9TVEFURV9TVUNDRUVERUQQAxIUChBKT0JfU1RBVEVfRkFJTEVEEAQSFgoSSk9CX1NUQVRFX0NBTkNFTEVEEAUqXQoHSm9iTGFuZRIYChRKT0JfTEFORV9VTlNQRUNJRklFRBAAEhAKDEpPQl9MQU5FX0dQVRABEhAKDEpPQl9MQU5FX0NQVRACEhQKEEpPQl9MQU5FX05FVFdPUksQAyp1CghKb2JRdWV1ZRIZChVKT0JfUVVFVUVfVU5TUEVDSUZJRUQQABIaChZKT0JfUVVFVUVfTE9DQUxfU0VSSUFMEAESFgoSSk9CX1FVRVVFX0NQVV9QT09MEAISGgoWSk9CX1FVRVVFX05FVFdPUktfUE9PTBADMokECgtKb2JzU2VydmljZRJfCgZHZXRKb2ISKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5HZXRKb2JSZXF1ZXN0GioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuR2V0Sm9iUmVzcG9uc2USYgoHV2FpdEpvYhIqLnZyb29saS5pbWFnZV90b29scy52MS5qb2JzLldhaXRKb2JSZXF1ZXN0GisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuV2FpdEpvYlJlc3BvbnNlEmUKCExpc3RKb2JzEisudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuTGlzdEpvYnNSZXF1ZXN0GiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuTGlzdEpvYnNSZXNwb25zZRJoCglDYW5jZWxKb2ISLC52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5DYW5jZWxKb2JSZXF1ZXN0Gi0udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmpvYnMuQ2FuY2VsSm9iUmVzcG9uc2USZAoIV2F0Y2hKb2ISKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5XYXRjaEpvYlJlcXVlc3QaKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuam9icy5Qcm9ncmVzc0V2ZW50MAFCTFpKZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9qb2JzO2pvYnNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * Job is the persisted, observable record of a submitted unit of work.
@@ -35,9 +35,11 @@ export type Job = Message<"vrooli.image_tools.v1.jobs.Job"> & {
   operation: string;
 
   /**
-   * Execution lane (gpu serialized / cpu concurrent).
+   * Deprecated compatibility hint. Prefer scheduling_queue; this field does
+   * not identify the execution device.
    *
-   * @generated from field: vrooli.image_tools.v1.jobs.JobLane lane = 3;
+   * @generated from field: vrooli.image_tools.v1.jobs.JobLane lane = 3 [deprecated = true];
+   * @deprecated
    */
   lane: JobLane;
 
@@ -139,6 +141,14 @@ export type Job = Message<"vrooli.image_tools.v1.jobs.Job"> & {
    * @generated from field: repeated string result_refs = 15;
    */
   resultRefs: string[];
+
+  /**
+   * Scheduler queue and concurrency class. This is not an execution-device
+   * claim; inspect request/result metadata for backend execution evidence.
+   *
+   * @generated from field: vrooli.image_tools.v1.jobs.JobQueue scheduling_queue = 16;
+   */
+  schedulingQueue: JobQueue;
 };
 
 /**
@@ -471,8 +481,9 @@ export const JobStateSchema: GenEnum<JobState> = /*@__PURE__*/
   enumDesc(file_image_tools_v1_jobs_jobs, 0);
 
 /**
- * JobLane selects the execution lane. GPU jobs are serialized to avoid VRAM
- * contention; CPU jobs run concurrently.
+ * JobLane is the legacy execution-lane hint retained for wire compatibility.
+ * JOB_LANE_GPU historically names the serialized local queue; it does not prove
+ * that a job executed on GPU hardware. Prefer Job.scheduling_queue.
  *
  * @generated from enum vrooli.image_tools.v1.jobs.JobLane
  */
@@ -505,6 +516,46 @@ export enum JobLane {
  */
 export const JobLaneSchema: GenEnum<JobLane> = /*@__PURE__*/
   enumDesc(file_image_tools_v1_jobs_jobs, 1);
+
+/**
+ * JobQueue identifies the scheduler queue that accepted a job. It describes
+ * concurrency policy, not the device or backend that executed the operation.
+ *
+ * @generated from enum vrooli.image_tools.v1.jobs.JobQueue
+ */
+export enum JobQueue {
+  /**
+   * @generated from enum value: JOB_QUEUE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Local inference and other local work share one serialized worker.
+   *
+   * @generated from enum value: JOB_QUEUE_LOCAL_SERIAL = 1;
+   */
+  LOCAL_SERIAL = 1,
+
+  /**
+   * Lightweight CPU work can run concurrently in the CPU worker pool.
+   *
+   * @generated from enum value: JOB_QUEUE_CPU_POOL = 2;
+   */
+  CPU_POOL = 2,
+
+  /**
+   * Remote work uses its own bounded pool.
+   *
+   * @generated from enum value: JOB_QUEUE_NETWORK_POOL = 3;
+   */
+  NETWORK_POOL = 3,
+}
+
+/**
+ * Describes the enum vrooli.image_tools.v1.jobs.JobQueue.
+ */
+export const JobQueueSchema: GenEnum<JobQueue> = /*@__PURE__*/
+  enumDesc(file_image_tools_v1_jobs_jobs, 2);
 
 /**
  * @generated from service vrooli.image_tools.v1.jobs.JobsService

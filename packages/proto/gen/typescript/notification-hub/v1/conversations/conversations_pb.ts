@@ -2,8 +2,8 @@
 // @generated from file notification-hub/v1/conversations/conversations.proto (package vrooli.notification_hub.v1.conversations, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Notification } from "../shared/types_pb";
 import { file_notification_hub_v1_shared_types } from "../shared/types_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file notification-hub/v1/conversations/conversations.proto.
  */
 export const file_notification_hub_v1_conversations_conversations: GenFile = /*@__PURE__*/
-  fileDesc("CjVub3RpZmljYXRpb24taHViL3YxL2NvbnZlcnNhdGlvbnMvY29udmVyc2F0aW9ucy5wcm90bxIodnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucyInCglBc2tPcHRpb24SCwoDa2V5GAEgASgJEg0KBWxhYmVsGAIgASgJIvkCCgpBc2tSZXF1ZXN0EhAKCHF1ZXN0aW9uGAEgASgJEhcKD2FsbG93ZWRfYW5zd2VycxgCIAMoCRIQCghkZWFkbGluZRgDIAEoCRIZChFzZW5zaXRpdml0eV9sYWJlbBgEIAEoCRIXCg9pZGVtcG90ZW5jeV9rZXkYBSABKAkSRAoHb3B0aW9ucxgGIAMoCzIzLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrT3B0aW9uEhMKC3JlY29tbWVuZGVkGAcgASgJEh0KFXJlY29tbWVuZGF0aW9uX3JlYXNvbhgIIAEoCRIWCg5kZWZhdWx0X2Fuc3dlchgJIAEoCRISCgpyZXZlcnNpYmxlGAogASgIEg8KB3VyZ2VuY3kYCyABKAkSEwoLY29udGV4dF91cmwYDCABKAkSEwoLYmlnX3BpY3R1cmUYHSABKAkSGQoRdGVjaG5pY2FsX2RldGFpbHMYHiABKAkiZAoLQXNrUmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEkUKDG5vdGlmaWNhdGlvbhgCIAEoCzIvLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLnNoYXJlZC5Ob3RpZmljYXRpb24iPQoNQW5zd2VyUmVxdWVzdBIOCgZhc2tfaWQYASABKAkSDgoGYW5zd2VyGAIgASgJEgwKBG5vdGUYAyABKAkiUwoOQW5zd2VyUmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRITCgthbnN3ZXJlZF9hdBgDIAEoCRIMCgRsYXRlGAQgASgIIi8KC1dhaXRSZXF1ZXN0Eg4KBmFza19pZBgBIAEoCRIQCghkZWFkbGluZRgCIAEoCSJNCgxXYWl0UmVzcG9uc2USDgoGYXNrX2lkGAEgASgJEg0KBXN0YXRlGAIgASgJEg4KBmFuc3dlchgDIAEoCRIOCgZyZWFzb24YBCABKAkiuAUKA0FzaxIKCgJpZBgBIAEoCRIXCg9ub3RpZmljYXRpb25faWQYAiABKAkSEAoIcXVlc3Rpb24YAyABKAkSRAoHb3B0aW9ucxgEIAMoCzIzLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrT3B0aW9uEhMKC3JlY29tbWVuZGVkGAUgASgJEh0KFXJlY29tbWVuZGF0aW9uX3JlYXNvbhgGIAEoCRIWCg5kZWZhdWx0X2Fuc3dlchgHIAEoCRISCgpyZXZlcnNpYmxlGAggASgIEg8KB3VyZ2VuY3kYCSABKAkSEwoLY29udGV4dF91cmwYCiABKAkSEAoIZGVhZGxpbmUYCyABKAkSDQoFc3RhdGUYDCABKAkSDgoGcmVhc29uGA0gASgJEg4KBmFuc3dlchgOIAEoCRIUCgxhbnN3ZXJfbGFiZWwYDyABKAkSDAoEbm90ZRgQIAEoCRITCgthbnN3ZXJlZF9ieRgRIAEoCRITCgthbnN3ZXJlZF9hdBgSIAEoCRIMCgRsYXRlGBMgASgIEhoKEmRlZmF1bHRfYXBwbGllZF9hdBgUIAEoCRIaChJmaXJzdF9kZWxpdmVyZWRfYXQYFSABKAkSGwoTZGVmYXVsdF9lbGlnaWJsZV9hdBgWIAEoCRIOCgZzb3VyY2UYFyABKAkSGQoRc291cmNlX2V2ZW50X3R5cGUYGCABKAkSFQoNcmVxdWVzdGVyX3JlZhgZIAEoCRITCgtyZXNvbHZlZF9hdBgaIAEoCRISCgpjcmVhdGVkX2F0GBsgASgJEhIKCnVwZGF0ZWRfYXQYHCABKAkSEwoLYmlnX3BpY3R1cmUYHSABKAkSGQoRdGVjaG5pY2FsX2RldGFpbHMYHiABKAkSDQoFdGl0bGUYHyABKAkiHwoNR2V0QXNrUmVxdWVzdBIOCgZhc2tfaWQYASABKAkiTAoOR2V0QXNrUmVzcG9uc2USOgoDYXNrGAEgASgLMi0udnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2siaAoPTGlzdEFza3NSZXF1ZXN0EhEKCW9wZW5fb25seRgBIAEoCBINCgVsaW1pdBgCIAEoBRIOCgZjdXJzb3IYAyABKAkSDQoFcXVlcnkYBCABKAkSFAoMc3RhdGVfZmlsdGVyGAUgASgJImQKEExpc3RBc2tzUmVzcG9uc2USOwoEYXNrcxgBIAMoCzItLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrEhMKC25leHRfY3Vyc29yGAIgASgJMv8EChRDb252ZXJzYXRpb25zU2VydmljZRJyCgNBc2sSNC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza1JlcXVlc3QaNS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza1Jlc3BvbnNlEnsKBkFuc3dlchI3LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQW5zd2VyUmVxdWVzdBo4LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQW5zd2VyUmVzcG9uc2USdQoEV2FpdBI1LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuV2FpdFJlcXVlc3QaNi52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLldhaXRSZXNwb25zZRJ7CgZHZXRBc2sSNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkdldEFza1JlcXVlc3QaOC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkdldEFza1Jlc3BvbnNlEoEBCghMaXN0QXNrcxI5LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuTGlzdEFza3NSZXF1ZXN0GjoudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5MaXN0QXNrc1Jlc3BvbnNlQmNaYWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbm90aWZpY2F0aW9uLWh1Yi92MS9jb252ZXJzYXRpb25zO2NvbnZlcnNhdGlvbnNfdjFiBnByb3RvMw", [file_notification_hub_v1_shared_types]);
+  fileDesc("CjVub3RpZmljYXRpb24taHViL3YxL2NvbnZlcnNhdGlvbnMvY29udmVyc2F0aW9ucy5wcm90bxIodnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucyInCglBc2tPcHRpb24SCwoDa2V5GAEgASgJEg0KBWxhYmVsGAIgASgJIoACChdQcm92aWRlckRlY2lzaW9uQ29udGV4dBIWCg5zY2hlbWFfdmVyc2lvbhgBIAEoDRIeChZjYW5vbmljYWxfdGVybXNfc2hhMjU2GAIgASgJElYKBXNjb3BlGAMgASgOMkcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Qcm92aWRlckRlY2lzaW9uQ29udGV4dC5TY29wZSJVCgVTY29wZRIVChFTQ09QRV9VTlNQRUNJRklFRBAAEhcKE1NDT1BFX1BST1ZJREVSX1JVTEUQARIcChhTQ09QRV9QUk9WSURFUl9BR1JFRU1FTlQQAiLfAwoKQXNrUmVxdWVzdBIQCghxdWVzdGlvbhgBIAEoCRIXCg9hbGxvd2VkX2Fuc3dlcnMYAiADKAkSEAoIZGVhZGxpbmUYAyABKAkSGQoRc2Vuc2l0aXZpdHlfbGFiZWwYBCABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAUgASgJEkQKB29wdGlvbnMYBiADKAsyMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza09wdGlvbhITCgtyZWNvbW1lbmRlZBgHIAEoCRIdChVyZWNvbW1lbmRhdGlvbl9yZWFzb24YCCABKAkSFgoOZGVmYXVsdF9hbnN3ZXIYCSABKAkSEgoKcmV2ZXJzaWJsZRgKIAEoCBIPCgd1cmdlbmN5GAsgASgJEhMKC2NvbnRleHRfdXJsGAwgASgJEhMKC2JpZ19waWN0dXJlGB0gASgJEhkKEXRlY2huaWNhbF9kZXRhaWxzGB4gASgJEmQKGXByb3ZpZGVyX2RlY2lzaW9uX2NvbnRleHQYHyABKAsyQS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLlByb3ZpZGVyRGVjaXNpb25Db250ZXh0ImQKC0Fza1Jlc3BvbnNlEg4KBmFza19pZBgBIAEoCRJFCgxub3RpZmljYXRpb24YAiABKAsyLy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5zaGFyZWQuTm90aWZpY2F0aW9uIj0KDUFuc3dlclJlcXVlc3QSDgoGYXNrX2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIMCgRub3RlGAMgASgJIlMKDkFuc3dlclJlc3BvbnNlEg4KBmFza19pZBgBIAEoCRIOCgZhbnN3ZXIYAiABKAkSEwoLYW5zd2VyZWRfYXQYAyABKAkSDAoEbGF0ZRgEIAEoCCIvCgtXYWl0UmVxdWVzdBIOCgZhc2tfaWQYASABKAkSEAoIZGVhZGxpbmUYAiABKAkiTQoMV2FpdFJlc3BvbnNlEg4KBmFza19pZBgBIAEoCRINCgVzdGF0ZRgCIAEoCRIOCgZhbnN3ZXIYAyABKAkSDgoGcmVhc29uGAQgASgJIuYGCgNBc2sSCgoCaWQYASABKAkSFwoPbm90aWZpY2F0aW9uX2lkGAIgASgJEhAKCHF1ZXN0aW9uGAMgASgJEkQKB29wdGlvbnMYBCADKAsyMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFza09wdGlvbhITCgtyZWNvbW1lbmRlZBgFIAEoCRIdChVyZWNvbW1lbmRhdGlvbl9yZWFzb24YBiABKAkSFgoOZGVmYXVsdF9hbnN3ZXIYByABKAkSEgoKcmV2ZXJzaWJsZRgIIAEoCBIPCgd1cmdlbmN5GAkgASgJEhMKC2NvbnRleHRfdXJsGAogASgJEhAKCGRlYWRsaW5lGAsgASgJEg0KBXN0YXRlGAwgASgJEg4KBnJlYXNvbhgNIAEoCRIOCgZhbnN3ZXIYDiABKAkSFAoMYW5zd2VyX2xhYmVsGA8gASgJEgwKBG5vdGUYECABKAkSEwoLYW5zd2VyZWRfYnkYESABKAkSEwoLYW5zd2VyZWRfYXQYEiABKAkSDAoEbGF0ZRgTIAEoCBIaChJkZWZhdWx0X2FwcGxpZWRfYXQYFCABKAkSGgoSZmlyc3RfZGVsaXZlcmVkX2F0GBUgASgJEhsKE2RlZmF1bHRfZWxpZ2libGVfYXQYFiABKAkSDgoGc291cmNlGBcgASgJEhkKEXNvdXJjZV9ldmVudF90eXBlGBggASgJEhUKDXJlcXVlc3Rlcl9yZWYYGSABKAkSEwoLcmVzb2x2ZWRfYXQYGiABKAkSEgoKY3JlYXRlZF9hdBgbIAEoCRISCgp1cGRhdGVkX2F0GBwgASgJEhMKC2JpZ19waWN0dXJlGB0gASgJEhkKEXRlY2huaWNhbF9kZXRhaWxzGB4gASgJEg0KBXRpdGxlGB8gASgJEmQKGXByb3ZpZGVyX2RlY2lzaW9uX2NvbnRleHQYICABKAsyQS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLlByb3ZpZGVyRGVjaXNpb25Db250ZXh0EiEKGWFuc3dlcmVkX2J5X2lkZW50aXR5X2tpbmQYISABKAkSIwobYW5zd2VyZWRfYnlfaWRlbnRpdHlfc291cmNlGCIgASgJIh8KDUdldEFza1JlcXVlc3QSDgoGYXNrX2lkGAEgASgJIkwKDkdldEFza1Jlc3BvbnNlEjoKA2FzaxgBIAEoCzItLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuQXNrImgKD0xpc3RBc2tzUmVxdWVzdBIRCglvcGVuX29ubHkYASABKAgSDQoFbGltaXQYAiABKAUSDgoGY3Vyc29yGAMgASgJEg0KBXF1ZXJ5GAQgASgJEhQKDHN0YXRlX2ZpbHRlchgFIAEoCSJkChBMaXN0QXNrc1Jlc3BvbnNlEjsKBGFza3MYASADKAsyLS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFzaxITCgtuZXh0X2N1cnNvchgCIAEoCTL/BAoUQ29udmVyc2F0aW9uc1NlcnZpY2UScgoDQXNrEjQudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tSZXF1ZXN0GjUudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5Bc2tSZXNwb25zZRJ7CgZBbnN3ZXISNy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFuc3dlclJlcXVlc3QaOC52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkFuc3dlclJlc3BvbnNlEnUKBFdhaXQSNS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLldhaXRSZXF1ZXN0GjYudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5XYWl0UmVzcG9uc2USewoGR2V0QXNrEjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5HZXRBc2tSZXF1ZXN0GjgudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuY29udmVyc2F0aW9ucy5HZXRBc2tSZXNwb25zZRKBAQoITGlzdEFza3MSOS52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5jb252ZXJzYXRpb25zLkxpc3RBc2tzUmVxdWVzdBo6LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmNvbnZlcnNhdGlvbnMuTGlzdEFza3NSZXNwb25zZUJjWmFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25vdGlmaWNhdGlvbi1odWIvdjEvY29udmVyc2F0aW9ucztjb252ZXJzYXRpb25zX3YxYgZwcm90bzM", [file_notification_hub_v1_shared_types]);
 
 /**
  * AskOption is one structured answer. key is what the requester receives;
@@ -38,6 +38,65 @@ export type AskOption = Message<"vrooli.notification_hub.v1.conversations.AskOpt
  */
 export const AskOptionSchema: GenMessage<AskOption> = /*@__PURE__*/
   messageDesc(file_notification_hub_v1_conversations_conversations, 0);
+
+/**
+ * ProviderDecisionContext binds a provider approval ask to one canonical
+ * provider rule or agreement. The digest is SHA-256 of the canonical terms
+ * bytes and the producer/verifier must recompute it; scope names which
+ * provider decision those bytes represent. The Hub validates this typed shape
+ * but does not own or interpret provider terms.
+ *
+ * @generated from message vrooli.notification_hub.v1.conversations.ProviderDecisionContext
+ */
+export type ProviderDecisionContext = Message<"vrooli.notification_hub.v1.conversations.ProviderDecisionContext"> & {
+  /**
+   * @generated from field: uint32 schema_version = 1;
+   */
+  schemaVersion: number;
+
+  /**
+   * @generated from field: string canonical_terms_sha256 = 2;
+   */
+  canonicalTermsSha256: string;
+
+  /**
+   * @generated from field: vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope scope = 3;
+   */
+  scope: ProviderDecisionContext_Scope;
+};
+
+/**
+ * Describes the message vrooli.notification_hub.v1.conversations.ProviderDecisionContext.
+ * Use `create(ProviderDecisionContextSchema)` to create a new message.
+ */
+export const ProviderDecisionContextSchema: GenMessage<ProviderDecisionContext> = /*@__PURE__*/
+  messageDesc(file_notification_hub_v1_conversations_conversations, 1);
+
+/**
+ * @generated from enum vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope
+ */
+export enum ProviderDecisionContext_Scope {
+  /**
+   * @generated from enum value: SCOPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: SCOPE_PROVIDER_RULE = 1;
+   */
+  PROVIDER_RULE = 1,
+
+  /**
+   * @generated from enum value: SCOPE_PROVIDER_AGREEMENT = 2;
+   */
+  PROVIDER_AGREEMENT = 2,
+}
+
+/**
+ * Describes the enum vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope.
+ */
+export const ProviderDecisionContext_ScopeSchema: GenEnum<ProviderDecisionContext_Scope> = /*@__PURE__*/
+  enumDesc(file_notification_hub_v1_conversations_conversations, 1, 0);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.AskRequest
@@ -127,6 +186,14 @@ export type AskRequest = Message<"vrooli.notification_hub.v1.conversations.AskRe
    * @generated from field: string technical_details = 30;
    */
   technicalDetails: string;
+
+  /**
+   * Optional typed binding for provider-rule/agreement decisions. The Hub
+   * treats it as immutable ask identity and exposes it on GetAsk.
+   *
+   * @generated from field: vrooli.notification_hub.v1.conversations.ProviderDecisionContext provider_decision_context = 31;
+   */
+  providerDecisionContext?: ProviderDecisionContext | undefined;
 };
 
 /**
@@ -134,7 +201,7 @@ export type AskRequest = Message<"vrooli.notification_hub.v1.conversations.AskRe
  * Use `create(AskRequestSchema)` to create a new message.
  */
 export const AskRequestSchema: GenMessage<AskRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 1);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 2);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.AskResponse
@@ -156,7 +223,7 @@ export type AskResponse = Message<"vrooli.notification_hub.v1.conversations.AskR
  * Use `create(AskResponseSchema)` to create a new message.
  */
 export const AskResponseSchema: GenMessage<AskResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 2);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 3);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.AnswerRequest
@@ -185,7 +252,7 @@ export type AnswerRequest = Message<"vrooli.notification_hub.v1.conversations.An
  * Use `create(AnswerRequestSchema)` to create a new message.
  */
 export const AnswerRequestSchema: GenMessage<AnswerRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 3);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 4);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.AnswerResponse
@@ -219,7 +286,7 @@ export type AnswerResponse = Message<"vrooli.notification_hub.v1.conversations.A
  * Use `create(AnswerResponseSchema)` to create a new message.
  */
 export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 4);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 5);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.WaitRequest
@@ -241,7 +308,7 @@ export type WaitRequest = Message<"vrooli.notification_hub.v1.conversations.Wait
  * Use `create(WaitRequestSchema)` to create a new message.
  */
 export const WaitRequestSchema: GenMessage<WaitRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 5);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 6);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.WaitResponse
@@ -273,7 +340,7 @@ export type WaitResponse = Message<"vrooli.notification_hub.v1.conversations.Wai
  * Use `create(WaitResponseSchema)` to create a new message.
  */
 export const WaitResponseSchema: GenMessage<WaitResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 6);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 7);
 
 /**
  * Ask is the read model of one ask.
@@ -337,7 +404,7 @@ export type Ask = Message<"vrooli.notification_hub.v1.conversations.Ask"> & {
   deadline: string;
 
   /**
-   * pending, escalated, answered, defaulted, or expired.
+   * pending, escalated, answered, defaulted, expired, or withdrawn.
    *
    * @generated from field: string state = 12;
    */
@@ -364,7 +431,7 @@ export type Ask = Message<"vrooli.notification_hub.v1.conversations.Ask"> & {
   note: string;
 
   /**
-   * The owner subject, or "default" for an applied default.
+   * The identified answerer, recipient fallback, or "default" for an applied default.
    *
    * @generated from field: string answered_by = 17;
    */
@@ -447,6 +514,28 @@ export type Ask = Message<"vrooli.notification_hub.v1.conversations.Ask"> & {
    * @generated from field: string title = 31;
    */
   title: string;
+
+  /**
+   * Typed binding between this durable ask and provider decision terms.
+   *
+   * @generated from field: vrooli.notification_hub.v1.conversations.ProviderDecisionContext provider_decision_context = 32;
+   */
+  providerDecisionContext?: ProviderDecisionContext | undefined;
+
+  /**
+   * Server derived from answer authentication; unknown for legacy or
+   * recipient-fallback answers, system_default for an applied default.
+   *
+   * @generated from field: string answered_by_identity_kind = 33;
+   */
+  answeredByIdentityKind: string;
+
+  /**
+   * Authenticator source for verified human answers; empty when unknown.
+   *
+   * @generated from field: string answered_by_identity_source = 34;
+   */
+  answeredByIdentitySource: string;
 };
 
 /**
@@ -454,7 +543,7 @@ export type Ask = Message<"vrooli.notification_hub.v1.conversations.Ask"> & {
  * Use `create(AskSchema)` to create a new message.
  */
 export const AskSchema: GenMessage<Ask> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 7);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 8);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.GetAskRequest
@@ -471,7 +560,7 @@ export type GetAskRequest = Message<"vrooli.notification_hub.v1.conversations.Ge
  * Use `create(GetAskRequestSchema)` to create a new message.
  */
 export const GetAskRequestSchema: GenMessage<GetAskRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 8);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 9);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.GetAskResponse
@@ -488,7 +577,7 @@ export type GetAskResponse = Message<"vrooli.notification_hub.v1.conversations.G
  * Use `create(GetAskResponseSchema)` to create a new message.
  */
 export const GetAskResponseSchema: GenMessage<GetAskResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 9);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 10);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.ListAsksRequest
@@ -537,7 +626,7 @@ export type ListAsksRequest = Message<"vrooli.notification_hub.v1.conversations.
  * Use `create(ListAsksRequestSchema)` to create a new message.
  */
 export const ListAsksRequestSchema: GenMessage<ListAsksRequest> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 10);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 11);
 
 /**
  * @generated from message vrooli.notification_hub.v1.conversations.ListAsksResponse
@@ -561,7 +650,7 @@ export type ListAsksResponse = Message<"vrooli.notification_hub.v1.conversations
  * Use `create(ListAsksResponseSchema)` to create a new message.
  */
 export const ListAsksResponseSchema: GenMessage<ListAsksResponse> = /*@__PURE__*/
-  messageDesc(file_notification_hub_v1_conversations_conversations, 11);
+  messageDesc(file_notification_hub_v1_conversations_conversations, 12);
 
 /**
  * Asks are durable operator decisions. Reads (GetAsk, ListAsks, Wait) never

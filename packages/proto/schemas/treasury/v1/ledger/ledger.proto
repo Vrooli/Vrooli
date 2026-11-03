@@ -16,4 +16,28 @@ message LedgerEmission {
   string basis = 7;
   google.protobuf.Timestamp fetched_at = 8;
   google.protobuf.Timestamp accepted_at = 9;
+  string status = 10;
+  int32 attempts = 11;
+  string last_error = 12;
+  string settlement_id = 13;
+  string account_id = 14;
+  string book_id = 15;
+  google.protobuf.Timestamp occurred_at = 16;
+  google.protobuf.Timestamp created_at = 17;
+}
+
+message ListEmissionsRequest {
+  // Exact source identity, for example treasury:<occurrence-id>.
+  string external_id = 1;
+  // Optional: queued or accepted. Empty returns all states.
+  string status = 2;
+  int32 limit = 3;
+}
+
+message ListEmissionsResponse {
+  repeated LedgerEmission emissions = 1;
+}
+
+service LedgerService {
+  rpc ListEmissions(ListEmissionsRequest) returns (ListEmissionsResponse);
 }

@@ -23,6 +23,22 @@ service ConversationsService {
 // label is what the operator sees.
 message AskOption { string key = 1; string label = 2; }
 
+// ProviderDecisionContext binds a provider approval ask to one canonical
+// provider rule or agreement. The digest is SHA-256 of the canonical terms
+// bytes and the producer/verifier must recompute it; scope names which
+// provider decision those bytes represent. The Hub validates this typed shape
+// but does not own or interpret provider terms.
+message ProviderDecisionContext {
+  uint32 schema_version = 1;
+  string canonical_terms_sha256 = 2;
+  enum Scope {
+    SCOPE_UNSPECIFIED = 0;
+    SCOPE_PROVIDER_RULE = 1;
+    SCOPE_PROVIDER_AGREEMENT = 2;
+  }
+  Scope scope = 3;
+}
+
 message AskRequest {
   string question = 1;
   // Answer keys. Ignored when options is set; kept for existing callers.
@@ -46,6 +62,9 @@ message AskRequest {
   string big_picture = 29;
   // Optional plain-text mechanism, evidence, risks, and limitations.
   string technical_details = 30;
+  // Optional typed binding for provider-rule/agreement decisions. The Hub
+  // treats it as immutable ask identity and exposes it on GetAsk.
+  ProviderDecisionContext provider_decision_context = 31;
 }
 message AskResponse { string ask_id = 1; shared.Notification notification = 2; }
 
@@ -79,13 +98,13 @@ message Ask {
   string urgency = 9;
   string context_url = 10;
   string deadline = 11;
-  // pending, escalated, answered, defaulted, or expired.
+  // pending, escalated, answered, defaulted, expired, or withdrawn.
   string state = 12;
   string reason = 13;
   string answer = 14;
   string answer_label = 15;
   string note = 16;
-  // The owner subject, or "default" for an applied default.
+  // The identified answerer, recipient fallback, or "default" for an applied default.
   string answered_by = 17;
   string answered_at = 18;
   bool late = 19;
@@ -106,6 +125,13 @@ message Ask {
   // Existing notification title for concise list summaries. The full question
   // remains authoritative and available on the detail page.
   string title = 31;
+  // Typed binding between this durable ask and provider decision terms.
+  ProviderDecisionContext provider_decision_context = 32;
+  // Server derived from answer authentication; unknown for legacy or
+  // recipient-fallback answers, system_default for an applied default.
+  string answered_by_identity_kind = 33;
+  // Authenticator source for verified human answers; empty when unknown.
+  string answered_by_identity_source = 34;
 }
 message GetAskRequest { string ask_id = 1; }
 message GetAskResponse { Ask ask = 1; }

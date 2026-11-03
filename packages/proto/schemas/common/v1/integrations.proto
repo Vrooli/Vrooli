@@ -88,6 +88,24 @@ message Integration {
   string origin = 12;
   Criticality criticality = 13;
   PlatformVerdict platform = 14;
+  repeated IntegrationUse uses = 15;
+  LocalInstallation installation = 16;
+}
+
+// Consumer-owned purpose with an identity independent of the provider.
+message IntegrationUse {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string group = 4;
+}
+
+// An observed installation on this machine or inside the app bundle.
+// Hosted services do not publish model/protocol versions here.
+message LocalInstallation {
+  string location = 1;
+  string version = 2;
+  bool selected = 3;
 }
 
 message Feature {

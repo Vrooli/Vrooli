@@ -1,6 +1,6 @@
 module react-component-library/cli
 
-go 1.25.0
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.19.2
@@ -12,7 +12,7 @@ require (
 )
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
@@ -23,7 +23,7 @@ require (
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -63,3 +63,99 @@ replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 replace react-component-library => ../api
 
 replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
+
+replace agent-manager => ../../agent-manager/api
+
+replace agent-manager/cli => ../../agent-manager/cli
+
+replace device-control => ../../device-control/api
+
+replace device-studio => ../../device-studio/api
+
+replace device-studio/cli => ../../device-studio/cli
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/browser-automation-studio => ../../browser-automation-studio/api
+
+replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
+
+replace github.com/vrooli/mdns-go => ../../../packages/mdns-go
+
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go
+
+replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
+replace github.com/vrooli/ssh-core => ../../../packages/ssh-core
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
+
+replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
+
+replace github.com/vrooli/vrooli/packages/delivery-ramp-go => ../../../packages/delivery-ramp-go
+
+replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../audio-tools/clients/go
+
+replace github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api => ../../scenario-dependency-analyzer/api
+
+replace github.com/vrooli/vrooli/scenarios/system-monitor/api => ../../system-monitor/api
+
+replace github.com/vrooli/vrooli/scenarios/template-manager/api => ../../template-manager/api
+
+replace github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api => ../../vrooli-autoheal/api
+
+replace github.com/vrooli/vrooli/scenarios/vrooli-events => ../../vrooli-events
+
+replace landing-page-business-suite-api => ../../landing-page-business-suite/api
+
+replace notification-hub => ../../notification-hub/api
+
+replace nutrition-planner => ../../nutrition-planner/api
+
+replace personal-planner => ../../personal-planner/api
+
+replace personal-planner/cli => ../../personal-planner/cli
+
+replace program-runtime => ../../program-runtime/api
+
+replace prompt-manager => ../../prompt-manager/api
+
+replace prompt-manager/cli => ../../prompt-manager/cli
+
+replace react-component-library/cli => .
+
+replace scenario-dependency-analyzer/cli => ../../scenario-dependency-analyzer/cli
+
+replace scenario-to-cloud => ../../scenario-to-cloud/api
+
+replace scenario-to-desktop-api => ../../scenario-to-desktop/api
+
+replace scenario-to-desktop/cli => ../../scenario-to-desktop/cli
+
+replace swarm-manager => ../../swarm-manager/api
+
+replace swarm-manager/cli => ../../swarm-manager/cli
+
+replace test-genie => ../../test-genie/api
+
+replace test-genie/cli => ../../test-genie/cli
+
+replace ui-health => ../../ui-health/api
+
+replace unit-health => ../../unit-health/api
+
+replace unit-health/cli => ../../unit-health/cli
+
+replace vrooli-autoheal-langrecover => ../../vrooli-autoheal/langrecover
+
+replace web-console => ../../web-console/api
+
+replace workflow-health => ../../workflow-health/api
+
+replace workspace-sandbox => ../../workspace-sandbox/api

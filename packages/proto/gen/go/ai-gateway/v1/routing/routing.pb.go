@@ -1138,7 +1138,7 @@ type MediaExecution struct {
 	CompletedAt    string                 `protobuf:"bytes,6,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	RouteEvidence  *RouteEvidence         `protobuf:"bytes,7,opt,name=route_evidence,json=routeEvidence,proto3" json:"route_evidence,omitempty"`
 	Outputs        []*MediaOutput         `protobuf:"bytes,8,rep,name=outputs,proto3" json:"outputs,omitempty"`
-	ActualCostUsd  float64                `protobuf:"fixed64,9,opt,name=actual_cost_usd,json=actualCostUsd,proto3" json:"actual_cost_usd,omitempty"`
+	ActualCostUsd  *float64               `protobuf:"fixed64,9,opt,name=actual_cost_usd,json=actualCostUsd,proto3,oneof" json:"actual_cost_usd,omitempty"`
 	ResolvedModel  string                 `protobuf:"bytes,10,opt,name=resolved_model,json=resolvedModel,proto3" json:"resolved_model,omitempty"`
 	Seed           string                 `protobuf:"bytes,11,opt,name=seed,proto3" json:"seed,omitempty"`
 	Warnings       []string               `protobuf:"bytes,12,rep,name=warnings,proto3" json:"warnings,omitempty"`
@@ -1235,8 +1235,8 @@ func (x *MediaExecution) GetOutputs() []*MediaOutput {
 }
 
 func (x *MediaExecution) GetActualCostUsd() float64 {
-	if x != nil {
-		return x.ActualCostUsd
+	if x != nil && x.ActualCostUsd != nil {
+		return *x.ActualCostUsd
 	}
 	return 0
 }
@@ -2198,7 +2198,7 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"\x06inputs\x18\x03 \x03(\v2(.vrooli.ai_gateway.v1.routing.MediaInputR\x06inputs\x12!\n" +
 	"\foutput_count\x18\x04 \x01(\x05R\voutputCount\x12'\n" +
 	"\x0fidempotency_key\x18\x05 \x01(\tR\x0eidempotencyKey\x12)\n" +
-	"\x10output_reference\x18\x06 \x01(\tR\x0foutputReference\"\xe5\x04\n" +
+	"\x10output_reference\x18\x06 \x01(\tR\x0foutputReference\"\xfe\x04\n" +
 	"\x0eMediaExecution\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12J\n" +
@@ -2209,15 +2209,16 @@ const file_ai_gateway_v1_routing_routing_proto_rawDesc = "" +
 	"started_at\x18\x05 \x01(\tR\tstartedAt\x12!\n" +
 	"\fcompleted_at\x18\x06 \x01(\tR\vcompletedAt\x12R\n" +
 	"\x0eroute_evidence\x18\a \x01(\v2+.vrooli.ai_gateway.v1.routing.RouteEvidenceR\rrouteEvidence\x12C\n" +
-	"\aoutputs\x18\b \x03(\v2).vrooli.ai_gateway.v1.routing.MediaOutputR\aoutputs\x12&\n" +
-	"\x0factual_cost_usd\x18\t \x01(\x01R\ractualCostUsd\x12%\n" +
+	"\aoutputs\x18\b \x03(\v2).vrooli.ai_gateway.v1.routing.MediaOutputR\aoutputs\x12+\n" +
+	"\x0factual_cost_usd\x18\t \x01(\x01H\x00R\ractualCostUsd\x88\x01\x01\x12%\n" +
 	"\x0eresolved_model\x18\n" +
 	" \x01(\tR\rresolvedModel\x12\x12\n" +
 	"\x04seed\x18\v \x01(\tR\x04seed\x12\x1a\n" +
 	"\bwarnings\x18\f \x03(\tR\bwarnings\x12\x1d\n" +
 	"\n" +
 	"error_code\x18\r \x01(\tR\terrorCode\x12#\n" +
-	"\rerror_message\x18\x0e \x01(\tR\ferrorMessage\"a\n" +
+	"\rerror_message\x18\x0e \x01(\tR\ferrorMessageB\x12\n" +
+	"\x10_actual_cost_usd\"a\n" +
 	"\x13SubmitMediaResponse\x12J\n" +
 	"\texecution\x18\x01 \x01(\v2,.vrooli.ai_gateway.v1.routing.MediaExecutionR\texecution\"=\n" +
 	"\x18GetMediaExecutionRequest\x12!\n" +
@@ -2399,6 +2400,7 @@ func file_ai_gateway_v1_routing_routing_proto_init() {
 		return
 	}
 	file_ai_gateway_v1_routing_routing_proto_msgTypes[4].OneofWrappers = []any{}
+	file_ai_gateway_v1_routing_routing_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

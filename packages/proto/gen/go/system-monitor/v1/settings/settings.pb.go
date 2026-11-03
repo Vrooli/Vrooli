@@ -81,8 +81,25 @@ type SystemSettings struct {
 	MemoryPressureFullAvg60CriticalPercent     float64 `protobuf:"fixed64,26,opt,name=memory_pressure_full_avg60_critical_percent,json=memoryPressureFullAvg60CriticalPercent,proto3" json:"memory_pressure_full_avg60_critical_percent,omitempty"`
 	MemoryPressureSwapInElevatedBytesPerSecond float64 `protobuf:"fixed64,27,opt,name=memory_pressure_swap_in_elevated_bytes_per_second,json=memoryPressureSwapInElevatedBytesPerSecond,proto3" json:"memory_pressure_swap_in_elevated_bytes_per_second,omitempty"`
 	MemoryPressureSwapInCriticalBytesPerSecond float64 `protobuf:"fixed64,28,opt,name=memory_pressure_swap_in_critical_bytes_per_second,json=memoryPressureSwapInCriticalBytesPerSecond,proto3" json:"memory_pressure_swap_in_critical_bytes_per_second,omitempty"`
-	unknownFields                              protoimpl.UnknownFields
-	sizeCache                                  protoimpl.SizeCache
+	// Explicit alert boundaries and evidence windows. Notification enablement
+	// is owned per category by Notification Hub, not duplicated here.
+	MemoryCriticalPercent         float64 `protobuf:"fixed64,29,opt,name=memory_critical_percent,json=memoryCriticalPercent,proto3" json:"memory_critical_percent,omitempty"`
+	TcpConnectionsWarning         int32   `protobuf:"varint,30,opt,name=tcp_connections_warning,json=tcpConnectionsWarning,proto3" json:"tcp_connections_warning,omitempty"`
+	TcpConnectionsCritical        int32   `protobuf:"varint,31,opt,name=tcp_connections_critical,json=tcpConnectionsCritical,proto3" json:"tcp_connections_critical,omitempty"`
+	TcpGrowthWindowSeconds        int32   `protobuf:"varint,32,opt,name=tcp_growth_window_seconds,json=tcpGrowthWindowSeconds,proto3" json:"tcp_growth_window_seconds,omitempty"`
+	TcpGrowthFloor                int32   `protobuf:"varint,33,opt,name=tcp_growth_floor,json=tcpGrowthFloor,proto3" json:"tcp_growth_floor,omitempty"`
+	TcpGrowthMinSamples           int32   `protobuf:"varint,34,opt,name=tcp_growth_min_samples,json=tcpGrowthMinSamples,proto3" json:"tcp_growth_min_samples,omitempty"`
+	TcpGrowthFactor               float64 `protobuf:"fixed64,35,opt,name=tcp_growth_factor,json=tcpGrowthFactor,proto3" json:"tcp_growth_factor,omitempty"`
+	GpuUsageWarningPercent        float64 `protobuf:"fixed64,36,opt,name=gpu_usage_warning_percent,json=gpuUsageWarningPercent,proto3" json:"gpu_usage_warning_percent,omitempty"`
+	MetricsSnapshotStaleIntervals int32   `protobuf:"varint,37,opt,name=metrics_snapshot_stale_intervals,json=metricsSnapshotStaleIntervals,proto3" json:"metrics_snapshot_stale_intervals,omitempty"`
+	OrphanedAgentAgeSeconds       int32   `protobuf:"varint,38,opt,name=orphaned_agent_age_seconds,json=orphanedAgentAgeSeconds,proto3" json:"orphaned_agent_age_seconds,omitempty"`
+	OrphanedAgentMemoryBytes      int64   `protobuf:"varint,39,opt,name=orphaned_agent_memory_bytes,json=orphanedAgentMemoryBytes,proto3" json:"orphaned_agent_memory_bytes,omitempty"`
+	// Whether sustained critical conditions for each rule automatically run
+	// the rule's native catalog investigation. Notification preferences remain
+	// separately controlled by Notification Hub categories.
+	AutoInvestigateCriticalRules map[string]bool `protobuf:"bytes,40,rep,name=auto_investigate_critical_rules,json=autoInvestigateCriticalRules,proto3" json:"auto_investigate_critical_rules,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *SystemSettings) Reset() {
@@ -309,6 +326,90 @@ func (x *SystemSettings) GetMemoryPressureSwapInCriticalBytesPerSecond() float64
 		return x.MemoryPressureSwapInCriticalBytesPerSecond
 	}
 	return 0
+}
+
+func (x *SystemSettings) GetMemoryCriticalPercent() float64 {
+	if x != nil {
+		return x.MemoryCriticalPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetTcpConnectionsWarning() int32 {
+	if x != nil {
+		return x.TcpConnectionsWarning
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetTcpConnectionsCritical() int32 {
+	if x != nil {
+		return x.TcpConnectionsCritical
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetTcpGrowthWindowSeconds() int32 {
+	if x != nil {
+		return x.TcpGrowthWindowSeconds
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetTcpGrowthFloor() int32 {
+	if x != nil {
+		return x.TcpGrowthFloor
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetTcpGrowthMinSamples() int32 {
+	if x != nil {
+		return x.TcpGrowthMinSamples
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetTcpGrowthFactor() float64 {
+	if x != nil {
+		return x.TcpGrowthFactor
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetGpuUsageWarningPercent() float64 {
+	if x != nil {
+		return x.GpuUsageWarningPercent
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetMetricsSnapshotStaleIntervals() int32 {
+	if x != nil {
+		return x.MetricsSnapshotStaleIntervals
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetOrphanedAgentAgeSeconds() int32 {
+	if x != nil {
+		return x.OrphanedAgentAgeSeconds
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetOrphanedAgentMemoryBytes() int64 {
+	if x != nil {
+		return x.OrphanedAgentMemoryBytes
+	}
+	return 0
+}
+
+func (x *SystemSettings) GetAutoInvestigateCriticalRules() map[string]bool {
+	if x != nil {
+		return x.AutoInvestigateCriticalRules
+	}
+	return nil
 }
 
 // GetSettingsRequest is empty - no parameters needed.
@@ -841,7 +942,7 @@ var File_system_monitor_v1_settings_settings_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"\n" +
-	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\xbe\r\n" +
+	")system-monitor/v1/settings/settings.proto\x12!vrooli.system_monitor.v1.settings\x1a\x1cgoogle/api/annotations.proto\"\x9c\x14\n" +
 	"\x0eSystemSettings\x12\x16\n" +
 	"\x06active\x18\x01 \x01(\bR\x06active\x12<\n" +
 	"\x1ametric_collection_interval\x18\x02 \x01(\x05R\x18metricCollectionInterval\x12<\n" +
@@ -871,7 +972,22 @@ const file_system_monitor_v1_settings_settings_proto_rawDesc = "" +
 	"+memory_pressure_some_avg60_elevated_percent\x18\x19 \x01(\x01R&memoryPressureSomeAvg60ElevatedPercent\x12[\n" +
 	"+memory_pressure_full_avg60_critical_percent\x18\x1a \x01(\x01R&memoryPressureFullAvg60CriticalPercent\x12e\n" +
 	"1memory_pressure_swap_in_elevated_bytes_per_second\x18\x1b \x01(\x01R*memoryPressureSwapInElevatedBytesPerSecond\x12e\n" +
-	"1memory_pressure_swap_in_critical_bytes_per_second\x18\x1c \x01(\x01R*memoryPressureSwapInCriticalBytesPerSecond\"\x14\n" +
+	"1memory_pressure_swap_in_critical_bytes_per_second\x18\x1c \x01(\x01R*memoryPressureSwapInCriticalBytesPerSecond\x126\n" +
+	"\x17memory_critical_percent\x18\x1d \x01(\x01R\x15memoryCriticalPercent\x126\n" +
+	"\x17tcp_connections_warning\x18\x1e \x01(\x05R\x15tcpConnectionsWarning\x128\n" +
+	"\x18tcp_connections_critical\x18\x1f \x01(\x05R\x16tcpConnectionsCritical\x129\n" +
+	"\x19tcp_growth_window_seconds\x18  \x01(\x05R\x16tcpGrowthWindowSeconds\x12(\n" +
+	"\x10tcp_growth_floor\x18! \x01(\x05R\x0etcpGrowthFloor\x123\n" +
+	"\x16tcp_growth_min_samples\x18\" \x01(\x05R\x13tcpGrowthMinSamples\x12*\n" +
+	"\x11tcp_growth_factor\x18# \x01(\x01R\x0ftcpGrowthFactor\x129\n" +
+	"\x19gpu_usage_warning_percent\x18$ \x01(\x01R\x16gpuUsageWarningPercent\x12G\n" +
+	" metrics_snapshot_stale_intervals\x18% \x01(\x05R\x1dmetricsSnapshotStaleIntervals\x12;\n" +
+	"\x1aorphaned_agent_age_seconds\x18& \x01(\x05R\x17orphanedAgentAgeSeconds\x12=\n" +
+	"\x1borphaned_agent_memory_bytes\x18' \x01(\x03R\x18orphanedAgentMemoryBytes\x12\x9a\x01\n" +
+	"\x1fauto_investigate_critical_rules\x18( \x03(\v2S.vrooli.system_monitor.v1.settings.SystemSettings.AutoInvestigateCriticalRulesEntryR\x1cautoInvestigateCriticalRules\x1aO\n" +
+	"!AutoInvestigateCriticalRulesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\bR\x05value:\x028\x01\"\x14\n" +
 	"\x12GetSettingsRequest\"\x94\x01\n" +
 	"\x13GetSettingsResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12M\n" +
@@ -918,7 +1034,7 @@ func file_system_monitor_v1_settings_settings_proto_rawDescGZIP() []byte {
 	return file_system_monitor_v1_settings_settings_proto_rawDescData
 }
 
-var file_system_monitor_v1_settings_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_system_monitor_v1_settings_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_system_monitor_v1_settings_settings_proto_goTypes = []any{
 	(*SystemSettings)(nil),              // 0: vrooli.system_monitor.v1.settings.SystemSettings
 	(*GetSettingsRequest)(nil),          // 1: vrooli.system_monitor.v1.settings.GetSettingsRequest
@@ -931,27 +1047,29 @@ var file_system_monitor_v1_settings_settings_proto_goTypes = []any{
 	(*GetMaintenanceStateResponse)(nil), // 8: vrooli.system_monitor.v1.settings.GetMaintenanceStateResponse
 	(*SetMaintenanceStateRequest)(nil),  // 9: vrooli.system_monitor.v1.settings.SetMaintenanceStateRequest
 	(*SetMaintenanceStateResponse)(nil), // 10: vrooli.system_monitor.v1.settings.SetMaintenanceStateResponse
+	nil,                                 // 11: vrooli.system_monitor.v1.settings.SystemSettings.AutoInvestigateCriticalRulesEntry
 }
 var file_system_monitor_v1_settings_settings_proto_depIdxs = []int32{
-	0,  // 0: vrooli.system_monitor.v1.settings.GetSettingsResponse.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
-	0,  // 1: vrooli.system_monitor.v1.settings.UpdateSettingsRequest.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
-	0,  // 2: vrooli.system_monitor.v1.settings.UpdateSettingsResponse.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
-	0,  // 3: vrooli.system_monitor.v1.settings.ResetSettingsResponse.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
-	1,  // 4: vrooli.system_monitor.v1.settings.SettingsService.GetSettings:input_type -> vrooli.system_monitor.v1.settings.GetSettingsRequest
-	3,  // 5: vrooli.system_monitor.v1.settings.SettingsService.UpdateSettings:input_type -> vrooli.system_monitor.v1.settings.UpdateSettingsRequest
-	5,  // 6: vrooli.system_monitor.v1.settings.SettingsService.ResetSettings:input_type -> vrooli.system_monitor.v1.settings.ResetSettingsRequest
-	7,  // 7: vrooli.system_monitor.v1.settings.SettingsService.GetMaintenanceState:input_type -> vrooli.system_monitor.v1.settings.GetMaintenanceStateRequest
-	9,  // 8: vrooli.system_monitor.v1.settings.SettingsService.SetMaintenanceState:input_type -> vrooli.system_monitor.v1.settings.SetMaintenanceStateRequest
-	2,  // 9: vrooli.system_monitor.v1.settings.SettingsService.GetSettings:output_type -> vrooli.system_monitor.v1.settings.GetSettingsResponse
-	4,  // 10: vrooli.system_monitor.v1.settings.SettingsService.UpdateSettings:output_type -> vrooli.system_monitor.v1.settings.UpdateSettingsResponse
-	6,  // 11: vrooli.system_monitor.v1.settings.SettingsService.ResetSettings:output_type -> vrooli.system_monitor.v1.settings.ResetSettingsResponse
-	8,  // 12: vrooli.system_monitor.v1.settings.SettingsService.GetMaintenanceState:output_type -> vrooli.system_monitor.v1.settings.GetMaintenanceStateResponse
-	10, // 13: vrooli.system_monitor.v1.settings.SettingsService.SetMaintenanceState:output_type -> vrooli.system_monitor.v1.settings.SetMaintenanceStateResponse
-	9,  // [9:14] is the sub-list for method output_type
-	4,  // [4:9] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	11, // 0: vrooli.system_monitor.v1.settings.SystemSettings.auto_investigate_critical_rules:type_name -> vrooli.system_monitor.v1.settings.SystemSettings.AutoInvestigateCriticalRulesEntry
+	0,  // 1: vrooli.system_monitor.v1.settings.GetSettingsResponse.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
+	0,  // 2: vrooli.system_monitor.v1.settings.UpdateSettingsRequest.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
+	0,  // 3: vrooli.system_monitor.v1.settings.UpdateSettingsResponse.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
+	0,  // 4: vrooli.system_monitor.v1.settings.ResetSettingsResponse.settings:type_name -> vrooli.system_monitor.v1.settings.SystemSettings
+	1,  // 5: vrooli.system_monitor.v1.settings.SettingsService.GetSettings:input_type -> vrooli.system_monitor.v1.settings.GetSettingsRequest
+	3,  // 6: vrooli.system_monitor.v1.settings.SettingsService.UpdateSettings:input_type -> vrooli.system_monitor.v1.settings.UpdateSettingsRequest
+	5,  // 7: vrooli.system_monitor.v1.settings.SettingsService.ResetSettings:input_type -> vrooli.system_monitor.v1.settings.ResetSettingsRequest
+	7,  // 8: vrooli.system_monitor.v1.settings.SettingsService.GetMaintenanceState:input_type -> vrooli.system_monitor.v1.settings.GetMaintenanceStateRequest
+	9,  // 9: vrooli.system_monitor.v1.settings.SettingsService.SetMaintenanceState:input_type -> vrooli.system_monitor.v1.settings.SetMaintenanceStateRequest
+	2,  // 10: vrooli.system_monitor.v1.settings.SettingsService.GetSettings:output_type -> vrooli.system_monitor.v1.settings.GetSettingsResponse
+	4,  // 11: vrooli.system_monitor.v1.settings.SettingsService.UpdateSettings:output_type -> vrooli.system_monitor.v1.settings.UpdateSettingsResponse
+	6,  // 12: vrooli.system_monitor.v1.settings.SettingsService.ResetSettings:output_type -> vrooli.system_monitor.v1.settings.ResetSettingsResponse
+	8,  // 13: vrooli.system_monitor.v1.settings.SettingsService.GetMaintenanceState:output_type -> vrooli.system_monitor.v1.settings.GetMaintenanceStateResponse
+	10, // 14: vrooli.system_monitor.v1.settings.SettingsService.SetMaintenanceState:output_type -> vrooli.system_monitor.v1.settings.SetMaintenanceStateResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_system_monitor_v1_settings_settings_proto_init() }
@@ -965,7 +1083,7 @@ func file_system_monitor_v1_settings_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_monitor_v1_settings_settings_proto_rawDesc), len(file_system_monitor_v1_settings_settings_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

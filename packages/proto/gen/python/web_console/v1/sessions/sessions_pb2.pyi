@@ -305,16 +305,18 @@ class CreateRequest(_message.Message):
     def __init__(self, shell: _Optional[str] = ..., cols: _Optional[int] = ..., rows: _Optional[int] = ..., backend: _Optional[str] = ..., policy: _Optional[_Union[ExpirationPolicy, _Mapping]] = ..., has_policy: _Optional[bool] = ..., launch_command: _Optional[str] = ..., agent_type: _Optional[str] = ..., origin: _Optional[_Union[SessionOrigin, str]] = ..., owner: _Optional[str] = ..., display_label: _Optional[str] = ..., execute_launch_command: _Optional[bool] = ..., target_id: _Optional[str] = ..., working_dir: _Optional[str] = ..., tmux_mouse_mode: _Optional[bool] = ..., launch_mode: _Optional[str] = ..., launch_descriptor_json: _Optional[str] = ..., requested_session_id: _Optional[str] = ..., agent_run_identity_token: _Optional[str] = ..., business_account_id: _Optional[str] = ..., agent_launch: _Optional[_Union[AgentLaunch, _Mapping]] = ...) -> None: ...
 
 class AgentLaunch(_message.Message):
-    __slots__ = ("agent_id", "model", "provider", "context_limit_tokens")
+    __slots__ = ("agent_id", "model", "provider", "context_limit_tokens", "max_credits")
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_FIELD_NUMBER: _ClassVar[int]
     CONTEXT_LIMIT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CREDITS_FIELD_NUMBER: _ClassVar[int]
     agent_id: str
     model: str
     provider: str
     context_limit_tokens: int
-    def __init__(self, agent_id: _Optional[str] = ..., model: _Optional[str] = ..., provider: _Optional[str] = ..., context_limit_tokens: _Optional[int] = ...) -> None: ...
+    max_credits: int
+    def __init__(self, agent_id: _Optional[str] = ..., model: _Optional[str] = ..., provider: _Optional[str] = ..., context_limit_tokens: _Optional[int] = ..., max_credits: _Optional[int] = ...) -> None: ...
 
 class CreateResponse(_message.Message):
     __slots__ = ("session",)

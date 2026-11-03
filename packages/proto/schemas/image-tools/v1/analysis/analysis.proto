@@ -157,10 +157,11 @@ message DuplicateResult {
 }
 
 // QualityResult is the structured output of the pure-Go `quality_assessment`
-// op: no-reference image-quality heuristics (sharpness, exposure, contrast) and
-// a derived overall score. No model — runs on any host.
+// op: decoded pixel dimensions, no-reference image-quality heuristics
+// (sharpness, exposure, contrast), and a derived overall score. No model —
+// runs on any host.
 message QualityResult {
-  // OverallScore is a 0..1 quality estimate (higher = better).
+  // OverallScore is a 0..1 heuristic estimate, not a calibrated probability.
   double overall_score = 1;
   // Sharpness is the variance of the Laplacian (higher = sharper); 0..~large.
   double sharpness = 2;
@@ -174,6 +175,9 @@ message QualityResult {
   string exposure = 6;
   // Notes carries human-readable quality observations (e.g. "low contrast").
   repeated string notes = 7;
+  // WidthPx and HeightPx are decoded source-image dimensions in pixels.
+  int32 width_px = 8;
+  int32 height_px = 9;
 }
 
 // AnalyzeResponse is the protojson body returned by the analyze edge: the

@@ -1526,8 +1526,12 @@ type PreviewCryptoObservationResponse struct {
 	CandidateEffectAtomic             string `protobuf:"bytes,14,opt,name=candidate_effect_atomic,json=candidateEffectAtomic,proto3" json:"candidate_effect_atomic,omitempty"`
 	CorrectionRequiresOriginalReceipt bool   `protobuf:"varint,15,opt,name=correction_requires_original_receipt,json=correctionRequiresOriginalReceipt,proto3" json:"correction_requires_original_receipt,omitempty"`
 	Address                           string `protobuf:"bytes,16,opt,name=address,proto3" json:"address,omitempty"`
-	unknownFields                     protoimpl.UnknownFields
-	sizeCache                         protoimpl.SizeCache
+	// Block-specific chain evidence revision for an economic occurrence. This
+	// changes when a transaction is re-included in a different block; the
+	// occurrence_key remains stable across that change.
+	InclusionRevision string `protobuf:"bytes,17,opt,name=inclusion_revision,json=inclusionRevision,proto3" json:"inclusion_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PreviewCryptoObservationResponse) Reset() {
@@ -1672,6 +1676,13 @@ func (x *PreviewCryptoObservationResponse) GetAddress() string {
 	return ""
 }
 
+func (x *PreviewCryptoObservationResponse) GetInclusionRevision() string {
+	if x != nil {
+		return x.InclusionRevision
+	}
+	return ""
+}
+
 var File_money_ledger_v1_ingest_ingest_proto protoreflect.FileDescriptor
 
 const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
@@ -1784,7 +1795,7 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\abook_id\x18\v \x01(\tR\x06bookId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\f \x01(\tR\taccountId\x12\x18\n" +
-	"\aaddress\x18\r \x01(\tR\aaddress\"\xf1\x05\n" +
+	"\aaddress\x18\r \x01(\tR\aaddress\"\xa0\x06\n" +
 	" PreviewCryptoObservationResponse\x12\x18\n" +
 	"\anetwork\x18\x01 \x01(\tR\anetwork\x12\x19\n" +
 	"\basset_id\x18\x02 \x01(\tR\aassetId\x12#\n" +
@@ -1802,7 +1813,8 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\x13book_account_status\x18\r \x01(\tR\x11bookAccountStatus\x126\n" +
 	"\x17candidate_effect_atomic\x18\x0e \x01(\tR\x15candidateEffectAtomic\x12O\n" +
 	"$correction_requires_original_receipt\x18\x0f \x01(\bR!correctionRequiresOriginalReceipt\x12\x18\n" +
-	"\aaddress\x18\x10 \x01(\tR\aaddress*\x93\x01\n" +
+	"\aaddress\x18\x10 \x01(\tR\aaddress\x12-\n" +
+	"\x12inclusion_revision\x18\x11 \x01(\tR\x11inclusionRevision*\x93\x01\n" +
 	"\vAdapterKind\x12\x1c\n" +
 	"\x18ADAPTER_KIND_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ADAPTER_KIND_MANUAL\x10\x01\x12\x15\n" +

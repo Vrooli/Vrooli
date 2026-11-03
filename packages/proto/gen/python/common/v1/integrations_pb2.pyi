@@ -132,7 +132,7 @@ class PlatformVerdict(_message.Message):
     def __init__(self, support: _Optional[_Union[PlatformSupport, str]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class Integration(_message.Message):
-    __slots__ = ("id", "name", "description", "dependency_kind", "dependency_slug", "enabled", "required", "startup_policy", "features", "lifecycle", "action", "origin", "criticality", "platform")
+    __slots__ = ("id", "name", "description", "dependency_kind", "dependency_slug", "enabled", "required", "startup_policy", "features", "lifecycle", "action", "origin", "criticality", "platform", "uses", "installation")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -147,6 +147,8 @@ class Integration(_message.Message):
     ORIGIN_FIELD_NUMBER: _ClassVar[int]
     CRITICALITY_FIELD_NUMBER: _ClassVar[int]
     PLATFORM_FIELD_NUMBER: _ClassVar[int]
+    USES_FIELD_NUMBER: _ClassVar[int]
+    INSTALLATION_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     description: str
@@ -161,7 +163,31 @@ class Integration(_message.Message):
     origin: str
     criticality: Criticality
     platform: PlatformVerdict
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., dependency_kind: _Optional[_Union[DependencyKind, str]] = ..., dependency_slug: _Optional[str] = ..., enabled: _Optional[bool] = ..., required: _Optional[bool] = ..., startup_policy: _Optional[str] = ..., features: _Optional[_Iterable[_Union[Feature, _Mapping]]] = ..., lifecycle: _Optional[_Union[LifecycleState, _Mapping]] = ..., action: _Optional[_Union[ActionPolicy, _Mapping]] = ..., origin: _Optional[str] = ..., criticality: _Optional[_Union[Criticality, str]] = ..., platform: _Optional[_Union[PlatformVerdict, _Mapping]] = ...) -> None: ...
+    uses: _containers.RepeatedCompositeFieldContainer[IntegrationUse]
+    installation: LocalInstallation
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., dependency_kind: _Optional[_Union[DependencyKind, str]] = ..., dependency_slug: _Optional[str] = ..., enabled: _Optional[bool] = ..., required: _Optional[bool] = ..., startup_policy: _Optional[str] = ..., features: _Optional[_Iterable[_Union[Feature, _Mapping]]] = ..., lifecycle: _Optional[_Union[LifecycleState, _Mapping]] = ..., action: _Optional[_Union[ActionPolicy, _Mapping]] = ..., origin: _Optional[str] = ..., criticality: _Optional[_Union[Criticality, str]] = ..., platform: _Optional[_Union[PlatformVerdict, _Mapping]] = ..., uses: _Optional[_Iterable[_Union[IntegrationUse, _Mapping]]] = ..., installation: _Optional[_Union[LocalInstallation, _Mapping]] = ...) -> None: ...
+
+class IntegrationUse(_message.Message):
+    __slots__ = ("id", "name", "description", "group")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    GROUP_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    name: str
+    description: str
+    group: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., group: _Optional[str] = ...) -> None: ...
+
+class LocalInstallation(_message.Message):
+    __slots__ = ("location", "version", "selected")
+    LOCATION_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    SELECTED_FIELD_NUMBER: _ClassVar[int]
+    location: str
+    version: str
+    selected: bool
+    def __init__(self, location: _Optional[str] = ..., version: _Optional[str] = ..., selected: _Optional[bool] = ...) -> None: ...
 
 class Feature(_message.Message):
     __slots__ = ("id", "contract_version", "expected_unit")
